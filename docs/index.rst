@@ -20,6 +20,7 @@ API
 .. autofunction:: apply_to_pixels
 
 .. autofunction:: zonal_statistics
+.. autofunction:: session
 
 .. autoclass:: EOProduct
    :members:
