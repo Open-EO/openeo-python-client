@@ -21,9 +21,15 @@ class TestBandMath(TestCase):
         coverage = session.coverage("SENTINEL2_RADIOMETRY_10M")
 
         #how to find out which bands I need?
+        #are band id's supposed to be consistent across endpoints? Is that possible?
 
         #define a computation to perform
-        ndvi_coverage = coverage.combinebands(lambda band1, band2, band3 : band1+band2 )
+        #combinebands to REST: udf_type:apply_pixel, lang: Python
+        ndvi_coverage = coverage.combinebands([coverage.bands[0],coverage.bands[1],coverage.bands[8]], lambda band1, band2, band3 : band1+band2 )
 
         #materialize result in the shape of a geotiff
+        #REST: WCS call
         ndvi_coverage.geotiff(bbox="",time=coverage.dates[0])
+
+        #get result as timeseries for a single point
+        ndvi_coverage.meanseries(4,51)
