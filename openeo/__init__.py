@@ -9,3 +9,4 @@ __author__ = 'Jeroen Dries'
 from .api import apply_to_products,apply_to_pixels, zonal_statistics
 from .catalog import EOProduct
 from .sessions import session
+from .imagecollection import ImageCollection
