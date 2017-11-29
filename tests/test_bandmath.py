@@ -26,7 +26,8 @@ class TestBandMath(TestCase):
 
         #define a computation to perform
         #combinebands to REST: udf_type:apply_pixel, lang: Python
-        ndvi_coverage = s2_radio.combinebands([s2_radio.bands[0],s2_radio.bands[1],s2_radio.bands[2]], lambda band1, band2, band3 : band1+band2 )
+        bandFunction = lambda band1, band2, band3: band1 + band2
+        ndvi_coverage = s2_radio.combinebands([s2_radio.bands[0],s2_radio.bands[1],s2_radio.bands[2]], bandFunction)
 
         #materialize result in the shape of a geotiff
         #REST: WCS call
@@ -36,6 +37,9 @@ class TestBandMath(TestCase):
         #How to define a point? Ideally it should also have the CRS?
         ndvi_coverage.meanseries(4,51)
 
+        import base64
+        import cloudpickle
+        expected_function = str(base64.b64encode(cloudpickle.dumps(bandFunction)),"UTF-8")
         expected_graph = {
             'process_id': 'band_arithmetic',
             'args':
@@ -45,7 +49,7 @@ class TestBandMath(TestCase):
                             'product_id': 'SENTINEL2_RADIOMETRY_10M'
                         },
                     'bands': ['B0', 'B1', 'B2'],
-                    'function': 'gASVjQEAAAAAAACMF2Nsb3VkcGlja2xlLmNsb3VkcGlja2xllIwOX2ZpbGxfZnVuY3Rpb26Uk5QoaACMD19tYWtlX3NrZWxfZnVuY5STlGgAjA1fYnVpbHRpbl90eXBllJOUjAhDb2RlVHlwZZSFlFKUKEsDSwBLA0sCS1NDCHwAfAEXAFMAlE6FlCmMBWJhbmQxlIwFYmFuZDKUjAViYW5kM5SHlIxFL2hvbWUvZHJpZXNqL3B5dGhvbndvcmtzcGFjZS9vcGVuZW8tY2xpZW50LWFwaS90ZXN0cy90ZXN0X2JhbmRtYXRoLnB5lIwIPGxhbWJkYT6USx1DAJQpKXSUUpRK/////32Uh5RSlH2UKIwHZ2xvYmFsc5R9lIwIZGVmYXVsdHOUTowEZGljdJR9lIwGbW9kdWxllIwNdGVzdF9iYW5kbWF0aJSMDmNsb3N1cmVfdmFsdWVzlE6MCHF1YWxuYW1llIwoVGVzdEJhbmRNYXRoLnRlc3RfbmR2aS48bG9jYWxzPi48bGFtYmRhPpR1dFIu'
+                    'function': expected_function
                 }
         }
         session.post.assert_called_once_with("/v0.1/timeseries/point?x=4&y=51&srs=EPSG:4326",expected_graph)
