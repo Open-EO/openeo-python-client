@@ -1,8 +1,6 @@
-from abc import ABC, abstractmethod
-
-import json
-import requests
 import datetime
+
+import requests
 
 """
 openeo.sessions
@@ -36,11 +34,10 @@ class Session():
 
     def point_timeseries(self, graph, x, y, srs):
         """Compute a timeseries for a given point location."""
-        return self.post("/pointtimeseries?x={}&y={}&srs={}".format(x,y,srs),graph)
-        pass
+        return self.post("/v0.1/timeseries/point?x={}&y={}&srs={}".format(x,y,srs),graph)
 
     def post(self,path,postdata):
-        return requests.post(self.endpoint+path,postdata)
+        return requests.post(self.endpoint+path,json=postdata)
 
 
 

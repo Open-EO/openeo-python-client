@@ -13,5 +13,5 @@ setup(name='openeo-api',
       author='Jeroen Dries',
       author_email='jeroen.dries@vito.be',
       description='Client API for OpenEO',
-      packages=['openeo-api'],
+      packages=['openeo'],
       install_requires=['requests','shapely==1.5.17'])
