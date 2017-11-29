@@ -1,8 +1,9 @@
-from unittest import TestCase
 import unittest
+from unittest import TestCase
+
+from mock import MagicMock
+
 import openeo
-from mock import MagicMock, Mock, patch
-from openeo.sessions import Session
 
 
 class TestBandMath(TestCase):
@@ -47,7 +48,7 @@ class TestBandMath(TestCase):
                     'function': 'gASVjQEAAAAAAACMF2Nsb3VkcGlja2xlLmNsb3VkcGlja2xllIwOX2ZpbGxfZnVuY3Rpb26Uk5QoaACMD19tYWtlX3NrZWxfZnVuY5STlGgAjA1fYnVpbHRpbl90eXBllJOUjAhDb2RlVHlwZZSFlFKUKEsDSwBLA0sCS1NDCHwAfAEXAFMAlE6FlCmMBWJhbmQxlIwFYmFuZDKUjAViYW5kM5SHlIxFL2hvbWUvZHJpZXNqL3B5dGhvbndvcmtzcGFjZS9vcGVuZW8tY2xpZW50LWFwaS90ZXN0cy90ZXN0X2JhbmRtYXRoLnB5lIwIPGxhbWJkYT6USyBDAJQpKXSUUpRK/////32Uh5RSlH2UKIwHZ2xvYmFsc5R9lIwIZGVmYXVsdHOUTowEZGljdJR9lIwGbW9kdWxllIwNdGVzdF9iYW5kbWF0aJSMDmNsb3N1cmVfdmFsdWVzlE6MCHF1YWxuYW1llIwoVGVzdEJhbmRNYXRoLnRlc3RfbmR2aS48bG9jYWxzPi48bGFtYmRhPpR1dFIu'
                 }
         }
-        session.post.assert_called_once_with("/pointtimeseries?x=4&y=51&srs=EPSG:4326",expected_graph)
+        session.post.assert_called_once_with("/v0.1/timeseries/point?x=4&y=51&srs=EPSG:4326",expected_graph)
 
     @unittest.skip("Not yet implemented")
     def test_timeseries_fusion(self):
