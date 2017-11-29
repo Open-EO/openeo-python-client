@@ -1,0 +1,3 @@
+requests
+shapely==1.5.17
+cloudpickle
