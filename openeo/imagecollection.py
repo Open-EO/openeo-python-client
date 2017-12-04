@@ -1,8 +1,11 @@
-from abc import ABC, abstractmethod
-from typing import List,Dict
-import cloudpickle
-from .sessions import Session
 import base64
+from abc import ABC
+from typing import List, Dict
+
+import cloudpickle
+from pandas import Series
+
+from .sessions import Session
 
 
 class ImageCollection(ABC):
@@ -31,6 +34,26 @@ class ImageCollection(ABC):
             }
         }
         return ImageCollection(graph,session=self.session)
+
+    def reduceByTime(self,temporal_window, aggregationfunction) -> Series :
+        """ Applies a windowed reduction to a timeseries by applying a user defined function.
+            :param temporal_window: The time window to group by
+            :param aggregationfunction: The function to apply to each time window. Takes a pandas Timeseries as input.
+            :return A pandas Timeseries object
+        """
+        # /api/jobs
+        pickled_lambda = cloudpickle.dumps(aggregationfunction)
+        graph = {
+            'process_id': 'reduce_by_time',
+            'args' : {
+                'imagery':self.graph,
+                'temporal_window': temporal_window,
+                'function': str(base64.b64encode(pickled_lambda),"UTF-8")
+            }
+        }
+        return ImageCollection(graph,session=self.session)
+
+
 
     ####VIEW methods #######
     def meanseries(self, x,y, srs="EPSG:4326") -> Dict:

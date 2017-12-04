@@ -16,13 +16,9 @@ API
 .. automodule:: openeo
    :members:
 
-.. autofunction:: apply_to_products
-.. autofunction:: apply_to_pixels
-
-.. autofunction:: zonal_statistics
 .. autofunction:: session
 
-.. autoclass:: EOProduct
+.. autoclass:: ImageCollection
    :members:
 
 .. toctree::
