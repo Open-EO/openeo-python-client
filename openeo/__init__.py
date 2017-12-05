@@ -8,4 +8,4 @@ __author__ = 'Jeroen Dries'
 
 from .catalog import EOProduct
 from .imagecollection import ImageCollection
-from .sessions import session
+from .rest.rest_session import session
