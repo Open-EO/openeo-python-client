@@ -37,6 +37,7 @@ class ImageCollection(ABC):
 
     def reduceByTime(self,temporal_window, aggregationfunction) -> Series :
         """ Applies a windowed reduction to a timeseries by applying a user defined function.
+
             :param temporal_window: The time window to group by
             :param aggregationfunction: The function to apply to each time window. Takes a pandas Timeseries as input.
             :return A pandas Timeseries object
@@ -56,9 +57,10 @@ class ImageCollection(ABC):
 
 
     ####VIEW methods #######
-    def meanseries(self, x,y, srs="EPSG:4326") -> Dict:
+    def timeseries(self, x, y, srs="EPSG:4326") -> Dict:
         """
         Extract a time series for the given point location.
+
         :param x: The x coordinate of the point
         :param y: The y coordinate of the point
         :param srs: The spatial reference system of the coordinates, by default this is 'EPSG:4326', where x=longitude and y=latitude.

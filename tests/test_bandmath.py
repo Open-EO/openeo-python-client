@@ -11,7 +11,7 @@ class TestBandMath(TestCase):
 
     def test_ndvi(self):
         #configuration phase: define username, endpoint, parameters?
-        session = openeo.session("driesj")
+        session = openeo.session("driesj",endpoint="https://myopeneo.be/")
         session.post = MagicMock()
 
         #discovery phase: find available data
@@ -35,7 +35,7 @@ class TestBandMath(TestCase):
 
         #get result as timeseries for a single point
         #How to define a point? Ideally it should also have the CRS?
-        ndvi_coverage.meanseries(4,51)
+        ndvi_coverage.timeseries(4, 51)
 
         import base64
         import cloudpickle
@@ -76,4 +76,4 @@ class TestBandMath(TestCase):
         #combine timeseries, assumes pixels are aligned?
         fused_timeseries = openeo.timeseries_combination([s2_radio,probav_radio])
 
-        fused_timeseries.meanseries(4,51)
+        fused_timeseries.timeseries(4, 51)
