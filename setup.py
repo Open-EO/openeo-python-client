@@ -17,10 +17,4 @@ setup(name=name,
       description='Client API for OpenEO',
       packages=['openeo'],
       install_requires=['requests','shapely==1.5.17'],
-      cmdclass=cmdclass,
-      # these are optional and override conf.py settings
-      command_options={
-          'build_sphinx': {
-              'project': ('setup.py', name),
-              'version': ('setup.py', version),
-              'release': ('setup.py', 0)}},)
+      )
