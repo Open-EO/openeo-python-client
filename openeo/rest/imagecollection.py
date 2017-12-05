@@ -28,7 +28,7 @@ class RestImageCollection(ImageCollection):
                 'function': str(base64.b64encode(pickled_lambda),"UTF-8")
             }
         }
-        return ImageCollection(graph,session=self.session)
+        return RestImageCollection(graph,session=self.session)
 
     def reduceByTime(self,temporal_window, aggregationfunction) -> Series :
         """ Applies a windowed reduction to a timeseries by applying a user defined function.
@@ -47,7 +47,7 @@ class RestImageCollection(ImageCollection):
                 'function': str(base64.b64encode(pickled_lambda),"UTF-8")
             }
         }
-        return ImageCollection(graph,session=self.session)
+        return RestImageCollection(graph,session=self.session)
 
 
 
