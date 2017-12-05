@@ -48,4 +48,4 @@ def session(username=None,endpoint:str="https://openeo.org/endpoint"):
     :rtype: Session
     """
 
-    return Session(username,endpoint)
+    return RESTSession(username,endpoint)
