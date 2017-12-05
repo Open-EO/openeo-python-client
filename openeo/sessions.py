@@ -11,9 +11,6 @@ This module provides a Session object to manage and persist settings when intera
 
 class Session():
 
-    username:str
-    endpoint:str
-
     def __init__(self,username, endpoint):
         self.username = username
         self.endpoint = endpoint
@@ -25,8 +22,8 @@ class Session():
         pass
 
     def imagecollection(self, image_collection_id) -> 'ImageCollection':
-        from .imagecollection import ImageCollection
-        collection = ImageCollection({'product_id': image_collection_id}, self)
+        from .rest.imagecollection import RestImageCollection
+        collection = RestImageCollection({'product_id': image_collection_id}, self)
         #TODO session should be used to retrieve collection metadata (containing bands)
         collection.bands = ["B0","B1","B2"]
         collection.dates = [datetime.datetime.now()]
