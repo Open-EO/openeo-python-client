@@ -10,7 +10,7 @@ install:
 # command to run tests
 script:
   - pytest
-  - travis-sphinx -v -n build --source docs
+  - travis-sphinx -v build -n --source docs
 
 after_success:
   - travis-sphinx -v deploy
