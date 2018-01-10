@@ -1,6 +1,6 @@
 import re
 
-from setuptools import setup
+from setuptools import setup, find_packages
 from sphinx.setup_command import BuildDoc
 
 test_requirements = ['requests','mock']
@@ -15,6 +15,6 @@ setup(name=name,
       author='Jeroen Dries',
       author_email='jeroen.dries@vito.be',
       description='Client API for OpenEO',
-      packages=['openeo'],
+      packages=find_packages(include=['openeo*']),
       install_requires=['requests','shapely==1.5.17'],
       )
