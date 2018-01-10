@@ -19,6 +19,6 @@ deploy:
     secure: i9zkuiRZU0qHQsXTEBZg2J78pKwOkJSwQKV6IA00bbX7fMZiwPBAWXInP6CYd/eCazjU5OwpKRJjl5NRBaM+2UYJbw7r7W5VGqdMW3noAiD92ZFg5/a2qX67959ibWpyQ9LmtqgYaiIG7feO7JWtrYi7UKf0MzgLnsBnAfslT8mi3XO6u0jIYTgp+o6n5HFRbvAgEBQRIbtgZSPregvKHfwnQww9Qm8qqrSkWBJsqBh1KqUEUM9zBRf2/cd9SHfI9AePe3njfO1RtEQ/1iPvQC3x3+d7mU2M8lMRFQgshq0cuSnNIbSjqyyK6T7RI+yAb9yXbumGRROGlIV7glQSpxC3OZ9NXXMvPlpVIA3xQHs22Qcd0ysWQYQtiK/NaJlrum7FySAWzUqylaQBDZNLR9RRrbqVKB0rNzmvNKR9lrxgl9f/lXlw9L7MJyM49qo+1EzcUm+CrbNKLkEm8e/nHGhP+pStYz2bIK/Qx0rc32vXsAPgWhSdaLOk1BhhRsGbCx7IQbI+iXrV+ELJYMzVf3lMe8LQg0sA5E4km6BJpNOhvRX8ZykMp5yXaLzBm9B0v/hqwGSgftYcPatKZmQIL2gmVPmber3YxLFRfTkFDpd35AYe79uosmq1S9Rx5mhnN9R4dUy7eAC9XcPnJ2TYW+Rqh442Au09KKX0P4hPOK4=
   server: https://artifactory.vgt.vito.be/api/pypi/python-packages-public
   distributions: sdist bdist_wheel
-    on:
-      tags: false
-      python: 3.5
+  on:
+    tags: false
+    python: 3.5
