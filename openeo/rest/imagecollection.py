@@ -67,3 +67,7 @@ class RestImageCollection(ImageCollection):
     def geotiff(self, bbox="",time=""):
         """Extraxts a geotiff from this image collection."""
         pass
+
+    def tiled_viewing_service(self) -> Dict:
+        return self.session.tiled_viewing_service(self.graph)
+

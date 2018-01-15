@@ -35,6 +35,9 @@ class RESTSession(Session):
         """Compute a timeseries for a given point location."""
         return self.post("/v0.1/timeseries/point?x={}&y={}&srs={}".format(x,y,srs),graph)
 
+    def tiled_viewing_service(self,graph):
+        return self.post("/v0.1/tile_service",graph)
+
     def post(self,path,postdata):
         return requests.post(self.endpoint+path,json=postdata)
 

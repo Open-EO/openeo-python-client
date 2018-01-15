@@ -38,6 +38,12 @@ class ImageCollection(ABC):
         """
         pass
 
+    def tiled_viewing_service(self) -> Dict:
+        """
+        Returns metadata for a tiled viewing service that visualizes this layer.
+        :return: A dict containing viewing service metadata.
+        """
+        pass
 
     def geotiff(self, bbox="",time=""):
         """Extraxts a geotiff from this image collection."""
