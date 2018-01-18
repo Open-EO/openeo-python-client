@@ -26,7 +26,7 @@ class TestBandMath(TestCase):
         #define a computation to perform
         #combinebands to REST: udf_type:apply_pixel, lang: Python
         bandFunction = lambda band1, band2, band3: band1 + band2
-        ndvi_coverage = s2_radio.combinebands([s2_radio.bands[0],s2_radio.bands[1],s2_radio.bands[2]], bandFunction)
+        ndvi_coverage = s2_radio.apply_pixel([s2_radio.bands[0], s2_radio.bands[1], s2_radio.bands[2]], bandFunction)
 
         #materialize result in the shape of a geotiff
         #REST: WCS call
@@ -40,7 +40,7 @@ class TestBandMath(TestCase):
         import cloudpickle
         expected_function = str(base64.b64encode(cloudpickle.dumps(bandFunction)),"UTF-8")
         expected_graph = {
-            'process_id': 'band_arithmetic',
+            'process_id': 'apply_pixel',
             'args':
                 {
                     'collections':[

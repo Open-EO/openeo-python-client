@@ -11,8 +11,14 @@ class ImageCollection(ABC):
         pass
 
 
-    def combinebands(self, bands:List, bandfunction) -> 'ImageCollection':
-        """Apply a function to the given set of bands in this image collection."""
+    def apply_pixel(self, bands:List, bandfunction) -> 'ImageCollection':
+        """Apply a function to the given set of bands in this image collection.
+
+        This type applies a simple function to one pixel of the input image or image collection.
+        The function gets the value of one pixel (including all bands) as input and produces a single scalar or tuple output.
+        The result has the same schema as the input image (collection) but different bands.
+        Examples include the computation of vegetation indexes or filtering cloudy pixels.
+        """
         pass
 
     def reduceByTime(self,temporal_window, aggregationfunction) -> Series :

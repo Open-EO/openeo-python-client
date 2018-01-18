@@ -17,11 +17,11 @@ class RestImageCollection(ImageCollection):
         self.session = session
 
 
-    def combinebands(self, bands:List, bandfunction) -> 'ImageCollection':
+    def apply_pixel(self, bands:List, bandfunction) -> 'ImageCollection':
         """Apply a function to the given set of bands in this image collection."""
         pickled_lambda = cloudpickle.dumps(bandfunction)
         graph = {
-            'process_id': 'band_arithmetic',
+            'process_id': 'apply_pixel',
             'args' : {
                 'collections':[self.graph],
                 'bands':bands,
