@@ -1,9 +1,8 @@
 import unittest
 from unittest import TestCase
 
-from mock import MagicMock
-
 import openeo
+from mock import MagicMock
 
 
 class TestBandMath(TestCase):
@@ -44,15 +43,18 @@ class TestBandMath(TestCase):
             'process_id': 'band_arithmetic',
             'args':
                 {
-                    'imagery':
+                    'collections':[
                         {
                             'product_id': 'SENTINEL2_RADIOMETRY_10M'
-                        },
+                        }
+                    ],
                     'bands': ['B0', 'B1', 'B2'],
                     'function': expected_function
                 }
         }
-        session.post.assert_called_once_with("/v0.1/timeseries/point?x=4&y=51&srs=EPSG:4326",expected_graph)
+        session.post.assert_called_once_with("/openeo/v0.1/timeseries/point?x=4&y=51&srs=EPSG:4326",expected_graph)
+
+
 
     @unittest.skip("Not yet implemented")
     def test_timeseries_fusion(self):

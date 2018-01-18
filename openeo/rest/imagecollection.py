@@ -23,7 +23,7 @@ class RestImageCollection(ImageCollection):
         graph = {
             'process_id': 'band_arithmetic',
             'args' : {
-                'imagery':self.graph,
+                'collections':[self.graph],
                 'bands':bands,
                 'function': str(base64.b64encode(pickled_lambda),"UTF-8")
             }
@@ -42,7 +42,7 @@ class RestImageCollection(ImageCollection):
         graph = {
             'process_id': 'reduce_by_time',
             'args' : {
-                'imagery':self.graph,
+                'collections':[self.graph],
                 'temporal_window': temporal_window,
                 'function': str(base64.b64encode(pickled_lambda),"UTF-8")
             }

@@ -16,7 +16,7 @@ class RESTSession(Session):
     def __init__(self,username, endpoint):
         self.username = username
         self.endpoint = endpoint
-
+        self.root = "/openeo/v0.1"
 
     @property
     #@abstractmethod
@@ -33,10 +33,10 @@ class RESTSession(Session):
 
     def point_timeseries(self, graph, x, y, srs):
         """Compute a timeseries for a given point location."""
-        return self.post("/v0.1/timeseries/point?x={}&y={}&srs={}".format(x,y,srs),graph)
+        return self.post(self.root + "/timeseries/point?x={}&y={}&srs={}".format(x,y,srs),graph)
 
     def tiled_viewing_service(self,graph):
-        return self.post("/v0.1/tile_service",graph)
+        return self.post(self.root + "/tile_service",graph)
 
     def post(self,path,postdata):
         return requests.post(self.endpoint+path,json=postdata)
@@ -44,7 +44,7 @@ class RESTSession(Session):
 
 
 
-def session(username=None,endpoint:str="https://openeo.org/endpoint"):
+def session(username=None,endpoint:str="https://openeo.org/openeo"):
     """
     Returns a :class:`Session` for context-management.
 
