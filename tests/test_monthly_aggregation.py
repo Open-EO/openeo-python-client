@@ -18,5 +18,7 @@ class TestMonthlyAggregation(TestCase):
 
         #define a computation to perform
         #combinebands to REST: udf_type:apply_pixel, lang: Python
-        bandFunction = lambda timeseries: timeseries
-        ndvi_coverage = s2_radio.reduceByTime(MONTH_OF_YEAR, bandFunction)
+        bandFunction = lambda timeseries: {
+            #timeseries is an xarray dataarray
+        }
+        ndvi_coverage = s2_radio.aggregate_time(MONTH_OF_YEAR, bandFunction)

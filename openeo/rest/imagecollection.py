@@ -30,7 +30,7 @@ class RestImageCollection(ImageCollection):
         }
         return RestImageCollection(graph,session=self.session)
 
-    def reduceByTime(self,temporal_window, aggregationfunction) -> Series :
+    def aggregate_time(self, temporal_window, aggregationfunction) -> Series :
         """ Applies a windowed reduction to a timeseries by applying a user defined function.
 
             :param temporal_window: The time window to group by
@@ -49,6 +49,14 @@ class RestImageCollection(ImageCollection):
         }
         return RestImageCollection(graph,session=self.session)
 
+    def min_time(self) -> 'ImageCollection':
+        graph = {
+            'process_id': 'min_time',
+            'args' : {
+                'collections':[self.graph]
+            }
+        }
+        return RestImageCollection(graph,session=self.session)
 
 
     ####VIEW methods #######

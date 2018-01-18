@@ -1,8 +1,6 @@
 from abc import ABC
 from typing import List, Dict
 
-from pandas import Series
-
 
 class ImageCollection(ABC):
     """Class representing an Image Collection. """
@@ -21,15 +19,31 @@ class ImageCollection(ABC):
         """
         pass
 
-    def reduceByTime(self,temporal_window, aggregationfunction) -> Series :
+    def aggregate_time(self, temporal_window, aggregationfunction) -> 'ImageCollection' :
         """ Applies a windowed reduction to a timeseries by applying a user defined function.
 
             :param temporal_window: The time window to group by
             :param aggregationfunction: The function to apply to each time window. Takes a pandas Timeseries as input.
-            :return A pandas Timeseries object
+            :return An ImageCollection containing  a result for each time window
         """
         pass
 
+    def reduce_time(self, aggregationfunction) -> 'ImageCollection' :
+        """ Applies a windowed reduction to a timeseries by applying a user defined function.
+
+
+            :param aggregationfunction: The function to apply to each time window. Takes a pandas Timeseries as input.
+            :return An ImageCollection without a time dimension
+        """
+        pass
+
+    def min_time(self) -> 'ImageCollection':
+        """
+            Finds the minimum value of time series for all bands of the input dataset.
+
+            :return: An ImageCollection without a time dimension.
+        """
+        pass
 
 
     ####VIEW methods #######
