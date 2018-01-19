@@ -61,10 +61,10 @@ class ImageCollection(ABC):
     def tiled_viewing_service(self) -> Dict:
         """
         Returns metadata for a tiled viewing service that visualizes this layer.
-        :return: A dict containing viewing service metadata.
+        :return: A string containing the filename
         """
         pass
 
-    def download(self, bbox="", time="",outputformat="geotiff"):
+    def download(self,outputfile:str, bbox="", time="",outputformat="geotiff") -> str:
         """Extraxts a geotiff from this image collection."""
         pass

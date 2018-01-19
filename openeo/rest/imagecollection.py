@@ -72,9 +72,9 @@ class RestImageCollection(ImageCollection):
         return self.session.point_timeseries(self.graph, x, y, srs)
 
 
-    def download(self, bbox="", time="",outputformat="geotiff"):
+    def download(self,outputfile:str, bbox="", time="",outputformat="geotiff") -> str:
         """Extraxts a geotiff from this image collection."""
-        pass
+        return self.session.download(self.graph,time,outputformat,outputfile)
 
     def tiled_viewing_service(self) -> Dict:
         return self.session.tiled_viewing_service(self.graph)

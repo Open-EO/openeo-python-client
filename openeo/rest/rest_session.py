@@ -1,4 +1,5 @@
 import datetime
+import shutil
 
 import requests
 
@@ -37,6 +38,14 @@ class RESTSession(Session):
 
     def tiled_viewing_service(self,graph):
         return self.post(self.root + "/tile_service",graph)
+
+    def download(self, graph, time, outputformat, outputfile):
+
+        with open(outputfile, 'wb') as f:
+            r = requests.post(self.endpoint+self.root + "/download?date={}&outputformat={}".format(time,outputformat),json=graph,stream = True)
+            shutil.copyfileobj(r.raw, f)
+
+        return
 
     def post(self,path,postdata):
         return requests.post(self.endpoint+path,json=postdata)
