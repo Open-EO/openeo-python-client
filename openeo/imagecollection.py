@@ -65,6 +65,6 @@ class ImageCollection(ABC):
         """
         pass
 
-    def geotiff(self, bbox="",time=""):
+    def download(self, bbox="", time="",outputformat="geotiff"):
         """Extraxts a geotiff from this image collection."""
         pass

@@ -72,7 +72,7 @@ class RestImageCollection(ImageCollection):
         return self.session.point_timeseries(self.graph, x, y, srs)
 
 
-    def geotiff(self, bbox="",time=""):
+    def download(self, bbox="", time="",outputformat="geotiff"):
         """Extraxts a geotiff from this image collection."""
         pass
 

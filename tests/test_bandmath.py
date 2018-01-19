@@ -1,8 +1,9 @@
 import unittest
 from unittest import TestCase
 
-import openeo
 from mock import MagicMock
+
+import openeo
 
 
 class TestBandMath(TestCase):
@@ -30,7 +31,7 @@ class TestBandMath(TestCase):
 
         #materialize result in the shape of a geotiff
         #REST: WCS call
-        ndvi_coverage.geotiff(bbox="",time=s2_radio.dates[0])
+        ndvi_coverage.download(bbox="", time=s2_radio.dates[0])
 
         #get result as timeseries for a single point
         #How to define a point? Ideally it should also have the CRS?
