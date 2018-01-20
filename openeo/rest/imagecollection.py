@@ -1,7 +1,8 @@
 import base64
-from typing import List, Dict
+from typing import List, Dict, Union
 
 import cloudpickle
+from datetime import datetime, date
 from pandas import Series
 
 from ..imagecollection import ImageCollection
@@ -16,6 +17,17 @@ class RestImageCollection(ImageCollection):
         self.graph = parentgraph
         self.session = session
 
+    def date_range_filter(self, start_date: Union[str, datetime, date],
+                          end_date: Union[str, datetime, date]) -> 'ImageCollection':
+        graph = {
+            'process_id': 'filter_daterange',
+            'args' : {
+                'collections':[self.graph],
+                'from':start_date.isoformat(),
+                'to': end_date.isoformat()
+            }
+        }
+        return RestImageCollection(graph,session=self.session)
 
     def apply_pixel(self, bands:List, bandfunction) -> 'ImageCollection':
         """Apply a function to the given set of bands in this image collection."""

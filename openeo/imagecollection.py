@@ -1,5 +1,6 @@
 from abc import ABC
-from typing import List, Dict
+from typing import List, Dict,Union
+from datetime import datetime,date
 
 
 class ImageCollection(ABC):
@@ -7,6 +8,16 @@ class ImageCollection(ABC):
 
     def __init__(self):
         pass
+
+
+    def date_range_filter(self,start_date:Union[str,datetime,date],end_date:Union[str,datetime,date]) -> 'ImageCollection':
+        """
+        Specifies a date range filter to be applied on the ImageCollection
+
+        :param start_date: Start date of the filter, inclusive.
+        :param end_date: End date of the filter, exclusive TODO!
+        :return: An ImageCollection filtered by date.
+        """
 
 
     def apply_pixel(self, bands:List, bandfunction) -> 'ImageCollection':
@@ -61,6 +72,7 @@ class ImageCollection(ABC):
     def tiled_viewing_service(self) -> Dict:
         """
         Returns metadata for a tiled viewing service that visualizes this layer.
+
         :return: A string containing the filename
         """
         pass
