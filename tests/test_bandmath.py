@@ -13,6 +13,7 @@ class TestBandMath(TestCase):
         #configuration phase: define username, endpoint, parameters?
         session = openeo.session("driesj",endpoint="https://myopeneo.be/")
         session.post = MagicMock()
+        session.download = MagicMock()
 
         #discovery phase: find available data
         #basically user needs to find available data on a website anyway?
@@ -41,19 +42,21 @@ class TestBandMath(TestCase):
         import cloudpickle
         expected_function = str(base64.b64encode(cloudpickle.dumps(bandFunction)),"UTF-8")
         expected_graph = {
-            'process_id': 'apply_pixel',
-            'args':
-                {
-                    'collections':[
-                        {
-                            'product_id': 'SENTINEL2_RADIOMETRY_10M'
-                        }
-                    ],
-                    'bands': ['B0', 'B1', 'B2'],
-                    'function': expected_function
-                }
+            'process_graph': {
+                'process_id': 'apply_pixel',
+                'args':
+                    {
+                        'collections':[
+                            {
+                                'collection_id': 'SENTINEL2_RADIOMETRY_10M'
+                            }
+                        ],
+                        'bands': ['B0', 'B1', 'B2'],
+                        'function': expected_function
+                    }
+            }
         }
-        session.post.assert_called_once_with("/openeo/v0.1/timeseries/point?x=4&y=51&srs=EPSG:4326",expected_graph)
+        session.post.assert_called_once_with("/openeo/timeseries/point?x=4&y=51&srs=EPSG:4326",expected_graph)
 
 
 
