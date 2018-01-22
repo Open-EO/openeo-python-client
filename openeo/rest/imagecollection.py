@@ -32,6 +32,20 @@ class RestImageCollection(ImageCollection):
         }
         return RestImageCollection(graph,session=self.session)
 
+    def bbox_filter(self, left, right, top, bottom, srs) -> 'ImageCollection':
+        graph = {
+            'process_id': 'filter_bbox',
+            'args' : {
+                'collections':[self.graph],
+                'left':left,
+                'right': right,
+                'top':top,
+                'bottom':bottom,
+                'srs':srs
+            }
+        }
+        return RestImageCollection(graph,session=self.session)
+
     def apply_pixel(self, bands:List, bandfunction) -> 'ImageCollection':
         """Apply a function to the given set of bands in this image collection."""
         pickled_lambda = cloudpickle.dumps(bandfunction)
@@ -67,6 +81,15 @@ class RestImageCollection(ImageCollection):
     def min_time(self) -> 'ImageCollection':
         graph = {
             'process_id': 'min_time',
+            'args' : {
+                'collections':[self.graph]
+            }
+        }
+        return RestImageCollection(graph,session=self.session)
+
+    def max_time(self) -> 'ImageCollection':
+        graph = {
+            'process_id': 'max_time',
             'args' : {
                 'collections':[self.graph]
             }

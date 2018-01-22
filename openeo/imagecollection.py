@@ -21,6 +21,16 @@ class ImageCollection(ABC):
         :return: An ImageCollection filtered by date.
         """
 
+    def bbox_filter(self,left,right,top,bottom,srs) -> 'ImageCollection':
+        """
+        Specifies a bounding box to filter input image collections.
+        :param left:
+        :param right:
+        :param top:
+        :param bottom:
+        :param srs:
+        :return: An image collection cropped to the specified bounding box.
+        """
 
     def apply_pixel(self, bands:List, bandfunction) -> 'ImageCollection':
         """Apply a function to the given set of bands in this image collection.
@@ -51,6 +61,14 @@ class ImageCollection(ABC):
         pass
 
     def min_time(self) -> 'ImageCollection':
+        """
+            Finds the minimum value of time series for all bands of the input dataset.
+
+            :return: An ImageCollection without a time dimension.
+        """
+        pass
+
+    def max_time(self) -> 'ImageCollection':
         """
             Finds the minimum value of time series for all bands of the input dataset.
 
