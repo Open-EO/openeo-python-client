@@ -2,6 +2,8 @@ from abc import ABC
 from typing import List, Dict,Union
 from datetime import datetime,date
 
+from openeo.job import Job
+
 
 class ImageCollection(ABC):
     """Class representing an Image Collection. """
@@ -79,4 +81,8 @@ class ImageCollection(ABC):
 
     def download(self,outputfile:str, bbox="", time="",outputformat="geotiff") -> str:
         """Extraxts a geotiff from this image collection."""
+        pass
+
+    def send_job(self,batch=False) -> Job:
+        """Sends the current process to the backend, for processing."""
         pass

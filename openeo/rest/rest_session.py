@@ -17,7 +17,7 @@ class RESTSession(Session):
     def __init__(self,username, endpoint):
         self.username = username
         self.endpoint = endpoint
-        self.root = "/openeo/v0.1"
+        self.root = "/openeo"
 
     @property
     #@abstractmethod
@@ -26,7 +26,7 @@ class RESTSession(Session):
 
     def imagecollection(self, image_collection_id) -> 'ImageCollection':
         from .imagecollection import RestImageCollection
-        collection = RestImageCollection({'product_id': image_collection_id}, self)
+        collection = RestImageCollection({'collection_id': image_collection_id}, self)
         #TODO session should be used to retrieve collection metadata (containing bands)
         collection.bands = ["B0","B1","B2"]
         collection.dates = [datetime.datetime.now()]
@@ -40,12 +40,35 @@ class RESTSession(Session):
         return self.post(self.root + "/tile_service",graph)
 
     def download(self, graph, time, outputformat, outputfile):
-
         with open(outputfile, 'wb') as f:
-            r = requests.post(self.endpoint+self.root + "/download?date={}&outputformat={}".format(time,outputformat),json=graph,stream = True)
+            download_url = self.endpoint + self.root + "/download?date={}&outputformat={}".format(time, outputformat)
+            r = requests.post(download_url, json=graph, stream = True)
             shutil.copyfileobj(r.raw, f)
 
         return
+
+    def download_job(self, job_id, outputfile,outputformat):
+        download_url = self.endpoint + self.root + "/download/wcs/{}?outputformat={}".format( job_id,outputformat)
+        r = requests.get(download_url, stream = True)
+        if r.status_code == 200:
+            with open(outputfile, 'wb') as f:
+                shutil.copyfileobj(r.raw, f)
+        else:
+            raise ConnectionAbortedError(r.text)
+
+        return
+
+
+    def job(self,graph,batch=False) -> str:
+        response = self.post(self.root + "/jobs".format(batch), graph)
+        return self.parse_json_response(response).get("job_id","")
+
+    def parse_json_response(self,response:requests.Response):
+        if response.status_code == 200:
+            return response.json()
+        else:
+            raise ConnectionAbortedError(response.text)
+
 
     def post(self,path,postdata):
         return requests.post(self.endpoint+path,json=postdata)

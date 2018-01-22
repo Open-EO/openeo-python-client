@@ -4,7 +4,10 @@ from typing import List, Dict, Union
 import cloudpickle
 from datetime import datetime, date
 from pandas import Series
+import pandas as pd
 
+from openeo.job import Job
+from openeo.rest.job import ClientJob
 from ..imagecollection import ImageCollection
 from ..sessions import Session
 
@@ -23,8 +26,8 @@ class RestImageCollection(ImageCollection):
             'process_id': 'filter_daterange',
             'args' : {
                 'collections':[self.graph],
-                'from':start_date.isoformat(),
-                'to': end_date.isoformat()
+                'from':pd.to_datetime( start_date ).isoformat(),
+                'to': pd.to_datetime( end_date ) .isoformat()
             }
         }
         return RestImageCollection(graph,session=self.session)
@@ -81,13 +84,17 @@ class RestImageCollection(ImageCollection):
         :param srs: The spatial reference system of the coordinates, by default this is 'EPSG:4326', where x=longitude and y=latitude.
         :return: Dict: A timeseries
         """
-        return self.session.point_timeseries(self.graph, x, y, srs)
+        return self.session.point_timeseries({"process_graph":self.graph}, x, y, srs)
 
 
     def download(self,outputfile:str, bbox="", time="",outputformat="geotiff") -> str:
         """Extraxts a geotiff from this image collection."""
-        return self.session.download(self.graph,time,outputformat,outputfile)
+        return self.session.download({"process_graph":self.graph},time,outputformat,outputfile)
 
     def tiled_viewing_service(self) -> Dict:
-        return self.session.tiled_viewing_service(self.graph)
+        return self.session.tiled_viewing_service({"process_graph":self.graph})
+
+    def send_job(self, batch=False) -> Job:
+        return ClientJob(self.session.job({"process_graph":self.graph},batch=batch),self.session)
+
 
