@@ -41,8 +41,8 @@ class RESTSession(Session):
 
     def download(self, graph, time, outputformat, outputfile):
         with open(outputfile, 'wb') as f:
-            download_url = self.endpoint + self.root + "/download?date={}&outputformat={}".format(time, outputformat)
-            r = requests.post(download_url, json=graph, stream = True)
+            download_url = self.endpoint + self.root + "/download".format(time, outputformat)
+            r = requests.post(download_url, json=graph, stream = True, timeout=1000 )
             shutil.copyfileobj(r.raw, f)
 
         return
