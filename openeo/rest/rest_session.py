@@ -26,7 +26,7 @@ class RESTSession(Session):
     #@property
     #@abstractmethod
     def auth(self, username, password) -> str:
-        token = requests.post('http://localhost:8000/api/auth/login', auth=HTTPBasicAuth('test', 'test'))
+        token = requests.post(self.endpoint+'/auth/login', auth=HTTPBasicAuth('test', 'test'))
 
         if token.status_code == 200:
             self.token = json.loads(token.text)["token"]
@@ -35,7 +35,22 @@ class RESTSession(Session):
 
     def user_jobs(self):
         jobs = self.get('/users/{}/jobs'.format(self.userid))
+        jobs = json.loads(jobs.text)
         return jobs
+
+    def get_all_data(self):
+        data = self.get('/data/')
+        data_dict = json.loads(data.text)
+        return data_dict
+
+    def get_data(self, data_id):
+        if data_id:
+            data_info = self.get('/data/{}'.format(data_id))
+            data_dict = json.loads(data_info.text)
+        else:
+            data_dict = None
+
+        return data_dict
 
     def imagecollection(self, image_collection_id) -> 'ImageCollection':
         from .imagecollection import RestImageCollection
@@ -84,14 +99,16 @@ class RESTSession(Session):
 
 
     def post(self,path,postdata):
-        return requests.post(self.endpoint+path,json=postdata, headers={'Authorization': 'Bearer {}'.format(self.token)})
-        #return requests.post(self.endpoint+path,json=postdata)
+        if self.token:
+            return requests.post(self.endpoint+path,json=postdata, headers={'Authorization': 'Bearer {}'.format(self.token)})
+        else:
+            return requests.post(self.endpoint + path, json=postdata)
+
     def get(self,path):
-        whole_path = self.endpoint+path
-        return requests.get(self.endpoint+path, headers={'Authorization': 'Bearer {}'.format(self.token)})
-        #return requests.post(self.endpoint+path,json=postdata)
-
-
+        if self.token:
+            return requests.get(self.endpoint+path, headers={'Authorization': 'Bearer {}'.format(self.token)})
+        else:
+            return requests.get(self.endpoint + path)
 
 
 def session(userid=None,endpoint:str="https://openeo.org/openeo"):
