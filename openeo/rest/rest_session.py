@@ -1,7 +1,10 @@
 import datetime
 import shutil
 
+import json
+
 import requests
+from requests.auth import HTTPBasicAuth
 
 from ..sessions import Session
 
@@ -14,15 +17,25 @@ This module provides a Session object to manage and persist settings when intera
 
 class RESTSession(Session):
 
-    def __init__(self,username, endpoint):
-        self.username = username
+    def __init__(self,userid, endpoint):
+        self.userid = userid
         self.endpoint = endpoint
         self.root = "/openeo"
+        self.token = None
 
-    @property
+    #@property
     #@abstractmethod
-    def auth(self) -> str:
-        pass
+    def auth(self, username, password) -> str:
+        token = requests.post('http://localhost:8000/api/auth/login', auth=HTTPBasicAuth('test', 'test'))
+
+        if token.status_code == 200:
+            self.token = json.loads(token.text)["token"]
+
+        return self.token
+
+    def user_jobs(self):
+        jobs = self.get('/users/{}/jobs'.format(self.userid))
+        return jobs
 
     def imagecollection(self, image_collection_id) -> 'ImageCollection':
         from .imagecollection import RestImageCollection
@@ -41,8 +54,8 @@ class RESTSession(Session):
 
     def download(self, graph, time, outputformat, outputfile):
         with open(outputfile, 'wb') as f:
-            download_url = self.endpoint + self.root + "/download".format(time, outputformat)
-            r = requests.post(download_url, json=graph, stream = True, timeout=1000 )
+            download_url = self.endpoint + self.root + "/download?date={}&outputformat={}".format(time, outputformat)
+            r = requests.post(download_url, json=graph, stream = True)
             shutil.copyfileobj(r.raw, f)
 
         return
@@ -71,16 +84,21 @@ class RESTSession(Session):
 
 
     def post(self,path,postdata):
-        return requests.post(self.endpoint+path,json=postdata)
+        return requests.post(self.endpoint+path,json=postdata, headers={'Authorization': 'Bearer {}'.format(self.token)})
+        #return requests.post(self.endpoint+path,json=postdata)
+    def get(self,path):
+        whole_path = self.endpoint+path
+        return requests.get(self.endpoint+path, headers={'Authorization': 'Bearer {}'.format(self.token)})
+        #return requests.post(self.endpoint+path,json=postdata)
 
 
 
 
-def session(username=None,endpoint:str="https://openeo.org/openeo"):
+def session(userid=None,endpoint:str="https://openeo.org/openeo"):
     """
     Returns a :class:`Session` for context-management.
 
     :rtype: Session
     """
 
-    return RESTSession(username,endpoint)
+    return RESTSession(userid,endpoint)
