@@ -52,6 +52,20 @@ class RESTSession(Session):
 
         return data_dict
 
+    def get_all_processes(self):
+        processes = self.get('/processes/')
+        processes_dict = json.loads(processes.text)
+        return processes_dict
+
+    def get_process(self, process_id):
+        if process_id:
+            process_info = self.get('/processes/{}'.format(process_id))
+            processes_dict = json.loads(process_info.text)
+        else:
+            processes_dict = None
+
+        return processes_dict
+
     def imagecollection(self, image_collection_id) -> 'ImageCollection':
         from .imagecollection import RestImageCollection
         collection = RestImageCollection({'collection_id': image_collection_id}, self)
