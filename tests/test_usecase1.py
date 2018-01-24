@@ -1,9 +1,11 @@
 import unittest
 from unittest import TestCase
-
+import os
 from unittest.mock import MagicMock
 
 import openeo
+
+POST_DATA = '{"process_id": "filter_daterange", "args": { "imagery": { "product_id": "landsat7_ndvi"}, "from": "2014-01-01", "to": "2014-06-01"}}'
 
 
 class TestUsecase1(TestCase):
@@ -17,6 +19,7 @@ class TestUsecase1(TestCase):
 
         self.data_id= "sentinel2_subset"
         self.process_id = "calculate_ndvi"
+        self.output_file = "/home/berni/test.gtiff"
 
 
     def test_user_login(self):
@@ -54,6 +57,17 @@ class TestUsecase1(TestCase):
         process_info = session.get_process(self.process_id)
 
         self.assertEqual(process_info["process_id"], self.process_id)
+
+    def test_job_creation(self):
+
+        session = openeo.session(self.uiser_id, endpoint=self.endpoint)
+        session.auth(self.auth_id, self.auth_pwd)
+        job_id = session.create_job(POST_DATA)
+        self.assertIsNotNone(job_id)
+
+        #session.download_image(job_id, self.output_file,"image/gtiff")
+
+       # self.assertTrue(os.path.isfile(self.output_file))
 
 
 if __name__ == '__main__':
