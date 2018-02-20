@@ -39,10 +39,14 @@ class RESTSession(Session):
     def tiled_viewing_service(self,graph):
         return self.parse_json_response(self.post(self.root + "/tile_service",graph))
 
-    def download(self, graph, time, outputformat, outputfile):
+    def download(self, graph, time, outputfile,format_options):
         with open(outputfile, 'wb') as f:
-            download_url = self.endpoint + self.root + "/download".format(time, outputformat)
-            r = requests.post(download_url, json=graph, stream = True, timeout=1000 )
+            download_url = self.endpoint + self.root + "/execute"
+            request = {
+                "process_graph":graph,
+                "output":format_options
+            }
+            r = requests.post(download_url, json=request, stream = True, timeout=1000 )
             shutil.copyfileobj(r.raw, f)
 
         return
