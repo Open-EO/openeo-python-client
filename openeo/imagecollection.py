@@ -21,9 +21,10 @@ class ImageCollection(ABC):
         :return: An ImageCollection filtered by date.
         """
 
-    def bbox_filter(self,left,right,top,bottom,srs) -> 'ImageCollection':
+    def bbox_filter(self,left:float,right:float,top:float,bottom:float,srs:str) -> 'ImageCollection':
         """
         Specifies a bounding box to filter input image collections.
+
         :param left:
         :param right:
         :param top:
@@ -97,10 +98,10 @@ class ImageCollection(ABC):
         """
         pass
 
-    def download(self,outputfile:str, bbox="", time="",outputformat="geotiff") -> str:
+    def download(self,outputfile:str, bbox="", time="",**format_options):
         """Extraxts a geotiff from this image collection."""
         pass
 
-    def send_job(self,batch=False) -> Job:
+    def send_job(self) -> Job:
         """Sends the current process to the backend, for processing."""
         pass
