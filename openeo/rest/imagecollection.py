@@ -117,7 +117,8 @@ class RestImageCollection(ImageCollection):
     def tiled_viewing_service(self) -> Dict:
         return self.session.tiled_viewing_service({"process_graph":self.graph})
 
-    def send_job(self, batch=False) -> Job:
-        return ClientJob(self.session.job({"process_graph":self.graph},batch=batch),self.session)
+    def send_job(self) -> Job:
+        return ClientJob(self.session.job({"process_graph":self.graph}),self.session)
 
-
+    def execute(self) -> Dict:
+        return self.session.execute({"process_graph":self.graph})

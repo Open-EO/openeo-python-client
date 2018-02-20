@@ -37,7 +37,7 @@ class RESTSession(Session):
         return self.post(self.root + "/timeseries/point?x={}&y={}&srs={}".format(x,y,srs),graph)
 
     def tiled_viewing_service(self,graph):
-        return self.post(self.root + "/tile_service",graph)
+        return self.parse_json_response(self.post(self.root + "/tile_service",graph))
 
     def download(self, graph, time, outputformat, outputfile):
         with open(outputfile, 'wb') as f:
@@ -59,8 +59,17 @@ class RESTSession(Session):
         return
 
 
-    def job(self,graph,batch=False) -> str:
-        response = self.post(self.root + "/jobs".format(batch), graph)
+    def execute(self,graph):
+        """
+        Execute a process graph synchronously.
+        :param graph: Dict representing a process graph
+        :return:
+        """
+        response = self.post(self.root + "/execute", graph)
+        return self.parse_json_response(response).get("job_id","")
+
+    def job(self,graph,batch=False):
+        response = self.post(self.root + "/jobs", graph)
         return self.parse_json_response(response).get("job_id","")
 
     def parse_json_response(self,response:requests.Response):
