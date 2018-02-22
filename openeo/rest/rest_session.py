@@ -6,6 +6,7 @@ import json
 import requests
 from requests.auth import HTTPBasicAuth
 
+import json
 from ..sessions import Session
 
 """
@@ -103,14 +104,19 @@ class RESTSession(Session):
         return self.parse_json_response(self.post(self.root + "/tile_service",graph))
 
     def download(self, graph, time, outputfile,format_options):
-        with open(outputfile, 'wb') as f:
-            download_url = self.endpoint + self.root + "/execute"
-            request = {
-                "process_graph":graph,
-                "output":format_options
-            }
-            r = requests.post(download_url, json=request, stream = True, timeout=1000 )
-            shutil.copyfileobj(r.raw, f)
+
+        download_url = self.endpoint + self.root + "/execute"
+        request = {
+            "process_graph":graph,
+            "output":format_options
+        }
+        r = requests.post(download_url, json=request, stream = True, timeout=1000 )
+        if r.status_code == 200:
+            with open(outputfile, 'wb') as f:
+                shutil.copyfileobj(r.raw, f)
+        else:
+            raise IOError("Received an exception from the server for url: {} and POST message: {}".format(download_url,json.dumps( graph ) ) + r.text)
+
 
         return
 
