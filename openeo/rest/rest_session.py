@@ -121,7 +121,7 @@ class RESTSession(Session):
         return
 
     def download_job(self, job_id, outputfile,outputformat):
-        download_url = self.endpoint + self.root + "/download/wcs/{}?format={}".format( job_id,outputformat)
+        download_url = self.endpoint + self.root + "/jobs/{}/download?format={}".format( job_id,outputformat)
         r = requests.get(download_url, stream = True)
         if r.status_code == 200:
             with open(outputfile, 'wb') as f:
