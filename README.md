@@ -10,3 +10,20 @@ Python client API for OpenEO. Allows you to interact with OpenEO backends from y
 [General OpenEO background](https://open-eo.github.io/openeo-api-poc/)
 
 [API docs](https://open-eo.github.io/openeo-python-client/)
+
+## Development
+
+Installing locally checked out version:
+```bash
+pip install --user -e .
+```
+Building the documentation:
+
+As HTML:
+```bash
+python setup.py build_sphinx -c docs
+ ```
+As Latex: 
+```bash
+python setup.py build_sphinx -c docs -b latex
+```

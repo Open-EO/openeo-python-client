@@ -92,7 +92,7 @@ class RESTSession(Session):
         from .imagecollection import RestImageCollection
         collection = RestImageCollection({'collection_id': image_collection_id}, self)
         #TODO session should be used to retrieve collection metadata (containing bands)
-        collection.bands = ["B0","B1","B2"]
+        collection.bands = ["B0","B1","B2","B3"]
         collection.dates = [datetime.datetime.now()]
         return collection
 
@@ -115,7 +115,7 @@ class RESTSession(Session):
             with open(outputfile, 'wb') as f:
                 shutil.copyfileobj(r.raw, f)
         else:
-            raise IOError("Received an exception from the server for url: {} and POST message: {}".format(download_url,json.dumps( graph ) ) + r.text)
+            raise IOError("Received an exception from the server for url: {} and POST message: {}".format(download_url,json.dumps( request ) ) + r.text)
 
 
         return

@@ -48,16 +48,17 @@ class ImageCollection(ABC):
 
             :param temporal_window: The time window to group by
             :param aggregationfunction: The function to apply to each time window. Takes a pandas Timeseries as input.
-            :return An ImageCollection containing  a result for each time window
+
+            :return: An ImageCollection containing  a result for each time window
         """
         pass
 
     def reduce_time(self, aggregationfunction) -> 'ImageCollection' :
         """ Applies a windowed reduction to a timeseries by applying a user defined function.
 
-
             :param aggregationfunction: The function to apply to each time window. Takes a pandas Timeseries as input.
-            :return An ImageCollection without a time dimension
+
+            :return: An ImageCollection without a time dimension
         """
         pass
 
@@ -103,5 +104,8 @@ class ImageCollection(ABC):
         pass
 
     def send_job(self) -> Job:
-        """Sends the current process to the backend, for processing."""
+        """Sends the current process to the backend, for batch processing.
+
+            :return: Job: A job object that can be used to query the processing status.
+        """
         pass

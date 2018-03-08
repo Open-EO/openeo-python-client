@@ -16,9 +16,12 @@ API
 .. automodule:: openeo
    :members:
 
-.. autofunction:: session
+.. automodule:: openeo.sessions
 
-.. autoclass:: ImageCollection
+.. automodule:: openeo.imagecollection
+   :members:
+
+.. automodule:: openeo.job
    :members:
 
 .. toctree::
