@@ -7,7 +7,7 @@ Python client API for OpenEO. Allows you to interact with OpenEO backends from y
 ## Usage
 [Basic concepts and examples](https://github.com/Open-EO/openeo-python-client/blob/master/examples/notebooks/Compositing.ipynb)
 
-[General OpenEO background](https://open-eo.github.io/openeo-api-poc/)
+[General OpenEO background](https://open-eo.github.io/openeo-api/)
 
 [API docs](https://open-eo.github.io/openeo-python-client/)
 
