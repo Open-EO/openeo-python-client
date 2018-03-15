@@ -16,5 +16,6 @@ setup(name=name,
       author_email='jeroen.dries@vito.be',
       description='Client API for OpenEO',
       packages=find_packages(include=['openeo*']),
+      test_requirements=['requests-mock'],
       install_requires=['requests','shapely==1.5.17'],
       )

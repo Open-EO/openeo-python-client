@@ -4,6 +4,7 @@ import os
 from unittest.mock import MagicMock
 
 import openeo
+import requests_mock
 
 POST_DATA = '{"process_id": "filter_daterange", "args": { "imagery": { "product_id": "landsat7_ndvi"}, "from": "2014-01-01", "to": "2014-06-01"}}'
 
@@ -21,9 +22,9 @@ class TestUsecase1(TestCase):
         self.process_id = "calculate_ndvi"
         self.output_file = "/home/berni/test.gtiff"
 
-
-    def test_user_login(self):
-
+    @requests_mock.mock()
+    def test_user_login(self,m):
+        m.post("http://localhost:8000/api/auth/login",json={"token":"blabla"})
         session = openeo.session(self.uiser_id, endpoint=self.endpoint)
         token = session.auth(self.auth_id, self.auth_pwd)
         self.assertNotEqual(token, None)

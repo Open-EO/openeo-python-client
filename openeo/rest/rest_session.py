@@ -32,7 +32,7 @@ class RESTSession(Session):
         token = requests.post(self.endpoint+'/auth/login', auth=HTTPBasicAuth('test', 'test'))
 
         if token.status_code == 200:
-            self.token = json.loads(token.text)["token"]
+            self.token = token.json()["token"]
 
         return self.token
 
