@@ -6,6 +6,8 @@
 Usage
 ==================================
 
+.. automodule:: openeo
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
@@ -13,10 +15,13 @@ Usage
 API
 ===
 
-.. automodule:: openeo
-   :members:
+Main Interface
+--------------
+
+.. autofunction:: openeo.session
 
 .. automodule:: openeo.sessions
+   :members:
 
 .. automodule:: openeo.imagecollection
    :members:

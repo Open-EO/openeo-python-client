@@ -10,6 +10,9 @@ This module provides a Session object to manage and persist settings when intera
 
 
 class Session(ABC):
+    """
+    A `Session` class represents a connection with an OpenEO service. It is your entry point to create new Image Collections.
+    """
 
     @property
     @abstractmethod
@@ -17,11 +20,23 @@ class Session(ABC):
         pass
 
     @abstractmethod
+    def imagecollections(self) -> dict:
+        """
+        Retrieve all products available in the backend.
+        :return: a dict containing product information. The 'product_id' corresponds to an image collection id.
+        """
+        pass
+
+    @abstractmethod
     def imagecollection(self, image_collection_id:str) -> ImageCollection:
         """
         Retrieves an Image Collection object based on the id of a given layer.
+        A list of available collections can be retrieved with :meth:`openeo.sessions.Session.imagecollections`.
 
         :param image_collection_id: The id of the image collection to retrieve.
-        :return An image collection corresponding to the given id.
+
+        :rtype: openeo.imagecollection.ImageCollection
         """
         pass
+
+

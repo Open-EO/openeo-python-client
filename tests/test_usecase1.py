@@ -39,7 +39,7 @@ class TestUsecase1(TestCase):
     def test_viewing_data(self):
 
         session = openeo.session(self.uiser_id, endpoint=self.endpoint)
-        data = session.get_all_data()
+        data = session.imagecollections()
 
         self.assertGreater(str(data).find(self.data_id), -1)
 

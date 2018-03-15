@@ -7,6 +7,10 @@ logging.basicConfig(level=logging.DEBUG)
 #connect with EURAC backend
 session = openeo.session("nobody", "http://saocompute.eurac.edu/openEO_WCPS_Driver")
 
+#retrieve the list of available collections
+collections = session.imagecollections()
+print(collections)
+
 #create image collection
 s2_fapar = session.imagecollection("S2_L2A_T32TPS_20M")
 

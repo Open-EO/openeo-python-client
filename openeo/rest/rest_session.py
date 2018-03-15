@@ -38,20 +38,20 @@ class RESTSession(Session):
 
     def user_jobs(self) -> dict:
         #TODO: Create a kind of User class to abstract the information (e.g. userid, username, password from the session.
-        jobs = self.get('/users/{}/jobs'.format(self.userid))
+        jobs = self.get(self.root + '/users/{}/jobs'.format(self.userid))
         jobs = json.loads(jobs.text)
         return jobs
 
-    def get_all_data(self) -> dict:
+    def imagecollections(self) -> dict:
         # TODO: Same as get_all_process.
-        data = self.get('/data/')
+        data = self.get(self.root + '/data/')
         data_dict = json.loads(data.text)
         return data_dict
 
     def get_data(self, data_id) -> dict:
         # TODO: Maybe create some kind of Data class.
         if data_id:
-            data_info = self.get('/data/{}'.format(data_id))
+            data_info = self.get(self.root + '/data/{}'.format(data_id))
             data_dict = json.loads(data_info.text)
         else:
             data_dict = None
@@ -178,9 +178,13 @@ class RESTSession(Session):
 
 def session(userid=None,endpoint:str="https://openeo.org/openeo"):
     """
-    Returns a :class:`Session` for context-management.
+    This method is the entry point to OpenEO. You typically create one session object in your script or application, per back-end.
+    and re-use it for all calls to that backend.
+    If the backend requires authentication, you should set pass your credentials.
 
-    :rtype: Session
+    :param endpoint: The http url of an OpenEO endpoint.
+
+    :rtype: openeo.sessions.Session
     """
 
     return RESTSession(userid,endpoint)
