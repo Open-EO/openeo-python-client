@@ -1,2 +1,4 @@
 sphinx
 sphinx-autodoc-annotation
+mock
+requests_mock
