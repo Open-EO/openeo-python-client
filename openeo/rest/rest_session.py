@@ -22,14 +22,14 @@ class RESTSession(Session):
         # TODO: Maybe in future only the endpoint is needed, because of some kind of User object inside of the session.
         self.userid = userid
         self.endpoint = endpoint
-        self.root = "/openeo"
+        self.root = ""
         self.token = None
 
     #@property
     #@abstractmethod
     def auth(self, username, password) -> str:
         #TODO: Create some kind of Authentication class for different authentication strategies of the endpoints.
-        token = requests.post(self.endpoint+'/auth/login', auth=HTTPBasicAuth('test', 'test'))
+        token = requests.get(self.endpoint+'/auth/login', auth=HTTPBasicAuth(username, password))
 
         if token.status_code == 200:
             self.token = token.json()["token"]
@@ -44,7 +44,7 @@ class RESTSession(Session):
 
     def imagecollections(self) -> dict:
         # TODO: Same as get_all_process.
-        data = self.get(self.root + '/data/')
+        data = self.get(self.root + '/data')
         data_dict = json.loads(data.text)
         return data_dict
 
@@ -60,7 +60,7 @@ class RESTSession(Session):
 
     def get_all_processes(self) -> dict:
         # TODO: Maybe format the result dictionary so that the process_id is the key of the dictionary.
-        processes = self.get('/processes/')
+        processes = self.get('/processes')
         processes_dict = json.loads(processes.text)
         return processes_dict
 
@@ -77,7 +77,7 @@ class RESTSession(Session):
     def create_job(self, post_data, evaluation="lazy") -> str:
         # TODO: Create a Job class or something for the creation of a nested process execution...
 
-        job_status = self.post("/jobs/?evaluate={}".format(evaluation), post_data)
+        job_status = self.post("/jobs?evaluate={}".format(evaluation), post_data)
         print(str(job_status.text))
         if job_status.status_code == 200:
             job_info = json.loads(job_status.text)

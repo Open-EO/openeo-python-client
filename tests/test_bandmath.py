@@ -56,7 +56,7 @@ class TestBandMath(TestCase):
                     }
             }
         }
-        session.post.assert_called_once_with("/openeo/timeseries/point?x=4&y=51&srs=EPSG:4326",expected_graph)
+        session.post.assert_called_once_with("/timeseries/point?x=4&y=51&srs=EPSG:4326",expected_graph)
         session.download.assert_called_once()
 
 
