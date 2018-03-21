@@ -78,7 +78,7 @@ class RESTSession(Session):
         # TODO: Create a Job class or something for the creation of a nested process execution...
 
         job_status = self.post("/jobs?evaluate={}".format(evaluation), post_data)
-        print(str(job_status.text))
+
         if job_status.status_code == 200:
             job_info = json.loads(job_status.text)
             if 'job_id' in job_info:
@@ -95,6 +95,14 @@ class RESTSession(Session):
         collection.bands = ["B0","B1","B2","B3"]
         collection.dates = [datetime.datetime.now()]
         return collection
+
+    def image(self, image_product_id) -> 'Image':
+        from .image import RestImage
+        image = RestImage({'product_id': image_product_id}, self)
+        #TODO session should be used to retrieve collection metadata (containing bands)
+        image.bands = ["B0","B1","B2","B3"]
+        image.dates = [datetime.datetime.now()]
+        return image
 
     def point_timeseries(self, graph, x, y, srs):
         """Compute a timeseries for a given point location."""
@@ -120,16 +128,38 @@ class RESTSession(Session):
 
         return
 
+    def queue_job(self, job_id):
+
+        request = self.patch("/jobs/{}/queue".format(job_id))
+
+        return request.status_code
+
+    def download(self, graph, time, outputfile,format_options):
+
+        download_url = self.endpoint + self.root + "/execute"
+        request = {
+            "process_graph":graph,
+            "output":format_options
+        }
+        r = requests.post(download_url, json=request, stream = True, timeout=1000 )
+        if r.status_code == 200:
+            with open(outputfile, 'wb') as f:
+                shutil.copyfileobj(r.raw, f)
+        else:
+            raise IOError("Received an exception from the server for url: {} and POST message: {}".format(download_url,json.dumps( request ) ) + r.text)
+
+        return
+
     def download_job(self, job_id, outputfile,outputformat):
-        download_url = self.endpoint + self.root + "/jobs/{}/download?format={}".format( job_id,outputformat)
-        r = requests.get(download_url, stream = True)
+        download_url = "/jobs/{}/download?format={}".format( job_id,outputformat)
+        r = self.get(download_url, stream = True)
         if r.status_code == 200:
             with open(outputfile, 'wb') as f:
                 shutil.copyfileobj(r.raw, f)
         else:
             raise ConnectionAbortedError(r.text)
 
-        return
+        return r.status_code
 
     def download_image(self, job_id, outputfile,outputformat):
         #download_url = self.endpoint + "/download/{}?format={}".format( job_id,outputformat)
@@ -140,7 +170,7 @@ class RESTSession(Session):
         else:
             raise ConnectionAbortedError(r.text)
 
-        return
+        return r.status_code
 
     def execute(self,graph):
         """
@@ -162,11 +192,17 @@ class RESTSession(Session):
             raise ConnectionAbortedError(response.text)
 
 
-    def post(self,path,postdata):
+    def post(self, path, postdata):
         if self.token:
             return requests.post(self.endpoint+path, json=postdata, headers={'Authorization': 'Bearer {}'.format(self.token)})
         else:
             return requests.post(self.endpoint + path, json=postdata)
+
+    def patch(self, path):
+        if self.token:
+            return requests.patch(self.endpoint+path, headers={'Authorization': 'Bearer {}'.format(self.token)})
+        else:
+            return requests.patch(self.endpoint + path)
 
     def get(self,path, stream=False):
         if self.token:

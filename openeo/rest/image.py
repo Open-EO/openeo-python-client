@@ -12,7 +12,10 @@ from ..imagecollection import ImageCollection
 from ..sessions import Session
 
 
-class RestImageCollection(ImageCollection):
+# Created for the use of EODC PoC
+# Same as collection, but uses "imagery" instead of "collections"
+
+class RestImage(ImageCollection):
     """Class representing an Image Collection. """
 
 
@@ -25,18 +28,18 @@ class RestImageCollection(ImageCollection):
         graph = {
             'process_id': 'filter_daterange',
             'args' : {
-                'collections':[self.graph],
-                'from':pd.to_datetime( start_date ).isoformat(),
-                'to': pd.to_datetime( end_date ) .isoformat()
+                'imagery':self.graph,
+                'from':start_date,
+                'to': end_date
             }
         }
-        return RestImageCollection(graph,session=self.session)
+        return RestImage(graph,session=self.session)
 
     def bbox_filter(self, left, right, top, bottom, srs) -> 'ImageCollection':
         graph = {
             'process_id': 'filter_bbox',
             'args' : {
-                'collections':[self.graph],
+                'imagery':self.graph,
                 'left':left,
                 'right': right,
                 'top':top,
@@ -44,7 +47,7 @@ class RestImageCollection(ImageCollection):
                 'srs':srs
             }
         }
-        return RestImageCollection(graph,session=self.session)
+        return RestImage(graph,session=self.session)
 
     def apply_pixel(self, bands:List, bandfunction) -> 'ImageCollection':
         """Apply a function to the given set of bands in this image collection."""
@@ -52,12 +55,12 @@ class RestImageCollection(ImageCollection):
         graph = {
             'process_id': 'apply_pixel',
             'args' : {
-                'collections':[self.graph],
+                'imagery':self.graph,
                 'bands':bands,
                 'function': str(base64.b64encode(pickled_lambda),"UTF-8")
             }
         }
-        return RestImageCollection(graph,session=self.session)
+        return RestImage(graph,session=self.session)
 
     def aggregate_time(self, temporal_window, aggregationfunction) -> Series :
         """ Applies a windowed reduction to a timeseries by applying a user defined function.
@@ -71,30 +74,30 @@ class RestImageCollection(ImageCollection):
         graph = {
             'process_id': 'reduce_by_time',
             'args' : {
-                'collections':[self.graph],
+                'imagery':self.graph,
                 'temporal_window': temporal_window,
                 'function': str(base64.b64encode(pickled_lambda),"UTF-8")
             }
         }
-        return RestImageCollection(graph,session=self.session)
+        return RestImage(graph,session=self.session)
 
     def min_time(self) -> 'ImageCollection':
         graph = {
             'process_id': 'min_time',
             'args' : {
-                'collections':[self.graph]
+                'imagery':self.graph
             }
         }
-        return RestImageCollection(graph,session=self.session)
+        return RestImage(graph,session=self.session)
 
     def max_time(self) -> 'ImageCollection':
         graph = {
             'process_id': 'max_time',
             'args' : {
-                'collections':[self.graph]
+                'imagery':self.graph
             }
         }
-        return RestImageCollection(graph,session=self.session)
+        return RestImage(graph,session=self.session)
 
 
     ####VIEW methods #######
