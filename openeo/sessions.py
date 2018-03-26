@@ -20,7 +20,7 @@ class Session(ABC):
         pass
 
     @abstractmethod
-    def imagecollections(self) -> dict:
+    def list_collections(self) -> dict:
         """
         Retrieve all products available in the backend.
         :return: a dict containing product information. The 'product_id' corresponds to an image collection id.
@@ -31,7 +31,7 @@ class Session(ABC):
     def imagecollection(self, image_collection_id:str) -> ImageCollection:
         """
         Retrieves an Image Collection object based on the id of a given layer.
-        A list of available collections can be retrieved with :meth:`openeo.sessions.Session.imagecollections`.
+        A list of available collections can be retrieved with :meth:`openeo.sessions.Session.list_collections`.
 
         :param image_collection_id: The id of the image collection to retrieve.
 

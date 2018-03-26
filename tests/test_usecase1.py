@@ -45,7 +45,7 @@ class TestUsecase1(TestCase):
         m.get("http://localhost:8000/api/data/sentinel2_subset", json={"product_id": "sentinel2_subset"})
 
         session = openeo.session(self.uiser_id, endpoint=self.endpoint)
-        data = session.imagecollections()
+        data = session.list_collections()
 
         self.assertGreater(str(data).find(self.data_id), -1)
 

@@ -42,7 +42,7 @@ class RESTSession(Session):
         jobs = json.loads(jobs.text)
         return jobs
 
-    def imagecollections(self) -> dict:
+    def list_collections(self) -> dict:
         # TODO: Same as get_all_process.
         data = self.get(self.root + '/data')
         data_dict = json.loads(data.text)

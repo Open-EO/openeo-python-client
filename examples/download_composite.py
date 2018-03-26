@@ -8,7 +8,7 @@ logging.basicConfig(level=logging.DEBUG)
 session = openeo.session("nobody", "http://saocompute.eurac.edu/openEO_WCPS_Driver")
 
 #retrieve the list of available collections
-collections = session.imagecollections()
+collections = session.list_collections()
 print(collections)
 
 #create image collection
