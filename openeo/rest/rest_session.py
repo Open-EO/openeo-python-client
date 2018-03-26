@@ -178,9 +178,22 @@ class RESTSession(Session):
 
 def session(userid=None,endpoint:str="https://openeo.org/openeo"):
     """
-    This method is the entry point to OpenEO. You typically create one session object in your script or application, per back-end.
+    This method is the entry point to OpenEO. You typically create one session object in your script or application, per back-end,
     and re-use it for all calls to that backend.
-    If the backend requires authentication, you should set pass your credentials.
+    If the backend requires authentication, you should set your credentials.
+
+    :param endpoint: The http url of an OpenEO endpoint.
+
+    :rtype: openeo.sessions.Session
+    """
+
+    return RESTSession(userid,endpoint)
+
+def connect(userid=None,endpoint:str="https://openeo.org/openeo"):
+    """
+    This method is the entry point to OpenEO. You typically create one session object in your script or application, per back-end,
+    and re-use it for all calls to that backend.
+    If the backend requires authentication, you should set your credentials.
 
     :param endpoint: The http url of an OpenEO endpoint.
 
