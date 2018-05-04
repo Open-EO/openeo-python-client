@@ -91,6 +91,16 @@ class ImageCollection(ABC):
         """
         pass
 
+    def polygon_timeseries(self, polygon: Dict, srs="EPSG:4326") -> Dict:
+        """
+        Extract a time series for the given polygon.
+
+        :param polygon: The polygon
+        :param srs: The spatial reference system of the coordinates, by default this is 'EPSG:4326'
+        :return: Dict: A timeseries
+        """
+        pass
+
     def tiled_viewing_service(self) -> Dict:
         """
         Returns metadata for a tiled viewing service that visualizes this layer.
