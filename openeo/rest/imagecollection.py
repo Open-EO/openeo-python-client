@@ -10,6 +10,7 @@ from openeo.job import Job
 from openeo.rest.job import ClientJob
 from ..imagecollection import ImageCollection
 from ..sessions import Session
+from shapely.geometry import Polygon, MultiPolygon, mapping
 
 
 class RestImageCollection(ImageCollection):
@@ -109,6 +110,33 @@ class RestImageCollection(ImageCollection):
         """
         return self.session.point_timeseries({"process_graph":self.graph}, x, y, srs)
 
+    def polygonal_mean_timeseries(self, polygon: Union[Polygon, MultiPolygon]) -> Dict:
+        """
+        Extract a mean time series for the given (multi)polygon. Its points are expected to be in the EPSG:4326 coordinate
+        reference system.
+
+        :param polygon: The (multi)polygon
+        :param srs: The spatial reference system of the coordinates, by default this is 'EPSG:4326'
+        :return: Dict: A timeseries
+        """
+
+        geojson = mapping(polygon)
+        geojson['crs'] = {
+            'type': 'name',
+            'properties': {
+                'name': 'EPSG:4326'
+            }
+        }
+
+        graph = {
+            'process_id': 'zonal_statistics',
+            'args': {
+                'imagery': self.graph,
+                'geometry': geojson
+            }
+        }
+
+        return self.session.polygonal_mean_timeseries(graph, polygon)
 
     def download(self,outputfile:str, bbox="", time="",**format_options) -> str:
         """Extraxts a geotiff from this image collection."""

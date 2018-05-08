@@ -1,8 +1,9 @@
 from abc import ABC
-from typing import List, Dict,Union
+from typing import List, Dict, Union
 from datetime import datetime,date
 
 from openeo.job import Job
+from shapely.geometry import Polygon, MultiPolygon
 
 
 class ImageCollection(ABC):
@@ -91,12 +92,12 @@ class ImageCollection(ABC):
         """
         pass
 
-    def polygon_timeseries(self, polygon: Dict, srs="EPSG:4326") -> Dict:
+    def polygonal_mean_timeseries(self, polygon: Union[Polygon, MultiPolygon]) -> Dict:
         """
-        Extract a time series for the given polygon.
+        Extract a mean time series for the given (multi)polygon. Its points are expected to be in the EPSG:4326 coordinate
+        reference system.
 
-        :param polygon: The polygon
-        :param srs: The spatial reference system of the coordinates, by default this is 'EPSG:4326'
+        :param polygon: The (multi)polygon
         :return: Dict: A timeseries
         """
         pass
