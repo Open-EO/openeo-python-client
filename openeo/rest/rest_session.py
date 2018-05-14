@@ -44,9 +44,7 @@ class RESTSession(Session):
 
     def list_collections(self) -> dict:
         # TODO: Same as get_all_process.
-        data = self.get(self.root + '/data')
-        data_dict = json.loads(data.text)
-        return data_dict
+        return self.parse_json_response(self.get(self.root + '/data'))
 
     def get_data(self, data_id) -> dict:
         # TODO: Maybe create some kind of Data class.
