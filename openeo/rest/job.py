@@ -7,5 +7,5 @@ class ClientJob(Job):
         super().__init__(job_id)
         self.session = session
 
-    def download(self, outputfile:str,outputformat: str):
-        self.session.download_job(self.job_id,outputfile,outputformat)
+    def download(self, outputfile:str, outputformat=None):
+        self.session.download_job(self.job_id, outputfile, outputformat)

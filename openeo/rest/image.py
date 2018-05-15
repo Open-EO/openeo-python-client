@@ -99,6 +99,27 @@ class RestImage(ImageCollection):
         }
         return RestImage(graph,session=self.session)
 
+    def ndvi(self, red, nir) -> 'ImageCollection':
+        graph = {
+            'process_id': 'NDVI',
+            'args' : {
+                'imagery':self.graph,
+                'red': red,
+                'nir': nir
+            }
+        }
+        return RestImage(graph,session=self.session)
+
+    def strech_colors(self, min, max) -> 'ImageCollection':
+        graph = {
+            'process_id': 'stretch_colors',
+            'args' : {
+                'imagery':self.graph,
+                'min': min,
+                'max': max
+            }
+        }
+        return RestImage(graph,session=self.session)
 
     ####VIEW methods #######
     def timeseries(self, x, y, srs="EPSG:4326") -> Dict:
@@ -112,7 +133,6 @@ class RestImage(ImageCollection):
         """
         return self.session.point_timeseries({"process_graph":self.graph}, x, y, srs)
 
-
     def download(self,outputfile:str, bbox="", time="",**format_options) -> str:
         """Extraxts a geotiff from this image collection."""
         return self.session.download({"process_graph":self.graph},time,outputfile,format_options)
@@ -124,8 +144,11 @@ class RestImage(ImageCollection):
     def tiled_viewing_service(self) -> Dict:
         return self.session.tiled_viewing_service({"process_graph":self.graph})
 
-    def send_job(self) -> Job:
-        return ClientJob(self.session.job({"process_graph":self.graph}),self.session)
+    def send_job(self, out_format=None) -> Job:
+        if out_format:
+            return ClientJob(self.session.job({"process_graph":self.graph, 'output': { 'format': out_format}}),self.session)
+        else:
+            return ClientJob(self.session.job({"process_graph":self.graph}),self.session)
 
     def execute(self) -> Dict:
         return self.session.execute({"process_graph":self.graph})

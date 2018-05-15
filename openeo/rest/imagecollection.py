@@ -16,6 +16,7 @@ class RestImageCollection(ImageCollection):
     """Class representing an Image Collection. """
 
 
+
     def __init__(self, parentgraph:Dict,session:Session):
         self.graph = parentgraph
         self.session = session

@@ -1,23 +1,15 @@
-import unittest
-from unittest import TestCase
-
-
-POST_DATA = '{"process_id": "filter_daterange", "args": { "imagery": { "product_id": "landsat7_ndvi"}, "from": "2014-01-01", "to": "2014-06-01"}}'
-
-
-class TestUsecase1(TestCase):
-
-    def setUp(self):
-        # configuration phase: define username, endpoint, parameters?
-        self.endpoint = "http://openeo.eodc.eu"
-        self.uiser_id = ""
-        self.auth_id = "user1"
-        self.auth_pwd = "Test123#"
-
-        self.data_id= "s2a_prd_msil1c"
-        self.process_type = "NDVI"
-        self.process_date = "filter_daterange"
-        self.output_file = "/home/berni/test.gtiff"
+  #
+  # def setUp(self):
+  #       # configuration phase: define username, endpoint, parameters?
+  #       self.endpoint = "http://openeo.eodc.eu"
+  #       self.uiser_id = ""
+  #       self.auth_id = "user1"
+  #       self.auth_pwd = "Test123#"
+  #
+  #       self.data_id= "s2a_prd_msil1c"
+  #       self.process_type = "NDVI"
+  #       self.process_date = "filter_daterange"
+  #       self.output_file = "/home/berni/test.gtiff"
 
 
     # def test_usecase1_eodc(self):
@@ -51,5 +43,39 @@ class TestUsecase1(TestCase):
         # session.download_job(86, "/home/bgoesswe/Documents/openeo-ndvi-composite.geotiff","geotiff")
 
 
-if __name__ == '__main__':
-    unittest.main()
+# JSON:
+#
+# {
+# "process_graph":{
+# "process_id":"min_time",
+# "args":{
+# "imagery":{
+# "process_id":"NDVI",
+# "args":{
+# "imagery":{
+# "process_id":"filter_daterange",
+# "args":{
+# "imagery":{
+# "process_id":"filter_bbox",
+# "args":{
+# "imagery":{
+# "product_id":"s2a_prd_msil1c"
+# },
+# "left":652000,
+# "right":672000,
+# "top":5161000,
+# "bottom":5181000,
+# "srs":"EPSG:32632"
+# }
+# },
+# "from":"2017-01-01",
+# "to":"2017-01-08"
+# }
+# },
+# "red":"B04",
+# "nir":"B08"
+# }
+# }
+# }
+# }
+# }

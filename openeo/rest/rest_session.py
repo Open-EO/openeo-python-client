@@ -3,6 +3,8 @@ import shutil
 
 import json
 
+import urllib
+
 import requests
 from requests.auth import HTTPBasicAuth
 
@@ -150,12 +152,17 @@ class RESTSession(Session):
 
         return
 
-    def download_job(self, job_id, outputfile,outputformat):
-        download_url = "/jobs/{}/download?format={}".format( job_id,outputformat)
+    def download_job(self, job_id, outputfile,outputformat=None):
+        if outputformat:
+            download_url = "/jobs/{}/download?format={}".format(job_id,outputformat)
+        else:
+            download_url = "/jobs/{}/download".format(job_id)
         r = self.get(download_url, stream = True)
+
         if r.status_code == 200:
-            with open(outputfile, 'wb') as f:
-                shutil.copyfileobj(r.raw, f)
+
+            url = r.text[2:-2]
+            urllib.request.urlretrieve(url, outputfile)
         else:
             raise ConnectionAbortedError(r.text)
 
