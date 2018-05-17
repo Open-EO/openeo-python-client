@@ -26,7 +26,7 @@ class RestImageCollection(ImageCollection):
         graph = {
             'process_id': 'filter_daterange',
             'args' : {
-                'collections':[self.graph],
+                'imagery': self.graph,
                 'from':pd.to_datetime( start_date ).isoformat(),
                 'to': pd.to_datetime( end_date ) .isoformat()
             }
@@ -110,14 +110,14 @@ class RestImageCollection(ImageCollection):
         """
         return self.session.point_timeseries({"process_graph":self.graph}, x, y, srs)
 
-    def polygonal_mean_timeseries(self, polygon: Union[Polygon, MultiPolygon]) -> Dict:
+    def polygonal_mean_timeseries(self, polygon: Union[Polygon, MultiPolygon]) -> 'ImageCollection':
         """
         Extract a mean time series for the given (multi)polygon. Its points are expected to be in the EPSG:4326 coordinate
         reference system.
 
         :param polygon: The (multi)polygon
         :param srs: The spatial reference system of the coordinates, by default this is 'EPSG:4326'
-        :return: Dict: A timeseries
+        :return: ImageCollection
         """
 
         geojson = mapping(polygon)
@@ -136,7 +136,7 @@ class RestImageCollection(ImageCollection):
             }
         }
 
-        return self.session.polygonal_mean_timeseries(graph, polygon)
+        return RestImageCollection(graph, self.session)
 
     def download(self,outputfile:str, bbox="", time="",**format_options) -> str:
         """Extraxts a geotiff from this image collection."""

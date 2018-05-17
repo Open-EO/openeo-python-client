@@ -98,9 +98,6 @@ class RESTSession(Session):
         """Compute a timeseries for a given point location."""
         return self.post(self.root + "/timeseries/point?x={}&y={}&srs={}".format(x,y,srs),graph)
 
-    def polygonal_mean_timeseries(self, graph):
-        return self.post(self.root + "/execute", graph)
-
     def tiled_viewing_service(self,graph):
         return self.parse_json_response(self.post(self.root + "/tile_service",graph))
 
@@ -150,7 +147,7 @@ class RESTSession(Session):
         :return:
         """
         response = self.post(self.root + "/execute", graph)
-        return self.parse_json_response(response).get("job_id","")
+        return self.parse_json_response(response)
 
     def job(self,graph,batch=False):
         response = self.post(self.root + "/jobs", graph)
