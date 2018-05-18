@@ -4,7 +4,6 @@ from typing import List, Dict, Union
 import cloudpickle
 from datetime import datetime, date
 from pandas import Series
-import pandas as pd
 
 from openeo.job import Job
 from openeo.rest.job import ClientJob
@@ -14,8 +13,8 @@ from ..sessions import Session
 
 # Created for the use of EODC PoC
 # Same as collection, but uses "imagery" instead of "collections"
-
-class RestImage(ImageCollection):
+#TODO: remove imagecollection and replace it with this (maybe rename this to Imagery)
+class RestImagery(ImageCollection):
     """Class representing an Image Collection. """
 
 
@@ -33,7 +32,7 @@ class RestImage(ImageCollection):
                 'to': end_date
             }
         }
-        return RestImage(graph,session=self.session)
+        return RestImagery(graph,session=self.session)
 
     def bbox_filter(self, left, right, top, bottom, srs) -> 'ImageCollection':
         graph = {
@@ -47,7 +46,7 @@ class RestImage(ImageCollection):
                 'srs':srs
             }
         }
-        return RestImage(graph,session=self.session)
+        return RestImagery(graph,session=self.session)
 
     def apply_pixel(self, bands:List, bandfunction) -> 'ImageCollection':
         """Apply a function to the given set of bands in this image collection."""
@@ -60,7 +59,7 @@ class RestImage(ImageCollection):
                 'function': str(base64.b64encode(pickled_lambda),"UTF-8")
             }
         }
-        return RestImage(graph,session=self.session)
+        return RestImagery(graph,session=self.session)
 
     def aggregate_time(self, temporal_window, aggregationfunction) -> Series :
         """ Applies a windowed reduction to a timeseries by applying a user defined function.
@@ -79,7 +78,7 @@ class RestImage(ImageCollection):
                 'function': str(base64.b64encode(pickled_lambda),"UTF-8")
             }
         }
-        return RestImage(graph,session=self.session)
+        return RestImagery(graph,session=self.session)
 
     def min_time(self) -> 'ImageCollection':
         graph = {
@@ -88,7 +87,7 @@ class RestImage(ImageCollection):
                 'imagery':self.graph
             }
         }
-        return RestImage(graph,session=self.session)
+        return RestImagery(graph,session=self.session)
 
     def max_time(self) -> 'ImageCollection':
         graph = {
@@ -97,7 +96,7 @@ class RestImage(ImageCollection):
                 'imagery':self.graph
             }
         }
-        return RestImage(graph,session=self.session)
+        return RestImagery(graph,session=self.session)
 
     def ndvi(self, red, nir) -> 'ImageCollection':
         graph = {
@@ -108,7 +107,7 @@ class RestImage(ImageCollection):
                 'nir': nir
             }
         }
-        return RestImage(graph,session=self.session)
+        return RestImagery(graph,session=self.session)
 
     def strech_colors(self, min, max) -> 'ImageCollection':
         graph = {
@@ -119,7 +118,7 @@ class RestImage(ImageCollection):
                 'max': max
             }
         }
-        return RestImage(graph,session=self.session)
+        return RestImagery(graph,session=self.session)
 
     ####VIEW methods #######
     def timeseries(self, x, y, srs="EPSG:4326") -> Dict:
@@ -145,10 +144,17 @@ class RestImage(ImageCollection):
         return self.session.tiled_viewing_service({"process_graph":self.graph})
 
     def send_job(self, out_format=None) -> Job:
+        """
+        Sends a job to the backend and returns a ClientJob instance.
+        :param out_format: String Format of the job result.
+        :return: status: ClientJob resulting job.
+        """
         if out_format:
-            return ClientJob(self.session.job({"process_graph":self.graph, 'output': { 'format': out_format}}),self.session)
+            return ClientJob(self.session.job({"process_graph": self.graph,
+                                               'output': {'format': out_format}}), self.session)
         else:
-            return ClientJob(self.session.job({"process_graph":self.graph}),self.session)
+            return ClientJob(self.session.job({"process_graph": self.graph}), self.session)
 
     def execute(self) -> Dict:
-        return self.session.execute({"process_graph":self.graph})
+        """Executes the process graph of the imagery. """
+        return self.session.execute({"process_graph": self.graph})
