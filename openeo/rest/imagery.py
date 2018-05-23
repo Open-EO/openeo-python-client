@@ -134,11 +134,7 @@ class RestImagery(ImageCollection):
 
     def download(self,outputfile:str, bbox="", time="",**format_options) -> str:
         """Extraxts a geotiff from this image collection."""
-        return self.session.download({"process_graph":self.graph},time,outputfile,format_options)
-
-    def download(self,outputfile:str, bbox="", time="",**format_options) -> str:
-        """Extraxts a geotiff from this image collection."""
-        return self.session.download({"process_graph":self.graph},time,outputfile,format_options)
+        return self.session.download(self.graph,time,outputfile,format_options)
 
     def tiled_viewing_service(self) -> Dict:
         return self.session.tiled_viewing_service({"process_graph":self.graph})
