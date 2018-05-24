@@ -16,7 +16,7 @@ class Session(ABC):
 
     @property
     @abstractmethod
-    def auth(self) -> str:
+    def auth(self, username, password, auth) -> bool:
         pass
 
     @abstractmethod

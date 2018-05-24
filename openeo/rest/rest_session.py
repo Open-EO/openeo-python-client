@@ -1,12 +1,9 @@
 import datetime
 import shutil
 
-import json
-
-import urllib
-
 import requests
-from requests.auth import HTTPBasicAuth
+
+from ..auth.auth_none import NoneAuth
 
 import json
 from ..sessions import Session
@@ -30,26 +27,21 @@ class RESTSession(Session):
         self.userid = userid
         self.endpoint = endpoint
         self.root = ""
-        self.token = None
+        self.authent = NoneAuth("none", "none", endpoint)
 
-    #@property
-    #@abstractmethod
-    def auth(self, username, password) -> str:
-        #TODO: Create some kind of Authentication class for different authentication strategies of the endpoints.
+    def auth(self, username, password, auth_class=NoneAuth) -> bool:
         """
-        Authenticates a user to the backend using bearer token. The token is
-        then saved in the RESTSession class, so that the operations are
-        automatically made if the bearer token.
+        Authenticates a user to the backend using auth class.
         :param username: String Username credential of the user
-        :param username: String Password credential of the user
+        :param password: String Password credential of the user
+        :param auth_class: Auth instance of the abstract Auth class
         :return: token: String Bearer token
         """
-        token = requests.get(self.endpoint+'/auth/login', auth=HTTPBasicAuth(username, password))
 
-        if token.status_code == 200:
-            self.token = token.json()["token"]
+        self.authent = auth_class(username, password, self.endpoint)
+        status = self.authent.login()
 
-        return self.token
+        return status
 
     def user_jobs(self) -> dict:
         #TODO: Create a kind of User class to abstract the information (e.g. userid, username, password from the session.
@@ -189,6 +181,7 @@ class RESTSession(Session):
             return None
 
         return status
+
     # TODO: Maybe rename to execute and merge with execute().
     def download(self, graph, time, outputfile,format_options):
         download_url = self.endpoint + self.root + "/execute"
@@ -222,14 +215,12 @@ class RESTSession(Session):
         if r.status_code == 200:
 
             url = json.loads(r.text)
-            if self.token:
-                hed = {'Authorization': 'Bearer ' + self.token}
-                resp = requests.get(url[0], files={'name': outputfile}, timeout=60, headers=hed, stream=True)
-                print(resp)
-                # if resp.headers.get('Content-Disposition'):
-                open(outputfile, 'wb').write(resp.content)
-            else:
-                urllib.request.urlretrieve(url[0], outputfile)
+
+            auth_header = self.authent.get_header()
+            resp = requests.get(url[0], files={'name': outputfile}, timeout=60,
+                                headers=auth_header, stream=True)
+
+            open(outputfile, 'wb').write(resp.content)
         else:
             raise ConnectionAbortedError(r.text)
         return r.status_code
@@ -252,7 +243,7 @@ class RESTSession(Session):
         response = self.post(self.root + "/jobs", graph)
         return self.parse_json_response(response).get("job_id","")
 
-    def parse_json_response(self,response:requests.Response):
+    def parse_json_response(self, response: requests.Response):
         """
         Parses json response, if an error occurs it raises an Exception.
         :param response: Response of a RESTful request
@@ -263,7 +254,6 @@ class RESTSession(Session):
         else:
             raise ConnectionAbortedError(response.text)
 
-
     def post(self, path, postdata):
         """
         Makes a RESTful POST request to the back end.
@@ -271,10 +261,9 @@ class RESTSession(Session):
         :param postdata: Data of the post request
         :return: response: Response
         """
-        if self.token:
-            return requests.post(self.endpoint+path, json=postdata, headers={'Authorization': 'Bearer {}'.format(self.token)})
-        else:
-            return requests.post(self.endpoint + path, json=postdata)
+
+        auth_header = self.authent.get_header()
+        return requests.post(self.endpoint+path, json=postdata, headers=auth_header)
 
     def patch(self, path):
         """
@@ -282,10 +271,9 @@ class RESTSession(Session):
         :param path: URL of the request (without root URL e.g. "/data")
         :return: response: Response
         """
-        if self.token:
-            return requests.patch(self.endpoint+path, headers={'Authorization': 'Bearer {}'.format(self.token)})
-        else:
-            return requests.patch(self.endpoint + path)
+        auth_header = self.authent.get_header()
+
+        return requests.patch(self.endpoint+path, headers=auth_header)
 
     def get(self,path, stream=False):
         """
@@ -294,10 +282,9 @@ class RESTSession(Session):
         :param stream: True if the get request should be streamed, else False
         :return: response: Response
         """
-        if self.token:
-            return requests.get(self.endpoint+path, headers={'Authorization': 'Bearer {}'.format(self.token)}, stream=stream)
-        else:
-            return requests.get(self.endpoint + path, stream=stream)
+        auth_header = self.authent.get_header()
+
+        return requests.get(self.endpoint+path, headers=auth_header, stream=stream)
 
 
 def session(userid=None,endpoint:str="https://openeo.org/openeo"):

@@ -1,7 +1,7 @@
 import logging
 import openeo
 from openeo.rest.job import ClientJob
-
+from openeo.auth.auth_bearer import BearerAuth
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -17,7 +17,7 @@ OUTPUT_FILE = "/tmp/openeo_eodc_output.tiff"
 # Connect with EODC backend
 session = openeo.session(EODC_USER, endpoint=EODC_DRIVER_URL)
 # Authenticate with bearer token
-token = session.auth(EODC_USER, EODC_PWD)
+token = session.auth(EODC_USER, EODC_PWD, BearerAuth)
 logging.debug("Login token: {}".format(token))
 
 s2a_prd_msil1c = session.image("s2a_prd_msil1c")
