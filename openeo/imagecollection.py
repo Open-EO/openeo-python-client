@@ -17,7 +17,7 @@ class ImageCollection(ABC):
         Specifies a date range filter to be applied on the ImageCollection
 
         :param start_date: Start date of the filter, inclusive.
-        :param end_date: End date of the filter, exclusive TODO!
+        :param end_date: End date of the filter, exclusive.
         :return: An ImageCollection filtered by date.
         """
 
@@ -72,7 +72,7 @@ class ImageCollection(ABC):
 
     def max_time(self) -> 'ImageCollection':
         """
-            Finds the minimum value of time series for all bands of the input dataset.
+            Finds the maximum value of time series for all bands of the input dataset.
 
             :return: An ImageCollection without a time dimension.
         """
@@ -95,12 +95,12 @@ class ImageCollection(ABC):
         """
         Returns metadata for a tiled viewing service that visualizes this layer.
 
-        :return: A string containing the filename
+        :return: A dictionary object containing the viewing service metadata, such as the connection 'url'.
         """
         pass
 
     def download(self,outputfile:str, bbox="", time="",**format_options):
-        """Extraxts a geotiff from this image collection."""
+        """Extracts a binary raster from this image collection."""
         pass
 
     def send_job(self) -> Job:

@@ -53,7 +53,7 @@ class RESTSession(Session):
         jobs = json.loads(jobs.text)
         return jobs
 
-    def imagecollections(self) -> dict:
+    def list_collections(self) -> dict:
         """
         Loads all available imagecollections types.
         :return: data_dict: Dict All available data types
