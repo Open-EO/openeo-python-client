@@ -16,5 +16,5 @@ __author__ = 'Jeroen Dries'
 
 from .catalog import EOProduct
 from .imagecollection import ImageCollection
-from .rest.rest_session import session,connect
+from .rest.rest_session import session
 from .job import Job

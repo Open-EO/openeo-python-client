@@ -49,7 +49,7 @@ class TestUsecase1(TestCase):
 
         self.assertGreater(str(data).find(self.data_id), -1)
 
-        data_info = session.get_data(self.data_id)
+        data_info = session.get_collection(self.data_id)
 
         self.assertEqual(data_info["product_id"], self.data_id)
 

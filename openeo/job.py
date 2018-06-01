@@ -10,3 +10,8 @@ class Job(ABC):
     def download(self, outputfile:str, outputformat:str):
         """ Download the result as a raster."""
         pass
+
+    # TODO: Maybe add a job status class.
+    def status(self):
+        """ Returns the status of the job."""
+        pass
