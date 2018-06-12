@@ -60,6 +60,45 @@ class TestBandMath(TestCase):
         session.download.assert_called_once()
 
 
+    def test_ndvi_udf(self):
+        #configuration phase: define username, endpoint, parameters?
+        session = openeo.session("driesj",endpoint="https://myopeneo.be/")
+        session.post = MagicMock()
+        session.download = MagicMock()
+
+        #discovery phase: find available data
+        #basically user needs to find available data on a website anyway?
+        #like the imagecollection ID on: https://earthengine.google.com/datasets/
+
+        #access multiband 4D (x/y/time/band) coverage
+        s2_radio = session.imagecollection("SENTINEL2_RADIOMETRY_10M")
+
+        #dir = os.path.dirname(openeo_udf.functions.__file__)
+        #file_name = os.path.join(dir, "raster_collections_ndvi.py")
+        #udf_code = UdfCode(language="python", source=open(file_name, "r").read())
+
+        ndvi_coverage = s2_radio.apply_tiles( "def myfunction(tile): print(tile)")
+
+        #materialize result in the shape of a geotiff
+        #REST: WCS call
+        ndvi_coverage.download("out.geotiff",bbox="", time=s2_radio.dates[0])
+
+        #get result as timeseries for a single point
+        #How to define a point? Ideally it should also have the CRS?
+        ndvi_coverage.timeseries(4, 51)
+
+        expected_graph = {'process_graph': {'process_id': 'apply_tiles',
+                                            'args': {'imagery': {'collection_id': 'SENTINEL2_RADIOMETRY_10M'},
+                                                     'code': {'language': 'python',
+                                                              'source': 'def myfunction(tile): print(tile)'
+                                                              }
+                                                     }
+                                            }
+                          }
+        session.post.assert_called_once_with("/timeseries/point?x=4&y=51&srs=EPSG:4326",expected_graph)
+        session.download.assert_called_once()
+
+
 
     @unittest.skip("Not yet implemented")
     def test_timeseries_fusion(self):

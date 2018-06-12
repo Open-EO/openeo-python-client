@@ -128,8 +128,8 @@ class RESTSession(Session):
         :param image_collection_id: String image collection identifier
         :return: collection: RestImageCollection the imagecollection with the id
         """
-        from .imagecollection import RestImageCollection
-        collection = RestImageCollection({'collection_id': image_collection_id}, self)
+        from .imagery import RestImagery
+        collection = RestImagery({'collection_id': image_collection_id}, self)
         #TODO session should be used to retrieve collection metadata (containing bands)
         collection.bands = ["B0","B1","B2","B3"]
         collection.dates = [datetime.datetime.now()]

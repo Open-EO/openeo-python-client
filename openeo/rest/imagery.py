@@ -61,6 +61,23 @@ class RestImagery(ImageCollection):
         }
         return RestImagery(graph,session=self.session)
 
+    def apply_tiles(self, code:str) -> 'ImageCollection':
+        """Apply a function to the given set of tiles in this image collection.
+            Code should follow the OpenEO UDF conventions.
+            :param code: String representing Python code to be executed in the backend.
+        """
+        graph = {
+            'process_id': 'apply_tiles',
+            'args' : {
+                'imagery':self.graph,
+                'code':{
+                    'language':'python',
+                    'source':code
+                }
+            }
+        }
+        return RestImagery(graph,session=self.session)
+
     def aggregate_time(self, temporal_window, aggregationfunction) -> Series :
         """ Applies a windowed reduction to a timeseries by applying a user defined function.
 

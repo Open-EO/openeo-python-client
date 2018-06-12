@@ -15,6 +15,8 @@ Python client API for OpenEO. Allows you to interact with OpenEO backends from y
 
 Installing locally checked out version:
 ```bash
+pip install -r requirements.txt
+pip install -r requirements-dev.txt
 pip install --user -e .
 ```
 Building the documentation:
