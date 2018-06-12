@@ -46,11 +46,9 @@ class TestBandMath(TestCase):
                 'process_id': 'apply_pixel',
                 'args':
                     {
-                        'collections':[
-                            {
+                        'imagery':{
                                 'collection_id': 'SENTINEL2_RADIOMETRY_10M'
-                            }
-                        ],
+                            },
                         'bands': ['B0', 'B1', 'B2'],
                         'function': expected_function
                     }
