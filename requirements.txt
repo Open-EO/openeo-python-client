@@ -1,5 +1,5 @@
 requests
-shapely==1.5.17
+shapely==1.6.4
 cloudpickle
 numpy
 pandas

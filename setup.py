@@ -17,5 +17,5 @@ setup(name=name,
       description='Client API for OpenEO',
       packages=find_packages(include=['openeo*']),
       test_requirements=['requests-mock'],
-      install_requires=['requests','shapely==1.5.17'],
+      install_requires=['requests','shapely==1.6.4'],
       )
