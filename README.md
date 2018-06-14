@@ -4,8 +4,13 @@ Python client API for OpenEO. Allows you to interact with OpenEO backends from y
 
 [![Status](https://img.shields.io/badge/Status-proof--of--concept-yellow.svg)]()
 
+## Requirements
+
+* Python 3.5
+* Pip3
+
 ## Usage
-[Basic concepts and examples](https://github.com/Open-EO/openeo-python-client/blob/master/examples/notebooks/Compositing.ipynb)
+[Basic concepts and examples](https://github.com/Open-EO/openeo-python-client/blob/master/examples)
 
 [General OpenEO background](https://open-eo.github.io/openeo-api/)
 
