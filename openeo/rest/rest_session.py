@@ -1,5 +1,6 @@
 import datetime
 import shutil
+import os
 
 import requests
 
@@ -211,6 +212,65 @@ class RESTSession(Session):
 
         return status
 
+
+    def user_download_file(self, file_path, output_file):
+        """
+        Downloads a user file to the back end.
+        :param file_path: remote path to the file that should be downloaded.
+        :param output_file: local path, where the file should be saved.
+        :return: status: True if it was successful, False otherwise
+        """
+
+        filename = os.path.basename(file_path)
+
+        path = "/users/{}/files/{}".format(self.userid, filename)
+
+        resp = self.get(path, stream=True)
+
+        if resp.status_code == 200:
+            with open(output_file, 'wb') as f:
+                shutil.copyfileobj(resp.raw, f)
+            return True
+        else:
+            return False
+
+    def user_upload_file(self, file_path):
+        """
+        Uploads a user file to the back end.
+        :param file_path: Local path to the file that should be uploaded.
+        :return: status: True if it was successful, False otherwise
+        """
+        if not os.path.isfile(file_path):
+            return False
+
+        filename = os.path.basename(file_path)
+
+        input_file = open(file_path, 'rb').read()
+
+
+        auth_header = self.authent.get_header()
+        path = "/users/{}/files/{}".format(self.userid, filename)
+
+        auth_header['Content-Type'] = 'application/octet-stream'
+
+        resp = requests.put(self.endpoint+path, headers=auth_header, data=input_file)
+
+        if resp.status_code == 200:
+            return True
+        else:
+            return False
+
+    def user_list_files(self):
+        """
+        Lists all files that the logged in user uploaded.
+        :return: file_list: List of the user uploaded files.
+        """
+        files = self.get('/users/{}/files'.format(self.userid))
+        if files.status_code == 200:
+            return json.loads(files.text)
+        else:
+            return None
+
     # TODO: Maybe rename to execute and merge with execute().
     def download(self, graph, time, outputfile,format_options):
         download_url = self.endpoint + self.root + "/execute"
@@ -313,6 +373,16 @@ class RESTSession(Session):
         auth_header = self.authent.get_header()
 
         return requests.patch(self.endpoint+path, headers=auth_header)
+
+    def put(self, path):
+        """
+        Makes a RESTful PUT request to the back end.
+        :param path: URL of the request (without root URL e.g. "/data")
+        :return: response: Response
+        """
+        auth_header = self.authent.get_header()
+
+        return requests.put(self.endpoint+path, headers=auth_header)
 
     def get(self,path, stream=False, auth=True):
         """
