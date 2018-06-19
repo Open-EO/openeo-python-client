@@ -32,21 +32,48 @@ class RestImagery(ImageCollection):
                 'to': end_date
             }
         }
-        return RestImagery(graph,session=self.session)
+        return RestImagery(graph, session=self.session)
 
     def bbox_filter(self, left, right, top, bottom, srs) -> 'ImageCollection':
         graph = {
             'process_id': 'filter_bbox',
-            'args' : {
+            'args': {
                 'imagery':self.graph,
-                'left':left,
+                'left': left,
                 'right': right,
-                'top':top,
-                'bottom':bottom,
-                'srs':srs
+                'top': top,
+                'bottom': bottom,
+                'srs': srs
             }
         }
-        return RestImagery(graph,session=self.session)
+        return RestImagery(graph, session=self.session)
+
+    def band_filter(self, bands):
+        """Filter the imagery by the given bands
+            :param bands: List of band names or single band name as a string.
+        """
+
+        graph = {
+            'process_id': 'filter_bands',
+            'args': {
+                'imagery': self.graph,
+                'bands': bands
+            }
+        }
+        return RestImagery(graph, session=self.session)
+
+    def zonal_statistics(self, regions, func, scale=1000, interval="day"):
+        graph = {
+            'process_id': 'zonal_statistics',
+            'args': {
+                'imagery': self.graph,
+                'regions': regions,
+                'func': func,
+                'scale': scale,
+                'interval': interval
+            }
+        }
+        return RestImagery(graph, session=self.session)
 
     def apply_pixel(self, bands:List, bandfunction) -> 'ImageCollection':
         """Apply a function to the given set of bands in this image collection."""
@@ -56,12 +83,12 @@ class RestImagery(ImageCollection):
             'args' : {
                 'imagery':self.graph,
                 'bands':bands,
-                'function': str(base64.b64encode(pickled_lambda),"UTF-8")
+                'function': str(base64.b64encode(pickled_lambda), "UTF-8")
             }
         }
-        return RestImagery(graph,session=self.session)
+        return RestImagery(graph, session=self.session)
 
-    def apply_tiles(self, code:str) -> 'ImageCollection':
+    def apply_tiles(self, code: str) -> 'ImageCollection':
         """Apply a function to the given set of tiles in this image collection.
             Code should follow the OpenEO UDF conventions.
             :param code: String representing Python code to be executed in the backend.
@@ -76,7 +103,7 @@ class RestImagery(ImageCollection):
                 }
             }
         }
-        return RestImagery(graph,session=self.session)
+        return RestImagery(graph, session=self.session)
 
     def aggregate_time(self, temporal_window, aggregationfunction) -> Series :
         """ Applies a windowed reduction to a timeseries by applying a user defined function.
@@ -89,53 +116,54 @@ class RestImagery(ImageCollection):
         pickled_lambda = cloudpickle.dumps(aggregationfunction)
         graph = {
             'process_id': 'reduce_by_time',
-            'args' : {
+            'args': {
                 'imagery':self.graph,
                 'temporal_window': temporal_window,
-                'function': str(base64.b64encode(pickled_lambda),"UTF-8")
+                'function': str(base64.b64encode(pickled_lambda), "UTF-8")
             }
         }
-        return RestImagery(graph,session=self.session)
+        return RestImagery(graph, session=self.session)
 
     def min_time(self) -> 'ImageCollection':
         graph = {
             'process_id': 'min_time',
-            'args' : {
-                'imagery':self.graph
+            'args': {
+                'imagery': self.graph
             }
         }
-        return RestImagery(graph,session=self.session)
+        return RestImagery(graph, session=self.session)
 
     def max_time(self) -> 'ImageCollection':
         graph = {
             'process_id': 'max_time',
-            'args' : {
-                'imagery':self.graph
+            'args': {
+                'imagery': self.graph
             }
         }
-        return RestImagery(graph,session=self.session)
+        return RestImagery(graph, session=self.session)
 
     def ndvi(self, red, nir) -> 'ImageCollection':
         graph = {
             'process_id': 'NDVI',
-            'args' : {
-                'imagery':self.graph,
+            'args': {
+                'imagery': self.graph,
                 'red': red,
                 'nir': nir
             }
         }
-        return RestImagery(graph,session=self.session)
+        return RestImagery(graph, session=self.session)
 
     def strech_colors(self, min, max) -> 'ImageCollection':
         graph = {
             'process_id': 'stretch_colors',
-            'args' : {
-                'imagery':self.graph,
+            'args': {
+                'imagery': self.graph,
+                'imagery': self.graph,
                 'min': min,
                 'max': max
             }
         }
-        return RestImagery(graph,session=self.session)
+        return RestImagery(graph, session=self.session)
 
     ####VIEW methods #######
     def timeseries(self, x, y, srs="EPSG:4326") -> Dict:
@@ -144,18 +172,21 @@ class RestImagery(ImageCollection):
 
         :param x: The x coordinate of the point
         :param y: The y coordinate of the point
-        :param srs: The spatial reference system of the coordinates, by default this is 'EPSG:4326', where x=longitude and y=latitude.
+        :param srs: The spatial reference system of the coordinates, by default
+        this is 'EPSG:4326', where x=longitude and y=latitude.
         :return: Dict: A timeseries
         """
         return self.session.point_timeseries({"process_graph":self.graph}, x, y, srs)
 
     def polygonal_mean_timeseries(self, polygon: Union[Polygon, MultiPolygon]) -> 'ImageCollection':
         """
-        Extract a mean time series for the given (multi)polygon. Its points are expected to be in the EPSG:4326 coordinate
+        Extract a mean time series for the given (multi)polygon. Its points are
+        expected to be in the EPSG:4326 coordinate
         reference system.
 
         :param polygon: The (multi)polygon
-        :param srs: The spatial reference system of the coordinates, by default this is 'EPSG:4326'
+        :param srs: The spatial reference system of the coordinates, by default
+        this is 'EPSG:4326'
         :return: ImageCollection
         """
 
@@ -177,9 +208,9 @@ class RestImagery(ImageCollection):
 
         return RestImagery(graph, self.session)
 
-    def download(self,outputfile:str, bbox="", time="",**format_options) -> str:
+    def download(self, outputfile:str, bbox="", time="", **format_options) -> str:
         """Extraxts a geotiff from this image collection."""
-        return self.session.download(self.graph,time,outputfile,format_options)
+        return self.session.download(self.graph, time, outputfile, format_options)
 
     def tiled_viewing_service(self) -> Dict:
         return self.session.tiled_viewing_service({"process_graph":self.graph})

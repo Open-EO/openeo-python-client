@@ -212,7 +212,6 @@ class RESTSession(Session):
 
         return status
 
-
     def user_download_file(self, file_path, output_file):
         """
         Downloads a user file to the back end.
