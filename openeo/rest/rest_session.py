@@ -58,9 +58,33 @@ class RESTSession(Session):
         Loads all available imagecollections types.
         :return: data_dict: Dict All available data types
         """
-        data = self.get(self.root + '/data')
-        data_dict = json.loads(data.text)
-        return data_dict
+        data = self.get(self.root + '/data', auth=False)
+        if data.status_code == 200:
+            return json.loads(data.text)
+        else:
+            return None
+
+    def list_capabilities(self) -> dict:
+        """
+        Loads all available capabilities.
+        :return: data_dict: Dict All available data types
+        """
+        data = self.get(self.root + '/capabilities', auth=False)
+        if data.status_code == 200:
+            return json.loads(data.text)
+        else:
+            return None
+
+    def get_outputformats(self) -> dict:
+        """
+        Loads all available output formats.
+        :return: data_dict: Dict All available output formats
+        """
+        data = self.get(self.root + '/capabilities/output_formats', auth=False)
+        if data.status_code == 200:
+            return json.loads(data.text)
+        else:
+            return None
 
     def get_collection(self, col_id) -> dict:
         # TODO: Maybe create some kind of Data class.
@@ -70,7 +94,7 @@ class RESTSession(Session):
         :return: data_dict: Dict Detailed information about the collection
         """
         if col_id:
-            data_info = self.get(self.root + '/data/{}'.format(col_id))
+            data_info = self.get(self.root + '/data/{}'.format(col_id), auth=False)
             data_dict = json.loads(data_info.text)
         else:
             data_dict = None
@@ -83,9 +107,11 @@ class RESTSession(Session):
         Loads all available processes of the back end.
         :return: processes_dict: Dict All available processes of the back end.
         """
-        processes = self.get('/processes')
-        processes_dict = json.loads(processes.text)
-        return processes_dict
+        processes = self.get('/processes', auth=False)
+        if processes.status_code == 200:
+            return json.loads(processes.text)
+        else:
+            return None
 
     def get_process(self, process_id) -> dict:
         # TODO: Maybe create some kind of Process class.
@@ -96,8 +122,11 @@ class RESTSession(Session):
                                  process
         """
         if process_id:
-            process_info = self.get('/processes/{}'.format(process_id))
-            processes_dict = json.loads(process_info.text)
+            process_info = self.get('/processes/{}'.format(process_id), auth=False)
+            if process_info.status_code == 200:
+                processes_dict = json.loads(process_info.text)
+            else:
+                processes_dict = None
         else:
             processes_dict = None
 
@@ -215,12 +244,22 @@ class RESTSession(Session):
         if r.status_code == 200:
 
             url = json.loads(r.text)
+            download_url = url[0]
 
             auth_header = self.authent.get_header()
-            resp = requests.get(url[0], files={'name': outputfile}, timeout=60,
-                                headers=auth_header, stream=True)
 
-            open(outputfile, 'wb').write(resp.content)
+            with open(outputfile, 'wb') as handle:
+                response = requests.get(download_url, stream=True, headers=auth_header)
+
+                if not response.ok:
+                    print (response)
+
+                for block in response.iter_content(1024):
+
+                    if not block:
+                        break
+
+                    handle.write(block)
         else:
             raise ConnectionAbortedError(r.text)
         return r.status_code
@@ -275,14 +314,19 @@ class RESTSession(Session):
 
         return requests.patch(self.endpoint+path, headers=auth_header)
 
-    def get(self,path, stream=False):
+    def get(self,path, stream=False, auth=True):
         """
         Makes a RESTful GET request to the back end.
         :param path: URL of the request (without root URL e.g. "/data")
         :param stream: True if the get request should be streamed, else False
+        :param auth: True if the get request should be authenticated, else False
         :return: response: Response
         """
-        auth_header = self.authent.get_header()
+
+        if auth == True:
+            auth_header = self.authent.get_header()
+        else:
+            auth_header = {}
 
         return requests.get(self.endpoint+path, headers=auth_header, stream=stream)
 
