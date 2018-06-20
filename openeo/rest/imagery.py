@@ -153,7 +153,7 @@ class RestImagery(ImageCollection):
         }
         return RestImagery(graph, session=self.session)
 
-    def strech_colors(self, min, max) -> 'ImageCollection':
+    def stretch_colors(self, min, max) -> 'ImageCollection':
         graph = {
             'process_id': 'stretch_colors',
             'args': {

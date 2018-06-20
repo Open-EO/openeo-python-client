@@ -71,7 +71,7 @@ class TestImagery(TestCase):
         self.assertEqual(graph["args"]["nir"], "B8A")
 
     def test_strech_colors(self):
-        new_imagery = self.imagery.strech_colors(-1, 1)
+        new_imagery = self.imagery.stretch_colors(-1, 1)
 
         graph = new_imagery.graph
 
