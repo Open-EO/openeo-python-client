@@ -251,11 +251,9 @@ class RESTSession(Session):
 
         path = "/users/{}/files/{}".format(self.userid, remote_path)
 
-        auth_header = self.authent.get_header()
+        content_type = {'Content-Type': 'application/octet-stream'}
 
-        auth_header['Content-Type'] = 'application/octet-stream'
-
-        resp = requests.put(self.endpoint+path, headers=auth_header, data=input_file)
+        resp = self.put(path=path, header=content_type, data=input_file)
 
         if resp.status_code == 200:
             return True
@@ -385,15 +383,24 @@ class RESTSession(Session):
 
         return requests.patch(self.endpoint+path, headers=auth_header)
 
-    def put(self, path):
+    def put(self, path, header={}, data=None):
         """
         Makes a RESTful PUT request to the back end.
         :param path: URL of the request (without root URL e.g. "/data")
+        :param header: header that gets added to the request.
+        :param data: data that gets added to the request.
         :return: response: Response
         """
         auth_header = self.authent.get_header()
 
-        return requests.put(self.endpoint+path, headers=auth_header)
+        # Merge headers
+        head = auth_header.copy()
+        head.update(header)
+
+        if data:
+            return requests.put(self.endpoint+path, headers=head, data=data)
+        else:
+            return requests.put(self.endpoint+path, headers=head)
 
     def get(self,path, stream=False, auth=True):
         """
@@ -404,7 +411,7 @@ class RESTSession(Session):
         :return: response: Response
         """
 
-        if auth == True:
+        if auth:
             auth_header = self.authent.get_header()
         else:
             auth_header = {}

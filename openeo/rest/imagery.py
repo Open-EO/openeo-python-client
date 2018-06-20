@@ -267,8 +267,14 @@ class RestImagery(ImageCollection):
 
     ####### HELPER methods #######
 
-    def graph_add_process(self, process_id, args):
-
+    def graph_add_process(self, process_id, args) -> 'ImageCollection':
+        """
+        Returns a new restimagery with an added process with the given process
+        id and a dictionary of arguments
+        :param process_id: String, Process Id of the added process.
+        :param args: Dict, Arguments of the process.
+        :return: imagery: Instance of the RestImagery class
+        """
         graph = {
             'process_id': process_id,
             'args': args
