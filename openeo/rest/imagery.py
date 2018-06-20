@@ -11,12 +11,9 @@ from ..imagecollection import ImageCollection
 from ..sessions import Session
 from shapely.geometry import Polygon, MultiPolygon, mapping
 
-# Created for the use of EODC PoC
-# Same as collection, but uses "imagery" instead of "collections"
-#TODO: remove imagecollection and replace it with this (maybe rename this to Imagery)
-class RestImagery(ImageCollection):
-    """Class representing an Image Collection. """
 
+class RestImagery(ImageCollection):
+    """Class representing an Image Collection. (In the API as 'imagery')"""
 
     def __init__(self, parentgraph:Dict,session:Session):
         self.graph = parentgraph
@@ -24,6 +21,12 @@ class RestImagery(ImageCollection):
 
     def date_range_filter(self, start_date: Union[str, datetime, date],
                           end_date: Union[str, datetime, date]) -> 'ImageCollection':
+        """Drops observations from a collection that have been captured before
+            a start or after a given end date.
+            :param start_date: starting date of the filter
+            :param end_date: ending date of the filter
+            :return An ImageCollection instance
+        """
         graph = {
             'process_id': 'filter_daterange',
             'args' : {
@@ -35,6 +38,16 @@ class RestImagery(ImageCollection):
         return RestImagery(graph, session=self.session)
 
     def bbox_filter(self, left, right, top, bottom, srs) -> 'ImageCollection':
+        """Drops observations from a collection that are located outside
+            of a given bounding box.
+            :param left: left boundary (longitude / easting)
+            :param right: right boundary (longitude / easting)
+            :param top: top boundary (latitude / northing)
+            :param bottom: top boundary (latitude / northing)
+            :param srs: spatial reference system of boundaries as
+                        proj4 or EPSG:12345 like string
+            :return An ImageCollection instance
+        """
         graph = {
             'process_id': 'filter_bbox',
             'args': {
@@ -48,9 +61,10 @@ class RestImagery(ImageCollection):
         }
         return RestImagery(graph, session=self.session)
 
-    def band_filter(self, bands):
+    def band_filter(self, bands) -> 'ImageCollection':
         """Filter the imagery by the given bands
             :param bands: List of band names or single band name as a string.
+            :return An ImageCollection instance
         """
 
         graph = {
@@ -62,7 +76,19 @@ class RestImagery(ImageCollection):
         }
         return RestImagery(graph, session=self.session)
 
-    def zonal_statistics(self, regions, func, scale=1000, interval="day"):
+    def zonal_statistics(self, regions, func, scale=1000, interval="day") -> 'ImageCollection':
+        """Calculates statistics for each zone specified in a file.
+            :param regions: GeoJSON or a path to a GeoJSON file containing the
+                            regions. For paths you must specify the path to a
+                            user-uploaded file without the user id in the path.
+            :param func: Statistical function to calculate for the specified
+                         zones. example values: min, max, mean, median, mode
+            :param scale: A nominal scale in meters of the projection to work
+                          in. Defaults to 1000.
+            :param interval: Interval to group the time series. Allowed values:
+                            day, wee, month, year. Defaults to day.
+            :return An ImageCollection instance
+        """
         graph = {
             'process_id': 'zonal_statistics',
             'args': {
@@ -106,13 +132,13 @@ class RestImagery(ImageCollection):
         return RestImagery(graph, session=self.session)
 
     def aggregate_time(self, temporal_window, aggregationfunction) -> Series :
-        """ Applies a windowed reduction to a timeseries by applying a user defined function.
-
+        """ Applies a windowed reduction to a timeseries by applying a user
+            defined function.
             :param temporal_window: The time window to group by
-            :param aggregationfunction: The function to apply to each time window. Takes a pandas Timeseries as input.
+            :param aggregationfunction: The function to apply to each time window.
+                                        Takes a pandas Timeseries as input.
             :return A pandas Timeseries object
         """
-        # /api/jobs
         pickled_lambda = cloudpickle.dumps(aggregationfunction)
         graph = {
             'process_id': 'reduce_by_time',
@@ -125,6 +151,9 @@ class RestImagery(ImageCollection):
         return RestImagery(graph, session=self.session)
 
     def min_time(self) -> 'ImageCollection':
+        """Finds the minimum value of a time series for all bands of the input dataset.
+            :return An ImageCollection instance
+        """
         graph = {
             'process_id': 'min_time',
             'args': {
@@ -134,6 +163,9 @@ class RestImagery(ImageCollection):
         return RestImagery(graph, session=self.session)
 
     def max_time(self) -> 'ImageCollection':
+        """Finds the maximum value of a time series for all bands of the input dataset.
+            :return An ImageCollection instance
+        """
         graph = {
             'process_id': 'max_time',
             'args': {
@@ -143,6 +175,11 @@ class RestImagery(ImageCollection):
         return RestImagery(graph, session=self.session)
 
     def ndvi(self, red, nir) -> 'ImageCollection':
+        """ NDVI
+            :param red: Reference to the red band
+            :param nir: Reference to the nir band
+            :return An ImageCollection instance
+        """
         graph = {
             'process_id': 'NDVI',
             'args': {
@@ -154,6 +191,11 @@ class RestImagery(ImageCollection):
         return RestImagery(graph, session=self.session)
 
     def stretch_colors(self, min, max) -> 'ImageCollection':
+        """ Color stretching
+            :param min: Minimum value
+            :param max: Maximum value
+            :return An ImageCollection instance
+        """
         graph = {
             'process_id': 'stretch_colors',
             'args': {

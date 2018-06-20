@@ -233,22 +233,25 @@ class RESTSession(Session):
         else:
             return False
 
-    def user_upload_file(self, file_path):
+    def user_upload_file(self, file_path, remote_path=None):
         """
         Uploads a user file to the back end.
         :param file_path: Local path to the file that should be uploaded.
+        :param remote_path: Remote path of the file where it should be uploaded.
         :return: status: True if it was successful, False otherwise
         """
         if not os.path.isfile(file_path):
             return False
 
-        filename = os.path.basename(file_path)
+        if not remote_path:
+
+            remote_path = os.path.basename(file_path)
 
         input_file = open(file_path, 'rb').read()
 
+        path = "/users/{}/files/{}".format(self.userid, remote_path)
 
         auth_header = self.authent.get_header()
-        path = "/users/{}/files/{}".format(self.userid, filename)
 
         auth_header['Content-Type'] = 'application/octet-stream'
 
@@ -271,7 +274,16 @@ class RESTSession(Session):
             return None
 
     # TODO: Maybe rename to execute and merge with execute().
-    def download(self, graph, time, outputfile,format_options):
+    # Depricated function, use download_job instead.
+    def download(self, graph, time, outputfile, format_options):
+        """
+        Downloads a result of a process graph synchronously.
+        :param graph: Dict representing a process graph
+        :param time: dba
+        :param outputfile: output file
+        :param format_options: formating options
+        :return: job_id: String
+        """
         download_url = self.endpoint + self.root + "/execute"
         request = {
             "process_graph": graph,
