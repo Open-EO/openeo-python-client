@@ -27,15 +27,14 @@ class RestImagery(ImageCollection):
             :param end_date: ending date of the filter
             :return An ImageCollection instance
         """
-        graph = {
-            'process_id': 'filter_daterange',
-            'args' : {
-                'imagery':self.graph,
-                'from':start_date,
+        process_id = 'filter_daterange'
+        args = {
+                'imagery': self.graph,
+                'from': start_date,
                 'to': end_date
             }
-        }
-        return RestImagery(graph, session=self.session)
+
+        return self.graph_add_process(process_id, args)
 
     def bbox_filter(self, left, right, top, bottom, srs) -> 'ImageCollection':
         """Drops observations from a collection that are located outside
@@ -48,18 +47,16 @@ class RestImagery(ImageCollection):
                         proj4 or EPSG:12345 like string
             :return An ImageCollection instance
         """
-        graph = {
-            'process_id': 'filter_bbox',
-            'args': {
-                'imagery':self.graph,
+        process_id = 'filter_bbox'
+        args = {
+                'imagery': self.graph,
                 'left': left,
                 'right': right,
                 'top': top,
                 'bottom': bottom,
                 'srs': srs
             }
-        }
-        return RestImagery(graph, session=self.session)
+        return self.graph_add_process(process_id, args)
 
     def band_filter(self, bands) -> 'ImageCollection':
         """Filter the imagery by the given bands
@@ -67,14 +64,12 @@ class RestImagery(ImageCollection):
             :return An ImageCollection instance
         """
 
-        graph = {
-            'process_id': 'filter_bands',
-            'args': {
+        process_id = 'filter_bands'
+        args = {
                 'imagery': self.graph,
                 'bands': bands
-            }
-        }
-        return RestImagery(graph, session=self.session)
+                }
+        return self.graph_add_process(process_id, args)
 
     def zonal_statistics(self, regions, func, scale=1000, interval="day") -> 'ImageCollection':
         """Calculates statistics for each zone specified in a file.
@@ -89,47 +84,46 @@ class RestImagery(ImageCollection):
                             day, wee, month, year. Defaults to day.
             :return An ImageCollection instance
         """
-        graph = {
-            'process_id': 'zonal_statistics',
-            'args': {
+        process_id = 'zonal_statistics'
+        args = {
                 'imagery': self.graph,
                 'regions': regions,
                 'func': func,
                 'scale': scale,
                 'interval': interval
             }
-        }
-        return RestImagery(graph, session=self.session)
+
+        return self.graph_add_process(process_id, args)
 
     def apply_pixel(self, bands:List, bandfunction) -> 'ImageCollection':
         """Apply a function to the given set of bands in this image collection."""
         pickled_lambda = cloudpickle.dumps(bandfunction)
-        graph = {
-            'process_id': 'apply_pixel',
-            'args' : {
+
+        process_id = 'apply_pixel'
+        args = {
                 'imagery':self.graph,
                 'bands':bands,
                 'function': str(base64.b64encode(pickled_lambda), "UTF-8")
             }
-        }
-        return RestImagery(graph, session=self.session)
+
+        return self.graph_add_process(process_id, args)
 
     def apply_tiles(self, code: str) -> 'ImageCollection':
         """Apply a function to the given set of tiles in this image collection.
             Code should follow the OpenEO UDF conventions.
             :param code: String representing Python code to be executed in the backend.
         """
-        graph = {
-            'process_id': 'apply_tiles',
-            'args' : {
+
+        process_id = 'apply_tiles'
+        args = {
                 'imagery':self.graph,
                 'code':{
                     'language':'python',
                     'source':code
                 }
             }
-        }
-        return RestImagery(graph, session=self.session)
+
+        return self.graph_add_process(process_id, args)
 
     def aggregate_time(self, temporal_window, aggregationfunction) -> Series :
         """ Applies a windowed reduction to a timeseries by applying a user
@@ -140,39 +134,40 @@ class RestImagery(ImageCollection):
             :return A pandas Timeseries object
         """
         pickled_lambda = cloudpickle.dumps(aggregationfunction)
-        graph = {
-            'process_id': 'reduce_by_time',
-            'args': {
+
+        process_id = 'reduce_by_time'
+        args = {
                 'imagery':self.graph,
                 'temporal_window': temporal_window,
                 'function': str(base64.b64encode(pickled_lambda), "UTF-8")
             }
-        }
-        return RestImagery(graph, session=self.session)
+
+        return self.graph_add_process(process_id, args)
 
     def min_time(self) -> 'ImageCollection':
         """Finds the minimum value of a time series for all bands of the input dataset.
             :return An ImageCollection instance
         """
-        graph = {
-            'process_id': 'min_time',
-            'args': {
+
+        process_id = 'min_time'
+        args = {
                 'imagery': self.graph
-            }
-        }
-        return RestImagery(graph, session=self.session)
+                }
+
+        return self.graph_add_process(process_id, args)
 
     def max_time(self) -> 'ImageCollection':
         """Finds the maximum value of a time series for all bands of the input dataset.
             :return An ImageCollection instance
         """
-        graph = {
-            'process_id': 'max_time',
-            'args': {
+
+        process_id = 'max_time'
+
+        args = {
                 'imagery': self.graph
             }
-        }
-        return RestImagery(graph, session=self.session)
+
+        return self.graph_add_process(process_id, args)
 
     def ndvi(self, red, nir) -> 'ImageCollection':
         """ NDVI
@@ -180,15 +175,15 @@ class RestImagery(ImageCollection):
             :param nir: Reference to the nir band
             :return An ImageCollection instance
         """
-        graph = {
-            'process_id': 'NDVI',
-            'args': {
+        process_id = 'NDVI'
+
+        args = {
                 'imagery': self.graph,
                 'red': red,
                 'nir': nir
             }
-        }
-        return RestImagery(graph, session=self.session)
+
+        return self.graph_add_process(process_id, args)
 
     def stretch_colors(self, min, max) -> 'ImageCollection':
         """ Color stretching
@@ -196,16 +191,14 @@ class RestImagery(ImageCollection):
             :param max: Maximum value
             :return An ImageCollection instance
         """
-        graph = {
-            'process_id': 'stretch_colors',
-            'args': {
-                'imagery': self.graph,
+        process_id = 'stretch_colors'
+        args = {
                 'imagery': self.graph,
                 'min': min,
                 'max': max
             }
-        }
-        return RestImagery(graph, session=self.session)
+
+        return self.graph_add_process(process_id, args)
 
     ####VIEW methods #######
     def timeseries(self, x, y, srs="EPSG:4326") -> Dict:
@@ -240,15 +233,14 @@ class RestImagery(ImageCollection):
             }
         }
 
-        graph = {
-            'process_id': 'zonal_statistics',
-            'args': {
+        process_id = 'zonal_statistics'
+
+        args = {
                 'imagery': self.graph,
                 'geometry': geojson
             }
-        }
 
-        return RestImagery(graph, self.session)
+        return self.graph_add_process(process_id, args)
 
     def download(self, outputfile:str, bbox="", time="", **format_options) -> str:
         """Extraxts a geotiff from this image collection."""
@@ -272,3 +264,14 @@ class RestImagery(ImageCollection):
     def execute(self) -> Dict:
         """Executes the process graph of the imagery. """
         return self.session.execute({"process_graph": self.graph})
+
+    ####### HELPER methods #######
+
+    def graph_add_process(self, process_id, args):
+
+        graph = {
+            'process_id': process_id,
+            'args': args
+        }
+
+        return RestImagery(graph, self.session)
