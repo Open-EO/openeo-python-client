@@ -89,6 +89,22 @@ class ImageCollection(ABC):
         """
         pass
 
+    def ndvi(self, red, nir) -> 'ImageCollection':
+        """ NDVI
+            :param red: Reference to the red band
+            :param nir: Reference to the nir band
+            :return An ImageCollection instance
+        """
+        pass
+
+
+    def stretch_colors(self, min, max) -> 'ImageCollection':
+        """ Color stretching
+            :param min: Minimum value
+            :param max: Maximum value
+            :return An ImageCollection instance
+        """
+
 
     ####VIEW methods #######
     def timeseries(self, x, y, srs="EPSG:4326") -> Dict:
@@ -99,6 +115,21 @@ class ImageCollection(ABC):
         :param y: The y coordinate of the point
         :param srs: The spatial reference system of the coordinates, by default this is 'EPSG:4326', where x=longitude and y=latitude.
         :return: Dict: A timeseries
+        """
+        pass
+
+    def zonal_statistics(self, regions, func, scale=1000, interval="day") -> 'Dict':
+        """Calculates statistics for each zone specified in a file.
+            :param regions: GeoJSON or a path to a GeoJSON file containing the
+                            regions. For paths you must specify the path to a
+                            user-uploaded file without the user id in the path.
+            :param func: Statistical function to calculate for the specified
+                         zones. example values: min, max, mean, median, mode
+            :param scale: A nominal scale in meters of the projection to work
+                          in. Defaults to 1000.
+            :param interval: Interval to group the time series. Allowed values:
+                            day, wee, month, year. Defaults to day.
+            :return A timeseries
         """
         pass
 

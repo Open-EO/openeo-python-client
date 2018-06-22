@@ -51,8 +51,7 @@ class RESTSession(Session):
         :return: jobs: Dict All jobs of the user
         """
         jobs = self.get(self.root + '/users/{}/jobs'.format(self.userid))
-        jobs = json.loads(jobs.text)
-        return jobs
+        return self.parse_json_response(jobs)
 
     def list_collections(self) -> dict:
         """
@@ -60,10 +59,7 @@ class RESTSession(Session):
         :return: data_dict: Dict All available data types
         """
         data = self.get(self.root + '/data', auth=False)
-        if data.status_code == 200:
-            return json.loads(data.text)
-        else:
-            return None
+        return self.parse_json_response(data)
 
     def list_capabilities(self) -> dict:
         """
@@ -71,10 +67,7 @@ class RESTSession(Session):
         :return: data_dict: Dict All available data types
         """
         data = self.get(self.root + '/capabilities', auth=False)
-        if data.status_code == 200:
-            return json.loads(data.text)
-        else:
-            return None
+        return self.parse_json_response(data)
 
     def get_outputformats(self) -> dict:
         """
@@ -82,10 +75,7 @@ class RESTSession(Session):
         :return: data_dict: Dict All available output formats
         """
         data = self.get(self.root + '/capabilities/output_formats', auth=False)
-        if data.status_code == 200:
-            return json.loads(data.text)
-        else:
-            return None
+        return self.parse_json_response(data)
 
     def get_collection(self, col_id) -> dict:
         # TODO: Maybe create some kind of Data class.
@@ -96,11 +86,9 @@ class RESTSession(Session):
         """
         if col_id:
             data_info = self.get(self.root + '/data/{}'.format(col_id), auth=False)
-            data_dict = json.loads(data_info.text)
+            return self.parse_json_response(data_info)
         else:
-            data_dict = None
-
-        return data_dict
+            raise ValueError("Invalid argument col_id: "+ str(col_id))
 
     def get_all_processes(self) -> dict:
         # TODO: Maybe format the result dictionary so that the process_id is the key of the dictionary.
@@ -109,10 +97,7 @@ class RESTSession(Session):
         :return: processes_dict: Dict All available processes of the back end.
         """
         processes = self.get('/processes', auth=False)
-        if processes.status_code == 200:
-            return json.loads(processes.text)
-        else:
-            return None
+        return self.parse_json_response(processes)
 
     def get_process(self, process_id) -> dict:
         # TODO: Maybe create some kind of Process class.
@@ -124,10 +109,7 @@ class RESTSession(Session):
         """
         if process_id:
             process_info = self.get('/processes/{}'.format(process_id), auth=False)
-            if process_info.status_code == 200:
-                processes_dict = json.loads(process_info.text)
-            else:
-                processes_dict = None
+            processes_dict = self.parse_json_response(process_info)
         else:
             processes_dict = None
 
@@ -204,13 +186,7 @@ class RESTSession(Session):
         :return: status: Dict Status JSON of the job
         """
         request = self.get("/jobs/{}".format(job_id))
-
-        if request.status_code == 200:
-            status = json.loads(request.content)
-        else:
-            return None
-
-        return status
+        return self.parse_json_response(request)
 
     def user_download_file(self, file_path, output_file):
         """
@@ -266,10 +242,7 @@ class RESTSession(Session):
         :return: file_list: List of the user uploaded files.
         """
         files = self.get('/users/{}/files'.format(self.userid))
-        if files.status_code == 200:
-            return json.loads(files.text)
-        else:
-            return None
+        return self.parse_json_response(files)
 
     # TODO: Maybe rename to execute and merge with execute().
     # Depricated function, use download_job instead.
@@ -312,7 +285,7 @@ class RESTSession(Session):
 
         if r.status_code == 200:
 
-            url = json.loads(r.text)
+            url = r.json()
             download_url = url[0]
 
             auth_header = self.authent.get_header()
