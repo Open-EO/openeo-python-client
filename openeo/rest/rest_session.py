@@ -305,7 +305,7 @@ class RESTSession(Session):
         else:
             raise ConnectionAbortedError(r.text)
         return r.status_code
-    # TODO: Merge with download().
+
     def execute(self, graph):
         """
         Execute a process graph synchronously.
@@ -313,7 +313,7 @@ class RESTSession(Session):
         :return: job_id: String
         """
         response = self.post(self.root + "/execute", graph)
-        return self.parse_json_response(response).get("job_id","")
+        return self.parse_json_response(response)
 
     def job(self, graph):
         """
@@ -332,6 +332,9 @@ class RESTSession(Session):
         """
         if response.status_code == 200:
             return response.json()
+        elif response.status_code == 502:
+            from requests.exceptions import ProxyError
+            return ProxyError("The proxy returned an error, this could be due to a timeout.")
         else:
             raise ConnectionAbortedError(response.text)
 
