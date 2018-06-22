@@ -84,10 +84,13 @@ class RestImagery(ImageCollection):
                             day, wee, month, year. Defaults to day.
             :return An ImageCollection instance
         """
+        regions_geojson = regions
+        if isinstance(regions,Polygon) or isinstance(regions,MultiPolygon):
+            regions_geojson = mapping(regions)
         process_id = 'zonal_statistics'
         args = {
                 'imagery': self.graph,
-                'regions': regions,
+                'regions': regions_geojson,
                 'func': func,
                 'scale': scale,
                 'interval': interval
@@ -237,7 +240,8 @@ class RestImagery(ImageCollection):
 
         args = {
                 'imagery': self.graph,
-                'geometry': geojson
+                'regions': geojson,
+                'func': 'avg'
             }
 
         return self.graph_add_process(process_id, args)
