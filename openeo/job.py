@@ -15,3 +15,6 @@ class Job(ABC):
     def status(self):
         """ Returns the status of the job."""
         pass
+
+    def queue(self):
+        """ Queues the job. """
