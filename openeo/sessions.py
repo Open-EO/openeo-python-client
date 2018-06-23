@@ -20,9 +20,18 @@ class Session(ABC):
         pass
 
     @abstractmethod
+    def list_capabilities(self) -> dict:
+        """
+        Loads all available capabilities.
+
+        :return: data_dict: Dict All available data types
+        """
+
+    @abstractmethod
     def list_collections(self) -> dict:
         """
         Retrieve all products available in the backend.
+
         :return: a dict containing product information. The 'product_id' corresponds to an image collection id.
         """
         pass
@@ -39,4 +48,19 @@ class Session(ABC):
         """
         pass
 
+    def image(self, image_product_id) -> 'ImageCollection':
+        """
+        Get imagery by id.
 
+        :param image_collection_id: String image collection identifier
+        :return: collection: RestImagery the imagery with the id
+        """
+
+    @abstractmethod
+    def get_outputformats(self) -> dict:
+        """
+        Loads all available output formats.
+
+        :return: data_dict: Dict All available output formats
+        """
+        pass
