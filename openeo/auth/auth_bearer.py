@@ -1,9 +1,13 @@
-from openeo.auth.auth import Auth
+from openeo.auth import Auth
 import requests
 from requests.auth import HTTPBasicAuth
 
 
 class BearerAuth(Auth):
+    """
+    Supports authentication using a bearer token.
+
+    """
 
     def __init__(self, username, password, endpoint):
         """

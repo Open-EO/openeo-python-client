@@ -119,17 +119,20 @@ class ImageCollection(ABC):
         pass
 
     def zonal_statistics(self, regions, func, scale=1000, interval="day") -> 'Dict':
-        """Calculates statistics for each zone specified in a file.
-            :param regions: GeoJSON or a path to a GeoJSON file containing the
-                            regions. For paths you must specify the path to a
-                            user-uploaded file without the user id in the path.
-            :param func: Statistical function to calculate for the specified
-                         zones. example values: min, max, mean, median, mode
-            :param scale: A nominal scale in meters of the projection to work
-                          in. Defaults to 1000.
-            :param interval: Interval to group the time series. Allowed values:
-                            day, wee, month, year. Defaults to day.
-            :return A timeseries
+        """
+        Calculates statistics for each zone specified in a file.
+
+        :param regions: GeoJSON or a path to a GeoJSON file containing the
+                        regions. For paths you must specify the path to a
+                        user-uploaded file without the user id in the path.
+        :param func: Statistical function to calculate for the specified
+                     zones. example values: min, max, mean, median, mode
+        :param scale: A nominal scale in meters of the projection to work
+                      in. Defaults to 1000.
+        :param interval: Interval to group the time series. Allowed values:
+                        day, wee, month, year. Defaults to day.
+
+        :return A timeseries
         """
         pass
 

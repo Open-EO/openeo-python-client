@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-
+from .auth import Auth
 from .imagecollection import ImageCollection
 
 """
@@ -16,7 +16,16 @@ class Session(ABC):
 
     @property
     @abstractmethod
-    def auth(self, username, password, auth) -> bool:
+    def auth(self, username, password, auth:Auth) -> bool:
+        """
+        Authenticates a user to the backend using auth class.
+
+        :param username: String Username credential of the user
+        :param password: String Password credential of the user
+        :param auth_class: Auth instance of the abstract Auth class
+
+        :return: token: String Bearer token
+        """
         pass
 
     @abstractmethod
