@@ -89,6 +89,22 @@ class ImageCollection(ABC):
         """
         pass
 
+    def mean_time(self) -> 'ImageCollection':
+        """
+            Finds the mean value of time series for all bands of the input dataset.
+
+            :return: An ImageCollection without a time dimension.
+        """
+        pass
+
+    def median_time(self) -> 'ImageCollection':
+        """
+            Finds the median value of time series for all bands of the input dataset.
+
+            :return: An ImageCollection without a time dimension.
+        """
+        pass
+
     def ndvi(self, red, nir) -> 'ImageCollection':
         """ NDVI
 
