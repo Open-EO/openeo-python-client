@@ -17,8 +17,8 @@ class ImageCollection(ABC):
         """
         Specifies a date range filter to be applied on the ImageCollection
 
-        :param start_date: Start date of the filter, inclusive.
-        :param end_date: End date of the filter, exclusive.
+        :param start_date: Start date of the filter, inclusive, format: "YYYY-MM-DD".
+        :param end_date: End date of the filter, exclusive, format e.g.: "2018-01-13".
         :return: An ImageCollection filtered by date.
         """
 
