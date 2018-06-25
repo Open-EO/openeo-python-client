@@ -172,6 +172,32 @@ class RestImagery(ImageCollection):
 
         return self.graph_add_process(process_id, args)
 
+    def mean_time(self) -> 'ImageCollection':
+        """Finds the mean value of a time series for all bands of the input dataset.
+            :return An ImageCollection instance
+        """
+
+        process_id = 'mean_time'
+
+        args = {
+                'imagery': self.graph
+            }
+
+        return self.graph_add_process(process_id, args)
+
+    def median_time(self) -> 'ImageCollection':
+        """Finds the median value of a time series for all bands of the input dataset.
+            :return An ImageCollection instance
+        """
+
+        process_id = 'median_time'
+
+        args = {
+                'imagery': self.graph
+            }
+
+        return self.graph_add_process(process_id, args)
+
     def ndvi(self, red, nir) -> 'ImageCollection':
         """ NDVI
             :param red: Reference to the red band
