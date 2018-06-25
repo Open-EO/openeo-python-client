@@ -50,7 +50,9 @@ class Session(ABC):
         # TODO: Maybe create some kind of Data class.
         """
         Loads detailed information of a specific image collection.
+
         :param col_id: String Id of the collection
+
         :return: data_dict: Dict Detailed information about the collection
         """
 
@@ -59,6 +61,7 @@ class Session(ABC):
         # TODO: Maybe format the result dictionary so that the process_id is the key of the dictionary.
         """
         Loads all available processes of the back end.
+
         :return: processes_dict: Dict All available processes of the back end.
         """
 
@@ -67,7 +70,9 @@ class Session(ABC):
         # TODO: Maybe create some kind of Process class.
         """
         Get detailed information about a specifig process.
+
         :param process_id: String Process identifier
+
         :return: processes_dict: Dict with the detail information about the
                                  process
         """
@@ -77,8 +82,10 @@ class Session(ABC):
         # TODO: Create a Job class or something for the creation of a nested process execution...
         """
         Posts a job to the back end including the evaluation information.
+
         :param post_data: String data of the job (e.g. process graph)
         :param evaluation: String Option for the evaluation of the job
+
         :return: job_id: String Job id of the new created job
         """
 
@@ -100,6 +107,7 @@ class Session(ABC):
         Get imagery by id.
 
         :param image_collection_id: String image collection identifier
+
         :return: collection: RestImagery the imagery with the id
         """
 
@@ -108,6 +116,7 @@ class Session(ABC):
         #TODO: Create a kind of User class to abstract the information (e.g. userid, username, password from the session.
         """
         Loads all jobs of the current user.
+
         :return: jobs: Dict All jobs of the user
         """
 
@@ -115,8 +124,10 @@ class Session(ABC):
     def user_download_file(self, file_path, output_file):
         """
         Downloads a user file to the back end.
+
         :param file_path: remote path to the file that should be downloaded.
         :param output_file: local path, where the file should be saved.
+
         :return: status: True if it was successful, False otherwise
         """
 
@@ -124,8 +135,10 @@ class Session(ABC):
     def user_upload_file(self, file_path, remote_path=None):
         """
         Uploads a user file to the back end.
+
         :param file_path: Local path to the file that should be uploaded.
         :param remote_path: Remote path of the file where it should be uploaded.
+
         :return: status: True if it was successful, False otherwise
         """
 
@@ -133,6 +146,7 @@ class Session(ABC):
     def user_list_files(self):
         """
         Lists all files that the logged in user uploaded.
+
         :return: file_list: List of the user uploaded files.
         """
 
@@ -140,10 +154,12 @@ class Session(ABC):
     def download(self, graph, time, outputfile, format_options):
         """
         Downloads a result of a process graph synchronously.
+
         :param graph: Dict representing a process graph
         :param time: dba
         :param outputfile: output file
         :param format_options: formating options
+
         :return: job_id: String
         """
 

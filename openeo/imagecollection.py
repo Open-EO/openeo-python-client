@@ -91,8 +91,10 @@ class ImageCollection(ABC):
 
     def ndvi(self, red, nir) -> 'ImageCollection':
         """ NDVI
+
             :param red: Reference to the red band
             :param nir: Reference to the nir band
+
             :return An ImageCollection instance
         """
         pass
@@ -100,16 +102,18 @@ class ImageCollection(ABC):
 
     def stretch_colors(self, min, max) -> 'ImageCollection':
         """ Color stretching
+
             :param min: Minimum value
-
-
             :param max: Maximum value
+
             :return An ImageCollection instance
         """
 
     def band_filter(self, bands) -> 'ImageCollection':
         """Filter the imagecollection by the given bands
+
             :param bands: List of band names or single band name as a string.
+
             :return An ImageCollection instance
         """
 
@@ -121,6 +125,7 @@ class ImageCollection(ABC):
         :param x: The x coordinate of the point
         :param y: The y coordinate of the point
         :param srs: The spatial reference system of the coordinates, by default this is 'EPSG:4326', where x=longitude and y=latitude.
+
         :return: Dict: A timeseries
         """
         pass
@@ -149,6 +154,7 @@ class ImageCollection(ABC):
         reference system.
 
         :param polygon: The (multi)polygon
+
         :return: Dict: A timeseries
         """
         pass
@@ -176,7 +182,9 @@ class ImageCollection(ABC):
         """
         Returns a new imagecollection with an added process with the given process
         id and a dictionary of arguments
+
         :param process_id: String, Process Id of the added process.
         :param args: Dict, Arguments of the process.
+
         :return: imagecollection: Instance of the ImageCollection class
         """
