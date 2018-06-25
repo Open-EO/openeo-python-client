@@ -101,6 +101,8 @@ class ImageCollection(ABC):
     def stretch_colors(self, min, max) -> 'ImageCollection':
         """ Color stretching
             :param min: Minimum value
+
+
             :param max: Maximum value
             :return An ImageCollection instance
         """
@@ -164,3 +166,12 @@ class ImageCollection(ABC):
             :return: Job: A job object that can be used to query the processing status.
         """
         pass
+
+    def graph_add_process(self, process_id, args) -> 'ImageCollection':
+        """
+        Returns a new restimagery with an added process with the given process
+        id and a dictionary of arguments
+        :param process_id: String, Process Id of the added process.
+        :param args: Dict, Arguments of the process.
+        :return: imagery: Instance of the RestImagery class
+        """
