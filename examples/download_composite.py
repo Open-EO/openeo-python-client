@@ -5,14 +5,14 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 
 #connect with EURAC backend
-session = openeo.session("nobody", "http://saocompute.eurac.edu/openEO_WCPS_Driver")
+session = openeo.session("nobody", "http://saocompute.eurac.edu/openEO_WCPS_Driver/openeo")
 
 #retrieve the list of available collections
-collections = session.imagecollections()
+collections = session.list_collections()
 print(collections)
 
 #create image collection
-s2_fapar = session.imagecollection("S2_L2A_T32TPS_20M")
+s2_fapar = session.image("S2_L2A_T32TPS_20M")
 
 #specify process graph
 download = s2_fapar \
