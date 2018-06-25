@@ -14,6 +14,7 @@ class BearerAuth(Auth):
         Initializes authentication with username and password at
         the given endpoint. To actually log in the user the login method has
         to be called.
+
         :param username: String Username credential of the user
         :param password: String Password credential of the user
         """
@@ -25,6 +26,7 @@ class BearerAuth(Auth):
         Authenticates a user to the backend using bearer token. The token is
         then saved in the BearerAuth class, so that the operations are
         automatically made if the bearer token.
+
         :return: status: True if the login was successful, False if not.
         """
         token = requests.get(self.endpoint+'/auth/login',
@@ -39,6 +41,7 @@ class BearerAuth(Auth):
     def get_header(self) -> dict:
         """
         Returns needed header for a request of this authentication
+
         :return: header: dict consists of all arguments needed in the header.
         """
         return {'Authorization': 'Bearer {}'.format(self.token)}

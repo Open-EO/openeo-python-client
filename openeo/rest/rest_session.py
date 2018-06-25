@@ -64,6 +64,7 @@ class RESTSession(Session):
     def list_capabilities(self) -> dict:
         """
         Loads all available capabilities.
+
         :return: data_dict: Dict All available data types
         """
         data = self.get(self.root + '/capabilities', auth=False)
