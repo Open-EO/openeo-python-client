@@ -107,6 +107,11 @@ class ImageCollection(ABC):
             :return An ImageCollection instance
         """
 
+    def band_filter(self, bands) -> 'ImageCollection':
+        """Filter the imagecollection by the given bands
+            :param bands: List of band names or single band name as a string.
+            :return An ImageCollection instance
+        """
 
     ####VIEW methods #######
     def timeseries(self, x, y, srs="EPSG:4326") -> Dict:
@@ -169,9 +174,9 @@ class ImageCollection(ABC):
 
     def graph_add_process(self, process_id, args) -> 'ImageCollection':
         """
-        Returns a new restimagery with an added process with the given process
+        Returns a new imagecollection with an added process with the given process
         id and a dictionary of arguments
         :param process_id: String, Process Id of the added process.
         :param args: Dict, Arguments of the process.
-        :return: imagery: Instance of the RestImagery class
+        :return: imagecollection: Instance of the ImageCollection class
         """
