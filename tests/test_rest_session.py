@@ -55,3 +55,12 @@ class TestUserFiles(TestCase):
         with open(local_output_fname.name, 'rb') as downloaded_file:
             downloaded_content = downloaded_file.read()
         assert content == downloaded_content
+
+    def test_user_delete_file(self, m):
+        delete_url ="http://localhost:8000/api/users/{}/files/{}".format(self.user_id,
+                                                                         self.upload_remote_fname)
+        m.register_uri('DELETE', delete_url)
+        session = openeo.session(self.user_id, endpoint=self.endpoint)
+        session.auth(self.auth_id, self.auth_pwd)
+        status = session.user_delete_file(self.upload_remote_fname)
+        assert status

@@ -237,6 +237,23 @@ class RESTSession(Session):
         else:
             return False
 
+    def user_delete_file(self, file_path):
+        """
+        Deletes a user file in the back end.
+
+        :param file_path: remote path to the file that should be deleted.
+        :return: status: True if it was successful, False otherwise
+        """
+
+        path = "/users/{}/files/{}".format(self.userid, file_path)
+
+        resp = self.delete(path)
+
+        if resp.status_code == 200:
+            return True
+        else:
+            return False
+
     def user_list_files(self):
         """
         Lists all files that the logged in user uploaded.
@@ -395,6 +412,16 @@ class RESTSession(Session):
 
         return requests.get(self.endpoint+path, headers=auth_header, stream=stream)
 
+    def delete(self, path):
+        """
+        Makes a RESTful DELETE request to the backend
+
+        :param path: URL of the request relative to endpoint url
+        """
+
+        auth_header = self.authent.get_header()
+
+        return requests.delete(self.endpoint+path, headers=auth_header)
 
 def session(userid=None,endpoint:str="https://openeo.org/openeo"):
     """
