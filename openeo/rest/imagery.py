@@ -198,6 +198,19 @@ class RestImagery(ImageCollection):
 
         return self.graph_add_process(process_id, args)
 
+    def count_time(self) -> 'ImageCollection':
+        """Counts the number of images with a valid mask in a time series for all bands of the input dataset.
+            :return An ImageCollection instance
+        """
+
+        process_id = 'count_time'
+
+        args = {
+                'imagery': self.graph
+            }
+
+        return self.graph_add_process(process_id, args)
+
     def ndvi(self, red, nir) -> 'ImageCollection':
         """ NDVI
             :param red: Reference to the red band
