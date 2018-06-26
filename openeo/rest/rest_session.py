@@ -143,9 +143,18 @@ class RESTSession(Session):
         """
         from .imagery import RestImagery
         collection = RestImagery({'collection_id': image_collection_id}, self)
-        #TODO session should be used to retrieve collection metadata (containing bands)
-        collection.bands = ["B0","B1","B2","B3"]
-        collection.dates = [datetime.datetime.now()]
+
+        # read and format extent, band and date availability information
+        data_info = self.get_collection(image_collection_id)
+        collection.bands = []
+        if data_info:
+            for band in data_info['bands']: collection.bands.append(band['band_id'])
+            collection.dates = data_info['time']
+            collection.extent = data_info['extent']
+        else:
+            collection.bands = ['not specified']
+            collection.dates = ['not specified']
+            collection.extent = ['not specified']
         return collection
 
     def image(self, image_product_id) -> 'ImageCollection':
@@ -157,9 +166,18 @@ class RESTSession(Session):
         from .imagery import RestImagery
 
         image = RestImagery({'product_id': image_product_id}, self)
-        #TODO session should be used to retrieve collection metadata (containing bands)
-        image.bands = ["B0","B1","B2","B3"]
-        image.dates = [datetime.datetime.now()]
+
+        # read and format extent, band and date availability information
+        data_info = self.get_collection(image_product_id)
+        image.bands = []
+        if data_info:
+            for band in data_info['bands']: image.bands.append(band['band_id'])
+            image.dates = data_info['time']
+            image.extent = data_info['extent']
+        else:
+            image.bands = ['not specified']
+            image.dates = ['not specified']
+            image.extent = ['not specified']
         return image
 
     def point_timeseries(self, graph, x, y, srs):
