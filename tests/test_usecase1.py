@@ -6,7 +6,9 @@ from unittest.mock import MagicMock
 import openeo
 import requests_mock
 
-POST_DATA = '{"process_id": "filter_daterange", "args": { "imagery": { "product_id": "landsat7_ndvi"}, "from": "2014-01-01", "to": "2014-06-01"}}'
+POST_DATA = '{"process_id": "filter_daterange", "args": { "imagery": { "product_id": "landsat7_ndvi"}, ' \
+            '"from": "2014-01-01", "to": "2014-06-01"}}'
+
 
 
 @requests_mock.mock()

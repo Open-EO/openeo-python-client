@@ -243,7 +243,8 @@ class RESTSession(Session):
 
             remote_path = os.path.basename(file_path)
 
-        input_file = open(file_path, 'rb').read()
+        with open(file_path, 'rb') as f:
+            input_file = f.read()
 
         path = "/users/{}/files/{}".format(self.userid, remote_path)
 
