@@ -148,9 +148,12 @@ class RESTSession(Session):
         data_info = self.get_collection(image_collection_id)
         collection.bands = []
         if data_info:
-            for band in data_info['bands']: collection.bands.append(band['band_id'])
-            collection.dates = data_info['time']
-            collection.extent = data_info['extent']
+            if "bands" in data_info:
+                for band in data_info['bands']: collection.bands.append(band['band_id'])
+            if "time" in data_info:
+                collection.dates = data_info['time']
+            if "extent" in data_info:
+                collection.extent = data_info['extent']
         else:
             collection.bands = ['not specified']
             collection.dates = ['not specified']
