@@ -117,6 +117,14 @@ class ImageCollection(ABC):
         """
         pass
 
+    def count_time(self) -> 'ImageCollection':
+        """
+            Counts the number of images with a valid mask in a time series for all bands of the input dataset.
+
+            :return: An ImageCollection without a time dimension.
+        """
+        pass
+
     def ndvi(self, red, nir) -> 'ImageCollection':
         """ NDVI
 
