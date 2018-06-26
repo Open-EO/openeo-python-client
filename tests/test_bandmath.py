@@ -2,18 +2,24 @@ import unittest
 from unittest import TestCase
 
 from mock import MagicMock
-
+import requests_mock
 import openeo
 
-
+@requests_mock.mock()
 class TestBandMath(TestCase):
 
 
-    def test_ndvi(self):
+    def test_ndvi(self, m):
         #configuration phase: define username, endpoint, parameters?
-        session = openeo.session("driesj",endpoint="https://myopeneo.be/")
+        session = openeo.session("driesj",endpoint="http://localhost:8000/api")
         session.post = MagicMock()
         session.download = MagicMock()
+
+        m.get("http://localhost:8000/api/data", json=[{"product_id": "sentinel2_subset"}])
+        m.get("http://localhost:8000/api/data/SENTINEL2_RADIOMETRY_10M", json={"product_id": "sentinel2_subset",
+                                                                               "bands": [{'band_id': 'B0'}, {'band_id': 'B1'},
+                                                                                         {'band_id': 'B2'}, {'band_id': 'B3'}],
+                                                                               'time': {'from': '2015-06-23', 'to': '2018-06-18'}})
 
         #discovery phase: find available data
         #basically user needs to find available data on a website anyway?
@@ -32,7 +38,7 @@ class TestBandMath(TestCase):
 
         #materialize result in the shape of a geotiff
         #REST: WCS call
-        ndvi_coverage.download("out.geotiff",bbox="", time=s2_radio.dates[0])
+        ndvi_coverage.download("out.geotiff",bbox="", time=s2_radio.dates['to'])
 
         #get result as timeseries for a single point
         #How to define a point? Ideally it should also have the CRS?
@@ -58,11 +64,20 @@ class TestBandMath(TestCase):
         session.download.assert_called_once()
 
 
-    def test_ndvi_udf(self):
+    def test_ndvi_udf(self, m):
         #configuration phase: define username, endpoint, parameters?
-        session = openeo.session("driesj",endpoint="https://myopeneo.be/")
+        session = openeo.session("driesj",endpoint="http://localhost:8000/api")
         session.post = MagicMock()
         session.download = MagicMock()
+
+        m.get("http://localhost:8000/api/data", json=[{"product_id": "sentinel2_subset"}])
+        m.get("http://localhost:8000/api/data/SENTINEL2_RADIOMETRY_10M", json={"product_id": "sentinel2_subset",
+                                                                               "bands": [{'band_id': 'B0'},
+                                                                                         {'band_id': 'B1'},
+                                                                                         {'band_id': 'B2'},
+                                                                                         {'band_id': 'B3'}],
+                                                                               'time': {'from': '2015-06-23',
+                                                                                        'to': '2018-06-18'}})
 
         #discovery phase: find available data
         #basically user needs to find available data on a website anyway?
@@ -79,7 +94,7 @@ class TestBandMath(TestCase):
 
         #materialize result in the shape of a geotiff
         #REST: WCS call
-        ndvi_coverage.download("out.geotiff",bbox="", time=s2_radio.dates[0])
+        ndvi_coverage.download("out.geotiff",bbox="", time=s2_radio.dates['to'])
 
         #get result as timeseries for a single point
         #How to define a point? Ideally it should also have the CRS?
