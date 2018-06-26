@@ -218,9 +218,7 @@ class RESTSession(Session):
         :return: status: True if it was successful, False otherwise
         """
 
-        filename = os.path.basename(file_path)
-
-        path = "/users/{}/files/{}".format(self.userid, filename)
+        path = "/users/{}/files/{}".format(self.userid, file_path)
 
         resp = self.get(path, stream=True)
 
