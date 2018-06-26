@@ -16,7 +16,7 @@ def ndvi(imagecollection, red, nir):
     return imagecollection.ndvi(red, nir)
 
 
-def date_range_filter(imagecollection,start_date:Union[str,datetime,date],end_date:Union[str,datetime,date]) -> 'ImageCollection':
+def date_range_filter(imagecollection, start_date: Union[str, datetime, date], end_date: Union[str, datetime, date]) -> 'ImageCollection':
     """
     Specifies a date range filter to be applied on the ImageCollection
 
@@ -29,11 +29,11 @@ def date_range_filter(imagecollection,start_date:Union[str,datetime,date],end_da
     return imagecollection.date_range_filter(start_date, end_date)
 
 
-def bbox_filter(imagecollection,left:float,right:float,top:float,bottom:float,srs:str) -> 'ImageCollection':
+def bbox_filter(imagecollection, left: float, right: float, top: float, bottom: float, srs: str) -> 'ImageCollection':
     """
     Specifies a bounding box to filter input image collections.
 
-    :param imagecollection: Imagecollection to apply the process, Instance of ImageCollection
+    :param imagecollection: Image collection to apply the process, Instance of ImageCollection
     :param left:
     :param right:
     :param top:
@@ -45,7 +45,7 @@ def bbox_filter(imagecollection,left:float,right:float,top:float,bottom:float,sr
     return imagecollection.bbox_filter(left, right, top, bottom, srs)
 
 
-def apply_pixel(imagecollection, bands:List, bandfunction) -> 'ImageCollection':
+def apply_pixel(imagecollection, bands: List, bandfunction) -> 'ImageCollection':
     """Apply a function to the given set of bands in this image collection.
 
     This type applies a simple function to one pixel of the input image or image collection.
@@ -54,6 +54,10 @@ def apply_pixel(imagecollection, bands:List, bandfunction) -> 'ImageCollection':
     Examples include the computation of vegetation indexes or filtering cloudy pixels.
 
     :param imagecollection: Imagecollection to apply the process, Instance of ImageCollection
+    :param bands: Bands to be used
+    :param bandfunction: Band function to be used
+
+    :return: An image collection with the pixel applied function.
     """
     return imagecollection.apply_pixel(bands, bandfunction)
 
@@ -68,6 +72,9 @@ def apply_tiles(imagecollection, code: str) -> 'ImageCollection':
     Examples include the computation of vegetation indexes or filtering cloudy pixels.
 
     :param imagecollection: Imagecollection to apply the process, Instance of ImageCollection
+    :param code: Code to apply to the ImageCollection
+
+    :return: An image collection with the tiles applied function.
     """
     return imagecollection.apply_tiles(code)
 

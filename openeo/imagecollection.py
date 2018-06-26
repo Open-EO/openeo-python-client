@@ -21,6 +21,7 @@ class ImageCollection(ABC):
         :param end_date: End date of the filter, exclusive, format e.g.: "2018-01-13".
         :return: An ImageCollection filtered by date.
         """
+        pass
 
     def bbox_filter(self,left:float,right:float,top:float,bottom:float,srs:str) -> 'ImageCollection':
         """
@@ -33,24 +34,35 @@ class ImageCollection(ABC):
         :param srs:
         :return: An image collection cropped to the specified bounding box.
         """
+        pass
 
-    def apply_pixel(self, bands:List, bandfunction) -> 'ImageCollection':
+    def apply_pixel(self, bands: List, bandfunction) -> 'ImageCollection':
         """Apply a function to the given set of bands in this image collection.
 
         This type applies a simple function to one pixel of the input image or image collection.
         The function gets the value of one pixel (including all bands) as input and produces a single scalar or tuple output.
         The result has the same schema as the input image (collection) but different bands.
         Examples include the computation of vegetation indexes or filtering cloudy pixels.
+
+        :param imagecollection: Imagecollection to apply the process, Instance of ImageCollection
+        :param bands: Bands to be used
+        :param bandfunction: Band function to be used
+
+        :return: An image collection with the pixel applied function.
         """
         pass
 
-    def apply_tiles(self, code:str) -> 'ImageCollection':
+    def apply_tiles(self, code: str) -> 'ImageCollection':
         """Apply a function to the tiles of an image collection.
 
         This type applies a simple function to one pixel of the input image or image collection.
         The function gets the value of one pixel (including all bands) as input and produces a single scalar or tuple output.
         The result has the same schema as the input image (collection) but different bands.
         Examples include the computation of vegetation indexes or filtering cloudy pixels.
+
+        :param code: Code to apply to the ImageCollection
+
+        :return: An image collection with the tiles applied function.
         """
         pass
 
@@ -124,6 +136,7 @@ class ImageCollection(ABC):
 
             :return An ImageCollection instance
         """
+        pass
 
     def band_filter(self, bands) -> 'ImageCollection':
         """Filter the imagecollection by the given bands
@@ -132,6 +145,7 @@ class ImageCollection(ABC):
 
             :return An ImageCollection instance
         """
+        pass
 
     ####VIEW methods #######
     def timeseries(self, x, y, srs="EPSG:4326") -> Dict:
@@ -204,3 +218,4 @@ class ImageCollection(ABC):
 
         :return: imagecollection: Instance of the ImageCollection class
         """
+        pass
