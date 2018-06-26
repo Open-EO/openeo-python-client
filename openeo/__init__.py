@@ -19,3 +19,4 @@ from .imagecollection import ImageCollection
 from .rest.rest_session import session
 from .job import Job
 from .auth.auth import Auth
+from .process.process import *
