@@ -17,7 +17,32 @@ COLLECTIONS = [{'product_id': 'ASTER/AST_L1T_003',
   'source': 'NASA LP DAAC at the USGS EROS Center, https://lpdaac.usgs.gov/dataset_discovery/aster/aster_products_table/ast_l1t'},
  {'product_id': 'AU/GA/AUSTRALIA_5M_DEM',
   'description': 'Australian 5M DEM',
-  'source': 'Geoscience Australia, https://ecat.ga.gov.au/geonetwork/srv/eng/search#!22be4b55-2465-4320-e053-10a3070a5236'}]
+  'source': 'Geoscience Australia, https://ecat.ga.gov.au/geonetwork/srv/eng/search#!22be4b55-2465-4320-e053-10a3070a5236'},
+ {'product_id': 'COPERNICUS/S2',
+ 'description': 'Sentinel-2 MSI: MultiSpectral Instrument, Level-1C',
+ 'source': 'European Union/ESA/Copernicus, https://sentinel.esa.int/web/sentinel/user-guides/sentinel-2-msi',
+ 'time': {'from': '2015-06-23', 'to': '2018-06-27'},
+ 'bands': [{'band_id': 'B1'},
+  {'band_id': 'B2'},
+  {'band_id': 'B3'},
+  {'band_id': 'B4'},
+  {'band_id': 'B5'},
+  {'band_id': 'B6'},
+  {'band_id': 'B7'},
+  {'band_id': 'B8'},
+  {'band_id': 'B8A'},
+  {'band_id': 'B9'},
+  {'band_id': 'B10'},
+  {'band_id': 'B11'},
+  {'band_id': 'B12'},
+  {'band_id': 'QA10'},
+  {'band_id': 'QA20'},
+  {'band_id': 'QA60'}],
+ 'extent': {'srs': 'EPSG:4326',
+  'left': -180,
+  'right': 180,
+  'bottom': -90,
+  'top': 90}}]
 
 PROCESSES = [{'process_id': 'zonal_statistics',
   'description': 'Calculates statistics for each zone specified in a file.'},
@@ -45,6 +70,11 @@ class TestUserFiles(TestCase):
         with open(self.upload_local_fname, 'r') as uploaded_file:
             content = uploaded_file.read()
         assert request.json() == json.loads(content)
+        return True
+
+    def match_process_graph(self, request):
+
+        assert request.json() == PROCESSES
         return True
 
     def test_user_upload_file(self, m):
@@ -129,13 +159,12 @@ class TestUserFiles(TestCase):
 
     def test_create_job(self, m):
 
-        # TODO: Add Test to check if post_data is sent properly
-        post_data = {}
+        post_data = PROCESSES
         job_id = "MyId"
         result = {"job_id": job_id}
 
-        m.register_uri('POST', "{}/jobs?evaluate={}".format(self.endpoint, "lazy"), status_code=200, json=result)
-        m.register_uri('POST', "{}/jobs?evaluate={}".format(self.endpoint, "wrong"), status_code=400)
+        m.register_uri('POST', "{}/jobs?evaluate={}".format(self.endpoint, "lazy"), status_code=200, json=result, additional_matcher=self.match_process_graph)
+        m.register_uri('POST', "{}/jobs?evaluate={}".format(self.endpoint, "wrong"), status_code=400, additional_matcher=self.match_process_graph)
 
         session = openeo.session(self.user_id, endpoint=self.endpoint)
 
@@ -147,3 +176,27 @@ class TestUserFiles(TestCase):
 
         assert resp is None
 
+    def test_image(self, m):
+
+        collection_org = COLLECTIONS[2]
+        collection_id = collection_org["product_id"]
+        collection_url = "{}/data/{}".format(self.endpoint, collection_id)
+        m.register_uri('GET', collection_url, json=collection_org)
+
+        session = openeo.session(self.user_id, endpoint=self.endpoint)
+
+        resp = session.image(collection_id)
+
+        assert resp.bands == ['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8',
+                             'B8A', 'B9', 'B10', 'B11', 'B12', 'QA10', 'QA20', 'QA60']
+
+    def user_jobs(self, m):
+
+        collection_url = "{}/users/{}/jobs".format(self.endpoint, self.user_id)
+        m.register_uri('GET', collection_url, json=PROCESSES)
+
+        session = openeo.session(self.user_id, endpoint=self.endpoint)
+
+        resp = session.user_jobs()
+
+        assert resp == PROCESSES
