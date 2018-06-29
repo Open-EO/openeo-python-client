@@ -46,6 +46,7 @@ class RESTSession(Session):
 
     def user_jobs(self) -> dict:
         #TODO: Create a kind of User class to abstract the information (e.g. userid, username, password from the session.
+        #TODO: Move information to Job class and return a list of Jobs.
         """
         Loads all jobs of the current user.
         :return: jobs: Dict All jobs of the user

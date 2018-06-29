@@ -143,6 +143,16 @@ class Session(ABC):
         """
 
     @abstractmethod
+    def user_delete_file(self, file_path):
+        """
+        Deletes a user file in the back end.
+
+        :param file_path: remote path to the file that should be deleted.
+        :return: status: True if it was successful, False otherwise
+        """
+        pass
+
+    @abstractmethod
     def user_list_files(self):
         """
         Lists all files that the logged in user uploaded.
