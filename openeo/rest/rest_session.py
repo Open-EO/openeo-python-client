@@ -1,4 +1,4 @@
-import datetime
+from urllib.parse import urlparse
 import shutil
 import os
 
@@ -197,16 +197,16 @@ class RESTSession(Session):
         :param job_id: String job identifier
         :return: status_code: Integer Rest Response status code
         """
-        request = self.patch("/jobs/{}/queue".format(job_id))
+        request = self.post("/jobs/{}/results".format(job_id), postdata=None)
 
         return request.status_code
 
-    def job_status(self, job_id):
+    def job_info(self, job_id):
         # TODO: Maybe add a JobStatus class.
         """
-        Get status of a specific job.
+        Get full information about a specific job.
         :param job_id: String job identifier
-        :return: status: Dict Status JSON of the job
+        :return: status: Dict Info JSON of the job
         """
         request = self.get("/jobs/{}".format(job_id))
         return self.parse_json_response(request)
@@ -361,7 +361,11 @@ class RESTSession(Session):
         :return: job_id: String
         """
         response = self.post(self.root + "/jobs", graph)
-        return self.parse_json_response(response).get("job_id","")
+
+        job_url = response.headers['Location']
+        job_id = urlparse(job_url).path.split('/')[-1]
+
+        return job_id
 
     def parse_json_response(self, response: requests.Response):
         """

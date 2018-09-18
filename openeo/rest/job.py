@@ -17,7 +17,7 @@ class ClientJob(Job):
 
     def status(self):
         """ Returns the status of the job."""
-        return self.session.job_status(self.job_id)
+        return self.session.job_info(self.job_id)['status']
 
     def queue(self):
         """ Queues the job. """
