@@ -35,4 +35,4 @@ class ClientJob(Job):
 
     def results(self) -> List[ClientJobResult]:
         """ Returns this job's results. """
-        return [ClientJobResult(link) for link in self.session.job_results(self.job_id)['links']]
+        return [ClientJobResult(link['href']) for link in self.session.job_results(self.job_id)['links']]
