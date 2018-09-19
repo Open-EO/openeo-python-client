@@ -1,5 +1,12 @@
 from abc import ABC
 
+from typing import List
+
+
+class JobResult:
+    def save_as(self, target_file) -> None:
+        pass
+
 
 class Job(ABC):
     """Represents the result of creating a new Job out of a process graph. Jobs are stored in the
@@ -19,4 +26,7 @@ class Job(ABC):
 
     def queue(self):
         """ Queues the job. """
+        pass
+
+    def results(self) -> List[JobResult]:
         pass

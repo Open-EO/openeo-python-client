@@ -211,6 +211,10 @@ class RESTSession(Session):
         request = self.get("/jobs/{}".format(job_id))
         return self.parse_json_response(request)
 
+    def job_results(self, job_id):
+        response = self.get("/jobs/{}/results".format(job_id))
+        return self.parse_json_response(response)
+
     def user_download_file(self, file_path, output_file):
         """
         Downloads a user file to the back end.
