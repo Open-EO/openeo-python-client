@@ -292,15 +292,19 @@ class RestImagery(ImageCollection):
     def tiled_viewing_service(self) -> Dict:
         return self.session.tiled_viewing_service({"process_graph":self.graph})
 
-    def send_job(self, out_format=None) -> Job:
+    def send_job(self, out_format=None, **format_options) -> Job:
         """
         Sends a job to the backend and returns a ClientJob instance.
         :param out_format: String Format of the job result.
+        :param format_options: String Parameters for the job result format
         :return: status: ClientJob resulting job.
         """
         if out_format:
             return ClientJob(self.session.job({"process_graph": self.graph,
-                                               'output': {'format': out_format}}), self.session)
+                                               'output': {
+                                                   'format': out_format,
+                                                   'parameters': format_options
+                                               }}), self.session)
         else:
             return ClientJob(self.session.job({"process_graph": self.graph}), self.session)
 
