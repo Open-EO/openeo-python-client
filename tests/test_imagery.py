@@ -70,6 +70,19 @@ class TestImagery(TestCase):
         self.assertEqual(graph["args"]["red"], "B04")
         self.assertEqual(graph["args"]["nir"], "B8A")
 
+    def test_mask(self):
+        from shapely import geometry
+        polygon = geometry.Polygon([[0, 0], [1.9, 0], [1.9, 1.9], [0, 1.9]])
+        new_imagery = self.imagery.mask(polygon)
+
+        graph = new_imagery.graph
+
+        self.assertEqual(graph["process_id"], "mask")
+        self.assertEqual(graph["args"]["mask_shape"],
+                         {'coordinates': (((0.0, 0.0), (1.9, 0.0), (1.9, 1.9), (0.0, 1.9), (0.0, 0.0)),),
+                          'crs': {'properties': {'name': 'EPSG:4326'}, 'type': 'name'},
+                          'type': 'Polygon'})
+
     def test_strech_colors(self):
         new_imagery = self.imagery.stretch_colors(-1, 1)
 

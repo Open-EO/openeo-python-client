@@ -155,6 +155,16 @@ class ImageCollection(ABC):
         """
         pass
 
+    def mask(self,polygon: Union[Polygon, MultiPolygon], srs="EPSG:4326") -> 'ImageCollection':
+        """
+        Mask the image collection using a polygon. All pixels outside the polygon should be set to the nodata value.
+        All pixels inside, or intersecting the polygon should retain their original value.
+
+        :param polygon: A polygon, provided as a
+        :param srs: The reference system of the provided polygon, provided as an 'EPSG:XXXX' string. By default this is Lat Lon (EPSG:4326).
+        :return: A new ImageCollection, with the mask applied.
+        """
+
     ####VIEW methods #######
     def timeseries(self, x, y, srs="EPSG:4326") -> Dict:
         """
@@ -197,7 +207,7 @@ class ImageCollection(ABC):
         """
         pass
 
-    def tiled_viewing_service(self) -> Dict:
+    def tiled_viewing_service(self,type="") -> Dict:
         """
         Returns metadata for a tiled viewing service that visualizes this layer.
 

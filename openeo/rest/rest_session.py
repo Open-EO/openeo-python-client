@@ -381,7 +381,7 @@ class RESTSession(Session):
             return response.json()
         elif response.status_code == 502:
             from requests.exceptions import ProxyError
-            return ProxyError("The proxy returned an error, this could be due to a timeout.")
+            raise ProxyError("The proxy returned an error, this could be due to a timeout.")
         else:
             raise ConnectionAbortedError(response.text)
 

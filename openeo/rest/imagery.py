@@ -242,6 +242,32 @@ class RestImagery(ImageCollection):
 
         return self.graph_add_process(process_id, args)
 
+    def mask(self, polygon: Union[Polygon, MultiPolygon], srs="EPSG:4326") -> 'ImageCollection':
+        """
+        Mask the image collection using a polygon. All pixels outside the polygon should be set to the nodata value.
+        All pixels inside, or intersecting the polygon should retain their original value.
+
+        :param polygon: A polygon, provided as a Shapely Polygon or MultiPolygon
+        :param srs: The reference system of the provided polygon, by default this is Lat Lon (EPSG:4326).
+        :return: A new ImageCollection, with the mask applied.
+        """
+        geojson = mapping(polygon)
+        geojson['crs'] = {
+            'type': 'name',
+            'properties': {
+                'name': srs
+            }
+        }
+
+        process_id = 'mask'
+
+        args = {
+            'imagery': self.graph,
+            'mask_shape': geojson
+        }
+
+        return self.graph_add_process(process_id, args)
+
     ####VIEW methods #######
     def timeseries(self, x, y, srs="EPSG:4326") -> Dict:
         """
