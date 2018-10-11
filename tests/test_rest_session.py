@@ -96,12 +96,17 @@ class TestUserFiles(TestCase):
         m.get(download_url, content=content)
         session = openeo.session(self.user_id, endpoint=self.endpoint)
         session.auth(self.auth_id, self.auth_pwd)
-        local_output_fname = tempfile.NamedTemporaryFile()
-        status = session.user_download_file(self.upload_remote_fname,
-                                            local_output_fname.name)
-        assert status
-        with open(local_output_fname.name, 'rb') as downloaded_file:
-            downloaded_content = downloaded_file.read()
+        local_output_fd, local_output_fname = tempfile.mkstemp()
+        try:
+            status = session.user_download_file(self.upload_remote_fname,
+                                                local_output_fname)
+            assert status
+            with open(local_output_fname, 'rb') as downloaded_file:
+                downloaded_content = downloaded_file.read()
+        finally:
+            os.close(local_output_fd)
+            os.remove(local_output_fname)
+
         assert content == downloaded_content
 
     def test_user_delete_file(self, m):
