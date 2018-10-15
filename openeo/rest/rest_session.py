@@ -188,8 +188,13 @@ class RESTSession(Session):
         """Compute a timeseries for a given point location."""
         return self.post(self.root + "/timeseries/point?x={}&y={}&srs={}".format(x,y,srs),graph)
 
-    def tiled_viewing_service(self,graph):
-        return self.parse_json_response(self.post(self.root + "/tile_service",graph))
+    def create_service(self,graph,type="WMTS",title = "",description=""):
+        return self.parse_json_response(self.post(self.root + "/services",{
+            "title": title,
+            "description": description,
+            "type": type,
+            "process_graph": graph
+        }))
 
     def queue_job(self, job_id):
         """

@@ -39,9 +39,9 @@ class Session(ABC):
     @abstractmethod
     def list_collections(self) -> dict:
         """
-        Retrieve all products available in the backend.
+        Retrieve all collections available in the backend.
 
-        :return: a dict containing product information. The 'product_id' corresponds to an image collection id.
+        :return: a dict containing collection information. The 'product_id' corresponds to an image collection id.
         """
         pass
 
@@ -179,5 +179,18 @@ class Session(ABC):
         Loads all available output formats.
 
         :return: data_dict: Dict All available output formats
+        """
+        pass
+
+    @abstractmethod
+    def create_service(self, graph, type="WMTS", title="", description="") -> dict:
+        """
+        Create a secondary web service such as WMTS, TMS or WCS. The underlying data is processes on-demand, but a process graph may simply access results from a batch job.
+
+        :param graph: Dict representing a process graph
+        :param type: The type of service, e.g. 'WMTS', 'TMS' or 'WCS'. A list of supported types can be queried from the backend.
+        :param title: A short description to easily distinguish entities.
+        :param description: Detailed description to fully explain the entity. CommonMark 0.28 syntax MAY be used for rich text representation.
+        :return: A dict containing service details.
         """
         pass
