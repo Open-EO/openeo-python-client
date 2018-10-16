@@ -8,16 +8,16 @@ from pandas import Series
 from openeo.job import Job
 from openeo.rest.job import ClientJob
 from ..imagecollection import ImageCollection
-from ..sessions import Session
+from ..connection import Connection
 from shapely.geometry import Polygon, MultiPolygon, mapping
 
 
 class RestImagery(ImageCollection):
     """Class representing an Image Collection. (In the API as 'imagery')"""
 
-    def __init__(self, parentgraph:Dict,session:Session):
+    def __init__(self, parentgraph:Dict,connection:Connection):
         self.graph = parentgraph
-        self.session = session
+        self.connection = connection
 
     def date_range_filter(self, start_date: Union[str, datetime, date],
                           end_date: Union[str, datetime, date]) -> 'ImageCollection':
@@ -279,7 +279,7 @@ class RestImagery(ImageCollection):
         this is 'EPSG:4326', where x=longitude and y=latitude.
         :return: Dict: A timeseries
         """
-        return self.session.point_timeseries({"process_graph":self.graph}, x, y, srs)
+        return self.connection.point_timeseries({"process_graph":self.graph}, x, y, srs)
 
     def polygonal_mean_timeseries(self, polygon: Union[Polygon, MultiPolygon]) -> 'ImageCollection':
         """
@@ -313,10 +313,11 @@ class RestImagery(ImageCollection):
 
     def download(self, outputfile:str, bbox="", time="", **format_options) -> str:
         """Extraxts a geotiff from this image collection."""
-        return self.session.download(self.graph, time, outputfile, format_options)
+        return self.connection.download(self.graph, time, outputfile, format_options)
 
     def tiled_viewing_service(self,**kwargs) -> Dict:
-        return self.session.create_service(self.graph,**kwargs)
+        return self.connection.create_service(self.graph,**kwargs)
+
 
     def send_job(self, out_format=None, **format_options) -> Job:
         """
@@ -326,17 +327,17 @@ class RestImagery(ImageCollection):
         :return: status: ClientJob resulting job.
         """
         if out_format:
-            return ClientJob(self.session.job({"process_graph": self.graph,
+            return ClientJob(self.connection.job({"process_graph": self.graph,
                                                'output': {
                                                    'format': out_format,
                                                    'parameters': format_options
-                                               }}), self.session)
+                                               }}), self.connection)
         else:
-            return ClientJob(self.session.job({"process_graph": self.graph}), self.session)
+            return ClientJob(self.connection.job({"process_graph": self.graph}), self.connection)
 
     def execute(self) -> Dict:
         """Executes the process graph of the imagery. """
-        return self.session.execute({"process_graph": self.graph})
+        return self.connection.execute({"process_graph": self.graph})
 
     ####### HELPER methods #######
 
@@ -353,4 +354,4 @@ class RestImagery(ImageCollection):
             'args': args
         }
 
-        return RestImagery(graph, self.session)
+        return RestImagery(graph, self.connection)
