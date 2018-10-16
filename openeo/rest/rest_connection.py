@@ -7,45 +7,83 @@ import requests
 from ..auth.auth_none import NoneAuth
 
 import json
-from ..sessions import Session
+from ..connection import Connection
+
 
 """
 openeo.sessions
 ~~~~~~~~~~~~~~~~
-This module provides a Session object to manage and persist settings when interacting with the OpenEO API.
+This module provides a Connection object to manage and persist settings when interacting with the OpenEO API.
 """
 
 
-class RESTSession(Session):
+class RESTConnection(Connection):
 
-    def __init__(self,userid, endpoint):
-        # TODO: Maybe in future only the endpoint is needed, because of some kind of User object inside of the session.
+
+    def __init__(self, url, auth_type=NoneAuth, auth_options={}):
+        # TODO: Maybe in future only the endpoint is needed, because of some kind of User object inside of the connection.
         """
-        Constructor of RESTSession
-        :param userid: String User login credential
-        :param endpoint: String Backend endpoint url
+        Constructor of RESTConnection, authenticates user.
+        :param url: String Backend endpoint url
+        :param username: String Username credential of the user
+        :param password: String Password credential of the user
+        :param auth_class: Auth instance of the abstract Auth class
+        :return: token: String Bearer token
         """
-        self.userid = userid
-        self.endpoint = endpoint
         self.root = ""
-        self.authent = NoneAuth("none", "none", endpoint)
+        self.connect(url, auth_type, auth_options)
 
-    def auth(self, username, password, auth_class=NoneAuth) -> bool:
+    def connect(self, url, auth_type=NoneAuth, auth_options={}) -> bool:
         """
         Authenticates a user to the backend using auth class.
+        :param url: String Backend endpoint url
         :param username: String Username credential of the user
         :param password: String Password credential of the user
         :param auth_class: Auth instance of the abstract Auth class
         :return: token: String Bearer token
         """
 
-        self.authent = auth_class(username, password, self.endpoint)
+        username = None
+        password = None
+
+        if 'username' in auth_options:
+            username = auth_options['username']
+
+        if 'password' in auth_options:
+            password = auth_options['password']
+
+        self.userid = username
+        self.endpoint = url
+
+        self.authent = auth_type(username, password, self.endpoint)
+
         status = self.authent.login()
 
         return status
 
+    def authenticate_OIDC(self, options={}) -> str:
+        """
+        Authenticates a user to the backend using OIDC.
+        :param options: Authentication options
+        """
+        return self.not_supported()
+
+    def authenticate_basic(self, username, password) -> str:
+        """
+        Authenticates a user to the backend using HTTP Basic.
+        :param options: Authentication options
+        """
+        return self.not_supported()
+
+    def describe_account(self) -> str:
+        """
+        Describes the currently authenticated user account.
+        """
+        # Endpoint: GET /me
+        return self.not_supported()
+
     def user_jobs(self) -> dict:
-        #TODO: Create a kind of User class to abstract the information (e.g. userid, username, password from the session.
+        #TODO: Create a kind of User class to abstract the information (e.g. userid, username, password from the connection.
         #TODO: Move information to Job class and return a list of Jobs.
         """
         Loads all jobs of the current user.
@@ -59,40 +97,57 @@ class RESTSession(Session):
         Loads all available imagecollections types.
         :return: data_dict: Dict All available data types
         """
-        data = self.get(self.root + '/data', auth=False)
+        data = self.get(self.root + '/collections', auth=False)
         return self.parse_json_response(data)
 
-    def list_capabilities(self) -> dict:
+    def capabilities(self) -> dict:
         """
         Loads all available capabilities.
 
         :return: data_dict: Dict All available data types
         """
-        data = self.get(self.root + '/capabilities', auth=False)
+        data = self.get(self.root + '/', auth=False)
         return self.parse_json_response(data)
 
-    def get_outputformats(self) -> dict:
+    def list_file_types(self) -> dict:
         """
         Loads all available output formats.
         :return: data_dict: Dict All available output formats
         """
-        data = self.get(self.root + '/capabilities/output_formats', auth=False)
+        data = self.get(self.root + '/output_formats', auth=False)
         return self.parse_json_response(data)
 
-    def get_collection(self, col_id) -> dict:
+    def list_service_types(self) -> dict:
+        """
+        Loads all available service types.
+        :return: data_dict: Dict All available service types
+        """
+        data = self.get(self.root + '/service_types', auth=False)
+        return self.parse_json_response(data)
+
+    def list_services(self) -> dict:
+        """
+        Loads all available services of the authenticated user.
+        :return: data_dict: Dict All available service types
+        """
+        #TODO return service objects
+        data = self.get(self.root + '/services', auth=True)
+        return self.parse_json_response(data)
+
+    def describe_collection(self, name) -> dict:
         # TODO: Maybe create some kind of Data class.
         """
         Loads detailed information of a specific image collection.
-        :param col_id: String Id of the collection
+        :param name: String Id of the collection
         :return: data_dict: Dict Detailed information about the collection
         """
-        if col_id:
-            data_info = self.get(self.root + '/data/{}'.format(col_id), auth=False)
+        if name:
+            data_info = self.get(self.root + '/collections/{}'.format(name), auth=False)
             return self.parse_json_response(data_info)
         else:
-            raise ValueError("Invalid argument col_id: "+ str(col_id))
+            raise ValueError("Invalid argument col_id: {}".format(str(name)))
 
-    def get_all_processes(self) -> dict:
+    def list_processes(self) -> dict:
         # TODO: Maybe format the result dictionary so that the process_id is the key of the dictionary.
         """
         Loads all available processes of the back end.
@@ -100,6 +155,26 @@ class RESTSession(Session):
         """
         processes = self.get('/processes', auth=False)
         return self.parse_json_response(processes)
+
+    def list_jobs(self) -> dict:
+        # TODO: Maybe format the result so that there get Job classes returned.
+        """
+        Lists all jobs of the authenticated user.
+        :return: job_list: Dict of all jobs of the user.
+        """
+        jobs = self.get('/jobs', auth=True)
+        return self.parse_json_response(jobs)
+
+    def validate_processgraph(self, process_graph):
+
+        # Endpoint: POST /validate
+        return self.not_supported()
+
+    def list_processgraphs(self, process_graph):
+
+        # Endpoint: GET /process_graphs
+        return self.not_supported()
+
 
     def get_process(self, process_id) -> dict:
         # TODO: Maybe create some kind of Process class.
@@ -186,14 +261,17 @@ class RESTSession(Session):
 
     def point_timeseries(self, graph, x, y, srs):
         """Compute a timeseries for a given point location."""
-        return self.post(self.root + "/timeseries/point?x={}&y={}&srs={}".format(x,y,srs),graph)
+        return self.post(self.root + "/timeseries/point?x={}&y={}&srs={}"
+                         .format(x,y,srs), graph)
 
-    def create_service(self,graph,type="WMTS",title = "",description=""):
+    def create_service(self, process_graph, type="WMTS",title = "", description="",
+                       enabled=None, parameters={}, plan=None, budget=None):
+        # TODO: Should return a Service Object.
         return self.parse_json_response(self.post(self.root + "/services",{
             "title": title,
             "description": description,
             "type": type,
-            "process_graph": graph
+            "process_graph": process_graph
         }))
 
     def queue_job(self, job_id):
@@ -284,13 +362,27 @@ class RESTSession(Session):
         else:
             return False
 
-    def user_list_files(self):
+    def list_files(self, user_id=None):
         """
         Lists all files that the logged in user uploaded.
+        :param user_id: user id, which files should be listed.
         :return: file_list: List of the user uploaded files.
         """
-        files = self.get('/users/{}/files'.format(self.userid))
+
+        if not user_id:
+            user_id = self.userid
+
+        files = self.get('/files/{}'.format(user_id))
         return self.parse_json_response(files)
+
+    def create_file(self, path, user_id=None):
+        """
+        Creates virtual file
+        :param user_id: owner of the file.
+        :return: file object.
+        """
+        # No endpoint just returns a file object.
+        return self.not_supported()
 
     # TODO: Maybe rename to execute and merge with execute().
     # Depricated function, use download_job instead.
@@ -354,25 +446,34 @@ class RESTSession(Session):
             raise ConnectionAbortedError(r.text)
         return r.status_code
 
-    def execute(self, graph):
+    def execute(self, process_graph, output_format, output_parameters=None, budget=None):
         """
         Execute a process graph synchronously.
-        :param graph: Dict representing a process graph
+        :param process_graph: Dict representing a process graph
+        :param output_format: String Output format of the execution
+        :param output_parameters: Dict of additional output parameters
+        :param budget: Budget
         :return: job_id: String
         """
-        response = self.post(self.root + "/execute", graph)
+        # TODO: add output_format to execution
+        response = self.post(self.root + "/preview", process_graph)
         return self.parse_json_response(response)
 
-    def job(self, graph):
+    def create_job(self, process_graph, output_format, output_parameters={},
+                   title=None, description=None, plan=None, budget=None,
+                   additional={}):
         """
         Submits a new job to the back-end.
-        :param graph: Dict representing a process graph
+        :param process_graph: Dict representing a process graph
         :return: job_id: String
         """
-        response = self.post(self.root + "/jobs", graph)
+        #TODO: Not fully implemented yet.
+        response = self.post(self.root + "/jobs", process_graph)
 
-        job_url = response.headers['Location']
-        job_id = urlparse(job_url).path.split('/')[-1]
+        content = json.loads(response.text)
+
+        job_id = content['job_id']
+        # job_id = urlparse(job_url).path.split('/')[-1]
 
         return job_id
 
@@ -457,15 +558,20 @@ class RESTSession(Session):
 
         return requests.delete(self.endpoint+path, headers=auth_header)
 
-def session(userid=None,endpoint:str="https://openeo.org/openeo"):
+    def not_supported(self):
+        not_support = "This function is not supported by the python client yet."
+        print(not_support)
+        return not_support
+
+def connection(url, auth_type=NoneAuth, auth_options={}):
     """
-    This method is the entry point to OpenEO. You typically create one session object in your script or application, per back-end.
+    This method is the entry point to OpenEO. You typically create one connection object in your script or application, per back-end.
     and re-use it for all calls to that backend.
     If the backend requires authentication, you should set pass your credentials.
 
     :param endpoint: The http url of an OpenEO endpoint.
 
-    :rtype: openeo.sessions.Session
+    :rtype: openeo.connections.Connection
     """
 
-    return RESTSession(userid,endpoint)
+    return RESTConnection(url, auth_type, auth_options)
