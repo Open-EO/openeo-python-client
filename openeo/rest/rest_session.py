@@ -188,13 +188,9 @@ class RESTSession(Session):
         """Compute a timeseries for a given point location."""
         return self.post(self.root + "/timeseries/point?x={}&y={}&srs={}".format(x,y,srs),graph)
 
-    def create_service(self,graph,type="WMTS",title = "",description=""):
-        return self.parse_json_response(self.post(self.root + "/services",{
-            "title": title,
-            "description": description,
-            "type": type,
-            "process_graph": graph
-        }))
+    def create_service(self,graph,**kwargs):
+        kwargs["process_graph"] = graph
+        return self.parse_json_response(self.post(self.root + "/services",kwargs))
 
     def queue_job(self, job_id):
         """
@@ -382,7 +378,7 @@ class RESTSession(Session):
         :param response: Response of a RESTful request
         :return: response: JSON Response
         """
-        if response.status_code == 200:
+        if response.status_code == 200 or response.status_code == 201:
             return response.json()
         elif response.status_code == 502:
             from requests.exceptions import ProxyError

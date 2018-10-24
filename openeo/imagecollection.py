@@ -160,6 +160,10 @@ class ImageCollection(ABC):
         Mask the image collection using a polygon. All pixels outside the polygon should be set to the nodata value.
         All pixels inside, or intersecting the polygon should retain their original value.
 
+        TODO: Does mask by polygon imply cropping?
+        TODO: what about naming? Masking can also be done using a raster mask...
+        TODO: what will happen if the intersection between the mask and the imagecollection is empty? Raise an error?
+
         :param polygon: A polygon, provided as a
         :param srs: The reference system of the provided polygon, provided as an 'EPSG:XXXX' string. By default this is Lat Lon (EPSG:4326).
         :return: A new ImageCollection, with the mask applied.
@@ -207,9 +211,13 @@ class ImageCollection(ABC):
         """
         pass
 
-    def tiled_viewing_service(self,type="") -> Dict:
+    def tiled_viewing_service(self,**kwargs) -> Dict:
         """
         Returns metadata for a tiled viewing service that visualizes this layer.
+
+        :param type: The type of viewing service to create, for instance: 'WMTS'
+        :param title: A short description to easily distinguish entities.
+        :param description: Detailed description to fully explain the entity. CommonMark 0.28 syntax MAY be used for rich text representation.
 
         :return: A dictionary object containing the viewing service metadata, such as the connection 'url'.
         """

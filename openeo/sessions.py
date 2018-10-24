@@ -183,7 +183,7 @@ class Session(ABC):
         pass
 
     @abstractmethod
-    def create_service(self, graph, type="WMTS", title="", description="") -> dict:
+    def create_service(self, graph, **kwargs) -> dict:
         """
         Create a secondary web service such as WMTS, TMS or WCS. The underlying data is processes on-demand, but a process graph may simply access results from a batch job.
 

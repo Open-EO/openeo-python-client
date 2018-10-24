@@ -195,6 +195,30 @@ class TestUserFiles(TestCase):
         assert resp.bands == ['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8',
                              'B8A', 'B9', 'B10', 'B11', 'B12', 'QA10', 'QA20', 'QA60']
 
+    def test_viewing_service(self, m):
+
+        collection_org = COLLECTIONS[2]
+        collection_id = collection_org["product_id"]
+        collection_url = "{}/data/{}".format(self.endpoint, collection_id)
+
+        def match_graph(request):
+            self.assertDictEqual({
+                "custom_param":45,
+                "process_graph":{'product_id': 'COPERNICUS/S2'},
+                "type":'WMTS',
+                "title":"My Service",
+                "description":"Service description"
+            },request.json())
+            return True
+
+        m.get(collection_url,json=collection_org)
+        m.post("http://localhost:8000/api/services",json={},additional_matcher=match_graph)
+
+        session = openeo.session(self.user_id, endpoint=self.endpoint)
+
+        resp = session.image(collection_id)
+        resp.tiled_viewing_service(type="WMTS",title = "My Service", description = "Service description",custom_param=45)
+
     def user_jobs(self, m):
 
         collection_url = "{}/users/{}/jobs".format(self.endpoint, self.user_id)
