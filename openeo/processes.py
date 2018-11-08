@@ -6,8 +6,8 @@ from openeo.job import Job
 from shapely.geometry import Polygon, MultiPolygon
 
 
-class ImageCollection(ABC):
-    """Class representing an Image Collection. """
+class Processes(ABC):
+    """Class representing Processes. """
 
     def __init__(self):
         pass

@@ -1,10 +1,11 @@
-from abc import ABC
+from openeo.auth import Auth
+import requests
+from requests.auth import HTTPBasicAuth
 
-class Auth(ABC):
+
+class BasicAuth(Auth):
     """
-    The Auth class represents a specific type of authentication method.
-    Concrete implementations:
-    :class:`BearerAuth`
+    Supports authentication using a bearer token.
 
     """
 
@@ -15,19 +16,27 @@ class Auth(ABC):
         to be called.
 
         :param username: String Username credential of the user
-        :param username: String Password credential of the user
+        :param password: String Password credential of the user
         """
-        self.username = username
-        self.password = password
-        self.endpoint = endpoint
+        self.token = None
+        super(BasicAuth, self).__init__(username, password, endpoint)
 
     def login(self) -> bool:
         """
-        Authenticates a user to the backend.
+        Authenticates a user to the backend using bearer token. The token is
+        then saved in the BearerAuth class, so that the operations are
+        automatically made if the bearer token.
 
         :return: status: True if the login was successful, False if not.
         """
-        pass
+        r = requests.get(self.endpoint+'/auth/login',
+                             auth=HTTPBasicAuth(self.username, self.password))
+
+        if r.status_code == 200:
+            return True
+        else:
+            return False
+
 
     def get_header(self) -> dict:
         """
@@ -35,7 +44,7 @@ class Auth(ABC):
 
         :return: header: dict consists of all arguments needed in the header.
         """
-        pass
+        return {}
 
     def get_auth(self) -> dict:
         """
@@ -43,4 +52,4 @@ class Auth(ABC):
 
         :return: auth: Authentication type (HTTP).
         """
-        pass
+        return HTTPBasicAuth(self.username, self.password)
