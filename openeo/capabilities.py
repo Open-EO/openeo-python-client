@@ -4,7 +4,7 @@ from abc import ABC
 class Capabilities(ABC):
     """Represents capabilities of a connection / back end."""
 
-    def __init__(self, connection):
+    def __init__(self, data):
         pass
 
     def version(self):

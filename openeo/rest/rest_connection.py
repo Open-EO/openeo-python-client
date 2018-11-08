@@ -5,6 +5,9 @@ import os
 import requests
 
 from ..auth.auth_none import NoneAuth
+from ..auth.auth_basic import BasicAuth
+from .rest_capabilities import RESTCapabilities
+from .rest_processes import RESTProcesses
 
 import json
 from ..connection import Connection
@@ -55,6 +58,9 @@ class RESTConnection(Connection):
         self.userid = username
         self.endpoint = url
 
+        if auth_type == NoneAuth and username != None and password != None:
+            auth_type = BasicAuth
+
         self.authent = auth_type(username, password, self.endpoint)
 
         status = self.authent.login()
@@ -79,8 +85,8 @@ class RESTConnection(Connection):
         """
         Describes the currently authenticated user account.
         """
-        # Endpoint: GET /me
-        return self.not_supported()
+        info = self.get(self.root + '/me')
+        return self.parse_json_response(info)
 
     def user_jobs(self) -> dict:
         #TODO: Create a kind of User class to abstract the information (e.g. userid, username, password from the connection.
@@ -98,7 +104,23 @@ class RESTConnection(Connection):
         :return: data_dict: Dict All available data types
         """
         data = self.get(self.root + '/collections', auth=False)
-        return self.parse_json_response(data)
+
+        response = self.parse_json_response(data)
+
+        if "collections" in response:
+            return response["collections"]
+
+        return response
+
+    def get_processes(self):
+        """
+        Returns processes of back end.
+        :return: data_dict: Dict All available data types
+        """
+        # TODO return only provided processes of the back end
+
+        return RESTProcesses({}, self)
+
 
     def capabilities(self) -> dict:
         """
@@ -107,7 +129,9 @@ class RESTConnection(Connection):
         :return: data_dict: Dict All available data types
         """
         data = self.get(self.root + '/', auth=False)
-        return self.parse_json_response(data)
+
+
+        return RESTCapabilities(self.parse_json_response(data))
 
     def list_file_types(self) -> dict:
         """
@@ -154,7 +178,13 @@ class RESTConnection(Connection):
         :return: processes_dict: Dict All available processes of the back end.
         """
         processes = self.get('/processes', auth=False)
-        return self.parse_json_response(processes)
+
+        response = self.parse_json_response(processes)
+
+        if "processes" in response:
+            return response["processes"]
+
+        return response
 
     def list_jobs(self) -> dict:
         # TODO: Maybe format the result so that there get Job classes returned.
@@ -217,8 +247,8 @@ class RESTConnection(Connection):
         :param image_collection_id: String image collection identifier
         :return: collection: RestImageCollection the imagecollection with the id
         """
-        from .imagery import RestImagery
-        collection = RestImagery({'collection_id': image_collection_id}, self)
+        from .rest_processes import RESTProcesses
+        collection = RESTProcesses({'collection_id': image_collection_id}, self)
 
         # read and format extent, band and date availability information
         data_info = self.get_collection(image_collection_id)
@@ -242,9 +272,9 @@ class RESTConnection(Connection):
         :param image_collection_id: String image collection identifier
         :return: collection: RestImagery the imagery with the id
         """
-        from .imagery import RestImagery
+        from .rest_processes import RESTProcesses
 
-        image = RestImagery({'product_id': image_product_id}, self)
+        image = RESTProcesses({'product_id': image_product_id}, self)
 
         # read and format extent, band and date availability information
         data_info = self.get_collection(image_product_id)
@@ -494,7 +524,8 @@ class RESTConnection(Connection):
         """
 
         auth_header = self.authent.get_header()
-        return requests.post(self.endpoint+path, json=postdata, headers=auth_header)
+        auth = self.authent.get_auth()
+        return requests.post(self.endpoint+path, json=postdata, headers=auth_header, auth=auth)
 
     def patch(self, path):
         """
@@ -503,8 +534,8 @@ class RESTConnection(Connection):
         :return: response: Response
         """
         auth_header = self.authent.get_header()
-
-        return requests.patch(self.endpoint+path, headers=auth_header)
+        auth = self.authent.get_auth()
+        return requests.patch(self.endpoint+path, headers=auth_header, auth=auth)
 
     def put(self, path, header={}, data=None):
         """
@@ -520,10 +551,12 @@ class RESTConnection(Connection):
         head = auth_header.copy()
         head.update(header)
 
+        auth = self.authent.get_auth()
+
         if data:
-            return requests.put(self.endpoint+path, headers=head, data=data)
+            return requests.put(self.endpoint+path, headers=head, data=data, auth=auth)
         else:
-            return requests.put(self.endpoint+path, headers=head)
+            return requests.put(self.endpoint+path, headers=head, auth=auth)
 
     def get(self,path, stream=False, auth=True):
         """
@@ -536,10 +569,14 @@ class RESTConnection(Connection):
 
         if auth:
             auth_header = self.authent.get_header()
+            auth = self.authent.get_auth()
         else:
             auth_header = {}
+            auth = None
 
-        return requests.get(self.endpoint+path, headers=auth_header, stream=stream)
+
+
+        return requests.get(self.endpoint+path, headers=auth_header, stream=stream, auth=auth)
 
     def delete(self, path):
         """
@@ -549,8 +586,9 @@ class RESTConnection(Connection):
         """
 
         auth_header = self.authent.get_header()
+        auth = self.authent.get_auth()
 
-        return requests.delete(self.endpoint+path, headers=auth_header)
+        return requests.delete(self.endpoint+path, headers=auth_header, auth=auth)
 
     def not_supported(self):
         not_support = "This function is not supported by the python client yet."
