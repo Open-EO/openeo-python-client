@@ -6,73 +6,119 @@ from datetime import datetime, date
 from pandas import Series
 
 from openeo.job import Job
-from openeo.rest.job import ClientJob
+from openeo.rest.job import RESTJob
 from openeo.processes import Processes
 from openeo.connection import Connection
+from openeo.rest.rest_processgraph import RESTProcessgraph
 from shapely.geometry import Polygon, MultiPolygon, mapping
 
 
 class RESTProcesses(Processes):
     """Class representing an Image Collection. (In the API as 'imagery')"""
 
-    def __init__(self, parentgraph:Dict, connection:Connection):
-        self.graph = parentgraph
+    def __init__(self, connection:Connection):
         self.connection = connection
 
-    def date_range_filter(self, start_date: Union[str, datetime, date],
-                          end_date: Union[str, datetime, date]) -> 'Processes':
+    def get_collection(self, name) -> 'RESTProcessgraph':
+        """
+        Get imagery by id.
+        :param name: String image collection identifier
+        :return: process graph: RestProcessGraph the imagery with the id
+        """
+
+        pgraph = RESTProcessgraph(pg_id=None, connection=self.connection)
+
+        pgraph.graph = {"process_id": "get_collection", "name": name}
+
+        return pgraph
+
+
+    def filter_daterange(self, imagery, extent) -> 'ProcessGraph':
         """Drops observations from a collection that have been captured before
             a start or after a given end date.
-            :param start_date: starting date of the filter
-            :param end_date: ending date of the filter
-            :return An ImageCollection instance
+            :param imagery: eodata object (ProcessGraph)
+            :param extent: List of starting date and ending date of the filter
+            :return An ProcessGraph instance
         """
-        process_id = 'filter_daterange'
-        args = {
-                'imagery': self.graph,
-                'from': start_date,
-                'to': end_date
+
+        graph = {
+                'process_id': 'filter_daterange',
+                'imagery': imagery.graph,
+                'extent': extent
             }
 
-        return self.graph_add_process(process_id, args)
+        imagery.graph = graph
 
-    def bbox_filter(self, left, right, top, bottom, srs) -> 'Processes':
+        return imagery
+
+    def filter_bbox(self, imagery, west, east, north, south, crs=None, base=None, height=None) -> 'ProcessGraph':
         """Drops observations from a collection that are located outside
             of a given bounding box.
-            :param left: left boundary (longitude / easting)
-            :param right: right boundary (longitude / easting)
+            :param imagery: eodata object (ProcessGraph)
+            :param west: west boundary (longitude / easting)
+            :param east: east boundary (longitude / easting)
             :param top: top boundary (latitude / northing)
             :param bottom: top boundary (latitude / northing)
-            :param srs: spatial reference system of boundaries as
+            :param crs: spatial reference system of boundaries as
                         proj4 or EPSG:12345 like string
-            :return An ImageCollection instance
+            :param base: lower left corner coordinate axis 3
+            :param height: upper right corner coordinate axis 3
+            :return An ProcessGraph instance
         """
-        process_id = 'filter_bbox'
-        args = {
-                'imagery': self.graph,
-                'left': left,
-                'right': right,
-                'top': top,
-                'bottom': bottom,
-                'srs': srs
+
+        graph = {
+                'process_id': 'filter_bbox',
+                'imagery': imagery.graph,
+                'extent':
+                     {
+                        'west': west,
+                        'east': east,
+                        'north': north,
+                        'south': south
+                     }
             }
-        return self.graph_add_process(process_id, args)
 
-    def band_filter(self, bands) -> 'Processes':
+        if crs:
+            graph['extent']['crs'] = crs
+        else:
+            graph['extent']['crs'] = "EPSG: 4326"
+        if base:
+            graph['extent']['base'] = base
+        if height:
+            graph['extent']['height'] = height
+
+        imagery.graph = graph
+
+        return imagery
+
+    def filter_bands(self, imagery, bands=None, names=None, wavelengths=None) -> 'Processes':
         """Filter the imagery by the given bands
-            :param bands: List of band names or single band name as a string.
-            :return An ImageCollection instance
+            :param imagery: eodata (Process Graph)
+            :param bands: List of band ids as strings.
+            :param names: List of band names as strings.
+            :param wavelengths: Either a number specifying a specific wavelength or a two-element array of
+                                numbers specifying a minimum and maximum wavelength..
+            :return An ProcessGraph instance with added band filter
         """
 
-        process_id = 'filter_bands'
-        args = {
-                'imagery': self.graph,
-                'bands': bands
+        graph = {
+                'process_id': 'filter_bands',
+                'imagery': imagery.graph,
                 }
-        return self.graph_add_process(process_id, args)
 
-    def zonal_statistics(self, regions, func, scale=1000, interval="day") -> 'Processes':
+        if bands:
+            graph['bands'] = bands
+        if names:
+            graph['names'] = names
+        if wavelengths:
+            graph['wavelengths'] = wavelengths
+
+        imagery.graph = graph
+        return imagery
+
+    def zonal_statistics(self, imagery, regions, func, scale=1000, interval="day") -> 'Processes':
         """Calculates statistics for each zone specified in a file.
+            :param imagery: eodata (Process Graph)
             :param regions: GeoJSON or a path to a GeoJSON file containing the
                             regions. For paths you must specify the path to a
                             user-uploaded file without the user id in the path.
@@ -87,16 +133,71 @@ class RESTProcesses(Processes):
         regions_geojson = regions
         if isinstance(regions,Polygon) or isinstance(regions,MultiPolygon):
             regions_geojson = mapping(regions)
-        process_id = 'zonal_statistics'
-        args = {
-                'imagery': self.graph,
+
+        graph = {
+                'process_id': 'zonal_statistics',
+                'imagery': imagery.graph,
                 'regions': regions_geojson,
                 'func': func,
                 'scale': scale,
                 'interval': interval
             }
 
-        return self.graph_add_process(process_id, args)
+        imagery.graph = graph
+
+        return imagery
+
+    def min_time(self, imagery) -> 'Processes':
+        """Finds the minimum value of a time series for all bands of the input dataset.
+            :param imagery: eodata (Process Graph)
+            :return An ProcessGraph instance
+        """
+
+        graph = {
+            'process_id': 'min_time',
+            'imagery': imagery.graph
+        }
+
+        imagery.graph = graph
+
+        return imagery
+
+
+    def max_time(self, imagery) -> 'Processes':
+        """Finds the maximum value of a time series for all bands of the input dataset.
+            :param imagery: eodata (Process Graph)
+            :return An ProcessGraph instance
+        """
+
+        graph = {
+            'process_id': 'max_time',
+            'imagery': imagery.graph
+        }
+
+        imagery.graph = graph
+
+        return imagery
+
+    def ndvi(self, imagery, red, nir) -> 'Processes':
+        """ NDVI
+            :param imagery: eodata (Process Graph)
+            :param red: Reference to the red band
+            :param nir: Reference to the nir band
+            :return An ImageCollection instance
+        """
+
+        graph = {
+                'process_id': 'NDVI',
+                'imagery': imagery.graph,
+                'red': red,
+                'nir': nir
+            }
+
+        imagery.graph = graph
+
+        return imagery
+
+
 
     def apply_pixel(self, bands:List, bandfunction) -> 'Processes':
         """Apply a function to the given set of bands in this image collection."""
@@ -147,30 +248,7 @@ class RESTProcesses(Processes):
 
         return self.graph_add_process(process_id, args)
 
-    def min_time(self) -> 'Processes':
-        """Finds the minimum value of a time series for all bands of the input dataset.
-            :return An ImageCollection instance
-        """
 
-        process_id = 'min_time'
-        args = {
-                'imagery': self.graph
-                }
-
-        return self.graph_add_process(process_id, args)
-
-    def max_time(self) -> 'Processes':
-        """Finds the maximum value of a time series for all bands of the input dataset.
-            :return An ImageCollection instance
-        """
-
-        process_id = 'max_time'
-
-        args = {
-                'imagery': self.graph
-            }
-
-        return self.graph_add_process(process_id, args)
 
     def mean_time(self) -> 'Processes':
         """Finds the mean value of a time series for all bands of the input dataset.
@@ -211,21 +289,7 @@ class RESTProcesses(Processes):
 
         return self.graph_add_process(process_id, args)
 
-    def ndvi(self, red, nir) -> 'Processes':
-        """ NDVI
-            :param red: Reference to the red band
-            :param nir: Reference to the nir band
-            :return An ImageCollection instance
-        """
-        process_id = 'NDVI'
 
-        args = {
-                'imagery': self.graph,
-                'red': red,
-                'nir': nir
-            }
-
-        return self.graph_add_process(process_id, args)
 
     def stretch_colors(self, min, max) -> 'Processes':
         """ Color stretching
@@ -326,13 +390,13 @@ class RESTProcesses(Processes):
         :return: status: ClientJob resulting job.
         """
         if out_format:
-            return ClientJob(self.connection.job({"process_graph": self.graph,
+            return RESTJob(self.connection.job({"process_graph": self.graph,
                                                'output': {
                                                    'format': out_format,
                                                    'parameters': format_options
                                                }}), self.connection)
         else:
-            return ClientJob(self.connection.job({"process_graph": self.graph}), self.connection)
+            return RESTJob(self.connection.job({"process_graph": self.graph}), self.connection)
 
     def execute(self) -> Dict:
         """Executes the process graph of the imagery. """
@@ -354,3 +418,24 @@ class RESTProcesses(Processes):
         }
 
         return RESTProcesses(graph, self.connection)
+
+
+    # def graph_add_process(self, process_id, args) -> 'ImageCollection':
+    #     """
+    #     Returns a new restimagery with an added process with the given process
+    #     id and a dictionary of arguments
+    #     :param process_id: String, Process Id of the added process.
+    #     :param args: List, Arguments of the process.
+    #     :return: Dict: Process Graph dictionary
+    #     """
+    #
+    #
+    #     graph = {
+    #         'process_id': process_id,
+    #     }
+    #
+    #     for arg in args:
+    #         graph[arg['name']] = arg['value']
+    #
+    #
+    #     return graph

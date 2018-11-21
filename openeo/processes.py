@@ -13,7 +13,7 @@ class Processes(ABC):
         pass
 
 
-    def date_range_filter(self,start_date:Union[str,datetime,date],end_date:Union[str,datetime,date]) -> 'ImageCollection':
+    def date_range_filter(self, imagery, start_date:Union[str,datetime,date],end_date:Union[str,datetime,date]) -> 'ImageCollection':
         """
         Specifies a date range filter to be applied on the ImageCollection
 
@@ -23,7 +23,7 @@ class Processes(ABC):
         """
         pass
 
-    def bbox_filter(self,left:float,right:float,top:float,bottom:float,srs:str) -> 'ImageCollection':
+    def bbox_filter(self, imagery,left:float,right:float,top:float,bottom:float,srs:str) -> 'ImageCollection':
         """
         Specifies a bounding box to filter input image collections.
 
@@ -85,7 +85,7 @@ class Processes(ABC):
         """
         pass
 
-    def min_time(self) -> 'ImageCollection':
+    def min_time(self, imagery) -> 'ImageCollection':
         """
             Finds the minimum value of time series for all bands of the input dataset.
 
@@ -93,7 +93,7 @@ class Processes(ABC):
         """
         pass
 
-    def max_time(self) -> 'ImageCollection':
+    def max_time(self, imagery) -> 'ImageCollection':
         """
             Finds the maximum value of time series for all bands of the input dataset.
 
@@ -125,7 +125,7 @@ class Processes(ABC):
         """
         pass
 
-    def ndvi(self, red, nir) -> 'ImageCollection':
+    def ndvi(self, imagery, red, nir) -> 'ImageCollection':
         """ NDVI
 
             :param red: Reference to the red band
@@ -178,7 +178,7 @@ class Processes(ABC):
         """
         pass
 
-    def zonal_statistics(self, regions, func, scale=1000, interval="day") -> 'Dict':
+    def zonal_statistics(self, imagery, regions, func, scale=1000, interval="day") -> 'Dict':
         """
         Calculates statistics for each zone specified in a file.
 

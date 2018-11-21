@@ -8,6 +8,7 @@ from openeo.auth.auth_none import NoneAuth
 from openeo.auth.auth_basic import BasicAuth
 from openeo.rest.rest_capabilities import RESTCapabilities
 from openeo.rest.rest_processes import RESTProcesses
+from openeo.rest.job import RESTJob
 
 import json
 from openeo.connection import Connection
@@ -119,7 +120,7 @@ class RESTConnection(Connection):
         """
         # TODO return only provided processes of the back end
 
-        return RESTProcesses({}, self)
+        return RESTProcesses(self)
 
 
     def capabilities(self) -> dict:
@@ -222,24 +223,6 @@ class RESTConnection(Connection):
 
         return processes_dict
 
-    def create_job(self, post_data, evaluation="lazy") -> str:
-        # TODO: Create a Job class or something for the creation of a nested process execution...
-        """
-        Posts a job to the back end including the evaluation information.
-        :param post_data: String data of the job (e.g. process graph)
-        :param evaluation: String Option for the evaluation of the job
-        :return: job_id: String Job id of the new created job
-        """
-        job_status = self.post("/jobs?evaluate={}".format(evaluation), post_data)
-
-        if job_status.status_code == 200:
-            job_info = json.loads(job_status.text)
-            if 'job_id' in job_info:
-                job_id = job_info['job_id']
-        else:
-            job_id = None
-
-        return job_id
 
     def imagecollection(self, image_collection_id) -> 'ImageCollection':
         """
@@ -304,25 +287,6 @@ class RESTConnection(Connection):
             "process_graph": process_graph
         }))
 
-    def queue_job(self, job_id):
-        """
-        Queue the job with a specific id.
-        :param job_id: String job identifier
-        :return: status_code: Integer Rest Response status code
-        """
-        request = self.post("/jobs/{}/results".format(job_id), postdata=None)
-
-        return request.status_code
-
-    def job_info(self, job_id):
-        # TODO: Maybe add a JobStatus class.
-        """
-        Get full information about a specific job.
-        :param job_id: String job identifier
-        :return: status: Dict Info JSON of the job
-        """
-        request = self.get("/jobs/{}".format(job_id))
-        return self.parse_json_response(request)
 
     def job_results(self, job_id):
         response = self.get("/jobs/{}/results".format(job_id))
@@ -439,43 +403,6 @@ class RESTConnection(Connection):
 
         return
 
-    def download_job(self, job_id, outputfile, outputformat=None):
-        """
-        Download an executed job.
-        :param job_id: String job identifier
-        :param outputfile: String destination path of the resulting file.
-        :param outputformat: String format of the resulting file
-        :return: status: Dict Status JSON of the resulting job
-        """
-        if outputformat:
-            download_url = "/jobs/{}/download?format={}".format(job_id,outputformat)
-        else:
-            download_url = "/jobs/{}/download".format(job_id)
-        r = self.get(download_url, stream = True)
-
-        if r.status_code == 200:
-
-            url = r.json()
-            download_url = url[0]
-
-            auth_header = self.authent.get_header()
-
-            with open(outputfile, 'wb') as handle:
-                response = requests.get(download_url, stream=True, headers=auth_header)
-
-                if not response.ok:
-                    print (response)
-
-                for block in response.iter_content(1024):
-
-                    if not block:
-                        break
-
-                    handle.write(block)
-        else:
-            raise ConnectionAbortedError(r.text)
-        return r.status_code
-
     def execute(self, process_graph, output_format, output_parameters=None, budget=None):
         """
         Execute a process graph synchronously.
@@ -489,23 +416,29 @@ class RESTConnection(Connection):
         response = self.post(self.root + "/preview", process_graph)
         return self.parse_json_response(response)
 
-    def create_job(self, process_graph, output_format, output_parameters={},
+    def create_job(self, process_graph, output_format=None, output_parameters={},
                    title=None, description=None, plan=None, budget=None,
                    additional={}):
         """
-        Submits a new job to the back-end.
-        :param process_graph: Dict representing a process graph
-        :return: job_id: String
+        Posts a job to the back end.
+        :param process_graph: String data of the job (e.g. process graph)
+        :return: job_id: String Job id of the new created job
         """
-        #TODO: Not fully implemented yet.
-        response = self.post(self.root + "/jobs", process_graph)
 
-        content = json.loads(response.text)
+        process_graph = {"process_graph": process_graph}
 
-        job_id = content['job_id']
-        # job_id = urlparse(job_url).path.split('/')[-1]
+        job_status = self.post("/jobs", process_graph)
 
-        return job_id
+        if job_status.status_code == 201:
+            job_info = job_status.headers._store
+            if "openeo-identifier" in job_info:
+                job_id = job_info['openeo-identifier'][1]
+        else:
+            job_id = None
+
+        job = RESTJob(job_id, self)
+
+        return job
 
     def parse_json_response(self, response: requests.Response):
         """
@@ -532,6 +465,18 @@ class RESTConnection(Connection):
         auth_header = self.authent.get_header()
         auth = self.authent.get_auth()
         return requests.post(self.endpoint+path, json=postdata, headers=auth_header, auth=auth)
+
+    def delete(self, path, postdata):
+        """
+        Makes a RESTful DELETE request to the back end.
+        :param path: URL of the request (without root URL e.g. "/data")
+        :param postdata: Data of the post request
+        :return: response: Response
+        """
+
+        auth_header = self.authent.get_header()
+        auth = self.authent.get_auth()
+        return requests.delete(self.endpoint+path, json=postdata, headers=auth_header, auth=auth)
 
     def patch(self, path):
         """
