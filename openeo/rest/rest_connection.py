@@ -4,13 +4,13 @@ import os
 
 import requests
 
-from ..auth.auth_none import NoneAuth
-from ..auth.auth_basic import BasicAuth
-from .rest_capabilities import RESTCapabilities
-from .rest_processes import RESTProcesses
+from openeo.auth.auth_none import NoneAuth
+from openeo.auth.auth_basic import BasicAuth
+from openeo.rest.rest_capabilities import RESTCapabilities
+from openeo.rest.rest_processes import RESTProcesses
 
 import json
-from ..connection import Connection
+from openeo.connection import Connection
 
 
 """

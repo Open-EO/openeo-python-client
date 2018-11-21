@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from .auth import Auth
-from .imagecollection import ImageCollection
+from openeo.processes import Processes
 
 """
 openeo.sessions
@@ -186,7 +186,7 @@ class Connection(ABC):
         pass
 
     @abstractmethod
-    def imagecollection(self, image_collection_id:str) -> ImageCollection:
+    def imagecollection(self, image_collection_id:str) -> Processes:
         """
         Retrieves an Image Collection object based on the id of a given layer.
         A list of available collections can be retrieved with :meth:`openeo.connection.Connection.list_collections`.
@@ -198,7 +198,7 @@ class Connection(ABC):
         pass
 
     @abstractmethod
-    def image(self, image_product_id) -> 'ImageCollection':
+    def image(self, image_product_id) -> 'Processes':
         """
         Get imagery by id.
 
