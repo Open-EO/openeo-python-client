@@ -1,5 +1,5 @@
-from openeo.rest.rest_connection import RESTConnection
-from ..job import Job, JobResult
+from openeo.connection import Connection
+from openeo.job import Job, JobResult
 from typing import List
 import urllib.request
 
@@ -14,7 +14,7 @@ class ClientJobResult(JobResult):
 
 class ClientJob(Job):
 
-    def __init__(self, job_id: str, connection:RESTConnection):
+    def __init__(self, job_id: str, connection: Connection):
         super().__init__(job_id)
         self.connection = connection
 

@@ -1,4 +1,4 @@
-from ..capabilities import Capabilities
+from openeo.capabilities import Capabilities
 
 
 class RESTCapabilities(Capabilities):

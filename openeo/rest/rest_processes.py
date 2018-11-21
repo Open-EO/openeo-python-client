@@ -7,8 +7,8 @@ from pandas import Series
 
 from openeo.job import Job
 from openeo.rest.job import ClientJob
-from ..processes import Processes
-from ..connection import Connection
+from openeo.processes import Processes
+from openeo.connection import Connection
 from shapely.geometry import Polygon, MultiPolygon, mapping
 
 
