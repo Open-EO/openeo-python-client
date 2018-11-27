@@ -478,10 +478,20 @@ class RESTConnection(Connection):
 
         return requests.delete(self.endpoint+path, headers=auth_header, auth=auth)
 
+    def get_outputformats(self) -> dict:
+        """
+        Loads all available output formats.
+
+        :return: data_dict: Dict All available output formats
+        """
+        return self.not_supported()
+
     def not_supported(self):
         not_support = "This function is not supported by the python client yet."
         print(not_support)
         return not_support
+
+
 
 def connection(url, auth_type=NoneAuth, auth_options={}):
     """
