@@ -211,6 +211,7 @@ class RESTProcesses(Processes):
                 'process_id': 'get_results',
             }
 
+
         if url:
             graph["url"] = url
         if job_id:
@@ -296,8 +297,6 @@ class RESTProcesses(Processes):
 
         return self.graph_add_process(process_id, args)
 
-
-
     def mean_time(self) -> 'Processes':
         """Finds the mean value of a time series for all bands of the input dataset.
             :return An ImageCollection instance
@@ -336,8 +335,6 @@ class RESTProcesses(Processes):
             }
 
         return self.graph_add_process(process_id, args)
-
-
 
     def stretch_colors(self, min, max) -> 'Processes':
         """ Color stretching
@@ -429,7 +426,6 @@ class RESTProcesses(Processes):
 
     def tiled_viewing_service(self,**kwargs) -> Dict:
         return self.connection.create_service(self.graph,**kwargs)
-
 
     def send_job(self, out_format=None, **format_options) -> Job:
         """

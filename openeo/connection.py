@@ -159,6 +159,7 @@ class Connection(ABC):
 
     @abstractmethod
     def create_service(self, graph, **kwargs) -> dict:
+
         """
         Create a secondary web service such as WMTS, TMS or WCS. The underlying data is processes on-demand, but a process graph may simply access results from a batch job.
 
@@ -229,3 +230,4 @@ class Connection(ABC):
         :return: data_dict: Dict All available output formats
         """
         pass
+

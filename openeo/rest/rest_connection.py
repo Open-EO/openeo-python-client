@@ -286,7 +286,6 @@ class RESTConnection(Connection):
         kwargs["process_graph"] = graph
         return self.parse_json_response(self.post(self.root + "/services",kwargs))
 
-
     def job_results(self, job_id):
         response = self.get("/jobs/{}/results".format(job_id))
         return self.parse_json_response(response)
