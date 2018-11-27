@@ -4,6 +4,9 @@ import logging
 #enable logging in requests library
 logging.basicConfig(level=logging.DEBUG)
 
+
+# TODO: Deprecated: release-0.0.2, Update to 0.3.1 version
+
 #connect with EURAC backend
 session = openeo.session("nobody", "http://saocompute.eurac.edu/openEO_WCPS_Driver/openeo")
 
