@@ -14,7 +14,7 @@ from shapely.geometry import Polygon, MultiPolygon, mapping
 
 
 class RESTProcesses(Processes):
-    """Class representing an Image Collection. (In the API as 'imagery')"""
+    """Class representing the Processes. """
 
     def __init__(self, connection:Connection):
         self.connection = connection
@@ -31,7 +31,6 @@ class RESTProcesses(Processes):
         pgraph.graph = {"process_id": "get_collection", "name": name}
 
         return pgraph
-
 
     def filter_daterange(self, imagery, extent) -> 'ProcessGraph':
         """Drops observations from a collection that have been captured before
@@ -162,7 +161,6 @@ class RESTProcesses(Processes):
 
         return imagery
 
-
     def max_time(self, imagery) -> 'Processes':
         """Finds the maximum value of a time series for all bands of the input dataset.
             :param imagery: eodata (Process Graph)
@@ -197,7 +195,57 @@ class RESTProcesses(Processes):
 
         return imagery
 
+    def get_results(self, url=None, job_id=None) -> 'Processes':
+        """ Filters and selects a single collection provided by the back-end. The back-end provider decides which of
+            the potential collections is the most relevant one to be selected.
+            :param url: An URL to job results.
+            :param job_id: An identifier of a job on the back-end this process is running on.
+            :return An ImageCollection instance
+        """
 
+        pgraph = RESTProcessgraph(pg_id=None, connection=self.connection)
+
+
+
+        graph = {
+                'process_id': 'get_results',
+            }
+
+        if url:
+            graph["url"] = url
+        if job_id:
+            graph["job_id"] = job_id
+
+        pgraph.graph = graph
+
+        return pgraph
+
+    def process_graph(self, imagery, url, variables=None) -> 'Processes':
+        """ Loads another process graph and applies it to the specified imagery.
+            This can be an externally hosted process graph.
+            :param imagery: An URL to job results.
+            :param url: An URL to a process graph.
+            :param variables: An object holding key-value-pairs with values for variables that are defined by the
+                              process graph. The key of the pair has to be the corresponding variable_id for the value
+                              specified. The replacement for the variable is the value of the pair.
+            :return An ImageCollection instance
+        """
+
+        graph = {
+            'process_id': 'process_graph',
+            'imagery': imagery.graph,
+            'url': url
+        }
+
+        if variables:
+            graph["variables"] = variables
+
+        imagery.graph = graph
+
+        return imagery
+
+    #   Processes below are not defined in the process reference at ---------------------------------------------------
+    #   https://open-eo.github.io/openeo-api/v/0.3.1/processreference/ ------------------------------------------------
 
     def apply_pixel(self, bands:List, bandfunction) -> 'Processes':
         """Apply a function to the given set of bands in this image collection."""

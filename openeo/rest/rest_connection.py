@@ -75,12 +75,17 @@ class RESTConnection(Connection):
         """
         return self.not_supported()
 
-    def authenticate_basic(self, username, password) -> str:
+    def authenticate_basic(self, username, password):
         """
         Authenticates a user to the backend using HTTP Basic.
-        :param options: Authentication options
+        :param username: User name
+        :param password: User passphrase
         """
-        return self.not_supported()
+
+        if username and password:
+            self.authent = BasicAuth(username, password, self.endpoint)
+
+        # return self.not_supported()
 
     def describe_account(self) -> str:
         """
@@ -285,70 +290,6 @@ class RESTConnection(Connection):
     def job_results(self, job_id):
         response = self.get("/jobs/{}/results".format(job_id))
         return self.parse_json_response(response)
-
-    def user_download_file(self, file_path, output_file):
-        """
-        Downloads a user file to the back end.
-        :param file_path: remote path to the file that should be downloaded.
-        :param output_file: local path, where the file should be saved.
-        :return: status: True if it was successful, False otherwise
-        """
-
-        path = "/users/{}/files/{}".format(self.userid, file_path)
-
-        resp = self.get(path, stream=True)
-
-        if resp.status_code == 200:
-            with open(output_file, 'wb') as f:
-                shutil.copyfileobj(resp.raw, f)
-            return True
-        else:
-            return False
-
-    def user_upload_file(self, file_path, remote_path=None):
-        """
-        Uploads a user file to the back end.
-        :param file_path: Local path to the file that should be uploaded.
-        :param remote_path: Remote path of the file where it should be uploaded.
-        :return: status: True if it was successful, False otherwise
-        """
-        if not os.path.isfile(file_path):
-            return False
-
-        if not remote_path:
-
-            remote_path = os.path.basename(file_path)
-
-        with open(file_path, 'rb') as f:
-            input_file = f.read()
-
-        path = "/users/{}/files/{}".format(self.userid, remote_path)
-
-        content_type = {'Content-Type': 'application/octet-stream'}
-
-        resp = self.put(path=path, header=content_type, data=input_file)
-
-        if resp.status_code == 200:
-            return True
-        else:
-            return False
-
-    def user_delete_file(self, file_path):
-        """
-        Deletes a user file in the back end.
-
-        :param file_path: remote path to the file that should be deleted.
-        :return: status: True if it was successful, False otherwise
-        """
-
-        path = "/users/{}/files/{}".format(self.userid, file_path)
-
-        resp = self.delete(path)
-
-        if resp.status_code == 200:
-            return True
-        else:
-            return False
 
     def list_files(self, user_id=None):
         """
