@@ -78,10 +78,8 @@ class TestUserFiles(TestCase):
         return True
 
     def test_user_upload_file(self, m):
-        upload_url = "{}/users/{}/files/{}".format(self.endpoint, self.user_id,
-                                                                         self.upload_remote_fname)
-        m.register_uri('PUT', upload_url,
-                       additional_matcher=self.match_uploaded_file)
+        upload_url = "{}/files/{}/{}".format(self.endpoint, self.user_id, self.upload_remote_fname)
+        m.register_uri('PUT', upload_url, additional_matcher=self.match_uploaded_file)
         session = openeo.session(self.user_id, endpoint=self.endpoint)
         session.auth(self.auth_id, self.auth_pwd)
         status = session.user_upload_file(self.upload_local_fname,
@@ -89,8 +87,7 @@ class TestUserFiles(TestCase):
         assert status
 
     def test_user_download_file(self, m):
-        download_url = "{}/users/{}/files/{}".format(self.endpoint, self.user_id,
-                                                                           self.upload_remote_fname)
+        download_url = "{}/users/{}/files/{}".format(self.endpoint, self.user_id, self.upload_remote_fname)
         with open(self.upload_local_fname, 'rb') as response_file:
             content = response_file.read()
         m.get(download_url, content=content)

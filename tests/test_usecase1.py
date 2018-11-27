@@ -23,64 +23,54 @@ class TestUsecase1(TestCase):
 
         self.data_id= "sentinel2_subset"
         self.process_id = "calculate_ndvi"
-        self.output_file = "/home/berni/test.gtiff"
+        self.output_file = "/tmp/test.gtiff"
 
     def test_user_login(self, m):
         m.get("http://localhost:8000/api/auth/login", json={"token": "blabla"})
+        con = openeo.connect(self.endpoint, auth_options={"username": self.auth_id, "password": self.auth_pwd})
 
-        session = openeo.session(self.uiser_id, endpoint=self.endpoint)
-        token = session.auth(self.auth_id, self.auth_pwd)
-        self.assertNotEqual(token, None)
+        self.assertNotEqual(con, None)
 
     def test_viewing_userjobs(self, m):
         m.get("http://localhost:8000/api/auth/login", json={"token": "blabla"})
-        m.get("http://localhost:8000/api/users/%s/jobs" % self.uiser_id, json=[{"job_id": "748df7caa8c84a7ff6e"}])
+        m.get("http://localhost:8000/api/jobs", json=[{"job_id": "748df7caa8c84a7ff6e"}])
 
-        session = openeo.session(self.uiser_id, endpoint=self.endpoint)
-        session.auth(self.auth_id, self.auth_pwd)
-        userjobs = session.user_jobs()
+        con = openeo.connect(self.endpoint, auth_options={"username": self.auth_id, "password": self.auth_pwd})
+
+        userjobs = con.list_jobs()
 
         self.assertGreater(len(userjobs), 0)
 
     def test_viewing_data(self, m):
-        m.get("http://localhost:8000/api/data", json=[{"product_id": "sentinel2_subset"}])
-        m.get("http://localhost:8000/api/data/sentinel2_subset", json={"product_id": "sentinel2_subset"})
+        m.get("http://localhost:8000/api/collections", json=[{"product_id": "sentinel2_subset"}])
+        m.get("http://localhost:8000/api/collections/sentinel2_subset", json={"product_id": "sentinel2_subset"})
 
-        session = openeo.session(self.uiser_id, endpoint=self.endpoint)
-        data = session.list_collections()
+        con = openeo.connect(self.endpoint)
+        data = con.list_collections()
 
         self.assertGreater(str(data).find(self.data_id), -1)
 
-        data_info = session.get_collection(self.data_id)
+        data_info = con.describe_collection(self.data_id)
 
         self.assertEqual(data_info["product_id"], self.data_id)
 
     def test_viewing_processes(self, m):
         m.get("http://localhost:8000/api/processes", json=[{"process_id": "calculate_ndvi"}])
-        m.get("http://localhost:8000/api/processes/calculate_ndvi", json={"process_id": "calculate_ndvi"})
 
-        session = openeo.session(self.uiser_id, endpoint=self.endpoint)
-        processes = session.get_all_processes()
+        con = openeo.connect(self.endpoint)
+        processes = con.list_processes()
 
         self.assertGreater(str(processes).find(self.process_id), -1)
 
-        process_info = session.get_process(self.process_id)
-
-        self.assertEqual(process_info["process_id"], self.process_id)
-
     def test_job_creation(self, m):
         m.get("http://localhost:8000/api/auth/login", json={"token": "blabla"})
-        m.post("http://localhost:8000/api/jobs?evaluate=lazy", json={"job_id": "748df7caa8c84a7ff6e"})
+        m.post("http://localhost:8000/api/jobs", json={"job_id": "748df7caa8c84a7ff6e"})
 
-        session = openeo.session(self.uiser_id, endpoint=self.endpoint)
-        session.auth(self.auth_id, self.auth_pwd)
+        con = openeo.connect(self.endpoint, auth_options={"username": self.auth_id, "password": self.auth_pwd})
 
-        job_id = session.create_job(POST_DATA)
+        job_id = con.create_job(POST_DATA)
         self.assertIsNotNone(job_id)
 
-        #session.download_image(job_id, self.output_file,"image/gtiff")
-
-       # self.assertTrue(os.path.isfile(self.output_file))
 
 
 if __name__ == '__main__':

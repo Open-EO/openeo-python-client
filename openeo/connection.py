@@ -11,7 +11,8 @@ This module provides a Connection object to manage and persist settings when int
 
 class Connection(ABC):
     """
-    A `Connection` class represents a connection with an OpenEO service. It is your entry point to create new Image Collections.
+    A `Connection` class represents a connection with an OpenEO service.
+    It is your entry point to create new Image Collections.
     """
 
     @property
