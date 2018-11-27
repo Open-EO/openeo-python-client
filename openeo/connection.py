@@ -214,38 +214,6 @@ class Connection(ABC):
         """
 
     @abstractmethod
-    def user_download_file(self, file_path, output_file):
-        """
-        Downloads a user file to the back end.
-
-        :param file_path: remote path to the file that should be downloaded.
-        :param output_file: local path, where the file should be saved.
-
-        :return: status: True if it was successful, False otherwise
-        """
-
-    @abstractmethod
-    def user_upload_file(self, file_path, remote_path=None):
-        """
-        Uploads a user file to the back end.
-
-        :param file_path: Local path to the file that should be uploaded.
-        :param remote_path: Remote path of the file where it should be uploaded.
-
-        :return: status: True if it was successful, False otherwise
-        """
-
-    @abstractmethod
-    def user_delete_file(self, file_path):
-        """
-        Deletes a user file in the back end.
-
-        :param file_path: remote path to the file that should be deleted.
-        :return: status: True if it was successful, False otherwise
-        """
-        pass
-
-    @abstractmethod
     def download(self, graph, time, outputfile, format_options):
         """
         Downloads a result of a process graph synchronously.
