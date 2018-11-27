@@ -60,29 +60,6 @@ job.download_results("/tmp/testfile")
 
 
 
-
-#retrieve the list of available collections
-# coperincus_s2_image = session.image("COPERNICUS/S2")
-# logging.debug(coperincus_s2_image.graph)
-#
-# timeseries = coperincus_s2_image.bbox_filter(left=9.0, right=9.1, top=12.1,
-#                                              bottom=12.0, srs="EPSG:4326")
-# logging.debug(timeseries.graph)
-# timeseries = timeseries.date_range_filter("2017-01-01", "2017-01-31")
-# logging.debug(timeseries.graph)
-# timeseries = timeseries.ndvi("B4", "B8")
-# logging.debug(timeseries.graph)
-# timeseries = timeseries.min_time()
-# logging.debug(timeseries.graph)
-# timeseries = timeseries.stretch_colors(-1, 1)
-# logging.debug(timeseries.graph)
-# client_job = timeseries.send_job(out_format="png")
-# logging.debug(client_job.job_id)
-#
-#
-# client_job.download(OUTPUT_FILE)
-
-
 # PoC JSON:
 # {
 #     "process_graph":{
