@@ -302,6 +302,9 @@ class RESTConnection(Connection):
             user_id = self.userid
 
         files = self.get('/files/{}'.format(user_id))
+
+        #TODO: Create File Objects.
+
         return self.parse_json_response(files)
 
     def create_file(self, path, user_id=None):

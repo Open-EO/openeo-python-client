@@ -8,7 +8,7 @@ import openeo
 @requests_mock.mock()
 class TestBandMath(TestCase):
 
-
+    @unittest.skip("Not yet upgraded to version 0.3.1")
     def test_ndvi(self, m):
         #configuration phase: define username, endpoint, parameters?
         session = openeo.session("driesj",endpoint="http://localhost:8000/api")
@@ -63,7 +63,7 @@ class TestBandMath(TestCase):
         session.post.assert_called_once_with("/timeseries/point?x=4&y=51&srs=EPSG:4326",expected_graph)
         session.download.assert_called_once()
 
-
+    @unittest.skip("Not yet upgraded to version 0.3.1")
     def test_ndvi_udf(self, m):
         #configuration phase: define username, endpoint, parameters?
         session = openeo.session("driesj",endpoint="http://localhost:8000/api")
