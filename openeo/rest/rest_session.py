@@ -184,8 +184,8 @@ class RESTSession(Session):
         image_collection.bands = []
         if data_info:
             for band in data_info['bands']: image_collection.bands.append(band['band_id'])
-            image_collection.dates = data_info['time']
-            image_collection.extent = data_info['extent']
+            image_collection.dates = data_info.get('time',[])
+            image_collection.extent = data_info.get('extent',None)
         else:
             image_collection.bands = ['not specified']
             image_collection.dates = ['not specified']
