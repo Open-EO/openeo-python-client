@@ -145,21 +145,25 @@ class RESTSession(Session):
         from .imagery import RestImagery
         collection = RestImagery({'collection_id': image_collection_id}, self)
 
-        # read and format extent, band and date availability information
-        data_info = self.get_collection(image_collection_id)
-        collection.bands = []
-        if data_info:
-            if "bands" in data_info:
-                for band in data_info['bands']: collection.bands.append(band['band_id'])
-            if "time" in data_info:
-                collection.dates = data_info['time']
-            if "extent" in data_info:
-                collection.extent = data_info['extent']
-        else:
-            collection.bands = ['not specified']
-            collection.dates = ['not specified']
-            collection.extent = ['not specified']
+        self.fetch_metadata(image_collection_id, collection)
         return collection
+
+    def image_040(self, image_product_id) -> 'ImageCollection':
+        """
+        Get imagery by id.
+        :param image_collection_id: String image collection identifier
+        :return: collection: RestImagery the imagery with the id
+        """
+        #new implementation: https://github.com/Open-EO/openeo-api/issues/160
+        from .imagecollectionclient import ImageCollectionClient
+        from ..graphbuilder import GraphBuilder
+
+        builder = GraphBuilder()
+        id = builder.process("get_collection",{'name':image_product_id})
+
+        image = ImageCollectionClient(id,builder, self)
+        self.fetch_metadata(image_product_id, image)
+        return image
 
     def image(self, image_product_id) -> 'ImageCollection':
         """
@@ -171,18 +175,21 @@ class RESTSession(Session):
 
         image = RestImagery({'product_id': image_product_id}, self)
 
+        self.fetch_metadata(image_product_id, image)
+        return image
+
+    def fetch_metadata(self, image_product_id, image_collection):
         # read and format extent, band and date availability information
         data_info = self.get_collection(image_product_id)
-        image.bands = []
+        image_collection.bands = []
         if data_info:
-            for band in data_info['bands']: image.bands.append(band['band_id'])
-            image.dates = data_info['time']
-            image.extent = data_info['extent']
+            for band in data_info['bands']: image_collection.bands.append(band['band_id'])
+            image_collection.dates = data_info['time']
+            image_collection.extent = data_info['extent']
         else:
-            image.bands = ['not specified']
-            image.dates = ['not specified']
-            image.extent = ['not specified']
-        return image
+            image_collection.bands = ['not specified']
+            image_collection.dates = ['not specified']
+            image_collection.extent = ['not specified']
 
     def point_timeseries(self, graph, x, y, srs):
         """Compute a timeseries for a given point location."""
