@@ -14,9 +14,16 @@ __title__ = 'openeo'
 __version__ = '0.0.3'
 __author__ = 'Jeroen Dries'
 
-from .catalog import EOProduct
-from .imagecollection import ImageCollection
-from .rest.rest_session import session
-from .job import Job
-from .auth.auth import Auth
-from .process.process import *
+from openeo.catalog import EOProduct
+from openeo.processes import Processes
+from openeo.rest.rest_connection import connection as connect
+from openeo.job import Job
+from openeo.auth.auth import Auth
+from openeo.process.process import *
+
+# TODO: make some kind of config file for the client version
+CLIENT_VERSION = "0.3.0"
+
+
+def version():
+    return CLIENT_VERSION

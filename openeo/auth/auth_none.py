@@ -20,3 +20,11 @@ class NoneAuth(Auth):
         :return: header: dict consists of all arguments needed in the header.
         """
         return {}
+
+    def get_auth(self) -> dict:
+        """
+        Returns needed auth for a request of this authentication
+
+        :return: auth: Authentication type (HTTP).
+        """
+        return None

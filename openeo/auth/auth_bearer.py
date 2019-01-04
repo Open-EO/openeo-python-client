@@ -45,3 +45,11 @@ class BearerAuth(Auth):
         :return: header: dict consists of all arguments needed in the header.
         """
         return {'Authorization': 'Bearer {}'.format(self.token)}
+
+    def get_auth(self) -> dict:
+        """
+        Returns needed auth for a request of this authentication
+
+        :return: auth: Authentication type (HTTP).
+        """
+        return None

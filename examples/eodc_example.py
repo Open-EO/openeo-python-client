@@ -13,6 +13,7 @@ EODC_PWD = "Test123#"
 
 OUTPUT_FILE = "/tmp/openeo_eodc_output.tiff"
 
+# TODO: Deprecated: release-0.0.2, Update to 0.3.1 version
 
 # Connect with EODC backend
 session = openeo.session(EODC_USER, endpoint=EODC_DRIVER_URL)
