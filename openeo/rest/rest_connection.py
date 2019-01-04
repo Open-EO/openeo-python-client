@@ -1,3 +1,4 @@
+from distutils.version import LooseVersion
 from urllib.parse import urlparse
 import shutil
 import os
@@ -35,6 +36,7 @@ class RESTConnection(Connection):
         :return: token: String Bearer token
         """
         self.root = ""
+        self._cached_capabilities = None
         self.connect(url, auth_type, auth_options)
 
     def connect(self, url, auth_type=NoneAuth, auth_options={}) -> bool:
@@ -128,16 +130,18 @@ class RESTConnection(Connection):
         return RESTProcesses(self)
 
 
-    def capabilities(self) -> dict:
+    @property
+    def capabilities(self) -> 'Capabilities':
         """
         Loads all available capabilities.
 
         :return: data_dict: Dict All available data types
         """
-        data = self.get(self.root + '/', auth=False)
+        if self._cached_capabilities is None:
+            data = self.get(self.root + '/', auth=False)
+            self._cached_capabilities = RESTCapabilities(self.parse_json_response(data))
 
-
-        return RESTCapabilities(self.parse_json_response(data))
+        return self._cached_capabilities
 
     def list_file_types(self) -> dict:
         """
@@ -228,6 +232,8 @@ class RESTConnection(Connection):
 
         return processes_dict
 
+    def _isVersion040(self):
+        return LooseVersion(self.capabilities.version()) >= LooseVersion("0.4.0")
 
     def imagecollection(self, image_collection_id) -> 'ImageCollection':
         """
@@ -235,13 +241,16 @@ class RESTConnection(Connection):
         :param image_collection_id: String image collection identifier
         :return: collection: RestImageCollection the imagecollection with the id
         """
-        from .imagery import RestImagery
-        collection = RestImagery({'collection_id': image_collection_id}, self)
+        if self._isVersion040():
+            return self._image_040(image_collection_id)
+        else:
+            from .imagery import RestImagery
+            collection = RestImagery({'collection_id': image_collection_id}, self)
 
-        self.fetch_metadata(image_collection_id, collection)
-        return collection
+            self.fetch_metadata(image_collection_id, collection)
+            return collection
 
-    def image_040(self, image_product_id) -> 'ImageCollection':
+    def _image_040(self, image_product_id) -> 'ImageCollection':
         """
         Get imagery by id.
         :param image_collection_id: String image collection identifier
@@ -329,6 +338,7 @@ class RESTConnection(Connection):
         :return: job_id: String
         """
         download_url = self.endpoint + self.root + "/execute"
+
         request = {
             "process_graph": graph,
             "output": format_options
