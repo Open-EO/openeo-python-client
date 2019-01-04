@@ -7,13 +7,13 @@ from pandas import Series
 
 from openeo.job import Job
 from openeo.rest.job import RESTJob
-from openeo.processes import Processes
+from openeo.imagecollection import ImageCollection
 from openeo.connection import Connection
 from openeo.rest.rest_processgraph import RESTProcessgraph
 from shapely.geometry import Polygon, MultiPolygon, mapping
 
 
-class RESTProcesses(Processes):
+class RESTProcesses(ImageCollection):
     """Class representing the Processes. """
 
     def __init__(self, connection:Connection):
@@ -50,7 +50,7 @@ class RESTProcesses(Processes):
 
         return imagery
 
-    def filter_bbox(self, imagery, west, east, north, south, crs=None, base=None, height=None) -> 'ProcessGraph':
+    def filter_bbox(self, imagery, west, east, north, south, crs=None, base=None, height=None) -> 'ImageCollection':
         """Drops observations from a collection that are located outside
             of a given bounding box.
             :param imagery: eodata object (ProcessGraph)
@@ -90,7 +90,7 @@ class RESTProcesses(Processes):
 
         return imagery
 
-    def filter_bands(self, imagery, bands=None, names=None, wavelengths=None) -> 'Processes':
+    def filter_bands(self, imagery, bands=None, names=None, wavelengths=None) -> 'ImageCollection':
         """Filter the imagery by the given bands
             :param imagery: eodata (Process Graph)
             :param bands: List of band ids as strings.
@@ -115,7 +115,7 @@ class RESTProcesses(Processes):
         imagery.graph = graph
         return imagery
 
-    def zonal_statistics(self, imagery, regions, func, scale=1000, interval="day") -> 'Processes':
+    def zonal_statistics(self, imagery, regions, func, scale=1000, interval="day") -> 'ImageCollection':
         """Calculates statistics for each zone specified in a file.
             :param imagery: eodata (Process Graph)
             :param regions: GeoJSON or a path to a GeoJSON file containing the
@@ -146,7 +146,7 @@ class RESTProcesses(Processes):
 
         return imagery
 
-    def min_time(self, imagery) -> 'Processes':
+    def min_time(self, imagery) -> 'ImageCollection':
         """Finds the minimum value of a time series for all bands of the input dataset.
             :param imagery: eodata (Process Graph)
             :return An ProcessGraph instance
@@ -161,7 +161,7 @@ class RESTProcesses(Processes):
 
         return imagery
 
-    def max_time(self, imagery) -> 'Processes':
+    def max_time(self, imagery) -> 'ImageCollection':
         """Finds the maximum value of a time series for all bands of the input dataset.
             :param imagery: eodata (Process Graph)
             :return An ProcessGraph instance
@@ -176,7 +176,7 @@ class RESTProcesses(Processes):
 
         return imagery
 
-    def ndvi(self, imagery, red, nir) -> 'Processes':
+    def ndvi(self, imagery, red, nir) -> 'ImageCollection':
         """ NDVI
             :param imagery: eodata (Process Graph)
             :param red: Reference to the red band
@@ -195,7 +195,7 @@ class RESTProcesses(Processes):
 
         return imagery
 
-    def get_results(self, url=None, job_id=None) -> 'Processes':
+    def get_results(self, url=None, job_id=None) -> 'ImageCollection':
         """ Filters and selects a single collection provided by the back-end. The back-end provider decides which of
             the potential collections is the most relevant one to be selected.
             :param url: An URL to job results.
@@ -221,7 +221,7 @@ class RESTProcesses(Processes):
 
         return pgraph
 
-    def process_graph(self, imagery, url, variables=None) -> 'Processes':
+    def process_graph(self, imagery, url, variables=None) -> 'ImageCollection':
         """ Loads another process graph and applies it to the specified imagery.
             This can be an externally hosted process graph.
             :param imagery: An URL to job results.
@@ -248,7 +248,7 @@ class RESTProcesses(Processes):
     #   Processes below are not defined in the process reference at ---------------------------------------------------
     #   https://open-eo.github.io/openeo-api/v/0.3.1/processreference/ ------------------------------------------------
 
-    def apply_pixel(self, bands:List, bandfunction) -> 'Processes':
+    def apply_pixel(self, bands:List, bandfunction) -> 'ImageCollection':
         """Apply a function to the given set of bands in this image collection."""
         pickled_lambda = cloudpickle.dumps(bandfunction)
 
@@ -261,7 +261,7 @@ class RESTProcesses(Processes):
 
         return self.graph_add_process(process_id, args)
 
-    def apply_tiles(self, code: str) -> 'Processes':
+    def apply_tiles(self, code: str) -> 'ImageCollection':
         """Apply a function to the given set of tiles in this image collection.
             Code should follow the OpenEO UDF conventions.
             :param code: String representing Python code to be executed in the backend.
@@ -297,7 +297,7 @@ class RESTProcesses(Processes):
 
         return self.graph_add_process(process_id, args)
 
-    def mean_time(self) -> 'Processes':
+    def mean_time(self) -> 'ImageCollection':
         """Finds the mean value of a time series for all bands of the input dataset.
             :return An ImageCollection instance
         """
@@ -310,7 +310,7 @@ class RESTProcesses(Processes):
 
         return self.graph_add_process(process_id, args)
 
-    def median_time(self) -> 'Processes':
+    def median_time(self) -> 'ImageCollection':
         """Finds the median value of a time series for all bands of the input dataset.
             :return An ImageCollection instance
         """
@@ -323,7 +323,7 @@ class RESTProcesses(Processes):
 
         return self.graph_add_process(process_id, args)
 
-    def count_time(self) -> 'Processes':
+    def count_time(self) -> 'ImageCollection':
         """Counts the number of images with a valid mask in a time series for all bands of the input dataset.
             :return An ImageCollection instance
         """
@@ -336,7 +336,7 @@ class RESTProcesses(Processes):
 
         return self.graph_add_process(process_id, args)
 
-    def stretch_colors(self, min, max) -> 'Processes':
+    def stretch_colors(self, min, max) -> 'ImageCollection':
         """ Color stretching
             :param min: Minimum value
             :param max: Maximum value
@@ -351,7 +351,7 @@ class RESTProcesses(Processes):
 
         return self.graph_add_process(process_id, args)
 
-    def mask(self, polygon: Union[Polygon, MultiPolygon], srs="EPSG:4326") -> 'Processes':
+    def mask(self, polygon: Union[Polygon, MultiPolygon], srs="EPSG:4326") -> 'ImageCollection':
         """
         Mask the image collection using a polygon. All pixels outside the polygon should be set to the nodata value.
         All pixels inside, or intersecting the polygon should retain their original value.
@@ -390,7 +390,7 @@ class RESTProcesses(Processes):
         """
         return self.connection.point_timeseries({"process_graph":self.graph}, x, y, srs)
 
-    def polygonal_mean_timeseries(self, polygon: Union[Polygon, MultiPolygon]) -> 'Processes':
+    def polygonal_mean_timeseries(self, polygon: Union[Polygon, MultiPolygon]) -> 'ImageCollection':
         """
         Extract a mean time series for the given (multi)polygon. Its points are
         expected to be in the EPSG:4326 coordinate

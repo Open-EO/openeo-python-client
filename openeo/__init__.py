@@ -15,8 +15,9 @@ __version__ = '0.0.3'
 __author__ = 'Jeroen Dries'
 
 from openeo.catalog import EOProduct
-from openeo.processes import Processes
+from openeo.imagecollection import ImageCollection
 from openeo.rest.rest_connection import connection as connect
+from openeo.rest.rest_connection import session
 from openeo.job import Job
 from openeo.auth.auth import Auth
 from openeo.process.process import *

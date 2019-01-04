@@ -235,8 +235,8 @@ class RESTConnection(Connection):
         :param image_collection_id: String image collection identifier
         :return: collection: RestImageCollection the imagecollection with the id
         """
-        from .rest_processes import RESTProcesses
-        collection = RESTProcesses({'collection_id': image_collection_id}, self)
+        from .imagery import RestImagery
+        collection = RestImagery({'collection_id': image_collection_id}, self)
 
         self.fetch_metadata(image_collection_id, collection)
         return collection
@@ -268,7 +268,7 @@ class RESTConnection(Connection):
 
     def fetch_metadata(self, image_product_id, image_collection):
         # read and format extent, band and date availability information
-        data_info = self.get_collection(image_product_id)
+        data_info = self.describe_collection(image_product_id)
         image_collection.bands = []
         if data_info:
             for band in data_info['bands']: image_collection.bands.append(band['band_id'])
@@ -507,3 +507,14 @@ def connection(url, auth_type=NoneAuth, auth_options={}):
     """
 
     return RESTConnection(url, auth_type, auth_options)
+
+def session(userid=None,endpoint:str="https://openeo.org/openeo"):
+    """
+    Deprecated, use openeo.connect
+    This method is the entry point to OpenEO. You typically create one session object in your script or application, per back-end.
+    and re-use it for all calls to that backend.
+    If the backend requires authentication, you should set pass your credentials.
+    :param endpoint: The http url of an OpenEO endpoint.
+    :rtype: openeo.sessions.Session
+    """
+    return connection(url = endpoint)

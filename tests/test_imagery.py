@@ -1,14 +1,14 @@
 import unittest
 from unittest import TestCase
-from openeo.rest.rest_processes import RESTProcesses
+from openeo.rest.imagery import RestImagery
 
 
 class TestImagery(TestCase):
 
     def setUp(self):
-        self.processes = RESTProcesses(None)
+        self.processes = RestImagery({},None)
 
-    @unittest.skip("Not yet upgraded to version 0.3.1")
+
     def test_date_range_filter(self):
         new_imagery = self.processes.date_range_filter("2016-01-01", "2016-03-10")
 
@@ -19,7 +19,6 @@ class TestImagery(TestCase):
         self.assertEqual(graph["args"]["from"], "2016-01-01")
         self.assertEqual(graph["args"]["to"], "2016-03-10")
 
-    @unittest.skip("Not yet upgraded to version 0.3.1")
     def test_bbox_filter(self):
         new_imagery = self.processes.bbox_filter(left=652000, right=672000,
                                                top=5161000, bottom=5181000,
@@ -35,7 +34,7 @@ class TestImagery(TestCase):
         self.assertEqual(graph["args"]["bottom"], 5181000)
         self.assertEqual(graph["args"]["srs"], "EPSG:32632")
 
-    @unittest.skip("Not yet upgraded to version 0.3.1")
+
     def test_apply_pixel(self):
 
         bandFunction = lambda cells,nodata: (cells[3]-cells[2])/(cells[3]+cells[2])
@@ -48,7 +47,6 @@ class TestImagery(TestCase):
         self.assertEqual(graph["args"]["bands"], [])
         self.assertIsNotNone(graph["args"]["function"])
 
-    @unittest.skip("Not yet upgraded to version 0.3.1")
     def test_min_time(self):
         new_imagery = self.processes.min_time()
 
@@ -57,7 +55,6 @@ class TestImagery(TestCase):
         self.assertEqual(graph["process_id"], "min_time")
         self.assertEqual(graph["args"]["imagery"], {})
 
-    @unittest.skip("Not yet upgraded to version 0.3.1")
     def test_max_time(self):
         new_imagery = self.processes.max_time()
 
@@ -66,7 +63,6 @@ class TestImagery(TestCase):
         self.assertEqual(graph["process_id"], "max_time")
         self.assertEqual(graph["args"]["imagery"], {})
 
-    @unittest.skip("Not yet upgraded to version 0.3.1")
     def test_ndvi(self):
         new_imagery = self.processes.ndvi("B04", "B8A")
 
@@ -77,7 +73,6 @@ class TestImagery(TestCase):
         self.assertEqual(graph["args"]["red"], "B04")
         self.assertEqual(graph["args"]["nir"], "B8A")
 
-    @unittest.skip("Not yet upgraded to version 0.3.1")
     def test_mask(self):
         from shapely import geometry
         polygon = geometry.Polygon([[0, 0], [1.9, 0], [1.9, 1.9], [0, 1.9]])
@@ -91,7 +86,6 @@ class TestImagery(TestCase):
                           'crs': {'properties': {'name': 'EPSG:4326'}, 'type': 'name'},
                           'type': 'Polygon'})
 
-    @unittest.skip("Not yet upgraded to version 0.3.1")
     def test_strech_colors(self):
         new_imagery = self.processes.stretch_colors(-1, 1)
 

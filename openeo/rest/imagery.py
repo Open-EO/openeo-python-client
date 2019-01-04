@@ -1,37 +1,23 @@
+import base64
 from typing import List, Dict, Union
 
+import cloudpickle
 from datetime import datetime, date
+from pandas import Series
 
 from openeo.job import Job
 from openeo.rest.job import RESTJob
 from ..imagecollection import ImageCollection
 from ..connection import Connection
 from shapely.geometry import Polygon, MultiPolygon, mapping
-from ..graphbuilder import GraphBuilder
 
 
-class ImageCollectionClient(ImageCollection):
+class RestImagery(ImageCollection):
     """Class representing an Image Collection. (In the API as 'imagery')"""
 
-    def __init__(self,node_id:str, builder:GraphBuilder,session:Connection):
-        self.node_id = node_id
-        self.builder= builder
+    def __init__(self, parentgraph:Dict,session:Connection):
+        self.graph = parentgraph
         self.session = session
-        self.graph = builder.processes
-
-    @classmethod
-    def create_collection(cls, collection_id:str,session:Connection = None):
-        """
-        Create a new Image Collection/Raster Data cube.
-        :param collection_id: A collection id, should exist in the backend.
-        :param session: The session to use to connect with the backend.
-        :return:
-        """
-        from ..graphbuilder import GraphBuilder
-        builder = GraphBuilder()
-        id = builder.process("get_collection", {'name': collection_id})
-        return ImageCollectionClient(id,builder,session)
-
 
     def date_range_filter(self, start_date: Union[str, datetime, date],
                           end_date: Union[str, datetime, date]) -> 'ImageCollection':
@@ -41,37 +27,34 @@ class ImageCollectionClient(ImageCollection):
             :param end_date: ending date of the filter
             :return An ImageCollection instance
         """
-        process_id = 'filter_temporal'
+        process_id = 'filter_daterange'
         args = {
-                'data':{'from_node': self.node_id},
+                'imagery': self.graph,
                 'from': start_date,
                 'to': end_date
             }
 
         return self.graph_add_process(process_id, args)
 
-
-
-    def bbox_filter(self, west=None, east=None, north=None, south=None, crs=None,left=None, right=None, top=None, bottom=None, srs=None) -> 'ImageCollection':
+    def bbox_filter(self, left, right, top, bottom, srs) -> 'ImageCollection':
         """Drops observations from a collection that are located outside
             of a given bounding box.
-
-            :param east: east boundary (longitude / easting)
-            :param west: west boundary (longitude / easting)
-            :param north: north boundary (latitude / northing)
-            :param south: south boundary (latitude / northing)
-            :param srs: coordinate reference system of boundaries as
+            :param left: left boundary (longitude / easting)
+            :param right: right boundary (longitude / easting)
+            :param top: top boundary (latitude / northing)
+            :param bottom: top boundary (latitude / northing)
+            :param srs: spatial reference system of boundaries as
                         proj4 or EPSG:12345 like string
             :return An ImageCollection instance
         """
         process_id = 'filter_bbox'
         args = {
-                'data': {'from_node': self.node_id},
-                'west': west or left,
-                'east': east or right,
-                'north': north or top,
-                'south': south or bottom,
-                'crs': crs or srs
+                'imagery': self.graph,
+                'left': left,
+                'right': right,
+                'top': top,
+                'bottom': bottom,
+                'srs': srs
             }
         return self.graph_add_process(process_id, args)
 
@@ -106,7 +89,7 @@ class ImageCollectionClient(ImageCollection):
             regions_geojson = mapping(regions)
         process_id = 'zonal_statistics'
         args = {
-                'data': {'from_node': self.node_id},
+                'imagery': self.graph,
                 'regions': regions_geojson,
                 'func': func,
                 'scale': scale,
@@ -117,7 +100,16 @@ class ImageCollectionClient(ImageCollection):
 
     def apply_pixel(self, bands:List, bandfunction) -> 'ImageCollection':
         """Apply a function to the given set of bands in this image collection."""
-        raise NotImplementedError("apply_pixel no longer supported")
+        pickled_lambda = cloudpickle.dumps(bandfunction)
+
+        process_id = 'apply_pixel'
+        args = {
+                'imagery':self.graph,
+                'bands':bands,
+                'function': str(base64.b64encode(pickled_lambda), "UTF-8")
+            }
+
+        return self.graph_add_process(process_id, args)
 
     def apply_tiles(self, code: str) -> 'ImageCollection':
         """Apply a function to the given set of tiles in this image collection.
@@ -127,7 +119,7 @@ class ImageCollectionClient(ImageCollection):
 
         process_id = 'apply_tiles'
         args = {
-                'data': {'from_node': self.node_id},
+                'imagery':self.graph,
                 'code':{
                     'language':'python',
                     'source':code
@@ -136,29 +128,22 @@ class ImageCollectionClient(ImageCollection):
 
         return self.graph_add_process(process_id, args)
 
-    def _reduce_time(self, reduce_function = "max"):
-        process_id = 'reduce'
+    def aggregate_time(self, temporal_window, aggregationfunction) -> Series :
+        """ Applies a windowed reduction to a timeseries by applying a user
+            defined function.
+            :param temporal_window: The time window to group by
+            :param aggregationfunction: The function to apply to each time window.
+                                        Takes a pandas Timeseries as input.
+            :return A pandas Timeseries object
+        """
+        pickled_lambda = cloudpickle.dumps(aggregationfunction)
 
+        process_id = 'reduce_by_time'
         args = {
-            'data': {'from_node': self.node_id},
-            'dimension': 'temporal',
-            'reducer': {
-                'callback': {
-                    'r1': {
-                        'arguments': {
-                            'data': {
-                                'from_argument': 'dimension_data'
-                            },
-                            'dimension': {
-                                'from_argument': 'dimension'
-                            }
-                        },
-                        'process_id': reduce_function,
-                        'result': 'true'
-                    }
-                }
+                'imagery':self.graph,
+                'temporal_window': temporal_window,
+                'function': str(base64.b64encode(pickled_lambda), "UTF-8")
             }
-        }
 
         return self.graph_add_process(process_id, args)
 
@@ -167,64 +152,95 @@ class ImageCollectionClient(ImageCollection):
             :return An ImageCollection instance
         """
 
-        return self._reduce_time(reduce_function="min")
+        process_id = 'min_time'
+        args = {
+                'imagery': self.graph
+                }
+
+        return self.graph_add_process(process_id, args)
 
     def max_time(self) -> 'ImageCollection':
         """Finds the maximum value of a time series for all bands of the input dataset.
             :return An ImageCollection instance
         """
-        return self._reduce_time(reduce_function="max")
 
+        process_id = 'max_time'
+
+        args = {
+                'imagery': self.graph
+            }
+
+        return self.graph_add_process(process_id, args)
 
     def mean_time(self) -> 'ImageCollection':
         """Finds the mean value of a time series for all bands of the input dataset.
             :return An ImageCollection instance
         """
-        return self._reduce_time(reduce_function="mean")
+
+        process_id = 'mean_time'
+
+        args = {
+                'imagery': self.graph
+            }
+
+        return self.graph_add_process(process_id, args)
 
     def median_time(self) -> 'ImageCollection':
         """Finds the median value of a time series for all bands of the input dataset.
             :return An ImageCollection instance
         """
 
-        return self._reduce_time(reduce_function="median")
+        process_id = 'median_time'
+
+        args = {
+                'imagery': self.graph
+            }
+
+        return self.graph_add_process(process_id, args)
 
     def count_time(self) -> 'ImageCollection':
         """Counts the number of images with a valid mask in a time series for all bands of the input dataset.
             :return An ImageCollection instance
         """
-        return self._reduce_time(reduce_function="count")
 
-    def ndvi(self,red=None,nir=None) -> 'ImageCollection':
+        process_id = 'count_time'
+
+        args = {
+                'imagery': self.graph
+            }
+
+        return self.graph_add_process(process_id, args)
+
+    def ndvi(self, red, nir) -> 'ImageCollection':
         """ NDVI
-
+            :param red: Reference to the red band
+            :param nir: Reference to the nir band
             :return An ImageCollection instance
         """
         process_id = 'NDVI'
 
         args = {
-                'data': {'from_node': self.node_id}
+                'imagery': self.graph,
+                'red': red,
+                'nir': nir
             }
 
         return self.graph_add_process(process_id, args)
 
     def stretch_colors(self, min, max) -> 'ImageCollection':
         """ Color stretching
-        deprecated, use 'linear_scale_range' instead
             :param min: Minimum value
             :param max: Maximum value
             :return An ImageCollection instance
         """
         process_id = 'stretch_colors'
         args = {
-                'data': {'from_node': self.node_id},
+                'imagery': self.graph,
                 'min': min,
                 'max': max
             }
 
         return self.graph_add_process(process_id, args)
-
-
 
     def mask(self, polygon: Union[Polygon, MultiPolygon], srs="EPSG:4326") -> 'ImageCollection':
         """
@@ -246,7 +262,7 @@ class ImageCollectionClient(ImageCollection):
         process_id = 'mask'
 
         args = {
-            'data': {'from_node': self.node_id},
+            'imagery': self.graph,
             'mask_shape': geojson
         }
 
@@ -285,19 +301,18 @@ class ImageCollectionClient(ImageCollection):
             }
         }
 
-        process_id = 'aggregate_zonal'
+        process_id = 'zonal_statistics'
 
         args = {
-                'data': {'from_node': self.node_id},
-                'dimension':'temporal',
-                'polygons': geojson
+                'imagery': self.graph,
+                'regions': geojson,
+                'func': 'avg'
             }
 
         return self.graph_add_process(process_id, args)
 
     def download(self, outputfile:str, bbox="", time="", **format_options) -> str:
         """Extraxts a geotiff from this image collection."""
-        self.graph[self.node_id]["result"] = 'true'
         return self.session.download(self.graph, time, outputfile, format_options)
 
     def tiled_viewing_service(self,**kwargs) -> Dict:
@@ -333,6 +348,9 @@ class ImageCollectionClient(ImageCollection):
         :param args: Dict, Arguments of the process.
         :return: imagery: Instance of the RestImagery class
         """
-        id = self.builder.process(process_id,args)
+        graph = {
+            'process_id': process_id,
+            'args': args
+        }
 
-        return ImageCollectionClient(id,self.builder,self.session)
+        return RestImagery(graph, self.session)

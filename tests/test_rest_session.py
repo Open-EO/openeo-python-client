@@ -94,12 +94,12 @@ class TestUserFiles(TestCase):
         with open(self.upload_local_fname, 'rb') as response_file:
             content = response_file.read()
         m.get(download_url, content=content)
-        session = openeo.session(self.user_id, endpoint=self.endpoint)
-        session.auth(self.auth_id, self.auth_pwd)
+        m.get("{}/auth/login".format(self.endpoint))
+        connection = openeo.connect(self.endpoint,auth_options={'username':self.auth_id,'password':self.auth_pwd})
+
         local_output_fd, local_output_fname = tempfile.mkstemp()
         try:
-            status = session.user_download_file(self.upload_remote_fname,
-                                                local_output_fname)
+            status = connection.user_download_file(self.upload_remote_fname,local_output_fname)
             assert status
             with open(local_output_fname, 'rb') as downloaded_file:
                 downloaded_content = downloaded_file.read()

@@ -8,15 +8,15 @@ import openeo
 @requests_mock.mock()
 class TestBandMath(TestCase):
 
-    @unittest.skip("Not yet upgraded to version 0.3.1")
+
     def test_ndvi(self, m):
         #configuration phase: define username, endpoint, parameters?
-        session = openeo.session("driesj",endpoint="http://localhost:8000/api")
+        session = openeo.connect("http://localhost:8000/api")
         session.post = MagicMock()
         session.download = MagicMock()
 
-        m.get("http://localhost:8000/api/data", json=[{"product_id": "sentinel2_subset"}])
-        m.get("http://localhost:8000/api/data/SENTINEL2_RADIOMETRY_10M", json={"product_id": "sentinel2_subset",
+        m.get("http://localhost:8000/api/collections", json=[{"product_id": "sentinel2_subset"}])
+        m.get("http://localhost:8000/api/collections/SENTINEL2_RADIOMETRY_10M", json={"product_id": "sentinel2_subset",
                                                                                "bands": [{'band_id': 'B0'}, {'band_id': 'B1'},
                                                                                          {'band_id': 'B2'}, {'band_id': 'B3'}],
                                                                                'time': {'from': '2015-06-23', 'to': '2018-06-18'}})
@@ -63,15 +63,15 @@ class TestBandMath(TestCase):
         session.post.assert_called_once_with("/timeseries/point?x=4&y=51&srs=EPSG:4326",expected_graph)
         session.download.assert_called_once()
 
-    @unittest.skip("Not yet upgraded to version 0.3.1")
+
     def test_ndvi_udf(self, m):
         #configuration phase: define username, endpoint, parameters?
-        session = openeo.session("driesj",endpoint="http://localhost:8000/api")
+        session = openeo.connect("http://localhost:8000/api")
         session.post = MagicMock()
         session.download = MagicMock()
 
-        m.get("http://localhost:8000/api/data", json=[{"product_id": "sentinel2_subset"}])
-        m.get("http://localhost:8000/api/data/SENTINEL2_RADIOMETRY_10M", json={"product_id": "sentinel2_subset",
+        m.get("http://localhost:8000/api/collections", json=[{"product_id": "sentinel2_subset"}])
+        m.get("http://localhost:8000/api/collections/SENTINEL2_RADIOMETRY_10M", json={"product_id": "sentinel2_subset",
                                                                                "bands": [{'band_id': 'B0'},
                                                                                          {'band_id': 'B1'},
                                                                                          {'band_id': 'B2'},
