@@ -156,12 +156,7 @@ class RESTSession(Session):
         """
         #new implementation: https://github.com/Open-EO/openeo-api/issues/160
         from .imagecollectionclient import ImageCollectionClient
-        from ..graphbuilder import GraphBuilder
-
-        builder = GraphBuilder()
-        id = builder.process("get_collection",{'name':image_product_id})
-
-        image = ImageCollectionClient(id,builder, self)
+        image = ImageCollectionClient.create_collection(image_product_id, self)
         self.fetch_metadata(image_product_id, image)
         return image
 

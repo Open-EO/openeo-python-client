@@ -19,6 +19,19 @@ class ImageCollectionClient(ImageCollection):
         self.session = session
         self.graph = builder.processes
 
+    @classmethod
+    def create_collection(cls, collection_id:str,session:Session = None):
+        """
+        Create a new Image Collection/Raster Data cube.
+        :param collection_id: A collection id, should exist in the backend.
+        :param session: The session to use to connect with the backend.
+        :return:
+        """
+        from ..graphbuilder import GraphBuilder
+        builder = GraphBuilder()
+        id = builder.process("get_collection", {'name': collection_id})
+        return ImageCollectionClient(id,builder,session)
+
 
     def date_range_filter(self, start_date: Union[str, datetime, date],
                           end_date: Union[str, datetime, date]) -> 'ImageCollection':
@@ -284,6 +297,7 @@ class ImageCollectionClient(ImageCollection):
 
     def download(self, outputfile:str, bbox="", time="", **format_options) -> str:
         """Extraxts a geotiff from this image collection."""
+        self.graph[self.node_id]["result"] = 'true'
         return self.session.download(self.graph, time, outputfile, format_options)
 
     def tiled_viewing_service(self,**kwargs) -> Dict:
