@@ -36,7 +36,7 @@ class ImageCollection(ABC):
         """
         pass
 
-    def apply(self,process:str,dimensions = []) -> 'ImageCollection':
+    def apply(self,process:str,arguments = {}) -> 'ImageCollection':
         """
         Applies a unary process (a local operation) to each value of the specified or all dimensions in the data cube.
         https://open-eo.github.io/openeo-api/v/0.4.0/processreference/#apply
