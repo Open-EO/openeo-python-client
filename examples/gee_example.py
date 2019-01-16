@@ -26,7 +26,7 @@ con = openeo.connect(GEE_DRIVER_URL, auth_options={"username": user, "password":
 
 
 # Test Capabilities
-cap = con.capabilities()
+cap = con.capabilities
 
 #print(cap.version())
 #print(cap.list_features())
