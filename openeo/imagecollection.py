@@ -36,6 +36,18 @@ class ImageCollection(ABC):
         """
         pass
 
+    def apply(self,process:str,dimensions = []) -> 'ImageCollection':
+        """
+        Applies a unary process (a local operation) to each value of the specified or all dimensions in the data cube.
+        https://open-eo.github.io/openeo-api/v/0.4.0/processreference/#apply
+
+        :param process: A process (callback) to be applied on each value. The specified process must be unary meaning that it must work on a single value.
+        :param dimensions: The names of the dimensions to apply the process on. Defaults to an empty array so that all dimensions are used.
+        :return: A data cube with the newly computed values. The resolution, cardinality and the number of dimensions are the same as for the original data cube.
+        """
+        raise NotImplemented("Apply function not supported by this data cube.")
+
+
     def apply_pixel(self, bands: List, bandfunction) -> 'ImageCollection':
         """Apply a function to the given set of bands in this image collection.
 
