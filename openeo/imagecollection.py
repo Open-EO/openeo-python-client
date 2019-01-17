@@ -88,6 +88,20 @@ class ImageCollection(ABC):
         """
         pass
 
+    def reduce(self,reducer,dimension):
+        """
+        Applies a reducer to a data cube dimension by collapsing all the input values along the specified dimension into a single output value computed by the reducer.
+
+        The reducer must accept an array and return a single value (see parameter reducer). Nominal values are possible, but need to be mapped, e.g. band names to wavelengths, date strings to numeric timestamps since 1970 etc.
+
+        https://open-eo.github.io/openeo-api/v/0.4.0/processreference/#reduce
+
+        :param reducer: A reducer to be applied on the specified dimension. The reducer must be a callable process (or a set processes) that accepts an array and computes a single return value of the same type as the input values, for example median.
+        :param dimension: The dimension over which to reduce.
+        :return: A data cube with the newly computed values. The number of dimensions is reduced, but the resolution and cardinality are the same as for the original data cube.
+        """
+        raise NotImplemented("This image collection does not support the reduce operation.")
+
     def reduce_time(self, aggregationfunction) -> 'ImageCollection' :
         """ Applies a windowed reduction to a timeseries by applying a user defined function.
 
