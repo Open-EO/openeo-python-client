@@ -80,9 +80,26 @@ class ImageCollection(ABC):
 
     def aggregate_time(self, temporal_window, aggregationfunction) -> 'ImageCollection' :
         """ Applies a windowed reduction to a timeseries by applying a user defined function.
+            DEPRECATED: use Aggregate_temporal
 
-            :param temporal_window: The time window to group by
+            :param temporal_window: The time windows to group by, can be a list of halfopen intervals
             :param aggregationfunction: The function to apply to each time window. Takes a pandas Timeseries as input.
+
+            :return: An ImageCollection containing  a result for each time window
+        """
+        pass
+
+    def aggregate_temporal(self, intervals:List,labels:List, reducer, dimension:str = None) -> 'ImageCollection' :
+        """ Computes a temporal aggregation based on an array of date and/or time intervals.
+
+            Calendar hierarchies such as year, month, week etc. must be transformed into specific intervals by the clients. For each interval, all data along the dimension will be passed through the reducer. The computed values will be projected to the labels, so the number of labels and the number of intervals need to be equal.
+
+            If the dimension is not set, the data cube is expected to only have one temporal dimension.
+
+            :param intervals: Temporal left-closed intervals so that the start time is contained, but not the end time.
+            :param labels: Labels for the intervals. The number of labels and the number of groups need to be equal.
+            :param reducer: A reducer to be applied on all values along the specified dimension. The reducer must be a callable process (or a set processes) that accepts an array and computes a single return value of the same type as the input values, for example median.
+            :param dimension: The temporal dimension for aggregation. All data along the dimension will be passed through the specified reducer. If the dimension is not set, the data cube is expected to only have one temporal dimension.
 
             :return: An ImageCollection containing  a result for each time window
         """
