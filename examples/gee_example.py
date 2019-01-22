@@ -20,18 +20,18 @@ password = "test123"
 con = openeo.connect(GEE_DRIVER_URL, auth_options={"username": user, "password": password})
 
 #Test Connection
-#print(con.list_processes())
-#print(con.list_collections())
-#print(con.describe_collection("COPERNICUS/S2"))
+print(con.list_processes())
+print(con.list_collections())
+print(con.describe_collection("COPERNICUS/S2"))
 
 
 # Test Capabilities
 cap = con.capabilities
 
-#print(cap.version())
-#print(cap.list_features())
-#print(cap.currency())
-#print(cap.list_plans())
+print(cap.version())
+print(cap.list_features())
+print(cap.currency())
+print(cap.list_plans())
 
 # Test Processes
 

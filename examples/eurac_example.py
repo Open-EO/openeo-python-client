@@ -5,19 +5,14 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 
 
-# TODO: Deprecated: release-0.0.2, Update to 0.3.1 version
-
-GEE_DRIVER_URL = "http://saocompute.eurac.edu/openEO_0_3_0/openeo"
+DRIVER_URL = "http://saocompute.eurac.edu/openEO_0_3_0/openeo"
 
 
 user = "group1"
 password = "test123"
 
-#connect with GEE backend
-#session = openeo.session("nobody", GEE_DRIVER_URL)
 
-
-con = openeo.connect(GEE_DRIVER_URL, auth_options={"username": user, "password": password})
+con = openeo.connect(DRIVER_URL, auth_options={"username": user, "password": password})
 
 #Test Connection
 print(con.list_processes())
