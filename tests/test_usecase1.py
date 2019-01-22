@@ -64,7 +64,7 @@ class TestUsecase1(TestCase):
 
     def test_job_creation(self, m):
         m.get("http://localhost:8000/api/auth/login", json={"token": "blabla"})
-        m.post("http://localhost:8000/api/jobs", json={"job_id": "748df7caa8c84a7ff6e"})
+        m.post("http://localhost:8000/api/jobs", status_code=201,headers={"OpenEO-Identifier": "748df7caa8c84a7ff6e"})
 
         con = openeo.connect(self.endpoint, auth_options={"username": self.auth_id, "password": self.auth_pwd})
 
