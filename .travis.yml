@@ -17,7 +17,7 @@ deploy:
   password:
     secure: fuM+LW9dFtT1WWuImntQJuwYeHQ3zjuEalztQavHDwwoxdrON1BN6kE/OLh4MFf2BiBnnpB2O5EDHUhKYoGbGshjl8GkswKxr0EvAxKaTK3O5q4QDkyITiXLhH7d+6vsslHz2NMnJC4JokSMUeueNO2N0CM9Pa0Dmsyxt9SyAkJPzsu/c7UliOVOWgH8bdRYeepANIyZ/CuofHJxi17DZO3d7HXpRkQjuFa9CUQrOeMGM761GSas+ovu8O166D8mXNqSQPd0xPtJVoaPmhNraY9KIx0V5FjG41rXxBmiPNiwqAzBmGqv3jYUctfwDaaLvEE2o2I1ngFqHTspC3Q60Zle34HpS5eDA92gSotPaSL9xk3cHT1EUbU8QY7Wjk0FS69F876pTEIGdxlfLOLQVcjIu38d+TWyDMplJY69yZGttkC2ozuPJ9Ju1e/IK8F3f6/PVkKs506jk+n3dlpdziWTjQJk/elsKXv5J2DvBD6jl56JZufQnBDSIjllhZFaGATeyn9+XwYZbRygX7eDWkz4U2TcQauov1GKm3fkgn0OHbEy6pYiMRZRBYCnbcFRUitxIyq/l4Qaxo5bhHXxGKpCXzfmq7MIUGnXxxCf3Y8sHHZ4Vz+1uVjC8P5YMyaLC2jmcPQXLnaZKlNENr8ndFIjTOegQ9PIq4gqWKOgsMY=
   server: https://artifactory.vgt.vito.be/api/pypi/python-openeo
-  distributions: sdist bdist_wheel
+  distributions: bdist_wheel
   on:
     tags: false
     python: 3.5
