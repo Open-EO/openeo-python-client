@@ -378,14 +378,19 @@ class RESTConnection(Connection):
 
         job_status = self.post("/jobs", process_graph)
 
+        job = None
+
         if job_status.status_code == 201:
             job_info = job_status.headers._store
             if "openeo-identifier" in job_info:
                 job_id = job_info['openeo-identifier'][1]
+                job = RESTJob(job_id, self)
+            elif "location" in job_info:
+                job_id = job_info['location'][1].split("/")[-1]
+                job = RESTJob(job_id, self)
         else:
-            job_id = None
+            raise Exception(job_status)
 
-        job = RESTJob(job_id, self)
 
         return job
 

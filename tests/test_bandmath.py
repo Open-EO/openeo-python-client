@@ -8,14 +8,15 @@ import openeo
 @requests_mock.mock()
 class TestBandMath(TestCase):
 
+
     def test_ndvi(self, m):
         #configuration phase: define username, endpoint, parameters?
         session = openeo.connect("http://localhost:8000/api")
         session.post = MagicMock()
         session.download = MagicMock()
 
-        m.get("http://localhost:8000/api/", json={"version": "0.3.9"}) # < 0.4.0
-        m.get("http://localhost:8000/api/collections", json=[{"product_id": "sentinel2_subset"}])
+        m.get("http://localhost:8000/api/", json={"version": "0.3.1"})
+        m.get("http://localhost:8000/api/collections", json={"collections":[{"product_id": "sentinel2_subset"}]})
         m.get("http://localhost:8000/api/collections/SENTINEL2_RADIOMETRY_10M", json={"product_id": "sentinel2_subset",
                                                                                "bands": [{'band_id': 'B0'}, {'band_id': 'B1'},
                                                                                          {'band_id': 'B2'}, {'band_id': 'B3'}],
@@ -70,8 +71,8 @@ class TestBandMath(TestCase):
         session.post = MagicMock()
         session.download = MagicMock()
 
-        m.get("http://localhost:8000/api/", json={"version": "0.3.9"})  # < 0.4.0
-        m.get("http://localhost:8000/api/collections", json=[{"product_id": "sentinel2_subset"}])
+        m.get("http://localhost:8000/api/", json={"version": "0.3.1"})
+        m.get("http://localhost:8000/api/collections", json={"collections": [{"product_id": "sentinel2_subset"}]})
         m.get("http://localhost:8000/api/collections/SENTINEL2_RADIOMETRY_10M", json={"product_id": "sentinel2_subset",
                                                                                "bands": [{'band_id': 'B0'},
                                                                                          {'band_id': 'B1'},
