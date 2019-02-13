@@ -280,7 +280,8 @@ class RESTConnection(Connection):
         data_info = self.describe_collection(image_product_id)
         image_collection.bands = []
         if data_info:
-            for band in data_info['bands']: image_collection.bands.append(band['band_id'])
+            if 'bands' in data_info:
+                for band in data_info['bands']: image_collection.bands.append(band['band_id'])
             image_collection.dates = data_info.get('time',[])
             image_collection.extent = data_info.get('extent',None)
         else:
