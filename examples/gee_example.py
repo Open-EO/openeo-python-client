@@ -53,10 +53,8 @@ job = con.create_job(pg.graph)
 print(job.job_id)
 print(job.start_job())
 print (job.describe_job())
+# time.wait(5)
 job.download_results("/tmp/testfile")
-#print(con.describe_collection("COPERNICUS/S2"))
-
-#print(con.describe_process("count_time"))
 
 
 
