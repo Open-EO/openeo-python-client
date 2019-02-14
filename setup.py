@@ -1,10 +1,6 @@
 import re
 
 from setuptools import setup, find_packages
-from sphinx.setup_command import BuildDoc
-
-test_requirements = ['requests','mock']
-cmdclass = {'build_sphinx': BuildDoc}
 
 with open('openeo/__init__.py', 'r') as fd:
     version = re.search(r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]',
@@ -17,5 +13,5 @@ setup(name=name,
       description='Client API for OpenEO',
       packages=find_packages(include=['openeo*']),
       test_requirements=['requests-mock'],
-      install_requires=['requests','shapely==1.6.4'],
+      install_requires=['requests', 'shapely>=1.6.4', 'cloudpickle', 'numpy', 'pandas'],
       )

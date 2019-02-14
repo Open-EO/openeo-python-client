@@ -11,7 +11,7 @@ This client allows users to communicate with OpenEO backends, in a way that feel
 """
 
 __title__ = 'openeo'
-__version__ = '0.0.3'
+__version__ = '0.0.4'
 __author__ = 'Jeroen Dries'
 
 from openeo.catalog import EOProduct

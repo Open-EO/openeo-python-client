@@ -83,7 +83,7 @@ class ImageCollectionClient(ImageCollection):
 
         process_id = 'filter_bands'
         args = {
-                'imagery': self.graph,
+                'data': {'from_node': self.node_id},
                 'bands': bands
                 }
         return self.graph_add_process(process_id, args)
@@ -133,6 +133,27 @@ class ImageCollectionClient(ImageCollection):
                     'source':code
                 }
             }
+
+        return self.graph_add_process(process_id, args)
+
+    def apply(self, process: str, arguments={}) -> 'ImageCollection':
+        process_id = 'apply'
+        args = {
+            'data': {'from_node': self.node_id},
+            'process':{
+                'callback':{
+                    "unary":{
+                        "arguments":{
+                            "data": {
+                                "from_argument": "dimension_data"
+                            }
+                        },
+                        "process_id":process,
+                        "result":True
+                    }
+                }
+            }
+        }
 
         return self.graph_add_process(process_id, args)
 

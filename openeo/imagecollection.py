@@ -190,9 +190,12 @@ class ImageCollection(ABC):
         pass
 
     def band_filter(self, bands) -> 'ImageCollection':
-        """Filter the imagecollection by the given bands
+        """Filters the bands in the data cube so that bands that don't match any of the criteria are dropped from the data cube.
+        The data cube is expected to have only one spectral dimension.
+        The following criteria can be used to select bands:
 
-            :param bands: List of band names or single band name as a string.
+
+            :param bands: List of band names or single band name as a string. The order of the specified array defines the order of the bands in the data cube, which can be important for subsequent processes.
 
             :return An ImageCollection instance
         """
