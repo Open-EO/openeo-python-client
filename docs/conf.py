@@ -96,9 +96,11 @@ html_theme = 'alabaster'
 # documentation.
 #
 html_theme_options = {
+    'badge_branch': 'master',
     'github_user': 'Open-EO',
     'github_repo': 'openeo-python-client',
-    'github_banner': True
+    'github_banner': True,
+    'travis_button': True,
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,
@@ -113,6 +115,7 @@ html_static_path = ['_static']
 # refs: http://alabaster.readthedocs.io/en/latest/installation.html#sidebars
 html_sidebars = {
     '**': [
+        'about.html',
         'localtoc.html',
         'relations.html',  # needs 'show_related': True theme option to display
         'searchbox.html',
