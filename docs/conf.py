@@ -36,6 +36,7 @@ import openeo
 # ones.
 extensions = ['sphinx.ext.autodoc',
               'sphinx_autodoc_annotation',
+                'sphinx.ext.viewcode',
     'sphinx.ext.doctest']
 
 # Add any paths that contain templates here, relative to this directory.
@@ -94,7 +95,11 @@ html_theme = 'alabaster'
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
-# html_theme_options = {}
+html_theme_options = {
+    'github_user': 'Open-EO',
+    'github_repo': 'openeo-python-client',
+    'github_banner': True
+}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -108,11 +113,10 @@ html_static_path = ['_static']
 # refs: http://alabaster.readthedocs.io/en/latest/installation.html#sidebars
 html_sidebars = {
     '**': [
-        'about.html',
-        'navigation.html',
+        'localtoc.html',
         'relations.html',  # needs 'show_related': True theme option to display
         'searchbox.html',
-        'donate.html',
+        'hacks.html',
     ]
 }
 

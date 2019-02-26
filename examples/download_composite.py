@@ -5,7 +5,7 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 
 #connect with EURAC backend
-session = openeo.session("nobody", "http://saocompute.eurac.edu/openEO_WCPS_Driver/openeo")
+session = openeo.connect("http://openeo.vgt.vito.be/openeo")
 
 #retrieve the list of available collections
 collections = session.list_collections()

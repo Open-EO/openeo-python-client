@@ -270,7 +270,7 @@ class RESTConnection(Connection):
         """
         from .rest_processes import RESTProcesses
 
-        image = RESTProcesses({'product_id': image_product_id}, self)
+        image = RESTProcesses( self)
 
         self.fetch_metadata(image_product_id, image)
         return image

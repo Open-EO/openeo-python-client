@@ -3,13 +3,19 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
+Open-EO Client
+==============
+
+
+.. image:: https://img.shields.io/badge/Status-proof--of--concept-yellow.svg
+
 Usage
 ==================================
 
 .. automodule:: openeo
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
    :caption: Contents:
 
 API
@@ -49,7 +55,7 @@ Authentication
 .. automodule:: openeo.auth.auth_none
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
    :caption: Contents:
 
 Indices and tables
