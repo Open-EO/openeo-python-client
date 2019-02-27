@@ -120,7 +120,11 @@ class ImageCollectionClient(ImageCollection):
         return self.graph_add_process(process_id, args)
 
     def _band_index(self,name:str):
-        return 0
+        try:
+            return self.bands.index(name)
+        except ValueError as e:
+            raise ValueError("Given band name: " + name + " not available in this image collection. Valid band names are: " + self.bands)
+
 
     def add(self, other:ImageCollection):
         """

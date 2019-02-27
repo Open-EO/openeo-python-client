@@ -20,7 +20,7 @@
               "data": {
                 "from_argument": "dimension_data"
               },
-              "index": 0
+              "index": 2
             },
             "result": false
           },
@@ -30,9 +30,9 @@
               "data": {
                 "from_argument": "dimension_data"
               },
-              "index": 0
+              "index": 1
             },
-            "result": true
+            "result": false
           },
           "sum1": {
             "process_id": "sum",
@@ -42,7 +42,7 @@
                   "from_node": "arrayelement1"
                 },
                 {
-                  "from_node": "arrayelement1"
+                  "from_node": "arrayelement2"
                 }
               ]
             },
