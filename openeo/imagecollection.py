@@ -201,6 +201,14 @@ class ImageCollection(ABC):
         """
         pass
 
+    def band(self, band_name) -> 'ImageCollection':
+        """Select the given band, as input for subsequent operations.
+
+            :param bands: List of band names or single band name as a string.
+            :return An ImageCollection instance
+        """
+        pass
+
     def mask(self,polygon: Union[Polygon, MultiPolygon], srs="EPSG:4326") -> 'ImageCollection':
         """
         Mask the image collection using a polygon. All pixels outside the polygon should be set to the nodata value.

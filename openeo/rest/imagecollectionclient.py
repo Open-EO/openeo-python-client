@@ -88,6 +88,103 @@ class ImageCollectionClient(ImageCollection):
                 }
         return self.graph_add_process(process_id, args)
 
+    def band(self, band_name) -> 'ImageCollection':
+        """Filter the imagery by the given bands
+            :param bands: List of band names or single band name as a string.
+            :return An ImageCollection instance
+        """
+
+        process_id = 'reduce'
+        band_index = self._band_index(band_name)
+
+
+        args = {
+            'data': {'from_node': self.node_id},
+            'dimension': 'spectral_bands',
+            'reducer': {
+                'callback': {
+                    'r1': {
+                        'arguments': {
+                            'data': {
+                                'from_argument': 'dimension_data'
+                            },
+                            'index': band_index
+                        },
+                        'process_id': 'array_element',
+                        'result': True
+                    }
+                }
+            }
+        }
+
+        return self.graph_add_process(process_id, args)
+
+    def _band_index(self,name:str):
+        return 0
+
+    def add(self, other:ImageCollection):
+        """
+        Pairwise addition of the bands in this data cube with the bands in the 'other' data cube.
+
+        The number of bands in both data cubes has to be the same.
+
+        :param other:
+        :return:
+        """
+
+        #first we create the callback
+        my_builder = self._get_band_graph_builder()
+        other_builder = other._get_band_graph_builder()
+        input_node = {'from_argument':'data'}
+        if my_builder == None or other_builder == None:
+            if my_builder == None and other_builder == None:
+                merged = GraphBuilder()
+                #TODO merge both process graphs?
+                merged.add_process("sum", data=[input_node,input_node], result=True)
+            else:
+                merged = my_builder or other_builder
+                current_result = merged.find_result_node_id()
+                merged.processes[current_result]['result'] = False
+                merged.add_process("sum", data=[input_node, {'from_node': current_result}], result=True)
+        else:
+            input1 = my_builder.processes[my_builder.find_result_node_id()]
+            input2 = other_builder.processes[other_builder.find_result_node_id()]
+            merged = my_builder.merge(other_builder)
+            input1_id = list(merged.processes.keys())[list(merged.processes.values()).index(input1)]
+            input2_id = list(merged.processes.keys())[list(merged.processes.values()).index(input2)]
+            merged.processes[input1_id]['result'] = False
+            merged.processes[input2_id]['result'] = False
+            merged.add_process("sum",data=[{'from_node': input1_id},{'from_node': input2_id}], result=True)
+
+        #callback is ready, now we need to properly set up the reduce process that will invoke it
+        if my_builder == None and other_builder == None:
+            #there was no previous reduce step
+            args = {
+                'data': {'from_node': self.node_id},
+                'process': {
+                    'callback': merged.processes
+                }
+            }
+            return self.graph_add_process("reduce", args)
+        else:
+            current_node = self.graph[self.node_id]
+            reducing_graph = self
+            if current_node["process_id"] != "reduce":
+                current_node = other.graph[other.node_id]
+                reducing_graph = other
+            current_node['arguments']['reducer']['callback'] = merged.processes
+            #now current_node should be a reduce node, let's modify it
+            return ImageCollectionClient(reducing_graph.node_id,reducing_graph.builder,reducing_graph.session)
+
+    def _get_band_graph_builder(self):
+        current_node = self.graph[self.node_id]
+        if current_node["process_id"] == "reduce":
+            if current_node["arguments"]["dimension"] == "spectral_bands":
+                callback_graph = current_node["arguments"]["reducer"]["callback"]
+                return GraphBuilder(graph=callback_graph)
+        return None
+
+
     def zonal_statistics(self, regions, func, scale=1000, interval="day") -> 'ImageCollection':
         """Calculates statistics for each zone specified in a file.
             :param regions: GeoJSON or a path to a GeoJSON file containing the
@@ -354,6 +451,8 @@ class ImageCollectionClient(ImageCollection):
         :param args: Dict, Arguments of the process.
         :return: imagery: Instance of the RestImagery class
         """
-        id = self.builder.process(process_id,args)
+        #don't modify in place, return new builder
+        newbuilder = GraphBuilder(self.builder.processes)
+        id = newbuilder.process(process_id,args)
 
-        return ImageCollectionClient(id,self.builder,self.session)
+        return ImageCollectionClient(id,newbuilder,self.session)

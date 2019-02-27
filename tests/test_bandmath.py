@@ -1,12 +1,67 @@
+import os
 import unittest
 from unittest import TestCase
 
 from mock import MagicMock
 import requests_mock
+from pathlib import Path
+
 import openeo
+
+def get_test_resource(relative_path):
+    dir = Path(os.path.dirname(os.path.realpath(__file__)))
+    return dir  / relative_path
 
 @requests_mock.mock()
 class TestBandMath(TestCase):
+
+    def test_evi(self,m):
+        # configuration phase: define username, endpoint, parameters?
+        session = openeo.connect("http://localhost:8000/api")
+        session.post = MagicMock()
+        session.download = MagicMock()
+
+        m.get("http://localhost:8000/api/", json={"version": "0.4.0"})
+        m.get("http://localhost:8000/api/collections", json={"collections": [{"product_id": "sentinel2_subset"}]})
+        m.get("http://localhost:8000/api/collections/SENTINEL2_RADIOMETRY_10M", json={"product_id": "sentinel2_subset",
+                                                                                      "bands": [{'band_id': 'B0'},
+                                                                                                {'band_id': 'B1'},
+                                                                                                {'band_id': 'B2'},
+                                                                                                {'band_id': 'B3'}],
+                                                                                      'time': {'from': '2015-06-23',
+                                                                                               'to': '2018-06-18'}})
+
+        # discovery phase: find available data
+        # basically user needs to find available data on a website anyway?
+        # like the imagecollection ID on: https://earthengine.google.com/datasets/
+
+        # access multiband 4D (x/y/time/band) coverage
+        s2_radio = session.imagecollection("SENTINEL2_RADIOMETRY_10M")
+
+        evi_cube = s2_radio.band('B2').add(s2_radio.band('B1'))
+
+        evi_cube.download("out.geotiff", bbox="", time=s2_radio.dates['to'])
+        expected_graph = {
+            'process_graph': {
+                'process_id': 'apply_pixel',
+                'args':
+                    {
+                        'imagery': {
+                            'collection_id': 'SENTINEL2_RADIOMETRY_10M'
+                        },
+                        'bands': ['B0', 'B1', 'B2'],
+                        'function': ''
+                    }
+            }
+        }
+
+        session.download.assert_called_once()
+        import json
+        with open(get_test_resource('evi_graph.json'),'r+') as f:
+            expected_graph = json.load(f)
+            actual_graph = session.download.call_args_list[0][0][0]
+            print(actual_graph)
+            self.assertDictEqual(expected_graph,actual_graph)
 
 
     def test_ndvi(self, m):
