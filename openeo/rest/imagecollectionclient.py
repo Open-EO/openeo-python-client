@@ -126,7 +126,7 @@ class ImageCollectionClient(ImageCollection):
             raise ValueError("Given band name: " + name + " not available in this image collection. Valid band names are: " + self.bands)
 
 
-    def add(self, other:ImageCollection):
+    def add(self, other:Union[ImageCollection,Union[int,float]]):
         """
         Pairwise addition of the bands in this data cube with the bands in the 'other' data cube.
 
@@ -135,21 +135,29 @@ class ImageCollectionClient(ImageCollection):
         :param other:
         :return:
         """
+        operator = "sum"
+        if isinstance(other, int) or isinstance(other, float):
+            return self._reduce_bands_binary_const(operator, other)
+        elif isinstance(other, ImageCollection):
+            return self._reduce_bands_binary(operator, other)
+        else:
+            raise ValueError("Unsupported right-hand operand: " + other)
 
-        #first we create the callback
+    def _reduce_bands_binary(self, operator, other):
+        # first we create the callback
         my_builder = self._get_band_graph_builder()
         other_builder = other._get_band_graph_builder()
-        input_node = {'from_argument':'data'}
+        input_node = {'from_argument': 'data'}
         if my_builder == None or other_builder == None:
             if my_builder == None and other_builder == None:
                 merged = GraphBuilder()
-                #TODO merge both process graphs?
-                merged.add_process("sum", data=[input_node,input_node], result=True)
+                # TODO merge both process graphs?
+                merged.add_process( operator, data=[input_node, input_node], result=True)
             else:
                 merged = my_builder or other_builder
                 current_result = merged.find_result_node_id()
                 merged.processes[current_result]['result'] = False
-                merged.add_process("sum", data=[input_node, {'from_node': current_result}], result=True)
+                merged.add_process(operator, data=[input_node, {'from_node': current_result}], result=True)
         else:
             input1 = my_builder.processes[my_builder.find_result_node_id()]
             input2 = other_builder.processes[other_builder.find_result_node_id()]
@@ -158,11 +166,10 @@ class ImageCollectionClient(ImageCollection):
             input2_id = list(merged.processes.keys())[list(merged.processes.values()).index(input2)]
             merged.processes[input1_id]['result'] = False
             merged.processes[input2_id]['result'] = False
-            merged.add_process("sum",data=[{'from_node': input1_id},{'from_node': input2_id}], result=True)
-
-        #callback is ready, now we need to properly set up the reduce process that will invoke it
+            merged.add_process(operator, data=[{'from_node': input1_id}, {'from_node': input2_id}], result=True)
+        # callback is ready, now we need to properly set up the reduce process that will invoke it
         if my_builder == None and other_builder == None:
-            #there was no previous reduce step
+            # there was no previous reduce step
             args = {
                 'data': {'from_node': self.node_id},
                 'process': {
@@ -177,8 +184,36 @@ class ImageCollectionClient(ImageCollection):
                 current_node = other.graph[other.node_id]
                 reducing_graph = other
             current_node['arguments']['reducer']['callback'] = merged.processes
-            #now current_node should be a reduce node, let's modify it
-            return ImageCollectionClient(reducing_graph.node_id,reducing_graph.builder,reducing_graph.session)
+            # now current_node should be a reduce node, let's modify it
+            return ImageCollectionClient(reducing_graph.node_id, reducing_graph.builder, reducing_graph.session)
+
+    def _reduce_bands_binary_const(self, operator, other:Union[int,float]):
+        my_builder = self._get_band_graph_builder()
+        new_builder = None
+        if my_builder == None:
+            new_builder = GraphBuilder()
+            # TODO merge both process graphs?
+            new_builder.add_process("sum", data=[{'from_argument': 'data'}, other], result=True)
+        else:
+            current_result = my_builder.find_result_node_id()
+            new_builder = my_builder
+            new_builder.processes[current_result]['result'] = False
+            new_builder.add_process("sum", data=[{'from_node': current_result}, other], result=True)
+        if my_builder == None:
+            # there was no previous reduce step
+            args = {
+                'data': {'from_node': self.node_id},
+                'process': {
+                    'callback': new_builder.processes
+                }
+            }
+            return self.graph_add_process("reduce", args)
+        else:
+            current_node = self.graph[self.node_id]
+            reducing_graph = self
+            current_node['arguments']['reducer']['callback'] = new_builder.processes
+            # now current_node should be a reduce node, let's modify it
+            return ImageCollectionClient(reducing_graph.node_id, reducing_graph.builder, reducing_graph.session)
 
     def _get_band_graph_builder(self):
         current_node = self.graph[self.node_id]

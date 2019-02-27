@@ -46,6 +46,18 @@
                 }
               ]
             },
+            "result": false
+          },
+          "sum2": {
+            "process_id": "sum",
+            "arguments": {
+              "data": [
+                {
+                  "from_node": "sum1"
+                },
+                1
+              ]
+            },
             "result": true
           }
         }

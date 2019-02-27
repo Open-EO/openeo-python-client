@@ -38,22 +38,10 @@ class TestBandMath(TestCase):
         # access multiband 4D (x/y/time/band) coverage
         s2_radio = session.imagecollection("SENTINEL2_RADIOMETRY_10M")
 
-        evi_cube = s2_radio.band('B2').add(s2_radio.band('B1'))
+        evi_cube = s2_radio.band('B2').add(s2_radio.band('B1')).add(1)
 
         evi_cube.download("out.geotiff", bbox="", time=s2_radio.dates['to'])
-        expected_graph = {
-            'process_graph': {
-                'process_id': 'apply_pixel',
-                'args':
-                    {
-                        'imagery': {
-                            'collection_id': 'SENTINEL2_RADIOMETRY_10M'
-                        },
-                        'bands': ['B0', 'B1', 'B2'],
-                        'function': ''
-                    }
-            }
-        }
+
 
         session.download.assert_called_once()
         import json
