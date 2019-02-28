@@ -1,3 +1,4 @@
+import copy
 from typing import List, Dict, Union
 
 from datetime import datetime, date
@@ -23,6 +24,7 @@ class ImageCollectionClient(ImageCollection):
     def create_collection(cls, collection_id:str,session:Connection = None):
         """
         Create a new Image Collection/Raster Data cube.
+
         :param collection_id: A collection id, should exist in the backend.
         :param session: The session to use to connect with the backend.
         :return:
@@ -37,9 +39,10 @@ class ImageCollectionClient(ImageCollection):
                           end_date: Union[str, datetime, date]) -> 'ImageCollection':
         """Drops observations from a collection that have been captured before
             a start or after a given end date.
+
             :param start_date: starting date of the filter
             :param end_date: ending date of the filter
-            :return An ImageCollection instance
+            :return: An ImageCollection instance
         """
         process_id = 'filter_temporal'
         args = {
@@ -62,7 +65,7 @@ class ImageCollectionClient(ImageCollection):
             :param south: south boundary (latitude / northing)
             :param srs: coordinate reference system of boundaries as
                         proj4 or EPSG:12345 like string
-            :return An ImageCollection instance
+            :return: An ImageCollection instance
         """
         process_id = 'filter_bbox'
         args = {
@@ -125,15 +128,79 @@ class ImageCollectionClient(ImageCollection):
         except ValueError as e:
             raise ValueError("Given band name: " + name + " not available in this image collection. Valid band names are: " + self.bands)
 
+    def subtract(self, other:Union[ImageCollection,Union[int,float]]):
+        """
+        Subtraction other from this datacube, so the result is: this - other
+        The number of bands in both data cubes has to be the same.
+
+        :param other:
+        :return ImageCollection: this - other
+        """
+        operator = "subtract"
+        if isinstance(other, int) or isinstance(other, float):
+            return self._reduce_bands_binary_const(operator, other)
+        elif isinstance(other, ImageCollection):
+            return self._reduce_bands_binary(operator, other)
+        else:
+            raise ValueError("Unsupported right-hand operand: " + other)
+
+    def divide(self, other:Union[ImageCollection,Union[int,float]]):
+        """
+        Subtraction other from this datacube, so the result is: this - other
+        The number of bands in both data cubes has to be the same.
+
+        :param other:
+        :return ImageCollection: this - other
+        """
+        operator = "divide"
+        if isinstance(other, int) or isinstance(other, float):
+            return self._reduce_bands_binary_const(operator, other)
+        elif isinstance(other, ImageCollection):
+            return self._reduce_bands_binary(operator, other)
+        else:
+            raise ValueError("Unsupported right-hand operand: " + other)
+
+    def product(self, other:Union[ImageCollection,Union[int,float]]):
+        """
+        Subtraction other from this datacube, so the result is: this - other
+        The number of bands in both data cubes has to be the same.
+
+        :param other:
+        :return ImageCollection: this - other
+        """
+        operator = "product"
+        if isinstance(other, int) or isinstance(other, float):
+            return self._reduce_bands_binary_const(operator, other)
+        elif isinstance(other, ImageCollection):
+            return self._reduce_bands_binary(operator, other)
+        else:
+            raise ValueError("Unsupported right-hand operand: " + other)
+
+    def __truediv__(self,other):
+        return self.divide(other)
+
+    def __sub__(self, other):
+        return self.subtract(other)
+
+    def __radd__(self, other):
+        return self.add(other)
+
+    def __add__(self, other):
+        return self.add(other)
+
+    def __mul__(self, other):
+        return self.product(other)
+
+    def __rmul__(self, other):
+        return self.product(other)
 
     def add(self, other:Union[ImageCollection,Union[int,float]]):
         """
         Pairwise addition of the bands in this data cube with the bands in the 'other' data cube.
-
         The number of bands in both data cubes has to be the same.
 
         :param other:
-        :return:
+        :return ImageCollection: this + other
         """
         operator = "sum"
         if isinstance(other, int) or isinstance(other, float):
@@ -155,6 +222,7 @@ class ImageCollectionClient(ImageCollection):
                 merged.add_process( operator, data=[input_node, input_node], result=True)
             else:
                 merged = my_builder or other_builder
+                merged = merged.copy()
                 current_result = merged.find_result_node_id()
                 merged.processes[current_result]['result'] = False
                 merged.add_process(operator, data=[input_node, {'from_node': current_result}], result=True)
@@ -178,14 +246,15 @@ class ImageCollectionClient(ImageCollection):
             }
             return self.graph_add_process("reduce", args)
         else:
-            current_node = self.graph[self.node_id]
+            node_id = self.node_id
             reducing_graph = self
-            if current_node["process_id"] != "reduce":
-                current_node = other.graph[other.node_id]
+            if reducing_graph.graph[node_id]["process_id"] != "reduce":
+                node_id = other.node_id
                 reducing_graph = other
-            current_node['arguments']['reducer']['callback'] = merged.processes
+            new_builder = reducing_graph.builder.copy()
+            new_builder.processes[node_id]['arguments']['reducer']['callback'] = merged.processes
             # now current_node should be a reduce node, let's modify it
-            return ImageCollectionClient(reducing_graph.node_id, reducing_graph.builder, reducing_graph.session)
+            return ImageCollectionClient(node_id, new_builder, reducing_graph.session)
 
     def _reduce_bands_binary_const(self, operator, other:Union[int,float]):
         my_builder = self._get_band_graph_builder()
@@ -193,12 +262,13 @@ class ImageCollectionClient(ImageCollection):
         if my_builder == None:
             new_builder = GraphBuilder()
             # TODO merge both process graphs?
-            new_builder.add_process("sum", data=[{'from_argument': 'data'}, other], result=True)
+            new_builder.add_process(operator, data=[{'from_argument': 'data'}, other], result=True)
         else:
             current_result = my_builder.find_result_node_id()
             new_builder = my_builder
             new_builder.processes[current_result]['result'] = False
-            new_builder.add_process("sum", data=[{'from_node': current_result}, other], result=True)
+            new_builder.add_process(operator, data=[{'from_node': current_result}, other], result=True)
+
         if my_builder == None:
             # there was no previous reduce step
             args = {

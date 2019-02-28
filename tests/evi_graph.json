@@ -3,7 +3,8 @@
     "process_id": "get_collection",
     "arguments": {
       "name": "SENTINEL2_RADIOMETRY_10M"
-    }
+    },
+    "result": false
   },
   "reduce1": {
     "process_id": "reduce",
@@ -34,8 +35,8 @@
             },
             "result": false
           },
-          "sum1": {
-            "process_id": "sum",
+          "subtract1": {
+            "process_id": "subtract",
             "arguments": {
               "data": [
                 {
@@ -48,14 +49,54 @@
             },
             "result": false
           },
-          "sum2": {
+          "product1": {
+            "process_id": "product",
+            "arguments": {
+              "data": [
+                {
+                  "from_node": "subtract1"
+                },
+                2.5
+              ]
+            },
+            "result": false
+          },
+          "product2": {
+            "process_id": "product",
+            "arguments": {
+              "data": [
+                {
+                  "from_node": "arrayelement1"
+                },
+                6.0
+              ]
+            },
+            "result": false
+          },
+          "sum1": {
             "process_id": "sum",
             "arguments": {
               "data": [
                 {
-                  "from_node": "sum1"
+                  "from_node": "arrayelement1"
                 },
-                1
+                {
+                  "from_node": "product1"
+                }
+              ]
+            },
+            "result": false
+          },
+          "divide1": {
+            "process_id": "divide",
+            "arguments": {
+              "data": [
+                {
+                  "from_node": "product1"
+                },
+                {
+                  "from_node": "sum1"
+                }
               ]
             },
             "result": true

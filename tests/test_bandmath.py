@@ -24,10 +24,10 @@ class TestBandMath(TestCase):
         m.get("http://localhost:8000/api/", json={"version": "0.4.0"})
         m.get("http://localhost:8000/api/collections", json={"collections": [{"product_id": "sentinel2_subset"}]})
         m.get("http://localhost:8000/api/collections/SENTINEL2_RADIOMETRY_10M", json={"product_id": "sentinel2_subset",
-                                                                                      "bands": [{'band_id': 'B0'},
-                                                                                                {'band_id': 'B1'},
-                                                                                                {'band_id': 'B2'},
-                                                                                                {'band_id': 'B3'}],
+                                                                                      "bands": [{'band_id': 'B02'},
+                                                                                                {'band_id': 'B04'},
+                                                                                                {'band_id': 'B08'},
+                                                                                                ],
                                                                                       'time': {'from': '2015-06-23',
                                                                                                'to': '2018-06-18'}})
 
@@ -38,17 +38,22 @@ class TestBandMath(TestCase):
         # access multiband 4D (x/y/time/band) coverage
         s2_radio = session.imagecollection("SENTINEL2_RADIOMETRY_10M")
 
-        evi_cube = s2_radio.band('B2').add(s2_radio.band('B1')).add(1)
+        B02 = s2_radio.band('B02')
+        B04 = s2_radio.band('B04')
+        B08 = s2_radio.band('B08')
+
+        nominator = (2.5 * (B08 - B04))
+        evi_cube = nominator / (B08 + (6.0 * B04)) #((B08 + (6.0 * B04)) - (7.5 * B02)) + 1.0
 
         evi_cube.download("out.geotiff", bbox="", time=s2_radio.dates['to'])
 
 
         session.download.assert_called_once()
+        actual_graph = session.download.call_args_list[0][0][0]
+        print(actual_graph)
         import json
         with open(get_test_resource('evi_graph.json'),'r+') as f:
             expected_graph = json.load(f)
-            actual_graph = session.download.call_args_list[0][0][0]
-            print(actual_graph)
             self.assertDictEqual(expected_graph,actual_graph)
 
 
