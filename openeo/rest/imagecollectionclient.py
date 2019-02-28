@@ -265,7 +265,7 @@ class ImageCollectionClient(ImageCollection):
             new_builder.add_process(operator, data=[{'from_argument': 'data'}, other], result=True)
         else:
             current_result = my_builder.find_result_node_id()
-            new_builder = my_builder
+            new_builder = my_builder.copy()
             new_builder.processes[current_result]['result'] = False
             new_builder.add_process(operator, data=[{'from_node': current_result}, other], result=True)
 
@@ -279,11 +279,11 @@ class ImageCollectionClient(ImageCollection):
             }
             return self.graph_add_process("reduce", args)
         else:
-            current_node = self.graph[self.node_id]
-            reducing_graph = self
-            current_node['arguments']['reducer']['callback'] = new_builder.processes
+            process_graph_copy = self.builder.copy()
+            process_graph_copy.processes[self.node_id]['arguments']['reducer']['callback'] = new_builder.processes
+
             # now current_node should be a reduce node, let's modify it
-            return ImageCollectionClient(reducing_graph.node_id, reducing_graph.builder, reducing_graph.session)
+            return ImageCollectionClient(self.node_id, process_graph_copy, self.session)
 
     def _get_band_graph_builder(self):
         current_node = self.graph[self.node_id]
