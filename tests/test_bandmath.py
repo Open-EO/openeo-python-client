@@ -42,16 +42,14 @@ class TestBandMath(TestCase):
         B04 = s2_radio.band('B04')
         B08 = s2_radio.band('B08')
 
-        nominator = (2.5 * (B08 - B04))
-        evi_cube = nominator / (B08 + (6.0 * B04)) #((B08 + (6.0 * B04)) - (7.5 * B02)) + 1.0
+        evi_cube = (2.5 * (B08 - B04)) / ((B08 + 6.0 * B04 - 7.5 * B02) + 1.0)
 
         evi_cube.download("out.geotiff", bbox="", time=s2_radio.dates['to'])
 
-
         session.download.assert_called_once()
         actual_graph = session.download.call_args_list[0][0][0]
-        print(actual_graph)
         import json
+        print(json.dumps(actual_graph,indent=2))
         with open(get_test_resource('evi_graph.json'),'r+') as f:
             expected_graph = json.load(f)
             self.assertDictEqual(expected_graph,actual_graph)

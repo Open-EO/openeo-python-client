@@ -228,12 +228,12 @@ class ImageCollectionClient(ImageCollection):
                 merged.add_process(operator, data=[input_node, {'from_node': current_result}], result=True)
         else:
             input1 = my_builder.processes[my_builder.find_result_node_id()]
-            input2 = other_builder.processes[other_builder.find_result_node_id()]
             merged = my_builder.merge(other_builder)
             input1_id = list(merged.processes.keys())[list(merged.processes.values()).index(input1)]
-            input2_id = list(merged.processes.keys())[list(merged.processes.values()).index(input2)]
             merged.processes[input1_id]['result'] = False
-            merged.processes[input2_id]['result'] = False
+            input2_id = merged.find_result_node_id()
+            input2 = merged.processes[input2_id]
+            input2['result'] = False
             merged.add_process(operator, data=[{'from_node': input1_id}, {'from_node': input2_id}], result=True)
         # callback is ready, now we need to properly set up the reduce process that will invoke it
         if my_builder == None and other_builder == None:

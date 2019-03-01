@@ -66,7 +66,7 @@
             "arguments": {
               "data": [
                 {
-                  "from_node": "arrayelement1"
+                  "from_node": "arrayelement2"
                 },
                 6.0
               ]
@@ -81,8 +81,56 @@
                   "from_node": "arrayelement1"
                 },
                 {
-                  "from_node": "product1"
+                  "from_node": "product2"
                 }
+              ]
+            },
+            "result": false
+          },
+          "arrayelement3": {
+            "process_id": "array_element",
+            "arguments": {
+              "data": {
+                "from_argument": "dimension_data"
+              },
+              "index": 0
+            },
+            "result": false
+          },
+          "product3": {
+            "process_id": "product",
+            "arguments": {
+              "data": [
+                {
+                  "from_node": "arrayelement3"
+                },
+                7.5
+              ]
+            },
+            "result": false
+          },
+          "subtract2": {
+            "process_id": "subtract",
+            "arguments": {
+              "data": [
+                {
+                  "from_node": "sum1"
+                },
+                {
+                  "from_node": "product3"
+                }
+              ]
+            },
+            "result": false
+          },
+          "sum2": {
+            "process_id": "sum",
+            "arguments": {
+              "data": [
+                {
+                  "from_node": "subtract2"
+                },
+                1.0
               ]
             },
             "result": false
@@ -95,7 +143,7 @@
                   "from_node": "product1"
                 },
                 {
-                  "from_node": "sum1"
+                  "from_node": "sum2"
                 }
               ]
             },
