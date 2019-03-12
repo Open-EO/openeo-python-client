@@ -19,6 +19,7 @@ class ImageCollectionClient(ImageCollection):
         self.builder= builder
         self.session = session
         self.graph = builder.processes
+        self.bands = []
 
     @classmethod
     def create_collection(cls, collection_id:str,session:Connection = None):
@@ -126,7 +127,7 @@ class ImageCollectionClient(ImageCollection):
         try:
             return self.bands.index(name)
         except ValueError as e:
-            raise ValueError("Given band name: " + name + " not available in this image collection. Valid band names are: " + self.bands)
+            raise ValueError("Given band name: " + name + " not available in this image collection. Valid band names are: " + str(self.bands))
 
     def subtract(self, other:Union[ImageCollection,Union[int,float]]):
         """
@@ -564,4 +565,6 @@ class ImageCollectionClient(ImageCollection):
         newbuilder = GraphBuilder(self.builder.processes)
         id = newbuilder.process(process_id,args)
 
-        return ImageCollectionClient(id,newbuilder,self.session)
+        newCollection = ImageCollectionClient(id, newbuilder, self.session)
+        newCollection.bands = self.bands
+        return newCollection
