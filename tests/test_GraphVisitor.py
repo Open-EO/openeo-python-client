@@ -82,18 +82,18 @@ class GraphVisitorTest(TestCase):
         original.enterArray = arrayStart
 
         original.accept_process_graph(graph)
-        self.assertEquals(2, leaveProcess.call_count)
+        self.assertEqual(2, leaveProcess.call_count)
         leaveProcess.assert_has_calls([
             call('abs',ANY),
             call('cos', ANY)
         ])
 
-        self.assertEquals(1, enterArgument.call_count)
+        self.assertEqual(1, enterArgument.call_count)
         enterArgument.assert_has_calls([
             call('data', ANY)
         ])
 
-        self.assertEquals(1, arrayStart.call_count)
+        self.assertEqual(1, arrayStart.call_count)
         arrayStart.assert_has_calls([
             call('data')
         ])

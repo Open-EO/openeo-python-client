@@ -32,6 +32,16 @@ class ProcessGraphVisitor(ABC):
                         raise ValueError(
                             "Node not found in process graph: " + from_node_id + ". Referenced by: " + node)
                     arg["node"] = from_node
+                elif type(arg) is list:
+                    for num, element in enumerate(arg):
+                        if type(element) == dict and "from_node" in element:
+                            from_node_id = element["from_node"]
+                            from_node = processGraph.get(from_node_id, None)
+                            if (from_node is None):
+                                raise ValueError(
+                                    "Node not found in process graph: " + from_node_id + ". Referenced by: " + node)
+                            arg[num] = from_node
+
 
         if result_node is None:
             raise ValueError("The provided process graph does not contain a result node.")
@@ -61,11 +71,11 @@ class ProcessGraphVisitor(ABC):
                 if type(value) == list:
                     self.enterArray(arg)
                     for array_element in value:
-                        self.arrayElement()
                         if type(array_element) is dict:
                             self.accept(array_element)
+                            self.arrayElementDone()
                         else:
-                            self.constantArgument(arg,value)
+                            self.constantArrayElement(array_element)
                     self.leaveArray(arg)
                 elif type(value) == dict:
                     self.enterArgument(arg,value)
@@ -99,7 +109,10 @@ class ProcessGraphVisitor(ABC):
     def enterArray(self, argument_id):
         pass
 
-    def arrayElement(self):
+    def constantArrayElement(self,value):
+        pass
+
+    def arrayElementDone(self):
         pass
 
     def leaveArray(self, argument_id):
