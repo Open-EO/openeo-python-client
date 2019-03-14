@@ -58,12 +58,24 @@ class ProcessGraphVisitor(ABC):
             self.enterProcess(pid, arguments)
             for arg in arguments:
                 value = arguments[arg]
-                self.enterArgument(arg,value)
-                if 'node' in value and 'from_node' in value:
-                    self.accept(value['node'])
+                if type(value) == list:
+                    self.enterArray(arg)
+                    for array_element in value:
+                        self.arrayElement()
+                        if type(array_element) is dict:
+                            self.accept(array_element)
+                        else:
+                            self.constantArgument(arg,value)
+                    self.leaveArray(arg)
+                elif type(value) == dict:
+                    self.enterArgument(arg,value)
+                    if 'node' in value and 'from_node' in value:
+                        self.accept(value['node'])
+                    else:
+                        self.accept(value)
+                    self.leaveArgument(arg,value)
                 else:
-                    self.accept(value)
-                self.leaveArgument(arg,value)
+                    self.constantArgument(arg,value)
 
             self.leaveProcess(pid, arguments)
             self.process_stack.pop()
@@ -79,4 +91,16 @@ class ProcessGraphVisitor(ABC):
         pass
 
     def leaveArgument(self, argument_id, node: Dict):
+        pass
+
+    def constantArgument(self,argument_id:str,value):
+        pass
+
+    def enterArray(self, argument_id):
+        pass
+
+    def arrayElement(self):
+        pass
+
+    def leaveArray(self, argument_id):
         pass
