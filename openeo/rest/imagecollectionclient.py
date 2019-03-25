@@ -1,4 +1,5 @@
 import copy
+from distutils.version import LooseVersion
 from typing import List, Dict, Union
 
 from datetime import datetime, date
@@ -20,6 +21,9 @@ class ImageCollectionClient(ImageCollection):
         self.session = session
         self.graph = builder.processes
         self.bands = []
+
+    def _isVersion040(self):
+        return LooseVersion(self.session.capabilities.version()) >= LooseVersion("0.4.0")
 
     @classmethod
     def create_collection(cls, collection_id:str,session:Connection = None):
@@ -326,20 +330,55 @@ class ImageCollectionClient(ImageCollection):
         """Apply a function to the given set of bands in this image collection."""
         raise NotImplementedError("apply_pixel no longer supported")
 
-    def apply_tiles(self, code: str) -> 'ImageCollection':
+    def apply_tiles(self, code: str,runtime="Python",version="latest") -> 'ImageCollection':
         """Apply a function to the given set of tiles in this image collection.
+
+            This type applies a simple function to one pixel of the input image or image collection.
+            The function gets the value of one pixel (including all bands) as input and produces a single scalar or tuple output.
+            The result has the same schema as the input image (collection) but different bands.
+            Examples include the computation of vegetation indexes or filtering cloudy pixels.
+
             Code should follow the OpenEO UDF conventions.
+
             :param code: String representing Python code to be executed in the backend.
         """
 
-        process_id = 'apply_tiles'
-        args = {
-                'data': {'from_node': self.node_id},
-                'code':{
-                    'language':'python',
-                    'source':code
+        if self._isVersion040():
+            process_id = 'reduce'
+            args = {
+                'data': {
+                    'from_node': self.node_id
+                },
+                'dimension': 'spectral_bands',#TODO determine dimension based on datacube metadata
+                'binary': 'false',
+                'reducer': {
+                    'callback': {
+                        "udf": {
+                            "arguments": {
+                                "data": {
+                                    "from_argument": "dimension_data"
+                                },
+                                "runtime": runtime,
+                                "version": version,
+                                "udf": code
+
+                            },
+                            "process_id": "run_udf",
+                            "result": True
+                        }
+                    }
                 }
             }
+        else:
+
+            process_id = 'apply_tiles'
+            args = {
+                    'data': {'from_node': self.node_id},
+                    'code':{
+                        'language':'python',
+                        'source':code
+                    }
+                }
 
         return self.graph_add_process(process_id, args)
 

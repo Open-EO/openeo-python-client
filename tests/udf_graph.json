@@ -1,0 +1,38 @@
+{
+  "process_graph": {
+    "getcollection1": {
+      "process_id": "get_collection",
+      "arguments": {
+        "name": "SENTINEL2_RADIOMETRY_10M"
+      },
+      "result": false
+    },
+    "reduce1": {
+      "process_id": "reduce",
+      "arguments": {
+        "data": {
+          "from_node": "getcollection1"
+        },
+        "dimension": "spectral_bands",
+        "binary": "false",
+        "reducer": {
+          "callback": {
+            "udf": {
+              "arguments": {
+                "data": {
+                  "from_argument": "dimension_data"
+                },
+                "runtime": "Python",
+                "version": "latest",
+                "udf": "def myfunction(tile):\n    print(tile)\n    return tile"
+              },
+              "process_id": "run_udf",
+              "result": true
+            }
+          }
+        }
+      },
+      "result": "true"
+    }
+  }
+}

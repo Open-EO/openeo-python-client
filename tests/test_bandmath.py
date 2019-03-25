@@ -12,6 +12,11 @@ def get_test_resource(relative_path):
     dir = Path(os.path.dirname(os.path.realpath(__file__)))
     return dir  / relative_path
 
+def load_json_resource(relative_path):
+    import json
+    with open(get_test_resource(relative_path), 'r+') as f:
+        return json.load(f)
+
 @requests_mock.mock()
 class TestBandMath(TestCase):
 
@@ -50,9 +55,8 @@ class TestBandMath(TestCase):
         actual_graph = session.download.call_args_list[0][0][0]
         import json
         print(json.dumps(actual_graph,indent=2))
-        with open(get_test_resource('evi_graph.json'),'r+') as f:
-            expected_graph = json.load(f)
-            self.assertDictEqual(expected_graph,actual_graph)
+        expected_graph = load_json_resource('evi_graph.json')
+        self.assertDictEqual(expected_graph,actual_graph)
 
 
     def test_ndvi(self, m):
@@ -158,6 +162,42 @@ class TestBandMath(TestCase):
                           }
         session.post.assert_called_once_with("/timeseries/point?x=4&y=51&srs=EPSG:4326",expected_graph)
         session.download.assert_called_once()
+
+    def test_ndvi_udf_0_4_0(self, m):
+        #configuration phase: define username, endpoint, parameters?
+        session = openeo.connect("http://localhost:8000/api")
+
+        m.get("http://localhost:8000/api/", json={"version": "0.4.0"})
+        m.get("http://localhost:8000/api/collections", json={"collections": [{"product_id": "sentinel2_subset"}]})
+        m.get("http://localhost:8000/api/collections/SENTINEL2_RADIOMETRY_10M", json={"product_id": "sentinel2_subset",
+                                                                               "bands": [{'band_id': 'B0'},
+                                                                                         {'band_id': 'B1'},
+                                                                                         {'band_id': 'B2'},
+                                                                                         {'band_id': 'B3'}],
+                                                                               'time': {'from': '2015-06-23',
+                                                                                        'to': '2018-06-18'}})
+
+        expected_graph = load_json_resource('udf_graph.json')
+        def check_process_graph(request):
+            import json
+            print(json.dumps(request.json(),indent=2))
+            self.assertDictEqual(expected_graph,request.json())
+            return True
+
+        m.post("http://localhost:8000/api/result", text="my binary data", additional_matcher=check_process_graph)
+
+
+        #access multiband 4D (x/y/time/band) coverage
+        s2_radio = session.imagecollection("SENTINEL2_RADIOMETRY_10M")
+
+        ndvi_coverage = s2_radio.apply_tiles( "def myfunction(tile):\n"
+                                              "    print(tile)\n"
+                                              "    return tile")
+
+        #materialize result in the shape of a geotiff
+        #REST: WCS call
+        ndvi_coverage.download("out.geotiff",bbox="", time=s2_radio.dates['to'])
+
 
 
 

@@ -328,22 +328,28 @@ class RESTConnection(Connection):
         return self.not_supported()
 
     # TODO: Maybe rename to execute and merge with execute().
-    # Depricated function, use download_job instead.
     def download(self, graph, time, outputfile, format_options):
         """
-        Downloads a result of a process graph synchronously.
+        Downloads the result of a process graph synchronously, and save the result to the given file.
+        This method is useful to export binary content such as images. For json content, the execute method is recommended.
+
         :param graph: Dict representing a process graph
         :param time: dba
         :param outputfile: output file
         :param format_options: formating options
         :return: job_id: String
         """
-        download_url = self.endpoint + self.root + "/execute"
-
+        path = "/execute"
         request = {
-            "process_graph": graph,
-            "output": format_options
+            "process_graph": graph
         }
+        if self._isVersion040():
+            path = "/result"
+        else:
+            request["output"] = format_options
+
+        download_url = self.endpoint + self.root + path
+
         r = requests.post(download_url, json=request, stream = True, timeout=1000 )
         if r.status_code == 200:
             with open(outputfile, 'wb') as f:
