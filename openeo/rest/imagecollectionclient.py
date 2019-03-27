@@ -17,7 +17,7 @@ class ImageCollectionClient(ImageCollection):
 
     def __init__(self,node_id:str, builder:GraphBuilder,session:Connection):
         self.node_id = node_id
-        self.builder= builder    @property
+        self.builder= builder
         self.session = session
         self.graph = builder.processes
         self.bands = []

@@ -124,7 +124,7 @@ class TestUserFiles(TestCase):
         m.register_uri('GET', capabilties_url, json=CAPABILITIES)
         con = openeo.connect(self.endpoint)
 
-        capabilities = con.capabilities
+        capabilities = con.capabilities()
         assert capabilities.capabilities == CAPABILITIES
 
     def test_list_collections(self, m):
