@@ -10,7 +10,7 @@ import openeo
 
 def get_test_resource(relative_path):
     dir = Path(os.path.dirname(os.path.realpath(__file__)))
-    return dir  / relative_path
+    return str(dir / relative_path)
 
 def load_json_resource(relative_path):
     import json
