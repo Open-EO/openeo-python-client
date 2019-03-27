@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from .auth import Auth
 from openeo.imagecollection import ImageCollection
+from.capabilities import Capabilities
 
 """
 openeo.sessions
@@ -30,7 +31,7 @@ class Connection(ABC):
         pass
 
     @abstractmethod
-    def capabilities(self) -> dict:
+    def capabilities(self) -> Capabilities:
         """
         Loads all available capabilities.
 

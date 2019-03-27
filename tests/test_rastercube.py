@@ -1,15 +1,25 @@
 from unittest import TestCase
+
+from openeo.capabilities import Capabilities
+from openeo.connection import Connection
 from openeo.rest.imagecollectionclient import ImageCollectionClient
 from openeo.graphbuilder import GraphBuilder
+from mock import MagicMock, patch
 
 
 class TestRasterCube(TestCase):
 
+    @patch.multiple(Connection, __abstractmethods__=set())
     def setUp(self):
         builder = GraphBuilder()
         id = builder.process("get_collection", {'name': 'S1'})
 
-        self.imagery = ImageCollectionClient(id, builder, None)
+        connection = MagicMock(spec=Connection)
+        capabilities = MagicMock(spec=Capabilities)
+
+        connection.capabilities.return_value = capabilities
+        capabilities.version.return_value = "0.4.0"
+        self.imagery = ImageCollectionClient(id, builder, connection)
 
     def test_date_range_filter(self):
         new_imagery = self.imagery.date_range_filter("2016-01-01", "2016-03-10")
@@ -48,6 +58,17 @@ class TestRasterCube(TestCase):
         new_imagery = self.imagery.max_time()
 
         graph = new_imagery.graph[new_imagery.node_id]
+
+        self.assertEqual(graph["process_id"], "reduce")
+        self.assertIn("data", graph['arguments'])
+
+    def test_reduce_time_udf(self):
+        new_imagery = self.imagery.reduce_tiles_over_time("my custom code")
+
+        graph = new_imagery.graph[new_imagery.node_id]
+
+        import json
+        print(json.dumps(graph,indent=2))
 
         self.assertEqual(graph["process_id"], "reduce")
         self.assertIn("data", graph['arguments'])

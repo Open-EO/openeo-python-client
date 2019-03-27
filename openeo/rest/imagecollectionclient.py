@@ -17,13 +17,13 @@ class ImageCollectionClient(ImageCollection):
 
     def __init__(self,node_id:str, builder:GraphBuilder,session:Connection):
         self.node_id = node_id
-        self.builder= builder
+        self.builder= builder    @property
         self.session = session
         self.graph = builder.processes
         self.bands = []
 
     def _isVersion040(self):
-        return LooseVersion(self.session.capabilities.version()) >= LooseVersion("0.4.0")
+        return LooseVersion(self.session.capabilities().version()) >= LooseVersion("0.4.0")
 
     @classmethod
     def create_collection(cls, collection_id:str,session:Connection = None):
@@ -353,19 +353,7 @@ class ImageCollectionClient(ImageCollection):
                 'binary': 'false',
                 'reducer': {
                     'callback': {
-                        "udf": {
-                            "arguments": {
-                                "data": {
-                                    "from_argument": "dimension_data"
-                                },
-                                "runtime": runtime,
-                                "version": version,
-                                "udf": code
-
-                            },
-                            "process_id": "run_udf",
-                            "result": True
-                        }
+                        'udf': self._create_run_udf(code, runtime, version)
                     }
                 }
             }
@@ -381,6 +369,51 @@ class ImageCollectionClient(ImageCollection):
                 }
 
         return self.graph_add_process(process_id, args)
+
+    def _create_run_udf(self, code, runtime, version):
+        return {
+            "arguments": {
+                "data": {
+                    "from_argument": "dimension_data"
+                },
+                "runtime": runtime,
+                "version": version,
+                "udf": code
+
+            },
+            "process_id": "run_udf",
+            "result": True
+        }
+
+    #TODO better name, pull to ABC?
+    def reduce_tiles_over_time(self,code: str,runtime="Python",version="latest"):
+        """
+        Applies a user defined function to a timeseries of tiles. The size of the tile is backend specific, and can be limited to one pixel.
+        The function should reduce the given timeseries into a single (multiband) tile.
+
+        :param code: The UDF code, compatible with the given runtime and version
+        :param runtime: The UDF runtime
+        :param version: The UDF runtime version
+        :return:
+        """
+        if self._isVersion040():
+            process_id = 'reduce'
+            args = {
+                'data': {
+                    'from_node': self.node_id
+                },
+                'dimension': 'temporal',#TODO determine dimension based on datacube metadata
+                'binary': 'false',
+                'reducer': {
+                    'callback': {
+                        'udf': self._create_run_udf(code, runtime, version)
+                    }
+                }
+            }
+            return self.graph_add_process(process_id, args)
+        else:
+            raise NotImplementedError("apply_to_tiles_over_time requires backend version >=0.4.0")
+
 
     def apply(self, process: str, arguments={}) -> 'ImageCollection':
         process_id = 'apply'

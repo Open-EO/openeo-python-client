@@ -130,7 +130,7 @@ class RESTConnection(Connection):
         return RESTProcesses(self)
 
 
-    @property
+
     def capabilities(self) -> 'Capabilities':
         """
         Loads all available capabilities.
@@ -233,7 +233,7 @@ class RESTConnection(Connection):
         return processes_dict
 
     def _isVersion040(self):
-        return LooseVersion(self.capabilities.version()) >= LooseVersion("0.4.0")
+        return LooseVersion(self.capabilities().version()) >= LooseVersion("0.4.0")
 
     def imagecollection(self, image_collection_id) -> 'ImageCollection':
         """
