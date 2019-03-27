@@ -403,7 +403,7 @@ class ImageCollectionClient(ImageCollection):
                     'from_node': self.node_id
                 },
                 'dimension': 'temporal',#TODO determine dimension based on datacube metadata
-                'binary': 'false',
+                'binary': False,
                 'reducer': {
                     'callback': {
                         'udf': self._create_run_udf(code, runtime, version)
@@ -454,7 +454,7 @@ class ImageCollectionClient(ImageCollection):
                             }
                         },
                         'process_id': reduce_function,
-                        'result': 'true'
+                        'result': True
                     }
                 }
             }
