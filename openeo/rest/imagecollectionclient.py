@@ -586,11 +586,28 @@ class ImageCollectionClient(ImageCollection):
         }
 
         process_id = 'aggregate_zonal'
+        if self._isVersion040():
+            process_id = 'aggregate_polygons'
 
         args = {
                 'data': {'from_node': self.node_id},
                 'dimension':'temporal',
                 'polygons': geojson
+            }
+        if self._isVersion040():
+            del args['dimension']
+            args['reducer']= {
+                'callback':{
+                    "unary":{
+                        "arguments":{
+                            "data": {
+                                "from_argument": "dimension_data"
+                            }
+                        },
+                        "process_id":"mean",
+                        "result":True
+                    }
+                }
             }
 
         return self.graph_add_process(process_id, args)
@@ -621,7 +638,7 @@ class ImageCollectionClient(ImageCollection):
 
     def execute(self) -> Dict:
         """Executes the process graph of the imagery. """
-        return self.session.execute({"process_graph": self.graph})
+        return self.session.execute({"process_graph": self.graph},"")
 
     ####### HELPER methods #######
 

@@ -227,6 +227,7 @@ class ImageCollection(ABC):
     def timeseries(self, x, y, srs="EPSG:4326") -> Dict:
         """
         Extract a time series for the given point location.
+        DEPRECATED
 
         :param x: The x coordinate of the point
         :param y: The y coordinate of the point

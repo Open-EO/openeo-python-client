@@ -369,7 +369,10 @@ class RESTConnection(Connection):
         :return: job_id: String
         """
         # TODO: add output_format to execution
-        response = self.post(self.root + "/preview", process_graph)
+        path = "/preview"
+        if self._isVersion040():
+            path = "/result"
+        response = self.post(self.root + path, process_graph)
         return self.parse_json_response(response)
 
     def create_job(self, process_graph, output_format=None, output_parameters={},

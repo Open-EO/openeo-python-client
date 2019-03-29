@@ -1,0 +1,80 @@
+{
+  "process_graph": {
+    "getcollection1": {
+      "process_id": "get_collection",
+      "arguments": {
+        "name": "SENTINEL2_FAPAR"
+      },
+      "result": false
+    },
+    "filterbbox1": {
+      "process_id": "filter_bbox",
+      "arguments": {
+        "data": {
+          "from_node": "getcollection1"
+        },
+        "west": 3,
+        "east": 6,
+        "north": 52,
+        "south": 50,
+        "crs": "EPSG:4326"
+      },
+      "result": false
+    },
+    "aggregatepolygons1": {
+      "process_id": "aggregate_polygons",
+      "arguments": {
+        "data": {
+          "from_node": "filterbbox1"
+        },
+        "polygons": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                16.138916,
+                48.320647
+              ],
+              [
+                16.524124,
+                48.320647
+              ],
+              [
+                16.524124,
+                48.1386
+              ],
+              [
+                16.138916,
+                48.1386
+              ],
+              [
+                16.138916,
+                48.320647
+              ]
+            ]
+          ],
+          "crs": {
+            "type": "name",
+            "properties": {
+              "name": "EPSG:4326"
+            }
+          }
+        },
+        "reducer": {
+          "callback": {
+            "unary": {
+              "arguments": {
+                "data": {
+                  "from_argument": "dimension_data"
+                }
+              },
+              "process_id": "mean",
+              "result": true
+            }
+          }
+        }
+      },
+      "result": false
+    }
+  }
+}
