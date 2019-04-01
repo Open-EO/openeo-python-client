@@ -152,6 +152,16 @@
         }
       }
     },
+    "result": false
+  },
+  "saveresult1": {
+    "process_id": "save_result",
+    "arguments": {
+      "data": {
+        "from_node": "reduce1"
+      },
+      "options": {}
+    },
     "result": "true"
   }
 }

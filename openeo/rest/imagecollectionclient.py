@@ -614,8 +614,20 @@ class ImageCollectionClient(ImageCollection):
 
     def download(self, outputfile:str, bbox="", time="", **format_options) -> str:
         """Extraxts a geotiff from this image collection."""
-        self.graph[self.node_id]["result"] = 'true'
-        return self.session.download(self.graph, time, outputfile, format_options)
+
+        if self._isVersion040():
+            args = {
+                'data': {'from_node': self.node_id},
+                'options': format_options
+            }
+            if 'format' in format_options:
+                args['format'] = format_options['format']
+            newcollection = self.graph_add_process("save_result",args)
+            newcollection.graph[newcollection.node_id]["result"] = 'true'
+            return self.session.download(newcollection.graph, time, outputfile, format_options)
+        else:
+            self.graph[self.node_id]["result"] = 'true'
+            return self.session.download(self.graph, time, outputfile, format_options)
 
     def tiled_viewing_service(self,**kwargs) -> Dict:
         return self.session.create_service(self.graph,**kwargs)
