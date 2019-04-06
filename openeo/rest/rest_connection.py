@@ -122,6 +122,7 @@ class RESTConnection(Connection):
 
     def get_processes(self):
         """
+        EXPERIMENTAL
         Returns processes of back end.
         :return: data_dict: Dict All available data types
         """
@@ -265,6 +266,8 @@ class RESTConnection(Connection):
     def image(self, image_product_id) -> 'ImageCollection':
         """
         Get imagery by id.
+        DEPRECATED
+
         :param image_collection_id: String image collection identifier
         :return: collection: RestImagery the imagery with the id
         """

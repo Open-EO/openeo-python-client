@@ -13,7 +13,9 @@ from ..graphbuilder import GraphBuilder
 
 
 class ImageCollectionClient(ImageCollection):
-    """Class representing an Image Collection. (In the API as 'imagery')"""
+    """Class representing an Image Collection. (In the API as 'imagery')
+        Supports 0.4.
+    """
 
     def __init__(self,node_id:str, builder:GraphBuilder,session:Connection):
         self.node_id = node_id

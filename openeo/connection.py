@@ -204,6 +204,7 @@ class Connection(ABC):
     def image(self, image_product_id) -> 'ImageCollection':
         """
         Get imagery by id.
+        DEPRECATED
 
         :param image_collection_id: String image collection identifier
 

@@ -13,8 +13,11 @@ from openeo.rest.rest_processgraph import RESTProcessgraph
 from shapely.geometry import Polygon, MultiPolygon, mapping
 
 
-class RESTProcesses(ImageCollection):
-    """Class representing the Processes. """
+class RESTProcesses():
+    """Class representing the Processes.
+        EXPERIMENTAL, only supports OpenEO 0.3
+
+    """
 
     def __init__(self, connection:Connection):
         self.connection = connection

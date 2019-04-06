@@ -23,7 +23,7 @@ class ImageCollection(ABC):
         """
         pass
 
-    def bbox_filter(self, left:float,right:float,top:float,bottom:float,srs:str) -> 'ImageCollection':
+    def bbox_filter(self, west=None, east=None, north=None, south=None, crs=None,left=None, right=None, top=None, bottom=None, srs=None ) -> 'ImageCollection':
         """
         Specifies a bounding box to filter input image collections.
 

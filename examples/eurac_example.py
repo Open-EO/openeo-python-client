@@ -21,14 +21,25 @@ print(con.describe_collection("S2_L2A_T32TPS_20M"))
 
 
 # Test Capabilities
-cap = con.capabilities
+cap = con.capabilities()
 
 print(cap.version())
 print(cap.list_features())
 print(cap.currency())
 print(cap.list_plans())
 
+#Example using the 'ImageCollection' API.
+
+datacube = con.imagecollection("S2_L2A_T32TPS_20M")
+datacube = datacube.bbox_filter( west=652000, south=5181000, east=672000, north=5161000, crs="EPSG:32632")
+datacube = datacube.date_range_filter( "2016-01-01T00:00:00Z", "2016-03-10T23:59:59Z")
+datacube = datacube.ndvi( nir="B04", red="B8A")
+datacube = datacube.max_time()
+print(datacube.graph)
+
 # Test Processes
+
+#Example using the 'processes' API.
 
 processes = con.get_processes()
 pg = processes.get_collection(name="S2_L2A_T32TPS_20M")

@@ -13,7 +13,9 @@ from shapely.geometry import Polygon, MultiPolygon, mapping
 
 
 class RestImagery(ImageCollection):
-    """Class representing an Image Collection. (In the API as 'imagery')"""
+    """Class representing an Image Collection. (In the API as 'imagery')
+       DEPRECATED support 0.3 only.
+    """
 
     def __init__(self, parentgraph:Dict,session:Connection):
         self.graph = parentgraph
@@ -36,7 +38,7 @@ class RestImagery(ImageCollection):
 
         return self.graph_add_process(process_id, args)
 
-    def bbox_filter(self, left, right, top, bottom, srs) -> 'ImageCollection':
+    def bbox_filter(self, west=None, east=None, north=None, south=None, crs=None,left=None, right=None, top=None, bottom=None, srs=None) -> 'ImageCollection':
         """Drops observations from a collection that are located outside
             of a given bounding box.
             :param left: left boundary (longitude / easting)
@@ -50,11 +52,11 @@ class RestImagery(ImageCollection):
         process_id = 'filter_bbox'
         args = {
                 'imagery': self.graph,
-                'left': left,
-                'right': right,
-                'top': top,
-                'bottom': bottom,
-                'srs': srs
+                'west': west or left,
+                'east': east or right,
+                'north': north or top,
+                'south': south or bottom,
+                'crs': crs or srs
             }
         return self.graph_add_process(process_id, args)
 
