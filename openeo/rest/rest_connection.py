@@ -402,7 +402,8 @@ class RESTConnection(Connection):
                 job_id = job_info['location'][1].split("/")[-1]
                 job = RESTJob(job_id, self)
         else:
-            raise Exception(job_status)
+            raise ConnectionAbortedError(job_status.json().get('message','No error message provided.'))
+
 
 
         return job

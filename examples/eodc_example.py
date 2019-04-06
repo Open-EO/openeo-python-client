@@ -1,6 +1,6 @@
 import logging
 import openeo
-from openeo.rest.job import ClientJob
+from openeo.rest.job import RESTJob
 from openeo.auth.auth_bearer import BearerAuth
 
 logging.basicConfig(level=logging.DEBUG)
@@ -16,10 +16,8 @@ OUTPUT_FILE = "/tmp/openeo_eodc_output.tiff"
 # TODO: Deprecated: release-0.0.2, Update to 0.3.1 version
 
 # Connect with EODC backend
-session = openeo.session(EODC_USER, endpoint=EODC_DRIVER_URL)
-# Authenticate with bearer token
-token = session.auth(EODC_USER, EODC_PWD, BearerAuth)
-logging.debug("Login token: {}".format(token))
+session = openeo.connect(EODC_DRIVER_URL,auth_type=BearerAuth, auth_options={"username": EODC_USER, "password": EODC_PWD})
+
 
 s2a_prd_msil1c = session.image("s2a_prd_msil1c")
 logging.debug("{}".format(s2a_prd_msil1c.graph))
@@ -52,7 +50,7 @@ logging.debug("{}".format(status))
 #      status = job.status()['status']
 #      logging.debug("After {} minutes the status is: {}".format(minutes, status))
 
-job = ClientJob(97, session)
+job = RESTJob(97, session)
 job.download(OUTPUT_FILE)
 
 
