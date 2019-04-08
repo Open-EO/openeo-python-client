@@ -339,7 +339,7 @@ class RESTProcesses():
 
         return self.graph_add_process(process_id, args)
 
-    def stretch_colors(self, min, max) -> 'ImageCollection':
+    def stretch_colors(self,imagery, min, max) -> 'ImageCollection':
         """ Color stretching
             :param min: Minimum value
             :param max: Maximum value
@@ -347,12 +347,17 @@ class RESTProcesses():
         """
         process_id = 'stretch_colors'
         args = {
-                'imagery': self.graph,
+                'imagery': imagery.graph,
                 'min': min,
                 'max': max
             }
+        imagery.graph = {
+            'process_id':process_id,
+            'args':args
+        }
 
-        return self.graph_add_process(process_id, args)
+        return imagery
+
 
     def mask(self, polygon: Union[Polygon, MultiPolygon], srs="EPSG:4326") -> 'ImageCollection':
         """

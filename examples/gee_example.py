@@ -36,8 +36,8 @@ print(cap.list_plans())
 # Test Processes
 
 datacube = con.imagecollection("COPERNICUS/S2")
-datacube = datacube.bbox_filter(west=16.138916, south=48.138600, east=16.524124, north=48.320647, crs="EPSG:4326")
-datacube = datacube.date_range_filter("2017-01-01T00:00:00Z", "2017-01-31T23:59:59Z")
+datacube = datacube.filter_bbox(west=16.138916, south=48.138600, east=16.524124, north=48.320647, crs="EPSG:4326")
+datacube = datacube.filter_daterange(extent=["2017-01-01T00:00:00Z", "2017-01-31T23:59:59Z"])
 datacube = datacube.ndvi(nir="B4", red="B8A")
 datacube = datacube.min_time()
 print(json.dumps(datacube.graph,indent=2))

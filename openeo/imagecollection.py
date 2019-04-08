@@ -16,6 +16,7 @@ class ImageCollection(ABC):
     def date_range_filter(self, start_date:Union[str,datetime,date],end_date:Union[str,datetime,date]) -> 'ImageCollection':
         """
         Specifies a date range filter to be applied on the ImageCollection
+        DEPRECATED: use :func:`openeo.ImageCollection.filter_daterange`
 
         :param start_date: Start date of the filter, inclusive, format: "YYYY-MM-DD".
         :param end_date: End date of the filter, exclusive, format e.g.: "2018-01-13".
@@ -23,9 +24,47 @@ class ImageCollection(ABC):
         """
         pass
 
-    def bbox_filter(self, west=None, east=None, north=None, south=None, crs=None,left=None, right=None, top=None, bottom=None, srs=None ) -> 'ImageCollection':
+    def filter_daterange(self, extent) -> 'ImageCollection':
+        """Drops observations from a collection that have been captured before
+            a start or after a given end date.
+
+            :param extent: List of starting date and ending date of the filter
+            :return: An ImageCollection filtered by date.
+        """
+        if len(extent) == 0:
+            raise ValueError("extent should contain 2 elements, but got empty list: " + extent)
+        start = extent[0]
+        end = extent[1] if len(extent) >1 else None
+        return self.date_range_filter(start,end)
+
+    def filter_bbox(self, west, east, north, south, crs=None, base=None, height=None) -> 'ImageCollection':
+        """Drops observations from a collection that are located outside
+            of a given bounding box.
+
+            :param imagery: eodata object (ProcessGraph)
+            :param west: west boundary (longitude / easting)
+            :param east: east boundary (longitude / easting)
+            :param top: top boundary (latitude / northing)
+            :param bottom: top boundary (latitude / northing)
+            :param crs: spatial reference system of boundaries as
+                        proj4 or EPSG:12345 like string
+            :param base: lower left corner coordinate axis 3
+            :param height: upper right corner coordinate axis 3
+            :return: An image collection cropped to the specified bounding box.
+        """
+
+        if base is not None or height is not None:
+            return self.bbox_filter(west=west,east=east,north=north, south=south,crs=crs,base=base,height=height)
+        else:
+            return self.bbox_filter(west=west, east=east, north=north, south=south, crs=crs)
+
+
+
+
+    def bbox_filter(self, west=None, east=None, north=None, south=None, crs=None,left=None, right=None, top=None, bottom=None, srs=None, base=None, height=None ) -> 'ImageCollection':
         """
         Specifies a bounding box to filter input image collections.
+        DEPRECATED: use :func:`openeo.ImageCollection.filter_bbox`
 
         :param left:
         :param right:
@@ -255,7 +294,7 @@ class ImageCollection(ABC):
         """
         pass
 
-    def polygonal_mean_timeseries(self, polygon: Union[Polygon, MultiPolygon]) -> Dict:
+    def  polygonal_mean_timeseries(self, polygon: Union[Polygon, MultiPolygon]) -> Dict:
         """
         Extract a mean time series for the given (multi)polygon. Its points are expected to be in the EPSG:4326 coordinate
         reference system.
