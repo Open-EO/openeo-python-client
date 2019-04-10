@@ -2,6 +2,7 @@ import openeo
 import logging
 import time
 import json
+from openeo.auth.auth_bearer import BearerAuth
 
 logging.basicConfig(level=logging.INFO)
 
@@ -17,7 +18,7 @@ password = "test123"
 #session = openeo.session("nobody", GEE_DRIVER_URL)
 
 
-con = openeo.connect(GEE_DRIVER_URL, auth_options={"username": user, "password": password})
+con = openeo.connect(GEE_DRIVER_URL, auth_type=BearerAuth, auth_options={"username": user, "password": password})
 
 #Test Connection
 print(con.list_processes())

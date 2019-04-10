@@ -29,7 +29,7 @@ class BasicAuth(Auth):
 
         :return: status: True if the login was successful, False if not.
         """
-        r = requests.get(self.endpoint+'/auth/login',
+        r = requests.get(self.endpoint+'/credentials/basic',
                              auth=HTTPBasicAuth(self.username, self.password))
 
         if r.status_code == 200:

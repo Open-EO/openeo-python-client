@@ -29,11 +29,11 @@ class BearerAuth(Auth):
 
         :return: status: True if the login was successful, False if not.
         """
-        token = requests.get(self.endpoint+'/auth/login',
+        token = requests.get(self.endpoint+'/credentials/basic',
                              auth=HTTPBasicAuth(self.username, self.password))
 
         if token.status_code == 200:
-            self.token = token.json()["token"]
+            self.token = token.json()["access_token"]
             return True
         else:
             return False
