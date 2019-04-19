@@ -384,10 +384,25 @@ class RESTConnection(Connection):
         """
         Posts a job to the back end.
         :param process_graph: String data of the job (e.g. process graph)
+        :param output_format: String Output format of the execution
+        :param output_parameters: Dict of additional output parameters
+        :param title: String title of the job
+        :param description: String description of the job
+        :param budget: Budget
         :return: job_id: String Job id of the new created job
         """
 
-        process_graph = {"process_graph": process_graph}
+        process_graph = {
+             "process_graph": process_graph,
+             "output": {
+                 "format": output_format,
+                 "parameters": output_parameters
+                },
+             "title": title,
+             "description": description,
+             "plan": plan,
+             "budget": budget
+         }
 
         job_status = self.post("/jobs", process_graph)
 
