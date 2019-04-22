@@ -1,19 +1,14 @@
-from distutils.version import LooseVersion
-from urllib.parse import urlparse
+import json
 import shutil
-import os
+from distutils.version import LooseVersion
 
 import requests
-
-from openeo.auth.auth_none import NoneAuth
 from openeo.auth.auth_basic import BasicAuth
+from openeo.auth.auth_none import NoneAuth
+from openeo.connection import Connection
+from openeo.rest.job import RESTJob
 from openeo.rest.rest_capabilities import RESTCapabilities
 from openeo.rest.rest_processes import RESTProcesses
-from openeo.rest.job import RESTJob
-
-import json
-from openeo.connection import Connection
-
 
 """
 openeo.sessions
@@ -342,7 +337,7 @@ class RESTConnection(Connection):
         :param format_options: formating options
         :return: job_id: String
         """
-        path = "/execute"
+        path = "/preview"
         request = {
             "process_graph": graph
         }
@@ -384,10 +379,25 @@ class RESTConnection(Connection):
         """
         Posts a job to the back end.
         :param process_graph: String data of the job (e.g. process graph)
+        :param output_format: String Output format of the execution
+        :param output_parameters: Dict of additional output parameters
+        :param title: String title of the job
+        :param description: String description of the job
+        :param budget: Budget
         :return: job_id: String Job id of the new created job
         """
 
-        process_graph = {"process_graph": process_graph}
+        process_graph = {
+             "process_graph": process_graph,
+             "output": {
+                 "format": output_format,
+                 "parameters": output_parameters
+                },
+             "title": title,
+             "description": description,
+             "plan": plan,
+             "budget": budget
+         }
 
         job_status = self.post("/jobs", process_graph)
 
