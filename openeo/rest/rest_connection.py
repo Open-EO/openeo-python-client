@@ -292,9 +292,19 @@ class RESTConnection(Connection):
         return self.post(self.root + "/timeseries/point?x={}&y={}&srs={}"
                          .format(x,y,srs), graph)
 
-    def create_service(self,graph,**kwargs):
+    def create_service(self, graph, **kwargs):
         kwargs["process_graph"] = graph
-        return self.parse_json_response(self.post(self.root + "/services",kwargs))
+
+        response = self.post(self.root + "/services", kwargs)
+
+        if response.status_code == 201:
+            service_url = response.headers['location']
+
+            return {
+                'url': service_url
+            }
+        else:
+            raise ConnectionAbortedError(response.text)
 
     def job_results(self, job_id):
         response = self.get("/jobs/{}/results".format(job_id))
