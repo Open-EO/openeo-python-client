@@ -56,7 +56,7 @@ class RESTFile(File):
         """
         path = "/users/{}/{}".format(self.connection.userid, self.path)
 
-        resp = self.connection.delete(path)
+        resp = self.connection.delete(path, postdata=None)
 
         return resp.status_code
 

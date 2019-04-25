@@ -517,18 +517,6 @@ class RESTConnection(Connection):
 
         return requests.get(self.endpoint+path, headers=auth_header, stream=stream, auth=auth)
 
-    def delete(self, path):
-        """
-        Makes a RESTful DELETE request to the backend
-
-        :param path: URL of the request relative to endpoint url
-        """
-
-        auth_header = self.authent.get_header()
-        auth = self.authent.get_auth()
-
-        return requests.delete(self.endpoint+path, headers=auth_header, auth=auth)
-
     def get_outputformats(self) -> dict:
         """
         Loads all available output formats.
