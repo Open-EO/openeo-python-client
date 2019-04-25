@@ -328,13 +328,13 @@ class RestImagery(ImageCollection):
         :return: status: ClientJob resulting job.
         """
         if out_format:
-            return RESTJob(self.session.job({"process_graph": self.graph,
+            return RESTJob(self.session.create_job({"process_graph": self.graph,
                                                'output': {
                                                    'format': out_format,
                                                    'parameters': format_options
-                                               }}), self.session)
+                                               }}).job_id, self.session)
         else:
-            return RESTJob(self.session.job({"process_graph": self.graph}), self.session)
+            return RESTJob(self.session.create_job({"process_graph": self.graph}).job_id, self.session)
 
     def execute(self) -> Dict:
         """Executes the process graph of the imagery. """
