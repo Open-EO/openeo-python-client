@@ -624,6 +624,7 @@ class ImageCollectionClient(ImageCollection):
             }
             if 'format' in format_options:
                 args['format'] = format_options['format']
+                del format_options['format']
             newcollection = self.graph_add_process("save_result",args)
             newcollection.graph[newcollection.node_id]["result"] = 'true'
             return self.session.download(newcollection.graph, time, outputfile, format_options)
