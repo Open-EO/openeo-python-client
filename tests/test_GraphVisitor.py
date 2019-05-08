@@ -10,7 +10,7 @@ class GraphVisitorTest(TestCase):
                     "abs":{
                         "arguments":{
                             "data": {
-                                "from_argument": "dimension_data"
+                                "from_argument": "data"
                             }
                         },
                         "process_id":"abs"
@@ -53,7 +53,7 @@ class GraphVisitorTest(TestCase):
                     "abs":{
                         "arguments":{
                             "data": [{
-                                "from_argument": "dimension_data"
+                                "from_argument": "data"
                             },
                             10.0
                             ]

@@ -65,7 +65,7 @@
             "unary": {
               "arguments": {
                 "data": {
-                  "from_argument": "dimension_data"
+                  "from_argument": "data"
                 }
               },
               "process_id": "mean",

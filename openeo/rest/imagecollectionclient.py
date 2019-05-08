@@ -116,7 +116,7 @@ class ImageCollectionClient(ImageCollection):
                     'r1': {
                         'arguments': {
                             'data': {
-                                'from_argument': 'dimension_data'
+                                'from_argument': 'data'
                             },
                             'index': band_index
                         },
@@ -376,7 +376,7 @@ class ImageCollectionClient(ImageCollection):
         return {
             "arguments": {
                 "data": {
-                    "from_argument": "dimension_data"
+                    "from_argument": "data"
                 },
                 "runtime": runtime,
                 "version": version,
@@ -426,7 +426,7 @@ class ImageCollectionClient(ImageCollection):
                     "unary":{
                         "arguments":{
                             "data": {
-                                "from_argument": "dimension_data"
+                                "from_argument": "data"
                             }
                         },
                         "process_id":process,
@@ -449,10 +449,7 @@ class ImageCollectionClient(ImageCollection):
                     'r1': {
                         'arguments': {
                             'data': {
-                                'from_argument': 'dimension_data'
-                            },
-                            'dimension': {
-                                'from_argument': 'dimension'
+                                'from_argument': 'data'
                             }
                         },
                         'process_id': reduce_function,
@@ -603,7 +600,7 @@ class ImageCollectionClient(ImageCollection):
                     "unary":{
                         "arguments":{
                             "data": {
-                                "from_argument": "dimension_data"
+                                "from_argument": "data"
                             }
                         },
                         "process_id":"mean",

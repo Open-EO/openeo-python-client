@@ -20,7 +20,7 @@
             "udf": {
               "arguments": {
                 "data": {
-                  "from_argument": "dimension_data"
+                  "from_argument": "data"
                 },
                 "runtime": "Python",
                 "version": "latest",
