@@ -1,0 +1,42 @@
+{
+  "getcollection1": {
+    "process_id": "get_collection",
+    "arguments": {
+      "name": "SENTINEL2_RADIOMETRY_10M"
+    },
+    "result": false
+  },
+  "applydimension1": {
+    "process_id": "apply_dimension",
+    "arguments": {
+      "data": {
+        "from_node": "getcollection1"
+      },
+      "dimension": "temporal",
+      "process": {
+        "callback": {
+          "process": {
+            "arguments": {
+              "data": {
+                "from_argument": "data"
+              }
+            },
+            "process_id": "cumsum",
+            "result": true
+          }
+        }
+      }
+    },
+    "result": false
+  },
+  "saveresult1": {
+    "process_id": "save_result",
+    "arguments": {
+      "data": {
+        "from_node": "applydimension1"
+      },
+      "options": {}
+    },
+    "result": "true"
+  }
+}
