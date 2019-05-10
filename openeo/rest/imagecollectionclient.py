@@ -634,7 +634,7 @@ class ImageCollectionClient(ImageCollection):
 
         process_id = 'aggregate_zonal'
         if self._isVersion040():
-            process_id = 'aggregate_polygons'
+            process_id = 'aggregate_polygon'
 
         args = {
                 'data': {'from_node': self.node_id},

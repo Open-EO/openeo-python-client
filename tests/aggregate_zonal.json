@@ -22,7 +22,7 @@
       "result": false
     },
     "aggregatepolygons1": {
-      "process_id": "aggregate_polygons",
+      "process_id": "aggregate_polygon",
       "arguments": {
         "data": {
           "from_node": "filterbbox1"
