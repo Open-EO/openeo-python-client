@@ -698,6 +698,7 @@ class ImageCollectionClient(ImageCollection):
 
     def execute(self) -> Dict:
         """Executes the process graph of the imagery. """
+        self.graph[self.node_id]['result'] = True
         return self.session.execute({"process_graph": self.graph},"")
 
     ####### HELPER methods #######
