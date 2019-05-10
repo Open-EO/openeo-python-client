@@ -328,9 +328,57 @@ class ImageCollectionClient(ImageCollection):
 
         return self.graph_add_process(process_id, args)
 
-    def apply_pixel(self, bands:List, bandfunction) -> 'ImageCollection':
-        """Apply a function to the given set of bands in this image collection."""
-        raise NotImplementedError("apply_pixel no longer supported")
+    def apply_dimension(self, code: str, runtime=None, version="latest",dimension='temporal') -> 'ImageCollection':
+        """
+        Applies an n-ary process (i.e. takes an array of pixel values instead of a single pixel value) to a raster data cube.
+        In contrast, the process apply applies an unary process to all pixel values.
+
+        By default, apply_dimension applies the the process on all pixel values in the data cube as apply does, but the parameter dimension can be specified to work only on a particular dimension only. For example, if the temporal dimension is specified the process will work on a time series of pixel values.
+
+        The n-ary process must return as many elements in the returned array as there are in the input array. Otherwise a CardinalityChanged error must be returned.
+
+
+        :param code: UDF code or process identifier
+        :param runtime:
+        :param version:
+        :param dimension:
+        :return:
+        :raises: CardinalityChangedError
+        """
+
+        if self._isVersion040():
+            process_id = 'apply_dimension'
+            if runtime !=None:
+
+                callback = {
+                    'udf': self._create_run_udf(code, runtime, version)
+                }
+            else:
+                callback = {
+                    'process': {
+                        "arguments": {
+                            "data": {
+                                "from_argument": "data"
+                            }
+                        },
+                        "process_id": code,
+                        "result": True
+                    }
+                }
+            args = {
+                'data': {
+                    'from_node': self.node_id
+                },
+                'dimension': dimension,
+
+                'process': {
+                    'callback': callback
+                }
+            }
+            return self.graph_add_process(process_id, args)
+        else:
+            raise NotImplementedError("apply_dimension requires backend version >=0.4.0")
+
 
     def apply_tiles(self, code: str,runtime="Python",version="latest") -> 'ImageCollection':
         """Apply a function to the given set of tiles in this image collection.
