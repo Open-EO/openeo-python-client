@@ -35,7 +35,7 @@ class RESTJob(Job):
     def delete_job(self):
         """ Delete a job."""
         # DELETE /jobs/{job_id}
-        request = self.connection.delete("/jobs/{}".format(self.job_id), postdata=None)
+        request = self.connection.delete("/jobs/{}".format(self.job_id))
 
         return request.status_code
 
