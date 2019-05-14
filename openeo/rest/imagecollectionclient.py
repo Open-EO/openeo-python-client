@@ -137,7 +137,7 @@ class ImageCollectionClient(ImageCollection):
 
     def subtract(self, other:Union[ImageCollection,Union[int,float]]):
         """
-        Subtraction other from this datacube, so the result is: this - other
+        Subtract other from this datacube, so the result is: this - other
         The number of bands in both data cubes has to be the same.
 
         :param other:
@@ -169,7 +169,7 @@ class ImageCollectionClient(ImageCollection):
 
     def product(self, other:Union[ImageCollection,Union[int,float]]):
         """
-        Subtraction other from this datacube, so the result is: this - other
+        Multiply other with this datacube, so the result is: this * other
         The number of bands in both data cubes has to be the same.
 
         :param other:
@@ -182,6 +182,78 @@ class ImageCollectionClient(ImageCollection):
             return self._reduce_bands_binary(operator, other)
         else:
             raise ValueError("Unsupported right-hand operand: " + other)
+
+
+    def __invert__(self):
+        """
+
+        :return:
+        """
+        operator = 'not'
+        my_builder = self._get_band_graph_builder()
+        new_builder = None
+        extend_previous_callback_graph = my_builder != None
+        if not extend_previous_callback_graph:
+            new_builder = GraphBuilder()
+            # TODO merge both process graphs?
+            new_builder.add_process(operator, expression={'from_argument': 'data'}, result=True)
+        else:
+            current_result = my_builder.find_result_node_id()
+            new_builder = my_builder.copy()
+            new_builder.processes[current_result]['result'] = False
+            new_builder.add_process(operator, expression={'from_node': current_result},  result=True)
+
+        return self._create_reduced_collection(new_builder, extend_previous_callback_graph)
+
+    def __ne__(self, other: Union[ImageCollection, Union[int, float]]):
+        return self.__eq__(other).__invert__()
+
+
+
+    def __eq__(self, other:Union[ImageCollection,Union[int,float]]):
+        """
+        Pixelwise comparison of this data cube with another cube or constant.
+
+        :param other: Another data cube, or a constant
+        :return:
+        """
+        operator = "eq"
+        if isinstance(other, int) or isinstance(other, float):
+            my_builder = self._get_band_graph_builder()
+            new_builder = None
+            extend_previous_callback_graph = my_builder != None
+            if not extend_previous_callback_graph:
+                new_builder = GraphBuilder()
+                # TODO merge both process graphs?
+                new_builder.add_process(operator, x={'from_argument': 'data'}, y = other, result=True)
+            else:
+                current_result = my_builder.find_result_node_id()
+                new_builder = my_builder.copy()
+                new_builder.processes[current_result]['result'] = False
+                new_builder.add_process(operator, x={'from_node': current_result}, y = other, result=True)
+
+            return self._create_reduced_collection(new_builder, extend_previous_callback_graph)
+        elif isinstance(other, ImageCollection):
+            return self._reduce_bands_binary(operator, other)
+        else:
+            raise ValueError("Unsupported right-hand operand: " + other)
+
+    def _create_reduced_collection(self, callback_graph_builder, extend_previous_callback_graph):
+        if not extend_previous_callback_graph:
+            # there was no previous reduce step
+            args = {
+                'data': {'from_node': self.node_id},
+                'process': {
+                    'callback': callback_graph_builder.processes
+                }
+            }
+            return self.graph_add_process("reduce", args)
+        else:
+            process_graph_copy = self.builder.copy()
+            process_graph_copy.processes[self.node_id]['arguments']['reducer']['callback'] = callback_graph_builder.processes
+
+            # now current_node should be a reduce node, let's modify it
+            return ImageCollectionClient(self.node_id, process_graph_copy, self.session)
 
     def __truediv__(self,other):
         return self.divide(other)
@@ -266,7 +338,8 @@ class ImageCollectionClient(ImageCollection):
     def _reduce_bands_binary_const(self, operator, other:Union[int,float]):
         my_builder = self._get_band_graph_builder()
         new_builder = None
-        if my_builder == None:
+        extend_previous_callback_graph = my_builder !=None
+        if not extend_previous_callback_graph:
             new_builder = GraphBuilder()
             # TODO merge both process graphs?
             new_builder.add_process(operator, data=[{'from_argument': 'data'}, other], result=True)
@@ -276,21 +349,8 @@ class ImageCollectionClient(ImageCollection):
             new_builder.processes[current_result]['result'] = False
             new_builder.add_process(operator, data=[{'from_node': current_result}, other], result=True)
 
-        if my_builder == None:
-            # there was no previous reduce step
-            args = {
-                'data': {'from_node': self.node_id},
-                'process': {
-                    'callback': new_builder.processes
-                }
-            }
-            return self.graph_add_process("reduce", args)
-        else:
-            process_graph_copy = self.builder.copy()
-            process_graph_copy.processes[self.node_id]['arguments']['reducer']['callback'] = new_builder.processes
+        self._create_reduced_collection(new_builder,extend_previous_callback_graph)
 
-            # now current_node should be a reduce node, let's modify it
-            return ImageCollectionClient(self.node_id, process_graph_copy, self.session)
 
     def _get_band_graph_builder(self):
         current_node = self.graph[self.node_id]
