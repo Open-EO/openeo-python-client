@@ -465,18 +465,18 @@ class ImageCollectionClient(ImageCollection):
             raise NotImplementedError("apply_to_tiles_over_time requires backend version >=0.4.0")
 
 
-    def apply(self, process: str, arguments={}) -> 'ImageCollection':
+    def apply(self, process: str, data_argument='data',arguments={}) -> 'ImageCollection':
         process_id = 'apply'
+        arguments[data_argument] = \
+            {
+                "from_argument": "data"
+            }
         args = {
             'data': {'from_node': self.node_id},
             'process':{
                 'callback':{
                     "unary":{
-                        "arguments":{
-                            "data": {
-                                "from_argument": "data"
-                            }
-                        },
+                        "arguments":arguments,
                         "process_id":process,
                         "result":True
                     }
@@ -573,7 +573,7 @@ class ImageCollectionClient(ImageCollection):
 
 
 
-    def mask(self, polygon: Union[Polygon, MultiPolygon], srs="EPSG:4326") -> 'ImageCollection':
+    def mask(self, polygon: Union[Polygon, MultiPolygon]=None, srs="EPSG:4326",rastermask:'ImageCollection'=None,replacement=None) -> 'ImageCollection':
         """
         Mask the image collection using a polygon. All pixels outside the polygon should be set to the nodata value.
         All pixels inside, or intersecting the polygon should retain their original value.
@@ -582,22 +582,38 @@ class ImageCollectionClient(ImageCollection):
         :param srs: The reference system of the provided polygon, by default this is Lat Lon (EPSG:4326).
         :return: A new ImageCollection, with the mask applied.
         """
-        geojson = mapping(polygon)
-        geojson['crs'] = {
-            'type': 'name',
-            'properties': {
-                'name': srs
+        mask = None
+        new_collection = None
+        if polygon is not None:
+            geojson = mapping(polygon)
+            geojson['crs'] = {
+                'type': 'name',
+                'properties': {
+                    'name': srs
+                }
             }
-        }
+            mask = geojson
+            new_collection = self
+        elif rastermask is not None:
+            mask_node = rastermask.graph[rastermask.node_id]
+            new_collection = self._graph_merge(rastermask.graph)
+            mask_id = list(new_collection.graph.keys())[list(new_collection.graph.values()).index(mask_node)]
+            mask = {
+                'from_node': mask_id
+            }
+        else:
+            raise AttributeError("mask process: either a polygon or a rastermask should be provided.")
 
         process_id = 'mask'
 
         args = {
             'data': {'from_node': self.node_id},
-            'mask_shape': geojson
+            'mask': mask
         }
+        if replacement is not None:
+            args['replacement'] = replacement
 
-        return self.graph_add_process(process_id, args)
+        return new_collection.graph_add_process(process_id, args)
 
     ####VIEW methods #######
     def timeseries(self, x, y, srs="EPSG:4326") -> Dict:
@@ -702,6 +718,14 @@ class ImageCollectionClient(ImageCollection):
         return self.session.execute({"process_graph": self.graph},"")
 
     ####### HELPER methods #######
+
+    def _graph_merge(self, other_graph:Dict):
+        newbuilder = GraphBuilder(self.builder.processes)
+        merged = newbuilder.merge(GraphBuilder(other_graph))
+        newCollection = ImageCollectionClient(self.node_id, merged, self.session)
+        newCollection.bands = self.bands
+        return newCollection
+
 
     def graph_add_process(self, process_id, args) -> 'ImageCollection':
         """

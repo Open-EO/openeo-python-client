@@ -248,7 +248,7 @@ class ImageCollection(ABC):
         """
         pass
 
-    def mask(self,polygon: Union[Polygon, MultiPolygon], srs="EPSG:4326") -> 'ImageCollection':
+    def mask(self,polygon: Union[Polygon, MultiPolygon]=None, srs="EPSG:4326",rastermask:'ImageCollection'=None,replacement=None) -> 'ImageCollection':
         """
         Mask the image collection using a polygon. All pixels outside the polygon should be set to the nodata value.
         All pixels inside, or intersecting the polygon should retain their original value.

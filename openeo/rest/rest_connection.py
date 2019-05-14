@@ -440,7 +440,12 @@ class RESTConnection(Connection):
             from requests.exceptions import ProxyError
             raise ProxyError("The proxy returned an error, this could be due to a timeout.")
         else:
-            raise ConnectionAbortedError(response.text)
+            if response.headers['Content-Type'] == 'application/json':
+                message = response.json().get('message',None)
+                if message == None:
+                    message = response.text
+
+            raise ConnectionAbortedError(message)
 
     def post(self, path, postdata):
         """
