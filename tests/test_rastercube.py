@@ -21,6 +21,10 @@ class TestRasterCube(TestCase):
         capabilities.version.return_value = "0.4.0"
         self.imagery = ImageCollectionClient(id, builder, connection)
 
+        builder = GraphBuilder()
+        mask_id = builder.process("get_collection", {'name': 'S1_Mask'})
+        self.mask = ImageCollectionClient(mask_id, builder, connection)
+
     def test_date_range_filter(self):
         new_imagery = self.imagery.date_range_filter("2016-01-01", "2016-03-10")
 
@@ -93,6 +97,32 @@ class TestRasterCube(TestCase):
                          {'coordinates': (((0.0, 0.0), (1.9, 0.0), (1.9, 1.9), (0.0, 1.9), (0.0, 0.0)),),
                           'crs': {'properties': {'name': 'EPSG:4326'}, 'type': 'name'},
                           'type': 'Polygon'})
+
+    def test_mask_raster(self):
+        from shapely import geometry
+
+        new_imagery = self.imagery.mask(rastermask=self.mask,replacement=102)
+
+        graph = new_imagery.graph[new_imagery.node_id]
+        import json
+        print(json.dumps(new_imagery.graph,indent=4))
+
+        expected_mask_node = {
+            "process_id": "mask",
+            "arguments": {
+                "data": {
+                    "from_node": "getcollection1"
+                },
+                "mask": {
+                    "from_node": "getcollection2"
+                },
+                "replacement": 102
+            },
+            "result": False
+        }
+
+        self.assertDictEqual(expected_mask_node,graph)
+
 
     def test_strech_colors(self):
         new_imagery = self.imagery.stretch_colors(-1, 1)
