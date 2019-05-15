@@ -149,7 +149,7 @@ class ImageCollectionClient(ImageCollection):
         elif isinstance(other, ImageCollection):
             return self._reduce_bands_binary(operator, other)
         else:
-            raise ValueError("Unsupported right-hand operand: " + other)
+            raise ValueError("Unsupported right-hand operand: " + str(other))
 
     def divide(self, other:Union[ImageCollection,Union[int,float]]):
         """
@@ -165,7 +165,7 @@ class ImageCollectionClient(ImageCollection):
         elif isinstance(other, ImageCollection):
             return self._reduce_bands_binary(operator, other)
         else:
-            raise ValueError("Unsupported right-hand operand: " + other)
+            raise ValueError("Unsupported right-hand operand: " + str(other))
 
     def product(self, other:Union[ImageCollection,Union[int,float]]):
         """
@@ -181,7 +181,7 @@ class ImageCollectionClient(ImageCollection):
         elif isinstance(other, ImageCollection):
             return self._reduce_bands_binary(operator, other)
         else:
-            raise ValueError("Unsupported right-hand operand: " + other)
+            raise ValueError("Unsupported right-hand operand: " + str(other))
 
 
     def __invert__(self):
@@ -236,7 +236,7 @@ class ImageCollectionClient(ImageCollection):
         elif isinstance(other, ImageCollection):
             return self._reduce_bands_binary(operator, other)
         else:
-            raise ValueError("Unsupported right-hand operand: " + other)
+            raise ValueError("Unsupported right-hand operand: " + str(other))
 
     def _create_reduced_collection(self, callback_graph_builder, extend_previous_callback_graph):
         if not extend_previous_callback_graph:
@@ -287,7 +287,7 @@ class ImageCollectionClient(ImageCollection):
         elif isinstance(other, ImageCollection):
             return self._reduce_bands_binary(operator, other)
         else:
-            raise ValueError("Unsupported right-hand operand: " + other)
+            raise ValueError("Unsupported right-hand operand: " + str(other))
 
     def _reduce_bands_binary(self, operator, other):
         # first we create the callback
@@ -349,7 +349,7 @@ class ImageCollectionClient(ImageCollection):
             new_builder.processes[current_result]['result'] = False
             new_builder.add_process(operator, data=[{'from_node': current_result}, other], result=True)
 
-        self._create_reduced_collection(new_builder,extend_previous_callback_graph)
+        return self._create_reduced_collection(new_builder,extend_previous_callback_graph)
 
 
     def _get_band_graph_builder(self):
@@ -656,11 +656,16 @@ class ImageCollectionClient(ImageCollection):
             new_collection = self
         elif rastermask is not None:
             mask_node = rastermask.graph[rastermask.node_id]
+            mask_node['result']=True
             new_collection = self._graph_merge(rastermask.graph)
-            mask_id = list(new_collection.graph.keys())[list(new_collection.graph.values()).index(mask_node)]
+            #mask node id may have changed!
+            mask_id = new_collection.builder.find_result_node_id()
+            mask_node = new_collection.graph[mask_id]
+            mask_node['result']=False
             mask = {
                 'from_node': mask_id
             }
+
         else:
             raise AttributeError("mask process: either a polygon or a rastermask should be provided.")
 

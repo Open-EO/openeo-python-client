@@ -363,7 +363,7 @@ class RESTConnection(Connection):
             with open(outputfile, 'wb') as f:
                 shutil.copyfileobj(r.raw, f)
         else:
-            raise IOError("Received an exception from the server for url: {} and POST message: {}".format(download_url,json.dumps( request ) ) + r.text)
+            self._handle_error_response(r)
 
         return
 
@@ -422,7 +422,7 @@ class RESTConnection(Connection):
                 job_id = job_info['location'][1].split("/")[-1]
                 job = RESTJob(job_id, self)
         else:
-            raise ConnectionAbortedError(job_status.json().get('message','No error message provided.'))
+            self._handle_error_response(job_status)
 
 
 
@@ -436,12 +436,16 @@ class RESTConnection(Connection):
         """
         if response.status_code == 200 or response.status_code == 201:
             return response.json()
-        elif response.status_code == 502:
+        else:
+            self._handle_error_response(response)
+
+    def _handle_error_response(self, response):
+        if response.status_code == 502:
             from requests.exceptions import ProxyError
             raise ProxyError("The proxy returned an error, this could be due to a timeout.")
         else:
             if response.headers['Content-Type'] == 'application/json':
-                message = response.json().get('message',None)
+                message = response.json().get('message', None)
                 if message == None:
                     message = response.text
 
