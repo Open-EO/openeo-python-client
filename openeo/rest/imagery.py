@@ -32,8 +32,7 @@ class RestImagery(ImageCollection):
         process_id = 'filter_daterange'
         args = {
                 'imagery': self.graph,
-                'from': start_date,
-                'to': end_date
+                'extent': [start_date, end_date]
             }
 
         return self.graph_add_process(process_id, args)
@@ -52,11 +51,14 @@ class RestImagery(ImageCollection):
         process_id = 'filter_bbox'
         args = {
                 'imagery': self.graph,
-                'west': west or left,
-                'east': east or right,
-                'north': north or top,
-                'south': south or bottom,
-                'crs': crs or srs
+                'extent':
+                {
+                    'west': west or left,
+                    'east': east or right,
+                    'north': north or top,
+                    'south': south or bottom,
+                    'crs': crs or srs
+                }
             }
         return self.graph_add_process(process_id, args)
 
@@ -352,7 +354,15 @@ class RestImagery(ImageCollection):
         """
         graph = {
             'process_id': process_id,
-            'args': args
+
         }
+
+        for key, value in args.items():
+            graph[key] = value
+
+        #graph = {
+        #    'process_id': process_id,
+        #    'args': args
+        #}
 
         return RestImagery(graph, self.session)
