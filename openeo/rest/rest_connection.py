@@ -241,7 +241,7 @@ class RESTConnection(Connection):
             return self._image_040(image_collection_id)
         else:
             from .imagery import RestImagery
-            collection = RestImagery({'collection_id': image_collection_id}, self)
+            collection = RestImagery({'name': image_collection_id, 'process_id': 'get_collection'}, self)
 
             self.fetch_metadata(image_collection_id, collection)
             return collection

@@ -49,7 +49,7 @@ job = con.create_job(datacube.graph)
 print(job.job_id)
 print(job.start_job())
 print (job.describe_job())
-# time.wait(5)
+time.sleep(5)
 job.download_results("/tmp/testfile")
 
 
