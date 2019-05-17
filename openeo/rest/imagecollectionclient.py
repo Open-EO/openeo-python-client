@@ -243,7 +243,8 @@ class ImageCollectionClient(ImageCollection):
             # there was no previous reduce step
             args = {
                 'data': {'from_node': self.node_id},
-                'process': {
+                'dimension': 'spectral_bands',
+                'reducer': {
                     'callback': callback_graph_builder.processes
                 }
             }
@@ -759,6 +760,7 @@ class ImageCollectionClient(ImageCollection):
             return self.session.download(self.graph, time, outputfile, format_options)
 
     def tiled_viewing_service(self,**kwargs) -> Dict:
+        self.graph[self.node_id]["result"] = 'true'
         return self.session.create_service(self.graph,**kwargs)
 
     def send_job(self, out_format=None, **format_options) -> Job:
