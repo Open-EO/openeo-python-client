@@ -304,7 +304,7 @@ class RESTConnection(Connection):
                 'url': service_url
             }
         else:
-            raise ConnectionAbortedError(response.text)
+            self._handle_error_response(response)
 
     def job_results(self, job_id):
         response = self.get("/jobs/{}/results".format(job_id))
@@ -444,10 +444,11 @@ class RESTConnection(Connection):
             from requests.exceptions import ProxyError
             raise ProxyError("The proxy returned an error, this could be due to a timeout.")
         else:
+            message = None
             if response.headers['Content-Type'] == 'application/json':
                 message = response.json().get('message', None)
-                if message == None:
-                    message = response.text
+            if message == None:
+                message = response.text
 
             raise ConnectionAbortedError(message)
 
