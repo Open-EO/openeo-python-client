@@ -39,11 +39,11 @@ class GraphBuilder():
             'arguments': args,
             'result': False
         }
-        try:
-            existing_id = list(self.processes.keys())[list(self.processes.values()).index(new_process)]
-            return existing_id
-        except ValueError as e:
-            pass
+        #try:
+        #    existing_id = list(self.processes.keys())[list(self.processes.values()).index(new_process)]
+        #    return existing_id
+        #except ValueError as e:
+        #    pass
         id = self._generate_id(process_id)
         self.processes[id] = new_process
         return id
