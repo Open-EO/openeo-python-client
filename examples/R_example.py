@@ -1,23 +1,24 @@
 import openeo
 import logging
+from openeo.auth.auth_bearer import BearerAuth
 import time
 
 
 logging.basicConfig(level=logging.INFO)
 
 
-GEE_DRIVER_URL = "http://giv-openeo.uni-muenster.de:8080/v0.3"
+GEE_DRIVER_URL = "https://r-server.openeo.org/"
 
 OUTPUT_FILE = "/tmp/openeo_R_output.png"
 
-user = "group1"
-password = "test123"
+user = "test"
+password = "test"
 
 #connect with GEE backend
 #session = openeo.session("nobody", GEE_DRIVER_URL)
 
 
-con = openeo.connect(GEE_DRIVER_URL, auth_options={"username": user, "password": password})
+con = openeo.connect(GEE_DRIVER_URL, auth_type=BearerAuth, auth_options={"username": user, "password": password})
 
 #Test Connection
 #print(con.list_processes())
