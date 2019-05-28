@@ -19,14 +19,13 @@ class TestImagery(TestCase):
         self.assertEqual(graph["extent"][0], "2016-01-01")
         self.assertEqual(graph["extent"][1], "2016-03-10")
 
-    def test_bbox_filter(self):
-        new_imagery = self.processes.bbox_filter(left=652000, right=672000,
-                                               top=5161000, bottom=5181000,
-                                               srs="EPSG:32632")
-
+    def test_bbox_filter_nsew(self):
+        new_imagery = self.processes.bbox_filter(
+            west=652000, east=672000, north=5161000, south=5181000, crs="EPSG:32632"
+        )
         graph = new_imagery.graph
 
-        self.assertEqual(graph["process_id"],"filter_bbox")
+        self.assertEqual(graph["process_id"], "filter_bbox")
         self.assertEqual(graph["imagery"], {})
         self.assertEqual(graph["extent"]["west"], 652000)
         self.assertEqual(graph["extent"]["east"], 672000)
@@ -34,9 +33,35 @@ class TestImagery(TestCase):
         self.assertEqual(graph["extent"]["south"], 5181000)
         self.assertEqual(graph["extent"]["crs"], "EPSG:32632")
 
+    def test_bbox_filter_tblr(self):
+        new_imagery = self.processes.bbox_filter(
+            left=652000, right=672000, top=5161000, bottom=5181000, srs="EPSG:32632"
+        )
+        graph = new_imagery.graph
+
+        self.assertEqual(graph["process_id"], "filter_bbox")
+        self.assertEqual(graph["imagery"], {})
+        self.assertEqual(graph["extent"]["west"], 652000)
+        self.assertEqual(graph["extent"]["east"], 672000)
+        self.assertEqual(graph["extent"]["north"], 5161000)
+        self.assertEqual(graph["extent"]["south"], 5181000)
+        self.assertEqual(graph["extent"]["crs"], "EPSG:32632")
+
+    def test_bbox_filter_nsew_zero(self):
+        new_imagery = self.processes.bbox_filter(
+            north=0, south=0, east=0, west=0, srs="EPSG:32632"
+        )
+        graph = new_imagery.graph
+
+        self.assertEqual(graph["process_id"], "filter_bbox")
+        self.assertEqual(graph["imagery"], {})
+        self.assertEqual(graph["extent"]["west"], 0)
+        self.assertEqual(graph["extent"]["east"], 0)
+        self.assertEqual(graph["extent"]["north"], 0)
+        self.assertEqual(graph["extent"]["south"], 0)
+        self.assertEqual(graph["extent"]["crs"], "EPSG:32632")
 
     def test_apply_pixel(self):
-
         bandFunction = lambda cells,nodata: (cells[3]-cells[2])/(cells[3]+cells[2])
         new_imagery = self.processes.apply_pixel([], bandFunction)
 

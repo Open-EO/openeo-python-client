@@ -35,11 +35,10 @@ class TestRasterCube(TestCase):
         self.assertEqual(graph["arguments"]["from"], "2016-01-01")
         self.assertEqual(graph["arguments"]["to"], "2016-03-10")
 
-    def test_bbox_filter(self):
-        new_imagery = self.imagery.bbox_filter(left=652000, right=672000,
-                                               top=5161000, bottom=5181000,
-                                               srs="EPSG:32632")
-
+    def test_bbox_filter_nsew(self):
+        new_imagery = self.imagery.bbox_filter(
+            west=652000, east=672000, north=5161000, south=5181000, crs="EPSG:32632"
+        )
         graph = new_imagery.graph[new_imagery.node_id]
 
         self.assertEqual(graph["process_id"], "filter_bbox")
@@ -48,6 +47,34 @@ class TestRasterCube(TestCase):
         self.assertEqual(graph["arguments"]["east"], 672000)
         self.assertEqual(graph["arguments"]["north"], 5161000)
         self.assertEqual(graph["arguments"]["south"], 5181000)
+        self.assertEqual(graph["arguments"]["crs"], "EPSG:32632")
+
+    def test_bbox_filter_tblr(self):
+        new_imagery = self.imagery.bbox_filter(
+            left=652000, right=672000, top=5161000, bottom=5181000, srs="EPSG:32632"
+        )
+        graph = new_imagery.graph[new_imagery.node_id]
+
+        self.assertEqual(graph["process_id"], "filter_bbox")
+        self.assertIn("data", graph['arguments'])
+        self.assertEqual(graph["arguments"]["west"], 652000)
+        self.assertEqual(graph["arguments"]["east"], 672000)
+        self.assertEqual(graph["arguments"]["north"], 5161000)
+        self.assertEqual(graph["arguments"]["south"], 5181000)
+        self.assertEqual(graph["arguments"]["crs"], "EPSG:32632")
+
+    def test_bbox_filter_nsew_zero(self):
+        new_imagery = self.imagery.bbox_filter(
+            west=0, east=0, north=0, south=0, crs="EPSG:32632"
+        )
+        graph = new_imagery.graph[new_imagery.node_id]
+
+        self.assertEqual(graph["process_id"], "filter_bbox")
+        self.assertIn("data", graph['arguments'])
+        self.assertEqual(graph["arguments"]["west"], 0)
+        self.assertEqual(graph["arguments"]["east"], 0)
+        self.assertEqual(graph["arguments"]["north"], 0)
+        self.assertEqual(graph["arguments"]["south"], 0)
         self.assertEqual(graph["arguments"]["crs"], "EPSG:32632")
 
     def test_min_time(self):

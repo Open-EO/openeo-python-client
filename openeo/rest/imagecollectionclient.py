@@ -6,10 +6,11 @@ from datetime import datetime, date
 
 from openeo.job import Job
 from openeo.rest.job import RESTJob
-from ..imagecollection import ImageCollection
-from ..connection import Connection
+from openeo.imagecollection import ImageCollection
+from openeo.util import first_not_none
+from openeo.connection import Connection
+from openeo.graphbuilder import GraphBuilder
 from shapely.geometry import Polygon, MultiPolygon, mapping
-from ..graphbuilder import GraphBuilder
 
 
 class ImageCollectionClient(ImageCollection):
@@ -77,11 +78,11 @@ class ImageCollectionClient(ImageCollection):
         process_id = 'filter_bbox'
         args = {
                 'data': {'from_node': self.node_id},
-                'west': west or left,
-                'east': east or right,
-                'north': north or top,
-                'south': south or bottom,
-                'crs': crs or srs
+                'west': first_not_none(west, left),
+                'east': first_not_none(east, right),
+                'north': first_not_none(north, top),
+                'south': first_not_none(south, bottom),
+                'crs': first_not_none(crs, srs)
             }
         return self.graph_add_process(process_id, args)
 
