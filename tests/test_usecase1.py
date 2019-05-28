@@ -26,13 +26,13 @@ class TestUsecase1(TestCase):
         self.output_file = "/tmp/test.gtiff"
 
     def test_user_login(self, m):
-        m.get("http://localhost:8000/api/auth/login", json={"token": "blabla"})
+        m.get("http://localhost:8000/api/credentials/basic", json={"token": "blabla"})
         con = openeo.connect(self.endpoint, auth_options={"username": self.auth_id, "password": self.auth_pwd})
 
         self.assertNotEqual(con, None)
 
     def test_viewing_userjobs(self, m):
-        m.get("http://localhost:8000/api/auth/login", json={"token": "blabla"})
+        m.get("http://localhost:8000/api/credentials/basic", json={"token": "blabla"})
         m.get("http://localhost:8000/api/jobs", json=[{"job_id": "748df7caa8c84a7ff6e"}])
 
         con = openeo.connect(self.endpoint, auth_options={"username": self.auth_id, "password": self.auth_pwd})
@@ -63,7 +63,7 @@ class TestUsecase1(TestCase):
         self.assertGreater(str(processes).find(self.process_id), -1)
 
     def test_job_creation(self, m):
-        m.get("http://localhost:8000/api/auth/login", json={"token": "blabla"})
+        m.get("http://localhost:8000/api/credentials/basic", json={"token": "blabla"})
         m.post("http://localhost:8000/api/jobs", status_code=201,headers={"OpenEO-Identifier": "748df7caa8c84a7ff6e"})
 
         con = openeo.connect(self.endpoint, auth_options={"username": self.auth_id, "password": self.auth_pwd})

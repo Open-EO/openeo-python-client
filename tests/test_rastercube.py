@@ -93,7 +93,7 @@ class TestRasterCube(TestCase):
         graph = new_imagery.graph[new_imagery.node_id]
 
         self.assertEqual(graph["process_id"], "mask")
-        self.assertEqual(graph["arguments"]["mask_shape"],
+        self.assertEqual(graph["arguments"]["mask"],
                          {'coordinates': (((0.0, 0.0), (1.9, 0.0), (1.9, 1.9), (0.0, 1.9), (0.0, 0.0)),),
                           'crs': {'properties': {'name': 'EPSG:4326'}, 'type': 'name'},
                           'type': 'Polygon'})

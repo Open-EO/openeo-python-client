@@ -101,14 +101,13 @@ class TestBandMath(TestCase):
         expected_graph = {
             'process_graph': {
                 'process_id': 'apply_pixel',
-                'args':
-                    {
-                        'imagery':{
-                                'collection_id': 'SENTINEL2_RADIOMETRY_10M'
-                            },
-                        'bands': ['B0', 'B1', 'B2'],
-                        'function': expected_function
-                    }
+                'imagery':{
+                        'name': 'SENTINEL2_RADIOMETRY_10M',
+                        'process_id': 'get_collection'
+                    },
+                'bands': ['B0', 'B1', 'B2'],
+                'function': expected_function
+
             }
         }
         session.post.assert_called_once_with("/timeseries/point?x=4&y=51&srs=EPSG:4326",expected_graph)
@@ -153,11 +152,11 @@ class TestBandMath(TestCase):
         ndvi_coverage.timeseries(4, 51)
 
         expected_graph = {'process_graph': {'process_id': 'apply_tiles',
-                                            'args': {'imagery': {'collection_id': 'SENTINEL2_RADIOMETRY_10M'},
-                                                     'code': {'language': 'python',
-                                                              'source': 'def myfunction(tile): print(tile)'
-                                                              }
-                                                     }
+                                            'imagery': {'name': 'SENTINEL2_RADIOMETRY_10M', 'process_id': 'get_collection'},
+                                             'code': {'language': 'python',
+                                                      'source': 'def myfunction(tile): print(tile)'
+                                                      }
+
                                             }
                           }
         session.post.assert_called_once_with("/timeseries/point?x=4&y=51&srs=EPSG:4326",expected_graph)

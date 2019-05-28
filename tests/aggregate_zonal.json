@@ -21,7 +21,7 @@
       },
       "result": false
     },
-    "aggregatepolygons1": {
+    "aggregatepolygon1": {
       "process_id": "aggregate_polygon",
       "arguments": {
         "data": {
@@ -74,7 +74,7 @@
           }
         }
       },
-      "result": false
+      "result": true
     }
   }
 }

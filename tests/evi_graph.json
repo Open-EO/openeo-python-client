@@ -61,12 +61,32 @@
             },
             "result": false
           },
+          "arrayelement3": {
+            "process_id": "array_element",
+            "arguments": {
+              "data": {
+                "from_argument": "data"
+              },
+              "index": 2
+            },
+            "result": false
+          },
+          "arrayelement4": {
+            "process_id": "array_element",
+            "arguments": {
+              "data": {
+                "from_argument": "data"
+              },
+              "index": 1
+            },
+            "result": false
+          },
           "product2": {
             "process_id": "product",
             "arguments": {
               "data": [
                 {
-                  "from_node": "arrayelement2"
+                  "from_node": "arrayelement4"
                 },
                 6.0
               ]
@@ -78,7 +98,7 @@
             "arguments": {
               "data": [
                 {
-                  "from_node": "arrayelement1"
+                  "from_node": "arrayelement3"
                 },
                 {
                   "from_node": "product2"
@@ -87,7 +107,7 @@
             },
             "result": false
           },
-          "arrayelement3": {
+          "arrayelement5": {
             "process_id": "array_element",
             "arguments": {
               "data": {
@@ -102,7 +122,7 @@
             "arguments": {
               "data": [
                 {
-                  "from_node": "arrayelement3"
+                  "from_node": "arrayelement5"
                 },
                 7.5
               ]
