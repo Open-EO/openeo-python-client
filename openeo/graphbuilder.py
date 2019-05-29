@@ -63,7 +63,7 @@ class GraphBuilder():
     def _merge_processes(self, processes:Dict):
         key_map = {}
         node_refs = []
-        for key,process in processes.items():
+        for key,process in sorted(processes.items()):
             process_id = process['process_id']
             args = process['arguments']
             result = process.get('result', None)

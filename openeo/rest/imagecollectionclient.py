@@ -309,6 +309,8 @@ class ImageCollectionClient(ImageCollection):
                 merged.add_process(operator, data=[input_node, {'from_node': current_result}], result=True)
         else:
             input1 = my_builder.processes[my_builder.find_result_node_id()]
+            # TODO (issue #50) this logic assumes that `input1` will be present unaffected in the merged graph,
+            #      which is not guaranteed because of possible renaming of `from_node` fields.
             merged = my_builder.merge(other_builder)
             input1_id = list(merged.processes.keys())[list(merged.processes.values()).index(input1)]
             merged.processes[input1_id]['result'] = False
