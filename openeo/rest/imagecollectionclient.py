@@ -291,31 +291,14 @@ class ImageCollectionClient(ImageCollection):
         else:
             raise ValueError("Unsupported right-hand operand: " + str(other))
 
-    def _reduce_bands_binary(self, operator, other):
+    def _reduce_bands_binary(self, operator, other: 'ImageCollectionClient'):
         # first we create the callback
+        fallback_node = {'from_argument': 'data'}
         my_builder = self._get_band_graph_builder()
         other_builder = other._get_band_graph_builder()
-        input_node = {'from_argument': 'data'}
-        if my_builder == None or other_builder == None:
-            if my_builder == None and other_builder == None:
-                merged = GraphBuilder()
-                # TODO merge both process graphs?
-                merged.add_process( operator, data=[input_node, input_node], result=True)
-            else:
-                merged = my_builder or other_builder
-                merged = merged.copy()
-                current_result = merged.find_result_node_id()
-                merged.processes[current_result]['result'] = False
-                merged.add_process(operator, data=[input_node, {'from_node': current_result}], result=True)
-        else:
-            input1 = my_builder.processes[my_builder.find_result_node_id()]
-            merged = my_builder.merge(other_builder)
-            input1_id = list(merged.processes.keys())[list(merged.processes.values()).index(input1)]
-            merged.processes[input1_id]['result'] = False
-            input2_id = merged.find_result_node_id()
-            input2 = merged.processes[input2_id]
-            input2['result'] = False
-            merged.add_process(operator, data=[{'from_node': input1_id}, {'from_node': input2_id}], result=True)
+        merged = GraphBuilder.combine(operator=operator,
+                                      first=my_builder or fallback_node,
+                                      second=other_builder or fallback_node)
         # callback is ready, now we need to properly set up the reduce process that will invoke it
         if my_builder == None and other_builder == None:
             # there was no previous reduce step
