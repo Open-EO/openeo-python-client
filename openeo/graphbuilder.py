@@ -1,5 +1,6 @@
 import copy
-from typing import Dict
+from typing import Dict, Union
+
 
 class GraphBuilder():
 
@@ -56,11 +57,11 @@ class GraphBuilder():
             self.id_counter[name] += 1
         return name + str(self.id_counter[name])
 
-
-    def merge(self, other:'GraphBuilder'):
+    def merge(self, other: 'GraphBuilder'):
         return GraphBuilder(self.processes)._merge_processes(other.processes)
 
-    def _merge_processes(self, processes:Dict):
+    def _merge_processes(self, processes: Dict, return_key_map=False):
+        # Maps original node key to new key in merged result
         key_map = {}
         node_refs = []
         for key,process in sorted(processes.items()):
@@ -81,7 +82,10 @@ class GraphBuilder():
             if old_node_id in key_map:
                 node_ref['from_node'] = key_map[old_node_id]
 
-        return self
+        if return_key_map:
+            return self, key_map
+        else:
+            return self
 
     def _extract_node_references(self, arguments):
         node_ref_list = []
@@ -103,3 +107,25 @@ class GraphBuilder():
         else:
             raise RuntimeError("Invalid list of result node id's: " + str(result_node_ids))
 
+    @classmethod
+    def combine(cls, operator: str, first: Union['GraphBuilder', dict], second: Union['GraphBuilder', dict]):
+        """Combine two GraphBuilders to a new merged one using the given operator"""
+        merged = cls()
+
+        def insert_builder(builder: GraphBuilder):
+            nonlocal merged
+            result_node = builder.find_result_node_id()
+            _, key_map = merged._merge_processes(builder.processes, return_key_map=True)
+            key = key_map.get(result_node, result_node)
+            merged.processes[key]['result'] = False
+            return {'from_node': key}
+
+        if isinstance(first, GraphBuilder):
+            first = insert_builder(first)
+        assert isinstance(first, dict)
+        if isinstance(second, GraphBuilder):
+            second = insert_builder(second)
+        assert isinstance(second, dict)
+
+        merged.add_process(operator, result=True, data=[first, second])
+        return merged
