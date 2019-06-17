@@ -11,8 +11,6 @@ from openeo.rest.rest_capabilities import RESTCapabilities
 from openeo.rest.rest_processes import RESTProcesses
 
 """
-openeo.sessions
-~~~~~~~~~~~~~~~~
 This module provides a Connection object to manage and persist settings when interacting with the OpenEO API.
 """
 
@@ -43,14 +41,8 @@ class RESTConnection(Connection):
         :return: token: String Bearer token
         """
 
-        username = None
-        password = None
-
-        if 'username' in auth_options:
-            username = auth_options['username']
-
-        if 'password' in auth_options:
-            password = auth_options['password']
+        username = auth_options.get('username')
+        password = auth_options.get('password')
 
         self.userid = username
         self.endpoint = url
