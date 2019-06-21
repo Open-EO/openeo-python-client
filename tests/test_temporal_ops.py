@@ -47,7 +47,5 @@ class TestTemporal(TestCase):
 
         session.download.assert_called_once()
         actual_graph = session.download.call_args_list[0][0][0]
-        import json
-        print(json.dumps(actual_graph, indent=2))
         expected_graph = load_json_resource('apply_dimension_temporal_cumsum.json')
-        self.assertDictEqual(expected_graph, actual_graph)
+        assert actual_graph == expected_graph

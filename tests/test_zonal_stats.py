@@ -43,12 +43,10 @@ class TestTimeSeries(TestCase):
         #access multiband 4D (x/y/time/band) coverage
         fapar = session.imagecollection("SENTINEL2_FAPAR").bbox_filter(3,6,52,50,"EPSG:4326")
 
-        expected_graph = load_json('aggregate_zonal.json')
 
         def check_process_graph(request):
-            import json
-            print(json.dumps(request.json(), indent=2))
-            self.assertDictEqual(expected_graph, request.json())
+            expected_graph = load_json('aggregate_zonal.json')
+            assert request.json() == expected_graph
             return True
 
         m.post("http://localhost:8000/api/result", json={}, additional_matcher=check_process_graph)

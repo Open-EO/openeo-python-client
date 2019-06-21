@@ -29,18 +29,42 @@ class ImageCollectionClient(ImageCollection):
         return LooseVersion(self.session.capabilities().version()) >= LooseVersion("0.4.0")
 
     @classmethod
-    def create_collection(cls, collection_id:str,session:Connection = None):
+    def create_collection(
+            cls, collection_id: str, session: Connection = None,
+            spatial_extent: Union[Dict, None] = None,
+            temporal_extent: Union[List, None] = None,
+            bands: Union[List, None] = None
+    ):
         """
         Create a new Image Collection/Raster Data cube.
 
         :param collection_id: A collection id, should exist in the backend.
         :param session: The session to use to connect with the backend.
+        :param spatial_extent: limit data to specified bounding box or polygons
+        :param temporal_extent: limit data to specified temporal interval
+        :param bands: only add the specified bands
         :return:
         """
-        from ..graphbuilder import GraphBuilder
+        # TODO: rename function to load_collection for better similarity with corresponding process id?
         builder = GraphBuilder()
-        id = builder.process("get_collection", {'name': collection_id})
-        return ImageCollectionClient(id,builder,session)
+
+        if LooseVersion(session.capabilities().version()) >= LooseVersion('0.4.0'):
+            process_id = 'load_collection'
+            arguments = {
+                'id': collection_id,
+                'spatial_extent': spatial_extent,
+                'temporal_extent': temporal_extent,
+            }
+            if bands:
+                arguments['bands'] = bands
+        else:
+            process_id = 'get_collection'
+            arguments = {
+                'name': collection_id
+            }
+
+        id = builder.process(process_id, arguments)
+        return ImageCollectionClient(id, builder, session)
 
 
     def date_range_filter(self, start_date: Union[str, datetime, date],
