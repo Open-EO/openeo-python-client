@@ -1,5 +1,4 @@
 import copy
-from distutils.version import LooseVersion
 from typing import List, Dict, Union
 
 from datetime import datetime, date
@@ -25,8 +24,9 @@ class ImageCollectionClient(ImageCollection):
         self.graph = builder.processes
         self.bands = []
 
-    def _isVersion040(self):
-        return LooseVersion(self.session.capabilities().version()) >= LooseVersion("0.4.0")
+    @property
+    def _api_version(self):
+        return self.session.capabilities().api_version_check
 
     @classmethod
     def create_collection(cls, collection_id:str,session:Connection = None):
@@ -391,7 +391,7 @@ class ImageCollectionClient(ImageCollection):
         :raises: CardinalityChangedError
         """
 
-        if self._isVersion040():
+        if self._api_version.at_least('0.4.0'):
             process_id = 'apply_dimension'
             if runtime !=None:
 
@@ -438,7 +438,7 @@ class ImageCollectionClient(ImageCollection):
             :param code: String representing Python code to be executed in the backend.
         """
 
-        if self._isVersion040():
+        if self._api_version.at_least('0.4.0'):
             process_id = 'reduce'
             args = {
                 'data': {
@@ -491,7 +491,7 @@ class ImageCollectionClient(ImageCollection):
         :param version: The UDF runtime version
         :return:
         """
-        if self._isVersion040():
+        if self._api_version.at_least('0.4.0'):
             process_id = 'reduce'
             args = {
                 'data': {
@@ -699,7 +699,7 @@ class ImageCollectionClient(ImageCollection):
         }
 
         process_id = 'aggregate_zonal'
-        if self._isVersion040():
+        if self._api_version.at_least('0.4.0'):
             process_id = 'aggregate_polygon'
 
         args = {
@@ -707,7 +707,7 @@ class ImageCollectionClient(ImageCollection):
                 'dimension':'temporal',
                 'polygons': geojson
             }
-        if self._isVersion040():
+        if self._api_version.at_least('0.4.0'):
             del args['dimension']
             args['reducer']= {
                 'callback':{
@@ -728,7 +728,7 @@ class ImageCollectionClient(ImageCollection):
     def download(self, outputfile:str, bbox="", time="", **format_options) -> str:
         """Extraxts a geotiff from this image collection."""
 
-        if self._isVersion040():
+        if self._api_version.at_least('0.4.0'):
             args = {
                 'data': {'from_node': self.node_id},
                 'options': format_options
