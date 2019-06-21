@@ -7,12 +7,13 @@ class RESTCapabilities(Capabilities):
     def __init__(self, data):
         self.capabilities = data
 
-    def version(self):
+    def api_version(self):
         """ Get openEO version."""
-        if "version" in self.capabilities:
-            return self.capabilities["version"]
-
-        return None
+        if 'api_version' in self.capabilities:
+            return self.capabilities.get('api_version')
+        else:
+            # Legacy/deprecated
+            return self.capabilities.get('version')
 
     def list_features(self):
         """ List all supported features / endpoints."""

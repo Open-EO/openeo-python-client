@@ -8,9 +8,15 @@ class Capabilities(ABC):
         pass
 
     def version(self):
-        """ Get openEO version."""
+        """ Get openEO version. DEPRECATED: use api_version instead"""
         # Field: version
-        pass
+        # TODO: raise deprecation warning here?
+        return self.api_version()
+
+    def api_version(self):
+        """Get OpenEO API version."""
+        # Field: api_version
+        return
 
     def list_features(self):
         """ List all supported features / endpoints."""
