@@ -89,6 +89,7 @@ class RESTConnection(Connection):
         Loads all jobs of the current user.
         :return: jobs: Dict All jobs of the user
         """
+        # TODO: self.userid might be None
         jobs = self.get(self.root + '/users/{}/jobs'.format(self.userid))
         return self.parse_json_response(jobs)
 
@@ -242,6 +243,7 @@ class RESTConnection(Connection):
         :return: collection: RestImagery the imagery with the id
         """
         #new implementation: https://github.com/Open-EO/openeo-api/issues/160
+        # TODO avoid local imports
         from .imagecollectionclient import ImageCollectionClient
         image = ImageCollectionClient.create_collection(image_product_id, self)
         self.fetch_metadata(image_product_id, image)
@@ -255,6 +257,7 @@ class RESTConnection(Connection):
         :param image_collection_id: String image collection identifier
         :return: collection: RestImagery the imagery with the id
         """
+        # TODO avoid local imports
         from .rest_processes import RESTProcesses
 
         image = RESTProcesses( self)
@@ -521,12 +524,14 @@ class RESTConnection(Connection):
         return self.not_supported()
 
     def not_supported(self):
+        # TODO why not raise exception? the print isn't even to standard error
+        # TODO: also: is this about not supporting YET (feature under construction) or impossible to support?
         not_support = "This function is not supported by the python client yet."
         print(not_support)
         return not_support
 
 
-def connection(url, auth_type=NoneAuth, auth_options={}):
+def connection(url, auth_type=NoneAuth, auth_options={}) -> RESTConnection:
     """
     This method is the entry point to OpenEO. You typically create one connection object in your script or application, per back-end.
     and re-use it for all calls to that backend.
@@ -540,7 +545,7 @@ def connection(url, auth_type=NoneAuth, auth_options={}):
     return RESTConnection(url, auth_type, auth_options)
 
 
-def session(userid=None,endpoint:str="https://openeo.org/openeo"):
+def session(userid=None, endpoint: str = "https://openeo.org/openeo") -> RESTConnection:
     """
     Deprecated, use openeo.connect
     This method is the entry point to OpenEO. You typically create one session object in your script or application, per back-end.
@@ -549,4 +554,4 @@ def session(userid=None,endpoint:str="https://openeo.org/openeo"):
     :param endpoint: The http url of an OpenEO endpoint.
     :rtype: openeo.sessions.Session
     """
-    return connection(url = endpoint)
+    return connection(url=endpoint)
