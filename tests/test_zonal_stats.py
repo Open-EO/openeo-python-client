@@ -10,6 +10,7 @@ from shapely.geometry import shape
 
 import openeo
 
+
 def get_test_resource(relative_path):
     dir = Path(os.path.dirname(os.path.realpath(__file__)))
     return str(dir / relative_path)
@@ -20,9 +21,9 @@ def load_json(relative_path):
     with open(get_test_resource(relative_path), 'r+') as f:
         return json.load(f)
 
+
 @requests_mock.mock()
 class TestTimeSeries(TestCase):
-
 
     def test_polygon_timeseries(self, m):
         #configuration phase: define username, endpoint, parameters?
@@ -56,6 +57,3 @@ class TestTimeSeries(TestCase):
 
         #get result as timeseries for a single point
         #How to define a point? Ideally it should also have the CRS?
-
-
-

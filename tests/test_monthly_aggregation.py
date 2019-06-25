@@ -7,7 +7,6 @@ import openeo
 @unittest.skip("Not yet implemented")
 class TestMonthlyAggregation(TestCase):
 
-
     def test_monthly_aggregation(self):
         from openeo.temporal import MONTH_OF_YEAR
         session = openeo.session("driesj")

@@ -8,14 +8,17 @@ from pathlib import Path
 
 import openeo
 
+
 def get_test_resource(relative_path):
     dir = Path(os.path.dirname(os.path.realpath(__file__)))
     return str(dir / relative_path)
+
 
 def load_json_resource(relative_path):
     import json
     with open(get_test_resource(relative_path), 'r+') as f:
         return json.load(f)
+
 
 @requests_mock.mock()
 class TestBandMath(TestCase):
@@ -55,7 +58,6 @@ class TestBandMath(TestCase):
         actual_graph = session.download.call_args_list[0][0][0]
         expected_graph = load_json_resource('evi_graph.json')
         assert actual_graph == expected_graph
-
 
     def test_ndvi(self, m):
         #configuration phase: define username, endpoint, parameters?
@@ -110,7 +112,6 @@ class TestBandMath(TestCase):
         }
         session.post.assert_called_once_with("/timeseries/point?x=4&y=51&srs=EPSG:4326",expected_graph)
         session.download.assert_called_once()
-
 
     def test_ndvi_udf(self, m):
         #configuration phase: define username, endpoint, parameters?
@@ -181,7 +182,6 @@ class TestBandMath(TestCase):
 
         m.post("http://localhost:8000/api/result", text="my binary data", additional_matcher=check_process_graph)
 
-
         #access multiband 4D (x/y/time/band) coverage
         s2_radio = session.imagecollection("SENTINEL2_RADIOMETRY_10M")
 
@@ -192,9 +192,6 @@ class TestBandMath(TestCase):
         #materialize result in the shape of a geotiff
         #REST: WCS call
         ndvi_coverage.download("out.geotiff",bbox="", time=s2_radio.dates['to'])
-
-
-
 
     @unittest.skip("Not yet implemented")
     def test_timeseries_fusion(self):

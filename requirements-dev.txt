@@ -3,3 +3,4 @@ sphinx-autodoc-annotation
 mock
 requests_mock
 pytest
+flake8

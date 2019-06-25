@@ -4,8 +4,6 @@ from typing import Dict, Union
 
 class GraphBuilder():
 
-
-
     def __init__(self, graph = None):
         """
             Create a process graph builder.
@@ -23,7 +21,7 @@ class GraphBuilder():
 
     def add_process(self,process_id,result=None, **args):
         process_id = self.process(process_id, args)
-        if result != None:
+        if result is not None:
             self.processes[process_id]["result"] = result
         return process_id
 
@@ -74,7 +72,7 @@ class GraphBuilder():
                 key_map[key] = id
             node_refs += self._extract_node_references(args_copy)
 
-            if result != None:
+            if result is not None:
                 self.processes[id]['result'] = result
 
         for node_ref in node_refs:

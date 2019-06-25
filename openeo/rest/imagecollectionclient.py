@@ -66,7 +66,6 @@ class ImageCollectionClient(ImageCollection):
         id = builder.process(process_id, arguments)
         return ImageCollectionClient(id, builder, session)
 
-
     def date_range_filter(self, start_date: Union[str, datetime, date],
                           end_date: Union[str, datetime, date]) -> 'ImageCollection':
         """Drops observations from a collection that have been captured before
@@ -84,8 +83,6 @@ class ImageCollectionClient(ImageCollection):
             }
 
         return self.graph_add_process(process_id, args)
-
-
 
     def bbox_filter(self, west=None, east=None, north=None, south=None, crs=None,left=None, right=None, top=None, bottom=None, srs=None) -> 'ImageCollection':
         """Drops observations from a collection that are located outside
@@ -131,7 +128,6 @@ class ImageCollectionClient(ImageCollection):
 
         process_id = 'reduce'
         band_index = self._band_index(band_name)
-
 
         args = {
             'data': {'from_node': self.node_id},
@@ -208,7 +204,6 @@ class ImageCollectionClient(ImageCollection):
         else:
             raise ValueError("Unsupported right-hand operand: " + str(other))
 
-
     def __invert__(self):
         """
 
@@ -217,7 +212,7 @@ class ImageCollectionClient(ImageCollection):
         operator = 'not'
         my_builder = self._get_band_graph_builder()
         new_builder = None
-        extend_previous_callback_graph = my_builder != None
+        extend_previous_callback_graph = my_builder is not None
         if not extend_previous_callback_graph:
             new_builder = GraphBuilder()
             # TODO merge both process graphs?
@@ -233,8 +228,6 @@ class ImageCollectionClient(ImageCollection):
     def __ne__(self, other: Union[ImageCollection, Union[int, float]]):
         return self.__eq__(other).__invert__()
 
-
-
     def __eq__(self, other:Union[ImageCollection,Union[int,float]]):
         """
         Pixelwise comparison of this data cube with another cube or constant.
@@ -246,7 +239,7 @@ class ImageCollectionClient(ImageCollection):
         if isinstance(other, int) or isinstance(other, float):
             my_builder = self._get_band_graph_builder()
             new_builder = None
-            extend_previous_callback_graph = my_builder != None
+            extend_previous_callback_graph = my_builder is not None
             if not extend_previous_callback_graph:
                 new_builder = GraphBuilder()
                 # TODO merge both process graphs?
@@ -324,7 +317,7 @@ class ImageCollectionClient(ImageCollection):
                                       first=my_builder or fallback_node,
                                       second=other_builder or fallback_node)
         # callback is ready, now we need to properly set up the reduce process that will invoke it
-        if my_builder == None and other_builder == None:
+        if my_builder is None and other_builder is None:
             # there was no previous reduce step
             args = {
                 'data': {'from_node': self.node_id},
@@ -347,7 +340,7 @@ class ImageCollectionClient(ImageCollection):
     def _reduce_bands_binary_const(self, operator, other:Union[int,float]):
         my_builder = self._get_band_graph_builder()
         new_builder = None
-        extend_previous_callback_graph = my_builder !=None
+        extend_previous_callback_graph = my_builder is not None
         if not extend_previous_callback_graph:
             new_builder = GraphBuilder()
             # TODO merge both process graphs?
@@ -360,7 +353,6 @@ class ImageCollectionClient(ImageCollection):
 
         return self._create_reduced_collection(new_builder,extend_previous_callback_graph)
 
-
     def _get_band_graph_builder(self):
         current_node = self.graph[self.node_id]
         if current_node["process_id"] == "reduce":
@@ -368,7 +360,6 @@ class ImageCollectionClient(ImageCollection):
                 callback_graph = current_node["arguments"]["reducer"]["callback"]
                 return GraphBuilder(graph=callback_graph)
         return None
-
 
     def zonal_statistics(self, regions, func, scale=1000, interval="day") -> 'ImageCollection':
         """Calculates statistics for each zone specified in a file.
@@ -417,7 +408,7 @@ class ImageCollectionClient(ImageCollection):
 
         if self._api_version.at_least('0.4.0'):
             process_id = 'apply_dimension'
-            if runtime !=None:
+            if runtime:
 
                 callback = {
                     'udf': self._create_run_udf(code, runtime, version)
@@ -447,7 +438,6 @@ class ImageCollectionClient(ImageCollection):
             return self.graph_add_process(process_id, args)
         else:
             raise NotImplementedError("apply_dimension requires backend version >=0.4.0")
-
 
     def apply_tiles(self, code: str,runtime="Python",version="latest") -> 'ImageCollection':
         """Apply a function to the given set of tiles in this image collection.
@@ -533,7 +523,6 @@ class ImageCollectionClient(ImageCollection):
         else:
             raise NotImplementedError("apply_to_tiles_over_time requires backend version >=0.4.0")
 
-
     def apply(self, process: str, data_argument='data',arguments={}) -> 'ImageCollection':
         process_id = 'apply'
         arguments[data_argument] = \
@@ -591,7 +580,6 @@ class ImageCollectionClient(ImageCollection):
         """
         return self._reduce_time(reduce_function="max")
 
-
     def mean_time(self) -> 'ImageCollection':
         """Finds the mean value of a time series for all bands of the input dataset.
             :return An ImageCollection instance
@@ -639,8 +627,6 @@ class ImageCollectionClient(ImageCollection):
             }
 
         return self.graph_add_process(process_id, args)
-
-
 
     def mask(self, polygon: Union[Polygon, MultiPolygon]=None, srs="EPSG:4326",rastermask:'ImageCollection'=None,replacement=None) -> 'ImageCollection':
         """
@@ -800,7 +786,6 @@ class ImageCollectionClient(ImageCollection):
         newCollection = ImageCollectionClient(self.node_id, merged, self.session)
         newCollection.bands = self.bands
         return newCollection
-
 
     def graph_add_process(self, process_id, args) -> 'ImageCollection':
         """
