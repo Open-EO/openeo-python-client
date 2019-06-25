@@ -56,7 +56,7 @@ class RESTConnection(Connection):
         self.userid = username
         self.endpoint = url
 
-        if auth_type == NoneAuth and username != None and password != None:
+        if auth_type == NoneAuth and username and password:
             auth_type = BasicAuth
 
         self.authent = auth_type(username, password, self.endpoint)
@@ -447,7 +447,7 @@ class RESTConnection(Connection):
             message = None
             if response.headers['Content-Type'] == 'application/json':
                 message = response.json().get('message', None)
-            if message == None:
+            if message:
                 message = response.text
 
             raise ConnectionAbortedError(message)

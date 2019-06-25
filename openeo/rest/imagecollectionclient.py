@@ -193,7 +193,7 @@ class ImageCollectionClient(ImageCollection):
         operator = 'not'
         my_builder = self._get_band_graph_builder()
         new_builder = None
-        extend_previous_callback_graph = my_builder != None
+        extend_previous_callback_graph = my_builder is not None
         if not extend_previous_callback_graph:
             new_builder = GraphBuilder()
             # TODO merge both process graphs?
@@ -222,7 +222,7 @@ class ImageCollectionClient(ImageCollection):
         if isinstance(other, int) or isinstance(other, float):
             my_builder = self._get_band_graph_builder()
             new_builder = None
-            extend_previous_callback_graph = my_builder != None
+            extend_previous_callback_graph = my_builder is not None
             if not extend_previous_callback_graph:
                 new_builder = GraphBuilder()
                 # TODO merge both process graphs?
@@ -300,7 +300,7 @@ class ImageCollectionClient(ImageCollection):
                                       first=my_builder or fallback_node,
                                       second=other_builder or fallback_node)
         # callback is ready, now we need to properly set up the reduce process that will invoke it
-        if my_builder == None and other_builder == None:
+        if my_builder is None and other_builder is None:
             # there was no previous reduce step
             args = {
                 'data': {'from_node': self.node_id},
@@ -323,7 +323,7 @@ class ImageCollectionClient(ImageCollection):
     def _reduce_bands_binary_const(self, operator, other:Union[int,float]):
         my_builder = self._get_band_graph_builder()
         new_builder = None
-        extend_previous_callback_graph = my_builder !=None
+        extend_previous_callback_graph = my_builder is not None
         if not extend_previous_callback_graph:
             new_builder = GraphBuilder()
             # TODO merge both process graphs?
@@ -393,7 +393,7 @@ class ImageCollectionClient(ImageCollection):
 
         if self._isVersion040():
             process_id = 'apply_dimension'
-            if runtime !=None:
+            if runtime:
 
                 callback = {
                     'udf': self._create_run_udf(code, runtime, version)
