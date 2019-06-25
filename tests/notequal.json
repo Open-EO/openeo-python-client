@@ -1,8 +1,10 @@
 {
-  "getcollection1": {
-    "process_id": "get_collection",
+  "loadcollection1": {
+    "process_id": "load_collection",
     "arguments": {
-      "name": "SENTINEL2_SCF"
+      "id": "SENTINEL2_SCF",
+      "spatial_extent": null,
+      "temporal_extent": null
     },
     "result": false
   },
@@ -10,7 +12,7 @@
     "process_id": "reduce",
     "arguments": {
       "data": {
-        "from_node": "getcollection1"
+        "from_node": "loadcollection1"
       },
       "dimension": "spectral_bands",
       "reducer": {

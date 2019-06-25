@@ -53,10 +53,8 @@ class TestBandMath(TestCase):
 
         session.download.assert_called_once()
         actual_graph = session.download.call_args_list[0][0][0]
-        import json
-        print(json.dumps(actual_graph,indent=2))
         expected_graph = load_json_resource('evi_graph.json')
-        self.assertDictEqual(expected_graph,actual_graph)
+        assert actual_graph == expected_graph
 
 
     def test_ndvi(self, m):
@@ -176,11 +174,9 @@ class TestBandMath(TestCase):
                                                                                'time': {'from': '2015-06-23',
                                                                                         'to': '2018-06-18'}})
 
-        expected_graph = load_json_resource('udf_graph.json')
         def check_process_graph(request):
-            import json
-            print(json.dumps(request.json(),indent=2))
-            self.assertDictEqual(expected_graph,request.json())
+            expected_graph = load_json_resource('udf_graph.json')
+            assert request.json() == expected_graph
             return True
 
         m.post("http://localhost:8000/api/result", text="my binary data", additional_matcher=check_process_graph)
