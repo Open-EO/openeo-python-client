@@ -1,25 +1,10 @@
-import os
-import unittest
 from unittest import TestCase
 
-from mock import MagicMock
 import requests_mock
-from pathlib import Path
-
 from shapely.geometry import shape
 
 import openeo
-
-
-def get_test_resource(relative_path):
-    dir = Path(os.path.dirname(os.path.realpath(__file__)))
-    return str(dir / relative_path)
-
-
-def load_json(relative_path):
-    import json
-    with open(get_test_resource(relative_path), 'r+') as f:
-        return json.load(f)
+from tests import load_json_resource
 
 
 @requests_mock.mock()
@@ -46,13 +31,13 @@ class TestTimeSeries(TestCase):
 
 
         def check_process_graph(request):
-            expected_graph = load_json('aggregate_zonal.json')
+            expected_graph = load_json_resource('data/aggregate_zonal.json')
             assert request.json() == expected_graph
             return True
 
         m.post("http://localhost:8000/api/result", json={}, additional_matcher=check_process_graph)
 
-        polygon = load_json("polygon.json")
+        polygon = load_json_resource("data/polygon.json")
         fapar.polygonal_mean_timeseries(shape(polygon)).execute()
 
         #get result as timeseries for a single point
