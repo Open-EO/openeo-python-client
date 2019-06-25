@@ -271,6 +271,7 @@ class RESTConnection(Connection):
         return image
 
     def fetch_metadata(self, image_product_id, image_collection):
+        # TODO: this sets public properties on image_collection: shouldn't this be part of ImageCollection class then?
         # read and format extent, band and date availability information
         data_info = self.describe_collection(image_product_id)
         image_collection.bands = []

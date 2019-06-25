@@ -48,7 +48,7 @@ class ImageCollectionClient(ImageCollection):
         # TODO: rename function to load_collection for better similarity with corresponding process id?
         builder = GraphBuilder()
 
-        if LooseVersion(session.capabilities().version()) >= LooseVersion('0.4.0'):
+        if session.capabilities().api_version_check.at_least('0.4.0'):
             process_id = 'load_collection'
             arguments = {
                 'id': collection_id,
@@ -204,6 +204,22 @@ class ImageCollectionClient(ImageCollection):
         else:
             raise ValueError("Unsupported right-hand operand: " + str(other))
 
+    def logical_or(self, other: ImageCollection):
+        """
+        Apply element-wise logical `or` operation
+        :param other:
+        :return ImageCollection: logical_or(this, other)
+        """
+        return self._reduce_bands_binary(operator='or', other=other)
+
+    def logical_and(self, other: ImageCollection):
+        """
+        Apply element-wise logical `and` operation
+        :param other:
+        :return ImageCollection: logical_and(this, other)
+        """
+        return self._reduce_bands_binary(operator='and', other=other)
+
     def __invert__(self):
         """
 
@@ -213,6 +229,7 @@ class ImageCollectionClient(ImageCollection):
         my_builder = self._get_band_graph_builder()
         new_builder = None
         extend_previous_callback_graph = my_builder is not None
+        # TODO: why does these `add_process` calls use "expression" instead of "data" like the other cases?
         if not extend_previous_callback_graph:
             new_builder = GraphBuilder()
             # TODO merge both process graphs?
@@ -291,6 +308,12 @@ class ImageCollectionClient(ImageCollection):
 
     def __rmul__(self, other):
         return self.product(other)
+
+    def __or__(self, other):
+        return self.logical_or(other)
+
+    def __and__(self, other):
+        return  self.logical_and(other)
 
     def add(self, other:Union[ImageCollection,Union[int,float]]):
         """
