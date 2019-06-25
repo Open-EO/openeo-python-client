@@ -232,4 +232,3 @@ class Connection(ABC):
         :return: data_dict: Dict All available output formats
         """
         pass
-

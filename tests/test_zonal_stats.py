@@ -58,6 +58,3 @@ class TestTimeSeries(TestCase):
 
         #get result as timeseries for a single point
         #How to define a point? Ideally it should also have the CRS?
-
-
-
