@@ -1,23 +1,10 @@
-import os
-import unittest
 from unittest import TestCase
 
-from mock import MagicMock
 import requests_mock
-from pathlib import Path
+from mock import MagicMock
 
 import openeo
-
-
-def get_test_resource(relative_path):
-    dir = Path(os.path.dirname(os.path.realpath(__file__)))
-    return str(dir / relative_path)
-
-
-def load_json_resource(relative_path):
-    import json
-    with open(get_test_resource(relative_path), 'r+') as f:
-        return json.load(f)
+from tests import load_json_resource
 
 
 @requests_mock.mock()
@@ -52,7 +39,7 @@ class TestLogicalOps(TestCase):
 
         session.download.assert_called_once()
         actual_graph = session.download.call_args_list[0][0][0]
-        expected_graph = load_json_resource('notequal.json')
+        expected_graph = load_json_resource('data/notequal.json')
         assert actual_graph == expected_graph
 
     def test_or(self, m):
