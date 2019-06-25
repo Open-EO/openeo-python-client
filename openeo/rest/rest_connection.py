@@ -1,10 +1,10 @@
 import json
 import shutil
-from distutils.version import LooseVersion
 
 import requests
 from openeo.auth.auth_basic import BasicAuth
 from openeo.auth.auth_none import NoneAuth
+from openeo.capabilities import Capabilities
 from openeo.connection import Connection
 from openeo.rest.job import RESTJob
 from openeo.rest.rest_capabilities import RESTCapabilities
@@ -228,8 +228,9 @@ class RESTConnection(Connection):
 
         return processes_dict
 
-    def _isVersion040(self):
-        return LooseVersion(self.capabilities().version()) >= LooseVersion("0.4.0")
+    @property
+    def _api_version(self):
+        return self.capabilities().api_version_check
 
     def imagecollection(self, image_collection_id) -> 'ImageCollection':
         """
@@ -237,7 +238,7 @@ class RESTConnection(Connection):
         :param image_collection_id: String image collection identifier
         :return: collection: RestImageCollection the imagecollection with the id
         """
-        if self._isVersion040():
+        if self._api_version.at_least('0.4.0'):
             return self._image_040(image_collection_id)
         else:
             from .imagery import RestImagery
@@ -351,7 +352,7 @@ class RESTConnection(Connection):
         request = {
             "process_graph": graph
         }
-        if self._isVersion040():
+        if self._api_version.at_least('0.4.0'):
             path = "/result"
         else:
             request["output"] = format_options
@@ -378,7 +379,7 @@ class RESTConnection(Connection):
         """
         # TODO: add output_format to execution
         path = "/preview"
-        if self._isVersion040():
+        if self._api_version.at_least('0.4.0'):
             path = "/result"
         response = self.post(self.root + path, process_graph)
         return self.parse_json_response(response)
