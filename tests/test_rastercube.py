@@ -150,7 +150,6 @@ class TestRasterCube(TestCase):
 
         self.assertDictEqual(expected_mask_node,graph)
 
-
     def test_strech_colors(self):
         new_imagery = self.imagery.stretch_colors(-1, 1)
 

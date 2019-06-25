@@ -3,6 +3,7 @@ from unittest.mock import MagicMock,call,ANY
 
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 
+
 class GraphVisitorTest(TestCase):
 
     def test_visit_nodes(self):

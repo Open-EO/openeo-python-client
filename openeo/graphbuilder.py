@@ -4,8 +4,6 @@ from typing import Dict, Union
 
 class GraphBuilder():
 
-
-
     def __init__(self, graph = None):
         """
             Create a process graph builder.

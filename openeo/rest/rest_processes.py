@@ -208,12 +208,9 @@ class RESTProcesses():
 
         pgraph = RESTProcessgraph(pg_id=None, connection=self.connection)
 
-
-
         graph = {
                 'process_id': 'get_results',
             }
-
 
         if url:
             graph["url"] = url
@@ -358,7 +355,6 @@ class RESTProcesses():
 
         return imagery
 
-
     def mask(self, polygon: Union[Polygon, MultiPolygon], srs="EPSG:4326") -> 'ImageCollection':
         """
         Mask the image collection using a polygon. All pixels outside the polygon should be set to the nodata value.
@@ -471,7 +467,6 @@ class RESTProcesses():
         }
 
         return RESTProcesses(graph, self.connection)
-
 
     # def graph_add_process(self, process_id, args) -> 'ImageCollection':
     #     """

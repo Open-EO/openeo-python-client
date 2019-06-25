@@ -5,6 +5,7 @@ from typing import List
 import urllib.request
 import requests
 
+
 class RESTJobResult(JobResult):
     def __init__(self, url):
         self.url = url
@@ -69,7 +70,6 @@ class RESTJob(Job):
     def download_results(self, target):
         """ Download job results."""
         # GET /jobs/{job_id}/results > ...
-
 
         download_url = "/jobs/{}/results".format(self.job_id)
         r = self.connection.get(download_url, stream = True)

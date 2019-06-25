@@ -19,7 +19,6 @@ This module provides a Connection object to manage and persist settings when int
 
 class RESTConnection(Connection):
 
-
     def __init__(self, url, auth_type=NoneAuth, auth_options={}):
         # TODO: Maybe in future only the endpoint is needed, because of some kind of User object inside of the connection.
         """
@@ -125,8 +124,6 @@ class RESTConnection(Connection):
 
         return RESTProcesses(self)
 
-
-
     def capabilities(self) -> 'Capabilities':
         """
         Loads all available capabilities.
@@ -210,7 +207,6 @@ class RESTConnection(Connection):
 
         # Endpoint: GET /process_graphs
         return self.not_supported()
-
 
     def get_process(self, process_id) -> dict:
         # TODO: Maybe create some kind of Process class.
@@ -424,8 +420,6 @@ class RESTConnection(Connection):
         else:
             self._handle_error_response(job_status)
 
-
-
         return job
 
     def parse_json_response(self, response: requests.Response):
@@ -523,8 +517,6 @@ class RESTConnection(Connection):
             auth_header = {}
             auth = None
 
-
-
         return requests.get(self.endpoint+path, headers=auth_header, stream=stream, auth=auth)
 
     def get_outputformats(self) -> dict:
@@ -541,7 +533,6 @@ class RESTConnection(Connection):
         return not_support
 
 
-
 def connection(url, auth_type=NoneAuth, auth_options={}):
     """
     This method is the entry point to OpenEO. You typically create one connection object in your script or application, per back-end.
@@ -554,6 +545,7 @@ def connection(url, auth_type=NoneAuth, auth_options={}):
     """
 
     return RESTConnection(url, auth_type, auth_options)
+
 
 def session(userid=None,endpoint:str="https://openeo.org/openeo"):
     """

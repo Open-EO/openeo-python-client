@@ -1,11 +1,11 @@
 from abc import  ABC
 from typing import Dict
 
+
 class ProcessGraphVisitor(ABC):
     """
     Hierarchical Visitor for process graphs, to allow different tools to traverse the graph.
     """
-
 
     def __init__(self):
         self.process_stack = []
@@ -42,11 +42,9 @@ class ProcessGraphVisitor(ABC):
                                     "Node not found in process graph: " + from_node_id + ". Referenced by: " + node)
                             arg[num] = from_node
 
-
         if result_node is None:
             raise ValueError("The provided process graph does not contain a result node.")
         return result_node
-
 
     def accept_process_graph(self,graph:Dict):
         """
@@ -57,8 +55,6 @@ class ProcessGraphVisitor(ABC):
         top_level_node = ProcessGraphVisitor._list_to_graph(graph)
         self.accept(graph[top_level_node])
         return self
-
-
 
     def accept(self, node:Dict):
         if 'process_id' in node:
@@ -89,7 +85,6 @@ class ProcessGraphVisitor(ABC):
 
             self.leaveProcess(pid, arguments)
             self.process_stack.pop()
-
 
     def enterProcess(self,process_id, arguments:Dict):
         pass

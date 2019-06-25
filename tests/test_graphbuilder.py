@@ -9,7 +9,6 @@ class GraphBuilderTest(TestCase):
         builder.process("sum",{})
         self.assertEqual(1,len(builder.processes))
 
-
     def test_create_from_existing(self):
         graph = {
             "sum_01": {
