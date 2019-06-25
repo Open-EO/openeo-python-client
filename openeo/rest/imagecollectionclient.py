@@ -48,7 +48,7 @@ class ImageCollectionClient(ImageCollection):
         # TODO: rename function to load_collection for better similarity with corresponding process id?
         builder = GraphBuilder()
 
-        if LooseVersion(session.capabilities().version()) >= LooseVersion('0.4.0'):
+        if session.capabilities().api_version_check.at_least('0.4.0'):
             process_id = 'load_collection'
             arguments = {
                 'id': collection_id,
