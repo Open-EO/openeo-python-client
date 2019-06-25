@@ -84,7 +84,7 @@ class ImageCollection(ABC):
         :param dimensions: The names of the dimensions to apply the process on. Defaults to an empty array so that all dimensions are used.
         :return: A data cube with the newly computed values. The resolution, cardinality and the number of dimensions are the same as for the original data cube.
         """
-        raise NotImplemented("Apply function not supported by this data cube.")
+        raise NotImplementedError("Apply function not supported by this data cube.")
 
 
     def apply_pixel(self, bands: List, bandfunction) -> 'ImageCollection':
@@ -156,7 +156,7 @@ class ImageCollection(ABC):
         :param dimension: The dimension over which to reduce.
         :return: A data cube with the newly computed values. The number of dimensions is reduced, but the resolution and cardinality are the same as for the original data cube.
         """
-        raise NotImplemented("This image collection does not support the reduce operation.")
+        raise NotImplementedError("This image collection does not support the reduce operation.")
 
     def reduce_time(self, aggregationfunction) -> 'ImageCollection' :
         """ Applies a windowed reduction to a timeseries by applying a user defined function.
