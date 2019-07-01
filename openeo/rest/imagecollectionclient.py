@@ -76,11 +76,11 @@ class ImageCollectionClient(ImageCollection):
             :return: An ImageCollection instance
         """
         process_id = 'filter_temporal'
+
         args = {
-                'data':{'from_node': self.node_id},
-                'from': start_date,
-                'to': end_date
-            }
+            'data':{'from_node': self.node_id},
+            'extent': [start_date, end_date]
+        }
 
         return self.graph_add_process(process_id, args)
 
@@ -96,14 +96,17 @@ class ImageCollectionClient(ImageCollection):
                         proj4 or EPSG:12345 like string
             :return: An ImageCollection instance
         """
+
         process_id = 'filter_bbox'
         args = {
                 'data': {'from_node': self.node_id},
-                'west': first_not_none(west, left),
-                'east': first_not_none(east, right),
-                'north': first_not_none(north, top),
-                'south': first_not_none(south, bottom),
-                'crs': first_not_none(crs, srs)
+                'extent': {
+                    'west': first_not_none(west, left),
+                    'east': first_not_none(east, right),
+                    'north': first_not_none(north, top),
+                    'south': first_not_none(south, bottom),
+                    'crs': first_not_none(crs, srs)
+                }
             }
         return self.graph_add_process(process_id, args)
 
