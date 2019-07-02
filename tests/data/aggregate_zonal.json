@@ -1,25 +1,27 @@
 {
   "process_graph": {
-    "loadcollection1": {
-      "process_id": "load_collection",
-      "arguments": {
-        "id": "SENTINEL2_FAPAR",
-        "spatial_extent": null,
-        "temporal_extent": null
-      },
-      "result": false
-    },
     "filterbbox1": {
       "process_id": "filter_bbox",
       "arguments": {
         "data": {
           "from_node": "loadcollection1"
         },
-        "west": 3,
-        "east": 6,
-        "north": 52,
-        "south": 50,
-        "crs": "EPSG:4326"
+        "extent": {
+          "west": 3,
+          "east": 6,
+          "north": 52,
+          "south": 50,
+          "crs": "EPSG:4326"
+        }
+      },
+      "result": false
+    },
+    "loadcollection1": {
+      "process_id": "load_collection",
+      "arguments": {
+        "id": "SENTINEL2_FAPAR",
+        "spatial_extent": null,
+        "temporal_extent": null
       },
       "result": false
     },
