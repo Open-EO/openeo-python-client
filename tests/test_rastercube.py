@@ -32,8 +32,8 @@ class TestRasterCube(TestCase):
 
         self.assertEqual(graph["process_id"], "filter_temporal")
         self.assertIn("data", graph['arguments'])
-        self.assertEqual(graph["arguments"]["from"], "2016-01-01")
-        self.assertEqual(graph["arguments"]["to"], "2016-03-10")
+        self.assertEqual(graph["arguments"]["extent"][0], "2016-01-01")
+        self.assertEqual(graph["arguments"]["extent"][1], "2016-03-10")
 
     def test_bbox_filter_nsew(self):
         new_imagery = self.imagery.bbox_filter(
@@ -43,11 +43,11 @@ class TestRasterCube(TestCase):
 
         self.assertEqual(graph["process_id"], "filter_bbox")
         self.assertIn("data", graph['arguments'])
-        self.assertEqual(graph["arguments"]["west"], 652000)
-        self.assertEqual(graph["arguments"]["east"], 672000)
-        self.assertEqual(graph["arguments"]["north"], 5161000)
-        self.assertEqual(graph["arguments"]["south"], 5181000)
-        self.assertEqual(graph["arguments"]["crs"], "EPSG:32632")
+        self.assertEqual(graph["arguments"]["extent"]["west"], 652000)
+        self.assertEqual(graph["arguments"]["extent"]["east"], 672000)
+        self.assertEqual(graph["arguments"]["extent"]["north"], 5161000)
+        self.assertEqual(graph["arguments"]["extent"]["south"], 5181000)
+        self.assertEqual(graph["arguments"]["extent"]["crs"], "EPSG:32632")
 
     def test_bbox_filter_tblr(self):
         new_imagery = self.imagery.bbox_filter(
@@ -57,11 +57,11 @@ class TestRasterCube(TestCase):
 
         self.assertEqual(graph["process_id"], "filter_bbox")
         self.assertIn("data", graph['arguments'])
-        self.assertEqual(graph["arguments"]["west"], 652000)
-        self.assertEqual(graph["arguments"]["east"], 672000)
-        self.assertEqual(graph["arguments"]["north"], 5161000)
-        self.assertEqual(graph["arguments"]["south"], 5181000)
-        self.assertEqual(graph["arguments"]["crs"], "EPSG:32632")
+        self.assertEqual(graph["arguments"]["extent"]["west"], 652000)
+        self.assertEqual(graph["arguments"]["extent"]["east"], 672000)
+        self.assertEqual(graph["arguments"]["extent"]["north"], 5161000)
+        self.assertEqual(graph["arguments"]["extent"]["south"], 5181000)
+        self.assertEqual(graph["arguments"]["extent"]["crs"], "EPSG:32632")
 
     def test_bbox_filter_nsew_zero(self):
         new_imagery = self.imagery.bbox_filter(
@@ -71,11 +71,11 @@ class TestRasterCube(TestCase):
 
         self.assertEqual(graph["process_id"], "filter_bbox")
         self.assertIn("data", graph['arguments'])
-        self.assertEqual(graph["arguments"]["west"], 0)
-        self.assertEqual(graph["arguments"]["east"], 0)
-        self.assertEqual(graph["arguments"]["north"], 0)
-        self.assertEqual(graph["arguments"]["south"], 0)
-        self.assertEqual(graph["arguments"]["crs"], "EPSG:32632")
+        self.assertEqual(graph["arguments"]["extent"]["west"], 0)
+        self.assertEqual(graph["arguments"]["extent"]["east"], 0)
+        self.assertEqual(graph["arguments"]["extent"]["north"], 0)
+        self.assertEqual(graph["arguments"]["extent"]["south"], 0)
+        self.assertEqual(graph["arguments"]["extent"]["crs"], "EPSG:32632")
 
     def test_min_time(self):
         new_imagery = self.imagery.min_time()
