@@ -5,7 +5,6 @@ from typing import List
 class EOProduct(ABC):
     """Class representing a single Earth Observation product. """
 
-
     @property
     @abstractmethod
     def collection_identifier(self) -> str:

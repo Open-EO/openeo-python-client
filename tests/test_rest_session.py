@@ -127,6 +127,33 @@ class TestUserFiles(TestCase):
         capabilities = con.capabilities()
         assert capabilities.capabilities == CAPABILITIES
 
+    def test_capabilities_api_version(self, m):
+        capabilties_url = "{}/".format(self.endpoint)
+        # Old-style api
+        m.register_uri('GET', capabilties_url, json={'version': '0.3.1'})
+        capabilities = openeo.connect(self.endpoint).capabilities()
+        assert capabilities.version() == '0.3.1'
+        assert capabilities.api_version() == '0.3.1'
+        # 0.4.0 style api
+        m.register_uri('GET', capabilties_url, json={'api_version': '0.4.0'})
+        capabilities = openeo.connect(self.endpoint).capabilities()
+        assert capabilities.version() == '0.4.0'
+        assert capabilities.api_version() == '0.4.0'
+
+    def test_capabilities_api_version_check(self, m):
+        capabilties_url = "{}/".format(self.endpoint)
+        m.register_uri('GET', capabilties_url, json={'api_version': '1.2.3'})
+        capabilities = openeo.connect(self.endpoint).capabilities()
+        assert capabilities.api_version_check.below('1.2.4')
+        assert capabilities.api_version_check.below('1.1') is False
+        assert capabilities.api_version_check.at_most('1.3')
+        assert capabilities.api_version_check.at_most('1.2.3')
+        assert capabilities.api_version_check.at_most('1.2.2') is False
+        assert capabilities.api_version_check.at_least('1.2.3')
+        assert capabilities.api_version_check.at_least('1.5') is False
+        assert capabilities.api_version_check.above('1.2.3') is False
+        assert capabilities.api_version_check.above('1.2.2')
+
     def test_list_collections(self, m):
         collection_url = "{}/collections".format(self.endpoint)
         m.register_uri('GET', collection_url, json=COLLECTIONS)

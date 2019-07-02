@@ -1,28 +1,14 @@
-import os
-import unittest
 from unittest import TestCase
 
-from mock import MagicMock
 import requests_mock
-from pathlib import Path
-
 from shapely.geometry import shape
 
 import openeo
+from tests import load_json_resource
 
-def get_test_resource(relative_path):
-    dir = Path(os.path.dirname(os.path.realpath(__file__)))
-    return str(dir / relative_path)
-
-
-def load_json(relative_path):
-    import json
-    with open(get_test_resource(relative_path), 'r+') as f:
-        return json.load(f)
 
 @requests_mock.mock()
 class TestTimeSeries(TestCase):
-
 
     def test_polygon_timeseries(self, m):
         #configuration phase: define username, endpoint, parameters?
@@ -43,21 +29,16 @@ class TestTimeSeries(TestCase):
         #access multiband 4D (x/y/time/band) coverage
         fapar = session.imagecollection("SENTINEL2_FAPAR").bbox_filter(3,6,52,50,"EPSG:4326")
 
-        expected_graph = load_json('aggregate_zonal.json')
 
         def check_process_graph(request):
-            import json
-            print(json.dumps(request.json(), indent=2))
-            self.assertDictEqual(expected_graph, request.json())
+            expected_graph = load_json_resource('data/aggregate_zonal.json')
+            assert request.json() == expected_graph
             return True
 
         m.post("http://localhost:8000/api/result", json={}, additional_matcher=check_process_graph)
 
-        polygon = load_json("polygon.json")
+        polygon = load_json_resource("data/polygon.json")
         fapar.polygonal_mean_timeseries(shape(polygon)).execute()
 
         #get result as timeseries for a single point
         #How to define a point? Ideally it should also have the CRS?
-
-
-

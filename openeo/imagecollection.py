@@ -12,7 +12,6 @@ class ImageCollection(ABC):
     def __init__(self):
         pass
 
-
     def date_range_filter(self, start_date:Union[str,datetime,date],end_date:Union[str,datetime,date]) -> 'ImageCollection':
         """
         Specifies a date range filter to be applied on the ImageCollection
@@ -58,9 +57,6 @@ class ImageCollection(ABC):
         else:
             return self.bbox_filter(west=west, east=east, north=north, south=south, crs=crs)
 
-
-
-
     def bbox_filter(self, west=None, east=None, north=None, south=None, crs=None,left=None, right=None, top=None, bottom=None, srs=None, base=None, height=None ) -> 'ImageCollection':
         """
         Specifies a bounding box to filter input image collections.
@@ -84,8 +80,7 @@ class ImageCollection(ABC):
         :param dimensions: The names of the dimensions to apply the process on. Defaults to an empty array so that all dimensions are used.
         :return: A data cube with the newly computed values. The resolution, cardinality and the number of dimensions are the same as for the original data cube.
         """
-        raise NotImplemented("Apply function not supported by this data cube.")
-
+        raise NotImplementedError("Apply function not supported by this data cube.")
 
     def apply_pixel(self, bands: List, bandfunction) -> 'ImageCollection':
         """Apply a function to the given set of bands in this image collection.
@@ -156,7 +151,7 @@ class ImageCollection(ABC):
         :param dimension: The dimension over which to reduce.
         :return: A data cube with the newly computed values. The number of dimensions is reduced, but the resolution and cardinality are the same as for the original data cube.
         """
-        raise NotImplemented("This image collection does not support the reduce operation.")
+        raise NotImplementedError("This image collection does not support the reduce operation.")
 
     def reduce_time(self, aggregationfunction) -> 'ImageCollection' :
         """ Applies a windowed reduction to a timeseries by applying a user defined function.
@@ -216,7 +211,6 @@ class ImageCollection(ABC):
             :return An ImageCollection instance
         """
         pass
-
 
     def stretch_colors(self, min, max) -> 'ImageCollection':
         """ Color stretching

@@ -3,6 +3,7 @@ from unittest.mock import MagicMock,call,ANY
 
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 
+
 class GraphVisitorTest(TestCase):
 
     def test_visit_nodes(self):
@@ -34,13 +35,13 @@ class GraphVisitorTest(TestCase):
         original.enterArgument = enterArgument
 
         original.accept_process_graph(graph)
-        self.assertEquals(2, leaveProcess.call_count)
+        assert leaveProcess.call_count == 2
         leaveProcess.assert_has_calls([
             call('abs',ANY),
             call('cos', ANY)
         ])
 
-        self.assertEquals(2, enterArgument.call_count)
+        assert enterArgument.call_count == 2
         enterArgument.assert_has_calls([
             call('data', ANY),
             call('data', ANY)

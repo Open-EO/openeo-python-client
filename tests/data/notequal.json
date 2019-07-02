@@ -1,0 +1,64 @@
+{
+  "loadcollection1": {
+    "process_id": "load_collection",
+    "arguments": {
+      "id": "SENTINEL2_SCF",
+      "spatial_extent": null,
+      "temporal_extent": null
+    },
+    "result": false
+  },
+  "reduce1": {
+    "process_id": "reduce",
+    "arguments": {
+      "data": {
+        "from_node": "loadcollection1"
+      },
+      "dimension": "spectral_bands",
+      "reducer": {
+        "callback": {
+          "arrayelement1": {
+            "process_id": "array_element",
+            "arguments": {
+              "data": {
+                "from_argument": "data"
+              },
+              "index": 0
+            },
+            "result": false
+          },
+          "eq1": {
+            "process_id": "eq",
+            "arguments": {
+              "x": {
+                "from_node": "arrayelement1"
+              },
+              "y": 4
+            },
+            "result": false
+          },
+          "not1": {
+            "process_id": "not",
+            "arguments": {
+              "expression": {
+                "from_node": "eq1"
+              }
+            },
+            "result": true
+          }
+        }
+      }
+    },
+    "result": false
+  },
+  "saveresult1": {
+    "process_id": "save_result",
+    "arguments": {
+      "data": {
+        "from_node": "reduce1"
+      },
+      "options": {}
+    },
+    "result": "true"
+  }
+}

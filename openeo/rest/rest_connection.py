@@ -1,24 +1,21 @@
 import json
 import shutil
-from distutils.version import LooseVersion
 
 import requests
 from openeo.auth.auth_basic import BasicAuth
 from openeo.auth.auth_none import NoneAuth
+from openeo.capabilities import Capabilities
 from openeo.connection import Connection
 from openeo.rest.job import RESTJob
 from openeo.rest.rest_capabilities import RESTCapabilities
 from openeo.rest.rest_processes import RESTProcesses
 
 """
-openeo.sessions
-~~~~~~~~~~~~~~~~
 This module provides a Connection object to manage and persist settings when interacting with the OpenEO API.
 """
 
 
 class RESTConnection(Connection):
-
 
     def __init__(self, url, auth_type=NoneAuth, auth_options={}):
         # TODO: Maybe in future only the endpoint is needed, because of some kind of User object inside of the connection.
@@ -44,19 +41,13 @@ class RESTConnection(Connection):
         :return: token: String Bearer token
         """
 
-        username = None
-        password = None
-
-        if 'username' in auth_options:
-            username = auth_options['username']
-
-        if 'password' in auth_options:
-            password = auth_options['password']
+        username = auth_options.get('username')
+        password = auth_options.get('password')
 
         self.userid = username
         self.endpoint = url
 
-        if auth_type == NoneAuth and username != None and password != None:
+        if auth_type == NoneAuth and username and password:
             auth_type = BasicAuth
 
         self.authent = auth_type(username, password, self.endpoint)
@@ -98,6 +89,7 @@ class RESTConnection(Connection):
         Loads all jobs of the current user.
         :return: jobs: Dict All jobs of the user
         """
+        # TODO: self.userid might be None
         jobs = self.get(self.root + '/users/{}/jobs'.format(self.userid))
         return self.parse_json_response(jobs)
 
@@ -124,8 +116,6 @@ class RESTConnection(Connection):
         # TODO return only provided processes of the back end
 
         return RESTProcesses(self)
-
-
 
     def capabilities(self) -> 'Capabilities':
         """
@@ -211,7 +201,6 @@ class RESTConnection(Connection):
         # Endpoint: GET /process_graphs
         return self.not_supported()
 
-
     def get_process(self, process_id) -> dict:
         # TODO: Maybe create some kind of Process class.
         """
@@ -228,8 +217,9 @@ class RESTConnection(Connection):
 
         return processes_dict
 
-    def _isVersion040(self):
-        return LooseVersion(self.capabilities().version()) >= LooseVersion("0.4.0")
+    @property
+    def _api_version(self):
+        return self.capabilities().api_version_check
 
     def imagecollection(self, image_collection_id) -> 'ImageCollection':
         """
@@ -237,7 +227,7 @@ class RESTConnection(Connection):
         :param image_collection_id: String image collection identifier
         :return: collection: RestImageCollection the imagecollection with the id
         """
-        if self._isVersion040():
+        if self._api_version.at_least('0.4.0'):
             return self._image_040(image_collection_id)
         else:
             from .imagery import RestImagery
@@ -253,6 +243,7 @@ class RESTConnection(Connection):
         :return: collection: RestImagery the imagery with the id
         """
         #new implementation: https://github.com/Open-EO/openeo-api/issues/160
+        # TODO avoid local imports
         from .imagecollectionclient import ImageCollectionClient
         image = ImageCollectionClient.create_collection(image_product_id, self)
         self.fetch_metadata(image_product_id, image)
@@ -266,6 +257,7 @@ class RESTConnection(Connection):
         :param image_collection_id: String image collection identifier
         :return: collection: RestImagery the imagery with the id
         """
+        # TODO avoid local imports
         from .rest_processes import RESTProcesses
 
         image = RESTProcesses( self)
@@ -274,6 +266,7 @@ class RESTConnection(Connection):
         return image
 
     def fetch_metadata(self, image_product_id, image_collection):
+        # TODO: this sets public properties on image_collection: shouldn't this be part of ImageCollection class then?
         # read and format extent, band and date availability information
         data_info = self.describe_collection(image_product_id)
         image_collection.bands = []
@@ -351,7 +344,7 @@ class RESTConnection(Connection):
         request = {
             "process_graph": graph
         }
-        if self._isVersion040():
+        if self._api_version.at_least('0.4.0'):
             path = "/result"
         else:
             request["output"] = format_options
@@ -378,7 +371,7 @@ class RESTConnection(Connection):
         """
         # TODO: add output_format to execution
         path = "/preview"
-        if self._isVersion040():
+        if self._api_version.at_least('0.4.0'):
             path = "/result"
         response = self.post(self.root + path, process_graph)
         return self.parse_json_response(response)
@@ -424,8 +417,6 @@ class RESTConnection(Connection):
         else:
             self._handle_error_response(job_status)
 
-
-
         return job
 
     def parse_json_response(self, response: requests.Response):
@@ -447,7 +438,7 @@ class RESTConnection(Connection):
             message = None
             if response.headers['Content-Type'] == 'application/json':
                 message = response.json().get('message', None)
-            if message == None:
+            if message:
                 message = response.text
 
             raise ConnectionAbortedError(message)
@@ -523,8 +514,6 @@ class RESTConnection(Connection):
             auth_header = {}
             auth = None
 
-
-
         return requests.get(self.endpoint+path, headers=auth_header, stream=stream, auth=auth)
 
     def get_outputformats(self) -> dict:
@@ -536,13 +525,14 @@ class RESTConnection(Connection):
         return self.not_supported()
 
     def not_supported(self):
+        # TODO why not raise exception? the print isn't even to standard error
+        # TODO: also: is this about not supporting YET (feature under construction) or impossible to support?
         not_support = "This function is not supported by the python client yet."
         print(not_support)
         return not_support
 
 
-
-def connection(url, auth_type=NoneAuth, auth_options={}):
+def connection(url, auth_type=NoneAuth, auth_options={}) -> RESTConnection:
     """
     This method is the entry point to OpenEO. You typically create one connection object in your script or application, per back-end.
     and re-use it for all calls to that backend.
@@ -555,7 +545,8 @@ def connection(url, auth_type=NoneAuth, auth_options={}):
 
     return RESTConnection(url, auth_type, auth_options)
 
-def session(userid=None,endpoint:str="https://openeo.org/openeo"):
+
+def session(userid=None, endpoint: str = "https://openeo.org/openeo") -> RESTConnection:
     """
     Deprecated, use openeo.connect
     This method is the entry point to OpenEO. You typically create one session object in your script or application, per back-end.
@@ -564,4 +555,4 @@ def session(userid=None,endpoint:str="https://openeo.org/openeo"):
     :param endpoint: The http url of an OpenEO endpoint.
     :rtype: openeo.sessions.Session
     """
-    return connection(url = endpoint)
+    return connection(url=endpoint)

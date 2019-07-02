@@ -10,7 +10,6 @@ POST_DATA = '{"process_id": "filter_daterange", "args": { "imagery": { "product_
             '"from": "2014-01-01", "to": "2014-06-01"}}'
 
 
-
 @requests_mock.mock()
 class TestUsecase1(TestCase):
 
@@ -70,7 +69,6 @@ class TestUsecase1(TestCase):
 
         job_id = con.create_job(POST_DATA)
         self.assertIsNotNone(job_id)
-
 
 
 if __name__ == '__main__':

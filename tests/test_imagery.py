@@ -8,7 +8,6 @@ class TestImagery(TestCase):
     def setUp(self):
         self.processes = RestImagery({},None)
 
-
     def test_date_range_filter(self):
         new_imagery = self.processes.date_range_filter("2016-01-01", "2016-03-10")
 

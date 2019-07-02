@@ -37,7 +37,6 @@ class BasicAuth(Auth):
         else:
             return False
 
-
     def get_header(self) -> dict:
         """
         Returns needed header for a request of this authentication

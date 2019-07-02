@@ -7,7 +7,7 @@ from openeo.auth.auth_bearer import BearerAuth
 logging.basicConfig(level=logging.INFO)
 
 
-GEE_DRIVER_URL = "http://giv-openeo.uni-muenster.de:8080/v0.3"
+GEE_DRIVER_URL = "https://earthengine.openeo.org/v0.4"
 
 OUTPUT_FILE = "/tmp/openeo_gee_output.png"
 
