@@ -26,7 +26,7 @@ if os.environ.get('BUILD_NUMBER') and os.environ.get('BRANCH_NAME'):
 else:
     version = __version__
 
-name = 'openeo-api'
+name = 'openeo'
 setup(name=name,
       version=version,
       author='Jeroen Dries',

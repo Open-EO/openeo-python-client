@@ -9,6 +9,6 @@
 @Library('lib')_
 
 pythonPipeline {
-  package_name = 'openeo_api'
+  package_name = 'openeo'
   wipeout_workspace = true
 }
