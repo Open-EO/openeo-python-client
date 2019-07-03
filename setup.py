@@ -28,7 +28,7 @@ else:
 
 name = 'openeo-api'
 setup(name=name,
-      version=__version__,
+      version=version,
       author='Jeroen Dries',
       author_email='jeroen.dries@vito.be',
       description='Client API for OpenEO',
