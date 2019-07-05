@@ -23,6 +23,7 @@ from openeo.auth.auth import Auth
 from openeo.process.process import *
 
 
+# TODO: why is this a constant? Shouldn't the client be capable of working with (a range of) multiple versions?
 # TODO: make some kind of config file for the client version
 CLIENT_VERSION = "0.3.0"
 
