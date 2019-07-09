@@ -4,7 +4,7 @@ import requests_mock
 from mock import MagicMock
 
 import openeo
-from tests import load_json_resource
+from . import load_json_resource
 
 
 @requests_mock.mock()
@@ -33,7 +33,7 @@ class TestTemporal(TestCase):
         s2_radio = session.imagecollection("SENTINEL2_RADIOMETRY_10M")
         s2_radio = s2_radio.apply_dimension('cumsum')
 
-        s2_radio.download("out.geotiff", bbox="", time='2018-06-18')
+        s2_radio.download("out.geotiff", bbox="", time='2018-06-18',format="GTIFF")
 
         session.download.assert_called_once()
         actual_graph = session.download.call_args_list[0][0][0]

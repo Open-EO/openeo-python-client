@@ -37,7 +37,8 @@
       "data": {
         "from_node": "applydimension1"
       },
-      "options": {}
+      "options": {},
+      "format": "GTIFF"
     },
     "result": "true"
   }

@@ -57,7 +57,8 @@
       "data": {
         "from_node": "reduce1"
       },
-      "options": {}
+      "options": {},
+      "format":"GTIFF"
     },
     "result": "true"
   }

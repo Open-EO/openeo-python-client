@@ -5,7 +5,7 @@ import requests_mock
 from mock import MagicMock
 
 import openeo
-from tests import load_json_resource
+from . import load_json_resource
 
 
 @requests_mock.mock()
@@ -40,12 +40,12 @@ class TestBandMath(TestCase):
 
         evi_cube = (2.5 * (B08 - B04)) / ((B08 + 6.0 * B04 - 7.5 * B02) + 1.0)
 
-        evi_cube.download("out.geotiff", bbox="", time=s2_radio.dates['to'])
+        evi_cube.download("out.geotiff", bbox="", time=s2_radio.dates['to'],format="GTIFF")
 
         session.download.assert_called_once()
         actual_graph = session.download.call_args_list[0][0][0]
         expected_graph = load_json_resource('data/evi_graph.json')
-        assert actual_graph == expected_graph
+        self.assertDictEqual(actual_graph,expected_graph)
 
     def test_ndvi(self, m):
         #configuration phase: define username, endpoint, parameters?
@@ -179,7 +179,7 @@ class TestBandMath(TestCase):
 
         #materialize result in the shape of a geotiff
         #REST: WCS call
-        ndvi_coverage.download("out.geotiff",bbox="", time=s2_radio.dates['to'])
+        ndvi_coverage.download("out.geotiff",bbox="", time=s2_radio.dates['to'],format="GTIFF")
 
     @unittest.skip("Not yet implemented")
     def test_timeseries_fusion(self):

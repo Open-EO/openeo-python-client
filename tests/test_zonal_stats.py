@@ -4,7 +4,7 @@ import requests_mock
 from shapely.geometry import shape
 
 import openeo
-from tests import load_json_resource
+from . import load_json_resource
 
 
 @requests_mock.mock()

@@ -4,7 +4,7 @@ import requests_mock
 from mock import MagicMock
 
 import openeo
-from tests import load_json_resource
+from . import load_json_resource
 
 
 @requests_mock.mock()
@@ -35,7 +35,7 @@ class TestLogicalOps(TestCase):
 
         mask = scf_bands != 4
 
-        mask.download("out.geotiff", bbox="", time=s2_radio.dates['to'])
+        mask.download("out.geotiff", bbox="", time=s2_radio.dates['to'],format="GTIFF")
 
         session.download.assert_called_once()
         actual_graph = session.download.call_args_list[0][0][0]
@@ -60,7 +60,7 @@ class TestLogicalOps(TestCase):
         # TODO: this expression (twice `data`) creates a duplicate `arrayelement` in the process graph
         mask = (data == 2) | (data == 5)
 
-        mask.download("out.geotiff", bbox="", time=ic.dates['to'])
+        mask.download("out.geotiff", bbox="", time=ic.dates['to'],format="GTIFF")
         session.download.assert_called_once()
         actual_graph = session.download.call_args_list[0][0][0]
         expected_graph = load_json_resource('logical_or.json')
@@ -84,7 +84,7 @@ class TestLogicalOps(TestCase):
         b2 = ic.band('B2')
         mask = (b1 == 2) & (b2 == 5)
 
-        mask.download("out.geotiff", bbox="", time=ic.dates['to'])
+        mask.download("out.geotiff", bbox="", time=ic.dates['to'],format="GTIFF")
         session.download.assert_called_once()
         actual_graph = session.download.call_args_list[0][0][0]
         expected_graph = load_json_resource('logical_and.json')
