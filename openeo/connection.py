@@ -2,6 +2,8 @@ from abc import ABC, abstractmethod
 from .auth import Auth
 from openeo.imagecollection import ImageCollection
 from.capabilities import Capabilities
+from .job import Job
+from typing import Dict
 
 """
 openeo.sessions
@@ -141,13 +143,21 @@ class Connection(ABC):
         pass
 
     @abstractmethod
-    def create_job(self, post_data, evaluation="lazy") -> str:
+    def create_job(self, process_graph:Dict, output_format:str=None, output_parameters:Dict={},
+                   title:str=None, description:str=None, plan:str=None, budget=None,
+                   additional:Dict={}) -> Job:
         """
-        Posts a job to the back end including the evaluation information.
-        :param post_data: String data of the job (e.g. process graph)
-        :param evaluation: String Option for the evaluation of the job
-        :return: job_id: String Job id of the new created job
+        Posts a job to the back end.
+
+        :param process_graph: String data of the job (e.g. process graph)
+        :param output_format: String Output format of the execution
+        :param output_parameters: Dict of additional output parameters
+        :param title: String title of the job
+        :param description: String description of the job
+        :param budget: Budget
+        :return: job_id: Job object representing the job
         """
+
         pass
 
     @abstractmethod

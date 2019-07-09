@@ -9,6 +9,7 @@ from openeo.connection import Connection
 from openeo.rest.job import RESTJob
 from openeo.rest.rest_capabilities import RESTCapabilities
 from openeo.rest.rest_processes import RESTProcesses
+from typing import Dict
 
 """
 This module provides a Connection object to manage and persist settings when interacting with the OpenEO API.
@@ -376,9 +377,9 @@ class RESTConnection(Connection):
         response = self.post(self.root + path, process_graph)
         return self.parse_json_response(response)
 
-    def create_job(self, process_graph, output_format=None, output_parameters={},
-                   title=None, description=None, plan=None, budget=None,
-                   additional={}):
+    def create_job(self, process_graph:Dict, output_format:str=None, output_parameters:Dict={},
+                   title:str=None, description:str=None, plan:str=None, budget=None,
+                   additional:Dict={}):
         """
         Posts a job to the back end.
         :param process_graph: String data of the job (e.g. process graph)
