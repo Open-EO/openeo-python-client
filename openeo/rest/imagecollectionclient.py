@@ -772,6 +772,8 @@ class ImageCollectionClient(ImageCollection):
             if 'format' in format_options:
                 args['format'] = format_options['format']
                 del format_options['format']
+            else:
+                raise ValueError("Please use the 'format' keyword argument to specify the output format. Use openeo.connection.Connection#list_file_types to retrieve available ouput formats for this backend.")
             newcollection = self.graph_add_process("save_result",args)
             newcollection.graph[newcollection.node_id]["result"] = 'true'
             return self.session.download(newcollection.graph, time, outputfile, format_options)
