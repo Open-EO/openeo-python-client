@@ -793,7 +793,20 @@ class ImageCollectionClient(ImageCollection):
         :return: status: ClientJob resulting job.
         """
         if out_format:
-            return self.session.create_job(process_graph=self.graph,output_format=out_format,output_parameters=format_options)
+            graph = self.graph
+            if self._api_version.at_least('0.4.0'):
+                args = {
+                    'data': {'from_node': self.node_id},
+                    'options': format_options,
+                    'format': out_format
+                }
+                newcollection = self.graph_add_process("save_result", args)
+                newcollection.graph[newcollection.node_id]["result"] = True
+                return self.session.create_job(process_graph=newcollection.graph)
+            else:
+                return self.session.create_job(process_graph=graph, output_format=out_format,
+                                               output_parameters=format_options)
+
         else:
             return self.session.create_job(process_graph=self.graph)
 
