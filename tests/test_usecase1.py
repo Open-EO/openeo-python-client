@@ -62,6 +62,7 @@ class TestUsecase1(TestCase):
         self.assertGreater(str(processes).find(self.process_id), -1)
 
     def test_job_creation(self, m):
+        m.get("http://localhost:8000/api/", json={"version": "0.4.0"})
         m.get("http://localhost:8000/api/credentials/basic", json={"token": "blabla"})
         m.post("http://localhost:8000/api/jobs", status_code=201,headers={"OpenEO-Identifier": "748df7caa8c84a7ff6e"})
 
