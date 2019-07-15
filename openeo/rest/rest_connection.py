@@ -286,8 +286,9 @@ class RESTConnection(Connection):
         return self.post(self.root + "/timeseries/point?x={}&y={}&srs={}"
                          .format(x,y,srs), graph)
 
-    def create_service(self, graph, **kwargs):
+    def create_service(self, graph, type, **kwargs):
         kwargs["process_graph"] = graph
+        kwargs["type"] = type
 
         response = self.post(self.root + "/services", kwargs)
 
@@ -298,6 +299,11 @@ class RESTConnection(Connection):
                 'url': service_url
             }
         else:
+            self._handle_error_response(response)
+
+    def remove_service(self, service_id: str):
+        response = self.delete('/services/' + service_id)
+        if response.status_code != 204:
             self._handle_error_response(response)
 
     def job_results(self, job_id):
@@ -458,17 +464,16 @@ class RESTConnection(Connection):
         auth = self.authent.get_auth()
         return requests.post(self.endpoint+path, json=postdata, headers=auth_header, auth=auth)
 
-    def delete(self, path, postdata):
+    def delete(self, path):
         """
         Makes a RESTful DELETE request to the back end.
         :param path: URL of the request (without root URL e.g. "/data")
-        :param postdata: Data of the post request
         :return: response: Response
         """
 
         auth_header = self.authent.get_header()
         auth = self.authent.get_auth()
-        return requests.delete(self.endpoint+path, json=postdata, headers=auth_header, auth=auth)
+        return requests.delete(self.endpoint+path, headers=auth_header, auth=auth)
 
     def patch(self, path):
         """
