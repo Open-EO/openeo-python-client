@@ -7,7 +7,7 @@ from openeo.auth.auth_bearer import BearerAuth
 logging.basicConfig(level=logging.INFO)
 
 
-GEE_DRIVER_URL = "http://giv-openeo.uni-muenster.de:8080/v0.3"
+GEE_DRIVER_URL = "https://earthengine.openeo.org/v0.4"
 
 OUTPUT_FILE = "/tmp/openeo_gee_output.png"
 
@@ -41,7 +41,7 @@ datacube = datacube.filter_bbox(west=16.138916, south=48.138600, east=16.524124,
 datacube = datacube.filter_daterange(extent=["2017-01-01T00:00:00Z", "2017-01-31T23:59:59Z"])
 datacube = datacube.ndvi(nir="B4", red="B8A")
 datacube = datacube.min_time()
-print(json.dumps(datacube.graph,indent=2))
+print(json.dumps(datacube.graph, indent=2))
 
 # Test Job
 
@@ -49,7 +49,7 @@ job = con.create_job(datacube.graph)
 print(job.job_id)
 print(job.start_job())
 print (job.describe_job())
-# time.wait(5)
+time.sleep(5)
 job.download_results("/tmp/testfile")
 
 

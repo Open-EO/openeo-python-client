@@ -6,7 +6,7 @@ from openeo.auth.auth_bearer import BearerAuth
 logging.basicConfig(level=logging.DEBUG)
 
 
-EODC_DRIVER_URL = "http://openeo.eodc.eu"
+EODC_DRIVER_URL = "http://openeo.eodc.eu/api/v0.3"
 
 EODC_USER = "user1"
 EODC_PWD = "Test123#"

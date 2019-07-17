@@ -9,7 +9,6 @@ class GraphBuilderTest(TestCase):
         builder.process("sum",{})
         self.assertEqual(1,len(builder.processes))
 
-
     def test_create_from_existing(self):
         graph = {
             "sum_01": {
@@ -97,3 +96,17 @@ class GraphBuilderTest(TestCase):
         self.assertIn("sum3", merged)
         self.assertEqual("sum2",merged["sum3"]["arguments"]["data"]["from_node"])
         self.assertEqual("sum2", merged["sum3"]["arguments"]["data2"][0]["from_node"])
+
+    def test_merge_issue50(self):
+        """https://github.com/Open-EO/openeo-python-client/issues/50"""
+        graph = {
+            'op3': {'process_id': 'op', 'arguments': {'data': {'from_node': 'op1', 'ref': 'A'}}},
+            'op2': {'process_id': 'op', 'arguments': {'data': {'from_node': 'src', 'ref': 'B'}}},
+            'op1': {'process_id': 'op', 'arguments': {'data': {'from_node': 'op2', 'ref': 'C'}}},
+            'op4': {'process_id': 'op', 'arguments': {'data': {'from_node': 'op3', 'ref': 'D'}}},
+        }
+        builder = GraphBuilder(graph)
+        assert builder.processes['op1']['arguments']['data'] == {'from_node': 'op2', 'ref': 'C'}
+        assert builder.processes['op2']['arguments']['data'] == {'from_node': 'src', 'ref': 'B'}
+        assert builder.processes['op3']['arguments']['data'] == {'from_node': 'op1', 'ref': 'A'}
+        assert builder.processes['op4']['arguments']['data'] == {'from_node': 'op3', 'ref': 'D'}

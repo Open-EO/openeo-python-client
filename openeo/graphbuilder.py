@@ -1,9 +1,8 @@
 import copy
-from typing import Dict
+from typing import Dict, Union
+
 
 class GraphBuilder():
-
-
 
     def __init__(self, graph = None):
         """
@@ -22,7 +21,7 @@ class GraphBuilder():
 
     def add_process(self,process_id,result=None, **args):
         process_id = self.process(process_id, args)
-        if result != None:
+        if result is not None:
             self.processes[process_id]["result"] = result
         return process_id
 
@@ -39,11 +38,11 @@ class GraphBuilder():
             'arguments': args,
             'result': False
         }
-        try:
-            existing_id = list(self.processes.keys())[list(self.processes.values()).index(new_process)]
-            return existing_id
-        except ValueError as e:
-            pass
+        #try:
+        #    existing_id = list(self.processes.keys())[list(self.processes.values()).index(new_process)]
+        #    return existing_id
+        #except ValueError as e:
+        #    pass
         id = self._generate_id(process_id)
         self.processes[id] = new_process
         return id
@@ -56,14 +55,14 @@ class GraphBuilder():
             self.id_counter[name] += 1
         return name + str(self.id_counter[name])
 
-
-    def merge(self, other:'GraphBuilder'):
+    def merge(self, other: 'GraphBuilder'):
         return GraphBuilder(self.processes)._merge_processes(other.processes)
 
-    def _merge_processes(self, processes:Dict):
+    def _merge_processes(self, processes: Dict, return_key_map=False):
+        # Maps original node key to new key in merged result
         key_map = {}
         node_refs = []
-        for key,process in processes.items():
+        for key,process in sorted(processes.items()):
             process_id = process['process_id']
             args = process['arguments']
             result = process.get('result', None)
@@ -73,7 +72,7 @@ class GraphBuilder():
                 key_map[key] = id
             node_refs += self._extract_node_references(args_copy)
 
-            if result != None:
+            if result is not None:
                 self.processes[id]['result'] = result
 
         for node_ref in node_refs:
@@ -81,7 +80,10 @@ class GraphBuilder():
             if old_node_id in key_map:
                 node_ref['from_node'] = key_map[old_node_id]
 
-        return self
+        if return_key_map:
+            return self, key_map
+        else:
+            return self
 
     def _extract_node_references(self, arguments):
         node_ref_list = []
@@ -103,3 +105,25 @@ class GraphBuilder():
         else:
             raise RuntimeError("Invalid list of result node id's: " + str(result_node_ids))
 
+    @classmethod
+    def combine(cls, operator: str, first: Union['GraphBuilder', dict], second: Union['GraphBuilder', dict]):
+        """Combine two GraphBuilders to a new merged one using the given operator"""
+        merged = cls()
+
+        def insert_builder(builder: GraphBuilder):
+            nonlocal merged
+            result_node = builder.find_result_node_id()
+            _, key_map = merged._merge_processes(builder.processes, return_key_map=True)
+            key = key_map.get(result_node, result_node)
+            merged.processes[key]['result'] = False
+            return {'from_node': key}
+
+        if isinstance(first, GraphBuilder):
+            first = insert_builder(first)
+        assert isinstance(first, dict)
+        if isinstance(second, GraphBuilder):
+            second = insert_builder(second)
+        assert isinstance(second, dict)
+
+        merged.add_process(operator, result=True, data=[first, second])
+        return merged

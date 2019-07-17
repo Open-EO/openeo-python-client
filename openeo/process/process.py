@@ -63,7 +63,6 @@ def apply_pixel(imagecollection, bands: List, bandfunction) -> 'ImageCollection'
 
 
 def apply_tiles(imagecollection, code: str) -> 'ImageCollection':
-
     """Apply a function to the tiles of an image collection.
 
     This type applies a simple function to one pixel of the input image or image collection.

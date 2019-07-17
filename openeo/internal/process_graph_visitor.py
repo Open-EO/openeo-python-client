@@ -1,47 +1,52 @@
+import warnings
 from abc import  ABC
 from typing import Dict
+
 
 class ProcessGraphVisitor(ABC):
     """
     Hierarchical Visitor for process graphs, to allow different tools to traverse the graph.
     """
 
-
     def __init__(self):
         self.process_stack = []
 
     @classmethod
     def _list_to_graph(cls,processGraph):
+        # TODO remove this function when not used anymore in openeo-python-driver
+        warnings.warn("_list_to_graph is deprecated, use dereference_node_arguments instead.", DeprecationWarning)
+        return cls.dereference_from_node_arguments(processGraph)
+
+    @classmethod
+    def dereference_from_node_arguments(cls, process_graph:dict) -> str:
         """
-        Converts a list of process graph nodes into an actual graph, by resolving the references.
-        :param processGraph:
-        :return: a list containing the top level nodes in the DAG
+        Walk through the given process graph and replace (in-place) "from_node" references in
+        process arguments (dictionaries or lists) with the corresponding resolved subgraphs
+
+        :param process_graph: process graph dictionary to be manipulated in-place
+        :return: name of the "result" node of the graph
         """
+        # TODO avoid manipulating process graph in place? make it more explicit? work on a copy? Where is this functionality used anyway?
+
+        def resolve_from_node(process_graph, node, from_node):
+            if from_node not in process_graph:
+                raise ValueError('from_node {f!r} (referenced by {n!r}) not in process graph.'.format(
+                    f=from_node, n=node))
+            return process_graph[from_node]
+
         result_node = None
-        for node in processGraph:
-            node_dict = processGraph.get(node)
-            if (node_dict.get("result", False)):
+        for node, node_dict in process_graph.items():
+            if node_dict.get("result", False):
+                assert result_node is None
                 result_node = node
             arguments = node_dict.get("arguments", {})
-            for a in arguments:
-                arg = arguments[a]
-                if type(arg) is dict and "from_node" in arg:
-                    from_node_id = arg["from_node"]
-                    from_node = processGraph.get(from_node_id, None)
-                    if (from_node is None):
-                        raise ValueError(
-                            "Node not found in process graph: " + from_node_id + ". Referenced by: " + node)
-                    arg["node"] = from_node
-                elif type(arg) is list:
-                    for num, element in enumerate(arg):
-                        if type(element) == dict and "from_node" in element:
-                            from_node_id = element["from_node"]
-                            from_node = processGraph.get(from_node_id, None)
-                            if (from_node is None):
-                                raise ValueError(
-                                    "Node not found in process graph: " + from_node_id + ". Referenced by: " + node)
-                            arg[num] = from_node
-
+            for arg in arguments.values():
+                if isinstance(arg, dict) and "from_node" in arg:
+                    arg["node"] = resolve_from_node(process_graph, node, arg["from_node"])
+                elif isinstance(arg, list):
+                    for i, element in enumerate(arg):
+                        if isinstance(element, dict) and "from_node" in element:
+                            arg[i] = resolve_from_node(process_graph, node, element['from_node'])
 
         if result_node is None:
             raise ValueError("The provided process graph does not contain a result node.")
@@ -54,11 +59,9 @@ class ProcessGraphVisitor(ABC):
         :param graph:
         :return:
         """
-        top_level_node = ProcessGraphVisitor._list_to_graph(graph)
+        top_level_node = self.dereference_from_node_arguments(graph)
         self.accept(graph[top_level_node])
         return self
-
-
 
     def accept(self, node:Dict):
         if 'process_id' in node:
@@ -89,7 +92,6 @@ class ProcessGraphVisitor(ABC):
 
             self.leaveProcess(pid, arguments)
             self.process_stack.pop()
-
 
     def enterProcess(self,process_id, arguments:Dict):
         pass

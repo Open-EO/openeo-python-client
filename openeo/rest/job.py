@@ -70,7 +70,6 @@ class RESTJob(Job):
         """ Download job results."""
         # GET /jobs/{job_id}/results > ...
 
-
         download_url = "/jobs/{}/results".format(self.job_id)
         r = self.connection.get(download_url, stream = True)
 

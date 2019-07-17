@@ -59,4 +59,3 @@ class RESTFile(File):
         resp = self.connection.delete(path)
 
         return resp.status_code
-

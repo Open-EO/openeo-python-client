@@ -100,3 +100,12 @@ ENV/
 # mypy
 .mypy_cache/
 .idea
+
+# Unit test related artifacts
+pytest-junit.xml
+out.geotiff
+
+# Temp folders
+tmp/
+temp/
+Temp/

@@ -1,24 +1,22 @@
 import json
 import shutil
-from distutils.version import LooseVersion
 
 import requests
 from openeo.auth.auth_basic import BasicAuth
 from openeo.auth.auth_none import NoneAuth
+from openeo.capabilities import Capabilities
 from openeo.connection import Connection
 from openeo.rest.job import RESTJob
 from openeo.rest.rest_capabilities import RESTCapabilities
 from openeo.rest.rest_processes import RESTProcesses
+from typing import Dict
 
 """
-openeo.sessions
-~~~~~~~~~~~~~~~~
 This module provides a Connection object to manage and persist settings when interacting with the OpenEO API.
 """
 
 
 class RESTConnection(Connection):
-
 
     def __init__(self, url, auth_type=NoneAuth, auth_options={}):
         # TODO: Maybe in future only the endpoint is needed, because of some kind of User object inside of the connection.
@@ -44,19 +42,13 @@ class RESTConnection(Connection):
         :return: token: String Bearer token
         """
 
-        username = None
-        password = None
-
-        if 'username' in auth_options:
-            username = auth_options['username']
-
-        if 'password' in auth_options:
-            password = auth_options['password']
+        username = auth_options.get('username')
+        password = auth_options.get('password')
 
         self.userid = username
         self.endpoint = url
 
-        if auth_type == NoneAuth and username != None and password != None:
+        if auth_type == NoneAuth and username and password:
             auth_type = BasicAuth
 
         self.authent = auth_type(username, password, self.endpoint)
@@ -98,6 +90,7 @@ class RESTConnection(Connection):
         Loads all jobs of the current user.
         :return: jobs: Dict All jobs of the user
         """
+        # TODO: self.userid might be None
         jobs = self.get(self.root + '/users/{}/jobs'.format(self.userid))
         return self.parse_json_response(jobs)
 
@@ -124,8 +117,6 @@ class RESTConnection(Connection):
         # TODO return only provided processes of the back end
 
         return RESTProcesses(self)
-
-
 
     def capabilities(self) -> 'Capabilities':
         """
@@ -211,7 +202,6 @@ class RESTConnection(Connection):
         # Endpoint: GET /process_graphs
         return self.not_supported()
 
-
     def get_process(self, process_id) -> dict:
         # TODO: Maybe create some kind of Process class.
         """
@@ -228,8 +218,9 @@ class RESTConnection(Connection):
 
         return processes_dict
 
-    def _isVersion040(self):
-        return LooseVersion(self.capabilities().version()) >= LooseVersion("0.4.0")
+    @property
+    def _api_version(self):
+        return self.capabilities().api_version_check
 
     def imagecollection(self, image_collection_id) -> 'ImageCollection':
         """
@@ -237,11 +228,11 @@ class RESTConnection(Connection):
         :param image_collection_id: String image collection identifier
         :return: collection: RestImageCollection the imagecollection with the id
         """
-        if self._isVersion040():
+        if self._api_version.at_least('0.4.0'):
             return self._image_040(image_collection_id)
         else:
             from .imagery import RestImagery
-            collection = RestImagery({'collection_id': image_collection_id}, self)
+            collection = RestImagery({'name': image_collection_id, 'process_id': 'get_collection'}, self)
 
             self.fetch_metadata(image_collection_id, collection)
             return collection
@@ -253,6 +244,7 @@ class RESTConnection(Connection):
         :return: collection: RestImagery the imagery with the id
         """
         #new implementation: https://github.com/Open-EO/openeo-api/issues/160
+        # TODO avoid local imports
         from .imagecollectionclient import ImageCollectionClient
         image = ImageCollectionClient.create_collection(image_product_id, self)
         self.fetch_metadata(image_product_id, image)
@@ -266,6 +258,7 @@ class RESTConnection(Connection):
         :param image_collection_id: String image collection identifier
         :return: collection: RestImagery the imagery with the id
         """
+        # TODO avoid local imports
         from .rest_processes import RESTProcesses
 
         image = RESTProcesses( self)
@@ -274,6 +267,7 @@ class RESTConnection(Connection):
         return image
 
     def fetch_metadata(self, image_product_id, image_collection):
+        # TODO: this sets public properties on image_collection: shouldn't this be part of ImageCollection class then?
         # read and format extent, band and date availability information
         data_info = self.describe_collection(image_product_id)
         image_collection.bands = []
@@ -292,9 +286,25 @@ class RESTConnection(Connection):
         return self.post(self.root + "/timeseries/point?x={}&y={}&srs={}"
                          .format(x,y,srs), graph)
 
-    def create_service(self,graph,**kwargs):
+    def create_service(self, graph, type, **kwargs):
         kwargs["process_graph"] = graph
-        return self.parse_json_response(self.post(self.root + "/services",kwargs))
+        kwargs["type"] = type
+
+        response = self.post(self.root + "/services", kwargs)
+
+        if response.status_code == 201:
+            service_url = response.headers['location']
+
+            return {
+                'url': service_url
+            }
+        else:
+            self._handle_error_response(response)
+
+    def remove_service(self, service_id: str):
+        response = self.delete('/services/' + service_id)
+        if response.status_code != 204:
+            self._handle_error_response(response)
 
     def job_results(self, job_id):
         response = self.get("/jobs/{}/results".format(job_id))
@@ -341,7 +351,7 @@ class RESTConnection(Connection):
         request = {
             "process_graph": graph
         }
-        if self._isVersion040():
+        if self._api_version.at_least('0.4.0'):
             path = "/result"
         else:
             request["output"] = format_options
@@ -353,7 +363,7 @@ class RESTConnection(Connection):
             with open(outputfile, 'wb') as f:
                 shutil.copyfileobj(r.raw, f)
         else:
-            raise IOError("Received an exception from the server for url: {} and POST message: {}".format(download_url,json.dumps( request ) ) + r.text)
+            self._handle_error_response(r)
 
         return
 
@@ -368,19 +378,19 @@ class RESTConnection(Connection):
         """
         # TODO: add output_format to execution
         path = "/preview"
-        if self._isVersion040():
+        if self._api_version.at_least('0.4.0'):
             path = "/result"
         response = self.post(self.root + path, process_graph)
         return self.parse_json_response(response)
 
-    def create_job(self, process_graph, output_format=None, output_parameters={},
-                   title=None, description=None, plan=None, budget=None,
-                   additional={}):
+    def create_job(self, process_graph:Dict, output_format:str=None, output_parameters:Dict={},
+                   title:str=None, description:str=None, plan:str=None, budget=None,
+                   additional:Dict={}):
         """
         Posts a job to the back end.
         :param process_graph: String data of the job (e.g. process graph)
-        :param output_format: String Output format of the execution
-        :param output_parameters: Dict of additional output parameters
+        :param output_format: String Output format of the execution - DEPRECATED in 0.4.0
+        :param output_parameters: Dict of additional output parameters - DEPRECATED in 0.4.0
         :param title: String title of the job
         :param description: String description of the job
         :param budget: Budget
@@ -389,15 +399,17 @@ class RESTConnection(Connection):
 
         process_graph = {
              "process_graph": process_graph,
-             "output": {
-                 "format": output_format,
-                 "parameters": output_parameters
-                },
              "title": title,
              "description": description,
              "plan": plan,
              "budget": budget
          }
+
+        if not self._api_version.at_least('0.4.0'):
+            process_graph["output"] = {
+                "format": output_format,
+                "parameters": output_parameters
+            }
 
         job_status = self.post("/jobs", process_graph)
 
@@ -412,9 +424,7 @@ class RESTConnection(Connection):
                 job_id = job_info['location'][1].split("/")[-1]
                 job = RESTJob(job_id, self)
         else:
-            raise ConnectionAbortedError(job_status.json().get('message','No error message provided.'))
-
-
+            self._handle_error_response(job_status)
 
         return job
 
@@ -426,11 +436,21 @@ class RESTConnection(Connection):
         """
         if response.status_code == 200 or response.status_code == 201:
             return response.json()
-        elif response.status_code == 502:
+        else:
+            self._handle_error_response(response)
+
+    def _handle_error_response(self, response):
+        if response.status_code == 502:
             from requests.exceptions import ProxyError
             raise ProxyError("The proxy returned an error, this could be due to a timeout.")
         else:
-            raise ConnectionAbortedError(response.text)
+            message = None
+            if response.headers['Content-Type'] == 'application/json':
+                message = response.json().get('message', None)
+            if message:
+                message = response.text
+
+            raise ConnectionAbortedError(message)
 
     def post(self, path, postdata):
         """
@@ -448,7 +468,6 @@ class RESTConnection(Connection):
         """
         Makes a RESTful DELETE request to the back end.
         :param path: URL of the request (without root URL e.g. "/data")
-        :param postdata: Data of the post request
         :return: response: Response
         """
 
@@ -503,21 +522,7 @@ class RESTConnection(Connection):
             auth_header = {}
             auth = None
 
-
-
         return requests.get(self.endpoint+path, headers=auth_header, stream=stream, auth=auth)
-
-    def delete(self, path):
-        """
-        Makes a RESTful DELETE request to the backend
-
-        :param path: URL of the request relative to endpoint url
-        """
-
-        auth_header = self.authent.get_header()
-        auth = self.authent.get_auth()
-
-        return requests.delete(self.endpoint+path, headers=auth_header, auth=auth)
 
     def get_outputformats(self) -> dict:
         """
@@ -528,13 +533,14 @@ class RESTConnection(Connection):
         return self.not_supported()
 
     def not_supported(self):
+        # TODO why not raise exception? the print isn't even to standard error
+        # TODO: also: is this about not supporting YET (feature under construction) or impossible to support?
         not_support = "This function is not supported by the python client yet."
         print(not_support)
         return not_support
 
 
-
-def connection(url, auth_type=NoneAuth, auth_options={}):
+def connection(url, auth_type=NoneAuth, auth_options={}) -> RESTConnection:
     """
     This method is the entry point to OpenEO. You typically create one connection object in your script or application, per back-end.
     and re-use it for all calls to that backend.
@@ -547,7 +553,8 @@ def connection(url, auth_type=NoneAuth, auth_options={}):
 
     return RESTConnection(url, auth_type, auth_options)
 
-def session(userid=None,endpoint:str="https://openeo.org/openeo"):
+
+def session(userid=None, endpoint: str = "https://openeo.org/openeo") -> RESTConnection:
     """
     Deprecated, use openeo.connect
     This method is the entry point to OpenEO. You typically create one session object in your script or application, per back-end.
@@ -556,4 +563,4 @@ def session(userid=None,endpoint:str="https://openeo.org/openeo"):
     :param endpoint: The http url of an OpenEO endpoint.
     :rtype: openeo.sessions.Session
     """
-    return connection(url = endpoint)
+    return connection(url=endpoint)

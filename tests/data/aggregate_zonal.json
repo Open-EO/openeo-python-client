@@ -1,28 +1,32 @@
 {
   "process_graph": {
-    "getcollection1": {
-      "process_id": "get_collection",
-      "arguments": {
-        "name": "SENTINEL2_FAPAR"
-      },
-      "result": false
-    },
     "filterbbox1": {
       "process_id": "filter_bbox",
       "arguments": {
         "data": {
-          "from_node": "getcollection1"
+          "from_node": "loadcollection1"
         },
-        "west": 3,
-        "east": 6,
-        "north": 52,
-        "south": 50,
-        "crs": "EPSG:4326"
+        "extent": {
+          "west": 3,
+          "east": 6,
+          "north": 52,
+          "south": 50,
+          "crs": "EPSG:4326"
+        }
       },
       "result": false
     },
-    "aggregatepolygons1": {
-      "process_id": "aggregate_polygons",
+    "loadcollection1": {
+      "process_id": "load_collection",
+      "arguments": {
+        "id": "SENTINEL2_FAPAR",
+        "spatial_extent": null,
+        "temporal_extent": null
+      },
+      "result": false
+    },
+    "aggregatepolygon1": {
+      "process_id": "aggregate_polygon",
       "arguments": {
         "data": {
           "from_node": "filterbbox1"
@@ -65,7 +69,7 @@
             "unary": {
               "arguments": {
                 "data": {
-                  "from_argument": "dimension_data"
+                  "from_argument": "data"
                 }
               },
               "process_id": "mean",
@@ -74,7 +78,7 @@
           }
         }
       },
-      "result": false
+      "result": true
     }
   }
 }
