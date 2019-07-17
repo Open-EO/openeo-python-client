@@ -444,7 +444,7 @@ class RESTConnection(Connection):
         auth = self.authent.get_auth()
         return requests.post(self.endpoint+path, json=postdata, headers=auth_header, auth=auth)
 
-    def delete(self, path, postdata):
+    def delete(self, path):
         """
         Makes a RESTful DELETE request to the back end.
         :param path: URL of the request (without root URL e.g. "/data")
@@ -454,7 +454,7 @@ class RESTConnection(Connection):
 
         auth_header = self.authent.get_header()
         auth = self.authent.get_auth()
-        return requests.delete(self.endpoint+path, json=postdata, headers=auth_header, auth=auth)
+        return requests.delete(self.endpoint+path, headers=auth_header, auth=auth)
 
     def patch(self, path):
         """
