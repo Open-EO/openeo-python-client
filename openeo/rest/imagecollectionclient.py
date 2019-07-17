@@ -782,7 +782,7 @@ class ImageCollectionClient(ImageCollection):
             return self.session.download(self.graph, time, outputfile, format_options)
 
     def tiled_viewing_service(self,**kwargs) -> Dict:
-        self.graph[self.node_id]["result"] = 'true'
+        self.graph[self.node_id]["result"] = True
         return self.session.create_service(self.graph,**kwargs)
 
     def send_job(self, out_format=None, **format_options) -> Job:

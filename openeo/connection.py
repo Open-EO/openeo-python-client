@@ -181,6 +181,15 @@ class Connection(ABC):
         """
         pass
 
+    @abstractmethod
+    def remove_service(self, service_id: str):
+        """
+        Stop and remove a secondary web service.
+        :param service_id: service identifier
+        :return:
+        """
+        pass
+
 
 # TODO: methods below are depricated / should be located somewhere else.
 
