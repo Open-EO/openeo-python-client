@@ -1,4 +1,4 @@
-from openeo.rest.rest_connection import RESTConnection
+from openeo.connection import Connection
 from openeo.processgraph import ProcessGraph
 from openeo.job import Job, JobResult
 from typing import List
@@ -16,7 +16,7 @@ class RESTJobResult(JobResult):
 
 class RESTJob(Job):
 
-    def __init__(self, job_id: str, connection: RESTConnection):
+    def __init__(self, job_id: str, connection: Connection):
         super().__init__(job_id)
         self.connection = connection
 
@@ -69,7 +69,6 @@ class RESTJob(Job):
     def download_results(self, target):
         """ Download job results."""
         # GET /jobs/{job_id}/results > ...
-
 
         download_url = "/jobs/{}/results".format(self.job_id)
         r = self.connection.get(download_url, stream = True)

@@ -11,9 +11,9 @@ This client allows users to communicate with OpenEO backends, in a way that feel
 """
 
 __title__ = 'openeo'
-__version__ = '0.0.4'
 __author__ = 'Jeroen Dries'
 
+from ._version import __version__
 from openeo.catalog import EOProduct
 from openeo.imagecollection import ImageCollection
 from openeo.rest.rest_connection import connection as connect
@@ -22,6 +22,8 @@ from openeo.job import Job
 from openeo.auth.auth import Auth
 from openeo.process.process import *
 
+
+# TODO: why is this a constant? Shouldn't the client be capable of working with (a range of) multiple versions?
 # TODO: make some kind of config file for the client version
 CLIENT_VERSION = "0.3.0"
 

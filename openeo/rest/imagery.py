@@ -7,8 +7,9 @@ from pandas import Series
 
 from openeo.job import Job
 from openeo.rest.job import RESTJob
-from ..imagecollection import ImageCollection
-from ..connection import Connection
+from openeo.imagecollection import ImageCollection
+from openeo.util import first_not_none
+from openeo.connection import Connection
 from shapely.geometry import Polygon, MultiPolygon, mapping
 
 
@@ -32,8 +33,7 @@ class RestImagery(ImageCollection):
         process_id = 'filter_daterange'
         args = {
                 'imagery': self.graph,
-                'from': start_date,
-                'to': end_date
+                'extent': [start_date, end_date]
             }
 
         return self.graph_add_process(process_id, args)
@@ -52,11 +52,14 @@ class RestImagery(ImageCollection):
         process_id = 'filter_bbox'
         args = {
                 'imagery': self.graph,
-                'west': west or left,
-                'east': east or right,
-                'north': north or top,
-                'south': south or bottom,
-                'crs': crs or srs
+                'extent':
+                {
+                    'west': first_not_none(west, left),
+                    'east': first_not_none(east, right),
+                    'north': first_not_none(north, top),
+                    'south': first_not_none(south, bottom),
+                    'crs': first_not_none(crs, srs),
+                }
             }
         return self.graph_add_process(process_id, args)
 
@@ -328,13 +331,13 @@ class RestImagery(ImageCollection):
         :return: status: ClientJob resulting job.
         """
         if out_format:
-            return RESTJob(self.session.job({"process_graph": self.graph,
+            return RESTJob(self.session.create_job({"process_graph": self.graph,
                                                'output': {
                                                    'format': out_format,
                                                    'parameters': format_options
-                                               }}), self.session)
+                                               }}).job_id, self.session)
         else:
-            return RESTJob(self.session.job({"process_graph": self.graph}), self.session)
+            return RESTJob(self.session.create_job({"process_graph": self.graph}).job_id, self.session)
 
     def execute(self) -> Dict:
         """Executes the process graph of the imagery. """
@@ -352,7 +355,15 @@ class RestImagery(ImageCollection):
         """
         graph = {
             'process_id': process_id,
-            'args': args
+
         }
+
+        for key, value in args.items():
+            graph[key] = value
+
+        #graph = {
+        #    'process_id': process_id,
+        #    'args': args
+        #}
 
         return RestImagery(graph, self.session)

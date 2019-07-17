@@ -1,5 +1,6 @@
 from abc import ABC
 
+
 class Auth(ABC):
     """
     The Auth class represents a specific type of authentication method.
