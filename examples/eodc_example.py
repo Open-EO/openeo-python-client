@@ -26,7 +26,7 @@ timeseries = s2a_prd_msil1c.bbox_filter(left=652000, right=672000, top=5161000,
                                               bottom=5181000, srs="EPSG:32632")
 logging.debug("{}".format(timeseries.graph))
 
-timeseries = timeseries.date_range_filter("2017-01-01", "2017-01-08")
+timeseries = timeseries.filter_temporal("2017-01-01", "2017-01-08")
 logging.debug("{}".format(timeseries.graph))
 
 timeseries = timeseries.ndvi("B04", "B08")

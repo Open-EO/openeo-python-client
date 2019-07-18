@@ -26,14 +26,34 @@ class TestRasterCube(TestCase):
         self.mask = ImageCollectionClient(mask_id, builder, connection)
 
     def test_date_range_filter(self):
-        new_imagery = self.imagery.date_range_filter("2016-01-01", "2016-03-10")
+        im = self.imagery.date_range_filter("2016-01-01", "2016-03-10")
+        graph = im.graph[im.node_id]
+        assert graph['process_id'] == 'filter_temporal'
+        assert graph['arguments']['extent'] == ["2016-01-01", "2016-03-10"]
 
-        graph = new_imagery.graph[new_imagery.node_id]
+    def test_filter_daterange(self):
+        im = self.imagery.filter_daterange(extent=("2016-01-01", "2016-03-10"))
+        graph = im.graph[im.node_id]
+        assert graph['process_id'] == 'filter_temporal'
+        assert graph['arguments']['extent'] == ["2016-01-01", "2016-03-10"]
 
-        self.assertEqual(graph["process_id"], "filter_temporal")
-        self.assertIn("data", graph['arguments'])
-        self.assertEqual(graph["arguments"]["extent"][0], "2016-01-01")
-        self.assertEqual(graph["arguments"]["extent"][1], "2016-03-10")
+    def test_filter_temporal(self):
+        im = self.imagery.filter_temporal("2016-01-01", "2016-03-10")
+        graph = im.graph[im.node_id]
+        assert graph['process_id'] == 'filter_temporal'
+        assert graph['arguments']['extent'] == ["2016-01-01", "2016-03-10"]
+
+    def test_filter_temporal_start_end(self):
+        im = self.imagery.filter_temporal(start_date="2016-01-01", end_date="2016-03-10")
+        graph = im.graph[im.node_id]
+        assert graph['process_id'] == 'filter_temporal'
+        assert graph['arguments']['extent'] == ["2016-01-01", "2016-03-10"]
+
+    def test_filter_temporal_extent(self):
+        im = self.imagery.filter_temporal(extent=("2016-01-01", "2016-03-10"))
+        graph = im.graph[im.node_id]
+        assert graph['process_id'] == 'filter_temporal'
+        assert graph['arguments']['extent'] == ["2016-01-01", "2016-03-10"]
 
     def test_bbox_filter_nsew(self):
         new_imagery = self.imagery.bbox_filter(

@@ -3,6 +3,7 @@
 from typing import List, Union
 from datetime import datetime, date
 
+# TODO is this module (still) useful? also see https://github.com/Open-EO/openeo-python-client/issues/61
 
 def ndvi(imagecollection, red, nir):
     """ NDVI
@@ -16,7 +17,7 @@ def ndvi(imagecollection, red, nir):
     return imagecollection.ndvi(red, nir)
 
 
-def date_range_filter(imagecollection, start_date: Union[str, datetime, date], end_date: Union[str, datetime, date]) -> 'ImageCollection':
+def filter_temporal(imagecollection, start_date: Union[str, datetime, date], end_date: Union[str, datetime, date]) -> 'ImageCollection':
     """
     Specifies a date range filter to be applied on the ImageCollection
 
@@ -26,7 +27,7 @@ def date_range_filter(imagecollection, start_date: Union[str, datetime, date], e
 
     :return: An ImageCollection filtered by date.
     """
-    return imagecollection.date_range_filter(start_date, end_date)
+    return imagecollection.filter_temporal(start_date, end_date)
 
 
 def bbox_filter(imagecollection, left: float, right: float, top: float, bottom: float, srs: str) -> 'ImageCollection':

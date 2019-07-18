@@ -4,3 +4,4 @@ cloudpickle
 numpy
 pandas
 requests-mock
+deprecated

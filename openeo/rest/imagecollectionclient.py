@@ -66,23 +66,14 @@ class ImageCollectionClient(ImageCollection):
         id = builder.process(process_id, arguments)
         return ImageCollectionClient(id, builder, session)
 
-    def date_range_filter(self, start_date: Union[str, datetime, date],
-                          end_date: Union[str, datetime, date]) -> 'ImageCollection':
-        """Drops observations from a collection that have been captured before
-            a start or after a given end date.
-
-            :param start_date: starting date of the filter
-            :param end_date: ending date of the filter
-            :return: An ImageCollection instance
-        """
-        process_id = 'filter_temporal'
-
-        args = {
-            'data':{'from_node': self.node_id},
-            'extent': [start_date, end_date]
-        }
-
-        return self.graph_add_process(process_id, args)
+    def _filter_temporal(self, start: str, end: str) -> 'ImageCollection':
+        return self.graph_add_process(
+            process_id='filter_temporal',
+            args={
+                'data': {'from_node': self.node_id},
+                'extent': [start, end]
+            }
+        )
 
     def bbox_filter(self, west=None, east=None, north=None, south=None, crs=None,left=None, right=None, top=None, bottom=None, srs=None) -> 'ImageCollection':
         """Drops observations from a collection that are located outside

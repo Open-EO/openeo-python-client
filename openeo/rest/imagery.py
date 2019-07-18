@@ -22,8 +22,7 @@ class RestImagery(ImageCollection):
         self.graph = parentgraph
         self.session = session
 
-    def date_range_filter(self, start_date: Union[str, datetime, date],
-                          end_date: Union[str, datetime, date]) -> 'ImageCollection':
+    def _filter_temporal(self, start_date: str, end_date: str) -> 'ImageCollection':
         """Drops observations from a collection that have been captured before
             a start or after a given end date.
             :param start_date: starting date of the filter

@@ -10,13 +10,13 @@ class TestImagery(TestCase):
 
     def test_date_range_filter(self):
         new_imagery = self.processes.date_range_filter("2016-01-01", "2016-03-10")
-
         graph = new_imagery.graph
+        assert graph == {'process_id': 'filter_daterange', 'imagery': {}, 'extent': ["2016-01-01", "2016-03-10"]}
 
-        self.assertEqual(graph["process_id"],"filter_daterange")
-        self.assertEqual(graph["imagery"], {})
-        self.assertEqual(graph["extent"][0], "2016-01-01")
-        self.assertEqual(graph["extent"][1], "2016-03-10")
+    def test_filter_temporal(self):
+        new_imagery = self.processes.filter_temporal("2016-01-01", "2016-03-10")
+        graph = new_imagery.graph
+        assert graph == {'process_id': 'filter_daterange', 'imagery': {}, 'extent': ["2016-01-01", "2016-03-10"]}
 
     def test_bbox_filter_nsew(self):
         new_imagery = self.processes.bbox_filter(
