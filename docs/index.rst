@@ -29,7 +29,7 @@ Begin by importing the openeo module::
 
 Now we need to connect to a backend::
 
-    >>> connection = openeo.connect('http://openeo.vgt.vito.be/openeo')
+    >>> connection = openeo.connect('http://openeo.vgt.vito.be/openeo/0.4.0')
 
 Now, we have a :class:`Connection <openeo.Connection>` object called ``connection``. We can
 This object is our entry point to the backend, and allows us to discover its capabilities.
@@ -39,26 +39,26 @@ Information about a backend is most easily found on the OpenEO HUB: http://hub.o
 Band math usually starts from a raster data cube, with multiple spectral bands available.
 The backend used here has a Sentinel-2 collection: CGS_SENTINEL2_RADIOMETRY_V102_001
 
-    >>> sentinel2_data_cube = connection.image("CGS_SENTINEL2_RADIOMETRY_V102_001")
+    >>> sentinel2_data_cube = connection.imagecollection("CGS_SENTINEL2_RADIOMETRY_V102_001")
 
 Now we have a :class:`ImageCollection <openeo.ImageCollection>` object called ``sentinel2_data_cube``.
 Creating this object does not yet load any data, but virtually it can contain quite a lot of data.
 Therefore, we need to filter it before we can use it::
 
-    >>> sentinel2_data_cube = sentinel2_data_cube.date_range_filter("2016-01-01","2016-03-10") \
-                                       .bbox_filter(left=652000,right=672000,top=5161000,bottom=5181000,srs="EPSG:32632") \
+    >>> sentinel2_data_cube = sentinel2_data_cube.filter_daterange(extent=["2016-01-01","2016-03-10"]) \
+                               .filter_bbox(west=5.15183687210083,east=5.153381824493408,south=51.18192559252128,north=51.18469636040683,crs="EPSG:4326")
 
 
 On this data cube, we can now select the individual bands::
 
-    >>> B02 = sentinel2_data_cube.band('B02')
-        B04 = sentinel2_data_cube.band('B04')
-        B08 = sentinel2_data_cube.band('B08')
+    >>> B02 = sentinel2_data_cube.band('2')
+        B04 = sentinel2_data_cube.band('4')
+        B08 = sentinel2_data_cube.band('8')
 
 In this example, we'll compute the enhanced vegetation index (EVI)::
 
     >>> evi_cube = (2.5 * (B08 - B04)) / ((B08 + 6.0 * B04 - 7.5 * B02) + 1.0)
-        evi_cube.download("out.geotiff", bbox="", time=s2_radio.dates['to'])
+        evi_cube.download("out.geotiff",format="GeoTIFF")
 
 
 API
