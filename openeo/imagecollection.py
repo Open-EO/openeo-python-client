@@ -238,6 +238,7 @@ class ImageCollection(ABC):
         """Select the given band, as input for subsequent operations.
 
             :param bands: List of band names or single band name as a string.
+
             :return An ImageCollection instance
         """
         pass

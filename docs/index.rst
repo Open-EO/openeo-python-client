@@ -61,6 +61,43 @@ In this example, we'll compute the enhanced vegetation index (EVI)::
         evi_cube.download("out.geotiff",format="GeoTIFF")
 
 
+Example: Smoothing timeseries with a user defined function (UDF)
+----------------------------------------------------------------
+
+User defined functions are a very important feature of OpenEO. They allow you as a user to
+reuse existing code, by submitting it to the backend.
+
+In this example, we start from the 'evi_cube' that was created in the previous example, and want to
+apply a temporal smoothing on it. More specifically, we want to use the "Savitzky Golay" smoother
+that is available in the SciPy Python library.
+
+The user defined function implementation needs to follow a specification, that is defined here:
+https://github.com/Open-EO/openeo-udf
+
+This is an example that follows the spec:
+
+.. literalinclude:: ../examples/udf/smooth_savitzky_golay.py
+    :caption: UDF code
+    :name: savgol_udf
+
+Once the UDF is defined in a separate file, we need to load it::
+
+    >>> def get_resource(relative_path):
+            return str(Path( relative_path))
+
+        def load_udf(relative_path):
+            import json
+            with open(get_resource(relative_path), 'r+') as f:
+                return f.read()
+
+        smoothing_udf = load_udf('udf/smooth_savitzky_golay.py')
+        print(smoothing_udf)
+
+after that, we can simply apply it along a dimension::
+
+    >>> smoothed_evi = evi_cube.apply_dimension(smoothing_udf,runtime='Python')
+
+
 API
 ===
 
