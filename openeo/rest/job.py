@@ -36,14 +36,14 @@ class RESTJob(Job):
     def delete_job(self):
         """ Delete a job."""
         # DELETE /jobs/{job_id}
-        request = self.connection.delete("/jobs/{}".format(self.job_id), postdata=None)
+        request = self.connection.delete("/jobs/{}".format(self.job_id))
 
         return request.status_code
 
     def estimate_job(self):
         """ Calculate an time/cost estimate for a job."""
         # GET /jobs/{job_id}/estimate
-        request = self.connection.get("/jobs/{}/estimate".format(self.job_id), postdata=None)
+        request = self.connection.get("/jobs/{}/estimate".format(self.job_id))
 
         return self.connection.parse_json_response(request)
 
@@ -57,10 +57,9 @@ class RESTJob(Job):
     def stop_job(self):
         """ Stop / cancel job processing."""
         # DELETE /jobs/{job_id}/results
-        request = self.connection.delete("/jobs/{}/results".format(self.job_id), postdata=None)
+        request = self.connection.delete("/jobs/{}/results".format(self.job_id))
 
         return request.status_code
-        pass
 
     def list_results(self, type=None):
         """ Get document with download links."""
@@ -100,7 +99,7 @@ class RESTJob(Job):
             raise ConnectionAbortedError(r.text)
         return r.status_code
 
-# TODO: All below methods are depricated (at least not specified in the coreAPI)
+# TODO: All below methods are deprecated (at least not specified in the coreAPI)
     def download(self, outputfile:str, outputformat=None):
         """ Download the result as a raster."""
         try:
