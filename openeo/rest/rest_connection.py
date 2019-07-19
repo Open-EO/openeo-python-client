@@ -1,7 +1,9 @@
-import json
+import logging
 import shutil
+from typing import Dict, List
 
 import requests
+
 from openeo.auth.auth_basic import BasicAuth
 from openeo.auth.auth_none import NoneAuth
 from openeo.capabilities import Capabilities
@@ -9,11 +11,12 @@ from openeo.connection import Connection
 from openeo.rest.job import RESTJob
 from openeo.rest.rest_capabilities import RESTCapabilities
 from openeo.rest.rest_processes import RESTProcesses
-from typing import Dict
 
 """
 This module provides a Connection object to manage and persist settings when interacting with the OpenEO API.
 """
+
+_log = logging.getLogger(__name__)
 
 
 class RESTConnection(Connection):
@@ -28,6 +31,7 @@ class RESTConnection(Connection):
         :param auth_class: Auth instance of the abstract Auth class
         :return: token: String Bearer token
         """
+        # TODO what is the point of this `root`? Isn't `url`/`self.endpoint` enough
         self.root = ""
         self._cached_capabilities = None
         self.connect(url, auth_type, auth_options)
@@ -94,19 +98,22 @@ class RESTConnection(Connection):
         jobs = self.get(self.root + '/users/{}/jobs'.format(self.userid))
         return self.parse_json_response(jobs)
 
-    def list_collections(self) -> dict:
+    def list_collections(self) -> List[dict]:
         """
         Loads all available imagecollections types.
-        :return: data_dict: Dict All available data types
+        :return: list of collection meta data dictionaries
         """
         data = self.get(self.root + '/collections', auth=False)
-
         response = self.parse_json_response(data)
+        return response["collections"]
 
-        if "collections" in response:
-            return response["collections"]
-
-        return response
+    def list_collection_ids(self) -> List[str]:
+        """
+        Get list of all collection ids
+        :return: list of collection ids
+        """
+        field = 'id' if self._api_version.at_least('0.4.0') else 'name'
+        return [collection[field] for collection in self.list_collections() if field in collection]
 
     def get_processes(self):
         """
@@ -126,6 +133,7 @@ class RESTConnection(Connection):
         """
         if self._cached_capabilities is None:
             data = self.get(self.root + '/', auth=False)
+            data.raise_for_status()
             self._cached_capabilities = RESTCapabilities(self.parse_json_response(data))
 
         return self._cached_capabilities
@@ -281,10 +289,10 @@ class RESTConnection(Connection):
             image_collection.dates = ['not specified']
             image_collection.extent = ['not specified']
 
-    def point_timeseries(self, graph, x, y, srs):
+    def point_timeseries(self, graph, x, y, srs) -> dict:
         """Compute a timeseries for a given point location."""
-        return self.post(self.root + "/timeseries/point?x={}&y={}&srs={}"
-                         .format(x,y,srs), graph)
+        r = self.post(self.root + "/timeseries/point?x={x}&y={y}&srs={s}".format(x=x, y=y, s=srs), graph)
+        return r.json()
 
     def create_service(self, graph, type, **kwargs):
         kwargs["process_graph"] = graph
@@ -358,14 +366,13 @@ class RESTConnection(Connection):
 
         download_url = self.endpoint + self.root + path
 
+        # TODO: why not self.post()?
         r = requests.post(download_url, json=request, stream = True, timeout=1000 )
         if r.status_code == 200:
             with open(outputfile, 'wb') as f:
                 shutil.copyfileobj(r.raw, f)
         else:
             self._handle_error_response(r)
-
-        return
 
     def execute(self, process_graph, output_format, output_parameters=None, budget=None):
         """
@@ -462,6 +469,7 @@ class RESTConnection(Connection):
 
         auth_header = self.authent.get_header()
         auth = self.authent.get_auth()
+        # TODO: add .raise_for_status() by default?
         return requests.post(self.endpoint+path, json=postdata, headers=auth_header, auth=auth)
 
     def delete(self, path):
@@ -473,6 +481,7 @@ class RESTConnection(Connection):
 
         auth_header = self.authent.get_header()
         auth = self.authent.get_auth()
+        # TODO: add .raise_for_status() by default?
         return requests.delete(self.endpoint+path, headers=auth_header, auth=auth)
 
     def patch(self, path):
@@ -521,7 +530,7 @@ class RESTConnection(Connection):
         else:
             auth_header = {}
             auth = None
-
+        # TODO: add .raise_for_status() by default?
         return requests.get(self.endpoint+path, headers=auth_header, stream=stream, auth=auth)
 
     def get_outputformats(self) -> dict:

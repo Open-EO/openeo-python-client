@@ -156,7 +156,7 @@ class TestUserFiles(TestCase):
 
     def test_list_collections(self, m):
         collection_url = "{}/collections".format(self.endpoint)
-        m.register_uri('GET', collection_url, json=COLLECTIONS)
+        m.register_uri('GET', collection_url, json={'collections': COLLECTIONS})
         con = openeo.connect(self.endpoint)
 
         collections = con.list_collections()
