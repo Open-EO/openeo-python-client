@@ -6,7 +6,7 @@ from deprecated import deprecated
 from shapely.geometry import Polygon, MultiPolygon
 
 from openeo.job import Job
-from openeo.util import get_temporal_extent
+from openeo.util import get_temporal_extent, first_not_none
 
 
 class ImageCollection(ABC):
@@ -66,29 +66,31 @@ class ImageCollection(ABC):
         # TODO: replace this with raise NotImplementedError() or decorate with @abstractmethod
         return self.date_range_filter(start_date, end_date)
 
-
-
     def filter_bbox(self, west, east, north, south, crs=None, base=None, height=None) -> 'ImageCollection':
-        """Drops observations from a collection that are located outside
-            of a given bounding box.
-
-            :param imagery: eodata object (ProcessGraph)
-            :param west: west boundary (longitude / easting)
-            :param east: east boundary (longitude / easting)
-            :param top: top boundary (latitude / northing)
-            :param bottom: top boundary (latitude / northing)
-            :param crs: spatial reference system of boundaries as
-                        proj4 or EPSG:12345 like string
-            :param base: lower left corner coordinate axis 3
-            :param height: upper right corner coordinate axis 3
-            :return: An image collection cropped to the specified bounding box.
         """
+        Limits the ImageCollection to a given spatial bounding box.
 
-        if base is not None or height is not None:
-            return self.bbox_filter(west=west,east=east,north=north, south=south,crs=crs,base=base,height=height)
-        else:
-            return self.bbox_filter(west=west, east=east, north=north, south=south, crs=crs)
+        :param west: west boundary (longitude / easting)
+        :param east: east boundary (longitude / easting)
+        :param north: north boundary (latitude / northing)
+        :param south: south boundary (latitude / northing)
+        :param crs: spatial reference system of boundaries as
+                    proj4 or EPSG:12345 like string
+        :param base: lower left corner coordinate axis 3
+        :param height: upper right corner coordinate axis 3
+        :return: An image collection cropped to the specified bounding box.
 
+        https://open-eo.github.io/openeo-api/v/0.4.1/processreference/#filter_bbox
+        """
+        # Subclasses are expected to implement this method, but for bit of backwards compatibility
+        # with old style subclasses we forward to `bbox_filter`
+        # TODO: replace this with raise NotImplementedError() or decorate with @abstractmethod
+        kwargs = dict(west=west, east=east, north=north, south=south, crs=crs)
+        if base or height:
+            kwargs.update(base=base, height=height)
+        return self.bbox_filter(**kwargs)
+
+    @deprecated(reason="Use `filter_bbox()` instead.")
     def bbox_filter(self, west=None, east=None, north=None, south=None, crs=None,left=None, right=None, top=None, bottom=None, srs=None, base=None, height=None ) -> 'ImageCollection':
         """
         Specifies a bounding box to filter input image collections.
@@ -101,7 +103,12 @@ class ImageCollection(ABC):
         :param srs:
         :return: An image collection cropped to the specified bounding box.
         """
-        pass
+        return self.filter_bbox(
+            west=first_not_none(west, left), east=first_not_none(east, right),
+            north=first_not_none(north, top), south=first_not_none(south, bottom),
+            base=base, height=height,
+            crs=first_not_none(crs, srs)
+        )
 
     def apply(self,process:str,arguments = {}) -> 'ImageCollection':
         """

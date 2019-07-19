@@ -27,7 +27,7 @@ class TestTimeSeries(TestCase):
         #like the imagecollection ID on: https://earthengine.google.com/datasets/
 
         #access multiband 4D (x/y/time/band) coverage
-        fapar = session.imagecollection("SENTINEL2_FAPAR").bbox_filter(3,6,52,50,"EPSG:4326")
+        fapar = session.imagecollection("SENTINEL2_FAPAR").filter_bbox(3,6,52,50,"EPSG:4326")
 
 
         def check_process_graph(request):

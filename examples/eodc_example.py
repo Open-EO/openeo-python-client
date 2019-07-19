@@ -22,8 +22,8 @@ session = openeo.connect(EODC_DRIVER_URL,auth_type=BearerAuth, auth_options={"us
 s2a_prd_msil1c = session.image("s2a_prd_msil1c")
 logging.debug("{}".format(s2a_prd_msil1c.graph))
 
-timeseries = s2a_prd_msil1c.bbox_filter(left=652000, right=672000, top=5161000,
-                                              bottom=5181000, srs="EPSG:32632")
+timeseries = s2a_prd_msil1c.filter_bbox(west=652000, east=672000, north=5161000,
+                                              south=5181000, crs="EPSG:32632")
 logging.debug("{}".format(timeseries.graph))
 
 timeseries = timeseries.filter_temporal("2017-01-01", "2017-01-08")

@@ -30,20 +30,20 @@ def filter_temporal(imagecollection, start_date: Union[str, datetime, date], end
     return imagecollection.filter_temporal(start_date, end_date)
 
 
-def bbox_filter(imagecollection, left: float, right: float, top: float, bottom: float, srs: str) -> 'ImageCollection':
+def filter_bbox(imagecollection, west: float, east: float, north: float, south: float, crs: str) -> 'ImageCollection':
     """
     Specifies a bounding box to filter input image collections.
 
     :param imagecollection: Image collection to apply the process, Instance of ImageCollection
-    :param left:
-    :param right:
-    :param top:
-    :param bottom:
-    :param srs:
+    :param west:
+    :param east:
+    :param north:
+    :param south:
+    :param crs:
 
     :return: An image collection cropped to the specified bounding box.
     """
-    return imagecollection.bbox_filter(left, right, top, bottom, srs)
+    return imagecollection.filter_bbox(west=west, east=east, north=north, south=south, crs=crs)
 
 
 def apply_pixel(imagecollection, bands: List, bandfunction) -> 'ImageCollection':
