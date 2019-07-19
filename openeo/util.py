@@ -2,19 +2,24 @@
 Various utilities and helpers.
 """
 import re
-from datetime import datetime
+from datetime import datetime, date
 from typing import Any, Union, Tuple
 
 _rfc3339_date_format = re.compile(r'\d{4}-\d{2}-\d{2}')
 
 
-def date_to_rfc3339(date: Any) -> str:
+def date_to_rfc3339(d: Any) -> str:
     """
     Convert date-like object to a RFC 3339 formatted date string
     """
-    if isinstance(date, str):
-        if _rfc3339_date_format.match(date):
-            return date
+    if isinstance(d, str):
+        if _rfc3339_date_format.match(d):
+            return d
+    elif isinstance(d, datetime):
+        assert d.tzinfo is None, "timezone handling not supported (TODO)"
+        return d.strftime('%Y-%m-%dT%H:%M:%SZ')
+    elif isinstance(d, date):
+        return d.strftime('%Y-%m-%d')
     raise NotImplementedError("TODO")
 
 
@@ -27,7 +32,7 @@ def first_not_none(*args):
 
 
 def get_temporal_extent(*args,
-                        start_date: Union[str, datetime] = None, end_date: Union[str, datetime] = None,
+                        start_date: Union[str, datetime, date] = None, end_date: Union[str, datetime, date] = None,
                         extent: Union[list, tuple] = None,
                         convertor=date_to_rfc3339
                         ) -> Tuple[Union[str, None], Union[str, None]]:
