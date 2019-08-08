@@ -1,0 +1,61 @@
+{
+  "process_graph": {
+    "filterbbox1": {
+      "process_id": "filter_bbox",
+      "arguments": {
+        "data": {
+          "from_node": "loadcollection1"
+        },
+        "extent": {
+          "west": 3,
+          "east": 6,
+          "north": 52,
+          "south": 50,
+          "crs": "EPSG:4326"
+        }
+      },
+      "result": false
+    },
+    "loadcollection1": {
+      "process_id": "load_collection",
+      "arguments": {
+        "id": "SENTINEL2_FAPAR",
+        "spatial_extent": null,
+        "temporal_extent": null
+      },
+      "result": false
+    },
+    "readvector1": {
+      "arguments": {
+        "filename":"/data/users/Public/vdboschj/EP-3025/GeometryCollection.geojson"
+      },
+      "process_id":"read_vector",
+      "result":false
+    },
+    "aggregatepolygon1": {
+      "process_id": "aggregate_polygon",
+      "arguments": {
+        "data": {
+          "from_node": "filterbbox1"
+        },
+        "polygons": {
+          "from_node": "readvector1"
+        },
+        "reducer": {
+          "callback": {
+            "unary": {
+              "arguments": {
+                "data": {
+                  "from_argument": "data"
+                }
+              },
+              "process_id": "mean",
+              "result": true
+            }
+          }
+        }
+      },
+      "result": true
+    }
+  }
+}

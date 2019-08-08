@@ -714,52 +714,69 @@ class ImageCollectionClient(ImageCollection):
         """
         return self.session.point_timeseries({"process_graph":self.graph}, x, y, srs)
 
-    def polygonal_mean_timeseries(self, polygon: Union[Polygon, MultiPolygon]) -> 'ImageCollection':
+    def polygonal_mean_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> 'ImageCollection':
         """
         Extract a mean time series for the given (multi)polygon. Its points are
         expected to be in the EPSG:4326 coordinate
         reference system.
 
-        :param polygon: The (multi)polygon
+        :param polygon: The (multi)polygon; or a file path or HTTP URL to a GeoJSON file or shape file
         :param srs: The spatial reference system of the coordinates, by default
         this is 'EPSG:4326'
         :return: ImageCollection
         """
 
-        geojson = mapping(polygon)
-        geojson['crs'] = {
-            'type': 'name',
-            'properties': {
-                'name': 'EPSG:4326'
-            }
-        }
+        def graph_add_aggregate_process(graph) -> 'ImageCollection':
+            process_id = 'aggregate_zonal'
+            if self._api_version.at_least('0.4.0'):
+                process_id = 'aggregate_polygon'
 
-        process_id = 'aggregate_zonal'
-        if self._api_version.at_least('0.4.0'):
-            process_id = 'aggregate_polygon'
-
-        args = {
+            args = {
                 'data': {'from_node': self.node_id},
-                'dimension':'temporal',
-                'polygons': geojson
+                'dimension': 'temporal',
+                'polygons': polygons
             }
-        if self._api_version.at_least('0.4.0'):
-            del args['dimension']
-            args['reducer']= {
-                'callback':{
-                    "unary":{
-                        "arguments":{
-                            "data": {
-                                "from_argument": "data"
-                            }
-                        },
-                        "process_id":"mean",
-                        "result":True
+            if self._api_version.at_least('0.4.0'):
+                del args['dimension']
+                args['reducer'] = {
+                    'callback': {
+                        "unary": {
+                            "arguments": {
+                                "data": {
+                                    "from_argument": "data"
+                                }
+                            },
+                            "process_id": "mean",
+                            "result": True
+                        }
                     }
+                }
+
+            return graph.graph_add_process(process_id, args)
+
+        if isinstance(polygon, str):
+            if self._api_version.at_least('0.4.0'):
+                with_read_vector = self.graph_add_process('read_vector', args={
+                    'filename': polygon
+                })
+
+                polygons = {
+                    'from_node': with_read_vector.node_id
+                }
+
+                return graph_add_aggregate_process(with_read_vector)
+            else:
+                raise NotImplementedError("filename requires backend version >=0.4.0")
+        else:
+            polygons = mapping(polygon)
+            polygons['crs'] = {
+                'type': 'name',
+                'properties': {
+                    'name': 'EPSG:4326'
                 }
             }
 
-        return self.graph_add_process(process_id, args)
+            return graph_add_aggregate_process(self)
 
     def download(self, outputfile:str, bbox="", time="", **format_options) -> str:
         """Extraxts a geotiff from this image collection."""
