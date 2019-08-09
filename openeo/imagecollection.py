@@ -289,12 +289,12 @@ class ImageCollection(ABC):
         """
         pass
 
-    def  polygonal_mean_timeseries(self, polygon: Union[Polygon, MultiPolygon]) -> Dict:
+    def polygonal_mean_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> Dict:
         """
         Extract a mean time series for the given (multi)polygon. Its points are expected to be in the EPSG:4326 coordinate
         reference system.
 
-        :param polygon: The (multi)polygon
+        :param polygon: The (multi)polygon; or a file path or HTTP URL to a GeoJSON file or shape file
 
         :return: Dict: A timeseries
         """
