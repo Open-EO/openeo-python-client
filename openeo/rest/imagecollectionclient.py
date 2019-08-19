@@ -799,8 +799,9 @@ class ImageCollectionClient(ImageCollection):
             return self.session.download(self.graph, time, outputfile, format_options)
 
     def tiled_viewing_service(self,**kwargs) -> Dict:
-        self.graph[self.node_id]["result"] = True
-        return self.session.create_service(self.graph,**kwargs)
+        newbuilder = self.builder.copy()
+        newbuilder.processes[self.node_id]['result'] = True
+        return self.session.create_service(newbuilder.processes,**kwargs)
 
     def send_job(self, out_format=None, **format_options) -> Job:
         """
@@ -829,8 +830,9 @@ class ImageCollectionClient(ImageCollection):
 
     def execute(self) -> Dict:
         """Executes the process graph of the imagery. """
-        self.graph[self.node_id]['result'] = True
-        return self.session.execute({"process_graph": self.graph},"")
+        newbuilder = self.builder.copy()
+        newbuilder.processes[self.node_id]['result'] = True
+        return self.session.execute({"process_graph": newbuilder.processes},"")
 
     ####### HELPER methods #######
 
