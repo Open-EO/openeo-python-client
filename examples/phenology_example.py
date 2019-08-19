@@ -6,6 +6,7 @@ import openeo
 import logging
 import os
 from pathlib import Path
+import pandas as pd
 
 #enable logging in requests library
 from openeo.rest.imagecollectionclient import ImageCollectionClient
@@ -13,8 +14,8 @@ from openeo.rest.imagecollectionclient import ImageCollectionClient
 logging.basicConfig(level=logging.DEBUG)
 
 #connect with EURAC backend
-#session = openeo.session("nobody", "http://openeo.vgt.vito.be/openeo/0.4.0")
-session = openeo.session("nobody", "http://localhost:5000/openeo/0.4.0")
+session = openeo.session("nobody", "http://openeo.vgt.vito.be/openeo/0.4.0")
+#session = openeo.session("nobody", "http://localhost:5000/openeo/0.4.0")
 
 #retrieve the list of available collections
 collections = session.list_collections()
@@ -60,8 +61,8 @@ minx,miny,maxx,maxy = polygon.bounds
 #compute EVI
 #https://en.wikipedia.org/wiki/Enhanced_vegetation_index
 s2_radiometry = session.imagecollection("CGS_SENTINEL2_RADIOMETRY_V102_001") \
-                    .date_range_filter("2017-08-01","2017-10-01") \
-                    .bbox_filter(left=minx,right=maxx,top=maxy,bottom=miny,srs="EPSG:4326")
+                    .date_range_filter("2017-01-01","2017-10-01") #\
+                   # .bbox_filter(left=minx,right=maxx,top=maxy,bottom=miny,srs="EPSG:4326")
 
 B02 = s2_radiometry.band('2')
 B04 = s2_radiometry.band('4')
@@ -82,6 +83,8 @@ smoothing_udf = load_udf('udf/smooth_savitzky_golay.py')
 #S2 radiometry at VITO already has a default mask otherwise we need a masking function
 smoothed_evi = evi_cube.apply_dimension(smoothing_udf,runtime='Python')
 timeseries_smooth = smoothed_evi.polygonal_mean_timeseries(polygon)
-timeseries_raw = evi_cube.polygonal_mean_timeseries(polygon)
+timeseries_raw_dc = evi_cube.polygonal_mean_timeseries(polygon)
 
-print(timeseries_smooth)
+timeseries_raw = pd.Series(timeseries_raw_dc.execute(),name="evi_raw")
+timeseries_raw.head(15)
+
