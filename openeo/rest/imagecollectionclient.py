@@ -275,6 +275,22 @@ class ImageCollectionClient(ImageCollection):
             return self._reduce_bands_binary(operator, other)
         else:
             raise ValueError("Unsupported right-hand operand: " + str(other))
+    
+    def __gt__(self, other:Union[ImageCollection,Union[int,float]]):
+        """
+        Pairwise comparison of the bands in this data cube with the bands in the 'other' data cube.
+        The number of bands in both data cubes has to be the same.
+
+        :param other:
+        :return ImageCollection: this + other
+        """
+        operator = "gt"
+        if isinstance(other, int) or isinstance(other, float):
+            return self._reduce_bands_binary_const(operator, other)
+        elif isinstance(other, ImageCollection):
+            return self._reduce_bands_binary(operator, other)
+        else:
+            raise ValueError("Unsupported right-hand operand: " + str(other))
 
     def _create_reduced_collection(self, callback_graph_builder, extend_previous_callback_graph):
         if not extend_previous_callback_graph:
