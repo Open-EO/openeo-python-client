@@ -701,6 +701,20 @@ class ImageCollectionClient(ImageCollection):
 
         return new_collection.graph_add_process(process_id, args)
 
+    def apply_kernel(self, kernel, factor=1.0) -> 'ImageCollection':
+        """
+        Applies a focal operation based on a weighted kernel to each value of the specified dimensions in the data cube.
+
+        :param kernel: The kernel to be applied on the data cube. It should be a 2D numpy array.
+        :param factor: A factor that is multiplied to each value computed by the focal operation. This is basically a shortcut for explicitly multiplying each value by a factor afterwards, which is often required for some kernel-based algorithms such as the Gaussian blur.
+        :return: A data cube with the newly computed values. The resolution, cardinality and the number of dimensions are the same as for the original data cube.
+        """
+        return self.graph_add_process('apply_kernel', {
+            'data': {'from_node': self.node_id},
+            'kernel':kernel.tolist(),
+            'factor':factor
+        })
+
     ####VIEW methods #######
     def timeseries(self, x, y, srs="EPSG:4326") -> Dict:
         """

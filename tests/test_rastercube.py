@@ -5,7 +5,7 @@ from openeo.connection import Connection
 from openeo.rest.imagecollectionclient import ImageCollectionClient
 from openeo.graphbuilder import GraphBuilder
 from mock import MagicMock, patch
-
+import numpy as np
 
 class TestRasterCube(TestCase):
 
@@ -159,3 +159,15 @@ class TestRasterCube(TestCase):
         self.assertIn("data", graph['arguments'])
         self.assertEqual(graph["arguments"]["min"], -1)
         self.assertEqual(graph["arguments"]["max"], 1)
+
+    def test_apply_kernel(self):
+
+        kernel = [[0, 1, 0], [1, 1, 1], [0, 1, 0]]
+        new_imagery = self.imagery.apply_kernel(np.asarray(kernel), 3)
+
+        graph = new_imagery.graph[new_imagery.node_id]
+
+        self.assertEqual(graph["process_id"], "apply_kernel")
+        self.assertIn("data", graph["arguments"])
+        self.assertEqual(graph["arguments"]["factor"], 3)
+        self.assertEqual(graph["arguments"]["kernel"], kernel)

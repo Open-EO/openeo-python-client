@@ -256,6 +256,17 @@ class ImageCollection(ABC):
         :param srs: The reference system of the provided polygon, provided as an 'EPSG:XXXX' string. By default this is Lat Lon (EPSG:4326).
         :return: A new ImageCollection, with the mask applied.
         """
+        pass
+
+    def apply_kernel(self, kernel, factor=1.0) -> 'ImageCollection':
+        """
+        Applies a focal operation based on a weighted kernel to each value of the specified dimensions in the data cube.
+
+        :param kernel: The kernel to be applied on the data cube. The kernel has to be as many dimensions as the data cube has dimensions.
+        :param factor: A factor that is multiplied to each value computed by the focal operation. This is basically a shortcut for explicitly multiplying each value by a factor afterwards, which is often required for some kernel-based algorithms such as the Gaussian blur.
+        :return: A data cube with the newly computed values. The resolution, cardinality and the number of dimensions are the same as for the original data cube.
+        """
+        pass
 
     ####VIEW methods #######
     def timeseries(self, x, y, srs="EPSG:4326") -> Dict:
