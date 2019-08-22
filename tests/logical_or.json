@@ -60,7 +60,7 @@
           "or1": {
             "process_id": "or",
             "arguments": {
-              "data": [
+              "expressions": [
                 {
                   "from_node": "eq1"
                 },

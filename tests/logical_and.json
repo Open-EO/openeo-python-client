@@ -60,7 +60,7 @@
           "and1": {
             "process_id": "and",
             "arguments": {
-              "data": [
+              "expressions": [
                 {
                   "from_node": "eq1"
                 },

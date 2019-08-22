@@ -213,7 +213,7 @@ class ImageCollectionClient(ImageCollection):
         :param other:
         :return ImageCollection: logical_or(this, other)
         """
-        return self._reduce_bands_binary(operator='or', other=other)
+        return self._reduce_bands_binary(operator='or', other=other,arg_name='expressions')
 
     def logical_and(self, other: ImageCollection):
         """
@@ -221,7 +221,7 @@ class ImageCollectionClient(ImageCollection):
         :param other:
         :return ImageCollection: logical_and(this, other)
         """
-        return self._reduce_bands_binary(operator='and', other=other)
+        return self._reduce_bands_binary(operator='and', other=other,arg_name='expressions')
 
     def __invert__(self):
         """
@@ -337,14 +337,14 @@ class ImageCollectionClient(ImageCollection):
         else:
             raise ValueError("Unsupported right-hand operand: " + str(other))
 
-    def _reduce_bands_binary(self, operator, other: 'ImageCollectionClient'):
+    def _reduce_bands_binary(self, operator, other: 'ImageCollectionClient',arg_name='data'):
         # first we create the callback
         fallback_node = {'from_argument': 'data'}
         my_builder = self._get_band_graph_builder()
         other_builder = other._get_band_graph_builder()
         merged = GraphBuilder.combine(operator=operator,
                                       first=my_builder or fallback_node,
-                                      second=other_builder or fallback_node)
+                                      second=other_builder or fallback_node, arg_name=arg_name)
         # callback is ready, now we need to properly set up the reduce process that will invoke it
         if my_builder is None and other_builder is None:
             # there was no previous reduce step

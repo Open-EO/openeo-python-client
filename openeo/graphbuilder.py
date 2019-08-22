@@ -106,7 +106,7 @@ class GraphBuilder():
             raise RuntimeError("Invalid list of result node id's: " + str(result_node_ids))
 
     @classmethod
-    def combine(cls, operator: str, first: Union['GraphBuilder', dict], second: Union['GraphBuilder', dict]):
+    def combine(cls, operator: str, first: Union['GraphBuilder', dict], second: Union['GraphBuilder', dict], arg_name='data'):
         """Combine two GraphBuilders to a new merged one using the given operator"""
         merged = cls()
 
@@ -125,5 +125,9 @@ class GraphBuilder():
             second = insert_builder(second)
         assert isinstance(second, dict)
 
-        merged.add_process(operator, result=True, data=[first, second])
+        args = {
+            arg_name:[first, second]
+        }
+
+        merged.add_process(operator, result=True, **args)
         return merged
