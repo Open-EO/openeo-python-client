@@ -66,49 +66,29 @@ class ImageCollectionClient(ImageCollection):
         id = builder.process(process_id, arguments)
         return ImageCollectionClient(id, builder, session)
 
-    def date_range_filter(self, start_date: Union[str, datetime, date],
-                          end_date: Union[str, datetime, date]) -> 'ImageCollection':
-        """Drops observations from a collection that have been captured before
-            a start or after a given end date.
-
-            :param start_date: starting date of the filter
-            :param end_date: ending date of the filter
-            :return: An ImageCollection instance
-        """
-        process_id = 'filter_temporal'
-
-        args = {
-            'data':{'from_node': self.node_id},
-            'extent': [start_date, end_date]
-        }
-
-        return self.graph_add_process(process_id, args)
-
-    def bbox_filter(self, west=None, east=None, north=None, south=None, crs=None,left=None, right=None, top=None, bottom=None, srs=None) -> 'ImageCollection':
-        """Drops observations from a collection that are located outside
-            of a given bounding box.
-
-            :param east: east boundary (longitude / easting)
-            :param west: west boundary (longitude / easting)
-            :param north: north boundary (latitude / northing)
-            :param south: south boundary (latitude / northing)
-            :param srs: coordinate reference system of boundaries as
-                        proj4 or EPSG:12345 like string
-            :return: An ImageCollection instance
-        """
-
-        process_id = 'filter_bbox'
-        args = {
+    def _filter_temporal(self, start: str, end: str) -> 'ImageCollection':
+        return self.graph_add_process(
+            process_id='filter_temporal',
+            args={
                 'data': {'from_node': self.node_id},
-                'extent': {
-                    'west': first_not_none(west, left),
-                    'east': first_not_none(east, right),
-                    'north': first_not_none(north, top),
-                    'south': first_not_none(south, bottom),
-                    'crs': first_not_none(crs, srs)
-                }
+                'extent': [start, end]
             }
-        return self.graph_add_process(process_id, args)
+        )
+
+    def filter_bbox(self, west, east, north, south, crs=None, base=None, height=None) -> 'ImageCollection':
+        extent = {
+            'west': west, 'east': east, 'north': north, 'south': south,
+            'crs': crs,
+        }
+        if base is not None or height is not None:
+            extent.update(base=base, height=height)
+        return self.graph_add_process(
+            process_id='filter_bbox',
+            args={
+                'data': {'from_node': self.node_id},
+                'extent': extent
+            }
+        )
 
     def band_filter(self, bands) -> 'ImageCollection':
         """Filter the imagery by the given bands

@@ -2,15 +2,13 @@ import base64
 from typing import List, Dict, Union
 
 import cloudpickle
-from datetime import datetime, date
 from pandas import Series
+from shapely.geometry import Polygon, MultiPolygon, mapping
 
+from openeo.connection import Connection
+from openeo.imagecollection import ImageCollection
 from openeo.job import Job
 from openeo.rest.job import RESTJob
-from openeo.imagecollection import ImageCollection
-from openeo.util import first_not_none
-from openeo.connection import Connection
-from shapely.geometry import Polygon, MultiPolygon, mapping
 
 
 class RestImagery(ImageCollection):
@@ -22,8 +20,7 @@ class RestImagery(ImageCollection):
         self.graph = parentgraph
         self.session = session
 
-    def date_range_filter(self, start_date: Union[str, datetime, date],
-                          end_date: Union[str, datetime, date]) -> 'ImageCollection':
+    def _filter_temporal(self, start_date: str, end_date: str) -> 'ImageCollection':
         """Drops observations from a collection that have been captured before
             a start or after a given end date.
             :param start_date: starting date of the filter
@@ -38,7 +35,7 @@ class RestImagery(ImageCollection):
 
         return self.graph_add_process(process_id, args)
 
-    def bbox_filter(self, west=None, east=None, north=None, south=None, crs=None,left=None, right=None, top=None, bottom=None, srs=None) -> 'ImageCollection':
+    def filter_bbox(self, west, east, north, south, crs=None, base=None, height=None) -> 'ImageCollection':
         """Drops observations from a collection that are located outside
             of a given bounding box.
             :param left: left boundary (longitude / easting)
@@ -51,16 +48,13 @@ class RestImagery(ImageCollection):
         """
         process_id = 'filter_bbox'
         args = {
-                'imagery': self.graph,
-                'extent':
+            'imagery': self.graph,
+            'extent':
                 {
-                    'west': first_not_none(west, left),
-                    'east': first_not_none(east, right),
-                    'north': first_not_none(north, top),
-                    'south': first_not_none(south, bottom),
-                    'crs': first_not_none(crs, srs),
+                    'west': west, 'east': east, 'north': north, 'south': south,
+                    'crs': crs,
                 }
-            }
+        }
         return self.graph_add_process(process_id, args)
 
     def band_filter(self, bands) -> 'ImageCollection':

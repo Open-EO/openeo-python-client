@@ -1,9 +1,12 @@
 from abc import ABC
+from datetime import datetime, date
 from typing import List, Dict, Union
-from datetime import datetime,date
+
+from deprecated import deprecated
+from shapely.geometry import Polygon, MultiPolygon
 
 from openeo.job import Job
-from shapely.geometry import Polygon, MultiPolygon
+from openeo.util import get_temporal_extent, first_not_none
 
 
 class ImageCollection(ABC):
@@ -12,6 +15,7 @@ class ImageCollection(ABC):
     def __init__(self):
         pass
 
+    @deprecated("Use `filter_temporal()` instead")
     def date_range_filter(self, start_date:Union[str,datetime,date],end_date:Union[str,datetime,date]) -> 'ImageCollection':
         """
         Specifies a date range filter to be applied on the ImageCollection
@@ -21,8 +25,9 @@ class ImageCollection(ABC):
         :param end_date: End date of the filter, exclusive, format e.g.: "2018-01-13".
         :return: An ImageCollection filtered by date.
         """
-        pass
+        return self.filter_temporal(start_date=start_date, end_date=end_date)
 
+    @deprecated("Use `filter_temporal()` instead")
     def filter_daterange(self, extent) -> 'ImageCollection':
         """Drops observations from a collection that have been captured before
             a start or after a given end date.
@@ -30,33 +35,62 @@ class ImageCollection(ABC):
             :param extent: List of starting date and ending date of the filter
             :return: An ImageCollection filtered by date.
         """
-        if len(extent) == 0:
-            raise ValueError("extent should contain 2 elements, but got empty list: " + extent)
-        start = extent[0]
-        end = extent[1] if len(extent) >1 else None
-        return self.date_range_filter(start,end)
+        return self.filter_temporal(extent=extent)
+
+    def filter_temporal(self, *args,
+                        start_date: Union[str, datetime, date] = None, end_date: Union[str, datetime, date] = None,
+                        extent: Union[list, tuple] = None) -> 'ImageCollection':
+        """
+        Limit the ImageCollection to a certain date range, which can be specified in several ways:
+
+        >>> im.filter_temporal("2019-07-01", "2019-08-01")
+        >>> im.filter_temporal(["2019-07-01", "2019-08-01"])
+        >>> im.filter_temporal(extent=["2019-07-01", "2019-08-01"])
+        >>> im.filter_temporal(start_date="2019-07-01", end_date="2019-08-01"])
+
+        :param start_date: start date of the filter (inclusive), as a string or date object
+        :param end_date: end date of the filter (exclusive), as a string or date object
+        :param extent: two element list/tuple start and end date of the filter
+        :return: An ImageCollection filtered by date.
+
+        Subclasses are recommended to implement `_filter_temporal', which has simpler API.
+
+        https://open-eo.github.io/openeo-api/processreference/#filter_temporal
+        """
+        start, end = get_temporal_extent(*args, start_date=start_date, end_date=end_date, extent=extent)
+        return self._filter_temporal(start, end)
+
+    def _filter_temporal(self, start_date: str, end_date: str) -> 'ImageCollection':
+        # Subclasses are expected to implement this method, but for bit of backward compatibility
+        # with old style subclasses we forward to `date_range_filter`
+        # TODO: replace this with raise NotImplementedError() or decorate with @abstractmethod
+        return self.date_range_filter(start_date, end_date)
 
     def filter_bbox(self, west, east, north, south, crs=None, base=None, height=None) -> 'ImageCollection':
-        """Drops observations from a collection that are located outside
-            of a given bounding box.
-
-            :param imagery: eodata object (ProcessGraph)
-            :param west: west boundary (longitude / easting)
-            :param east: east boundary (longitude / easting)
-            :param top: top boundary (latitude / northing)
-            :param bottom: top boundary (latitude / northing)
-            :param crs: spatial reference system of boundaries as
-                        proj4 or EPSG:12345 like string
-            :param base: lower left corner coordinate axis 3
-            :param height: upper right corner coordinate axis 3
-            :return: An image collection cropped to the specified bounding box.
         """
+        Limits the ImageCollection to a given spatial bounding box.
 
-        if base is not None or height is not None:
-            return self.bbox_filter(west=west,east=east,north=north, south=south,crs=crs,base=base,height=height)
-        else:
-            return self.bbox_filter(west=west, east=east, north=north, south=south, crs=crs)
+        :param west: west boundary (longitude / easting)
+        :param east: east boundary (longitude / easting)
+        :param north: north boundary (latitude / northing)
+        :param south: south boundary (latitude / northing)
+        :param crs: spatial reference system of boundaries as
+                    proj4 or EPSG:12345 like string
+        :param base: lower left corner coordinate axis 3
+        :param height: upper right corner coordinate axis 3
+        :return: An image collection cropped to the specified bounding box.
 
+        https://open-eo.github.io/openeo-api/v/0.4.1/processreference/#filter_bbox
+        """
+        # Subclasses are expected to implement this method, but for bit of backwards compatibility
+        # with old style subclasses we forward to `bbox_filter`
+        # TODO: replace this with raise NotImplementedError() or decorate with @abstractmethod
+        kwargs = dict(west=west, east=east, north=north, south=south, crs=crs)
+        if base or height:
+            kwargs.update(base=base, height=height)
+        return self.bbox_filter(**kwargs)
+
+    @deprecated(reason="Use `filter_bbox()` instead.")
     def bbox_filter(self, west=None, east=None, north=None, south=None, crs=None,left=None, right=None, top=None, bottom=None, srs=None, base=None, height=None ) -> 'ImageCollection':
         """
         Specifies a bounding box to filter input image collections.
@@ -69,7 +103,12 @@ class ImageCollection(ABC):
         :param srs:
         :return: An image collection cropped to the specified bounding box.
         """
-        pass
+        return self.filter_bbox(
+            west=first_not_none(west, left), east=first_not_none(east, right),
+            north=first_not_none(north, top), south=first_not_none(south, bottom),
+            base=base, height=height,
+            crs=first_not_none(crs, srs)
+        )
 
     def apply(self,process:str,arguments = {}) -> 'ImageCollection':
         """

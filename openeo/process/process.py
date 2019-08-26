@@ -3,6 +3,7 @@
 from typing import List, Union
 from datetime import datetime, date
 
+# TODO is this module (still) useful? also see https://github.com/Open-EO/openeo-python-client/issues/61
 
 def ndvi(imagecollection, red, nir):
     """ NDVI
@@ -16,7 +17,7 @@ def ndvi(imagecollection, red, nir):
     return imagecollection.ndvi(red, nir)
 
 
-def date_range_filter(imagecollection, start_date: Union[str, datetime, date], end_date: Union[str, datetime, date]) -> 'ImageCollection':
+def filter_temporal(imagecollection, start_date: Union[str, datetime, date], end_date: Union[str, datetime, date]) -> 'ImageCollection':
     """
     Specifies a date range filter to be applied on the ImageCollection
 
@@ -26,23 +27,23 @@ def date_range_filter(imagecollection, start_date: Union[str, datetime, date], e
 
     :return: An ImageCollection filtered by date.
     """
-    return imagecollection.date_range_filter(start_date, end_date)
+    return imagecollection.filter_temporal(start_date, end_date)
 
 
-def bbox_filter(imagecollection, left: float, right: float, top: float, bottom: float, srs: str) -> 'ImageCollection':
+def filter_bbox(imagecollection, west: float, east: float, north: float, south: float, crs: str) -> 'ImageCollection':
     """
     Specifies a bounding box to filter input image collections.
 
     :param imagecollection: Image collection to apply the process, Instance of ImageCollection
-    :param left:
-    :param right:
-    :param top:
-    :param bottom:
-    :param srs:
+    :param west:
+    :param east:
+    :param north:
+    :param south:
+    :param crs:
 
     :return: An image collection cropped to the specified bounding box.
     """
-    return imagecollection.bbox_filter(left, right, top, bottom, srs)
+    return imagecollection.filter_bbox(west=west, east=east, north=north, south=south, crs=crs)
 
 
 def apply_pixel(imagecollection, bands: List, bandfunction) -> 'ImageCollection':

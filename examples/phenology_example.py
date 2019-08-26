@@ -29,8 +29,8 @@ print(collections)
 
 """
 cloud_mask = session.image("S2_SCENECLASSIFICATION") \
-    .date_range_filter("2017-03-01","2017-02-20") \
-    .bbox_filter(left=652000,right=672000,top=5161000,bottom=5181000,srs="EPSG:32632") \
+    .filter_temporal("2017-03-01","2017-02-20") \
+    .filter_bbox(west=652000,east=672000,north=5161000,south=5181000,crs="EPSG:32632") \
     .apply_pixel(map_classification_to_binary)
 """
 
@@ -61,8 +61,8 @@ minx,miny,maxx,maxy = polygon.bounds
 #compute EVI
 #https://en.wikipedia.org/wiki/Enhanced_vegetation_index
 s2_radiometry = session.imagecollection("CGS_SENTINEL2_RADIOMETRY_V102_001") \
-                    .date_range_filter("2017-01-01","2017-10-01") #\
-                   # .bbox_filter(left=minx,right=maxx,top=maxy,bottom=miny,srs="EPSG:4326")
+                    .filter_temporal("2017-01-01","2017-10-01") #\
+                   # .filter_bbox(west=minx,east=maxx,north=maxy,south=miny,crs="EPSG:4326")
 
 B02 = s2_radiometry.band('2')
 B04 = s2_radiometry.band('4')
