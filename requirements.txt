@@ -3,5 +3,4 @@ shapely>=1.6.4
 cloudpickle
 numpy
 pandas
-requests-mock
 deprecated

@@ -36,5 +36,12 @@ setup(name=name,
       setup_requires=['pytest-runner'],
       tests_require=['pytest','mock','requests-mock'],
       test_suite = 'tests',
-      install_requires=['requests', 'shapely>=1.6.4', 'cloudpickle', 'numpy', 'pandas'],
+      install_requires=[
+          'requests',
+          'shapely>=1.6.4',
+          'cloudpickle',
+          'numpy',
+          'pandas',
+          'deprecated',
+      ],
       )
