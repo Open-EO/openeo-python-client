@@ -1,15 +1,14 @@
-import copy
+from datetime import datetime, date
 from typing import List, Dict, Union
 
-from datetime import datetime, date
+from shapely.geometry import Polygon, MultiPolygon, mapping
 
-from openeo.job import Job
-from openeo.rest.job import RESTJob
-from openeo.imagecollection import ImageCollection
-from openeo.util import first_not_none
 from openeo.connection import Connection
 from openeo.graphbuilder import GraphBuilder
-from shapely.geometry import Polygon, MultiPolygon, mapping
+from openeo.imagecollection import ImageCollection
+from openeo.job import Job
+from openeo.rest.rest_connection import RESTConnection
+from openeo.util import first_not_none
 
 
 class ImageCollectionClient(ImageCollection):
@@ -17,7 +16,7 @@ class ImageCollectionClient(ImageCollection):
         Supports 0.4.
     """
 
-    def __init__(self,node_id:str, builder:GraphBuilder,session:Connection):
+    def __init__(self,node_id:str, builder:GraphBuilder, session:RESTConnection):
         self.node_id = node_id
         self.builder= builder
         self.session = session
@@ -736,7 +735,8 @@ class ImageCollectionClient(ImageCollection):
         this is 'EPSG:4326', where x=longitude and y=latitude.
         :return: Dict: A timeseries
         """
-        return self.session.point_timeseries({"process_graph":self.graph}, x, y, srs)
+        self.graph[self.node_id]['result'] = True
+        return self.session.point_timeseries({"process_graph": self.graph}, x, y, srs)
 
     def polygonal_mean_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> 'ImageCollection':
         """
@@ -811,8 +811,7 @@ class ImageCollectionClient(ImageCollection):
                 'options': format_options
             }
             if 'format' in format_options:
-                args['format'] = format_options['format']
-                del format_options['format']
+                args['format'] = format_options.pop('format')
             else:
                 raise ValueError("Please use the 'format' keyword argument to specify the output format. Use openeo.connection.Connection#list_file_types to retrieve available ouput formats for this backend.")
             newcollection = self.graph_add_process("save_result",args)

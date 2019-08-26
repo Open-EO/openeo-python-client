@@ -41,7 +41,7 @@ class TestUsecase1(TestCase):
         self.assertGreater(len(userjobs), 0)
 
     def test_viewing_data(self, m):
-        m.get("http://localhost:8000/api/collections", json=[{"product_id": "sentinel2_subset"}])
+        m.get("http://localhost:8000/api/collections", json={"collections": [{"product_id": "sentinel2_subset"}]})
         m.get("http://localhost:8000/api/collections/sentinel2_subset", json={"product_id": "sentinel2_subset"})
 
         con = openeo.connect(self.endpoint)
