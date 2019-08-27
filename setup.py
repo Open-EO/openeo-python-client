@@ -26,12 +26,18 @@ if os.environ.get('BUILD_NUMBER') and os.environ.get('BRANCH_NAME'):
 else:
     version = __version__
 
+with open("README.md", "r") as fh:
+    long_description = fh.read()
+
 name = 'openeo'
 setup(name=name,
       version=version,
       author='Jeroen Dries',
       author_email='jeroen.dries@vito.be',
-      description='Client API for OpenEO',
+      description='Client API for openEO',
+      long_description=long_description,
+      long_description_content_type="text/markdown",
+      url="https://github.com/Open-EO/openeo-python-client",
       packages=find_packages(include=['openeo*']),
       setup_requires=['pytest-runner'],
       tests_require=['pytest','mock','requests-mock'],
@@ -44,4 +50,10 @@ setup(name=name,
           'pandas',
           'deprecated',
       ],
+      classifiers=[
+        "Programming Language :: Python :: 3",
+        "License :: OSI Approved :: Apache Software License",
+        "Development Status :: 4 - Beta",
+        "Operating System :: OS Independent",
+      ]
       )
