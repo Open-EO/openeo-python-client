@@ -350,6 +350,17 @@ class ImageCollection(ABC):
         """
         pass
 
+    def polygonal_histogram_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> Dict:
+        """
+        Extract a histogram time series for the given (multi)polygon. Its points are expected to be in the EPSG:4326 coordinate
+        reference system.
+
+        :param polygon: The (multi)polygon; or a file path or HTTP URL to a GeoJSON file or shape file
+
+        :return: Dict: A timeseries
+        """
+        pass
+
     def tiled_viewing_service(self,**kwargs) -> Dict:
         """
         Returns metadata for a tiled viewing service that visualizes this layer.

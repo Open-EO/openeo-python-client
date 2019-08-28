@@ -745,11 +745,24 @@ class ImageCollectionClient(ImageCollection):
         reference system.
 
         :param polygon: The (multi)polygon; or a file path or HTTP URL to a GeoJSON file or shape file
-        :param srs: The spatial reference system of the coordinates, by default
-        this is 'EPSG:4326'
         :return: ImageCollection
         """
 
+        return self._polygonal_timeseries(polygon, "mean")
+
+    def polygonal_histogram_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> Dict:
+        """
+        Extract a histogram time series for the given (multi)polygon. Its points are
+        expected to be in the EPSG:4326 coordinate
+        reference system.
+
+        :param polygon: The (multi)polygon; or a file path or HTTP URL to a GeoJSON file or shape file
+        :return: ImageCollection
+        """
+
+        return self._polygonal_timeseries(polygon, "histogram")
+
+    def _polygonal_timeseries(self, polygon: Union[Polygon, MultiPolygon, str], func: str) -> 'ImageCollection':
         def graph_add_aggregate_process(graph) -> 'ImageCollection':
             process_id = 'aggregate_zonal'
             if self._api_version.at_least('0.4.0'):
@@ -770,7 +783,7 @@ class ImageCollectionClient(ImageCollection):
                                     "from_argument": "data"
                                 }
                             },
-                            "process_id": "mean",
+                            "process_id": func,
                             "result": True
                         }
                     }
