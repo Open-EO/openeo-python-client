@@ -881,3 +881,16 @@ class ImageCollectionClient(ImageCollection):
         newCollection = ImageCollectionClient(id, newbuilder, self.session)
         newCollection.bands = self.bands
         return newCollection
+
+    def to_graphviz(self):
+        """
+        Build a graphviz DiGraph from the process graph
+        :return:
+        """
+        import graphviz
+        graph = graphviz.Digraph()
+        for name, process in self.graph.items():
+            args = process.get("arguments", {})
+            if "data" in args and "from_node" in args["data"]:
+                graph.edge(args["data"]["from_node"], name)
+        return graph
