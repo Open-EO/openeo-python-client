@@ -109,3 +109,5 @@ out.geotiff
 tmp/
 temp/
 Temp/
+/.project
+/.pydevproject
