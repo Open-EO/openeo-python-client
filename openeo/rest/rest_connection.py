@@ -344,13 +344,12 @@ class RESTConnection(Connection):
         return self.not_supported()
 
     # TODO: Maybe rename to execute and merge with execute().
-    def download(self, graph, time, outputfile, format_options):
+    def download(self, graph, outputfile, format_options):
         """
         Downloads the result of a process graph synchronously, and save the result to the given file.
         This method is useful to export binary content such as images. For json content, the execute method is recommended.
 
         :param graph: Dict representing a process graph
-        :param time: dba
         :param outputfile: output file
         :param format_options: formating options
         :return: job_id: String
