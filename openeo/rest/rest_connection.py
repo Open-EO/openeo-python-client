@@ -240,21 +240,7 @@ class RESTConnection(Connection):
         # TODO avoid local imports
         from .imagecollectionclient import ImageCollectionClient
         image = ImageCollectionClient.load_collection(image_collection_id, self)
-        self.fetch_metadata(image_collection_id, image)
         return image
-
-    def fetch_metadata(self, image_product_id, image_collection):
-        # TODO: this sets public properties on image_collection: shouldn't this be part of ImageCollection class then?
-        # read and format extent, band and date availability information
-        data_info = self.describe_collection(image_product_id)
-        image_collection.bands = []
-        if data_info:
-            if 'bands' in data_info:
-                for band in data_info['bands']: image_collection.bands.append(band['band_id'])
-            image_collection.extent = data_info.get('extent',None)
-        else:
-            image_collection.bands = ['not specified']
-            image_collection.extent = ['not specified']
 
     def point_timeseries(self, graph, x, y, srs) -> dict:
         """Compute a timeseries for a given point location."""
