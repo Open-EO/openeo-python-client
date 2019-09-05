@@ -46,59 +46,6 @@ class TestBandMath(TestCase):
         expected_graph = load_json_resource('data/evi_graph.json')
         self.assertDictEqual(actual_graph,expected_graph)
 
-    def test_ndvi(self, m):
-        #configuration phase: define username, endpoint, parameters?
-        session = openeo.connect("http://localhost:8000/api")
-        session.post = MagicMock()
-        session.download = MagicMock()
-
-        m.get("http://localhost:8000/api/", json={"version": "0.3.1"})
-        m.get("http://localhost:8000/api/collections", json={"collections":[{"product_id": "sentinel2_subset"}]})
-        m.get("http://localhost:8000/api/collections/SENTINEL2_RADIOMETRY_10M", json={"product_id": "sentinel2_subset",
-                                                                               "bands": [{'band_id': 'B0'}, {'band_id': 'B1'},
-                                                                                         {'band_id': 'B2'}, {'band_id': 'B3'}],
-                                                                               })
-
-        #discovery phase: find available data
-        #basically user needs to find available data on a website anyway?
-        #like the imagecollection ID on: https://earthengine.google.com/datasets/
-
-        #access multiband 4D (x/y/time/band) coverage
-        s2_radio = session.imagecollection("SENTINEL2_RADIOMETRY_10M")
-
-        #how to find out which bands I need?
-        #are band id's supposed to be consistent across endpoints? Is that possible?
-
-        #define a computation to perform
-        #combinebands to REST: udf_type:apply_pixel, lang: Python
-        bandFunction = lambda band1, band2, band3: band1 + band2
-        ndvi_coverage = s2_radio.apply_pixel([s2_radio.bands[0], s2_radio.bands[1], s2_radio.bands[2]], bandFunction)
-
-        #materialize result in the shape of a geotiff
-        #REST: WCS call
-        ndvi_coverage.download("out.geotiff")
-
-        #get result as timeseries for a single point
-        #How to define a point? Ideally it should also have the CRS?
-        ndvi_coverage.timeseries(4, 51)
-
-        import base64
-        import cloudpickle
-        expected_function = str(base64.b64encode(cloudpickle.dumps(bandFunction)),"UTF-8")
-        expected_graph = {
-            'process_graph': {
-                'process_id': 'apply_pixel',
-                'imagery':{
-                        'name': 'SENTINEL2_RADIOMETRY_10M',
-                        'process_id': 'get_collection'
-                    },
-                'bands': ['B0', 'B1', 'B2'],
-                'function': expected_function
-
-            }
-        }
-        session.post.assert_called_once_with("/timeseries/point?x=4&y=51&srs=EPSG:4326",expected_graph)
-        session.download.assert_called_once()
 
     def test_ndvi_udf(self, m):
         #configuration phase: define username, endpoint, parameters?
@@ -106,7 +53,7 @@ class TestBandMath(TestCase):
         session.post = MagicMock()
         session.download = MagicMock()
 
-        m.get("http://localhost:8000/api/", json={"version": "0.3.1"})
+        m.get("http://localhost:8000/api/", json={"version": "0.4.1"})
         m.get("http://localhost:8000/api/collections", json={"collections": [{"product_id": "sentinel2_subset"}]})
         m.get("http://localhost:8000/api/collections/SENTINEL2_RADIOMETRY_10M", json={"product_id": "sentinel2_subset",
                                                                                "bands": [{'band_id': 'B0'},
@@ -130,21 +77,34 @@ class TestBandMath(TestCase):
 
         #materialize result in the shape of a geotiff
         #REST: WCS call
-        ndvi_coverage.download("out.geotiff")
+        ndvi_coverage.download("out.geotiff", format="GTIFF")
 
         #get result as timeseries for a single point
         #How to define a point? Ideally it should also have the CRS?
         ndvi_coverage.timeseries(4, 51)
 
-        expected_graph = {'process_graph': {'process_id': 'apply_tiles',
-                                            'imagery': {'name': 'SENTINEL2_RADIOMETRY_10M', 'process_id': 'get_collection'},
-                                             'code': {'language': 'python',
-                                                      'source': 'def myfunction(tile): print(tile)'
-                                                      }
+        expected_graph = {
+            'process_graph': {
+                'loadcollection1': {
+                    'result': False, 'process_id': 'load_collection',
+                    'arguments': {'temporal_extent': None, 'id': 'SENTINEL2_RADIOMETRY_10M', 'spatial_extent': None}},
+                'reduce1': {
+                    'result': True, 'process_id': 'reduce',
+                    'arguments': {
+                        'reducer': {'callback': {
+                            'udf': {'result': True, 'process_id': 'run_udf',
+                                    'arguments': {'version': 'latest',
+                                                  'udf': 'def myfunction(tile): print(tile)',
+                                                  'runtime': 'Python',
+                                                  'data': {'from_argument': 'data'}}}}},
+                        'dimension': 'spectral_bands', 'binary': False,
+                        'data': {'from_node': 'loadcollection1'}
+                    }
+                }
+            }
+        }
 
-                                            }
-                          }
-        session.post.assert_called_once_with("/timeseries/point?x=4&y=51&srs=EPSG:4326",expected_graph)
+        session.post.assert_called_once_with("/timeseries/point?x=4&y=51&srs=EPSG:4326", expected_graph)
         session.download.assert_called_once()
 
     def test_ndvi_udf_0_4_0(self, m):

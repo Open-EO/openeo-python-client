@@ -2,6 +2,7 @@ from datetime import datetime, date
 from typing import List, Dict, Union
 
 from shapely.geometry import Polygon, MultiPolygon, mapping
+from deprecated import deprecated
 
 from openeo.connection import Connection
 from openeo.graphbuilder import GraphBuilder
@@ -28,7 +29,7 @@ class ImageCollectionClient(ImageCollection):
         return self.session.capabilities().api_version_check
 
     @classmethod
-    def create_collection(
+    def load_collection(
             cls, collection_id: str, session: Connection = None,
             spatial_extent: Union[Dict, None] = None,
             temporal_extent: Union[List, None] = None,
@@ -45,25 +46,24 @@ class ImageCollectionClient(ImageCollection):
         :return:
         """
         # TODO: rename function to load_collection for better similarity with corresponding process id?
+        assert session.capabilities().api_version_check.at_least('0.4.0')
         builder = GraphBuilder()
+        process_id = 'load_collection'
+        arguments = {
+            'id': collection_id,
+            'spatial_extent': spatial_extent,
+            'temporal_extent': temporal_extent,
+        }
+        if bands:
+            arguments['bands'] = bands
+        node_id = builder.process(process_id, arguments)
+        return cls(node_id, builder, session)
 
-        if session.capabilities().api_version_check.at_least('0.4.0'):
-            process_id = 'load_collection'
-            arguments = {
-                'id': collection_id,
-                'spatial_extent': spatial_extent,
-                'temporal_extent': temporal_extent,
-            }
-            if bands:
-                arguments['bands'] = bands
-        else:
-            process_id = 'get_collection'
-            arguments = {
-                'name': collection_id
-            }
+    @classmethod
+    @deprecated("use load_collection instead")
+    def create_collection(cls, *args, **kwargs):
+        return cls.load_collection(*args, **kwargs)
 
-        id = builder.process(process_id, arguments)
-        return ImageCollectionClient(id, builder, session)
 
     def _filter_temporal(self, start: str, end: str) -> 'ImageCollection':
         return self.graph_add_process(

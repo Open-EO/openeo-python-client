@@ -234,44 +234,13 @@ class RESTConnection(Connection):
         """
         Get imagecollection by id.
         :param image_collection_id: String image collection identifier
-        :return: collection: RestImageCollection the imagecollection with the id
+        :return: collection: ImageCollectionClient the imagecollection with the id
         """
-        if self._api_version.at_least('0.4.0'):
-            return self._image_040(image_collection_id)
-        else:
-            from .imagery import RestImagery
-            collection = RestImagery({'name': image_collection_id, 'process_id': 'get_collection'}, self)
-
-            self.fetch_metadata(image_collection_id, collection)
-            return collection
-
-    def _image_040(self, image_product_id) -> 'ImageCollection':
-        """
-        Get imagery by id.
-        :param image_collection_id: String image collection identifier
-        :return: collection: RestImagery the imagery with the id
-        """
-        #new implementation: https://github.com/Open-EO/openeo-api/issues/160
+        assert self._api_version.at_least('0.4.0')
         # TODO avoid local imports
         from .imagecollectionclient import ImageCollectionClient
-        image = ImageCollectionClient.create_collection(image_product_id, self)
-        self.fetch_metadata(image_product_id, image)
-        return image
-
-    def image(self, image_product_id) -> 'ImageCollection':
-        """
-        Get imagery by id.
-        DEPRECATED
-
-        :param image_collection_id: String image collection identifier
-        :return: collection: RestImagery the imagery with the id
-        """
-        # TODO avoid local imports
-        from .rest_processes import RESTProcesses
-
-        image = RESTProcesses( self)
-
-        self.fetch_metadata(image_product_id, image)
+        image = ImageCollectionClient.load_collection(image_collection_id, self)
+        self.fetch_metadata(image_collection_id, image)
         return image
 
     def fetch_metadata(self, image_product_id, image_collection):

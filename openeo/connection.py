@@ -219,17 +219,6 @@ class Connection(ABC):
         pass
 
     @abstractmethod
-    def image(self, image_product_id) -> 'ImageCollection':
-        """
-        Get imagery by id.
-        DEPRECATED
-
-        :param image_collection_id: String image collection identifier
-
-        :return: collection: RestImagery the imagery with the id
-        """
-
-    @abstractmethod
     def download(self, graph, outputfile, format_options):
         """
         Downloads a result of a process graph synchronously.
