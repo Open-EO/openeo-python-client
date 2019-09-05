@@ -11,6 +11,26 @@ from . import load_json_resource
 @requests_mock.mock()
 class TestBandMath(TestCase):
 
+    def test_basic(self, m):
+        session = openeo.connect("http://localhost:8000/api")
+        session.post = MagicMock()
+        session.download = MagicMock()
+
+        m.get("http://localhost:8000/api/", json={"version": "0.4.0"})
+        m.get("http://localhost:8000/api/collections/SENTINEL2_RADIOMETRY_10M", json={"product_id": "sentinel2_subset",
+                                                                                      "bands": [{'band_id': 'B02'},
+                                                                                                {'band_id': 'B04'},
+                                                                                                {'band_id': 'B08'},
+                                                                                                ],
+                                                                                      'time': {'from': '2015-06-23',
+                                                                                               'to': '2018-06-18'}})
+
+        cube = session.imagecollection("SENTINEL2_RADIOMETRY_10M")
+        expected_graph = load_json_resource('data/band0.json')
+
+        assert cube.band(0).graph == expected_graph
+        assert cube.band('B02').graph == expected_graph
+
     def test_evi(self,m):
         # configuration phase: define username, endpoint, parameters?
         session = openeo.connect("http://localhost:8000/api")

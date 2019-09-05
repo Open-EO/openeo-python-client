@@ -11,6 +11,8 @@ openeo.sessions
 This module provides a Connection object to manage and persist settings when interacting with the OpenEO API.
 """
 
+# TODO is it necessary to have this abstract base class Connection
+#      when there is just this one RESTConnection implementation class?
 
 class Connection(ABC):
     """

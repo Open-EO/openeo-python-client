@@ -171,14 +171,14 @@ class ImageCollectionClient(ImageCollection):
                 }
         return self.graph_add_process(process_id, args)
 
-    def band(self, band_name) -> 'ImageCollection':
+    def band(self, band: Union[str, int]) -> 'ImageCollection':
         """Filter the imagery by the given bands
-            :param bands: List of band names or single band name as a string.
+            :param band: band name or band index.
             :return An ImageCollection instance
         """
 
         process_id = 'reduce'
-        band_index = self._band_index(band_name)
+        band_index = self._band_index(band)
 
         args = {
             'data': {'from_node': self.node_id},
@@ -201,11 +201,20 @@ class ImageCollectionClient(ImageCollection):
 
         return self.graph_add_process(process_id, args)
 
-    def _band_index(self,name:str):
-        try:
-            return self.bands.index(name)
-        except ValueError as e:
-            raise ValueError("Given band name: " + name + " not available in this image collection. Valid band names are: " + str(self.bands))
+    def _band_index(self, band: Union[str, int]):
+        """
+        Helper to resolve/check a band name/index to a band index
+
+        :param band: band name or band index
+        :return int: band index
+        """
+        bands = self.bands
+        if isinstance(band, str) and band in bands:
+            return bands.index(band)
+        elif isinstance(band, int) and 0 <= band < len(bands):
+            return band
+        else:
+            raise ValueError("Band {b!r} not available in collection. Valid names: {n!r}".format(b=band, n=bands))
 
     def subtract(self, other:Union[ImageCollection,Union[int,float]]):
         """

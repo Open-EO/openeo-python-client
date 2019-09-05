@@ -261,6 +261,7 @@ class ImageCollection(ABC):
         """
         pass
 
+
     def band_filter(self, bands) -> 'ImageCollection':
         """Filters the bands in the data cube so that bands that don't match any of the criteria are dropped from the data cube.
         The data cube is expected to have only one spectral dimension.
@@ -271,6 +272,7 @@ class ImageCollection(ABC):
 
             :return An ImageCollection instance
         """
+        # TODO: deprecate `band_filter(bands)` and implement `filter_bands(bands, common_names, wavelengths) like https://open-eo.github.io/openeo-api/processreference/#filter_bands
         pass
 
     def band(self, band_name) -> 'ImageCollection':
@@ -280,6 +282,7 @@ class ImageCollection(ABC):
 
             :return An ImageCollection instance
         """
+        # TODO: does this method have to be defined at the level of the ImageCollection base class? it is only implemented by the rest client
         pass
 
     def mask(self,polygon: Union[Polygon, MultiPolygon]=None, srs="EPSG:4326",rastermask:'ImageCollection'=None,replacement=None) -> 'ImageCollection':
