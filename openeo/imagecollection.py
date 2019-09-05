@@ -373,7 +373,7 @@ class ImageCollection(ABC):
         """
         pass
 
-    def download(self,outputfile:str, bbox="", time="",**format_options):
+    def download(self, outputfile: str, **format_options):
         """Extracts a binary raster from this image collection."""
         pass
 

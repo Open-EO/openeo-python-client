@@ -22,8 +22,7 @@ class TestTemporal(TestCase):
                                                                                                 {'band_id': 'B04'},
                                                                                                 {'band_id': 'B08'},
                                                                                                 ],
-                                                                                      'time': {'from': '2015-06-23',
-                                                                                               'to': '2018-06-18'}})
+                                                                                    })
 
         # discovery phase: find available data
         # basically user needs to find available data on a website anyway?
@@ -33,7 +32,7 @@ class TestTemporal(TestCase):
         s2_radio = session.imagecollection("SENTINEL2_RADIOMETRY_10M")
         s2_radio = s2_radio.apply_dimension('cumsum')
 
-        s2_radio.download("out.geotiff", bbox="", time='2018-06-18',format="GTIFF")
+        s2_radio.download("out.geotiff", format="GTIFF")
 
         session.download.assert_called_once()
         actual_graph = session.download.call_args_list[0][0][0]

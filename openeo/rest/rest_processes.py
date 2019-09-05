@@ -424,7 +424,7 @@ class RESTProcesses():
 
         return self.graph_add_process(process_id, args)
 
-    def download(self, outputfile:str, bbox="", time="", **format_options) -> str:
+    def download(self, outputfile:str, **format_options) -> str:
         """Extraxts a geotiff from this image collection."""
         return self.connection.download(self.graph, outputfile, format_options)
 

@@ -815,7 +815,7 @@ class ImageCollectionClient(ImageCollection):
 
             return graph_add_aggregate_process(self)
 
-    def download(self, outputfile:str, bbox="", time="", **format_options) -> str:
+    def download(self, outputfile:str, **format_options) -> str:
         """Extraxts a geotiff from this image collection."""
 
         if self._api_version.at_least('0.4.0'):

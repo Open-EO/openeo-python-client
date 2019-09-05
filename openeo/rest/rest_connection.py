@@ -282,11 +282,9 @@ class RESTConnection(Connection):
         if data_info:
             if 'bands' in data_info:
                 for band in data_info['bands']: image_collection.bands.append(band['band_id'])
-            image_collection.dates = data_info.get('time',[])
             image_collection.extent = data_info.get('extent',None)
         else:
             image_collection.bands = ['not specified']
-            image_collection.dates = ['not specified']
             image_collection.extent = ['not specified']
 
     def point_timeseries(self, graph, x, y, srs) -> dict:

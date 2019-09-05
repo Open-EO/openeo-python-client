@@ -20,7 +20,7 @@ class TestTimeSeries(TestCase):
         m.get("http://localhost:8000/api/collections", json=[{"product_id": "sentinel2_subset"}])
         m.get("http://localhost:8000/api/collections/SENTINEL2_FAPAR", json={"product_id": "sentinel2_subset",
                                                                                "bands": [{'band_id': 'FAPAR'}],
-                                                                               'time': {'from': '2015-06-23', 'to': '2018-06-18'}})
+                                                                               })
 
         #discovery phase: find available data
         #basically user needs to find available data on a website anyway?

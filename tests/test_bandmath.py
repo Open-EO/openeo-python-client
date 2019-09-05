@@ -24,8 +24,7 @@ class TestBandMath(TestCase):
                                                                                                 {'band_id': 'B04'},
                                                                                                 {'band_id': 'B08'},
                                                                                                 ],
-                                                                                      'time': {'from': '2015-06-23',
-                                                                                               'to': '2018-06-18'}})
+                                                                                    })
 
         # discovery phase: find available data
         # basically user needs to find available data on a website anyway?
@@ -40,7 +39,7 @@ class TestBandMath(TestCase):
 
         evi_cube = (2.5 * (B08 - B04)) / ((B08 + 6.0 * B04 - 7.5 * B02) + 1.0)
 
-        evi_cube.download("out.geotiff", bbox="", time=s2_radio.dates['to'],format="GTIFF")
+        evi_cube.download("out.geotiff", format="GTIFF")
 
         session.download.assert_called_once()
         actual_graph = session.download.call_args_list[0][0][0]
@@ -58,7 +57,7 @@ class TestBandMath(TestCase):
         m.get("http://localhost:8000/api/collections/SENTINEL2_RADIOMETRY_10M", json={"product_id": "sentinel2_subset",
                                                                                "bands": [{'band_id': 'B0'}, {'band_id': 'B1'},
                                                                                          {'band_id': 'B2'}, {'band_id': 'B3'}],
-                                                                               'time': {'from': '2015-06-23', 'to': '2018-06-18'}})
+                                                                               })
 
         #discovery phase: find available data
         #basically user needs to find available data on a website anyway?
@@ -77,7 +76,7 @@ class TestBandMath(TestCase):
 
         #materialize result in the shape of a geotiff
         #REST: WCS call
-        ndvi_coverage.download("out.geotiff",bbox="", time=s2_radio.dates['to'])
+        ndvi_coverage.download("out.geotiff")
 
         #get result as timeseries for a single point
         #How to define a point? Ideally it should also have the CRS?
@@ -114,8 +113,7 @@ class TestBandMath(TestCase):
                                                                                          {'band_id': 'B1'},
                                                                                          {'band_id': 'B2'},
                                                                                          {'band_id': 'B3'}],
-                                                                               'time': {'from': '2015-06-23',
-                                                                                        'to': '2018-06-18'}})
+                                                                             })
 
         #discovery phase: find available data
         #basically user needs to find available data on a website anyway?
@@ -132,7 +130,7 @@ class TestBandMath(TestCase):
 
         #materialize result in the shape of a geotiff
         #REST: WCS call
-        ndvi_coverage.download("out.geotiff",bbox="", time=s2_radio.dates['to'])
+        ndvi_coverage.download("out.geotiff")
 
         #get result as timeseries for a single point
         #How to define a point? Ideally it should also have the CRS?
@@ -160,8 +158,7 @@ class TestBandMath(TestCase):
                                                                                          {'band_id': 'B1'},
                                                                                          {'band_id': 'B2'},
                                                                                          {'band_id': 'B3'}],
-                                                                               'time': {'from': '2015-06-23',
-                                                                                        'to': '2018-06-18'}})
+                                                                             })
 
         def check_process_graph(request):
             expected_graph = load_json_resource('data/udf_graph.json')
@@ -179,7 +176,7 @@ class TestBandMath(TestCase):
 
         #materialize result in the shape of a geotiff
         #REST: WCS call
-        ndvi_coverage.download("out.geotiff",bbox="", time=s2_radio.dates['to'],format="GTIFF")
+        ndvi_coverage.download("out.geotiff", format="GTIFF")
 
     @unittest.skip("Not yet implemented")
     def test_timeseries_fusion(self):
