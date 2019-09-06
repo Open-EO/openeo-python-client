@@ -282,11 +282,9 @@ class RESTConnection(Connection):
         if data_info:
             if 'bands' in data_info:
                 for band in data_info['bands']: image_collection.bands.append(band['band_id'])
-            image_collection.dates = data_info.get('time',[])
             image_collection.extent = data_info.get('extent',None)
         else:
             image_collection.bands = ['not specified']
-            image_collection.dates = ['not specified']
             image_collection.extent = ['not specified']
 
     def point_timeseries(self, graph, x, y, srs) -> dict:
@@ -344,13 +342,12 @@ class RESTConnection(Connection):
         return self.not_supported()
 
     # TODO: Maybe rename to execute and merge with execute().
-    def download(self, graph, time, outputfile, format_options):
+    def download(self, graph, outputfile, format_options):
         """
         Downloads the result of a process graph synchronously, and save the result to the given file.
         This method is useful to export binary content such as images. For json content, the execute method is recommended.
 
         :param graph: Dict representing a process graph
-        :param time: dba
         :param outputfile: output file
         :param format_options: formating options
         :return: job_id: String

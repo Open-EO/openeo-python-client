@@ -815,7 +815,7 @@ class ImageCollectionClient(ImageCollection):
 
             return graph_add_aggregate_process(self)
 
-    def download(self, outputfile:str, bbox="", time="", **format_options) -> str:
+    def download(self, outputfile:str, **format_options) -> str:
         """Extraxts a geotiff from this image collection."""
 
         if self._api_version.at_least('0.4.0'):
@@ -829,10 +829,10 @@ class ImageCollectionClient(ImageCollection):
                 raise ValueError("Please use the 'format' keyword argument to specify the output format. Use openeo.connection.Connection#list_file_types to retrieve available ouput formats for this backend.")
             newcollection = self.graph_add_process("save_result",args)
             newcollection.graph[newcollection.node_id]["result"] = 'true'
-            return self.session.download(newcollection.graph, time, outputfile, format_options)
+            return self.session.download(newcollection.graph, outputfile, format_options)
         else:
             self.graph[self.node_id]["result"] = 'true'
-            return self.session.download(self.graph, time, outputfile, format_options)
+            return self.session.download(self.graph, outputfile, format_options)
 
     def tiled_viewing_service(self,**kwargs) -> Dict:
         newbuilder = self.builder.copy()

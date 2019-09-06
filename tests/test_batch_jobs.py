@@ -24,8 +24,7 @@ class TestBatchJobs(TestCase):
                                                                                                 {'band_id': 'B04'},
                                                                                                 {'band_id': 'B08'},
                                                                                                 ],
-                                                                                      'time': {'from': '2015-06-23',
-                                                                                               'to': '2018-06-18'}})
+                                                                                    })
 
         def match_body(request):
             self.assertDictEqual(load_json_resource("data/batch_job.json"),request.json())

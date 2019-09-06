@@ -230,12 +230,11 @@ class Connection(ABC):
         """
 
     @abstractmethod
-    def download(self, graph, time, outputfile, format_options):
+    def download(self, graph, outputfile, format_options):
         """
         Downloads a result of a process graph synchronously.
 
         :param graph: Dict representing a process graph
-        :param time: dba
         :param outputfile: output file
         :param format_options: formating options
 

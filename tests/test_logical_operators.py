@@ -21,7 +21,6 @@ class TestLogicalOps(TestCase):
         m.get("http://localhost:8000/api/collections/SENTINEL2_SCF", json={
             "product_id": "sentinel2_subset",
             "bands": [{'band_id': 'SCENECLASSIFICATION'}],
-            'time': {'from': '2015-06-23', 'to': '2018-06-18'}
         })
 
         # discovery phase: find available data
@@ -35,7 +34,7 @@ class TestLogicalOps(TestCase):
 
         mask = scf_bands != 4
 
-        mask.download("out.geotiff", bbox="", time=s2_radio.dates['to'],format="GTIFF")
+        mask.download("out.geotiff", format="GTIFF")
 
         session.download.assert_called_once()
         actual_graph = session.download.call_args_list[0][0][0]
@@ -52,7 +51,6 @@ class TestLogicalOps(TestCase):
         m.get("http://localhost:8000/api/collections/SENTINEL2_SCF", json={
             "product_id": "sentinel2_subset",
             "bands": [{'band_id': 'SCENECLASSIFICATION'}],
-            'time': {'from': '2015-06-23', 'to': '2018-06-18'}
         })
 
         ic = session.imagecollection("SENTINEL2_SCF")
@@ -60,7 +58,7 @@ class TestLogicalOps(TestCase):
         # TODO: this expression (twice `data`) creates a duplicate `arrayelement` in the process graph
         mask = (data == 2) | (data == 5)
 
-        mask.download("out.geotiff", bbox="", time=ic.dates['to'],format="GTIFF")
+        mask.download("out.geotiff", format="GTIFF")
         session.download.assert_called_once()
         actual_graph = session.download.call_args_list[0][0][0]
         expected_graph = load_json_resource('logical_or.json')
@@ -76,7 +74,6 @@ class TestLogicalOps(TestCase):
         m.get("http://localhost:8000/api/collections/SENTINEL2_SCF", json={
             "product_id": "sentinel2_subset",
             "bands": [{'band_id': 'B1'}, {'band_id': 'B2'}],
-            'time': {'from': '2015-06-23', 'to': '2018-06-18'}
         })
 
         ic = session.imagecollection("SENTINEL2_SCF")
@@ -84,7 +81,7 @@ class TestLogicalOps(TestCase):
         b2 = ic.band('B2')
         mask = (b1 == 2) & (b2 == 5)
 
-        mask.download("out.geotiff", bbox="", time=ic.dates['to'],format="GTIFF")
+        mask.download("out.geotiff", format="GTIFF")
         session.download.assert_called_once()
         actual_graph = session.download.call_args_list[0][0][0]
         expected_graph = load_json_resource('logical_and.json')
