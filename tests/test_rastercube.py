@@ -188,7 +188,7 @@ class TestRasterCube(TestCase):
 
         graph = new_imagery.graph[new_imagery.node_id]
 
-        self.assertEqual(graph["process_id"], "NDVI")
+        self.assertEqual(graph["process_id"], "ndvi")
         self.assertIn("data", graph['arguments'])
 
     def test_mask(self):
