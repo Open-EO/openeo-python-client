@@ -188,7 +188,7 @@ class RESTProcesses():
         """
 
         graph = {
-                'process_id': 'NDVI',
+                'process_id': 'ndvi',
                 'imagery': imagery.graph,
                 'red': red,
                 'nir': nir

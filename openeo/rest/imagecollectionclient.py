@@ -639,7 +639,7 @@ class ImageCollectionClient(ImageCollection):
 
             :return An ImageCollection instance
         """
-        process_id = 'NDVI'
+        process_id = 'ndvi'
 
         args = {
                 'data': {'from_node': self.node_id}

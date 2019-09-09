@@ -19,7 +19,7 @@ class ImageCollection(ABC):
     def date_range_filter(self, start_date:Union[str,datetime,date],end_date:Union[str,datetime,date]) -> 'ImageCollection':
         """
         Specifies a date range filter to be applied on the ImageCollection
-        DEPRECATED: use :func:`openeo.ImageCollection.filter_daterange`
+        DEPRECATED: use :func:`openeo.ImageCollection.filter_temporal`
 
         :param start_date: Start date of the filter, inclusive, format: "YYYY-MM-DD".
         :param end_date: End date of the filter, exclusive, format e.g.: "2018-01-13".
