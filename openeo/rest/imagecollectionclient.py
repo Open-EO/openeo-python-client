@@ -1,78 +1,13 @@
-import warnings
-from typing import List, Dict, Union, Tuple
+from typing import List, Dict, Union
 
 from deprecated import deprecated
 from shapely.geometry import Polygon, MultiPolygon, mapping
 
 from openeo.connection import Connection
 from openeo.graphbuilder import GraphBuilder
-from openeo.imagecollection import ImageCollection
+from openeo.imagecollection import ImageCollection, CollectionMetadata
 from openeo.job import Job
 from openeo.rest.rest_connection import RESTConnection
-
-
-class CollectionMetadata:
-    """
-    Wrapper for Image Collection metadata, as returned by
-    https://open-eo.github.io/openeo-api/apireference/#tag/EO-Data-Discovery/paths/~1collections~1{collection_id}/get
-    """
-
-    def __init__(self, metadata: dict):
-        self._metadata = metadata
-        self._band_names = None
-
-    @classmethod
-    def from_api(cls, session: RESTConnection, collection_id: str) -> 'CollectionMetadata':
-        metadata = session.describe_collection(collection_id)
-        return cls(metadata=metadata)
-
-    def get(self, *args, default=None):
-        """Helper to recursively index into nested metadata dict"""
-        cursor = self._metadata
-        for arg in args:
-            if arg in cursor:
-                cursor = cursor[arg]
-            else:
-                return default
-        return cursor
-
-    @property
-    def extent(self) -> dict:
-        return self._metadata.get('extent')
-
-    def get_band_info(self) -> List[Tuple[str, Union[str, None]]]:
-        """
-        Try to extract band names and common names from metadata
-        :return: list of (name, common_name) tuples
-        """
-        if self._band_names is None:
-            self._band_names = self._get_band_info() or []
-        return self._band_names
-
-    def _get_band_info(self) -> List[Tuple[str, Union[str, None]]]:
-        # First try `properties/eo:bands`
-        eo_bands = self.get('properties', 'eo:bands')
-        if eo_bands:
-            return [(b['name'], b.get('common_name')) for b in eo_bands]
-        warnings.warn("No band metadata under `properties/eo:bands` trying some fallback sources.")
-        # Fall back on `properties/cube:dimensions`
-        cube_dimensions = self.get('properties', 'cube:dimensions', default={})
-        for dim in cube_dimensions.values():
-            if dim["type"] == "bands":
-                # TODO: warn when multiple (or no) "bands" type?
-                return [(b, None) for b in dim["values"]]
-        # Try non-standard VITO bands metadata
-        # TODO remove support for this legacy non-standard band metadata
-        if "bands" in self._metadata:
-            return [(b["band_id"], b.get("name")) for b in self._metadata["bands"]]
-
-    @property
-    def band_names(self) -> List[str]:
-        return [n for (n, _) in self.get_band_info()]
-
-    @property
-    def band_common_names(self) -> List[str]:
-        return [c for (_, c) in self.get_band_info()]
 
 
 class ImageCollectionClient(ImageCollection):
@@ -81,6 +16,7 @@ class ImageCollectionClient(ImageCollection):
     """
 
     def __init__(self, node_id: str, builder: GraphBuilder, session: RESTConnection, metadata: CollectionMetadata=None):
+        super().__init__(metadata=metadata)
         self.node_id = node_id
         self.builder= builder
         self.session = session
@@ -121,22 +57,13 @@ class ImageCollectionClient(ImageCollection):
         if bands:
             arguments['bands'] = bands
         node_id = builder.process(process_id, arguments)
-        metadata = CollectionMetadata.from_api(session, collection_id) if fetch_metadata else None
+        metadata = session.collection_metadata(collection_id) if fetch_metadata else None
         return cls(node_id, builder, session, metadata=metadata)
 
     @classmethod
     @deprecated("use load_collection instead")
     def create_collection(cls, *args, **kwargs):
         return cls.load_collection(*args, **kwargs)
-
-
-    @property
-    def extent(self):
-        return self.metadata.extent
-
-    @property
-    def bands(self):
-        return self.metadata.band_names
 
     def _filter_temporal(self, start: str, end: str) -> 'ImageCollection':
         return self.graph_add_process(

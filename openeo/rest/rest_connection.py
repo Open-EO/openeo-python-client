@@ -8,6 +8,7 @@ from openeo.auth.auth_basic import BasicAuth
 from openeo.auth.auth_none import NoneAuth
 from openeo.capabilities import Capabilities
 from openeo.connection import Connection
+from openeo.imagecollection import CollectionMetadata
 from openeo.rest.job import RESTJob
 from openeo.rest.rest_capabilities import RESTCapabilities
 from openeo.rest.rest_processes import RESTProcesses
@@ -175,6 +176,9 @@ class RESTConnection(Connection):
             return self.parse_json_response(data_info)
         else:
             raise ValueError("Invalid argument col_id: {}".format(str(name)))
+
+    def collection_metadata(self, name) -> CollectionMetadata:
+        return CollectionMetadata(metadata=self.describe_collection(name))
 
     def list_processes(self) -> dict:
         # TODO: Maybe format the result dictionary so that the process_id is the key of the dictionary.
