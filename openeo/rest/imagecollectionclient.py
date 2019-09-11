@@ -70,6 +70,10 @@ class CollectionMetadata:
     def band_names(self) -> List[str]:
         return [n for (n, _) in self.get_band_info()]
 
+    @property
+    def band_common_names(self) -> List[str]:
+        return [c for (_, c) in self.get_band_info()]
+
 
 class ImageCollectionClient(ImageCollection):
     """Class representing an Image Collection. (In the API as 'imagery')
@@ -173,7 +177,7 @@ class ImageCollectionClient(ImageCollection):
 
     def band(self, band: Union[str, int]) -> 'ImageCollection':
         """Filter the imagery by the given bands
-            :param band: band name or band index.
+            :param band: band name, band common name or band index.
             :return An ImageCollection instance
         """
 
@@ -205,16 +209,20 @@ class ImageCollectionClient(ImageCollection):
         """
         Helper to resolve/check a band name/index to a band index
 
-        :param band: band name or band index
+        :param band: band name, band common name or band index
         :return int: band index
         """
-        bands = self.bands
-        if isinstance(band, str) and band in bands:
-            return bands.index(band)
-        elif isinstance(band, int) and 0 <= band < len(bands):
+        band_names = self.metadata.band_names
+        if isinstance(band, int) and 0 <= band < len(band_names):
             return band
-        else:
-            raise ValueError("Band {b!r} not available in collection. Valid names: {n!r}".format(b=band, n=bands))
+        elif isinstance(band, str):
+            common_names = self.metadata.band_common_names
+            # First try common names if possible
+            if band in common_names:
+                return common_names.index(band)
+            if band in band_names:
+                return band_names.index(band)
+        raise ValueError("Band {b!r} not available in collection. Valid names: {n!r}".format(b=band, n=band_names))
 
     def subtract(self, other:Union[ImageCollection,Union[int,float]]):
         """

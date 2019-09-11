@@ -31,6 +31,31 @@ class TestBandMath(TestCase):
         assert cube.band(0).graph == expected_graph
         assert cube.band('B02').graph == expected_graph
 
+    def test_band_indexing(self, m):
+        session = openeo.connect("http://localhost:8000/api")
+        session.post = MagicMock()
+        session.download = MagicMock()
+
+        m.get("http://localhost:8000/api/", json={"version": "0.4.0"})
+        m.get("http://localhost:8000/api/collections/CGS_SENTINEL2_RADIOMETRY_V102_001", json={
+            "id": "CGS_SENTINEL2_RADIOMETRY_V102_001",
+            "properties": {
+                "eo:bands": [
+                    {"name": "B02", "common_name": "blue", "center_wavelength": 0.4966},
+                    {"name": "B03", "common_name": "green", "center_wavelength": 0.560},
+                    {"name": "B04", "common_name": "red", "center_wavelength": 0.6645},
+                    {"name": "B08", "common_name": "nir", "center_wavelength": 0.8351}
+                ]
+            }
+        })
+
+        cube = session.imagecollection("CGS_SENTINEL2_RADIOMETRY_V102_001")
+        expected_graph = load_json_resource('data/band_red.json')
+
+        assert cube.band(2).graph == expected_graph
+        assert cube.band('B04').graph == expected_graph
+        assert cube.band('red').graph == expected_graph
+
     def test_evi(self,m):
         # configuration phase: define username, endpoint, parameters?
         session = openeo.connect("http://localhost:8000/api")
