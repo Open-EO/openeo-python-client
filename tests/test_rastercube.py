@@ -184,7 +184,7 @@ class TestRasterCube(TestCase):
         self.assertIn("data", graph['arguments'])
 
     def test_ndvi(self):
-        new_imagery = self.imagery.ndvi("B04", "B8A")
+        new_imagery = self.imagery.ndvi()
 
         graph = new_imagery.graph[new_imagery.node_id]
 

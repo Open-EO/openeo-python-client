@@ -712,17 +712,16 @@ class ImageCollectionClient(ImageCollection):
         """
         return self._reduce_time(reduce_function="count")
 
-    def ndvi(self,red=None,nir=None) -> 'ImageCollection':
+    def ndvi(self, name="ndvi") -> 'ImageCollection':
         """ NDVI
 
             :return An ImageCollection instance
         """
         process_id = 'ndvi'
-
         args = {
-                'data': {'from_node': self.node_id}
-            }
-
+            'data': {'from_node': self.node_id},
+            'name': name
+        }
         return self.graph_add_process(process_id, args)
 
     def stretch_colors(self, min, max) -> 'ImageCollection':

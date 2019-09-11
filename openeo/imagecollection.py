@@ -241,11 +241,10 @@ class ImageCollection(ABC):
         """
         pass
 
-    def ndvi(self, red, nir) -> 'ImageCollection':
-        """ NDVI
+    def ndvi(self, name: str = "ndvi") -> 'ImageCollection':
+        """ Normalized Difference Vegetation Index (NDVI)
 
-            :param red: Reference to the red band
-            :param nir: Reference to the nir band
+            :param name: Name of the newly created band
 
             :return An ImageCollection instance
         """
