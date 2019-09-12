@@ -287,6 +287,7 @@ class ImageCollectionClient(ImageCollection):
             process_graph_copy.processes[self.node_id]['arguments']['reducer']['callback'] = callback_graph_builder.processes
 
             # now current_node should be a reduce node, let's modify it
+            # TODO: set metadata of reduced cube?
             return ImageCollectionClient(self.node_id, process_graph_copy, self.session)
 
     def __truediv__(self,other):
@@ -356,6 +357,7 @@ class ImageCollectionClient(ImageCollection):
             new_builder = reducing_graph.builder.copy()
             new_builder.processes[node_id]['arguments']['reducer']['callback'] = merged.processes
             # now current_node should be a reduce node, let's modify it
+            # TODO: set metadata of reduced cube?
             return ImageCollectionClient(node_id, new_builder, reducing_graph.session)
         
     def _reduce_bands_binary_xy(self,operator,other:Union[ImageCollection,Union[int,float]]):
@@ -887,6 +889,7 @@ class ImageCollectionClient(ImageCollection):
     def _graph_merge(self, other_graph:Dict):
         newbuilder = GraphBuilder(self.builder.processes)
         merged = newbuilder.merge(GraphBuilder(other_graph))
+        # TODO: properly update metadata as well?
         newCollection = ImageCollectionClient(self.node_id, merged, self.session, metadata=self.metadata)
         return newCollection
 
@@ -902,5 +905,6 @@ class ImageCollectionClient(ImageCollection):
         newbuilder = GraphBuilder(self.builder.processes)
         id = newbuilder.process(process_id,args)
 
+        # TODO: properly update metadata as well?
         newCollection = ImageCollectionClient(id, newbuilder, self.session, metadata=self.metadata)
         return newCollection
