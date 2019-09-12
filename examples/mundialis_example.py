@@ -15,7 +15,7 @@ con = openeo.connect(MUNDIALIS_DRIVER_URL)
 #Test Connection
 print(con.list_processes())
 print(con.list_collections())
-print(con.describe_collection("nc_spm_08.modis_lst.raster.MOD11B3.A2016306.h11v05.single_LST_Day_6km"))
+print(con.describe_collection("nc_spm_08.modis_lst.strds.MOD11B3.A2016306.h11v05.single_LST_Day_6km"))
 
 
 # Test Capabilities
