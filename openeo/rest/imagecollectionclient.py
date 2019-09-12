@@ -494,7 +494,7 @@ class ImageCollectionClient(ImageCollection):
                     'from_node': self.node_id
                 },
                 'dimension': 'spectral_bands',#TODO determine dimension based on datacube metadata
-                'binary': 'false',
+                'binary': False,
                 'reducer': {
                     'callback': {
                         'udf': self._create_run_udf(code, runtime, version)
@@ -828,10 +828,10 @@ class ImageCollectionClient(ImageCollection):
             else:
                 raise ValueError("Please use the 'format' keyword argument to specify the output format. Use openeo.connection.Connection#list_file_types to retrieve available ouput formats for this backend.")
             newcollection = self.graph_add_process("save_result",args)
-            newcollection.graph[newcollection.node_id]["result"] = 'true'
+            newcollection.graph[newcollection.node_id]["result"] = True
             return self.session.download(newcollection.graph, outputfile, format_options)
         else:
-            self.graph[self.node_id]["result"] = 'true'
+            self.graph[self.node_id]["result"] = True
             return self.session.download(self.graph, outputfile, format_options)
 
     def tiled_viewing_service(self,**kwargs) -> Dict:
