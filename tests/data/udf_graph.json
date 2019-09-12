@@ -16,7 +16,7 @@
           "from_node": "loadcollection1"
         },
         "dimension": "spectral_bands",
-        "binary": "false",
+        "binary": false,
         "reducer": {
           "callback": {
             "udf": {
@@ -45,7 +45,7 @@
         "options": {},
         "format":"GTIFF"
       },
-      "result": "true"
+      "result": true
     }
   }
 

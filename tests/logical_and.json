@@ -85,6 +85,6 @@
       "options": {},
       "format": "GTIFF"
     },
-    "result": "true"
+    "result": true
   }
 }
