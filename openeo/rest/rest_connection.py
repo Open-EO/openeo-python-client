@@ -8,6 +8,7 @@ from openeo.auth.auth_basic import BasicAuth
 from openeo.auth.auth_none import NoneAuth
 from openeo.capabilities import Capabilities
 from openeo.connection import Connection
+from openeo.imagecollection import CollectionMetadata
 from openeo.rest.job import RESTJob
 from openeo.rest.rest_capabilities import RESTCapabilities
 from openeo.rest.rest_processes import RESTProcesses
@@ -176,6 +177,9 @@ class RESTConnection(Connection):
         else:
             raise ValueError("Invalid argument col_id: {}".format(str(name)))
 
+    def collection_metadata(self, name) -> CollectionMetadata:
+        return CollectionMetadata(metadata=self.describe_collection(name))
+
     def list_processes(self) -> dict:
         # TODO: Maybe format the result dictionary so that the process_id is the key of the dictionary.
         """
@@ -234,58 +238,13 @@ class RESTConnection(Connection):
         """
         Get imagecollection by id.
         :param image_collection_id: String image collection identifier
-        :return: collection: RestImageCollection the imagecollection with the id
+        :return: collection: ImageCollectionClient the imagecollection with the id
         """
-        if self._api_version.at_least('0.4.0'):
-            return self._image_040(image_collection_id)
-        else:
-            from .imagery import RestImagery
-            collection = RestImagery({'name': image_collection_id, 'process_id': 'get_collection'}, self)
-
-            self.fetch_metadata(image_collection_id, collection)
-            return collection
-
-    def _image_040(self, image_product_id) -> 'ImageCollection':
-        """
-        Get imagery by id.
-        :param image_collection_id: String image collection identifier
-        :return: collection: RestImagery the imagery with the id
-        """
-        #new implementation: https://github.com/Open-EO/openeo-api/issues/160
+        assert self._api_version.at_least('0.4.0')
         # TODO avoid local imports
         from .imagecollectionclient import ImageCollectionClient
-        image = ImageCollectionClient.create_collection(image_product_id, self)
-        self.fetch_metadata(image_product_id, image)
+        image = ImageCollectionClient.load_collection(image_collection_id, self)
         return image
-
-    def image(self, image_product_id) -> 'ImageCollection':
-        """
-        Get imagery by id.
-        DEPRECATED
-
-        :param image_collection_id: String image collection identifier
-        :return: collection: RestImagery the imagery with the id
-        """
-        # TODO avoid local imports
-        from .rest_processes import RESTProcesses
-
-        image = RESTProcesses( self)
-
-        self.fetch_metadata(image_product_id, image)
-        return image
-
-    def fetch_metadata(self, image_product_id, image_collection):
-        # TODO: this sets public properties on image_collection: shouldn't this be part of ImageCollection class then?
-        # read and format extent, band and date availability information
-        data_info = self.describe_collection(image_product_id)
-        image_collection.bands = []
-        if data_info:
-            if 'bands' in data_info:
-                for band in data_info['bands']: image_collection.bands.append(band['band_id'])
-            image_collection.extent = data_info.get('extent',None)
-        else:
-            image_collection.bands = ['not specified']
-            image_collection.extent = ['not specified']
 
     def point_timeseries(self, graph, x, y, srs) -> dict:
         """Compute a timeseries for a given point location."""

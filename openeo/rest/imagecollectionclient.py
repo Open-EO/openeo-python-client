@@ -1,14 +1,13 @@
-from datetime import datetime, date
 from typing import List, Dict, Union
 
+from deprecated import deprecated
 from shapely.geometry import Polygon, MultiPolygon, mapping
 
 from openeo.connection import Connection
 from openeo.graphbuilder import GraphBuilder
-from openeo.imagecollection import ImageCollection
+from openeo.imagecollection import ImageCollection, CollectionMetadata
 from openeo.job import Job
 from openeo.rest.rest_connection import RESTConnection
-from openeo.util import first_not_none
 
 
 class ImageCollectionClient(ImageCollection):
@@ -16,23 +15,25 @@ class ImageCollectionClient(ImageCollection):
         Supports 0.4.
     """
 
-    def __init__(self,node_id:str, builder:GraphBuilder, session:RESTConnection):
+    def __init__(self, node_id: str, builder: GraphBuilder, session: RESTConnection, metadata: CollectionMetadata=None):
+        super().__init__(metadata=metadata)
         self.node_id = node_id
         self.builder= builder
         self.session = session
         self.graph = builder.processes
-        self.bands = []
+        self.metadata = metadata
 
     @property
     def _api_version(self):
         return self.session.capabilities().api_version_check
 
     @classmethod
-    def create_collection(
+    def load_collection(
             cls, collection_id: str, session: Connection = None,
             spatial_extent: Union[Dict, None] = None,
             temporal_extent: Union[List, None] = None,
-            bands: Union[List, None] = None
+            bands: Union[List, None] = None,
+            fetch_metadata=True
     ):
         """
         Create a new Image Collection/Raster Data cube.
@@ -45,25 +46,24 @@ class ImageCollectionClient(ImageCollection):
         :return:
         """
         # TODO: rename function to load_collection for better similarity with corresponding process id?
+        assert session.capabilities().api_version_check.at_least('0.4.0')
         builder = GraphBuilder()
+        process_id = 'load_collection'
+        arguments = {
+            'id': collection_id,
+            'spatial_extent': spatial_extent,
+            'temporal_extent': temporal_extent,
+        }
+        if bands:
+            arguments['bands'] = bands
+        node_id = builder.process(process_id, arguments)
+        metadata = session.collection_metadata(collection_id) if fetch_metadata else None
+        return cls(node_id, builder, session, metadata=metadata)
 
-        if session.capabilities().api_version_check.at_least('0.4.0'):
-            process_id = 'load_collection'
-            arguments = {
-                'id': collection_id,
-                'spatial_extent': spatial_extent,
-                'temporal_extent': temporal_extent,
-            }
-            if bands:
-                arguments['bands'] = bands
-        else:
-            process_id = 'get_collection'
-            arguments = {
-                'name': collection_id
-            }
-
-        id = builder.process(process_id, arguments)
-        return ImageCollectionClient(id, builder, session)
+    @classmethod
+    @deprecated("use load_collection instead")
+    def create_collection(cls, *args, **kwargs):
+        return cls.load_collection(*args, **kwargs)
 
     def _filter_temporal(self, start: str, end: str) -> 'ImageCollection':
         return self.graph_add_process(
@@ -102,14 +102,14 @@ class ImageCollectionClient(ImageCollection):
                 }
         return self.graph_add_process(process_id, args)
 
-    def band(self, band_name) -> 'ImageCollection':
+    def band(self, band: Union[str, int]) -> 'ImageCollection':
         """Filter the imagery by the given bands
-            :param bands: List of band names or single band name as a string.
+            :param band: band name, band common name or band index.
             :return An ImageCollection instance
         """
 
         process_id = 'reduce'
-        band_index = self._band_index(band_name)
+        band_index = self._band_index(band)
 
         args = {
             'data': {'from_node': self.node_id},
@@ -132,11 +132,24 @@ class ImageCollectionClient(ImageCollection):
 
         return self.graph_add_process(process_id, args)
 
-    def _band_index(self,name:str):
-        try:
-            return self.bands.index(name)
-        except ValueError as e:
-            raise ValueError("Given band name: " + name + " not available in this image collection. Valid band names are: " + str(self.bands))
+    def _band_index(self, band: Union[str, int]):
+        """
+        Helper to resolve/check a band name/index to a band index
+
+        :param band: band name, band common name or band index
+        :return int: band index
+        """
+        band_names = self.metadata.band_names
+        if isinstance(band, int) and 0 <= band < len(band_names):
+            return band
+        elif isinstance(band, str):
+            common_names = self.metadata.band_common_names
+            # First try common names if possible
+            if band in common_names:
+                return common_names.index(band)
+            if band in band_names:
+                return band_names.index(band)
+        raise ValueError("Band {b!r} not available in collection. Valid names: {n!r}".format(b=band, n=band_names))
 
     def subtract(self, other:Union[ImageCollection,Union[int,float]]):
         """
@@ -274,6 +287,7 @@ class ImageCollectionClient(ImageCollection):
             process_graph_copy.processes[self.node_id]['arguments']['reducer']['callback'] = callback_graph_builder.processes
 
             # now current_node should be a reduce node, let's modify it
+            # TODO: set metadata of reduced cube?
             return ImageCollectionClient(self.node_id, process_graph_copy, self.session)
 
     def __truediv__(self,other):
@@ -343,6 +357,7 @@ class ImageCollectionClient(ImageCollection):
             new_builder = reducing_graph.builder.copy()
             new_builder.processes[node_id]['arguments']['reducer']['callback'] = merged.processes
             # now current_node should be a reduce node, let's modify it
+            # TODO: set metadata of reduced cube?
             return ImageCollectionClient(node_id, new_builder, reducing_graph.session)
         
     def _reduce_bands_binary_xy(self,operator,other:Union[ImageCollection,Union[int,float]]):
@@ -634,17 +649,16 @@ class ImageCollectionClient(ImageCollection):
         """
         return self._reduce_time(reduce_function="count")
 
-    def ndvi(self,red=None,nir=None) -> 'ImageCollection':
+    def ndvi(self, name="ndvi") -> 'ImageCollection':
         """ NDVI
 
             :return An ImageCollection instance
         """
         process_id = 'ndvi'
-
         args = {
-                'data': {'from_node': self.node_id}
-            }
-
+            'data': {'from_node': self.node_id},
+            'name': name
+        }
         return self.graph_add_process(process_id, args)
 
     def stretch_colors(self, min, max) -> 'ImageCollection':
@@ -875,8 +889,8 @@ class ImageCollectionClient(ImageCollection):
     def _graph_merge(self, other_graph:Dict):
         newbuilder = GraphBuilder(self.builder.processes)
         merged = newbuilder.merge(GraphBuilder(other_graph))
-        newCollection = ImageCollectionClient(self.node_id, merged, self.session)
-        newCollection.bands = self.bands
+        # TODO: properly update metadata as well?
+        newCollection = ImageCollectionClient(self.node_id, merged, self.session, metadata=self.metadata)
         return newCollection
 
     def graph_add_process(self, process_id, args) -> 'ImageCollection':
@@ -891,8 +905,8 @@ class ImageCollectionClient(ImageCollection):
         newbuilder = GraphBuilder(self.builder.processes)
         id = newbuilder.process(process_id,args)
 
-        newCollection = ImageCollectionClient(id, newbuilder, self.session)
-        newCollection.bands = self.bands
+        # TODO: properly update metadata as well?
+        newCollection = ImageCollectionClient(id, newbuilder, self.session, metadata=self.metadata)
         return newCollection
 
     def to_graphviz(self):

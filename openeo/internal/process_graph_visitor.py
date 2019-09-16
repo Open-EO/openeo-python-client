@@ -52,10 +52,9 @@ class ProcessGraphVisitor(ABC):
             raise ValueError("The provided process graph does not contain a result node.")
         return result_node
 
-
-    def accept_process_graph(self,graph:Dict):
+    def accept_process_graph(self, graph: dict) -> 'ProcessGraphVisitor':
         """
-        Traverse a process graph, provided as a flat Dict of nodes that are not referencing each other.
+        Traverse a process graph
         :param graph:
         :return:
         """

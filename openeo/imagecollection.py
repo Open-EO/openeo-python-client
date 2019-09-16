@@ -1,4 +1,6 @@
+import warnings
 from abc import ABC
+from collections import namedtuple
 from datetime import datetime, date
 from typing import List, Dict, Union
 
@@ -9,11 +11,80 @@ from openeo.job import Job
 from openeo.util import get_temporal_extent, first_not_none
 
 
+class CollectionMetadata:
+    """
+    Wrapper for Image Collection metadata.
+
+    Simplifies getting values from deeply nested mappings,
+    allows additional parsing and normalizing compatibility issues.
+
+    Metadata is expected to follow format defined by
+    https://open-eo.github.io/openeo-api/apireference/#tag/EO-Data-Discovery/paths/~1collections~1{collection_id}/get
+    """
+
+    # Simple container class for band metadata (name, common name, wavelength in micrometer)
+    Band = namedtuple("Band", ["name", "common_name", "wavelength_um"])
+
+    def __init__(self, metadata: dict):
+        self._metadata = metadata
+        # Cached band metadata (for lazy loading/parsing)
+        self._bands = None
+
+    def get(self, *args, default=None):
+        """Helper to recursively index into nested metadata dict"""
+        cursor = self._metadata
+        for arg in args:
+            if arg not in cursor:
+                return default
+            cursor = cursor[arg]
+        return cursor
+
+    @property
+    def extent(self) -> dict:
+        return self._metadata.get('extent')
+
+    @property
+    def bands(self) -> List[Band]:
+        """Get band metadata as list of Band metadata tuples"""
+        if self._bands is None:
+            self._bands = self._get_bands()
+        return self._bands
+
+    def _get_bands(self) -> List[Band]:
+        # TODO refactor this specification specific processing away in a subclass?
+        # First try `properties/eo:bands`
+        eo_bands = self.get('properties', 'eo:bands')
+        if eo_bands:
+            # center_wavelength is in micrometer according to spec
+            return [self.Band(b['name'], b.get('common_name'), b.get('center_wavelength')) for b in eo_bands]
+        warnings.warn("No band metadata under `properties/eo:bands` trying some fallback sources.")
+        # Fall back on `properties/cube:dimensions`
+        cube_dimensions = self.get('properties', 'cube:dimensions', default={})
+        for dim in cube_dimensions.values():
+            if dim["type"] == "bands":
+                # TODO: warn when multiple (or no) "bands" type?
+                return [self.Band(b, None, None) for b in dim["values"]]
+        # Try non-standard VITO bands metadata
+        # TODO remove support for this legacy non-standard band metadata
+        if "bands" in self._metadata:
+            nm_to_um = lambda nm: nm / 1000. if nm is not None else None
+            return [self.Band(b["band_id"], b.get("name"), nm_to_um(b.get("wavelength_nm")))
+                    for b in self._metadata["bands"]]
+
+    @property
+    def band_names(self) -> List[str]:
+        return [b.name for b in self.bands]
+
+    @property
+    def band_common_names(self) -> List[str]:
+        return [b.common_name for b in self.bands]
+
+
 class ImageCollection(ABC):
     """Class representing Processes. """
 
-    def __init__(self):
-        pass
+    def __init__(self, metadata: CollectionMetadata = None):
+        self.metadata = metadata if isinstance(metadata, CollectionMetadata) else CollectionMetadata(metadata or {})
 
     @deprecated("Use `filter_temporal()` instead")
     def date_range_filter(self, start_date:Union[str,datetime,date],end_date:Union[str,datetime,date]) -> 'ImageCollection':
@@ -241,11 +312,10 @@ class ImageCollection(ABC):
         """
         pass
 
-    def ndvi(self, red, nir) -> 'ImageCollection':
-        """ NDVI
+    def ndvi(self, name: str = "ndvi") -> 'ImageCollection':
+        """ Normalized Difference Vegetation Index (NDVI)
 
-            :param red: Reference to the red band
-            :param nir: Reference to the nir band
+            :param name: Name of the newly created band
 
             :return An ImageCollection instance
         """
@@ -261,6 +331,7 @@ class ImageCollection(ABC):
         """
         pass
 
+
     def band_filter(self, bands) -> 'ImageCollection':
         """Filters the bands in the data cube so that bands that don't match any of the criteria are dropped from the data cube.
         The data cube is expected to have only one spectral dimension.
@@ -271,6 +342,7 @@ class ImageCollection(ABC):
 
             :return An ImageCollection instance
         """
+        # TODO: deprecate `band_filter(bands)` and implement `filter_bands(bands, common_names, wavelengths) like https://open-eo.github.io/openeo-api/processreference/#filter_bands
         pass
 
     def band(self, band_name) -> 'ImageCollection':
@@ -280,6 +352,7 @@ class ImageCollection(ABC):
 
             :return An ImageCollection instance
         """
+        # TODO: does this method have to be defined at the level of the ImageCollection base class? it is only implemented by the rest client
         pass
 
     def mask(self,polygon: Union[Polygon, MultiPolygon]=None, srs="EPSG:4326",rastermask:'ImageCollection'=None,replacement=None) -> 'ImageCollection':

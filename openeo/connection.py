@@ -11,6 +11,8 @@ openeo.sessions
 This module provides a Connection object to manage and persist settings when interacting with the OpenEO API.
 """
 
+# TODO is it necessary to have this abstract base class Connection
+#      when there is just this one RESTConnection implementation class?
 
 class Connection(ABC):
     """
@@ -217,17 +219,6 @@ class Connection(ABC):
         :rtype: openeo.imagecollection.ImageCollection
         """
         pass
-
-    @abstractmethod
-    def image(self, image_product_id) -> 'ImageCollection':
-        """
-        Get imagery by id.
-        DEPRECATED
-
-        :param image_collection_id: String image collection identifier
-
-        :return: collection: RestImagery the imagery with the id
-        """
 
     @abstractmethod
     def download(self, graph, outputfile, format_options):
