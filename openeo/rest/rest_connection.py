@@ -4,6 +4,7 @@ from typing import Dict, List
 
 import requests
 
+from deprecated import deprecated
 from openeo.auth.auth_basic import BasicAuth
 from openeo.auth.auth_none import NoneAuth
 from openeo.capabilities import Capabilities
@@ -11,7 +12,6 @@ from openeo.connection import Connection
 from openeo.imagecollection import CollectionMetadata
 from openeo.rest.job import RESTJob
 from openeo.rest.rest_capabilities import RESTCapabilities
-from openeo.rest.rest_processes import RESTProcesses
 
 """
 This module provides a Connection object to manage and persist settings when interacting with the OpenEO API.
@@ -116,6 +116,7 @@ class RESTConnection(Connection):
         field = 'id' if self._api_version.at_least('0.4.0') else 'name'
         return [collection[field] for collection in self.list_collections() if field in collection]
 
+    @deprecated("Use list_processes")
     def get_processes(self):
         """
         EXPERIMENTAL
@@ -123,7 +124,7 @@ class RESTConnection(Connection):
         :return: data_dict: Dict All available data types
         """
         # TODO return only provided processes of the back end
-
+        from openeo.rest.rest_processes import RESTProcesses
         return RESTProcesses(self)
 
     def capabilities(self) -> 'Capabilities':

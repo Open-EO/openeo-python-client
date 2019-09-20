@@ -1,7 +1,7 @@
 import base64
 from typing import List, Dict, Union
 
-import cloudpickle
+from deprecated import deprecated
 from datetime import datetime, date
 from pandas import Series
 
@@ -12,7 +12,7 @@ from openeo.connection import Connection
 from openeo.rest.rest_processgraph import RESTProcessgraph
 from shapely.geometry import Polygon, MultiPolygon, mapping
 
-
+@deprecated("unmaintained")
 class RESTProcesses():
     """Class representing the Processes.
         EXPERIMENTAL, only supports OpenEO 0.3
@@ -247,9 +247,9 @@ class RESTProcesses():
 
     #   Processes below are not defined in the process reference at ---------------------------------------------------
     #   https://open-eo.github.io/openeo-api/v/0.3.1/processreference/ ------------------------------------------------
-
     def apply_pixel(self, bands:List, bandfunction) -> 'ImageCollection':
         """Apply a function to the given set of bands in this image collection."""
+        import cloudpickle
         pickled_lambda = cloudpickle.dumps(bandfunction)
 
         process_id = 'apply_pixel'
@@ -286,6 +286,7 @@ class RESTProcesses():
                                         Takes a pandas Timeseries as input.
             :return A pandas Timeseries object
         """
+        import cloudpickle
         pickled_lambda = cloudpickle.dumps(aggregationfunction)
 
         process_id = 'reduce_by_time'
