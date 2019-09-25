@@ -1,23 +1,32 @@
 """
 OpenID Connect related functionality and helpers.
 """
-
+import base64
 import functools
+import hashlib
 import http.server
+import json
 import logging
+import random
+import string
 import threading
 import time
+import urllib.parse
 import warnings
+import webbrowser
+from collections import namedtuple
+from pprint import pprint
 from queue import Queue, Empty
-from typing import Tuple
+from typing import Tuple, Callable
 
+import requests
 
 log = logging.getLogger(__name__)
 
 
 class QueuingRequestHandler(http.server.BaseHTTPRequestHandler):
     """
-    Request handler that put results in a threadsafe queue
+    Request handler that put requested paths in a threadsafe queue
     """
 
     def __init__(self, *args, **kwargs):
@@ -25,9 +34,11 @@ class QueuingRequestHandler(http.server.BaseHTTPRequestHandler):
         super().__init__(*args, **kwargs)
 
     def do_GET(self):
-        log.info('Request: {p}'.format(p=self.path))
-        # TODO: parse path before putting on queue
-        self._queue.put(self.path)
+        log.debug('{c} GET {p}'.format(c=self.__class__.__name__, p=self.path))
+        self.queue(self.path)
+
+    def queue(self, path: str):
+        self._queue.put(path)
         self.send_response(200)
         self.end_headers()
 
@@ -35,6 +46,18 @@ class QueuingRequestHandler(http.server.BaseHTTPRequestHandler):
     def with_queue(cls, queue: Queue):
         """Generate a class (constructor) pre-bound with given queue object"""
         return functools.partial(cls, queue=queue)
+
+
+class OAuthRedirectRequestHandler(QueuingRequestHandler):
+    """Request handler for OAuth redirects"""
+    PATH = '/callback'
+
+    def queue(self, path: str):
+        if path.startswith(self.PATH + '?'):
+            super().queue(path)
+            # TODO: auto-close browser tab/window?
+            # TODO: have a nicer page with title and bit of metadata?
+            self.wfile.write(b'You can close this browser tab/window now.')
 
 
 class HttpServerThread(threading.Thread):
@@ -73,10 +96,20 @@ class HttpServerThread(threading.Thread):
         port, host, fqdn = self.server_address_info()
         log.info("{c}: {m} (at {h}:{p}, {f})".format(c=self.__class__.__name__, m=message, h=host, p=port, f=fqdn))
 
+    def __enter__(self):
+        self.start()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.shutdown()
+        self.join()
+        self._log_status("thread joined")
+
 
 def drain_queue(queue: Queue, initial_timeout: float = 10, item_minimum: int = 1, overall_timeout=60):
     """
-    Drain the given queue, requiring at least a given number of items (within an initial timeout)
+    Drain the given queue, requiring at least a given number of items (within an initial timeout).
+
     :param queue: queue to drain
     :param initial_timeout: time in seconds within which a minimum number of items should be fetched
     :param item_minimum: minimum number of items to fetch
@@ -100,3 +133,162 @@ def drain_queue(queue: Queue, initial_timeout: float = 10, item_minimum: int = 1
             warnings.warn("Queue still not empty after overall timeout: aborting.")
             break
 
+
+def random_string(length=32, characters: str = None):
+    """
+    Build a random string from given characters (alphanumeric by default)
+
+    TODO: move this to a utils module?
+    """
+    characters = characters or (string.ascii_letters + string.digits)
+    return "".join(random.choice(characters) for _ in range(length))
+
+
+class OAuthException(RuntimeError):
+    pass
+
+
+class OpenIdAuthenticator:
+    """
+    Implementation of OpenID authentication using OAuth authorization flow with PKCE
+    """
+    _authentication_timeout = 120
+
+    AuthCodeResult = namedtuple("AuthCodeResult", ["auth_code", "nonce", "code_verifier", "redirect_uri"])
+    AccessTokenResult = namedtuple("AccessTokenResult", ["access_token", "id_token", "refresh_token"])
+
+    def __init__(self, client_id: str, oidc_discovery_url: str, webbrowser_open: Callable = None):
+        self._client_id = client_id
+        self._provider_info = requests.get(oidc_discovery_url).json()
+        self._webbrowser_open = webbrowser_open or webbrowser.open
+
+    def _get_pkce_codes(self) -> Tuple[str, str]:
+        """Build random PKCE code verifier and challenge"""
+        code_verifier = random_string(64)
+        code_challenge = hashlib.sha256(code_verifier.encode('utf-8')).digest()
+        code_challenge = base64.urlsafe_b64encode(code_challenge).decode('utf-8')
+        code_challenge = code_challenge.replace('=', '')
+        return code_verifier, code_challenge
+
+    def _get_auth_code(self) -> AuthCodeResult:
+        """
+        Do OAuth authentication request and catch redirect to extract authentication code
+        :return:
+        """
+        state = random_string(32)
+        nonce = random_string(21)
+        code_verifier, code_challenge = self._get_pkce_codes()
+        supported_scopes = set(self._provider_info.get('scopes_supported', []))
+        scopes = supported_scopes.intersection({"openid", "email", "profile"})
+
+        # Set up HTTP server (in separate thread) to catch OAuth redirect URL
+        callback_queue = Queue()
+        RequestHandlerClass = OAuthRedirectRequestHandler.with_queue(callback_queue)
+        with HttpServerThread(RequestHandlerClass=RequestHandlerClass) as http_server_thread:
+            port, host, fqdn = http_server_thread.server_address_info()
+            redirect_uri = 'http://{f}:{p}'.format(f=fqdn, p=port) + OAuthRedirectRequestHandler.PATH
+            log.info("Using OAuth redirect URI {u}".format(u=redirect_uri))
+
+            # Build authentication URL
+            auth_url = "{endpoint}?{params}".format(
+                endpoint=self._provider_info['authorization_endpoint'],
+                params=urllib.parse.urlencode({
+                    "response_type": "code",
+                    "client_id": self._client_id,
+                    "scope": " ".join(scopes),
+                    "redirect_uri": redirect_uri,
+                    "state": state,
+                    "nonce": nonce,
+                    "code_challenge": code_challenge,
+                    "code_challenge_method": "S256",
+                })
+            )
+            log.info("Sending user to auth URL {u}".format(u=auth_url))
+            # Open browser window/tab with authentication URL
+            self._webbrowser_open(auth_url)
+
+            # TODO: show some feedback here that we are waiting browser based interaction here?
+
+            try:
+                # Collect data from redirect uri
+                # TODO: When authentication fails (e.g. identity provider is down), this might hang the client (e.g. jupyter notebook). Is there a way to abort this?
+                callbacks = list(drain_queue(callback_queue, initial_timeout=self._authentication_timeout))
+            except TimeoutError:
+                raise OAuthException("Failed to collect OAuth access token from redirect")
+
+        if len(callbacks) != 1:
+            raise OAuthException("Expected 1 OAuth redirect request, but got: {c}".format(c=len(callbacks)))
+
+        # Parse OAuth redirect URL
+        redirect_request = callbacks[0]
+        log.debug("Parsing redirect request {r}".format(r=redirect_request))
+        redirect_params = urllib.parse.parse_qs(urllib.parse.urlparse(redirect_request).query)
+        log.debug('Parsed redirect request: {p}'.format(p=redirect_params))
+        if 'state' not in redirect_params or redirect_params['state'] != [state]:
+            raise OAuthException("Invalid state")
+        if 'code' not in redirect_params:
+            raise OAuthException("No code in redirect")
+        auth_code = redirect_params["code"][0]
+
+        return self.AuthCodeResult(auth_code=auth_code, nonce=nonce, code_verifier=code_verifier,
+                                   redirect_uri=redirect_uri)
+
+    def get_tokens(self) -> AccessTokenResult:
+        """
+        Do OpenID authentication flow with PKCE:
+        get auth code and exchange for access and id token
+        """
+        # Get auth code from authentication provider
+        auth_code_result = self._get_auth_code()
+
+        # Resolve auth code to access token and id token
+        token_endpoint = self._provider_info['token_endpoint']
+        log.info("Exchanging auth code for access token at {u}".format(u=token_endpoint))
+        token_response = requests.post(
+            url=token_endpoint,
+            data={
+                "grant_type": "authorization_code",
+                "client_id": self._client_id,
+                "redirect_uri": auth_code_result.redirect_uri,
+                "code": auth_code_result.auth_code,
+                "code_verifier": auth_code_result.code_verifier,
+            },
+        )
+        token_response.raise_for_status()
+
+        result = token_response.json()
+        log.debug("Token response with keys {k}".format(k=result.keys()))
+
+        def get_token(key):
+            try:
+                token = result[key]
+            except KeyError:
+                raise OAuthException("No {k} in response".format(k=key))
+            # TODO: verify the JWT properly?
+            _, payload = jwt_decode(token)
+            if payload['nonce'] != auth_code_result.nonce:
+                raise OAuthException("Invalid nonce in {k}".format(k=key))
+            return token
+
+        access_token = get_token("access_token")
+        id_token = get_token("id_token")
+        refresh_token = get_token("refresh_token")
+        return self.AccessTokenResult(
+            access_token=access_token,
+            id_token=id_token,
+            refresh_token=refresh_token
+        )
+
+
+def jwt_decode(token: str) -> Tuple[dict, dict]:
+    """
+    Poor man's JWT decoding
+    TODO: use a real library that also handles verification properly?
+    """
+
+    def _decode(data: str) -> dict:
+        decoded = base64.b64decode(data + '=' * (4 - len(data) % 4)).decode('ascii')
+        return json.loads(decoded)
+
+    header, payload, signature = token.split('.')
+    return _decode(header), _decode(payload)
