@@ -1,7 +1,7 @@
 import pytest
 
 from openeo.rest.auth.auth import NullAuth, BearerAuth
-from openeo.rest.rest_connection import RESTConnection
+from openeo.rest.connection import Connection
 
 API_URL = "https://oeo.net/"
 
@@ -24,7 +24,7 @@ API_URL = "https://oeo.net/"
 )
 def test_init_and_requests(requests_mock, base, paths, expected_path):
     """Test connection __init__ and proper joining of endpoint url and API path"""
-    conn = RESTConnection(base)
+    conn = Connection(base)
     requests_mock.get(expected_path, text="payload")
     requests_mock.post(expected_path, text="payload")
     for path in paths:
@@ -33,7 +33,7 @@ def test_init_and_requests(requests_mock, base, paths, expected_path):
 
 
 def test_authenticate_basic(requests_mock):
-    conn = RESTConnection(API_URL)
+    conn = Connection(API_URL)
 
     def text_callback(request, context):
         assert request.headers["Authorization"] == "Basic am9objpqMGhu"
@@ -54,7 +54,7 @@ def test_authenticate_oidc(oidc_test_setup):
     state, webbrowser_open = oidc_test_setup(client_id=client_id, oidc_discovery_url=oidc_discovery_url)
 
     # With all this set up, kick off the openid connect flow
-    conn = RESTConnection(API_URL)
+    conn = Connection(API_URL)
     assert isinstance(conn.auth, NullAuth)
     conn.authenticate_OIDC(client_id=client_id, webbrowser_open=webbrowser_open)
     assert isinstance(conn.auth, BearerAuth)

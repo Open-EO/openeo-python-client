@@ -16,7 +16,7 @@ __author__ = 'Jeroen Dries'
 from openeo._version import __version__
 from openeo.catalog import EOProduct
 from openeo.imagecollection import ImageCollection
-from openeo.rest.rest_connection import connect, session
+from openeo.rest.connection import connect, session
 from openeo.job import Job
 from openeo.process.process import *
 

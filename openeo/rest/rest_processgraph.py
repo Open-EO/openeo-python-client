@@ -1,5 +1,5 @@
 from openeo.processgraph import ProcessGraph
-from openeo.connection import Connection
+from openeo.rest.connection import Connection
 
 
 class RESTProcessgraph(ProcessGraph):

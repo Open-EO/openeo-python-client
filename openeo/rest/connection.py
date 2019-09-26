@@ -13,7 +13,6 @@ from requests import Response
 from requests.auth import HTTPBasicAuth, AuthBase
 
 from openeo.capabilities import Capabilities
-from openeo.connection import Connection
 from openeo.imagecollection import CollectionMetadata
 from openeo.rest.auth.auth import NullAuth, BearerAuth
 from openeo.rest.job import RESTJob
@@ -22,7 +21,7 @@ from openeo.rest.rest_capabilities import RESTCapabilities
 _log = logging.getLogger(__name__)
 
 
-class RESTConnection(Connection):
+class Connection:
 
     def __init__(self, url, auth=None):
         """
@@ -222,6 +221,11 @@ class RESTConnection(Connection):
             self._handle_error_response(response)
 
     def remove_service(self, service_id: str):
+        """
+        Stop and remove a secondary web service.
+        :param service_id: service identifier
+        :return:
+        """
         response = self.delete('/services/' + service_id)
         if response.status_code != 204:
             self._handle_error_response(response)
@@ -438,7 +442,7 @@ class RESTConnection(Connection):
         return not_support
 
 
-def connect(url, auth_type: str = None, auth_options: dict = {}) -> RESTConnection:
+def connect(url, auth_type: str = None, auth_options: dict = {}) -> Connection:
     """
     This method is the entry point to OpenEO.
     You typically create one connection object in your script or application
@@ -458,7 +462,7 @@ def connect(url, auth_type: str = None, auth_options: dict = {}) -> RESTConnecti
     :param auth_options: Options/arguments specific to the authentication type
     :rtype: openeo.connections.Connection
     """
-    connection = RESTConnection(url)
+    connection = Connection(url)
     auth_type = auth_type.lower() if isinstance(auth_type, str) else auth_type
     if auth_type in {None, 'null', 'none'}:
         pass
@@ -472,7 +476,7 @@ def connect(url, auth_type: str = None, auth_options: dict = {}) -> RESTConnecti
 
 
 @deprecated("Use openeo.connect")
-def session(userid=None, endpoint: str = "https://openeo.org/openeo") -> RESTConnection:
+def session(userid=None, endpoint: str = "https://openeo.org/openeo") -> Connection:
     """
     Deprecated, use openeo.connect
     This method is the entry point to OpenEO. You typically create one session object in your script or application, per back-end.

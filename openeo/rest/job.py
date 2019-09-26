@@ -1,9 +1,13 @@
-from openeo.connection import Connection
-from openeo.processgraph import ProcessGraph
-from openeo.job import Job, JobResult
-from typing import List
 import urllib.request
+from typing import List, TYPE_CHECKING
+
 import requests
+
+from openeo.job import Job, JobResult
+
+if TYPE_CHECKING:
+    # Only import this for type hinting purposes. Runtime import causes circular dependency issues.
+    from openeo.rest.connection import Connection
 
 
 class RESTJobResult(JobResult):
@@ -16,7 +20,7 @@ class RESTJobResult(JobResult):
 
 class RESTJob(Job):
 
-    def __init__(self, job_id: str, connection: Connection):
+    def __init__(self, job_id: str, connection: 'Connection'):
         super().__init__(job_id)
         self.connection = connection
 
@@ -114,3 +118,6 @@ class RESTJob(Job):
     def results(self) -> List[RESTJobResult]:
         """ Returns this job's results. """
         return [RESTJobResult(link['href']) for link in self.connection.job_results(self.job_id)['links']]
+
+
+

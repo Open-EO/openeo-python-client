@@ -2,15 +2,15 @@ import base64
 from typing import List, Dict, Union
 
 from deprecated import deprecated
-from datetime import datetime, date
 from pandas import Series
-
-from openeo.job import Job
-from openeo.rest.job import RESTJob
-from openeo.imagecollection import ImageCollection
-from openeo.connection import Connection
-from openeo.rest.rest_processgraph import RESTProcessgraph
 from shapely.geometry import Polygon, MultiPolygon, mapping
+
+from openeo.imagecollection import ImageCollection
+from openeo.job import Job
+from openeo.rest import Connection
+from openeo.rest.job import RESTJob
+from openeo.rest.rest_processgraph import RESTProcessgraph
+
 
 @deprecated("unmaintained")
 class RESTProcesses():

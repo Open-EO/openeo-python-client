@@ -3,11 +3,10 @@ from typing import List, Dict, Union
 from deprecated import deprecated
 from shapely.geometry import Polygon, MultiPolygon, mapping
 
-from openeo.connection import Connection
 from openeo.graphbuilder import GraphBuilder
 from openeo.imagecollection import ImageCollection, CollectionMetadata
 from openeo.job import Job
-from openeo.rest.rest_connection import RESTConnection
+from openeo.rest.connection import Connection
 
 
 class ImageCollectionClient(ImageCollection):
@@ -15,7 +14,7 @@ class ImageCollectionClient(ImageCollection):
         Supports 0.4.
     """
 
-    def __init__(self, node_id: str, builder: GraphBuilder, session: RESTConnection, metadata: CollectionMetadata=None):
+    def __init__(self, node_id: str, builder: GraphBuilder, session: Connection, metadata: CollectionMetadata=None):
         super().__init__(metadata=metadata)
         self.node_id = node_id
         self.builder= builder
