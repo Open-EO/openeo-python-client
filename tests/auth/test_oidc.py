@@ -5,7 +5,7 @@ from typing import Type
 
 import requests
 
-from openeo.auth.oidc import QueuingRequestHandler, drain_queue, HttpServerThread
+from openeo.rest.auth.oidc import QueuingRequestHandler, drain_queue, HttpServerThread
 
 
 def handle_request(handler_class: Type[http.server.BaseHTTPRequestHandler], path: str, body: str = None):

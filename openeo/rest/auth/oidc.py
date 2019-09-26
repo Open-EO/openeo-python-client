@@ -178,6 +178,7 @@ class OpenIdAuthenticator:
         state = random_string(32)
         nonce = random_string(21)
         code_verifier, code_challenge = self._get_pkce_codes()
+        # TODO: maybe just the openid scope is enough?
         supported_scopes = set(self._provider_info.get('scopes_supported', []))
         scopes = supported_scopes.intersection({"openid", "email", "profile"})
 
@@ -259,7 +260,7 @@ class OpenIdAuthenticator:
         result = token_response.json()
         log.debug("Token response with keys {k}".format(k=result.keys()))
 
-        def get_token(key):
+        def extract_token(key):
             try:
                 token = result[key]
             except KeyError:
@@ -270,9 +271,9 @@ class OpenIdAuthenticator:
                 raise OAuthException("Invalid nonce in {k}".format(k=key))
             return token
 
-        access_token = get_token("access_token")
-        id_token = get_token("id_token")
-        refresh_token = get_token("refresh_token")
+        access_token = extract_token("access_token")
+        id_token = extract_token("id_token")
+        refresh_token = extract_token("refresh_token")
         return self.AccessTokenResult(
             access_token=access_token,
             id_token=id_token,

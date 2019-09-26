@@ -81,13 +81,9 @@ class RESTJob(Job):
                 if "href" in download_url:
                     download_url = download_url["href"]
 
-            auth_header = self.connection.authent.get_header()
-
             with open(target, 'wb') as handle:
-                response = requests.get(download_url, stream=True, headers=auth_header)
-
-                if not response.ok:
-                    print (response)
+                response = requests.get(download_url, stream=True)
+                response.raise_for_status()
 
                 for block in response.iter_content(1024):
 

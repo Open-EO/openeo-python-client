@@ -16,10 +16,8 @@ __author__ = 'Jeroen Dries'
 from openeo._version import __version__
 from openeo.catalog import EOProduct
 from openeo.imagecollection import ImageCollection
-from openeo.rest.rest_connection import connection as connect
-from openeo.rest.rest_connection import session
+from openeo.rest.rest_connection import connect, session
 from openeo.job import Job
-from openeo.auth.auth import Auth
 from openeo.process.process import *
 
 

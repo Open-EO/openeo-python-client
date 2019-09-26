@@ -173,7 +173,7 @@ class TestUserFiles(TestCase):
 
     def test_get_all_processes(self, m):
         processes_url = "{}/processes".format(self.endpoint)
-        m.register_uri('GET', processes_url, json=PROCESSES)
+        m.register_uri('GET', processes_url, json={"processes": PROCESSES})
         con = openeo.connect(self.endpoint)
 
         processes = con.list_processes()
