@@ -196,19 +196,6 @@ class Connection(ABC):
 # TODO: methods below are depricated / should be located somewhere else.
 
     @abstractmethod
-    def get_process(self, process_id) -> dict:
-        # TODO: Maybe create some kind of Process class.
-        """
-        Get detailed information about a specifig process.
-
-        :param process_id: String Process identifier
-
-        :return: processes_dict: Dict with the detail information about the
-                                 process
-        """
-        pass
-
-    @abstractmethod
     def imagecollection(self, image_collection_id:str) -> ImageCollection:
         """
         Retrieves an Image Collection object based on the id of a given layer.

@@ -215,22 +215,6 @@ class RESTConnection(Connection):
         # Endpoint: GET /process_graphs
         return self.not_supported()
 
-    def get_process(self, process_id) -> dict:
-        # TODO: Maybe create some kind of Process class.
-        """
-        Get detailed information about a specifig process.
-        :param process_id: String Process identifier
-        :return: processes_dict: Dict with the detail information about the
-                                 process
-        """
-        if process_id:
-            process_info = self.get('/processes/{}'.format(process_id), auth=False)
-            processes_dict = self.parse_json_response(process_info)
-        else:
-            processes_dict = None
-
-        return processes_dict
-
     @property
     def _api_version(self):
         return self.capabilities().api_version_check
