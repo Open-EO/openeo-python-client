@@ -5,7 +5,7 @@ from datetime import datetime, date
 
 # TODO is this module (still) useful? also see https://github.com/Open-EO/openeo-python-client/issues/61
 
-def ndvi(imagecollection, red, nir):
+def ndvi(imagecollection, name="ndvi"):
     """ NDVI
 
     :param imagecollection: Imagecollection to apply the process, Instance of ImageCollection
@@ -14,7 +14,7 @@ def ndvi(imagecollection, red, nir):
 
     :return An ImageCollection instance
     """
-    return imagecollection.ndvi(red, nir)
+    return imagecollection.ndvi(name=name)
 
 
 def filter_temporal(imagecollection, start_date: Union[str, datetime, date], end_date: Union[str, datetime, date]) -> 'ImageCollection':
