@@ -677,13 +677,24 @@ class ImageCollectionClient(ImageCollection):
 
         return self.graph_add_process(process_id, args)
 
-    def mask(self, polygon: Union[Polygon, MultiPolygon]=None, srs="EPSG:4326",rastermask:'ImageCollection'=None,replacement=None) -> 'ImageCollection':
+    def mask(self, polygon: Union[Polygon, MultiPolygon]=None, srs="EPSG:4326", rastermask: 'ImageCollection'=None,
+             replacement=None) -> 'ImageCollection':
         """
-        Mask the image collection using a polygon. All pixels outside the polygon should be set to the nodata value.
+        Mask the image collection using either a polygon or a raster mask.
+
+        All pixels outside the polygon should be set to the nodata value.
         All pixels inside, or intersecting the polygon should retain their original value.
+
+        All pixels are replaced for which the corresponding pixels in the mask are non-zero (for numbers) or True
+        (for boolean values).
+
+        The pixel values are replaced with the value specified for replacement, which defaults to None (no data).
+        No data values will be left untouched by the masking operation.
 
         :param polygon: A polygon, provided as a Shapely Polygon or MultiPolygon
         :param srs: The reference system of the provided polygon, by default this is Lat Lon (EPSG:4326).
+        :param rastermask: the raster mask
+        :param replacement: the value to replace the masked pixels with
         :return: A new ImageCollection, with the mask applied.
         """
         mask = None

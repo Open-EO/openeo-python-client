@@ -355,10 +355,19 @@ class ImageCollection(ABC):
         # TODO: does this method have to be defined at the level of the ImageCollection base class? it is only implemented by the rest client
         pass
 
-    def mask(self,polygon: Union[Polygon, MultiPolygon]=None, srs="EPSG:4326",rastermask:'ImageCollection'=None,replacement=None) -> 'ImageCollection':
+    def mask(self, polygon: Union[Polygon, MultiPolygon]=None, srs="EPSG:4326", rastermask: 'ImageCollection'=None,
+             replacement=None) -> 'ImageCollection':
         """
-        Mask the image collection using a polygon. All pixels outside the polygon should be set to the nodata value.
+        Mask the image collection using either a polygon or a raster mask.
+
+        All pixels outside the polygon should be set to the nodata value.
         All pixels inside, or intersecting the polygon should retain their original value.
+
+        All pixels are replaced for which the corresponding pixels in the mask are non-zero (for numbers) or True
+        (for boolean values).
+
+        The pixel values are replaced with the value specified for replacement, which defaults to None (no data).
+        No data values will be left untouched by the masking operation.
 
         TODO: Does mask by polygon imply cropping?
         TODO: what about naming? Masking can also be done using a raster mask...
@@ -366,6 +375,8 @@ class ImageCollection(ABC):
 
         :param polygon: A polygon, provided as a
         :param srs: The reference system of the provided polygon, provided as an 'EPSG:XXXX' string. By default this is Lat Lon (EPSG:4326).
+        :param rastermask: the raster mask
+        :param replacement: the value to replace the masked pixels with
         :return: A new ImageCollection, with the mask applied.
         """
         pass
