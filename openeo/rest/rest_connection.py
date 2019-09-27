@@ -5,6 +5,7 @@ This module provides a Connection object to manage and persist settings when int
 import logging
 import shutil
 from typing import Dict, List
+from urllib.parse import urljoin
 
 import requests
 from deprecated import deprecated
@@ -49,18 +50,25 @@ class RESTConnection(Connection):
         self.auth = BearerAuth(bearer=resp["access_token"])
         return self
 
-    def authenticate_OIDC(self, client_id) -> 'RESTConnection':
+    def authenticate_OIDC(self, client_id: str, webbrowser_open=None) -> 'RESTConnection':
         """
         Authenticates a user to the backend using OpenID Connect.
+
+        :param client_id: Client id to use for OpenID Connect authentication
+        :param webbrowser_open: optional handler for the initial OAuth authentication request
+            (opens a webbrowser by default)
         """
         # Local import to avoid importing the whole OpenID Connect dependency chain. TODO: just do global import?
         from openeo.rest.auth.oidc import OpenIdAuthenticator
 
         # Per spec: '/credentials/oidc' will redirect to  OpenID Connect discovery document
-        oidc_discovery_url = self.endpoint + '/credentials/oidc'
-        authenticator = OpenIdAuthenticator(client_id=client_id, oidc_discovery_url=oidc_discovery_url)
+        oidc_discovery_url = self._url_join(self.endpoint, '/credentials/oidc')
+        authenticator = OpenIdAuthenticator(
+            client_id=client_id,
+            oidc_discovery_url=oidc_discovery_url,
+            webbrowser_open=webbrowser_open
+        )
         # Do the Oauth/OpenID Connect flow
-        # TODO: provide alternative for automatically opening browser?
         tokens = authenticator.get_tokens()
         # TODO: ability to refresh the token when expired?
         self.auth = BearerAuth(bearer=tokens.access_token)
@@ -361,7 +369,8 @@ class RESTConnection(Connection):
         :return: response: Response
         """
         # TODO: add .raise_for_status() by default?
-        return requests.post(self.endpoint+path, json=postdata,  auth=self.auth)
+        url = self._url_join(self.endpoint, path)
+        return requests.post(url, json=postdata, auth=self.auth)
 
     def delete(self, path) -> Response:
         """
@@ -370,7 +379,8 @@ class RESTConnection(Connection):
         :return: response: Response
         """
         # TODO: add .raise_for_status() by default?
-        return requests.delete(self.endpoint+path, auth=self.auth)
+        url = self._url_join(self.endpoint, path)
+        return requests.delete(url, auth=self.auth)
 
     def patch(self, path) -> Response:
         """
@@ -378,7 +388,8 @@ class RESTConnection(Connection):
         :param path: URL of the request (without root URL e.g. "/data")
         :return: response: Response
         """
-        return requests.patch(self.endpoint+path, auth=self.auth)
+        url = self._url_join(self.endpoint, path)
+        return requests.patch(url, auth=self.auth)
 
     def put(self, path, header={}, data=None) -> Response:
         """
@@ -388,7 +399,8 @@ class RESTConnection(Connection):
         :param data: data that gets added to the request.
         :return: response: Response
         """
-        return requests.put(self.endpoint+path, headers=header, data=data, auth=self.auth)
+        url = self._url_join(self.endpoint, path)
+        return requests.put(url, headers=header, data=data, auth=self.auth)
 
     def get(self, path, stream=False, check_status=True, auth: AuthBase = None) -> Response:
         """
@@ -399,11 +411,16 @@ class RESTConnection(Connection):
         :param auth: optional custom authentication to use instead of the default one
         :return: response: Response
         """
-        resp = requests.get(self.endpoint + path, stream=stream, auth=auth or self.auth)
+        url = self._url_join(self.endpoint, path)
+        resp = requests.get(url, stream=stream, auth=auth or self.auth)
         if check_status:
             # TODO: raise a custom OpenEO branded exception?
             resp.raise_for_status()
         return resp
+
+    def _url_join(self, base: str, path: str):
+        """Join a base url and sub path properly"""
+        return urljoin(base.rstrip('/') + '/', path.lstrip('/'))
 
     def get_outputformats(self) -> dict:
         """

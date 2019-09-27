@@ -162,12 +162,18 @@ class OpenIdAuthenticator:
         self._provider_info = requests.get(oidc_discovery_url).json()
         self._webbrowser_open = webbrowser_open or webbrowser.open
 
-    def _get_pkce_codes(self) -> Tuple[str, str]:
+    @staticmethod
+    def hash_code_verifier(code: str) -> str:
+        """Hash code verifier to code challenge"""
+        return base64.urlsafe_b64encode(
+            hashlib.sha256(code.encode('ascii')).digest()
+        ).decode('ascii').replace('=', '')
+
+    @staticmethod
+    def get_pkce_codes() -> Tuple[str, str]:
         """Build random PKCE code verifier and challenge"""
         code_verifier = random_string(64)
-        code_challenge = hashlib.sha256(code_verifier.encode('utf-8')).digest()
-        code_challenge = base64.urlsafe_b64encode(code_challenge).decode('utf-8')
-        code_challenge = code_challenge.replace('=', '')
+        code_challenge = OpenIdAuthenticator.hash_code_verifier(code_verifier)
         return code_verifier, code_challenge
 
     def _get_auth_code(self) -> AuthCodeResult:
@@ -177,7 +183,7 @@ class OpenIdAuthenticator:
         """
         state = random_string(32)
         nonce = random_string(21)
-        code_verifier, code_challenge = self._get_pkce_codes()
+        code_verifier, code_challenge = self.get_pkce_codes()
         # TODO: maybe just the openid scope is enough?
         supported_scopes = set(self._provider_info.get('scopes_supported', []))
         scopes = supported_scopes.intersection({"openid", "email", "profile"})

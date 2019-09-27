@@ -5,7 +5,7 @@ from typing import Type
 
 import requests
 
-from openeo.rest.auth.oidc import QueuingRequestHandler, drain_queue, HttpServerThread
+from openeo.rest.auth.oidc import QueuingRequestHandler, drain_queue, HttpServerThread, OpenIdAuthenticator
 
 
 def handle_request(handler_class: Type[http.server.BaseHTTPRequestHandler], path: str, body: str = None):
@@ -41,3 +41,19 @@ def test_http_server_thread():
     assert list(drain_queue(queue)) == ['/foo/bar']
     server_thread.shutdown()
     server_thread.join()
+
+
+def test_oidc_flow(oidc_test_setup):
+    # see test/rest/conftest.py for `oidc_test_setup` fixture
+    client_id = "myclient"
+    oidc_discovery_url = "http://oidc.example.com/.well-known/openid-configuration"
+    state, webbrowser_open = oidc_test_setup(client_id=client_id, oidc_discovery_url=oidc_discovery_url)
+
+    authenticator = OpenIdAuthenticator(
+        client_id=client_id,
+        oidc_discovery_url=oidc_discovery_url,
+        webbrowser_open=webbrowser_open
+    )
+    # Do the Oauth/OpenID Connect flow
+    tokens = authenticator.get_tokens()
+    assert state["access_token"] == tokens.access_token
