@@ -47,6 +47,10 @@ class QueuingRequestHandler(http.server.BaseHTTPRequestHandler):
         """Generate a class (constructor) pre-bound with given queue object"""
         return functools.partial(cls, queue=queue)
 
+    def log_message(self, format, *args):
+        # Override the default implementation, which is hardcoded `sys.stderr.write`
+        log.debug(format % args)
+
 
 class OAuthRedirectRequestHandler(QueuingRequestHandler):
     """Request handler for OAuth redirects"""
