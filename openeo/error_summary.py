@@ -5,3 +5,10 @@ class ErrorSummary:
         self.exception = exception
         self.is_client_error = is_client_error
         self.summary = summary or str(exception)
+
+    def __str__(self):
+        return str({
+            'exception': "%s: %s" % (type(self.exception).__name__, self.exception),
+            'is_client_error': self.is_client_error,
+            'summary': self.summary
+        })
