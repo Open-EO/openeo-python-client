@@ -197,7 +197,7 @@ class OpenIdAuthenticator:
         RequestHandlerClass = OAuthRedirectRequestHandler.with_queue(callback_queue)
         with HttpServerThread(RequestHandlerClass=RequestHandlerClass) as http_server_thread:
             port, host, fqdn = http_server_thread.server_address_info()
-            redirect_uri = 'http://{f}:{p}'.format(f=fqdn, p=port) + OAuthRedirectRequestHandler.PATH
+            redirect_uri = 'http://localhost:{p}'.format(f=fqdn, p=port) + OAuthRedirectRequestHandler.PATH
             log.info("Using OAuth redirect URI {u}".format(u=redirect_uri))
 
             # Build authentication URL
