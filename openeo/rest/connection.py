@@ -175,14 +175,12 @@ class Connection:
         return self.get('/jobs').json()["jobs"]
 
     def validate_processgraph(self, process_graph):
-
         # Endpoint: POST /validate
-        return self.not_supported()
+        raise NotImplementedError()
 
     def list_processgraphs(self, process_graph):
-
         # Endpoint: GET /process_graphs
-        return self.not_supported()
+        raise NotImplementedError()
 
     @property
     def _api_version(self):
@@ -248,7 +246,7 @@ class Connection:
         :return: file object.
         """
         # No endpoint just returns a file object.
-        return self.not_supported()
+        raise NotImplementedError()
 
     # TODO: Maybe rename to execute and merge with execute().
     def download(self, graph, outputfile, format_options):
@@ -432,14 +430,7 @@ class Connection:
 
         :return: data_dict: Dict All available output formats
         """
-        return self.not_supported()
-
-    def not_supported(self):
-        # TODO why not raise exception? the print isn't even to standard error
-        # TODO: also: is this about not supporting YET (feature under construction) or impossible to support?
-        not_support = "This function is not supported by the python client yet."
-        print(not_support)
-        return not_support
+        raise NotImplementedError()
 
 
 def connect(url, auth_type: str = None, auth_options: dict = {}) -> Connection:
