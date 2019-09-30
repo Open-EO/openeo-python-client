@@ -21,5 +21,5 @@ from openeo.job import Job
 from openeo.process.process import *
 
 
-def client_version():
+def client_version() -> str:
     return __version__

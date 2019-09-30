@@ -54,7 +54,7 @@ class RESTJob(Job):
     def start_job(self):
         """ Start / queue a job for processing."""
         # POST /jobs/{job_id}/results
-        request = self.connection.post("/jobs/{}/results".format(self.job_id), postdata=None)
+        request = self.connection.post("/jobs/{}/results".format(self.job_id))
 
         return request.status_code
 
