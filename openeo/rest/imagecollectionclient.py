@@ -791,6 +791,30 @@ class ImageCollectionClient(ImageCollection):
 
         return self._polygonal_timeseries(polygon, "histogram")
 
+    def polygonal_median_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> Dict:
+        """
+        Extract a median time series for the given (multi)polygon. Its points are
+        expected to be in the EPSG:4326 coordinate
+        reference system.
+
+        :param polygon: The (multi)polygon; or a file path or HTTP URL to a GeoJSON file or shape file
+        :return: ImageCollection
+        """
+
+        return self._polygonal_timeseries(polygon, "median")
+
+    def polygonal_standarddeviation_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> Dict:
+        """
+        Extract a time series of standard deviations for the given (multi)polygon. Its points are
+        expected to be in the EPSG:4326 coordinate
+        reference system.
+
+        :param polygon: The (multi)polygon; or a file path or HTTP URL to a GeoJSON file or shape file
+        :return: ImageCollection
+        """
+
+        return self._polygonal_timeseries(polygon, "sd")
+
     def _polygonal_timeseries(self, polygon: Union[Polygon, MultiPolygon, str], func: str) -> 'ImageCollection':
         def graph_add_aggregate_process(graph) -> 'ImageCollection':
             process_id = 'aggregate_zonal'
