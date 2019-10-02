@@ -2,6 +2,7 @@ import pytest
 
 import openeo
 from openeo.imagecollection import CollectionMetadata
+from openeo.graphbuilder import GraphBuilder
 from openeo.rest.imagecollectionclient import ImageCollectionClient
 
 API_URL = "http://localhost:8000/api"
@@ -37,3 +38,13 @@ def test_metadata_load_collection(session040, requests_mock):
         CollectionMetadata.Band("B2", "blue", None),
         CollectionMetadata.Band("B3", "green", None)
     ]
+
+
+def test_empty_mask():
+    from shapely import geometry
+    polygon = geometry.Polygon([[1.0, 1.0], [2.0, 1.0], [2.0, 1.0], [1.0, 1.0]])
+
+    client = ImageCollectionClient(node_id=None, builder=GraphBuilder(), session=None)
+
+    with pytest.raises(ValueError, match=r"Mask .+ has an area of 0.0"):
+        client.mask(polygon)

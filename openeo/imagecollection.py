@@ -373,10 +373,11 @@ class ImageCollection(ABC):
         TODO: what about naming? Masking can also be done using a raster mask...
         TODO: what will happen if the intersection between the mask and the imagecollection is empty? Raise an error?
 
-        :param polygon: A polygon, provided as a
+        :param polygon: A polygon, provided as a :class:`shapely.geometry.Polygon` or :class:`shapely.geometry.MultiPolygon`
         :param srs: The reference system of the provided polygon, provided as an 'EPSG:XXXX' string. By default this is Lat Lon (EPSG:4326).
         :param rastermask: the raster mask
         :param replacement: the value to replace the masked pixels with
+        :raise: :class:`ValueError` if a polygon is supplied and its area is 0.
         :return: A new ImageCollection, with the mask applied.
         """
         pass

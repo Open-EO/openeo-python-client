@@ -691,15 +691,19 @@ class ImageCollectionClient(ImageCollection):
         The pixel values are replaced with the value specified for replacement, which defaults to None (no data).
         No data values will be left untouched by the masking operation.
 
-        :param polygon: A polygon, provided as a Shapely Polygon or MultiPolygon
+        :param polygon: A polygon, provided as a :class:`shapely.geometry.Polygon` or :class:`shapely.geometry.MultiPolygon`
         :param srs: The reference system of the provided polygon, by default this is Lat Lon (EPSG:4326).
         :param rastermask: the raster mask
         :param replacement: the value to replace the masked pixels with
+        :raise: :class:`ValueError` if a polygon is supplied and its area is 0.
         :return: A new ImageCollection, with the mask applied.
         """
         mask = None
         new_collection = None
         if polygon is not None:
+            if polygon.area == 0:
+                raise ValueError("Mask {m!s} has an area of {a!r}".format(m=polygon, a=polygon.area))
+
             geojson = mapping(polygon)
             geojson['crs'] = {
                 'type': 'name',
