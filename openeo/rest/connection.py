@@ -12,8 +12,8 @@ from deprecated import deprecated
 from requests import Response
 from requests.auth import HTTPBasicAuth, AuthBase
 
+import openeo
 from openeo.capabilities import Capabilities
-from openeo.connection import Connection
 from openeo.imagecollection import CollectionMetadata
 from openeo.rest.auth.auth import NullAuth, BearerAuth
 from openeo.rest.job import RESTJob
@@ -22,27 +22,114 @@ from openeo.rest.rest_capabilities import RESTCapabilities
 _log = logging.getLogger(__name__)
 
 
-class RESTConnection(Connection):
+def url_join(root_url: str, path: str):
+    """Join a base url and sub path properly."""
+    return urljoin(root_url.rstrip('/') + '/', path.lstrip('/'))
 
-    def __init__(self, url, auth=None):
-        """
-        Constructor of RESTConnection, authenticates user.
-        :param url: String Backend endpoint url
-        """
-        self.endpoint = url
-        # TODO what is the point of this `root`? Isn't `url`/`self.endpoint` enough
-        self.root = ""
-        self._cached_capabilities = None
+
+class RestApiConnection:
+    """Base connection class implementing generic REST API request functionality"""
+
+    def __init__(self, root_url: str, auth: AuthBase = None):
+        self._root_url = root_url
         self.auth = auth or NullAuth()
+        self.default_headers = {
+            "User-Agent": "openeo-python-client/{v}".format(v=openeo.client_version())
+        }
 
-    def authenticate_basic(self, username: str, password: str) -> 'RESTConnection':
+    def build_url(self, path: str):
+        return url_join(self._root_url, path)
+
+    def _merged_headers(self, headers: dict) -> dict:
+        """Merge default headers with given headers"""
+        result = self.default_headers.copy()
+        if headers:
+            result.update(headers)
+        return result
+
+    def request(self, method: str, path: str, headers: dict = None, auth: AuthBase = None, check_status=True, **kwargs):
+        """Generic request send"""
+        resp = requests.request(
+            method=method,
+            url=self.build_url(path),
+            headers=self._merged_headers(headers),
+            auth=auth or self.auth,
+            **kwargs
+        )
+        if check_status:
+            # TODO: raise a custom OpenEO branded exception?
+            resp.raise_for_status()
+        return resp
+
+    def get(self, path, stream=False, auth: AuthBase = None, **kwargs) -> Response:
+        """
+        Do GET request to REST API.
+
+        :param path: API path (without root url)
+        :param stream: True if the get request should be streamed, else False
+        :param auth: optional custom authentication to use instead of the default one
+        :return: response: Response
+        """
+        return self.request("get", path=path, stream=stream, auth=auth, **kwargs)
+
+    def post(self, path, json: dict = None, **kwargs) -> Response:
+        """
+        Do POST request to REST API.
+
+        :param path: API path (without root url)
+        :param json: Data (as dictionary) to be posted with JSON encoding)
+        :return: response: Response
+        """
+        return self.request("post", path=path, json=json, **kwargs)
+
+    def delete(self, path) -> Response:
+        """
+        Do DELETE request to REST API.
+
+        :param path: API path (without root url)
+        :return: response: Response
+        """
+        return self.request("delete", path=path)
+
+    def patch(self, path) -> Response:
+        """
+        Do PATCH request to REST API.
+
+        :param path: API path (without root url)
+        :return: response: Response
+        """
+        return self.request("patch", path=path)
+
+    def put(self, path, headers: dict = None, data=None) -> Response:
+        """
+        Do PUT request to REST API.
+
+        :param path: API path (without root url)
+        :param headers: headers that gets added to the request.
+        :param data: data that gets added to the request.
+        :return: response: Response
+        """
+        return self.request("put", path=path, data=data, headers=headers)
+
+
+class Connection(RestApiConnection):
+
+    def __init__(self, url, auth: AuthBase = None):
+        """
+        Constructor of Connection, authenticates user.
+        :param url: String Backend root url
+        """
+        super().__init__(root_url=url, auth=auth)
+        self._cached_capabilities = None
+
+    def authenticate_basic(self, username: str, password: str) -> 'Connection':
         """
         Authenticate a user to the backend using basic username and password.
         :param username: User name
         :param password: User passphrase
         """
         resp = self.get(
-            self.root + '/credentials/basic',
+            '/credentials/basic',
             # /credentials/basic is the only endpoint that expects a Basic HTTP auth
             auth=HTTPBasicAuth(username, password)
         ).json()
@@ -50,7 +137,7 @@ class RESTConnection(Connection):
         self.auth = BearerAuth(bearer=resp["access_token"])
         return self
 
-    def authenticate_OIDC(self, client_id: str, webbrowser_open=None) -> 'RESTConnection':
+    def authenticate_OIDC(self, client_id: str, webbrowser_open=None) -> 'Connection':
         """
         Authenticates a user to the backend using OpenID Connect.
 
@@ -62,13 +149,13 @@ class RESTConnection(Connection):
         from openeo.rest.auth.oidc import OidcAuthCodePkceAuthenticator
 
         # Per spec: '/credentials/oidc' will redirect to  OpenID Connect discovery document
-        oidc_discovery_url = self._url_join(self.endpoint, '/credentials/oidc')
+        oidc_discovery_url = self.build_url('/credentials/oidc')
         authenticator = OidcAuthCodePkceAuthenticator(
             client_id=client_id,
             oidc_discovery_url=oidc_discovery_url,
             webbrowser_open=webbrowser_open
         )
-        # Do the Oauth/OpenID Connect flow
+        # Do the Oauth/OpenID Connect flow and use the access token as bearer token.
         tokens = authenticator.get_tokens()
         # TODO: ability to refresh the token when expired?
         self.auth = BearerAuth(bearer=tokens.access_token)
@@ -78,22 +165,21 @@ class RESTConnection(Connection):
         """
         Describes the currently authenticated user account.
         """
-        info = self.get(self.root + '/me')
-        return self.parse_json_response(info)
+        return self.get('/me').json()
 
     def user_jobs(self) -> dict:
         """
         Loads all jobs of the current user.
         :return: jobs: Dict All jobs of the user
         """
-        return self.get(self.root + '/jobs').json()["jobs"]
+        return self.get('/jobs').json()["jobs"]
 
     def list_collections(self) -> List[dict]:
         """
         Loads all available imagecollections types.
         :return: list of collection meta data dictionaries
         """
-        return self.get(self.root + '/collections').json()["collections"]
+        return self.get('/collections').json()["collections"]
 
     def list_collection_ids(self) -> List[str]:
         """
@@ -121,7 +207,7 @@ class RESTConnection(Connection):
         :return: data_dict: Dict All available data types
         """
         if self._cached_capabilities is None:
-            self._cached_capabilities = RESTCapabilities(self.get(self.root + '/').json())
+            self._cached_capabilities = RESTCapabilities(self.get('/').json())
 
         return self._cached_capabilities
 
@@ -130,14 +216,14 @@ class RESTConnection(Connection):
         Loads all available output formats.
         :return: data_dict: Dict All available output formats
         """
-        return self.get(self.root + '/output_formats').json()["formats"]
+        return self.get('/output_formats').json()["formats"]
 
     def list_service_types(self) -> dict:
         """
         Loads all available service types.
         :return: data_dict: Dict All available service types
         """
-        return self.get(self.root + '/service_types').json()
+        return self.get('/service_types').json()
 
     def list_services(self) -> dict:
         """
@@ -145,7 +231,7 @@ class RESTConnection(Connection):
         :return: data_dict: Dict All available service types
         """
         #TODO return service objects
-        return self.get(self.root + '/services').json()
+        return self.get('/services').json()
 
     def describe_collection(self, name) -> dict:
         # TODO: Maybe create some kind of Data class.
@@ -154,7 +240,7 @@ class RESTConnection(Connection):
         :param name: String Id of the collection
         :return: data_dict: Dict Detailed information about the collection
         """
-        return  self.get(self.root + '/collections/{}'.format(name)).json()
+        return  self.get('/collections/{}'.format(name)).json()
 
     def collection_metadata(self, name) -> CollectionMetadata:
         return CollectionMetadata(metadata=self.describe_collection(name))
@@ -176,14 +262,12 @@ class RESTConnection(Connection):
         return self.get('/jobs').json()["jobs"]
 
     def validate_processgraph(self, process_graph):
-
         # Endpoint: POST /validate
-        return self.not_supported()
+        raise NotImplementedError()
 
     def list_processgraphs(self, process_graph):
-
         # Endpoint: GET /process_graphs
-        return self.not_supported()
+        raise NotImplementedError()
 
     @property
     def _api_version(self):
@@ -203,14 +287,14 @@ class RESTConnection(Connection):
 
     def point_timeseries(self, graph, x, y, srs) -> dict:
         """Compute a timeseries for a given point location."""
-        r = self.post(self.root + "/timeseries/point?x={x}&y={y}&srs={s}".format(x=x, y=y, s=srs), graph)
+        r = self.post("/timeseries/point?x={x}&y={y}&srs={s}".format(x=x, y=y, s=srs), graph)
         return r.json()
 
     def create_service(self, graph, type, **kwargs):
         kwargs["process_graph"] = graph
         kwargs["type"] = type
 
-        response = self.post(self.root + "/services", kwargs)
+        response = self.post("/services", kwargs)
 
         if response.status_code == 201:
             service_url = response.headers['location']
@@ -222,6 +306,11 @@ class RESTConnection(Connection):
             self._handle_error_response(response)
 
     def remove_service(self, service_id: str):
+        """
+        Stop and remove a secondary web service.
+        :param service_id: service identifier
+        :return:
+        """
         response = self.delete('/services/' + service_id)
         if response.status_code != 204:
             self._handle_error_response(response)
@@ -244,7 +333,7 @@ class RESTConnection(Connection):
         :return: file object.
         """
         # No endpoint just returns a file object.
-        return self.not_supported()
+        raise NotImplementedError()
 
     # TODO: Maybe rename to execute and merge with execute().
     def download(self, graph, outputfile, format_options):
@@ -266,7 +355,7 @@ class RESTConnection(Connection):
         else:
             request["output"] = format_options
 
-        download_url = self.endpoint + self.root + path
+        download_url = self.build_url(path)
 
         # TODO: why not self.post()?
         r = requests.post(download_url, json=request, stream = True, timeout=1000 )
@@ -289,7 +378,7 @@ class RESTConnection(Connection):
         path = "/preview"
         if self._api_version.at_least('0.4.0'):
             path = "/result"
-        response = self.post(self.root + path, process_graph)
+        response = self.post(path, process_graph)
         return self.parse_json_response(response)
 
     def create_job(self, process_graph:Dict, output_format:str=None, output_parameters:Dict={},
@@ -361,66 +450,7 @@ class RESTConnection(Connection):
 
             raise ConnectionAbortedError(message)
 
-    def post(self, path, postdata) -> Response:
-        """
-        Makes a RESTful POST request to the back end.
-        :param path: URL of the request (without root URL e.g. "/data")
-        :param postdata: Data of the post request
-        :return: response: Response
-        """
-        # TODO: add .raise_for_status() by default?
-        url = self._url_join(self.endpoint, path)
-        return requests.post(url, json=postdata, auth=self.auth)
 
-    def delete(self, path) -> Response:
-        """
-        Makes a RESTful DELETE request to the back end.
-        :param path: URL of the request (without root URL e.g. "/data")
-        :return: response: Response
-        """
-        # TODO: add .raise_for_status() by default?
-        url = self._url_join(self.endpoint, path)
-        return requests.delete(url, auth=self.auth)
-
-    def patch(self, path) -> Response:
-        """
-        Makes a RESTful PATCH request to the back end.
-        :param path: URL of the request (without root URL e.g. "/data")
-        :return: response: Response
-        """
-        url = self._url_join(self.endpoint, path)
-        return requests.patch(url, auth=self.auth)
-
-    def put(self, path, header={}, data=None) -> Response:
-        """
-        Makes a RESTful PUT request to the back end.
-        :param path: URL of the request (without root URL e.g. "/data")
-        :param header: header that gets added to the request.
-        :param data: data that gets added to the request.
-        :return: response: Response
-        """
-        url = self._url_join(self.endpoint, path)
-        return requests.put(url, headers=header, data=data, auth=self.auth)
-
-    def get(self, path, stream=False, check_status=True, auth: AuthBase = None) -> Response:
-        """
-        Makes a RESTful GET request to the back end.
-        :param path: URL of the request (without root URL e.g. "/data")
-        :param stream: True if the get request should be streamed, else False
-        :param check_status: whether to check the status code
-        :param auth: optional custom authentication to use instead of the default one
-        :return: response: Response
-        """
-        url = self._url_join(self.endpoint, path)
-        resp = requests.get(url, stream=stream, auth=auth or self.auth)
-        if check_status:
-            # TODO: raise a custom OpenEO branded exception?
-            resp.raise_for_status()
-        return resp
-
-    def _url_join(self, base: str, path: str):
-        """Join a base url and sub path properly"""
-        return urljoin(base.rstrip('/') + '/', path.lstrip('/'))
 
     def get_outputformats(self) -> dict:
         """
@@ -428,17 +458,10 @@ class RESTConnection(Connection):
 
         :return: data_dict: Dict All available output formats
         """
-        return self.not_supported()
-
-    def not_supported(self):
-        # TODO why not raise exception? the print isn't even to standard error
-        # TODO: also: is this about not supporting YET (feature under construction) or impossible to support?
-        not_support = "This function is not supported by the python client yet."
-        print(not_support)
-        return not_support
+        raise NotImplementedError()
 
 
-def connect(url, auth_type: str = None, auth_options: dict = {}) -> RESTConnection:
+def connect(url, auth_type: str = None, auth_options: dict = {}) -> Connection:
     """
     This method is the entry point to OpenEO.
     You typically create one connection object in your script or application
@@ -458,7 +481,7 @@ def connect(url, auth_type: str = None, auth_options: dict = {}) -> RESTConnecti
     :param auth_options: Options/arguments specific to the authentication type
     :rtype: openeo.connections.Connection
     """
-    connection = RESTConnection(url)
+    connection = Connection(url)
     auth_type = auth_type.lower() if isinstance(auth_type, str) else auth_type
     if auth_type in {None, 'null', 'none'}:
         pass
@@ -472,7 +495,7 @@ def connect(url, auth_type: str = None, auth_options: dict = {}) -> RESTConnecti
 
 
 @deprecated("Use openeo.connect")
-def session(userid=None, endpoint: str = "https://openeo.org/openeo") -> RESTConnection:
+def session(userid=None, endpoint: str = "https://openeo.org/openeo") -> Connection:
     """
     Deprecated, use openeo.connect
     This method is the entry point to OpenEO. You typically create one session object in your script or application, per back-end.

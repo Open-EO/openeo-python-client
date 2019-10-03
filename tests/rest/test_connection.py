@@ -1,7 +1,8 @@
 import pytest
+import requests_mock
 
 from openeo.rest.auth.auth import NullAuth, BearerAuth
-from openeo.rest.rest_connection import RESTConnection
+from openeo.rest.connection import Connection, RestApiConnection
 
 API_URL = "https://oeo.net/"
 
@@ -22,18 +23,31 @@ API_URL = "https://oeo.net/"
         ("https://oeo.net/api/v04/", ["foo/bar/", "/foo/bar/"], "https://oeo.net/api/v04/foo/bar/"),
     ]
 )
-def test_init_and_requests(requests_mock, base, paths, expected_path):
-    """Test connection __init__ and proper joining of endpoint url and API path"""
-    conn = RESTConnection(base)
+def test_rest_api_connection_url_handling(requests_mock, base, paths, expected_path):
+    """Test connection __init__ and proper joining of root url and API path"""
+    conn = RestApiConnection(base)
     requests_mock.get(expected_path, text="payload")
     requests_mock.post(expected_path, text="payload")
     for path in paths:
         assert conn.get(path).text == "payload"
-        assert conn.post(path, postdata="data").text == "payload"
+        assert conn.post(path, {"foo": "bar"}).text == "payload"
+
+
+def test_rest_api_headers():
+    conn = RestApiConnection(API_URL)
+    with requests_mock.Mocker() as m:
+        def text(request, context):
+            assert request.headers["User-Agent"].startswith("openeo-python-client")
+            assert request.headers["X-Openeo-Bar"] == "XY123"
+
+        m.get("/foo", text=text)
+        m.post("/foo", text=text)
+        conn.get("/foo", headers={"X-Openeo-Bar": "XY123"})
+        conn.post("/foo", {}, headers={"X-Openeo-Bar": "XY123"})
 
 
 def test_authenticate_basic(requests_mock):
-    conn = RESTConnection(API_URL)
+    conn = Connection(API_URL)
 
     def text_callback(request, context):
         assert request.headers["Authorization"] == "Basic am9objpqMGhu"
@@ -54,7 +68,7 @@ def test_authenticate_oidc(oidc_test_setup):
     state, webbrowser_open = oidc_test_setup(client_id=client_id, oidc_discovery_url=oidc_discovery_url)
 
     # With all this set up, kick off the openid connect flow
-    conn = RESTConnection(API_URL)
+    conn = Connection(API_URL)
     assert isinstance(conn.auth, NullAuth)
     conn.authenticate_OIDC(client_id=client_id, webbrowser_open=webbrowser_open)
     assert isinstance(conn.auth, BearerAuth)

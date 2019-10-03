@@ -45,7 +45,7 @@ class RESTFile(File):
 
         content_type = {'Content-Type': 'application/octet-stream'}
 
-        resp = self.connection.put(path=path, header=content_type, data=input_file)
+        resp = self.connection.put(path=path, headers=content_type, data=input_file)
 
         return resp.status_code
 

@@ -6,7 +6,7 @@ import pytest
 from mock import MagicMock, patch
 
 from openeo.capabilities import Capabilities
-from openeo.connection import Connection
+from openeo.rest.connection import Connection
 from openeo.graphbuilder import GraphBuilder
 from openeo.rest.imagecollectionclient import ImageCollectionClient
 
@@ -88,7 +88,6 @@ def test_filter_temporal_generic(image_collection: ImageCollectionClient, args, 
 
 class TestRasterCube(TestCase):
 
-    @patch.multiple(Connection, __abstractmethods__=set())
     def setUp(self):
         builder = GraphBuilder()
         id = builder.process("get_collection", {'name': 'S1'})

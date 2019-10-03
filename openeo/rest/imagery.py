@@ -5,9 +5,9 @@ import cloudpickle
 from pandas import Series
 from shapely.geometry import Polygon, MultiPolygon, mapping
 
-from openeo.connection import Connection
 from openeo.imagecollection import ImageCollection
 from openeo.job import Job
+from openeo.rest.connection import Connection
 from openeo.rest.job import RESTJob
 
 
