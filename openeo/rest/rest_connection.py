@@ -1,85 +1,78 @@
-import logging
-import shutil
-from typing import Dict, List
-
-import requests
-
-from deprecated import deprecated
-from openeo.auth.auth_basic import BasicAuth
-from openeo.auth.auth_none import NoneAuth
-from openeo.capabilities import Capabilities
-from openeo.connection import Connection
-from openeo.imagecollection import CollectionMetadata
-from openeo.rest.job import RESTJob
-from openeo.rest.rest_capabilities import RESTCapabilities
-
 """
 This module provides a Connection object to manage and persist settings when interacting with the OpenEO API.
 """
+
+import logging
+import shutil
+from typing import Dict, List
+from urllib.parse import urljoin
+
+import requests
+from deprecated import deprecated
+from requests import Response
+from requests.auth import HTTPBasicAuth, AuthBase
+
+from openeo.capabilities import Capabilities
+from openeo.connection import Connection
+from openeo.imagecollection import CollectionMetadata
+from openeo.rest.auth.auth import NullAuth, BearerAuth
+from openeo.rest.job import RESTJob
+from openeo.rest.rest_capabilities import RESTCapabilities
 
 _log = logging.getLogger(__name__)
 
 
 class RESTConnection(Connection):
 
-    def __init__(self, url, auth_type=NoneAuth, auth_options={}):
-        # TODO: Maybe in future only the endpoint is needed, because of some kind of User object inside of the connection.
+    def __init__(self, url, auth=None):
         """
         Constructor of RESTConnection, authenticates user.
         :param url: String Backend endpoint url
-        :param username: String Username credential of the user
-        :param password: String Password credential of the user
-        :param auth_class: Auth instance of the abstract Auth class
-        :return: token: String Bearer token
         """
+        self.endpoint = url
         # TODO what is the point of this `root`? Isn't `url`/`self.endpoint` enough
         self.root = ""
         self._cached_capabilities = None
-        self.connect(url, auth_type, auth_options)
+        self.auth = auth or NullAuth()
 
-    def connect(self, url, auth_type=NoneAuth, auth_options={}) -> bool:
+    def authenticate_basic(self, username: str, password: str) -> 'RESTConnection':
         """
-        Authenticates a user to the backend using auth class.
-        :param url: String Backend endpoint url
-        :param username: String Username credential of the user
-        :param password: String Password credential of the user
-        :param auth_class: Auth instance of the abstract Auth class
-        :return: token: String Bearer token
-        """
-
-        username = auth_options.get('username')
-        password = auth_options.get('password')
-
-        self.userid = username
-        self.endpoint = url
-
-        if auth_type == NoneAuth and username and password:
-            auth_type = BasicAuth
-
-        self.authent = auth_type(username, password, self.endpoint)
-
-        status = self.authent.login()
-
-        return status
-
-    def authenticate_OIDC(self, options={}) -> str:
-        """
-        Authenticates a user to the backend using OIDC.
-        :param options: Authentication options
-        """
-        return self.not_supported()
-
-    def authenticate_basic(self, username, password):
-        """
-        Authenticates a user to the backend using HTTP Basic.
+        Authenticate a user to the backend using basic username and password.
         :param username: User name
         :param password: User passphrase
         """
+        resp = self.get(
+            self.root + '/credentials/basic',
+            # /credentials/basic is the only endpoint that expects a Basic HTTP auth
+            auth=HTTPBasicAuth(username, password)
+        ).json()
+        # Switch to bearer based authentication in further requests.
+        self.auth = BearerAuth(bearer=resp["access_token"])
+        return self
 
-        if username and password:
-            self.authent = BasicAuth(username, password, self.endpoint)
+    def authenticate_OIDC(self, client_id: str, webbrowser_open=None) -> 'RESTConnection':
+        """
+        Authenticates a user to the backend using OpenID Connect.
 
-        # return self.not_supported()
+        :param client_id: Client id to use for OpenID Connect authentication
+        :param webbrowser_open: optional handler for the initial OAuth authentication request
+            (opens a webbrowser by default)
+        """
+        # Local import to avoid importing the whole OpenID Connect dependency chain. TODO: just do global import?
+        from openeo.rest.auth.oidc import OidcAuthCodePkceAuthenticator
+
+        # Per spec: '/credentials/oidc' will redirect to  OpenID Connect discovery document
+        oidc_discovery_url = self._url_join(self.endpoint, '/credentials/oidc')
+        authenticator = OidcAuthCodePkceAuthenticator(
+            client_id=client_id,
+            oidc_discovery_url=oidc_discovery_url,
+            webbrowser_open=webbrowser_open
+        )
+        # Do the Oauth/OpenID Connect flow
+        tokens = authenticator.get_tokens()
+        # TODO: ability to refresh the token when expired?
+        self.auth = BearerAuth(bearer=tokens.access_token)
+        return self
 
     def describe_account(self) -> str:
         """
@@ -89,24 +82,18 @@ class RESTConnection(Connection):
         return self.parse_json_response(info)
 
     def user_jobs(self) -> dict:
-        #TODO: Create a kind of User class to abstract the information (e.g. userid, username, password from the connection.
-        #TODO: Move information to Job class and return a list of Jobs.
         """
         Loads all jobs of the current user.
         :return: jobs: Dict All jobs of the user
         """
-        # TODO: self.userid might be None
-        jobs = self.get(self.root + '/users/{}/jobs'.format(self.userid))
-        return self.parse_json_response(jobs)
+        return self.get(self.root + '/jobs').json()["jobs"]
 
     def list_collections(self) -> List[dict]:
         """
         Loads all available imagecollections types.
         :return: list of collection meta data dictionaries
         """
-        data = self.get(self.root + '/collections', auth=False)
-        response = self.parse_json_response(data)
-        return response["collections"]
+        return self.get(self.root + '/collections').json()["collections"]
 
     def list_collection_ids(self) -> List[str]:
         """
@@ -134,9 +121,7 @@ class RESTConnection(Connection):
         :return: data_dict: Dict All available data types
         """
         if self._cached_capabilities is None:
-            data = self.get(self.root + '/', auth=False)
-            data.raise_for_status()
-            self._cached_capabilities = RESTCapabilities(self.parse_json_response(data))
+            self._cached_capabilities = RESTCapabilities(self.get(self.root + '/').json())
 
         return self._cached_capabilities
 
@@ -145,16 +130,14 @@ class RESTConnection(Connection):
         Loads all available output formats.
         :return: data_dict: Dict All available output formats
         """
-        data = self.get(self.root + '/output_formats', auth=False)
-        return self.parse_json_response(data)
+        return self.get(self.root + '/output_formats').json()["formats"]
 
     def list_service_types(self) -> dict:
         """
         Loads all available service types.
         :return: data_dict: Dict All available service types
         """
-        data = self.get(self.root + '/service_types', auth=False)
-        return self.parse_json_response(data)
+        return self.get(self.root + '/service_types').json()
 
     def list_services(self) -> dict:
         """
@@ -162,8 +145,7 @@ class RESTConnection(Connection):
         :return: data_dict: Dict All available service types
         """
         #TODO return service objects
-        data = self.get(self.root + '/services', auth=True)
-        return self.parse_json_response(data)
+        return self.get(self.root + '/services').json()
 
     def describe_collection(self, name) -> dict:
         # TODO: Maybe create some kind of Data class.
@@ -172,11 +154,7 @@ class RESTConnection(Connection):
         :param name: String Id of the collection
         :return: data_dict: Dict Detailed information about the collection
         """
-        if name:
-            data_info = self.get(self.root + '/collections/{}'.format(name), auth=False)
-            return self.parse_json_response(data_info)
-        else:
-            raise ValueError("Invalid argument col_id: {}".format(str(name)))
+        return  self.get(self.root + '/collections/{}'.format(name)).json()
 
     def collection_metadata(self, name) -> CollectionMetadata:
         return CollectionMetadata(metadata=self.describe_collection(name))
@@ -187,14 +165,7 @@ class RESTConnection(Connection):
         Loads all available processes of the back end.
         :return: processes_dict: Dict All available processes of the back end.
         """
-        processes = self.get('/processes', auth=False)
-
-        response = self.parse_json_response(processes)
-
-        if "processes" in response:
-            return response["processes"]
-
-        return response
+        return self.get('/processes').json()["processes"]
 
     def list_jobs(self) -> dict:
         # TODO: Maybe format the result so that there get Job classes returned.
@@ -202,8 +173,7 @@ class RESTConnection(Connection):
         Lists all jobs of the authenticated user.
         :return: job_list: Dict of all jobs of the user.
         """
-        jobs = self.get('/jobs', auth=True)
-        return self.parse_json_response(jobs)
+        return self.get('/jobs').json()["jobs"]
 
     def validate_processgraph(self, process_graph):
 
@@ -260,26 +230,17 @@ class RESTConnection(Connection):
         response = self.get("/jobs/{}/results".format(job_id))
         return self.parse_json_response(response)
 
-    def list_files(self, user_id=None):
+    def list_files(self):
         """
         Lists all files that the logged in user uploaded.
-        :param user_id: user id, which files should be listed.
         :return: file_list: List of the user uploaded files.
         """
 
-        if not user_id:
-            user_id = self.userid
+        return self.get('/files').json()['files']
 
-        files = self.get('/files/{}'.format(user_id))
-
-        #TODO: Create File Objects.
-
-        return self.parse_json_response(files)
-
-    def create_file(self, path, user_id=None):
+    def create_file(self, path):
         """
         Creates virtual file
-        :param user_id: owner of the file.
         :return: file object.
         """
         # No endpoint just returns a file object.
@@ -400,42 +361,37 @@ class RESTConnection(Connection):
 
             raise ConnectionAbortedError(message)
 
-    def post(self, path, postdata):
+    def post(self, path, postdata) -> Response:
         """
         Makes a RESTful POST request to the back end.
         :param path: URL of the request (without root URL e.g. "/data")
         :param postdata: Data of the post request
         :return: response: Response
         """
-
-        auth_header = self.authent.get_header()
-        auth = self.authent.get_auth()
         # TODO: add .raise_for_status() by default?
-        return requests.post(self.endpoint+path, json=postdata, headers=auth_header, auth=auth)
+        url = self._url_join(self.endpoint, path)
+        return requests.post(url, json=postdata, auth=self.auth)
 
-    def delete(self, path):
+    def delete(self, path) -> Response:
         """
         Makes a RESTful DELETE request to the back end.
         :param path: URL of the request (without root URL e.g. "/data")
         :return: response: Response
         """
-
-        auth_header = self.authent.get_header()
-        auth = self.authent.get_auth()
         # TODO: add .raise_for_status() by default?
-        return requests.delete(self.endpoint+path, headers=auth_header, auth=auth)
+        url = self._url_join(self.endpoint, path)
+        return requests.delete(url, auth=self.auth)
 
-    def patch(self, path):
+    def patch(self, path) -> Response:
         """
         Makes a RESTful PATCH request to the back end.
         :param path: URL of the request (without root URL e.g. "/data")
         :return: response: Response
         """
-        auth_header = self.authent.get_header()
-        auth = self.authent.get_auth()
-        return requests.patch(self.endpoint+path, headers=auth_header, auth=auth)
+        url = self._url_join(self.endpoint, path)
+        return requests.patch(url, auth=self.auth)
 
-    def put(self, path, header={}, data=None):
+    def put(self, path, header={}, data=None) -> Response:
         """
         Makes a RESTful PUT request to the back end.
         :param path: URL of the request (without root URL e.g. "/data")
@@ -443,36 +399,28 @@ class RESTConnection(Connection):
         :param data: data that gets added to the request.
         :return: response: Response
         """
-        auth_header = self.authent.get_header()
+        url = self._url_join(self.endpoint, path)
+        return requests.put(url, headers=header, data=data, auth=self.auth)
 
-        # Merge headers
-        head = auth_header.copy()
-        head.update(header)
-
-        auth = self.authent.get_auth()
-
-        if data:
-            return requests.put(self.endpoint+path, headers=head, data=data, auth=auth)
-        else:
-            return requests.put(self.endpoint+path, headers=head, auth=auth)
-
-    def get(self,path, stream=False, auth=True):
+    def get(self, path, stream=False, check_status=True, auth: AuthBase = None) -> Response:
         """
         Makes a RESTful GET request to the back end.
         :param path: URL of the request (without root URL e.g. "/data")
         :param stream: True if the get request should be streamed, else False
-        :param auth: True if the get request should be authenticated, else False
+        :param check_status: whether to check the status code
+        :param auth: optional custom authentication to use instead of the default one
         :return: response: Response
         """
+        url = self._url_join(self.endpoint, path)
+        resp = requests.get(url, stream=stream, auth=auth or self.auth)
+        if check_status:
+            # TODO: raise a custom OpenEO branded exception?
+            resp.raise_for_status()
+        return resp
 
-        if auth:
-            auth_header = self.authent.get_header()
-            auth = self.authent.get_auth()
-        else:
-            auth_header = {}
-            auth = None
-        # TODO: add .raise_for_status() by default?
-        return requests.get(self.endpoint+path, headers=auth_header, stream=stream, auth=auth)
+    def _url_join(self, base: str, path: str):
+        """Join a base url and sub path properly"""
+        return urljoin(base.rstrip('/') + '/', path.lstrip('/'))
 
     def get_outputformats(self) -> dict:
         """
@@ -490,20 +438,40 @@ class RESTConnection(Connection):
         return not_support
 
 
-def connection(url, auth_type=NoneAuth, auth_options={}) -> RESTConnection:
+def connect(url, auth_type: str = None, auth_options: dict = {}) -> RESTConnection:
     """
-    This method is the entry point to OpenEO. You typically create one connection object in your script or application, per back-end.
+    This method is the entry point to OpenEO.
+    You typically create one connection object in your script or application
     and re-use it for all calls to that backend.
-    If the backend requires authentication, you should set pass your credentials.
 
-    :param endpoint: The http url of an OpenEO endpoint.
+    If the backend requires authentication, you should can pass authentication data directly to this function
+    but it could be easier to authenticate as follows:
 
+        >>> # For basic authentication
+        >>> conn = connect(url).authenticate_basic(username="john", password="foo")
+
+        >>> # For OpenID Connect authentication
+        >>> conn = connect(url).authenticate_OIDC(client_id="myclient")
+
+    :param url: The http url of an OpenEO endpoint.
+    :param auth_type: Which authentication to use: None, "basic" or "oidc" (for OpenID Connect)
+    :param auth_options: Options/arguments specific to the authentication type
     :rtype: openeo.connections.Connection
     """
+    connection = RESTConnection(url)
+    auth_type = auth_type.lower() if isinstance(auth_type, str) else auth_type
+    if auth_type in {None, 'null', 'none'}:
+        pass
+    elif auth_type == "basic":
+        connection.authenticate_basic(**auth_options)
+    elif auth_type in {"oidc", "openid"}:
+        connection.authenticate_OIDC(**auth_options)
+    else:
+        raise ValueError("Unknown auth type {a!r}".format(a=auth_type))
+    return connection
 
-    return RESTConnection(url, auth_type, auth_options)
 
-
+@deprecated("Use openeo.connect")
 def session(userid=None, endpoint: str = "https://openeo.org/openeo") -> RESTConnection:
     """
     Deprecated, use openeo.connect
@@ -513,4 +481,5 @@ def session(userid=None, endpoint: str = "https://openeo.org/openeo") -> RESTCon
     :param endpoint: The http url of an OpenEO endpoint.
     :rtype: openeo.sessions.Session
     """
-    return connection(url=endpoint)
+    return connect(url=endpoint)
+

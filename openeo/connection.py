@@ -1,15 +1,16 @@
-from abc import ABC, abstractmethod
-from .auth import Auth
-from openeo.imagecollection import ImageCollection
-from.capabilities import Capabilities
-from .job import Job
-from typing import Dict
-
 """
 openeo.sessions
 ~~~~~~~~~~~~~~~~
 This module provides a Connection object to manage and persist settings when interacting with the OpenEO API.
 """
+
+from abc import ABC, abstractmethod
+from typing import Dict
+
+from openeo.capabilities import Capabilities
+from openeo.imagecollection import ImageCollection
+from openeo.job import Job
+
 
 # TODO is it necessary to have this abstract base class Connection
 #      when there is just this one RESTConnection implementation class?
@@ -20,19 +21,6 @@ class Connection(ABC):
     It is your entry point to create new Image Collections.
     """
 
-    @property
-    @abstractmethod
-    def connect(self, username, password, auth:Auth) -> bool:
-        """
-        Authenticates a user to the backend using auth class.
-
-        :param username: String Username credential of the user
-        :param password: String Password credential of the user
-        :param auth_class: Auth instance of the abstract Auth class
-
-        :return: token: String Bearer token
-        """
-        pass
 
     @abstractmethod
     def capabilities(self) -> Capabilities:
@@ -81,17 +69,17 @@ class Connection(ABC):
         """
 
     @abstractmethod
-    def authenticate_OIDC(self, options={}) -> str:
+    def authenticate_basic(self, username: str, password: str):
         """
-        Authenticates a user to the backend using OIDC.
+        Authenticate a user to the backend using basic username and password.
         :param options: Authentication options
         """
 
     @abstractmethod
-    def authenticate_basic(self, username, password) -> str:
+    def authenticate_OIDC(self, client_id: str):
         """
-        Authenticates a user to the backend using HTTP Basic.
-        :param options: Authentication options
+        Authenticates a user to the backend using OpenID Connect.
+        :param client_id: Authentication options
         """
 
     @abstractmethod
@@ -101,18 +89,16 @@ class Connection(ABC):
         """
 
     @abstractmethod
-    def list_files(self, user_id=None):
+    def list_files(self):
         """
         Lists all files that the logged in user uploaded.
-        :param user_id: user id, which files should be listed.
         :return: file_list: List of the user uploaded files.
         """
 
     @abstractmethod
-    def create_file(self, path, user_id=None):
+    def create_file(self, path):
         """
         Creates virtual file
-        :param user_id: owner of the file.
         :return: file object.
         """
 

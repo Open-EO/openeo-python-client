@@ -17,7 +17,7 @@ password = "test"
 #connect with GEE backend
 #session = openeo.session("nobody", GEE_DRIVER_URL)
 
-
+# TODO: update examples
 con = openeo.connect(GEE_DRIVER_URL, auth_type=BearerAuth, auth_options={"username": user, "password": password})
 
 #Test Connection
