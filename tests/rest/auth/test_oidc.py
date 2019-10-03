@@ -8,20 +8,25 @@ import requests
 from openeo.rest.auth.oidc import QueuingRequestHandler, drain_queue, HttpServerThread, OidcAuthCodePkceAuthenticator
 
 
-def handle_request(handler_class: Type[http.server.BaseHTTPRequestHandler], path: str, body: str = None):
+def handle_request(handler_class: Type[http.server.BaseHTTPRequestHandler], path: str):
     """Fake (serverless) request handling"""
 
     class Request:
-        def makefile(self, mode, *args, **kwargs):
-            if mode == 'rb':
-                data = "GET {p} HTTP/1.1\r\n".format(p=path)
-                if body:
-                    data += "\r\n" + body
-                return BytesIO(data.encode('utf-8'))
-            elif mode == 'wb':
-                return BytesIO()
+        """Fake socket-like request object."""
 
-    handler_class(request=Request(), client_address=('0.0.0.0', 8910), server=None)
+        def __init__(self):
+            # Pass the requested URL path in HTTP format.
+            self.rfile = BytesIO("GET {p} HTTP/1.1\r\n".format(p=path).encode('utf-8'))
+            self.wfile = BytesIO()
+
+        def makefile(self, mode, *args, **kwargs):
+            return {'rb': self.rfile, 'wb': self.wfile}[mode]
+
+        def sendall(self, bytes):
+            self.wfile.write(bytes)
+
+    request = Request()
+    handler_class(request=request, client_address=('0.0.0.0', 8910), server=None)
 
 
 def test_queuing_request_handler():
