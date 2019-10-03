@@ -7,7 +7,7 @@ import pytest
 import requests
 import requests_mock
 
-from openeo.rest.auth.oidc import OpenIdAuthenticator
+from openeo.rest.auth.oidc import OidcAuthCodePkceAuthenticator
 
 
 @pytest.fixture()
@@ -41,7 +41,7 @@ def oidc_test_setup(requests_mock: requests_mock.Mocker):
             params = _get_query_params(query=request.text)
             assert params["client_id"] == client_id
             assert params["grant_type"] == "authorization_code"
-            assert state["code_challenge"] == OpenIdAuthenticator.hash_code_verifier(params["code_verifier"])
+            assert state["code_challenge"] == OidcAuthCodePkceAuthenticator.hash_code_verifier(params["code_verifier"])
             assert params["code"] == "6uthc0d3"
             assert params["redirect_uri"] == state["redirect_uri"]
             state["access_token"] = _jwt_encode({}, {"sub": "123", "name": "john", "nonce": state["nonce"]})

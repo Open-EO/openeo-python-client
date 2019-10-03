@@ -1,6 +1,8 @@
 """
 OpenID Connect related functionality and helpers.
+
 """
+
 import base64
 import functools
 import hashlib
@@ -15,7 +17,6 @@ import urllib.parse
 import warnings
 import webbrowser
 from collections import namedtuple
-from pprint import pprint
 from queue import Queue, Empty
 from typing import Tuple, Callable
 
@@ -26,7 +27,8 @@ log = logging.getLogger(__name__)
 
 class QueuingRequestHandler(http.server.BaseHTTPRequestHandler):
     """
-    Request handler that put requested paths in a threadsafe queue
+    Base class for simple HTTP request handlers to be used in threaded context.
+    The handler puts the requested paths in a thread-safe queue
     """
 
     def __init__(self, *args, **kwargs):
@@ -44,11 +46,11 @@ class QueuingRequestHandler(http.server.BaseHTTPRequestHandler):
 
     @classmethod
     def with_queue(cls, queue: Queue):
-        """Generate a class (constructor) pre-bound with given queue object"""
+        """Create a factory for this object pre-bound with given queue object"""
         return functools.partial(cls, queue=queue)
 
     def log_message(self, format, *args):
-        # Override the default implementation, which is hardcoded `sys.stderr.write`
+        # Override the default implementation, which is a hardcoded `sys.stderr.write`
         log.debug(format % args)
 
 
@@ -65,6 +67,9 @@ class OAuthRedirectRequestHandler(QueuingRequestHandler):
 
 
 class HttpServerThread(threading.Thread):
+    """
+    Thread that runs a HTTP server (`http.server.HTTPServer`)
+    """
 
     def __init__(self, RequestHandlerClass, server_address=('', 0)):
         # Make it a daemon to minimize potential shutdown issues due to `serve_forever`
@@ -152,9 +157,28 @@ class OAuthException(RuntimeError):
     pass
 
 
-class OpenIdAuthenticator:
+class OidcAuthenticator:
+    pass
+
+
+class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
     """
-    Implementation of OpenID authentication using OAuth authorization flow with PKCE
+    Implementation of OpenID Connect authentication using OAuth Authorization Code Flow with PKCE.
+
+    This flow is to be used for interactive use cases (e.g. user is working in a Jupyter/IPython notebook).
+
+    It goes roughly like this:
+    - A short living HTTP server is started in a side-thread to serve the redirect URI
+        that is required in this flow.
+    - A browser window/tab is opened showing the (third party) Identity Provider authorization endpoint
+    - (if not already:) User authenticates with the Identity Provider (e.g. with username and password)
+    - Identity Provider forwards to the redirect URI (which is served locally by the side-thread),
+        sending an authorization code (among others) along
+    - The request handler in the side thread captures the redirect and passes it to the main thread (through a queue)
+    - The main extracts the necessary information from the redirect request (like the authorization code)
+        and shuts down the side thread
+    - The authorization code is exchanged for an access code and id token
+    - The access code can be used as bearer token for subsequent API calls
     """
     _authentication_timeout = 120
 
@@ -177,7 +201,7 @@ class OpenIdAuthenticator:
     def get_pkce_codes() -> Tuple[str, str]:
         """Build random PKCE code verifier and challenge"""
         code_verifier = random_string(64)
-        code_challenge = OpenIdAuthenticator.hash_code_verifier(code_verifier)
+        code_challenge = OidcAuthCodePkceAuthenticator.hash_code_verifier(code_verifier)
         return code_verifier, code_challenge
 
     def _get_auth_code(self) -> AuthCodeResult:
@@ -197,6 +221,11 @@ class OpenIdAuthenticator:
         RequestHandlerClass = OAuthRedirectRequestHandler.with_queue(callback_queue)
         with HttpServerThread(RequestHandlerClass=RequestHandlerClass) as http_server_thread:
             port, host, fqdn = http_server_thread.server_address_info()
+            # TODO: use fully qualified domain name instead of "localhost"?
+            #       Otherwise things won't work when the client is for example
+            #       running in a remotely hosted Jupyter setup.
+            #       Maybe even FQDN will not resolve properly in the user's browser
+            #       and we need additional means to get a working hostname?
             redirect_uri = 'http://localhost:{p}'.format(f=fqdn, p=port) + OAuthRedirectRequestHandler.PATH
             log.info("Using OAuth redirect URI {u}".format(u=redirect_uri))
 

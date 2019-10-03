@@ -59,11 +59,11 @@ class RESTConnection(Connection):
             (opens a webbrowser by default)
         """
         # Local import to avoid importing the whole OpenID Connect dependency chain. TODO: just do global import?
-        from openeo.rest.auth.oidc import OpenIdAuthenticator
+        from openeo.rest.auth.oidc import OidcAuthCodePkceAuthenticator
 
         # Per spec: '/credentials/oidc' will redirect to  OpenID Connect discovery document
         oidc_discovery_url = self._url_join(self.endpoint, '/credentials/oidc')
-        authenticator = OpenIdAuthenticator(
+        authenticator = OidcAuthCodePkceAuthenticator(
             client_id=client_id,
             oidc_discovery_url=oidc_discovery_url,
             webbrowser_open=webbrowser_open

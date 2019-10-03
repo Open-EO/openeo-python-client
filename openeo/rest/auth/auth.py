@@ -4,8 +4,11 @@ from requests.auth import AuthBase
 
 class OpenEoApiAuthBase(AuthBase):
     """
-    Base class for authentication with the OpenEO REST API,
-    leveraging the authentication approach of the requests library
+    Base class for authentication with the OpenEO REST API.
+
+    Follows the authentication approach of the requests library:
+    an auth object is a callable object that can be passed with get/post request
+    to manipulate this request (typically setting headers).
     """
 
     def __call__(self, req: Request) -> Request:
