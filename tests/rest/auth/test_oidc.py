@@ -1,15 +1,17 @@
-import http.server
 from io import BytesIO
 from queue import Queue
-from typing import Type
 
 import requests
 
 from openeo.rest.auth.oidc import QueuingRequestHandler, drain_queue, HttpServerThread, OidcAuthCodePkceAuthenticator
 
 
-def handle_request(handler_class: Type[http.server.BaseHTTPRequestHandler], path: str):
-    """Fake (serverless) request handling"""
+def handle_request(handler_class, path: str):
+    """
+    Fake (serverless) request handling
+
+    :param handler_class: should be a subclass of `http.server.BaseHTTPRequestHandler`
+    """
 
     class Request:
         """Fake socket-like request object."""
