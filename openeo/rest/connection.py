@@ -189,17 +189,6 @@ class Connection(RestApiConnection):
         field = 'id' if self._api_version.at_least('0.4.0') else 'name'
         return [collection[field] for collection in self.list_collections() if field in collection]
 
-    @deprecated("Use list_processes")
-    def get_processes(self):
-        """
-        EXPERIMENTAL
-        Returns processes of back end.
-        :return: data_dict: Dict All available data types
-        """
-        # TODO return only provided processes of the back end
-        from openeo.rest.rest_processes import RESTProcesses
-        return RESTProcesses(self)
-
     def capabilities(self) -> 'Capabilities':
         """
         Loads all available capabilities.
