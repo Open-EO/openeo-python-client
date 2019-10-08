@@ -1,12 +1,14 @@
 import urllib.request
-from typing import List, TYPE_CHECKING
 
 import requests
+import typing
+from typing import List
 
 from openeo.job import Job, JobResult
 
-if TYPE_CHECKING:
+if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Only import this for type hinting purposes. Runtime import causes circular dependency issues.
+    # Note: the `hasattr` check is necessary for Python versions before 3.5.2.
     from openeo.rest.connection import Connection
 
 
