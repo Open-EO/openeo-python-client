@@ -1,3 +1,4 @@
+import typing
 from typing import List, Dict, Union
 
 from deprecated import deprecated
@@ -6,7 +7,11 @@ from shapely.geometry import Polygon, MultiPolygon, mapping
 from openeo.graphbuilder import GraphBuilder
 from openeo.imagecollection import ImageCollection, CollectionMetadata
 from openeo.job import Job
-from openeo.rest.connection import Connection
+
+if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
+    # Only import this for type hinting purposes. Runtime import causes circular dependency issues.
+    # Note: the `hasattr` check is necessary for Python versions before 3.5.2.
+    from openeo.rest.connection import Connection
 
 
 class ImageCollectionClient(ImageCollection):
@@ -14,7 +19,7 @@ class ImageCollectionClient(ImageCollection):
         Supports 0.4.
     """
 
-    def __init__(self, node_id: str, builder: GraphBuilder, session: Connection, metadata: CollectionMetadata=None):
+    def __init__(self, node_id: str, builder: GraphBuilder, session: 'Connection', metadata: CollectionMetadata=None):
         super().__init__(metadata=metadata)
         self.node_id = node_id
         self.builder= builder
@@ -28,7 +33,7 @@ class ImageCollectionClient(ImageCollection):
 
     @classmethod
     def load_collection(
-            cls, collection_id: str, session: Connection = None,
+            cls, collection_id: str, session: 'Connection' = None,
             spatial_extent: Union[Dict, None] = None,
             temporal_extent: Union[List, None] = None,
             bands: Union[List, None] = None,

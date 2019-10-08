@@ -1,8 +1,8 @@
+import typing
 import urllib.request
+from typing import List
 
 import requests
-import typing
-from typing import List
 
 from openeo.job import Job, JobResult
 

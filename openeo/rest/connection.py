@@ -16,6 +16,7 @@ import openeo
 from openeo.capabilities import Capabilities
 from openeo.imagecollection import CollectionMetadata
 from openeo.rest.auth.auth import NullAuth, BearerAuth
+from openeo.rest.imagecollectionclient import ImageCollectionClient
 from openeo.rest.job import RESTJob
 from openeo.rest.rest_capabilities import RESTCapabilities
 
@@ -262,17 +263,16 @@ class Connection(RestApiConnection):
     def _api_version(self):
         return self.capabilities().api_version_check
 
-    def imagecollection(self, image_collection_id) -> 'ImageCollection':
+    def load_collection(self, collection_id: str) -> ImageCollectionClient:
         """
-        Get imagecollection by id.
-        :param image_collection_id: String image collection identifier
-        :return: collection: ImageCollectionClient the imagecollection with the id
+        Load an image collection by collection id
+        :param collection_id: image collection identifier (string)
+        :return: ImageCollectionClient
         """
-        assert self._api_version.at_least('0.4.0')
-        # TODO avoid local imports
-        from .imagecollectionclient import ImageCollectionClient
-        image = ImageCollectionClient.load_collection(image_collection_id, self)
-        return image
+        return ImageCollectionClient.load_collection(collection_id, session=self)
+
+    # Legacy alias.
+    imagecollection = load_collection
 
     def point_timeseries(self, graph, x, y, srs) -> dict:
         """Compute a timeseries for a given point location."""
