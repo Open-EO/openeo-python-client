@@ -282,17 +282,11 @@ class Connection(RestApiConnection):
     def create_service(self, graph, type, **kwargs):
         kwargs["process_graph"] = graph
         kwargs["type"] = type
-
         response = self.post("/services", kwargs)
-
-        if response.status_code == 201:
-            service_url = response.headers['location']
-
-            return {
-                'url': service_url
-            }
-        else:
-            self._handle_error_response(response)
+        return {
+            'url': response.headers['Location'],
+            'service_id': response.headers.get("OpenEO-Identifier"),
+        }
 
     def remove_service(self, service_id: str):
         """
@@ -301,8 +295,6 @@ class Connection(RestApiConnection):
         :return:
         """
         response = self.delete('/services/' + service_id)
-        if response.status_code != 204:
-            self._handle_error_response(response)
 
     def job_results(self, job_id):
         response = self.get("/jobs/{}/results".format(job_id))
