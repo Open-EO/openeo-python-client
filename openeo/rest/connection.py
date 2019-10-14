@@ -439,13 +439,14 @@ class Connection(RestApiConnection):
         """
         raise NotImplementedError()
 
-    def load_disk_collection(self, format: str, glob_pattern: str, options: dict = {}) -> object:
+    def load_disk_collection(self, format: str, glob_pattern: str, options: dict = {}) -> ImageCollectionClient:
         """
-        Loads arbitrary from disk.
+        Loads image data from disk as an ImageCollection.
+
         :param format: the file format, e.g. 'GTiff'
         :param glob_pattern: a glob pattern that matches the files to load from disk
         :param options: options specific to the file format
-        :return: the data as a data cube;
+        :return: the data as an ImageCollection
         """
         return ImageCollectionClient.load_disk_collection(self, format, glob_pattern, **options)
 

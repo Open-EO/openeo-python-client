@@ -70,15 +70,15 @@ class ImageCollectionClient(ImageCollection):
         return cls.load_collection(*args, **kwargs)
 
     @classmethod
-    def load_disk_collection(cls, session: 'Connection', file_format: str, glob_pattern: str, **options):
+    def load_disk_collection(cls, session: 'Connection', file_format: str, glob_pattern: str, **options) -> 'ImageCollection':
         """
-        Create a new Image Collection/Raster Data cube.
+        Loads image data from disk as an ImageCollection.
 
         :param session: The session to use to connect with the backend.
         :param file_format: the file format, e.g. 'GTiff'
         :param glob_pattern: a glob pattern that matches the files to load from disk
         :param options: options specific to the file format
-        :return:
+        :return: the data as an ImageCollection
         """
         assert session.capabilities().api_version_check.at_least('0.4.0')
 
