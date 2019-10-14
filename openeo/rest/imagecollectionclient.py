@@ -69,6 +69,32 @@ class ImageCollectionClient(ImageCollection):
     def create_collection(cls, *args, **kwargs):
         return cls.load_collection(*args, **kwargs)
 
+    @classmethod
+    def load_disk_collection(cls, session: 'Connection', file_format: str, glob_pattern: str, **options):
+        """
+        Create a new Image Collection/Raster Data cube.
+
+        :param session: The session to use to connect with the backend.
+        :param file_format: the file format, e.g. 'GTiff'
+        :param glob_pattern: a glob pattern that matches the files to load from disk
+        :param options: options specific to the file format
+        :return:
+        """
+        assert session.capabilities().api_version_check.at_least('0.4.0')
+
+        builder = GraphBuilder()
+
+        process_id = 'load_disk_data'
+        arguments = {
+            'format': file_format,
+            'glob_pattern': glob_pattern,
+            'options': options
+        }
+
+        node_id = builder.process(process_id, arguments)
+
+        return cls(node_id, builder, session, metadata={})
+
     def _filter_temporal(self, start: str, end: str) -> 'ImageCollection':
         return self.graph_add_process(
             process_id='filter_temporal',

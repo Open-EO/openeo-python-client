@@ -431,8 +431,6 @@ class Connection(RestApiConnection):
 
             raise ConnectionAbortedError(message)
 
-
-
     def get_outputformats(self) -> dict:
         """
         Loads all available output formats.
@@ -440,6 +438,16 @@ class Connection(RestApiConnection):
         :return: data_dict: Dict All available output formats
         """
         raise NotImplementedError()
+
+    def load_disk_collection(self, format: str, glob_pattern: str, options: dict = {}) -> object:
+        """
+        Loads arbitrary from disk.
+        :param format: the file format, e.g. 'GTiff'
+        :param glob_pattern: a glob pattern that matches the files to load from disk
+        :param options: options specific to the file format
+        :return: the data as a data cube;
+        """
+        return ImageCollectionClient.load_disk_collection(self, format, glob_pattern, **options)
 
 
 def connect(url, auth_type: str = None, auth_options: dict = {}) -> Connection:
