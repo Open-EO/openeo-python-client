@@ -201,12 +201,16 @@ class Connection(RestApiConnection):
 
         return self._cached_capabilities
 
+    @deprecated("Use 'list_output_formats' instead")
     def list_file_types(self) -> dict:
+        return self.list_output_formats()
+
+    def list_output_formats(self) -> dict:
         """
         Loads all available output formats.
         :return: data_dict: Dict All available output formats
         """
-        return self.get('/output_formats').json()["formats"]
+        return self.get('/output_formats').json()
 
     def list_service_types(self) -> dict:
         """
