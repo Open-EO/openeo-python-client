@@ -691,6 +691,7 @@ class ImageCollectionClient(ImageCollection):
         }
         return self.graph_add_process(process_id, args)
 
+    @deprecated("use 'linear_scale_range' instead")
     def stretch_colors(self, min, max) -> 'ImageCollection':
         """ Color stretching
         deprecated, use 'linear_scale_range' instead

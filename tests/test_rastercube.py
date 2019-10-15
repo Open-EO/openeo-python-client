@@ -3,11 +3,12 @@ from unittest import TestCase
 
 import numpy as np
 import pytest
-from mock import MagicMock, patch
+import shapely
+from mock import MagicMock
 
 from openeo.capabilities import Capabilities
-from openeo.rest.connection import Connection
 from openeo.graphbuilder import GraphBuilder
+from openeo.rest.connection import Connection
 from openeo.rest.imagecollectionclient import ImageCollectionClient
 
 
@@ -97,14 +98,14 @@ class TestRasterCube(TestCase):
 
         connection.capabilities.return_value = capabilities
         capabilities.version.return_value = "0.4.0"
-        self.imagery = ImageCollectionClient(id, builder, connection)
+        self.img = ImageCollectionClient(id, builder, connection)
 
         builder = GraphBuilder()
         mask_id = builder.process("get_collection", {'name': 'S1_Mask'})
         self.mask = ImageCollectionClient(mask_id, builder, connection)
 
     def test_filter_bbox(self):
-        im = self.imagery.filter_bbox(
+        im = self.img.filter_bbox(
             west=652000, east=672000, north=5161000, south=5181000, crs="EPSG:32632"
         )
         graph = im.graph[im.node_id]
@@ -114,7 +115,7 @@ class TestRasterCube(TestCase):
         }
 
     def test_filter_bbox_base_height(self):
-        im = self.imagery.filter_bbox(
+        im = self.img.filter_bbox(
             west=652000, east=672000, north=5161000, south=5181000, crs="EPSG:32632",
             base=100, height=200,
         )
@@ -126,7 +127,7 @@ class TestRasterCube(TestCase):
         }
 
     def test_bbox_filter_nsew(self):
-        im = self.imagery.bbox_filter(
+        im = self.img.bbox_filter(
             west=652000, east=672000, north=5161000, south=5181000, crs="EPSG:32632"
         )
         graph = im.graph[im.node_id]
@@ -136,7 +137,7 @@ class TestRasterCube(TestCase):
         }
 
     def test_bbox_filter_tblr(self):
-        im = self.imagery.bbox_filter(
+        im = self.img.bbox_filter(
             left=652000, right=672000, top=5161000, bottom=5181000, srs="EPSG:32632"
         )
         graph = im.graph[im.node_id]
@@ -146,7 +147,7 @@ class TestRasterCube(TestCase):
         }
 
     def test_bbox_filter_nsew_zero(self):
-        im = self.imagery.bbox_filter(
+        im = self.img.bbox_filter(
             west=0, east=0, north=0, south=0, crs="EPSG:32632"
         )
         graph = im.graph[im.node_id]
@@ -156,61 +157,55 @@ class TestRasterCube(TestCase):
         }
 
     def test_min_time(self):
-        new_imagery = self.imagery.min_time()
-
-        graph = new_imagery.graph[new_imagery.node_id]
-
-        self.assertEqual(graph["process_id"], "reduce")
-        self.assertIn("data", graph['arguments'])
+        img = self.img.min_time()
+        graph = img.graph[img.node_id]
+        assert graph["process_id"] == "reduce"
+        assert graph["arguments"]["data"] == {'from_node': 'getcollection1'}
+        assert graph["arguments"]["dimension"] == "temporal"
+        callback, = graph["arguments"]["reducer"]["callback"].values()
+        assert callback == {'arguments': {'data': {'from_argument': 'data'}}, 'process_id': 'min', 'result': True}
 
     def test_max_time(self):
-        new_imagery = self.imagery.max_time()
-
-        graph = new_imagery.graph[new_imagery.node_id]
-
-        self.assertEqual(graph["process_id"], "reduce")
-        self.assertIn("data", graph['arguments'])
+        img = self.img.max_time()
+        graph = img.graph[img.node_id]
+        assert graph["process_id"] == "reduce"
+        assert graph["arguments"]["data"] == {'from_node': 'getcollection1'}
+        assert graph["arguments"]["dimension"] == "temporal"
+        callback, = graph["arguments"]["reducer"]["callback"].values()
+        assert callback == {'arguments': {'data': {'from_argument': 'data'}}, 'process_id': 'max', 'result': True}
 
     def test_reduce_time_udf(self):
-        new_imagery = self.imagery.reduce_tiles_over_time("my custom code")
-
-        graph = new_imagery.graph[new_imagery.node_id]
-
-        import json
-        print(json.dumps(graph,indent=2))
-
+        img = self.img.reduce_tiles_over_time("my custom code")
+        graph = img.graph[img.node_id]
         self.assertEqual(graph["process_id"], "reduce")
         self.assertIn("data", graph['arguments'])
 
     def test_ndvi(self):
-        new_imagery = self.imagery.ndvi()
-
-        graph = new_imagery.graph[new_imagery.node_id]
-
-        self.assertEqual(graph["process_id"], "ndvi")
-        self.assertIn("data", graph['arguments'])
+        img = self.img.ndvi()
+        graph = img.graph[img.node_id]
+        assert graph["process_id"] == "ndvi"
+        assert graph["arguments"] == {
+            'data': {'from_node': 'getcollection1'}, 'name': 'ndvi'
+        }
 
     def test_mask(self):
-        from shapely import geometry
-        polygon = geometry.Polygon([[0, 0], [1.9, 0], [1.9, 1.9], [0, 1.9]])
-        new_imagery = self.imagery.mask(polygon)
-
-        graph = new_imagery.graph[new_imagery.node_id]
-
-        self.assertEqual(graph["process_id"], "mask")
-        self.assertEqual(graph["arguments"]["mask"],
-                         {'coordinates': (((0.0, 0.0), (1.9, 0.0), (1.9, 1.9), (0.0, 1.9), (0.0, 0.0)),),
-                          'crs': {'properties': {'name': 'EPSG:4326'}, 'type': 'name'},
-                          'type': 'Polygon'})
+        polygon = shapely.geometry.Polygon([[0, 0], [1.9, 0], [1.9, 1.9], [0, 1.9]])
+        img = self.img.mask(polygon)
+        graph = img.graph[img.node_id]
+        assert graph["process_id"] == "mask"
+        assert graph["arguments"] == {
+            "data": {'from_node': 'getcollection1'},
+            "mask": {
+                'coordinates': (((0.0, 0.0), (1.9, 0.0), (1.9, 1.9), (0.0, 1.9), (0.0, 0.0)),),
+                'crs': {'properties': {'name': 'EPSG:4326'}, 'type': 'name'},
+                'type': 'Polygon'
+            }
+        }
 
     def test_mask_raster(self):
-        new_imagery = self.imagery.mask(rastermask=self.mask,replacement=102)
-
-        graph = new_imagery.graph[new_imagery.node_id]
-        import json
-        print(json.dumps(new_imagery.graph,indent=4))
-
-        expected_mask_node = {
+        img = self.img.mask(rastermask=self.mask, replacement=102)
+        graph = img.graph[img.node_id]
+        assert graph == {
             "process_id": "mask",
             "arguments": {
                 "data": {
@@ -224,26 +219,23 @@ class TestRasterCube(TestCase):
             "result": False
         }
 
-        self.assertDictEqual(expected_mask_node,graph)
-
-    def test_strech_colors(self):
-        new_imagery = self.imagery.stretch_colors(-1, 1)
-
-        graph = new_imagery.graph[new_imagery.node_id]
-
-        self.assertEqual(graph["process_id"], "stretch_colors")
-        self.assertIn("data", graph['arguments'])
-        self.assertEqual(graph["arguments"]["min"], -1)
-        self.assertEqual(graph["arguments"]["max"], 1)
+    def test_stretch_colors(self):
+        img = self.img.stretch_colors(-1, 1)
+        graph = img.graph[img.node_id]
+        assert graph["process_id"] == "stretch_colors"
+        assert graph["arguments"] == {
+            'data': {'from_node': 'getcollection1'},
+            'max': 1,
+            'min': -1,
+        }
 
     def test_apply_kernel(self):
-
         kernel = [[0, 1, 0], [1, 1, 1], [0, 1, 0]]
-        new_imagery = self.imagery.apply_kernel(np.asarray(kernel), 3)
-
-        graph = new_imagery.graph[new_imagery.node_id]
-
-        self.assertEqual(graph["process_id"], "apply_kernel")
-        self.assertIn("data", graph["arguments"])
-        self.assertEqual(graph["arguments"]["factor"], 3)
-        self.assertEqual(graph["arguments"]["kernel"], kernel)
+        img = self.img.apply_kernel(np.asarray(kernel), 3)
+        graph = img.graph[img.node_id]
+        assert graph["process_id"] == "apply_kernel"
+        assert graph["arguments"] == {
+            'data': {'from_node': 'getcollection1'},
+            'factor': 3,
+            'kernel': [[0, 1, 0], [1, 1, 1], [0, 1, 0]]
+        }
