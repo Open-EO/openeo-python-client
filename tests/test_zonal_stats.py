@@ -12,11 +12,11 @@ class TestTimeSeries(TestCase):
 
     def test_polygon_timeseries(self, m):
         #configuration phase: define username, endpoint, parameters?
+        m.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})
         session = openeo.connect(url="http://localhost:8000/api")
         #session.post = MagicMock()
         #session.download = MagicMock()
 
-        m.get("http://localhost:8000/api/", json={"version": "0.4.0"})
         m.get("http://localhost:8000/api/collections", json=[{"product_id": "sentinel2_subset"}])
         m.get("http://localhost:8000/api/collections/SENTINEL2_FAPAR", json={"product_id": "sentinel2_subset",
                                                                                "bands": [{'band_id': 'FAPAR'}],
@@ -44,9 +44,9 @@ class TestTimeSeries(TestCase):
         #How to define a point? Ideally it should also have the CRS?
 
     def test_polygon_timeseries_from_vector_file(self, m):
+        m.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})
         session = openeo.connect(url="http://localhost:8000/api")
 
-        m.get("http://localhost:8000/api/", json={"version": "0.4.0"})
         m.get("http://localhost:8000/api/collections/SENTINEL2_FAPAR", json={
             "product_id": "SENTINEL2_FAPAR"
         })

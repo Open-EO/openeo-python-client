@@ -52,9 +52,9 @@ def test_connection_with_session():
     session = mock.Mock()
     response = session.request.return_value
     response.status_code = 200
-    response.json.return_value = {"foo": "bar"}
+    response.json.return_value = {"foo": "bar", "api_version": "0.4.0"}
     conn = Connection("https://oeo.net/", session=session)
-    assert conn.capabilities().capabilities == {"foo": "bar"}
+    assert conn.capabilities().capabilities["foo"] == "bar"
     session.request.assert_any_call(
         url="https://oeo.net/", method="get", headers=mock.ANY, stream=mock.ANY, auth=mock.ANY
     )
@@ -64,15 +64,16 @@ def test_connect_with_session():
     session = mock.Mock()
     response = session.request.return_value
     response.status_code = 200
-    response.json.return_value = {"foo": "bar"}
+    response.json.return_value = {"foo": "bar", "api_version": "0.4.0"}
     conn = connect("https://oeo.net/", session=session)
-    assert conn.capabilities().capabilities == {"foo": "bar"}
+    assert conn.capabilities().capabilities["foo"] == "bar"
     session.request.assert_any_call(
         url="https://oeo.net/", method="get", headers=mock.ANY, stream=mock.ANY, auth=mock.ANY
     )
 
 
 def test_api_error(requests_mock):
+    requests_mock.get('https://oeo.net/', json={"api_version": "0.4.0"})
     conn = Connection(API_URL)
     requests_mock.get('https://oeo.net/collections/foobar', status_code=404, json={
         "code": "CollectionNotFound", "message": "No such things as a collection 'foobar'", "id": "54321"
@@ -88,6 +89,7 @@ def test_api_error(requests_mock):
 
 
 def test_api_error_non_json(requests_mock):
+    requests_mock.get('https://oeo.net/', json={"api_version": "0.4.0"})
     conn = Connection(API_URL)
     requests_mock.get('https://oeo.net/collections/foobar', status_code=500, text="olapola")
     with pytest.raises(OpenEoApiError) as exc_info:
@@ -101,13 +103,14 @@ def test_api_error_non_json(requests_mock):
 
 
 def test_authenticate_basic(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "0.4.0"})
     conn = Connection(API_URL)
 
     def text_callback(request, context):
         assert request.headers["Authorization"] == "Basic am9objpqMGhu"
         return '{"access_token":"w3lc0m3"}'
 
-    requests_mock.get('https://oeo.net/credentials/basic', text=text_callback)
+    requests_mock.get(API_URL + 'credentials/basic', text=text_callback)
 
     assert isinstance(conn.auth, NullAuth)
     conn.authenticate_basic(username="john", password="j0hn")
@@ -115,11 +118,12 @@ def test_authenticate_basic(requests_mock):
     assert conn.auth.bearer == "w3lc0m3"
 
 
-def test_authenticate_oidc(oidc_test_setup):
+def test_authenticate_oidc(oidc_test_setup, requests_mock):
     # see test/rest/conftest.py for `oidc_test_setup` fixture
     client_id = "myclient"
     oidc_discovery_url = "https://oeo.net/credentials/oidc"
     state, webbrowser_open = oidc_test_setup(client_id=client_id, oidc_discovery_url=oidc_discovery_url)
+    requests_mock.get(API_URL, json={"api_version": "0.4.0"})
 
     # With all this set up, kick off the openid connect flow
     conn = Connection(API_URL)
@@ -130,8 +134,8 @@ def test_authenticate_oidc(oidc_test_setup):
 
 
 def test_load_collection_arguments(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "0.4.0"})
     conn = Connection(API_URL)
-    requests_mock.get(API_URL, json={"version": "0.4.0"})
     requests_mock.get(API_URL + "collections/FOO", json={
         "properties": {"eo:bands": [{"name": "red"}, {"name": "green"}, {"name": "blue"}]}
     })

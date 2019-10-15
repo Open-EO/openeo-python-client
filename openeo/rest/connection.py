@@ -14,7 +14,7 @@ from requests import Response
 from requests.auth import HTTPBasicAuth, AuthBase
 
 import openeo
-from openeo.capabilities import Capabilities
+from openeo.capabilities import Capabilities, ApiVersionException, ComparableVersion
 from openeo.imagecollection import CollectionMetadata
 from openeo.rest.auth.auth import NullAuth, BearerAuth
 from openeo.rest.imagecollectionclient import ImageCollectionClient
@@ -153,6 +153,8 @@ class Connection(RestApiConnection):
     Connection to an openEO backend.
     """
 
+    _MINIMUM_API_VERSION = ComparableVersion("0.4.0")
+
     def __init__(self, url, auth: AuthBase = None, session: requests.Session = None):
         """
         Constructor of Connection, authenticates user.
@@ -160,6 +162,12 @@ class Connection(RestApiConnection):
         """
         super().__init__(root_url=url, auth=auth, session=session)
         self._cached_capabilities = None
+
+        # Initial API version check.
+        if self._api_version.below(self._MINIMUM_API_VERSION):
+            raise ApiVersionException("OpenEO API version should be at least {m!s}, but got {v!s}".format(
+                m=self._MINIMUM_API_VERSION, v= self._api_version)
+            )
 
     def authenticate_basic(self, username: str, password: str) -> 'Connection':
         """
@@ -227,8 +235,7 @@ class Connection(RestApiConnection):
         Get list of all collection ids
         :return: list of collection ids
         """
-        field = 'id' if self._api_version.at_least('0.4.0') else 'name'
-        return [collection[field] for collection in self.list_collections() if field in collection]
+        return [collection['id'] for collection in self.list_collections() if 'id' in collection]
 
     def capabilities(self) -> 'Capabilities':
         """
@@ -304,7 +311,7 @@ class Connection(RestApiConnection):
         raise NotImplementedError()
 
     @property
-    def _api_version(self):
+    def _api_version(self) -> ComparableVersion:
         return self.capabilities().api_version_check
 
     def load_collection(self, collection_id: str, **kwargs) -> ImageCollectionClient:
@@ -365,7 +372,7 @@ class Connection(RestApiConnection):
         raise NotImplementedError()
 
     # TODO: Maybe rename to execute and merge with execute().
-    def download(self, graph, outputfile, format_options):
+    def download(self, graph, outputfile):
         """
         Downloads the result of a process graph synchronously, and save the result to the given file.
         This method is useful to export binary content such as images. For json content, the execute method is recommended.
@@ -375,16 +382,8 @@ class Connection(RestApiConnection):
         :param format_options: formating options
         :return: job_id: String
         """
-        path = "/preview"
-        request = {
-            "process_graph": graph
-        }
-        if self._api_version.at_least('0.4.0'):
-            path = "/result"
-        else:
-            request["output"] = format_options
-
-        download_url = self.build_url(path)
+        request = {"process_graph": graph}
+        download_url = self.build_url("/result")
         r = self.post(download_url, json=request, stream=True, timeout=1000)
         with pathlib.Path(outputfile).open(mode="wb") as f:
             shutil.copyfileobj(r.raw, f)
@@ -399,11 +398,7 @@ class Connection(RestApiConnection):
         :return: job_id: String
         """
         # TODO: add output_format to execution
-        path = "/preview"
-        if self._api_version.at_least('0.4.0'):
-            path = "/result"
-        response = self.post(path, process_graph)
-        return self.parse_json_response(response)
+        return self.post(path="/result", json=process_graph).json()
 
     def create_job(self, process_graph:Dict, output_format:str=None, output_parameters:Dict={},
                    title:str=None, description:str=None, plan:str=None, budget=None,
@@ -427,16 +422,9 @@ class Connection(RestApiConnection):
              "budget": budget
          }
 
-        if not self._api_version.at_least('0.4.0'):
-            process_graph["output"] = {
-                "format": output_format,
-                "parameters": output_parameters
-            }
-
         job_status = self.post("/jobs", process_graph)
 
         job = None
-
         if job_status.status_code == 201:
             job_info = job_status.headers._store
             if "openeo-identifier" in job_info:
@@ -456,6 +444,7 @@ class Connection(RestApiConnection):
         :param response: Response of a RESTful request
         :return: response: JSON Response
         """
+        # TODO Deprecated: status handling is now in RestApiConnection
         if response.status_code == 200 or response.status_code == 201:
             return response.json()
         else:

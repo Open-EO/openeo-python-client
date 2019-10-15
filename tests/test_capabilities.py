@@ -43,4 +43,3 @@ def test_checkable_version():
     assert v.above(ComparableVersion('1.2'))
     assert v.at_least(ComparableVersion('1.2.3a')) is False
     assert v.at_most(ComparableVersion('1.02.03'))
-

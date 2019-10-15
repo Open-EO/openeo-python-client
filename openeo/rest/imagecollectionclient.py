@@ -52,7 +52,6 @@ class ImageCollectionClient(ImageCollection):
         :return:
         """
         # TODO: rename function to load_collection for better similarity with corresponding process id?
-        assert session.capabilities().api_version_check.at_least('0.4.0')
         builder = GraphBuilder()
         process_id = 'load_collection'
         arguments = {
@@ -82,8 +81,6 @@ class ImageCollectionClient(ImageCollection):
         :param options: options specific to the file format
         :return: the data as an ImageCollection
         """
-        assert session.capabilities().api_version_check.at_least('0.4.0')
-
         builder = GraphBuilder()
 
         process_id = 'load_disk_data'
@@ -968,10 +965,10 @@ class ImageCollectionClient(ImageCollection):
                 raise ValueError("Please use the 'format' keyword argument to specify the output format. Use openeo.connection.Connection#list_file_types to retrieve available ouput formats for this backend.")
             newcollection = self.graph_add_process("save_result",args)
             newcollection.graph[newcollection.node_id]["result"] = True
-            return self.session.download(newcollection.graph, outputfile, format_options)
+            return self.session.download(newcollection.graph, outputfile)
         else:
             self.graph[self.node_id]["result"] = True
-            return self.session.download(self.graph, outputfile, format_options)
+            return self.session.download(self.graph, outputfile)
 
     def tiled_viewing_service(self,**kwargs) -> Dict:
         newbuilder = self.builder.copy()

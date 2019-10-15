@@ -25,11 +25,13 @@ class TestUsecase1(TestCase):
         self.output_file = "/tmp/test.gtiff"
 
     def test_user_login(self, m):
+        m.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})
         m.get("http://localhost:8000/api/credentials/basic", json={"access_token": "blabla"})
         con = openeo.connect(self.endpoint).authenticate_basic(username=self.auth_id, password=self.auth_pwd)
         assert isinstance(con.auth, BearerAuth)
 
     def test_viewing_userjobs(self, m):
+        m.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})
         m.get("http://localhost:8000/api/credentials/basic", json={"access_token": "blabla"})
         m.get("http://localhost:8000/api/jobs", json={"jobs": [{"job_id": "748df7caa8c84a7ff6e"}]})
         con = openeo.connect(self.endpoint).authenticate_basic(username=self.auth_id, password=self.auth_pwd)
@@ -37,6 +39,7 @@ class TestUsecase1(TestCase):
         self.assertGreater(len(userjobs), 0)
 
     def test_viewing_data(self, m):
+        m.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})
         m.get("http://localhost:8000/api/collections", json={"collections": [{"product_id": "sentinel2_subset"}]})
         m.get("http://localhost:8000/api/collections/sentinel2_subset", json={"product_id": "sentinel2_subset"})
 
@@ -50,15 +53,15 @@ class TestUsecase1(TestCase):
         self.assertEqual(data_info["product_id"], self.data_id)
 
     def test_viewing_processes(self, m):
-        m.get("http://localhost:8000/api/processes", json={"processes": [{"process_id": "calculate_ndvi"}]})
-
+        m.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})
         con = openeo.connect(self.endpoint)
-        processes = con.list_processes()
 
-        self.assertGreater(str(processes).find(self.process_id), -1)
+        m.get("http://localhost:8000/api/processes", json={"processes": [{"process_id": "calculate_ndvi"}]})
+        processes = con.list_processes()
+        assert self.process_id in set(p["process_id"] for p in processes)
 
     def test_job_creation(self, m):
-        m.get("http://localhost:8000/api/", json={"version": "0.4.0"})
+        m.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})
         m.get("http://localhost:8000/api/credentials/basic", json={"access_token": "blabla"})
         m.post("http://localhost:8000/api/jobs", status_code=201,headers={"OpenEO-Identifier": "748df7caa8c84a7ff6e"})
 

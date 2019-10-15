@@ -12,8 +12,8 @@ API_URL = "https://oeo.net"
 
 @pytest.fixture
 def session040(requests_mock):
+    requests_mock.get(API_URL + "/", json={"api_version": "0.4.0"})
     session = openeo.connect(API_URL)
-    requests_mock.get(API_URL + "/", json={"version": "0.4.0"})
     return session
 
 

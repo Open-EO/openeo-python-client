@@ -21,9 +21,12 @@ class Capabilities(ABC):
         return
 
     @property
-    def api_version_check(self):
+    def api_version_check(self) -> 'ComparableVersion':
         """Helper to easily check if the API version is at least or below some threshold version."""
-        return ComparableVersion(self.api_version())
+        api_version = self.api_version()
+        if not api_version:
+            raise ApiVersionException("No API version found")
+        return ComparableVersion(api_version)
 
     def list_features(self):
         """ List all supported features / endpoints."""

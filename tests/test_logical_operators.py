@@ -12,11 +12,11 @@ class TestLogicalOps(TestCase):
 
     def test_not_equal(self, m):
         # configuration phase: define username, endpoint, parameters?
+        m.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})
         session = openeo.connect("http://localhost:8000/api")
         session.post = MagicMock()
         session.download = MagicMock()
 
-        m.get("http://localhost:8000/api/", json={"version": "0.4.0"})
         m.get("http://localhost:8000/api/collections", json={"collections": [{"product_id": "sentinel2_subset"}]})
         m.get("http://localhost:8000/api/collections/SENTINEL2_SCF", json={
             "product_id": "sentinel2_subset",
@@ -42,11 +42,11 @@ class TestLogicalOps(TestCase):
         assert actual_graph == expected_graph
 
     def test_or(self, m):
+        m.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})
         session = openeo.connect("http://localhost:8000/api")
         session.post = MagicMock()
         session.download = MagicMock()
 
-        m.get("http://localhost:8000/api/", json={"version": "0.4.0"})
         m.get("http://localhost:8000/api/collections", json={"collections": [{"product_id": "sentinel2_subset"}]})
         m.get("http://localhost:8000/api/collections/SENTINEL2_SCF", json={
             "product_id": "sentinel2_subset",
@@ -65,11 +65,11 @@ class TestLogicalOps(TestCase):
         assert actual_graph == expected_graph
 
     def test_and(self, m):
+        m.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})
         session = openeo.connect("http://localhost:8000/api")
         session.post = MagicMock()
         session.download = MagicMock()
 
-        m.get("http://localhost:8000/api/", json={"version": "0.4.0"})
         m.get("http://localhost:8000/api/collections", json={"collections": [{"product_id": "sentinel2_subset"}]})
         m.get("http://localhost:8000/api/collections/SENTINEL2_SCF", json={
             "product_id": "sentinel2_subset",

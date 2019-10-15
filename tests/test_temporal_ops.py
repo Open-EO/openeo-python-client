@@ -11,11 +11,11 @@ from . import load_json_resource
 class TestTemporal(TestCase):
 
     def test_apply_dimension_temporal_cumsum(self,m):
+        m.get("http://localhost:8000/api/", json={"version": "0.4.0"})
         session = openeo.connect("http://localhost:8000/api")
         session.post = MagicMock()
         session.download = MagicMock()
 
-        m.get("http://localhost:8000/api/", json={"version": "0.4.0"})
         m.get("http://localhost:8000/api/collections", json={"collections": [{"product_id": "sentinel2_subset"}]})
         m.get("http://localhost:8000/api/collections/SENTINEL2_RADIOMETRY_10M", json={"product_id": "sentinel2_subset",
                                                                                       "bands": [{'band_id': 'B02'},

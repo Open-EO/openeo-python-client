@@ -1,18 +1,18 @@
 # -*- coding: utf-8 -*-
-
-import openeo
+import json
+import os
+import tempfile
 import unittest
 from unittest import TestCase
-import tempfile
-import os
-import json
 
+import pytest
 import requests_mock
 
-# MockUp Testdata
+import openeo
+from openeo.capabilities import ApiVersionException
 
-CAPABILITIES = ['/capabilities', '/capabilities/services', '/capabilities/output_formats', '/data',
-                '/data/{product_id}', '/processes']
+
+# MockUp Testdata
 COLLECTIONS = [{'product_id': 'ASTER/AST_L1T_003',
   'description': 'ASTER L1T Radiance',
   'source': 'NASA LP DAAC at the USGS EROS Center, https://lpdaac.usgs.gov/dataset_discovery/aster/aster_products_table/ast_l1t'},
@@ -119,25 +119,38 @@ class TestUserFiles(TestCase):
         assert status
 
     def test_list_capabilities(self, m):
-        capabilties_url = "{}/".format(self.endpoint)
-        m.register_uri('GET', capabilties_url, json=CAPABILITIES)
+        capabilities = {
+            "api_version": "0.4.0",
+            "endpoints": [
+                {"path": "/collections", "methods": ["GET"]},
+            ]
+        }
+        m.get("{}/".format(self.endpoint), json=capabilities)
         con = openeo.connect(self.endpoint)
+        res = con.capabilities()
+        assert res.capabilities == capabilities
 
-        capabilities = con.capabilities()
-        assert capabilities.capabilities == CAPABILITIES
+    def test_capabilities_api_version_too_old(self, m):
+        m.register_uri('GET', "{}/".format(self.endpoint), json={'version': '0.3.1'})
+        with pytest.raises(ApiVersionException):
+            openeo.connect(self.endpoint)
 
-    def test_capabilities_api_version(self, m):
-        capabilties_url = "{}/".format(self.endpoint)
-        # Old-style api
-        m.register_uri('GET', capabilties_url, json={'version': '0.3.1'})
-        capabilities = openeo.connect(self.endpoint).capabilities()
-        assert capabilities.version() == '0.3.1'
-        assert capabilities.api_version() == '0.3.1'
-        # 0.4.0 style api
-        m.register_uri('GET', capabilties_url, json={'api_version': '0.4.0'})
+    def test_capabilities_api_version_too_old2(self, m):
+        m.register_uri('GET', "{}/".format(self.endpoint), json={'api_version': '0.3.1'})
+        with pytest.raises(ApiVersionException):
+            openeo.connect(self.endpoint)
+
+    def test_capabilities_api_version_recent(self, m):
+        m.register_uri('GET', "{}/".format(self.endpoint), json={'version': '0.4.0'})
         capabilities = openeo.connect(self.endpoint).capabilities()
         assert capabilities.version() == '0.4.0'
         assert capabilities.api_version() == '0.4.0'
+
+    def test_capabilities_api_version_recent2(self, m):
+        m.register_uri('GET', "{}/".format(self.endpoint), json={'api_version': '0.4.1'})
+        capabilities = openeo.connect(self.endpoint).capabilities()
+        assert capabilities.version() == '0.4.1'
+        assert capabilities.api_version() == '0.4.1'
 
     def test_capabilities_api_version_check(self, m):
         capabilties_url = "{}/".format(self.endpoint)
@@ -154,28 +167,31 @@ class TestUserFiles(TestCase):
         assert capabilities.api_version_check.above('1.2.2')
 
     def test_list_collections(self, m):
-        collection_url = "{}/collections".format(self.endpoint)
-        m.register_uri('GET', collection_url, json={'collections': COLLECTIONS})
+        m.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})
         con = openeo.connect(self.endpoint)
 
+        collection_url = "{}/collections".format(self.endpoint)
+        m.register_uri('GET', collection_url, json={'collections': COLLECTIONS})
         collections = con.list_collections()
         assert collections == COLLECTIONS
 
     def test_get_collection(self, m):
+        m.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})
+        con = openeo.connect(self.endpoint)
+
         collection_org = COLLECTIONS[0]
         collection_id = collection_org["product_id"]
         collection_url = "{}/collections/{}".format(self.endpoint, collection_id)
         m.register_uri('GET', collection_url, json=collection_org)
-        con = openeo.connect(self.endpoint)
-
         collection = con.describe_collection(collection_id)
         assert collection == collection_org
 
     def test_get_all_processes(self, m):
-        processes_url = "{}/processes".format(self.endpoint)
-        m.register_uri('GET', processes_url, json={"processes": PROCESSES})
+        m.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})
         con = openeo.connect(self.endpoint)
 
+        processes_url = "{}/processes".format(self.endpoint)
+        m.register_uri('GET', processes_url, json={"processes": PROCESSES})
         processes = con.list_processes()
         assert processes == PROCESSES
 
