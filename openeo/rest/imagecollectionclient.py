@@ -898,8 +898,18 @@ class ImageCollectionClient(ImageCollection):
 
             return graph_add_aggregate_process(self)
 
-    def download(self, outputfile:str, **format_options) -> str:
-        """Extraxts a geotiff from this image collection."""
+    def save_result(self, format: str, options: dict = None):
+        return self.graph_add_process(
+            process_id="save_result",
+            args={
+                "data": {"from_node": self.node_id},
+                "format": format,
+                "options": options
+            }
+        )
+
+    def download(self, outputfile: str, **format_options) -> str:
+        """Extracts a geotiff from this image collection."""
 
         if self._api_version.at_least('0.4.0'):
             args = {
