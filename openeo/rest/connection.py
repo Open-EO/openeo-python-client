@@ -138,13 +138,14 @@ class Connection(RestApiConnection):
         self.auth = BearerAuth(bearer=resp["access_token"])
         return self
 
-    def authenticate_OIDC(self, client_id: str, webbrowser_open=None) -> 'Connection':
+    def authenticate_OIDC(self, client_id: str, webbrowser_open=None, timeout=120) -> 'Connection':
         """
         Authenticates a user to the backend using OpenID Connect.
 
         :param client_id: Client id to use for OpenID Connect authentication
         :param webbrowser_open: optional handler for the initial OAuth authentication request
             (opens a webbrowser by default)
+        :param timeout: number of seconds after which to abort the authentication procedure
         """
         # Local import to avoid importing the whole OpenID Connect dependency chain. TODO: just do global import?
         from openeo.rest.auth.oidc import OidcAuthCodePkceAuthenticator
@@ -154,7 +155,8 @@ class Connection(RestApiConnection):
         authenticator = OidcAuthCodePkceAuthenticator(
             client_id=client_id,
             oidc_discovery_url=oidc_discovery_url,
-            webbrowser_open=webbrowser_open
+            webbrowser_open=webbrowser_open,
+            timeout=timeout,
         )
         # Do the Oauth/OpenID Connect flow and use the access token as bearer token.
         tokens = authenticator.get_tokens()

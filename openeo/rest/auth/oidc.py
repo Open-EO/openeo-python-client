@@ -115,14 +115,14 @@ class HttpServerThread(threading.Thread):
         self._log_status("thread joined")
 
 
-def drain_queue(queue: Queue, initial_timeout: float = 10, item_minimum: int = 1, overall_timeout=60):
+def drain_queue(queue: Queue, initial_timeout: float = 10, item_minimum: int = 1, tail_timeout=5):
     """
     Drain the given queue, requiring at least a given number of items (within an initial timeout).
 
     :param queue: queue to drain
     :param initial_timeout: time in seconds within which a minimum number of items should be fetched
     :param item_minimum: minimum number of items to fetch
-    :param overall_timeout: overall timeout to abort when queue doesn't get empty
+    :param tail_timeout: additional timeout to abort when queue doesn't get empty
     :return: generator of items from the queue
     """
     start = time.time()
@@ -133,12 +133,14 @@ def drain_queue(queue: Queue, initial_timeout: float = 10, item_minimum: int = 1
             count += 1
         except Empty:
             pass
+        now = time.time()
 
-        if time.time() > start + initial_timeout and count < item_minimum:
-            raise TimeoutError("Only {c} items (<{m}) after initial timeout".format(c=count, m=item_minimum))
+        if now > start + initial_timeout and count < item_minimum:
+            raise TimeoutError("Items after initial {t} timeout: {c} (<{m})".format(
+                c=count, m=item_minimum, t=initial_timeout))
         if queue.empty() and count >= item_minimum:
             break
-        if time.time() > start + overall_timeout:
+        if now > start + initial_timeout + tail_timeout:
             warnings.warn("Queue still not empty after overall timeout: aborting.")
             break
 
@@ -180,15 +182,15 @@ class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
     - The authorization code is exchanged for an access code and id token
     - The access code can be used as bearer token for subsequent API calls
     """
-    _authentication_timeout = 120
 
     AuthCodeResult = namedtuple("AuthCodeResult", ["auth_code", "nonce", "code_verifier", "redirect_uri"])
     AccessTokenResult = namedtuple("AccessTokenResult", ["access_token", "id_token", "refresh_token"])
 
-    def __init__(self, client_id: str, oidc_discovery_url: str, webbrowser_open: Callable = None):
+    def __init__(self, client_id: str, oidc_discovery_url: str, webbrowser_open: Callable = None, timeout=120):
         self._client_id = client_id
         self._provider_info = requests.get(oidc_discovery_url).json()
         self._webbrowser_open = webbrowser_open or webbrowser.open
+        self._authentication_timeout = timeout
 
     @staticmethod
     def hash_code_verifier(code: str) -> str:
@@ -254,7 +256,9 @@ class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
                 # TODO: When authentication fails (e.g. identity provider is down), this might hang the client (e.g. jupyter notebook). Is there a way to abort this?
                 callbacks = list(drain_queue(callback_queue, initial_timeout=self._authentication_timeout))
             except TimeoutError:
-                raise OAuthException("Failed to collect OAuth access token from redirect")
+                raise OAuthException("Failed to collect OAuth authorization code from redirect (timeout={t}s)".format(
+                    t=self._authentication_timeout)
+                )
 
         if len(callbacks) != 1:
             raise OAuthException("Expected 1 OAuth redirect request, but got: {c}".format(c=len(callbacks)))
@@ -267,7 +271,7 @@ class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
         if 'state' not in redirect_params or redirect_params['state'] != [state]:
             raise OAuthException("Invalid state")
         if 'code' not in redirect_params:
-            raise OAuthException("No code in redirect")
+            raise OAuthException("No auth code in redirect")
         auth_code = redirect_params["code"][0]
 
         return self.AuthCodeResult(auth_code=auth_code, nonce=nonce, code_verifier=code_verifier,
