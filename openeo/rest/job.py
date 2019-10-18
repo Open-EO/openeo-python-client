@@ -2,8 +2,6 @@ import typing
 import urllib.request
 from typing import List
 
-import requests
-
 from openeo.job import Job, JobResult
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
@@ -77,7 +75,7 @@ class RESTJob(Job):
         # GET /jobs/{job_id}/results > ...
 
         download_url = "/jobs/{}/results".format(self.job_id)
-        r = self.connection.get(download_url, stream = True)
+        r = self.connection.get(download_url, stream=True)
 
         if r.status_code == 200:
 
@@ -88,8 +86,7 @@ class RESTJob(Job):
                     download_url = download_url["href"]
 
             with open(target, 'wb') as handle:
-                response = requests.get(download_url, stream=True, auth=self.connection.auth)
-                response.raise_for_status()
+                response = self.connection.get(download_url, stream=True)
 
                 for block in response.iter_content(1024):
 
