@@ -88,7 +88,7 @@ class RESTJob(Job):
                     download_url = download_url["href"]
 
             with open(target, 'wb') as handle:
-                response = requests.get(download_url, stream=True)
+                response = requests.get(download_url, stream=True, auth=self.connection.auth)
                 response.raise_for_status()
 
                 for block in response.iter_content(1024):
