@@ -31,8 +31,9 @@ def url_join(root_url: str, path: str):
 class RestApiConnection:
     """Base connection class implementing generic REST API request functionality"""
 
-    def __init__(self, root_url: str, auth: AuthBase = None):
+    def __init__(self, root_url: str, auth: AuthBase = None, session: requests.Session = None):
         self._root_url = root_url
+        self.session = session or requests.Session()
         self.auth = auth or NullAuth()
         self.default_headers = {
             "User-Agent": "openeo-python-client/{v}".format(v=openeo.client_version())
@@ -50,7 +51,7 @@ class RestApiConnection:
 
     def request(self, method: str, path: str, headers: dict = None, auth: AuthBase = None, check_status=True, **kwargs):
         """Generic request send"""
-        resp = requests.request(
+        resp = self.session.request(
             method=method,
             url=self.build_url(path),
             headers=self._merged_headers(headers),
@@ -115,12 +116,12 @@ class RestApiConnection:
 
 class Connection(RestApiConnection):
 
-    def __init__(self, url, auth: AuthBase = None):
+    def __init__(self, url, auth: AuthBase = None, session: requests.Session = None):
         """
         Constructor of Connection, authenticates user.
         :param url: String Backend root url
         """
-        super().__init__(root_url=url, auth=auth)
+        super().__init__(root_url=url, auth=auth, session=session)
         self._cached_capabilities = None
 
     def authenticate_basic(self, username: str, password: str) -> 'Connection':
