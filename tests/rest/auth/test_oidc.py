@@ -4,6 +4,7 @@ from queue import Queue
 import requests
 
 from openeo.rest.auth.oidc import QueuingRequestHandler, drain_queue, HttpServerThread, OidcAuthCodePkceAuthenticator
+from ..conftest import setup_oidc_provider_context
 
 
 def handle_request(handler_class, path: str):
@@ -65,11 +66,14 @@ def test_http_server_thread_port():
     server_thread.join()
 
 
-def test_oidc_flow(oidc_test_setup):
-    # see test/rest/conftest.py for `oidc_test_setup` fixture
+def test_oidc_flow(requests_mock):
     client_id = "myclient"
     oidc_discovery_url = "http://oidc.example.com/.well-known/openid-configuration"
-    state, webbrowser_open = oidc_test_setup(client_id=client_id, oidc_discovery_url=oidc_discovery_url)
+    state, webbrowser_open = setup_oidc_provider_context(
+        requests_mock=requests_mock,
+        client_id=client_id,
+        oidc_discovery_url=oidc_discovery_url
+    )
 
     authenticator = OidcAuthCodePkceAuthenticator(
         client_id=client_id,

@@ -204,11 +204,19 @@ class Connection(RestApiConnection):
             auth=HTTPBasicAuth(username, password)
         ).json()
         # Switch to bearer based authentication in further requests.
-        self.auth = BearerAuth(bearer=resp["access_token"])
+        if self._api_version.at_least("1.0.0"):
+            self.auth = BearerAuth(bearer='basic//{t}'.format(t=resp["access_token"]))
+        else:
+            self.auth = BearerAuth(bearer=resp["access_token"])
         return self
 
-    def authenticate_OIDC(self, client_id: str, webbrowser_open=None, timeout=120,
-                          server_address: Tuple[str, int] = None) -> 'Connection':
+    def authenticate_OIDC(
+            self, client_id: str,
+            provider_id: str = None,
+            webbrowser_open=None,
+            timeout=120,
+            server_address: Tuple[str, int] = None
+    ) -> 'Connection':
         """
         Authenticates a user to the backend using OpenID Connect.
 
@@ -221,8 +229,27 @@ class Connection(RestApiConnection):
         # Local import to avoid importing the whole OpenID Connect dependency chain. TODO: just do global import?
         from openeo.rest.auth.oidc import OidcAuthCodePkceAuthenticator
 
-        # Per spec: '/credentials/oidc' will redirect to  OpenID Connect discovery document
-        oidc_discovery_url = self.build_url('/credentials/oidc')
+        if self._api_version.at_least("1.0.0"):
+            oidc_info = self.get("/credentials/oidc", expected_status=200).json()
+            providers = {p["id"]: p for p in oidc_info["providers"]}
+            if provider_id:
+                if provider_id not in providers:
+                    raise OpenEoClientException("Requested provider {r!r} not available. Should be one of {p}.".format(
+                        r=provider_id, p=list(providers.keys()))
+                    )
+                provider = providers[provider_id]
+            elif len(providers) == 1:
+                # No provider id given, but there is only one anyway: we can manage that.
+                provider_id, provider = providers.popitem()
+            else:
+                raise OpenEoClientException("No provider_id given. Available: {p!r}.".format(
+                    p=list(providers.keys()))
+                )
+            oidc_discovery_url = provider["issuer"] + "/.well-known/openid-configuration"
+        else:
+            # Per spec: '/credentials/oidc' will redirect to  OpenID Connect discovery document
+            oidc_discovery_url = self.build_url('/credentials/oidc')
+
         authenticator = OidcAuthCodePkceAuthenticator(
             client_id=client_id,
             oidc_discovery_url=oidc_discovery_url,
@@ -233,7 +260,11 @@ class Connection(RestApiConnection):
         # Do the Oauth/OpenID Connect flow and use the access token as bearer token.
         tokens = authenticator.get_tokens()
         # TODO: ability to refresh the token when expired?
-        self.auth = BearerAuth(bearer=tokens.access_token)
+        if self._api_version.at_least("1.0.0"):
+            # TODO: properly specify provider id
+            self.auth = BearerAuth(bearer='oidc/{p}/{t}'.format(p=provider_id, t=tokens.access_token))
+        else:
+            self.auth = BearerAuth(bearer=tokens.access_token)
         return self
 
     def describe_account(self) -> str:

@@ -3,9 +3,12 @@ import unittest.mock as mock
 
 import pytest
 import requests_mock
+
+from openeo.capabilities import ComparableVersion
 from openeo.rest import OpenEoClientException
 from openeo.rest.auth.auth import NullAuth, BearerAuth
 from openeo.rest.connection import Connection, RestApiConnection, connect, OpenEoApiError
+from .conftest import setup_oidc_provider_context
 
 API_URL = "https://oeo.net/"
 
@@ -158,8 +161,8 @@ def test_api_error_non_json(requests_mock):
     assert exc.url is None
 
 
-def test_authenticate_basic(requests_mock):
-    requests_mock.get(API_URL, json={"api_version": "0.4.0"})
+def test_authenticate_basic(requests_mock, api_version):
+    requests_mock.get(API_URL, json={"api_version": api_version})
     conn = Connection(API_URL)
 
     def text_callback(request, context):
@@ -171,14 +174,20 @@ def test_authenticate_basic(requests_mock):
     assert isinstance(conn.auth, NullAuth)
     conn.authenticate_basic(username="john", password="j0hn")
     assert isinstance(conn.auth, BearerAuth)
-    assert conn.auth.bearer == "w3lc0m3"
+    if ComparableVersion(api_version).at_least("1.0.0"):
+        assert conn.auth.bearer == "basic//w3lc0m3"
+    else:
+        assert conn.auth.bearer == "w3lc0m3"
 
 
-def test_authenticate_oidc(oidc_test_setup, requests_mock):
-    # see test/rest/conftest.py for `oidc_test_setup` fixture
+def test_authenticate_oidc_040(requests_mock):
     client_id = "myclient"
     oidc_discovery_url = "https://oeo.net/credentials/oidc"
-    state, webbrowser_open = oidc_test_setup(client_id=client_id, oidc_discovery_url=oidc_discovery_url)
+    state, webbrowser_open = setup_oidc_provider_context(
+        requests_mock=requests_mock,
+        client_id=client_id,
+        oidc_discovery_url=oidc_discovery_url
+    )
     requests_mock.get(API_URL, json={"api_version": "0.4.0"})
 
     # With all this set up, kick off the openid connect flow
@@ -187,6 +196,97 @@ def test_authenticate_oidc(oidc_test_setup, requests_mock):
     conn.authenticate_OIDC(client_id=client_id, webbrowser_open=webbrowser_open)
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == state["access_token"]
+
+
+def test_authenticate_oidc_100_single_implicit(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    client_id = "myclient"
+    requests_mock.get(API_URL + 'credentials/oidc', json={
+        "providers": [{"id": "foidc", "issuer": "https://auth.foidc.net", "title": "FOIDC"}]
+    })
+    state, webbrowser_open = setup_oidc_provider_context(
+        requests_mock=requests_mock,
+        client_id=client_id,
+        oidc_discovery_url="https://auth.foidc.net/.well-known/openid-configuration"
+    )
+
+    # With all this set up, kick off the openid connect flow
+    conn = Connection(API_URL)
+    assert isinstance(conn.auth, NullAuth)
+    conn.authenticate_OIDC(client_id=client_id, webbrowser_open=webbrowser_open)
+    assert isinstance(conn.auth, BearerAuth)
+    assert conn.auth.bearer == 'oidc/foidc/' + state["access_token"]
+
+
+def test_authenticate_oidc_100_single_wrong_id(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    client_id = "myclient"
+    requests_mock.get(API_URL + 'credentials/oidc', json={
+        "providers": [{"id": "foidc", "issuer": "https://auth.foidc.net", "title": "FOIDC"}]
+    })
+
+    # With all this set up, kick off the openid connect flow
+    conn = Connection(API_URL)
+    assert isinstance(conn.auth, NullAuth)
+    with pytest.raises(OpenEoClientException, match=r"'nopenope' not available\. Should be one of \['foidc'\]\."):
+        conn.authenticate_OIDC(client_id=client_id, provider_id="nopenope", webbrowser_open=pytest.fail)
+
+
+def test_authenticate_oidc_100_multiple_no_id(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    client_id = "myclient"
+    requests_mock.get(API_URL + 'credentials/oidc', json={
+        "providers": [
+            {"id": "foidc", "issuer": "https://auth.foidc.net", "title": "FOIDC"},
+            {"id": "baroi", "issuer": "https://acco.baroi.net", "title": "BarOI"},
+        ]
+    })
+
+    # With all this set up, kick off the openid connect flow
+    conn = Connection(API_URL)
+    assert isinstance(conn.auth, NullAuth)
+    with pytest.raises(OpenEoClientException, match=r"No provider_id given. Available: \['foidc', 'baroi'\]\."):
+        conn.authenticate_OIDC(client_id=client_id, webbrowser_open=pytest.fail)
+
+
+def test_authenticate_oidc_100_multiple_wrong_id(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    client_id = "myclient"
+    requests_mock.get(API_URL + 'credentials/oidc', json={
+        "providers": [
+            {"id": "foidc", "issuer": "https://auth.foidc.net", "title": "FOIDC"},
+            {"id": "baroi", "issuer": "https://acco.baroi.net", "title": "BarOI"},
+        ]
+    })
+
+    # With all this set up, kick off the openid connect flow
+    conn = Connection(API_URL)
+    assert isinstance(conn.auth, NullAuth)
+    with pytest.raises(OpenEoClientException, match=r"'lol' not available\. Should be one of \['foidc', 'baroi'\]\."):
+        conn.authenticate_OIDC(client_id=client_id, provider_id="lol", webbrowser_open=pytest.fail)
+
+
+def test_authenticate_oidc_100_multiple_success(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    client_id = "myclient"
+    requests_mock.get(API_URL + 'credentials/oidc', json={
+        "providers": [
+            {"id": "foidc", "issuer": "https://auth.foidc.net", "title": "FOIDC"},
+            {"id": "baroi", "issuer": "https://acco.baroi.net", "title": "BarOI"},
+        ]
+    })
+    state, webbrowser_open = setup_oidc_provider_context(
+        requests_mock=requests_mock,
+        client_id=client_id,
+        oidc_discovery_url="https://acco.baroi.net/.well-known/openid-configuration"
+    )
+
+    # With all this set up, kick off the openid connect flow
+    conn = Connection(API_URL)
+    assert isinstance(conn.auth, NullAuth)
+    conn.authenticate_OIDC(client_id=client_id, provider_id="baroi", webbrowser_open=webbrowser_open)
+    assert isinstance(conn.auth, BearerAuth)
+    assert conn.auth.bearer == 'oidc/baroi/' + state["access_token"]
 
 
 def test_load_collection_arguments_040(requests_mock):

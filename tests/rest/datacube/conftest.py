@@ -8,11 +8,6 @@ from openeo.rest.datacube import DataCube
 API_URL = "https://oeo.net"
 
 
-@pytest.fixture(params=["0.4.0", "1.0.0"])
-def api_version(request):
-    return request.param
-
-
 def _setup_connection(api_version, requests_mock) -> Connection:
     # TODO: make this more reusable?
     requests_mock.get(API_URL + "/", json={"api_version": api_version})
