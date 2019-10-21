@@ -345,13 +345,9 @@ class Connection(RestApiConnection):
 
         download_url = self.build_url(path)
 
-        # TODO: why not self.post()?
-        r = requests.post(download_url, json=request, stream = True, timeout=1000 )
-        if r.status_code == 200:
-            with open(outputfile, 'wb') as f:
-                shutil.copyfileobj(r.raw, f)
-        else:
-            self._handle_error_response(r)
+        r = self.post(download_url, json=request, stream=True, timeout=1000)
+        with open(outputfile, 'wb') as f:
+            shutil.copyfileobj(r.raw, f)
 
     def execute(self, process_graph, output_format, output_parameters=None, budget=None):
         """
