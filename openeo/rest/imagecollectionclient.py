@@ -721,6 +721,8 @@ class ImageCollectionClient(ImageCollection):
         The pixel values are replaced with the value specified for replacement, which defaults to None (no data).
         No data values will be left untouched by the masking operation.
 
+        # TODO: just provide a single `mask` argument and detect the type: polygon or process graph
+
         :param polygon: A polygon, provided as a :class:`shapely.geometry.Polygon` or :class:`shapely.geometry.MultiPolygon`
         :param srs: The reference system of the provided polygon, by default this is Lat Lon (EPSG:4326).
         :param rastermask: the raster mask

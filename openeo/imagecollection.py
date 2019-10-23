@@ -152,6 +152,8 @@ class ImageCollection(ABC):
         :return: An image collection cropped to the specified bounding box.
 
         https://open-eo.github.io/openeo-api/v/0.4.1/processreference/#filter_bbox
+
+        # TODO: allow passing some kind of bounding box object? e.g. a (xmin, ymin, xmax, ymax) tuple?
         """
         # Subclasses are expected to implement this method, but for bit of backwards compatibility
         # with old style subclasses we forward to `bbox_filter`
