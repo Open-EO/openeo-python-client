@@ -1,8 +1,10 @@
+import unittest.mock as mock
+
 import pytest
 import requests_mock
 
 from openeo.rest.auth.auth import NullAuth, BearerAuth
-from openeo.rest.connection import Connection, RestApiConnection
+from openeo.rest.connection import Connection, RestApiConnection, connect
 
 API_URL = "https://oeo.net/"
 
@@ -44,6 +46,30 @@ def test_rest_api_headers():
         m.post("/foo", text=text)
         conn.get("/foo", headers={"X-Openeo-Bar": "XY123"})
         conn.post("/foo", {}, headers={"X-Openeo-Bar": "XY123"})
+
+
+def test_connection_with_session():
+    session = mock.Mock()
+    response = session.request.return_value
+    response.status_code = 200
+    response.json.return_value = {"foo": "bar"}
+    conn = Connection("https://oeo.net/", session=session)
+    assert conn.capabilities().capabilities == {"foo": "bar"}
+    session.request.assert_any_call(
+        url="https://oeo.net/", method="get", headers=mock.ANY, stream=mock.ANY, auth=mock.ANY
+    )
+
+
+def test_connect_with_session():
+    session = mock.Mock()
+    response = session.request.return_value
+    response.status_code = 200
+    response.json.return_value = {"foo": "bar"}
+    conn = connect("https://oeo.net/", session=session)
+    assert conn.capabilities().capabilities == {"foo": "bar"}
+    session.request.assert_any_call(
+        url="https://oeo.net/", method="get", headers=mock.ANY, stream=mock.ANY, auth=mock.ANY
+    )
 
 
 def test_authenticate_basic(requests_mock):

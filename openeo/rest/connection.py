@@ -454,7 +454,7 @@ class Connection(RestApiConnection):
         return ImageCollectionClient.load_disk_collection(self, format, glob_pattern, **options)
 
 
-def connect(url, auth_type: str = None, auth_options: dict = {}) -> Connection:
+def connect(url, auth_type: str = None, auth_options: dict = {}, session: requests.Session = None) -> Connection:
     """
     This method is the entry point to OpenEO.
     You typically create one connection object in your script or application
@@ -474,7 +474,7 @@ def connect(url, auth_type: str = None, auth_options: dict = {}) -> Connection:
     :param auth_options: Options/arguments specific to the authentication type
     :rtype: openeo.connections.Connection
     """
-    connection = Connection(url)
+    connection = Connection(url, session=session)
     auth_type = auth_type.lower() if isinstance(auth_type, str) else auth_type
     if auth_type in {None, 'null', 'none'}:
         pass
