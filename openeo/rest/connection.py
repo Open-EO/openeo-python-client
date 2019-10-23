@@ -28,6 +28,21 @@ def url_join(root_url: str, path: str):
     return urljoin(root_url.rstrip('/') + '/', path.lstrip('/'))
 
 
+class OpenEoApiError(Exception):
+    """
+    Error returned by OpenEO API according to https://open-eo.github.io/openeo-api/errors/
+    """
+
+    def __init__(self, http_status_code: int = None,
+                 code: str = 'unknown', message: str = 'unknown error', id: str = None, url: str = None):
+        self.http_status_code = http_status_code
+        self.code = code
+        self.message = message
+        self.id = id
+        self.url = url
+        super().__init__("[{s}] {c}: {m}".format(s=self.http_status_code, c=self.code, m=self.message))
+
+
 class RestApiConnection:
     """Base connection class implementing generic REST API request functionality"""
 
@@ -59,9 +74,27 @@ class RestApiConnection:
             **kwargs
         )
         if check_status:
-            # TODO: raise a custom OpenEO branded exception?
-            resp.raise_for_status()
+            # TODO: option to specify the list/range of expected status codes?
+            if resp.status_code >= 400:
+                self._raise_api_error(resp)
         return resp
+
+    def _raise_api_error(self, response: requests.Response):
+        """Convert API error response to Python exception"""
+        try:
+            # Try parsing the error info according to spec and wrap it in an exception.
+            info = response.json()
+            exception = OpenEoApiError(
+                http_status_code=response.status_code,
+                code=info.get("code", "unknown"),
+                message=info.get("message", "unknown error"),
+                id=info.get("id"),
+                url=info.get("url"),
+            )
+        except Exception:
+            # When parsing went wrong: give minimal information.
+            exception = OpenEoApiError(http_status_code=response.status_code, message=response.text)
+        raise exception
 
     def get(self, path, stream=False, auth: AuthBase = None, **kwargs) -> Response:
         """
@@ -422,6 +455,7 @@ class Connection(RestApiConnection):
             self._handle_error_response(response)
 
     def _handle_error_response(self, response):
+        # TODO replace this with `_raise_api_error`
         if response.status_code == 502:
             from requests.exceptions import ProxyError
             raise ProxyError("The proxy returned an error, this could be due to a timeout.")

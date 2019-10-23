@@ -4,7 +4,7 @@ import pytest
 import requests_mock
 
 from openeo.rest.auth.auth import NullAuth, BearerAuth
-from openeo.rest.connection import Connection, RestApiConnection, connect
+from openeo.rest.connection import Connection, RestApiConnection, connect, OpenEoApiError
 
 API_URL = "https://oeo.net/"
 
@@ -70,6 +70,34 @@ def test_connect_with_session():
     session.request.assert_any_call(
         url="https://oeo.net/", method="get", headers=mock.ANY, stream=mock.ANY, auth=mock.ANY
     )
+
+
+def test_api_error(requests_mock):
+    conn = Connection(API_URL)
+    requests_mock.get('https://oeo.net/collections/foobar', status_code=404, json={
+        "code": "CollectionNotFound", "message": "No such things as a collection 'foobar'", "id": "54321"
+    })
+    with pytest.raises(OpenEoApiError) as exc_info:
+        conn.describe_collection("foobar")
+    exc = exc_info.value
+    assert exc.http_status_code == 404
+    assert exc.code == "CollectionNotFound"
+    assert exc.message == "No such things as a collection 'foobar'"
+    assert exc.id == "54321"
+    assert exc.url is None
+
+
+def test_api_error_non_json(requests_mock):
+    conn = Connection(API_URL)
+    requests_mock.get('https://oeo.net/collections/foobar', status_code=500, text="olapola")
+    with pytest.raises(OpenEoApiError) as exc_info:
+        conn.describe_collection("foobar")
+    exc = exc_info.value
+    assert exc.http_status_code == 500
+    assert exc.code == "unknown"
+    assert exc.message == "olapola"
+    assert exc.id is None
+    assert exc.url is None
 
 
 def test_authenticate_basic(requests_mock):
