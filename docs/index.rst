@@ -146,17 +146,6 @@ use the lower level classes.
    :members:
 
 
-Authentication
---------------
-
-.. automodule:: openeo.auth.auth
-   :members:
-
-.. automodule:: openeo.auth.auth_bearer
-   :members:
-
-.. automodule:: openeo.auth.auth_none
-
 .. toctree::
    :maxdepth: 3
    :caption: Contents:
