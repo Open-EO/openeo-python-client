@@ -303,13 +303,17 @@ class Connection(RestApiConnection):
     def _api_version(self):
         return self.capabilities().api_version_check
 
-    def load_collection(self, collection_id: str) -> ImageCollectionClient:
+    def load_collection(self, collection_id: str, **kwargs) -> ImageCollectionClient:
         """
         Load an image collection by collection id
+
+        see :py:meth:`openeo.rest.imagecollectionclient.ImageCollectionClient.load_collection`
+        for available arguments.
+
         :param collection_id: image collection identifier (string)
         :return: ImageCollectionClient
         """
-        return ImageCollectionClient.load_collection(collection_id, session=self)
+        return ImageCollectionClient.load_collection(collection_id=collection_id, session=self, **kwargs)
 
     # Legacy alias.
     imagecollection = load_collection

@@ -34,9 +34,9 @@ class ImageCollectionClient(ImageCollection):
     @classmethod
     def load_collection(
             cls, collection_id: str, session: 'Connection' = None,
-            spatial_extent: Union[Dict, None] = None,
-            temporal_extent: Union[List, None] = None,
-            bands: Union[List, None] = None,
+            spatial_extent: Union[Dict[str, float], None] = None,
+            temporal_extent: Union[List[str], None] = None,
+            bands: Union[List[str], None] = None,
             fetch_metadata=True
     ):
         """
