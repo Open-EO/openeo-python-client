@@ -136,14 +136,21 @@ use the lower level classes.
 
 .. autofunction:: openeo.connect
 
-.. automodule:: openeo.connection
-   :members:
 
-.. automodule:: openeo.imagecollection
-   :members:
+openeo.rest.connection
+-------------------------
 
-.. automodule:: openeo.job
-   :members:
+.. automodule:: openeo.rest.connection
+   :members: Connection OpenEoApiError
+
+
+openeo.rest.imagecollectionclient
+----------------------------------
+
+.. automodule:: openeo.rest.imagecollectionclient
+   :members: ImageCollectionClient
+
+
 
 
 .. toctree::

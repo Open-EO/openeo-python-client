@@ -148,6 +148,9 @@ class RestApiConnection:
 
 
 class Connection(RestApiConnection):
+    """
+    Connection to an openEO backend.
+    """
 
     def __init__(self, url, auth: AuthBase = None, session: requests.Session = None):
         """
