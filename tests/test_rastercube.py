@@ -239,3 +239,13 @@ class TestRasterCube(TestCase):
             'factor': 3,
             'kernel': [[0, 1, 0], [1, 1, 1], [0, 1, 0]]
         }
+
+    def test_resample_spatial(self):
+        new_imagery = self.imagery.resample_spatial(resolution=[2.0,3.0],projection=4578)
+
+        graph = new_imagery.graph[new_imagery.node_id]
+
+        self.assertEqual(graph["process_id"], "resample_spatial")
+        self.assertIn("data", graph["arguments"])
+        self.assertEqual(graph["arguments"]["resolution"], [2.0,3.0])
+        self.assertEqual(graph["arguments"]["projection"], 4578)

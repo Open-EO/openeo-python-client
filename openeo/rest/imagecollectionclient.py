@@ -1,5 +1,5 @@
 import typing
-from typing import List, Dict, Union
+from typing import List, Dict, Union, Sequence
 
 from deprecated import deprecated
 from shapely.geometry import Polygon, MultiPolygon, mapping
@@ -180,6 +180,16 @@ class ImageCollectionClient(ImageCollection):
             if band in band_names:
                 return band_names.index(band)
         raise ValueError("Band {b!r} not available in collection. Valid names: {n!r}".format(b=band, n=band_names))
+
+    def resample_spatial(self, resolution: Union[Union[int, float], Sequence[Union[int, float]]],
+                         projection: Union[int, str] = None, method: str = 'near', align: str = 'lower-left'):
+        return self.graph_add_process('resample_spatial', {
+            'data': {'from_node': self.node_id},
+            'resolution': resolution,
+            'projection': projection,
+            'method': method,
+            'align': align
+        })
 
     def subtract(self, other:Union[ImageCollection,Union[int,float]]):
         """
