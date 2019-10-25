@@ -241,7 +241,7 @@ class TestRasterCube(TestCase):
         }
 
     def test_resample_spatial(self):
-        new_imagery = self.imagery.resample_spatial(resolution=[2.0,3.0],projection=4578)
+        new_imagery = self.img.resample_spatial(resolution=[2.0,3.0],projection=4578)
 
         graph = new_imagery.graph[new_imagery.node_id]
 
