@@ -617,7 +617,7 @@ class ImageCollectionClient(ImageCollection):
         process_id = 'apply'
         arguments[data_argument] = \
             {
-                "from_argument": "data"
+                "from_argument": data_argument
             }
         args = {
             'data': {'from_node': self.node_id},
