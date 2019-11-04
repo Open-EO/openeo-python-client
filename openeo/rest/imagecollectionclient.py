@@ -617,7 +617,7 @@ class ImageCollectionClient(ImageCollection):
         process_id = 'apply'
         arguments[data_argument] = \
             {
-                "from_argument": "data"
+                "from_argument": data_argument
             }
         args = {
             'data': {'from_node': self.node_id},
@@ -714,6 +714,25 @@ class ImageCollectionClient(ImageCollection):
                 'data': {'from_node': self.node_id},
                 'min': min,
                 'max': max
+            }
+
+        return self.graph_add_process(process_id, args)
+    
+    def linear_scale_range(self, inputMin, inputMax, outputMin, outputMax) -> 'ImageCollection':
+        """ Color stretching
+            :param inputMin: Minimum input value
+            :param inputMax: Maximum input value
+            :param outputMin: Minimum output value
+            :param outputMax: Maximum output value
+            :return An ImageCollection instance
+        """
+        process_id = 'linear_scale_range'
+        args = {
+                'x': {'from_node': self.node_id},
+                'inputMin': inputMin,
+                'inputMax': inputMax,
+                'outputMin': outputMin,
+                'outputMax': outputMax
             }
 
         return self.graph_add_process(process_id, args)
