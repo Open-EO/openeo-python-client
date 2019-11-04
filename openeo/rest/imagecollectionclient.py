@@ -1037,7 +1037,7 @@ class ImageCollectionClient(ImageCollection):
             label += "".join(
                 '''<TR><TD ALIGN="RIGHT">{arg}</TD>
                        <TD ALIGN="LEFT"><FONT FACE="monospace">{value}</FONT></TD></TR>'''.format(
-                    arg=k, value=pprint.pformat(v).replace('\n', '<BR/>')
+                    arg=k, value=pprint.pformat(v)[:1000].replace('\n', '<BR/>')
                 ) for k, v in sorted(args.items())
             )
             label += '</TABLE>>'
