@@ -139,7 +139,7 @@ class ImageCollectionClient(ImageCollection):
         """
 
         process_id = 'reduce'
-        band_index = self._band_index(band)
+        band_index = self.metadata.get_band_index(band)
 
         args = {
             'data': {'from_node': self.node_id},
@@ -161,25 +161,6 @@ class ImageCollectionClient(ImageCollection):
         }
 
         return self.graph_add_process(process_id, args)
-
-    def _band_index(self, band: Union[str, int]):
-        """
-        Helper to resolve/check a band name/index to a band index
-
-        :param band: band name, band common name or band index
-        :return int: band index
-        """
-        band_names = self.metadata.band_names
-        if isinstance(band, int) and 0 <= band < len(band_names):
-            return band
-        elif isinstance(band, str):
-            common_names = self.metadata.band_common_names
-            # First try common names if possible
-            if band in common_names:
-                return common_names.index(band)
-            if band in band_names:
-                return band_names.index(band)
-        raise ValueError("Band {b!r} not available in collection. Valid names: {n!r}".format(b=band, n=band_names))
 
     def resample_spatial(self, resolution: Union[Union[int, float], Sequence[Union[int, float]]],
                          projection: Union[int, str] = None, method: str = 'near', align: str = 'lower-left'):

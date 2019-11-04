@@ -79,6 +79,25 @@ class CollectionMetadata:
     def band_common_names(self) -> List[str]:
         return [b.common_name for b in self.bands]
 
+    def get_band_index(self, band: Union[int, str]) -> int:
+        """
+        Resolve a band name/index to band index
+        :param band: band name, common name or index
+        :return int: band index
+        """
+        band_names = self.band_names
+        if isinstance(band, int) and 0 <= band < len(band_names):
+            return band
+        elif isinstance(band, str):
+            common_names = self.band_common_names
+            # First try common names if possible
+            if band in common_names:
+                return common_names.index(band)
+            if band in band_names:
+                return band_names.index(band)
+        raise ValueError("Band {b!r} not available in collection. Valid names: {n!r}".format(b=band, n=band_names))
+
+
 
 class ImageCollection(ABC):
     """Class representing Processes. """
