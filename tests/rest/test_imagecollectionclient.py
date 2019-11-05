@@ -1,11 +1,11 @@
 import pytest
 
 import openeo
-from openeo.imagecollection import CollectionMetadata
 from openeo.graphbuilder import GraphBuilder
+from openeo.imagecollection import CollectionMetadata
 from openeo.rest.imagecollectionclient import ImageCollectionClient
 
-API_URL = "http://localhost:8000/api"
+API_URL = "https://oeo.net"
 
 
 @pytest.fixture
@@ -48,3 +48,19 @@ def test_empty_mask():
 
     with pytest.raises(ValueError, match=r"Mask .+ has an area of 0.0"):
         client.mask(polygon)
+
+
+def test_download_with_bearer_token(session040, requests_mock, tmpdir):
+    """https://github.com/Open-EO/openeo-python-client/issues/95"""
+    requests_mock.get(API_URL + "/collections/SENTINEL2", json={"foo": "bar"})
+    requests_mock.get(API_URL + '/credentials/basic', json={"access_token": "w3lc0m3"})
+    session040.authenticate_basic("test", "test123")
+
+    def result_callback(request, context):
+        assert request.headers["Authorization"] == "Bearer w3lc0m3"
+        return "tiffdata"
+
+    requests_mock.post(API_URL + '/result', text=result_callback)
+    path = tmpdir.join("tmp.tiff")
+    session040.load_collection("SENTINEL2").download(str(path), format="GTIFF")
+    assert path.read() == "tiffdata"
