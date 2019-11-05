@@ -378,19 +378,22 @@ class ImageCollection(ABC):
         """
         pass
 
-
-    def band_filter(self, bands) -> 'ImageCollection':
+    def filter_bands(self, bands) -> 'ImageCollection':
         """Filters the bands in the data cube so that bands that don't match any of the criteria are dropped from the data cube.
         The data cube is expected to have only one spectral dimension.
         The following criteria can be used to select bands:
-
 
             :param bands: List of band names or single band name as a string. The order of the specified array defines the order of the bands in the data cube, which can be important for subsequent processes.
 
             :return An ImageCollection instance
         """
-        # TODO: deprecate `band_filter(bands)` and implement `filter_bands(bands, common_names, wavelengths) like https://open-eo.github.io/openeo-api/processreference/#filter_bands
+        # TODO: also handle a common_names (and wavelengths) argument like https://open-eo.github.io/openeo-api/processreference/#filter_bands?
+        #       see https://github.com/Open-EO/openeo-processes/issues/77
         pass
+
+    @deprecated("use `filter_bands()` instead")
+    def band_filter(self, bands) -> 'ImageCollection':
+        return self.filter_bands(bands=bands)
 
     def band(self, band_name) -> 'ImageCollection':
         """Select the given band, as input for subsequent operations.

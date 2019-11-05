@@ -119,18 +119,22 @@ class ImageCollectionClient(ImageCollection):
             }
         )
 
-    def band_filter(self, bands) -> 'ImageCollection':
+    def filter_bands(self, bands: List[Union[str, int]]) -> ImageCollection:
         """Filter the imagery by the given bands
             :param bands: List of band names or single band name as a string.
             :return An ImageCollection instance
         """
-
-        process_id = 'filter_bands'
-        args = {
+        return self.graph_add_process(
+            process_id='filter_bands',
+            args={
                 'data': {'from_node': self.node_id},
                 'bands': bands
-                }
-        return self.graph_add_process(process_id, args)
+            }
+        )
+
+    @deprecated("use `filter_bands()` instead")
+    def band_filter(self, bands) -> ImageCollection:
+        return self.filter_bands(bands)
 
     def band(self, band: Union[str, int]) -> 'ImageCollection':
         """Filter the imagery by the given bands
