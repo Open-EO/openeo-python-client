@@ -109,7 +109,7 @@ if __name__ == "__main__":
         provider="Eurac Research",
         driver_url="https://openeo.eurac.edu",
         image_collection="S2_L2A_T32TPS_20M",
-        bands="3 11",
+        bands="B03 B11",
         band_format="gtiff",
         # Rumst bbox w,s,e,n
         bbox_string="10.446624755859375, 46.72574176193996, 10.629272460937498, 46.845164430292755",
