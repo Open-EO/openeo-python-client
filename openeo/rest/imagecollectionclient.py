@@ -702,24 +702,23 @@ class ImageCollectionClient(ImageCollection):
             }
 
         return self.graph_add_process(process_id, args)
-    
-    def linear_scale_range(self, inputMin, inputMax, outputMin, outputMax) -> 'ImageCollection':
+
+    def linear_scale_range(self, input_min, input_max, output_min, output_max) -> 'ImageCollection':
         """ Color stretching
-            :param inputMin: Minimum input value
-            :param inputMax: Maximum input value
-            :param outputMin: Minimum output value
-            :param outputMax: Maximum output value
+            :param input_min: Minimum input value
+            :param input_max: Maximum input value
+            :param output_min: Minimum output value
+            :param output_max: Maximum output value
             :return An ImageCollection instance
         """
         process_id = 'linear_scale_range'
         args = {
-                'x': {'from_node': self.node_id},
-                'inputMin': inputMin,
-                'inputMax': inputMax,
-                'outputMin': outputMin,
-                'outputMax': outputMax
-            }
-
+            'x': {'from_node': self.node_id},
+            'inputMin': input_min,
+            'inputMax': input_max,
+            'outputMin': output_min,
+            'outputMax': output_max
+        }
         return self.graph_add_process(process_id, args)
 
     def mask(self, polygon: Union[Polygon, MultiPolygon]=None, srs="EPSG:4326", rastermask: 'ImageCollection'=None,
