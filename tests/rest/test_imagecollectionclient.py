@@ -1,3 +1,5 @@
+import pathlib
+
 import pytest
 
 import openeo
@@ -48,6 +50,22 @@ def test_empty_mask():
 
     with pytest.raises(ValueError, match=r"Mask .+ has an area of 0.0"):
         client.mask(polygon)
+
+
+def test_download(session040, requests_mock, tmpdir):
+    requests_mock.get(API_URL + "/collections/SENTINEL2", json={"foo": "bar"})
+    requests_mock.post(API_URL + '/result', text="tiffdata")
+    path = tmpdir.join("tmp.tiff")
+    session040.load_collection("SENTINEL2").download(str(path), format="GTIFF")
+    assert path.read() == "tiffdata"
+
+
+def test_download_pathlib(session040, requests_mock, tmpdir):
+    requests_mock.get(API_URL + "/collections/SENTINEL2", json={"foo": "bar"})
+    requests_mock.post(API_URL + '/result', text="tiffdata")
+    path = tmpdir.join("tmp.tiff")
+    session040.load_collection("SENTINEL2").download(pathlib.Path(str(path)), format="GTIFF")
+    assert path.read() == "tiffdata"
 
 
 def test_download_with_bearer_token(session040, requests_mock, tmpdir):
