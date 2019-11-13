@@ -718,7 +718,7 @@ class ImageCollectionClient(ImageCollection):
 
         return self.graph_add_process(process_id, args)
 
-    def mask(self, polygon: Union[Polygon, MultiPolygon]=None, srs="EPSG:4326", rastermask: 'ImageCollection'=None,
+    def mask(self, polygon: Union[Polygon, MultiPolygon,str]=None, srs="EPSG:4326", rastermask: 'ImageCollection'=None,
              replacement=None) -> 'ImageCollection':
         """
         Mask the image collection using either a polygon or a raster mask.
@@ -734,7 +734,7 @@ class ImageCollectionClient(ImageCollection):
 
         # TODO: just provide a single `mask` argument and detect the type: polygon or process graph
 
-        :param polygon: A polygon, provided as a :class:`shapely.geometry.Polygon` or :class:`shapely.geometry.MultiPolygon`
+        :param polygon: A polygon, provided as a :class:`shapely.geometry.Polygon` or :class:`shapely.geometry.MultiPolygon`, or a filename pointing to a valid vector file
         :param srs: The reference system of the provided polygon, by default this is Lat Lon (EPSG:4326).
         :param rastermask: the raster mask
         :param replacement: the value to replace the masked pixels with
@@ -744,18 +744,27 @@ class ImageCollectionClient(ImageCollection):
         mask = None
         new_collection = None
         if polygon is not None:
-            if polygon.area == 0:
-                raise ValueError("Mask {m!s} has an area of {a!r}".format(m=polygon, a=polygon.area))
+            if isinstance(polygon, str):
+                new_collection = self.graph_add_process('read_vector', args={
+                    'filename': polygon
+                })
 
-            geojson = mapping(polygon)
-            geojson['crs'] = {
-                'type': 'name',
-                'properties': {
-                    'name': srs
+                mask = {
+                    'from_node': new_collection.node_id
                 }
-            }
-            mask = geojson
-            new_collection = self
+            else:
+                if polygon.area == 0:
+                    raise ValueError("Mask {m!s} has an area of {a!r}".format(m=polygon, a=polygon.area))
+
+                geojson = mapping(polygon)
+                geojson['crs'] = {
+                    'type': 'name',
+                    'properties': {
+                        'name': srs
+                    }
+                }
+                mask = geojson
+                new_collection = self
         elif rastermask is not None:
             mask_node = rastermask.graph[rastermask.node_id]
             mask_node['result']=True
