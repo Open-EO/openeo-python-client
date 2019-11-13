@@ -87,6 +87,14 @@ def test_filter_temporal_generic(image_collection: ImageCollectionClient, args, 
     assert graph['arguments']['extent'] == extent
 
 
+def test_filter_bands(image_collection: ImageCollectionClient):
+    im = image_collection.filter_bands(["red", "nir"])
+    graph = im.graph[im.node_id]
+    assert graph['process_id'] == 'filter_bands'
+    assert graph['arguments']['bands'] == ["red", "nir"]
+
+
+
 class TestRasterCube(TestCase):
 
     def setUp(self):

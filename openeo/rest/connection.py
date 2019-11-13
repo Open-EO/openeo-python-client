@@ -3,6 +3,7 @@ This module provides a Connection object to manage and persist settings when int
 """
 
 import logging
+import pathlib
 import shutil
 from typing import Dict, List
 from urllib.parse import urljoin
@@ -384,9 +385,8 @@ class Connection(RestApiConnection):
             request["output"] = format_options
 
         download_url = self.build_url(path)
-
         r = self.post(download_url, json=request, stream=True, timeout=1000)
-        with open(outputfile, 'wb') as f:
+        with pathlib.Path(outputfile).open(mode="wb") as f:
             shutil.copyfileobj(r.raw, f)
 
     def execute(self, process_graph, output_format, output_parameters=None, budget=None):

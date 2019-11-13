@@ -119,18 +119,22 @@ class ImageCollectionClient(ImageCollection):
             }
         )
 
-    def band_filter(self, bands) -> 'ImageCollection':
+    def filter_bands(self, bands: List[Union[str, int]]) -> ImageCollection:
         """Filter the imagery by the given bands
             :param bands: List of band names or single band name as a string.
             :return An ImageCollection instance
         """
-
-        process_id = 'filter_bands'
-        args = {
+        return self.graph_add_process(
+            process_id='filter_bands',
+            args={
                 'data': {'from_node': self.node_id},
                 'bands': bands
-                }
-        return self.graph_add_process(process_id, args)
+            }
+        )
+
+    @deprecated("use `filter_bands()` instead")
+    def band_filter(self, bands) -> ImageCollection:
+        return self.filter_bands(bands)
 
     def band(self, band: Union[str, int]) -> 'ImageCollection':
         """Filter the imagery by the given bands
@@ -139,7 +143,7 @@ class ImageCollectionClient(ImageCollection):
         """
 
         process_id = 'reduce'
-        band_index = self._band_index(band)
+        band_index = self.metadata.get_band_index(band)
 
         args = {
             'data': {'from_node': self.node_id},
@@ -161,25 +165,6 @@ class ImageCollectionClient(ImageCollection):
         }
 
         return self.graph_add_process(process_id, args)
-
-    def _band_index(self, band: Union[str, int]):
-        """
-        Helper to resolve/check a band name/index to a band index
-
-        :param band: band name, band common name or band index
-        :return int: band index
-        """
-        band_names = self.metadata.band_names
-        if isinstance(band, int) and 0 <= band < len(band_names):
-            return band
-        elif isinstance(band, str):
-            common_names = self.metadata.band_common_names
-            # First try common names if possible
-            if band in common_names:
-                return common_names.index(band)
-            if band in band_names:
-                return band_names.index(band)
-        raise ValueError("Band {b!r} not available in collection. Valid names: {n!r}".format(b=band, n=band_names))
 
     def resample_spatial(self, resolution: Union[Union[int, float], Sequence[Union[int, float]]],
                          projection: Union[int, str] = None, method: str = 'near', align: str = 'lower-left'):
@@ -617,7 +602,7 @@ class ImageCollectionClient(ImageCollection):
         process_id = 'apply'
         arguments[data_argument] = \
             {
-                "from_argument": "data"
+                "from_argument": data_argument
             }
         args = {
             'data': {'from_node': self.node_id},
@@ -716,6 +701,24 @@ class ImageCollectionClient(ImageCollection):
                 'max': max
             }
 
+        return self.graph_add_process(process_id, args)
+
+    def linear_scale_range(self, input_min, input_max, output_min, output_max) -> 'ImageCollection':
+        """ Color stretching
+            :param input_min: Minimum input value
+            :param input_max: Maximum input value
+            :param output_min: Minimum output value
+            :param output_max: Maximum output value
+            :return An ImageCollection instance
+        """
+        process_id = 'linear_scale_range'
+        args = {
+            'x': {'from_node': self.node_id},
+            'inputMin': input_min,
+            'inputMax': input_max,
+            'outputMin': output_min,
+            'outputMax': output_max
+        }
         return self.graph_add_process(process_id, args)
 
     def mask(self, polygon: Union[Polygon, MultiPolygon,str]=None, srs="EPSG:4326", rastermask: 'ImageCollection'=None,
@@ -1027,7 +1030,7 @@ class ImageCollectionClient(ImageCollection):
             label += "".join(
                 '''<TR><TD ALIGN="RIGHT">{arg}</TD>
                        <TD ALIGN="LEFT"><FONT FACE="monospace">{value}</FONT></TD></TR>'''.format(
-                    arg=k, value=pprint.pformat(v).replace('\n', '<BR/>')
+                    arg=k, value=pprint.pformat(v)[:1000].replace('\n', '<BR/>')
                 ) for k, v in sorted(args.items())
             )
             label += '</TABLE>>'

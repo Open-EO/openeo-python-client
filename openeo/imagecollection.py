@@ -79,6 +79,25 @@ class CollectionMetadata:
     def band_common_names(self) -> List[str]:
         return [b.common_name for b in self.bands]
 
+    def get_band_index(self, band: Union[int, str]) -> int:
+        """
+        Resolve a band name/index to band index
+        :param band: band name, common name or index
+        :return int: band index
+        """
+        band_names = self.band_names
+        if isinstance(band, int) and 0 <= band < len(band_names):
+            return band
+        elif isinstance(band, str):
+            common_names = self.band_common_names
+            # First try common names if possible
+            if band in common_names:
+                return common_names.index(band)
+            if band in band_names:
+                return band_names.index(band)
+        raise ValueError("Band {b!r} not available in collection. Valid names: {n!r}".format(b=band, n=band_names))
+
+
 
 class ImageCollection(ABC):
     """Class representing Processes. """
@@ -359,19 +378,22 @@ class ImageCollection(ABC):
         """
         pass
 
-
-    def band_filter(self, bands) -> 'ImageCollection':
+    def filter_bands(self, bands) -> 'ImageCollection':
         """Filters the bands in the data cube so that bands that don't match any of the criteria are dropped from the data cube.
         The data cube is expected to have only one spectral dimension.
         The following criteria can be used to select bands:
-
 
             :param bands: List of band names or single band name as a string. The order of the specified array defines the order of the bands in the data cube, which can be important for subsequent processes.
 
             :return An ImageCollection instance
         """
-        # TODO: deprecate `band_filter(bands)` and implement `filter_bands(bands, common_names, wavelengths) like https://open-eo.github.io/openeo-api/processreference/#filter_bands
+        # TODO: also handle a common_names (and wavelengths) argument like https://open-eo.github.io/openeo-api/processreference/#filter_bands?
+        #       see https://github.com/Open-EO/openeo-processes/issues/77
         pass
+
+    @deprecated("use `filter_bands()` instead")
+    def band_filter(self, bands) -> 'ImageCollection':
+        return self.filter_bands(bands=bands)
 
     def band(self, band_name) -> 'ImageCollection':
         """Select the given band, as input for subsequent operations.
