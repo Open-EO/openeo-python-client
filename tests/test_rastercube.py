@@ -257,3 +257,14 @@ class TestRasterCube(TestCase):
         self.assertIn("data", graph["arguments"])
         self.assertEqual(graph["arguments"]["resolution"], [2.0,3.0])
         self.assertEqual(graph["arguments"]["projection"], 4578)
+
+    def test_merge(self):
+        merged = self.img.ndvi().merge(self.img)
+
+        graph = merged.graph[merged.node_id]
+        print(graph)
+        self.assertEqual(graph["process_id"],"merge_cubes")
+        ndvi_id = graph["arguments"]["cube1"]["from_node"]
+        orig_id = graph["arguments"]["cube2"]["from_node"]
+        self.assertEqual(merged.graph[ndvi_id]["process_id"], "ndvi")
+        self.assertEqual(merged.graph[orig_id]["process_id"], "get_collection")

@@ -432,6 +432,16 @@ class ImageCollection(ABC):
         """
         pass
 
+    def merge(self, other: 'ImageCollection') -> 'ImageCollection':
+        """
+        Merge the bands of this data cubes with the bands of another datacube. The bands of 'other' will be appended to the bands
+        of this datacube, maintaining the order.
+
+        :param other: The other datacube to merge with this datacube
+        :return: A new datacube with bands merged.
+        """
+        pass
+
     def apply_kernel(self, kernel, factor=1.0) -> 'ImageCollection':
         """
         Applies a focal operation based on a weighted kernel to each value of the specified dimensions in the data cube.

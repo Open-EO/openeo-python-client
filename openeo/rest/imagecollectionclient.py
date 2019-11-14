@@ -795,6 +795,25 @@ class ImageCollectionClient(ImageCollection):
 
         return new_collection.graph_add_process(process_id, args)
 
+    def merge(self,other:'ImageCollection') -> 'ImageCollection':
+        other_node = other.graph[other.node_id]
+        other_node['result'] = True
+        new_collection = self._graph_merge(other.graph)
+        # mask node id may have changed!
+        mask_id = new_collection.builder.find_result_node_id()
+        other_node = new_collection.graph[mask_id]
+        other_node['result'] = False
+        cube2 = {
+            'from_node': mask_id
+        }
+        args={
+            'cube1':{'from_node':self.node_id},
+            'cube2':cube2
+        }
+        return new_collection.graph_add_process('merge_cubes', args)
+
+
+
     def apply_kernel(self, kernel, factor=1.0) -> 'ImageCollection':
         """
         Applies a focal operation based on a weighted kernel to each value of the specified dimensions in the data cube.
