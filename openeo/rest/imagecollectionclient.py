@@ -1,5 +1,6 @@
 import typing
 from typing import List, Dict, Union, Sequence
+import time
 
 from deprecated import deprecated
 from shapely.geometry import Polygon, MultiPolygon, mapping
@@ -957,9 +958,37 @@ class ImageCollectionClient(ImageCollection):
         newbuilder.processes[self.node_id]['result'] = True
         return self.session.create_service(newbuilder.processes,**kwargs)
 
+    def execute_batch(self, outputfile:str, out_format:str=None, **format_options):
+        """
+        Evaluate the process graph by creating a batch job, and retrieving the results when it is finished.
+        This method is mostly recommended if the batch job is expected to run in a reasonable amount of time.
+
+        For very long running jobs, you probably do not want to keep the client running.
+
+        :param outputfile: The path of a file to which a result can be written
+        :param out_format: String Format of the job result.
+        :param format_options: String Parameters for the job result format
+
+        """
+        job = self.send_job(out_format,**format_options)
+        job.start_job()
+
+        # now wait for job to finish
+        status = job.describe_job()['status']
+        print(status)
+        while (status != 'finished' and status not in ['error', 'canceled']):
+            time.sleep(5)
+            try:
+                status = job.describe_job()['status']
+            except ConnectionError as e:
+                print("Connection error while querying job status")
+            print(status)
+        job.download_results(outputfile)
+
     def send_job(self, out_format=None, **format_options) -> Job:
         """
         Sends a job to the backend and returns a ClientJob instance.
+
         :param out_format: String Format of the job result.
         :param format_options: String Parameters for the job result format
         :return: status: ClientJob resulting job.
