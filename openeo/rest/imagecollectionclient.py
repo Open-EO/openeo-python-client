@@ -1,6 +1,7 @@
+import datetime
+import time
 import typing
 from typing import List, Dict, Union, Sequence
-import time
 
 from deprecated import deprecated
 from shapely.geometry import Polygon, MultiPolygon, mapping
@@ -977,7 +978,11 @@ class ImageCollectionClient(ImageCollection):
         newbuilder.processes[self.node_id]['result'] = True
         return self.session.create_service(newbuilder.processes,**kwargs)
 
-    def execute_batch(self, outputfile:str, out_format:str=None, **format_options):
+    def execute_batch(
+            self,
+            outputfile: str, out_format: str = None,
+            print=print, max_poll_interval=60, connection_retry_interval=30,
+            **format_options):
         """
         Evaluate the process graph by creating a batch job, and retrieving the results when it is finished.
         This method is mostly recommended if the batch job is expected to run in a reasonable amount of time.
@@ -989,20 +994,44 @@ class ImageCollectionClient(ImageCollection):
         :param format_options: String Parameters for the job result format
 
         """
-        job = self.send_job(out_format,**format_options)
+        job = self.send_job(out_format, **format_options)
         job.start_job()
 
-        # now wait for job to finish
-        status = job.describe_job()['status']
-        print(status)
-        while (status != 'finished' and status not in ['error', 'canceled']):
-            time.sleep(5)
+        job_id = None
+        job_info = None
+        status = None
+        poll_interval = 5
+        start_time = time.time()
+        while True:
+            elapsed = str(datetime.timedelta(seconds=time.time() - start_time))
             try:
-                status = job.describe_job()['status']
+                job_info = job.describe_job()
             except ConnectionError as e:
-                print("Connection error while querying job status")
-            print(status)
-        job.download_results(outputfile)
+                print("{t} Connection error while querying job status: {e}".format(t=elapsed, e=e))
+                time.sleep(connection_retry_interval)
+                continue
+
+            job_id = job_info.get("id", "N/A")
+            status = job_info.get("status", "N/A")
+            print("{t} Job {i}: {s} (progress {p})".format(
+                t=elapsed, i=job_id, s=status, p=job_info.get("progress", "N/A"))
+            )
+            if status not in ('submitted', 'queued', 'running'):
+                break
+
+            time.sleep(poll_interval)
+            poll_interval = min(1.25 * poll_interval, max_poll_interval)
+
+        elapsed = str(datetime.timedelta(seconds=time.time() - start_time))
+        if status == 'finished':
+            job.download_results(outputfile)
+        else:
+            raise RuntimeError("Batch job {i} didn't finish properly. Status: {s} (after {t}).".format(
+                i=job_id, s=status, t=elapsed
+            ))
+
+        return job_info
+
 
     def send_job(self, out_format=None, **format_options) -> Job:
         """
