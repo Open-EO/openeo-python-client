@@ -127,17 +127,18 @@ def test_timeseries_json_to_pandas_none_nan_empty_handling():
     timeseries = {
         DATE1: [[1, 2], [3, 4]],
         DATE2: [[5, 6], [None, None]],
-        DATE3: [[7, 8], []],
-        DATE4: [[], []],
+        DATE3: [[], []],
+        DATE4: [[], [7, 8]],
     }
     df = timeseries_json_to_pandas(timeseries)
     expected = pd.DataFrame(data=[
         [1, 2, 3, 4],
         [5, 6, np.nan, np.nan],
-        [7, 8, np.nan, np.nan],
+        [np.nan, np.nan, np.nan, np.nan],
+        [np.nan, np.nan, 7, 8],
     ],
         dtype=float,
-        index=pd.Index([DATE1, DATE2, DATE3], name="date"),
+        index=pd.Index([DATE1, DATE2, DATE3, DATE4], name="date"),
         columns=pd.MultiIndex.from_tuples(
             [(0, 0), (0, 1), (1, 0), (1, 1)],
             names=("polygon", "band")

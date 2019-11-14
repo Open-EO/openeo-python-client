@@ -24,12 +24,19 @@ def timeseries_json_to_pandas(timeseries: dict, index: str = "date", auto_collap
     """
     # The input timeseries dictionary is assumed to have this structure:
     #       {dict mapping date -> [list with one item per polygon: [list with one float/None per band or empty list]}
+
+    # Count the number of bands in the timeseries, so we can provide a fallback array for missing data
+    band_counts = set(len(band_data) for values in timeseries.values() for band_data in values)
+    band_counts.discard(0)
+    if len(band_counts) != 1:
+        raise ValueError("Multiple band counts found in timeseries data: {b}".format(b=band_counts))
+    band_count = band_counts.pop()
+    band_data_fallback = [np.nan] * band_count
     # Load the timeseries data in a DataFrame with "band" index and ("date", "polygon") multi-level columns
     df = pandas.DataFrame.from_dict({
-        (ts, polygon_index): band_data
+        (ts, polygon_index): band_data if band_data else band_data_fallback
         for (ts, values) in timeseries.items()
         for polygon_index, band_data in enumerate(values)
-        if band_data
     }).fillna(value=np.nan)
     df.index.name = "band"
     df.columns.names = ["date", "polygon"]
