@@ -32,17 +32,18 @@ def timeseries_json_to_pandas(timeseries: dict, index: str = "date", auto_collap
         raise ValueError("Multiple band counts found in timeseries data: {b}".format(b=band_counts))
     band_count = band_counts.pop()
     band_data_fallback = [np.nan] * band_count
-    # Load the timeseries data in a DataFrame with "band" index and ("date", "polygon") multi-level columns
-    df = pandas.DataFrame.from_dict({
-        (ts, polygon_index): band_data if band_data else band_data_fallback
-        for (ts, values) in timeseries.items()
-        for polygon_index, band_data in enumerate(values)
-    }).fillna(value=np.nan)
-    df.index.name = "band"
-    df.columns.names = ["date", "polygon"]
+    # Load the timeseries data in a pandas Series with multi-index ["date", "polygon", "band]
+    s = pandas.DataFrame.from_records(
+        (
+            (date, polygon_index, band_index, value)
+            for (date, polygon_data) in timeseries.items()
+            for polygon_index, band_data in enumerate(polygon_data)
+            for band_index, value in enumerate(band_data or band_data_fallback)
+        ),
+        columns=["date", "polygon", "band", "value"],
+        index=["date", "polygon", "band"]
+    )["value"].rename(None)
     # TODO convert date to real date index?
-    # Reshape to multi-indexed series (index: "date", "polygon", "band) for easier manipulation below.
-    s = df.unstack("band")
 
     if auto_collapse:
         if s.index.levshape[2] == 1:

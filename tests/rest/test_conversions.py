@@ -116,7 +116,7 @@ def test_timeseries_json_to_pandas_index_polygon():
 def test_timeseries_json_to_pandas_auto_collapse(timeseries, index, with_auto_collapse, without_auto_collapse):
     df = timeseries_json_to_pandas(timeseries, index=index, auto_collapse=True)
     if isinstance(with_auto_collapse, pd.Series):
-        assert_series_equal(df, with_auto_collapse)
+        assert_series_equal(df.sort_index(), with_auto_collapse)
     else:
         assert_frame_equal(df, with_auto_collapse)
     df = timeseries_json_to_pandas(timeseries, index=index, auto_collapse=False)
