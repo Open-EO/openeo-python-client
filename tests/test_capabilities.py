@@ -1,8 +1,8 @@
-from openeo.capabilities import CheckableVersion
+from openeo.capabilities import ComparableVersion
 
 
 def test_checkable_version():
-    v = CheckableVersion('1.2.3')
+    v = ComparableVersion('1.2.3')
     assert v.above('0')
     assert v.above('0.1')
     assert v.above('0.1.2')
@@ -39,3 +39,8 @@ def test_checkable_version():
     assert v.at_most('1.2.2b') is False
     assert v.at_most('1.2') is False
     assert v.at_most('1.10')
+
+    assert v.above(ComparableVersion('1.2'))
+    assert v.at_least(ComparableVersion('1.2.3a')) is False
+    assert v.at_most(ComparableVersion('1.02.03'))
+

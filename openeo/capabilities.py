@@ -1,5 +1,6 @@
 from abc import ABC
 from distutils.version import LooseVersion
+from typing import Union
 
 
 class Capabilities(ABC):
@@ -22,7 +23,7 @@ class Capabilities(ABC):
     @property
     def api_version_check(self):
         """Helper to easily check if the API version is at least or below some threshold version."""
-        return CheckableVersion(self.api_version())
+        return ComparableVersion(self.api_version())
 
     def list_features(self):
         """ List all supported features / endpoints."""
@@ -45,16 +46,17 @@ class Capabilities(ABC):
         pass
 
 
-class CheckableVersion:
+class ComparableVersion:
     """
-    Helper to check a version (e.g. API version) against another (threshold) version
+    Helper to compare a version (e.g. API version) against another (threshold) version
 
-    >>> v = CheckableVersion('1.2.3')
+    >>> v = ComparableVersion('1.2.3')
     >>> v.at_least('1.2.1')
     True
     >>> v.at_least('1.10.2')
     False
     """
+
     def __init__(self, version):
         self._version = LooseVersion(version)
 
@@ -64,14 +66,27 @@ class CheckableVersion:
     def to_string(self):
         return str(self)
 
-    def at_least(self, version):
-        return self._version >= LooseVersion(version)
+    @classmethod
+    def _to_loose_version(cls, version) -> LooseVersion:
+        if isinstance(version, cls):
+            return version._version
+        elif isinstance(version, str):
+            return LooseVersion(version)
+        else:
+            raise ValueError(version)
 
-    def above(self, version):
-        return self._version > LooseVersion(version)
+    def at_least(self, version: Union[str, 'ComparableVersion']):
+        return self._version >= self._to_loose_version(version)
 
-    def at_most(self, version):
-        return self._version <= LooseVersion(version)
+    def above(self, version: Union[str, 'ComparableVersion']):
+        return self._version > self._to_loose_version(version)
 
-    def below(self, version):
-        return self._version < LooseVersion(version)
+    def at_most(self, version: Union[str, 'ComparableVersion']):
+        return self._version <= self._to_loose_version(version)
+
+    def below(self, version: Union[str, 'ComparableVersion']):
+        return self._version < self._to_loose_version(version)
+
+
+class ApiVersionException(RuntimeError):
+    pass
