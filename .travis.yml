@@ -4,7 +4,7 @@ python:
 - '3.5'
 - '3.6'
 - '3.7'
-- '3.8-dev'
+- '3.8'
 install:
 - pip install travis-sphinx==2.1.0 "sphinx<1.7"
 - pip install -r requirements-dev.txt
