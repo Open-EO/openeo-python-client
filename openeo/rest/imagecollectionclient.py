@@ -1,7 +1,7 @@
 import datetime
 import time
 import typing
-from typing import List, Dict, Union, Sequence
+from typing import List, Dict, Union, Tuple
 
 from deprecated import deprecated
 from shapely.geometry import Polygon, MultiPolygon, mapping
@@ -165,8 +165,8 @@ class ImageCollectionClient(ImageCollection):
 
         return self.graph_add_process(process_id, args)
 
-    def resample_spatial(self, resolution: Union[Union[int, float], Sequence[Union[int, float]]],
-                         projection: Union[int, str] = None, method: str = 'near', align: str = 'lower-left'):
+    def resample_spatial(self, resolution: Union[float, Tuple[float, float]],
+                         projection: Union[int, str] = None, method: str = 'near', align: str = 'upper-left'):
         return self.graph_add_process('resample_spatial', {
             'data': {'from_node': self.node_id},
             'resolution': resolution,

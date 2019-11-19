@@ -2,7 +2,7 @@ import warnings
 from abc import ABC
 from collections import namedtuple
 from datetime import datetime, date
-from typing import List, Dict, Union, Sequence
+from typing import List, Dict, Union, Sequence, Tuple
 
 from deprecated import deprecated
 from shapely.geometry import Polygon, MultiPolygon
@@ -202,8 +202,8 @@ class ImageCollection(ABC):
             crs=first_not_none(crs, srs)
         )
 
-    def resample_spatial(self, resolution: Union[Union[int, float], Sequence[Union[int, float]]],
-                         projection: Union[int, str] = None, method: str = 'near', align: str = 'lower-left'):
+    def resample_spatial(self, resolution: Union[float, Tuple[float, float]],
+                         projection: Union[int, str] = None, method: str = 'near', align: str = 'upper-left'):
         """
         Resamples the spatial dimensions (x,y) of the data cube to a specified resolution and/or warps the data cube
         to the target projection. At least resolution or projection must be specified.
