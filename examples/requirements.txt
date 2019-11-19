@@ -1,0 +1,5 @@
+numpy
+pandas
+matplotlib
+matplotlib-scalebar
+GDAL
