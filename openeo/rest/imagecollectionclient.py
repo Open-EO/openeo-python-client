@@ -941,34 +941,21 @@ class ImageCollectionClient(ImageCollection):
 
             return graph_add_aggregate_process(self)
 
-    def save_result(self, format: str, options: dict = None):
+    def save_result(self, format: str = "GTIFF", options: dict = None):
         return self.graph_add_process(
             process_id="save_result",
             args={
                 "data": {"from_node": self.node_id},
                 "format": format,
-                "options": options
+                "options": options or {}
             }
         )
 
-    def download(self, outputfile: str, **format_options) -> str:
-        """Extracts a geotiff from this image collection."""
-
-        if self._api_version.at_least('0.4.0'):
-            args = {
-                'data': {'from_node': self.node_id},
-                'options': format_options
-            }
-            if 'format' in format_options:
-                args['format'] = format_options.pop('format')
-            else:
-                raise ValueError("Please use the 'format' keyword argument to specify the output format. Use openeo.connection.Connection#list_file_types to retrieve available ouput formats for this backend.")
-            newcollection = self.graph_add_process("save_result",args)
-            newcollection.graph[newcollection.node_id]["result"] = True
-            return self.session.download(newcollection.graph, outputfile)
-        else:
-            self.graph[self.node_id]["result"] = True
-            return self.session.download(self.graph, outputfile)
+    def download(self, outputfile: str, format: str = "GTIFF", options: dict = None):
+        """Download image collection, e.g. as GeoTIFF."""
+        newcollection = self.save_result(format=format, options=options)
+        newcollection.graph[newcollection.node_id]["result"] = True
+        return self.session.download(newcollection.graph, outputfile)
 
     def tiled_viewing_service(self,**kwargs) -> Dict:
         newbuilder = self.builder.copy()

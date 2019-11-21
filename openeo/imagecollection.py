@@ -541,10 +541,6 @@ class ImageCollection(ABC):
         """
         pass
 
-    def download(self, outputfile: str, **format_options):
-        """Extracts a binary raster from this image collection."""
-        pass
-
     def send_job(self) -> Job:
         """Sends the current process to the backend, for batch processing.
 
