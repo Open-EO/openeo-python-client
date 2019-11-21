@@ -1058,13 +1058,15 @@ class ImageCollectionClient(ImageCollection):
         newCollection = ImageCollectionClient(self.node_id, merged, self.session, metadata=self.metadata)
         return newCollection
 
-    def graph_add_process(self, process_id, args) -> 'ImageCollection':
+    def graph_add_process(self, process_id, args) -> 'ImageCollectionClient':
         """
-        Returns a new restimagery with an added process with the given process
+        Returns a new imagecollection with an added process with the given process
         id and a dictionary of arguments
+
         :param process_id: String, Process Id of the added process.
         :param args: Dict, Arguments of the process.
-        :return: imagery: Instance of the RestImagery class
+
+        :return: new ImageCollectionClient instance
         """
         #don't modify in place, return new builder
         newbuilder = GraphBuilder(self.builder.processes)

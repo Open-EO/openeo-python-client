@@ -541,25 +541,6 @@ class ImageCollection(ABC):
         """
         pass
 
-    def send_job(self) -> Job:
-        """Sends the current process to the backend, for batch processing.
-
-            :return: Job: A job object that can be used to query the processing status.
-        """
-        pass
-
-    def graph_add_process(self, process_id, args) -> 'ImageCollection':
-        """
-        Returns a new imagecollection with an added process with the given process
-        id and a dictionary of arguments
-
-        :param process_id: String, Process Id of the added process.
-        :param args: Dict, Arguments of the process.
-
-        :return: imagecollection: Instance of the ImageCollection class
-        """
-        pass
-
     def pipe(self, func: Callable, *args, **kwargs):
         """
         Pipe the image collection through a function and return the result.
