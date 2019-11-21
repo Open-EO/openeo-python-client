@@ -1,0 +1,49 @@
+
+{
+  "filterbands1": {
+    "process_id": "filter_bands",
+    "arguments": {
+      "data": {
+        "from_node": "loadcollection1"
+      },
+      "bands": [
+        "red",
+        "green"
+      ]
+    },
+    "result": false
+  },
+  "loadcollection1": {
+    "process_id": "load_collection",
+    "arguments": {
+      "id": "CGS_SENTINEL2_RADIOMETRY_V102_001",
+      "spatial_extent": null,
+      "temporal_extent": null
+    },
+    "result": false
+  },
+  "reduce1": {
+    "process_id": "reduce",
+    "arguments": {
+      "data": {
+        "from_node": "filterbands1"
+      },
+      "dimension": "spectral_bands",
+      "reducer": {
+        "callback": {
+          "r1": {
+            "arguments": {
+              "data": {
+                "from_argument": "data"
+              },
+              "index": 0
+            },
+            "process_id": "array_element",
+            "result": true
+          }
+        }
+      }
+    },
+    "result": false
+  }
+}

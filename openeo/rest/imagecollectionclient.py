@@ -2,6 +2,7 @@ import datetime
 import time
 import typing
 from typing import List, Dict, Union, Tuple
+import copy
 
 from deprecated import deprecated
 from shapely.geometry import Polygon, MultiPolygon, mapping
@@ -63,6 +64,8 @@ class ImageCollectionClient(ImageCollection):
             arguments['bands'] = bands
         node_id = builder.process(process_id, arguments)
         metadata = session.collection_metadata(collection_id) if fetch_metadata else None
+        if bands:
+            metadata.filter_bands(bands)
         return cls(node_id, builder, session, metadata=metadata)
 
     @classmethod
@@ -123,13 +126,10 @@ class ImageCollectionClient(ImageCollection):
             :param bands: List of band names or single band name as a string.
             :return An ImageCollection instance
         """
-        return self.graph_add_process(
-            process_id='filter_bands',
-            args={
-                'data': {'from_node': self.node_id},
-                'bands': bands
-            }
-        )
+        new_collection = self.graph_add_process(process_id='filter_bands',
+                                         args={'data': {'from_node': self.node_id}, 'bands': bands})
+        new_collection.metadata.filter_bands(bands)
+        return new_collection
 
     @deprecated("use `filter_bands()` instead")
     def band_filter(self, bands) -> ImageCollection:
@@ -1073,7 +1073,7 @@ class ImageCollectionClient(ImageCollection):
         id = newbuilder.process(process_id,args)
 
         # TODO: properly update metadata as well?
-        newCollection = ImageCollectionClient(id, newbuilder, self.session, metadata=self.metadata)
+        newCollection = ImageCollectionClient(id, newbuilder, self.session, metadata=copy.copy(self.metadata))
         return newCollection
 
     def to_graphviz(self):

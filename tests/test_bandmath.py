@@ -52,9 +52,14 @@ class TestBandMath(TestCase):
         cube = session.imagecollection("CGS_SENTINEL2_RADIOMETRY_V102_001")
         expected_graph = load_json_resource('data/band_red.json')
 
-        assert cube.band(2).graph == expected_graph
-        assert cube.band('B04').graph == expected_graph
-        assert cube.band('red').graph == expected_graph
+        def check_cube(cube, band_index=2):
+            assert cube.band(band_index).graph == expected_graph
+            assert cube.band('B04').graph == expected_graph
+            assert cube.band('red').graph == expected_graph
+        check_cube(cube)
+
+        expected_graph = load_json_resource('data/band_red_filtered.json')
+        check_cube( cube.filter_bands(['red','green']),0)
 
     def test_evi(self,m):
         # configuration phase: define username, endpoint, parameters?
