@@ -2,7 +2,7 @@ import warnings
 from abc import ABC
 from collections import namedtuple
 from datetime import datetime, date
-from typing import List, Dict, Union, Sequence, Tuple
+from typing import List, Dict, Union, Sequence, Tuple, Callable
 
 from deprecated import deprecated
 from shapely.geometry import Polygon, MultiPolygon
@@ -563,3 +563,25 @@ class ImageCollection(ABC):
         :return: imagecollection: Instance of the ImageCollection class
         """
         pass
+
+    def pipe(self, func: Callable, *args, **kwargs):
+        """
+        Pipe the image collection through a function and return the result.
+
+        Allows to wrap a sequence of operations in a function and reuse it in a chained fashion.
+        For example:
+
+        >>> # Define a reusable set of ImageCollection operations
+        >>> def ndvi_percent(cube):
+        ...     return cube.ndvi().linear_scale_range(0, 1, 0, 100)
+        >>> # Reuse the procedure
+        >>> ndvi1 = cube1.pipe(ndvi_percent)
+        >>> ndvi2 = cube2.pipe(ndvi_percent)
+        >>> ndvi3 = cube3.pipe(ndvi_percent)
+
+        Inspired by pandas.DataFrame.pipe
+
+        :param func: function that expects a ImageCollection as first argument (and optionally additional arguments)
+        :return: result of applying the function to the ImageCollection
+        """
+        return func(self, *args, **kwargs)

@@ -15,7 +15,7 @@ from openeo.rest.imagecollectionclient import ImageCollectionClient
 @pytest.fixture
 def image_collection():
     builder = GraphBuilder()
-    id = builder.process("get_collection", {'name': 'S1'})
+    id = builder.process("load_collection", {'id': 'S1'})
 
     connection = MagicMock(spec=Connection)
     capabilities = MagicMock(spec=Capabilities)
@@ -93,6 +93,43 @@ def test_filter_bands(image_collection: ImageCollectionClient):
     assert graph['process_id'] == 'filter_bands'
     assert graph['arguments']['bands'] == ["red", "nir"]
 
+
+def test_pipe(image_collection: ImageCollectionClient):
+    def ndvi_percent(cube):
+        return cube.ndvi().linear_scale_range(0, 1, 0, 100)
+
+    im = image_collection.pipe(ndvi_percent)
+    assert im.graph == {
+        'loadcollection1': {'arguments': {'id': 'S1'}, 'process_id': 'load_collection', 'result': False},
+        'ndvi1': {
+            'process_id': 'ndvi',
+            'arguments': {'data': {'from_node': 'loadcollection1'}, 'name': 'ndvi'},
+            'result': False
+        },
+        'linearscalerange1': {
+            'process_id': 'linear_scale_range',
+            'arguments': {'inputMax': 1, 'inputMin': 0, 'outputMax': 100, 'outputMin': 0, 'x': {'from_node': 'ndvi1'}},
+            'result': False
+        },
+    }
+
+
+def test_pipe_with_args(image_collection: ImageCollectionClient):
+    def ndvi_scaled(cube, in_max=2, out_max=3):
+        return cube.ndvi().linear_scale_range(0, in_max, 0, out_max)
+
+    im = image_collection.pipe(ndvi_scaled)
+    assert im.graph["linearscalerange1"]["arguments"] == {
+        'inputMax': 2, 'inputMin': 0, 'outputMax': 3, 'outputMin': 0, 'x': {'from_node': 'ndvi1'}
+    }
+    im = image_collection.pipe(ndvi_scaled, 4, 5)
+    assert im.graph["linearscalerange1"]["arguments"] == {
+        'inputMax': 4, 'inputMin': 0, 'outputMax': 5, 'outputMin': 0, 'x': {'from_node': 'ndvi1'}
+    }
+    im = image_collection.pipe(ndvi_scaled, out_max=7)
+    assert im.graph["linearscalerange1"]["arguments"] == {
+        'inputMax': 2, 'inputMin': 0, 'outputMax': 7, 'outputMin': 0, 'x': {'from_node': 'ndvi1'}
+    }
 
 
 class TestRasterCube(TestCase):
@@ -249,13 +286,13 @@ class TestRasterCube(TestCase):
         }
 
     def test_resample_spatial(self):
-        new_imagery = self.img.resample_spatial(resolution=[2.0,3.0],projection=4578)
+        new_imagery = self.img.resample_spatial(resolution=[2.0, 3.0], projection=4578)
 
         graph = new_imagery.graph[new_imagery.node_id]
 
         self.assertEqual(graph["process_id"], "resample_spatial")
         self.assertIn("data", graph["arguments"])
-        self.assertEqual(graph["arguments"]["resolution"], [2.0,3.0])
+        self.assertEqual(graph["arguments"]["resolution"], [2.0, 3.0])
         self.assertEqual(graph["arguments"]["projection"], 4578)
 
     def test_merge(self):
@@ -263,7 +300,7 @@ class TestRasterCube(TestCase):
 
         graph = merged.graph[merged.node_id]
         print(graph)
-        self.assertEqual(graph["process_id"],"merge_cubes")
+        self.assertEqual(graph["process_id"], "merge_cubes")
         ndvi_id = graph["arguments"]["cube1"]["from_node"]
         orig_id = graph["arguments"]["cube2"]["from_node"]
         self.assertEqual(merged.graph[ndvi_id]["process_id"], "ndvi")
