@@ -1,8 +1,4 @@
-import re
-
 from setuptools import setup, find_packages
-import os
-import datetime
 
 # Load the openeo version info.
 #
@@ -12,26 +8,18 @@ import datetime
 # See:
 #   https://packaging.python.org/guides/single-sourcing-package-version
 
-__version__ = None
-date = datetime.datetime.today().strftime('%Y%m%d')
 
+_version = {}
 with open('openeo/_version.py') as fp:
-    exec(fp.read())
+    exec(fp.read(), _version)
 
-if os.environ.get('BUILD_NUMBER') and os.environ.get('BRANCH_NAME'):
-    if os.environ.get('BRANCH_NAME') == 'develop':
-        version = __version__ + '.' + date + '.' + os.environ['BUILD_NUMBER']
-    else:
-        version = __version__ + '.' + date + '.' + os.environ['BUILD_NUMBER'] + '+' + os.environ['BRANCH_NAME']
-else:
-    version = __version__
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
 name = 'openeo'
 setup(name=name,
-      version=version,
+      version=_version['__version__'],
       author='Jeroen Dries',
       author_email='jeroen.dries@vito.be',
       description='Client API for openEO',
