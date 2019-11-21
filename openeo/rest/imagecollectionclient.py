@@ -128,7 +128,8 @@ class ImageCollectionClient(ImageCollection):
         """
         new_collection = self.graph_add_process(process_id='filter_bands',
                                          args={'data': {'from_node': self.node_id}, 'bands': bands})
-        new_collection.metadata.filter_bands(bands)
+        if new_collection.metadata is not None:
+            new_collection.metadata.filter_bands(bands)
         return new_collection
 
     @deprecated("use `filter_bands()` instead")
