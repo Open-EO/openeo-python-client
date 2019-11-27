@@ -37,7 +37,7 @@
             },
             "result": false
           },
-          "eq1": {
+          "eq3": {
             "process_id": "eq",
             "arguments": {
               "x": {
@@ -47,7 +47,7 @@
             },
             "result": false
           },
-          "eq2": {
+           "eq4": {
             "process_id": "eq",
             "arguments": {
               "x": {
@@ -62,10 +62,10 @@
             "arguments": {
               "expressions": [
                 {
-                  "from_node": "eq1"
+                  "from_node": "eq3"
                 },
                 {
-                  "from_node": "eq2"
+                  "from_node": "eq4"
                 }
               ]
             },

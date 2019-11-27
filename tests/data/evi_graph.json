@@ -8,7 +8,7 @@
     },
     "result": false
   },
-  "reduce1": {
+  "reduce3": {
     "process_id": "reduce",
     "arguments": {
       "data": {
@@ -17,7 +17,7 @@
       "dimension": "spectral_bands",
       "reducer": {
         "callback": {
-          "arrayelement1": {
+          "arrayelement8": {
             "process_id": "array_element",
             "arguments": {
               "data": {
@@ -27,7 +27,7 @@
             },
             "result": false
           },
-          "arrayelement2": {
+          "arrayelement9": {
             "process_id": "array_element",
             "arguments": {
               "data": {
@@ -37,33 +37,33 @@
             },
             "result": false
           },
-          "subtract1": {
-            "process_id": "subtract",
-            "arguments": {
-              "data": [
-                {
-                  "from_node": "arrayelement1"
-                },
-                {
-                  "from_node": "arrayelement2"
-                }
-              ]
-            },
-            "result": false
-          },
-          "product1": {
+          "product7": {
             "process_id": "product",
             "arguments": {
               "data": [
                 {
-                  "from_node": "subtract1"
+                  "from_node": "subtract3"
                 },
                 2.5
               ]
             },
             "result": false
           },
-          "arrayelement3": {
+          "subtract3": {
+            "process_id": "subtract",
+            "arguments": {
+              "data": [
+                {
+                  "from_node": "arrayelement8"
+                },
+                {
+                  "from_node": "arrayelement9"
+                }
+              ]
+            },
+            "result": false
+          },
+          "arrayelement10": {
             "process_id": "array_element",
             "arguments": {
               "data": {
@@ -73,7 +73,7 @@
             },
             "result": false
           },
-          "arrayelement4": {
+          "arrayelement11": {
             "process_id": "array_element",
             "arguments": {
               "data": {
@@ -83,33 +83,7 @@
             },
             "result": false
           },
-          "product2": {
-            "process_id": "product",
-            "arguments": {
-              "data": [
-                {
-                  "from_node": "arrayelement4"
-                },
-                6.0
-              ]
-            },
-            "result": false
-          },
-          "sum1": {
-            "process_id": "sum",
-            "arguments": {
-              "data": [
-                {
-                  "from_node": "arrayelement3"
-                },
-                {
-                  "from_node": "product2"
-                }
-              ]
-            },
-            "result": false
-          },
-          "arrayelement5": {
+          "arrayelement12": {
             "process_id": "array_element",
             "arguments": {
               "data": {
@@ -119,38 +93,64 @@
             },
             "result": false
           },
-          "product3": {
+          "product8": {
             "process_id": "product",
             "arguments": {
               "data": [
                 {
-                  "from_node": "arrayelement5"
+                  "from_node": "arrayelement11"
+                },
+                6.0
+              ]
+            },
+            "result": false
+          },
+          "product9": {
+            "process_id": "product",
+            "arguments": {
+              "data": [
+                {
+                  "from_node": "arrayelement12"
                 },
                 7.5
               ]
             },
             "result": false
           },
-          "subtract2": {
+          "subtract4": {
             "process_id": "subtract",
             "arguments": {
               "data": [
                 {
-                  "from_node": "sum1"
+                  "from_node": "sum4"
                 },
                 {
-                  "from_node": "product3"
+                  "from_node": "product9"
                 }
               ]
             },
             "result": false
           },
-          "sum2": {
+          "sum4": {
             "process_id": "sum",
             "arguments": {
               "data": [
                 {
-                  "from_node": "subtract2"
+                  "from_node": "arrayelement10"
+                },
+                {
+                  "from_node": "product8"
+                }
+              ]
+            },
+            "result": false
+          },
+          "sum5": {
+            "process_id": "sum",
+            "arguments": {
+              "data": [
+                {
+                  "from_node": "subtract4"
                 },
                 1.0
               ]
@@ -162,10 +162,10 @@
             "arguments": {
               "data": [
                 {
-                  "from_node": "product1"
+                  "from_node": "product7"
                 },
                 {
-                  "from_node": "sum2"
+                  "from_node": "sum5"
                 }
               ]
             },
@@ -180,10 +180,10 @@
     "process_id": "save_result",
     "arguments": {
       "data": {
-        "from_node": "reduce1"
+        "from_node": "reduce3"
       },
-      "options": {},
-      "format": "GTIFF"
+      "format": "GTIFF",
+      "options": {}
     },
     "result": true
   }

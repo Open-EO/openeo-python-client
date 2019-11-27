@@ -5,11 +5,15 @@ import requests_mock
 from mock import MagicMock
 
 import openeo
+from openeo.graphbuilder import GraphBuilder
 from . import load_json_resource
 
 
 @requests_mock.mock()
 class TestBandMath(TestCase):
+
+    def setUp(self) -> None:
+        GraphBuilder.id_counter = {}
 
     def test_basic(self, m):
         m.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})
@@ -29,9 +33,11 @@ class TestBandMath(TestCase):
         expected_graph = load_json_resource('data/band0.json')
 
         assert cube.band(0).graph == expected_graph
+        GraphBuilder.id_counter = {}
         assert cube.band('B02').graph == expected_graph
 
     def test_band_indexing(self, m):
+        self.maxDiff=None
         m.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})
         session = openeo.connect("http://localhost:8000/api")
         session.post = MagicMock()
@@ -53,12 +59,16 @@ class TestBandMath(TestCase):
         expected_graph = load_json_resource('data/band_red.json')
 
         def check_cube(cube, band_index=2):
-            assert cube.band(band_index).graph == expected_graph
-            assert cube.band('B04').graph == expected_graph
-            assert cube.band('red').graph == expected_graph
+            GraphBuilder.id_counter = {}
+            self.assertDictEqual(cube.band(band_index).graph,expected_graph)
+            GraphBuilder.id_counter = {}
+            self.assertDictEqual(cube.band('B04').graph, expected_graph)
+            GraphBuilder.id_counter = {}
+            self.assertDictEqual(cube.band('red').graph, expected_graph)
         check_cube(cube)
 
         expected_graph = load_json_resource('data/band_red_filtered.json')
+        GraphBuilder.id_counter = {}
         check_cube( cube.filter_bands(['red','green']),0)
 
     def test_evi(self,m):

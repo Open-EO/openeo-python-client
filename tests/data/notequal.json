@@ -27,7 +27,7 @@
             },
             "result": false
           },
-          "eq1": {
+          "eq2": {
             "process_id": "eq",
             "arguments": {
               "x": {
@@ -41,7 +41,7 @@
             "process_id": "not",
             "arguments": {
               "expression": {
-                "from_node": "eq1"
+                "from_node": "eq2"
               }
             },
             "result": true

@@ -4,6 +4,9 @@ from openeo.graphbuilder import GraphBuilder
 
 class GraphBuilderTest(TestCase):
 
+    def setUp(self) -> None:
+        GraphBuilder.id_counter = {}
+
     def test_create_empty(self):
         builder = GraphBuilder()
         builder.process("sum",{})
@@ -92,10 +95,10 @@ class GraphBuilderTest(TestCase):
         import json
         print(json.dumps(merged, indent=2))
         self.assertIn("sum1", merged)
-        self.assertIn("sum2",merged)
-        self.assertIn("sum3", merged)
-        self.assertEqual("sum2",merged["sum3"]["arguments"]["data"]["from_node"])
-        self.assertEqual("sum2", merged["sum3"]["arguments"]["data2"][0]["from_node"])
+        self.assertIn("sum4",merged)
+        self.assertIn("sum5", merged)
+        self.assertEqual("sum4",merged["sum5"]["arguments"]["data"]["from_node"])
+        self.assertEqual("sum4", merged["sum5"]["arguments"]["data2"][0]["from_node"])
 
     def test_merge_issue50(self):
         """https://github.com/Open-EO/openeo-python-client/issues/50"""

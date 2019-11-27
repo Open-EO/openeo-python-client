@@ -4,11 +4,17 @@ import requests_mock
 from mock import MagicMock
 
 import openeo
+from openeo import ImageCollection
+from openeo.graphbuilder import GraphBuilder
 from . import load_json_resource
 
 
 @requests_mock.mock()
 class TestLogicalOps(TestCase):
+
+    def setUp(self) -> None:
+        GraphBuilder.id_counter = {}
+
 
     def test_not_equal(self, m):
         # configuration phase: define username, endpoint, parameters?
@@ -86,3 +92,34 @@ class TestLogicalOps(TestCase):
         actual_graph = session.download.call_args_list[0][0][0]
         expected_graph = load_json_resource('logical_and.json')
         assert actual_graph == expected_graph
+
+    def test_merging_cubes(self,m):
+
+
+        m.get("http://localhost:8000/api/", json={"version": "0.4.0"})
+        m.get("http://localhost:8000/api/collections", json={"collections": [{"product_id": "sentinel2_subset"}]})
+        m.get("http://localhost:8000/api/collections/SENTINEL2_SCF", json={
+            "product_id": "sentinel2_subset",
+            "bands": [{'band_id': 'B1'}, {'band_id': 'B2'}],
+        })
+
+        session = openeo.connect("http://localhost:8000/api")
+        session.post = MagicMock()
+        session.download = MagicMock()
+
+        ic = session.imagecollection("SENTINEL2_SCF")
+        b1:ImageCollection = ic.band('B1') > 1
+        b2:ImageCollection = ic.band('B2') > 2
+        b1 = b1.linear_scale_range(0,1,0,2)
+        b2 = b2.linear_scale_range(0, 1, 0, 2)
+
+        combined = b1 | b2
+
+        combined.download("out.geotiff", format="GTIFF")
+        session.download.assert_called_once()
+        actual_graph = session.download.call_args_list[0][0][0]
+
+        expected_graph = load_json_resource('data/cube_merge_or.json')
+        assert actual_graph == expected_graph
+
+

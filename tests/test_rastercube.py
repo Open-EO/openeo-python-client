@@ -11,6 +11,9 @@ from openeo.graphbuilder import GraphBuilder
 from openeo.rest.connection import Connection
 from openeo.rest.imagecollectionclient import ImageCollectionClient
 
+@pytest.fixture(autouse=True)
+def setUp() -> None:
+    GraphBuilder.id_counter = {}
 
 @pytest.fixture
 def image_collection():
@@ -123,18 +126,20 @@ def test_pipe_with_args(image_collection: ImageCollectionClient):
         'inputMax': 2, 'inputMin': 0, 'outputMax': 3, 'outputMin': 0, 'x': {'from_node': 'ndvi1'}
     }
     im = image_collection.pipe(ndvi_scaled, 4, 5)
-    assert im.graph["linearscalerange1"]["arguments"] == {
-        'inputMax': 4, 'inputMin': 0, 'outputMax': 5, 'outputMin': 0, 'x': {'from_node': 'ndvi1'}
+    assert im.graph["linearscalerange2"]["arguments"] == {
+        'inputMax': 4, 'inputMin': 0, 'outputMax': 5, 'outputMin': 0, 'x': {'from_node': 'ndvi2'}
     }
     im = image_collection.pipe(ndvi_scaled, out_max=7)
-    assert im.graph["linearscalerange1"]["arguments"] == {
-        'inputMax': 2, 'inputMin': 0, 'outputMax': 7, 'outputMin': 0, 'x': {'from_node': 'ndvi1'}
+    assert im.graph["linearscalerange3"]["arguments"] == {
+        'inputMax': 2, 'inputMin': 0, 'outputMax': 7, 'outputMin': 0, 'x': {'from_node': 'ndvi3'}
     }
 
 
 class TestRasterCube(TestCase):
 
     def setUp(self):
+        GraphBuilder.id_counter = {}
+
         builder = GraphBuilder()
         id = builder.process("get_collection", {'name': 'S1'})
 
@@ -148,6 +153,7 @@ class TestRasterCube(TestCase):
         builder = GraphBuilder()
         mask_id = builder.process("get_collection", {'name': 'S1_Mask'})
         self.mask = ImageCollectionClient(mask_id, builder, connection)
+
 
     def test_filter_bbox(self):
         im = self.img.filter_bbox(
@@ -257,7 +263,7 @@ class TestRasterCube(TestCase):
                     "from_node": "getcollection1"
                 },
                 "mask": {
-                    "from_node": "getcollection2"
+                    "from_node": "getcollection3"
                 },
                 "replacement": 102
             },

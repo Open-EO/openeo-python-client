@@ -3,12 +3,16 @@ from unittest import TestCase
 import requests_mock
 from mock import MagicMock
 
+from openeo.graphbuilder import GraphBuilder
 import openeo
 from . import load_json_resource
 
 
 @requests_mock.mock()
 class TestTemporal(TestCase):
+
+    def setUp(self) -> None:
+        GraphBuilder.id_counter = {}
 
     def test_apply_dimension_temporal_cumsum(self,m):
         m.get("http://localhost:8000/api/", json={"version": "0.4.0"})

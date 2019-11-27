@@ -5,12 +5,16 @@ import requests_mock
 from mock import MagicMock
 
 import openeo
+from openeo.graphbuilder import GraphBuilder
 from openeo import Job
 from . import load_json_resource
 
 
 @requests_mock.mock()
 class TestBatchJobs(TestCase):
+
+    def setUp(self) -> None:
+        GraphBuilder.id_counter = {}
 
     def test_create_job(self,m):
         m.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})

@@ -1,0 +1,146 @@
+{
+  "linearscalerange3": {
+    "process_id": "linear_scale_range",
+    "arguments": {
+      "x": {
+        "from_node": "reduce3"
+      },
+      "inputMin": 0,
+      "inputMax": 1,
+      "outputMin": 0,
+      "outputMax": 2
+    },
+    "result": false
+  },
+  "loadcollection2": {
+    "process_id": "load_collection",
+    "arguments": {
+      "id": "SENTINEL2_SCF",
+      "spatial_extent": null,
+      "temporal_extent": null
+    },
+    "result": false
+  },
+  "reduce3": {
+    "process_id": "reduce",
+    "arguments": {
+      "data": {
+        "from_node": "loadcollection2"
+      },
+      "dimension": "spectral_bands",
+      "reducer": {
+        "callback": {
+          "r1": {
+            "arguments": {
+              "data": {
+                "from_argument": "data"
+              },
+              "index": 0
+            },
+            "process_id": "array_element",
+            "result": false
+          },
+          "gt1": {
+            "process_id": "gt",
+            "arguments": {
+              "x": {
+                "from_node": "r1"
+              },
+              "y": 1
+            },
+            "result": true
+          }
+        }
+      }
+    },
+    "result": false
+  },
+  "linearscalerange4": {
+    "process_id": "linear_scale_range",
+    "arguments": {
+      "x": {
+        "from_node": "reduce4"
+      },
+      "inputMin": 0,
+      "inputMax": 1,
+      "outputMin": 0,
+      "outputMax": 2
+    },
+    "result": false
+  },
+  "loadcollection3": {
+    "process_id": "load_collection",
+    "arguments": {
+      "id": "SENTINEL2_SCF",
+      "spatial_extent": null,
+      "temporal_extent": null
+    },
+    "result": false
+  },
+  "reduce4": {
+    "process_id": "reduce",
+    "arguments": {
+      "data": {
+        "from_node": "loadcollection3"
+      },
+      "dimension": "spectral_bands",
+      "reducer": {
+        "callback": {
+          "r1": {
+            "arguments": {
+              "data": {
+                "from_argument": "data"
+              },
+              "index": 1
+            },
+            "process_id": "array_element",
+            "result": false
+          },
+          "gt2": {
+            "process_id": "gt",
+            "arguments": {
+              "x": {
+                "from_node": "r1"
+              },
+              "y": 2
+            },
+            "result": true
+          }
+        }
+      }
+    },
+    "result": false
+  },
+  "mergecubes1": {
+    "process_id": "merge_cubes",
+    "arguments": {
+      "cubes": [
+        {
+          "from_node": "linearscalerange3"
+        },
+        {
+          "from_node": "linearscalerange4"
+        }
+      ],
+      "cube1": {
+        "from_node": "linearscalerange3"
+      },
+      "cube2": {
+        "from_node": "linearscalerange4"
+      },
+      "overlap_resolver": "or"
+    },
+    "result": true
+  },
+  "saveresult1": {
+    "process_id": "save_result",
+    "arguments": {
+      "data": {
+        "from_node": "mergecubes1"
+      },
+      "format": "GTIFF",
+      "options": {}
+    },
+    "result": true
+  }
+}

@@ -17,6 +17,16 @@
       "dimension": "spectral_bands",
       "reducer": {
         "callback": {
+          "eq3": {
+            "process_id": "eq",
+            "arguments": {
+              "x": {
+                "from_node": "arrayelement1"
+              },
+              "y": 2
+            },
+            "result": false
+          },
           "arrayelement1": {
             "process_id": "array_element",
             "arguments": {
@@ -24,6 +34,16 @@
                 "from_argument": "data"
               },
               "index": 0
+            },
+            "result": false
+          },
+          "eq4": {
+            "process_id": "eq",
+            "arguments": {
+              "x": {
+                "from_node": "arrayelement2"
+              },
+              "y": 5
             },
             "result": false
           },
@@ -37,35 +57,15 @@
             },
             "result": false
           },
-          "eq1": {
-            "process_id": "eq",
-            "arguments": {
-              "x": {
-                "from_node": "arrayelement1"
-              },
-              "y": 2
-            },
-            "result": false
-          },
-          "eq2": {
-            "process_id": "eq",
-            "arguments": {
-              "x": {
-                "from_node": "arrayelement2"
-              },
-              "y": 5
-            },
-            "result": false
-          },
           "and1": {
             "process_id": "and",
             "arguments": {
               "expressions": [
                 {
-                  "from_node": "eq1"
+                  "from_node": "eq3"
                 },
                 {
-                  "from_node": "eq2"
+                  "from_node": "eq4"
                 }
               ]
             },

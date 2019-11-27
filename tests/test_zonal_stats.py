@@ -4,11 +4,15 @@ import requests_mock
 from shapely.geometry import shape
 
 import openeo
+from openeo.graphbuilder import GraphBuilder
 from . import load_json_resource
 
 
 @requests_mock.mock()
 class TestTimeSeries(TestCase):
+
+    def setUp(self) -> None:
+        GraphBuilder.id_counter = {}
 
     def test_polygon_timeseries(self, m):
         #configuration phase: define username, endpoint, parameters?
