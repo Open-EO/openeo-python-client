@@ -381,6 +381,7 @@ class ImageCollectionClient(ImageCollection):
                                               second=other_builder, arg_name="cubes")
                 node_id = cubes_merged.find_result_node_id()
                 the_node = cubes_merged.processes[node_id]
+                the_node["result"] = False
                 cubes = the_node["arguments"]["cubes"]
                 the_node["arguments"]["cube1"] = cubes[0]
                 the_node["arguments"]["cube2"] = cubes[1]

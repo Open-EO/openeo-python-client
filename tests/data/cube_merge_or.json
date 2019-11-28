@@ -139,7 +139,7 @@
         }
       }
     },
-    "result": true
+    "result": false
   },
   "saveresult1": {
     "process_id": "save_result",
