@@ -4,6 +4,9 @@ from typing import Dict, Union
 
 class GraphBuilder():
 
+    #id_counter is a class level field, this way we ensure that id's are unique, and don't have to make them unique when merging graphs
+    id_counter = {}
+
     def __init__(self, graph = None):
         """
             Create a process graph builder.
@@ -12,12 +15,29 @@ class GraphBuilder():
             :param graph: Dict : Optional, existing process graph
         """
         self.processes = {}
-        self.id_counter = {}
+
         if graph is not None:
             self._merge_processes(graph)
 
-    def copy(self):
-        return GraphBuilder(self.processes)
+    def copy(self,return_key_map=False):
+        the_copy = GraphBuilder()
+        return the_copy._merge_processes(self.processes,return_key_map=return_key_map)
+
+    def shallow_copy(self):
+        """
+        Copy, but don't update keys
+        :return:
+        """
+        the_copy = GraphBuilder()
+        the_copy.processes = copy.deepcopy(self.processes)
+        return the_copy
+
+    @classmethod
+    def from_process_graph(cls,graph:Dict):
+        builder = GraphBuilder()
+        builder.processes = copy.deepcopy(graph)
+        return builder
+
 
     def add_process(self,process_id,result=None, **args):
         process_id = self.process(process_id, args)
@@ -49,14 +69,14 @@ class GraphBuilder():
 
     def _generate_id(self,name:str):
         name = name.replace("_","")
-        if( not self.id_counter.get(name)):
-            self.id_counter[name] = 1
+        if( not GraphBuilder.id_counter.get(name)):
+            GraphBuilder.id_counter[name] = 1
         else:
-            self.id_counter[name] += 1
-        return name + str(self.id_counter[name])
+            GraphBuilder.id_counter[name] += 1
+        return name + str(GraphBuilder.id_counter[name])
 
     def merge(self, other: 'GraphBuilder'):
-        return GraphBuilder(self.processes)._merge_processes(other.processes)
+        return GraphBuilder.from_process_graph(self.processes)._merge_processes(other.processes)
 
     def _merge_processes(self, processes: Dict, return_key_map=False):
         # Maps original node key to new key in merged result

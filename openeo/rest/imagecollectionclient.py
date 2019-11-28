@@ -255,8 +255,8 @@ class ImageCollectionClient(ImageCollection):
             # TODO merge both process graphs?
             new_builder.add_process(operator, expression={'from_argument': 'data'}, result=True)
         else:
-            current_result = my_builder.find_result_node_id()
             new_builder = my_builder.copy()
+            current_result = new_builder.find_result_node_id()
             new_builder.processes[current_result]['result'] = False
             new_builder.add_process(operator, expression={'from_node': current_result},  result=True)
 
@@ -308,7 +308,7 @@ class ImageCollectionClient(ImageCollection):
             }
             return self.graph_add_process("reduce", args)
         else:
-            process_graph_copy = self.builder.copy()
+            process_graph_copy = self.builder.shallow_copy()
             process_graph_copy.processes[self.node_id]['arguments']['reducer']['callback'] = callback_graph_builder.processes
 
             # now current_node should be a reduce node, let's modify it
@@ -365,21 +365,42 @@ class ImageCollectionClient(ImageCollection):
                                       second=other_builder or fallback_node, arg_name=arg_name)
         # callback is ready, now we need to properly set up the reduce process that will invoke it
         if my_builder is None and other_builder is None:
-            # there was no previous reduce step
-            args = {
-                'data': {'from_node': self.node_id},
-                'process': {
-                    'callback': merged.processes
+            # there was no previous reduce step, perhaps this is a cube merge?
+            # cube merge is happening when node id's differ, otherwise we can use regular reduce
+            if (self.node_id != other.node_id):
+                # we're combining data from two different datacubes
+
+                # set result node id's first, to keep track
+                my_builder = self.builder
+                my_builder.processes[self.node_id]['result'] = True
+                other_builder = other.builder
+                other_builder.processes[other.node_id]['result'] = True
+
+                merged = GraphBuilder.combine(operator="merge_cubes",
+                                              first=my_builder,
+                                              second=other_builder, arg_name="cubes")
+                node_id = merged.find_result_node_id()
+                the_node = merged.processes[node_id]
+                cubes = the_node["arguments"]["cubes"]
+                the_node["arguments"]["cube1"] = cubes[0]
+                the_node["arguments"]["cube2"] = cubes[1]
+                the_node["arguments"]["overlap_resolver"] = operator
+                return ImageCollectionClient(node_id, merged, self.session, metadata=self.metadata)
+            else:
+                args = {
+                    'data': {'from_node': self.node_id},
+                    'process': {
+                        'callback': merged.processes
+                    }
                 }
-            }
-            return self.graph_add_process("reduce", args)
+                return self.graph_add_process("reduce", args)
         else:
             node_id = self.node_id
             reducing_graph = self
             if reducing_graph.graph[node_id]["process_id"] != "reduce":
                 node_id = other.node_id
                 reducing_graph = other
-            new_builder = reducing_graph.builder.copy()
+            new_builder = reducing_graph.builder.shallow_copy()
             new_builder.processes[node_id]['arguments']['reducer']['callback'] = merged.processes
             # now current_node should be a reduce node, let's modify it
             # TODO: set metadata of reduced cube?
@@ -401,8 +422,8 @@ class ImageCollectionClient(ImageCollection):
                 # TODO merge both process graphs?
                 new_builder.add_process(operator, x={'from_argument': 'data'}, y = other, result=True)
             else:
-                current_result = my_builder.find_result_node_id()
-                new_builder = my_builder.copy()
+                new_builder = my_builder.shallow_copy()
+                current_result = new_builder.find_result_node_id()
                 new_builder.processes[current_result]['result'] = False
                 new_builder.add_process(operator, x={'from_node': current_result}, y = other, result=True)
 
@@ -422,7 +443,7 @@ class ImageCollectionClient(ImageCollection):
             new_builder.add_process(operator, data=[{'from_argument': 'data'}, other], result=True)
         else:
             current_result = my_builder.find_result_node_id()
-            new_builder = my_builder.copy()
+            new_builder = my_builder.shallow_copy()
             new_builder.processes[current_result]['result'] = False
             new_builder.add_process(operator, data=[{'from_node': current_result}, other], result=True)
 
@@ -433,7 +454,7 @@ class ImageCollectionClient(ImageCollection):
         if current_node["process_id"] == "reduce":
             if current_node["arguments"]["dimension"] == "spectral_bands":
                 callback_graph = current_node["arguments"]["reducer"]["callback"]
-                return GraphBuilder(graph=callback_graph)
+                return GraphBuilder.from_process_graph(callback_graph)
         return None
 
     def zonal_statistics(self, regions, func, scale=1000, interval="day") -> 'ImageCollection':
@@ -1046,15 +1067,15 @@ class ImageCollectionClient(ImageCollection):
 
     def execute(self) -> Dict:
         """Executes the process graph of the imagery. """
-        newbuilder = self.builder.copy()
+        newbuilder = self.builder.shallow_copy()
         newbuilder.processes[self.node_id]['result'] = True
         return self.session.execute({"process_graph": newbuilder.processes},"")
 
     ####### HELPER methods #######
 
     def _graph_merge(self, other_graph:Dict):
-        newbuilder = GraphBuilder(self.builder.processes)
-        merged = newbuilder.merge(GraphBuilder(other_graph))
+        newbuilder = self.builder.shallow_copy()
+        merged = newbuilder.merge(GraphBuilder.from_process_graph(other_graph))
         # TODO: properly update metadata as well?
         newCollection = ImageCollectionClient(self.node_id, merged, self.session, metadata=self.metadata)
         return newCollection
@@ -1070,7 +1091,7 @@ class ImageCollectionClient(ImageCollection):
         :return: new ImageCollectionClient instance
         """
         #don't modify in place, return new builder
-        newbuilder = GraphBuilder(self.builder.processes)
+        newbuilder = self.builder.shallow_copy()
         id = newbuilder.process(process_id,args)
 
         # TODO: properly update metadata as well?

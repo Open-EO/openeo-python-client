@@ -108,8 +108,8 @@ class TestLogicalOps(TestCase):
         session.download = MagicMock()
 
         ic = session.imagecollection("SENTINEL2_SCF")
-        b1:ImageCollection = ic.band('B1') > 1
-        b2:ImageCollection = ic.band('B2') > 2
+        b1 = ic.band('B1') > 1
+        b2 = ic.band('B2') > 2
         b1 = b1.linear_scale_range(0,1,0,2)
         b2 = b2.linear_scale_range(0, 1, 0, 2)
 
