@@ -368,7 +368,7 @@ class ImageCollectionClient(ImageCollection):
             # there was no previous reduce step, perhaps this is a cube merge?
             # cube merge is happening when node id's differ, otherwise we can use regular reduce
             if (self.node_id != other.node_id):
-                # we're combining data from two different datacubes
+                # we're combining data from two different datacubes: http://api.openeo.org/v/0.4.0/processreference/#merge_cubes
 
                 # set result node id's first, to keep track
                 my_builder = self.builder
@@ -376,16 +376,26 @@ class ImageCollectionClient(ImageCollection):
                 other_builder = other.builder
                 other_builder.processes[other.node_id]['result'] = True
 
-                merged = GraphBuilder.combine(operator="merge_cubes",
+                cubes_merged = GraphBuilder.combine(operator="merge_cubes",
                                               first=my_builder,
                                               second=other_builder, arg_name="cubes")
-                node_id = merged.find_result_node_id()
-                the_node = merged.processes[node_id]
+                node_id = cubes_merged.find_result_node_id()
+                the_node = cubes_merged.processes[node_id]
                 cubes = the_node["arguments"]["cubes"]
                 the_node["arguments"]["cube1"] = cubes[0]
                 the_node["arguments"]["cube2"] = cubes[1]
-                the_node["arguments"]["overlap_resolver"] = operator
-                return ImageCollectionClient(node_id, merged, self.session, metadata=self.metadata)
+                del the_node["arguments"]["cubes"]
+
+                #there can be only one process for now
+                cube_list = list(merged.processes.values())[0]["arguments"][arg_name]
+                assert len(cube_list) == 2
+                # it is really not clear if this is the agreed way to go
+                cube_list[0]["from_argument"] = "cube1"
+                cube_list[1]["from_argument"] = "cube2"
+                the_node["arguments"]["overlap_resolver"] = {
+                    'callback': merged.processes
+                }
+                return ImageCollectionClient(node_id, cubes_merged, self.session, metadata=self.metadata)
             else:
                 args = {
                     'data': {'from_node': self.node_id},
