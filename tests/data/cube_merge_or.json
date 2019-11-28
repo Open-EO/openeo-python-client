@@ -114,21 +114,30 @@
   "mergecubes1": {
     "process_id": "merge_cubes",
     "arguments": {
-      "cubes": [
-        {
-          "from_node": "linearscalerange3"
-        },
-        {
-          "from_node": "linearscalerange4"
-        }
-      ],
       "cube1": {
         "from_node": "linearscalerange3"
       },
       "cube2": {
         "from_node": "linearscalerange4"
       },
-      "overlap_resolver": "or"
+      "overlap_resolver": {
+        "callback": {
+          "or1": {
+            "process_id": "or",
+            "arguments": {
+              "expressions": [
+                {
+                  "from_argument": "cube2"
+                },
+                {
+                  "from_argument": "cube2"
+                }
+              ]
+            },
+            "result": true
+          }
+        }
+      }
     },
     "result": true
   },
