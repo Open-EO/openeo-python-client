@@ -329,10 +329,6 @@ class Connection(RestApiConnection):
     # Legacy alias.
     imagecollection = load_collection
 
-    def point_timeseries(self, graph, x, y, srs) -> dict:
-        """Compute a timeseries for a given point location."""
-        r = self.post("/timeseries/point?x={x}&y={y}&srs={s}".format(x=x, y=y, s=srs), graph)
-        return r.json()
 
     def create_service(self, graph, type, **kwargs):
         kwargs["process_graph"] = graph

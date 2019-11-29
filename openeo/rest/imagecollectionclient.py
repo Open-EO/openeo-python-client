@@ -860,18 +860,6 @@ class ImageCollectionClient(ImageCollection):
         })
 
     ####VIEW methods #######
-    def timeseries(self, x, y, srs="EPSG:4326") -> Dict:
-        """
-        Extract a time series for the given point location.
-
-        :param x: The x coordinate of the point
-        :param y: The y coordinate of the point
-        :param srs: The spatial reference system of the coordinates, by default
-        this is 'EPSG:4326', where x=longitude and y=latitude.
-        :return: Dict: A timeseries
-        """
-        self.graph[self.node_id]['result'] = True
-        return self.session.point_timeseries({"process_graph": self.graph}, x, y, srs)
 
     def polygonal_mean_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> 'ImageCollection':
         """

@@ -478,18 +478,6 @@ class ImageCollection(ABC):
         pass
 
     ####VIEW methods #######
-    def timeseries(self, x, y, srs="EPSG:4326") -> Dict:
-        """
-        Extract a time series for the given point location.
-        DEPRECATED
-
-        :param x: The x coordinate of the point
-        :param y: The y coordinate of the point
-        :param srs: The spatial reference system of the coordinates, by default this is 'EPSG:4326', where x=longitude and y=latitude.
-
-        :return: Dict: A timeseries
-        """
-        pass
 
     def zonal_statistics(self, regions, func, scale=1000, interval="day") -> 'Dict':
         """
