@@ -275,6 +275,25 @@ class ImageCollection(ABC):
         """
         pass
 
+    def apply_dimension(self, code: str, runtime=None, version="latest",dimension='temporal') -> 'ImageCollection':
+        """
+        Applies an n-ary process (i.e. takes an array of pixel values instead of a single pixel value) to a raster data cube.
+        In contrast, the process apply applies an unary process to all pixel values.
+
+        By default, apply_dimension applies the the process on all pixel values in the data cube as apply does, but the parameter dimension can be specified to work only on a particular dimension only. For example, if the temporal dimension is specified the process will work on a time series of pixel values.
+
+        The n-ary process must return as many elements in the returned array as there are in the input array. Otherwise a CardinalityChanged error must be returned.
+
+
+        :param code: UDF code or process identifier
+        :param runtime:
+        :param version:
+        :param dimension:
+        :return:
+        :raises: CardinalityChangedError
+        """
+        pass
+
     def aggregate_time(self, temporal_window, aggregationfunction) -> 'ImageCollection' :
         """ Applies a windowed reduction to a timeseries by applying a user defined function.
             DEPRECATED: use Aggregate_temporal
