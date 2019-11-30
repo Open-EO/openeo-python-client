@@ -218,10 +218,7 @@ class ImageCollection(ABC):
 
         https://open-eo.github.io/openeo-api/v/0.4.0/processreference/#resample_spatial
 
-        :param resolution: Either a single number or an array with separate resolutions for each spatial dimension.
-        Resamples the data cube to the target resolution, which can be specified either as separate values for x and
-        y or as a single value for both axes. Specified in the units of the target projection. Doesn't change the
-        resolution by default (0).
+        :param resolution: Either a single number or an array with separate resolutions for each spatial dimension. Resamples the data cube to the target resolution, which can be specified either as separate values for x and y or as a single value for both axes.  Specified in the units of the target projection. Doesn't change the resolution by default (0).
         :param projection: Either an epsg code, as an integer, or a proj-definition
         string. Warps the data cube to the target projection. Target projection specified as EPSG code or PROJ
         definition. Doesn't change the projection by default (null).
