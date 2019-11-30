@@ -59,7 +59,7 @@ class ImageCollectionClient(ImageCollection):
         # TODO: rename function to load_collection for better similarity with corresponding process id?
         builder = GraphBuilder()
         process_id = 'load_collection'
-        normalized_temporal_extent = get_temporal_extent(extent=temporal_extent)
+        normalized_temporal_extent = get_temporal_extent(extent=temporal_extent) if temporal_extent is not None else None
         arguments = {
             'id': collection_id,
             'spatial_extent': spatial_extent,
