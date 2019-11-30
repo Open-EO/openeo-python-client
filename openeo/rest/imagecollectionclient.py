@@ -484,7 +484,7 @@ class ImageCollectionClient(ImageCollection):
                           in. Defaults to 1000.
             :param interval: Interval to group the time series. Allowed values:
                             day, wee, month, year. Defaults to day.
-            :return An ImageCollection instance
+            :return: An ImageCollection instance
         """
         regions_geojson = regions
         if isinstance(regions,Polygon) or isinstance(regions,MultiPolygon):
@@ -681,40 +681,48 @@ class ImageCollectionClient(ImageCollection):
 
     def min_time(self) -> 'ImageCollection':
         """Finds the minimum value of a time series for all bands of the input dataset.
-            :return An ImageCollection instance
+
+            :return: An ImageCollection instance
         """
 
         return self._reduce_time(reduce_function="min")
 
     def max_time(self) -> 'ImageCollection':
-        """Finds the maximum value of a time series for all bands of the input dataset.
-            :return An ImageCollection instance
+        """
+        Finds the maximum value of a time series for all bands of the input dataset.
+
+        :return: An ImageCollection instance
         """
         return self._reduce_time(reduce_function="max")
 
     def mean_time(self) -> 'ImageCollection':
         """Finds the mean value of a time series for all bands of the input dataset.
-            :return An ImageCollection instance
+
+            :return: An ImageCollection instance
         """
         return self._reduce_time(reduce_function="mean")
 
     def median_time(self) -> 'ImageCollection':
         """Finds the median value of a time series for all bands of the input dataset.
-            :return An ImageCollection instance
+
+            :return: An ImageCollection instance
         """
 
         return self._reduce_time(reduce_function="median")
 
     def count_time(self) -> 'ImageCollection':
         """Counts the number of images with a valid mask in a time series for all bands of the input dataset.
-            :return An ImageCollection instance
+
+            :return: An ImageCollection instance
         """
         return self._reduce_time(reduce_function="count")
 
     def ndvi(self, name="ndvi") -> 'ImageCollection':
-        """ NDVI
+        """ Normalized Difference Vegetation Index (NDVI)
 
-            :return An ImageCollection instance
+            :param name: Name of the newly created band
+
+            :return: An ImageCollection instance
         """
         process_id = 'ndvi'
         args = {
@@ -727,9 +735,10 @@ class ImageCollectionClient(ImageCollection):
     def stretch_colors(self, min, max) -> 'ImageCollection':
         """ Color stretching
         deprecated, use 'linear_scale_range' instead
+
             :param min: Minimum value
             :param max: Maximum value
-            :return An ImageCollection instance
+            :return: An ImageCollection instance
         """
         process_id = 'stretch_colors'
         args = {

@@ -158,6 +158,7 @@ class Connection(RestApiConnection):
     def __init__(self, url, auth: AuthBase = None, session: requests.Session = None):
         """
         Constructor of Connection, authenticates user.
+
         :param url: String Backend root url
         """
         super().__init__(root_url=url, auth=auth, session=session)
@@ -172,6 +173,7 @@ class Connection(RestApiConnection):
     def authenticate_basic(self, username: str, password: str) -> 'Connection':
         """
         Authenticate a user to the backend using basic username and password.
+
         :param username: User name
         :param password: User passphrase
         """
@@ -219,6 +221,7 @@ class Connection(RestApiConnection):
     def user_jobs(self) -> dict:
         """
         Loads all jobs of the current user.
+
         :return: jobs: Dict All jobs of the user
         """
         return self.get('/jobs').json()["jobs"]
@@ -226,6 +229,7 @@ class Connection(RestApiConnection):
     def list_collections(self) -> List[dict]:
         """
         Loads all available imagecollections types.
+
         :return: list of collection meta data dictionaries
         """
         return self.get('/collections').json()["collections"]
@@ -233,6 +237,7 @@ class Connection(RestApiConnection):
     def list_collection_ids(self) -> List[str]:
         """
         Get list of all collection ids
+
         :return: list of collection ids
         """
         return [collection['id'] for collection in self.list_collections() if 'id' in collection]
@@ -255,6 +260,7 @@ class Connection(RestApiConnection):
     def list_output_formats(self) -> dict:
         """
         Loads all available output formats.
+
         :return: data_dict: Dict All available output formats
         """
         return self.get('/output_formats').json()
@@ -262,6 +268,7 @@ class Connection(RestApiConnection):
     def list_service_types(self) -> dict:
         """
         Loads all available service types.
+
         :return: data_dict: Dict All available service types
         """
         return self.get('/service_types').json()
@@ -269,6 +276,7 @@ class Connection(RestApiConnection):
     def list_services(self) -> dict:
         """
         Loads all available services of the authenticated user.
+
         :return: data_dict: Dict All available service types
         """
         #TODO return service objects
@@ -278,6 +286,7 @@ class Connection(RestApiConnection):
         # TODO: Maybe create some kind of Data class.
         """
         Loads detailed information of a specific image collection.
+
         :param name: String Id of the collection
         :return: data_dict: Dict Detailed information about the collection
         """
@@ -290,6 +299,7 @@ class Connection(RestApiConnection):
         # TODO: Maybe format the result dictionary so that the process_id is the key of the dictionary.
         """
         Loads all available processes of the back end.
+
         :return: processes_dict: Dict All available processes of the back end.
         """
         return self.get('/processes').json()["processes"]
@@ -298,6 +308,7 @@ class Connection(RestApiConnection):
         # TODO: Maybe format the result so that there get Job classes returned.
         """
         Lists all jobs of the authenticated user.
+
         :return: job_list: Dict of all jobs of the user.
         """
         return self.get('/jobs').json()["jobs"]
@@ -342,6 +353,7 @@ class Connection(RestApiConnection):
     def remove_service(self, service_id: str):
         """
         Stop and remove a secondary web service.
+
         :param service_id: service identifier
         :return:
         """
@@ -354,6 +366,7 @@ class Connection(RestApiConnection):
     def list_files(self):
         """
         Lists all files that the logged in user uploaded.
+
         :return: file_list: List of the user uploaded files.
         """
 
@@ -362,6 +375,7 @@ class Connection(RestApiConnection):
     def create_file(self, path):
         """
         Creates virtual file
+
         :return: file object.
         """
         # No endpoint just returns a file object.
@@ -387,6 +401,7 @@ class Connection(RestApiConnection):
     def execute(self, process_graph, output_format, output_parameters=None, budget=None):
         """
         Execute a process graph synchronously.
+
         :param process_graph: Dict representing a process graph
         :param output_format: String Output format of the execution
         :param output_parameters: Dict of additional output parameters
@@ -401,6 +416,7 @@ class Connection(RestApiConnection):
                    additional:Dict={}):
         """
         Posts a job to the back end.
+
         :param process_graph: String data of the job (e.g. process graph)
         :param output_format: String Output format of the execution - DEPRECATED in 0.4.0
         :param output_parameters: Dict of additional output parameters - DEPRECATED in 0.4.0
@@ -437,6 +453,7 @@ class Connection(RestApiConnection):
     def parse_json_response(self, response: requests.Response):
         """
         Parses json response, if an error occurs it raises an Exception.
+
         :param response: Response of a RESTful request
         :return: response: JSON Response
         """
@@ -520,6 +537,7 @@ def session(userid=None, endpoint: str = "https://openeo.org/openeo") -> Connect
     This method is the entry point to OpenEO. You typically create one session object in your script or application, per back-end.
     and re-use it for all calls to that backend.
     If the backend requires authentication, you should set pass your credentials.
+
     :param endpoint: The http url of an OpenEO endpoint.
     :rtype: openeo.sessions.Session
     """

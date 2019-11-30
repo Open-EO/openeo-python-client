@@ -389,7 +389,7 @@ class ImageCollection(ABC):
 
             :param name: Name of the newly created band
 
-            :return An ImageCollection instance
+            :return: An ImageCollection instance
         """
         pass
 
@@ -399,7 +399,7 @@ class ImageCollection(ABC):
             :param min: Minimum value
             :param max: Maximum value
 
-            :return An ImageCollection instance
+            :return: An ImageCollection instance
         """
         pass
 
@@ -409,7 +409,6 @@ class ImageCollection(ABC):
         The following criteria can be used to select bands:
 
             :param bands: List of band names or single band name as a string. The order of the specified array defines the order of the bands in the data cube, which can be important for subsequent processes.
-
             :return An ImageCollection instance
         """
         # TODO: also handle a common_names (and wavelengths) argument like https://open-eo.github.io/openeo-api/processreference/#filter_bands?
@@ -423,9 +422,8 @@ class ImageCollection(ABC):
     def band(self, band_name) -> 'ImageCollection':
         """Select the given band, as input for subsequent operations.
 
-            :param bands: List of band names or single band name as a string.
-
-            :return An ImageCollection instance
+            :param band_name: List of band names or single band name as a string.
+            :return: An ImageCollection instance
         """
         # TODO: does this method have to be defined at the level of the ImageCollection base class? it is only implemented by the rest client
         pass
@@ -493,7 +491,7 @@ class ImageCollection(ABC):
         :param interval: Interval to group the time series. Allowed values:
                         day, wee, month, year. Defaults to day.
 
-        :return A timeseries
+        :return: A timeseries
         """
         pass
 
