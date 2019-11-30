@@ -42,7 +42,7 @@ class ImageCollectionClient(ImageCollection):
     def load_collection(
             cls, collection_id: str, session: 'Connection' = None,
             spatial_extent: Union[Dict[str, float], None] = None,
-            temporal_extent: Union[List[Union[str,datetime,datetime.date]], None] = None,
+            temporal_extent: Union[List[Union[str,datetime.datetime,datetime.date]], None] = None,
             bands: Union[List[str], None] = None,
             fetch_metadata=True
     ):
