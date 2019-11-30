@@ -42,6 +42,7 @@ setup(name=name,
           "dev": [
               "sphinx",
               "sphinx-autodoc-annotation",
+              "sphinx-autodoc-typehints",
               "mock",
               "requests-mock",
               "pytest",

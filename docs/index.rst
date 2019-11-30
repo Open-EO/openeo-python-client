@@ -120,6 +120,25 @@ after that, we can simply apply it along a dimension::
 
     >>> smoothed_evi = evi_cube_masked.apply_dimension(smoothing_udf,runtime='Python')
 
+Using custom processes
+----------------------
+An openEO backend may offer processes that are not part of the core API, or the client may not yet
+have a corresponding method for a process that you wish to use. In that case, you can fall back to
+a more generic API that allows you to add processes directly.
+
+To add a simple process to the graph, use: :func:`~openeo.rest.imagecollectionclient.ImageCollectionClient#graph_add_process`.
+This will return a new ImageCollection with the new process.
+
+Example::
+
+   >>> args= {
+         'data': {'from_node': cube.node_id},
+         'param': 3.14
+       }
+       cube.graph_add_process('my_process',args)
+
+To be able to use custom processes, you need to have some documentation. A list of processes can be
+retrieved with: :func:`~openeo.rest.connection.Connection#list_processes`.
 
 API
 ===
@@ -138,10 +157,10 @@ use the lower level classes.
 
 
 openeo.rest.connection
--------------------------
+----------------------
 
 .. automodule:: openeo.rest.connection
-   :members: Connection OpenEoApiError
+   :members: Connection, OpenEoApiError
 
 
 openeo.rest.imagecollectionclient

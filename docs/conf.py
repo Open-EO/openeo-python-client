@@ -36,6 +36,7 @@ import openeo
 # ones.
 extensions = ['sphinx.ext.autodoc',
               'sphinx_autodoc_annotation',
+              'sphinx_autodoc_typehints',
                 'sphinx.ext.viewcode',
     'sphinx.ext.doctest']
 
