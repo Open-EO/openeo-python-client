@@ -10,6 +10,7 @@ from shapely.geometry import Polygon, MultiPolygon, mapping
 from openeo.graphbuilder import GraphBuilder
 from openeo.imagecollection import ImageCollection, CollectionMetadata
 from openeo.job import Job
+from openeo.util import get_temporal_extent
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Only import this for type hinting purposes. Runtime import causes circular dependency issues.
@@ -41,7 +42,7 @@ class ImageCollectionClient(ImageCollection):
     def load_collection(
             cls, collection_id: str, session: 'Connection' = None,
             spatial_extent: Union[Dict[str, float], None] = None,
-            temporal_extent: Union[List[str], None] = None,
+            temporal_extent: Union[List[Union[str,datetime,datetime.date]], None] = None,
             bands: Union[List[str], None] = None,
             fetch_metadata=True
     ):
@@ -58,10 +59,11 @@ class ImageCollectionClient(ImageCollection):
         # TODO: rename function to load_collection for better similarity with corresponding process id?
         builder = GraphBuilder()
         process_id = 'load_collection'
+        normalized_temporal_extent = get_temporal_extent(extent=temporal_extent)
         arguments = {
             'id': collection_id,
             'spatial_extent': spatial_extent,
-            'temporal_extent': temporal_extent,
+            'temporal_extent': normalized_temporal_extent,
         }
         if bands:
             arguments['bands'] = bands
