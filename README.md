@@ -8,8 +8,7 @@ Python client API for OpenEO. Allows you to interact with OpenEO backends from y
 
 ## Requirements
 
-* Python 3.5
-* Pip3
+* Python 3.5 or higher
 
 Windows users: It is recommended to install Anaconda Python as shapely may need to be installed separately using the Anaconda Navigator.
 
@@ -22,11 +21,9 @@ Windows users: It is recommended to install Anaconda Python as shapely may need 
 
 ## Development
 
-Installing locally checked out version:
+Install locally checked out version with additional development related dependencies:
 ```bash
-pip install -r requirements.txt
-pip install -r requirements-dev.txt
-pip install -e .
+pip install -e .[dev]
 ```
 Building the documentation:
 

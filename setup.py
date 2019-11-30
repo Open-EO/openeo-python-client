@@ -38,6 +38,16 @@ setup(name=name,
           'pandas',
           'deprecated',
       ],
+      extras_require={
+          "dev": [
+              "sphinx",
+              "sphinx-autodoc-annotation",
+              "mock",
+              "requests-mock",
+              "pytest",
+              "flake8",
+          ]
+      },
       classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: Apache Software License",
