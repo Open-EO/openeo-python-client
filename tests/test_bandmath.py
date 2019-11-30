@@ -141,7 +141,7 @@ class TestBandMath(TestCase):
 
         #get result as timeseries for a single point
         #How to define a point? Ideally it should also have the CRS?
-        ndvi_coverage.timeseries(4, 51)
+        ndvi_coverage.execute()
 
         expected_graph = {
             'process_graph': {
@@ -164,7 +164,7 @@ class TestBandMath(TestCase):
             }
         }
 
-        session.post.assert_called_once_with("/timeseries/point?x=4&y=51&srs=EPSG:4326", expected_graph)
+        session.post.assert_called_once_with(path="/result", json=expected_graph)
         session.download.assert_called_once()
 
     def test_ndvi_udf_0_4_0(self, m):
