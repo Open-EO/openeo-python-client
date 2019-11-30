@@ -30,6 +30,9 @@ class ImageCollectionClient(ImageCollection):
         self.graph = builder.processes
         self.metadata = metadata
 
+    def __str__(self):
+        return "ImageCollection: %s" % self.node_id
+
     @property
     def _api_version(self):
         return self.session.capabilities().api_version_check
