@@ -474,7 +474,7 @@ class ImageCollection(ABC):
 
     ####VIEW methods #######
 
-    def zonal_statistics(self, regions, func, scale=1000, interval="day") -> 'Dict':
+    def zonal_statistics(self, regions, func, scale=1000, interval="day") -> 'ImageCollection':
         """
         Calculates statistics for each zone specified in a file.
 
@@ -492,7 +492,7 @@ class ImageCollection(ABC):
         """
         pass
 
-    def polygonal_mean_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> Dict:
+    def polygonal_mean_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> 'ImageCollection':
         """
         Extract a mean time series for the given (multi)polygon. Its points are expected to be in the EPSG:4326 coordinate
         reference system.
@@ -503,7 +503,7 @@ class ImageCollection(ABC):
         """
         pass
 
-    def polygonal_histogram_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> Dict:
+    def polygonal_histogram_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> 'ImageCollection':
         """
         Extract a histogram time series for the given (multi)polygon. Its points are expected to be in the EPSG:4326 coordinate
         reference system.
@@ -514,7 +514,7 @@ class ImageCollection(ABC):
         """
         pass
 
-    def polygonal_median_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> Dict:
+    def polygonal_median_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> 'ImageCollection':
         """
         Extract a median time series for the given (multi)polygon. Its points are
         expected to be in the EPSG:4326 coordinate
@@ -524,9 +524,9 @@ class ImageCollection(ABC):
         :return: ImageCollection
         """
         pass
-        
 
-    def polygonal_standarddeviation_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> Dict:
+
+    def polygonal_standarddeviation_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> 'ImageCollection':
         """
         Extract a time series of standard deviations for the given (multi)polygon. Its points are
         expected to be in the EPSG:4326 coordinate

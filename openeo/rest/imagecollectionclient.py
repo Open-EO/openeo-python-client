@@ -887,7 +887,7 @@ class ImageCollectionClient(ImageCollection):
 
         return self._polygonal_timeseries(polygon, "mean")
 
-    def polygonal_histogram_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> Dict:
+    def polygonal_histogram_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> 'ImageCollection':
         """
         Extract a histogram time series for the given (multi)polygon. Its points are
         expected to be in the EPSG:4326 coordinate
@@ -899,7 +899,7 @@ class ImageCollectionClient(ImageCollection):
 
         return self._polygonal_timeseries(polygon, "histogram")
 
-    def polygonal_median_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> Dict:
+    def polygonal_median_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> 'ImageCollection':
         """
         Extract a median time series for the given (multi)polygon. Its points are
         expected to be in the EPSG:4326 coordinate
@@ -911,7 +911,7 @@ class ImageCollectionClient(ImageCollection):
 
         return self._polygonal_timeseries(polygon, "median")
 
-    def polygonal_standarddeviation_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> Dict:
+    def polygonal_standarddeviation_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> 'ImageCollection':
         """
         Extract a time series of standard deviations for the given (multi)polygon. Its points are
         expected to be in the EPSG:4326 coordinate
