@@ -413,7 +413,7 @@ class Connection(RestApiConnection):
 
     def create_job(self, process_graph:Dict, output_format:str=None, output_parameters:Dict={},
                    title:str=None, description:str=None, plan:str=None, budget=None,
-                   additional:Dict={}):
+                   additional:Dict=None):
         """
         Posts a job to the back end.
 
@@ -433,6 +433,8 @@ class Connection(RestApiConnection):
              "plan": plan,
              "budget": budget
          }
+        if additional is not None:
+            process_graph["job_options"]=additional
 
         job_status = self.post("/jobs", process_graph)
 

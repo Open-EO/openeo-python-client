@@ -1001,19 +1001,20 @@ class ImageCollectionClient(ImageCollection):
             self,
             outputfile: str, out_format: str = None,
             print=print, max_poll_interval=60, connection_retry_interval=30,
-            **format_options):
+            job_options = None,**format_options):
         """
         Evaluate the process graph by creating a batch job, and retrieving the results when it is finished.
         This method is mostly recommended if the batch job is expected to run in a reasonable amount of time.
 
         For very long running jobs, you probably do not want to keep the client running.
 
+        :param job_options:
         :param outputfile: The path of a file to which a result can be written
         :param out_format: String Format of the job result.
         :param format_options: String Parameters for the job result format
 
         """
-        job = self.send_job(out_format, **format_options)
+        job = self.send_job(out_format,job_options=job_options, **format_options)
         job.start_job()
 
         job_id = None
@@ -1052,10 +1053,11 @@ class ImageCollectionClient(ImageCollection):
         return job_info
 
 
-    def send_job(self, out_format=None, **format_options) -> Job:
+    def send_job(self, out_format=None, job_options=None,**format_options) -> Job:
         """
         Sends a job to the backend and returns a ClientJob instance.
 
+        :param job_options:
         :param out_format: String Format of the job result.
         :param format_options: String Parameters for the job result format
         :return: status: ClientJob resulting job.
@@ -1070,7 +1072,7 @@ class ImageCollectionClient(ImageCollection):
                 }
                 newcollection = self.graph_add_process("save_result", args)
                 newcollection.graph[newcollection.node_id]["result"] = True
-                return self.session.create_job(process_graph=newcollection.graph)
+                return self.session.create_job(process_graph=newcollection.graph,additional=job_options)
             else:
                 return self.session.create_job(process_graph=graph, output_format=out_format,
                                                output_parameters=format_options)
