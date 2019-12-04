@@ -6,6 +6,7 @@ import copy
 
 from deprecated import deprecated
 from shapely.geometry import Polygon, MultiPolygon, mapping
+from requests import ConnectionError
 
 from openeo.graphbuilder import GraphBuilder
 from openeo.imagecollection import ImageCollection, CollectionMetadata
