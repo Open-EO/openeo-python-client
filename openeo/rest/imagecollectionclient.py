@@ -406,7 +406,7 @@ class ImageCollectionClient(ImageCollection):
             else:
                 args = {
                     'data': {'from_node': self.node_id},
-                    'process': {
+                    'reducer': {
                         'callback': merged.processes
                     }
                 }
