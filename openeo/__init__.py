@@ -18,7 +18,6 @@ from openeo.catalog import EOProduct
 from openeo.imagecollection import ImageCollection
 from openeo.rest.connection import connect, session
 from openeo.job import Job
-from openeo.process.process import *
 
 
 def client_version() -> str:
