@@ -1,11 +1,14 @@
 """
 Various utilities and helpers.
 """
+import logging
 import re
 from datetime import datetime, date
-from typing import Any, Union, Tuple
+from typing import Any, Union, Tuple, Callable
 
 _rfc3339_date_format = re.compile(r'\d{4}-\d{2}-\d{2}')
+
+logger = logging.getLogger(__name__)
 
 
 def date_to_rfc3339(d: Any) -> str:
@@ -66,3 +69,47 @@ def get_temporal_extent(*args,
         assert start_date is None and end_date is None
         start_date, end_date = extent
     return convertor(start_date) if start_date else None, convertor(end_date) if end_date else None
+
+
+class TimingLogger:
+    """
+    Context manager for quick and easy logging of start time, end time and elapsed time of some block of code
+
+    Usage example:
+
+    >>> with TimingLogger("Doing batch job"):
+    ...     do_batch_job()
+
+    At start of the code block the current time will be logged
+    and at end of the code block the end time and elapsed time will be logged.
+    """
+
+    # Function that returns current datetime (overridable for unit tests)
+    _now = datetime.now
+
+    def __init__(self, title: str = "Timing", logger: Union[logging.Logger, str, Callable] = logger):
+        """
+        :param title: the title to use in the logging
+        :param logger: how the timing should be logged.
+            Can be specified as a logging.Logger object (in which case the INFO log level will be used),
+            as a string (name of the logging.Logger object to construct),
+            or as callable (e.g. to use the `print` function, or the `.debug` method of an existing logger)
+        """
+        self.title = title
+        if isinstance(logger, str):
+            logger = logging.getLogger(logger)
+        if isinstance(logger, logging.Logger):
+            self._log = logger.info
+        elif callable(logger):
+            self._log = logger
+        else:
+            raise ValueError("Invalid logger {l!r}".format(l=logger))
+
+    def __enter__(self):
+        self.start_time = self._now()
+        self._log("{t}: start {s}".format(t=self.title, s=self.start_time))
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.end_time = self._now()
+        self.elapsed = self.end_time - self.start_time
+        self._log("{t}: end {e}, elapsed {d}".format(t=self.title, e=self.end_time, d=self.elapsed))
