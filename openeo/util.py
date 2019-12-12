@@ -105,6 +105,8 @@ class TimingLogger:
         else:
             raise ValueError("Invalid logger {l!r}".format(l=logger))
 
+        self.start_time = self.end_time = self.elapsed = None
+
     def __enter__(self):
         self.start_time = self._now()
         self._log("{t}: start {s}".format(t=self.title, s=self.start_time))
@@ -112,4 +114,8 @@ class TimingLogger:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.end_time = self._now()
         self.elapsed = self.end_time - self.start_time
-        self._log("{t}: end {e}, elapsed {d}".format(t=self.title, e=self.end_time, d=self.elapsed))
+        self._log("{t}: {s} {e}, elapsed {d}".format(
+            t=self.title,
+            s="fail" if exc_type else "end",
+            e=self.end_time, d=self.elapsed
+        ))

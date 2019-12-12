@@ -78,3 +78,27 @@ def test_timing_logger_custom():
         "Hello world",
         "Testing: end 2019-12-12 11:12:13.014141, elapsed 1:02:03.004141"
     ]
+
+
+def test_timing_logger_fail():
+    logs = []
+
+    def logger(msg):
+        logs.append(msg)
+
+    timing_logger = TimingLogger("Testing", logger=logger)
+
+    # Trick to have a "time" function that returns different times in subsequent calls
+    times = [datetime(2019, 12, 12, 10, 10, 10, 10000), datetime(2019, 12, 12, 11, 12, 13, 14141)]
+    timing_logger._now = iter(times).__next__
+
+    try:
+        with timing_logger:
+            raise ValueError("Hello world")
+    except ValueError:
+        pass
+
+    assert logs == [
+        "Testing: start 2019-12-12 10:10:10.010000",
+        "Testing: fail 2019-12-12 11:12:13.014141, elapsed 1:02:03.004141"
+    ]
