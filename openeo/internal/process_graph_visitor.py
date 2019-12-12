@@ -37,7 +37,8 @@ class ProcessGraphVisitor(ABC):
         result_node = None
         for node, node_dict in process_graph.items():
             if node_dict.get("result", False):
-                assert result_node is None
+                if result_node:
+                    raise ValueError("Multiple result nodes: {a}, {b}".format(a=result_node, b=node))
                 result_node = node
             arguments = node_dict.get("arguments", {})
             for arg in arguments.values():

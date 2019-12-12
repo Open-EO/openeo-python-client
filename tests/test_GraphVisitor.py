@@ -39,7 +39,7 @@ class GraphVisitorTest(TestCase):
         original.accept_process_graph(graph)
         assert leaveProcess.call_count == 2
         leaveProcess.assert_has_calls([
-            call('abs',ANY),
+            call('abs', ANY),
             call('cos', ANY)
         ])
 
@@ -87,7 +87,7 @@ class GraphVisitorTest(TestCase):
         original.accept_process_graph(graph)
         self.assertEqual(2, leaveProcess.call_count)
         leaveProcess.assert_has_calls([
-            call('abs',ANY),
+            call('abs', ANY),
             call('cos', ANY)
         ])
 
@@ -164,6 +164,14 @@ def test_dereference_no_result_node():
         })
 
 
+def test_dereference_multiple_result_node():
+    with pytest.raises(ValueError, match="Multiple result nodes"):
+        ProcessGraphVisitor.dereference_from_node_arguments({
+            "node1": {"result": True},
+            "node2": {"result": True}
+        })
+
+
 def test_dereference_invalid_node():
     graph = {
         "node1": {},
@@ -197,4 +205,3 @@ def test_dereference_cycle():
     ProcessGraphVisitor.dereference_from_node_arguments(graph)
     assert graph["node1"]["arguments"]["data"]["node"] is graph["node2"]
     assert graph["node2"]["arguments"]["data"]["node"] is graph["node1"]
-
