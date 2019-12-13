@@ -10,6 +10,7 @@ from urllib.parse import urljoin
 
 import requests
 from deprecated import deprecated
+from openeo.rest import OpenEoClientException
 from requests import Response
 from requests.auth import HTTPBasicAuth, AuthBase
 
@@ -29,7 +30,7 @@ def url_join(root_url: str, path: str):
     return urljoin(root_url.rstrip('/') + '/', path.lstrip('/'))
 
 
-class OpenEoApiError(Exception):
+class OpenEoApiError(OpenEoClientException):
     """
     Error returned by OpenEO API according to https://open-eo.github.io/openeo-api/errors/
     """

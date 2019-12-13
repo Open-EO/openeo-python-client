@@ -21,6 +21,7 @@ from queue import Queue, Empty
 from typing import Tuple, Callable
 
 import requests
+from openeo.rest import OpenEoClientException
 
 log = logging.getLogger(__name__)
 
@@ -155,7 +156,7 @@ def random_string(length=32, characters: str = None):
     return "".join(random.choice(characters) for _ in range(length))
 
 
-class OAuthException(RuntimeError):
+class OAuthException(OpenEoClientException):
     pass
 
 
