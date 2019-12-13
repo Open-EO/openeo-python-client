@@ -1,13 +1,17 @@
+import logging
 import typing
 import urllib.request
 from typing import List
 
 from openeo.job import Job, JobResult
+from openeo.rest import OpenEoClientException
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Only import this for type hinting purposes. Runtime import causes circular dependency issues.
     # Note: the `hasattr` check is necessary for Python versions before 3.5.2.
     from openeo.rest.connection import Connection
+
+logger = logging.getLogger(__name__)
 
 
 class RESTJobResult(JobResult):
@@ -54,9 +58,10 @@ class RESTJob(Job):
     def start_job(self):
         """ Start / queue a job for processing."""
         # POST /jobs/{job_id}/results
-        request = self.connection.post("/jobs/{}/results".format(self.job_id))
-
-        return request.status_code
+        url = "/jobs/{}/results".format(self.job_id)
+        request = self.connection.post(url)
+        if request.status_code != 202:
+            logger.warning("{u} returned with status code {s} instead of 202".format(u=url, s=request.status_code))
 
     def stop_job(self):
         """ Stop / cancel job processing."""
@@ -72,34 +77,24 @@ class RESTJob(Job):
 
     def download_results(self, target):
         """ Download job results."""
-        # GET /jobs/{job_id}/results > ...
+        results_url = "/jobs/{}/results".format(self.job_id)
+        r = self.connection.get(results_url, expected_status=200)
+        links = r.json()["links"]
+        if len(links) != 1:
+            # TODO handle download of multiple files?
+            raise OpenEoClientException("Expected 1 result file to download, but got {c}".format(c=len(links)))
+        file_url = links[0]["href"]
 
-        download_url = "/jobs/{}/results".format(self.job_id)
-        r = self.connection.get(download_url, stream=True)
+        with open(target, 'wb') as handle:
+            response = self.connection.get(file_url, stream=True)
+            for block in response.iter_content(1024):
+                if not block:
+                    break
+                handle.write(block)
+        return target
 
-        if r.status_code == 200:
-
-            url = r.json()
-            if "links" in url:
-                download_url = url["links"][0]
-                if "href" in download_url:
-                    download_url = download_url["href"]
-
-            with open(target, 'wb') as handle:
-                response = self.connection.get(download_url, stream=True)
-
-                for block in response.iter_content(1024):
-
-                    if not block:
-                        break
-
-                    handle.write(block)
-        else:
-            raise ConnectionAbortedError(r.text)
-        return r.status_code
-
-# TODO: All below methods are deprecated (at least not specified in the coreAPI)
-    def download(self, outputfile:str, outputformat=None):
+    # TODO: All below methods are deprecated (at least not specified in the coreAPI)
+    def download(self, outputfile: str, outputformat=None):
         """ Download the result as a raster."""
         try:
             return self.connection.download_job(self.job_id, outputfile, outputformat)
@@ -117,6 +112,3 @@ class RESTJob(Job):
     def results(self) -> List[RESTJobResult]:
         """ Returns this job's results. """
         return [RESTJobResult(link['href']) for link in self.connection.job_results(self.job_id)['links']]
-
-
-

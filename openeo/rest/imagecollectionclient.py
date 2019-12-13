@@ -969,7 +969,7 @@ class ImageCollectionClient(ImageCollection):
             self,
             outputfile: str, out_format: str = None,
             print=print, max_poll_interval=60, connection_retry_interval=30,
-            job_options = None,**format_options):
+            job_options=None, **format_options):
         """
         Evaluate the process graph by creating a batch job, and retrieving the results when it is finished.
         This method is mostly recommended if the batch job is expected to run in a reasonable amount of time.
@@ -986,12 +986,13 @@ class ImageCollectionClient(ImageCollection):
         job = self.send_job(out_format,job_options=job_options, **format_options)
         job.start_job()
 
-        job_id = None
+        job_id = job.job_id
         job_info = None
         status = None
-        poll_interval = 5
+        poll_interval = min(5, max_poll_interval)
         start_time = time.time()
         while True:
+            # TODO: also allow a hard time limit on this infinite poll loop?
             elapsed = str(datetime.timedelta(seconds=time.time() - start_time))
             try:
                 job_info = job.describe_job()
@@ -1000,11 +1001,11 @@ class ImageCollectionClient(ImageCollection):
                 time.sleep(connection_retry_interval)
                 continue
 
-            job_id = job_info.get("id", "N/A")
             status = job_info.get("status", "N/A")
             print("{t} Job {i}: {s} (progress {p})".format(
-                t=elapsed, i=job_id, s=status, p=job_info.get("progress", "N/A"))
-            )
+                t=elapsed, i=job_id, s=status,
+                p='{p}%'.format(p=job_info["progress"]) if "progress" in job_info else "N/A"
+            ))
             if status not in ('submitted', 'queued', 'running'):
                 break
 
