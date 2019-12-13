@@ -73,3 +73,6 @@ class Job(ABC):
 
     def results(self) -> List[JobResult]:
         pass
+
+    def __repr__(self):
+        return '<{c} job_id={i!r}>'.format(c=self.__class__.__name__, i=self.job_id)
