@@ -34,6 +34,14 @@ def first_not_none(*args):
     raise ValueError("No not-None values given.")
 
 
+def ensure_list(x):
+    """Convert given data structure to a list."""
+    try:
+        return list(x)
+    except TypeError:
+        return [x]
+
+
 def get_temporal_extent(*args,
                         start_date: Union[str, datetime, date] = None, end_date: Union[str, datetime, date] = None,
                         extent: Union[list, tuple] = None,

@@ -4,7 +4,7 @@ from datetime import datetime
 
 import pytest
 
-from openeo.util import first_not_none, get_temporal_extent, TimingLogger
+from openeo.util import first_not_none, get_temporal_extent, TimingLogger, ensure_list
 
 
 @pytest.mark.parametrize(['input', 'expected'], [
@@ -28,6 +28,19 @@ def test_first_not_none_failures():
         first_not_none(None)
     with pytest.raises(ValueError):
         first_not_none(None, None)
+
+
+@pytest.mark.parametrize(["input", "expected"], [
+    (None, [None]),
+    (123, [123]),
+    ("abc", ["a", "b", "c"]),
+    ([1, 2, "three"], [1, 2, "three"]),
+    ((1, 2, "three"), [1, 2, "three"]),
+    ({1: "a", 2: "b"}, [1, 2]),
+    ({1, 2, 3, 3, 2}, [1, 2, 3]),
+])
+def test_ensure_list(input, expected):
+    assert ensure_list(input) == expected
 
 
 def test_get_temporal_extent():

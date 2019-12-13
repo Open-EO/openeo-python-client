@@ -2,6 +2,7 @@ import unittest.mock as mock
 
 import pytest
 import requests_mock
+from openeo.rest import OpenEoClientException
 
 from openeo.rest.auth.auth import NullAuth, BearerAuth
 from openeo.rest.connection import Connection, RestApiConnection, connect, OpenEoApiError
@@ -46,6 +47,35 @@ def test_rest_api_headers():
         m.post("/foo", text=text)
         conn.get("/foo", headers={"X-Openeo-Bar": "XY123"})
         conn.post("/foo", {}, headers={"X-Openeo-Bar": "XY123"})
+
+
+def test_rest_api_expected_status(requests_mock):
+    conn = RestApiConnection(API_URL)
+    requests_mock.get("https://oeo.net/foo", status_code=200, json={"o": "k"})
+    # Expected status
+    assert conn.get("/foo", expected_status=200).json() == {"o": "k"}
+    assert conn.get("/foo", expected_status=[200, 201]).json() == {"o": "k"}
+    # Unexpected status
+    with pytest.raises(OpenEoClientException, match="Status code 200 is not expected 204"):
+        conn.get("/foo", expected_status=204)
+    with pytest.raises(OpenEoClientException, match=r"Status code 200 is not expected \[203, 204\]"):
+        conn.get("/foo", expected_status=[203, 204])
+
+
+def test_rest_api_expected_status_with_error(requests_mock):
+    conn = RestApiConnection(API_URL)
+    requests_mock.get("https://oeo.net/bar", status_code=406, json={"code": "NoBar", "message": "no bar please"})
+    # First check for API error by default
+    with pytest.raises(OpenEoApiError, match=r"\[406\] NoBar: no bar please"):
+        conn.get("/bar", expected_status=200)
+    with pytest.raises(OpenEoApiError, match=r"\[406\] NoBar: no bar please"):
+        conn.get("/bar", expected_status=[201, 202])
+    # Don't check for error, just status
+    conn.get("/bar", check_error=False, expected_status=406)
+    with pytest.raises(OpenEoClientException, match="Status code 406 is not expected 302"):
+        conn.get("/bar", check_error=False, expected_status=302)
+    with pytest.raises(OpenEoClientException, match=r"Status code 406 is not expected \[302, 303\]"):
+        conn.get("/bar", check_error=False, expected_status=[302, 303])
 
 
 def test_connection_with_session():

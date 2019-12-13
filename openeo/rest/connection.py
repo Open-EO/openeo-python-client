@@ -12,6 +12,7 @@ from urllib.parse import urljoin
 import requests
 from deprecated import deprecated
 from openeo.rest import OpenEoClientException
+from openeo.util import ensure_list
 from requests import Response
 from requests.auth import HTTPBasicAuth, AuthBase
 
@@ -67,7 +68,8 @@ class RestApiConnection:
             result.update(headers)
         return result
 
-    def request(self, method: str, path: str, headers: dict = None, auth: AuthBase = None, check_status=True, **kwargs):
+    def request(self, method: str, path: str, headers: dict = None, auth: AuthBase = None,
+                check_error=True, expected_status=None, **kwargs):
         """Generic request send"""
         resp = self.session.request(
             method=method,
@@ -76,10 +78,12 @@ class RestApiConnection:
             auth=auth or self.auth,
             **kwargs
         )
-        if check_status:
-            # TODO: option to specify the list/range of expected status codes?
-            if resp.status_code >= 400:
-                self._raise_api_error(resp)
+        # Check for API errors and unexpected HTTP status codes as desired.
+        status = resp.status_code
+        if check_error and status >= 400:
+            self._raise_api_error(resp)
+        if expected_status and status not in ensure_list(expected_status):
+            raise OpenEoClientException("Status code {s} is not expected {e}".format(s=status, e=expected_status))
         return resp
 
     def _raise_api_error(self, response: requests.Response):
