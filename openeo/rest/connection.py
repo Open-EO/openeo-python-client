@@ -5,6 +5,7 @@ This module provides a Connection object to manage and persist settings when int
 import logging
 import pathlib
 import shutil
+import warnings
 from typing import Dict, List
 from urllib.parse import urljoin
 
@@ -412,46 +413,41 @@ class Connection(RestApiConnection):
         # TODO: add output_format to execution
         return self.post(path="/result", json=process_graph).json()
 
-    def create_job(self, process_graph:Dict, output_format:str=None, output_parameters:Dict={},
-                   title:str=None, description:str=None, plan:str=None, budget=None,
-                   additional:Dict=None):
+    def create_job(self, process_graph: Dict, title: str = None, description: str = None,
+                   plan: str = None, budget=None,
+                   additional: Dict = None) -> RESTJob:
         """
         Posts a job to the back end.
 
         :param process_graph: String data of the job (e.g. process graph)
-        :param output_format: String Output format of the execution - DEPRECATED in 0.4.0
-        :param output_parameters: Dict of additional output parameters - DEPRECATED in 0.4.0
         :param title: String title of the job
         :param description: String description of the job
+        :param plan: billing plan
         :param budget: Budget
+        :param additional: additional job options to pass to the backend
         :return: job_id: String Job id of the new created job
         """
-
+        # TODO move all this (RESTJob factory) logic to RESTJob?
         process_graph = {
-             "process_graph": process_graph,
-             "title": title,
-             "description": description,
-             "plan": plan,
-             "budget": budget
-         }
-        if additional is not None:
-            process_graph["job_options"]=additional
+            "process_graph": process_graph,
+            "title": title,
+            "description": description,
+            "plan": plan,
+            "budget": budget
+        }
+        if additional:
+            process_graph["job_options"] = additional
 
-        job_status = self.post("/jobs", process_graph)
+        response = self.post("/jobs", process_graph)
 
-        job = None
-        if job_status.status_code == 201:
-            job_info = job_status.headers._store
-            if "openeo-identifier" in job_info:
-                job_id = job_info['openeo-identifier'][1]
-                job = RESTJob(job_id, self)
-            elif "location" in job_info:
-                job_id = job_info['location'][1].split("/")[-1]
-                job = RESTJob(job_id, self)
+        if "openeo-identifier" in response.headers:
+            job_id = response.headers['openeo-identifier']
+        elif "location" in response.headers:
+            _log.warning("Backend did not explicitly respond with job id, will guess it from redirect URL.")
+            job_id = response.headers['location'].split("/")[-1]
         else:
-            self._handle_error_response(job_status)
-
-        return job
+            raise OpenEoClientException("Failed fo extract job id")
+        return RESTJob(job_id, self)
 
     def parse_json_response(self, response: requests.Response):
         """

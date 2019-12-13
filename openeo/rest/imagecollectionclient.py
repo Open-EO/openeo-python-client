@@ -982,6 +982,7 @@ class ImageCollectionClient(ImageCollection):
         :param format_options: String Parameters for the job result format
 
         """
+        # TODO: move this logic to RESTJob?
         job = self.send_job(out_format,job_options=job_options, **format_options)
         job.start_job()
 
@@ -1020,27 +1021,21 @@ class ImageCollectionClient(ImageCollection):
 
         return job_info
 
-
-    def send_job(self, out_format=None, job_options=None,**format_options) -> Job:
+    def send_job(self, out_format=None, job_options=None, **format_options) -> Job:
         """
         Sends a job to the backend and returns a ClientJob instance.
 
-        :param job_options:
         :param out_format: String Format of the job result.
+        :param job_options:
         :param format_options: String Parameters for the job result format
         :return: status: ClientJob resulting job.
         """
+        img = self
         if out_format:
-            args = {
-                'data': {'from_node': self.node_id},
-                'options': format_options,
-                'format': out_format
-            }
-            newcollection = self.graph_add_process("save_result", args)
-            newcollection.graph[newcollection.node_id]["result"] = True
-            return self.session.create_job(process_graph=newcollection.graph,additional=job_options)
-        else:
-            return self.session.create_job(process_graph=self.graph)
+            # add `save_result` node
+            img = img.save_result(format=out_format, options=format_options)
+        img.graph[img.node_id]["result"] = True
+        return self.session.create_job(process_graph=img.graph, additional=job_options)
 
     def execute(self) -> Dict:
         """Executes the process graph of the imagery. """
