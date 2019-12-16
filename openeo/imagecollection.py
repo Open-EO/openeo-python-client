@@ -83,8 +83,6 @@ class CollectionMetadata:
         indices = [ self.get_band_index(name) for name in bands_names]
         self._bands = [ self.bands[index] for index in indices]
 
-
-
     def get_band_index(self, band: Union[int, str]) -> int:
         """
         Resolve a band name/index to band index
