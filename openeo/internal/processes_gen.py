@@ -1,6 +1,5 @@
 import json
-import datetime
-from openapi3 import OpenAPI
+import textwrap
 
 PROCESS_PATH = "filter_bbox.json"
 OPENAPI_PATH = "openapi.json"
@@ -65,7 +64,7 @@ class Result:
 
     def get_doc_str(self):
         if self.description:
-            return "  :return: {}".format(self.description.replace("\n", ""))
+            return "  :return: {}".format(textwrap.fill(self.description.replace("\n", ""), 80))
         else:
             return ""
 
@@ -87,14 +86,14 @@ class Parameter:
                 return "{}: {}".format(self.name, self.type)
             else:
                 if self.default:
-                    return "{}={}: {}".format(self.name, self.default, self.type)
+                    return "{}={}".format(self.name, self.default)
                 else:
-                    return "{}=None: {}".format(self.name, self.type)
+                    return "{}=None".format(self.name)
         else:
             return str(self.name)
 
     def get_doc_str(self):
-        return "  :param {}: {}".format(self.name, self.description.replace("\n", ""))
+        return "  :param {}: {}".format(self.name, textwrap.fill(self.description.replace("\n", ""), 80))
 
 
 class Function:
@@ -107,10 +106,17 @@ class Function:
         self.returntype = Result()
 
     def get_param(self):
-        parameters = ()
+        parameters = ("cube", )
         for _, param in self.parameters.items():
-            parameters = parameters + (param.get_header_str(),)
-        return str(parameters).replace("\"", "").replace("'", "")
+            if param.name != "data":
+                parameters += (param.get_header_str(), )
+
+        param_str = str(parameters)
+
+        if len(parameters) == 1:
+            param_str = param_str.replace(",", "")
+
+        return param_str.replace("\"", "").replace("'", "")
 
     def set_ordered_param(self, param_list):
         for param in param_list:
@@ -130,15 +136,15 @@ class Function:
         #if self.returntype:
         #    text = "def {} {}: -> '{}'\n".format(self.name, self.get_param(), self.returntype)
         #else:
-        text = "def {} {}:\n".format(self.name, self.get_param())
+        text = "def {}{}:\n".format(self.name, self.get_param())
 
         # docstring
-        text += "\"\"\"{}\n{}\n{}\n\"\"\"".format(self.description.replace("\n\n", "\n"),
+        text += "    \"\"\"{}\n{}\n{}\n\"\"\"".format(textwrap.fill(self.description.replace("\n", ""), 80),
                                                             self.get_parameters_doc_str(),
                                                             self.returntype.get_doc_str())
 
         # function body
-        text += "\n  {}".format(self.get_function_body())
+        text += "\n    {}".format(self.get_function_body())
 
         return text
 
@@ -147,11 +153,23 @@ class Function:
         args = "{"
 
         for param, val in self.parameters.items():
-            args += ' "{}": {},'.format(param, param)
+            if args == "{":
+                if param == "data":
+                    args += '"data": {"from_node": cube.node_id},'
+                else:
+                    args += '"{}": {},'.format(param, param)
+            else:
+                if param == "data":
+                    args += ' "data": {"from_node": cube.node_id},'
+                else:
+                    args += ' "{}": {},'.format(param, param)
 
         args = args[:-1]+"}"
 
-        return "return graph_add_process('{}', {})".format(self.name, args)
+        if args == "}":
+            args = "None"
+
+        return "return cube.graph_add_process('{}', {})".format(self.name, args)
 
 
 class ProcessParser:
@@ -197,7 +215,7 @@ class ProcessParser:
                 for p_key, p_val in val.items():
                     # print("{} --> {}".format(str(p_key), str(p_val)))
                     if p_key not in func.parameters:
-                        func.parameters[p_key] = Parameter(name=p_val)
+                        func.parameters[p_key] = Parameter(name=p_key)
                     if "required" in p_val:
                             func.parameters[p_key].required = p_val["required"]
                     if "description" in p_val:
@@ -235,7 +253,7 @@ func_list = pp.parse_process_list(PROCESS_LIST_PATH)
 
 text = ""
 for func in func_list:
-    text += "\n" + str(func)
+    text += str(func)+"\n\n\n"
 
 text_file = open("Output.py", "w")
 text_file.write(text)

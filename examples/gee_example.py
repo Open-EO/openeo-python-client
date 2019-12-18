@@ -2,7 +2,7 @@ import openeo
 import logging
 import time
 import json
-from openeo.auth.auth_bearer import BearerAuth
+#from openeo.auth.auth_bearer import BearerAuth
 
 logging.basicConfig(level=logging.INFO)
 
@@ -18,39 +18,49 @@ password = "test123"
 #session = openeo.session("nobody", GEE_DRIVER_URL)
 
 #TODO update example
-con = openeo.connect(GEE_DRIVER_URL, auth_type=BearerAuth, auth_options={"username": user, "password": password})
+con = openeo.connect(GEE_DRIVER_URL)
+con.authenticate_basic(username=user, password=password)
 
 #Test Connection
-print(con.list_processes())
-print(con.list_collections())
-print(con.describe_collection("COPERNICUS/S2"))
+#print(con.list_processes())
+#print(con.list_collections())
+#print(con.describe_collection("COPERNICUS/S2"))
 
 
 # Test Capabilities
-cap = con.capabilities()
+#cap = con.capabilities()
 
-print(cap.version())
-print(cap.list_features())
-print(cap.currency())
-print(cap.list_plans())
+#print(cap.version())
+#print(cap.list_features())
+#print(cap.currency())
+#print(cap.list_plans())
 
 # Test Processes
 
 datacube = con.imagecollection("COPERNICUS/S2")
 datacube = datacube.filter_bbox(west=16.138916, south=48.138600, east=16.524124, north=48.320647, crs="EPSG:4326")
 datacube = datacube.filter_daterange(extent=["2017-01-01T00:00:00Z", "2017-01-31T23:59:59Z"])
-datacube = datacube.ndvi(nir="B4", red="B8A")
+#datacube = datacube.ndvi()#nir="B4", red="B8A")
+red = datacube.band('B4')
+nir = datacube.band('B8A')
+datacube = (nir - red) / (nir + red)
 datacube = datacube.min_time()
 print(json.dumps(datacube.graph, indent=2))
 
 # Test Job
 
 job = con.create_job(datacube.graph)
-print(job.job_id)
-print(job.start_job())
-print (job.describe_job())
-time.sleep(5)
-job.download_results("/tmp/testfile")
+if job.job_id:
+    print(job.job_id)
+    print(job.start_job())
+    print (job.describe_job())
+else:
+    print("Job ID is None!")
+
+time.sleep(10)
+
+if job.job_id:
+    job.download_results("/tmp/testfile")
 
 
 
