@@ -61,6 +61,14 @@ In this example, we'll compute the enhanced vegetation index (EVI)::
         evi_cube.download("out.geotiff",format="GeoTIFF")
 
 
+Some results take a longer time to compute, in that case, the 'download' method used above may result in a timeout.
+To prevent that, it is also possible to use a 'batch' job. An easy way to run a batch job and downloading the result is:
+
+   >>> evi_cube.execute_batch("out.geotiff",out_format="GeoTIFF")
+
+This method will wait until the result is generated, which may take quite a long time. Use the batch job API if you want to
+manage your jobs directly.
+
 Example: Applying a mask
 ________________________
 
