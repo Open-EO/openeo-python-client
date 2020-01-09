@@ -2,6 +2,9 @@ import logging
 import typing
 import urllib.request
 from typing import List
+import datetime
+import time
+from requests import ConnectionError
 
 from openeo.job import Job, JobResult
 from openeo.rest import OpenEoClientException
@@ -112,3 +115,43 @@ class RESTJob(Job):
     def results(self) -> List[RESTJobResult]:
         """ Returns this job's results. """
         return [RESTJobResult(link['href']) for link in self.connection.job_results(self.job_id)['links']]
+
+    @classmethod
+    def run_synchronous(cls, job, outputfile: str, print=print, max_poll_interval=60, connection_retry_interval=30):
+        job.start_job()
+
+        job_id = job.job_id
+        job_info = None
+        status = None
+        poll_interval = min(5, max_poll_interval)
+        start_time = time.time()
+        while True:
+            # TODO: also allow a hard time limit on this infinite poll loop?
+            elapsed = str(datetime.timedelta(seconds=time.time() - start_time))
+            try:
+                job_info = job.describe_job()
+            except ConnectionError as e:
+                print("{t} Connection error while querying job status: {e}".format(t=elapsed, e=e))
+                time.sleep(connection_retry_interval)
+                continue
+
+            status = job_info.get("status", "N/A")
+            print("{t} Job {i}: {s} (progress {p})".format(
+                t=elapsed, i=job_id, s=status,
+                p='{p}%'.format(p=job_info["progress"]) if "progress" in job_info else "N/A"
+            ))
+            if status not in ('submitted', 'queued', 'running'):
+                break
+
+            time.sleep(poll_interval)
+            poll_interval = min(1.25 * poll_interval, max_poll_interval)
+
+        elapsed = str(datetime.timedelta(seconds=time.time() - start_time))
+        if status == 'finished':
+            job.download_results(outputfile)
+        else:
+            raise RuntimeError("Batch job {i} didn't finish properly. Status: {s} (after {t}).".format(
+                i=job_id, s=status, t=elapsed
+            ))
+
+        return job_info

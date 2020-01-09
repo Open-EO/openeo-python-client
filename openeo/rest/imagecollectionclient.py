@@ -6,7 +6,6 @@ import copy
 
 from deprecated import deprecated
 from shapely.geometry import Polygon, MultiPolygon, mapping
-from requests import ConnectionError
 
 from openeo.graphbuilder import GraphBuilder
 from openeo.imagecollection import ImageCollection, CollectionMetadata
@@ -982,45 +981,9 @@ class ImageCollectionClient(ImageCollection):
         :param format_options: String Parameters for the job result format
 
         """
-        # TODO: move this logic to RESTJob?
+        from openeo.rest.job import RESTJob
         job = self.send_job(out_format,job_options=job_options, **format_options)
-        job.start_job()
-
-        job_id = job.job_id
-        job_info = None
-        status = None
-        poll_interval = min(5, max_poll_interval)
-        start_time = time.time()
-        while True:
-            # TODO: also allow a hard time limit on this infinite poll loop?
-            elapsed = str(datetime.timedelta(seconds=time.time() - start_time))
-            try:
-                job_info = job.describe_job()
-            except ConnectionError as e:
-                print("{t} Connection error while querying job status: {e}".format(t=elapsed, e=e))
-                time.sleep(connection_retry_interval)
-                continue
-
-            status = job_info.get("status", "N/A")
-            print("{t} Job {i}: {s} (progress {p})".format(
-                t=elapsed, i=job_id, s=status,
-                p='{p}%'.format(p=job_info["progress"]) if "progress" in job_info else "N/A"
-            ))
-            if status not in ('submitted', 'queued', 'running'):
-                break
-
-            time.sleep(poll_interval)
-            poll_interval = min(1.25 * poll_interval, max_poll_interval)
-
-        elapsed = str(datetime.timedelta(seconds=time.time() - start_time))
-        if status == 'finished':
-            job.download_results(outputfile)
-        else:
-            raise RuntimeError("Batch job {i} didn't finish properly. Status: {s} (after {t}).".format(
-                i=job_id, s=status, t=elapsed
-            ))
-
-        return job_info
+        return RESTJob.run_synchronous(job,outputfile,print=print, max_poll_interval=60, connection_retry_interval=30)
 
     def send_job(self, out_format=None, job_options=None, **format_options) -> Job:
         """
