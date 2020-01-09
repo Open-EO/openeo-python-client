@@ -1,5 +1,6 @@
 import json
 import textwrap
+import openeo
 
 PROCESS_PATH = "filter_bbox.json"
 OPENAPI_PATH = "openapi.json"
@@ -107,10 +108,15 @@ class Function:
 
     def get_param(self):
         parameters = ("cube", )
+        has_data = False
         for _, param in self.parameters.items():
             if param.name != "data":
                 parameters += (param.get_header_str(), )
+            else:
+                has_data = True
 
+        if has_data:
+            parameters += ("from_node=None",)
         param_str = str(parameters)
 
         if len(parameters) == 1:
@@ -155,12 +161,12 @@ class Function:
         for param, val in self.parameters.items():
             if args == "{":
                 if param == "data":
-                    args += '"data": {"from_node": cube.node_id},'
+                    args += '"data": {"from_node": from_node},'
                 else:
                     args += '"{}": {},'.format(param, param)
             else:
                 if param == "data":
-                    args += ' "data": {"from_node": cube.node_id},'
+                    args += ' "data": {"from_node": from_node},'
                 else:
                     args += ' "{}": {},'.format(param, param)
 
@@ -173,6 +179,17 @@ class Function:
 
 
 class ProcessParser:
+
+    def parse_processes_connection(self, connection):
+
+        func_list = []
+
+        process_list = connection.list_processes()
+
+        for process in process_list:
+            func_list.append(self.parse_process(process))
+
+        return func_list
 
     def parse_process_list(self, file_path):
 
@@ -249,12 +266,20 @@ PROCESS_LIST_PATH = "processes_GEE.json"
 
 pp = ProcessParser()
 
-func_list = pp.parse_process_list(PROCESS_LIST_PATH)
+GEE_DRIVER_URL = "https://earthengine.openeo.org/v0.4"
+USER = "group8"
+PASSWD = "test123"
+
+con = openeo.connect(GEE_DRIVER_URL)
+con.authenticate_basic(username=USER, password=PASSWD)
+
+func_list = pp.parse_processes_connection(con)
+#func_list = pp.parse_process_list(PROCESS_LIST_PATH)
 
 text = ""
 for func in func_list:
     text += str(func)+"\n\n\n"
 
-text_file = open("Output.py", "w")
+text_file = open("processes.py", "w")
 text_file.write(text)
 text_file.close()

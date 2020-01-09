@@ -325,6 +325,26 @@ class Connection(RestApiConnection):
     def _api_version(self) -> ComparableVersion:
         return self.capabilities().api_version_check
 
+    # def load_gen_collection(self, collection_id: str, **kwargs) -> ImageCollectionClient:
+    #     """
+    #     Load a generated image collection by collection id
+    #
+    #     see :py:meth:`openeo.rest.imagecollectionclient.ImageCollectionClient.load_collection`
+    #     for available arguments.
+    #
+    #     :param collection_id: image collection identifier (string)
+    #     :return: ImageCollectionClient
+    #     """
+    #     import importlib
+    #
+    #     spam_spec = importlib.util.find_spec("openeo.internal.Output")
+    #
+    #     if spam_spec is not None:
+    #         from openeo.internal.Output import ImageCollectionGenClient
+    #         return ImageCollectionGenClient.load_collection(collection_id=collection_id, session=self, **kwargs)
+    #
+    #     return ImageCollectionClient.load_collection(collection_id=collection_id, session=self, **kwargs)
+
     def load_collection(self, collection_id: str, **kwargs) -> ImageCollectionClient:
         """
         Load an image collection by collection id
@@ -339,7 +359,6 @@ class Connection(RestApiConnection):
 
     # Legacy alias.
     imagecollection = load_collection
-
 
     def create_service(self, graph, type, **kwargs):
         kwargs["process_graph"] = graph
