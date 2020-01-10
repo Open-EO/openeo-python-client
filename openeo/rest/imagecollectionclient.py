@@ -982,8 +982,11 @@ class ImageCollectionClient(ImageCollection):
 
         """
         from openeo.rest.job import RESTJob
-        job = self.send_job(out_format,job_options=job_options, **format_options)
-        return RESTJob.run_synchronous(job,outputfile,print=print, max_poll_interval=60, connection_retry_interval=30)
+        job = self.send_job(out_format, job_options=job_options, **format_options)
+        return RESTJob.run_synchronous(
+            job, outputfile,
+            print=print, max_poll_interval=max_poll_interval, connection_retry_interval=connection_retry_interval
+        )
 
     def send_job(self, out_format=None, job_options=None, **format_options) -> Job:
         """
