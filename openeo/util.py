@@ -5,6 +5,7 @@ import logging
 import re
 from datetime import datetime, date
 from typing import Any, Union, Tuple, Callable
+from pathlib import Path
 
 _rfc3339_date_format = re.compile(r'\d{4}-\d{2}-\d{2}')
 
@@ -32,6 +33,15 @@ def first_not_none(*args):
         if item is not None:
             return item
     raise ValueError("No not-None values given.")
+
+
+def ensure_dir(path: Union[str, Path]) -> Path:
+    """Create directory if it doesn't exist."""
+    path = Path(path)
+    if not path.exists():
+        path.mkdir(parents=True, exist_ok=True)
+    assert path.is_dir()
+    return path
 
 
 def ensure_list(x):

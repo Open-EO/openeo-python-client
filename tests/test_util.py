@@ -1,10 +1,12 @@
 import logging
+import os
+import pathlib
 import re
 from datetime import datetime
 
 import pytest
 
-from openeo.util import first_not_none, get_temporal_extent, TimingLogger, ensure_list
+from openeo.util import first_not_none, get_temporal_extent, TimingLogger, ensure_list, ensure_dir
 
 
 @pytest.mark.parametrize(['input', 'expected'], [
@@ -41,6 +43,27 @@ def test_first_not_none_failures():
 ])
 def test_ensure_list(input, expected):
     assert ensure_list(input) == expected
+
+
+def test_ensure_dir_str(tmp_path):
+    work_dir = str(tmp_path / "work/data/foo")
+    assert not os.path.exists(work_dir)
+    p = ensure_dir(work_dir)
+    assert os.path.exists(work_dir)
+    assert isinstance(p, pathlib.Path)
+    assert p.exists()
+    assert str(p) == str(work_dir)
+
+
+def test_ensure_dir_pathlib(tmp_path):
+    # Note: tmp_path might be pathlib2
+    work_dir = pathlib.Path(str(tmp_path / "work/data/foo"))
+    assert not work_dir.exists()
+    p = ensure_dir(work_dir)
+    assert work_dir.exists()
+    assert isinstance(p, pathlib.Path)
+    assert p.exists()
+    assert str(p) == str(work_dir)
 
 
 def test_get_temporal_extent():
