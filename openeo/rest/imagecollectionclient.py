@@ -1,4 +1,5 @@
 import datetime
+import pathlib
 import time
 import typing
 from typing import List, Dict, Union, Tuple
@@ -762,6 +763,7 @@ class ImageCollectionClient(ImageCollection):
         No data values will be left untouched by the masking operation.
 
         # TODO: just provide a single `mask` argument and detect the type: polygon or process graph
+        # TODO: also see `mask` vs `mask_polygon` processes in https://github.com/Open-EO/openeo-processes/pull/110
 
         :param polygon: A polygon, provided as a :class:`shapely.geometry.Polygon` or :class:`shapely.geometry.MultiPolygon`, or a filename pointing to a valid vector file
         :param srs: The reference system of the provided polygon, by default this is Lat Lon (EPSG:4326).
@@ -773,9 +775,11 @@ class ImageCollectionClient(ImageCollection):
         mask = None
         new_collection = None
         if polygon is not None:
-            if isinstance(polygon, str):
+            if isinstance(polygon, (str, pathlib.Path)):
+                # TODO: default to loading file client side?
+                # TODO: change read_vector to load_uploaded_files https://github.com/Open-EO/openeo-processes/pull/106
                 new_collection = self.graph_add_process('read_vector', args={
-                    'filename': polygon
+                    'filename': str(polygon)
                 })
 
                 mask = {
@@ -966,7 +970,7 @@ class ImageCollectionClient(ImageCollection):
 
     def execute_batch(
             self,
-            outputfile: str, out_format: str = None,
+            outputfile: Union[str, pathlib.Path], out_format: str = None,
             print=print, max_poll_interval=60, connection_retry_interval=30,
             job_options=None, **format_options):
         """

@@ -1,13 +1,14 @@
+import datetime
 import logging
+import pathlib
+import time
 import typing
 import urllib.request
-from typing import List
-import datetime
-import time
-from requests import ConnectionError
+from typing import List, Union
 
 from openeo.job import Job, JobResult
 from openeo.rest import OpenEoClientException
+from requests import ConnectionError
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Only import this for type hinting purposes. Runtime import causes circular dependency issues.
@@ -78,7 +79,7 @@ class RESTJob(Job):
         # GET /jobs/{job_id}/results
         pass
 
-    def download_results(self, target):
+    def download_results(self, target: Union[str, pathlib.Path]) -> pathlib.Path:
         """ Download job results."""
         results_url = "/jobs/{}/results".format(self.job_id)
         r = self.connection.get(results_url, expected_status=200)
@@ -88,7 +89,8 @@ class RESTJob(Job):
             raise OpenEoClientException("Expected 1 result file to download, but got {c}".format(c=len(links)))
         file_url = links[0]["href"]
 
-        with open(target, 'wb') as handle:
+        target = pathlib.Path(target)
+        with target.open('wb') as handle:
             response = self.connection.get(file_url, stream=True)
             for block in response.iter_content(1024):
                 if not block:
@@ -117,7 +119,8 @@ class RESTJob(Job):
         return [RESTJobResult(link['href']) for link in self.connection.job_results(self.job_id)['links']]
 
     @classmethod
-    def run_synchronous(cls, job, outputfile: str, print=print, max_poll_interval=60, connection_retry_interval=30):
+    def run_synchronous(cls, job, outputfile: Union[str, pathlib.Path],
+                        print=print, max_poll_interval=60, connection_retry_interval=30):
         job.start_job()
 
         job_id = job.job_id
