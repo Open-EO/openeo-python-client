@@ -2,7 +2,7 @@ import openeo
 import logging
 import json
 from openeo.rest.imagecollectionclient import ImageCollectionClient
-
+import openeo.internal.processes as pr
 #enable logging in requests library
 logging.basicConfig(level=logging.DEBUG)
 
@@ -30,19 +30,24 @@ datacube = ImageCollectionClient.load_collection(session = con, collection_id = 
                                                  bands = ['AOT', 'B02', 'B03', 'B04', 'B05', 'B06', 'B07',
                                                           'B8A', 'B11', 'B12', 'SCL', 'VIS', 'WVP', 'CLD', 'SNW'])
 # perform spatial subsetting (e.g around the city of Bolzano)
-datacube = datacube.filter_bbox( west=11.279182434082033, south=46.464349400461145,
-                                 east=11.406898498535158, north=46.522729291844286, crs="EPSG:32632")
+datacube = pr.filter_bbox(cube=datacube, extent={"west": 11.279182434082033, "south": 46.464349400461145,
+                                                "east": 11.406898498535158, "north": 46.522729291844286,
+                                                "crs": "EPSG:32632"})
+
 # perform temporal subsetting (e.g. for the month of august in 2017)
-temp = datacube.filter_temporal(extent=["2017-08-01T00:00:00Z", "2017-08-31T00:00:00Z"])
+temp = pr.filter_temporal(datacube, extent=["2017-08-01T00:00:00Z", "2017-08-31T00:00:00Z"], dimension=None)
+#temp = datacube.filter_temporal(extent=["2017-08-01T00:00:00Z", "2017-08-31T00:00:00Z"])
 # map features of the dataset to variables (e.g. the red and near infrared band)
 red = temp.band('B04')
 nir = temp.band("B8A")
 # perform operation using feature variables (e.g. calculation of NDVI (normalized difference vegetation index))
 datacube = (nir - red) / (nir + red)
 # reduce on temporal dimension with max operator
-datacube = datacube.max_time()
+datacube = pr.max_time(datacube)
+#datacube = datacube.max_time()
 # provide result as geotiff image
-datacube = datacube.save_result(format="gtiff")
+datacube = pr.save_result(datacube, format="gtiff", options={})
+#datacube = datacube.save_result(format="gtiff")
 
 
 # have a look at your process graph (not necessary and only for demonstration purposes)
