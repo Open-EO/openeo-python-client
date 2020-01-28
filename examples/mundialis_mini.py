@@ -17,7 +17,9 @@ miny = 46.72574176193996
 epsg = "EPSG:4326"
 spatial_extent = {'west':minx,'east':maxx,'north':maxy,'south':miny,'crs':epsg}
 temporal_extent=["2018-05-01T00:00:00.000Z","2018-10-01T00:00:00.000Z"]
-spectral_extent = ["B08", "B04", "B02"]
+
+# To find the band names in GRASS GIS: `g.bands pattern="S2"`
+spectral_extent = ["S2_8", "S2_4", "S2_2"]
 
 # connect to mundialis backend
 session = openeo.connect(backend_url).authenticate_basic(auth_id, password = auth_pwd)
@@ -28,9 +30,10 @@ s2_radiometry = ImageCollectionClient.load_collection(
                     temporal_extent=temporal_extent,
                     spatial_extent=spatial_extent
                     )            
-B02 = s2_radiometry.band("B02")
-B04 = s2_radiometry.band("B04")
-B08 = s2_radiometry.band("B08")
+# g.bands pattern="S2"
+B02 = s2_radiometry.band("S2_2")
+B04 = s2_radiometry.band("S2_4")
+B08 = s2_radiometry.band("S2_8")
 
 evi_cube = (2.5 * (B08 - B04)) / ((B08 + 6.0 * B04 - 7.5 * B02) + 1.0)
 min_evi = evi_cube.min_time()
