@@ -113,14 +113,14 @@ def execute(
 
 def example():
     execute(
-        all_bands="B02 B03 B04 B05 B06 B07 B8A B11 B12",
+        all_bands="S2_2 S2_3 S2_4 S2_5 S2_6 S2_7 S2_8A S2_11 S2_12",
         out_dir="/tmp",
         user="openeo",
         password="FIXME",
         provider="mundialis",
         driver_url="https://openeo.mundialis.de",
         image_collection="utm32n.openeo_bolzano.strds.openeo_bolzano_S2",
-        bands="B03 B11",
+        bands="S2_3 S2_11",
         band_format="gtiff",
         # Rumst bbox w,s,e,n
         bbox_string="10.446624755859375, 46.72574176193996, 10.629272460937498, 46.845164430292755",
