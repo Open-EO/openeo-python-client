@@ -5,6 +5,7 @@ This module provides a Connection object to manage and persist settings when int
 import logging
 import pathlib
 import shutil
+import sys
 import warnings
 from typing import Dict, List
 from urllib.parse import urljoin
@@ -55,7 +56,11 @@ class RestApiConnection:
         self.session = session or requests.Session()
         self.auth = auth or NullAuth()
         self.default_headers = {
-            "User-Agent": "openeo-python-client/{v}".format(v=openeo.client_version())
+            "User-Agent": "openeo-python-client/{cv} {py}/{pv} {pl}".format(
+                cv=openeo.client_version(),
+                py=sys.implementation.name, pv=".".join(map(str,sys.version_info[:3])),
+                pl=sys.platform
+            )
         }
 
     def build_url(self, path: str):

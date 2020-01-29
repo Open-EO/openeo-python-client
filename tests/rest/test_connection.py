@@ -1,9 +1,10 @@
+import re
 import unittest.mock as mock
 
 import pytest
 import requests_mock
-from openeo.rest import OpenEoClientException
 
+from openeo.rest import OpenEoClientException
 from openeo.rest.auth.auth import NullAuth, BearerAuth
 from openeo.rest.connection import Connection, RestApiConnection, connect, OpenEoApiError
 
@@ -40,7 +41,11 @@ def test_rest_api_headers():
     conn = RestApiConnection(API_URL)
     with requests_mock.Mocker() as m:
         def text(request, context):
-            assert request.headers["User-Agent"].startswith("openeo-python-client")
+            assert re.match(
+                r"^openeo-python-client/[0-9a-z.-]+ .*python/3.* (linux|win|darwin)",
+                request.headers["User-Agent"],
+                re.I
+            )
             assert request.headers["X-Openeo-Bar"] == "XY123"
 
         m.get("/foo", text=text)
