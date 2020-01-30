@@ -1,9 +1,8 @@
 import openeo
 import logging
 import json
-from openeo.rest.imagecollectionclient import ImageCollectionClient
 
-#enable logging in requests library
+# Enable logging in requests library
 logging.basicConfig(level=logging.DEBUG)
 
 
@@ -26,12 +25,12 @@ print(cap.currency())
 print(cap.list_plans())
 
 # load a specific dataset
-datacube = ImageCollectionClient.load_collection(session = con, collection_id = "S2_L2A_T32TPS_20M",
-                                                 bands = ['AOT', 'B02', 'B03', 'B04', 'B05', 'B06', 'B07',
-                                                          'B8A', 'B11', 'B12', 'SCL', 'VIS', 'WVP', 'CLD', 'SNW'])
+datacube = con.load_collection(session=con, collection_id="S2_L2A_T32TPS_20M",
+                               bands=['AOT', 'B02', 'B03', 'B04', 'B05', 'B06', 'B07',
+                                      'B8A', 'B11', 'B12', 'SCL', 'VIS', 'WVP', 'CLD', 'SNW'])
 # perform spatial subsetting (e.g around the city of Bolzano)
-datacube = datacube.filter_bbox( west=11.279182434082033, south=46.464349400461145,
-                                 east=11.406898498535158, north=46.522729291844286, crs="EPSG:32632")
+datacube = datacube.filter_bbox(west=11.279182434082033, south=46.464349400461145,
+                                east=11.406898498535158, north=46.522729291844286, crs="EPSG:32632")
 # perform temporal subsetting (e.g. for the month of august in 2017)
 temp = datacube.filter_temporal(extent=["2017-08-01T00:00:00Z", "2017-08-31T00:00:00Z"])
 # map features of the dataset to variables (e.g. the red and near infrared band)
@@ -54,7 +53,7 @@ job = con.create_job(datacube.graph)
 if job.job_id:
     print(job.job_id)
     print(job.start_job())
-    print (job.describe_job())
+    print(job.describe_job())
 else:
     print("Job ID is None")
 

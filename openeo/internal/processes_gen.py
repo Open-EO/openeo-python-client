@@ -11,6 +11,8 @@ import keyword
 import argparse
 import sys
 import os
+from pathlib import Path
+import datetime
 
 # Mappings of the openEO API formats to the python formats
 
@@ -199,9 +201,9 @@ class Function:
         text = "def {}{}:\n".format(self.name, self.get_param())
 
         # docstring
-        text += "    \"\"\"{}\n{}\n{}\n\"\"\"".format(textwrap.fill(self.description.replace("\n", ""), 80),
-                                                      self.get_parameters_doc_str(),
-                                                      self.returntype.get_doc_str())
+        text += textwrap.indent("\"\"\"{}\n{}\n{}\n\"\"\"".format(textwrap.fill(self.description.replace("\n", ""), 80),
+                                                                  self.get_parameters_doc_str(),
+                                                                  self.returntype.get_doc_str()), "    ")
 
         # function body
         text += "\n{}".format(self.get_function_body())
@@ -218,30 +220,30 @@ class Function:
 
             :return: String of the Python function body.
         """
-        args = "{"
+        arguments = "{"
         for param, val in self.parameters.items():
-            if args == "{":
+            if arguments == "{":
                 if param == "data":
-                    args += '"data": {"from_node": from_node},'
+                    arguments += '"data": {"from_node": from_node},'
                 else:
-                    args += '"{}": {},'.format(param, param)
+                    arguments += '"{}": {},'.format(param, param)
             else:
                 if param == "data":
-                    args += ' "data": {"from_node": from_node},'
+                    arguments += ' "data": {"from_node": from_node},'
                 else:
-                    args += ' "{}": {},'.format(param, param)
+                    arguments += ' "{}": {},'.format(param, param)
 
-        args = args[:-1]+"}"
+        arguments = arguments[:-1]+"}"
 
-        if args == "}":
-            args = "None"
+        if arguments == "}":
+            arguments = "None"
 
         code_str = ""
         # Default: Setting from_node to the previous
-        if "from_node" in args:
+        if "from_node" in arguments:
             code_str = "    if not from_node:\n        from_node = cube.node_id\n"
 
-        return code_str+"    return cube.graph_add_process('{}', {})".format(self.name, args)
+        return code_str+"    return cube.graph_add_process('{}', {})".format(self.name, arguments)
 
 
 class ProcessParser:
@@ -255,6 +257,26 @@ class ProcessParser:
         self.json_file = json_file
         self.output_path = output_path
         self.func_list = []
+
+    def get_file_header(self):
+        """
+            Returns the file header comment containing the creation time, the path to the program that generated it and
+            the input used for the generation.
+
+            :return: string of the file header comment.
+        """
+        file_path = Path(__file__).absolute()
+        cur_time = datetime.datetime.now()
+        source = None
+
+        if self.connection:
+            source = self.connection.build_url("")
+        elif self.json_file:
+            source = self.json_file
+
+        return "\"\"\"\nThis file was generated using {} \nInput: {}\nCreated: {} \n\"\"\"\n\n\n".format(file_path,
+                                                                                                         source,
+                                                                                                         cur_time)
 
     def write_processes_to_file(self, func_list=None, path=None):
         """
@@ -271,7 +293,7 @@ class ProcessParser:
         if not path:
             path = self.output_path
 
-        text = ""
+        text = self.get_file_header()
         for func in func_list:
             text += str(func) + "\n\n\n"
 
@@ -294,6 +316,8 @@ class ProcessParser:
         """
         if not connection:
             connection = self.connection
+        else:
+            self.connection = connection
 
         f_list = []
 
@@ -316,6 +340,8 @@ class ProcessParser:
         """
         if not file_path:
             file_path = self.json_file
+        else:
+            self.json_file = file_path
 
         f_list = []
 
@@ -356,10 +382,10 @@ class ProcessParser:
         """
         func = Function()
 
-        # Parse process and generate functioncode out of it
+        # Parse process and generate function code out of it
         for key, val in process.items():
             # print(key)
-            if not key in FUNCTION_MAPPING:
+            if key not in FUNCTION_MAPPING:
                 continue
             elif FUNCTION_MAPPING[key] == "function_name":
                 func.name = str(val)
@@ -371,11 +397,10 @@ class ProcessParser:
                 func.description = val
             if FUNCTION_MAPPING[key] == "parameters":
                 for p_key, p_val in val.items():
-                    # print("{} --> {}".format(str(p_key), str(p_val)))
                     if p_key not in func.parameters:
                         func.parameters[p_key] = Parameter(name=p_key)
                     if "required" in p_val:
-                            func.parameters[p_key].required = p_val["required"]
+                        func.parameters[p_key].required = p_val["required"]
                     if "description" in p_val:
                         func.parameters[p_key].description = p_val["description"]
                     if "schema" in p_val:
