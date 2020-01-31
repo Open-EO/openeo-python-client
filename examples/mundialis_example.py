@@ -3,7 +3,9 @@
 import json
 import logging
 import openeo
+# TODO remove next line, create a "cube" through connection.load_collection()
 from openeo.rest.imagecollectionclient import ImageCollectionClient
+import time
 
 logging.basicConfig(level=logging.INFO)
 
@@ -35,7 +37,7 @@ print(cap.currency())
 print(cap.list_plans())
 
 # Test Processes
-# North Carolina MODIS LST example
+# North Carolina MODIS LST example (TODO: change to con.load_collection() )
 datacube = con.imagecollection("utm32n.openeo_bolzano.strds.openeo_bolzano_S2")
 datacube = datacube.filter_bbox(west=11.279182, south=46.464349, east=11.406898, north=46.522729, crs="4326")
 datacube = datacube.filter_temporal(extent=["2018-05-01T00:00:00Z", "2018-10-10T23:59:59Z"])
@@ -52,6 +54,7 @@ if job:
     print(job.job_id)
     print(job.start_job())
     print(job.describe_job())
+    # TODO: replace with datacube.execute_batch('/tmp/testfile')
     time.sleep(5)
     job.download_results("/tmp/testfile")
 else:

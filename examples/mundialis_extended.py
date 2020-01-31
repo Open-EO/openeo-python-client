@@ -4,6 +4,7 @@ import logging
 from datetime import datetime
 
 import openeo
+# TODO remove next line, create a "cube" through connection.load_collection()
 from openeo.rest.imagecollectionclient import ImageCollectionClient
 import sys
 
@@ -79,6 +80,7 @@ def execute(
         image_collection,
         json.dumps(connection.describe_collection(image_collection), indent=2),
     )
+    # TODO: change to con.load_collection()
     cube = ImageCollectionClient.load_collection(session = connection, collection_id = image_collection, bands = all_bands)
     cube = cube.filter_bbox( **bbox)
     cube = cube.filter_temporal(extent=temporal_extent)
@@ -136,6 +138,7 @@ if __name__ == "__main__":
         handler.setFormatter(formatter)
     level = logging.getLevelName(logging.DEBUG)
     logger.setLevel(level)
+    # TODO change to logging.basicConfig(level=logging.DEBUG)
     for handler in handlers:
         logger.addHandler(handler)
     # called from process_wrapper.py
