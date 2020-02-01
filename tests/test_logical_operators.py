@@ -1,5 +1,6 @@
 from unittest import TestCase
 
+import pytest
 import requests_mock
 from mock import MagicMock
 
@@ -8,23 +9,30 @@ from openeo import ImageCollection
 from openeo.graphbuilder import GraphBuilder
 from . import load_json_resource
 
+@pytest.fixture(scope="module", params=[ "1.0.0"])#"0.4.0",
+def version(request):
+    return request.param
 
-@requests_mock.mock()
-class TestLogicalOps(TestCase):
 
-    def setUp(self) -> None:
+#@requests_mock.mock()
+class TestLogicalOps():
+
+    @pytest.fixture(autouse=True)
+    def setup(self,version):
+        self.version = version
         GraphBuilder.id_counter = {}
 
 
-    def test_not_equal(self, m):
+
+    def test_not_equal(self, requests_mock):
         # configuration phase: define username, endpoint, parameters?
-        m.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})
+        requests_mock.get("http://localhost:8000/api/", json={"api_version":self.version})
         session = openeo.connect("http://localhost:8000/api")
         session.post = MagicMock()
         session.download = MagicMock()
 
-        m.get("http://localhost:8000/api/collections", json={"collections": [{"product_id": "sentinel2_subset"}]})
-        m.get("http://localhost:8000/api/collections/SENTINEL2_SCF", json={
+        requests_mock.get("http://localhost:8000/api/collections", json={"collections": [{"product_id": "sentinel2_subset"}]})
+        requests_mock.get("http://localhost:8000/api/collections/SENTINEL2_SCF", json={
             "product_id": "sentinel2_subset",
             "bands": [{'band_id': 'SCENECLASSIFICATION'}],
         })
@@ -47,14 +55,14 @@ class TestLogicalOps(TestCase):
         expected_graph = load_json_resource('data/notequal.json')
         assert actual_graph == expected_graph
 
-    def test_or(self, m):
-        m.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})
+    def test_or(self, requests_mock):
+        requests_mock.get("http://localhost:8000/api/", json={"api_version": self.version})
         session = openeo.connect("http://localhost:8000/api")
         session.post = MagicMock()
         session.download = MagicMock()
 
-        m.get("http://localhost:8000/api/collections", json={"collections": [{"product_id": "sentinel2_subset"}]})
-        m.get("http://localhost:8000/api/collections/SENTINEL2_SCF", json={
+        requests_mock.get("http://localhost:8000/api/collections", json={"collections": [{"product_id": "sentinel2_subset"}]})
+        requests_mock.get("http://localhost:8000/api/collections/SENTINEL2_SCF", json={
             "product_id": "sentinel2_subset",
             "bands": [{'band_id': 'SCENECLASSIFICATION'}],
         })
@@ -70,14 +78,14 @@ class TestLogicalOps(TestCase):
         expected_graph = load_json_resource('logical_or.json')
         assert actual_graph == expected_graph
 
-    def test_and(self, m):
-        m.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})
+    def test_and(self, requests_mock):
+        requests_mock.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})
         session = openeo.connect("http://localhost:8000/api")
         session.post = MagicMock()
         session.download = MagicMock()
 
-        m.get("http://localhost:8000/api/collections", json={"collections": [{"product_id": "sentinel2_subset"}]})
-        m.get("http://localhost:8000/api/collections/SENTINEL2_SCF", json={
+        requests_mock.get("http://localhost:8000/api/collections", json={"collections": [{"product_id": "sentinel2_subset"}]})
+        requests_mock.get("http://localhost:8000/api/collections/SENTINEL2_SCF", json={
             "product_id": "sentinel2_subset",
             "bands": [{'band_id': 'B1'}, {'band_id': 'B2'}],
         })
@@ -93,12 +101,12 @@ class TestLogicalOps(TestCase):
         expected_graph = load_json_resource('logical_and.json')
         assert actual_graph == expected_graph
 
-    def test_merging_cubes(self,m):
+    def test_merging_cubes(self,requests_mock):
 
 
-        m.get("http://localhost:8000/api/", json={"version": "0.4.0"})
-        m.get("http://localhost:8000/api/collections", json={"collections": [{"product_id": "sentinel2_subset"}]})
-        m.get("http://localhost:8000/api/collections/SENTINEL2_SCF", json={
+        requests_mock.get("http://localhost:8000/api/", json={"version": "0.4.0"})
+        requests_mock.get("http://localhost:8000/api/collections", json={"collections": [{"product_id": "sentinel2_subset"}]})
+        requests_mock.get("http://localhost:8000/api/collections/SENTINEL2_SCF", json={
             "product_id": "sentinel2_subset",
             "bands": [{'band_id': 'B1'}, {'band_id': 'B2'}],
         })

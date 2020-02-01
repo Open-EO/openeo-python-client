@@ -84,6 +84,8 @@ class ProcessGraphVisitor(ABC):
                     self.enterArgument(arg,value)
                     if 'node' in value and 'from_node' in value:
                         self.accept(value['node'])
+                    elif 'from_node' in value and type(value['from_node']) == dict:
+                        self.accept(value['from_node'])
                     else:
                         self.accept(value)
                     self.leaveArgument(arg,value)

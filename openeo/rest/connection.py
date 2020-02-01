@@ -13,6 +13,7 @@ from urllib.parse import urljoin
 import requests
 from deprecated import deprecated
 from openeo.rest import OpenEoClientException
+from openeo.rest.datacube import DataCube
 from openeo.util import ensure_list
 from requests import Response
 from requests.auth import HTTPBasicAuth, AuthBase
@@ -346,7 +347,10 @@ class Connection(RestApiConnection):
         :param collection_id: image collection identifier (string)
         :return: ImageCollectionClient
         """
-        return ImageCollectionClient.load_collection(collection_id=collection_id, session=self, **kwargs)
+        if self._api_version.at_least(ComparableVersion("1.0.0")):
+            return DataCube.load_collection(collection_id=collection_id, session=self, **kwargs)
+        else:
+            return ImageCollectionClient.load_collection(collection_id=collection_id, session=self, **kwargs)
 
     # Legacy alias.
     imagecollection = load_collection
