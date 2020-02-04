@@ -321,7 +321,7 @@ class ImageCollectionClient(ImageCollection):
             # TODO: set metadata of reduced cube?
             return ImageCollectionClient(self.node_id, process_graph_copy, self.session)
 
-    def __truediv__(self,other):
+    def __truediv__(self, other):
         return self.divide(other)
 
     def __sub__(self, other):
@@ -343,7 +343,7 @@ class ImageCollectionClient(ImageCollection):
         return self.logical_or(other)
 
     def __and__(self, other):
-        return  self.logical_and(other)
+        return self.logical_and(other)
 
     def add(self, other:Union[ImageCollection,Union[int,float]]):
         """
