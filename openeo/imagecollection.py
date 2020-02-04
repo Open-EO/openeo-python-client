@@ -104,7 +104,6 @@ class CollectionMetadata:
         raise ValueError("Band {b!r} not available in collection. Valid names: {n!r}".format(b=band, n=band_names))
 
 
-
 class ImageCollection(ABC):
     """Class representing Processes. """
 
