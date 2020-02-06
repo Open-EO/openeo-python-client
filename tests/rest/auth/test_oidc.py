@@ -50,6 +50,21 @@ def test_http_server_thread():
     server_thread.join()
 
 
+def test_http_server_thread_port():
+    queue = Queue()
+    server_thread = HttpServerThread(RequestHandlerClass=QueuingRequestHandler.with_queue(queue),
+                                     server_address=('', 12345))
+    server_thread.start()
+    port, host, fqdn = server_thread.server_address_info()
+    assert port == 12345
+    url = 'http://{f}:{p}/foo/bar'.format(f=fqdn, p=port)
+    response = requests.get(url)
+    response.raise_for_status()
+    assert list(drain_queue(queue)) == ['/foo/bar']
+    server_thread.shutdown()
+    server_thread.join()
+
+
 def test_oidc_flow(oidc_test_setup):
     # see test/rest/conftest.py for `oidc_test_setup` fixture
     client_id = "myclient"

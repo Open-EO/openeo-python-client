@@ -72,12 +72,12 @@ class HttpServerThread(threading.Thread):
     Thread that runs a HTTP server (`http.server.HTTPServer`)
     """
 
-    def __init__(self, RequestHandlerClass, server_address=('', 0)):
+    def __init__(self, RequestHandlerClass, server_address: Tuple[str, int] = None):
         # Make it a daemon to minimize potential shutdown issues due to `serve_forever`
         super().__init__(daemon=True)
         self._RequestHandlerClass = RequestHandlerClass
         # Server address ('', 0): listen on all ips and let OS pick a free port
-        self._server_address = server_address
+        self._server_address = server_address or ('', 0)
         self._server = None
 
     def start(self):
@@ -187,11 +187,13 @@ class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
     AuthCodeResult = namedtuple("AuthCodeResult", ["auth_code", "nonce", "code_verifier", "redirect_uri"])
     AccessTokenResult = namedtuple("AccessTokenResult", ["access_token", "id_token", "refresh_token"])
 
-    def __init__(self, client_id: str, oidc_discovery_url: str, webbrowser_open: Callable = None, timeout=120):
+    def __init__(self, client_id: str, oidc_discovery_url: str, webbrowser_open: Callable = None, timeout=120,
+                 server_address: Tuple[str, int] = None):
         self._client_id = client_id
         self._provider_info = requests.get(oidc_discovery_url).json()
         self._webbrowser_open = webbrowser_open or webbrowser.open
         self._authentication_timeout = timeout
+        self._server_address = server_address
 
     @staticmethod
     def hash_code_verifier(code: str) -> str:
@@ -222,7 +224,11 @@ class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
         # Set up HTTP server (in separate thread) to catch OAuth redirect URL
         callback_queue = Queue()
         RequestHandlerClass = OAuthRedirectRequestHandler.with_queue(callback_queue)
-        with HttpServerThread(RequestHandlerClass=RequestHandlerClass) as http_server_thread:
+        http_server_thread = HttpServerThread(
+            RequestHandlerClass=RequestHandlerClass,
+            server_address=self._server_address
+        )
+        with http_server_thread:
             port, host, fqdn = http_server_thread.server_address_info()
             # TODO: use fully qualified domain name instead of "localhost"?
             #       Otherwise things won't work when the client is for example
