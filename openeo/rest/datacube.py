@@ -359,7 +359,7 @@ class DataCube(ImageCollection):
         else:
             raise ValueError("Unsupported right-hand operand: " + str(other))
 
-    def _reduce_bands_binary(self, operator, other: 'ImageCollectionClient', arg_name='data'):
+    def _reduce_bands_binary(self, operator, other: 'DataCube', arg_name='data'):
         # first we create the callback
         fallback_node = {'from_argument': 'data'}
         my_builder = self._get_band_graph_builder()
@@ -410,16 +410,16 @@ class DataCube(ImageCollection):
                 }
                 return self.graph_add_process("reduce", args)
         else:
-            node_id = self.node_id
+
             reducing_graph = self
-            if reducing_graph.graph[node_id]["process_id"] != "reduce":
+            if reducing_graph.builder.result_node["process_id"] != "reduce":
                 node_id = other.node_id
                 reducing_graph = other
             new_builder = reducing_graph.builder.shallow_copy()
-            new_builder.processes[node_id]['arguments']['reducer']['callback'] = merged.processes
+            new_builder.result_node['arguments']['reducer']['callback'] = merged.result_node
             # now current_node should be a reduce node, let's modify it
             # TODO: set metadata of reduced cube?
-            return DataCube(node_id, new_builder, reducing_graph.session)
+            return DataCube(None, new_builder, reducing_graph.session)
 
     def _reduce_bands_binary_xy(self, operator, other: Union[ImageCollection, Union[int, float]]):
         """

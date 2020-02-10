@@ -75,8 +75,11 @@ class ProcessGraphVisitor(ABC):
                     self.enterArray(arg)
                     for array_element in value:
                         if type(array_element) is dict:
-                            self.accept(array_element)
-                            self.arrayElementDone()
+                            if 'from_node' in array_element and type(array_element['from_node']) == dict:
+                                self.accept(array_element['from_node'])
+                            else:
+                                self.accept(array_element)
+                            self.arrayElementDone(array_element)
                         else:
                             self.constantArrayElement(array_element)
                     self.leaveArray(arg)
@@ -116,7 +119,7 @@ class ProcessGraphVisitor(ABC):
     def constantArrayElement(self,value):
         pass
 
-    def arrayElementDone(self):
+    def arrayElementDone(self,value):
         pass
 
     def leaveArray(self, argument_id):

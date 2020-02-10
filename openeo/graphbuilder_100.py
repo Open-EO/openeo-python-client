@@ -134,23 +134,8 @@ class GraphBuilder():
         """Combine two GraphBuilders to a new merged one using the given operator"""
         merged = cls()
 
-        def insert_builder(builder: GraphBuilder):
-            nonlocal merged
-            result_node = builder.find_result_node_id()
-            _, key_map = merged._merge_processes(builder.processes, return_key_map=True)
-            key = key_map.get(result_node, result_node)
-            merged.processes[key]['result'] = False
-            return {'from_node': key}
-
-        if isinstance(first, GraphBuilder):
-            first = insert_builder(first)
-        assert isinstance(first, dict)
-        if isinstance(second, GraphBuilder):
-            second = insert_builder(second)
-        assert isinstance(second, dict)
-
         args = {
-            arg_name:[first, second]
+            arg_name:[{'from_node':first.result_node}, {'from_node':second.result_node}]
         }
 
         merged.add_process(operator, result=True, **args)
@@ -174,6 +159,10 @@ class GraphBuilder():
                     'process_id':process_id,
                     'arguments':arguments
                 }
+
+            def arrayElementDone(self,node):
+                if 'from_node' in node:
+                    node['from_node'] = Flattener.last_node_id
 
             def leaveArgument(self, argument_id, node: Dict):
                 if 'from_node' in node:

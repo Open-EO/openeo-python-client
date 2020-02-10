@@ -7,9 +7,10 @@ from mock import MagicMock
 import openeo
 from openeo import ImageCollection
 from openeo.graphbuilder import GraphBuilder
+from openeo.graphbuilder_100 import GraphBuilder as GraphBuilder100
 from . import load_json_resource
 
-@pytest.fixture(scope="module", params=[ "1.0.0"])#"0.4.0",
+@pytest.fixture(scope="module", params=["0.4.0", "1.0.0"])
 def version(request):
     return request.param
 
@@ -21,7 +22,7 @@ class TestLogicalOps():
     def setup(self,version):
         self.version = version
         GraphBuilder.id_counter = {}
-
+        GraphBuilder100.id_counter = {}
 
 
     def test_not_equal(self, requests_mock):
