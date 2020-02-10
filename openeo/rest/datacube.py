@@ -110,7 +110,7 @@ class DataCube(ImageCollection):
         return self.graph_add_process(
             process_id='filter_temporal',
             args={
-                'data': {'from_node': self.node_id},
+                'data': {'from_node': self.builder.result_node},
                 'extent': [start, end]
             }
         )
@@ -125,7 +125,7 @@ class DataCube(ImageCollection):
         return self.graph_add_process(
             process_id='filter_bbox',
             args={
-                'data': {'from_node': self.node_id},
+                'data': {'from_node': self.builder.result_node},
                 'extent': extent
             }
         )
@@ -136,7 +136,7 @@ class DataCube(ImageCollection):
             :return An ImageCollection instance
         """
         new_collection = self.graph_add_process(process_id='filter_bands',
-                                                args={'data': {'from_node': self.node_id}, 'bands': bands})
+                                                args={'data': {'from_node': self.builder.result_node}, 'bands': bands})
         if new_collection.metadata is not None:
             new_collection.metadata.filter_bands(bands)
         return new_collection
@@ -155,20 +155,18 @@ class DataCube(ImageCollection):
         band_index = self.metadata.get_band_index(band)
 
         args = {
-            'data': {'from_node': self.node_id},
+            'data': {'from_node': self.builder.result_node},
             'dimension': 'spectral_bands',
             'reducer': {
                 'callback': {
-                    'r1': {
-                        'arguments': {
-                            'data': {
-                                'from_argument': 'data'
-                            },
-                            'index': band_index
+                    'arguments': {
+                        'data': {
+                            'from_argument': 'data'
                         },
-                        'process_id': 'array_element',
-                        'result': True
-                    }
+                        'index': band_index
+                    },
+                    'process_id': 'array_element',
+                    'result': True
                 }
             }
         }
@@ -178,7 +176,7 @@ class DataCube(ImageCollection):
     def resample_spatial(self, resolution: Union[float, Tuple[float, float]],
                          projection: Union[int, str] = None, method: str = 'near', align: str = 'upper-left'):
         return self.graph_add_process('resample_spatial', {
-            'data': {'from_node': self.node_id},
+            'data': {'from_node': self.builder.result_node},
             'resolution': resolution,
             'projection': projection,
             'method': method,
@@ -306,7 +304,7 @@ class DataCube(ImageCollection):
         if not extend_previous_callback_graph:
             # there was no previous reduce step
             args = {
-                'data': {'from_node': self.node_id},
+                'data': {'from_node': self.builder.result_node},
                 'dimension': 'spectral_bands',
                 'reducer': {
                     'callback': callback_graph_builder.processes
@@ -402,10 +400,10 @@ class DataCube(ImageCollection):
                 the_node["arguments"]["overlap_resolver"] = {
                     'callback': merged.processes
                 }
-                return ImageCollectionClient(node_id, cubes_merged, self.session, metadata=self.metadata)
+                return DataCube(node_id, cubes_merged, self.session, metadata=self.metadata)
             else:
                 args = {
-                    'data': {'from_node': self.node_id},
+                    'data': {'from_node': self.builder.result_node},
                     'reducer': {
                         'callback': merged.processes
                     }
@@ -421,7 +419,7 @@ class DataCube(ImageCollection):
             new_builder.processes[node_id]['arguments']['reducer']['callback'] = merged.processes
             # now current_node should be a reduce node, let's modify it
             # TODO: set metadata of reduced cube?
-            return ImageCollectionClient(node_id, new_builder, reducing_graph.session)
+            return DataCube(node_id, new_builder, reducing_graph.session)
 
     def _reduce_bands_binary_xy(self, operator, other: Union[ImageCollection, Union[int, float]]):
         """
@@ -491,7 +489,7 @@ class DataCube(ImageCollection):
             regions_geojson = mapping(regions)
         process_id = 'zonal_statistics'
         args = {
-            'data': {'from_node': self.node_id},
+            'data': {'from_node': self.builder.result_node},
             'regions': regions_geojson,
             'func': func,
             'scale': scale,
@@ -562,7 +560,7 @@ class DataCube(ImageCollection):
         process_id = 'reduce'
         args = {
             'data': {
-                'from_node': self.node_id
+                'from_node': self.builder.result_node
             },
             'dimension': 'spectral_bands',  # TODO determine dimension based on datacube metadata
             'binary': False,
@@ -603,7 +601,7 @@ class DataCube(ImageCollection):
         process_id = 'reduce'
         args = {
             'data': {
-                'from_node': self.node_id
+                'from_node': self.builder.result_node
             },
             'dimension': 'temporal',  # TODO determine dimension based on datacube metadata
             'binary': False,
@@ -622,7 +620,7 @@ class DataCube(ImageCollection):
                 "from_argument": data_argument
             }
         args = {
-            'data': {'from_node': self.node_id},
+            'data': {'from_node': self.builder.result_node},
             'process': {
                 'callback': {
                     "unary": {
@@ -640,7 +638,7 @@ class DataCube(ImageCollection):
         process_id = 'reduce'
 
         args = {
-            'data': {'from_node': self.node_id},
+            'data': {'from_node': self.builder.result_node},
             'dimension': 'temporal',
             'reducer': {
                 'callback': {
@@ -722,7 +720,7 @@ class DataCube(ImageCollection):
         """
         process_id = 'stretch_colors'
         args = {
-            'data': {'from_node': self.node_id},
+            'data': {'from_node': self.builder.result_node},
             'min': min,
             'max': max
         }
@@ -739,7 +737,7 @@ class DataCube(ImageCollection):
         """
         process_id = 'linear_scale_range'
         args = {
-            'x': {'from_node': self.node_id},
+            'x': {'from_node': self.builder.result_node},
             'inputMin': input_min,
             'inputMax': input_max,
             'outputMin': output_min,
@@ -807,7 +805,7 @@ class DataCube(ImageCollection):
             mask_node = new_collection.graph[mask_id]
             mask_node['result'] = False
             mask = {
-                'from_node': mask_id
+                'from_node': new_collection.builder.result_node
             }
 
         else:
@@ -816,7 +814,7 @@ class DataCube(ImageCollection):
         process_id = 'mask'
 
         args = {
-            'data': {'from_node': self.node_id},
+            'data': {'from_node': self.builder.result_node},
             'mask': mask
         }
         if replacement is not None:
@@ -833,10 +831,10 @@ class DataCube(ImageCollection):
         other_node = new_collection.graph[mask_id]
         other_node['result'] = False
         cube2 = {
-            'from_node': mask_id
+            'from_node': new_collection.builder.result_node
         }
         args = {
-            'cube1': {'from_node': self.node_id},
+            'cube1': {'from_node': self.builder.result_node},
             'cube2': cube2
         }
         return new_collection.graph_add_process('merge_cubes', args)
@@ -850,7 +848,7 @@ class DataCube(ImageCollection):
         :return: A data cube with the newly computed values. The resolution, cardinality and the number of dimensions are the same as for the original data cube.
         """
         return self.graph_add_process('apply_kernel', {
-            'data': {'from_node': self.node_id},
+            'data': {'from_node': self.builder.result_node},
             'kernel': kernel.tolist(),
             'factor': factor
         })
@@ -909,7 +907,7 @@ class DataCube(ImageCollection):
         def graph_add_aggregate_process(graph) -> 'ImageCollection':
             process_id = 'aggregate_polygon'
             args = {
-                'data': {'from_node': self.node_id},
+                'data': {'from_node': self.builder.result_node},
                 'polygons': polygons,
                 'reducer': {
                     'callback': {

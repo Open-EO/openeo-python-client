@@ -44,7 +44,7 @@ class GraphBuilder():
     def add_process(self,process_id,result=None, **args):
         process_id = self.process(process_id, args)
         if result is not None:
-            self.processes[process_id]["result"] = result
+            self.result_node["result"] = result
         return process_id
 
     def process(self,process_id, args):
@@ -64,8 +64,8 @@ class GraphBuilder():
         #    return existing_id
         #except ValueError as e:
         #    pass
-        id = self._generate_id(process_id)
-        self.processes[id] = new_process
+        #id = self._generate_id(process_id)
+        #self.processes[id] = new_process
         if 'from_node' in args:
             args['from_node'] = self.result_node
         self.result_node = new_process
@@ -178,7 +178,12 @@ class GraphBuilder():
             def leaveArgument(self, argument_id, node: Dict):
                 if 'from_node' in node:
                     node['from_node'] = Flattener.last_node_id
+                if type(node) == dict and 'callback' in node:
+                    callback = node['callback']
+                    flat_callback = GraphBuilder.from_process_graph(callback).flatten()
+                    node['callback'] = flat_callback
 
-
-        Flattener().accept(self.result_node)
+        flattener = Flattener()
+        flattener.accept(self.result_node)
+        flat_graph[flattener.last_node_id]['result'] = True
         return flat_graph

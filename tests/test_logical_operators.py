@@ -42,7 +42,7 @@ class TestLogicalOps():
         # like the imagecollection ID on: https://earthengine.google.com/datasets/
 
         # access multiband 4D (x/y/time/band) coverage
-        s2_radio = session.imagecollection("SENTINEL2_SCF")
+        s2_radio = session.load_collection("SENTINEL2_SCF")
 
         scf_bands = s2_radio.band('SCENECLASSIFICATION')
 
