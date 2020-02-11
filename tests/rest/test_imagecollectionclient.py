@@ -14,6 +14,8 @@ API_URL = "https://oeo.net"
 def session040(requests_mock):
     requests_mock.get(API_URL + "/", json={"api_version": "0.4.0"})
     session = openeo.connect(API_URL)
+    # Reset graph builder
+    GraphBuilder.id_counter = {}
     return session
 
 
@@ -82,3 +84,29 @@ def test_download_with_bearer_token(session040, requests_mock, tmpdir):
     path = tmpdir.join("tmp.tiff")
     session040.load_collection("SENTINEL2").download(str(path), format="GTIFF")
     assert path.read() == "tiffdata"
+
+
+def test_dynamic_cube_method(session040, requests_mock):
+    processes = [
+        {
+            "id": "make_larger",
+            "description": "multiply a raster cube with a factor",
+            "parameters": [
+                {"name": "data", "schema": {"type": "object", "subtype": "raster-cube"}},
+                {"name": "factor", "schema": {"type": "float"}},
+            ]}
+    ]
+    requests_mock.get(API_URL + '/processes', json={"processes": processes})
+    requests_mock.get(API_URL + "/collections/SENTINEL2", json={"foo": "bar"})
+
+    cube = session040.load_collection("SENTINEL2")
+    cube = cube.dynamic.make_larger(factor=42)
+    assert set(cube.graph.keys()) == {"loadcollection1", "makelarger1"}
+    assert cube.graph["makelarger1"] == {
+        "process_id": "make_larger",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "factor": 42,
+        },
+        "result": False
+    }

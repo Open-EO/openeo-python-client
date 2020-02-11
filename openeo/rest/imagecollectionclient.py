@@ -31,6 +31,7 @@ class ImageCollectionClient(ImageCollection):
         self.session = session
         self.graph = builder.processes
         self.metadata = metadata
+        self.dynamic = DynamicCubeMethodDelegator(cube=self)
 
     def __str__(self):
         return "ImageCollection: %s" % self.node_id
@@ -1070,3 +1071,59 @@ class ImageCollectionClient(ImageCollection):
             # TODO: add subgraph for "callback" arguments?
 
         return graph
+
+
+class DynamicProcessException(Exception):
+    pass
+
+
+class _DynamicCubeMethod:
+    """
+    A dynamically detected process bound to a raster cube.
+    The process should have a single "raster-cube" parameter.
+    """
+
+    def __init__(self, cube: ImageCollectionClient, process_id: str, parameters: List[dict]):
+        self.cube = cube
+        self.process_id = process_id
+        self.parameters = parameters
+
+        # Find raster-cube parameter.
+        expected_schema = {"type": "object", "subtype": "raster-cube"}
+        names = [p["name"] for p in self.parameters if p["schema"] == expected_schema]
+        if len(names) != 1:
+            raise DynamicProcessException("Need one raster-cube parameter but found {c}".format(c=len(names)))
+        self.cube_parameter = names[0]
+
+    def __call__(self, *args, **kwargs):
+        """Call the "cube method": pass cube and other arguments to the process."""
+        arguments = {
+            self.cube_parameter: {"from_node": self.cube.node_id}
+        }
+        # TODO: more advanced parameter checking (required vs optional), normalization based on type, ...
+        for i, arg in enumerate(args):
+            arguments[self.parameters[i]["name"]] = arg
+        for key, value in kwargs.items():
+            assert any(p["name"] == key for p in self.parameters)
+            assert key not in arguments
+            arguments[key] = value
+
+        return self.cube.graph_add_process(
+            process_id=self.process_id,
+            args=arguments,
+        )
+
+
+class DynamicCubeMethodDelegator:
+    """
+    Wrapper for a DataCube to group and delegate to dynamically detected processes
+    (depending on a particular backend or API spec)
+    """
+
+    def __init__(self, cube: ImageCollectionClient):
+        self.cube = cube
+
+    def __getattr__(self, process_id):
+        self.process_registry = self.cube.session.process_registry()
+        parameters = self.process_registry.get_parameters(process_id)
+        return _DynamicCubeMethod(self.cube, process_id=process_id, parameters=parameters)
