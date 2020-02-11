@@ -187,3 +187,14 @@ def test_load_collection_arguments(requests_mock):
         "temporal_extent": temporal_extent,
         "bands": ["red", "green"]
     }
+
+
+def test_list_file_formats(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    conn = Connection(API_URL)
+    file_formats = {
+        "input": {"GeoJSON": {"gis_data_type": ["vector"]}},
+        "output": {"GTiff": {"gis_data_types": ["raster"]}},
+    }
+    requests_mock.get(API_URL + "file_formats", json=file_formats)
+    assert conn.list_file_formats() == file_formats

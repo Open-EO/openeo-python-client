@@ -272,12 +272,16 @@ class Connection(RestApiConnection):
         return self.list_output_formats()
 
     def list_output_formats(self) -> dict:
-        """
-        Loads all available output formats.
+        if self._api_version.at_least("1.0.0"):
+            return self.list_file_formats()["output"]
+        else:
+            return self.get('/output_formats').json()
 
-        :return: data_dict: Dict All available output formats
+    def list_file_formats(self) -> dict:
         """
-        return self.get('/output_formats').json()
+        Get available input and output formats
+        """
+        return self.get('/file_formats').json()
 
     def list_service_types(self) -> dict:
         """
