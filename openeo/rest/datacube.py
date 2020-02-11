@@ -130,7 +130,7 @@ class DataCube(ImageCollection):
             }
         )
 
-    def filter_bands(self, bands: List[Union[str, int]]) -> ImageCollection:
+    def filter_bands(self, bands: List[Union[str, int]]) -> 'DataCube':
         """Filter the imagery by the given bands
             :param bands: List of band names or single band name as a string.
             :return An ImageCollection instance

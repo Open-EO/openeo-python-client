@@ -1,27 +1,34 @@
 import unittest
-from unittest import TestCase
+import pytest
 
 import requests_mock
 from mock import MagicMock
 
 import openeo
 from openeo.graphbuilder import GraphBuilder
+from openeo.graphbuilder_100 import GraphBuilder as GraphBuilder100
 from . import load_json_resource
 
+@pytest.fixture(scope="module", params=["0.4.0", "1.0.0"])
+def version(request):
+    return request.param
 
-@requests_mock.mock()
-class TestBandMath(TestCase):
+class TestBandMath():
 
-    def setUp(self) -> None:
+    @pytest.fixture(autouse=True)
+    def setup(self, version):
+        self.version = version
         GraphBuilder.id_counter = {}
+        GraphBuilder100.id_counter = {}
 
-    def test_basic(self, m):
-        m.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})
+
+    def test_basic(self, requests_mock):
+        requests_mock.get("http://localhost:8000/api/", json={"api_version": self.version})
         session = openeo.connect("http://localhost:8000/api")
         session.post = MagicMock()
         session.download = MagicMock()
 
-        m.get("http://localhost:8000/api/collections/SENTINEL2_RADIOMETRY_10M", json={"product_id": "sentinel2_subset",
+        requests_mock.get("http://localhost:8000/api/collections/SENTINEL2_RADIOMETRY_10M", json={"product_id": "sentinel2_subset",
                                                                                       "bands": [{'band_id': 'B02'},
                                                                                                 {'band_id': 'B04'},
                                                                                                 {'band_id': 'B08'},
@@ -30,20 +37,29 @@ class TestBandMath(TestCase):
                                                                                                'to': '2018-06-18'}})
 
         cube = session.imagecollection("SENTINEL2_RADIOMETRY_10M")
-        expected_graph = load_json_resource('data/band0.json')
+        expected_graph = load_json_resource('data/%s/band0.json'%self.version)
 
-        assert cube.band(0).graph == expected_graph
+
+        assert self._get_graph(cube.band(0)) == expected_graph
         GraphBuilder.id_counter = {}
-        assert cube.band('B02').graph == expected_graph
+        GraphBuilder100.id_counter = {}
+        assert self._get_graph(cube.band('B02')) == expected_graph
 
-    def test_band_indexing(self, m):
+    def _get_graph(self,cube):
+        if self.version == '0.4.0':
+            return cube.graph
+        else:
+            return cube.builder.flatten()
+
+
+    def test_band_indexing(self, requests_mock):
         self.maxDiff=None
-        m.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})
+        requests_mock.get("http://localhost:8000/api/", json={"api_version": self.version})
         session = openeo.connect("http://localhost:8000/api")
         session.post = MagicMock()
         session.download = MagicMock()
 
-        m.get("http://localhost:8000/api/collections/CGS_SENTINEL2_RADIOMETRY_V102_001", json={
+        requests_mock.get("http://localhost:8000/api/collections/CGS_SENTINEL2_RADIOMETRY_V102_001", json={
             "id": "CGS_SENTINEL2_RADIOMETRY_V102_001",
             "properties": {
                 "eo:bands": [
@@ -56,30 +72,34 @@ class TestBandMath(TestCase):
         })
 
         cube = session.imagecollection("CGS_SENTINEL2_RADIOMETRY_V102_001")
-        expected_graph = load_json_resource('data/band_red.json')
+        expected_graph = load_json_resource('data/%s/band_red.json'%self.version)
 
         def check_cube(cube, band_index=2):
             GraphBuilder.id_counter = {}
-            self.assertDictEqual(cube.band(band_index).graph,expected_graph)
+            GraphBuilder100.id_counter = {}
+            assert self._get_graph(cube.band(band_index)) == expected_graph
             GraphBuilder.id_counter = {}
-            self.assertDictEqual(cube.band('B04').graph, expected_graph)
+            GraphBuilder100.id_counter = {}
+            assert self._get_graph(cube.band('B04')) == expected_graph
             GraphBuilder.id_counter = {}
-            self.assertDictEqual(cube.band('red').graph, expected_graph)
+            GraphBuilder100.id_counter = {}
+            assert self._get_graph(cube.band('red')) == expected_graph
         check_cube(cube)
 
-        expected_graph = load_json_resource('data/band_red_filtered.json')
+        expected_graph = load_json_resource('data/%s/band_red_filtered.json'%self.version)
         GraphBuilder.id_counter = {}
+        GraphBuilder100.id_counter = {}
         check_cube( cube.filter_bands(['red','green']),0)
 
-    def test_evi(self,m):
+    def test_evi(self,requests_mock):
         # configuration phase: define username, endpoint, parameters?
-        m.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})
+        requests_mock.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})
         session = openeo.connect("http://localhost:8000/api")
         session.post = MagicMock()
         session.download = MagicMock()
 
-        m.get("http://localhost:8000/api/collections", json={"collections": [{"product_id": "sentinel2_subset"}]})
-        m.get("http://localhost:8000/api/collections/SENTINEL2_RADIOMETRY_10M", json={"product_id": "sentinel2_subset",
+        requests_mock.get("http://localhost:8000/api/collections", json={"collections": [{"product_id": "sentinel2_subset"}]})
+        requests_mock.get("http://localhost:8000/api/collections/SENTINEL2_RADIOMETRY_10M", json={"product_id": "sentinel2_subset",
                                                                                       "bands": [{'band_id': 'B02'},
                                                                                                 {'band_id': 'B04'},
                                                                                                 {'band_id': 'B08'},
@@ -104,18 +124,18 @@ class TestBandMath(TestCase):
         session.download.assert_called_once()
         actual_graph = session.download.call_args_list[0][0][0]
         expected_graph = load_json_resource('data/evi_graph.json')
-        self.assertDictEqual(actual_graph,expected_graph)
+        assert actual_graph == expected_graph
 
 
-    def test_ndvi_udf(self, m):
+    def test_ndvi_udf(self, requests_mock):
         #configuration phase: define username, endpoint, parameters?
-        m.get("http://localhost:8000/api/", json={"version": "0.4.1"})
+        requests_mock.get("http://localhost:8000/api/", json={"version": "0.4.1"})
         session = openeo.connect("http://localhost:8000/api")
         session.post = MagicMock()
         session.download = MagicMock()
 
-        m.get("http://localhost:8000/api/collections", json={"collections": [{"product_id": "sentinel2_subset"}]})
-        m.get("http://localhost:8000/api/collections/SENTINEL2_RADIOMETRY_10M", json={"product_id": "sentinel2_subset",
+        requests_mock.get("http://localhost:8000/api/collections", json={"collections": [{"product_id": "sentinel2_subset"}]})
+        requests_mock.get("http://localhost:8000/api/collections/SENTINEL2_RADIOMETRY_10M", json={"product_id": "sentinel2_subset",
                                                                                "bands": [{'band_id': 'B0'},
                                                                                          {'band_id': 'B1'},
                                                                                          {'band_id': 'B2'},
@@ -167,13 +187,13 @@ class TestBandMath(TestCase):
         session.post.assert_called_once_with(path="/result", json=expected_graph)
         session.download.assert_called_once()
 
-    def test_ndvi_udf_0_4_0(self, m):
+    def test_ndvi_udf_0_4_0(self, requests_mock):
         #configuration phase: define username, endpoint, parameters?
-        m.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})
+        requests_mock.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})
         session = openeo.connect("http://localhost:8000/api")
 
-        m.get("http://localhost:8000/api/collections", json={"collections": [{"product_id": "sentinel2_subset"}]})
-        m.get("http://localhost:8000/api/collections/SENTINEL2_RADIOMETRY_10M", json={"product_id": "sentinel2_subset",
+        requests_mock.get("http://localhost:8000/api/collections", json={"collections": [{"product_id": "sentinel2_subset"}]})
+        requests_mock.get("http://localhost:8000/api/collections/SENTINEL2_RADIOMETRY_10M", json={"product_id": "sentinel2_subset",
                                                                                "bands": [{'band_id': 'B0'},
                                                                                          {'band_id': 'B1'},
                                                                                          {'band_id': 'B2'},
@@ -185,7 +205,7 @@ class TestBandMath(TestCase):
             assert request.json() == expected_graph
             return True
 
-        m.post("http://localhost:8000/api/result", text="my binary data", additional_matcher=check_process_graph)
+        requests_mock.post("http://localhost:8000/api/result", text="my binary data", additional_matcher=check_process_graph)
 
         #access multiband 4D (x/y/time/band) coverage
         s2_radio = session.imagecollection("SENTINEL2_RADIOMETRY_10M")

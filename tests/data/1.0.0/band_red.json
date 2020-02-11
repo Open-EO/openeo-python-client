@@ -1,0 +1,34 @@
+{
+  "loadcollection1": {
+    "arguments": {
+      "spatial_extent": null,
+      "id": "CGS_SENTINEL2_RADIOMETRY_V102_001",
+      "temporal_extent": null
+    },
+    "process_id": "load_collection"
+  },
+  "reduce1": {
+    "arguments": {
+      "dimension": "spectral_bands",
+      "reducer": {
+        "callback": {
+          "arrayelement1": {
+            "arguments": {
+              "index": 2,
+              "data": {
+                "from_argument": "data"
+              }
+            },
+            "process_id": "array_element",
+            "result": true
+          }
+        }
+      },
+      "data": {
+        "from_node": "loadcollection1"
+      }
+    },
+    "process_id": "reduce",
+    "result": true
+  }
+}
