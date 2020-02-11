@@ -143,7 +143,7 @@ class RESTJob(Job):
                 t=elapsed, i=job_id, s=status,
                 p='{p}%'.format(p=job_info["progress"]) if "progress" in job_info else "N/A"
             ))
-            if status not in ('submitted', 'queued', 'running'):
+            if status not in ('submitted', 'created', 'queued', 'running'):
                 break
 
             time.sleep(poll_interval)
