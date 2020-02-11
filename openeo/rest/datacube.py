@@ -522,19 +522,17 @@ class DataCube(ImageCollection):
             }
         else:
             callback = {
-                'process': {
-                    "arguments": {
-                        "data": {
-                            "from_argument": "data"
-                        }
-                    },
-                    "process_id": code,
-                    "result": True
-                }
+                "arguments": {
+                    "data": {
+                        "from_argument": "data"
+                    }
+                },
+                "process_id": code,
+                "result": True
             }
         args = {
             'data': {
-                'from_node': self.node_id
+                'from_node': self.builder.result_node
             },
             'dimension': dimension,
             'process': {

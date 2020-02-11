@@ -2,26 +2,34 @@ from unittest import TestCase
 
 import requests_mock
 from mock import MagicMock
+import pytest
 
 from openeo.graphbuilder import GraphBuilder
+from openeo.graphbuilder_100 import GraphBuilder as GraphBuilder100
 import openeo
 from . import load_json_resource
 
+@pytest.fixture(scope="module", params=["0.4.0", "1.0.0"])
+def version(request):
+    return request.param
 
-@requests_mock.mock()
-class TestTemporal(TestCase):
 
-    def setUp(self) -> None:
+class TestTemporal():
+
+    @pytest.fixture(autouse=True)
+    def setup(self, version):
+        self.version = version
         GraphBuilder.id_counter = {}
+        GraphBuilder100.id_counter = {}
 
-    def test_apply_dimension_temporal_cumsum(self,m):
-        m.get("http://localhost:8000/api/", json={"version": "0.4.0"})
+    def test_apply_dimension_temporal_cumsum(self,requests_mock):
+        requests_mock.get("http://localhost:8000/api/", json={"version": self.version})
         session = openeo.connect("http://localhost:8000/api")
         session.post = MagicMock()
         session.download = MagicMock()
 
-        m.get("http://localhost:8000/api/collections", json={"collections": [{"product_id": "sentinel2_subset"}]})
-        m.get("http://localhost:8000/api/collections/SENTINEL2_RADIOMETRY_10M", json={"product_id": "sentinel2_subset",
+        requests_mock.get("http://localhost:8000/api/collections", json={"collections": [{"product_id": "sentinel2_subset"}]})
+        requests_mock.get("http://localhost:8000/api/collections/SENTINEL2_RADIOMETRY_10M", json={"product_id": "sentinel2_subset",
                                                                                       "bands": [{'band_id': 'B02'},
                                                                                                 {'band_id': 'B04'},
                                                                                                 {'band_id': 'B08'},
@@ -40,5 +48,5 @@ class TestTemporal(TestCase):
 
         session.download.assert_called_once()
         actual_graph = session.download.call_args_list[0][0][0]
-        expected_graph = load_json_resource('data/apply_dimension_temporal_cumsum.json')
+        expected_graph = load_json_resource('data/%s/apply_dimension_temporal_cumsum.json'%self.version)
         assert actual_graph == expected_graph
