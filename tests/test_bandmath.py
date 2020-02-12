@@ -93,7 +93,7 @@ class TestBandMath():
 
     def test_evi(self,requests_mock):
         # configuration phase: define username, endpoint, parameters?
-        requests_mock.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})
+        requests_mock.get("http://localhost:8000/api/", json={"api_version": self.version})
         session = openeo.connect("http://localhost:8000/api")
         session.post = MagicMock()
         session.download = MagicMock()
@@ -123,7 +123,7 @@ class TestBandMath():
 
         session.download.assert_called_once()
         actual_graph = session.download.call_args_list[0][0][0]
-        expected_graph = load_json_resource('data/evi_graph.json')
+        expected_graph = load_json_resource('data/%s/evi_graph.json'%self.version)
         assert actual_graph == expected_graph
 
 

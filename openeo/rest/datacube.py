@@ -448,20 +448,18 @@ class DataCube(ImageCollection):
             raise ValueError("Unsupported right-hand operand: " + str(other))
 
     def _reduce_bands_binary_const(self, operator, other: Union[int, float]):
-        my_builder = self._get_band_graph_builder()
-        new_builder = None
-        extend_previous_callback_graph = my_builder is not None
+        my_callback_builder = self._get_band_graph_builder()
+        new_callback_builder = None
+        extend_previous_callback_graph = my_callback_builder is not None
         if not extend_previous_callback_graph:
-            new_builder = GraphBuilder()
+            new_callback_builder = GraphBuilder()
             # TODO merge both process graphs?
-            new_builder.add_process(operator, data=[{'from_argument': 'data'}, other], result=True)
+            new_callback_builder.add_process(operator, data=[{'from_argument': 'data'}, other], result=True)
         else:
-            current_result = my_builder.find_result_node_id()
-            new_builder = my_builder.shallow_copy()
-            new_builder.processes[current_result]['result'] = False
-            new_builder.add_process(operator, data=[{'from_node': current_result}, other], result=True)
+            new_callback_builder = my_callback_builder
+            new_callback_builder.add_process(operator, data=[{'from_node': new_callback_builder.result_node}, other], result=True)
 
-        return self._create_reduced_collection(new_builder, extend_previous_callback_graph)
+        return self._create_reduced_collection(new_callback_builder, extend_previous_callback_graph)
 
     def _get_band_graph_builder(self):
         current_node = self.builder.result_node
