@@ -103,9 +103,7 @@ class TestLogicalOps():
         assert actual_graph == expected_graph
 
     def test_merging_cubes(self,requests_mock):
-
-
-        requests_mock.get("http://localhost:8000/api/", json={"version": "0.4.0"})
+        requests_mock.get("http://localhost:8000/api/", json={"version": self.version})
         requests_mock.get("http://localhost:8000/api/collections", json={"collections": [{"product_id": "sentinel2_subset"}]})
         requests_mock.get("http://localhost:8000/api/collections/SENTINEL2_SCF", json={
             "product_id": "sentinel2_subset",
@@ -128,7 +126,7 @@ class TestLogicalOps():
         session.download.assert_called_once()
         actual_graph = session.download.call_args_list[0][0][0]
 
-        expected_graph = load_json_resource('data/cube_merge_or.json')
+        expected_graph = load_json_resource('data/%s/cube_merge_or.json'%self.version)
         assert actual_graph == expected_graph
 
 

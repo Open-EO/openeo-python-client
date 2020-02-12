@@ -361,7 +361,7 @@ class DataCube(ImageCollection):
 
     def _reduce_bands_binary(self, operator, other: 'DataCube', arg_name='data'):
         # first we create the callback
-        fallback_node = {'from_argument': 'data'}
+        fallback_node = GraphBuilder.from_process_graph({'from_argument': 'data'})
         my_builder = self._get_band_graph_builder()
         other_builder = other._get_band_graph_builder()
         merged = GraphBuilder.combine(operator=operator,
@@ -371,36 +371,38 @@ class DataCube(ImageCollection):
         if my_builder is None and other_builder is None:
             # there was no previous reduce step, perhaps this is a cube merge?
             # cube merge is happening when node id's differ, otherwise we can use regular reduce
-            if (self.node_id != other.node_id):
+            if (self.builder.result_node != other.builder.result_node):
                 # we're combining data from two different datacubes: http://api.openeo.org/v/0.4.0/processreference/#merge_cubes
 
                 # set result node id's first, to keep track
                 my_builder = self.builder
-                my_builder.processes[self.node_id]['result'] = True
+                #my_builder.processes[self.node_id]['result'] = True
                 other_builder = other.builder
-                other_builder.processes[other.node_id]['result'] = True
+                #other_builder.processes[other.node_id]['result'] = True
 
                 cubes_merged = GraphBuilder.combine(operator="merge_cubes",
                                                     first=my_builder,
                                                     second=other_builder, arg_name="cubes")
-                node_id = cubes_merged.find_result_node_id()
-                the_node = cubes_merged.processes[node_id]
-                the_node["result"] = False
+
+                the_node = cubes_merged.result_node
+
                 cubes = the_node["arguments"]["cubes"]
                 the_node["arguments"]["cube1"] = cubes[0]
                 the_node["arguments"]["cube2"] = cubes[1]
                 del the_node["arguments"]["cubes"]
 
                 # there can be only one process for now
-                cube_list = list(merged.processes.values())[0]["arguments"][arg_name]
+                cube_list = merged.result_node["arguments"][arg_name]
                 assert len(cube_list) == 2
                 # it is really not clear if this is the agreed way to go
                 cube_list[0]["from_argument"] = "cube1"
                 cube_list[1]["from_argument"] = "cube2"
+                del cube_list[0]["from_node"]
+                del cube_list[1]["from_node"]
                 the_node["arguments"]["overlap_resolver"] = {
-                    'callback': merged.processes
+                    'callback': merged.result_node
                 }
-                return DataCube(node_id, cubes_merged, self.session, metadata=self.metadata)
+                return DataCube(None, cubes_merged, self.session, metadata=self.metadata)
             else:
                 args = {
                     'data': {'from_node': self.builder.result_node},
