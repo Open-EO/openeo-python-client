@@ -173,6 +173,7 @@ class GraphBuilder():
                     node['callback'] = flat_callback
 
         flattener = Flattener()
-        flattener.accept(self.result_node)
+        #take a copy, flattener modifies the graph in-place
+        flattener.accept(copy.deepcopy(self.result_node))
         flat_graph[flattener.last_node_id]['result'] = True
         return flat_graph
