@@ -561,9 +561,7 @@ class DataCube(ImageCollection):
             'dimension': 'spectral_bands',  # TODO determine dimension based on datacube metadata
             'binary': False,
             'reducer': {
-                'callback': {
-                    'udf': self._create_run_udf(code, runtime, version)
-                }
+                'callback': self._create_run_udf(code, runtime, version)
             }
         }
         return self.graph_add_process(process_id, args)

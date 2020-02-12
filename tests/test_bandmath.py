@@ -189,7 +189,7 @@ class TestBandMath():
 
     def test_ndvi_udf_0_4_0(self, requests_mock):
         #configuration phase: define username, endpoint, parameters?
-        requests_mock.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})
+        requests_mock.get("http://localhost:8000/api/", json={"api_version": self.version})
         session = openeo.connect("http://localhost:8000/api")
 
         requests_mock.get("http://localhost:8000/api/collections", json={"collections": [{"product_id": "sentinel2_subset"}]})
@@ -201,7 +201,9 @@ class TestBandMath():
                                                                              })
 
         def check_process_graph(request):
-            expected_graph = load_json_resource('data/udf_graph.json')
+            expected_graph = load_json_resource('data/%s/udf_graph.json'%self.version)
+            import json
+            print(json.dumps(request.json(),indent=2))
             assert request.json() == expected_graph
             return True
 
