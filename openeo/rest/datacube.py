@@ -30,11 +30,14 @@ class DataCube(ImageCollection):
         self.node_id = node_id
         self.builder = builder
         self.session = session
-        #self.graph = builder.result_node
         self.metadata = metadata
 
     def __str__(self):
         return "DataCube: %s" % self.node_id
+
+    @property
+    def graph(self):
+        return self.builder.flatten()
 
     @property
     def _api_version(self):
