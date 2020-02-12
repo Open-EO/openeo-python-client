@@ -907,15 +907,13 @@ class DataCube(ImageCollection):
                 'polygons': polygons,
                 'reducer': {
                     'callback': {
-                        "unary": {
-                            "arguments": {
-                                "data": {
-                                    "from_argument": "data"
-                                }
-                            },
-                            "process_id": func,
-                            "result": True
-                        }
+                        "arguments": {
+                            "data": {
+                                "from_argument": "data"
+                            }
+                        },
+                        "process_id": func,
+                        "result": True
                     }
                 }
             }
@@ -926,7 +924,7 @@ class DataCube(ImageCollection):
                 'filename': polygon
             })
             polygons = {
-                'from_node': with_read_vector.node_id
+                'from_node': with_read_vector.builder.result_node
             }
             return graph_add_aggregate_process(with_read_vector)
         else:
@@ -1004,7 +1002,7 @@ class DataCube(ImageCollection):
         """Executes the process graph of the imagery. """
         newbuilder = self.builder.shallow_copy()
         newbuilder.result_node['result'] = True
-        return self.session.execute({"process_graph": newbuilder.processes}, "")
+        return self.session.execute({"process_graph": newbuilder.flatten()}, "")
 
     ####### HELPER methods #######
 

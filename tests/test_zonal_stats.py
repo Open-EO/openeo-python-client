@@ -2,29 +2,36 @@ from unittest import TestCase
 
 import requests_mock
 from shapely.geometry import shape
+import pytest
 
 import openeo
 from openeo.graphbuilder import GraphBuilder
+from openeo.graphbuilder_100 import GraphBuilder as GraphBuilder100
 from . import load_json_resource
 
+@pytest.fixture(scope="module", params=["0.4.0", "1.0.0"])
+def version(request):
+    return request.param
 
-@requests_mock.mock()
-class TestTimeSeries(TestCase):
+class TestTimeSeries():
 
-    def setUp(self) -> None:
+    @pytest.fixture(autouse=True)
+    def setup(self, version):
+        self.version = version
         GraphBuilder.id_counter = {}
+        GraphBuilder100.id_counter = {}
 
-    def test_polygon_timeseries(self, m):
+    def test_polygon_timeseries(self, requests_mock):
         #configuration phase: define username, endpoint, parameters?
-        m.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})
+        requests_mock.get("http://localhost:8000/api/", json={"api_version": self.version})
         session = openeo.connect(url="http://localhost:8000/api")
         #session.post = MagicMock()
         #session.download = MagicMock()
 
-        m.get("http://localhost:8000/api/collections", json=[{"product_id": "sentinel2_subset"}])
-        m.get("http://localhost:8000/api/collections/SENTINEL2_FAPAR", json={"product_id": "sentinel2_subset",
+        requests_mock.get("http://localhost:8000/api/collections", json=[{"product_id": "sentinel2_subset"}])
+        requests_mock.get("http://localhost:8000/api/collections/SENTINEL2_FAPAR", json={"product_id": "sentinel2_subset",
                                                                                "bands": [{'band_id': 'FAPAR'}],
-                                                                               })
+                                                                                         })
 
         #discovery phase: find available data
         #basically user needs to find available data on a website anyway?
@@ -35,11 +42,11 @@ class TestTimeSeries(TestCase):
 
 
         def check_process_graph(request):
-            expected_graph = load_json_resource('data/aggregate_zonal.json')
+            expected_graph = load_json_resource('data/%s/aggregate_zonal.json'%self.version)
             assert request.json() == expected_graph
             return True
 
-        m.post("http://localhost:8000/api/result", json={}, additional_matcher=check_process_graph)
+        requests_mock.post("http://localhost:8000/api/result", json={}, additional_matcher=check_process_graph)
 
         polygon = load_json_resource("data/polygon.json")
         fapar.polygonal_mean_timeseries(shape(polygon)).execute()
@@ -47,11 +54,11 @@ class TestTimeSeries(TestCase):
         #get result as timeseries for a single point
         #How to define a point? Ideally it should also have the CRS?
 
-    def test_polygon_timeseries_from_vector_file(self, m):
-        m.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})
+    def test_polygon_timeseries_from_vector_file(self, requests_mock):
+        requests_mock.get("http://localhost:8000/api/", json={"api_version": self.version})
         session = openeo.connect(url="http://localhost:8000/api")
 
-        m.get("http://localhost:8000/api/collections/SENTINEL2_FAPAR", json={
+        requests_mock.get("http://localhost:8000/api/collections/SENTINEL2_FAPAR", json={
             "product_id": "SENTINEL2_FAPAR"
         })
 
@@ -59,11 +66,11 @@ class TestTimeSeries(TestCase):
             .bbox_filter(west=3, east=6, north=52, south=50, crs='EPSG:4326')
 
         def check_process_graph(request):
-            expected_graph = load_json_resource('data/aggregate_zonal_vector_file.json')
+            expected_graph = load_json_resource('data/%s/aggregate_zonal_vector_file.json'%self.version)
             assert request.json() == expected_graph
             return True
 
-        m.post("http://localhost:8000/api/result", json={}, additional_matcher=check_process_graph)
+        requests_mock.post("http://localhost:8000/api/result", json={}, additional_matcher=check_process_graph)
 
         polygon = "/data/users/Public/vdboschj/EP-3025/GeometryCollection.geojson"
         probav_s10_toc_ndvi.polygonal_mean_timeseries(polygon).execute()
