@@ -5,8 +5,8 @@ import requests_mock
 from mock import MagicMock
 
 import openeo
-from openeo.graphbuilder import GraphBuilder
-from openeo.graphbuilder_100 import GraphBuilder as GraphBuilder100
+from openeo.internal.graphbuilder_040 import GraphBuilder as GraphBuilder040
+from openeo.internal.graphbuilder import GraphBuilder as GraphBuilder100
 from . import load_json_resource
 
 @pytest.fixture(scope="module", params=["0.4.0", "1.0.0"])
@@ -18,7 +18,7 @@ class TestBandMath():
     @pytest.fixture(autouse=True)
     def setup(self, version):
         self.version = version
-        GraphBuilder.id_counter = {}
+        GraphBuilder040.id_counter = {}
         GraphBuilder100.id_counter = {}
 
 
@@ -41,7 +41,7 @@ class TestBandMath():
 
 
         assert self._get_graph(cube.band(0)) == expected_graph
-        GraphBuilder.id_counter = {}
+        GraphBuilder040.id_counter = {}
         GraphBuilder100.id_counter = {}
         assert self._get_graph(cube.band('B02')) == expected_graph
 
@@ -75,19 +75,19 @@ class TestBandMath():
         expected_graph = load_json_resource('data/%s/band_red.json'%self.version)
 
         def check_cube(cube, band_index=2):
-            GraphBuilder.id_counter = {}
+            GraphBuilder040.id_counter = {}
             GraphBuilder100.id_counter = {}
             assert self._get_graph(cube.band(band_index)) == expected_graph
-            GraphBuilder.id_counter = {}
+            GraphBuilder040.id_counter = {}
             GraphBuilder100.id_counter = {}
             assert self._get_graph(cube.band('B04')) == expected_graph
-            GraphBuilder.id_counter = {}
+            GraphBuilder040.id_counter = {}
             GraphBuilder100.id_counter = {}
             assert self._get_graph(cube.band('red')) == expected_graph
         check_cube(cube)
 
         expected_graph = load_json_resource('data/%s/band_red_filtered.json'%self.version)
-        GraphBuilder.id_counter = {}
+        GraphBuilder040.id_counter = {}
         GraphBuilder100.id_counter = {}
         check_cube( cube.filter_bands(['red','green']),0)
 

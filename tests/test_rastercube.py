@@ -7,7 +7,7 @@ import shapely
 from mock import MagicMock
 
 from openeo.capabilities import Capabilities
-from openeo.graphbuilder import GraphBuilder
+from openeo.internal.graphbuilder_040 import GraphBuilder
 from openeo.rest.connection import Connection
 from openeo.rest.imagecollectionclient import ImageCollectionClient
 

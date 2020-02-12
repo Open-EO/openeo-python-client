@@ -8,7 +8,7 @@ import copy
 from deprecated import deprecated
 from shapely.geometry import Polygon, MultiPolygon, mapping
 
-from openeo.graphbuilder import GraphBuilder
+from openeo.internal.graphbuilder_040 import GraphBuilder
 from openeo.imagecollection import ImageCollection, CollectionMetadata
 from openeo.job import Job
 from openeo.util import get_temporal_extent
