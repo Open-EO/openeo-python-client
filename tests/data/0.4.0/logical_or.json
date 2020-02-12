@@ -1,0 +1,90 @@
+{
+  "loadcollection1": {
+    "process_id": "load_collection",
+    "arguments": {
+      "id": "SENTINEL2_SCF",
+      "spatial_extent": null,
+      "temporal_extent": null
+    },
+    "result": false
+  },
+  "reduce1": {
+    "process_id": "reduce",
+    "arguments": {
+      "data": {
+        "from_node": "loadcollection1"
+      },
+      "dimension": "spectral_bands",
+      "reducer": {
+        "callback": {
+          "eq3": {
+            "process_id": "eq",
+            "arguments": {
+              "x": {
+                "from_node": "arrayelement1"
+              },
+              "y": 2
+            },
+            "result": false
+          },
+          "arrayelement1": {
+            "process_id": "array_element",
+            "arguments": {
+              "data": {
+                "from_argument": "data"
+              },
+              "index": 0
+            },
+            "result": false
+          },
+          "eq4": {
+            "process_id": "eq",
+            "arguments": {
+              "x": {
+                "from_node": "arrayelement2"
+              },
+              "y": 5
+            },
+            "result": false
+          },
+          "arrayelement2": {
+            "process_id": "array_element",
+            "arguments": {
+              "data": {
+                "from_argument": "data"
+              },
+              "index": 0
+            },
+            "result": false
+          },
+          "or1": {
+            "process_id": "or",
+            "arguments": {
+              "expressions": [
+                {
+                  "from_node": "eq3"
+                },
+                {
+                  "from_node": "eq4"
+                }
+              ]
+            },
+            "result": true
+          }
+        }
+      }
+    },
+    "result": false
+  },
+  "saveresult1": {
+    "process_id": "save_result",
+    "arguments": {
+      "data": {
+        "from_node": "reduce1"
+      },
+      "format": "GTIFF",
+      "options": {}
+    },
+    "result": true
+  }
+}

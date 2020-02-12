@@ -14,8 +14,6 @@ from . import load_json_resource
 def version(request):
     return request.param
 
-
-#@requests_mock.mock()
 class TestLogicalOps():
 
     @pytest.fixture(autouse=True)
@@ -53,7 +51,7 @@ class TestLogicalOps():
 
         session.download.assert_called_once()
         actual_graph = session.download.call_args_list[0][0][0]
-        expected_graph = load_json_resource('data/notequal.json')
+        expected_graph = load_json_resource('data/%s/notequal.json'%self.version)
         assert actual_graph == expected_graph
 
     def test_or(self, requests_mock):
@@ -76,7 +74,7 @@ class TestLogicalOps():
         mask.download("out.geotiff", format="GTIFF")
         session.download.assert_called_once()
         actual_graph = session.download.call_args_list[0][0][0]
-        expected_graph = load_json_resource('logical_or.json')
+        expected_graph = load_json_resource('data/%s/logical_or.json'%self.version)
         assert actual_graph == expected_graph
 
     def test_and(self, requests_mock):
