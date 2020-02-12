@@ -80,7 +80,7 @@ class TestLogicalOps():
         assert actual_graph == expected_graph
 
     def test_and(self, requests_mock):
-        requests_mock.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})
+        requests_mock.get("http://localhost:8000/api/", json={"api_version": self.version})
         session = openeo.connect("http://localhost:8000/api")
         session.post = MagicMock()
         session.download = MagicMock()
@@ -99,7 +99,7 @@ class TestLogicalOps():
         mask.download("out.geotiff", format="GTIFF")
         session.download.assert_called_once()
         actual_graph = session.download.call_args_list[0][0][0]
-        expected_graph = load_json_resource('logical_and.json')
+        expected_graph = load_json_resource('data/%s/logical_and.json'%self.version)
         assert actual_graph == expected_graph
 
     def test_merging_cubes(self,requests_mock):
