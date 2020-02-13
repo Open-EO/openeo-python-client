@@ -798,17 +798,8 @@ class DataCube(ImageCollection):
                 mask = geojson
                 new_collection = self
         elif rastermask is not None:
-            mask_node = rastermask.graph[rastermask.node_id]
-            mask_node['result'] = True
-            new_collection = self._graph_merge(rastermask.graph)
-            # mask node id may have changed!
-            mask_id = new_collection.builder.find_result_node_id()
-            mask_node = new_collection.graph[mask_id]
-            mask_node['result'] = False
-            mask = {
-                'from_node': new_collection.builder.result_node
-            }
-
+            mask = {'from_node': rastermask.builder.result_node}
+            new_collection = self
         else:
             raise AttributeError("mask process: either a polygon or a rastermask should be provided.")
 
