@@ -814,22 +814,18 @@ class DataCube(ImageCollection):
 
         return new_collection.graph_add_process(process_id, args)
 
-    def merge(self, other: 'ImageCollection') -> 'ImageCollection':
-        other_node = other.graph[other.node_id]
-        other_node['result'] = True
-        new_collection = self._graph_merge(other.graph)
-        # mask node id may have changed!
-        mask_id = new_collection.builder.find_result_node_id()
-        other_node = new_collection.graph[mask_id]
-        other_node['result'] = False
-        cube2 = {
-            'from_node': new_collection.builder.result_node
-        }
-        args = {
-            'cube1': {'from_node': self.builder.result_node},
-            'cube2': cube2
-        }
-        return new_collection.graph_add_process('merge_cubes', args)
+    def merge(self, other: 'DataCube') -> 'DataCube':
+        # TODO: overlap_resolver parameter
+        builder = GraphBuilder()
+        builder.process(
+            process_id="merge_cubes",
+            args={
+                'cube1': {'from_node': self.builder.result_node},
+                'cube2': {'from_node': other.builder.result_node},
+            }
+        )
+        # TODO: metadata?
+        return DataCube(node_id="merge_cubes", builder=builder, connection=self._connection, metadata=None)
 
     def apply_kernel(self, kernel, factor=1.0) -> 'ImageCollection':
         """
