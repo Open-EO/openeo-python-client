@@ -69,7 +69,7 @@ class ProcessGraphVisitor(ABC):
             arguments = node.get('arguments',{})
             self.process_stack.append(pid)
             self.enterProcess(pid, arguments)
-            for arg in arguments:
+            for arg in sorted(arguments.keys()):
                 value = arguments[arg]
                 if type(value) == list:
                     self.enterArray(arg)
