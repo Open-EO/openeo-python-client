@@ -998,13 +998,6 @@ class DataCube(ImageCollection):
 
     ####### HELPER methods #######
 
-    def _graph_merge(self, other_graph: Dict):
-        newbuilder = self.builder.shallow_copy()
-        merged = newbuilder.merge(GraphBuilder.from_process_graph(other_graph))
-        # TODO: properly update metadata as well?
-        newCollection = DataCube(self.node_id, merged, self._connection, metadata=self.metadata)
-        return newCollection
-
     def graph_add_process(self, process_id, args) -> 'DataCube':
         """
         Returns a new imagecollection with an added process with the given process

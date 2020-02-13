@@ -79,9 +79,6 @@ class GraphBuilder():
             GraphBuilder.id_counter[name] += 1
         return name + str(GraphBuilder.id_counter[name])
 
-    def merge(self, other: 'GraphBuilder'):
-        return GraphBuilder.from_process_graph(self.processes)._merge_processes(other.processes)
-
     def _merge_processes(self, processes: Dict, return_key_map=False):
         # Maps original node key to new key in merged result
         key_map = {}
@@ -121,13 +118,6 @@ class GraphBuilder():
                         if 'from_node' in element:
                             node_ref_list.append(element)
         return node_ref_list
-
-    def find_result_node_id(self):
-        result_node_ids = [k for k,v in self.processes.items() if v.get('result',False)]
-        if len(result_node_ids) == 1:
-            return result_node_ids[0]
-        else:
-            raise RuntimeError("Invalid list of result node id's: " + str(result_node_ids))
 
     @classmethod
     def combine(cls, operator: str, first: Union['GraphBuilder', dict], second: Union['GraphBuilder', dict], arg_name='data'):
