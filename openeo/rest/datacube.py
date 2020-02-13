@@ -22,14 +22,16 @@ if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
 class DataCube(ImageCollection):
     """
     Class representing a Data Cube.
-        Supports 1.0.
+
+    Supports openEO API 1.0.
+    In earlier versions this was called ImageCollection
     """
 
-    def __init__(self, node_id: str, builder: GraphBuilder, session: 'Connection', metadata: CollectionMetadata = None):
+    def __init__(self, node_id: str, builder: GraphBuilder, connection: 'Connection', metadata: CollectionMetadata = None):
         super().__init__(metadata=metadata)
         self.node_id = node_id
         self.builder = builder
-        self.session = session
+        self._connection = connection
         self.metadata = metadata
 
     def __str__(self):
@@ -41,11 +43,11 @@ class DataCube(ImageCollection):
 
     @property
     def _api_version(self):
-        return self.session.capabilities().api_version_check
+        return self._connection.capabilities().api_version_check
 
     @classmethod
     def load_collection(
-            cls, collection_id: str, session: 'Connection' = None,
+            cls, collection_id: str, connection: 'Connection' = None,
             spatial_extent: Union[Dict[str, float], None] = None,
             temporal_extent: Union[List[Union[str, datetime.datetime, datetime.date]], None] = None,
             bands: Union[List[str], None] = None,
@@ -55,7 +57,7 @@ class DataCube(ImageCollection):
         Create a new Raster Data cube.
 
         :param collection_id: A collection id, should exist in the backend.
-        :param session: The session to use to connect with the backend.
+        :param connection: The connection to use to connect with the backend.
         :param spatial_extent: limit data to specified bounding box or polygons
         :param temporal_extent: limit data to specified temporal interval
         :param bands: only add the specified bands
@@ -74,10 +76,10 @@ class DataCube(ImageCollection):
         if bands:
             arguments['bands'] = bands
         node_id = builder.process(process_id, arguments)
-        metadata = session.collection_metadata(collection_id) if fetch_metadata else None
+        metadata = connection.collection_metadata(collection_id) if fetch_metadata else None
         if bands:
             metadata.filter_bands(bands)
-        return cls(node_id, builder, session, metadata=metadata)
+        return cls(node_id, builder, connection, metadata=metadata)
 
     @classmethod
     @deprecated("use load_collection instead")
@@ -85,12 +87,12 @@ class DataCube(ImageCollection):
         return cls.load_collection(*args, **kwargs)
 
     @classmethod
-    def load_disk_collection(cls, session: 'Connection', file_format: str, glob_pattern: str,
+    def load_disk_collection(cls, connection: 'Connection', file_format: str, glob_pattern: str,
                              **options) -> 'ImageCollection':
         """
         Loads image data from disk as an ImageCollection.
 
-        :param session: The session to use to connect with the backend.
+        :param connection: The connection to use to connect with the backend.
         :param file_format: the file format, e.g. 'GTiff'
         :param glob_pattern: a glob pattern that matches the files to load from disk
         :param options: options specific to the file format
@@ -107,7 +109,7 @@ class DataCube(ImageCollection):
 
         node_id = builder.process(process_id, arguments)
 
-        return cls(node_id, builder, session, metadata={})
+        return cls(node_id, builder, connection, metadata={})
 
     def _filter_temporal(self, start: str, end: str) -> 'ImageCollection':
         return self.graph_add_process(
@@ -320,7 +322,7 @@ class DataCube(ImageCollection):
 
             # now current_node should be a reduce node, let's modify it
             # TODO: set metadata of reduced cube?
-            return DataCube(self.node_id, process_graph_copy, self.session)
+            return DataCube(self.node_id, process_graph_copy, self._connection)
 
     def __truediv__(self, other):
         return self.divide(other)
@@ -405,7 +407,7 @@ class DataCube(ImageCollection):
                 the_node["arguments"]["overlap_resolver"] = {
                     'callback': merged.result_node
                 }
-                return DataCube(None, cubes_merged, self.session, metadata=self.metadata)
+                return DataCube(None, cubes_merged, self._connection, metadata=self.metadata)
             else:
                 args = {
                     'data': {'from_node': self.builder.result_node},
@@ -424,7 +426,7 @@ class DataCube(ImageCollection):
             new_builder.result_node['arguments']['reducer']['callback'] = merged.result_node
             # now current_node should be a reduce node, let's modify it
             # TODO: set metadata of reduced cube?
-            return DataCube(None, new_builder, reducing_graph.session)
+            return DataCube(None, new_builder, reducing_graph._connection)
 
     def _reduce_bands_binary_xy(self, operator, other: Union[ImageCollection, Union[int, float]]):
         """
@@ -954,12 +956,12 @@ class DataCube(ImageCollection):
         """Download image collection, e.g. as GeoTIFF."""
         newcollection = self.save_result(format=format, options=options)
         newcollection.builder.result_node['result'] = True
-        return self.session.download(newcollection.builder.flatten(), outputfile)
+        return self._connection.download(newcollection.builder.flatten(), outputfile)
 
     def tiled_viewing_service(self, **kwargs) -> Dict:
         newbuilder = self.builder.copy()
         newbuilder.result_node['result'] = True
-        return self.session.create_service(newbuilder.processes, **kwargs)
+        return self._connection.create_service(newbuilder.processes, **kwargs)
 
     def execute_batch(
             self,
@@ -999,13 +1001,13 @@ class DataCube(ImageCollection):
             # add `save_result` node
             img = img.save_result(format=out_format, options=format_options)
         img.graph[img.node_id]["result"] = True
-        return self.session.create_job(process_graph=img.graph, additional=job_options)
+        return self._connection.create_job(process_graph=img.graph, additional=job_options)
 
     def execute(self) -> Dict:
         """Executes the process graph of the imagery. """
         newbuilder = self.builder.shallow_copy()
         newbuilder.result_node['result'] = True
-        return self.session.execute({"process_graph": newbuilder.flatten()}, "")
+        return self._connection.execute({"process_graph": newbuilder.flatten()}, "")
 
     ####### HELPER methods #######
 
@@ -1013,7 +1015,7 @@ class DataCube(ImageCollection):
         newbuilder = self.builder.shallow_copy()
         merged = newbuilder.merge(GraphBuilder.from_process_graph(other_graph))
         # TODO: properly update metadata as well?
-        newCollection = DataCube(self.node_id, merged, self.session, metadata=self.metadata)
+        newCollection = DataCube(self.node_id, merged, self._connection, metadata=self.metadata)
         return newCollection
 
     def graph_add_process(self, process_id, args) -> 'DataCube':
@@ -1031,7 +1033,7 @@ class DataCube(ImageCollection):
         id = newbuilder.process(process_id, args)
 
         # TODO: properly update metadata as well?
-        newCollection = DataCube(id, newbuilder, self.session, metadata=copy.copy(self.metadata))
+        newCollection = DataCube(id, newbuilder, self._connection, metadata=copy.copy(self.metadata))
         return newCollection
 
     def to_graphviz(self):
