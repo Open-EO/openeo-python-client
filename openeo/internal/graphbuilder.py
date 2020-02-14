@@ -14,8 +14,6 @@ class GraphBuilder():
 
             :param graph: Dict : Optional, existing process graph
         """
-        self.processes = {}
-
         if graph is not None:
             self.result_node = graph.result_node
             self._merge_processes(graph)
@@ -27,7 +25,6 @@ class GraphBuilder():
         :return:
         """
         the_copy = GraphBuilder()
-        the_copy.processes = copy.deepcopy(self.processes)
         the_copy.result_node = copy.deepcopy(self.result_node)
         return the_copy
 
@@ -56,13 +53,6 @@ class GraphBuilder():
             'process_id': process_id,
             'arguments': args
         }
-        #try:
-        #    existing_id = list(self.processes.keys())[list(self.processes.values()).index(new_process)]
-        #    return existing_id
-        #except ValueError as e:
-        #    pass
-        #id = self._generate_id(process_id)
-        #self.processes[id] = new_process
         if 'from_node' in args:
             args['from_node'] = self.result_node
         self.result_node = new_process
@@ -83,15 +73,11 @@ class GraphBuilder():
         for key,process in sorted(processes.items()):
             process_id = process['process_id']
             args = process['arguments']
-            result = process.get('result', None)
             args_copy = copy.deepcopy(args)
             id = self.process(process_id, args_copy)
             if id != key:
                 key_map[key] = id
             node_refs += self._extract_node_references(args_copy)
-
-            if result is not None:
-                self.processes[id]['result'] = result
 
         for node_ref in node_refs:
             old_node_id = node_ref['from_node']
