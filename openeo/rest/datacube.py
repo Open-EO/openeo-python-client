@@ -29,6 +29,7 @@ class DataCube(ImageCollection):
 
     def __init__(self, node_id: str, builder: GraphBuilder, connection: 'Connection', metadata: CollectionMetadata = None):
         super().__init__(metadata=metadata)
+        # TODO: what is node_id used for? Does it still needs to be in constructor?
         self.node_id = node_id
         self.builder = builder
         self._connection = connection
@@ -471,6 +472,7 @@ class DataCube(ImageCollection):
     def _get_band_graph_builder(self):
         current_node = self.builder.result_node
         if current_node["process_id"] == "reduce":
+            # TODO: avoid hardcoded "spectral_bands" dimension #76 #93 #116
             if current_node["arguments"]["dimension"] == "spectral_bands":
                 callback_graph = current_node["arguments"]["reducer"]["callback"]
                 return GraphBuilder.from_process_graph(callback_graph)
@@ -816,6 +818,7 @@ class DataCube(ImageCollection):
 
     def merge(self, other: 'DataCube') -> 'DataCube':
         # TODO: overlap_resolver parameter
+        # TODO provide this as a GraphBuilder method?
         builder = GraphBuilder()
         builder.process(
             process_id="merge_cubes",

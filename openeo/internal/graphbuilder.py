@@ -31,6 +31,7 @@ class GraphBuilder:
             :param graph: Dict : Optional, existing process graph
         """
         if graph is not None:
+            # TODO: this `graph` argument is unused? Is it useful anyway?
             self.result_node = graph.result_node
             self._merge_processes(graph)
         # TODO: what is result_node in "else" case?
@@ -40,12 +41,15 @@ class GraphBuilder:
         Copy, but don't update keys
         :return:
         """
+        # TODO can we avoid copies and work with immutable structures?
         the_copy = GraphBuilder()
         the_copy.result_node = copy.deepcopy(self.result_node)
         return the_copy
 
     @classmethod
     def from_process_graph(cls,graph:Dict):
+        # TODO Can't this just be part of default constructor?
+        # TODO: can we avoid the deepcopy?
         builder = GraphBuilder()
         builder.result_node = copy.deepcopy(graph)
         return builder
@@ -54,12 +58,15 @@ class GraphBuilder:
     def add_process(self,process_id,result=None, **args):
         process_id = self.process(process_id, args)
         if result is not None:
+            # TODO Setting the "result" field should be just part of the flatting procedure, not part of graph building
             self.result_node["result"] = result
         return process_id
 
     def process(self,process_id, args):
         """
         Add a process and return the id. Do not add a  new process if it already exists in the graph.
+
+        # TODO: this used to return process key of flattened version, but that is not necessary anymore
 
         :param process_id:
         :param args:
@@ -75,6 +82,7 @@ class GraphBuilder:
         return id
 
     def _merge_processes(self, processes: Dict, return_key_map=False):
+        # TODO: this method is a leftover of on the fly flattening and should not be necessary anymore.
         # Maps original node key to new key in merged result
         key_map = {}
         node_refs = []
@@ -98,6 +106,7 @@ class GraphBuilder:
             return self
 
     def _extract_node_references(self, arguments):
+        # TODO: this method is a leftover of on the fly flattening and should not be necessary anymore.
         node_ref_list = []
         for argument in arguments.values():
             if isinstance(argument, dict):
@@ -156,7 +165,8 @@ class GraphBuilder:
                     node['callback'] = flat_callback
 
         flattener = Flattener()
-        #take a copy, flattener modifies the graph in-place
+        # take a copy, flattener modifies the graph in-place
+        # TODO: can we avoind in-place editing?
         flattener.accept(copy.deepcopy(self.result_node))
         flat_graph[flattener.last_node_id]['result'] = True
         return flat_graph
