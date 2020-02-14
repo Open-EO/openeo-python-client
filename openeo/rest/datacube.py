@@ -761,6 +761,7 @@ class DataCube(ImageCollection):
         No data values will be left untouched by the masking operation.
 
         # TODO: just provide a single `mask` argument and detect the type: polygon or process graph
+        # TODO: mask process has been split in mask/mask_polygon
         # TODO: also see `mask` vs `mask_polygon` processes in https://github.com/Open-EO/openeo-processes/pull/110
 
         :param polygon: A polygon, provided as a :class:`shapely.geometry.Polygon` or :class:`shapely.geometry.MultiPolygon`, or a filename pointing to a valid vector file
@@ -781,7 +782,7 @@ class DataCube(ImageCollection):
                 })
 
                 mask = {
-                    'from_node': new_collection.node_id
+                    'from_node': new_collection.builder.result_node
                 }
             else:
                 if polygon.area == 0:

@@ -1,6 +1,7 @@
-import openeo
 import pytest
-from openeo.internal.graphbuilder import GraphBuilder
+import shapely.geometry
+
+import openeo
 from openeo.rest.connection import Connection
 
 API_URL = "https://oeo.net"
@@ -26,6 +27,42 @@ def con100(requests_mock) -> Connection:
     })
     requests_mock.get(API_URL + "/collections/MASK", json={})
     return openeo.connect(API_URL)
+
+
+def test_mask_polygon(con100: Connection):
+    img = con100.load_collection("S2")
+    polygon = shapely.geometry.box(0, 0, 1, 1)
+    masked = img.mask(polygon=polygon)
+    assert sorted(masked.graph.keys()) == ["loadcollection1", "mask1"]
+    assert masked.graph["mask1"] == {
+        "process_id": "mask",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            'mask': {
+                'coordinates': (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),),
+                'crs': {'properties': {'name': 'EPSG:4326'}, 'type': 'name'},
+                'type': 'Polygon'}
+        },
+        "result": True
+    }
+
+
+def test_mask_polygon_path(con100: Connection):
+    img = con100.load_collection("S2")
+    masked = img.mask(polygon="path/to/polygon.json")
+    assert sorted(masked.graph.keys()) == ["loadcollection1", "mask1", "readvector1"]
+    assert masked.graph["mask1"] == {
+        "process_id": "mask",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "mask": {"from_node": "readvector1"},
+        },
+        "result": True
+    }
+    assert masked.graph["readvector1"] == {
+        "process_id": "read_vector",
+        "arguments": {"filename": "path/to/polygon.json"},
+    }
 
 
 def test_mask_raster(con100: Connection):
