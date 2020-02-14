@@ -33,7 +33,6 @@ class GraphBuilder:
         if graph is not None:
             # TODO: this `graph` argument is unused? Is it useful anyway?
             self.result_node = graph.result_node
-            self._merge_processes(graph)
         # TODO: what is result_node in "else" case?
 
     def shallow_copy(self):
@@ -80,44 +79,6 @@ class GraphBuilder:
             args['from_node'] = self.result_node
         self.result_node = new_process
         return id
-
-    def _merge_processes(self, processes: Dict, return_key_map=False):
-        # TODO: this method is a leftover of on the fly flattening and should not be necessary anymore.
-        # Maps original node key to new key in merged result
-        key_map = {}
-        node_refs = []
-        for key,process in sorted(processes.items()):
-            process_id = process['process_id']
-            args = process['arguments']
-            args_copy = copy.deepcopy(args)
-            id = self.process(process_id, args_copy)
-            if id != key:
-                key_map[key] = id
-            node_refs += self._extract_node_references(args_copy)
-
-        for node_ref in node_refs:
-            old_node_id = node_ref['from_node']
-            if old_node_id in key_map:
-                node_ref['from_node'] = key_map[old_node_id]
-
-        if return_key_map:
-            return self, key_map
-        else:
-            return self
-
-    def _extract_node_references(self, arguments):
-        # TODO: this method is a leftover of on the fly flattening and should not be necessary anymore.
-        node_ref_list = []
-        for argument in arguments.values():
-            if isinstance(argument, dict):
-                if 'from_node' in argument:
-                    node_ref_list.append(argument)
-            if isinstance(argument,list):
-                for element in argument:
-                    if isinstance(element, dict):
-                        if 'from_node' in element:
-                            node_ref_list.append(element)
-        return node_ref_list
 
     @classmethod
     def combine(cls, operator: str, first: Union['GraphBuilder', dict], second: Union['GraphBuilder', dict], arg_name='data'):
