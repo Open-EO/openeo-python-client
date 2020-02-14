@@ -70,8 +70,6 @@ class GraphBuilder:
             'process_id': process_id,
             'arguments': arguments
         }
-        if 'from_node' in arguments:
-            arguments['from_node'] = self.result_node
         self.result_node = new_process
         return process_id
 
