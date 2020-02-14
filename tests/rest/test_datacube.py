@@ -56,3 +56,33 @@ def test_merge_cubes(con100: Connection):
         },
         "result": True
     }
+
+
+def test_viewing_service(con100: Connection, requests_mock):
+    def check_request(request):
+        assert request.json() == {
+            'custom_param': 45,
+            'description': 'Nice!',
+            'process_graph': {
+                'loadcollection1': {
+                    'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
+                    'process_id': 'load_collection',
+                    'result': True,
+                }
+            },
+            'title': 'S2 Foo',
+            'type': 'WMTS',
+        }
+        return True
+
+    requests_mock.post(
+        API_URL + "/services",
+        status_code=201,
+        text='',
+        headers={'Location': API_URL + "/_s/sf00", 'OpenEO-Identifier': 'sf00'},
+        additional_matcher=check_request
+    )
+
+    img = con100.load_collection("S2")
+    res = img.tiled_viewing_service(type="WMTS", title="S2 Foo", description="Nice!", custom_param=45)
+    assert res == {"url": API_URL + "/_s/sf00", 'service_id': 'sf00'}

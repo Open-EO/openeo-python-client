@@ -364,11 +364,12 @@ class Connection(RestApiConnection):
 
 
     def create_service(self, graph, type, **kwargs):
+        # TODO: type hint for graph: is it a nested or a flat one?
         kwargs["process_graph"] = graph
         kwargs["type"] = type
-        response = self.post("/services", kwargs)
+        response = self.post("/services", json=kwargs, expected_status=201)
         return {
-            'url': response.headers['Location'],
+            'url': response.headers.get('Location'),
             'service_id': response.headers.get("OpenEO-Identifier"),
         }
 

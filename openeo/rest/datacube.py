@@ -946,9 +946,7 @@ class DataCube(ImageCollection):
         return self._connection.download(newcollection.builder.flatten(), outputfile)
 
     def tiled_viewing_service(self, **kwargs) -> Dict:
-        newbuilder = self.builder.copy()
-        newbuilder.result_node['result'] = True
-        return self._connection.create_service(newbuilder.processes, **kwargs)
+        return self._connection.create_service(self.builder.flatten(), **kwargs)
 
     def execute_batch(
             self,
