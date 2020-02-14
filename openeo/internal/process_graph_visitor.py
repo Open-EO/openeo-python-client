@@ -13,13 +13,16 @@ class ProcessGraphVisitor(ABC):
     @classmethod
     def dereference_from_node_arguments(cls, process_graph:dict) -> str:
         """
-        Walk through the given process graph and replace (in-place) "from_node" references in
+        Walk through the given (flat) process graph and replace (in-place) "from_node" references in
         process arguments (dictionaries or lists) with the corresponding resolved subgraphs
 
         :param process_graph: process graph dictionary to be manipulated in-place
         :return: name of the "result" node of the graph
+
         """
         # TODO avoid manipulating process graph in place? make it more explicit? work on a copy? Where is this functionality used anyway?
+        # TODO this is driver specific functionality, working on flattened graph structures. Make this more clear?
+        # TODO call it more something like "unflatten"?. Split this off of ProcessGraphVisitor?
 
         def resolve_from_node(process_graph, node, from_node):
             if from_node not in process_graph:
@@ -48,10 +51,12 @@ class ProcessGraphVisitor(ABC):
 
     def accept_process_graph(self, graph: dict) -> 'ProcessGraphVisitor':
         """
-        Traverse a process graph
+        Traverse a (flat) process graph
+
         :param graph:
         :return:
         """
+        # TODO: this is driver specific functionality, working on flattened graph structures. Make this more clear?
         top_level_node = self.dereference_from_node_arguments(graph)
         self.accept(graph[top_level_node])
         return self
