@@ -27,16 +27,14 @@ class DataCube(ImageCollection):
     In earlier versions this was called ImageCollection
     """
 
-    def __init__(self, node_id: str, builder: GraphBuilder, connection: 'Connection', metadata: CollectionMetadata = None):
+    def __init__(self, builder: GraphBuilder, connection: 'Connection', metadata: CollectionMetadata = None):
         super().__init__(metadata=metadata)
-        # TODO: what is node_id used for? Does it still needs to be in constructor?
-        self.node_id = node_id
         self.builder = builder
         self._connection = connection
         self.metadata = metadata
 
     def __str__(self):
-        return "DataCube: %s" % self.node_id
+        return "DataCube: %s" % self.builder.result_node["process_id"]
 
     @property
     def graph(self):
@@ -76,11 +74,11 @@ class DataCube(ImageCollection):
         }
         if bands:
             arguments['bands'] = bands
-        node_id = builder.add_process(process_id, arguments=arguments)
+        builder.add_process(process_id, arguments=arguments)
         metadata = connection.collection_metadata(collection_id) if fetch_metadata else None
         if bands:
             metadata.filter_bands(bands)
-        return cls(node_id, builder, connection, metadata=metadata)
+        return cls(builder=builder, connection=connection, metadata=metadata)
 
     @classmethod
     @deprecated("use load_collection instead")
@@ -108,9 +106,8 @@ class DataCube(ImageCollection):
             'options': options
         }
 
-        node_id = builder.add_process(process_id, arguments=arguments)
-
-        return cls(node_id, builder, connection, metadata={})
+        builder.add_process(process_id, arguments=arguments)
+        return cls(builder=builder, connection=connection, metadata={})
 
     def _filter_temporal(self, start: str, end: str) -> 'ImageCollection':
         return self.graph_add_process(
@@ -323,7 +320,7 @@ class DataCube(ImageCollection):
 
             # now current_node should be a reduce node, let's modify it
             # TODO: set metadata of reduced cube?
-            return DataCube(self.node_id, process_graph_copy, self._connection)
+            return DataCube(builder=process_graph_copy, connection=self._connection)
 
     def __truediv__(self, other):
         return self.divide(other)
@@ -382,9 +379,7 @@ class DataCube(ImageCollection):
 
                 # set result node id's first, to keep track
                 my_builder = self.builder
-                #my_builder.processes[self.node_id]['result'] = True
                 other_builder = other.builder
-                #other_builder.processes[other.node_id]['result'] = True
 
                 cubes_merged = GraphBuilder.combine(operator="merge_cubes",
                                                     first=my_builder,
@@ -408,7 +403,7 @@ class DataCube(ImageCollection):
                 the_node["arguments"]["overlap_resolver"] = {
                     'callback': merged.result_node
                 }
-                return DataCube(None, cubes_merged, self._connection, metadata=self.metadata)
+                return DataCube(builder=cubes_merged, connection=self._connection, metadata=self.metadata)
             else:
                 args = {
                     'data': {'from_node': self.builder.result_node},
@@ -421,13 +416,12 @@ class DataCube(ImageCollection):
 
             reducing_graph = self
             if reducing_graph.builder.result_node["process_id"] != "reduce":
-                node_id = other.node_id
                 reducing_graph = other
             new_builder = reducing_graph.builder.shallow_copy()
             new_builder.result_node['arguments']['reducer']['callback'] = merged.result_node
             # now current_node should be a reduce node, let's modify it
             # TODO: set metadata of reduced cube?
-            return DataCube(None, new_builder, reducing_graph._connection)
+            return DataCube(builder=new_builder, connection=reducing_graph._connection)
 
     def _reduce_bands_binary_xy(self, operator, other: Union[ImageCollection, Union[int, float]]):
         """
@@ -828,7 +822,7 @@ class DataCube(ImageCollection):
             }
         )
         # TODO: metadata?
-        return DataCube(node_id="merge_cubes", builder=builder, connection=self._connection, metadata=None)
+        return DataCube(builder=builder, connection=self._connection, metadata=None)
 
     def apply_kernel(self, kernel, factor=1.0) -> 'ImageCollection':
         """
@@ -1011,10 +1005,10 @@ class DataCube(ImageCollection):
         """
         # don't modify in place, return new builder
         newbuilder = self.builder.shallow_copy()
-        id = newbuilder.add_process(process_id, arguments=args)
+        newbuilder.add_process(process_id, arguments=args)
 
         # TODO: properly update metadata as well?
-        newCollection = DataCube(id, newbuilder, self._connection, metadata=copy.copy(self.metadata))
+        newCollection = DataCube(builder=newbuilder, connection=self._connection, metadata=copy.copy(self.metadata))
         return newCollection
 
     def to_graphviz(self):

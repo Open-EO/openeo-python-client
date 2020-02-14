@@ -55,13 +55,10 @@ class GraphBuilder:
 
     def add_process(self, process_id: str, arguments: dict = None, **kwargs):
         """
-        Add a process and return the id. Do not add a  new process if it already exists in the graph.
-
-        # TODO: this used to return process key of flattened version, but that is not necessary anymore
+        Add a process to the graph
 
         :param process_id: process id
         :param arguments: dictionary of process arguments (can also be provided through kwargs)
-        :return:
         """
         if arguments and kwargs:
             raise ValueError("At most one of `arguments` and `kwargs` should be specified")
@@ -71,7 +68,6 @@ class GraphBuilder:
             'arguments': arguments
         }
         self.result_node = new_process
-        return process_id
 
     @classmethod
     def combine(cls, operator: str, first: Union['GraphBuilder', dict], second: Union['GraphBuilder', dict], arg_name='data'):
