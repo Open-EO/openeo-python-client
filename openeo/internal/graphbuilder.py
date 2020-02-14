@@ -1,11 +1,27 @@
+import collections
 import copy
 from typing import Dict, Union
 
 
-class GraphBuilder():
+class FlatGraphKeyGenerator:
+    """
+    Helper class to generate unique keys (autoincrement style)
+    for processes in a flattened process graph.
+    """
 
-    #id_counter is a class level field, this way we ensure that id's are unique, and don't have to make them unique when merging graphs
-    id_counter = {}
+    def __init__(self):
+        self._counters = collections.defaultdict(int)
+
+    def generate(self, process_id: str):
+        """Generate new key for given process id."""
+        self._counters[process_id] += 1
+        return "{p}{c}".format(p=process_id.replace('_', ''), c=self._counters[process_id])
+
+
+class GraphBuilder:
+    """
+    Graph builder for process graphs compatible with openEO API version 1.0.0
+    """
 
     def __init__(self, graph = None):
         """
@@ -58,14 +74,6 @@ class GraphBuilder():
         self.result_node = new_process
         return id
 
-    def _generate_id(self,name:str):
-        name = name.replace("_","")
-        if( not GraphBuilder.id_counter.get(name)):
-            GraphBuilder.id_counter[name] = 1
-        else:
-            GraphBuilder.id_counter[name] += 1
-        return name + str(GraphBuilder.id_counter[name])
-
     def _merge_processes(self, processes: Dict, return_key_map=False):
         # Maps original node key to new key in merged result
         key_map = {}
@@ -114,10 +122,12 @@ class GraphBuilder():
         merged.add_process(operator, result=True, **args)
         return merged
 
-    def flatten(self):
+    def flatten(self, key_generator: FlatGraphKeyGenerator=None):
 
         parent_builder = self
 
+        if key_generator is None:
+            key_generator = FlatGraphKeyGenerator()
         flat_graph = {}
         from openeo.internal.process_graph_visitor import ProcessGraphVisitor
         class Flattener(ProcessGraphVisitor):
@@ -125,7 +135,7 @@ class GraphBuilder():
             last_node_id = None
 
             def leaveProcess(self, process_id, arguments: Dict):
-                node_id = parent_builder._generate_id(process_id)
+                node_id = key_generator.generate(process_id)
                 #arguments['node_id'] = node_id
                 Flattener.last_node_id = node_id
                 flat_graph[node_id] = {
@@ -142,7 +152,7 @@ class GraphBuilder():
                     node['from_node'] = Flattener.last_node_id
                 if type(node) == dict and 'callback' in node:
                     callback = node['callback']
-                    flat_callback = GraphBuilder.from_process_graph(callback).flatten()
+                    flat_callback = GraphBuilder.from_process_graph(callback).flatten(key_generator=key_generator)
                     node['callback'] = flat_callback
 
         flattener = Flattener()

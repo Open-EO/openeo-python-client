@@ -20,7 +20,6 @@ class TestTemporal():
     def setup(self, version):
         self.version = version
         GraphBuilder040.id_counter = {}
-        GraphBuilder100.id_counter = {}
 
     def test_apply_dimension_temporal_cumsum(self,requests_mock):
         requests_mock.get("http://localhost:8000/api/", json={"version": self.version})

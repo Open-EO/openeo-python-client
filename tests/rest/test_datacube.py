@@ -12,7 +12,6 @@ def con100(requests_mock) -> Connection:
     Fixture to have a v1.0.0 connection to a backend
     with a some default image collections
     """
-    GraphBuilder.id_counter = {}
     requests_mock.get(API_URL + "/", json={"api_version": "1.0.0"})
     requests_mock.get(API_URL + "/collections/S2", json={
         "properties": {

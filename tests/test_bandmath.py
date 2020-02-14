@@ -19,7 +19,6 @@ class TestBandMath():
     def setup(self, version):
         self.version = version
         GraphBuilder040.id_counter = {}
-        GraphBuilder100.id_counter = {}
 
 
     def test_basic(self, requests_mock):
@@ -42,7 +41,6 @@ class TestBandMath():
 
         assert self._get_graph(cube.band(0)) == expected_graph
         GraphBuilder040.id_counter = {}
-        GraphBuilder100.id_counter = {}
         assert self._get_graph(cube.band('B02')) == expected_graph
 
     def _get_graph(self,cube):
@@ -76,19 +74,15 @@ class TestBandMath():
 
         def check_cube(cube, band_index=2):
             GraphBuilder040.id_counter = {}
-            GraphBuilder100.id_counter = {}
             assert self._get_graph(cube.band(band_index)) == expected_graph
             GraphBuilder040.id_counter = {}
-            GraphBuilder100.id_counter = {}
             assert self._get_graph(cube.band('B04')) == expected_graph
             GraphBuilder040.id_counter = {}
-            GraphBuilder100.id_counter = {}
             assert self._get_graph(cube.band('red')) == expected_graph
         check_cube(cube)
 
         expected_graph = load_json_resource('data/%s/band_red_filtered.json'%self.version)
         GraphBuilder040.id_counter = {}
-        GraphBuilder100.id_counter = {}
         check_cube( cube.filter_bands(['red','green']),0)
 
     def test_evi(self,requests_mock):

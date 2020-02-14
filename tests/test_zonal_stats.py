@@ -19,7 +19,6 @@ class TestTimeSeries():
     def setup(self, version):
         self.version = version
         GraphBuilder040.id_counter = {}
-        GraphBuilder100.id_counter = {}
 
     def test_polygon_timeseries(self, requests_mock):
         #configuration phase: define username, endpoint, parameters?

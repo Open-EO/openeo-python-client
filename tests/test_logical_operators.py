@@ -20,7 +20,6 @@ class TestLogicalOps():
     def setup(self,version):
         self.version = version
         GraphBuilder040.id_counter = {}
-        GraphBuilder100.id_counter = {}
 
 
     def test_not_equal(self, requests_mock):
