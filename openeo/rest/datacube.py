@@ -1,15 +1,16 @@
+import copy
 import datetime
 import pathlib
-import time
 import typing
 from typing import List, Dict, Union, Tuple
-import copy
 
+import shapely.geometry
+import shapely.geometry.base
 from deprecated import deprecated
 from shapely.geometry import Polygon, MultiPolygon, mapping
 
-from openeo.internal.graphbuilder import GraphBuilder
 from openeo.imagecollection import ImageCollection, CollectionMetadata
+from openeo.internal.graphbuilder import GraphBuilder
 from openeo.job import Job
 from openeo.util import get_temporal_extent, dict_no_none
 
@@ -745,74 +746,75 @@ class DataCube(ImageCollection):
         }
         return self.graph_add_process(process_id, args)
 
-    def mask(self, polygon: Union[Polygon, MultiPolygon, str] = None, srs="EPSG:4326",
-             rastermask: 'ImageCollection' = None,
-             replacement=None) -> 'ImageCollection':
+    def mask(self, mask: 'DataCube' = None, replacement=None) -> 'DataCube':
         """
-        Mask the image collection using either a polygon or a raster mask.
+        Applies a mask to a raster data cube. To apply a vector mask use `mask_polygon`.
 
-        All pixels outside the polygon should be set to the nodata value.
-        All pixels inside, or intersecting the polygon should retain their original value.
+        A mask is a raster data cube for which corresponding pixels among `data` and `mask`
+        are compared and those pixels in `data` are replaced whose pixels in `mask` are non-zero
+        (for numbers) or true (for boolean values).
+        The pixel values are replaced with the value specified for `replacement`,
+        which defaults to null (no data).
 
-        All pixels are replaced for which the corresponding pixels in the mask are non-zero (for numbers) or True
-        (for boolean values).
-
-        The pixel values are replaced with the value specified for replacement, which defaults to None (no data).
-        No data values will be left untouched by the masking operation.
-
-        # TODO: just provide a single `mask` argument and detect the type: polygon or process graph
-        # TODO: mask process has been split in mask/mask_polygon
-        # TODO: also see `mask` vs `mask_polygon` processes in https://github.com/Open-EO/openeo-processes/pull/110
-
-        :param polygon: A polygon, provided as a :class:`shapely.geometry.Polygon` or :class:`shapely.geometry.MultiPolygon`, or a filename pointing to a valid vector file
-        :param srs: The reference system of the provided polygon, by default this is Lat Lon (EPSG:4326).
-        :param rastermask: the raster mask
+        :param mask: the raster mask
         :param replacement: the value to replace the masked pixels with
-        :raise: :class:`ValueError` if a polygon is supplied and its area is 0.
-        :return: A new ImageCollection, with the mask applied.
         """
-        mask = None
-        new_collection = None
-        if polygon is not None:
-            if isinstance(polygon, (str, pathlib.Path)):
-                # TODO: default to loading file client side?
-                # TODO: change read_vector to load_uploaded_files https://github.com/Open-EO/openeo-processes/pull/106
-                new_collection = self.graph_add_process('read_vector', args={
-                    'filename': str(polygon)
-                })
+        return self.graph_add_process(
+            process_id="mask",
+            args=dict_no_none(
+                data={'from_node': self.builder.result_node},
+                mask={'from_node': mask.builder.result_node},
+                replacement=replacement
+            )
+        )
 
-                mask = {
-                    'from_node': new_collection.builder.result_node
-                }
-            else:
-                if polygon.area == 0:
-                    raise ValueError("Mask {m!s} has an area of {a!r}".format(m=polygon, a=polygon.area))
+    def mask_polygon(
+            self, mask: Union[Polygon, MultiPolygon, str, pathlib.Path] = None,
+            srs="EPSG:4326", replacement=None, inside: bool = None
+    ) -> 'DataCube':
+        """
+        Applies a polygon mask to a raster data cube. To apply a raster mask use `mask`.
 
-                geojson = mapping(polygon)
-                geojson['crs'] = {
-                    'type': 'name',
-                    'properties': {
-                        'name': srs
-                    }
-                }
-                mask = geojson
-                new_collection = self
-        elif rastermask is not None:
-            mask = {'from_node': rastermask.builder.result_node}
-            new_collection = self
+        All pixels for which the point at the pixel center does not intersect with any
+        polygon (as defined in the Simple Features standard by the OGC) are replaced.
+        This behaviour can be inverted by setting the parameter `inside` to true.
+
+        The pixel values are replaced with the value specified for `replacement`,
+        which defaults to `no data`.
+
+        :param mask: A polygon, provided as a :class:`shapely.geometry.Polygon` or :class:`shapely.geometry.MultiPolygon`, or a filename pointing to a valid vector file
+        :param srs: The reference system of the provided polygon, by default this is Lat Lon (EPSG:4326).
+        :param replacement: the value to replace the masked pixels with
+        """
+        if isinstance(mask, (str, pathlib.Path)):
+            # TODO: default to loading file client side?
+            # TODO: change read_vector to load_uploaded_files https://github.com/Open-EO/openeo-processes/pull/106
+            read_vector = self.graph_add_process(
+                process_id='read_vector',
+                args={'filename': str(mask)}
+            )
+            mask = {'from_node': read_vector.builder.result_node}
+        elif isinstance(mask, shapely.geometry.base.BaseGeometry):
+            if mask.area == 0:
+                raise ValueError("Mask {m!s} has an area of {a!r}".format(m=mask, a=mask.area))
+            mask = shapely.geometry.mapping(mask)
+            mask['crs'] = {
+                'type': 'name',
+                'properties': {'name': srs}
+            }
         else:
-            raise AttributeError("mask process: either a polygon or a rastermask should be provided.")
+            # Assume mask is already a valid GeoJSON object
+            assert "type" in mask
 
-        process_id = 'mask'
-
-        args = {
-            'data': {'from_node': self.builder.result_node},
-            'mask': mask
-        }
-        if replacement is not None:
-            args['replacement'] = replacement
-
-        return new_collection.graph_add_process(process_id, args)
+        return self.graph_add_process(
+            process_id="mask",
+            args=dict_no_none(
+                data={"from_node": self.builder.result_node},
+                mask=mask,
+                replacement=replacement,
+                inside=inside
+            )
+        )
 
     def merge(self, other: 'DataCube') -> 'DataCube':
         # TODO: overlap_resolver parameter
