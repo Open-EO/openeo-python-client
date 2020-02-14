@@ -53,28 +53,27 @@ class GraphBuilder:
         builder.result_node = copy.deepcopy(graph)
         return builder
 
-    def add_process(self, process_id, **args):
-        # TODO: is it necessary to have both a `process` and `add_process` method?
-        return self.process(process_id, args)
-
-    def process(self,process_id, args):
+    def add_process(self, process_id: str, arguments: dict = None, **kwargs):
         """
         Add a process and return the id. Do not add a  new process if it already exists in the graph.
 
         # TODO: this used to return process key of flattened version, but that is not necessary anymore
 
-        :param process_id:
-        :param args:
+        :param process_id: process id
+        :param arguments: dictionary of process arguments (can also be provided through kwargs)
         :return:
         """
+        if arguments and kwargs:
+            raise ValueError("At most one of `arguments` and `kwargs` should be specified")
+        arguments = arguments or kwargs
         new_process = {
             'process_id': process_id,
-            'arguments': args
+            'arguments': arguments
         }
-        if 'from_node' in args:
-            args['from_node'] = self.result_node
+        if 'from_node' in arguments:
+            arguments['from_node'] = self.result_node
         self.result_node = new_process
-        return id
+        return process_id
 
     @classmethod
     def combine(cls, operator: str, first: Union['GraphBuilder', dict], second: Union['GraphBuilder', dict], arg_name='data'):

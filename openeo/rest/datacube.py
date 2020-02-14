@@ -76,7 +76,7 @@ class DataCube(ImageCollection):
         }
         if bands:
             arguments['bands'] = bands
-        node_id = builder.process(process_id, arguments)
+        node_id = builder.add_process(process_id, arguments=arguments)
         metadata = connection.collection_metadata(collection_id) if fetch_metadata else None
         if bands:
             metadata.filter_bands(bands)
@@ -108,7 +108,7 @@ class DataCube(ImageCollection):
             'options': options
         }
 
-        node_id = builder.process(process_id, arguments)
+        node_id = builder.add_process(process_id, arguments=arguments)
 
         return cls(node_id, builder, connection, metadata={})
 
@@ -820,9 +820,9 @@ class DataCube(ImageCollection):
         # TODO: overlap_resolver parameter
         # TODO provide this as a GraphBuilder method?
         builder = GraphBuilder()
-        builder.process(
+        builder.add_process(
             process_id="merge_cubes",
-            args={
+            arguments={
                 'cube1': {'from_node': self.builder.result_node},
                 'cube2': {'from_node': other.builder.result_node},
             }
@@ -1011,7 +1011,7 @@ class DataCube(ImageCollection):
         """
         # don't modify in place, return new builder
         newbuilder = self.builder.shallow_copy()
-        id = newbuilder.process(process_id, args)
+        id = newbuilder.add_process(process_id, arguments=args)
 
         # TODO: properly update metadata as well?
         newCollection = DataCube(id, newbuilder, self._connection, metadata=copy.copy(self.metadata))
