@@ -19,10 +19,7 @@ class GraphBuilder():
         if graph is not None:
             self.result_node = graph.result_node
             self._merge_processes(graph)
-
-    def copy(self,return_key_map=False):
-        the_copy = GraphBuilder()
-        return the_copy._merge_processes(self.processes,return_key_map=return_key_map)
+        # TODO: what is result_node in "else" case?
 
     def shallow_copy(self):
         """
