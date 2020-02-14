@@ -266,11 +266,11 @@ class DataCube(ImageCollection):
         if not extend_previous_callback_graph:
             new_builder = GraphBuilder()
             # TODO merge both process graphs?
-            new_builder.add_process(operator, expression={'from_argument': 'data'}, result=True)
+            new_builder.add_process(operator, expression={'from_argument': 'data'})
         else:
             new_builder = my_builder.shallow_copy()
             new_builder.result_node['result'] = False
-            new_builder.add_process(operator, expression={'from_node': new_builder.result_node}, result=True)
+            new_builder.add_process(operator, expression={'from_node': new_builder.result_node})
 
         return self._create_reduced_collection(new_builder, extend_previous_callback_graph)
 
@@ -443,11 +443,11 @@ class DataCube(ImageCollection):
             if not extend_previous_callback_graph:
                 new_builder = GraphBuilder()
                 # TODO merge both process graphs?
-                new_builder.add_process(operator, x={'from_argument': 'data'}, y=other, result=True)
+                new_builder.add_process(operator, x={'from_argument': 'data'}, y=other)
             else:
                 new_builder = my_builder.shallow_copy()
                 new_builder.result_node['result'] = False
-                new_builder.add_process(operator, x={'from_node': new_builder.result_node}, y=other, result=True)
+                new_builder.add_process(operator, x={'from_node': new_builder.result_node}, y=other)
 
             return self._create_reduced_collection(new_builder, extend_previous_callback_graph)
         elif isinstance(other, ImageCollection):
@@ -462,10 +462,10 @@ class DataCube(ImageCollection):
         if not extend_previous_callback_graph:
             new_callback_builder = GraphBuilder()
             # TODO merge both process graphs?
-            new_callback_builder.add_process(operator, data=[{'from_argument': 'data'}, other], result=True)
+            new_callback_builder.add_process(operator, data=[{'from_argument': 'data'}, other])
         else:
             new_callback_builder = my_callback_builder
-            new_callback_builder.add_process(operator, data=[{'from_node': new_callback_builder.result_node}, other], result=True)
+            new_callback_builder.add_process(operator, data=[{'from_node': new_callback_builder.result_node}, other])
 
         return self._create_reduced_collection(new_callback_builder, extend_previous_callback_graph)
 

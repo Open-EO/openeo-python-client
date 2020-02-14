@@ -53,13 +53,9 @@ class GraphBuilder:
         builder.result_node = copy.deepcopy(graph)
         return builder
 
-
-    def add_process(self,process_id,result=None, **args):
-        process_id = self.process(process_id, args)
-        if result is not None:
-            # TODO Setting the "result" field should be just part of the flatting procedure, not part of graph building
-            self.result_node["result"] = result
-        return process_id
+    def add_process(self, process_id, **args):
+        # TODO: is it necessary to have both a `process` and `add_process` method?
+        return self.process(process_id, args)
 
     def process(self,process_id, args):
         """
@@ -89,7 +85,7 @@ class GraphBuilder:
             arg_name:[{'from_node':first.result_node}, {'from_node':second.result_node}]
         }
 
-        merged.add_process(operator, result=True, **args)
+        merged.add_process(operator, **args)
         return merged
 
     def flatten(self, key_generator: FlatGraphKeyGenerator=None):
