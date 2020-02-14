@@ -11,7 +11,7 @@ from shapely.geometry import Polygon, MultiPolygon, mapping
 from openeo.internal.graphbuilder import GraphBuilder
 from openeo.imagecollection import ImageCollection, CollectionMetadata
 from openeo.job import Job
-from openeo.util import get_temporal_extent
+from openeo.util import get_temporal_extent, dict_no_none
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Only import this for type hinting purposes. Runtime import causes circular dependency issues.
@@ -692,19 +692,22 @@ class DataCube(ImageCollection):
         """
         return self._reduce_time(reduce_function="count")
 
-    def ndvi(self, name="ndvi") -> 'ImageCollection':
+    def ndvi(self, nir: str = None, red: str = None, target_band: str = None) -> 'ImageCollection':
         """ Normalized Difference Vegetation Index (NDVI)
 
-            :param name: Name of the newly created band
+            :param nir: name of NIR band
+            :param red: name of red band
+            :param target_band: (optional) name of the newly created band
 
             :return: An ImageCollection instance
         """
-        process_id = 'ndvi'
-        args = {
-            'data': {'from_node': self.node_id},
-            'name': name
-        }
-        return self.graph_add_process(process_id, args)
+        return self.graph_add_process(
+            process_id='ndvi',
+            args=dict_no_none(
+                data={'from_node': self.builder.result_node},
+                nir=nir, red=red, target_band=target_band
+            )
+        )
 
     @deprecated("use 'linear_scale_range' instead")
     def stretch_colors(self, min, max) -> 'ImageCollection':

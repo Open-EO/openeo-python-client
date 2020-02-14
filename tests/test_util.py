@@ -6,7 +6,15 @@ from datetime import datetime
 
 import pytest
 
-from openeo.util import first_not_none, get_temporal_extent, TimingLogger, ensure_list, ensure_dir
+from openeo.util import first_not_none, get_temporal_extent, TimingLogger, ensure_list, ensure_dir, dict_no_none
+
+
+def test_dict_no_none():
+    assert dict_no_none() == {}
+    assert dict_no_none(a=3) == {"a": 3}
+    assert dict_no_none(a=3, b=0, c="foo") == {"a": 3, "b": 0, "c": "foo"}
+    assert dict_no_none(a=3, b="", c="foo") == {"a": 3, "b": "", "c": "foo"}
+    assert dict_no_none(a=3, b=None, c="foo") == {"a": 3, "c": "foo"}
 
 
 @pytest.mark.parametrize(['input', 'expected'], [

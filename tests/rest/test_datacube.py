@@ -57,6 +57,26 @@ def test_merge_cubes(con100: Connection):
     }
 
 
+def test_ndvi_simple(con100: Connection):
+    ndvi = con100.load_collection("S2").ndvi()
+    assert sorted(ndvi.graph.keys()) == ["loadcollection1", "ndvi1"]
+    assert ndvi.graph["ndvi1"] == {
+        "process_id": "ndvi",
+        "arguments": {"data": {"from_node": "loadcollection1"}},
+        "result": True,
+    }
+
+
+def test_ndvi_args(con100: Connection):
+    ndvi = con100.load_collection("S2").ndvi(nir="nirr", red="rred", target_band="ndvii")
+    assert sorted(ndvi.graph.keys()) == ["loadcollection1", "ndvi1"]
+    assert ndvi.graph["ndvi1"] == {
+        "process_id": "ndvi",
+        "arguments": {"data": {"from_node": "loadcollection1"}, "nir": "nirr", "red": "rred", "target_band": "ndvii"},
+        "result": True,
+    }
+
+
 def test_viewing_service(con100: Connection, requests_mock):
     def check_request(request):
         assert request.json() == {

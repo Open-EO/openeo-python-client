@@ -27,6 +27,17 @@ def date_to_rfc3339(d: Any) -> str:
     raise NotImplementedError("TODO")
 
 
+def dict_no_none(**kwargs):
+    """
+    Helper to build a dict containing given key-value pairs where the value is not None.
+    """
+    return {
+        k: v
+        for k, v in kwargs.items()
+        if v is not None
+    }
+
+
 def first_not_none(*args):
     """Return first item from given arguments that is not None."""
     for item in args:
