@@ -469,6 +469,17 @@ class Connection(RestApiConnection):
             raise OpenEoClientException("Failed fo extract job id")
         return RESTJob(job_id, self)
 
+    def job(self,job_id:str):
+        """
+        Get the job based on the id. The job with the given id should already exist.
+        
+        Use :py:meth:`openeo.rest.connection.Connection.create_job` to create new jobs
+
+        :param job_id: the job id of an existing job
+        :return: A job object.
+        """
+        return RESTJob(job_id, self)
+
     def parse_json_response(self, response: requests.Response):
         """
         Parses json response, if an error occurs it raises an Exception.

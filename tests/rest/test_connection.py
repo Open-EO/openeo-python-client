@@ -198,3 +198,10 @@ def test_list_file_formats(requests_mock):
     }
     requests_mock.get(API_URL + "file_formats", json=file_formats)
     assert conn.list_file_formats() == file_formats
+
+def test_get_job(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    conn = Connection(API_URL)
+
+    my_job = conn.job("the_job_id")
+    assert my_job is not None
