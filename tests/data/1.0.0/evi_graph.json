@@ -22,7 +22,7 @@
               "data": {
                 "from_argument": "data"
               },
-              "index": 2
+              "index": 3
             }
           },
           "arrayelement2": {
@@ -31,7 +31,7 @@
               "data": {
                 "from_argument": "data"
               },
-              "index": 1
+              "index": 2
             }
           },
           "subtract1": {
@@ -64,7 +64,7 @@
               "data": {
                 "from_argument": "data"
               },
-              "index": 2
+              "index": 3
             }
           },
           "arrayelement4": {
@@ -73,7 +73,7 @@
               "data": {
                 "from_argument": "data"
               },
-              "index": 1
+              "index": 2
             }
           },
           "product2": {

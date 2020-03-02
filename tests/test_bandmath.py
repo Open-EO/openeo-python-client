@@ -1,12 +1,17 @@
-import unittest
-import pytest
+"""
 
-import requests_mock
-from mock import MagicMock
+DEPRECATED: this are legacy tests for 0.4.0-style API, with quick hack to also test against 1.0.0
+    Add new tests to tests/rest/datacube/test_bandmath.py
+
+"""
+
+import unittest
 
 import openeo
+import pytest
+from mock import MagicMock
 from openeo.internal.graphbuilder_040 import GraphBuilder as GraphBuilder040
-from openeo.internal.graphbuilder import GraphBuilder as GraphBuilder100
+
 from . import load_json_resource
 
 @pytest.fixture(scope="module", params=["0.4.0", "1.0.0"])
@@ -51,13 +56,12 @@ class TestBandMath():
 
 
     def test_band_indexing(self, requests_mock):
-        self.maxDiff=None
         requests_mock.get("http://localhost:8000/api/", json={"api_version": self.version})
         session = openeo.connect("http://localhost:8000/api")
         session.post = MagicMock()
         session.download = MagicMock()
 
-        requests_mock.get("http://localhost:8000/api/collections/CGS_SENTINEL2_RADIOMETRY_V102_001", json={
+        requests_mock.get("http://localhost:8000/api/collections/SENTINEL2_RADIOMETRY_10M", json={
             "id": "CGS_SENTINEL2_RADIOMETRY_V102_001",
             "properties": {
                 "eo:bands": [
@@ -69,7 +73,7 @@ class TestBandMath():
             }
         })
 
-        cube = session.imagecollection("CGS_SENTINEL2_RADIOMETRY_V102_001")
+        cube = session.imagecollection("SENTINEL2_RADIOMETRY_10M")
         expected_graph = load_json_resource('data/%s/band_red.json'%self.version)
 
         def check_cube(cube, band_index=2):
@@ -95,6 +99,7 @@ class TestBandMath():
         requests_mock.get("http://localhost:8000/api/collections", json={"collections": [{"product_id": "sentinel2_subset"}]})
         requests_mock.get("http://localhost:8000/api/collections/SENTINEL2_RADIOMETRY_10M", json={"product_id": "sentinel2_subset",
                                                                                       "bands": [{'band_id': 'B02'},
+                                                                                                {'band_id': 'B03'},
                                                                                                 {'band_id': 'B04'},
                                                                                                 {'band_id': 'B08'},
                                                                                                 ],
