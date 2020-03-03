@@ -51,10 +51,10 @@
             "process_id": "product",
             "arguments": {
               "data": [
+                2.5,
                 {
                   "from_node": "subtract1"
-                },
-                2.5
+                }
               ]
             }
           },
@@ -80,10 +80,10 @@
             "process_id": "product",
             "arguments": {
               "data": [
+                6.0,
                 {
                   "from_node": "arrayelement4"
-                },
-                6.0
+                }
               ]
             }
           },
@@ -113,10 +113,10 @@
             "process_id": "product",
             "arguments": {
               "data": [
+                7.5,
                 {
                   "from_node": "arrayelement5"
-                },
-                7.5
+                }
               ]
             }
           },

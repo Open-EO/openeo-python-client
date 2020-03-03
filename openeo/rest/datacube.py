@@ -188,7 +188,7 @@ class DataCube(ImageCollection):
             'align': align
         })
 
-    def subtract(self, other: Union[ImageCollection, Union[int, float]]):
+    def subtract(self, other: Union['DataCube', int, float], reverse=False):
         """
         Subtract other from this datacube, so the result is: this - other
         The number of bands in both data cubes has to be the same.
@@ -197,9 +197,9 @@ class DataCube(ImageCollection):
         :return ImageCollection: this - other
         """
         operator = "subtract"
-        if isinstance(other, int) or isinstance(other, float):
-            return self._reduce_bands_binary_const(operator, other)
-        elif isinstance(other, ImageCollection):
+        if isinstance(other, (int, float)):
+            return self._reduce_bands_binary_const(operator, other, reverse=reverse)
+        elif isinstance(other, DataCube):
             return self._reduce_bands_binary(operator, other)
         else:
             raise ValueError("Unsupported right-hand operand: " + str(other))
@@ -213,14 +213,14 @@ class DataCube(ImageCollection):
         :return ImageCollection: this - other
         """
         operator = "divide"
-        if isinstance(other, int) or isinstance(other, float):
+        if isinstance(other, (int, float)):
             return self._reduce_bands_binary_const(operator, other)
-        elif isinstance(other, ImageCollection):
+        elif isinstance(other, DataCube):
             return self._reduce_bands_binary(operator, other)
         else:
             raise ValueError("Unsupported right-hand operand: " + str(other))
 
-    def product(self, other: Union[ImageCollection, Union[int, float]]):
+    def product(self, other: Union['DataCube', int, float], reverse=False):
         """
         Multiply other with this datacube, so the result is: this * other
         The number of bands in both data cubes has to be the same.
@@ -229,9 +229,9 @@ class DataCube(ImageCollection):
         :return ImageCollection: this - other
         """
         operator = "product"
-        if isinstance(other, int) or isinstance(other, float):
-            return self._reduce_bands_binary_const(operator, other)
-        elif isinstance(other, ImageCollection):
+        if isinstance(other, (int, float)):
+            return self._reduce_bands_binary_const(operator, other, reverse=reverse)
+        elif isinstance(other, DataCube):
             return self._reduce_bands_binary(operator, other)
         else:
             raise ValueError("Unsupported right-hand operand: " + str(other))
@@ -328,20 +328,23 @@ class DataCube(ImageCollection):
     def __truediv__(self, other):
         return self.divide(other)
 
+    def __add__(self, other):
+        return self.add(other)
+
+    def __radd__(self, other):
+        return self.add(other, reverse=True)
+
     def __sub__(self, other):
         return self.subtract(other)
 
-    def __radd__(self, other):
-        return self.add(other)
-
-    def __add__(self, other):
-        return self.add(other)
+    def __rsub__(self, other):
+        return self.subtract(other, reverse=True)
 
     def __mul__(self, other):
         return self.product(other)
 
     def __rmul__(self, other):
-        return self.product(other)
+        return self.product(other, reverse=True)
 
     def __or__(self, other):
         return self.logical_or(other)
@@ -349,7 +352,7 @@ class DataCube(ImageCollection):
     def __and__(self, other):
         return self.logical_and(other)
 
-    def add(self, other: Union[ImageCollection, Union[int, float]]):
+    def add(self, other: Union['DataCube', int, float], reverse=False):
         """
         Pairwise addition of the bands in this data cube with the bands in the 'other' data cube.
         The number of bands in both data cubes has to be the same.
@@ -358,9 +361,9 @@ class DataCube(ImageCollection):
         :return ImageCollection: this + other
         """
         operator = "sum"
-        if isinstance(other, int) or isinstance(other, float):
-            return self._reduce_bands_binary_const(operator, other)
-        elif isinstance(other, ImageCollection):
+        if isinstance(other, (int, float)):
+            return self._reduce_bands_binary_const(operator, other, reverse=reverse)
+        elif isinstance(other, DataCube):
             return self._reduce_bands_binary(operator, other)
         else:
             raise ValueError("Unsupported right-hand operand: " + str(other))
@@ -452,17 +455,19 @@ class DataCube(ImageCollection):
         else:
             raise ValueError("Unsupported right-hand operand: " + str(other))
 
-    def _reduce_bands_binary_const(self, operator, other: Union[int, float]):
+    def _reduce_bands_binary_const(self, operator, other: Union[int, float], reverse=False):
         my_callback_builder = self._get_band_graph_builder()
-        new_callback_builder = None
+
         extend_previous_callback_graph = my_callback_builder is not None
         if not extend_previous_callback_graph:
             new_callback_builder = GraphBuilder()
-            # TODO merge both process graphs?
-            new_callback_builder.add_process(operator, data=[{'from_argument': 'data'}, other])
+            data = [{'from_argument': 'data'}, other]
         else:
             new_callback_builder = my_callback_builder
-            new_callback_builder.add_process(operator, data=[{'from_node': new_callback_builder.result_node}, other])
+            data = [{'from_node': new_callback_builder.result_node}, other]
+        if reverse:
+            data = list(reversed(data))
+        new_callback_builder.add_process(operator, data=data)
 
         return self._create_reduced_collection(new_callback_builder, extend_previous_callback_graph)
 

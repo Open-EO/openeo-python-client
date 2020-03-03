@@ -93,25 +93,60 @@ def test_ndvi_udf(con100, requests_mock):
     assert actual_graph == expected_graph
 
 
-def test_bands_rmul(con100):
+@pytest.mark.parametrize(["process", "callback_tail"], [
+    ((lambda b: b + 3), {
+        "sum1": {"process_id": "sum", "arguments": {"data": [{"from_node": "arrayelement1"}, 3]}, "result": True}
+    }),
+    ((lambda b: 3 + b), {
+        "sum1": {"process_id": "sum", "arguments": {"data": [3, {"from_node": "arrayelement1"}]}, "result": True}
+    }),
+    ((lambda b: 3 + b + 5), {
+        "sum1": {"process_id": "sum", "arguments": {"data": [3, {"from_node": "arrayelement1"}]}},
+        "sum2": {"process_id": "sum", "arguments": {"data": [{"from_node": "sum1"}, 5]}, "result": True}
+    }
+     ),
+    ((lambda b: b - 3), {
+        "subtract1": {"process_id": "subtract", "arguments": {"data": [{"from_node": "arrayelement1"}, 3]},
+                      "result": True}
+    }),
+    ((lambda b: 3 - b), {
+        "subtract1": {"process_id": "subtract", "arguments": {"data": [3, {"from_node": "arrayelement1"}]},
+                      "result": True}
+    }),
+    ((lambda b: 2 * b), {
+        "product1": {"process_id": "product", "arguments": {"data": [2, {"from_node": "arrayelement1"}]},
+                     "result": True}
+    }),
+    ((lambda b: b * 6), {
+        "product1": {"process_id": "product", "arguments": {"data": [{"from_node": "arrayelement1"}, 6]},
+                     "result": True}
+    }),
+    ((lambda b: b / 8), {
+        "divide1": {"process_id": "divide", "arguments": {"data": [{"from_node": "arrayelement1"}, 8]}, "result": True}
+    }),
+])
+def test_band_operation(con100, process, callback_tail):
     s2 = con100.load_collection("S2")
-    b = s2.filter_bands(['B04'])
-    c = 2 * b
-    assert c.graph["reduce1"] == {
-        "process_id": "reduce",  # TODO: must be "reduce_dimension"
-        "arguments": {
-            "data": {"from_node": "filterbands1"},
-            "reducer": {
-                "callback": {
-                    "product1": {
-                        "process_id": "product",
-                        "arguments": {"data": [{"from_argument": "data"}, 2]},
-                        "result": True
-                    }
-                }
-            },
-            "dimension": "spectral_bands",
+    b = s2.band('B04')
+    c = process(b)
+
+    callback = {"arrayelement1": {
+        "process_id": "array_element", "arguments": {"data": {"from_argument": "data"}, "index": 2}
+    }}
+    callback.update(callback_tail)
+    assert c.graph == {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None}
         },
-        "result": True,
+        "reduce1": {
+            "process_id": "reduce",  # TODO: must be "reduce_dimension"
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "reducer": {"callback": callback},
+                "dimension": "spectral_bands",
+            },
+            "result": True,
+        }
     }
 
