@@ -41,6 +41,7 @@ def test_band_basic(con100):
     expected_graph = load_json_resource('data/1.0.0/band0.json')
     assert cube.band(0).graph == expected_graph
     assert cube.band("B02").graph == expected_graph
+    # TODO graph contains "spectral_band" hardcoded
 
 
 def test_indexing(con100):
@@ -150,3 +151,16 @@ def test_band_operation(con100, process, callback_tail):
         }
     }
 
+
+@pytest.mark.skip("TODO issue #107")
+def test_merge_issue107(con100, requests_mock):
+    """https://github.com/Open-EO/openeo-python-client/issues/107"""
+    s2 = con100.load_collection("S2")
+    a = s2.filter_bands(['B02'])
+    b = s2.filter_bands(['B04'])
+    c = a.merge(b)
+
+    flat = c.graph
+    # There should be only one `load_collection` node (but two `filter_band` ones)
+    processes = sorted(n["process_id"] for n in flat.values())
+    assert processes == ["filter_bands", "filter_bands", "merge_cubes", "load_collection"]

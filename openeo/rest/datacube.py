@@ -1,5 +1,6 @@
 import copy
 import datetime
+import logging
 import pathlib
 import typing
 from typing import List, Dict, Union, Tuple
@@ -19,6 +20,11 @@ if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Note: the `hasattr` check is necessary for Python versions before 3.5.2.
     from openeo.rest.connection import Connection
 
+
+log = logging.getLogger(__name__)
+
+
+# TODO #108 this file is still full of "ImageCollection" references (type hints, docs, isinstance checks, ...)
 
 class DataCube(ImageCollection):
     """
@@ -156,11 +162,12 @@ class DataCube(ImageCollection):
             :return An ImageCollection instance
         """
 
-        process_id = 'reduce'
+        process_id = 'reduce'  # TODO #124 reduce_dimension/reduce_dimension_binary
         band_index = self.metadata.get_band_index(band)
 
         args = {
             'data': {'from_node': self.builder.result_node},
+            # TODO #116 hardcoded dimension name
             'dimension': 'spectral_bands',
             'reducer': {
                 'callback': {
@@ -308,6 +315,7 @@ class DataCube(ImageCollection):
     def _create_reduced_collection(self, callback_graph_builder, extend_previous_callback_graph):
         if not extend_previous_callback_graph:
             # there was no previous reduce step
+            log.warning("Doing band math without proper `DataCube.band()` usage. There is probably something wrong. See issue #123")
             args = {
                 'data': {'from_node': self.builder.result_node},
                 # TODO: avoid hardcoded dimension name 'spectral_bands' #116
@@ -316,7 +324,7 @@ class DataCube(ImageCollection):
                     'callback': callback_graph_builder.result_node
                 }
             }
-            return self.graph_add_process("reduce", args)
+            return self.graph_add_process("reduce", args)  # TODO #124 reduce_dimension/reduce_dimension_binary
         else:
             process_graph_copy = self.builder.shallow_copy()
             process_graph_copy.result_node['arguments']['reducer']['callback'] = callback_graph_builder.result_node
@@ -417,11 +425,11 @@ class DataCube(ImageCollection):
                         'callback': merged.processes
                     }
                 }
-                return self.graph_add_process("reduce", args)
+                return self.graph_add_process("reduce", args) # TODO #124 reduce_dimension/reduce_dimension_binary
         else:
 
             reducing_graph = self
-            if reducing_graph.builder.result_node["process_id"] != "reduce":
+            if reducing_graph.builder.result_node["process_id"] != "reduce":  # TODO #124 reduce_dimension/reduce_dimension_binary
                 reducing_graph = other
             new_builder = reducing_graph.builder.shallow_copy()
             new_builder.result_node['arguments']['reducer']['callback'] = merged.result_node
@@ -472,8 +480,9 @@ class DataCube(ImageCollection):
         return self._create_reduced_collection(new_callback_builder, extend_previous_callback_graph)
 
     def _get_band_graph_builder(self):
+        """Get process graph builder of "spectral" reduce callback if available"""
         current_node = self.builder.result_node
-        if current_node["process_id"] == "reduce":
+        if current_node["process_id"] == "reduce":  # TODO #124 reduce_dimension/reduce_dimension_binary
             # TODO: avoid hardcoded "spectral_bands" dimension #76 #93 #116
             if current_node["arguments"]["dimension"] == "spectral_bands":
                 callback_graph = current_node["arguments"]["reducer"]["callback"]
@@ -564,7 +573,7 @@ class DataCube(ImageCollection):
 
             :param code: String representing Python code to be executed in the backend.
         """
-        process_id = 'reduce'
+        process_id = 'reduce'  # TODO #124 reduce_dimension/reduce_dimension_binary
         args = {
             'data': {
                 'from_node': self.builder.result_node
@@ -603,7 +612,7 @@ class DataCube(ImageCollection):
         :param version: The UDF runtime version
         :return:
         """
-        process_id = 'reduce'
+        process_id = 'reduce'  # TODO #124 reduce_dimension/reduce_dimension_binary
         args = {
             'data': {
                 'from_node': self.builder.result_node
@@ -640,7 +649,7 @@ class DataCube(ImageCollection):
         return self.graph_add_process(process_id, args)
 
     def _reduce_time(self, reduce_function="max"):
-        process_id = 'reduce'
+        process_id = 'reduce'  # TODO #124 reduce_dimension/reduce_dimension_binary
 
         args = {
             'data': {'from_node': self.builder.result_node},
