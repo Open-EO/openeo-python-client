@@ -263,8 +263,8 @@ class DataCube(ImageCollection):
             # TODO merge both process graphs?
             new_builder.add_process(operator, expression={'from_argument': 'data'})
         else:
+            # TODO #117 is shallow_copy still necessary?
             new_builder = my_builder.shallow_copy()
-            new_builder.result_node['result'] = False
             new_builder.add_process(operator, expression={'from_node': new_builder.result_node})
 
         return self._create_reduced_collection(new_builder, extend_previous_callback_graph)
@@ -315,6 +315,7 @@ class DataCube(ImageCollection):
             }
             return self.graph_add_process("reduce", args)  # TODO #124 reduce_dimension/reduce_dimension_binary
         else:
+            # TODO #117 is shallow_copy still necessary?
             process_graph_copy = self.builder.shallow_copy()
             process_graph_copy.result_node['arguments']['reducer']['callback'] = callback_graph_builder.result_node
 
@@ -421,6 +422,7 @@ class DataCube(ImageCollection):
             reducing_graph = self
             if reducing_graph.builder.result_node["process_id"] != "reduce":  # TODO #124 reduce_dimension/reduce_dimension_binary
                 reducing_graph = other
+            # TODO #117 is shallow_copy still necessary?
             new_builder = reducing_graph.builder.shallow_copy()
             new_builder.result_node['arguments']['reducer']['callback'] = merged.result_node
             # now current_node should be a reduce node, let's modify it
@@ -444,8 +446,8 @@ class DataCube(ImageCollection):
                 # TODO merge both process graphs?
                 new_builder.add_process(operator, x={'from_argument': 'data'}, y=other)
             else:
+                # TODO #117 is shallow_copy still necessary?
                 new_builder = my_builder.shallow_copy()
-                new_builder.result_node['result'] = False
                 new_builder.add_process(operator, x={'from_node': new_builder.result_node}, y=other)
 
             return self._create_reduced_collection(new_builder, extend_previous_callback_graph)
@@ -538,7 +540,6 @@ class DataCube(ImageCollection):
                     }
                 },
                 "process_id": code,
-                "result": True
             }
         args = {
             'data': {
@@ -649,7 +650,6 @@ class DataCube(ImageCollection):
                     "unary": {
                         "arguments": arguments,
                         "process_id": process,
-                        "result": True
                     }
                 }
             }
@@ -920,7 +920,6 @@ class DataCube(ImageCollection):
                             }
                         },
                         "process_id": func,
-                        "result": True
                     }
                 }
             }
@@ -957,7 +956,6 @@ class DataCube(ImageCollection):
     def download(self, outputfile: str, format: str = "GTIFF", options: dict = None):
         """Download image collection, e.g. as GeoTIFF."""
         newcollection = self.save_result(format=format, options=options)
-        newcollection.builder.result_node['result'] = True
         return self._connection.download(newcollection.builder.flatten(), outputfile)
 
     def tiled_viewing_service(self, **kwargs) -> Dict:
@@ -1000,13 +998,12 @@ class DataCube(ImageCollection):
         if out_format:
             # add `save_result` node
             img = img.save_result(format=out_format, options=format_options)
-        img.graph[img.node_id]["result"] = True
         return self._connection.create_job(process_graph=img.graph, additional=job_options)
 
     def execute(self) -> Dict:
         """Executes the process graph of the imagery. """
+        # TODO #117 is shallow_copy still necessary?
         newbuilder = self.builder.shallow_copy()
-        newbuilder.result_node['result'] = True
         return self._connection.execute({"process_graph": newbuilder.flatten()}, "")
 
     ####### HELPER methods #######
@@ -1022,6 +1019,7 @@ class DataCube(ImageCollection):
         :return: new ImageCollectionClient instance
         """
         # don't modify in place, return new builder
+        # TODO #117 is shallow_copy still necessary?
         newbuilder = self.builder.shallow_copy()
         newbuilder.add_process(process_id, arguments=args)
 
