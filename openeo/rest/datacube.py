@@ -39,6 +39,7 @@ class DataCube(ImageCollection):
 
     @property
     def graph(self):
+        """Flattened process graph representation"""
         return self.builder.flatten()
 
     @property
@@ -309,9 +310,10 @@ class DataCube(ImageCollection):
             # there was no previous reduce step
             args = {
                 'data': {'from_node': self.builder.result_node},
+                # TODO: avoid hardcoded dimension name 'spectral_bands' #116
                 'dimension': 'spectral_bands',
                 'reducer': {
-                    'callback': callback_graph_builder.processes
+                    'callback': callback_graph_builder.result_node
                 }
             }
             return self.graph_add_process("reduce", args)

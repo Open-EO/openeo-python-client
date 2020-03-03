@@ -15,7 +15,7 @@ def con100(requests_mock) -> Connection:
     with a some default image collections
     """
     requests_mock.get(API_URL + "/", json={"api_version": "1.0.0"})
-    requests_mock.get(API_URL + "/collections/SENTINEL2_RADIOMETRY_10M", json={
+    s2_properties = {
         "properties": {
             "cube:dimensions": {
                 "bands": {"type": "bands", "values": ["B02", "B03", "B04", "B08"]}
@@ -27,7 +27,11 @@ def con100(requests_mock) -> Connection:
                 {"name": "B08", "common_name": "nir", "center_wavelength": 0.8351},
             ]
         }
-    })
+    }
+    # Classic Sentinel2 collection
+    requests_mock.get(API_URL + "/collections/SENTINEL2_RADIOMETRY_10M", json=s2_properties)
+    # Alias for quick tests
+    requests_mock.get(API_URL + "/collections/S2", json=s2_properties)
     requests_mock.get(API_URL + "/collections/MASK", json={})
     return openeo.connect(API_URL)
 
@@ -87,3 +91,27 @@ def test_ndvi_udf(con100, requests_mock):
 
     expected_graph = load_json_resource('data/1.0.0/udf_graph.json')["process_graph"]
     assert actual_graph == expected_graph
+
+
+def test_bands_rmul(con100):
+    s2 = con100.load_collection("S2")
+    b = s2.filter_bands(['B04'])
+    c = 2 * b
+    assert c.graph["reduce1"] == {
+        "process_id": "reduce",  # TODO: must be "reduce_dimension"
+        "arguments": {
+            "data": {"from_node": "filterbands1"},
+            "reducer": {
+                "callback": {
+                    "product1": {
+                        "process_id": "product",
+                        "arguments": {"data": [{"from_argument": "data"}, 2]},
+                        "result": True
+                    }
+                }
+            },
+            "dimension": "spectral_bands",
+        },
+        "result": True,
+    }
+
