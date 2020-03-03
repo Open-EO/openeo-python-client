@@ -7,8 +7,8 @@
       "temporal_extent": null
     }
   },
-  "reduce1": {
-    "process_id": "reduce",
+  "reducedimension1": {
+    "process_id": "reduce_dimension",
     "arguments": {
       "data": {
         "from_node": "loadcollection1"
@@ -67,7 +67,7 @@
    "process_id": "save_result",
    "arguments": {
      "data": {
-       "from_node": "reduce1"
+       "from_node": "reducedimension1"
      },
      "format": "GTIFF",
      "options": {}},

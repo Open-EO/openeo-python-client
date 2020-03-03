@@ -20,8 +20,8 @@
       "temporal_extent": null
     }
   },
-  "reduce1": {
-    "process_id": "reduce",
+  "reducedimension1": {
+    "process_id": "reduce_dimension",
     "arguments": {
       "data": {
         "from_node": "filterbands1"

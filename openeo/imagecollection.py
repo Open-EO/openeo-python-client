@@ -257,6 +257,7 @@ class ImageCollection(ABC):
         """
         pass
 
+    # TODO: deprecated/unused? Confusing name as well: ImageCollectionClient does reduce along "spectral" dimension
     def apply_tiles(self, code: str) -> 'ImageCollection':
         """Apply a function to the tiles of an image collection.
 

@@ -1,9 +1,8 @@
-import mock
 import openeo
 import pytest
 from openeo.rest.connection import Connection
 
-from ... import load_json_resource
+from ... import load_json_resource, get_download_graph
 
 API_URL = "https://oeo.net"
 
@@ -65,36 +64,22 @@ def test_evi(con100):
     B04 = cube.band('B04')
     B08 = cube.band('B08')
     evi_cube = (2.5 * (B08 - B04)) / ((B08 + 6.0 * B04 - 7.5 * B02) + 1.0)
-
-    # TODO: download is not really necessary for this test, just get flat graph directly from cube
-    with mock.patch.object(con100, 'download') as download:
-        evi_cube.download("out.geotiff", format="GTIFF")
-        download.assert_called_once()
-        args, kwargs = download.call_args
-        actual_graph = args[0]
-
+    actual_graph = get_download_graph(evi_cube)
     expected_graph = load_json_resource('data/1.0.0/evi_graph.json')
     assert actual_graph == expected_graph
 
 
 def test_ndvi_udf(con100, requests_mock):
     s2_radio = con100.load_collection("SENTINEL2_RADIOMETRY_10M")
-    ndvi_coverage = s2_radio.apply_tiles("def myfunction(tile):\n"
-                                         "    print(tile)\n"
-                                         "    return tile")
-
-    # TODO: download is not really necessary for this test, just get flat graph directly from cube
-    with mock.patch.object(con100, 'download') as download:
-        ndvi_coverage.download("out.geotiff", format="GTIFF")
-        download.assert_called_once()
-        args, kwargs = download.call_args
-        actual_graph = args[0]
-
+    ndvi_coverage = s2_radio.reduce_bands_udf("def myfunction(tile):\n"
+                                              "    print(tile)\n"
+                                              "    return tile")
+    actual_graph = get_download_graph(ndvi_coverage)
     expected_graph = load_json_resource('data/1.0.0/udf_graph.json')["process_graph"]
     assert actual_graph == expected_graph
 
 
-@pytest.mark.parametrize(["process", "callback_tail"], [
+@pytest.mark.parametrize(["process", "expected"], [
     ((lambda b: b + 3), {
         "sum1": {"process_id": "sum", "arguments": {"data": [{"from_node": "arrayelement1"}, 3]}, "result": True}
     }),
@@ -126,7 +111,7 @@ def test_ndvi_udf(con100, requests_mock):
         "divide1": {"process_id": "divide", "arguments": {"data": [{"from_node": "arrayelement1"}, 8]}, "result": True}
     }),
 ])
-def test_band_operation(con100, process, callback_tail):
+def test_band_operation(con100, process, expected):
     s2 = con100.load_collection("S2")
     b = s2.band('B04')
     c = process(b)
@@ -134,14 +119,14 @@ def test_band_operation(con100, process, callback_tail):
     callback = {"arrayelement1": {
         "process_id": "array_element", "arguments": {"data": {"from_argument": "data"}, "index": 2}
     }}
-    callback.update(callback_tail)
+    callback.update(expected)
     assert c.graph == {
         "loadcollection1": {
             "process_id": "load_collection",
             "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None}
         },
-        "reduce1": {
-            "process_id": "reduce",  # TODO: must be "reduce_dimension"
+        "reducedimension1": {
+            "process_id": "reduce_dimension",
             "arguments": {
                 "data": {"from_node": "loadcollection1"},
                 "reducer": {"callback": callback},
@@ -153,7 +138,7 @@ def test_band_operation(con100, process, callback_tail):
 
 
 @pytest.mark.skip("TODO issue #107")
-def test_merge_issue107(con100, requests_mock):
+def test_merge_issue107(con100):
     """https://github.com/Open-EO/openeo-python-client/issues/107"""
     s2 = con100.load_collection("S2")
     a = s2.filter_bands(['B02'])
@@ -164,3 +149,33 @@ def test_merge_issue107(con100, requests_mock):
     # There should be only one `load_collection` node (but two `filter_band` ones)
     processes = sorted(n["process_id"] for n in flat.values())
     assert processes == ["filter_bands", "filter_bands", "merge_cubes", "load_collection"]
+
+
+def test_reduce_dimension_binary(con100):
+    s2 = con100.load_collection("S2")
+    callback = {
+        "process_id": "add",
+        "arguments": {"x": {"from_argument": "x"}, "y": {"from_argument": "y"}}
+    }
+    # TODO: use a public version of reduce_dimension_binary?
+    x = s2._reduce(dimension="bands", callback=callback, process_id="reduce_dimension_binary")
+    assert x.graph == {
+        'loadcollection1': {
+            'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
+            'process_id': 'load_collection',
+        },
+        'reducedimensionbinary1': {
+            'process_id': 'reduce_dimension_binary',
+            'arguments': {
+                'data': {'from_node': 'loadcollection1'},
+                'dimension': 'bands',
+                'reducer': {'callback': {
+                    'add1': {
+                        'process_id': 'add',
+                        'arguments': {'x': {'from_argument': 'x'}, 'y': {'from_argument': 'y'}},
+                        'result': True
+                    }
+                }}
+            },
+            'result': True
+        }}

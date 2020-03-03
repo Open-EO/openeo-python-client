@@ -52,6 +52,10 @@ class DataCube(ImageCollection):
     def _api_version(self):
         return self._connection.capabilities().api_version_check
 
+    @property
+    def connection(self):
+        return self._connection
+
     @classmethod
     def load_collection(
             cls, collection_id: str, connection: 'Connection' = None,
@@ -156,34 +160,19 @@ class DataCube(ImageCollection):
     def band_filter(self, bands) -> ImageCollection:
         return self.filter_bands(bands)
 
-    def band(self, band: Union[str, int]) -> 'ImageCollection':
+    def band(self, band: Union[str, int]) -> 'DataCube':
         """Filter the imagery by the given bands
             :param band: band name, band common name or band index.
-            :return An ImageCollection instance
+            :return An DataCube instance
         """
-
-        process_id = 'reduce'  # TODO #124 reduce_dimension/reduce_dimension_binary
         band_index = self.metadata.get_band_index(band)
-
-        args = {
-            'data': {'from_node': self.builder.result_node},
-            # TODO #116 hardcoded dimension name
-            'dimension': 'spectral_bands',
-            'reducer': {
-                'callback': {
-                    'arguments': {
-                        'data': {
-                            'from_argument': 'data'
-                        },
-                        'index': band_index
-                    },
-                    'process_id': 'array_element',
-                    'result': True
-                }
-            }
-        }
-
-        return self.graph_add_process(process_id, args)
+        return self._reduce_bands(callback={
+            'process_id': 'array_element',
+            'arguments': {
+                'data': {'from_argument': 'data'},
+                'index': band_index
+            },
+        })
 
     def resample_spatial(self, resolution: Union[float, Tuple[float, float]],
                          projection: Union[int, str] = None, method: str = 'near', align: str = 'upper-left'):
@@ -377,6 +366,7 @@ class DataCube(ImageCollection):
             raise ValueError("Unsupported right-hand operand: " + str(other))
 
     def _reduce_bands_binary(self, operator, other: 'DataCube', arg_name='data'):
+        # TODO: name might be confusing with process `reduce_dimension_binary`
         # first we create the callback
         fallback_node = GraphBuilder.from_process_graph({'from_argument': 'data'})
         my_builder = self._get_band_graph_builder()
@@ -444,6 +434,7 @@ class DataCube(ImageCollection):
         :param other: Another data cube, or a constant
         :return:
         """
+        # TODO: name might be confusing with process `reduce_dimension_binary`
         if isinstance(other, int) or isinstance(other, float):
             my_builder = self._get_band_graph_builder()
             new_builder = None
@@ -464,6 +455,7 @@ class DataCube(ImageCollection):
             raise ValueError("Unsupported right-hand operand: " + str(other))
 
     def _reduce_bands_binary_const(self, operator, other: Union[int, float], reverse=False):
+        # TODO: name might be confusing with process `reduce_dimension_binary`
         my_callback_builder = self._get_band_graph_builder()
 
         extend_previous_callback_graph = my_callback_builder is not None
@@ -482,7 +474,7 @@ class DataCube(ImageCollection):
     def _get_band_graph_builder(self):
         """Get process graph builder of "spectral" reduce callback if available"""
         current_node = self.builder.result_node
-        if current_node["process_id"] == "reduce":  # TODO #124 reduce_dimension/reduce_dimension_binary
+        if current_node["process_id"] in ("reduce_dimension", "reduce_dimension_binary"):
             # TODO: avoid hardcoded "spectral_bands" dimension #76 #93 #116
             if current_node["arguments"]["dimension"] == "spectral_bands":
                 callback_graph = current_node["arguments"]["reducer"]["callback"]
@@ -559,7 +551,45 @@ class DataCube(ImageCollection):
         }
         return self.graph_add_process(process_id, args)
 
-    def apply_tiles(self, code: str, runtime="Python", version="latest") -> 'ImageCollection':
+    def _reduce(self, dimension: str, callback: dict, process_id="reduce_dimension"):
+        """
+        Add a reduce process with given callback along given dimension
+        """
+        # TODO: make this public?
+        # TODO: add check if dimension is valid according to metadata? #116
+        # TODO: use/test case for `reduce_dimension_binary`?
+        return self.graph_add_process(
+            process_id=process_id,
+            args={
+                "data": {
+                    "from_node": self.builder.result_node,
+                },
+                "reducer": {
+                    "callback": callback,
+                },
+                "dimension": dimension,
+                # TODO: add `context` argument
+            }
+        )
+
+    def _reduce_bands(self, callback: dict, dimension: str = None) -> 'DataCube':
+        # TODO #116 determine dimension based on datacube metadata
+        dimension = dimension or 'spectral_bands'
+        return self._reduce(dimension=dimension, callback=callback)
+
+    def _reduce_temporal(self, callback: dict, dimension: str = None) -> 'DataCube':
+        # TODO #116 determine dimension based on datacube metadata
+        dimension = dimension or 'temporal'
+        return self._reduce(dimension=dimension, callback=callback)
+
+    def reduce_bands_udf(self, code: str, runtime="Python", version="latest") -> 'DataCube':
+        """
+        Apply reduce (`reduce_dimension`) process with given UDF along band/spectral dimension.
+        """
+        return self._reduce_bands(callback=self._create_run_udf(code, runtime, version))
+
+    @deprecated("use `reduce_bands_udf` instead")
+    def apply_tiles(self, code: str, runtime="Python", version="latest") -> 'DataCube':
         """Apply a function to the given set of tiles in this image collection.
 
             This type applies a simple function to one pixel of the input image or image collection.
@@ -569,25 +599,13 @@ class DataCube(ImageCollection):
 
             Code should follow the OpenEO UDF conventions.
 
-            TODO: Deprecated since 0.4.0?
-
             :param code: String representing Python code to be executed in the backend.
         """
-        process_id = 'reduce'  # TODO #124 reduce_dimension/reduce_dimension_binary
-        args = {
-            'data': {
-                'from_node': self.builder.result_node
-            },
-            'dimension': 'spectral_bands',  # TODO determine dimension based on datacube metadata
-            'binary': False,
-            'reducer': {
-                'callback': self._create_run_udf(code, runtime, version)
-            }
-        }
-        return self.graph_add_process(process_id, args)
+        return self.reduce_bands_udf(code=code, runtime=runtime, version=version)
 
-    def _create_run_udf(self, code, runtime, version):
+    def _create_run_udf(self, code, runtime, version) -> dict:
         return {
+            "process_id": "run_udf",
             "arguments": {
                 "data": {
                     "from_argument": "data"
@@ -597,11 +615,15 @@ class DataCube(ImageCollection):
                 "udf": code
 
             },
-            "process_id": "run_udf",
-            "result": True
         }
 
-    # TODO better name, pull to ABC?
+    def reduce_temporal_udf(self, code: str, runtime="Python", version="latest"):
+        """
+        Apply reduce (`reduce_dimension`) process with given UDF along temporal dimension.
+        """
+        return self._reduce_temporal(callback=self._create_run_udf(code, runtime, version))
+
+    @deprecated("use `reduce_temporal_udf` instead")
     def reduce_tiles_over_time(self, code: str, runtime="Python", version="latest"):
         """
         Applies a user defined function to a timeseries of tiles. The size of the tile is backend specific, and can be limited to one pixel.
@@ -612,20 +634,7 @@ class DataCube(ImageCollection):
         :param version: The UDF runtime version
         :return:
         """
-        process_id = 'reduce'  # TODO #124 reduce_dimension/reduce_dimension_binary
-        args = {
-            'data': {
-                'from_node': self.builder.result_node
-            },
-            'dimension': 'temporal',  # TODO determine dimension based on datacube metadata
-            'binary': False,
-            'reducer': {
-                'callback': {
-                    'udf': self._create_run_udf(code, runtime, version)
-                }
-            }
-        }
-        return self.graph_add_process(process_id, args)
+        return self.reduce_temporal_udf(code=code, runtime=runtime, version=version)
 
     def apply(self, process: str, data_argument='data', arguments={}) -> 'ImageCollection':
         process_id = 'apply'
@@ -648,66 +657,53 @@ class DataCube(ImageCollection):
 
         return self.graph_add_process(process_id, args)
 
-    def _reduce_time(self, reduce_function="max"):
-        process_id = 'reduce'  # TODO #124 reduce_dimension/reduce_dimension_binary
+    def reduce_temporal_simple(self, process_id="max") -> 'DataCube':
+        """Do temporal reduce with a simple given process as callback."""
+        return self._reduce_temporal(callback={
+            'process_id': process_id,
+            'arguments': {
+                'data': {'from_argument': 'data'}
+            },
 
-        args = {
-            'data': {'from_node': self.builder.result_node},
-            'dimension': 'temporal',
-            'reducer': {
-                'callback': {
-                    'r1': {
-                        'arguments': {
-                            'data': {
-                                'from_argument': 'data'
-                            }
-                        },
-                        'process_id': reduce_function,
-                        'result': True
-                    }
-                }
-            }
-        }
+        })
 
-        return self.graph_add_process(process_id, args)
-
-    def min_time(self) -> 'ImageCollection':
+    def min_time(self) -> 'DataCube':
         """Finds the minimum value of a time series for all bands of the input dataset.
 
-            :return: An ImageCollection instance
+            :return: An DataCube instance
         """
 
-        return self._reduce_time(reduce_function="min")
+        return self.reduce_temporal_simple("min")
 
-    def max_time(self) -> 'ImageCollection':
+    def max_time(self) -> 'DataCube':
         """
         Finds the maximum value of a time series for all bands of the input dataset.
 
-        :return: An ImageCollection instance
+        :return: An DataCube instance
         """
-        return self._reduce_time(reduce_function="max")
+        return self.reduce_temporal_simple("max")
 
-    def mean_time(self) -> 'ImageCollection':
+    def mean_time(self) -> 'DataCube':
         """Finds the mean value of a time series for all bands of the input dataset.
 
-            :return: An ImageCollection instance
+            :return: An DataCube instance
         """
-        return self._reduce_time(reduce_function="mean")
+        return self.reduce_temporal_simple("mean")
 
-    def median_time(self) -> 'ImageCollection':
+    def median_time(self) -> 'DataCube':
         """Finds the median value of a time series for all bands of the input dataset.
 
-            :return: An ImageCollection instance
+            :return: An DataCube instance
         """
 
-        return self._reduce_time(reduce_function="median")
+        return self.reduce_temporal_simple("median")
 
-    def count_time(self) -> 'ImageCollection':
+    def count_time(self) -> 'DataCube':
         """Counts the number of images with a valid mask in a time series for all bands of the input dataset.
 
-            :return: An ImageCollection instance
+            :return: An DataCube instance
         """
-        return self._reduce_time(reduce_function="count")
+        return self.reduce_temporal_simple("count")
 
     def ndvi(self, nir: str = None, red: str = None, target_band: str = None) -> 'ImageCollection':
         """ Normalized Difference Vegetation Index (NDVI)

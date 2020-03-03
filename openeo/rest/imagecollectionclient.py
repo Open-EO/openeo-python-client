@@ -39,6 +39,10 @@ class ImageCollectionClient(ImageCollection):
     def _api_version(self):
         return self.session.capabilities().api_version_check
 
+    @property
+    def connection(self):
+        return self.session
+
     @classmethod
     def load_collection(
             cls, collection_id: str, session: 'Connection' = None,

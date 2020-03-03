@@ -7,8 +7,8 @@
       "temporal_extent": null
     }
   },
-  "reduce1": {
-    "process_id": "reduce",
+  "reducedimension1": {
+    "process_id": "reduce_dimension",
     "arguments": {
       "data": {
         "from_node": "loadcollection1"
@@ -43,7 +43,7 @@
     "process_id": "linear_scale_range",
     "arguments": {
       "x": {
-        "from_node": "reduce1"
+        "from_node": "reducedimension1"
       },
       "inputMin": 0,
       "inputMax": 1,
@@ -59,8 +59,8 @@
       "temporal_extent": null
     }
   },
-  "reduce2": {
-    "process_id": "reduce",
+  "reducedimension2": {
+    "process_id": "reduce_dimension",
     "arguments": {
       "data": {
         "from_node": "loadcollection2"
@@ -95,7 +95,7 @@
     "process_id": "linear_scale_range",
     "arguments": {
       "x": {
-        "from_node": "reduce2"
+        "from_node": "reducedimension2"
       },
       "inputMin": 0,
       "inputMax": 1,

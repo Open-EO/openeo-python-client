@@ -7,7 +7,8 @@
     },
     "process_id": "load_collection"
   },
-  "reduce1": {
+  "reducedimension1": {
+    "process_id": "reduce_dimension",
     "arguments": {
       "dimension": "spectral_bands",
       "reducer": {
@@ -28,7 +29,6 @@
         "from_node": "loadcollection1"
       }
     },
-    "process_id": "reduce",
     "result": true
   }
 }
