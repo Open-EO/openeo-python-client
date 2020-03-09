@@ -8,6 +8,13 @@ class JobResult:
         pass
 
 
+class JobLogEntry:
+    def __init__(self, log_id, level, message):
+        self.log_id = log_id
+        self.level = level
+        self.message = message
+
+
 class Job(ABC):
     """Represents the result of creating a new Job out of a process graph. Jobs are stored in the
     backend and can be executed directly (in batch), or evaluated lazily."""
@@ -55,6 +62,10 @@ class Job(ABC):
     def download_results(self, target):
         """ Download job results."""
         # GET /jobs/{job_id}/results > ...
+        pass
+
+    def logs(self, offset=None) -> List[JobLogEntry]:
+        """ Retrieve job logs."""
         pass
 
 # TODO: All below methods are depricated (at least not specified in the coreAPI)

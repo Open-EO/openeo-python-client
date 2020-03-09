@@ -385,6 +385,10 @@ class Connection(RestApiConnection):
         response = self.get("/jobs/{}/results".format(job_id))
         return self.parse_json_response(response)
 
+    def job_logs(self, job_id, offset):
+        response = self.get("/jobs/{}/logs".format(job_id), params={'offset': offset})
+        return self.parse_json_response(response)
+
     def list_files(self):
         """
         Lists all files that the logged in user uploaded.

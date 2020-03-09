@@ -6,8 +6,8 @@ import typing
 import urllib.request
 from typing import List, Union
 
-from openeo.job import Job, JobResult
-from openeo.rest import OpenEoClientException
+from openeo.job import Job, JobResult, JobLogEntry
+from openeo.rest import OpenEoClientException, JobFailedException
 from requests import ConnectionError
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
@@ -118,13 +118,17 @@ class RESTJob(Job):
         """ Returns this job's results. """
         return [RESTJobResult(link['href']) for link in self.connection.job_results(self.job_id)['links']]
 
+    """ Retrieve job logs."""
+    def logs(self, offset=None) -> List[JobLogEntry]:
+        return[JobLogEntry(log_entry['id'], log_entry['level'], log_entry['message'])
+               for log_entry in self.connection.job_logs(self.job_id, offset)['logs']]
+
     @classmethod
     def run_synchronous(cls, job, outputfile: Union[str, pathlib.Path],
                         print=print, max_poll_interval=60, connection_retry_interval=30):
         job.start_job()
 
         job_id = job.job_id
-        job_info = None
         status = None
         poll_interval = min(5, max_poll_interval)
         start_time = time.time()
@@ -153,8 +157,8 @@ class RESTJob(Job):
         if status == 'finished':
             job.download_results(outputfile)
         else:
-            raise RuntimeError("Batch job {i} didn't finish properly. Status: {s} (after {t}).".format(
+            raise JobFailedException("Batch job {i} didn't finish properly. Status: {s} (after {t}).".format(
                 i=job_id, s=status, t=elapsed
-            ))
+            ), job)
 
-        return job_info
+        return job
