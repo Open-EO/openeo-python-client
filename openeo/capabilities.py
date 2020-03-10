@@ -1,5 +1,6 @@
-from abc import ABC
 from distutils.version import LooseVersion
+
+from abc import ABC
 from typing import Union
 
 
@@ -53,15 +54,35 @@ class ComparableVersion:
     """
     Helper to compare a version (e.g. API version) against another (threshold) version
 
-    >>> v = ComparableVersion('1.2.3')
-    >>> v.at_least('1.2.1')
-    True
-    >>> v.at_least('1.10.2')
-    False
+        >>> v = ComparableVersion('1.2.3')
+        >>> v.at_least('1.2.1')
+        True
+        >>> v.at_least('1.10.2')
+        False
+        >>> v > "2.0"
+        False
+
+    To express a threshold condition you sometimes want the reference value on
+    the left hand side or right hand side. There are two groups of methods
+    to handle each case:
+
+    - right hand side referencing methods. These read more intuitively. For example:
+
+        `a.at_least(b)`: a is equal or higher than b
+        `a.below(b)`: a is lower than b
+
+    - left hand side referencing methods. These allow "currying" a threshold value
+      in a reusable condition callable. For example:
+
+        `a.or_higher(b)`: b is equal or higher than a
+        `a.accept_lower(b)`: b is lower than a
     """
 
-    def __init__(self, version):
-        self._version = LooseVersion(version)
+    def __init__(self, version: Union[str, 'ComparableVersion']):
+        if isinstance(version, ComparableVersion):
+            self._version = version._version
+        else:
+            self._version = LooseVersion(version)
 
     def __str__(self):
         return str(self._version)
@@ -69,26 +90,51 @@ class ComparableVersion:
     def to_string(self):
         return str(self)
 
-    @classmethod
-    def _to_loose_version(cls, version) -> LooseVersion:
-        if isinstance(version, cls):
-            return version._version
-        elif isinstance(version, str):
-            return LooseVersion(version)
-        else:
-            raise ValueError(version)
+    def __ge__(self, other: Union[str, 'ComparableVersion']):
+        return self._version >= ComparableVersion(other)._version
 
-    def at_least(self, version: Union[str, 'ComparableVersion']):
-        return self._version >= self._to_loose_version(version)
+    def __gt__(self, other: Union[str, 'ComparableVersion']):
+        return self._version > ComparableVersion(other)._version
 
-    def above(self, version: Union[str, 'ComparableVersion']):
-        return self._version > self._to_loose_version(version)
+    def __le__(self, other: Union[str, 'ComparableVersion']):
+        return self._version <= ComparableVersion(other)._version
 
-    def at_most(self, version: Union[str, 'ComparableVersion']):
-        return self._version <= self._to_loose_version(version)
+    def __lt__(self, other: Union[str, 'ComparableVersion']):
+        return self._version < ComparableVersion(other)._version
 
-    def below(self, version: Union[str, 'ComparableVersion']):
-        return self._version < self._to_loose_version(version)
+    # Right hand side referencing expressions.
+    def at_least(self, other: Union[str, 'ComparableVersion']):
+        """Self is at equal or higher than other."""
+        return self >= other
+
+    def above(self, other: Union[str, 'ComparableVersion']):
+        """Self is higher than other."""
+        return self > other
+
+    def at_most(self, other: Union[str, 'ComparableVersion']):
+        """Self is equal or lower than other."""
+        return self <= other
+
+    def below(self, other: Union[str, 'ComparableVersion']):
+        """Self is lower than other."""
+        return self < other
+
+    # Left hand side referencing expressions.
+    def or_higher(self, other: Union[str, 'ComparableVersion']):
+        """Other is equal or higher than self."""
+        return ComparableVersion(other) >= self
+
+    def or_lower(self, other: Union[str, 'ComparableVersion']):
+        """Other is equal or lower than self"""
+        return ComparableVersion(other) <= self
+
+    def accept_lower(self, other: Union[str, 'ComparableVersion']):
+        """Other is lower than self."""
+        return ComparableVersion(other) < self
+
+    def accept_higher(self, other: Union[str, 'ComparableVersion']):
+        """Other is higher than self."""
+        return ComparableVersion(other) > self
 
 
 class ApiVersionException(RuntimeError):
