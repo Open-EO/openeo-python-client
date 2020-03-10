@@ -110,30 +110,6 @@ class ImageCollection(ABC):
     def __init__(self, metadata: CollectionMetadata = None):
         self.metadata = metadata if isinstance(metadata, CollectionMetadata) else CollectionMetadata(metadata or {})
 
-    def __truediv__(self, other):
-        pass
-
-    def __sub__(self, other):
-        pass
-
-    def __radd__(self, other):
-        pass
-
-    def __add__(self, other):
-        pass
-
-    def __mul__(self, other):
-        pass
-
-    def __rmul__(self, other):
-        pass
-
-    def __or__(self, other):
-        pass
-
-    def __and__(self, other):
-        pass
-
     @deprecated("Use `filter_temporal()` instead")
     def date_range_filter(self, start_date:Union[str,datetime,date],end_date:Union[str,datetime,date]) -> 'ImageCollection':
         """
