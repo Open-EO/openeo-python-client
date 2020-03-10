@@ -24,19 +24,21 @@ class GraphBuilder:
             self.result_node = graph.result_node
         # TODO: what is result_node in "else" case?
 
-    def shallow_copy(self):
+    def shallow_copy(self) -> 'GraphBuilder':
         """
         Copy, but don't update keys
         :return:
         """
         # TODO can we avoid copies and work with immutable structures?
         the_copy = GraphBuilder()
+        # TODO: this "shallow copy" method does a "deep copy"
         the_copy.result_node = copy.deepcopy(self.result_node)
         return the_copy
 
     @classmethod
     def from_process_graph(cls, graph: Dict):
         # TODO Can't this just be part of default constructor?
+        # TODO: remove this method?
         # TODO: can we avoid the deepcopy?
         # TODO is this a nested or flat graph?
         builder = GraphBuilder()
@@ -59,17 +61,6 @@ class GraphBuilder:
         }
         self.result_node = new_process
 
-    @classmethod
-    def combine(cls, operator: str, first: Union['GraphBuilder', dict], second: Union['GraphBuilder', dict], arg_name='data'):
-        """Combine two GraphBuilders to a new merged one using the given operator"""
-        merged = cls()
-
-        args = {
-            arg_name:[{'from_node':first.result_node}, {'from_node':second.result_node}]
-        }
-
-        merged.add_process(operator, **args)
-        return merged
 
     def flatten(self):
         return GraphFlattener().flatten(graph=self.result_node)

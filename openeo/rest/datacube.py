@@ -13,6 +13,7 @@ from shapely.geometry import Polygon, MultiPolygon, mapping
 from openeo.imagecollection import ImageCollection, CollectionMetadata
 from openeo.internal.graphbuilder import GraphBuilder
 from openeo.job import Job
+from openeo.rest import BandMathException, OperatorException
 from openeo.util import get_temporal_extent, dict_no_none
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
@@ -166,7 +167,7 @@ class DataCube(ImageCollection):
             :return An DataCube instance
         """
         band_index = self.metadata.get_band_index(band)
-        return self._reduce_bands(callback={
+        return self._reduce_bands(reducer={
             'process_id': 'array_element',
             'arguments': {
                 'data': {'from_argument': 'data'},
@@ -184,104 +185,82 @@ class DataCube(ImageCollection):
             'align': align
         })
 
-    def subtract(self, other: Union['DataCube', int, float], reverse=False):
-        """
-        Subtract other from this datacube, so the result is: this - other
-        The number of bands in both data cubes has to be the same.
-
-        :param other:
-        :return ImageCollection: this - other
-        """
-        operator = "subtract"
-        if isinstance(other, (int, float)):
-            return self._reduce_bands_binary_const(operator, other, reverse=reverse)
-        elif isinstance(other, DataCube):
-            return self._reduce_bands_binary(operator, other)
+    def _operator_binary(self, operator: str, other: Union['DataCube', int, float], reverse=False) -> 'DataCube':
+        """Generic handling of (mathematical) binary operator"""
+        band_math_mode = self._bandmath_ongoing()
+        if band_math_mode:
+            if isinstance(other, (int, float)):
+                return self._bandmath_operator_binary_scalar(operator, other, reverse=reverse)
+            elif isinstance(other, DataCube):
+                return self._bandmath_operator_binary_cubes(operator, other)
         else:
-            raise ValueError("Unsupported right-hand operand: " + str(other))
+            if isinstance(other, DataCube):
+                # TODO #117 #123
+                return self._merge_cube_(operator, other)
+            # TODO #123: support broadcast operators with scalars?
+        raise OperatorException("Unsupported operator {op!r} with {other!r} (band math mode={b})".format(
+            op=operator, other=other, b=band_math_mode))
 
-    def divide(self, other: Union[ImageCollection, Union[int, float]]):
-        """
-        Subtraction other from this datacube, so the result is: this - other
-        The number of bands in both data cubes has to be the same.
+    def _operator_unary(self, operator: str) -> 'DataCube':
+        band_math_mode = self._bandmath_ongoing()
+        if band_math_mode:
+            return self._bandmath_operator_unary(operator)
+        raise OperatorException("Unsupported unary operator {op!r} (band math mode={b})".format(
+            op=operator, b=band_math_mode))
 
-        :param other:
-        :return ImageCollection: this - other
-        """
-        operator = "divide"
-        if isinstance(other, (int, float)):
-            return self._reduce_bands_binary_const(operator, other)
-        elif isinstance(other, DataCube):
-            return self._reduce_bands_binary(operator, other)
-        else:
-            raise ValueError("Unsupported right-hand operand: " + str(other))
+    def add(self, other: Union['DataCube', int, float], reverse=False) -> 'DataCube':
+        return self._operator_binary("add", other, reverse=reverse)
 
-    def product(self, other: Union['DataCube', int, float], reverse=False):
-        """
-        Multiply other with this datacube, so the result is: this * other
-        The number of bands in both data cubes has to be the same.
+    def subtract(self, other: Union['DataCube', int, float], reverse=False) -> 'DataCube':
+        return self._operator_binary("subtract", other, reverse=reverse)
 
-        :param other:
-        :return ImageCollection: this - other
-        """
-        operator = "product"
-        if isinstance(other, (int, float)):
-            return self._reduce_bands_binary_const(operator, other, reverse=reverse)
-        elif isinstance(other, DataCube):
-            return self._reduce_bands_binary(operator, other)
-        else:
-            raise ValueError("Unsupported right-hand operand: " + str(other))
+    def divide(self, other: Union['DataCube', int, float]) -> 'DataCube':
+        return self._operator_binary("divide", other)
 
-    def logical_or(self, other: ImageCollection):
+    def multiply(self, other: Union['DataCube', int, float], reverse=False) -> 'DataCube':
+        return self._operator_binary("multiply", other, reverse=reverse)
+
+    def logical_or(self, other: 'DataCube') -> 'DataCube':
         """
         Apply element-wise logical `or` operation
         :param other:
         :return ImageCollection: logical_or(this, other)
         """
-        return self._reduce_bands_binary(operator='or', other=other, arg_name='expressions')
+        return self._operator_binary("or", other)
 
-    def logical_and(self, other: ImageCollection):
+    def logical_and(self, other: 'DataCube') -> 'DataCube':
         """
         Apply element-wise logical `and` operation
         :param other:
         :return ImageCollection: logical_and(this, other)
         """
-        return self._reduce_bands_binary(operator='and', other=other, arg_name='expressions')
+        return self._operator_binary("or", other)
 
-    def __invert__(self):
-        """
+    def __invert__(self) -> 'DataCube':
+        return self._operator_unary("not")
 
-        :return:
-        """
-        operator = 'not'
-        my_builder = self._get_band_graph_builder()
-        new_builder = None
-        extend_previous_callback_graph = my_builder is not None
-        # TODO: why does these `add_process` calls use "expression" instead of "data" like the other cases?
-        if not extend_previous_callback_graph:
-            new_builder = GraphBuilder()
-            # TODO merge both process graphs?
-            new_builder.add_process(operator, expression={'from_argument': 'data'})
-        else:
-            # TODO #117 is shallow_copy still necessary?
-            new_builder = my_builder.shallow_copy()
-            new_builder.add_process(operator, expression={'from_node': new_builder.result_node})
+    def __ne__(self, other: Union['DataCube', int, float]) -> 'DataCube':
+        return self._operator_binary("neq", other)
 
-        return self._create_reduced_collection(new_builder, extend_previous_callback_graph)
-
-    def __ne__(self, other: Union[ImageCollection, Union[int, float]]):
-        return self.__eq__(other).__invert__()
-
-    def __eq__(self, other: Union[ImageCollection, Union[int, float]]):
+    def __eq__(self, other: Union['DataCube', int, float]) -> 'DataCube':
         """
         Pixelwise comparison of this data cube with another cube or constant.
 
         :param other: Another data cube, or a constant
         :return:
         """
-        return self._reduce_bands_binary_xy('eq', other)
+        return self._operator_binary("eq", other)
 
-    def __gt__(self, other: Union[ImageCollection, Union[int, float]]):
+    def __gt__(self, other: Union['DataCube', int, float]) -> 'DataCube':
+        """
+        Pairwise comparison of the bands in this data cube with the bands in the 'other' data cube.
+
+        :param other:
+        :return ImageCollection: this + other
+        """
+        return self._operator_binary("gt", other)
+
+    def __lt__(self, other: Union['DataCube', int, float]) -> 'DataCube':
         """
         Pairwise comparison of the bands in this data cube with the bands in the 'other' data cube.
         The number of bands in both data cubes has to be the same.
@@ -289,199 +268,105 @@ class DataCube(ImageCollection):
         :param other:
         :return ImageCollection: this + other
         """
-        return self._reduce_bands_binary_xy('gt', other)
+        return self._operator_binary("lt", other)
 
-    def __lt__(self, other: Union[ImageCollection, Union[int, float]]):
-        """
-        Pairwise comparison of the bands in this data cube with the bands in the 'other' data cube.
-        The number of bands in both data cubes has to be the same.
 
-        :param other:
-        :return ImageCollection: this + other
-        """
-        return self._reduce_bands_binary_xy('lt', other)
-
-    def _create_reduced_collection(self, callback_graph_builder, extend_previous_callback_graph):
-        if not extend_previous_callback_graph:
-            # there was no previous reduce step
-            log.warning("Doing band math without proper `DataCube.band()` usage. There is probably something wrong. See issue #123")
-            args = {
-                'data': {'from_node': self.builder.result_node},
-                # TODO: avoid hardcoded dimension name 'spectral_bands' #116
-                'dimension': 'spectral_bands',
-                'reducer': {
-                    'process_graph': callback_graph_builder.result_node
-                }
-            }
-            return self.graph_add_process("reduce", args)  # TODO #124 reduce_dimension/reduce_dimension_binary
-        else:
-            # TODO #117 is shallow_copy still necessary?
-            process_graph_copy = self.builder.shallow_copy()
-            process_graph_copy.result_node['arguments']['reducer']['process_graph'] = callback_graph_builder.result_node
-
-            # now current_node should be a reduce node, let's modify it
-            # TODO: set metadata of reduced cube?
-            return DataCube(builder=process_graph_copy, connection=self._connection)
-
-    def __truediv__(self, other):
+    def __truediv__(self, other) -> 'DataCube':
         return self.divide(other)
 
-    def __add__(self, other):
+    def __add__(self, other) -> 'DataCube':
         return self.add(other)
 
-    def __radd__(self, other):
+    def __radd__(self, other) -> 'DataCube':
         return self.add(other, reverse=True)
 
-    def __sub__(self, other):
+    def __sub__(self, other) -> 'DataCube':
         return self.subtract(other)
 
-    def __rsub__(self, other):
+    def __rsub__(self, other) -> 'DataCube':
         return self.subtract(other, reverse=True)
 
-    def __mul__(self, other):
-        return self.product(other)
+    def __mul__(self, other) -> 'DataCube':
+        return self.multiply(other)
 
-    def __rmul__(self, other):
-        return self.product(other, reverse=True)
+    def __rmul__(self, other) -> 'DataCube':
+        return self.multiply(other, reverse=True)
 
-    def __or__(self, other):
+    def __or__(self, other) -> 'DataCube':
         return self.logical_or(other)
 
     def __and__(self, other):
         return self.logical_and(other)
 
-    def add(self, other: Union['DataCube', int, float], reverse=False):
-        """
-        Pairwise addition of the bands in this data cube with the bands in the 'other' data cube.
-        The number of bands in both data cubes has to be the same.
+    def _bandmath_create_reduced_datacube(self, reducer_builder) -> 'DataCube':
+        # TODO #117 is shallow_copy still necessary?
+        process_graph_copy = self.builder.shallow_copy()
+        process_graph_copy.result_node['arguments']['reducer']['process_graph'] = reducer_builder.result_node
+        # now current_node should be a reduce node, let's modify it
+        # TODO: set metadata of reduced cube?
+        return DataCube(builder=process_graph_copy, connection=self._connection)
 
-        :param other:
-        :return ImageCollection: this + other
-        """
-        operator = "sum"
-        if isinstance(other, (int, float)):
-            return self._reduce_bands_binary_const(operator, other, reverse=reverse)
-        elif isinstance(other, DataCube):
-            return self._reduce_bands_binary(operator, other)
-        else:
-            raise ValueError("Unsupported right-hand operand: " + str(other))
+    def _bandmath_operator_binary_cubes(self, operator, other: 'DataCube', left_arg_name="x",
+                                        right_arg_name="y") -> 'DataCube':
+        """Band math binary operator with cube as right hand side argument"""
+        left_data = self._bandmath_get_reduce_node()["arguments"]["data"]["from_node"]
+        right_data = other._bandmath_get_reduce_node()["arguments"]["data"]["from_node"]
+        if left_data != right_data:
+            raise BandMathException("Band math between bands of different collections is not supported yet.")
 
-    def _reduce_bands_binary(self, operator, other: 'DataCube', arg_name='data'):
-        # TODO: name might be confusing with process `reduce_dimension_binary`
-        # first we create the callback
-        fallback_node = GraphBuilder.from_process_graph({'from_argument': 'data'})
-        my_builder = self._get_band_graph_builder()
-        other_builder = other._get_band_graph_builder()
-        merged = GraphBuilder.combine(operator=operator,
-                                      first=my_builder or fallback_node,
-                                      second=other_builder or fallback_node, arg_name=arg_name)
-        # callback is ready, now we need to properly set up the reduce process that will invoke it
-        if my_builder is None and other_builder is None:
-            # there was no previous reduce step, perhaps this is a cube merge?
-            # cube merge is happening when node id's differ, otherwise we can use regular reduce
-            if (self.builder.result_node != other.builder.result_node):
-                # we're combining data from two different datacubes: http://api.openeo.org/v/0.4.0/processreference/#merge_cubes
+        # First: create reducer's sub-processgraph
+        left_reducer_builder = self._bandmath_get_builder()
+        right_reducer_builder = other._bandmath_get_builder()
+        merged_reducer_builder = GraphBuilder()
+        merged_reducer_builder.add_process(process_id=operator, arguments={
+            left_arg_name: {"from_node": left_reducer_builder.result_node},
+            right_arg_name: {"from_node": right_reducer_builder.result_node},
+        })
 
-                # set result node id's first, to keep track
-                my_builder = self.builder
-                other_builder = other.builder
+        return self._bandmath_create_reduced_datacube(merged_reducer_builder)
 
-                cubes_merged = GraphBuilder.combine(operator="merge_cubes",
-                                                    first=my_builder,
-                                                    second=other_builder, arg_name="cubes")
-
-                the_node = cubes_merged.result_node
-
-                cubes = the_node["arguments"]["cubes"]
-                the_node["arguments"]["cube1"] = cubes[0]
-                the_node["arguments"]["cube2"] = cubes[1]
-                del the_node["arguments"]["cubes"]
-
-                # there can be only one process for now
-                cube_list = merged.result_node["arguments"][arg_name]
-                assert len(cube_list) == 2
-                # it is really not clear if this is the agreed way to go
-                cube_list[0]["from_argument"] = "cube1"
-                cube_list[1]["from_argument"] = "cube2"
-                del cube_list[0]["from_node"]
-                del cube_list[1]["from_node"]
-                the_node["arguments"]["overlap_resolver"] = {
-                    'process_graph': merged.result_node
-                }
-                return DataCube(builder=cubes_merged, connection=self._connection, metadata=self.metadata)
-            else:
-                args = {
-                    'data': {'from_node': self.builder.result_node},
-                    'reducer': {
-                        'process_graph': merged.processes
-                    }
-                }
-                return self.graph_add_process("reduce", args) # TODO #124 reduce_dimension/reduce_dimension_binary
-        else:
-
-            reducing_graph = self
-            if reducing_graph.builder.result_node["process_id"] != "reduce":  # TODO #124 reduce_dimension/reduce_dimension_binary
-                reducing_graph = other
-            # TODO #117 is shallow_copy still necessary?
-            new_builder = reducing_graph.builder.shallow_copy()
-            new_builder.result_node['arguments']['reducer']['process_graph'] = merged.result_node
-            # now current_node should be a reduce node, let's modify it
-            # TODO: set metadata of reduced cube?
-            return DataCube(builder=new_builder, connection=reducing_graph._connection)
-
-    def _reduce_bands_binary_xy(self, operator, other: Union[ImageCollection, Union[int, float]]):
-        """
-        Pixelwise comparison of this data cube with another cube or constant.
-
-        :param other: Another data cube, or a constant
-        :return:
-        """
-        # TODO: name might be confusing with process `reduce_dimension_binary`
-        if isinstance(other, int) or isinstance(other, float):
-            my_builder = self._get_band_graph_builder()
-            new_builder = None
-            extend_previous_callback_graph = my_builder is not None
-            if not extend_previous_callback_graph:
-                new_builder = GraphBuilder()
-                # TODO merge both process graphs?
-                new_builder.add_process(operator, x={'from_argument': 'data'}, y=other)
-            else:
-                # TODO #117 is shallow_copy still necessary?
-                new_builder = my_builder.shallow_copy()
-                new_builder.add_process(operator, x={'from_node': new_builder.result_node}, y=other)
-
-            return self._create_reduced_collection(new_builder, extend_previous_callback_graph)
-        elif isinstance(other, ImageCollection):
-            return self._reduce_bands_binary(operator, other)
-        else:
-            raise ValueError("Unsupported right-hand operand: " + str(other))
-
-    def _reduce_bands_binary_const(self, operator, other: Union[int, float], reverse=False):
-        # TODO: name might be confusing with process `reduce_dimension_binary`
-        my_callback_builder = self._get_band_graph_builder()
-
-        extend_previous_callback_graph = my_callback_builder is not None
-        if not extend_previous_callback_graph:
-            new_callback_builder = GraphBuilder()
-            data = [{'from_argument': 'data'}, other]
-        else:
-            new_callback_builder = my_callback_builder
-            data = [{'from_node': new_callback_builder.result_node}, other]
+    def _bandmath_operator_binary_scalar(self, operator: str, other: Union[int, float], reverse=False) -> 'DataCube':
+        """Band math binary operator with scalar value (int or float) as right hand side argument"""
+        reducer_builder = self._bandmath_get_builder()
+        # TODO: no shallow copy?
+        new_reducer_builder = reducer_builder
+        x = {'from_node': new_reducer_builder.result_node}
+        y = other
         if reverse:
-            data = list(reversed(data))
-        new_callback_builder.add_process(operator, data=data)
+            x, y = y, x
+        new_reducer_builder.add_process(operator, x=x, y=y)
+        return self._bandmath_create_reduced_datacube(new_reducer_builder)
 
-        return self._create_reduced_collection(new_callback_builder, extend_previous_callback_graph)
+    def _bandmath_operator_unary(self, operator: str) -> 'DataCube':
+        reducer_builder = self._bandmath_get_builder()
+        new_reducer_builder = reducer_builder.shallow_copy()
+        new_reducer_builder.add_process(operator, x={'from_node': reducer_builder.result_node})
+        return self._bandmath_create_reduced_datacube(new_reducer_builder)
 
-    def _get_band_graph_builder(self):
-        """Get process graph builder of "spectral" reduce callback if available"""
-        current_node = self.builder.result_node
-        if current_node["process_id"] in ("reduce_dimension", "reduce_dimension_binary"):
-            # TODO: avoid hardcoded "spectral_bands" dimension #76 #93 #116
-            if current_node["arguments"]["dimension"] == "spectral_bands":
-                callback_graph = current_node["arguments"]["reducer"]["process_graph"]
-                return GraphBuilder.from_process_graph(callback_graph)
-        return None
+    def _bandmath_ongoing(self):
+        """
+        Are we currently in "band math" mode?
+        a single band cube with as leaf node: a reduce process along "spectral/band" dimension.
+
+        :return: reduce node if in bandmath mode
+        """
+        node = self.builder.result_node
+        if (node["process_id"] in ("reduce_dimension", "reduce_dimension_binary")
+                # TODO: avoid hardcoded "spectral_bands" dimension #76 #93 #116
+                and node["arguments"]["dimension"] == "spectral_bands"):
+            return node
+
+    def _bandmath_get_reduce_node(self):
+        """Assuming band math mode: get reduce node (current result node)."""
+        node = self._bandmath_ongoing()
+        if not node:
+            raise BandMathException("Must be in band math mode already")
+        return node
+
+    def _bandmath_get_builder(self):
+        """Get process graph builder of "spectral" reducer'"""
+        pg = self._bandmath_get_reduce_node()["arguments"]["reducer"]["process_graph"]
+        return GraphBuilder.from_process_graph(pg)
 
     def zonal_statistics(self, regions, func, scale=1000, interval="day") -> 'ImageCollection':
         """Calculates statistics for each zone specified in a file.
@@ -552,9 +437,9 @@ class DataCube(ImageCollection):
         }
         return self.graph_add_process(process_id, args)
 
-    def _reduce(self, dimension: str, callback: dict, process_id="reduce_dimension"):
+    def _reduce(self, dimension: str, reducer: dict, process_id="reduce_dimension"):
         """
-        Add a reduce process with given callback along given dimension
+        Add a reduce process with given reducer callback along given dimension
         """
         # TODO: make this public?
         # TODO: add check if dimension is valid according to metadata? #116
@@ -566,28 +451,28 @@ class DataCube(ImageCollection):
                     "from_node": self.builder.result_node,
                 },
                 "reducer": {
-                    "process_graph": callback,
+                    "process_graph": reducer,
                 },
                 "dimension": dimension,
                 # TODO: add `context` argument
             }
         )
 
-    def _reduce_bands(self, callback: dict, dimension: str = None) -> 'DataCube':
+    def _reduce_bands(self, reducer: dict, dimension: str = None) -> 'DataCube':
         # TODO #116 determine dimension based on datacube metadata
         dimension = dimension or 'spectral_bands'
-        return self._reduce(dimension=dimension, callback=callback)
+        return self._reduce(dimension=dimension, reducer=reducer)
 
-    def _reduce_temporal(self, callback: dict, dimension: str = None) -> 'DataCube':
+    def _reduce_temporal(self, reducer: dict, dimension: str = None) -> 'DataCube':
         # TODO #116 determine dimension based on datacube metadata
         dimension = dimension or 'temporal'
-        return self._reduce(dimension=dimension, callback=callback)
+        return self._reduce(dimension=dimension, reducer=reducer)
 
     def reduce_bands_udf(self, code: str, runtime="Python", version="latest") -> 'DataCube':
         """
         Apply reduce (`reduce_dimension`) process with given UDF along band/spectral dimension.
         """
-        return self._reduce_bands(callback=self._create_run_udf(code, runtime, version))
+        return self._reduce_bands(reducer=self._create_run_udf(code, runtime, version))
 
     @deprecated("use `reduce_bands_udf` instead")
     def apply_tiles(self, code: str, runtime="Python", version="latest") -> 'DataCube':
@@ -622,7 +507,7 @@ class DataCube(ImageCollection):
         """
         Apply reduce (`reduce_dimension`) process with given UDF along temporal dimension.
         """
-        return self._reduce_temporal(callback=self._create_run_udf(code, runtime, version))
+        return self._reduce_temporal(reducer=self._create_run_udf(code, runtime, version))
 
     @deprecated("use `reduce_temporal_udf` instead")
     def reduce_tiles_over_time(self, code: str, runtime="Python", version="latest"):
@@ -638,6 +523,7 @@ class DataCube(ImageCollection):
         return self.reduce_temporal_udf(code=code, runtime=runtime, version=version)
 
     def apply(self, process: str, data_argument='data', arguments={}) -> 'ImageCollection':
+        # TODO #125
         process_id = 'apply'
         arguments[data_argument] = \
             {
@@ -659,7 +545,7 @@ class DataCube(ImageCollection):
 
     def reduce_temporal_simple(self, process_id="max") -> 'DataCube':
         """Do temporal reduce with a simple given process as callback."""
-        return self._reduce_temporal(callback={
+        return self._reduce_temporal(reducer={
             'process_id': process_id,
             'arguments': {
                 'data': {'from_argument': 'data'}
@@ -1053,6 +939,6 @@ class DataCube(ImageCollection):
             if "data" in args and "from_node" in args["data"]:
                 graph.edge(args["data"]["from_node"], name)
 
-            # TODO: add subgraph for "callback" arguments?
+            # TODO: add subgraph for "reducer" arguments?
 
         return graph

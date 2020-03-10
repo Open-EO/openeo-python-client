@@ -117,14 +117,12 @@
           "or1": {
             "process_id": "or",
             "arguments": {
-              "expressions": [
-                {
-                  "from_argument": "cube1"
-                },
-                {
-                  "from_argument": "cube2"
-                }
-              ]
+              "x": {
+                "from_argument": "cube1"
+              },
+              "y": {
+                "from_argument": "cube2"
+              }
             },
             "result": true
           }

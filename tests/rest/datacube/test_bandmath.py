@@ -2,6 +2,7 @@ import pytest
 
 import openeo
 import openeo.internal.graphbuilder_040
+from openeo.rest import BandMathException
 from openeo.rest.connection import Connection
 from ... import load_json_resource, get_download_graph
 
@@ -117,34 +118,34 @@ def test_ndvi_udf_v100(con100):
 
 @pytest.mark.parametrize(["process", "expected"], [
     ((lambda b: b + 3), {
-        "sum1": {"process_id": "sum", "arguments": {"data": [{"from_node": "arrayelement1"}, 3]}, "result": True}
+        "add1": {"process_id": "add", "arguments": {"x": {"from_node": "arrayelement1"}, "y": 3}, "result": True}
     }),
     ((lambda b: 3 + b), {
-        "sum1": {"process_id": "sum", "arguments": {"data": [3, {"from_node": "arrayelement1"}]}, "result": True}
+        "add1": {"process_id": "add", "arguments": {"x": 3, "y": {"from_node": "arrayelement1"}}, "result": True}
     }),
     ((lambda b: 3 + b + 5), {
-        "sum1": {"process_id": "sum", "arguments": {"data": [3, {"from_node": "arrayelement1"}]}},
-        "sum2": {"process_id": "sum", "arguments": {"data": [{"from_node": "sum1"}, 5]}, "result": True}
+        "add1": {"process_id": "add", "arguments": {"x": 3, "y": {"from_node": "arrayelement1"}}},
+        "add2": {"process_id": "add", "arguments": {"x": {"from_node": "add1"}, "y": 5}, "result": True}
     }
      ),
     ((lambda b: b - 3), {
-        "subtract1": {"process_id": "subtract", "arguments": {"data": [{"from_node": "arrayelement1"}, 3]},
+        "subtract1": {"process_id": "subtract", "arguments": {"x": {"from_node": "arrayelement1"}, "y": 3},
                       "result": True}
     }),
     ((lambda b: 3 - b), {
-        "subtract1": {"process_id": "subtract", "arguments": {"data": [3, {"from_node": "arrayelement1"}]},
+        "subtract1": {"process_id": "subtract", "arguments": {"x": 3, "y": {"from_node": "arrayelement1"}},
                       "result": True}
     }),
     ((lambda b: 2 * b), {
-        "product1": {"process_id": "product", "arguments": {"data": [2, {"from_node": "arrayelement1"}]},
-                     "result": True}
+        "multiply1": {"process_id": "multiply", "arguments": {"x": 2, "y": {"from_node": "arrayelement1"}},
+                      "result": True}
     }),
     ((lambda b: b * 6), {
-        "product1": {"process_id": "product", "arguments": {"data": [{"from_node": "arrayelement1"}, 6]},
-                     "result": True}
+        "multiply1": {"process_id": "multiply", "arguments": {"x": {"from_node": "arrayelement1"}, "y": 6},
+                      "result": True}
     }),
     ((lambda b: b / 8), {
-        "divide1": {"process_id": "divide", "arguments": {"data": [{"from_node": "arrayelement1"}, 8]}, "result": True}
+        "divide1": {"process_id": "divide", "arguments": {"x": {"from_node": "arrayelement1"}, "y": 8}, "result": True}
     }),
 ])
 def test_band_operation(con100, process, expected):
@@ -189,12 +190,12 @@ def test_merge_issue107(con100):
 
 def test_reduce_dimension_binary(con100):
     s2 = con100.load_collection("S2")
-    callback = {
+    reducer = {
         "process_id": "add",
         "arguments": {"x": {"from_argument": "x"}, "y": {"from_argument": "y"}}
     }
     # TODO: use a public version of reduce_dimension_binary?
-    x = s2._reduce(dimension="bands", callback=callback, process_id="reduce_dimension_binary")
+    x = s2._reduce(dimension="bands", reducer=reducer, process_id="reduce_dimension_binary")
     assert x.graph == {
         'loadcollection1': {
             'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
@@ -215,3 +216,49 @@ def test_reduce_dimension_binary(con100):
             },
             'result': True
         }}
+
+
+def test_invert_band(connection, api_version):
+    cube = connection.load_collection("S2")
+    band = cube.band('B04')
+    result = (~band)
+    assert result.graph == load_json_resource('data/%s/bm_invert_band.json' % api_version)
+
+
+def test_eq_scalar(connection, api_version):
+    cube = connection.load_collection("S2")
+    band = cube.band('B04')
+    result = (band == 42)
+    assert result.graph == load_json_resource('data/%s/bm_eq_scalar.json' % api_version)
+
+
+def test_gt_scalar(connection, api_version):
+    cube = connection.load_collection("S2")
+    band = cube.band('B04')
+    result = (band > 42)
+    assert result.graph == load_json_resource('data/%s/bm_gt_scalar.json' % api_version)
+
+
+def test_add_sub_mul_div_scalar(connection, api_version):
+    cube = connection.load_collection("S2")
+    band = cube.band('B04')
+    result = (((band + 42) - 10) * 3) / 2
+    assert result.graph == load_json_resource('data/%s/bm_add_sub_mul_div_scalar.json' % api_version)
+
+
+def test_add_bands(connection, api_version):
+    cube = connection.load_collection("S2")
+    b4 = cube.band("B04")
+    b3 = cube.band("B03")
+    result = b4 + b3
+    assert result.graph == load_json_resource('data/%s/bm_add_bands.json' % api_version)
+
+
+def test_add_bands_different_collection(connection, api_version):
+    if api_version == "0.4.0":
+        pytest.skip("0.4.0 generates invalid result")
+    b4 = connection.load_collection("S2").band("B04")
+    b3 = connection.load_collection("SENTINEL2_RADIOMETRY_10M").band("B02")
+    with pytest.raises(BandMathException):
+        # TODO #123 implement band math with bands of different collections
+        b4 + b3
