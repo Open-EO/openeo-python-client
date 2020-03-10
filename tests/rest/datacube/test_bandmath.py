@@ -1,19 +1,26 @@
-import openeo
 import pytest
-from openeo.rest.connection import Connection
 
+import openeo
+import openeo.internal.graphbuilder_040
+from openeo.rest.connection import Connection
 from ... import load_json_resource, get_download_graph
 
 API_URL = "https://oeo.net"
 
 
-@pytest.fixture
-def con100(requests_mock) -> Connection:
-    """
-    Fixture to have a v1.0.0 connection to a backend
-    with a some default image collections
-    """
-    requests_mock.get(API_URL + "/", json={"api_version": "1.0.0"})
+def reset_graphbuilder():
+    """Reset 0.4.0 style graph builder"""
+    openeo.internal.graphbuilder_040.GraphBuilder.id_counter = {}
+
+
+@pytest.fixture(params=["0.4.0", "1.0.0"])
+def api_version(request):
+    return request.param
+
+
+def _setup_connection(api_version, requests_mock) -> Connection:
+    # TODO: make this more reusable?
+    requests_mock.get(API_URL + "/", json={"api_version": api_version})
     s2_properties = {
         "properties": {
             "cube:dimensions": {
@@ -31,45 +38,74 @@ def con100(requests_mock) -> Connection:
     requests_mock.get(API_URL + "/collections/SENTINEL2_RADIOMETRY_10M", json=s2_properties)
     # Alias for quick tests
     requests_mock.get(API_URL + "/collections/S2", json=s2_properties)
+    # Some other collections
     requests_mock.get(API_URL + "/collections/MASK", json={})
     return openeo.connect(API_URL)
 
 
-def test_band_basic(con100):
-    cube = con100.load_collection("SENTINEL2_RADIOMETRY_10M")
-    expected_graph = load_json_resource('data/1.0.0/band0.json')
+@pytest.fixture
+def connection(api_version, requests_mock) -> Connection:
+    """Connection fixture to a backend of given version with some image collections."""
+    reset_graphbuilder()
+    openeo.internal.graphbuilder_040.GraphBuilder.id_counter = {}
+    return _setup_connection(api_version, requests_mock)
+
+
+@pytest.fixture
+def con100(requests_mock) -> Connection:
+    """Connection fixture to a 1.0.0 backend with some image collections."""
+    return _setup_connection("1.0.0", requests_mock)
+
+
+def test_band_basic(connection, api_version):
+    cube = connection.load_collection("SENTINEL2_RADIOMETRY_10M")
+    expected_graph = load_json_resource('data/%s/band0.json' % api_version)
     assert cube.band(0).graph == expected_graph
+    reset_graphbuilder()
     assert cube.band("B02").graph == expected_graph
     # TODO graph contains "spectral_band" hardcoded
 
 
-def test_indexing(con100):
+def test_indexing(connection, api_version):
     def check_cube(cube, band_index):
+        reset_graphbuilder()
         assert cube.band(band_index).graph == expected_graph
+        reset_graphbuilder()
         assert cube.band("B04").graph == expected_graph
+        reset_graphbuilder()
         assert cube.band("red").graph == expected_graph
 
-    cube = con100.load_collection("SENTINEL2_RADIOMETRY_10M")
-    expected_graph = load_json_resource('data/1.0.0/band_red.json')
+    cube = connection.load_collection("SENTINEL2_RADIOMETRY_10M")
+    expected_graph = load_json_resource('data/%s/band_red.json' % api_version)
     check_cube(cube, 2)
 
     cube2 = cube.filter_bands(['red', 'green'])
-    expected_graph = load_json_resource('data/1.0.0/band_red_filtered.json')
+    expected_graph = load_json_resource('data/%s/band_red_filtered.json' % api_version)
     check_cube(cube2, 0)
 
 
-def test_evi(con100):
-    cube = con100.load_collection("SENTINEL2_RADIOMETRY_10M")
+def test_evi(connection, api_version):
+    cube = connection.load_collection("SENTINEL2_RADIOMETRY_10M")
     B02 = cube.band('B02')
     B04 = cube.band('B04')
     B08 = cube.band('B08')
     evi_cube = (2.5 * (B08 - B04)) / ((B08 + 6.0 * B04 - 7.5 * B02) + 1.0)
     actual_graph = get_download_graph(evi_cube)
-    expected_graph = load_json_resource('data/1.0.0/evi_graph.json')
+    expected_graph = load_json_resource('data/%s/evi_graph.json' % api_version)
     assert actual_graph == expected_graph
 
 
-def test_ndvi_udf(con100, requests_mock):
+def test_ndvi_udf(connection, api_version):
+    s2_radio = connection.load_collection("SENTINEL2_RADIOMETRY_10M")
+    ndvi_coverage = s2_radio.apply_tiles("def myfunction(tile):\n"
+                                         "    print(tile)\n"
+                                         "    return tile")
+    actual_graph = get_download_graph(ndvi_coverage)
+    expected_graph = load_json_resource('data/%s/udf_graph.json' % api_version)["process_graph"]
+    assert actual_graph == expected_graph
+
+
+def test_ndvi_udf_v100(con100):
     s2_radio = con100.load_collection("SENTINEL2_RADIOMETRY_10M")
     ndvi_coverage = s2_radio.reduce_bands_udf("def myfunction(tile):\n"
                                               "    print(tile)\n"
