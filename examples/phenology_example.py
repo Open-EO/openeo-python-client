@@ -68,7 +68,7 @@ B02 = s2_radiometry.band('2')
 B04 = s2_radiometry.band('4')
 B08 = s2_radiometry.band('8')
 
-evi_cube: ImageCollectionClient = (2.5 * (B08 - B04)) / ((B08 + 6.0 * B04 - 7.5 * B02) + 1.0)
+evi_cube = (2.5 * (B08 - B04)) / ((B08 + 6.0 * B04 - 7.5 * B02) + 1.0)
 
 def get_test_resource(relative_path):
     dir = Path(os.path.dirname(os.path.realpath(__file__)))
