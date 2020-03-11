@@ -15,7 +15,7 @@
       },
       "dimension": "spectral_bands",
       "reducer": {
-        "callback": {
+        "process_graph": {
           "arrayelement1": {
             "process_id": "array_element",
             "arguments": {
@@ -67,7 +67,7 @@
       },
       "dimension": "spectral_bands",
       "reducer": {
-        "callback": {
+        "process_graph": {
           "arrayelement2": {
             "process_id": "array_element",
             "arguments": {
@@ -113,7 +113,7 @@
         "from_node": "linearscalerange2"
       },
       "overlap_resolver": {
-        "callback": {
+        "process_graph": {
           "or1": {
             "process_id": "or",
             "arguments": {

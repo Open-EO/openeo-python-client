@@ -15,7 +15,7 @@
       },
       "dimension": "spectral_bands",
       "reducer": {
-        "callback": {
+        "process_graph": {
           "arrayelement1": {
             "process_id": "array_element",
             "arguments": {

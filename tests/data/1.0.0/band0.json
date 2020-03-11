@@ -12,15 +12,15 @@
     "arguments": {
       "dimension": "spectral_bands",
       "reducer": {
-        "callback": {
+        "process_graph": {
           "arrayelement1": {
+            "process_id": "array_element",
             "arguments": {
               "index": 0,
               "data": {
                 "from_argument": "data"
               }
             },
-            "process_id": "array_element",
             "result": true
           }
         }

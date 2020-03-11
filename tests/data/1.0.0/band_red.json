@@ -12,7 +12,7 @@
     "arguments": {
       "dimension": "spectral_bands",
       "reducer": {
-        "callback": {
+        "process_graph": {
           "arrayelement1": {
             "arguments": {
               "index": 2,

@@ -63,7 +63,7 @@
           }
         },
         "reducer": {
-          "callback": {
+          "process_graph": {
             "mean1": {
               "process_id": "mean",
               "arguments": {

@@ -310,14 +310,14 @@ class DataCube(ImageCollection):
                 # TODO: avoid hardcoded dimension name 'spectral_bands' #116
                 'dimension': 'spectral_bands',
                 'reducer': {
-                    'callback': callback_graph_builder.result_node
+                    'process_graph': callback_graph_builder.result_node
                 }
             }
             return self.graph_add_process("reduce", args)  # TODO #124 reduce_dimension/reduce_dimension_binary
         else:
             # TODO #117 is shallow_copy still necessary?
             process_graph_copy = self.builder.shallow_copy()
-            process_graph_copy.result_node['arguments']['reducer']['callback'] = callback_graph_builder.result_node
+            process_graph_copy.result_node['arguments']['reducer']['process_graph'] = callback_graph_builder.result_node
 
             # now current_node should be a reduce node, let's modify it
             # TODO: set metadata of reduced cube?
@@ -406,14 +406,14 @@ class DataCube(ImageCollection):
                 del cube_list[0]["from_node"]
                 del cube_list[1]["from_node"]
                 the_node["arguments"]["overlap_resolver"] = {
-                    'callback': merged.result_node
+                    'process_graph': merged.result_node
                 }
                 return DataCube(builder=cubes_merged, connection=self._connection, metadata=self.metadata)
             else:
                 args = {
                     'data': {'from_node': self.builder.result_node},
                     'reducer': {
-                        'callback': merged.processes
+                        'process_graph': merged.processes
                     }
                 }
                 return self.graph_add_process("reduce", args) # TODO #124 reduce_dimension/reduce_dimension_binary
@@ -424,7 +424,7 @@ class DataCube(ImageCollection):
                 reducing_graph = other
             # TODO #117 is shallow_copy still necessary?
             new_builder = reducing_graph.builder.shallow_copy()
-            new_builder.result_node['arguments']['reducer']['callback'] = merged.result_node
+            new_builder.result_node['arguments']['reducer']['process_graph'] = merged.result_node
             # now current_node should be a reduce node, let's modify it
             # TODO: set metadata of reduced cube?
             return DataCube(builder=new_builder, connection=reducing_graph._connection)
@@ -479,7 +479,7 @@ class DataCube(ImageCollection):
         if current_node["process_id"] in ("reduce_dimension", "reduce_dimension_binary"):
             # TODO: avoid hardcoded "spectral_bands" dimension #76 #93 #116
             if current_node["arguments"]["dimension"] == "spectral_bands":
-                callback_graph = current_node["arguments"]["reducer"]["callback"]
+                callback_graph = current_node["arguments"]["reducer"]["process_graph"]
                 return GraphBuilder.from_process_graph(callback_graph)
         return None
 
@@ -547,7 +547,7 @@ class DataCube(ImageCollection):
             },
             'dimension': dimension,
             'process': {
-                'callback': callback
+                'process_graph': callback
             }
         }
         return self.graph_add_process(process_id, args)
@@ -566,7 +566,7 @@ class DataCube(ImageCollection):
                     "from_node": self.builder.result_node,
                 },
                 "reducer": {
-                    "callback": callback,
+                    "process_graph": callback,
                 },
                 "dimension": dimension,
                 # TODO: add `context` argument
@@ -646,7 +646,7 @@ class DataCube(ImageCollection):
         args = {
             'data': {'from_node': self.builder.result_node},
             'process': {
-                'callback': {
+                'process_graph': {
                     "unary": {
                         "arguments": arguments,
                         "process_id": process,
@@ -913,7 +913,7 @@ class DataCube(ImageCollection):
                 'data': {'from_node': self.builder.result_node},
                 'polygons': polygons,
                 'reducer': {
-                    'callback': {
+                    'process_graph': {
                         "arguments": {
                             "data": {
                                 "from_argument": "data"

@@ -16,7 +16,7 @@
         },
         "dimension": "spectral_bands",
         "reducer": {
-          "callback": {
+          "process_graph": {
             "runudf1": {
               "process_id": "run_udf",
               "arguments": {

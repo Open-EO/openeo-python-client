@@ -165,7 +165,7 @@ def test_band_operation(con100, process, expected):
             "process_id": "reduce_dimension",
             "arguments": {
                 "data": {"from_node": "loadcollection1"},
-                "reducer": {"callback": callback},
+                "reducer": {"process_graph": callback},
                 "dimension": "spectral_bands",
             },
             "result": True,
@@ -205,7 +205,7 @@ def test_reduce_dimension_binary(con100):
             'arguments': {
                 'data': {'from_node': 'loadcollection1'},
                 'dimension': 'bands',
-                'reducer': {'callback': {
+                'reducer': {'process_graph': {
                     'add1': {
                         'process_id': 'add',
                         'arguments': {'x': {'from_argument': 'x'}, 'y': {'from_argument': 'y'}},

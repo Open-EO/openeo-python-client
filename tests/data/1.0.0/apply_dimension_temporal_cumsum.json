@@ -15,7 +15,7 @@
       },
       "dimension": "temporal",
       "process": {
-        "callback": {
+        "process_graph": {
           "cumsum1": {
             "arguments": {
               "data": {

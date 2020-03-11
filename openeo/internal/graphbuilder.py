@@ -121,7 +121,7 @@ class GraphFlattener(ProcessGraphVisitor):
     def leaveArgument(self, argument_id, node: Dict):
         if 'from_node' in node:
             node['from_node'] = self._last_node_id
-        if isinstance(node, dict) and 'callback' in node:
-            callback = node['callback']
+        if isinstance(node, dict) and 'process_graph' in node:
+            callback = node['process_graph']
             flat_callback = GraphFlattener(key_generator=self._key_generator).flatten(callback)
-            node['callback'] = flat_callback
+            node['process_graph'] = flat_callback

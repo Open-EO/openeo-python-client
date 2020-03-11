@@ -11,7 +11,7 @@
     "process_id": "reduce_dimension",
     "arguments": {
       "reducer": {
-        "callback": {
+        "process_graph": {
           "min1": {
             "arguments": {
               "data": {
