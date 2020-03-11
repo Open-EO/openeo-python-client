@@ -300,7 +300,7 @@ def test_logical_and(connection, api_version):
     assert actual == load_json_resource('data/%s/logical_and.json' % api_version)
 
 
-def test_merging_cubes(connection, api_version):
+def test_cube_merge_or(connection, api_version):
     s2 = connection.load_collection("S2")
     b1 = s2.band("B02") > 1
     b2 = s2.band("B03") > 2
@@ -309,3 +309,15 @@ def test_merging_cubes(connection, api_version):
     combined = b1 | b2
     actual = get_download_graph(combined)
     assert actual == load_json_resource('data/%s/cube_merge_or.json' % api_version)
+
+
+def test_cube_merge_multiple(connection, api_version):
+    if api_version == "0.4.0":
+        pytest.skip("doesn't work in 0.4.0")
+    s2 = connection.load_collection("S2")
+    b1 = s2.band("B02")
+    b1 = b1.linear_scale_range(0, 1, 0, 2)
+    combined = b1 + b1 + b1
+    actual = get_download_graph(combined)
+    pytest.skip("#TODO #117: current implementation still does unnecessary (deep) copies of linearscalerange nodes")
+    assert actual == load_json_resource('data/%s/cube_merge_multiple.json' % api_version)

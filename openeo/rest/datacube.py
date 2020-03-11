@@ -195,8 +195,7 @@ class DataCube(ImageCollection):
                 return self._bandmath_operator_binary_cubes(operator, other)
         else:
             if isinstance(other, DataCube):
-                # TODO #117 #123
-                return self._merge_cube_(operator, other)
+                return self._merge_operator_binary_cubes(operator, other)
             # TODO #123: support broadcast operators with scalars?
         raise OperatorException("Unsupported operator {op!r} with {other!r} (band math mode={b})".format(
             op=operator, other=other, b=band_math_mode))
@@ -367,6 +366,27 @@ class DataCube(ImageCollection):
         """Get process graph builder of "spectral" reducer'"""
         pg = self._bandmath_get_reduce_node()["arguments"]["reducer"]["process_graph"]
         return GraphBuilder.from_process_graph(pg)
+
+    def _merge_operator_binary_cubes(self, operator: str, other: 'DataCube', left_arg_name="x",
+                                     right_arg_name="y") -> 'DataCube':
+        """Merge two cubes with given operator as overlap_resolver."""
+        # TODO #123 reuse an existing merge_cubes process graph if it already exists?
+        merged = GraphBuilder()
+        merged.add_process(process_id="merge_cubes", arguments={
+            "cube1": {"from_node": self.builder.result_node},
+            "cube2": {"from_node": other.builder.result_node},
+            "overlap_resolver": {
+                "process_graph": {
+                    "process_id": operator,
+                    "arguments": {
+                        left_arg_name: {"from_argument": "cube1"},
+                        right_arg_name: {"from_argument": "cube2"},
+                    }
+                }
+            }
+        })
+        # TODO: set metadata of reduced cube?
+        return DataCube(builder=merged, connection=self._connection)
 
     def zonal_statistics(self, regions, func, scale=1000, interval="day") -> 'ImageCollection':
         """Calculates statistics for each zone specified in a file.

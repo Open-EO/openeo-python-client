@@ -23,15 +23,6 @@
                 "from_argument": "data"
               },
               "index": 0
-            }
-          },
-          "gt1": {
-            "process_id": "gt",
-            "arguments": {
-              "x": {
-                "from_node": "arrayelement1"
-              },
-              "y": 1
             },
             "result": true
           }
@@ -51,58 +42,6 @@
       "outputMax": 2
     }
   },
-  "loadcollection2": {
-    "process_id": "load_collection",
-    "arguments": {
-      "id": "S2",
-      "spatial_extent": null,
-      "temporal_extent": null
-    }
-  },
-  "reducedimension2": {
-    "process_id": "reduce_dimension",
-    "arguments": {
-      "data": {
-        "from_node": "loadcollection2"
-      },
-      "dimension": "spectral_bands",
-      "reducer": {
-        "process_graph": {
-          "arrayelement2": {
-            "process_id": "array_element",
-            "arguments": {
-              "data": {
-                "from_argument": "data"
-              },
-              "index": 1
-            }
-          },
-          "gt2": {
-            "process_id": "gt",
-            "arguments": {
-              "x": {
-                "from_node": "arrayelement2"
-              },
-              "y": 2
-            },
-            "result": true
-          }
-        }
-      }
-    }
-  },
-  "linearscalerange2": {
-    "process_id": "linear_scale_range",
-    "arguments": {
-      "x": {
-        "from_node": "reducedimension2"
-      },
-      "inputMin": 0,
-      "inputMax": 1,
-      "outputMin": 0,
-      "outputMax": 2
-    }
-  },
   "mergecubes1": {
     "process_id": "merge_cubes",
     "arguments": {
@@ -110,12 +49,39 @@
         "from_node": "linearscalerange1"
       },
       "cube2": {
-        "from_node": "linearscalerange2"
+        "from_node": "linearscalerange1"
       },
       "overlap_resolver": {
         "process_graph": {
-          "or1": {
-            "process_id": "or",
+          "add1": {
+            "process_id": "add",
+            "arguments": {
+              "x": {
+                "from_argument": "cube1"
+              },
+              "y": {
+                "from_argument": "cube2"
+              }
+            },
+            "result": true
+          }
+        }
+      }
+    }
+  },
+  "mergecubes2": {
+    "process_id": "merge_cubes",
+    "arguments": {
+      "cube1": {
+        "from_node": "mergecubes1"
+      },
+      "cube2": {
+        "from_node": "linearscalerange1"
+      },
+      "overlap_resolver": {
+        "process_graph": {
+          "add2": {
+            "process_id": "add",
             "arguments": {
               "x": {
                 "from_argument": "cube1"
@@ -134,7 +100,7 @@
     "process_id": "save_result",
     "arguments": {
       "data": {
-        "from_node": "mergecubes1"
+        "from_node": "mergecubes2"
       },
       "format": "GTIFF",
       "options": {}
