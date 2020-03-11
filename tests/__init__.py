@@ -18,7 +18,7 @@ def load_json_resource(relative_path):
         return json.load(f)
 
 
-def get_download_graph(cube: Union[DataCube, ImageCollectionClient]):
+def get_download_graph(cube: Union[DataCube, ImageCollectionClient]) -> dict:
     """
     Do fake download of a cube and intercept the process graph
     :param cube: cube to download

@@ -234,7 +234,7 @@ class DataCube(ImageCollection):
         :param other:
         :return ImageCollection: logical_and(this, other)
         """
-        return self._operator_binary("or", other)
+        return self._operator_binary("and", other)
 
     def __invert__(self) -> 'DataCube':
         return self._operator_unary("not")

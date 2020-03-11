@@ -46,30 +46,37 @@
           "eq2": {
             "process_id": "eq",
             "arguments": {
-                "x": {
-                  "from_node": "arrayelement2"
-                },
-              "y": 5}
+              "x": {
+                "from_node": "arrayelement2"
+              },
+              "y": 5
+            }
+          },
+          "or1": {
+            "process_id": "or",
+            "arguments": {
+              "x": {
+                "from_node": "eq1"
+              },
+              "y": {
+                "from_node": "eq2"
+              }
             },
-            "or1": {
-              "process_id": "or",
-              "arguments": {
-                "expressions": [{
-                  "from_node": "eq1"
-                },
-                {
-                  "from_node": "eq2"
-                }]},
-                "result": true
-            }}}}
- },
- "saveresult1": {
-   "process_id": "save_result",
-   "arguments": {
-     "data": {
-       "from_node": "reducedimension1"
-     },
-     "format": "GTIFF",
-     "options": {}},
-     "result": true
- }}
+            "result": true
+          }
+        }
+      }
+    }
+  },
+  "saveresult1": {
+    "process_id": "save_result",
+    "arguments": {
+      "data": {
+        "from_node": "reducedimension1"
+      },
+      "format": "GTIFF",
+      "options": {}
+    },
+    "result": true
+  }
+}

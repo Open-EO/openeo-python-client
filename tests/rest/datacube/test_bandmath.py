@@ -41,6 +41,17 @@ def _setup_connection(api_version, requests_mock) -> Connection:
     requests_mock.get(API_URL + "/collections/S2", json=s2_properties)
     # Some other collections
     requests_mock.get(API_URL + "/collections/MASK", json={})
+    requests_mock.get(API_URL + "/collections/SENTINEL2_SCF", json={
+        "properties": {
+            "cube:dimensions": {
+                "bands": {"type": "bands", "values": ["SCENECLASSIFICATION", "MASKFOO"]}
+            },
+            "eo:bands": [
+                {"name": "SCENECLASSIFICATION"},
+                {"name": "MASK"},
+            ]
+        }
+    })
     return openeo.connect(API_URL)
 
 
@@ -262,3 +273,39 @@ def test_add_bands_different_collection(connection, api_version):
     with pytest.raises(BandMathException):
         # TODO #123 implement band math with bands of different collections
         b4 + b3
+
+
+def test_logical_not_equal(connection, api_version):
+    s2 = connection.load_collection("SENTINEL2_SCF")
+    scf_band = s2.band("SCENECLASSIFICATION")
+    mask = scf_band != 4
+    actual = get_download_graph(mask)
+    assert actual == load_json_resource('data/%s/notequal.json' % api_version)
+
+
+def test_logical_or(connection, api_version):
+    s2 = connection.load_collection("SENTINEL2_SCF")
+    scf_band = s2.band("SCENECLASSIFICATION")
+    mask = (scf_band == 2) | (scf_band == 5)
+    actual = get_download_graph(mask)
+    assert actual == load_json_resource('data/%s/logical_or.json' % api_version)
+
+
+def test_logical_and(connection, api_version):
+    s2 = connection.load_collection("SENTINEL2_SCF")
+    b1 = s2.band("SCENECLASSIFICATION")
+    b2 = s2.band("MASK")
+    mask = (b1 == 2) & (b2 == 5)
+    actual = get_download_graph(mask)
+    assert actual == load_json_resource('data/%s/logical_and.json' % api_version)
+
+
+def test_merging_cubes(connection, api_version):
+    s2 = connection.load_collection("S2")
+    b1 = s2.band("B02") > 1
+    b2 = s2.band("B03") > 2
+    b1 = b1.linear_scale_range(0, 1, 0, 2)
+    b2 = b2.linear_scale_range(0, 1, 0, 2)
+    combined = b1 | b2
+    actual = get_download_graph(combined)
+    assert actual == load_json_resource('data/%s/cube_merge_or.json' % api_version)

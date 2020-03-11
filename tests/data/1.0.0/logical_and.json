@@ -55,14 +55,12 @@
           "and1": {
             "process_id": "and",
             "arguments": {
-              "expressions": [
-                {
-                  "from_node": "eq1"
-                },
-                {
-                  "from_node": "eq2"
-                }
-              ]
+              "x": {
+                "from_node": "eq1"
+              },
+              "y": {
+                "from_node": "eq2"
+              }
             },
             "result": true
           }

@@ -25,36 +25,29 @@
               "index": 0
             }
           },
-          "eq1": {
-            "process_id": "eq",
+          "neq1": {
+            "process_id": "neq",
             "arguments": {
               "x": {
                 "from_node": "arrayelement1"
               },
               "y": 4
-            }
-          },
-          "not1": {
-            "process_id": "not",
-            "arguments": {
-              "expression": {
-                "from_node": "eq1"
-              }},
-           "result": true
+            },
+            "result": true
           }
         }
       }
     }
- },
- "saveresult1": {
-   "process_id": "save_result",
-   "arguments": {
-     "data": {
-       "from_node": "reducedimension1"
-     },
-     "options": {},
-     "format": "GTIFF"
-   },
-     "result": true
- }
+  },
+  "saveresult1": {
+    "process_id": "save_result",
+    "arguments": {
+      "data": {
+        "from_node": "reducedimension1"
+      },
+      "options": {},
+      "format": "GTIFF"
+    },
+    "result": true
+  }
 }
