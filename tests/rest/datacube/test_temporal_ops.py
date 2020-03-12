@@ -18,9 +18,6 @@ def connection(api_version, requests_mock):
     Fixture connection with given api_version to a backend
     with a some default image collections
     """
-    # Reset 0.4.0 graph builder counter.
-    GraphBuilder040.id_counter = {}
-
     requests_mock.get(API_URL + "/", json={"api_version": api_version})
     s2_properties = {
         "properties": {

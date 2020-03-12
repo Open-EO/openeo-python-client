@@ -4,14 +4,10 @@ import openeo
 import openeo.internal.graphbuilder_040
 from openeo.rest import BandMathException
 from openeo.rest.connection import Connection
+from ..conftest import reset_graphbuilder
 from ... import load_json_resource, get_download_graph
 
 API_URL = "https://oeo.net"
-
-
-def reset_graphbuilder():
-    """Reset 0.4.0 style graph builder"""
-    openeo.internal.graphbuilder_040.GraphBuilder.id_counter = {}
 
 
 @pytest.fixture(params=["0.4.0", "1.0.0"])
@@ -58,8 +54,6 @@ def _setup_connection(api_version, requests_mock) -> Connection:
 @pytest.fixture
 def connection(api_version, requests_mock) -> Connection:
     """Connection fixture to a backend of given version with some image collections."""
-    reset_graphbuilder()
-    openeo.internal.graphbuilder_040.GraphBuilder.id_counter = {}
     return _setup_connection(api_version, requests_mock)
 
 

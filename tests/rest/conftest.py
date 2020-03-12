@@ -7,7 +7,19 @@ import pytest
 import requests
 import requests_mock
 
+import openeo.internal.graphbuilder_040
 from openeo.rest.auth.oidc import OidcAuthCodePkceAuthenticator
+
+
+def reset_graphbuilder():
+    # Reset 0.4.0 style graph builder
+    openeo.internal.graphbuilder_040.GraphBuilder.id_counter = {}
+
+
+@pytest.fixture(autouse=True)
+def auto_reset():
+    """Fixture to automatically reset builders, counters, ..."""
+    reset_graphbuilder()
 
 
 @pytest.fixture()
