@@ -2,7 +2,7 @@
   "loadcollection1": {
     "process_id": "load_collection",
     "arguments": {
-      "id": "SENTINEL2_RADIOMETRY_10M",
+      "id": "S2",
       "spatial_extent": null,
       "temporal_extent": null
     },

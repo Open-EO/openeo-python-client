@@ -3,7 +3,7 @@
     "loadcollection1": {
       "process_id": "load_collection",
       "arguments": {
-        "id": "SENTINEL2_FAPAR",
+        "id": "S2",
         "spatial_extent": null,
         "temporal_extent": null
       }
@@ -26,7 +26,7 @@
     "readvector1": {
       "process_id": "read_vector",
       "arguments": {
-        "filename": "/data/users/Public/vdboschj/EP-3025/GeometryCollection.geojson"
+        "filename": "/some/path/to/GeometryCollection.geojson"
       }
     },
     "aggregatepolygon1": {

@@ -611,7 +611,7 @@ class DataCube(ImageCollection):
         """
         return self.reduce_temporal_simple("count")
 
-    def ndvi(self, nir: str = None, red: str = None, target_band: str = None) -> 'ImageCollection':
+    def ndvi(self, nir: str = None, red: str = None, target_band: str = None) -> 'DataCube':
         """ Normalized Difference Vegetation Index (NDVI)
 
             :param nir: name of NIR band
