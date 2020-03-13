@@ -40,11 +40,11 @@ def _get_leaf_node(cube, force_flat=True) -> dict:
         return cube.graph[cube.node_id]
     elif isinstance(cube, DataCube):
         if force_flat:
-            flattened = cube.builder.flatten()
+            flattened = cube.flatten()
             node, = [n for n in flattened.values() if n.get("result")]
             return node
         else:
-            return cube.builder.result_node
+            return cube._pg.to_dict()
     else:
         raise ValueError(repr(cube))
 

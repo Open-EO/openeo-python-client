@@ -11,7 +11,7 @@ from deprecated import deprecated
 from shapely.geometry import Polygon, MultiPolygon, mapping
 
 from openeo.imagecollection import ImageCollection, CollectionMetadata
-from openeo.internal.graphbuilder import GraphBuilder
+from openeo.internal.graph_building import PGNode, ReduceNode
 from openeo.job import Job
 from openeo.rest import BandMathException, OperatorException
 from openeo.util import get_temporal_extent, dict_no_none
@@ -21,7 +21,6 @@ if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Note: the `hasattr` check is necessary for Python versions before 3.5.2.
     from openeo.rest.connection import Connection
 
-
 log = logging.getLogger(__name__)
 
 
@@ -29,25 +28,30 @@ log = logging.getLogger(__name__)
 
 class DataCube(ImageCollection):
     """
-    Class representing a Data Cube.
+    Class representing a OpenEO Data Cube.
 
     Supports openEO API 1.0.
     In earlier versions this was called ImageCollection
     """
 
-    def __init__(self, builder: GraphBuilder, connection: 'Connection', metadata: CollectionMetadata = None):
+    def __init__(self, graph: PGNode, connection: 'Connection', metadata: CollectionMetadata = None):
         super().__init__(metadata=metadata)
-        self.builder = builder
+        # Process graph
+        self._pg = graph
         self._connection = connection
         self.metadata = metadata
 
     def __str__(self):
-        return "DataCube: %s" % self.builder.result_node["process_id"]
+        return "DataCube({pg})".format(pg=self._pg)
 
     @property
-    def graph(self):
-        """Flattened process graph representation"""
-        return self.builder.flatten()
+    def graph(self) -> dict:
+        """Get the process graph in flattened dict representation"""
+        return self.flatten()
+
+    def flatten(self) -> dict:
+        """Get the process graph in flattened dict representation"""
+        return self._pg.flatten()
 
     @property
     def _api_version(self):
@@ -56,6 +60,32 @@ class DataCube(ImageCollection):
     @property
     def connection(self):
         return self._connection
+
+    def process(self, process_id: str, args: dict = None, **kwargs) -> 'DataCube':
+        """
+        Generic helper to create a new DataCube by applying a process.
+
+        :param process_id: process id of the process.
+        :param args: argument dictionary for the process.
+        :return: new DataCube instance
+        """
+        return self.process_with_node(PGNode(
+            process_id=process_id,
+            arguments=args, **kwargs
+        ))
+
+    # Legacy `graph_add_node` method
+    graph_add_node = deprecated(reason="just use `process()`")(process)
+
+    def process_with_node(self, pg: PGNode) -> 'DataCube':
+        """
+        Generic helper to create a new DataCube by applying a process (given as process graph node)
+
+        :param pg: process graph node (containing process id and arguments)
+        :return: new DataCube instance
+        """
+        # TODO: properly update metadata as well?
+        return DataCube(graph=pg, connection=self._connection, metadata=copy.copy(self.metadata))
 
     @classmethod
     def load_collection(
@@ -75,9 +105,6 @@ class DataCube(ImageCollection):
         :param bands: only add the specified bands
         :return:
         """
-        # TODO: rename function to load_collection for better similarity with corresponding process id?
-        builder = GraphBuilder()
-        process_id = 'load_collection'
         normalized_temporal_extent = list(
             get_temporal_extent(extent=temporal_extent)) if temporal_extent is not None else None
         arguments = {
@@ -87,11 +114,14 @@ class DataCube(ImageCollection):
         }
         if bands:
             arguments['bands'] = bands
-        builder.add_process(process_id, arguments=arguments)
+        pg = PGNode(
+            process_id='load_collection',
+            arguments=arguments
+        )
         metadata = connection.collection_metadata(collection_id) if fetch_metadata else None
         if bands:
             metadata.filter_bands(bands)
-        return cls(builder=builder, connection=connection, metadata=metadata)
+        return cls(graph=pg, connection=connection, metadata=metadata)
 
     @classmethod
     @deprecated("use load_collection instead")
@@ -110,23 +140,21 @@ class DataCube(ImageCollection):
         :param options: options specific to the file format
         :return: the data as an ImageCollection
         """
-        builder = GraphBuilder()
-
-        process_id = 'load_disk_data'
-        arguments = {
-            'format': file_format,
-            'glob_pattern': glob_pattern,
-            'options': options
-        }
-
-        builder.add_process(process_id, arguments=arguments)
-        return cls(builder=builder, connection=connection, metadata={})
+        pg = PGNode(
+            process_id='load_disk_data',
+            arguments={
+                'format': file_format,
+                'glob_pattern': glob_pattern,
+                'options': options
+            }
+        )
+        return cls(graph=pg, connection=connection, metadata={})
 
     def _filter_temporal(self, start: str, end: str) -> 'ImageCollection':
-        return self.graph_add_process(
+        return self.process(
             process_id='filter_temporal',
             args={
-                'data': {'from_node': self.builder.result_node},
+                'data': {'from_node': self._pg},
                 'extent': [start, end]
             }
         )
@@ -138,10 +166,10 @@ class DataCube(ImageCollection):
         }
         if base is not None or height is not None:
             extent.update(base=base, height=height)
-        return self.graph_add_process(
+        return self.process(
             process_id='filter_bbox',
             args={
-                'data': {'from_node': self.builder.result_node},
+                'data': {'from_node': self._pg},
                 'extent': extent
             }
         )
@@ -151,8 +179,10 @@ class DataCube(ImageCollection):
             :param bands: List of band names or single band name as a string.
             :return An ImageCollection instance
         """
-        new_collection = self.graph_add_process(process_id='filter_bands',
-                                                args={'data': {'from_node': self.builder.result_node}, 'bands': bands})
+        new_collection = self.process(
+            process_id='filter_bands',
+            args={'data': {'from_node': self._pg}, 'bands': bands}
+        )
         if new_collection.metadata is not None:
             new_collection.metadata.filter_bands(bands)
         return new_collection
@@ -167,18 +197,18 @@ class DataCube(ImageCollection):
             :return An DataCube instance
         """
         band_index = self.metadata.get_band_index(band)
-        return self._reduce_bands(reducer={
-            'process_id': 'array_element',
-            'arguments': {
+        return self._reduce_bands(reducer=PGNode(
+            process_id='array_element',
+            arguments={
                 'data': {'from_argument': 'data'},
                 'index': band_index
             },
-        })
+        ))
 
     def resample_spatial(self, resolution: Union[float, Tuple[float, float]],
                          projection: Union[int, str] = None, method: str = 'near', align: str = 'upper-left'):
-        return self.graph_add_process('resample_spatial', {
-            'data': {'from_node': self.builder.result_node},
+        return self.process('resample_spatial', {
+            'data': {'from_node': self._pg},
             'resolution': resolution,
             'projection': projection,
             'method': method,
@@ -187,7 +217,7 @@ class DataCube(ImageCollection):
 
     def _operator_binary(self, operator: str, other: Union['DataCube', int, float], reverse=False) -> 'DataCube':
         """Generic handling of (mathematical) binary operator"""
-        band_math_mode = self._bandmath_ongoing()
+        band_math_mode = self._in_bandmath_mode()
         if band_math_mode:
             if isinstance(other, (int, float)):
                 return self._bandmath_operator_binary_scalar(operator, other, reverse=reverse)
@@ -201,7 +231,7 @@ class DataCube(ImageCollection):
             op=operator, other=other, b=band_math_mode))
 
     def _operator_unary(self, operator: str) -> 'DataCube':
-        band_math_mode = self._bandmath_ongoing()
+        band_math_mode = self._in_bandmath_mode()
         if band_math_mode:
             return self._bandmath_operator_unary(operator)
         raise OperatorException("Unsupported unary operator {op!r} (band math mode={b})".format(
@@ -269,7 +299,6 @@ class DataCube(ImageCollection):
         """
         return self._operator_binary("lt", other)
 
-
     def __truediv__(self, other) -> 'DataCube':
         return self.divide(other)
 
@@ -297,84 +326,59 @@ class DataCube(ImageCollection):
     def __and__(self, other):
         return self.logical_and(other)
 
-    def _bandmath_create_reduced_datacube(self, reducer_builder) -> 'DataCube':
-        # TODO #117 is shallow_copy still necessary?
-        process_graph_copy = self.builder.shallow_copy()
-        process_graph_copy.result_node['arguments']['reducer']['process_graph'] = reducer_builder.result_node
-        # now current_node should be a reduce node, let's modify it
-        # TODO: set metadata of reduced cube?
-        return DataCube(builder=process_graph_copy, connection=self._connection)
-
-    def _bandmath_operator_binary_cubes(self, operator, other: 'DataCube', left_arg_name="x",
-                                        right_arg_name="y") -> 'DataCube':
+    def _bandmath_operator_binary_cubes(self, operator, other: 'DataCube',
+                                        left_arg_name="x", right_arg_name="y"
+                                        ) -> 'DataCube':
         """Band math binary operator with cube as right hand side argument"""
-        left_data = self._bandmath_get_reduce_node()["arguments"]["data"]["from_node"]
-        right_data = other._bandmath_get_reduce_node()["arguments"]["data"]["from_node"]
-        if left_data != right_data:
+        left = self._get_bandmath_node()
+        right = other._get_bandmath_node()
+        if left.arguments["data"] != right.arguments["data"]:
             raise BandMathException("Band math between bands of different collections is not supported yet.")
 
-        # First: create reducer's sub-processgraph
-        left_reducer_builder = self._bandmath_get_builder()
-        right_reducer_builder = other._bandmath_get_builder()
-        merged_reducer_builder = GraphBuilder()
-        merged_reducer_builder.add_process(process_id=operator, arguments={
-            left_arg_name: {"from_node": left_reducer_builder.result_node},
-            right_arg_name: {"from_node": right_reducer_builder.result_node},
-        })
-
-        return self._bandmath_create_reduced_datacube(merged_reducer_builder)
+        # Build reducer's sub-processgraph
+        merged = PGNode(
+            process_id=operator,
+            arguments={
+                left_arg_name: {"from_node": left.reducer_process_graph()},
+                right_arg_name: {"from_node": right.reducer_process_graph()},
+            }
+        )
+        return self.process_with_node(left.clone_with_new_reducer(merged))
 
     def _bandmath_operator_binary_scalar(self, operator: str, other: Union[int, float], reverse=False) -> 'DataCube':
         """Band math binary operator with scalar value (int or float) as right hand side argument"""
-        reducer_builder = self._bandmath_get_builder()
-        # TODO: no shallow copy?
-        new_reducer_builder = reducer_builder
-        x = {'from_node': new_reducer_builder.result_node}
+        node = self._get_bandmath_node()
+        x = {'from_node': node.reducer_process_graph()}
         y = other
         if reverse:
             x, y = y, x
-        new_reducer_builder.add_process(operator, x=x, y=y)
-        return self._bandmath_create_reduced_datacube(new_reducer_builder)
+        return self.process_with_node(node.clone_with_new_reducer(
+            PGNode(operator, x=x, y=y)
+        ))
 
     def _bandmath_operator_unary(self, operator: str) -> 'DataCube':
-        reducer_builder = self._bandmath_get_builder()
-        new_reducer_builder = reducer_builder.shallow_copy()
-        new_reducer_builder.add_process(operator, x={'from_node': reducer_builder.result_node})
-        return self._bandmath_create_reduced_datacube(new_reducer_builder)
+        node = self._get_bandmath_node()
+        return self.process_with_node(node.clone_with_new_reducer(
+            PGNode(operator, x={'from_node': node.reducer_process_graph()})
+        ))
 
-    def _bandmath_ongoing(self):
-        """
-        Are we currently in "band math" mode?
-        a single band cube with as leaf node: a reduce process along "spectral/band" dimension.
+    def _in_bandmath_mode(self) -> bool:
+        return isinstance(self._pg, ReduceNode) and self._pg.is_bandmath()
 
-        :return: reduce node if in bandmath mode
-        """
-        node = self.builder.result_node
-        if (node["process_id"] in ("reduce_dimension", "reduce_dimension_binary")
-                # TODO: avoid hardcoded "spectral_bands" dimension #76 #93 #116
-                and node["arguments"]["dimension"] == "spectral_bands"):
-            return node
-
-    def _bandmath_get_reduce_node(self):
-        """Assuming band math mode: get reduce node (current result node)."""
-        node = self._bandmath_ongoing()
-        if not node:
+    def _get_bandmath_node(self) -> ReduceNode:
+        """Check we are in bandmath mode and return the node"""
+        if not self._in_bandmath_mode():
             raise BandMathException("Must be in band math mode already")
-        return node
-
-    def _bandmath_get_builder(self):
-        """Get process graph builder of "spectral" reducer'"""
-        pg = self._bandmath_get_reduce_node()["arguments"]["reducer"]["process_graph"]
-        return GraphBuilder.from_process_graph(pg)
+        return self._pg
 
     def _merge_operator_binary_cubes(self, operator: str, other: 'DataCube', left_arg_name="x",
                                      right_arg_name="y") -> 'DataCube':
         """Merge two cubes with given operator as overlap_resolver."""
         # TODO #123 reuse an existing merge_cubes process graph if it already exists?
-        merged = GraphBuilder()
-        merged.add_process(process_id="merge_cubes", arguments={
-            "cube1": {"from_node": self.builder.result_node},
-            "cube2": {"from_node": other.builder.result_node},
+        # TODO: set metadata of reduced cube?
+        return self.process_with_node(PGNode(process_id="merge_cubes", arguments={
+            "cube1": {"from_node": self._pg},
+            "cube2": {"from_node": other._pg},
             "overlap_resolver": {
                 "process_graph": {
                     "process_id": operator,
@@ -384,9 +388,7 @@ class DataCube(ImageCollection):
                     }
                 }
             }
-        })
-        # TODO: set metadata of reduced cube?
-        return DataCube(builder=merged, connection=self._connection)
+        }))
 
     def zonal_statistics(self, regions, func, scale=1000, interval="day") -> 'ImageCollection':
         """Calculates statistics for each zone specified in a file.
@@ -406,14 +408,14 @@ class DataCube(ImageCollection):
             regions_geojson = mapping(regions)
         process_id = 'zonal_statistics'
         args = {
-            'data': {'from_node': self.builder.result_node},
+            'data': {'from_node': self._pg},
             'regions': regions_geojson,
             'func': func,
             'scale': scale,
             'interval': interval
         }
 
-        return self.graph_add_process(process_id, args)
+        return self.process(process_id, args)
 
     def apply_dimension(self, code: str, runtime=None, version="latest", dimension='temporal') -> 'ImageCollection':
         """
@@ -448,42 +450,36 @@ class DataCube(ImageCollection):
             }
         args = {
             'data': {
-                'from_node': self.builder.result_node
+                'from_node': self._pg
             },
             'dimension': dimension,
             'process': {
                 'process_graph': callback
             }
         }
-        return self.graph_add_process(process_id, args)
+        return self.process(process_id, args)
 
-    def _reduce(self, dimension: str, reducer: dict, process_id="reduce_dimension"):
+    def _reduce(self, dimension: str, reducer: PGNode, process_id="reduce_dimension"):
         """
         Add a reduce process with given reducer callback along given dimension
         """
         # TODO: make this public?
         # TODO: add check if dimension is valid according to metadata? #116
         # TODO: use/test case for `reduce_dimension_binary`?
-        return self.graph_add_process(
+        return self.process_with_node(ReduceNode(
             process_id=process_id,
-            args={
-                "data": {
-                    "from_node": self.builder.result_node,
-                },
-                "reducer": {
-                    "process_graph": reducer,
-                },
-                "dimension": dimension,
-                # TODO: add `context` argument
-            }
-        )
+            data=self._pg,
+            reducer=reducer,
+            dimension=dimension,
+            # TODO: add `context` argument
+        ))
 
-    def _reduce_bands(self, reducer: dict, dimension: str = None) -> 'DataCube':
+    def _reduce_bands(self, reducer: PGNode, dimension: str = None) -> 'DataCube':
         # TODO #116 determine dimension based on datacube metadata
         dimension = dimension or 'spectral_bands'
         return self._reduce(dimension=dimension, reducer=reducer)
 
-    def _reduce_temporal(self, reducer: dict, dimension: str = None) -> 'DataCube':
+    def _reduce_temporal(self, reducer: PGNode, dimension: str = None) -> 'DataCube':
         # TODO #116 determine dimension based on datacube metadata
         dimension = dimension or 'temporal'
         return self._reduce(dimension=dimension, reducer=reducer)
@@ -509,19 +505,17 @@ class DataCube(ImageCollection):
         """
         return self.reduce_bands_udf(code=code, runtime=runtime, version=version)
 
-    def _create_run_udf(self, code, runtime, version) -> dict:
-        return {
-            "process_id": "run_udf",
-            "arguments": {
+    def _create_run_udf(self, code, runtime, version) -> PGNode:
+        return PGNode(
+            process_id="run_udf",
+            arguments={
                 "data": {
                     "from_argument": "data"
                 },
                 "runtime": runtime,
                 "version": version,
                 "udf": code
-
-            },
-        }
+            })
 
     def reduce_temporal_udf(self, code: str, runtime="Python", version="latest"):
         """
@@ -550,7 +544,7 @@ class DataCube(ImageCollection):
                 "from_argument": data_argument
             }
         args = {
-            'data': {'from_node': self.builder.result_node},
+            'data': {'from_node': self._pg},
             'process': {
                 'process_graph': {
                     "unary": {
@@ -561,17 +555,16 @@ class DataCube(ImageCollection):
             }
         }
 
-        return self.graph_add_process(process_id, args)
+        return self.process(process_id, args)
 
     def reduce_temporal_simple(self, process_id="max") -> 'DataCube':
         """Do temporal reduce with a simple given process as callback."""
-        return self._reduce_temporal(reducer={
-            'process_id': process_id,
-            'arguments': {
+        return self._reduce_temporal(reducer=PGNode(
+            process_id=process_id,
+            arguments={
                 'data': {'from_argument': 'data'}
-            },
-
-        })
+            }
+        ))
 
     def min_time(self) -> 'DataCube':
         """Finds the minimum value of a time series for all bands of the input dataset.
@@ -620,10 +613,10 @@ class DataCube(ImageCollection):
 
             :return: An ImageCollection instance
         """
-        return self.graph_add_process(
+        return self.process(
             process_id='ndvi',
             args=dict_no_none(
-                data={'from_node': self.builder.result_node},
+                data={'from_node': self._pg},
                 nir=nir, red=red, target_band=target_band
             )
         )
@@ -639,12 +632,12 @@ class DataCube(ImageCollection):
         """
         process_id = 'stretch_colors'
         args = {
-            'data': {'from_node': self.builder.result_node},
+            'data': {'from_node': self._pg},
             'min': min,
             'max': max
         }
 
-        return self.graph_add_process(process_id, args)
+        return self.process(process_id, args)
 
     def linear_scale_range(self, input_min, input_max, output_min, output_max) -> 'ImageCollection':
         """ Color stretching
@@ -656,13 +649,13 @@ class DataCube(ImageCollection):
         """
         process_id = 'linear_scale_range'
         args = {
-            'x': {'from_node': self.builder.result_node},
+            'x': {'from_node': self._pg},
             'inputMin': input_min,
             'inputMax': input_max,
             'outputMin': output_min,
             'outputMax': output_max
         }
-        return self.graph_add_process(process_id, args)
+        return self.process(process_id, args)
 
     def mask(self, mask: 'DataCube' = None, replacement=None) -> 'DataCube':
         """
@@ -677,11 +670,11 @@ class DataCube(ImageCollection):
         :param mask: the raster mask
         :param replacement: the value to replace the masked pixels with
         """
-        return self.graph_add_process(
+        return self.process(
             process_id="mask",
             args=dict_no_none(
-                data={'from_node': self.builder.result_node},
-                mask={'from_node': mask.builder.result_node},
+                data={'from_node': self._pg},
+                mask={'from_node': mask._pg},
                 replacement=replacement
             )
         )
@@ -707,11 +700,11 @@ class DataCube(ImageCollection):
         if isinstance(mask, (str, pathlib.Path)):
             # TODO: default to loading file client side?
             # TODO: change read_vector to load_uploaded_files https://github.com/Open-EO/openeo-processes/pull/106
-            read_vector = self.graph_add_process(
+            read_vector = self.process(
                 process_id='read_vector',
                 args={'filename': str(mask)}
             )
-            mask = {'from_node': read_vector.builder.result_node}
+            mask = {'from_node': read_vector._pg}
         elif isinstance(mask, shapely.geometry.base.BaseGeometry):
             if mask.area == 0:
                 raise ValueError("Mask {m!s} has an area of {a!r}".format(m=mask, a=mask.area))
@@ -724,10 +717,10 @@ class DataCube(ImageCollection):
             # Assume mask is already a valid GeoJSON object
             assert "type" in mask
 
-        return self.graph_add_process(
+        return self.process(
             process_id="mask",
             args=dict_no_none(
-                data={"from_node": self.builder.result_node},
+                data={"from_node": self._pg},
                 mask=mask,
                 replacement=replacement,
                 inside=inside
@@ -737,16 +730,13 @@ class DataCube(ImageCollection):
     def merge(self, other: 'DataCube') -> 'DataCube':
         # TODO: overlap_resolver parameter
         # TODO provide this as a GraphBuilder method?
-        builder = GraphBuilder()
-        builder.add_process(
+        return self.process_with_node(PGNode(
             process_id="merge_cubes",
             arguments={
-                'cube1': {'from_node': self.builder.result_node},
-                'cube2': {'from_node': other.builder.result_node},
+                'cube1': {'from_node': self._pg},
+                'cube2': {'from_node': other._pg},
             }
-        )
-        # TODO: metadata?
-        return DataCube(builder=builder, connection=self._connection, metadata=None)
+        ))
 
     def apply_kernel(self, kernel, factor=1.0) -> 'ImageCollection':
         """
@@ -756,8 +746,8 @@ class DataCube(ImageCollection):
         :param factor: A factor that is multiplied to each value computed by the focal operation. This is basically a shortcut for explicitly multiplying each value by a factor afterwards, which is often required for some kernel-based algorithms such as the Gaussian blur.
         :return: A data cube with the newly computed values. The resolution, cardinality and the number of dimensions are the same as for the original data cube.
         """
-        return self.graph_add_process('apply_kernel', {
-            'data': {'from_node': self.builder.result_node},
+        return self.process('apply_kernel', {
+            'data': {'from_node': self._pg},
             'kernel': kernel.tolist(),
             'factor': factor
         })
@@ -816,7 +806,7 @@ class DataCube(ImageCollection):
         def graph_add_aggregate_process(graph) -> 'ImageCollection':
             process_id = 'aggregate_polygon'
             args = {
-                'data': {'from_node': self.builder.result_node},
+                'data': {'from_node': self._pg},
                 'polygons': polygons,
                 'reducer': {
                     'process_graph': {
@@ -829,14 +819,14 @@ class DataCube(ImageCollection):
                     }
                 }
             }
-            return graph.graph_add_process(process_id, args)
+            return graph.process(process_id, args)
 
         if isinstance(polygon, str):
-            with_read_vector = self.graph_add_process('read_vector', args={
+            with_read_vector = self.process('read_vector', args={
                 'filename': polygon
             })
             polygons = {
-                'from_node': with_read_vector.builder.result_node
+                'from_node': with_read_vector._pg
             }
             return graph_add_aggregate_process(with_read_vector)
         else:
@@ -850,10 +840,10 @@ class DataCube(ImageCollection):
             return graph_add_aggregate_process(self)
 
     def save_result(self, format: str = "GTIFF", options: dict = None):
-        return self.graph_add_process(
+        return self.process(
             process_id="save_result",
             args={
-                "data": {"from_node": self.builder.result_node},
+                "data": {"from_node": self._pg},
                 "format": format,
                 "options": options or {}
             }
@@ -862,10 +852,10 @@ class DataCube(ImageCollection):
     def download(self, outputfile: str, format: str = "GTIFF", options: dict = None):
         """Download image collection, e.g. as GeoTIFF."""
         newcollection = self.save_result(format=format, options=options)
-        return self._connection.download(newcollection.builder.flatten(), outputfile)
+        return self._connection.download(newcollection._pg.flatten(), outputfile)
 
     def tiled_viewing_service(self, **kwargs) -> Dict:
-        return self._connection.create_service(self.builder.flatten(), **kwargs)
+        return self._connection.create_service(self._pg.flatten(), **kwargs)
 
     def execute_batch(
             self,
@@ -908,30 +898,7 @@ class DataCube(ImageCollection):
 
     def execute(self) -> Dict:
         """Executes the process graph of the imagery. """
-        # TODO #117 is shallow_copy still necessary?
-        newbuilder = self.builder.shallow_copy()
-        return self._connection.execute({"process_graph": newbuilder.flatten()}, "")
-
-    ####### HELPER methods #######
-
-    def graph_add_process(self, process_id, args) -> 'DataCube':
-        """
-        Returns a new imagecollection with an added process with the given process
-        id and a dictionary of arguments
-
-        :param process_id: String, Process Id of the added process.
-        :param args: Dict, Arguments of the process.
-
-        :return: new ImageCollectionClient instance
-        """
-        # don't modify in place, return new builder
-        # TODO #117 is shallow_copy still necessary?
-        newbuilder = self.builder.shallow_copy()
-        newbuilder.add_process(process_id, arguments=args)
-
-        # TODO: properly update metadata as well?
-        newCollection = DataCube(builder=newbuilder, connection=self._connection, metadata=copy.copy(self.metadata))
-        return newCollection
+        return self._connection.execute({"process_graph": self._pg.flatten()}, "")
 
     def to_graphviz(self):
         """
@@ -946,7 +913,7 @@ class DataCube(ImageCollection):
             args = process.get("arguments", {})
             # Build label
             label = '<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">'
-            label += '<TR><TD COLSPAN="2" BGCOLOR="#eeeeee">{pid}</TD></TR>'.format(pid=process["process_id"])
+            label += '<TR><TD COLSPAN="2" BGCOLOR="#eeeeee">{pid}</TD></TR>'.format(pid=process.process_id)
             label += "".join(
                 '''<TR><TD ALIGN="RIGHT">{arg}</TD>
                        <TD ALIGN="LEFT"><FONT FACE="monospace">{value}</FONT></TD></TR>'''.format(
