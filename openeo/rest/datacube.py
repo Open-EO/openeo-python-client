@@ -380,14 +380,15 @@ class DataCube(ImageCollection):
             "cube1": {"from_node": self._pg},
             "cube2": {"from_node": other._pg},
             "overlap_resolver": {
-                "process_graph": {
-                    "process_id": operator,
-                    "arguments": {
+                "process_graph": PGNode(
+                    process_id=operator,
+                    arguments={
                         left_arg_name: {"from_argument": "cube1"},
                         right_arg_name: {"from_argument": "cube2"},
                     }
-                }
+                )
             }
+            # TODO #125 context
         }))
 
     def zonal_statistics(self, regions, func, scale=1000, interval="day") -> 'ImageCollection':
@@ -417,7 +418,7 @@ class DataCube(ImageCollection):
 
         return self.process(process_id, args)
 
-    def apply_dimension(self, code: str, runtime=None, version="latest", dimension='temporal') -> 'ImageCollection':
+    def apply_dimension(self, code: str, runtime=None, version="latest", dimension='temporal') -> 'DataCube':
         """
         Applies an n-ary process (i.e. takes an array of pixel values instead of a single pixel value) to a raster data cube.
         In contrast, the process apply applies an unary process to all pixel values.
@@ -434,44 +435,36 @@ class DataCube(ImageCollection):
         :return:
         :raises: CardinalityChangedError
         """
-        process_id = 'apply_dimension'
         if runtime:
-            callback = {
-                'udf': self._create_run_udf(code, runtime, version)
-            }
+            process = self._create_run_udf(code, runtime, version)
         else:
-            callback = {
-                "arguments": {
-                    "data": {
-                        "from_argument": "data"
-                    }
-                },
-                "process_id": code,
+            process = PGNode(
+                process_id=code,
+                arguments={"data": {"from_argument": "data"}},
+            )
+        return self.process_with_node(PGNode(
+            process_id="apply_dimension",
+            arguments={
+                "data": self._pg,
+                "process": PGNode.to_process_graph_argument(process),
+                "dimension": dimension,
+                # TODO #125 arguments: target_dimension, context
             }
-        args = {
-            'data': {
-                'from_node': self._pg
-            },
-            'dimension': dimension,
-            'process': {
-                'process_graph': callback
-            }
-        }
-        return self.process(process_id, args)
+        ))
 
-    def _reduce(self, dimension: str, reducer: PGNode, process_id="reduce_dimension"):
+    def _reduce(self, dimension: str, reducer: PGNode, process_id="reduce_dimension") -> 'DataCube':
         """
         Add a reduce process with given reducer callback along given dimension
         """
-        # TODO: make this public?
-        # TODO: add check if dimension is valid according to metadata? #116
-        # TODO: use/test case for `reduce_dimension_binary`?
+        # TODO: #117 make this public?
+        # TODO: check if dimension is valid according to metadata? #116
+        # TODO: #117 #125 use/test case for `reduce_dimension_binary`?
         return self.process_with_node(ReduceNode(
             process_id=process_id,
             data=self._pg,
             reducer=reducer,
             dimension=dimension,
-            # TODO: add `context` argument
+            # TODO: add `context` argument #125
         ))
 
     def _reduce_bands(self, reducer: PGNode, dimension: str = None) -> 'DataCube':
@@ -536,26 +529,19 @@ class DataCube(ImageCollection):
         """
         return self.reduce_temporal_udf(code=code, runtime=runtime, version=version)
 
-    def apply(self, process: str, data_argument='data', arguments={}) -> 'ImageCollection':
-        # TODO #125
-        process_id = 'apply'
-        arguments[data_argument] = \
-            {
-                "from_argument": data_argument
+    def apply(self, process: str, data_argument='x') -> 'DataCube':
+        # TODO #125 allow more complex sub-process-graphs?
+        return self.process_with_node(PGNode(
+            process_id='apply',
+            arguments={
+                "data": self._pg,
+                "process": {"process_graph": PGNode(
+                    process_id=process,
+                    arguments={data_argument: {"from_argument": "x"}}
+                )},
+                # TODO #125 context
             }
-        args = {
-            'data': {'from_node': self._pg},
-            'process': {
-                'process_graph': {
-                    "unary": {
-                        "arguments": arguments,
-                        "process_id": process,
-                    }
-                }
-            }
-        }
-
-        return self.process(process_id, args)
+        ))
 
     def reduce_temporal_simple(self, process_id="max") -> 'DataCube':
         """Do temporal reduce with a simple given process as callback."""
@@ -738,7 +724,7 @@ class DataCube(ImageCollection):
             }
         ))
 
-    def apply_kernel(self, kernel, factor=1.0) -> 'ImageCollection':
+    def apply_kernel(self, kernel, factor=1.0) -> 'DataCube':
         """
         Applies a focal operation based on a weighted kernel to each value of the specified dimensions in the data cube.
 
@@ -802,42 +788,33 @@ class DataCube(ImageCollection):
 
         return self._polygonal_timeseries(polygon, "sd")
 
-    def _polygonal_timeseries(self, polygon: Union[Polygon, MultiPolygon, str], func: str) -> 'ImageCollection':
-        def graph_add_aggregate_process(graph) -> 'ImageCollection':
-            process_id = 'aggregate_polygon'
-            args = {
-                'data': {'from_node': self._pg},
-                'polygons': polygons,
-                'reducer': {
-                    'process_graph': {
-                        "arguments": {
-                            "data": {
-                                "from_argument": "data"
-                            }
-                        },
-                        "process_id": func,
-                    }
-                }
-            }
-            return graph.process(process_id, args)
+    def _polygonal_timeseries(self, polygon: Union[Polygon, MultiPolygon, str], func: str) -> 'DataCube':
 
         if isinstance(polygon, str):
-            with_read_vector = self.process('read_vector', args={
-                'filename': polygon
-            })
-            polygons = {
-                'from_node': with_read_vector._pg
-            }
-            return graph_add_aggregate_process(with_read_vector)
+            # polygon is a path to vector file
+            # TODO this is non-standard process: check capabilities? #104 #40
+            geometries = PGNode(process_id="read_vector", arguments={"filename": polygon})
         else:
-            polygons = mapping(polygon)
-            polygons['crs'] = {
-                'type': 'name',
+            geometries = shapely.geometry.mapping(polygon)
+            geometries['crs'] = {
+                'type': 'name',  # TODO: name?
                 'properties': {
                     'name': 'EPSG:4326'
                 }
             }
-            return graph_add_aggregate_process(self)
+
+        return self.process_with_node(PGNode(
+            process_id="aggregate_spatial",
+            arguments={
+                "data": self._pg,
+                "geometries": geometries,
+                "reducer": {"process_graph": PGNode(
+                    process_id=func,
+                    arguments={"data": {"from_argument": "data"}}
+                )},
+                # TODO #125 target dimension, context
+            }
+        ))
 
     def save_result(self, format: str = "GTIFF", options: dict = None):
         return self.process(

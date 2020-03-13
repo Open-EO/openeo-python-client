@@ -4,8 +4,7 @@ Process graph building functionality for 1.0.0-style process graphs and DataCube
 
 """
 import collections
-import copy
-from typing import Dict, Union
+from typing import Union
 
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 
@@ -45,27 +44,47 @@ class PGNode:
     def arguments(self) -> dict:
         return self._arguments
 
-    @classmethod
-    def _deep_copy(cls, x):
-        """PGNode aware deep copy helper"""
-        if isinstance(x, PGNode):
-            return {"process_id": x.process_id, "arguments": cls._deep_copy(x.arguments)}
-        elif isinstance(x, dict):
-            return {str(k): cls._deep_copy(v) for k, v in x.items()}
-        elif isinstance(x, (list, tuple)):
-            return type(x)(cls._deep_copy(v) for v in x)
-        elif isinstance(x, (str, int, float)) or x is None:
-            return x
-        else:
-            raise ValueError(repr(x))
-
     def to_dict(self) -> dict:
-        """Convert process graph to a nested dictionary (deep copy)"""
-        return self._deep_copy(self)
+        """
+        Convert process graph to a nested dictionary structure.
+        Uses deep copy style: nodes that are reused in graph will be deduplicated
+        """
+
+        def _deep_copy(x):
+            """PGNode aware deep copy helper"""
+            if isinstance(x, PGNode):
+                return {"process_id": x.process_id, "arguments": _deep_copy(x.arguments)}
+            elif isinstance(x, dict):
+                return {str(k): _deep_copy(v) for k, v in x.items()}
+            elif isinstance(x, (list, tuple)):
+                return type(x)(_deep_copy(v) for v in x)
+            elif isinstance(x, (str, int, float)) or x is None:
+                return x
+            else:
+                raise ValueError(repr(x))
+
+        return _deep_copy(self)
 
     def flatten(self):
         # First convert to dict (as deep copy)
-        return GraphFlattener().flatten(graph=self.to_dict())
+        return GraphFlattener().flatten(node=self)
+
+    @staticmethod
+    def to_process_graph_argument(value: Union['PGNode', str, dict]):
+        """
+        Normalize given argument properly to a "process_graph" argument
+        to be used as reducer/subprocess for processes like
+        'reduce_dimension', 'aggregate_spatial', 'apply', 'merge_cubes', 'resample_cube_temporal'
+        """
+        if isinstance(value, str):
+            # assume string with predefined reduce/appply process ("mean", "sum", ...)
+            return value
+        elif isinstance(value, PGNode):
+            return {"process_graph": value}
+        elif isinstance(value, dict) and isinstance(value.get("process_graph"), PGNode):
+            return value
+        else:
+            raise ValueError(value)
 
 
 class ReduceNode(PGNode):
@@ -75,15 +94,13 @@ class ReduceNode(PGNode):
 
     def __init__(self, data: PGNode, reducer: Union[PGNode, str], dimension: str, process_id="reduce_dimension"):
         assert process_id in ("reduce_dimension", "reduce_dimension_binary")
-        super(ReduceNode, self).__init__(
-            process_id=process_id,
-            arguments={
-                "data": {"from_node": data},
-                "reducer": reducer if isinstance(reducer, str) else {"process_graph": reducer},
-                "dimension": dimension,
-                # TODO context
-            }
-        )
+        arguments = {
+            "data": {"from_node": data},
+            "reducer": self.to_process_graph_argument(reducer),
+            "dimension": dimension,
+            # TODO #125 context
+        }
+        super().__init__(process_id=process_id, arguments=arguments)
 
     def reducer_process_graph(self) -> PGNode:
         return self.arguments["reducer"]["process_graph"]
@@ -102,9 +119,9 @@ class ReduceNode(PGNode):
         return self.arguments["dimension"] == "spectral_bands"
 
 
-class FlatGraphKeyGenerator:
+class FlatGraphNodeIdGenerator:
     """
-    Helper class to generate unique keys (e.g. autoincrement style)
+    Helper class to generate unique node ids (e.g. autoincrement style)
     for processes in a flattened process graph.
     """
 
@@ -119,35 +136,72 @@ class FlatGraphKeyGenerator:
 
 class GraphFlattener(ProcessGraphVisitor):
 
-    def __init__(self, key_generator: FlatGraphKeyGenerator = None):
+    def __init__(self, node_id_generator: FlatGraphNodeIdGenerator = None):
         super().__init__()
-        self._key_generator = key_generator or FlatGraphKeyGenerator()
+        self._node_id_generator = node_id_generator or FlatGraphNodeIdGenerator()
         self._last_node_id = None
         self._flattened = {}
+        self._argument_stack = []
+        self._node_cache = {}
 
-    def flatten(self, graph: dict):
+    def flatten(self, node: PGNode):
         """Consume given nested process graph and return flattened version"""
-        # take a copy, flattener modifies the graph in-place
-        self.accept(graph)
+        self.accept_node(node)
+        assert len(self._argument_stack) == 0
         self._flattened[self._last_node_id]["result"] = True
         return self._flattened
 
-    def leaveProcess(self, process_id, arguments: Dict):
-        node_id = self._key_generator.generate(process_id)
-        self._last_node_id = node_id
+    def accept_node(self, node: PGNode):
+        # Process reused nodes only first time and remember node id.
+        node_id = id(node)
+        if node_id not in self._node_cache:
+            super()._accept_process(process_id=node.process_id, arguments=node.arguments)
+            self._node_cache[node_id] = self._last_node_id
+        else:
+            self._last_node_id = self._node_cache[node_id]
+
+    def enterProcess(self, process_id: str, arguments: dict):
+        self._argument_stack.append({})
+
+    def leaveProcess(self, process_id: str, arguments: dict):
+        node_id = self._node_id_generator.generate(process_id)
         self._flattened[node_id] = {
-            'process_id': process_id,
-            'arguments': arguments
+            "process_id": process_id,
+            "arguments": self._argument_stack.pop()
         }
+        self._last_node_id = node_id
 
-    def arrayElementDone(self, node):
-        if 'from_node' in node:
-            node['from_node'] = self._last_node_id
+    def _store_argument(self, argument_id: str, value):
+        self._argument_stack[-1][argument_id] = value
 
-    def leaveArgument(self, argument_id, node: Dict):
-        if 'from_node' in node:
-            node['from_node'] = self._last_node_id
-        if isinstance(node, dict) and 'process_graph' in node:
-            callback = node['process_graph']
-            flat_callback = GraphFlattener(key_generator=self._key_generator).flatten(callback)
-            node['process_graph'] = flat_callback
+    def _store_array_element(self, value):
+        self._argument_stack[-1].append(value)
+
+    def enterArray(self, argument_id: str):
+        array = []
+        self._store_argument(argument_id, array)
+        self._argument_stack.append(array)
+
+    def leaveArray(self, argument_id: str):
+        self._argument_stack.pop()
+
+    def arrayElementDone(self, value):
+        self._store_array_element(self._flatten_argument(value))
+
+    def constantArrayElement(self, value):
+        self._store_array_element(self._flatten_argument(value))
+
+    def _flatten_argument(self, value):
+        if isinstance(value, dict):
+            if "from_node" in value:
+                value = {"from_node": self._last_node_id}
+            elif "process_graph" in value:
+                pg = value["process_graph"]
+                value = {"process_graph": GraphFlattener(node_id_generator=self._node_id_generator).flatten(pg)}
+        return value
+
+    def leaveArgument(self, argument_id: str, value):
+        self._store_argument(argument_id, self._flatten_argument(value))
+
+    def constantArgument(self, argument_id: str, value):
+        self._store_argument(argument_id, value)

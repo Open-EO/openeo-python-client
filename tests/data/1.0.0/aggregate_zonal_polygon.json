@@ -23,13 +23,13 @@
         }
       }
     },
-    "aggregatepolygon1": {
-      "process_id": "aggregate_polygon",
+    "aggregatespatial1": {
+      "process_id": "aggregate_spatial",
       "arguments": {
         "data": {
           "from_node": "filterbbox1"
         },
-        "polygons": {
+        "geometries": {
           "type": "Polygon",
           "coordinates": [
             [

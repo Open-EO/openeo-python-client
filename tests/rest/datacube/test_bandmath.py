@@ -8,6 +8,7 @@ Band math related tests against both
 
 import pytest
 
+from openeo.internal.graph_building import PGNode
 from openeo.rest import BandMathException
 from .. import get_download_graph
 from ..conftest import reset_graphbuilder
@@ -130,7 +131,6 @@ def test_band_operation(con100, process, expected):
     }
 
 
-@pytest.mark.skip("TODO issue #107")
 def test_merge_issue107(con100):
     """https://github.com/Open-EO/openeo-python-client/issues/107"""
     s2 = con100.load_collection("S2")
@@ -141,16 +141,16 @@ def test_merge_issue107(con100):
     flat = c.graph
     # There should be only one `load_collection` node (but two `filter_band` ones)
     processes = sorted(n["process_id"] for n in flat.values())
-    assert processes == ["filter_bands", "filter_bands", "merge_cubes", "load_collection"]
+    assert processes == ["filter_bands", "filter_bands", "load_collection", "merge_cubes"]
 
 
 def test_reduce_dimension_binary(con100):
     s2 = con100.load_collection("S2")
-    reducer = {
-        "process_id": "add",
-        "arguments": {"x": {"from_argument": "x"}, "y": {"from_argument": "y"}}
-    }
-    # TODO: use a public version of reduce_dimension_binary?
+    reducer = PGNode(
+        process_id="add",
+        arguments={"x": {"from_argument": "x"}, "y": {"from_argument": "y"}},
+    )
+    # TODO #117: use a public version of reduce_dimension_binary?
     x = s2._reduce(dimension="bands", reducer=reducer, process_id="reduce_dimension_binary")
     assert x.graph == {
         'loadcollection1': {
@@ -264,5 +264,7 @@ def test_cube_merge_multiple(connection, api_version):
     b1 = b1.linear_scale_range(0, 1, 0, 2)
     combined = b1 + b1 + b1
     actual = get_download_graph(combined)
-    pytest.skip("#TODO #117: current implementation still does unnecessary (deep) copies of linearscalerange nodes")
+    assert sorted(n["process_id"] for n in actual.values()) == [
+        "linear_scale_range", "load_collection",
+        "merge_cubes", "merge_cubes", "reduce_dimension", "save_result"]
     assert actual == load_json_resource('data/%s/cube_merge_multiple.json' % api_version)

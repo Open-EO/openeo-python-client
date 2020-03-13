@@ -308,6 +308,11 @@ def test_resample_spatial(s2cube):
 
 def test_merge(s2cube, api_version):
     merged = s2cube.ndvi().merge(s2cube)
-    # TODO #107: there should be a single "loadcollection" node
     expected_graph = load_json_resource('data/{v}/merge_ndvi_self.json'.format(v=api_version))
     assert merged.graph == expected_graph
+
+
+def test_apply_absolute(s2cube, api_version):
+    result = s2cube.apply("absolute")
+    expected_graph = load_json_resource('data/{v}/apply_absolute.json'.format(v=api_version))
+    assert result.graph == expected_graph

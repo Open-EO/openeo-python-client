@@ -1,5 +1,4 @@
-from abc import  ABC
-from typing import Dict
+from abc import ABC
 
 
 class ProcessGraphVisitor(ABC):
@@ -11,7 +10,7 @@ class ProcessGraphVisitor(ABC):
         self.process_stack = []
 
     @classmethod
-    def dereference_from_node_arguments(cls, process_graph:dict) -> str:
+    def dereference_from_node_arguments(cls, process_graph: dict) -> str:
         """
         Walk through the given (flat) process graph and replace (in-place) "from_node" references in
         process arguments (dictionaries or lists) with the corresponding resolved subgraphs
@@ -20,6 +19,7 @@ class ProcessGraphVisitor(ABC):
         :return: name of the "result" node of the graph
 
         """
+
         # TODO avoid manipulating process graph in place? make it more explicit? work on a copy? Where is this functionality used anyway?
         # TODO this is driver specific functionality, working on flattened graph structures. Make this more clear?
         # TODO call it more something like "unflatten"?. Split this off of ProcessGraphVisitor?
@@ -61,64 +61,74 @@ class ProcessGraphVisitor(ABC):
         self.accept(graph[top_level_node])
         return self
 
-    def accept(self, node:Dict):
-        if 'process_id' in node:
-            pid = node['process_id']
-            arguments = node.get('arguments',{})
-            self.process_stack.append(pid)
-            self.enterProcess(pid, arguments)
-            for arg in sorted(arguments.keys()):
-                value = arguments[arg]
-                if type(value) == list:
-                    self.enterArray(arg)
-                    for array_element in value:
-                        if type(array_element) is dict:
-                            if 'from_node' in array_element and type(array_element['from_node']) == dict:
-                                self.accept(array_element['from_node'])
-                            else:
-                                self.accept(array_element)
-                            self.arrayElementDone(array_element)
-                        else:
-                            self.constantArrayElement(array_element)
-                    self.leaveArray(arg)
-                elif type(value) == dict:
-                    self.enterArgument(arg,value)
-                    if 'node' in value and 'from_node' in value:
-                        self.accept(value['node'])
-                    elif 'from_node' in value and type(value['from_node']) == dict:
-                        self.accept(value['from_node'])
-                    else:
-                        self.accept(value)
-                    self.leaveArgument(arg,value)
-                else:
-                    self.constantArgument(arg,value)
+    def accept(self, node: dict):
+        self.accept_node(node)
 
-            self.leaveProcess(pid, arguments)
-            self.process_stack.pop()
+    def accept_node(self, node: dict):
+        pid = node['process_id']
+        arguments = node.get('arguments', {})
+        self._accept_process(process_id=pid, arguments=arguments)
 
-    def enterProcess(self,process_id, arguments:Dict):
+    def _accept_process(self, process_id: str, arguments: dict):
+        self.process_stack.append(process_id)
+        self.enterProcess(process_id=process_id, arguments=arguments)
+        for arg_id, value in sorted(arguments.items()):
+            if isinstance(value, list):
+                self.enterArray(argument_id=arg_id)
+                self._accept_argument_list(value)
+                self.leaveArray(argument_id=arg_id)
+            elif isinstance(value, dict):
+                self.enterArgument(argument_id=arg_id, value=value)
+                self._accept_argument_dict(value)
+                self.leaveArgument(argument_id=arg_id, value=value)
+            else:
+                self.constantArgument(argument_id=arg_id, value=value)
+        self.leaveProcess(process_id=process_id, arguments=arguments)
+        assert self.process_stack.pop() == process_id
+
+    def _accept_argument_list(self, elements: list):
+        for element in elements:
+            if isinstance(element, dict):
+                self._accept_argument_dict(element)
+                self.arrayElementDone(element)
+            else:
+                self.constantArrayElement(element)
+
+    def _accept_argument_dict(self, value: dict):
+        if 'node' in value and 'from_node' in value:
+            # TODO: this looks bit weird (or at least very specific).
+            self.accept_node(value['node'])
+        elif value.get("from_node"):
+            self.accept_node(value['from_node'])
+        else:
+            self._accept_dict(value)
+
+    def _accept_dict(self, value: dict):
         pass
 
-    def leaveProcess(self, process_id, arguments: Dict):
+    def enterProcess(self, process_id: str, arguments: dict):
         pass
 
-    def enterArgument(self,argument_id,node:Dict):
+    def leaveProcess(self, process_id: str, arguments: dict):
         pass
 
-    def leaveArgument(self, argument_id, node: Dict):
+    def enterArgument(self, argument_id: str, value):
         pass
 
-    def constantArgument(self,argument_id:str,value):
+    def leaveArgument(self, argument_id: str, value):
         pass
 
-    def enterArray(self, argument_id):
+    def constantArgument(self, argument_id: str, value):
         pass
 
-    def constantArrayElement(self,value):
+    def enterArray(self, argument_id: str):
         pass
 
-    def arrayElementDone(self,value):
+    def leaveArray(self, argument_id: str):
         pass
 
-    def leaveArray(self, argument_id):
+    def constantArrayElement(self, value):
+        pass
+
+    def arrayElementDone(self, value: dict):
         pass

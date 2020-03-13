@@ -60,16 +60,7 @@
               "data": {
                 "from_argument": "data"
               },
-              "index": 3
-            }
-          },
-          "arrayelement4": {
-            "process_id": "array_element",
-            "arguments": {
-              "data": {
-                "from_argument": "data"
-              },
-              "index": 2
+              "index": 0
             }
           },
           "multiply2": {
@@ -77,7 +68,7 @@
             "arguments": {
               "x": 6.0,
               "y": {
-                "from_node": "arrayelement4"
+                "from_node": "arrayelement2"
               }
             }
           },
@@ -85,20 +76,11 @@
             "process_id": "add",
             "arguments": {
               "x": {
-                "from_node": "arrayelement3"
+                "from_node": "arrayelement1"
               },
               "y": {
                 "from_node": "multiply2"
               }
-            }
-          },
-          "arrayelement5": {
-            "process_id": "array_element",
-            "arguments": {
-              "data": {
-                "from_argument": "data"
-              },
-              "index": 0
             }
           },
           "multiply3": {
@@ -106,7 +88,7 @@
             "arguments": {
               "x": 7.5,
               "y": {
-                "from_node": "arrayelement5"
+                "from_node": "arrayelement3"
               }
             }
           },

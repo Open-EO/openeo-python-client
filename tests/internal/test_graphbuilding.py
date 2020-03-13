@@ -1,6 +1,6 @@
 import pytest
 
-from openeo.internal.graph_building import FlatGraphKeyGenerator, PGNode, ReduceNode
+from openeo.internal.graph_building import FlatGraphNodeIdGenerator, PGNode, ReduceNode
 
 
 def test_pgnode_process_id():
@@ -64,7 +64,7 @@ def test_pgnode_normalize_pgnode_args():
 
 
 def test_flat_graph_key_generate():
-    g = FlatGraphKeyGenerator()
+    g = FlatGraphNodeIdGenerator()
     assert g.generate("foo") == "foo1"
     assert g.generate("foo") == "foo2"
     assert g.generate("bar") == "bar1"

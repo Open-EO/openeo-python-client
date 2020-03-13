@@ -6,102 +6,95 @@ import pytest
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 
 
-class GraphVisitorTest(TestCase):
+def test_visit_node():
+    node = {
+        "process_id": "cos",
+        "arguments": {"x": {"from_argument": "data"}}
+    }
+    visitor = ProcessGraphVisitor()
+    visitor.enterProcess = MagicMock()
+    visitor.enterArgument = MagicMock()
+    visitor.accept(node)
 
-    def test_visit_nodes(self):
-        graph = {
-                    "abs":{
-                        "arguments":{
-                            "data": {
-                                "from_argument": "data"
-                            }
-                        },
-                        "process_id":"abs"
-                    },
-                    "cos": {
-                        "arguments":{
-                            "data": {
-                                "from_node": "abs"
-                            }
-                        },
-                        "process_id": "cos",
-                        "result": True
-                    }
+    assert visitor.enterProcess.call_args_list == [call(process_id="cos", arguments={"x": {"from_argument": "data"}})]
+    assert visitor.enterArgument.call_args_list == [call(argument_id="x", value={"from_argument": "data"})]
+
+
+def test_visit_nodes():
+    graph = {
+        "abs": {
+            "process_id": "abs",
+            "arguments": {
+                "data": {
+                    "from_argument": "data"
                 }
-        original = ProcessGraphVisitor()
-
-        leaveProcess = MagicMock(original.leaveProcess)
-        original.leaveProcess = leaveProcess
-
-        enterArgument = MagicMock(original.enterArgument)
-        original.enterArgument = enterArgument
-
-        original.accept_process_graph(graph)
-        assert leaveProcess.call_count == 2
-        leaveProcess.assert_has_calls([
-            call('abs', ANY),
-            call('cos', ANY)
-        ])
-
-        assert enterArgument.call_count == 2
-        enterArgument.assert_has_calls([
-            call('data', ANY),
-            call('data', ANY)
-        ])
-
-        print(leaveProcess)
-
-    def test_visit_nodes_array(self):
-        graph = {
-                    "abs":{
-                        "arguments":{
-                            "data": [{
-                                "from_argument": "data"
-                            },
-                            10.0
-                            ]
-                        },
-                        "process_id":"abs"
-                    },
-                    "cos": {
-                        "arguments":{
-                            "data": {
-                                "from_node": "abs"
-                            }
-                        },
-                        "process_id": "cos",
-                        "result": True
-                    }
+            },
+        },
+        "cos": {
+            "process_id": "cos",
+            "arguments": {
+                "data": {
+                    "from_node": "abs"
                 }
-        original = ProcessGraphVisitor()
+            },
+            "result": True
+        }
+    }
+    visitor = ProcessGraphVisitor()
+    visitor.leaveProcess = MagicMock()
+    visitor.enterArgument = MagicMock()
 
-        leaveProcess = MagicMock(original.leaveProcess)
-        original.leaveProcess = leaveProcess
+    visitor.accept_process_graph(graph)
 
-        enterArgument = MagicMock(original.enterArgument)
-        original.enterArgument = enterArgument
+    assert visitor.leaveProcess.call_args_list == [
+        call(process_id="abs", arguments=ANY),
+        call(process_id="cos", arguments=ANY),
+    ]
+    assert visitor.enterArgument.call_args_list == [
+        call(argument_id="data", value=ANY),
+        call(argument_id="data", value={"from_argument": "data"}),
+    ]
 
-        arrayStart = MagicMock(original.enterArray)
-        original.enterArray = arrayStart
 
-        original.accept_process_graph(graph)
-        self.assertEqual(2, leaveProcess.call_count)
-        leaveProcess.assert_has_calls([
-            call('abs', ANY),
-            call('cos', ANY)
-        ])
+def test_visit_nodes_array():
+    graph = {
+        "abs": {
+            "arguments": {
+                "data": [{
+                    "from_argument": "data"
+                },
+                    10.0
+                ]
+            },
+            "process_id": "abs"
+        },
+        "cos": {
+            "arguments": {
+                "data": {
+                    "from_node": "abs"
+                }
+            },
+            "process_id": "cos",
+            "result": True
+        }
+    }
 
-        self.assertEqual(1, enterArgument.call_count)
-        enterArgument.assert_has_calls([
-            call('data', ANY)
-        ])
+    visitor = ProcessGraphVisitor()
+    visitor.leaveProcess = MagicMock()
+    visitor.enterArgument = MagicMock()
+    visitor.enterArray = MagicMock()
 
-        self.assertEqual(1, arrayStart.call_count)
-        arrayStart.assert_has_calls([
-            call('data')
-        ])
-
-        print(leaveProcess)
+    visitor.accept_process_graph(graph)
+    assert visitor.leaveProcess.call_args_list == [
+        call(process_id='abs', arguments=ANY),
+        call(process_id='cos', arguments=ANY)
+    ]
+    assert visitor.enterArgument.call_args_list == [
+        call(argument_id="data", value=ANY)
+    ]
+    assert visitor.enterArray.call_args_list == [
+        call(argument_id="data")
+    ]
 
 
 def test_dereference_basic():

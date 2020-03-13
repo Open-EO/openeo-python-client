@@ -29,13 +29,13 @@
         "filename": "/some/path/to/GeometryCollection.geojson"
       }
     },
-    "aggregatepolygon1": {
-      "process_id": "aggregate_polygon",
+    "aggregatespatial1": {
+      "process_id": "aggregate_spatial",
       "arguments": {
         "data": {
           "from_node": "filterbbox1"
         },
-        "polygons": {
+        "geometries": {
           "from_node": "readvector1"
         },
         "reducer": {
