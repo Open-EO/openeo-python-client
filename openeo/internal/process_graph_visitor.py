@@ -1,4 +1,3 @@
-import warnings
 from abc import  ABC
 from typing import Dict
 
@@ -10,12 +9,6 @@ class ProcessGraphVisitor(ABC):
 
     def __init__(self):
         self.process_stack = []
-
-    @classmethod
-    def _list_to_graph(cls,processGraph):
-        # TODO remove this function when not used anymore in openeo-python-driver
-        warnings.warn("_list_to_graph is deprecated, use dereference_node_arguments instead.", DeprecationWarning)
-        return cls.dereference_from_node_arguments(processGraph)
 
     @classmethod
     def dereference_from_node_arguments(cls, process_graph:dict) -> str:
