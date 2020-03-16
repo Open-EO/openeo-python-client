@@ -20,7 +20,7 @@
             "process_id": "array_element",
             "arguments": {
               "data": {
-                "from_argument": "data"
+                "from_parameter": "data"
               },
               "index": 0
             }
@@ -38,7 +38,7 @@
             "process_id": "array_element",
             "arguments": {
               "data": {
-                "from_argument": "data"
+                "from_parameter": "data"
               },
               "index": 1
             }

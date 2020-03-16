@@ -212,9 +212,10 @@ def test_max_time(s2cube, api_version):
     assert graph["arguments"]["dimension"] == "temporal"
     if api_version == '0.4.0':
         callback = graph["arguments"]["reducer"]["callback"]["r1"]
+        assert callback == {'arguments': {'data': {'from_argument': 'data'}}, 'process_id': 'max', 'result': True}
     else:
         callback = graph["arguments"]["reducer"]["process_graph"]["max1"]
-    assert callback == {'arguments': {'data': {'from_argument': 'data'}}, 'process_id': 'max', 'result': True}
+        assert callback == {'arguments': {'data': {'from_parameter': 'data'}}, 'process_id': 'max', 'result': True}
 
 
 def test_reduce_time_udf(s2cube, api_version):

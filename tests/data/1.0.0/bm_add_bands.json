@@ -21,7 +21,7 @@
             "arguments": {
               "index": 2,
               "data": {
-                "from_argument": "data"
+                "from_parameter": "data"
               }
             }
           },
@@ -30,7 +30,7 @@
             "arguments": {
               "index": 1,
               "data": {
-                "from_argument": "data"
+                "from_parameter": "data"
               }
             }
           },

@@ -19,7 +19,7 @@
             "process_id": "absolute",
             "arguments": {
               "x": {
-                "from_argument": "x"
+                "from_parameter": "x"
               }
             },
             "result": true

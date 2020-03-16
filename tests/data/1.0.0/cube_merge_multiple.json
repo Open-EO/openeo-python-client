@@ -20,7 +20,7 @@
             "process_id": "array_element",
             "arguments": {
               "data": {
-                "from_argument": "data"
+                "from_parameter": "data"
               },
               "index": 0
             },
@@ -57,10 +57,10 @@
             "process_id": "add",
             "arguments": {
               "x": {
-                "from_argument": "cube1"
+                "from_parameter": "cube1"
               },
               "y": {
-                "from_argument": "cube2"
+                "from_parameter": "cube2"
               }
             },
             "result": true
@@ -84,10 +84,10 @@
             "process_id": "add",
             "arguments": {
               "x": {
-                "from_argument": "cube1"
+                "from_parameter": "cube1"
               },
               "y": {
-                "from_argument": "cube2"
+                "from_parameter": "cube2"
               }
             },
             "result": true

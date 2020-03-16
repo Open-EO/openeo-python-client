@@ -32,7 +32,7 @@
           "arrayelement1": {
             "arguments": {
               "data": {
-                "from_argument": "data"
+                "from_parameter": "data"
               },
               "index": 0
             },

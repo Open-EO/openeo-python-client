@@ -21,7 +21,7 @@
               "process_id": "run_udf",
               "arguments": {
                 "data": {
-                  "from_argument": "data"
+                  "from_parameter": "data"
                 },
                 "runtime": "Python",
                 "version": "latest",

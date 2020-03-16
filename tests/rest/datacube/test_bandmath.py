@@ -111,7 +111,7 @@ def test_band_operation(con100, process, expected):
     c = process(b)
 
     callback = {"arrayelement1": {
-        "process_id": "array_element", "arguments": {"data": {"from_argument": "data"}, "index": 2}
+        "process_id": "array_element", "arguments": {"data": {"from_parameter": "data"}, "index": 2}
     }}
     callback.update(expected)
     assert c.graph == {

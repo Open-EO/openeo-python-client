@@ -200,7 +200,7 @@ class DataCube(ImageCollection):
         return self._reduce_bands(reducer=PGNode(
             process_id='array_element',
             arguments={
-                'data': {'from_argument': 'data'},
+                'data': {'from_parameter': 'data'},
                 'index': band_index
             },
         ))
@@ -383,8 +383,8 @@ class DataCube(ImageCollection):
                 "process_graph": PGNode(
                     process_id=operator,
                     arguments={
-                        left_arg_name: {"from_argument": "cube1"},
-                        right_arg_name: {"from_argument": "cube2"},
+                        left_arg_name: {"from_parameter": "cube1"},
+                        right_arg_name: {"from_parameter": "cube2"},
                     }
                 )
             }
@@ -440,7 +440,7 @@ class DataCube(ImageCollection):
         else:
             process = PGNode(
                 process_id=code,
-                arguments={"data": {"from_argument": "data"}},
+                arguments={"data": {"from_parameter": "data"}},
             )
         return self.process_with_node(PGNode(
             process_id="apply_dimension",
@@ -503,7 +503,7 @@ class DataCube(ImageCollection):
             process_id="run_udf",
             arguments={
                 "data": {
-                    "from_argument": "data"
+                    "from_parameter": "data"
                 },
                 "runtime": runtime,
                 "version": version,
@@ -537,7 +537,7 @@ class DataCube(ImageCollection):
                 "data": self._pg,
                 "process": {"process_graph": PGNode(
                     process_id=process,
-                    arguments={data_argument: {"from_argument": "x"}}
+                    arguments={data_argument: {"from_parameter": "x"}}
                 )},
                 # TODO #125 context
             }
@@ -547,9 +547,7 @@ class DataCube(ImageCollection):
         """Do temporal reduce with a simple given process as callback."""
         return self._reduce_temporal(reducer=PGNode(
             process_id=process_id,
-            arguments={
-                'data': {'from_argument': 'data'}
-            }
+            arguments={"data": {"from_parameter": "data"}}
         ))
 
     def min_time(self) -> 'DataCube':
@@ -810,7 +808,7 @@ class DataCube(ImageCollection):
                 "geometries": geometries,
                 "reducer": {"process_graph": PGNode(
                     process_id=func,
-                    arguments={"data": {"from_argument": "data"}}
+                    arguments={"data": {"from_parameter": "data"}}
                 )},
                 # TODO #125 target dimension, context
             }
