@@ -375,21 +375,13 @@ class DataCube(ImageCollection):
                                      right_arg_name="y") -> 'DataCube':
         """Merge two cubes with given operator as overlap_resolver."""
         # TODO #123 reuse an existing merge_cubes process graph if it already exists?
-        # TODO: set metadata of reduced cube?
-        return self.process_with_node(PGNode(process_id="merge_cubes", arguments={
-            "cube1": {"from_node": self._pg},
-            "cube2": {"from_node": other._pg},
-            "overlap_resolver": {
-                "process_graph": PGNode(
-                    process_id=operator,
-                    arguments={
-                        left_arg_name: {"from_parameter": "cube1"},
-                        right_arg_name: {"from_parameter": "cube2"},
-                    }
-                )
+        return self.merge(other, overlap_resolver=PGNode(
+            process_id=operator,
+            arguments={
+                left_arg_name: {"from_parameter": "cube1"},
+                right_arg_name: {"from_parameter": "cube2"},
             }
-            # TODO #125 context
-        }))
+        ))
 
     def zonal_statistics(self, regions, func, scale=1000, interval="day") -> 'ImageCollection':
         """Calculates statistics for each zone specified in a file.
@@ -715,16 +707,16 @@ class DataCube(ImageCollection):
             )
         )
 
-    def merge(self, other: 'DataCube') -> 'DataCube':
-        # TODO: overlap_resolver parameter
-        # TODO provide this as a GraphBuilder method?
-        return self.process_with_node(PGNode(
-            process_id="merge_cubes",
-            arguments={
-                'cube1': {'from_node': self._pg},
-                'cube2': {'from_node': other._pg},
-            }
-        ))
+    def merge(self, other: 'DataCube', overlap_resolver: PGNode = None) -> 'DataCube':
+        arguments = {
+            'cube1': {'from_node': self._pg},
+            'cube2': {'from_node': other._pg},
+        }
+        if overlap_resolver:
+            arguments["overlap_resolver"] = {"process_graph": overlap_resolver}
+        # TODO #125 context
+        # TODO: set metadata of reduced cube?
+        return self.process_with_node(PGNode(process_id="merge_cubes", arguments=arguments))
 
     def apply_kernel(self, kernel, factor=1.0) -> 'DataCube':
         """
