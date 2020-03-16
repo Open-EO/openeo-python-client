@@ -6,6 +6,7 @@ Unit tests specifically for 1.0.0-style DataCube
 
 import shapely.geometry
 
+from openeo.internal.graph_building import PGNode
 from openeo.rest.connection import Connection
 from .conftest import API_URL
 
@@ -123,3 +124,57 @@ def test_viewing_service(con100: Connection, requests_mock):
     img = con100.load_collection("S2")
     res = img.tiled_viewing_service(type="WMTS", title="S2 Foo", description="Nice!", custom_param=45)
     assert res == {"url": API_URL + "/_s/sf00", 'service_id': 'sf00'}
+
+
+def test_reduce_dimension(con100):
+    s2 = con100.load_collection("S2")
+    x = s2.reduce_dimension(dimension="bands", reducer="mean")
+    assert x.graph == {
+        'loadcollection1': {
+            'process_id': 'load_collection',
+            'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
+        },
+        'reducedimension1': {
+            'process_id': 'reduce_dimension',
+            'arguments': {
+                'data': {'from_node': 'loadcollection1'},
+                'dimension': 'bands',
+                'reducer': {'process_graph': {
+                    'mean1': {
+                        'process_id': 'mean',
+                        'arguments': {'data': {'from_parameter': 'data'}},
+                        'result': True
+                    }
+                }}
+            },
+            'result': True
+        }}
+
+
+def test_reduce_dimension_binary(con100):
+    s2 = con100.load_collection("S2")
+    reducer = PGNode(
+        process_id="add",
+        arguments={"x": {"from_parameter": "x"}, "y": {"from_parameter": "y"}},
+    )
+    x = s2.reduce_dimension(dimension="bands", reducer=reducer, process_id="reduce_dimension_binary")
+    assert x.graph == {
+        'loadcollection1': {
+            'process_id': 'load_collection',
+            'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
+        },
+        'reducedimensionbinary1': {
+            'process_id': 'reduce_dimension_binary',
+            'arguments': {
+                'data': {'from_node': 'loadcollection1'},
+                'dimension': 'bands',
+                'reducer': {'process_graph': {
+                    'add1': {
+                        'process_id': 'add',
+                        'arguments': {'x': {'from_parameter': 'x'}, 'y': {'from_parameter': 'y'}},
+                        'result': True
+                    }
+                }}
+            },
+            'result': True
+        }}

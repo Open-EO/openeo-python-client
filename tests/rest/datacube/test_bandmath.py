@@ -8,7 +8,6 @@ Band math related tests against both
 
 import pytest
 
-from openeo.internal.graph_building import PGNode
 from openeo.rest import BandMathException
 from .. import get_download_graph
 from ..conftest import reset_graphbuilder
@@ -142,36 +141,6 @@ def test_merge_issue107(con100):
     # There should be only one `load_collection` node (but two `filter_band` ones)
     processes = sorted(n["process_id"] for n in flat.values())
     assert processes == ["filter_bands", "filter_bands", "load_collection", "merge_cubes"]
-
-
-def test_reduce_dimension_binary(con100):
-    s2 = con100.load_collection("S2")
-    reducer = PGNode(
-        process_id="add",
-        arguments={"x": {"from_argument": "x"}, "y": {"from_argument": "y"}},
-    )
-    # TODO #117: use a public version of reduce_dimension_binary?
-    x = s2._reduce(dimension="bands", reducer=reducer, process_id="reduce_dimension_binary")
-    assert x.graph == {
-        'loadcollection1': {
-            'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
-            'process_id': 'load_collection',
-        },
-        'reducedimensionbinary1': {
-            'process_id': 'reduce_dimension_binary',
-            'arguments': {
-                'data': {'from_node': 'loadcollection1'},
-                'dimension': 'bands',
-                'reducer': {'process_graph': {
-                    'add1': {
-                        'process_id': 'add',
-                        'arguments': {'x': {'from_argument': 'x'}, 'y': {'from_argument': 'y'}},
-                        'result': True
-                    }
-                }}
-            },
-            'result': True
-        }}
 
 
 def test_invert_band(connection, api_version):

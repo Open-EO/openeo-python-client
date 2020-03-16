@@ -452,13 +452,17 @@ class DataCube(ImageCollection):
             }
         ))
 
-    def _reduce(self, dimension: str, reducer: PGNode, process_id="reduce_dimension") -> 'DataCube':
+    def reduce_dimension(self, dimension: str, reducer: Union[PGNode, str],
+                         process_id="reduce_dimension") -> 'DataCube':
         """
         Add a reduce process with given reducer callback along given dimension
         """
-        # TODO: #117 make this public?
         # TODO: check if dimension is valid according to metadata? #116
-        # TODO: #117 #125 use/test case for `reduce_dimension_binary`?
+        # TODO: #125 use/test case for `reduce_dimension_binary`?
+        if isinstance(reducer, str):
+            # Assume given reducer is a simple predefined reduce process_id
+            reducer = PGNode(process_id=reducer, arguments={"data": {"from_parameter": "data"}})
+
         return self.process_with_node(ReduceNode(
             process_id=process_id,
             data=self._pg,
@@ -470,12 +474,12 @@ class DataCube(ImageCollection):
     def _reduce_bands(self, reducer: PGNode, dimension: str = None) -> 'DataCube':
         # TODO #116 determine dimension based on datacube metadata
         dimension = dimension or 'spectral_bands'
-        return self._reduce(dimension=dimension, reducer=reducer)
+        return self.reduce_dimension(dimension=dimension, reducer=reducer)
 
     def _reduce_temporal(self, reducer: PGNode, dimension: str = None) -> 'DataCube':
         # TODO #116 determine dimension based on datacube metadata
         dimension = dimension or 'temporal'
-        return self._reduce(dimension=dimension, reducer=reducer)
+        return self.reduce_dimension(dimension=dimension, reducer=reducer)
 
     def reduce_bands_udf(self, code: str, runtime="Python", version="latest") -> 'DataCube':
         """
