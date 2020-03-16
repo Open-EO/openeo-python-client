@@ -24,14 +24,12 @@ if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-# TODO #108 this file is still full of "ImageCollection" references (type hints, docs, isinstance checks, ...)
-
 class DataCube(ImageCollection):
     """
     Class representing a OpenEO Data Cube.
 
     Supports openEO API 1.0.
-    In earlier versions this was called ImageCollection
+    In earlier versions this was called `ImageCollectionClient`
     """
 
     def __init__(self, graph: PGNode, connection: 'Connection', metadata: CollectionMetadata = None):
@@ -130,15 +128,15 @@ class DataCube(ImageCollection):
 
     @classmethod
     def load_disk_collection(cls, connection: 'Connection', file_format: str, glob_pattern: str,
-                             **options) -> 'ImageCollection':
+                             **options) -> 'DataCube':
         """
-        Loads image data from disk as an ImageCollection.
+        Loads image data from disk as a DataCube.
 
         :param connection: The connection to use to connect with the backend.
         :param file_format: the file format, e.g. 'GTiff'
         :param glob_pattern: a glob pattern that matches the files to load from disk
         :param options: options specific to the file format
-        :return: the data as an ImageCollection
+        :return: the data as a DataCube
         """
         pg = PGNode(
             process_id='load_disk_data',
@@ -150,7 +148,7 @@ class DataCube(ImageCollection):
         )
         return cls(graph=pg, connection=connection, metadata={})
 
-    def _filter_temporal(self, start: str, end: str) -> 'ImageCollection':
+    def _filter_temporal(self, start: str, end: str) -> 'DataCube':
         return self.process(
             process_id='filter_temporal',
             args={
@@ -159,7 +157,7 @@ class DataCube(ImageCollection):
             }
         )
 
-    def filter_bbox(self, west, east, north, south, crs=None, base=None, height=None) -> 'ImageCollection':
+    def filter_bbox(self, west, east, north, south, crs=None, base=None, height=None) -> 'DataCube':
         extent = {
             'west': west, 'east': east, 'north': north, 'south': south,
             'crs': crs,
@@ -177,7 +175,7 @@ class DataCube(ImageCollection):
     def filter_bands(self, bands: List[Union[str, int]]) -> 'DataCube':
         """Filter the imagery by the given bands
             :param bands: List of band names or single band name as a string.
-            :return An ImageCollection instance
+            :return a DataCube instance
         """
         new_collection = self.process(
             process_id='filter_bands',
@@ -188,13 +186,13 @@ class DataCube(ImageCollection):
         return new_collection
 
     @deprecated("use `filter_bands()` instead")
-    def band_filter(self, bands) -> ImageCollection:
+    def band_filter(self, bands) -> 'DataCube':
         return self.filter_bands(bands)
 
     def band(self, band: Union[str, int]) -> 'DataCube':
         """Filter the imagery by the given bands
             :param band: band name, band common name or band index.
-            :return An DataCube instance
+            :return a DataCube instance
         """
         band_index = self.metadata.get_band_index(band)
         return self._reduce_bands(reducer=PGNode(
@@ -253,7 +251,7 @@ class DataCube(ImageCollection):
         """
         Apply element-wise logical `or` operation
         :param other:
-        :return ImageCollection: logical_or(this, other)
+        :return DataCube: logical_or(this, other)
         """
         return self._operator_binary("or", other)
 
@@ -261,7 +259,7 @@ class DataCube(ImageCollection):
         """
         Apply element-wise logical `and` operation
         :param other:
-        :return ImageCollection: logical_and(this, other)
+        :return DataCube: logical_and(this, other)
         """
         return self._operator_binary("and", other)
 
@@ -285,7 +283,7 @@ class DataCube(ImageCollection):
         Pairwise comparison of the bands in this data cube with the bands in the 'other' data cube.
 
         :param other:
-        :return ImageCollection: this + other
+        :return DataCube: this > other
         """
         return self._operator_binary("gt", other)
 
@@ -295,7 +293,7 @@ class DataCube(ImageCollection):
         The number of bands in both data cubes has to be the same.
 
         :param other:
-        :return ImageCollection: this + other
+        :return DataCube: this < other
         """
         return self._operator_binary("lt", other)
 
@@ -383,7 +381,7 @@ class DataCube(ImageCollection):
             }
         ))
 
-    def zonal_statistics(self, regions, func, scale=1000, interval="day") -> 'ImageCollection':
+    def zonal_statistics(self, regions, func, scale=1000, interval="day") -> 'DataCube':
         """Calculates statistics for each zone specified in a file.
             :param regions: GeoJSON or a path to a GeoJSON file containing the
                             regions. For paths you must specify the path to a
@@ -394,7 +392,7 @@ class DataCube(ImageCollection):
                           in. Defaults to 1000.
             :param interval: Interval to group the time series. Allowed values:
                             day, wee, month, year. Defaults to day.
-            :return: An ImageCollection instance
+            :return: a DataCube instance
         """
         regions_geojson = regions
         if isinstance(regions, Polygon) or isinstance(regions, MultiPolygon):
@@ -549,7 +547,7 @@ class DataCube(ImageCollection):
     def min_time(self) -> 'DataCube':
         """Finds the minimum value of a time series for all bands of the input dataset.
 
-            :return: An DataCube instance
+            :return: a DataCube instance
         """
 
         return self.reduce_temporal_simple("min")
@@ -558,21 +556,21 @@ class DataCube(ImageCollection):
         """
         Finds the maximum value of a time series for all bands of the input dataset.
 
-        :return: An DataCube instance
+        :return: a DataCube instance
         """
         return self.reduce_temporal_simple("max")
 
     def mean_time(self) -> 'DataCube':
         """Finds the mean value of a time series for all bands of the input dataset.
 
-            :return: An DataCube instance
+            :return: a DataCube instance
         """
         return self.reduce_temporal_simple("mean")
 
     def median_time(self) -> 'DataCube':
         """Finds the median value of a time series for all bands of the input dataset.
 
-            :return: An DataCube instance
+            :return: a DataCube instance
         """
 
         return self.reduce_temporal_simple("median")
@@ -580,7 +578,7 @@ class DataCube(ImageCollection):
     def count_time(self) -> 'DataCube':
         """Counts the number of images with a valid mask in a time series for all bands of the input dataset.
 
-            :return: An DataCube instance
+            :return: a DataCube instance
         """
         return self.reduce_temporal_simple("count")
 
@@ -591,7 +589,7 @@ class DataCube(ImageCollection):
             :param red: name of red band
             :param target_band: (optional) name of the newly created band
 
-            :return: An ImageCollection instance
+            :return: a DataCube instance
         """
         return self.process(
             process_id='ndvi',
@@ -602,13 +600,13 @@ class DataCube(ImageCollection):
         )
 
     @deprecated("use 'linear_scale_range' instead")
-    def stretch_colors(self, min, max) -> 'ImageCollection':
+    def stretch_colors(self, min, max) -> 'DataCube':
         """ Color stretching
         deprecated, use 'linear_scale_range' instead
 
             :param min: Minimum value
             :param max: Maximum value
-            :return: An ImageCollection instance
+            :return: a DataCube instance
         """
         process_id = 'stretch_colors'
         args = {
@@ -619,13 +617,13 @@ class DataCube(ImageCollection):
 
         return self.process(process_id, args)
 
-    def linear_scale_range(self, input_min, input_max, output_min, output_max) -> 'ImageCollection':
+    def linear_scale_range(self, input_min, input_max, output_min, output_max) -> 'DataCube':
         """ Color stretching
             :param input_min: Minimum input value
             :param input_max: Maximum input value
             :param output_min: Minimum output value
             :param output_max: Maximum output value
-            :return An ImageCollection instance
+            :return a DataCube instance
         """
         process_id = 'linear_scale_range'
         args = {
@@ -734,50 +732,50 @@ class DataCube(ImageCollection):
 
     ####VIEW methods #######
 
-    def polygonal_mean_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> 'ImageCollection':
+    def polygonal_mean_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> 'DataCube':
         """
         Extract a mean time series for the given (multi)polygon. Its points are
         expected to be in the EPSG:4326 coordinate
         reference system.
 
         :param polygon: The (multi)polygon; or a file path or HTTP URL to a GeoJSON file or shape file
-        :return: ImageCollection
+        :return: DataCube
         """
 
         return self._polygonal_timeseries(polygon, "mean")
 
-    def polygonal_histogram_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> 'ImageCollection':
+    def polygonal_histogram_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> 'DataCube':
         """
         Extract a histogram time series for the given (multi)polygon. Its points are
         expected to be in the EPSG:4326 coordinate
         reference system.
 
         :param polygon: The (multi)polygon; or a file path or HTTP URL to a GeoJSON file or shape file
-        :return: ImageCollection
+        :return: DataCube
         """
 
         return self._polygonal_timeseries(polygon, "histogram")
 
-    def polygonal_median_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> 'ImageCollection':
+    def polygonal_median_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> 'DataCube':
         """
         Extract a median time series for the given (multi)polygon. Its points are
         expected to be in the EPSG:4326 coordinate
         reference system.
 
         :param polygon: The (multi)polygon; or a file path or HTTP URL to a GeoJSON file or shape file
-        :return: ImageCollection
+        :return: DataCube
         """
 
         return self._polygonal_timeseries(polygon, "median")
 
-    def polygonal_standarddeviation_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> 'ImageCollection':
+    def polygonal_standarddeviation_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> 'DataCube':
         """
         Extract a time series of standard deviations for the given (multi)polygon. Its points are
         expected to be in the EPSG:4326 coordinate
         reference system.
 
         :param polygon: The (multi)polygon; or a file path or HTTP URL to a GeoJSON file or shape file
-        :return: ImageCollection
+        :return: DataCube
         """
 
         return self._polygonal_timeseries(polygon, "sd")
