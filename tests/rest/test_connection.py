@@ -91,7 +91,7 @@ def test_connection_with_session():
     conn = Connection("https://oeo.net/", session=session)
     assert conn.capabilities().capabilities["foo"] == "bar"
     session.request.assert_any_call(
-        url="https://oeo.net/", method="get", headers=mock.ANY, stream=mock.ANY, auth=mock.ANY
+        url="https://oeo.net/", method="get", headers=mock.ANY, stream=mock.ANY, auth=mock.ANY, timeout=None
     )
 
 
@@ -103,7 +103,7 @@ def test_connect_with_session():
     conn = connect("https://oeo.net/", session=session)
     assert conn.capabilities().capabilities["foo"] == "bar"
     session.request.assert_any_call(
-        url="https://oeo.net/", method="get", headers=mock.ANY, stream=mock.ANY, auth=mock.ANY
+        url="https://oeo.net/", method="get", headers=mock.ANY, stream=mock.ANY, auth=mock.ANY, timeout=None
     )
 
 
@@ -199,9 +199,26 @@ def test_list_file_formats(requests_mock):
     requests_mock.get(API_URL + "file_formats", json=file_formats)
     assert conn.list_file_formats() == file_formats
 
+
 def test_get_job(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     conn = Connection(API_URL)
 
     my_job = conn.job("the_job_id")
     assert my_job is not None
+
+
+def test_default_timeout_default(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    requests_mock.get("/foo", text=lambda req, ctx: repr(req.timeout))
+    conn = connect(API_URL)
+    assert conn.get("/foo").text == 'None'
+    assert conn.get("/foo", timeout=5).text == '5'
+
+
+def test_default_timeout(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    requests_mock.get("/foo", json=lambda req, ctx: repr(req.timeout))
+    conn = connect(API_URL, default_timeout=2)
+    assert conn.get("/foo").json() == '2'
+    assert conn.get("/foo", timeout=5).json() == '5'

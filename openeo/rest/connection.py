@@ -52,10 +52,12 @@ class OpenEoApiError(OpenEoClientException):
 class RestApiConnection:
     """Base connection class implementing generic REST API request functionality"""
 
-    def __init__(self, root_url: str, auth: AuthBase = None, session: requests.Session = None):
+    def __init__(self, root_url: str, auth: AuthBase = None, session: requests.Session = None,
+                 default_timeout: int = None):
         self._root_url = root_url
-        self.session = session or requests.Session()
         self.auth = auth or NullAuth()
+        self.session = session or requests.Session()
+        self.default_timeout = default_timeout
         self.default_headers = {
             "User-Agent": "openeo-python-client/{cv} {py}/{pv} {pl}".format(
                 cv=openeo.client_version(),
@@ -82,6 +84,7 @@ class RestApiConnection:
             url=self.build_url(path),
             headers=self._merged_headers(headers),
             auth=auth or self.auth,
+            timeout=kwargs.pop("timeout", self.default_timeout),
             **kwargs
         )
         # Check for API errors and unexpected HTTP status codes as desired.
@@ -167,13 +170,13 @@ class Connection(RestApiConnection):
 
     _MINIMUM_API_VERSION = ComparableVersion("0.4.0")
 
-    def __init__(self, url, auth: AuthBase = None, session: requests.Session = None):
+    def __init__(self, url, auth: AuthBase = None, session: requests.Session = None, default_timeout: int = None):
         """
         Constructor of Connection, authenticates user.
 
         :param url: String Backend root url
         """
-        super().__init__(root_url=url, auth=auth, session=session)
+        super().__init__(root_url=url, auth=auth, session=session, default_timeout=default_timeout)
         self._cached_capabilities = None
 
         # Initial API version check.
@@ -531,7 +534,8 @@ class Connection(RestApiConnection):
         return ImageCollectionClient.load_disk_collection(self, format, glob_pattern, **options)
 
 
-def connect(url, auth_type: str = None, auth_options: dict = {}, session: requests.Session = None) -> Connection:
+def connect(url, auth_type: str = None, auth_options: dict = {}, session: requests.Session = None,
+            default_timeout: int = None) -> Connection:
     """
     This method is the entry point to OpenEO.
     You typically create one connection object in your script or application
@@ -549,9 +553,10 @@ def connect(url, auth_type: str = None, auth_options: dict = {}, session: reques
     :param url: The http url of an OpenEO endpoint.
     :param auth_type: Which authentication to use: None, "basic" or "oidc" (for OpenID Connect)
     :param auth_options: Options/arguments specific to the authentication type
+    :param default_timeout: default timeout (in seconds) for requests
     :rtype: openeo.connections.Connection
     """
-    connection = Connection(url, session=session)
+    connection = Connection(url, session=session, default_timeout=default_timeout)
     auth_type = auth_type.lower() if isinstance(auth_type, str) else auth_type
     if auth_type in {None, 'null', 'none'}:
         pass
