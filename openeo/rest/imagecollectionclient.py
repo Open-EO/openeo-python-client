@@ -1068,8 +1068,9 @@ class ImageCollectionClient(ImageCollection):
             label += '</TABLE>>'
             # Add node and edges to graph
             graph.node(name, label=label)
-            if "data" in args and "from_node" in args["data"]:
-                graph.edge(args["data"]["from_node"], name)
+            for arg in args.values():
+                if isinstance(arg, dict) and "from_node" in arg:
+                    graph.edge(arg["from_node"], name)
 
             # TODO: add subgraph for "callback" arguments?
 
