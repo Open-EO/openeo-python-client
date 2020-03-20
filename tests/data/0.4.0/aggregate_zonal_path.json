@@ -1,13 +1,5 @@
 {
   "process_graph": {
-    "loadcollection1": {
-      "process_id": "load_collection",
-      "arguments": {
-        "id": "SENTINEL2_FAPAR",
-        "spatial_extent": null,
-        "temporal_extent": null
-      }
-    },
     "filterbbox1": {
       "process_id": "filter_bbox",
       "arguments": {
@@ -21,13 +13,24 @@
           "south": 50,
           "crs": "EPSG:4326"
         }
-      }
+      },
+      "result": false
+    },
+    "loadcollection1": {
+      "process_id": "load_collection",
+      "arguments": {
+        "id": "S2",
+        "spatial_extent": null,
+        "temporal_extent": null
+      },
+      "result": false
     },
     "readvector1": {
-      "process_id": "read_vector",
       "arguments": {
-        "filename": "/data/users/Public/vdboschj/EP-3025/GeometryCollection.geojson"
-      }
+        "filename": "/some/path/to/GeometryCollection.geojson"
+      },
+      "process_id": "read_vector",
+      "result": false
     },
     "aggregatepolygon1": {
       "process_id": "aggregate_polygon",
@@ -40,13 +43,13 @@
         },
         "reducer": {
           "callback": {
-            "mean1": {
-              "process_id": "mean",
+            "unary": {
               "arguments": {
                 "data": {
                   "from_argument": "data"
                 }
               },
+              "process_id": "mean",
               "result": true
             }
           }

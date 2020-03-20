@@ -2,71 +2,68 @@
   "loadcollection1": {
     "process_id": "load_collection",
     "arguments": {
-      "id": "SENTINEL2_SCF",
       "spatial_extent": null,
+      "id": "S2",
       "temporal_extent": null
     }
   },
   "reducedimension1": {
     "process_id": "reduce_dimension",
     "arguments": {
+      "dimension": "spectral_bands",
       "data": {
         "from_node": "loadcollection1"
       },
-      "dimension": "spectral_bands",
       "reducer": {
         "process_graph": {
           "arrayelement1": {
             "process_id": "array_element",
             "arguments": {
+              "index": 2,
               "data": {
                 "from_parameter": "data"
-              },
-              "index": 0
+              }
             }
           },
-          "eq1": {
-            "process_id": "eq",
+          "add1": {
+            "process_id": "add",
             "arguments": {
               "x": {
                 "from_node": "arrayelement1"
+              },
+              "y": 42
+            }
+          },
+          "subtract1": {
+            "process_id": "subtract",
+            "arguments": {
+              "x": {
+                "from_node": "add1"
+              },
+              "y": 10
+            }
+          },
+          "multiply1": {
+            "process_id": "multiply",
+            "arguments": {
+              "x": {
+                "from_node": "subtract1"
+              },
+              "y": 3
+            }
+          },
+          "divide1": {
+            "process_id": "divide",
+            "arguments": {
+              "x": {
+                "from_node": "multiply1"
               },
               "y": 2
-            }
-          },
-          "eq2": {
-            "process_id": "eq",
-            "arguments": {
-              "x": {
-                "from_node": "arrayelement1"
-              },
-              "y": 5
-            }
-          },
-          "or1": {
-            "process_id": "or",
-            "arguments": {
-              "x": {
-                "from_node": "eq1"
-              },
-              "y": {
-                "from_node": "eq2"
-              }
             },
             "result": true
           }
         }
       }
-    }
-  },
-  "saveresult1": {
-    "process_id": "save_result",
-    "arguments": {
-      "data": {
-        "from_node": "reducedimension1"
-      },
-      "format": "GTIFF",
-      "options": {}
     },
     "result": true
   }

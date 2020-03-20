@@ -1,42 +1,38 @@
-
 {
-  "filterbands1": {
-    "process_id": "filter_bands",
-    "arguments": {
-      "data": {
-        "from_node": "loadcollection1"
-      },
-      "bands": [
-        "red",
-        "green"
-      ]
-    }
-  },
   "loadcollection1": {
     "process_id": "load_collection",
     "arguments": {
-      "id": "SENTINEL2_RADIOMETRY_10M",
       "spatial_extent": null,
+      "id": "S2",
       "temporal_extent": null
     }
   },
   "reducedimension1": {
     "process_id": "reduce_dimension",
     "arguments": {
-      "data": {
-        "from_node": "filterbands1"
-      },
       "dimension": "spectral_bands",
+      "data": {
+        "from_node": "loadcollection1"
+      },
       "reducer": {
         "process_graph": {
           "arrayelement1": {
+            "process_id": "array_element",
             "arguments": {
+              "index": 2,
               "data": {
                 "from_parameter": "data"
+              }
+            }
+          },
+          "gt1": {
+            "process_id": "gt",
+            "arguments": {
+              "x": {
+                "from_node": "arrayelement1"
               },
-              "index": 0
+              "y": 42
             },
-            "process_id": "array_element",
             "result": true
           }
         }

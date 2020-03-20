@@ -257,6 +257,7 @@ class ImageCollection(ABC):
         """
         pass
 
+    # TODO: deprecated/unused? Confusing name as well: ImageCollectionClient does reduce along "spectral" dimension
     def apply_tiles(self, code: str) -> 'ImageCollection':
         """Apply a function to the tiles of an image collection.
 
@@ -422,33 +423,6 @@ class ImageCollection(ABC):
             :return: An ImageCollection instance
         """
         # TODO: does this method have to be defined at the level of the ImageCollection base class? it is only implemented by the rest client
-        pass
-
-    def mask(self, polygon: Union[Polygon, MultiPolygon]=None, srs="EPSG:4326", rastermask: 'ImageCollection'=None,
-             replacement=None) -> 'ImageCollection':
-        """
-        Mask the image collection using either a polygon or a raster mask.
-
-        All pixels outside the polygon should be set to the nodata value.
-        All pixels inside, or intersecting the polygon should retain their original value.
-
-        All pixels are replaced for which the corresponding pixels in the mask are non-zero (for numbers) or True
-        (for boolean values).
-
-        The pixel values are replaced with the value specified for replacement, which defaults to None (no data).
-        No data values will be left untouched by the masking operation.
-
-        TODO: Does mask by polygon imply cropping?
-        TODO: what about naming? Masking can also be done using a raster mask...
-        TODO: what will happen if the intersection between the mask and the imagecollection is empty? Raise an error?
-
-        :param polygon: A polygon, provided as a :class:`shapely.geometry.Polygon` or :class:`shapely.geometry.MultiPolygon`
-        :param srs: The reference system of the provided polygon, provided as an 'EPSG:XXXX' string. By default this is Lat Lon (EPSG:4326).
-        :param rastermask: the raster mask
-        :param replacement: the value to replace the masked pixels with
-        :raise: :class:`ValueError` if a polygon is supplied and its area is 0.
-        :return: A new ImageCollection, with the mask applied.
-        """
         pass
 
     def merge(self, other: 'ImageCollection') -> 'ImageCollection':

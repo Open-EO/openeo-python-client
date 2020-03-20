@@ -1,5 +1,5 @@
 from unittest import TestCase
-from openeo.graphbuilder import GraphBuilder
+from openeo.internal.graphbuilder_040 import GraphBuilder
 
 
 class GraphBuilderTest(TestCase):

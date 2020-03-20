@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 
@@ -8,6 +9,5 @@ def get_test_resource(relative_path):
 
 
 def load_json_resource(relative_path):
-    import json
     with open(get_test_resource(relative_path), 'r+') as f:
         return json.load(f)

@@ -7,19 +7,20 @@
     },
     "process_id": "load_collection"
   },
-  "reduce1": {
+  "reducedimension1": {
+    "process_id": "reduce_dimension",
     "arguments": {
       "dimension": "spectral_bands",
       "reducer": {
-        "callback": {
+        "process_graph": {
           "arrayelement1": {
+            "process_id": "array_element",
             "arguments": {
               "index": 0,
               "data": {
-                "from_argument": "data"
+                "from_parameter": "data"
               }
             },
-            "process_id": "array_element",
             "result": true
           }
         }
@@ -28,7 +29,6 @@
         "from_node": "loadcollection1"
       }
     },
-    "process_id": "reduce",
     "result": true
   }
 }

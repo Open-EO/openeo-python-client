@@ -3,7 +3,7 @@ import pathlib
 import pytest
 
 import openeo
-from openeo.graphbuilder import GraphBuilder
+from openeo.internal.graphbuilder_040 import GraphBuilder
 from openeo.imagecollection import CollectionMetadata
 from openeo.rest.imagecollectionclient import ImageCollectionClient
 

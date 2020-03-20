@@ -5,7 +5,7 @@ import requests_mock
 from mock import MagicMock
 
 import openeo
-from openeo.graphbuilder import GraphBuilder
+from openeo.internal.graphbuilder_040 import GraphBuilder
 from openeo import Job
 from . import load_json_resource
 

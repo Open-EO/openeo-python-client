@@ -357,8 +357,8 @@ class Connection(RestApiConnection):
         :param collection_id: image collection identifier (string)
         :return: ImageCollectionClient
         """
-        if self._api_version.at_least(ComparableVersion("1.0.0")):
-            return DataCube.load_collection(collection_id=collection_id, session=self, **kwargs)
+        if self._api_version.at_least("1.0.0"):
+            return DataCube.load_collection(collection_id=collection_id, connection=self, **kwargs)
         else:
             return ImageCollectionClient.load_collection(collection_id=collection_id, session=self, **kwargs)
 
@@ -367,11 +367,12 @@ class Connection(RestApiConnection):
 
 
     def create_service(self, graph, type, **kwargs):
+        # TODO: type hint for graph: is it a nested or a flat one?
         kwargs["process_graph"] = graph
         kwargs["type"] = type
-        response = self.post("/services", kwargs)
+        response = self.post("/services", json=kwargs, expected_status=201)
         return {
-            'url': response.headers['Location'],
+            'url': response.headers.get('Location'),
             'service_id': response.headers.get("OpenEO-Identifier"),
         }
 

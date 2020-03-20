@@ -1,0 +1,43 @@
+{
+  "loadcollection1": {
+    "process_id": "load_collection",
+    "arguments": {
+      "id": "S2",
+      "temporal_extent": null,
+      "spatial_extent": null
+    }
+  },
+  "reducedimension1": {
+    "process_id": "reduce_dimension",
+    "arguments": {
+      "reducer": {
+        "process_graph": {
+          "min1": {
+            "arguments": {
+              "data": {
+                "from_parameter": "data"
+              }
+            },
+            "result": true,
+            "process_id": "min"
+          }
+        }
+      },
+      "data": {
+        "from_node": "loadcollection1"
+      },
+      "dimension": "temporal"
+    }
+  },
+  "saveresult1": {
+    "process_id": "save_result",
+    "arguments": {
+      "data": {
+        "from_node": "reducedimension1"
+      },
+      "format": "GTIFF",
+      "options": {}
+    },
+    "result": true
+  }
+}

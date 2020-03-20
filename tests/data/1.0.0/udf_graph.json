@@ -8,21 +8,20 @@
         "temporal_extent": null
       }
     },
-    "reduce1": {
-      "process_id": "reduce",
+    "reducedimension1": {
+      "process_id": "reduce_dimension",
       "arguments": {
         "data": {
           "from_node": "loadcollection1"
         },
         "dimension": "spectral_bands",
-        "binary": false,
         "reducer": {
-          "callback": {
+          "process_graph": {
             "runudf1": {
               "process_id": "run_udf",
               "arguments": {
                 "data": {
-                  "from_argument": "data"
+                  "from_parameter": "data"
                 },
                 "runtime": "Python",
                 "version": "latest",
@@ -38,7 +37,7 @@
       "process_id": "save_result",
       "arguments": {
         "data": {
-          "from_node": "reduce1"
+          "from_node": "reducedimension1"
         },
         "format": "GTIFF",
         "options": {}
