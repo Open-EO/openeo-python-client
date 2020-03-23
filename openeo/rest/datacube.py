@@ -331,7 +331,7 @@ class DataCube(ImageCollection):
         left = self._get_bandmath_node()
         right = other._get_bandmath_node()
         if left.arguments["data"] != right.arguments["data"]:
-            raise BandMathException("Band math between bands of different collections is not supported yet.")
+            raise BandMathException("'Band math' between bands of different data cubes is not supported yet.")
 
         # Build reducer's sub-processgraph
         merged = PGNode(

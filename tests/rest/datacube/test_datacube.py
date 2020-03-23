@@ -13,6 +13,7 @@ import pytest
 import shapely
 import shapely.geometry
 
+from openeo.rest import BandMathException
 from openeo.rest.datacube import DataCube
 from openeo.rest.imagecollectionclient import ImageCollectionClient
 from .. import get_download_graph
@@ -317,3 +318,15 @@ def test_apply_absolute(s2cube, api_version):
     result = s2cube.apply("absolute")
     expected_graph = load_json_resource('data/{v}/apply_absolute.json'.format(v=api_version))
     assert result.graph == expected_graph
+
+
+def test_subtract_dates_ep3129(s2cube, api_version):
+    """EP-3129: band math between cubes of different time stamps is not supported (yet?)"""
+    bbox = {"west": 5.16, "south": 51.23, "east": 5.18, "north": 51.25, "crs": "EPSG:4326"}
+    date1 = "2018-08-01"
+    date2 = "2019-10-28"
+    im1 = s2cube.filter_temporal(date1, date1).filter_bbox(**bbox).band('B04')
+    im2 = s2cube.filter_temporal(date2, date2).filter_bbox(**bbox).band('B04')
+
+    with pytest.raises(BandMathException, match="between bands of different"):
+        im2.subtract(im1)

@@ -11,6 +11,7 @@ from shapely.geometry import Polygon, MultiPolygon, mapping
 from openeo.internal.graphbuilder_040 import GraphBuilder
 from openeo.imagecollection import ImageCollection, CollectionMetadata
 from openeo.job import Job
+from openeo.rest import BandMathException
 from openeo.util import get_temporal_extent
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
@@ -416,6 +417,10 @@ class ImageCollectionClient(ImageCollection):
                 }
                 return self.graph_add_process("reduce", args)
         else:
+            left_data_arg = self.builder.processes[self.node_id]["arguments"]["data"]
+            right_data_arg = other.builder.processes[other.node_id]["arguments"]["data"]
+            if left_data_arg != right_data_arg:
+                raise BandMathException("'Band math' between bands of different image collections is not supported yet.")
             node_id = self.node_id
             reducing_graph = self
             if reducing_graph.graph[node_id]["process_id"] != "reduce":
