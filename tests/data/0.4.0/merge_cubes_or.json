@@ -127,17 +127,18 @@
             "arguments": {
               "expressions": [
                 {
-                  "from_argument": "cube2"
+                  "from_argument": "x"
                 },
                 {
-                  "from_argument": "cube2"
+                  "from_argument": "y"
                 }
               ]
             },
             "result": true
           }
         }
-      }
+      },
+      "binary": true
     },
     "result": false
   },

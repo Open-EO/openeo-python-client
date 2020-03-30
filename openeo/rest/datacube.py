@@ -708,12 +708,18 @@ class DataCube(ImageCollection):
             )
         )
 
-    def merge(self, other: 'DataCube', overlap_resolver: PGNode = None) -> 'DataCube':
+    def merge(self, other: 'DataCube', overlap_resolver: Union[str, PGNode] = None) -> 'DataCube':
         arguments = {
             'cube1': {'from_node': self._pg},
             'cube2': {'from_node': other._pg},
         }
         if overlap_resolver:
+            if isinstance(overlap_resolver, str):
+                # Simple resolver (specified as process_id string)
+                overlap_resolver = PGNode(
+                    process_id=overlap_resolver,
+                    arguments={"data": [{"from_parameter": "x"}, {"from_parameter": "y"}]}
+                )
             arguments["overlap_resolver"] = {"process_graph": overlap_resolver}
         # TODO #125 context
         # TODO: set metadata of reduced cube?

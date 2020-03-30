@@ -371,12 +371,13 @@ class ImageCollectionClient(ImageCollection):
 
     def _reduce_bands_binary(self, operator, other: 'ImageCollectionClient',arg_name='data'):
         # first we create the callback
-        fallback_node = {'from_argument': 'data'}
         my_builder = self._get_band_graph_builder()
         other_builder = other._get_band_graph_builder()
-        merged = GraphBuilder.combine(operator=operator,
-                                      first=my_builder or fallback_node,
-                                      second=other_builder or fallback_node, arg_name=arg_name)
+        merged = GraphBuilder.combine(
+            operator=operator,
+            first=my_builder or {'from_argument': 'data'},
+            second=other_builder or {'from_argument': 'data'},
+            arg_name=arg_name)
         # callback is ready, now we need to properly set up the reduce process that will invoke it
         if my_builder is None and other_builder is None:
             # there was no previous reduce step, perhaps this is a cube merge?
@@ -405,11 +406,12 @@ class ImageCollectionClient(ImageCollection):
                 cube_list = list(merged.processes.values())[0]["arguments"][arg_name]
                 assert len(cube_list) == 2
                 # it is really not clear if this is the agreed way to go
-                cube_list[0]["from_argument"] = "cube1"
-                cube_list[1]["from_argument"] = "cube2"
+                cube_list[0]["from_argument"] = "x"
+                cube_list[1]["from_argument"] = "y"
                 the_node["arguments"]["overlap_resolver"] = {
                     'callback': merged.processes
                 }
+                the_node["arguments"]["binary"] = True
                 return ImageCollectionClient(node_id, cubes_merged, self.session, metadata=self.metadata)
             else:
                 args = {
@@ -836,7 +838,7 @@ class ImageCollectionClient(ImageCollection):
 
         return new_collection.graph_add_process(process_id, args)
 
-    def merge(self,other:'ImageCollection') -> 'ImageCollection':
+    def merge(self, other: 'ImageCollection', overlap_resolver: str = None) -> 'ImageCollection':
         other_node = other.graph[other.node_id]
         other_node['result'] = True
         new_collection = self._graph_merge(other.graph)
@@ -847,10 +849,20 @@ class ImageCollectionClient(ImageCollection):
         cube2 = {
             'from_node': mask_id
         }
-        args={
-            'cube1':{'from_node':self.node_id},
-            'cube2':cube2
+        args = {
+            'cube1': {'from_node': self.node_id},
+            'cube2': cube2
         }
+        if overlap_resolver:
+            # Assume simple math operation
+            # TODO support general overlap resolvers.
+            assert isinstance(overlap_resolver, str)
+            args["overlap_resolver"] = {"callback": {"r1": {
+                "process_id": overlap_resolver,
+                "arguments": {"data": [{"from_argument": "x"}, {"from_argument": "y"}]},
+                "result": True,
+            }}}
+            args["binary"] = True
         return new_collection.graph_add_process('merge_cubes', args)
 
 

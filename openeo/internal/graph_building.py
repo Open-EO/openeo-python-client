@@ -77,7 +77,7 @@ class PGNode:
         'reduce_dimension', 'aggregate_spatial', 'apply', 'merge_cubes', 'resample_cube_temporal'
         """
         if isinstance(value, str):
-            # assume string with predefined reduce/appply process ("mean", "sum", ...)
+            # assume string with predefined reduce/apply process ("mean", "sum", ...)
             return value
         elif isinstance(value, PGNode):
             return {"process_graph": value}

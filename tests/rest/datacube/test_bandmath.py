@@ -225,7 +225,7 @@ def test_logical_and(connection, api_version):
     assert actual == load_json_resource('data/%s/logical_and.json' % api_version)
 
 
-def test_cube_merge_or(connection, api_version):
+def test_merge_cubes_or(connection, api_version):
     s2 = connection.load_collection("S2")
     b1 = s2.band("B02") > 1
     b2 = s2.band("B03") > 2
@@ -233,10 +233,10 @@ def test_cube_merge_or(connection, api_version):
     b2 = b2.linear_scale_range(0, 1, 0, 2)
     combined = b1 | b2
     actual = get_download_graph(combined)
-    assert actual == load_json_resource('data/%s/cube_merge_or.json' % api_version)
+    assert actual == load_json_resource('data/%s/merge_cubes_or.json' % api_version)
 
 
-def test_cube_merge_multiple(connection, api_version):
+def test_merge_cubes_multiple(connection, api_version):
     if api_version == "0.4.0":
         pytest.skip("doesn't work in 0.4.0")
     s2 = connection.load_collection("S2")
@@ -247,4 +247,18 @@ def test_cube_merge_multiple(connection, api_version):
     assert sorted(n["process_id"] for n in actual.values()) == [
         "linear_scale_range", "load_collection",
         "merge_cubes", "merge_cubes", "reduce_dimension", "save_result"]
-    assert actual == load_json_resource('data/%s/cube_merge_multiple.json' % api_version)
+    assert actual == load_json_resource('data/%s/merge_cubes_multiple.json' % api_version)
+
+
+def test_merge_cubes_no_resolver(connection, api_version):
+    s2 = connection.load_collection("S2")
+    mask = connection.load_collection("MASK")
+    merged = s2.merge(mask)
+    assert merged.graph == load_json_resource('data/%s/merge_cubes_no_resolver.json' % api_version)
+
+
+def test_merge_cubes_max_resolver(connection, api_version):
+    s2 = connection.load_collection("S2")
+    mask = connection.load_collection("MASK")
+    merged = s2.merge(mask, overlap_resolver="max")
+    assert merged.graph == load_json_resource('data/%s/merge_cubes_max.json' % api_version)

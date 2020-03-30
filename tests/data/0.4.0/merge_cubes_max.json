@@ -1,0 +1,51 @@
+{
+  "loadcollection1": {
+    "process_id": "load_collection",
+    "arguments": {
+      "id": "S2",
+      "spatial_extent": null,
+      "temporal_extent": null
+    },
+    "result": false
+  },
+  "loadcollection3": {
+    "process_id": "load_collection",
+    "arguments": {
+      "id": "MASK",
+      "spatial_extent": null,
+      "temporal_extent": null
+    },
+    "result": false
+  },
+  "mergecubes1": {
+    "process_id": "merge_cubes",
+    "arguments": {
+      "cube1": {
+        "from_node": "loadcollection1"
+      },
+      "cube2": {
+        "from_node": "loadcollection3"
+      },
+      "overlap_resolver": {
+        "callback": {
+          "r1": {
+            "process_id": "max",
+            "arguments": {
+              "data": [
+                {
+                  "from_argument": "x"
+                },
+                {
+                  "from_argument": "y"
+                }
+              ]
+            },
+            "result": true
+          }
+        }
+      },
+      "binary": true
+    },
+    "result": false
+  }
+}
