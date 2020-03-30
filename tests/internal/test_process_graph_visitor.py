@@ -60,9 +60,8 @@ def test_visit_nodes_array():
     graph = {
         "abs": {
             "arguments": {
-                "data": [{
-                    "from_argument": "data"
-                },
+                "data": [
+                    {"from_argument": "data"},
                     10.0
                 ]
             },
@@ -94,6 +93,53 @@ def test_visit_nodes_array():
     ]
     assert visitor.enterArray.call_args_list == [
         call(argument_id="data")
+    ]
+
+
+def test_visit_array_with_dereferenced_nodes():
+    graph = {
+        'arrayelement1': {
+            'arguments': {'data': {'from_argument': 'data'}, 'index': 2},
+            'process_id': 'array_element',
+            'result': False
+        },
+        'product1': {
+            'process_id': 'product',
+            'arguments': {'data': [{'from_node': 'arrayelement1'}, -1]},
+            'result': True
+        }
+    }
+    top = ProcessGraphVisitor.dereference_from_node_arguments(graph)
+    dereferenced = graph[top]
+    assert dereferenced["arguments"]["data"][0]["arguments"]["data"]["from_argument"] == "data"
+
+    visitor = ProcessGraphVisitor()
+    visitor.leaveProcess = MagicMock()
+    visitor.enterArgument = MagicMock()
+    visitor.enterArray = MagicMock()
+    visitor.arrayElementDone = MagicMock()
+    visitor.constantArrayElement = MagicMock()
+
+    visitor.accept(dereferenced)
+    assert visitor.leaveProcess.call_args_list == [
+        call(process_id='array_element', arguments=ANY),
+        call(process_id='product', arguments=ANY)
+    ]
+    assert visitor.enterArgument.call_args_list == [
+        call(argument_id="data", value={'from_argument': 'data'})
+    ]
+    assert visitor.enterArray.call_args_list == [
+        call(argument_id="data")
+    ]
+    assert visitor.arrayElementDone.call_args_list == [
+        call({
+            "process_id": "array_element",
+            "arguments": {"data": {"from_argument": "data"}, "index": 2},
+            "result": False
+        })
+    ]
+    assert visitor.constantArrayElement.call_args_list == [
+        call(-1)
     ]
 
 

@@ -100,6 +100,8 @@ class ProcessGraphVisitor(ABC):
             self.accept_node(value['node'])
         elif value.get("from_node"):
             self.accept_node(value['from_node'])
+        elif "process_id" in value:
+            self.accept_node(value)
         else:
             self._accept_dict(value)
 
