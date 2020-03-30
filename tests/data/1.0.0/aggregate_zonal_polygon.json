@@ -1,4 +1,4 @@
-{
+{ "process": {
   "process_graph": {
     "loadcollection1": {
       "process_id": "load_collection",
@@ -79,4 +79,4 @@
       "result": true
     }
   }
-}
+}}

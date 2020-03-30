@@ -2,12 +2,10 @@ import openeo
 import logging
 import time
 import json
-from openeo.auth.auth_bearer import BearerAuth
-
 logging.basicConfig(level=logging.INFO)
 
 
-GEE_DRIVER_URL = "https://earthengine.openeo.org/v0.4"
+GEE_DRIVER_URL = "https://earthengine.openeo.org/v1.0"
 
 OUTPUT_FILE = "/tmp/openeo_gee_output.png"
 
@@ -17,8 +15,9 @@ password = "test123"
 #connect with GEE backend
 #session = openeo.session("nobody", GEE_DRIVER_URL)
 
-#TODO update example
-con = openeo.connect(GEE_DRIVER_URL, auth_type=BearerAuth, auth_options={"username": user, "password": password})
+# Connect to backend via basic authentication
+con = openeo.connect(GEE_DRIVER_URL)
+con.authenticate_basic(user, password)
 
 #Test Connection
 print(con.list_processes())
@@ -36,23 +35,21 @@ print(cap.list_plans())
 
 # Test Processes
 
-datacube = con.imagecollection("COPERNICUS/S2")
+datacube = con.load_collection("COPERNICUS/S2")
 datacube = datacube.filter_bbox(west=16.138916, south=48.138600, east=16.524124, north=48.320647, crs="EPSG:4326")
-datacube = datacube.filter_daterange(extent=["2017-01-01T00:00:00Z", "2017-01-31T23:59:59Z"])
-datacube = datacube.ndvi(nir="B4", red="B8A")
-datacube = datacube.min_time()
+datacube = datacube.filter_temporal(extent=["2017-01-01T00:00:00Z", "2017-01-31T23:59:59Z"])
+datacube = datacube.min_time(dim_abbr="t")
+datacube = datacube.save_result(format="PNG")
 print(json.dumps(datacube.graph, indent=2))
 
 # Test Job
+job = datacube.send_job()
 
-job = con.create_job(datacube.graph)
 print(job.job_id)
 print(job.start_job())
-print (job.describe_job())
+print(job.describe_job())
 time.sleep(5)
-job.download_results("/tmp/testfile")
-
-
+print(job.download_results("/tmp/"))
 
 # PoC JSON:
 # {

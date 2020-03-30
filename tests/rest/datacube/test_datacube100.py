@@ -101,13 +101,13 @@ def test_viewing_service(con100: Connection, requests_mock):
         assert request.json() == {
             'custom_param': 45,
             'description': 'Nice!',
-            'process_graph': {
+            'process': {'process_graph': {
                 'loadcollection1': {
                     'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
                     'process_id': 'load_collection',
                     'result': True,
                 }
-            },
+            }},
             'title': 'S2 Foo',
             'type': 'WMTS',
         }

@@ -1,3 +1,4 @@
+import os
 import datetime
 import logging
 import pathlib
@@ -79,24 +80,61 @@ class RESTJob(Job):
         # GET /jobs/{job_id}/results
         pass
 
-    def download_results(self, target: Union[str, pathlib.Path]) -> pathlib.Path:
-        """ Download job results."""
+    def download_results(self, target: Union[str, pathlib.Path] = None) -> list:
+        """
+        Download job results to the target folder path.
+        target is not set: it stores the result files at the execution path.
+        target is set to a file path including the filename: The result gets stored in this file. If there are more than
+                                                             one result file, only one gets downloaded into that filepath.
+        target is set to a folder path: All download files will be downloaded into this path.
+
+
+        :param target: String path, where to put the result files or filepath, if only one resultfile is expected.
+        :return: file_list: List of strings containing the downloaded file paths.
+        """
+
         results_url = "/jobs/{}/results".format(self.job_id)
         r = self.connection.get(results_url, expected_status=200)
-        links = r.json()["links"]
-        if len(links) != 1:
-            # TODO handle download of multiple files?
-            raise OpenEoClientException("Expected 1 result file to download, but got {c}".format(c=len(links)))
-        file_url = links[0]["href"]
 
-        target = pathlib.Path(target)
-        with target.open('wb') as handle:
-            response = self.connection.get(file_url, stream=True)
-            for block in response.iter_content(1024):
-                if not block:
-                    break
-                handle.write(block)
-        return target
+        file_list = []
+
+        if self.connection._api_version.at_least("1.0.0"):
+            links = r.json()["assets"]
+            for key, val in links.items():
+                if target:
+                    if os.path.isdir(target):
+                        file_list.append((os.path.join(target, key), val["href"]))
+                    else:
+                        file_list.append((target, val["href"]))
+                else:
+                    file_list.append((key, val["href"]))
+        else:
+            links = r.json()["links"]
+            for link in links:
+                if target:
+                    if os.path.isdir(target):
+                        file_list.append((os.path.join(target, link["href"].split("/")[-1]), link["href"]))
+                    else:
+                        file_list.append((target, link["href"]))
+                else:
+                    file_list.append((link["href"].split("/")[-1]), link["href"])
+
+        if len(file_list) == 0:
+            raise OpenEoClientException("Expected at least one result file to download, but got {c}".format(c=len(file_list)))
+
+        if len(links) > 1 and not os.path.isdir(target):
+            logger.warning("There was more than one result file, but only one file path ({}) given. \n"
+                           "Therefore, only one file got downloaded!".format(target))
+
+        for result in file_list:
+            target = pathlib.Path(result[0])
+            with target.open('wb') as handle:
+                response = self.connection.get(result[1], stream=True)
+                for block in response.iter_content(1024):
+                    if not block:
+                        break
+                    handle.write(block)
+        return list(map(lambda x: x[0], file_list))
 
     # TODO: All below methods are deprecated (at least not specified in the coreAPI)
     def download(self, outputfile: str, outputformat=None):

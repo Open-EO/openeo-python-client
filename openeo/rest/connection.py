@@ -7,7 +7,7 @@ import pathlib
 import shutil
 import sys
 import warnings
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
 from urllib.parse import urljoin
 
 import requests
@@ -79,12 +79,16 @@ class RestApiConnection:
     def request(self, method: str, path: str, headers: dict = None, auth: AuthBase = None,
                 check_error=True, expected_status=None, **kwargs):
         """Generic request send"""
+        build_url = self.build_url(path)
+        merged_header = self._merged_headers(headers)
+        auth_new = auth or self.auth
+        timeout = kwargs.pop("timeout", self.default_timeout)
         resp = self.session.request(
             method=method,
-            url=self.build_url(path),
-            headers=self._merged_headers(headers),
-            auth=auth or self.auth,
-            timeout=kwargs.pop("timeout", self.default_timeout),
+            url=build_url,
+            headers=merged_header,
+            auth=auth_new,
+            timeout=timeout,
             **kwargs
         )
         # Check for API errors and unexpected HTTP status codes as desired.
@@ -347,7 +351,7 @@ class Connection(RestApiConnection):
     def _api_version(self) -> ComparableVersion:
         return self.capabilities().api_version_check
 
-    def load_collection(self, collection_id: str, **kwargs) -> ImageCollectionClient:
+    def load_collection(self, collection_id: str, **kwargs) -> Union[ImageCollectionClient, DataCube]:
         """
         Load an image collection by collection id
 
@@ -365,10 +369,13 @@ class Connection(RestApiConnection):
     # Legacy alias.
     imagecollection = load_collection
 
-
     def create_service(self, graph, type, **kwargs):
         # TODO: type hint for graph: is it a nested or a flat one?
-        kwargs["process_graph"] = graph
+        if self._api_version.at_least("1.0.0"):
+            kwargs["process"] = {"process_graph": graph}
+        else:
+            kwargs["process_graph"] = graph
+
         kwargs["type"] = type
         response = self.post("/services", json=kwargs, expected_status=201)
         return {
@@ -422,7 +429,10 @@ class Connection(RestApiConnection):
         :param format_options: formating options
         :return: job_id: String
         """
-        request = {"process_graph": graph}
+        if self._api_version.at_least("1.0.0"):
+            request = {"process": {"process_graph": graph}}
+        else:
+            request = {"process_graph": graph}
         download_url = self.build_url("/result")
         r = self.post(download_url, json=request, stream=True, timeout=1000)
         with pathlib.Path(outputfile).open(mode="wb") as f:
@@ -456,17 +466,22 @@ class Connection(RestApiConnection):
         :return: job_id: String Job id of the new created job
         """
         # TODO move all this (RESTJob factory) logic to RESTJob?
-        process_graph = {
-            "process_graph": process_graph,
+        pg_meta = {
             "title": title,
             "description": description,
             "plan": plan,
             "budget": budget
         }
-        if additional:
-            process_graph["job_options"] = additional
 
-        response = self.post("/jobs", process_graph)
+        if self._api_version.at_least("1.0.0"):
+            pg_meta["process"] = {"process_graph": process_graph}
+        else:
+            pg_meta["process_graph"] = process_graph
+
+        if additional:
+            pg_meta["job_options"] = additional
+
+        response = self.post("/jobs", pg_meta)
 
         if "openeo-identifier" in response.headers:
             job_id = response.headers['openeo-identifier']

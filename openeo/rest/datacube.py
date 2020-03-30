@@ -525,32 +525,40 @@ class DataCube(ImageCollection):
 
     def apply(self, process: str, data_argument='x') -> 'DataCube':
         # TODO #125 allow more complex sub-process-graphs?
+
+        arguments = { "data": self._pg}
+
+        if self._api_version.at_least("1.0.0"):
+            arguments["process"] = {"process_graph": PGNode(
+                    process_id=process,
+                    arguments={data_argument: {"from_parameter": "x"}})}
+        else:
+            arguments["process_graph"] = PGNode(
+                    process_id=process,
+                    arguments={data_argument: {"from_parameter": "x"}})
+
         return self.process_with_node(PGNode(
             process_id='apply',
-            arguments={
-                "data": self._pg,
-                "process": {"process_graph": PGNode(
-                    process_id=process,
-                    arguments={data_argument: {"from_parameter": "x"}}
-                )},
+            arguments=arguments
                 # TODO #125 context
-            }
         ))
 
-    def reduce_temporal_simple(self, process_id="max") -> 'DataCube':
+    def reduce_temporal_simple(self, process_id="max", dim_abbr="temporal") -> 'DataCube':
         """Do temporal reduce with a simple given process as callback."""
         return self._reduce_temporal(reducer=PGNode(
             process_id=process_id,
             arguments={"data": {"from_parameter": "data"}}
-        ))
+        ), dimension=dim_abbr)
 
-    def min_time(self) -> 'DataCube':
+    def min_time(self, dim_abbr='temporal') -> 'DataCube':
         """Finds the minimum value of a time series for all bands of the input dataset.
+
+            :param dim_abbr: Dimension name to reduce to.
 
             :return: a DataCube instance
         """
-
-        return self.reduce_temporal_simple("min")
+        # TODO: maybe find a better solution than dim_abbr (atm: time dimension: GEE: "t", VITO: "temporal")
+        return self.reduce_temporal_simple("min", dim_abbr=dim_abbr)
 
     def max_time(self) -> 'DataCube':
         """
@@ -711,6 +719,10 @@ class DataCube(ImageCollection):
             'cube2': {'from_node': other._pg},
         }
         if overlap_resolver:
+            # TODO: for 1.0.0 support
+            #if self._api_version.at_least("1.0.0"):
+            #    arguments["overlap_resolver"] = {"process": {"process_graph": overlap_resolver}}
+            #else:
             arguments["overlap_resolver"] = {"process_graph": overlap_resolver}
         # TODO #125 context
         # TODO: set metadata of reduced cube?
@@ -795,15 +807,24 @@ class DataCube(ImageCollection):
                 }
             }
 
+        reducer = {"process_graph": PGNode(
+                    process_id=func,
+                    arguments={"data": {"from_parameter": "data"}}
+                )}
+        # TODO: Might be necessary for 1.0.0rc2
+        # if self._api_version.at_least("1.0.0"):
+        #     reducer = {"process": {"process_graph": PGNode(
+        #             process_id=func,
+        #             arguments={"data": {"from_parameter": "data"}}
+        #         )}}
+
+
         return self.process_with_node(PGNode(
             process_id="aggregate_spatial",
             arguments={
                 "data": self._pg,
                 "geometries": geometries,
-                "reducer": {"process_graph": PGNode(
-                    process_id=func,
-                    arguments={"data": {"from_parameter": "data"}}
-                )},
+                "reducer": reducer,
                 # TODO #125 target dimension, context
             }
         ))
@@ -867,7 +888,10 @@ class DataCube(ImageCollection):
 
     def execute(self) -> Dict:
         """Executes the process graph of the imagery. """
-        return self._connection.execute({"process_graph": self._pg.flatten()}, "")
+        if self._api_version.at_least("1.0.0"):
+            return self._connection.execute({"process": {"process_graph": self._pg.flatten()}}, "")
+        else:
+            return self._connection.execute({"process_graph": self._pg.flatten()}, "")
 
     def to_graphviz(self):
         """
