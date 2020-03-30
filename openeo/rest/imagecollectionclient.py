@@ -338,6 +338,9 @@ class ImageCollectionClient(ImageCollection):
     def __add__(self, other):
         return self.add(other)
 
+    def __neg__(self):
+        return self.product(-1)
+
     def __mul__(self, other):
         return self.product(other)
 

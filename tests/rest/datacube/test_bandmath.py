@@ -100,6 +100,10 @@ def test_ndvi_udf_v100(con100):
         "multiply1": {"process_id": "multiply", "arguments": {"x": {"from_node": "arrayelement1"}, "y": 6},
                       "result": True}
     }),
+    ((lambda b: -b), {
+        "multiply1": {"process_id": "multiply", "arguments": {"x": {"from_node": "arrayelement1"}, "y": -1},
+                      "result": True}
+    }),
     ((lambda b: b / 8), {
         "divide1": {"process_id": "divide", "arguments": {"x": {"from_node": "arrayelement1"}, "y": 8}, "result": True}
     }),
@@ -169,6 +173,13 @@ def test_add_sub_mul_div_scalar(connection, api_version):
     band = cube.band('B04')
     result = (((band + 42) - 10) * 3) / 2
     assert result.graph == load_json_resource('data/%s/bm_add_sub_mul_div_scalar.json' % api_version)
+
+
+def test_negative(connection, api_version):
+    cube = connection.load_collection("S2")
+    band = cube.band('B04')
+    result = -band
+    assert result.graph == load_json_resource('data/%s/bm_negative.json' % api_version)
 
 
 def test_add_bands(connection, api_version):

@@ -1,0 +1,47 @@
+{
+  "loadcollection1": {
+    "process_id": "load_collection",
+    "arguments": {
+      "spatial_extent": null,
+      "id": "S2",
+      "temporal_extent": null
+    },
+    "result": false
+  },
+  "reduce1": {
+    "process_id": "reduce",
+    "arguments": {
+      "dimension": "spectral_bands",
+      "data": {
+        "from_node": "loadcollection1"
+      },
+      "reducer": {
+        "callback": {
+          "r1": {
+            "process_id": "array_element",
+            "arguments": {
+              "index": 2,
+              "data": {
+                "from_argument": "data"
+              }
+            },
+            "result": false
+          },
+          "product1": {
+            "process_id": "product",
+            "arguments": {
+              "data": [
+                {
+                  "from_node": "r1"
+                },
+                -1
+              ]
+            },
+            "result": true
+          }
+        }
+      }
+    },
+    "result": false
+  }
+}

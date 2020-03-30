@@ -312,6 +312,9 @@ class DataCube(ImageCollection):
     def __rsub__(self, other) -> 'DataCube':
         return self.subtract(other, reverse=True)
 
+    def __neg__(self) -> 'DataCube':
+        return self.multiply(-1)
+
     def __mul__(self, other) -> 'DataCube':
         return self.multiply(other)
 
