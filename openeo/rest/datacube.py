@@ -529,14 +529,14 @@ class DataCube(ImageCollection):
         arguments = {"data": self._pg}
 
         if self._api_version.at_least("1.0.0"):
-            if type(process) == 'str':
+            if isinstance(process, str):
                 arguments["process"] = {"process_graph": PGNode(
                         process_id=process,
                         arguments={data_argument: {"from_parameter": "x"}})}
             else:
                 arguments["process"] = {"process_graph": process}
         else:
-            if type(process) == 'str':
+            if isinstance(process, str):
                 arguments["process_graph"] = PGNode(
                         process_id=process,
                         arguments={data_argument: {"from_parameter": "x"}})
