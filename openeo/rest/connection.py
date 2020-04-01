@@ -79,16 +79,13 @@ class RestApiConnection:
     def request(self, method: str, path: str, headers: dict = None, auth: AuthBase = None,
                 check_error=True, expected_status=None, **kwargs):
         """Generic request send"""
-        build_url = self.build_url(path)
-        merged_header = self._merged_headers(headers)
-        auth_new = auth or self.auth
-        timeout = kwargs.pop("timeout", self.default_timeout)
+
         resp = self.session.request(
             method=method,
-            url=build_url,
-            headers=merged_header,
-            auth=auth_new,
-            timeout=timeout,
+            url=self.build_url(path),
+            headers=self._merged_headers(headers),
+            auth=auth or self.auth,
+            timeout=kwargs.pop("timeout", self.default_timeout),
             **kwargs
         )
         # Check for API errors and unexpected HTTP status codes as desired.
