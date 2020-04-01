@@ -52,7 +52,14 @@ class CollectionMetadata:
 
     def _get_bands(self) -> List[Band]:
         # TODO refactor this specification specific processing away in a subclass?
-        # First try `properties/eo:bands`
+        # First try `summaries/eo:bands`
+        eo_bands = self.get('summaries', 'eo:bands')
+        if eo_bands:
+            # center_wavelength is in micrometer according to spec
+            return [self.Band(b['name'], b.get('common_name'), b.get('center_wavelength')) for b in eo_bands]
+        warnings.warn("No band metadata under `summaries/eo:bands` trying some fallback sources.")
+
+        # Second try `properties/eo:bands`
         eo_bands = self.get('properties', 'eo:bands')
         if eo_bands:
             # center_wavelength is in micrometer according to spec
