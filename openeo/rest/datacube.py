@@ -526,16 +526,18 @@ class DataCube(ImageCollection):
         """
         return self.reduce_temporal_udf(code=code, runtime=runtime, version=version)
 
-    def apply(self, process: str, data_argument='x') -> 'DataCube':
-        # TODO #125 allow more complex sub-process-graphs?
+    def apply(self, process: Union[str, PGNode], data_argument='x') -> 'DataCube':
+        if isinstance(process, str):
+            # Simple single string process specification
+            process = PGNode(
+                process_id=process,
+                arguments={data_argument: {"from_parameter": "x"}}
+            )
         return self.process_with_node(PGNode(
             process_id='apply',
             arguments={
                 "data": self._pg,
-                "process": {"process_graph": PGNode(
-                    process_id=process,
-                    arguments={data_argument: {"from_parameter": "x"}}
-                )},
+                "process": {"process_graph": process},
                 # TODO #125 context
             }
         ))

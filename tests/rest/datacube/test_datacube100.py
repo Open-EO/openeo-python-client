@@ -10,6 +10,7 @@ from openeo.imagecollection import CollectionMetadata
 from openeo.internal.graph_building import PGNode
 from openeo.rest.connection import Connection
 from .conftest import API_URL
+from ... import load_json_resource
 
 
 def test_mask_polygon(con100: Connection):
@@ -200,3 +201,10 @@ def test_metadata_load_collection_100(con100, requests_mock):
         CollectionMetadata.Band("B2", "blue", None),
         CollectionMetadata.Band("B3", "green", None)
     ]
+
+
+def test_apply_absolute_pgnode(con100):
+    im = con100.load_collection("S2")
+    result = im.apply(PGNode(process_id="absolute", arguments={"x": {"from_parameter": "x"}}))
+    expected_graph = load_json_resource('data/1.0.0/apply_absolute.json')
+    assert result.graph == expected_graph
