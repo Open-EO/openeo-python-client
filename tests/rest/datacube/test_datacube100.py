@@ -6,6 +6,7 @@ Unit tests specifically for 1.0.0-style DataCube
 
 import shapely.geometry
 
+from openeo.imagecollection import CollectionMetadata
 from openeo.internal.graph_building import PGNode
 from openeo.rest.connection import Connection
 from .conftest import API_URL
@@ -180,3 +181,22 @@ def test_reduce_dimension_binary(con100):
             },
             'result': True
         }}
+
+
+def test_metadata_load_collection_100(con100, requests_mock):
+    requests_mock.get(API_URL + "/collections/SENTINEL2", json={
+        "cube:dimensions": {
+            "bands": {"type": "bands", "values": ["B2", "B3"]}
+        },
+        "summaries": {
+            "eo:bands": [
+                {"name": "B2", "common_name": "blue"},
+                {"name": "B3", "common_name": "green"},
+            ]
+        }
+    })
+    im = con100.load_collection('SENTINEL2')
+    assert im.metadata.bands == [
+        CollectionMetadata.Band("B2", "blue", None),
+        CollectionMetadata.Band("B3", "green", None)
+    ]

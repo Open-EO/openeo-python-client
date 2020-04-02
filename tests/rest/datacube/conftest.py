@@ -17,17 +17,17 @@ def _setup_connection(api_version, requests_mock) -> Connection:
     # TODO: make this more reusable?
     requests_mock.get(API_URL + "/", json={"api_version": api_version})
     s2_properties = {
-        "properties": {
-            "cube:dimensions": {
-                "bands": {"type": "bands", "values": ["B02", "B03", "B04", "B08"]}
-            },
+        "cube:dimensions": {
+            "bands": {"type": "bands", "values": ["B02", "B03", "B04", "B08"]}
+        },
+        "summaries": {
             "eo:bands": [
                 {"name": "B02", "common_name": "blue", "center_wavelength": 0.4966},
                 {"name": "B03", "common_name": "green", "center_wavelength": 0.560},
                 {"name": "B04", "common_name": "red", "center_wavelength": 0.6645},
                 {"name": "B08", "common_name": "nir", "center_wavelength": 0.8351},
             ]
-        }
+        },
     }
     # Classic Sentinel2 collection
     requests_mock.get(API_URL + "/collections/SENTINEL2_RADIOMETRY_10M", json=s2_properties)
@@ -36,15 +36,15 @@ def _setup_connection(api_version, requests_mock) -> Connection:
     # Some other collections
     requests_mock.get(API_URL + "/collections/MASK", json={})
     requests_mock.get(API_URL + "/collections/SENTINEL2_SCF", json={
-        "properties": {
-            "cube:dimensions": {
-                "bands": {"type": "bands", "values": ["SCENECLASSIFICATION", "MASKFOO"]}
-            },
+        "cube:dimensions": {
+            "bands": {"type": "bands", "values": ["SCENECLASSIFICATION", "MASKFOO"]}
+        },
+        "summaries": {
             "eo:bands": [
                 {"name": "SCENECLASSIFICATION"},
                 {"name": "MASK"},
             ]
-        }
+        },
     })
     return openeo.connect(API_URL)
 
