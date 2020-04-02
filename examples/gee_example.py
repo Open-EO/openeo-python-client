@@ -29,8 +29,6 @@ print(cap.list_features())
 print(cap.currency())
 print(cap.list_plans())
 
-# Test Processes
-
 datacube = con.load_collection("COPERNICUS/S2",
                                spatial_extent={"west": 16.138916, "south": 48.138600, "east": 16.524124, "north": 48.320647, "crs": "EPSG:4326"},
                                temporal_extent=["2017-01-01T00:00:00Z", "2017-01-31T23:59:59Z"],
@@ -45,7 +43,7 @@ datacube = datacube.reduce_dimension(dimension="bands", reducer=ndvi)
 
 print(json.dumps(datacube.graph, indent=2))
 
-datacube = datacube.min_time(dim_abbr="t")
+datacube = datacube.min_time(dimension="t")
 
 # defining linear scale range for apply process
 lin_scale = PGNode("linear_scale_range", arguments={"x": {"from_parameter": "x"}, "inputMin": -1, "inputMax": 1, "outputMax": 255})

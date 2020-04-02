@@ -25,14 +25,14 @@ def test_metadata_from_api(session040, requests_mock):
 
 def test_metadata_load_collection(session040, requests_mock):
     requests_mock.get(API_URL + "/collections/SENTINEL2", json={
-        "properties": {
-            "cube:dimensions": {
-                "bands": {"type": "bands", "values": ["B2", "B3"]}
-            },
+        "summaries": {
             "eo:bands": [
                 {"name": "B2", "common_name": "blue"},
                 {"name": "B3", "common_name": "green"},
             ]
+        },
+        "cube:dimensions": {
+            "bands": {"type": "bands", "values": ["B2", "B3"]}
         }
     })
     im = ImageCollectionClient.load_collection('SENTINEL2', session=session040)

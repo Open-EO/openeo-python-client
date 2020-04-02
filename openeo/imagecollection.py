@@ -59,14 +59,8 @@ class CollectionMetadata:
             return [self.Band(b['name'], b.get('common_name'), b.get('center_wavelength')) for b in eo_bands]
         warnings.warn("No band metadata under `summaries/eo:bands` trying some fallback sources.")
 
-        # Second try `properties/eo:bands`
-        eo_bands = self.get('properties', 'eo:bands')
-        if eo_bands:
-            # center_wavelength is in micrometer according to spec
-            return [self.Band(b['name'], b.get('common_name'), b.get('center_wavelength')) for b in eo_bands]
-        warnings.warn("No band metadata under `properties/eo:bands` trying some fallback sources.")
         # Fall back on `properties/cube:dimensions`
-        cube_dimensions = self.get('properties', 'cube:dimensions', default={})
+        cube_dimensions = self.get('cube:dimensions', default={})
         for dim in cube_dimensions.values():
             if dim["type"] == "bands":
                 # TODO: warn when multiple (or no) "bands" type?

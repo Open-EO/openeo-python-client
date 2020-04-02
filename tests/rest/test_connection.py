@@ -172,7 +172,7 @@ def test_load_collection_arguments(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "0.4.0"})
     conn = Connection(API_URL)
     requests_mock.get(API_URL + "collections/FOO", json={
-        "properties": {"eo:bands": [{"name": "red"}, {"name": "green"}, {"name": "blue"}]}
+        "summaries": {"eo:bands": [{"name": "red"}, {"name": "green"}, {"name": "blue"}]}
     })
     spatial_extent = {"west": 1, "south": 2, "east": 3, "north": 4}
     temporal_extent = ["2019-01-01", "2019-01-22"]
