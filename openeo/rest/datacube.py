@@ -876,7 +876,7 @@ class DataCube(ImageCollection):
 
     def execute(self) -> Dict:
         """Executes the process graph of the imagery. """
-        return self._connection.execute({"process_graph": self._pg.flatten()}, "")
+        return self._connection.execute(self._pg.flatten())
 
     def to_graphviz(self):
         """

@@ -1036,7 +1036,7 @@ class ImageCollectionClient(ImageCollection):
         """Executes the process graph of the imagery. """
         newbuilder = self.builder.shallow_copy()
         newbuilder.processes[self.node_id]['result'] = True
-        return self.session.execute({"process_graph": newbuilder.processes},"")
+        return self.session.execute(newbuilder.processes)
 
     ####### HELPER methods #######
 

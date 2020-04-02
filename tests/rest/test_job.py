@@ -14,6 +14,13 @@ def session040(requests_mock):
     return session
 
 
+@pytest.fixture
+def con100(requests_mock):
+    requests_mock.get(API_URL + "/", json={"api_version": "1.0.0"})
+    con = openeo.connect(API_URL)
+    return con
+
+
 def test_execute_batch(session040, requests_mock, tmpdir):
     requests_mock.get(API_URL + "/collections/SENTINEL2", json={"foo": "bar"})
     requests_mock.post(API_URL + "/jobs", headers={"OpenEO-Identifier": "f00ba5"})
@@ -81,8 +88,8 @@ def test_execute_batch_with_error(session040, requests_mock, tmpdir):
 
     try:
         session040.load_collection("SENTINEL2").execute_batch(
-                outputfile=str(path), out_format="GTIFF",
-                max_poll_interval=.1, print=print
+            outputfile=str(path), out_format="GTIFF",
+            max_poll_interval=.1, print=print
         )
 
         assert False
@@ -110,3 +117,16 @@ def test_get_job_logs(session040, requests_mock):
     log_entries = session040.job('f00ba5').logs(offset="123abc")
 
     assert log_entries[0].message == "error processing batch job"
+
+
+def test_create_job_100(con100, requests_mock):
+    def check_request(request):
+        assert request.json() == {
+            "process": {"process_graph": {"foo1": {"process_id": "foo"}}},
+            "title": "Foo", 'description': None,
+            'budget': None, 'plan': None,
+        }
+        return True
+
+    requests_mock.post(API_URL + "/jobs", headers={"OpenEO-Identifier": "f00ba5"}, additional_matcher=check_request)
+    con100.create_job({"foo1": {"process_id": "foo"}}, title="Foo")

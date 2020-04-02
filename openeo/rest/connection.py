@@ -365,12 +365,10 @@ class Connection(RestApiConnection):
     # Legacy alias.
     imagecollection = load_collection
 
-
-    def create_service(self, graph, type, **kwargs):
+    def create_service(self, graph: dict, type: str, **kwargs):
         # TODO: type hint for graph: is it a nested or a flat one?
-        kwargs["process_graph"] = graph
-        kwargs["type"] = type
-        response = self.post("/services", json=kwargs, expected_status=201)
+        req = self._build_request_with_process_graph(process_graph=graph, type=type, **kwargs)
+        response = self.post(path="/services", json=req, expected_status=201)
         return {
             'url': response.headers.get('Location'),
             'service_id': response.headers.get("OpenEO-Identifier"),
@@ -411,43 +409,48 @@ class Connection(RestApiConnection):
         # No endpoint just returns a file object.
         raise NotImplementedError()
 
+    def _build_request_with_process_graph(self, process_graph: dict, **kwargs) -> dict:
+        """
+        Prepare a json payload with a process graph to submit to /result, /services, /jobs, ...
+        :param process_graph: flat dict representing a process graph
+        """
+        result = kwargs
+        if self._api_version.at_least("1.0.0"):
+            result["process"] = {"process_graph": process_graph}
+        else:
+            result["process_graph"] = process_graph
+        return result
+
     # TODO: Maybe rename to execute and merge with execute().
-    def download(self, graph, outputfile):
+    def download(self, graph: dict, outputfile):
         """
         Downloads the result of a process graph synchronously, and save the result to the given file.
         This method is useful to export binary content such as images. For json content, the execute method is recommended.
 
-        :param graph: Dict representing a process graph
+        :param graph: (flat) dict representing a process graph
         :param outputfile: output file
-        :param format_options: formating options
-        :return: job_id: String
         """
-        request = {"process_graph": graph}
-        download_url = self.build_url("/result")
-        r = self.post(download_url, json=request, stream=True, timeout=1000)
+        request = self._build_request_with_process_graph(process_graph=graph)
+        r = self.post(path="/result", json=request, stream=True, timeout=1000)
         with pathlib.Path(outputfile).open(mode="wb") as f:
             shutil.copyfileobj(r.raw, f)
 
-    def execute(self, process_graph, output_format, output_parameters=None, budget=None):
+    def execute(self, process_graph: dict):
         """
         Execute a process graph synchronously.
 
-        :param process_graph: Dict representing a process graph
-        :param output_format: String Output format of the execution
-        :param output_parameters: Dict of additional output parameters
-        :param budget: Budget
-        :return: job_id: String
+        :param process_graph: (flat) dict representing a process graph
         """
-        # TODO: add output_format to execution
-        return self.post(path="/result", json=process_graph).json()
+        req = self._build_request_with_process_graph(process_graph=process_graph)
+        return self.post(path="/result", json=req).json()
 
-    def create_job(self, process_graph: Dict, title: str = None, description: str = None,
+    def create_job(self, process_graph: dict, title: str = None, description: str = None,
                    plan: str = None, budget=None,
                    additional: Dict = None) -> RESTJob:
         """
         Posts a job to the back end.
 
-        :param process_graph: String data of the job (e.g. process graph)
+        :param process_graph: (flat) dict representing process graph
         :param title: String title of the job
         :param description: String description of the job
         :param plan: billing plan
@@ -456,17 +459,15 @@ class Connection(RestApiConnection):
         :return: job_id: String Job id of the new created job
         """
         # TODO move all this (RESTJob factory) logic to RESTJob?
-        process_graph = {
-            "process_graph": process_graph,
-            "title": title,
-            "description": description,
-            "plan": plan,
-            "budget": budget
-        }
+        req = self._build_request_with_process_graph(
+            process_graph=process_graph,
+            title=title, description=description, plan=plan, budget=budget
+        )
         if additional:
-            process_graph["job_options"] = additional
+            # TODO: get rid of this non-standard field?
+            req["job_options"] = additional
 
-        response = self.post("/jobs", process_graph)
+        response = self.post("/jobs", json=req)
 
         if "openeo-identifier" in response.headers:
             job_id = response.headers['openeo-identifier']
