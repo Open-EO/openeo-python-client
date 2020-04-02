@@ -540,20 +540,21 @@ class DataCube(ImageCollection):
             }
         ))
 
-    def reduce_temporal_simple(self, process_id="max") -> 'DataCube':
+    def reduce_temporal_simple(self, process_id="max", dimension=None) -> 'DataCube':
         """Do temporal reduce with a simple given process as callback."""
+        # TODO #128 #116 get rid again of explicit dimension argument?
         return self._reduce_temporal(reducer=PGNode(
             process_id=process_id,
             arguments={"data": {"from_parameter": "data"}}
-        ))
+        ), dimension=dimension)
 
-    def min_time(self) -> 'DataCube':
+    def min_time(self, dimension=None) -> 'DataCube':
         """Finds the minimum value of a time series for all bands of the input dataset.
 
             :return: a DataCube instance
         """
-
-        return self.reduce_temporal_simple("min")
+        # TODO #128 #116 get rid again of explicit dimension argument?
+        return self.reduce_temporal_simple("min", dimension=dimension)
 
     def max_time(self) -> 'DataCube':
         """
