@@ -1,82 +1,80 @@
 {
-  "process_graph": {
-    "loadcollection1": {
-      "process_id": "load_collection",
-      "arguments": {
-        "id": "S2",
-        "spatial_extent": null,
-        "temporal_extent": null
+  "loadcollection1": {
+    "process_id": "load_collection",
+    "arguments": {
+      "id": "S2",
+      "spatial_extent": null,
+      "temporal_extent": null
+    }
+  },
+  "filterbbox1": {
+    "process_id": "filter_bbox",
+    "arguments": {
+      "data": {
+        "from_node": "loadcollection1"
+      },
+      "extent": {
+        "west": 3,
+        "east": 6,
+        "north": 52,
+        "south": 50,
+        "crs": "EPSG:4326"
       }
-    },
-    "filterbbox1": {
-      "process_id": "filter_bbox",
-      "arguments": {
-        "data": {
-          "from_node": "loadcollection1"
-        },
-        "extent": {
-          "west": 3,
-          "east": 6,
-          "north": 52,
-          "south": 50,
-          "crs": "EPSG:4326"
-        }
-      }
-    },
-    "aggregatespatial1": {
-      "process_id": "aggregate_spatial",
-      "arguments": {
-        "data": {
-          "from_node": "filterbbox1"
-        },
-        "geometries": {
-          "type": "Polygon",
-          "coordinates": [
+    }
+  },
+  "aggregatespatial1": {
+    "process_id": "aggregate_spatial",
+    "arguments": {
+      "data": {
+        "from_node": "filterbbox1"
+      },
+      "geometries": {
+        "type": "Polygon",
+        "coordinates": [
+          [
             [
-              [
-                16.138916,
-                48.320647
-              ],
-              [
-                16.524124,
-                48.320647
-              ],
-              [
-                16.524124,
-                48.1386
-              ],
-              [
-                16.138916,
-                48.1386
-              ],
-              [
-                16.138916,
-                48.320647
-              ]
+              16.138916,
+              48.320647
+            ],
+            [
+              16.524124,
+              48.320647
+            ],
+            [
+              16.524124,
+              48.1386
+            ],
+            [
+              16.138916,
+              48.1386
+            ],
+            [
+              16.138916,
+              48.320647
             ]
-          ],
-          "crs": {
-            "type": "name",
-            "properties": {
-              "name": "EPSG:4326"
-            }
-          }
-        },
-        "reducer": {
-          "process_graph": {
-            "mean1": {
-              "process_id": "mean",
-              "arguments": {
-                "data": {
-                  "from_parameter": "data"
-                }
-              },
-              "result": true
-            }
+          ]
+        ],
+        "crs": {
+          "type": "name",
+          "properties": {
+            "name": "EPSG:4326"
           }
         }
       },
-      "result": true
-    }
+      "reducer": {
+        "process_graph": {
+          "mean1": {
+            "process_id": "mean",
+            "arguments": {
+              "data": {
+                "from_parameter": "data"
+              }
+            },
+            "result": true
+          }
+        }
+      }
+    },
+    "result": true
   }
 }

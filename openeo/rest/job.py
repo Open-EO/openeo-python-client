@@ -35,29 +35,25 @@ class RESTJob(Job):
     def describe_job(self):
         """ Get all job information."""
         # GET /jobs/{job_id}
-        request = self.connection.get("/jobs/{}".format(self.job_id))
-        return self.connection.parse_json_response(request)
+        return self.connection.get("/jobs/{}".format(self.job_id)).json()
 
     def update_job(self, process_graph=None, output_format=None,
                    output_parameters=None, title=None, description=None,
                    plan=None, budget=None, additional=None):
         """ Update a job."""
         # PATCH /jobs/{job_id}
-        pass
+        raise NotImplementedError
 
     def delete_job(self):
         """ Delete a job."""
         # DELETE /jobs/{job_id}
         request = self.connection.delete("/jobs/{}".format(self.job_id))
-
-        return request.status_code
+        assert request.status_code == 204
 
     def estimate_job(self):
         """ Calculate an time/cost estimate for a job."""
         # GET /jobs/{job_id}/estimate
-        request = self.connection.get("/jobs/{}/estimate".format(self.job_id))
-
-        return self.connection.parse_json_response(request)
+        return self.connection.get("/jobs/{}/estimate".format(self.job_id)).json()
 
     def start_job(self):
         """ Start / queue a job for processing."""
@@ -77,7 +73,7 @@ class RESTJob(Job):
     def list_results(self, type=None):
         """ Get document with download links."""
         # GET /jobs/{job_id}/results
-        pass
+        raise NotImplementedError
 
     def download_results(self, target: Union[str, pathlib.Path]) -> pathlib.Path:
         """ Download job results."""
