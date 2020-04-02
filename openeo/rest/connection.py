@@ -242,6 +242,7 @@ class Connection(RestApiConnection):
 
         :return: jobs: Dict All jobs of the user
         """
+        # TODO duplication with `list_jobs()` method
         return self.get('/jobs').json()["jobs"]
 
     def list_collections(self) -> List[dict]:
@@ -301,7 +302,7 @@ class Connection(RestApiConnection):
 
         :return: data_dict: Dict All available service types
         """
-        #TODO return service objects
+        #TODO return parsed service objects
         return self.get('/services').json()
 
     def describe_collection(self, name) -> dict:
@@ -327,12 +328,13 @@ class Connection(RestApiConnection):
         return self.get('/processes').json()["processes"]
 
     def list_jobs(self) -> dict:
-        # TODO: Maybe format the result so that there get Job classes returned.
         """
         Lists all jobs of the authenticated user.
 
         :return: job_list: Dict of all jobs of the user.
         """
+        # TODO: Maybe format the result so that there get Job classes returned.
+        # TODO: duplication with `user_jobs()` method
         return self.get('/jobs').json()["jobs"]
 
     def validate_processgraph(self, process_graph):
@@ -384,12 +386,10 @@ class Connection(RestApiConnection):
         response = self.delete('/services/' + service_id)
 
     def job_results(self, job_id):
-        response = self.get("/jobs/{}/results".format(job_id))
-        return self.parse_json_response(response)
+        return self.get("/jobs/{}/results".format(job_id)).json()
 
     def job_logs(self, job_id, offset):
-        response = self.get("/jobs/{}/logs".format(job_id), params={'offset': offset})
-        return self.parse_json_response(response)
+        return self.get("/jobs/{}/logs".format(job_id), params={'offset': offset}).json()
 
     def list_files(self):
         """
@@ -488,33 +488,6 @@ class Connection(RestApiConnection):
         :return: A job object.
         """
         return RESTJob(job_id, self)
-
-    def parse_json_response(self, response: requests.Response):
-        """
-        Parses json response, if an error occurs it raises an Exception.
-
-        :param response: Response of a RESTful request
-        :return: response: JSON Response
-        """
-        # TODO Deprecated: status handling is now in RestApiConnection
-        if response.status_code == 200 or response.status_code == 201:
-            return response.json()
-        else:
-            self._handle_error_response(response)
-
-    def _handle_error_response(self, response):
-        # TODO replace this with `_raise_api_error`
-        if response.status_code == 502:
-            from requests.exceptions import ProxyError
-            raise ProxyError("The proxy returned an error, this could be due to a timeout.")
-        else:
-            message = None
-            if response.headers['Content-Type'] == 'application/json':
-                message = response.json().get('message', None)
-            if message:
-                message = response.text
-
-            raise ConnectionAbortedError(message)
 
     def get_outputformats(self) -> dict:
         """
