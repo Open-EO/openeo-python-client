@@ -347,6 +347,7 @@ class Connection(RestApiConnection):
 
     @property
     def _api_version(self) -> ComparableVersion:
+        # TODO make this a public property (it's also useful outside the Connection class)
         return self.capabilities().api_version_check
 
     def load_collection(self, collection_id: str, **kwargs) -> Union[ImageCollectionClient, DataCube]:

@@ -1,14 +1,16 @@
 import datetime
 import logging
-import pathlib
 import time
 import typing
 import urllib.request
-from typing import List, Union
+from pathlib import Path
+from requests import ConnectionError
+from typing import List, Union, Dict
+from deprecated import deprecated
 
 from openeo.job import Job, JobResult, JobLogEntry
 from openeo.rest import OpenEoClientException, JobFailedException
-from requests import ConnectionError
+from openeo.util import ensure_dir
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Only import this for type hinting purposes. Runtime import causes circular dependency issues.
@@ -75,26 +77,73 @@ class RESTJob(Job):
         # GET /jobs/{job_id}/results
         raise NotImplementedError
 
-    def download_results(self, target: Union[str, pathlib.Path]) -> pathlib.Path:
-        """ Download job results."""
+    def _download_get_assets(self) -> Dict[str, dict]:
         results_url = "/jobs/{}/results".format(self.job_id)
-        r = self.connection.get(results_url, expected_status=200)
-        links = r.json()["links"]
-        if len(links) != 1:
-            # TODO handle download of multiple files?
-            raise OpenEoClientException("Expected 1 result file to download, but got {c}".format(c=len(links)))
-        file_url = links[0]["href"]
+        response = self.connection.get(results_url, expected_status=200).json()
+        if "assets" in response:
+            # API 1.0 style: dictionary mapping filenames to metadata dict (with at least a "href" field)
+            return response["assets"]
+        else:
+            # Best effort translation of on old style to "assets" style (#134)
+            return {a["href"].split("/")[-1]: a for a in response["links"]}
 
-        target = pathlib.Path(target)
-        with target.open('wb') as handle:
-            response = self.connection.get(file_url, stream=True)
+    def _download_url(self, url: str, path: Path):
+        ensure_dir(path.parent)
+        with path.open('wb') as handle:
+            # TODO: finetune download parameters/chunking?
+            response = self.connection.get(url, stream=True)
             for block in response.iter_content(1024):
                 if not block:
                     break
                 handle.write(block)
+        return path
+
+    def download_result(self, target: Union[str, Path] = None) -> Path:
+        """
+        Download single job result to the target file path or into folder (current working dir by default).
+        
+        Fails if there are multiple result files.
+
+        :param target: String or path where the file should be downloaded to.
+        """
+        assets = self._download_get_assets()
+        if len(assets) != 1:
+            raise OpenEoClientException(
+                "Expected one result file to download, but got {c}: {u!r}".format(c=len(assets), u=assets))
+        filename, metadata = assets.popitem()
+        url = metadata["href"]
+
+        target = Path(target or Path.cwd())
+        if target.is_dir():
+            target = target / filename
+
+        self._download_url(url, target)
         return target
 
+    def download_results(self, target: Union[str, Path] = None) -> Dict[Path, dict]:
+        """
+        Download job results into given folder (current working dir by default).
+
+        The names of the files are taken directly from the backend.
+
+        :param target: String/path, folder where to put the result files.
+        :return: file_list: Dict containing the downloaded file path as value and asset metadata
+        """
+        target = Path(target or Path.cwd())
+        if target.exists() and not target.is_dir():
+            raise OpenEoClientException("The target argument must be a folder. Got {t!r}".format(t=str(target)))
+
+        assets = {target / f: m for (f, m) in self._download_get_assets().items()}
+        if len(assets) == 0:
+            raise OpenEoClientException("Expected at least one result file to download, but got 0.")
+
+        for path, metadata in assets.items():
+            self._download_url(metadata["href"], path)
+
+        return assets
+
     # TODO: All below methods are deprecated (at least not specified in the coreAPI)
+    @deprecated
     def download(self, outputfile: str, outputformat=None):
         """ Download the result as a raster."""
         try:
@@ -102,25 +151,29 @@ class RESTJob(Job):
         except ConnectionAbortedError as e:
             return print(str(e))
 
+    @deprecated
     def status(self):
         """ Returns the status of the job."""
         return self.connection.job_info(self.job_id)['status']
 
+    @deprecated
     def queue(self):
         """ Queues the job. """
         return self.connection.queue_job(self.job_id)
 
+    @deprecated
     def results(self) -> List[RESTJobResult]:
         """ Returns this job's results. """
         return [RESTJobResult(link['href']) for link in self.connection.job_results(self.job_id)['links']]
 
     """ Retrieve job logs."""
+
     def logs(self, offset=None) -> List[JobLogEntry]:
-        return[JobLogEntry(log_entry['id'], log_entry['level'], log_entry['message'])
-               for log_entry in self.connection.job_logs(self.job_id, offset)['logs']]
+        return [JobLogEntry(log_entry['id'], log_entry['level'], log_entry['message'])
+                for log_entry in self.connection.job_logs(self.job_id, offset)['logs']]
 
     @classmethod
-    def run_synchronous(cls, job, outputfile: Union[str, pathlib.Path],
+    def run_synchronous(cls, job, outputfile: Union[str, Path],
                         print=print, max_poll_interval=60, connection_retry_interval=30):
         job.start_job()
 
@@ -151,7 +204,8 @@ class RESTJob(Job):
 
         elapsed = str(datetime.timedelta(seconds=time.time() - start_time))
         if status == 'finished':
-            job.download_results(outputfile)
+            # TODO: support downloading multiple results
+            job.download_result(outputfile)
         else:
             raise JobFailedException("Batch job {i} didn't finish properly. Status: {s} (after {t}).".format(
                 i=job_id, s=status, t=elapsed
