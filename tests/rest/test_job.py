@@ -143,8 +143,8 @@ def test_download_result_040(session040, requests_mock, tmp_path):
     ]})
     requests_mock.get(API_URL + "/dl/jjr1.tiff", content=TIFF_CONTENT)
     job = RESTJob("jj", connection=session040)
-    target = tmp_path / "result.tiff"
-    res = job.download_result(as_path(target))
+    target = as_path(tmp_path / "result.tiff")
+    res = job.download_result(target)
     assert res == target
     with target.open("rb") as f:
         assert f.read() == TIFF_CONTENT
@@ -156,8 +156,8 @@ def test_download_result(con100, requests_mock, tmp_path):
     }})
     requests_mock.get(API_URL + "/dl/jjr1.tiff", content=TIFF_CONTENT)
     job = RESTJob("jj", connection=con100)
-    target = tmp_path / "result.tiff"
-    res = job.download_result(as_path(target))
+    target = as_path(tmp_path / "result.tiff")
+    res = job.download_result(target)
     assert res == target
     with target.open("rb") as f:
         assert f.read() == TIFF_CONTENT
@@ -169,9 +169,9 @@ def test_download_result_folder(con100, requests_mock, tmp_path):
     }})
     requests_mock.get(API_URL + "/dl/jjr1.tiff", content=TIFF_CONTENT)
     job = RESTJob("jj", connection=con100)
-    target = tmp_path / "folder"
+    target = as_path(tmp_path / "folder")
     target.mkdir()
-    res = job.download_result(as_path(target))
+    res = job.download_result(target)
     assert res == target / "1.tiff"
     assert list(p.name for p in target.iterdir()) == ["1.tiff"]
     with (target / "1.tiff").open("rb") as f:
@@ -196,9 +196,9 @@ def test_download_results_040(session040, requests_mock, tmp_path):
     requests_mock.get(API_URL + "/dl/jjr1.tiff", content=TIFF_CONTENT)
     requests_mock.get(API_URL + "/dl/jjr2.tiff", content=TIFF_CONTENT)
     job = RESTJob("jj", connection=session040)
-    target = tmp_path / "folder"
+    target = as_path(tmp_path / "folder")
     target.mkdir()
-    downloads = job.download_results(as_path(target))
+    downloads = job.download_results(target)
     assert downloads == {
         target / "jjr1.tiff": {"href": API_URL + "/dl/jjr1.tiff", "type": "image/tiff"},
         target / "jjr2.tiff": {"href": API_URL + "/dl/jjr2.tiff", "type": "image/tiff"},
@@ -218,9 +218,9 @@ def test_download_results(con100, requests_mock, tmp_path):
     requests_mock.get(API_URL + "/dl/jjr1.tiff", content=TIFF_CONTENT)
     requests_mock.get(API_URL + "/dl/jjr2.tiff", content=TIFF_CONTENT)
     job = RESTJob("jj", connection=con100)
-    target = tmp_path / "folder"
+    target = as_path(tmp_path / "folder")
     target.mkdir()
-    downloads = job.download_results(as_path(target))
+    downloads = job.download_results(target)
     assert downloads == {
         target / "1.tiff": {"href": API_URL + "/dl/jjr1.tiff", "type": "image/tiff; application=geotiff"},
         target / "2.tiff": {"href": API_URL + "/dl/jjr2.tiff", "type": "image/tiff; application=geotiff"},
