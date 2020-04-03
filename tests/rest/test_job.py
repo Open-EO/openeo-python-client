@@ -56,11 +56,11 @@ def test_execute_batch(session040, requests_mock, tmpdir):
     for log_entry in job.logs():
         print(log_entry.message)
 
-    assert re.match(r"0:00:00(.0\d*)? Job f00ba5: submitted \(progress N/A\)", log[0])
-    assert re.match(r"0:00:00.1\d* Job f00ba5: queued \(progress N/A\)", log[1])
-    assert re.match(r"0:00:00.2\d* Job f00ba5: running \(progress 15%\)", log[2])
-    assert re.match(r"0:00:00.3\d* Job f00ba5: running \(progress 80%\)", log[3])
-    assert re.match(r"0:00:00.4\d* Job f00ba5: finished \(progress 100%\)", log[4])
+    assert re.match(r"0:00:00(.0\d*)? Job 'f00ba5': submitted \(progress N/A\)", log[0])
+    assert re.match(r"0:00:00.1\d* Job 'f00ba5': queued \(progress N/A\)", log[1])
+    assert re.match(r"0:00:00.2\d* Job 'f00ba5': running \(progress 15%\)", log[2])
+    assert re.match(r"0:00:00.3\d* Job 'f00ba5': running \(progress 80%\)", log[3])
+    assert re.match(r"0:00:00.4\d* Job 'f00ba5': finished \(progress 100%\)", log[4])
 
     assert path.read() == "tiffdata"
 
@@ -102,11 +102,11 @@ def test_execute_batch_with_error(session040, requests_mock, tmpdir):
 
         assert log_entries[0].message == "error processing batch job"
 
-    assert re.match(r"0:00:00(.0\d*)? Job f00ba5: submitted \(progress N/A\)", log[0])
-    assert re.match(r"0:00:00.1\d* Job f00ba5: queued \(progress N/A\)", log[1])
-    assert re.match(r"0:00:00.2\d* Job f00ba5: running \(progress 15%\)", log[2])
-    assert re.match(r"0:00:00.3\d* Job f00ba5: running \(progress 80%\)", log[3])
-    assert re.match(r"0:00:00.4\d* Job f00ba5: error \(progress 100%\)", log[4])
+    assert re.match(r"0:00:00(.0\d*)? Job 'f00ba5': submitted \(progress N/A\)", log[0])
+    assert re.match(r"0:00:00.1\d* Job 'f00ba5': queued \(progress N/A\)", log[1])
+    assert re.match(r"0:00:00.2\d* Job 'f00ba5': running \(progress 15%\)", log[2])
+    assert re.match(r"0:00:00.3\d* Job 'f00ba5': running \(progress 80%\)", log[3])
+    assert re.match(r"0:00:00.4\d* Job 'f00ba5': error \(progress 100%\)", log[4])
 
 
 def test_get_job_logs(session040, requests_mock):

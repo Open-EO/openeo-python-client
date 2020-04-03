@@ -166,49 +166,61 @@ class RESTJob(Job):
         """ Returns this job's results. """
         return [RESTJobResult(link['href']) for link in self.connection.job_results(self.job_id)['links']]
 
-    """ Retrieve job logs."""
-
     def logs(self, offset=None) -> List[JobLogEntry]:
+        """ Retrieve job logs."""
         return [JobLogEntry(log_entry['id'], log_entry['level'], log_entry['message'])
                 for log_entry in self.connection.job_logs(self.job_id, offset)['logs']]
 
-    @classmethod
-    def run_synchronous(cls, job, outputfile: Union[str, Path],
+    def run_synchronous(self, outputfile: Union[str, Path],
                         print=print, max_poll_interval=60, connection_retry_interval=30):
-        job.start_job()
+        """Start the job, wait for it to finishe and download result"""
+        self.start_and_wait(
+            print=print, max_poll_interval=max_poll_interval, connection_retry_interval=connection_retry_interval
+        )
+        # TODO #135 support multi file result sets too?
+        self.download_result(outputfile)
+        return self
 
-        job_id = job.job_id
-        status = None
+    def start_and_wait(self, print=print, max_poll_interval: int = 60, connection_retry_interval: int = 30):
+        """
+        Start the batch job, poll its status and wait till it finishes (or fails)
+        :param print: print/logging function to show progress/status
+        :param max_poll_interval: maximum number of seconds to sleep between status polls
+        :param connection_retry_interval: how long to wait when status poll failed due to connection issue
+        :return:
+        """
+        # TODO: make `max_poll_interval`, `connection_retry_interval` class constants or instance properties?
+        self.start_job()
+        # Start with fast polling.
         poll_interval = min(5, max_poll_interval)
+        status = None
         start_time = time.time()
         while True:
             # TODO: also allow a hard time limit on this infinite poll loop?
             elapsed = str(datetime.timedelta(seconds=time.time() - start_time))
             try:
-                job_info = job.describe_job()
+                job_info = self.describe_job()
             except ConnectionError as e:
                 print("{t} Connection error while querying job status: {e}".format(t=elapsed, e=e))
                 time.sleep(connection_retry_interval)
                 continue
 
             status = job_info.get("status", "N/A")
-            print("{t} Job {i}: {s} (progress {p})".format(
-                t=elapsed, i=job_id, s=status,
+            print("{t} Job {i!r}: {s} (progress {p})".format(
+                t=elapsed, i=self.job_id, s=status,
                 p='{p}%'.format(p=job_info["progress"]) if "progress" in job_info else "N/A"
             ))
             if status not in ('submitted', 'created', 'queued', 'running'):
                 break
 
+            # Sleep for next poll (and adaptively make polling less frequent)
             time.sleep(poll_interval)
             poll_interval = min(1.25 * poll_interval, max_poll_interval)
 
         elapsed = str(datetime.timedelta(seconds=time.time() - start_time))
-        if status == 'finished':
-            # TODO: support downloading multiple results
-            job.download_result(outputfile)
-        else:
+        if status != "finished":
             raise JobFailedException("Batch job {i} didn't finish properly. Status: {s} (after {t}).".format(
-                i=job_id, s=status, t=elapsed
-            ), job)
+                i=self.job_id, s=status, t=elapsed
+            ), job=self)
 
-        return job
+        return self

@@ -12,8 +12,8 @@ from shapely.geometry import Polygon, MultiPolygon, mapping
 
 from openeo.imagecollection import ImageCollection, CollectionMetadata
 from openeo.internal.graph_building import PGNode, ReduceNode
-from openeo.job import Job
 from openeo.rest import BandMathException, OperatorException
+from openeo.rest.job import RESTJob
 from openeo.util import get_temporal_extent, dict_no_none
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
@@ -851,18 +851,18 @@ class DataCube(ImageCollection):
 
         :param job_options:
         :param outputfile: The path of a file to which a result can be written
-        :param out_format: String Format of the job result.
+        :param out_format: (optional) Format of the job result.
         :param format_options: String Parameters for the job result format
 
         """
-        from openeo.rest.job import RESTJob
         job = self.send_job(out_format, job_options=job_options, **format_options)
-        return RESTJob.run_synchronous(
-            job, outputfile,
+        return job.run_synchronous(
+            # TODO #135 support multi file result sets too
+            outputfile=outputfile,
             print=print, max_poll_interval=max_poll_interval, connection_retry_interval=connection_retry_interval
         )
 
-    def send_job(self, out_format=None, job_options=None, **format_options) -> Job:
+    def send_job(self, out_format=None, job_options=None, **format_options) -> RESTJob:
         """
         Sends a job to the backend and returns a ClientJob instance.
 

@@ -54,9 +54,8 @@ print(json.dumps(datacube.graph, indent=2))
 
 # Send Job to backend
 job = datacube.send_job()
-
-print(job.job_id)
-print(job.start_job())
 print(job.describe_job())
-time.sleep(5)
-print(job.download_results("/tmp/"))
+
+# Wait for job to finish and download
+res = job.start_and_wait().download_results("/tmp")
+print(res)
