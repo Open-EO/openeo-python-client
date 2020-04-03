@@ -51,19 +51,23 @@ class CollectionMetadata:
         return self._bands
 
     def _get_bands(self) -> List[Band]:
-        # TODO refactor this specification specific processing away in a subclass?
-        # First try `properties/eo:bands`
-        eo_bands = self.get('properties', 'eo:bands')
-        if eo_bands:
-            # center_wavelength is in micrometer according to spec
-            return [self.Band(b['name'], b.get('common_name'), b.get('center_wavelength')) for b in eo_bands]
-        warnings.warn("No band metadata under `properties/eo:bands` trying some fallback sources.")
-        # Fall back on `properties/cube:dimensions`
-        cube_dimensions = self.get('properties', 'cube:dimensions', default={})
-        for dim in cube_dimensions.values():
-            if dim["type"] == "bands":
-                # TODO: warn when multiple (or no) "bands" type?
-                return [self.Band(b, None, None) for b in dim["values"]]
+        # TODO refactor this specification specific processing away in a subclass? Or pystac (#133)?
+        # First try `summaries/eo:bands` (and 0.4 style `properties/eo:bands`)
+        for path in [('summaries', 'eo:bands'), ('properties', 'eo:bands')]:
+            eo_bands = self.get(*path)
+            if eo_bands:
+                # center_wavelength is in micrometer according to spec
+                return [self.Band(b['name'], b.get('common_name'), b.get('center_wavelength')) for b in eo_bands]
+        warnings.warn("No band metadata under `summaries/eo:bands`, trying some fallback sources.")
+
+        # Fall back on `cube:dimensions` (and 0.4-style `properties/cube:dimensions`)
+        for path in [('cube:dimensions',), ('properties', 'cube:dimensions')]:
+            cube_dimensions = self.get(*path, default={})
+            for dim in cube_dimensions.values():
+                if dim["type"] == "bands":
+                    # TODO: warn when multiple (or no) "bands" type?
+                    return [self.Band(b, None, None) for b in dim["values"]]
+
         # Try non-standard VITO bands metadata
         # TODO remove support for this legacy non-standard band metadata
         if "bands" in self._metadata:

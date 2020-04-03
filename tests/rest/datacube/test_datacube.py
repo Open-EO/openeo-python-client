@@ -314,7 +314,7 @@ def test_merge(s2cube, api_version):
     assert merged.graph == expected_graph
 
 
-def test_apply_absolute(s2cube, api_version):
+def test_apply_absolute_str(s2cube, api_version):
     result = s2cube.apply("absolute")
     expected_graph = load_json_resource('data/{v}/apply_absolute.json'.format(v=api_version))
     assert result.graph == expected_graph

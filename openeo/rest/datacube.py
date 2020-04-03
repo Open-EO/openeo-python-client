@@ -12,8 +12,8 @@ from shapely.geometry import Polygon, MultiPolygon, mapping
 
 from openeo.imagecollection import ImageCollection, CollectionMetadata
 from openeo.internal.graph_building import PGNode, ReduceNode
-from openeo.job import Job
 from openeo.rest import BandMathException, OperatorException
+from openeo.rest.job import RESTJob
 from openeo.util import get_temporal_extent, dict_no_none
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
@@ -526,34 +526,37 @@ class DataCube(ImageCollection):
         """
         return self.reduce_temporal_udf(code=code, runtime=runtime, version=version)
 
-    def apply(self, process: str, data_argument='x') -> 'DataCube':
-        # TODO #125 allow more complex sub-process-graphs?
+    def apply(self, process: Union[str, PGNode], data_argument='x') -> 'DataCube':
+        if isinstance(process, str):
+            # Simple single string process specification
+            process = PGNode(
+                process_id=process,
+                arguments={data_argument: {"from_parameter": "x"}}
+            )
         return self.process_with_node(PGNode(
             process_id='apply',
             arguments={
                 "data": self._pg,
-                "process": {"process_graph": PGNode(
-                    process_id=process,
-                    arguments={data_argument: {"from_parameter": "x"}}
-                )},
+                "process": {"process_graph": process},
                 # TODO #125 context
             }
         ))
 
-    def reduce_temporal_simple(self, process_id="max") -> 'DataCube':
+    def reduce_temporal_simple(self, process_id="max", dimension=None) -> 'DataCube':
         """Do temporal reduce with a simple given process as callback."""
+        # TODO #128 #116 get rid again of explicit dimension argument?
         return self._reduce_temporal(reducer=PGNode(
             process_id=process_id,
             arguments={"data": {"from_parameter": "data"}}
-        ))
+        ), dimension=dimension)
 
-    def min_time(self) -> 'DataCube':
+    def min_time(self, dimension=None) -> 'DataCube':
         """Finds the minimum value of a time series for all bands of the input dataset.
 
             :return: a DataCube instance
         """
-
-        return self.reduce_temporal_simple("min")
+        # TODO #128 #116 get rid again of explicit dimension argument?
+        return self.reduce_temporal_simple("min", dimension=dimension)
 
     def max_time(self) -> 'DataCube':
         """
@@ -848,18 +851,18 @@ class DataCube(ImageCollection):
 
         :param job_options:
         :param outputfile: The path of a file to which a result can be written
-        :param out_format: String Format of the job result.
+        :param out_format: (optional) Format of the job result.
         :param format_options: String Parameters for the job result format
 
         """
-        from openeo.rest.job import RESTJob
         job = self.send_job(out_format, job_options=job_options, **format_options)
-        return RESTJob.run_synchronous(
-            job, outputfile,
+        return job.run_synchronous(
+            # TODO #135 support multi file result sets too
+            outputfile=outputfile,
             print=print, max_poll_interval=max_poll_interval, connection_retry_interval=connection_retry_interval
         )
 
-    def send_job(self, out_format=None, job_options=None, **format_options) -> Job:
+    def send_job(self, out_format=None, job_options=None, **format_options) -> RESTJob:
         """
         Sends a job to the backend and returns a ClientJob instance.
 

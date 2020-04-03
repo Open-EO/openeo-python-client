@@ -23,7 +23,7 @@ def test_metadata_from_api(session040, requests_mock):
     assert metadata.get("foo") == "bar"
 
 
-def test_metadata_load_collection(session040, requests_mock):
+def test_metadata_load_collection_040(session040, requests_mock):
     requests_mock.get(API_URL + "/collections/SENTINEL2", json={
         "properties": {
             "cube:dimensions": {

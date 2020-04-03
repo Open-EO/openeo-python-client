@@ -21,7 +21,7 @@ def test_metadata_extent():
     assert metadata.extent == {"spatial": {"xmin": 4, "xmax": 10}}
 
 
-def test_metadata_bands_eo_bands():
+def test_metadata_bands_eo_bands_040():
     metadata = CollectionMetadata({
         "properties": {"eo:bands": [
             {"name": "foo", "common_name": "F00", "center_wavelength": 0.543},
@@ -36,12 +36,41 @@ def test_metadata_bands_eo_bands():
     assert metadata.band_common_names == ["F00", None]
 
 
-def test_metadata_bands_cube_dimensions():
+def test_metadata_bands_eo_bands_100():
+    metadata = CollectionMetadata({
+        "summaries": {"eo:bands": [
+            {"name": "foo", "common_name": "F00", "center_wavelength": 0.543},
+            {"name": "bar"}
+        ]}
+    })
+    assert metadata.bands == [
+        CollectionMetadata.Band("foo", "F00", 0.543),
+        CollectionMetadata.Band("bar", None, None)
+    ]
+    assert metadata.band_names == ["foo", "bar"]
+    assert metadata.band_common_names == ["F00", None]
+
+
+def test_metadata_bands_cube_dimensions_040():
     metadata = CollectionMetadata({
         "properties": {"cube:dimensions": {
             "x": {"type": "spatial", "axis": "x"},
             "b": {"type": "bands", "values": ["foo", "bar"]}
         }}
+    })
+    assert metadata.bands == [
+        CollectionMetadata.Band("foo", None, None),
+        CollectionMetadata.Band("bar", None, None)
+    ]
+    assert metadata.band_names == ["foo", "bar"]
+
+
+def test_metadata_bands_cube_dimensions_100():
+    metadata = CollectionMetadata({
+        "cube:dimensions": {
+            "x": {"type": "spatial", "axis": "x"},
+            "b": {"type": "bands", "values": ["foo", "bar"]}
+        }
     })
     assert metadata.bands == [
         CollectionMetadata.Band("foo", None, None),

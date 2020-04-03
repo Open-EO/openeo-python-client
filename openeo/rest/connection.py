@@ -7,7 +7,7 @@ import pathlib
 import shutil
 import sys
 import warnings
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
 from urllib.parse import urljoin
 
 import requests
@@ -347,9 +347,10 @@ class Connection(RestApiConnection):
 
     @property
     def _api_version(self) -> ComparableVersion:
+        # TODO make this a public property (it's also useful outside the Connection class)
         return self.capabilities().api_version_check
 
-    def load_collection(self, collection_id: str, **kwargs) -> ImageCollectionClient:
+    def load_collection(self, collection_id: str, **kwargs) -> Union[ImageCollectionClient, DataCube]:
         """
         Load an image collection by collection id
 

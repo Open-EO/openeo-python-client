@@ -1,6 +1,5 @@
 import datetime
 import pathlib
-import time
 import typing
 from typing import List, Dict, Union, Tuple
 import copy
@@ -10,8 +9,8 @@ from shapely.geometry import Polygon, MultiPolygon, mapping
 
 from openeo.internal.graphbuilder_040 import GraphBuilder
 from openeo.imagecollection import ImageCollection, CollectionMetadata
-from openeo.job import Job
 from openeo.rest import BandMathException
+from openeo.rest.job import RESTJob
 from openeo.util import get_temporal_extent
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
@@ -1009,14 +1008,14 @@ class ImageCollectionClient(ImageCollection):
         :param format_options: String Parameters for the job result format
 
         """
-        from openeo.rest.job import RESTJob
         job = self.send_job(out_format, job_options=job_options, **format_options)
-        return RESTJob.run_synchronous(
-            job, outputfile,
+        return job.run_synchronous(
+            # TODO #135 support multi file result sets too
+            outputfile=outputfile,
             print=print, max_poll_interval=max_poll_interval, connection_retry_interval=connection_retry_interval
         )
 
-    def send_job(self, out_format=None, job_options=None, **format_options) -> Job:
+    def send_job(self, out_format=None, job_options=None, **format_options) -> RESTJob:
         """
         Sends a job to the backend and returns a ClientJob instance.
 

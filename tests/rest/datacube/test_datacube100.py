@@ -6,9 +6,11 @@ Unit tests specifically for 1.0.0-style DataCube
 
 import shapely.geometry
 
+from openeo.imagecollection import CollectionMetadata
 from openeo.internal.graph_building import PGNode
 from openeo.rest.connection import Connection
 from .conftest import API_URL
+from ... import load_json_resource
 
 
 def test_mask_polygon(con100: Connection):
@@ -180,3 +182,29 @@ def test_reduce_dimension_binary(con100):
             },
             'result': True
         }}
+
+
+def test_metadata_load_collection_100(con100, requests_mock):
+    requests_mock.get(API_URL + "/collections/SENTINEL2", json={
+        "cube:dimensions": {
+            "bands": {"type": "bands", "values": ["B2", "B3"]}
+        },
+        "summaries": {
+            "eo:bands": [
+                {"name": "B2", "common_name": "blue"},
+                {"name": "B3", "common_name": "green"},
+            ]
+        }
+    })
+    im = con100.load_collection('SENTINEL2')
+    assert im.metadata.bands == [
+        CollectionMetadata.Band("B2", "blue", None),
+        CollectionMetadata.Band("B3", "green", None)
+    ]
+
+
+def test_apply_absolute_pgnode(con100):
+    im = con100.load_collection("S2")
+    result = im.apply(PGNode(process_id="absolute", arguments={"x": {"from_parameter": "x"}}))
+    expected_graph = load_json_resource('data/1.0.0/apply_absolute.json')
+    assert result.graph == expected_graph
