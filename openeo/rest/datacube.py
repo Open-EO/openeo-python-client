@@ -558,35 +558,38 @@ class DataCube(ImageCollection):
         # TODO #128 #116 get rid again of explicit dimension argument?
         return self.reduce_temporal_simple("min", dimension=dimension)
 
-    def max_time(self) -> 'DataCube':
+    def max_time(self, dimension=None) -> 'DataCube':
         """
         Finds the maximum value of a time series for all bands of the input dataset.
 
         :return: a DataCube instance
         """
-        return self.reduce_temporal_simple("max")
+        # TODO #128 #116 get rid again of explicit dimension argument?
+        return self.reduce_temporal_simple("max", dimension=dimension)
 
-    def mean_time(self) -> 'DataCube':
+    def mean_time(self, dimension=None) -> 'DataCube':
         """Finds the mean value of a time series for all bands of the input dataset.
 
             :return: a DataCube instance
         """
-        return self.reduce_temporal_simple("mean")
+        # TODO #128 #116 get rid again of explicit dimension argument?
+        return self.reduce_temporal_simple("mean", dimension=dimension)
 
-    def median_time(self) -> 'DataCube':
+    def median_time(self, dimension=None) -> 'DataCube':
         """Finds the median value of a time series for all bands of the input dataset.
 
             :return: a DataCube instance
         """
+        # TODO #128 #116 get rid again of explicit dimension argument?
+        return self.reduce_temporal_simple("median", dimension=dimension)
 
-        return self.reduce_temporal_simple("median")
-
-    def count_time(self) -> 'DataCube':
+    def count_time(self, dimension=None) -> 'DataCube':
         """Counts the number of images with a valid mask in a time series for all bands of the input dataset.
 
             :return: a DataCube instance
         """
-        return self.reduce_temporal_simple("count")
+        # TODO #128 #116 get rid again of explicit dimension argument?
+        return self.reduce_temporal_simple("count", dimension=dimension)
 
     def ndvi(self, nir: str = None, red: str = None, target_band: str = None) -> 'DataCube':
         """ Normalized Difference Vegetation Index (NDVI)
@@ -602,6 +605,25 @@ class DataCube(ImageCollection):
             args=dict_no_none(
                 data={'from_node': self._pg},
                 nir=nir, red=red, target_band=target_band
+            )
+        )
+
+    def rename_labels(self, dimension: str, target: list, source: list=None) -> 'DataCube':
+        """ Renames the labels of the specified dimension in the data cube from source to target.
+
+            :param dimension: Dimension name
+            :param target: The new names for the labels.
+            :param source: The names of the labels as they are currently in the data cube.
+
+            :return: An DataCube instance
+        """
+        return self.process(
+            process_id='rename_labels',
+            args=dict_no_none(
+                data={'from_node': self._pg},
+                dimension=dimension,
+                target=target,
+                source=source
             )
         )
 
