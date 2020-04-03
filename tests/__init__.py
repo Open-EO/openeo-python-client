@@ -11,3 +11,8 @@ def get_test_resource(relative_path):
 def load_json_resource(relative_path):
     with open(get_test_resource(relative_path), 'r+') as f:
         return json.load(f)
+
+
+def as_path(path) -> Path:
+    """Workaround for Python 3.5 where pytest tmp_path objects are not accepted directly by `pathlib.Path()`"""
+    return Path(str(path))
