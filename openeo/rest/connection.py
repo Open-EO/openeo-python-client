@@ -368,7 +368,7 @@ class Connection(RestApiConnection):
     # Legacy alias.
     imagecollection = load_collection
 
-    def create_service(self, graph: dict, type: str, **kwargs):
+    def create_service(self, graph: dict, type: str, **kwargs) -> dict:
         # TODO: type hint for graph: is it a nested or a flat one?
         req = self._build_request_with_process_graph(process_graph=graph, type=type, **kwargs)
         response = self.post(path="/services", json=req, expected_status=201)

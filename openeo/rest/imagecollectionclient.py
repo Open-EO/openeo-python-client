@@ -986,10 +986,9 @@ class ImageCollectionClient(ImageCollection):
         newcollection.graph[newcollection.node_id]["result"] = True
         return self.session.download(newcollection.graph, outputfile)
 
-    def tiled_viewing_service(self,**kwargs) -> Dict:
-        newbuilder = self.builder.copy()
-        newbuilder.processes[self.node_id]['result'] = True
-        return self.session.create_service(newbuilder.processes,**kwargs)
+    def tiled_viewing_service(self, type: str, **kwargs) -> Dict:
+        self.graph[self.node_id]['result'] = True
+        return self.session.create_service(self.graph, type=type, **kwargs)
 
     def execute_batch(
             self,

@@ -857,8 +857,8 @@ class DataCube(ImageCollection):
         newcollection = self.save_result(format=format, options=options)
         return self._connection.download(newcollection._pg.flatten(), outputfile)
 
-    def tiled_viewing_service(self, **kwargs) -> Dict:
-        return self._connection.create_service(self._pg.flatten(), **kwargs)
+    def tiled_viewing_service(self, type: str, **kwargs) -> Dict:
+        return self._connection.create_service(self._pg.flatten(), type=type, **kwargs)
 
     def execute_batch(
             self,

@@ -18,6 +18,7 @@ from openeo.rest.datacube import DataCube
 from openeo.rest.imagecollectionclient import ImageCollectionClient
 from .. import get_download_graph
 from ..conftest import reset_graphbuilder
+from .conftest import API_URL
 from ... import load_json_resource
 
 
@@ -330,3 +331,21 @@ def test_subtract_dates_ep3129(s2cube, api_version):
 
     with pytest.raises(BandMathException, match="between bands of different"):
         im2.subtract(im1)
+
+
+def test_tiled_viewing_service(s2cube, connection, requests_mock, api_version):
+    expected_graph = load_json_resource('data/{v}/tiled_viewing_service.json'.format(v=api_version))
+    def check_request(request):
+        assert request.json() == expected_graph
+        return True
+
+    requests_mock.post(
+        API_URL + "/services",
+        status_code=201,
+        text='',
+        headers={'Location': API_URL + "/services/sf00", 'OpenEO-Identifier': 'sf00'},
+        additional_matcher=check_request
+    )
+
+    res = s2cube.tiled_viewing_service(type="WMTS", title="S2 Foo", description="Nice!", custom_param=45)
+    assert res == {"url": API_URL + "/services/sf00", 'service_id': 'sf00'}
