@@ -75,7 +75,7 @@ class ImageCollectionClient(ImageCollection):
         node_id = builder.process(process_id, arguments)
         metadata = session.collection_metadata(collection_id) if fetch_metadata else None
         if bands:
-            metadata.filter_bands(bands)
+            metadata = metadata.filter_bands(bands)
         return cls(node_id, builder, session, metadata=metadata)
 
     @classmethod
@@ -136,11 +136,12 @@ class ImageCollectionClient(ImageCollection):
             :param bands: List of band names or single band name as a string.
             :return An ImageCollection instance
         """
-        new_collection = self.graph_add_process(process_id='filter_bands',
+        im = self.graph_add_process(
+            process_id='filter_bands',
                                          args={'data': {'from_node': self.node_id}, 'bands': bands})
-        if new_collection.metadata is not None:
-            new_collection.metadata.filter_bands(bands)
-        return new_collection
+        if im.metadata:
+            im.metadata = im.metadata.filter_bands(bands)
+        return im
 
     @deprecated("use `filter_bands()` instead")
     def band_filter(self, bands) -> ImageCollection:

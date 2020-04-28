@@ -37,12 +37,12 @@ def _setup_connection(api_version, requests_mock) -> Connection:
     requests_mock.get(API_URL + "/collections/MASK", json={})
     requests_mock.get(API_URL + "/collections/SENTINEL2_SCF", json={
         "cube:dimensions": {
-            "bands": {"type": "bands", "values": ["SCENECLASSIFICATION", "MASKFOO"]}
+            "bands": {"type": "bands", "values": ["SCENECLASSIFICATION", "MSK"]}
         },
         "summaries": {
             "eo:bands": [
                 {"name": "SCENECLASSIFICATION"},
-                {"name": "MASK"},
+                {"name": "MSK"},
             ]
         },
     })

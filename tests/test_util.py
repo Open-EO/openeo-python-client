@@ -6,7 +6,8 @@ from datetime import datetime
 
 import pytest
 
-from openeo.util import first_not_none, get_temporal_extent, TimingLogger, ensure_list, ensure_dir, dict_no_none
+from openeo.util import first_not_none, get_temporal_extent, TimingLogger, ensure_list, ensure_dir, dict_no_none, \
+    deep_get, DeepKeyError
 
 
 def test_dict_no_none():
@@ -146,3 +147,46 @@ def test_timing_logger_fail():
         "Testing: start 2019-12-12 10:10:10.010000",
         "Testing: fail 2019-12-12 11:12:13.014141, elapsed 1:02:03.004141"
     ]
+
+
+def test_deep_get_dict():
+    d = {
+        "foo": "bar",
+        "dims": {"x": 5, "y": {"amount": 3, "unit": "cm"}},
+        "conversions": {4: 2, 6: {9: 3, 99: 7}},
+    }
+    assert deep_get(d, "foo") == "bar"
+    with pytest.raises(DeepKeyError, match=re.escape("1 (from deep key ('foo', 1))")):
+        deep_get(d, "foo", 1)
+    with pytest.raises(DeepKeyError, match=re.escape("'bar' (from deep key ('bar',))")):
+        deep_get(d, "bar")
+    assert deep_get(d, "dims") == {"x": 5, "y": {"amount": 3, "unit": "cm"}}
+    assert deep_get(d, "dims", "x") == 5
+    with pytest.raises(DeepKeyError, match=re.escape("'unit' (from deep key ('dims', 'x', 'unit'))")):
+        deep_get(d, "dims", "x", "unit")
+    assert deep_get(d, "dims", "x", "unit", default="cm") == "cm"
+    assert deep_get(d, "dims", "y", "amount") == 3
+    assert deep_get(d, "dims", "y", "unit") == "cm"
+    assert deep_get(d, "conversions", 4) == 2
+    assert deep_get(d, "conversions", 6, 99) == 7
+
+
+def test_deep_get_mixed():
+    d = {
+        "foo": (11, [222, 33], {"z": 42, -4: 44}),
+        "bar": [{"a": [5, 8]}, {"b": ("ar", 6, 8)}]
+    }
+    assert deep_get(d, "foo", 0) == 11
+    assert deep_get(d, "foo", 1) == [222, 33]
+    assert deep_get(d, "foo", 1, 0) == 222
+    assert deep_get(d, "foo", 1, 1) == 33
+    assert deep_get(d, "foo", 2, "z") == 42
+    assert deep_get(d, "foo", 2, -4) == 44
+    with pytest.raises(DeepKeyError, match=re.escape("-4 (from deep key ('foo', -4))")):
+        deep_get(d, "foo", -4)
+    with pytest.raises(DeepKeyError, match=re.escape("10 (from deep key ('foo', 10))")):
+        deep_get(d, "foo", 10)
+    assert deep_get(d, "bar", 0, "a", 1) == 8
+    assert deep_get(d, "bar", 1, "b", 0) == "ar"
+    with pytest.raises(DeepKeyError, match=re.escape("2 (from deep key ('bar', 2, 22, 222))")):
+        deep_get(d, "bar", 2, 22, 222)

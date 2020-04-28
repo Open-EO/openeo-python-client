@@ -219,7 +219,7 @@ def test_logical_or(connection, api_version):
 def test_logical_and(connection, api_version):
     s2 = connection.load_collection("SENTINEL2_SCF")
     b1 = s2.band("SCENECLASSIFICATION")
-    b2 = s2.band("MASK")
+    b2 = s2.band("MSK")
     mask = (b1 == 2) & (b2 == 5)
     actual = get_download_graph(mask)
     assert actual == load_json_resource('data/%s/logical_and.json' % api_version)

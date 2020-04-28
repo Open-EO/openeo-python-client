@@ -118,7 +118,7 @@ class DataCube(ImageCollection):
         )
         metadata = connection.collection_metadata(collection_id) if fetch_metadata else None
         if bands:
-            metadata.filter_bands(bands)
+            metadata = metadata.filter_bands(bands)
         return cls(graph=pg, connection=connection, metadata=metadata)
 
     @classmethod
@@ -177,13 +177,13 @@ class DataCube(ImageCollection):
             :param bands: List of band names or single band name as a string.
             :return a DataCube instance
         """
-        new_collection = self.process(
+        cube = self.process(
             process_id='filter_bands',
             args={'data': {'from_node': self._pg}, 'bands': bands}
         )
-        if new_collection.metadata is not None:
-            new_collection.metadata.filter_bands(bands)
-        return new_collection
+        if cube.metadata:
+            cube.metadata = cube.metadata.filter_bands(bands)
+        return cube
 
     @deprecated("use `filter_bands()` instead")
     def band_filter(self, bands) -> 'DataCube':
