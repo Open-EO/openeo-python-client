@@ -173,7 +173,7 @@ class RESTJob(Job):
 
     def run_synchronous(self, outputfile: Union[str, Path],
                         print=print, max_poll_interval=60, connection_retry_interval=30):
-        """Start the job, wait for it to finishe and download result"""
+        """Start the job, wait for it to finish and download result"""
         self.start_and_wait(
             print=print, max_poll_interval=max_poll_interval, connection_retry_interval=connection_retry_interval
         )

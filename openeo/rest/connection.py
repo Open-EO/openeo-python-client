@@ -372,6 +372,8 @@ class Connection(RestApiConnection):
         # TODO: type hint for graph: is it a nested or a flat one?
         req = self._build_request_with_process_graph(process_graph=graph, type=type, **kwargs)
         response = self.post(path="/services", json=req, expected_status=201)
+        # TODO: "location" is url of the service metadata, not (base) url of service (https://github.com/Open-EO/openeo-api/issues/269)
+        # TODO: fetch this metadata and return a full metadata object instead?
         return {
             'url': response.headers.get('Location'),
             'service_id': response.headers.get("OpenEO-Identifier"),
@@ -465,7 +467,7 @@ class Connection(RestApiConnection):
             title=title, description=description, plan=plan, budget=budget
         )
         if additional:
-            # TODO: get rid of this non-standard field?
+            # TODO: get rid of this non-standard field? https://github.com/Open-EO/openeo-api/issues/276
             req["job_options"] = additional
 
         response = self.post("/jobs", json=req)
