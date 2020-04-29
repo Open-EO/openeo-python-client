@@ -172,11 +172,15 @@ class DataCube(ImageCollection):
             }
         )
 
-    def filter_bands(self, bands: List[Union[str, int]]) -> 'DataCube':
-        """Filter the imagery by the given bands
-            :param bands: List of band names or single band name as a string.
-            :return a DataCube instance
+    def filter_bands(self, bands: Union[List[Union[str, int]], str]) -> 'DataCube':
         """
+        Filter the data cube by the given bands
+        :param bands: list of band names, common names or band indices. Single band name can also be given as string.
+        :return a DataCube instance
+        """
+        if isinstance(bands, str):
+            bands = [bands]
+        bands = [self.metadata.band_dimension.band_name(b) for b in bands]
         cube = self.process(
             process_id='filter_bands',
             args={'data': {'from_node': self._pg}, 'bands': bands}

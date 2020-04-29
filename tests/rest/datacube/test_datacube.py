@@ -13,6 +13,7 @@ import pytest
 import shapely
 import shapely.geometry
 
+from openeo.capabilities import ComparableVersion
 from openeo.rest import BandMathException
 from openeo.rest.datacube import DataCube
 from openeo.rest.imagecollectionclient import ImageCollectionClient
@@ -113,11 +114,36 @@ def test_filter_temporal_generic(s2cube, args, kwargs, extent):
     assert graph['arguments']['extent'] == extent
 
 
-def test_filter_bands(s2cube):
-    im = s2cube.filter_bands(["red", "nir"])
-    graph = _get_leaf_node(im)
-    assert graph['process_id'] == 'filter_bands'
-    assert graph['arguments']['bands'] == ["red", "nir"]
+def test_filter_bands_name(s2cube, api_version):
+    im = s2cube.filter_bands(["B08", "B04"])
+    expected = load_json_resource('data/{v}/filter_bands.json'.format(v=api_version))
+    expected["filterbands1"]["arguments"]["bands"] = ["B08", "B04"]
+    assert im.graph == expected
+
+
+def test_filter_bands_single_band(s2cube, api_version):
+    im = s2cube.filter_bands("B08")
+    expected = load_json_resource('data/{v}/filter_bands.json'.format(v=api_version))
+    expected["filterbands1"]["arguments"]["bands"] = ["B08"]
+    assert im.graph == expected
+
+
+def test_filter_bands_common_name(s2cube, api_version):
+    im = s2cube.filter_bands(["nir", "red"])
+    expected = load_json_resource('data/{v}/filter_bands.json'.format(v=api_version))
+    if api_version < ComparableVersion("1.0.0"):
+        expected["filterbands1"]["arguments"]["bands"] = []
+        expected["filterbands1"]["arguments"]["common_names"] = ["nir", "red"]
+    else:
+        expected["filterbands1"]["arguments"]["bands"] = ["nir", "red"]
+    assert im.graph == expected
+
+
+def test_filter_bands_common_index(s2cube, api_version):
+    im = s2cube.filter_bands([3, 2])
+    expected = load_json_resource('data/{v}/filter_bands.json'.format(v=api_version))
+    expected["filterbands1"]["arguments"]["bands"] = ["B08", "B04"]
+    assert im.graph == expected
 
 
 def test_pipe(s2cube, api_version):
@@ -335,6 +361,7 @@ def test_subtract_dates_ep3129(s2cube, api_version):
 
 def test_tiled_viewing_service(s2cube, connection, requests_mock, api_version):
     expected_graph = load_json_resource('data/{v}/tiled_viewing_service.json'.format(v=api_version))
+
     def check_request(request):
         assert request.json() == expected_graph
         return True

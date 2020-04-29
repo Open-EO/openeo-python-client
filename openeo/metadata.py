@@ -77,6 +77,14 @@ class BandDimension(Dimension):
                 return band_names.index(band)
         raise ValueError("Invalid band name/index {b!r}. Valid names: {n!r}".format(b=band, n=band_names))
 
+    def band_name(self, band: Union[str, int]) -> str:
+        """Resolve (common) name or index to a valid (common) name"""
+        if isinstance(band, str) and (band in self.band_names or band in self.common_names):
+            return band
+        elif isinstance(band, int) and 0 <= band < len(self.bands):
+            return self.band_names[band]
+        raise ValueError("Invalid band name/index {b!r}. Valid names: {n!r}".format(b=band, n=self.band_names))
+
     def filter_bands(self, bands: List[Union[int, str]]) -> 'BandDimension':
         """
         Construct new BandDimension with subset of bands,

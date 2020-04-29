@@ -63,6 +63,25 @@ def test_band_dimension_band_index():
         bdim.band_index("yellow")
 
 
+def test_band_dimension_band_name():
+    bdim = BandDimension(name="spectral", bands=[
+        Band("B02", "blue", 0.490),
+        Band("B03", "green", 0.560),
+    ])
+    assert bdim.band_name("B02") == "B02"
+    assert bdim.band_name("B03") == "B03"
+    with pytest.raises(ValueError, match="Invalid band name/index"):
+        bdim.band_name("B04")
+    assert bdim.band_name("blue") == "blue"
+    assert bdim.band_name("green") == "green"
+    with pytest.raises(ValueError, match="Invalid band name/index"):
+        bdim.band_name("red")
+    assert bdim.band_name(0) == "B02"
+    assert bdim.band_name(1) == "B03"
+    with pytest.raises(ValueError, match="Invalid band name/index"):
+        bdim.band_name(2)
+
+
 def test_band_dimension_filter_bands():
     b02 = Band("B02", "blue", 0.490)
     b03 = Band("B03", "green", 0.560)
