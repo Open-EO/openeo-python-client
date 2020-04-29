@@ -110,13 +110,17 @@ class DataCube(ImageCollection):
             'spatial_extent': spatial_extent,
             'temporal_extent': normalized_temporal_extent,
         }
+        metadata = connection.collection_metadata(collection_id) if fetch_metadata else None
         if bands:
+            if isinstance(bands, str):
+                bands = [bands]
+            if metadata:
+                bands = [metadata.band_dimension.band_name(b) for b in bands]
             arguments['bands'] = bands
         pg = PGNode(
             process_id='load_collection',
             arguments=arguments
         )
-        metadata = connection.collection_metadata(collection_id) if fetch_metadata else None
         if bands:
             metadata = metadata.filter_bands(bands)
         return cls(graph=pg, connection=connection, metadata=metadata)

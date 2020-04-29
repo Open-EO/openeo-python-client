@@ -114,6 +114,35 @@ def test_filter_temporal_generic(s2cube, args, kwargs, extent):
     assert graph['arguments']['extent'] == extent
 
 
+def test_load_collection_bands_name(connection, api_version):
+    im = connection.load_collection("S2", bands=["B08", "B04"])
+    expected = load_json_resource('data/{v}/load_collection_bands.json'.format(v=api_version))
+    assert im.graph == expected
+
+
+def test_load_collection_bands_single_band(connection, api_version):
+    im = connection.load_collection("S2", bands="B08")
+    expected = load_json_resource('data/{v}/load_collection_bands.json'.format(v=api_version))
+    expected["loadcollection1"]["arguments"]["bands"] = ["B08"]
+    assert im.graph == expected
+
+
+def test_load_collection_bands_common_name(connection, api_version):
+    im = connection.load_collection("S2", bands=["nir", "red"])
+    expected = load_json_resource('data/{v}/load_collection_bands.json'.format(v=api_version))
+    if api_version < ComparableVersion("1.0.0"):
+        expected["loadcollection1"]["arguments"]["bands"] = ["B08", "B04"]
+    else:
+        expected["loadcollection1"]["arguments"]["bands"] = ["nir", "red"]
+    assert im.graph == expected
+
+
+def test_load_collection_bands_band_index(connection, api_version):
+    im = connection.load_collection("S2", bands=[3, 2])
+    expected = load_json_resource('data/{v}/load_collection_bands.json'.format(v=api_version))
+    assert im.graph == expected
+
+
 def test_filter_bands_name(s2cube, api_version):
     im = s2cube.filter_bands(["B08", "B04"])
     expected = load_json_resource('data/{v}/filter_bands.json'.format(v=api_version))
