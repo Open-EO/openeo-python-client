@@ -148,3 +148,35 @@ class TimingLogger:
             s="fail" if exc_type else "end",
             e=self.end_time, d=self.elapsed
         ))
+
+
+class DeepKeyError(LookupError):
+    def __init__(self, key, keys):
+        super(DeepKeyError, self).__init__("{k!r} (from deep key {s!r})".format(k=key, s=keys))
+
+
+# Sentinel object for `default` argument of `deep_get`
+_deep_get_default_undefined = object()
+
+
+def deep_get(data: dict, *keys, default=_deep_get_default_undefined):
+    """
+    Get "deep" value from nested dictionaries/lists/tuples
+
+    :param data: nested data structure of dicts, lists, tuples
+    :param keys: sequence of keys/indexes to traverse
+    :param default: default value when a key is missing.
+        By default a DeepKeyError will be raised.
+    :return:
+    """
+    for key in keys:
+        if isinstance(data, dict) and key in data:
+            data = data[key]
+        elif isinstance(data, (list, tuple)) and isinstance(key, int) and 0 <= key < len(data):
+            data = data[key]
+        else:
+            if default is _deep_get_default_undefined:
+                raise DeepKeyError(key, keys)
+            else:
+                return default
+    return data

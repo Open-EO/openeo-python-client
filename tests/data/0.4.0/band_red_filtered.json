@@ -1,4 +1,3 @@
-
 {
   "filterbands1": {
     "process_id": "filter_bands",
@@ -7,9 +6,10 @@
         "from_node": "loadcollection1"
       },
       "bands": [
-        "red",
-        "green"
-      ]
+        "B04",
+        "B03"
+      ],
+      "common_names": []
     },
     "result": false
   },

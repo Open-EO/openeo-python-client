@@ -1,111 +1,12 @@
-import warnings
 from abc import ABC
-from collections import namedtuple
 from datetime import datetime, date
-from typing import List, Dict, Union, Sequence, Tuple, Callable
+from typing import List, Dict, Union, Tuple, Callable
 
 from deprecated import deprecated
 from shapely.geometry import Polygon, MultiPolygon
 
-from openeo.job import Job
+from openeo.metadata import CollectionMetadata
 from openeo.util import get_temporal_extent, first_not_none
-
-
-class CollectionMetadata:
-    """
-    Wrapper for Image Collection metadata.
-
-    Simplifies getting values from deeply nested mappings,
-    allows additional parsing and normalizing compatibility issues.
-
-    Metadata is expected to follow format defined by
-    https://open-eo.github.io/openeo-api/apireference/#tag/EO-Data-Discovery/paths/~1collections~1{collection_id}/get
-    """
-
-    # Simple container class for band metadata (name, common name, wavelength in micrometer)
-    Band = namedtuple("Band", ["name", "common_name", "wavelength_um"])
-
-    def __init__(self, metadata: dict):
-        self._metadata = metadata
-        # Cached band metadata (for lazy loading/parsing)
-        self._bands = None
-
-    def get(self, *args, default=None):
-        """Helper to recursively index into nested metadata dict"""
-        cursor = self._metadata
-        for arg in args:
-            if arg not in cursor:
-                return default
-            cursor = cursor[arg]
-        return cursor
-
-    @property
-    def extent(self) -> dict:
-        return self._metadata.get('extent')
-
-    @property
-    def bands(self) -> List[Band]:
-        """Get band metadata as list of Band metadata tuples"""
-        if self._bands is None:
-            self._bands = self._get_bands()
-        return self._bands
-
-    def _get_bands(self) -> List[Band]:
-        # TODO refactor this specification specific processing away in a subclass? Or pystac (#133)?
-        # First try `summaries/eo:bands` (and 0.4 style `properties/eo:bands`)
-        for path in [('summaries', 'eo:bands'), ('properties', 'eo:bands')]:
-            eo_bands = self.get(*path)
-            if eo_bands:
-                # center_wavelength is in micrometer according to spec
-                return [self.Band(b['name'], b.get('common_name'), b.get('center_wavelength')) for b in eo_bands]
-        warnings.warn("No band metadata under `summaries/eo:bands`, trying some fallback sources.")
-
-        # Fall back on `cube:dimensions` (and 0.4-style `properties/cube:dimensions`)
-        for path in [('cube:dimensions',), ('properties', 'cube:dimensions')]:
-            cube_dimensions = self.get(*path, default={})
-            for dim in cube_dimensions.values():
-                if dim["type"] == "bands":
-                    # TODO: warn when multiple (or no) "bands" type?
-                    return [self.Band(b, None, None) for b in dim["values"]]
-
-        # Try non-standard VITO bands metadata
-        # TODO remove support for this legacy non-standard band metadata
-        if "bands" in self._metadata:
-            nm_to_um = lambda nm: nm / 1000. if nm is not None else None
-            return [self.Band(b["band_id"], b.get("name"), nm_to_um(b.get("wavelength_nm")))
-                    for b in self._metadata["bands"]]
-
-    @property
-    def band_names(self) -> List[str]:
-        return [b.name for b in self.bands]
-
-    @property
-    def band_common_names(self) -> List[str]:
-        return [b.common_name for b in self.bands]
-
-    def filter_bands(self,bands_names):
-        indices = [ self.get_band_index(name) for name in bands_names]
-        self._bands = [ self.bands[index] for index in indices]
-
-
-
-    def get_band_index(self, band: Union[int, str]) -> int:
-        """
-        Resolve a band name/index to band index
-        :param band: band name, common name or index
-        :return int: band index
-        """
-        band_names = self.band_names
-        if isinstance(band, int) and 0 <= band < len(band_names):
-            return band
-        elif isinstance(band, str):
-            common_names = self.band_common_names
-            # First try common names if possible
-            if band in common_names:
-                return common_names.index(band)
-            if band in band_names:
-                return band_names.index(band)
-        raise ValueError("Band {b!r} not available in collection. Valid names: {n!r}".format(b=band, n=band_names))
 
 
 class ImageCollection(ABC):

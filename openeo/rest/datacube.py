@@ -110,15 +110,19 @@ class DataCube(ImageCollection):
             'spatial_extent': spatial_extent,
             'temporal_extent': normalized_temporal_extent,
         }
+        metadata = connection.collection_metadata(collection_id) if fetch_metadata else None
         if bands:
+            if isinstance(bands, str):
+                bands = [bands]
+            if metadata:
+                bands = [metadata.band_dimension.band_name(b) for b in bands]
             arguments['bands'] = bands
         pg = PGNode(
             process_id='load_collection',
             arguments=arguments
         )
-        metadata = connection.collection_metadata(collection_id) if fetch_metadata else None
         if bands:
-            metadata.filter_bands(bands)
+            metadata = metadata.filter_bands(bands)
         return cls(graph=pg, connection=connection, metadata=metadata)
 
     @classmethod
@@ -172,18 +176,22 @@ class DataCube(ImageCollection):
             }
         )
 
-    def filter_bands(self, bands: List[Union[str, int]]) -> 'DataCube':
-        """Filter the imagery by the given bands
-            :param bands: List of band names or single band name as a string.
-            :return a DataCube instance
+    def filter_bands(self, bands: Union[List[Union[str, int]], str]) -> 'DataCube':
         """
-        new_collection = self.process(
+        Filter the data cube by the given bands
+        :param bands: list of band names, common names or band indices. Single band name can also be given as string.
+        :return a DataCube instance
+        """
+        if isinstance(bands, str):
+            bands = [bands]
+        bands = [self.metadata.band_dimension.band_name(b) for b in bands]
+        cube = self.process(
             process_id='filter_bands',
             args={'data': {'from_node': self._pg}, 'bands': bands}
         )
-        if new_collection.metadata is not None:
-            new_collection.metadata.filter_bands(bands)
-        return new_collection
+        if cube.metadata:
+            cube.metadata = cube.metadata.filter_bands(bands)
+        return cube
 
     @deprecated("use `filter_bands()` instead")
     def band_filter(self, bands) -> 'DataCube':

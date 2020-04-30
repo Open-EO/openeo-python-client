@@ -6,7 +6,7 @@ Unit tests specifically for 1.0.0-style DataCube
 
 import shapely.geometry
 
-from openeo.imagecollection import CollectionMetadata
+import openeo.metadata
 from openeo.internal.graph_building import PGNode
 from openeo.rest.connection import Connection
 from .conftest import API_URL
@@ -166,8 +166,8 @@ def test_metadata_load_collection_100(con100, requests_mock):
     })
     im = con100.load_collection('SENTINEL2')
     assert im.metadata.bands == [
-        CollectionMetadata.Band("B2", "blue", None),
-        CollectionMetadata.Band("B3", "green", None)
+        openeo.metadata.Band("B2", "blue", None),
+        openeo.metadata.Band("B3", "green", None)
     ]
 
 

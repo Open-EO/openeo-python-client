@@ -70,12 +70,16 @@ class ImageCollectionClient(ImageCollection):
             'spatial_extent': spatial_extent,
             'temporal_extent': normalized_temporal_extent,
         }
-        if bands:
-            arguments['bands'] = bands
-        node_id = builder.process(process_id, arguments)
         metadata = session.collection_metadata(collection_id) if fetch_metadata else None
         if bands:
-            metadata.filter_bands(bands)
+            if isinstance(bands, str):
+                bands = [bands]
+            if metadata:
+                bands = [metadata.band_dimension.band_name(b, allow_common=False) for b in bands]
+            arguments['bands'] = bands
+        node_id = builder.process(process_id, arguments)
+        if bands:
+            metadata = metadata.filter_bands(bands)
         return cls(node_id, builder, session, metadata=metadata)
 
     @classmethod
@@ -131,16 +135,25 @@ class ImageCollectionClient(ImageCollection):
             }
         )
 
-    def filter_bands(self, bands: List[Union[str, int]]) -> ImageCollection:
-        """Filter the imagery by the given bands
-            :param bands: List of band names or single band name as a string.
-            :return An ImageCollection instance
+    def filter_bands(self, bands: Union[List[Union[str, int]], str]) -> 'ImageCollection':
         """
-        new_collection = self.graph_add_process(process_id='filter_bands',
-                                         args={'data': {'from_node': self.node_id}, 'bands': bands})
-        if new_collection.metadata is not None:
-            new_collection.metadata.filter_bands(bands)
-        return new_collection
+        Filter the imagery by the given bands
+        :param bands: list of band names, common names or band indices. Single band name can also be given as string.
+        :return a DataCube instance
+        """
+        if isinstance(bands, str):
+            bands = [bands]
+        bands = [self.metadata.band_dimension.band_name(b) for b in bands]
+        im = self.graph_add_process(
+            process_id='filter_bands',
+            args={
+                'data': {'from_node': self.node_id},
+                'bands': [b for b in bands if b in self.metadata.band_names],
+                'common_names': [b for b in bands if b in self.metadata.band_common_names]
+            })
+        if im.metadata:
+            im.metadata = im.metadata.filter_bands(bands)
+        return im
 
     @deprecated("use `filter_bands()` instead")
     def band_filter(self, bands) -> ImageCollection:

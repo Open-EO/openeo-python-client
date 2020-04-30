@@ -4,7 +4,7 @@ import pytest
 
 import openeo
 from openeo.internal.graphbuilder_040 import GraphBuilder
-from openeo.imagecollection import CollectionMetadata
+import openeo.metadata
 from openeo.rest.imagecollectionclient import ImageCollectionClient
 
 API_URL = "https://oeo.net"
@@ -37,8 +37,8 @@ def test_metadata_load_collection_040(session040, requests_mock):
     })
     im = ImageCollectionClient.load_collection('SENTINEL2', session=session040)
     assert im.metadata.bands == [
-        CollectionMetadata.Band("B2", "blue", None),
-        CollectionMetadata.Band("B3", "green", None)
+        openeo.metadata.Band("B2", "blue", None),
+        openeo.metadata.Band("B3", "green", None)
     ]
 
 

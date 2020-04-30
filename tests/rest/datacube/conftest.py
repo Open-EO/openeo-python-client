@@ -37,12 +37,12 @@ def _setup_connection(api_version, requests_mock) -> Connection:
     requests_mock.get(API_URL + "/collections/MASK", json={})
     requests_mock.get(API_URL + "/collections/SENTINEL2_SCF", json={
         "cube:dimensions": {
-            "bands": {"type": "bands", "values": ["SCENECLASSIFICATION", "MASKFOO"]}
+            "bands": {"type": "bands", "values": ["SCENECLASSIFICATION", "MSK"]}
         },
         "summaries": {
             "eo:bands": [
                 {"name": "SCENECLASSIFICATION"},
-                {"name": "MASK"},
+                {"name": "MSK"},
             ]
         },
     })
@@ -53,6 +53,12 @@ def _setup_connection(api_version, requests_mock) -> Connection:
 def connection(api_version, requests_mock) -> Connection:
     """Connection fixture to a backend of given version with some image collections."""
     return _setup_connection(api_version, requests_mock)
+
+
+@pytest.fixture
+def con040(requests_mock) -> Connection:
+    """Connection fixture to a 0.4.0 backend with some image collections."""
+    return _setup_connection("0.4.0", requests_mock)
 
 
 @pytest.fixture
