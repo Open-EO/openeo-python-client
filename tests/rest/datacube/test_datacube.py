@@ -24,10 +24,15 @@ from ... import load_json_resource
 
 
 def test_apply_dimension_temporal_cumsum(s2cube, api_version):
-    cumsum = s2cube.apply_dimension('cumsum')
+    cumsum = s2cube.apply_dimension('cumsum', dimension="t")
     actual_graph = get_download_graph(cumsum)
     expected_graph = load_json_resource('data/{v}/apply_dimension_temporal_cumsum.json'.format(v=api_version))
     assert actual_graph == expected_graph
+
+
+def test_apply_dimension_invalid_dimension(s2cube):
+    with pytest.raises(ValueError, match="Invalid dimension"):
+        s2cube.apply_dimension('cumsum', dimension="olapola")
 
 
 def test_min_time(s2cube, api_version):
@@ -266,7 +271,7 @@ def test_max_time(s2cube, api_version):
     graph = _get_leaf_node(im, force_flat=True)
     assert graph["process_id"] == "reduce" if api_version == '0.4.0' else 'reduce_dimension'
     assert graph["arguments"]["data"] == {'from_node': 'loadcollection1'}
-    assert graph["arguments"]["dimension"] == "temporal"
+    assert graph["arguments"]["dimension"] == "t"
     if api_version == '0.4.0':
         callback = graph["arguments"]["reducer"]["callback"]["r1"]
         assert callback == {'arguments': {'data': {'from_argument': 'data'}}, 'process_id': 'max', 'result': True}
@@ -280,6 +285,7 @@ def test_reduce_time_udf(s2cube, api_version):
     graph = _get_leaf_node(im)
     assert graph["process_id"] == "reduce" if api_version == '0.4.0' else 'reduce_dimension'
     assert "data" in graph["arguments"]
+    assert graph["arguments"]["dimension"] == "t"
 
 
 def test_ndvi(s2cube, api_version):
@@ -405,3 +411,22 @@ def test_tiled_viewing_service(s2cube, connection, requests_mock, api_version):
 
     res = s2cube.tiled_viewing_service(type="WMTS", title="S2 Foo", description="Nice!", custom_param=45)
     assert res == {"url": API_URL + "/services/sf00", 'service_id': 'sf00'}
+
+
+def test_apply_dimension(connection, requests_mock):
+    requests_mock.get(API_URL + "/collections/S22", json={
+        "cube:dimensions": {
+            "color": {"type": "bands", "values": ["cyan", "magenta", "yellow", "black"]},
+            "alpha": {"type": "spatial"},
+            "date": {"type": "temporal"}
+        }
+    })
+    s22 = connection.load_collection("S22")
+
+    for dim in ["color", "alpha", "date"]:
+        reset_graphbuilder()
+        cube = s22.apply_dimension(dimension=dim, code="subtract_mean")
+        assert cube.graph["applydimension1"]["process_id"] == "apply_dimension"
+        assert cube.graph["applydimension1"]["arguments"]["dimension"] == dim
+    with pytest.raises(ValueError, match="Invalid dimension 'wut'"):
+        s22.apply_dimension(dimension='wut', code="subtract_mean")

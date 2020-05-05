@@ -28,7 +28,7 @@
       "data": {
         "from_node": "filterbands1"
       },
-      "dimension": "spectral_bands",
+      "dimension": "bands",
       "reducer": {
         "callback": {
           "r1": {

@@ -393,3 +393,26 @@ def test_metadata_bands_dimension(spec):
     ]
     assert metadata.band_names == ["foo", "bar"]
     assert metadata.band_common_names == ["F00", None]
+
+
+def test_metadata_reduce_dimension():
+    metadata = CollectionMetadata({
+        "cube:dimensions": {
+            "x": {"type": "spatial"},
+            "b": {"type": "bands", "values": ["red", "green"]}
+        }
+    })
+    reduced = metadata.reduce_dimension("b")
+    assert metadata.dimension_names() == ["x", "b"]
+    assert reduced.dimension_names() == ["x"]
+
+
+def test_metadata_reduce_dimension_invalid_name():
+    metadata = CollectionMetadata({
+        "cube:dimensions": {
+            "x": {"type": "spatial"},
+            "b": {"type": "bands", "values": ["red", "green"]}
+        }
+    })
+    with pytest.raises(ValueError):
+        metadata.reduce_dimension("y")

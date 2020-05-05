@@ -27,7 +27,7 @@
       "data": {
         "from_node": "loadcollection1"
       },
-      "dimension": "temporal"
+      "dimension": "t"
     },
     "result": false
   },

@@ -15,7 +15,7 @@
         "data": {
           "from_node": "loadcollection1"
         },
-        "dimension": "spectral_bands",
+        "dimension": "bands",
         "binary": false,
         "reducer": {
           "callback": {

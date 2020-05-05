@@ -18,6 +18,9 @@ def _setup_connection(api_version, requests_mock) -> Connection:
     requests_mock.get(API_URL + "/", json={"api_version": api_version})
     s2_properties = {
         "cube:dimensions": {
+            "x": {"type": "spatial"},
+            "y": {"type": "spatial"},
+            "t": {"type": "temporal"},
             "bands": {"type": "bands", "values": ["B02", "B03", "B04", "B08"]}
         },
         "summaries": {

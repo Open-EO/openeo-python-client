@@ -13,7 +13,7 @@
       "data": {
         "from_node": "loadcollection1"
       },
-      "dimension": "spectral_bands",
+      "dimension": "bands",
       "reducer": {
         "process_graph": {
           "arrayelement1": {
@@ -57,7 +57,7 @@
       "data": {
         "from_node": "loadcollection1"
       },
-      "dimension": "spectral_bands",
+      "dimension": "bands",
       "reducer": {
         "process_graph": {
           "arrayelement2": {

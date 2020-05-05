@@ -11,7 +11,7 @@
   "reduce1": {
     "process_id": "reduce",
     "arguments": {
-      "dimension": "spectral_bands",
+      "dimension": "bands",
       "data": {
         "from_node": "loadcollection1"
       },

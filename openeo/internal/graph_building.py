@@ -92,7 +92,8 @@ class ReduceNode(PGNode):
     A process graph node for "reduce" processes (has a reducer sub-process-graph)
     """
 
-    def __init__(self, data: PGNode, reducer: Union[PGNode, str], dimension: str, process_id="reduce_dimension"):
+    def __init__(self, data: PGNode, reducer: Union[PGNode, str], dimension: str, process_id="reduce_dimension",
+                 band_math_mode: bool = False):
         assert process_id in ("reduce_dimension", "reduce_dimension_binary")
         arguments = {
             "data": {"from_node": data},
@@ -101,22 +102,25 @@ class ReduceNode(PGNode):
             # TODO #125 context
         }
         super().__init__(process_id=process_id, arguments=arguments)
+        # TODO #123 is it (still) necessary to make "band" math a special case?
+        self.band_math_mode = band_math_mode
+
+    @property
+    def dimension(self):
+        return self.arguments["dimension"]
 
     def reducer_process_graph(self) -> PGNode:
         return self.arguments["reducer"]["process_graph"]
 
-    def clone_with_new_reducer(self, reducer: PGNode):
+    def clone_with_new_reducer(self, reducer: PGNode) -> 'ReduceNode':
         """Copy/clone this reduce node: keep input reference, but use new reducer"""
         return ReduceNode(
             data=self.arguments["data"]["from_node"],
             reducer=reducer,
             dimension=self.arguments["dimension"],
+            band_math_mode=self.band_math_mode
             # TODO: context?
         )
-
-    def is_bandmath(self) -> bool:
-        # TODO: avoid hardcoded "spectral_bands" dimension #76 #93 #116
-        return self.arguments["dimension"] == "spectral_bands"
 
 
 class FlatGraphNodeIdGenerator:

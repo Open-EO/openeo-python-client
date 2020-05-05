@@ -170,7 +170,7 @@ class ImageCollectionClient(ImageCollection):
 
         args = {
             'data': {'from_node': self.node_id},
-            'dimension': 'spectral_bands',
+            'dimension': self.metadata.band_dimension.name,
             'reducer': {
                 'callback': {
                     'r1': {
@@ -324,7 +324,7 @@ class ImageCollectionClient(ImageCollection):
             # there was no previous reduce step
             args = {
                 'data': {'from_node': self.node_id},
-                'dimension': 'spectral_bands',
+                'dimension': self.metadata.band_dimension.name,
                 'reducer': {
                     'callback': callback_graph_builder.processes
                 }
@@ -495,9 +495,9 @@ class ImageCollectionClient(ImageCollection):
     def _get_band_graph_builder(self):
         current_node = self.graph[self.node_id]
         if current_node["process_id"] == "reduce":
-            if current_node["arguments"]["dimension"] == "spectral_bands":
-                callback_graph = current_node["arguments"]["reducer"]["callback"]
-                return GraphBuilder.from_process_graph(callback_graph)
+            # TODO: check "dimension" of "reduce" in some way?
+            callback_graph = current_node["arguments"]["reducer"]["callback"]
+            return GraphBuilder.from_process_graph(callback_graph)
         return None
 
     def zonal_statistics(self, regions, func, scale=1000, interval="day") -> 'ImageCollection':
@@ -527,7 +527,7 @@ class ImageCollectionClient(ImageCollection):
 
         return self.graph_add_process(process_id, args)
 
-    def apply_dimension(self, code: str, runtime=None, version="latest",dimension='temporal') -> 'ImageCollection':
+    def apply_dimension(self, code: str, runtime=None, version="latest", dimension='t') -> 'ImageCollection':
         """
         Applies an n-ary process (i.e. takes an array of pixel values instead of a single pixel value) to a raster data cube.
         In contrast, the process apply applies an unary process to all pixel values.
@@ -565,7 +565,7 @@ class ImageCollectionClient(ImageCollection):
             'data': {
                 'from_node': self.node_id
             },
-            'dimension': dimension,
+            'dimension': self.metadata.assert_valid_dimension(dimension),
             'process': {
                 'callback': callback
             }
@@ -591,7 +591,7 @@ class ImageCollectionClient(ImageCollection):
             'data': {
                 'from_node': self.node_id
             },
-            'dimension': 'spectral_bands',  # TODO determine dimension based on datacube metadata
+            'dimension': self.metadata.band_dimension.name,
             'binary': False,
             'reducer': {
                 'callback': {
@@ -632,7 +632,7 @@ class ImageCollectionClient(ImageCollection):
             'data': {
                 'from_node': self.node_id
             },
-            'dimension': 'temporal',  # TODO determine dimension based on datacube metadata
+            'dimension': self.metadata.temporal_dimension.name,
             'binary': False,
             'reducer': {
                 'callback': {
@@ -668,7 +668,7 @@ class ImageCollectionClient(ImageCollection):
 
         args = {
             'data': {'from_node': self.node_id},
-            'dimension': 'temporal',
+            'dimension': self.metadata.temporal_dimension.name,
             'reducer': {
                 'callback': {
                     'r1': {

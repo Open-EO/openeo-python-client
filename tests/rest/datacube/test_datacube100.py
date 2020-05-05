@@ -3,7 +3,7 @@
 Unit tests specifically for 1.0.0-style DataCube
 
 """
-
+import pytest
 import shapely.geometry
 
 import openeo.metadata
@@ -150,6 +150,38 @@ def test_reduce_dimension_binary(con100):
             },
             'result': True
         }}
+
+
+def test_reduce_dimension_name(con100, requests_mock):
+    requests_mock.get(API_URL + "/collections/S22", json={
+        "cube:dimensions": {
+            "color": {"type": "bands", "values": ["cyan", "magenta", "yellow", "black"]},
+            "alpha": {"type": "spatial"},
+            "date": {"type": "temporal"}
+        }
+    })
+    s22 = con100.load_collection("S22")
+
+    for dim in ["color", "alpha", "date"]:
+        cube = s22.reduce_dimension(dimension=dim, reducer="sum")
+        assert cube.graph["reducedimension1"] == {
+            "process_id": "reduce_dimension",
+            "arguments": {
+                'data': {'from_node': 'loadcollection1'},
+                'dimension': dim,
+                'reducer': {'process_graph': {
+                    'sum1': {
+                        'process_id': 'sum',
+                        'arguments': {'data': {'from_parameter': 'data'}},
+                        'result': True
+                    }
+                }}
+            },
+            'result': True
+        }
+
+    with pytest.raises(ValueError, match="Invalid dimension 'wut'"):
+        s22.reduce_dimension(dimension="wut", reducer="sum")
 
 
 def test_metadata_load_collection_100(con100, requests_mock):

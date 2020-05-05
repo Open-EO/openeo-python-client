@@ -10,7 +10,7 @@
   },
   "reduce1": {
     "arguments": {
-      "dimension": "spectral_bands",
+      "dimension": "bands",
       "reducer": {
         "callback": {
           "r1": {

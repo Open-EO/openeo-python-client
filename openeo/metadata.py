@@ -94,7 +94,7 @@ class BandDimension(Dimension):
     def filter_bands(self, bands: List[Union[int, str]]) -> 'BandDimension':
         """
         Construct new BandDimension with subset of bands,
-        based on given band indeces or (common) names
+        based on given band indices or (common) names
         """
         return BandDimension(
             name=self.name,
@@ -212,11 +212,28 @@ class CollectionMetadata:
         # TODO: check against extent metadata in dimensions
         return self._orig_metadata.get('extent')
 
+    def dimension_names(self) -> List[str]:
+        return list(d.name for d in self._dimensions)
+
+    def assert_valid_dimension(self, dimension: str) -> str:
+        """Make sure given dimension name is valid."""
+        names = self.dimension_names()
+        if dimension not in names:
+            raise ValueError("Invalid dimension {d!r}. Should be one of {n}".format(d=dimension, n=names))
+        return dimension
+
     @property
     def band_dimension(self) -> BandDimension:
+        """Dimension corresponding to spectral/logic/thematic "bands"."""
         if not isinstance(self._band_dimension, BandDimension):
             raise MetadataException("No band dimension")
         return self._band_dimension
+
+    @property
+    def temporal_dimension(self) -> TemporalDimension:
+        if not isinstance(self._temporal_dimension, TemporalDimension):
+            raise MetadataException("No temporal dimension")
+        return self._temporal_dimension
 
     @property
     def bands(self) -> List[Band]:
@@ -244,3 +261,11 @@ class CollectionMetadata:
                 for d in self._dimensions
             ]
         )
+
+    def reduce_dimension(self, dimension_name: str) -> 'CollectionMetadata':
+        """Collapse a dimension by reducing it."""
+        # TODO: option to keep reduced dimension (with a single value)?
+        self.assert_valid_dimension(dimension_name)
+        loc = self.dimension_names().index(dimension_name)
+        dimensions = self._dimensions[:loc] + self._dimensions[loc + 1:]
+        return CollectionMetadata(metadata=self._orig_metadata, dimensions=dimensions)

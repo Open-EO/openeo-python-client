@@ -177,7 +177,7 @@ class ImageCollection(ABC):
         """
         pass
 
-    def apply_dimension(self, code: str, runtime=None, version="latest",dimension='temporal') -> 'ImageCollection':
+    def apply_dimension(self, code: str, runtime=None, version="latest", dimension='t') -> 'ImageCollection':
         """
         Applies an n-ary process (i.e. takes an array of pixel values instead of a single pixel value) to a raster data cube.
         In contrast, the process apply applies an unary process to all pixel values.

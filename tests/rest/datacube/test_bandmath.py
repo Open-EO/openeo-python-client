@@ -21,7 +21,6 @@ def test_band_basic(connection, api_version):
     assert cube.band(0).graph == expected_graph
     reset_graphbuilder()
     assert cube.band("B02").graph == expected_graph
-    # TODO graph contains "spectral_band" hardcoded
 
 
 def test_indexing_040(con040):
@@ -144,7 +143,7 @@ def test_band_operation(con100, process, expected):
             "arguments": {
                 "data": {"from_node": "loadcollection1"},
                 "reducer": {"process_graph": callback},
-                "dimension": "spectral_bands",
+                "dimension": "bands",
             },
             "result": True,
         }

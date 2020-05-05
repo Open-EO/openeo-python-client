@@ -14,7 +14,7 @@
       "data": {
         "from_node": "loadcollection1"
       },
-      "dimension": "temporal",
+      "dimension": "t",
       "process": {
         "callback": {
           "process": {

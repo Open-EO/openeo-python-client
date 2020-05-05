@@ -1,4 +1,3 @@
-import copy
 import datetime
 import logging
 import pathlib
@@ -75,15 +74,17 @@ class DataCube(ImageCollection):
     # Legacy `graph_add_node` method
     graph_add_node = deprecated(reason="just use `process()`")(process)
 
-    def process_with_node(self, pg: PGNode) -> 'DataCube':
+    def process_with_node(self, pg: PGNode, metadata: CollectionMetadata = None) -> 'DataCube':
         """
         Generic helper to create a new DataCube by applying a process (given as process graph node)
 
         :param pg: process graph node (containing process id and arguments)
+        :param metadata: (optional) metadata to override original cube metadata (e.g. when reducing dimensions)
         :return: new DataCube instance
         """
-        # TODO: properly update metadata as well?
-        return DataCube(graph=pg, connection=self._connection, metadata=copy.copy(self.metadata))
+        # TODO: deep copy `self.metadata` instead of using same instance?
+        # TODO: cover more cases where metadata has to be altered
+        return DataCube(graph=pg, connection=self._connection, metadata=metadata or self.metadata)
 
     @classmethod
     def load_collection(
@@ -372,7 +373,8 @@ class DataCube(ImageCollection):
         ))
 
     def _in_bandmath_mode(self) -> bool:
-        return isinstance(self._pg, ReduceNode) and self._pg.is_bandmath()
+        # TODO #123 is it (still) necessary to make "band" math a special case?
+        return isinstance(self._pg, ReduceNode) and self._pg.band_math_mode
 
     def _get_bandmath_node(self) -> ReduceNode:
         """Check we are in bandmath mode and return the node"""
@@ -419,7 +421,7 @@ class DataCube(ImageCollection):
 
         return self.process(process_id, args)
 
-    def apply_dimension(self, code: str, runtime=None, version="latest", dimension='temporal') -> 'DataCube':
+    def apply_dimension(self, code: str, runtime=None, version="latest", dimension='t') -> 'DataCube':
         """
         Applies an n-ary process (i.e. takes an array of pixel values instead of a single pixel value) to a raster data cube.
         In contrast, the process apply applies an unary process to all pixel values.
@@ -448,13 +450,13 @@ class DataCube(ImageCollection):
             arguments={
                 "data": self._pg,
                 "process": PGNode.to_process_graph_argument(process),
-                "dimension": dimension,
+                "dimension": self.metadata.assert_valid_dimension(dimension),
                 # TODO #125 arguments: target_dimension, context
             }
         ))
 
     def reduce_dimension(self, dimension: str, reducer: Union[PGNode, str],
-                         process_id="reduce_dimension") -> 'DataCube':
+                         process_id="reduce_dimension", band_math_mode: bool = False) -> 'DataCube':
         """
         Add a reduce process with given reducer callback along given dimension
         """
@@ -463,24 +465,22 @@ class DataCube(ImageCollection):
         if isinstance(reducer, str):
             # Assume given reducer is a simple predefined reduce process_id
             reducer = PGNode(process_id=reducer, arguments={"data": {"from_parameter": "data"}})
-
         return self.process_with_node(ReduceNode(
             process_id=process_id,
             data=self._pg,
             reducer=reducer,
-            dimension=dimension,
+            dimension=self.metadata.assert_valid_dimension(dimension),
+            # TODO #123 is it (still) necessary to make "band" math a special case?
+            band_math_mode=band_math_mode
             # TODO: add `context` argument #125
-        ))
+        ), metadata=self.metadata.reduce_dimension(dimension_name=dimension))
 
-    def _reduce_bands(self, reducer: PGNode, dimension: str = None) -> 'DataCube':
-        # TODO #116 determine dimension based on datacube metadata
-        dimension = dimension or 'spectral_bands'
-        return self.reduce_dimension(dimension=dimension, reducer=reducer)
+    def _reduce_bands(self, reducer: PGNode) -> 'DataCube':
+        # TODO #123 is it (still) necessary to make "band" math a special case?
+        return self.reduce_dimension(dimension=self.metadata.band_dimension.name, reducer=reducer, band_math_mode=True)
 
-    def _reduce_temporal(self, reducer: PGNode, dimension: str = None) -> 'DataCube':
-        # TODO #116 determine dimension based on datacube metadata
-        dimension = dimension or 'temporal'
-        return self.reduce_dimension(dimension=dimension, reducer=reducer)
+    def _reduce_temporal(self, reducer: PGNode) -> 'DataCube':
+        return self.reduce_dimension(dimension=self.metadata.temporal_dimension.name, reducer=reducer)
 
     def reduce_bands_udf(self, code: str, runtime="Python", version="latest") -> 'DataCube':
         """
@@ -550,54 +550,48 @@ class DataCube(ImageCollection):
             }
         ))
 
-    def reduce_temporal_simple(self, process_id="max", dimension=None) -> 'DataCube':
+    def reduce_temporal_simple(self, process_id="max") -> 'DataCube':
         """Do temporal reduce with a simple given process as callback."""
-        # TODO #128 #116 get rid again of explicit dimension argument?
         return self._reduce_temporal(reducer=PGNode(
             process_id=process_id,
             arguments={"data": {"from_parameter": "data"}}
-        ), dimension=dimension)
+        ))
 
-    def min_time(self, dimension=None) -> 'DataCube':
+    def min_time(self) -> 'DataCube':
         """Finds the minimum value of a time series for all bands of the input dataset.
 
             :return: a DataCube instance
         """
-        # TODO #128 #116 get rid again of explicit dimension argument?
-        return self.reduce_temporal_simple("min", dimension=dimension)
+        return self.reduce_temporal_simple("min")
 
-    def max_time(self, dimension=None) -> 'DataCube':
+    def max_time(self) -> 'DataCube':
         """
         Finds the maximum value of a time series for all bands of the input dataset.
 
         :return: a DataCube instance
         """
-        # TODO #128 #116 get rid again of explicit dimension argument?
-        return self.reduce_temporal_simple("max", dimension=dimension)
+        return self.reduce_temporal_simple("max")
 
-    def mean_time(self, dimension=None) -> 'DataCube':
+    def mean_time(self) -> 'DataCube':
         """Finds the mean value of a time series for all bands of the input dataset.
 
             :return: a DataCube instance
         """
-        # TODO #128 #116 get rid again of explicit dimension argument?
-        return self.reduce_temporal_simple("mean", dimension=dimension)
+        return self.reduce_temporal_simple("mean")
 
-    def median_time(self, dimension=None) -> 'DataCube':
+    def median_time(self) -> 'DataCube':
         """Finds the median value of a time series for all bands of the input dataset.
 
             :return: a DataCube instance
         """
-        # TODO #128 #116 get rid again of explicit dimension argument?
-        return self.reduce_temporal_simple("median", dimension=dimension)
+        return self.reduce_temporal_simple("median")
 
-    def count_time(self, dimension=None) -> 'DataCube':
+    def count_time(self) -> 'DataCube':
         """Counts the number of images with a valid mask in a time series for all bands of the input dataset.
 
             :return: a DataCube instance
         """
-        # TODO #128 #116 get rid again of explicit dimension argument?
-        return self.reduce_temporal_simple("count", dimension=dimension)
+        return self.reduce_temporal_simple("count")
 
     def ndvi(self, nir: str = None, red: str = None, target_band: str = None) -> 'DataCube':
         """ Normalized Difference Vegetation Index (NDVI)
@@ -616,7 +610,7 @@ class DataCube(ImageCollection):
             )
         )
 
-    def rename_labels(self, dimension: str, target: list, source: list=None) -> 'DataCube':
+    def rename_labels(self, dimension: str, target: list, source: list = None) -> 'DataCube':
         """ Renames the labels of the specified dimension in the data cube from source to target.
 
             :param dimension: Dimension name
@@ -629,7 +623,7 @@ class DataCube(ImageCollection):
             process_id='rename_labels',
             args=dict_no_none(
                 data={'from_node': self._pg},
-                dimension=dimension,
+                dimension=self.metadata.assert_valid_dimension(dimension),
                 target=target,
                 source=source
             )

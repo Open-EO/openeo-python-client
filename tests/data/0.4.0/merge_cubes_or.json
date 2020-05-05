@@ -27,7 +27,7 @@
       "data": {
         "from_node": "loadcollection2"
       },
-      "dimension": "spectral_bands",
+      "dimension": "bands",
       "reducer": {
         "callback": {
           "r1": {
@@ -83,7 +83,7 @@
       "data": {
         "from_node": "loadcollection3"
       },
-      "dimension": "spectral_bands",
+      "dimension": "bands",
       "reducer": {
         "callback": {
           "r1": {
