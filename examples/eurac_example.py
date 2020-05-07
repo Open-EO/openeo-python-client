@@ -26,21 +26,21 @@ print(con.list_processes())
 # List available collections
 print(con.list_collections())
 
-# load a specific dataset
+# Load a specific dataset
 datacube = con.load_collection(collection_id="openEO_S2_32632_10m_L2A_D22", bands=['B02', 'B03', 'B04', 'B08'])
-# perform spatial subsetting (e.g around the city of Bolzano)
+# Perform spatial subsetting (e.g around the city of Bolzano)
 datacube = datacube.filter_bbox(west=11.279182434082033, south=46.464349400461145, 
                                 east=11.406898498535158, north=46.522729291844286, crs="EPSG:32632")
-# perform temporal subsetting (e.g. for the month of june in 2018, only this data available in this collection)
+# Perform temporal subsetting (e.g. for the month of june in 2018, only this data available in this collection)
 temp = datacube.filter_temporal(extent=["2018-06-06T00:00:00Z", "2018-06-22T00:00:00Z"])
-# map features of the dataset to variables (e.g. the red and near infrared band)
+# Map features of the dataset to variables (e.g. the red and near infrared band)
 red = temp.band('B04')
 nir = temp.band("B08")
-# perform operation using feature variables (e.g. calculation of NDVI (normalized difference vegetation index))
+# Perform operation using feature variables (e.g. calculation of NDVI (normalized difference vegetation index))
 datacube = (nir - red) / (nir + red)
-# reduce on temporal dimension with max operator
+# Reduce on temporal dimension with max operator
 datacube = datacube.max_time()
-# provide result as geotiff image
+# Provide result as geotiff image
 datacube = datacube.save_result(format="gtiff")
 
 print(json.dumps(datacube.graph, indent=2))
