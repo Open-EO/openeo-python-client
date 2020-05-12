@@ -1,0 +1,91 @@
+{
+  "loadcollection1": {
+    "process_id": "load_collection",
+    "arguments": {
+      "id": "SENTINEL2_SCF",
+      "spatial_extent": null,
+      "temporal_extent": null
+    }
+  },
+  "reducedimension1": {
+    "process_id": "reduce_dimension",
+    "arguments": {
+      "data": {
+        "from_node": "loadcollection1"
+      },
+      "dimension": "bands",
+      "reducer": {
+        "process_graph": {
+          "arrayelement1": {
+            "process_id": "array_element",
+            "arguments": {
+              "data": {
+                "from_parameter": "data"
+              },
+              "index": 0
+            }
+          },
+          "eq1": {
+            "process_id": "eq",
+            "arguments": {
+              "x": {
+                "from_node": "arrayelement1"
+              },
+              "y": 4
+            },
+            "result": true
+          }
+        }
+      }
+    }
+  },
+  "applykernel1": {
+    "process_id": "apply_kernel",
+    "arguments": {
+      "data": {
+        "from_node": "reducedimension1"
+      },
+      "factor": 1.0,
+      "kernel": [
+        [
+          0.1,
+          0.1,
+          0.1
+        ],
+        [
+          0.1,
+          0.1,
+          0.1
+        ],
+        [
+          0.1,
+          0.1,
+          0.1
+        ]
+      ]
+    }
+  },
+  "apply1": {
+    "process_id": "apply",
+    "arguments": {
+      "data": {
+        "from_node": "applykernel1"
+      },
+      "process": {
+        "process_graph": {
+          "gt1": {
+            "process_id": "gt",
+            "arguments": {
+              "x": {
+                "from_parameter": "x"
+              },
+              "y": 0.3
+            },
+            "result": true
+          }
+        }
+      }
+    },
+    "result": true
+  }
+}

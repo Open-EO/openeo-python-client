@@ -233,7 +233,12 @@ class DataCube(ImageCollection):
         else:
             if isinstance(other, DataCube):
                 return self._merge_operator_binary_cubes(operator, other)
-            # TODO #123: support broadcast operators with scalars?
+            elif isinstance(other, (int, float)) and not reverse:
+                # TODO #123: support appending to pre-existing apply process instead of adding a whole new one
+                return self.apply(process=PGNode(
+                    process_id=operator,
+                    arguments={"x": {"from_parameter": "x"}, "y": other}
+                ))
         raise OperatorException("Unsupported operator {op!r} with {other!r} (band math mode={b})".format(
             op=operator, other=other, b=band_math_mode))
 
