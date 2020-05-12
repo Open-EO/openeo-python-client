@@ -148,6 +148,15 @@ def test_load_collection_bands_band_index(connection, api_version):
     assert im.graph == expected
 
 
+def test_load_collection_bands_and_band_math(connection, api_version):
+    cube = connection.load_collection("S2", bands=["B03", "B04"])
+    b4 = cube.band("B04")
+    b3 = cube.band("B03")
+    x = b4 - b3
+    expected = load_json_resource('data/{v}/load_collection_bands_and_band_math.json'.format(v=api_version))
+    assert x.graph == expected
+
+
 def test_filter_bands_name(s2cube, api_version):
     im = s2cube.filter_bands(["B08", "B04"])
     expected = load_json_resource('data/{v}/filter_bands.json'.format(v=api_version))
@@ -173,7 +182,7 @@ def test_filter_bands_common_name(s2cube, api_version):
     assert im.graph == expected
 
 
-def test_filter_bands_common_index(s2cube, api_version):
+def test_filter_bands_index(s2cube, api_version):
     im = s2cube.filter_bands([3, 2])
     expected = load_json_resource('data/{v}/filter_bands.json'.format(v=api_version))
     expected["filterbands1"]["arguments"]["bands"] = ["B08", "B04"]
