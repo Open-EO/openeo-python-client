@@ -403,8 +403,8 @@ def test_metadata_reduce_dimension():
         }
     })
     reduced = metadata.reduce_dimension("b")
-    assert metadata.dimension_names() == ["x", "b"]
-    assert reduced.dimension_names() == ["x"]
+    assert set(metadata.dimension_names()) == {"x", "b"}
+    assert set(reduced.dimension_names()) == {"x"}
 
 
 def test_metadata_reduce_dimension_invalid_name():
