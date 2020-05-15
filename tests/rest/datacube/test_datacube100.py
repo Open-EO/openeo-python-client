@@ -17,9 +17,9 @@ def test_mask_polygon(con100: Connection):
     img = con100.load_collection("S2")
     polygon = shapely.geometry.box(0, 0, 1, 1)
     masked = img.mask_polygon(mask=polygon)
-    assert sorted(masked.graph.keys()) == ["loadcollection1", "mask1"]
-    assert masked.graph["mask1"] == {
-        "process_id": "mask",
+    assert sorted(masked.graph.keys()) == ["loadcollection1", "maskpolygon1"]
+    assert masked.graph["maskpolygon1"] == {
+        "process_id": "mask_polygon",
         "arguments": {
             "data": {"from_node": "loadcollection1"},
             'mask': {
@@ -34,9 +34,9 @@ def test_mask_polygon(con100: Connection):
 def test_mask_polygon_path(con100: Connection):
     img = con100.load_collection("S2")
     masked = img.mask_polygon(mask="path/to/polygon.json")
-    assert sorted(masked.graph.keys()) == ["loadcollection1", "mask1", "readvector1"]
-    assert masked.graph["mask1"] == {
-        "process_id": "mask",
+    assert sorted(masked.graph.keys()) == ["loadcollection1", "maskpolygon1", "readvector1"]
+    assert masked.graph["maskpolygon1"] == {
+        "process_id": "mask_polygon",
         "arguments": {
             "data": {"from_node": "loadcollection1"},
             "mask": {"from_node": "readvector1"},

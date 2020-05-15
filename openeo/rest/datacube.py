@@ -738,7 +738,7 @@ class DataCube(ImageCollection):
             assert "type" in mask
 
         return self.process(
-            process_id="mask",
+            process_id="mask_polygon",
             args=dict_no_none(
                 data={"from_node": self._pg},
                 mask=mask,

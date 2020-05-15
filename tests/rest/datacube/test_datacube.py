@@ -307,14 +307,16 @@ def test_ndvi(s2cube, api_version):
         assert graph["arguments"] == {'data': {'from_node': 'loadcollection1'}}
 
 
-def test_mask(s2cube, api_version):
+def test_mask_polygon(s2cube, api_version):
     polygon = shapely.geometry.Polygon([[0, 0], [1.9, 0], [1.9, 1.9], [0, 1.9]])
-    if api_version == '0.4.0':
+    if api_version < ComparableVersion("1.0.0"):
+        expected_proces_id = "mask"
         im = s2cube.mask(polygon)
     else:
-        im = s2cube.mask_polygon(polygon)
+        expected_proces_id = "mask_polygon"
+        im = s2cube.mask_polygon(mask=polygon)
     graph = _get_leaf_node(im)
-    assert graph["process_id"] == "mask"
+    assert graph["process_id"] == expected_proces_id
     assert graph["arguments"] == {
         "data": {'from_node': 'loadcollection1'},
         "mask": {
