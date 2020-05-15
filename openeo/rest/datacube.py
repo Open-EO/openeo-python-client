@@ -58,7 +58,7 @@ class DataCube(ImageCollection):
     def connection(self):
         return self._connection
 
-    def process(self, process_id: str, args: dict = None, **kwargs) -> 'DataCube':
+    def process(self, process_id: str, args: dict = None, metadata: CollectionMetadata = None, **kwargs) -> 'DataCube':
         """
         Generic helper to create a new DataCube by applying a process.
 
@@ -69,7 +69,7 @@ class DataCube(ImageCollection):
         return self.process_with_node(PGNode(
             process_id=process_id,
             arguments=args, **kwargs
-        ))
+        ), metadata=metadata)
 
     # Legacy `graph_add_node` method
     graph_add_node = deprecated(reason="just use `process()`")(process)
@@ -492,6 +492,13 @@ class DataCube(ImageCollection):
         Apply reduce (`reduce_dimension`) process with given UDF along band/spectral dimension.
         """
         return self._reduce_bands(reducer=self._create_run_udf(code, runtime, version))
+
+    def add_dimension(self, name: str, label: str, type: str = None):
+        return self.process(
+            process_id="add_dimension",
+            args={"data": self._pg, "name": name, "label": label, "type": type},
+            metadata=self.metadata.add_dimension(name=name, label=label, type=type)
+        )
 
     @deprecated("use `reduce_bands_udf` instead")
     def apply_tiles(self, code: str, runtime="Python", version="latest") -> 'DataCube':

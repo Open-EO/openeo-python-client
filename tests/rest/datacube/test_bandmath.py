@@ -288,3 +288,11 @@ def test_fuzzy_mask(connection, api_version):
     mask = fuzzy > 0.3
     assert mask.graph == load_json_resource('data/%s/fuzzy_mask.json' % api_version)
 
+
+def test_fuzzy_mask_band_math(connection, api_version):
+    s2 = connection.load_collection("SENTINEL2_SCF")
+    scf_band = s2.band("SCENECLASSIFICATION")
+    clouds = scf_band == 4
+    fuzzy = clouds.apply_kernel(kernel=0.1 * np.ones((3, 3)))
+    mask = fuzzy.add_dimension("bands", "mask", "bands").band("mask") > 0.3
+    assert mask.graph == load_json_resource('data/%s/fuzzy_mask_add_dim.json' % api_version)

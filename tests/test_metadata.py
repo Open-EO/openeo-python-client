@@ -416,3 +416,37 @@ def test_metadata_reduce_dimension_invalid_name():
     })
     with pytest.raises(ValueError):
         metadata.reduce_dimension("y")
+
+
+def test_metadata_add_band_dimension():
+    metadata = CollectionMetadata({
+        "cube:dimensions": {
+            "t": {"type": "temporal"}
+        }
+    })
+    new = metadata.add_dimension("layer", "red", "bands")
+
+    assert metadata.dimension_names() == ["t"]
+    assert not metadata.has_band_dimension()
+
+    assert new.has_band_dimension()
+    assert new.dimension_names() == ["t", "layer"]
+    assert new.band_dimension.name == "layer"
+    assert new.band_names == ["red"]
+
+
+def test_metadata_add_temporal_dimension():
+    metadata = CollectionMetadata({
+        "cube:dimensions": {
+            "x": {"type": "spatial"}
+        }
+    })
+    new = metadata.add_dimension("date", "2020-05-15", "temporal")
+
+    assert metadata.dimension_names() == ["x"]
+    assert not metadata.has_temporal_dimension()
+
+    assert new.has_temporal_dimension()
+    assert new.dimension_names() == ["x", "date"]
+    assert new.temporal_dimension.name == "date"
+    assert new.temporal_dimension.extent == ["2020-05-15", "2020-05-15"]

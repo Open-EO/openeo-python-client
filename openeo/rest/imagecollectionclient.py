@@ -1,4 +1,5 @@
 import datetime
+import logging
 import pathlib
 import typing
 from typing import List, Dict, Union, Tuple
@@ -17,6 +18,9 @@ if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Only import this for type hinting purposes. Runtime import causes circular dependency issues.
     # Note: the `hasattr` check is necessary for Python versions before 3.5.2.
     from openeo.rest.connection import Connection
+
+
+_log = logging.getLogger(__name__)
 
 
 class ImageCollectionClient(ImageCollection):
@@ -335,7 +339,7 @@ class ImageCollectionClient(ImageCollection):
             process_graph_copy.processes[self.node_id]['arguments']['reducer']['callback'] = callback_graph_builder.processes
 
             # now current_node should be a reduce node, let's modify it
-            # TODO: properly update metadata of reduced cube?
+            # TODO: properly update metadata of reduced cube? #metadatareducedimension
             return ImageCollectionClient(self.node_id, process_graph_copy, self.session, metadata=self.metadata)
 
     def __truediv__(self, other):
@@ -446,7 +450,7 @@ class ImageCollectionClient(ImageCollection):
             new_builder = reducing_graph.builder.shallow_copy()
             new_builder.processes[node_id]['arguments']['reducer']['callback'] = merged.processes
             # now current_node should be a reduce node, let's modify it
-            # TODO: properly update metadata of reduced cube?
+            # TODO: properly update metadata of reduced cube? #metadatareducedimension
             return ImageCollectionClient(node_id, new_builder, reducing_graph.session, metadata=self.metadata)
         
     def _reduce_bands_binary_xy(self,operator,other:Union[ImageCollection,Union[int,float]]):
@@ -499,6 +503,19 @@ class ImageCollectionClient(ImageCollection):
             callback_graph = current_node["arguments"]["reducer"]["callback"]
             return GraphBuilder.from_process_graph(callback_graph)
         return None
+
+    def add_dimension(self, name: str, label: Union[str, int, float], type: str = "other"):
+        if type == "bands" and self.metadata.has_band_dimension():
+            # TODO: remove old "bands" dimension in appropriate places (see #metadatareducedimension)
+            _log.warning('Adding new "bands" dimension on top of existing one.')
+        return self.graph_add_process(
+            process_id='add_dimension',
+            args={
+                'data': {'from_node': self.node_id},
+                'name': name, 'value': label, 'type': type,
+            },
+            metadata=self.metadata.add_dimension(name, label, type)
+        )
 
     def zonal_statistics(self, regions, func, scale=1000, interval="day") -> 'ImageCollection':
         """Calculates statistics for each zone specified in a file.
@@ -1058,7 +1075,8 @@ class ImageCollectionClient(ImageCollection):
         newCollection = ImageCollectionClient(self.node_id, merged, self.session, metadata=self.metadata)
         return newCollection
 
-    def graph_add_process(self, process_id, args) -> 'ImageCollectionClient':
+    def graph_add_process(self, process_id: str, args: dict,
+                          metadata: CollectionMetadata = None) -> 'ImageCollectionClient':
         """
         Returns a new imagecollection with an added process with the given process
         id and a dictionary of arguments
@@ -1073,7 +1091,9 @@ class ImageCollectionClient(ImageCollection):
         id = newbuilder.process(process_id,args)
 
         # TODO: properly update metadata as well?
-        newCollection = ImageCollectionClient(id, newbuilder, self.session, metadata=copy.copy(self.metadata))
+        newCollection = ImageCollectionClient(
+            node_id=id, builder=newbuilder, session=self.session, metadata=metadata or copy.copy(self.metadata)
+        )
         return newCollection
 
     def to_graphviz(self):

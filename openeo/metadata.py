@@ -222,16 +222,22 @@ class CollectionMetadata:
             raise ValueError("Invalid dimension {d!r}. Should be one of {n}".format(d=dimension, n=names))
         return dimension
 
+    def has_band_dimension(self) -> bool:
+        return isinstance(self._band_dimension, BandDimension)
+
     @property
     def band_dimension(self) -> BandDimension:
         """Dimension corresponding to spectral/logic/thematic "bands"."""
-        if not isinstance(self._band_dimension, BandDimension):
+        if not self.has_band_dimension():
             raise MetadataException("No band dimension")
         return self._band_dimension
 
+    def has_temporal_dimension(self) -> bool:
+        return isinstance(self._temporal_dimension, TemporalDimension)
+
     @property
     def temporal_dimension(self) -> TemporalDimension:
-        if not isinstance(self._temporal_dimension, TemporalDimension):
+        if not self.has_temporal_dimension():
             raise MetadataException("No temporal dimension")
         return self._temporal_dimension
 
@@ -263,9 +269,21 @@ class CollectionMetadata:
         )
 
     def reduce_dimension(self, dimension_name: str) -> 'CollectionMetadata':
-        """Collapse a dimension by reducing it."""
+        """Create new metadata object by collapsing/reducing a dimension."""
         # TODO: option to keep reduced dimension (with a single value)?
         self.assert_valid_dimension(dimension_name)
         loc = self.dimension_names().index(dimension_name)
         dimensions = self._dimensions[:loc] + self._dimensions[loc + 1:]
         return CollectionMetadata(metadata=self._orig_metadata, dimensions=dimensions)
+
+    def add_dimension(self, name: str, label: Union[str, float], type: str = None) -> 'CollectionMetadata':
+        """Create new metadata object with added dimension"""
+        if type == "bands":
+            dim = BandDimension(name=name, bands=[Band(label, None, None)])
+        elif type == "spatial":
+            dim = SpatialDimension(name=name, extent=[label, label])
+        elif type == "temporal":
+            dim = TemporalDimension(name=name, extent=[label, label])
+        else:
+            dim = Dimension(type=type or "other", name=name)
+        return CollectionMetadata(metadata=self._orig_metadata, dimensions=self._dimensions + [dim])
