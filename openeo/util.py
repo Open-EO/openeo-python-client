@@ -1,6 +1,7 @@
 """
 Various utilities and helpers.
 """
+import functools
 import logging
 import re
 from datetime import datetime, date
@@ -111,6 +112,12 @@ class TimingLogger:
 
     At start of the code block the current time will be logged
     and at end of the code block the end time and elapsed time will be logged.
+
+    Can also be used as a function/method decorator, for example:
+
+    >>> @TimingLogger("Calculation going on")
+    ... def add(x, y):
+    ...     return x + y
     """
 
     # Function that returns current datetime (overridable for unit tests)
@@ -148,6 +155,17 @@ class TimingLogger:
             s="fail" if exc_type else "end",
             e=self.end_time, d=self.elapsed
         ))
+
+    def __call__(self, f: Callable):
+        """
+        Use TimingLogger as function/method decorator
+        """
+        @functools.wraps(f)
+        def wrapper(*args, **kwargs):
+            with self:
+                return f(*args, *kwargs)
+
+        return wrapper
 
 
 class DeepKeyError(LookupError):

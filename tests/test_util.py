@@ -3,7 +3,8 @@ import os
 import pathlib
 import re
 from datetime import datetime
-
+from typing import List
+import unittest.mock as mock
 import pytest
 
 from openeo.util import first_not_none, get_temporal_extent, TimingLogger, ensure_list, ensure_dir, dict_no_none, \
@@ -103,22 +104,34 @@ def test_timing_logger_basic(caplog):
     assert pattern.match(caplog.text)
 
 
-def test_timing_logger_custom():
-    logs = []
+class _Logger:
+    """Logger stand-in for logging tests"""
 
-    def logger(msg):
-        logs.append(msg)
+    def __init__(self):
+        self.logs = []
 
-    timing_logger = TimingLogger("Testing", logger=logger)
+    def __call__(self, msg):
+        self.logs.append(msg)
 
+
+def _fake_clock(times: List[datetime] = None):
     # Trick to have a "time" function that returns different times in subsequent calls
-    times = [datetime(2019, 12, 12, 10, 10, 10, 10000), datetime(2019, 12, 12, 11, 12, 13, 14141)]
-    timing_logger._now = iter(times).__next__
+    times = times or [datetime(2020, 3, 4, 5 + x, 2 * x, 1 + 3 * x, 1000) for x in range(0, 12)]
+    return iter(times).__next__
+
+
+def test_timing_logger_custom():
+    logger = _Logger()
+    timing_logger = TimingLogger("Testing", logger=logger)
+    timing_logger._now = _fake_clock([
+        datetime(2019, 12, 12, 10, 10, 10, 10000),
+        datetime(2019, 12, 12, 11, 12, 13, 14141)
+    ])
 
     with timing_logger:
         logger("Hello world")
 
-    assert logs == [
+    assert logger.logs == [
         "Testing: start 2019-12-12 10:10:10.010000",
         "Hello world",
         "Testing: end 2019-12-12 11:12:13.014141, elapsed 1:02:03.004141"
@@ -126,16 +139,12 @@ def test_timing_logger_custom():
 
 
 def test_timing_logger_fail():
-    logs = []
-
-    def logger(msg):
-        logs.append(msg)
-
+    logger = _Logger()
     timing_logger = TimingLogger("Testing", logger=logger)
-
-    # Trick to have a "time" function that returns different times in subsequent calls
-    times = [datetime(2019, 12, 12, 10, 10, 10, 10000), datetime(2019, 12, 12, 11, 12, 13, 14141)]
-    timing_logger._now = iter(times).__next__
+    timing_logger._now = _fake_clock([
+        datetime(2019, 12, 12, 10, 10, 10, 10000),
+        datetime(2019, 12, 12, 11, 12, 13, 14141)
+    ])
 
     try:
         with timing_logger:
@@ -143,9 +152,55 @@ def test_timing_logger_fail():
     except ValueError:
         pass
 
-    assert logs == [
+    assert logger.logs == [
         "Testing: start 2019-12-12 10:10:10.010000",
         "Testing: fail 2019-12-12 11:12:13.014141, elapsed 1:02:03.004141"
+    ]
+
+
+def test_timing_logger_decorator():
+    logger = _Logger()
+
+    @TimingLogger("Decorated", logger=logger)
+    def fun(x, y):
+        logger("calculating {x} + {y}".format(x=x, y=y))
+        return x + y
+
+    with mock.patch.object(TimingLogger, '_now', new=_fake_clock()):
+        fun(2, 3)
+        fun(3, 5)
+
+    assert logger.logs == [
+        'Decorated: start 2020-03-04 05:00:01.001000',
+        'calculating 2 + 3',
+        'Decorated: end 2020-03-04 06:02:04.001000, elapsed 1:02:03',
+        'Decorated: start 2020-03-04 07:04:07.001000',
+        'calculating 3 + 5',
+        'Decorated: end 2020-03-04 08:06:10.001000, elapsed 1:02:03'
+    ]
+
+
+def test_timing_logger_method_decorator():
+    logger = _Logger()
+
+    class Foo:
+        @TimingLogger("Decorated", logger=logger)
+        def fun(self, x, y):
+            logger("calculating {x} + {y}".format(x=x, y=y))
+            return x + y
+
+    f = Foo()
+    with mock.patch.object(TimingLogger, '_now', new=_fake_clock()):
+        f.fun(2, 3)
+        f.fun(3, 5)
+
+    assert logger.logs == [
+        'Decorated: start 2020-03-04 05:00:01.001000',
+        'calculating 2 + 3',
+        'Decorated: end 2020-03-04 06:02:04.001000, elapsed 1:02:03',
+        'Decorated: start 2020-03-04 07:04:07.001000',
+        'calculating 3 + 5',
+        'Decorated: end 2020-03-04 08:06:10.001000, elapsed 1:02:03'
     ]
 
 
