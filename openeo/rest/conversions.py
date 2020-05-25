@@ -6,6 +6,10 @@ import numpy as np
 import pandas
 
 
+class InvalidTimeSeriesException(ValueError):
+    pass
+
+
 def timeseries_json_to_pandas(timeseries: dict, index: str = "date", auto_collapse=True) -> pandas.DataFrame:
     """
     Convert a timeseries JSON object as returned by the `aggregate_polygon` process to a pandas DataFrame object
@@ -25,11 +29,24 @@ def timeseries_json_to_pandas(timeseries: dict, index: str = "date", auto_collap
     # The input timeseries dictionary is assumed to have this structure:
     #       {dict mapping date -> [list with one item per polygon: [list with one float/None per band or empty list]]}
 
+    # Some quick checks
+    if len(timeseries) == 0:
+        raise InvalidTimeSeriesException("Empty data set")
+    polygon_counts = set(len(polygon_data) for polygon_data in timeseries.values())
+    if polygon_counts == {0}:
+        raise InvalidTimeSeriesException("No polygon data for each date")
+    elif 0 in polygon_counts:
+        # TODO: still support this use case?
+        raise InvalidTimeSeriesException("No polygon data for some dates ({p})".format(p=polygon_counts))
+    elif len(polygon_counts) > 1:
+        raise InvalidTimeSeriesException("Inconsistent polygon counts: {p}".format(p=polygon_counts))
     # Count the number of bands in the timeseries, so we can provide a fallback array for missing data
-    band_counts = set(len(band_data) for values in timeseries.values() for band_data in values)
+    band_counts = set(len(band_data) for polygon_data in timeseries.values() for band_data in polygon_data)
+    if band_counts == {0}:
+        raise InvalidTimeSeriesException("Zero bands everywhere")
     band_counts.discard(0)
     if len(band_counts) != 1:
-        raise ValueError("Multiple band counts found in timeseries data: {b}".format(b=band_counts))
+        raise InvalidTimeSeriesException("Inconsistent band counts: {b}".format(b=band_counts))
     band_count = band_counts.pop()
     band_data_fallback = [np.nan] * band_count
     # Load the timeseries data in a pandas Series with multi-index ["date", "polygon", "band"]

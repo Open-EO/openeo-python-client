@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 from pandas.util.testing import assert_frame_equal, assert_series_equal
 
-from openeo.rest.conversions import timeseries_json_to_pandas
+from openeo.rest.conversions import timeseries_json_to_pandas, InvalidTimeSeriesException
 
 DATE1 = "2019-01-11T11:11:11Z"
 DATE2 = "2019-02-22T22:22:22Z"
@@ -145,3 +145,16 @@ def test_timeseries_json_to_pandas_none_nan_empty_handling():
         )
     )
     assert_frame_equal(df, expected)
+
+
+@pytest.mark.parametrize(["error", "ts"], [
+    ("Empty data set", {}),
+    ("No polygon data for each date", {DATE1: [], DATE2: []}),
+    ("No polygon data for some dates", {DATE1: [], DATE2: [[1, 2], [3, 4]]}),
+    ("Inconsistent polygon counts", {DATE1: [[1, 2]], DATE2: [[3, 4], [5, 6]]}),
+    ("Zero bands everywhere", {DATE1: [[], []], DATE2: [[], []]}),
+    ("Inconsistent band counts", {DATE1: [[1, 2], [3]], DATE2: [[4, 5, 6], []]}),
+])
+def test_timeseries_json_to_pandas_invalid_polygon_and_band_counts(error, ts):
+    with pytest.raises(InvalidTimeSeriesException, match=error):
+        timeseries_json_to_pandas(ts)
