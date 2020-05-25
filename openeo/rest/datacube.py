@@ -516,6 +516,7 @@ class DataCube(ImageCollection):
         return self.reduce_bands_udf(code=code, runtime=runtime, version=version)
 
     def _create_run_udf(self, code, runtime, version) -> PGNode:
+        # TODO: expose this publicly (or create dedicated PGNode subclass)? Also encapsulate/decouple UDF loading better?
         return PGNode(
             process_id="run_udf",
             arguments={

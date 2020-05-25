@@ -589,6 +589,7 @@ class ImageCollectionClient(ImageCollection):
         }
         return self.graph_add_process(process_id, args)
 
+    @deprecated("use `reduce_bands_udf` instead")
     def apply_tiles(self, code: str, runtime="Python", version="latest") -> 'ImageCollection':
         """Apply a function to the given set of tiles in this image collection.
 
@@ -599,9 +600,15 @@ class ImageCollectionClient(ImageCollection):
 
             Code should follow the OpenEO UDF conventions.
 
-            TODO: Deprecated since 0.4.0?
+            TODO: Deprecated since 0.4.0? #140
 
             :param code: String representing Python code to be executed in the backend.
+        """
+        return self.reduce_bands_udf(code=code, runtime=runtime, version=version)
+
+    def reduce_bands_udf(self, code: str, runtime="Python", version="latest") -> 'ImageCollection':
+        """
+        Reduce "band" dimension with a UDF
         """
         process_id = 'reduce'
         args = {

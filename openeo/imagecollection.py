@@ -162,21 +162,6 @@ class ImageCollection(ABC):
         """
         pass
 
-    # TODO: deprecated/unused? Confusing name as well: ImageCollectionClient does reduce along "spectral" dimension
-    def apply_tiles(self, code: str) -> 'ImageCollection':
-        """Apply a function to the tiles of an image collection.
-
-        This type applies a simple function to one pixel of the input image or image collection.
-        The function gets the value of one pixel (including all bands) as input and produces a single scalar or tuple output.
-        The result has the same schema as the input image (collection) but different bands.
-        Examples include the computation of vegetation indexes or filtering cloudy pixels.
-
-        :param code: Code to apply to the ImageCollection
-
-        :return: An image collection with the tiles applied function.
-        """
-        pass
-
     def apply_dimension(self, code: str, runtime=None, version="latest", dimension='t') -> 'ImageCollection':
         """
         Applies an n-ary process (i.e. takes an array of pixel values instead of a single pixel value) to a raster data cube.
