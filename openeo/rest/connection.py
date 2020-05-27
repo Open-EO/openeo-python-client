@@ -79,11 +79,17 @@ class RestApiConnection:
     def request(self, method: str, path: str, headers: dict = None, auth: AuthBase = None,
                 check_error=True, expected_status=None, **kwargs):
         """Generic request send"""
+        url = self.build_url(path)
+        auth = auth or self.auth
+        if _log.isEnabledFor(logging.DEBUG):
+            _log.debug("Request `{m} {u}` with headers {h}, auth {a}, kwargs {k}".format(
+                m=method.upper(), u=url, h=headers and headers.keys(), a=type(auth).__name__, k=list(kwargs.keys()))
+            )
         resp = self.session.request(
             method=method,
-            url=self.build_url(path),
+            url=url,
             headers=self._merged_headers(headers),
-            auth=auth or self.auth,
+            auth=auth,
             timeout=kwargs.pop("timeout", self.default_timeout),
             **kwargs
         )
