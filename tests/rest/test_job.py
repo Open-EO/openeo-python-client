@@ -28,7 +28,7 @@ def con100(requests_mock):
 
 def test_execute_batch(session040, requests_mock, tmpdir):
     requests_mock.get(API_URL + "/collections/SENTINEL2", json={"foo": "bar"})
-    requests_mock.post(API_URL + "/jobs", headers={"OpenEO-Identifier": "f00ba5"})
+    requests_mock.post(API_URL + "/jobs", status_code=201, headers={"OpenEO-Identifier": "f00ba5"})
     requests_mock.post(API_URL + "/jobs/f00ba5/results")
     requests_mock.get(API_URL + "/jobs/f00ba5", [
         {'json': {"status": "submitted"}},
@@ -68,7 +68,7 @@ def test_execute_batch(session040, requests_mock, tmpdir):
 
 def test_execute_batch_with_error(session040, requests_mock, tmpdir):
     requests_mock.get(API_URL + "/collections/SENTINEL2", json={"foo": "bar"})
-    requests_mock.post(API_URL + "/jobs", headers={"OpenEO-Identifier": "f00ba5"})
+    requests_mock.post(API_URL + "/jobs", status_code=201, headers={"OpenEO-Identifier": "f00ba5"})
     requests_mock.post(API_URL + "/jobs/f00ba5/results")
     requests_mock.get(API_URL + "/jobs/f00ba5", [
         {'json': {"status": "submitted"}},
@@ -133,7 +133,7 @@ def test_create_job_100(con100, requests_mock):
         }
         return True
 
-    requests_mock.post(API_URL + "/jobs", headers={"OpenEO-Identifier": "f00ba5"}, additional_matcher=check_request)
+    requests_mock.post(API_URL + "/jobs", status_code=201, headers={"OpenEO-Identifier": "f00ba5"}, additional_matcher=check_request)
     con100.create_job({"foo1": {"process_id": "foo"}}, title="Foo")
 
 

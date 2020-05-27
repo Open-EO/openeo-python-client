@@ -879,7 +879,7 @@ class DataCube(ImageCollection):
             self,
             outputfile: Union[str, pathlib.Path], out_format: str = None,
             print=print, max_poll_interval=60, connection_retry_interval=30,
-            job_options=None, **format_options):
+            job_options=None, **format_options) -> RESTJob:
         """
         Evaluate the process graph by creating a batch job, and retrieving the results when it is finished.
         This method is mostly recommended if the batch job is expected to run in a reasonable amount of time.

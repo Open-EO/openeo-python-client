@@ -92,7 +92,9 @@ class RestApiConnection:
         if check_error and status >= 400:
             self._raise_api_error(resp)
         if expected_status and status not in ensure_list(expected_status):
-            raise OpenEoClientException("Status code {s} is not expected {e}".format(s=status, e=expected_status))
+            raise OpenEoClientException("Got status code {s!r} for `{m} {p}` (expected {e!r})".format(
+                m=method.upper(), p=path, s=status, e=expected_status)
+            )
         return resp
 
     def _raise_api_error(self, response: requests.Response):
@@ -470,7 +472,7 @@ class Connection(RestApiConnection):
             # TODO: get rid of this non-standard field? https://github.com/Open-EO/openeo-api/issues/276
             req["job_options"] = additional
 
-        response = self.post("/jobs", json=req)
+        response = self.post("/jobs", json=req, expected_status=201)
 
         if "openeo-identifier" in response.headers:
             job_id = response.headers['openeo-identifier']
