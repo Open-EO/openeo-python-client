@@ -180,6 +180,7 @@ class Connection(RestApiConnection):
         """
         super().__init__(root_url=url, auth=auth, session=session, default_timeout=default_timeout)
         self._cached_capabilities = None
+        self._process_registry = None
 
         # Initial API version check.
         if self._api_version.below(self._MINIMUM_API_VERSION):
@@ -273,6 +274,15 @@ class Connection(RestApiConnection):
             self._cached_capabilities = RESTCapabilities(self.get('/').json())
 
         return self._cached_capabilities
+
+    def process_registry(self) -> 'ProcessRegistry':
+        """
+        Load all processes supported by the backend (lazy/cached)
+        :return:  ProcessRegistry
+        """
+        if self._process_registry is None:
+            self._process_registry = ProcessRegistry.from_connection(connection=self)
+        return self._process_registry
 
     @deprecated("Use 'list_output_formats' instead")
     def list_file_types(self) -> dict:
@@ -562,3 +572,23 @@ def session(userid=None, endpoint: str = "https://openeo.org/openeo") -> Connect
     """
     return connect(url=endpoint)
 
+
+class ProcessRegistry:
+    """
+    Registry of process specs (e.g. the processes supported by a backend)
+    """
+    def __init__(self, processes: dict):
+        self._reg = processes
+
+    @classmethod
+    def from_connection(cls, connection=Connection):
+        """Factory to load process registry from given backend connection."""
+        # Get as list from API
+        processes = connection.get('/processes').json()['processes']
+        # Make it a dictionary for more efficient retrieval
+        processes = {p['id']: p for p in processes}
+        return cls(processes=processes)
+
+    def get_parameters(self, process_id: str) -> List[dict]:
+        """Get parameters for given process_id."""
+        return self._reg[process_id]["parameters"]
