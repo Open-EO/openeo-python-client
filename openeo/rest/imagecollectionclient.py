@@ -640,7 +640,7 @@ class ImageCollectionClient(ImageCollection):
             "result": True
         }
 
-    #TODO better name, pull to ABC?
+    @deprecated("use `reduce_temporal_udf` instead")
     def reduce_tiles_over_time(self,code: str,runtime="Python",version="latest"):
         """
         Applies a user defined function to a timeseries of tiles. The size of the tile is backend specific, and can be limited to one pixel.
@@ -650,6 +650,12 @@ class ImageCollectionClient(ImageCollection):
         :param runtime: The UDF runtime
         :param version: The UDF runtime version
         :return:
+        """
+        return self.reduce_temporal_udf(code=code, runtime=runtime, version=version)
+
+    def reduce_temporal_udf(self, code: str, runtime="Python", version="latest"):
+        """
+        Apply reduce (`reduce_dimension`) process with given UDF along temporal dimension.
         """
         process_id = 'reduce'
         args = {

@@ -289,8 +289,8 @@ def test_max_time(s2cube, api_version):
         assert callback == {'arguments': {'data': {'from_parameter': 'data'}}, 'process_id': 'max', 'result': True}
 
 
-def test_reduce_time_udf(s2cube, api_version):
-    im = s2cube.reduce_tiles_over_time("my custom code")
+def test_reduce_temporal_udf(s2cube, api_version):
+    im = s2cube.reduce_temporal_udf("my custom code")
     graph = _get_leaf_node(im)
     assert graph["process_id"] == "reduce" if api_version == '0.4.0' else 'reduce_dimension'
     assert "data" in graph["arguments"]
