@@ -69,6 +69,56 @@ To prevent that, it is also possible to use a 'batch' job. An easy way to run a 
 This method will wait until the result is generated, which may take quite a long time. Use the batch job API if you want to
 manage your jobs directly.
 
+Managing jobs in openEO
+#######################
+There are 2 ways to get a result in openEO: either by retrieving it directly, which only works if the result
+is computed relatively fast, usually this means in a few minutes max.
+In other cases, you will need a 'batch job'.
+Once submitted, the client can check the status of the batch job on a regular basis, and the results can be retrieved when it's ready.
+
+For basic usage, the recommended approach to batch jobs is to use this all-in-one call:
+
+   >>> evi_cube.execute_batch("out.geotiff",out_format="GeoTIFF")
+
+This will start your job, wait for it to finish, and download the result. One very important thing to note,
+is that your application may stop unexpectedly before your job finishes (for instance if you machine decides to reboot).
+In that case, your job will not be lost, and can be managed with the commands below.
+
+When running a batch job, it is sometimes necessary to cancel it, or to manually retrieve status information.
+
+Usually, you first need to get hold of your job, this can be done based on a job id:
+
+   >>> import openeo
+       connection = openeo.connect("https://openeo.vito.be/openeo/1.0").authenticate_basic("your_user","your_password")
+       my_job = connection.job("0915ed2c-44a0-4519-8949-c58176ed2859")
+       my_job.describe_job()
+
+
+If the job has finished, you can download results:
+
+   >>> my_job.download_results('my_results.tiff')
+
+
+Stopping your job
+*****************
+Use this simple call to stop your job:
+
+   >>> my_job.stop_job()
+
+Logs can also be retrieved, this is mostly relevant in case your job failed.
+
+   >>> log_list = my_job.logs()
+       log_list[0].message
+
+Restarting a job
+****************
+A job can also be restarted, for instance if an earlier run was aborted:
+
+   >>> import openeo
+       connection = openeo.connect("https://openeo.vito.be/openeo/1.0").authenticate_basic("your_user","your_password")
+       my_job = connection.job("da34492c-4f9d-402b-a5e9-11b528eaa152")
+       my_job.start_job()
+
 Example: Applying a mask
 ________________________
 
