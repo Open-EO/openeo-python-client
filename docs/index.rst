@@ -161,6 +161,13 @@ This is an example that follows the spec:
     :caption: UDF code
     :name: savgol_udf
 
+The method signature of the UDF is very important, because the backend will use it to detect
+the type of UDF. This particular example accepts a 'DataCube' object as input and also returns a 'DataCube' object.
+The type annotations and method name are actually used to detect how to invoke the UDF, so make sure they remain unchanged.
+
+The actual 'DataCube' class can be found here:
+https://github.com/Open-EO/openeo-udf/blob/fastapi/src/openeo_udf/api/datacube.py
+
 Once the UDF is defined in a separate file, we need to load it::
 
     >>> def get_resource(relative_path):
