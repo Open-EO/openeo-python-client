@@ -37,17 +37,19 @@ This object is our entry point to the backend, and allows us to discover its cap
 Information about a backend is most easily found on the OpenEO HUB: http://hub.openeo.org/
 
 Band math usually starts from a raster data cube, with multiple spectral bands available.
-The backend used here has a Sentinel-2 collection: CGS_SENTINEL2_RADIOMETRY_V102_001
+The backend used here has a Sentinel-2 collection: TERRASCOPE_S2_TOC_V2
 
-    >>> sentinel2_data_cube = connection.load_collection("TERRASCOPE_S2_TOC_V2")
+    >>> sentinel2_data_cube = connection.load_collection("TERRASCOPE_S2_TOC_V2",
+                                                 spatial_extent={'west':5.151836872,'east':5.1533818244,'south':51.181925592,'north':51.184696360,'crs':4326},
+                                                 temporal_extent=["2016-01-01","2016-03-10"],bands=['TOC-B02_10M','TOC-B04_10M','TOC-B08_10M'] )
+
+.. note::
+   Note how we specify a time range and set of bands to load. By filtering as early as possible, we avoid
+   incurring unneeded costs, and make it easier for the backend to load the right data.
 
 Now we have a :class:`ImageCollection <openeo.ImageCollection>` object called ``sentinel2_data_cube``.
-Creating this object does not yet load any data, but virtually it can contain quite a lot of data.
-Therefore, we need to filter it before we can use it::
-
-    >>> sentinel2_data_cube = sentinel2_data_cube.filter_temporal("2016-01-01","2016-03-10") \
-                               .filter_bbox(west=5.15183687210083,east=5.153381824493408,south=51.18192559252128,north=51.18469636040683,crs="EPSG:4326")
-
+Creating this object does not yet load any data, but virtually it can contain a lot of data depending on the filters you
+specified.
 
 On this data cube, we can now select the individual bands::
 
