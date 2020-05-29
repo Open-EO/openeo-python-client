@@ -6,7 +6,7 @@ import xarray
 from openeo_udf.api.datacube import DataCube
 
 
-def apply_hypercube(cube: DataCube, context: Dict) -> DataCube:
+def apply_datacube(cube: DataCube, context: Dict) -> DataCube:
     """
     Applies a savitzky-golay smoothing to a timeseries datacube.
     This UDF preserves dimensionality, and assumes a datacube with a temporal dimension 't' as input.
