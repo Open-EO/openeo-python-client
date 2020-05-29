@@ -208,3 +208,18 @@ def test_apply_absolute_pgnode(con100):
     result = im.apply(PGNode(process_id="absolute", arguments={"x": {"from_parameter": "x"}}))
     expected_graph = load_json_resource('data/1.0.0/apply_absolute.json')
     assert result.graph == expected_graph
+
+
+def test_load_collection_properties(con100):
+    im = con100.load_collection(
+        "S2",
+        spatial_extent={"west": 16.1, "east": 16.6, "north": 48.6, "south": 47.2},
+        temporal_extent=["2018-01-01", "2019-01-01"],
+        properties={
+            "eo:cloud_cover": PGNode(process_id="between", arguments={"x": {"from_parameter": "value"}, "min": 0, "max": 50}),
+            "platform": PGNode(process_id="eq", arguments={"x": {"from_parameter": "value"}, "y": "Sentinel-2B", "case_sensitive": False})
+        }
+    )
+
+    expected = load_json_resource('data/1.0.0/load_collection_properties.json')
+    assert im.graph == expected

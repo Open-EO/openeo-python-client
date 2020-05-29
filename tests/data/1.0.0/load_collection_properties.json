@@ -1,0 +1,51 @@
+{
+  "loadcollection1": {
+    "process_id": "load_collection",
+    "arguments": {
+      "id": "S2",
+      "spatial_extent": {
+        "west": 16.1,
+        "east": 16.6,
+        "north": 48.6,
+        "south": 47.2
+      },
+      "temporal_extent": [
+        "2018-01-01",
+        "2019-01-01"
+      ],
+      "properties": {
+        "eo:cloud_cover": {
+          "process_graph": {
+            "between1": {
+              "process_id": "between",
+              "arguments": {
+                "x": {
+                  "from_parameter": "value"
+                },
+                "min": 0,
+                "max": 50
+              },
+              "result": true
+            }
+          }
+        },
+        "platform": {
+          "process_graph": {
+            "eq1": {
+              "process_id": "eq",
+              "arguments": {
+                "x": {
+                  "from_parameter": "value"
+                },
+                "y": "Sentinel-2B",
+                "case_sensitive": false
+              },
+              "result": true
+            }
+          }
+        }
+      }
+    },
+    "result": true
+  }
+}

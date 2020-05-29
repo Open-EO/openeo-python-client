@@ -202,6 +202,8 @@ class GraphFlattener(ProcessGraphVisitor):
             elif "process_graph" in value:
                 pg = value["process_graph"]
                 value = {"process_graph": GraphFlattener(node_id_generator=self._node_id_generator).flatten(pg)}
+            else:
+                value = {k: self._flatten_argument(v) for k, v in value.items()}
         return value
 
     def leaveArgument(self, argument_id: str, value):
