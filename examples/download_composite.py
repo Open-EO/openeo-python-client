@@ -14,7 +14,7 @@ print(collections)
 
 #create image collection
 s2_fapar = connection.load_collection("BIOPAR_FAPAR_V1_GLOBAL",
-            spatial_extent={'west':16.138916,'east':16.524124,'south':48.1386,'north':48.320647,'crs':'EPSG:4326'},
+            spatial_extent={'west':16.138916,'east':16.524124,'south':48.1386,'north':48.320647,'crs':4326},
             temporal_extent=["2016-01-01","2016-03-10"] )
 
 #specify process graph
