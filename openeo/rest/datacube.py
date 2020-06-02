@@ -636,6 +636,26 @@ class DataCube(ImageCollection):
             )
         )
 
+    def rename_dimension(self, source:str, target:str):
+        """
+        Renames a dimension in the data cube while preserving all other properties.
+
+        :param source: The current name of the dimension. Fails with a DimensionNotAvailable error if the specified dimension does not exist.
+        :param target: A new Name for the dimension. Fails with a DimensionExists error if a dimension with the specified name exists.
+
+        :return: A new datacube with the dimension renamed.
+        """
+        if target in self.metadata.dimension_names():
+            raise ValueError('Target dimension name conflicts with existing dimension: %s.'%target)
+        return self.process(
+            process_id='rename_dimension',
+            args=dict_no_none(
+                data={'from_node': self._pg},
+                source=self.metadata.assert_valid_dimension(source),
+                target=target
+            )
+        )
+
     def rename_labels(self, dimension: str, target: list, source: list = None) -> 'DataCube':
         """ Renames the labels of the specified dimension in the data cube from source to target.
 

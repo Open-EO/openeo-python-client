@@ -303,6 +303,17 @@ class ImageCollection(ABC):
         """
         pass
 
+    def rename_dimension(self, source:str, target:str):
+        """
+        Renames a dimension in the data cube while preserving all other properties.
+
+        :param source: The current name of the dimension. Fails with a DimensionNotAvailable error if the specified dimension does not exist.
+        :param target: A new Name for the dimension. Fails with a DimensionExists error if a dimension with the specified name exists.
+
+        :return: A new datacube with the dimension renamed.
+        """
+        pass
+
     def stretch_colors(self, min, max) -> 'ImageCollection':
         """ Color stretching
 

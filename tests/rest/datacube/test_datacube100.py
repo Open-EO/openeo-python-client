@@ -97,6 +97,26 @@ def test_ndvi_args(con100: Connection):
         "result": True,
     }
 
+def test_rename_dimension(con100):
+    s2 = con100.load_collection("S2")
+    x = s2.rename_dimension(source="bands", target="ThisIsNotTheBandsDimension")
+    assert x.graph=={'loadcollection1': {
+                        'arguments': {
+                            'id': 'S2',
+                            'spatial_extent': None,
+                            'temporal_extent': None
+                        },
+                        'process_id': 'load_collection'
+                      },
+                     'renamedimension1': {
+                        'arguments': {
+                         'data': {'from_node': 'loadcollection1'},
+                         'source': 'bands',
+                         'target': 'ThisIsNotTheBandsDimension'
+                        },
+                      'process_id': 'rename_dimension',
+                      'result': True
+                     }}
 
 def test_reduce_dimension(con100):
     s2 = con100.load_collection("S2")
