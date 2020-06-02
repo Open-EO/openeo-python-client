@@ -1,6 +1,6 @@
-from collections import namedtuple
-from typing import List, Union, Tuple, Dict, Callable
 import warnings
+from collections import namedtuple
+from typing import List, Union, Tuple, Callable
 
 from openeo.util import deep_get
 
@@ -25,6 +25,9 @@ class Dimension:
     def __eq__(self, other):
         return self.__class__ == other.__class__ and self.__dict__ == other.__dict__
 
+    def rename(self,newName) -> 'Dimension':
+        return Dimension(self.type,newName)
+
 
 class SpatialDimension(Dimension):
     DEFAULT_CRS = 4326
@@ -34,11 +37,17 @@ class SpatialDimension(Dimension):
         self.extent = extent
         self.crs = crs
 
+    def rename(self,newName) -> 'Dimension':
+        return SpatialDimension(self,newName,self.extent,self.crs)
+
 
 class TemporalDimension(Dimension):
     def __init__(self, name: str, extent: Union[Tuple[str, str], List[str]]):
         super().__init__(type="temporal", name=name)
         self.extent = extent
+
+    def rename(self,newName) -> 'Dimension':
+        return TemporalDimension(newName,self.extent)
 
 
 # Simple container class for band metadata (name, common name, wavelength in micrometer)
@@ -267,6 +276,17 @@ class CollectionMetadata:
                 for d in self._dimensions
             ]
         )
+
+    def rename_dimension(self,source:str,target:str) -> 'CollectionMetadata':
+        """
+        Rename source dimension into target, preserving other properties
+        """
+        self.assert_valid_dimension(source)
+        loc = self.dimension_names().index(source)
+        new_dimensions = self._dimensions.copy()
+        new_dimensions[loc] = new_dimensions[loc].rename(target)
+
+        return CollectionMetadata(metadata=self._orig_metadata, dimensions=new_dimensions)
 
     def reduce_dimension(self, dimension_name: str) -> 'CollectionMetadata':
         """Create new metadata object by collapsing/reducing a dimension."""
