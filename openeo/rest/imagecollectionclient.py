@@ -1,18 +1,17 @@
+import copy
 import datetime
 import logging
 import pathlib
 import typing
 from typing import List, Dict, Union, Tuple
-import copy
 
 from deprecated import deprecated
-from shapely.geometry import Polygon, MultiPolygon, mapping
-
-from openeo.internal.graphbuilder_040 import GraphBuilder
 from openeo.imagecollection import ImageCollection, CollectionMetadata
+from openeo.internal.graphbuilder_040 import GraphBuilder
 from openeo.rest import BandMathException
 from openeo.rest.job import RESTJob
 from openeo.util import get_temporal_extent
+from shapely.geometry import Polygon, MultiPolygon, mapping
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Only import this for type hinting purposes. Runtime import causes circular dependency issues.
@@ -544,7 +543,7 @@ class ImageCollectionClient(ImageCollection):
 
         return self.graph_add_process(process_id, args)
 
-    def apply_dimension(self, code: str, runtime=None, version="latest", dimension='t') -> 'ImageCollection':
+    def apply_dimension(self, code: str, runtime=None, version="latest", dimension='t', target_dimension=None) -> 'ImageCollection':
         """
         Applies an n-ary process (i.e. takes an array of pixel values instead of a single pixel value) to a raster data cube.
         In contrast, the process apply applies an unary process to all pixel values.

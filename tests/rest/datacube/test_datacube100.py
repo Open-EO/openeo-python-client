@@ -3,12 +3,12 @@
 Unit tests specifically for 1.0.0-style DataCube
 
 """
+import openeo.metadata
 import pytest
 import shapely.geometry
-
-import openeo.metadata
 from openeo.internal.graph_building import PGNode
 from openeo.rest.connection import Connection
+
 from .conftest import API_URL
 from ... import load_json_resource
 
@@ -208,3 +208,14 @@ def test_apply_absolute_pgnode(con100):
     result = im.apply(PGNode(process_id="absolute", arguments={"x": {"from_parameter": "x"}}))
     expected_graph = load_json_resource('data/1.0.0/apply_absolute.json')
     assert result.graph == expected_graph
+
+
+
+def test_apply_dimension_temporal_cumsum_with_target(con100):
+    cumsum = con100.load_collection("S2").apply_dimension('cumsum', dimension="t", target_dimension="MyNewTime")
+    actual_graph = cumsum.graph
+    expected_graph = load_json_resource('data/1.0.0/apply_dimension_temporal_cumsum.json')
+    expected_graph['applydimension1']['arguments']['target_dimension'] = 'MyNewTime'
+    expected_graph['applydimension1']['result'] = True
+    del expected_graph['saveresult1']
+    assert actual_graph == expected_graph
