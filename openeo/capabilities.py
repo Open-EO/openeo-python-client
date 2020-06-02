@@ -84,6 +84,9 @@ class ComparableVersion:
         else:
             self._version = LooseVersion(version)
 
+    def __repr__(self):
+        return '{c}({v!r})'.format(c=type(self).__name__, v=self._version)
+
     def __str__(self):
         return str(self._version)
 
