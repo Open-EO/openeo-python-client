@@ -211,13 +211,20 @@ def test_apply_absolute_pgnode(con100):
 
 
 def test_load_collection_properties(con100):
+    # TODO: put this somewhere and expose it to the user?
+    def eq(value, case_sensitive=True) -> PGNode:
+        return PGNode(process_id="eq", arguments={"x": {"from_parameter": "value"}, "y": value, "case_sensitive": case_sensitive})
+
+    def between(min, max) -> PGNode:
+        return PGNode(process_id="between", arguments={"x": {"from_parameter": "value"}, "min": min, "max": max})
+
     im = con100.load_collection(
         "S2",
         spatial_extent={"west": 16.1, "east": 16.6, "north": 48.6, "south": 47.2},
         temporal_extent=["2018-01-01", "2019-01-01"],
         properties={
-            "eo:cloud_cover": PGNode(process_id="between", arguments={"x": {"from_parameter": "value"}, "min": 0, "max": 50}),
-            "platform": PGNode(process_id="eq", arguments={"x": {"from_parameter": "value"}, "y": "Sentinel-2B", "case_sensitive": False})
+            "eo:cloud_cover": between(min=0, max=50),
+            "platform": eq("Sentinel-2B", case_sensitive=False)
         }
     )
 

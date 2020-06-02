@@ -93,7 +93,7 @@ class DataCube(ImageCollection):
             temporal_extent: Union[List[Union[str, datetime.datetime, datetime.date]], None] = None,
             bands: Union[List[str], None] = None,
             fetch_metadata=True,
-            properties: PGNode = None
+            properties: Dict[str, PGNode] = None
     ):
         """
         Create a new Raster Data cube.
@@ -103,7 +103,7 @@ class DataCube(ImageCollection):
         :param spatial_extent: limit data to specified bounding box or polygons
         :param temporal_extent: limit data to specified temporal interval
         :param bands: only add the specified bands
-        :param properties: limit data by a metadata property predicate
+        :param properties: limit data by metadata property predicates
         :return:
         """
         normalized_temporal_extent = list(
