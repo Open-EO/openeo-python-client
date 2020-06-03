@@ -228,10 +228,12 @@ class Connection(RestApiConnection):
         """
         # Local import to avoid importing the whole OpenID Connect dependency chain. TODO: just do global import?
         from openeo.rest.auth.oidc import OidcAuthCodePkceAuthenticator
+        # TODO: option to increase log level temporarily?
 
         if self._api_version.at_least("1.0.0"):
             oidc_info = self.get("/credentials/oidc", expected_status=200).json()
             providers = {p["id"]: p for p in oidc_info["providers"]}
+            _log.info("Found OIDC providers: {p}".format(p=list(providers.keys())))
             if provider_id:
                 if provider_id not in providers:
                     raise OpenEoClientException("Requested provider {r!r} not available. Should be one of {p}.".format(
@@ -249,6 +251,7 @@ class Connection(RestApiConnection):
         else:
             # Per spec: '/credentials/oidc' will redirect to  OpenID Connect discovery document
             oidc_discovery_url = self.build_url('/credentials/oidc')
+        _log.info("Using OIDC discovery_url {u!r}".format(u=oidc_discovery_url))
 
         authenticator = OidcAuthCodePkceAuthenticator(
             client_id=client_id,

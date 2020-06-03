@@ -116,7 +116,8 @@ class HttpServerThread(threading.Thread):
         self._log_status("thread joined")
 
 
-def drain_queue(queue: Queue, initial_timeout: float = 10, item_minimum: int = 1, tail_timeout=5):
+def drain_queue(queue: Queue, initial_timeout: float = 10, item_minimum: int = 1, tail_timeout=5,
+                on_empty=lambda: None):
     """
     Drain the given queue, requiring at least a given number of items (within an initial timeout).
 
@@ -124,6 +125,7 @@ def drain_queue(queue: Queue, initial_timeout: float = 10, item_minimum: int = 1
     :param initial_timeout: time in seconds within which a minimum number of items should be fetched
     :param item_minimum: minimum number of items to fetch
     :param tail_timeout: additional timeout to abort when queue doesn't get empty
+    :param on_empty: callable to call when/while queue is empty
     :return: generator of items from the queue
     """
     start = time.time()
@@ -133,7 +135,7 @@ def drain_queue(queue: Queue, initial_timeout: float = 10, item_minimum: int = 1
             yield queue.get(timeout=initial_timeout / 10)
             count += 1
         except Empty:
-            pass
+            on_empty()
         now = time.time()
 
         if now > start + initial_timeout and count < item_minimum:
@@ -236,7 +238,7 @@ class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
             #       Maybe even FQDN will not resolve properly in the user's browser
             #       and we need additional means to get a working hostname?
             redirect_uri = 'http://localhost:{p}'.format(f=fqdn, p=port) + OAuthRedirectRequestHandler.PATH
-            log.info("Using OAuth redirect URI {u}".format(u=redirect_uri))
+            log.info("Using OAuth redirect URI {u!r}".format(u=redirect_uri))
 
             # Build authentication URL
             auth_url = "{endpoint}?{params}".format(
@@ -252,7 +254,7 @@ class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
                     "code_challenge_method": "S256",
                 })
             )
-            log.info("Sending user to auth URL {u}".format(u=auth_url))
+            log.info("Sending user to auth URL {u!r}".format(u=auth_url))
             # Open browser window/tab with authentication URL
             self._webbrowser_open(auth_url)
 
@@ -260,8 +262,14 @@ class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
 
             try:
                 # Collect data from redirect uri
-                # TODO: When authentication fails (e.g. identity provider is down), this might hang the client (e.g. jupyter notebook). Is there a way to abort this?
-                callbacks = list(drain_queue(callback_queue, initial_timeout=self._authentication_timeout))
+                log.info("Waiting for request to redirect URI (timeout {t}s)".format(t=self._authentication_timeout))
+                # TODO: When authentication fails (e.g. identity provider is down), this might hang the client
+                #       (e.g. jupyter notebook). Is there a way to abort this? e.g. use signals?
+                callbacks = list(drain_queue(
+                    callback_queue,
+                    initial_timeout=self._authentication_timeout,
+                    on_empty=lambda: log.info("No result yet")
+                ))
             except TimeoutError:
                 raise OAuthException("Failed to collect OAuth authorization code from redirect (timeout={t}s)".format(
                     t=self._authentication_timeout)
