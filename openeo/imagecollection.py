@@ -3,10 +3,9 @@ from datetime import datetime, date
 from typing import List, Dict, Union, Tuple, Callable
 
 from deprecated import deprecated
-from shapely.geometry import Polygon, MultiPolygon
-
 from openeo.metadata import CollectionMetadata
 from openeo.util import get_temporal_extent, first_not_none
+from shapely.geometry import Polygon, MultiPolygon
 
 
 class ImageCollection(ABC):
@@ -162,22 +161,35 @@ class ImageCollection(ABC):
         """
         pass
 
-    def apply_dimension(self, code: str, runtime=None, version="latest", dimension='t') -> 'ImageCollection':
+    def apply_dimension(self, code: str, runtime=None, version="latest", dimension='t', target_dimension=None) -> 'ImageCollection':
         """
-        Applies an n-ary process (i.e. takes an array of pixel values instead of a single pixel value) to a raster data cube.
-        In contrast, the process apply applies an unary process to all pixel values.
+        Applies a user defined process to all pixel values along a dimension of a raster data cube. For example,
+        if the temporal dimension is specified the process will work on a time series of pixel values.
 
-        By default, apply_dimension applies the the process on all pixel values in the data cube as apply does, but the parameter dimension can be specified to work only on a particular dimension only. For example, if the temporal dimension is specified the process will work on a time series of pixel values.
+        The process reduce_dimension also applies a process to pixel values along a dimension, but drops
+        the dimension afterwards. The process apply applies a process to each pixel value in the data cube.
 
-        The n-ary process must return as many elements in the returned array as there are in the input array. Otherwise a CardinalityChanged error must be returned.
+        The target dimension is the source dimension if not specified otherwise in the target_dimension parameter.
+        The pixel values in the target dimension get replaced by the computed pixel values. The name, type and
+         reference system are preserved.
+
+        The dimension labels are preserved when the target dimension is the source dimension and the number of
+        pixel values in the source dimension is equal to the number of values computed by the process. Otherwise,
+        the dimension labels will be incrementing integers starting from zero, which can be changed using
+        rename_labels afterwards. The number of labels will equal to the number of values computed by the process.
+
 
 
         :param code: UDF code or process identifier
-        :param runtime:
-        :param version:
-        :param dimension:
-        :return:
-        :raises: CardinalityChangedError
+        :param runtime: UDF runtime to use
+        :param version: Version of the UDF runtime to use
+        :param dimension: The name of the source dimension to apply the process on. Fails with a DimensionNotAvailable error if the specified dimension does not exist.
+        :param target_dimension: The name of the target dimension or null (the default) to use the source dimension
+        specified in the parameter dimension. By specifying a target dimension, the source dimension is removed.
+        The target dimension with the specified name and the type other (see add_dimension) is created, if it doesn't exist yet.
+
+        :return: A datacube with the UDF applied to the given dimension.
+        :raises: DimensionNotAvailable
         """
         pass
 
@@ -288,6 +300,17 @@ class ImageCollection(ABC):
             :param source: The names of the labels as they are currently in the data cube.
 
             :return: An ImageCollection instance
+        """
+        pass
+
+    def rename_dimension(self, source:str, target:str):
+        """
+        Renames a dimension in the data cube while preserving all other properties.
+
+        :param source: The current name of the dimension. Fails with a DimensionNotAvailable error if the specified dimension does not exist.
+        :param target: A new Name for the dimension. Fails with a DimensionExists error if a dimension with the specified name exists.
+
+        :return: A new datacube with the dimension renamed.
         """
         pass
 

@@ -3,12 +3,12 @@
 Unit tests specifically for 1.0.0-style DataCube
 
 """
+import openeo.metadata
 import pytest
 import shapely.geometry
-
-import openeo.metadata
 from openeo.internal.graph_building import PGNode
 from openeo.rest.connection import Connection
+
 from .conftest import API_URL
 from ... import load_json_resource
 
@@ -97,6 +97,26 @@ def test_ndvi_args(con100: Connection):
         "result": True,
     }
 
+def test_rename_dimension(con100):
+    s2 = con100.load_collection("S2")
+    x = s2.rename_dimension(source="bands", target="ThisIsNotTheBandsDimension")
+    assert x.graph=={'loadcollection1': {
+                        'arguments': {
+                            'id': 'S2',
+                            'spatial_extent': None,
+                            'temporal_extent': None
+                        },
+                        'process_id': 'load_collection'
+                      },
+                     'renamedimension1': {
+                        'arguments': {
+                         'data': {'from_node': 'loadcollection1'},
+                         'source': 'bands',
+                         'target': 'ThisIsNotTheBandsDimension'
+                        },
+                      'process_id': 'rename_dimension',
+                      'result': True
+                     }}
 
 def test_reduce_dimension(con100):
     s2 = con100.load_collection("S2")
@@ -230,3 +250,14 @@ def test_load_collection_properties(con100):
 
     expected = load_json_resource('data/1.0.0/load_collection_properties.json')
     assert im.graph == expected
+
+
+
+def test_apply_dimension_temporal_cumsum_with_target(con100):
+    cumsum = con100.load_collection("S2").apply_dimension('cumsum', dimension="t", target_dimension="MyNewTime")
+    actual_graph = cumsum.graph
+    expected_graph = load_json_resource('data/1.0.0/apply_dimension_temporal_cumsum.json')
+    expected_graph['applydimension1']['arguments']['target_dimension'] = 'MyNewTime'
+    expected_graph['applydimension1']['result'] = True
+    del expected_graph['saveresult1']
+    assert actual_graph == expected_graph

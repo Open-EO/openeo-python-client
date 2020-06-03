@@ -4,13 +4,13 @@ import time
 import typing
 import urllib.request
 from pathlib import Path
-from requests import ConnectionError
 from typing import List, Union, Dict
-from deprecated import deprecated
 
+from deprecated import deprecated
 from openeo.job import Job, JobResult, JobLogEntry
 from openeo.rest import OpenEoClientException, JobFailedException
 from openeo.util import ensure_dir
+from requests import ConnectionError
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Only import this for type hinting purposes. Runtime import causes circular dependency issues.
@@ -154,7 +154,7 @@ class RESTJob(Job):
     @deprecated
     def status(self):
         """ Returns the status of the job."""
-        return self.connection.job_info(self.job_id)['status']
+        return self.describe_job().get("status", "N/A")
 
     @deprecated
     def queue(self):
