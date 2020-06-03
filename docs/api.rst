@@ -25,8 +25,8 @@ openeo.rest.connection
 openeo.rest.imagecollectionclient
 ----------------------------------
 
-.. automodule:: openeo.rest.imagecollectionclient
-   :members: ImageCollectionClient
+.. automodule:: openeo.rest.datacube
+   :members: DataCube
 
 .. _datacube-api:
 
