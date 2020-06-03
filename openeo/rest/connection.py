@@ -284,6 +284,9 @@ class Connection(RestApiConnection):
         well_known_url_response = self.get('/.well-known/openeo')
         if well_known_url_response.status_code == 200:
             versions = well_known_url_response.json()
+            if 'versions' not in versions:
+                #did not find a valid well-known document
+                return
             supported_versions = {version['api_version']: version for version in versions["versions"] if
                                   ComparableVersion(
                                       version['api_version']) >= self._MINIMUM_API_VERSION and ComparableVersion(
