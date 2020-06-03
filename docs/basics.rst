@@ -133,7 +133,7 @@ pixels to 0 and all other pixels to 1 using a simple comparison::
 
 Once the mask is created, it can be applied to the cube:
 
-   >>> evi_cube_masked = evi_cube.mask(rastermask=mask)
+   >>> evi_cube_masked = evi_cube.mask(mask)
 
 Using custom processes
 ----------------------
