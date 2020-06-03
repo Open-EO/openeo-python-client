@@ -19,7 +19,7 @@ Begin by importing the openeo module::
 
 Now we need to connect to a backend::
 
-    >>> connection = openeo.connect('https://openeo.vito.be/openeo/1.0')
+    >>> connection = openeo.connect('https://openeo.vito.be')
 
 Now, we have a :class:`Connection <openeo.Connection>` object called ``connection``. We can
 This object is our entry point to the backend, and allows us to discover its capabilities.
@@ -81,7 +81,7 @@ When running a batch job, it is sometimes necessary to cancel it, or to manually
 Usually, you first need to get hold of your job, this can be done based on a job id:
 
    >>> import openeo
-       connection = openeo.connect("https://openeo.vito.be/openeo/1.0").authenticate_basic("your_user","your_password")
+       connection = openeo.connect("https://openeo.vito.be").authenticate_basic("your_user","your_password")
        my_job = connection.job("0915ed2c-44a0-4519-8949-c58176ed2859")
        my_job.describe_job()
 
@@ -107,7 +107,7 @@ Restarting a job
 A job can also be restarted, for instance if an earlier run was aborted:
 
    >>> import openeo
-       connection = openeo.connect("https://openeo.vito.be/openeo/1.0").authenticate_basic("your_user","your_password")
+       connection = openeo.connect("https://openeo.vito.be").authenticate_basic("your_user","your_password")
        my_job = connection.job("da34492c-4f9d-402b-a5e9-11b528eaa152")
        my_job.start_job()
 

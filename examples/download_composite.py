@@ -6,7 +6,7 @@ import openeo
 logging.basicConfig(level=logging.DEBUG)
 
 #connect with VITO backend
-connection = openeo.connect("https://openeo.vito.be/openeo/1.0")
+connection = openeo.connect("https://openeo.vito.be")
 
 #retrieve the list of available collections
 collections = connection.list_collections()

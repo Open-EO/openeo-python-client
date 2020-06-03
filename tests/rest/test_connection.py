@@ -3,7 +3,6 @@ import unittest.mock as mock
 
 import pytest
 import requests_mock
-
 from openeo.rest import OpenEoClientException
 from openeo.rest.auth.auth import NullAuth, BearerAuth
 from openeo.rest.connection import Connection, RestApiConnection, connect, OpenEoApiError
@@ -105,6 +104,28 @@ def test_connect_with_session():
     session.request.assert_any_call(
         url="https://oeo.net/", method="get", headers=mock.ANY, stream=mock.ANY, auth=mock.ANY, timeout=None
     )
+
+
+def test_connect_with_version_negotiation(requests_mock):
+    requests_mock.get("https://oeo.net/", status_code=404)
+    requests_mock.get("https://oeo.net/.well-known/openeo", status_code=200, json={"versions": [
+    {
+      "api_version": "0.4.0",
+      "url": "https://oeo.net/openeo/0.4.0/"
+    },
+    {
+      "api_version": "0.4.1",
+      "url": "https://oeo.net/openeo/0.4.1/"
+    },
+    {
+      "api_version": "1.0.0",
+      "url": "https://oeo.net/openeo/1.0.0/"
+    }]})
+    requests_mock.get("https://oeo.net/openeo/0.4.1/", status_code=200,json={"foo": "bar", "api_version": "0.4.0"})
+
+    conn = connect("https://oeo.net/")
+    assert conn.capabilities().capabilities["foo"] == "bar"
+
 
 
 def test_api_error(requests_mock):
