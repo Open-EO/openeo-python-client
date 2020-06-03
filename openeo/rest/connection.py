@@ -281,7 +281,11 @@ class Connection(RestApiConnection):
         return self._cached_capabilities
 
     def _version_discovery(self):
-        well_known_url_response = self.get('/.well-known/openeo')
+        try:
+            well_known_url_response = self.get('/.well-known/openeo')
+        except:
+            #be very lenient about failing on the well-known doc, capabilities retrieval will be tried
+            return
         if well_known_url_response.status_code == 200:
             versions = well_known_url_response.json()
             if 'versions' not in versions:
