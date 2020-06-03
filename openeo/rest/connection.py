@@ -274,17 +274,8 @@ class Connection(RestApiConnection):
         :return: data_dict: Dict All available data types
         """
         if self._cached_capabilities is None:
-            _log.debug('Connecting to openEO, first try: %s ' % self._root_url)
-            connectionFailed = False
-            try:
-                base_url_response = self.get('/',check_error=False)
-            except requests.exceptions.ConnectionError as e:
-                connectionFailed = True
-            if connectionFailed or base_url_response.status_code != 200:
-                _log.debug('Root url failed, trying for well-known at: %s' % (self._root_url+'/.well-known/openeo'))
-                self._version_discovery()
-                base_url_response = self.get('/')
-
+            self._version_discovery()
+            base_url_response = self.get('/',check_error=False)
             self._cached_capabilities = RESTCapabilities(base_url_response.json())
 
         return self._cached_capabilities
@@ -296,10 +287,11 @@ class Connection(RestApiConnection):
             supported_versions = {version['api_version']: version for version in versions["versions"] if
                                   ComparableVersion(
                                       version['api_version']) >= self._MINIMUM_API_VERSION and ComparableVersion(
-                                      version['api_version']) < ComparableVersion('1.0.0')}
+                                      version['api_version']) < ComparableVersion('1.0.0') and version.get('production',True)}
             highest_version = sorted(supported_versions).pop()
-            _log.debug("Highest supported version: %s" % highest_version)
+            _log.debug("Highest supported version available in backend: %s" % highest_version)
             self._root_url = supported_versions[highest_version]['url']
+            _log.debug("Using backend url: %s "%self._root_url)
 
     @deprecated("Use 'list_output_formats' instead")
     def list_file_types(self) -> dict:
