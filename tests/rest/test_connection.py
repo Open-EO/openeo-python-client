@@ -245,7 +245,8 @@ def test_authenticate_oidc_100_multiple_no_id(requests_mock):
     # With all this set up, kick off the openid connect flow
     conn = Connection(API_URL)
     assert isinstance(conn.auth, NullAuth)
-    with pytest.raises(OpenEoClientException, match=r"No provider_id given. Available: \['foidc', 'baroi'\]\."):
+    match = r"No provider_id given. Available: \[('foidc', 'baroi'|'baroi', 'foidc')\]\."
+    with pytest.raises(OpenEoClientException, match=match):
         conn.authenticate_OIDC(client_id=client_id, webbrowser_open=pytest.fail)
 
 
@@ -262,7 +263,8 @@ def test_authenticate_oidc_100_multiple_wrong_id(requests_mock):
     # With all this set up, kick off the openid connect flow
     conn = Connection(API_URL)
     assert isinstance(conn.auth, NullAuth)
-    with pytest.raises(OpenEoClientException, match=r"'lol' not available\. Should be one of \['foidc', 'baroi'\]\."):
+    match = r"'lol' not available\. Should be one of \[('foidc', 'baroi'|'baroi', 'foidc')\]\."
+    with pytest.raises(OpenEoClientException, match=match):
         conn.authenticate_OIDC(client_id=client_id, provider_id="lol", webbrowser_open=pytest.fail)
 
 
