@@ -110,6 +110,15 @@ class BandDimension(Dimension):
             bands=[self.bands[self.band_index(b)] for b in bands]
         )
 
+    def append_band(self, band: Band) -> 'BandDimension':
+        if band.name in self.band_names:
+            raise ValueError("Duplicate band {b!r}".format(b=band))
+
+        return BandDimension(
+            name=self.name,
+            bands=self.bands + [band]
+        )
+
 
 class CollectionMetadata:
     """
@@ -273,6 +282,16 @@ class CollectionMetadata:
             metadata=self._orig_metadata,
             dimensions=[
                 d.filter_bands(band_names) if isinstance(d, BandDimension) else d
+                for d in self._dimensions
+            ]
+        )
+
+    def append_band(self, band: Band) -> 'CollectionMetadata':
+        assert self.band_dimension
+        return CollectionMetadata(
+            metadata=self._orig_metadata,
+            dimensions=[
+                d.add_band(band) if isinstance(d, BandDimension) else d
                 for d in self._dimensions
             ]
         )
