@@ -767,6 +767,9 @@ class ImageCollectionClient(ImageCollection):
         }
         return self.graph_add_process(process_id, args)
 
+    def normalized_difference(self, other: ImageCollection) -> 'ImageCollection':
+        return self._reduce_bands_binary("normalized_difference", other)
+
     @deprecated("use 'linear_scale_range' instead")
     def stretch_colors(self, min, max) -> 'ImageCollection':
         """ Color stretching

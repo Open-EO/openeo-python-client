@@ -264,6 +264,9 @@ class DataCube(ImageCollection):
     def multiply(self, other: Union['DataCube', int, float], reverse=False) -> 'DataCube':
         return self._operator_binary("multiply", other, reverse=reverse)
 
+    def normalized_difference(self, other: 'DataCube') -> 'DataCube':
+        return self._operator_binary("normalized_difference", other)
+
     def logical_or(self, other: 'DataCube') -> 'DataCube':
         """
         Apply element-wise logical `or` operation
