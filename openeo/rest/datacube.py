@@ -626,8 +626,8 @@ class DataCube(ImageCollection):
     def ndvi(self, nir: str = None, red: str = None, target_band: str = None) -> 'DataCube':
         """ Normalized Difference Vegetation Index (NDVI)
 
-            :param nir: name of NIR band
-            :param red: name of red band
+            :param nir: (optional) name of NIR band
+            :param red: (optional) name of red band
             :param target_band: (optional) name of the newly created band
 
             :return: a DataCube instance
