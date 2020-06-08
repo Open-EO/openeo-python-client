@@ -302,7 +302,7 @@ class Connection(RestApiConnection):
         """
         return [collection['id'] for collection in self.list_collections() if 'id' in collection]
 
-    def capabilities(self) -> 'Capabilities':
+    def capabilities(self) -> RESTCapabilities:
         """
         Loads all available capabilities.
 
@@ -329,7 +329,6 @@ class Connection(RestApiConnection):
             supported_versions = {
                 version['api_version']: version for version in versions["versions"]
                 if ComparableVersion(version['api_version']) >= self._MINIMUM_API_VERSION
-                   and ComparableVersion(version['api_version']) < ComparableVersion('1.0.0')
                    and version.get('production', True)
             }
             highest_version = sorted(supported_versions).pop()
