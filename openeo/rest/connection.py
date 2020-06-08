@@ -9,9 +9,12 @@ import sys
 from typing import Dict, List, Tuple, Union
 from urllib.parse import urljoin
 
-import openeo
 import requests
 from deprecated import deprecated
+from requests import Response
+from requests.auth import HTTPBasicAuth, AuthBase
+
+import openeo
 from openeo.capabilities import Capabilities, ApiVersionException, ComparableVersion
 from openeo.imagecollection import CollectionMetadata
 from openeo.rest import OpenEoClientException
@@ -21,8 +24,6 @@ from openeo.rest.imagecollectionclient import ImageCollectionClient
 from openeo.rest.job import RESTJob
 from openeo.rest.rest_capabilities import RESTCapabilities
 from openeo.util import ensure_list
-from requests import Response
-from requests.auth import HTTPBasicAuth, AuthBase
 
 _log = logging.getLogger(__name__)
 
@@ -59,7 +60,7 @@ class RestApiConnection:
         self.default_headers = {
             "User-Agent": "openeo-python-client/{cv} {py}/{pv} {pl}".format(
                 cv=openeo.client_version(),
-                py=sys.implementation.name, pv=".".join(map(str,sys.version_info[:3])),
+                py=sys.implementation.name, pv=".".join(map(str, sys.version_info[:3])),
                 pl=sys.platform
             )
         }
@@ -188,7 +189,7 @@ class Connection(RestApiConnection):
         # Initial API version check.
         if self._api_version.below(self._MINIMUM_API_VERSION):
             raise ApiVersionException("OpenEO API version should be at least {m!s}, but got {v!s}".format(
-                m=self._MINIMUM_API_VERSION, v= self._api_version)
+                m=self._MINIMUM_API_VERSION, v=self._api_version)
             )
 
     def authenticate_basic(self, username: str, password: str) -> 'Connection':
@@ -309,7 +310,7 @@ class Connection(RestApiConnection):
         """
         if self._cached_capabilities is None:
             self._version_discovery()
-            base_url_response = self.get('/',check_error=False)
+            base_url_response = self.get('/', check_error=False)
             self._cached_capabilities = RESTCapabilities(base_url_response.json())
 
         return self._cached_capabilities
@@ -317,22 +318,24 @@ class Connection(RestApiConnection):
     def _version_discovery(self):
         try:
             well_known_url_response = self.get('/.well-known/openeo')
-        except:
-            #be very lenient about failing on the well-known doc, capabilities retrieval will be tried
+        except Exception:
+            # be very lenient about failing on the well-known doc, capabilities retrieval will be tried
             return
         if well_known_url_response.status_code == 200:
             versions = well_known_url_response.json()
             if 'versions' not in versions:
-                #did not find a valid well-known document
+                # did not find a valid well-known document
                 return
-            supported_versions = {version['api_version']: version for version in versions["versions"] if
-                                  ComparableVersion(
-                                      version['api_version']) >= self._MINIMUM_API_VERSION and ComparableVersion(
-                                      version['api_version']) < ComparableVersion('1.0.0') and version.get('production',True)}
+            supported_versions = {
+                version['api_version']: version for version in versions["versions"]
+                if ComparableVersion(version['api_version']) >= self._MINIMUM_API_VERSION
+                   and ComparableVersion(version['api_version']) < ComparableVersion('1.0.0')
+                   and version.get('production', True)
+            }
             highest_version = sorted(supported_versions).pop()
             _log.debug("Highest supported version available in backend: %s" % highest_version)
             self._root_url = supported_versions[highest_version]['url']
-            _log.debug("Using backend url: %s "%self._root_url)
+            _log.debug("Using backend url: %s " % self._root_url)
 
     @deprecated("Use 'list_output_formats' instead")
     def list_file_types(self) -> dict:
@@ -364,7 +367,7 @@ class Connection(RestApiConnection):
 
         :return: data_dict: Dict All available service types
         """
-        #TODO return parsed service objects
+        # TODO return parsed service objects
         return self.get('/services').json()
 
     def describe_collection(self, name) -> dict:
@@ -375,7 +378,7 @@ class Connection(RestApiConnection):
         :param name: String Id of the collection
         :return: data_dict: Dict Detailed information about the collection
         """
-        return  self.get('/collections/{}'.format(name)).json()
+        return self.get('/collections/{}'.format(name)).json()
 
     def collection_metadata(self, name) -> CollectionMetadata:
         return CollectionMetadata(metadata=self.describe_collection(name))
@@ -543,7 +546,7 @@ class Connection(RestApiConnection):
             raise OpenEoClientException("Failed fo extract job id")
         return RESTJob(job_id, self)
 
-    def job(self,job_id:str):
+    def job(self, job_id: str):
         """
         Get the job based on the id. The job with the given id should already exist.
         
@@ -621,4 +624,3 @@ def session(userid=None, endpoint: str = "https://openeo.org/openeo") -> Connect
     :rtype: openeo.sessions.Session
     """
     return connect(url=endpoint)
-

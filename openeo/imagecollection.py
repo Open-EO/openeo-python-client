@@ -3,9 +3,10 @@ from datetime import datetime, date
 from typing import List, Dict, Union, Tuple, Callable
 
 from deprecated import deprecated
+from shapely.geometry import Polygon, MultiPolygon
+
 from openeo.metadata import CollectionMetadata
 from openeo.util import get_temporal_extent, first_not_none
-from shapely.geometry import Polygon, MultiPolygon
 
 
 class ImageCollection(ABC):
