@@ -1,7 +1,8 @@
 
-from openeo.file import File
-import shutil
 import os
+import shutil
+
+from openeo.file import File
 
 
 class RESTFile(File):

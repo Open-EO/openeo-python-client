@@ -21,6 +21,7 @@ from queue import Queue, Empty
 from typing import Tuple, Callable
 
 import requests
+
 from openeo.rest import OpenEoClientException
 
 log = logging.getLogger(__name__)

@@ -1,6 +1,5 @@
-from distutils.version import LooseVersion
-
 from abc import ABC
+from distutils.version import LooseVersion
 from typing import Union
 
 

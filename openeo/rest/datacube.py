@@ -7,12 +7,13 @@ from typing import List, Dict, Union, Tuple
 import shapely.geometry
 import shapely.geometry.base
 from deprecated import deprecated
+from shapely.geometry import Polygon, MultiPolygon, mapping
+
 from openeo.imagecollection import ImageCollection, CollectionMetadata
 from openeo.internal.graph_building import PGNode, ReduceNode
 from openeo.rest import BandMathException, OperatorException
 from openeo.rest.job import RESTJob
 from openeo.util import get_temporal_extent, dict_no_none
-from shapely.geometry import Polygon, MultiPolygon, mapping
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Only import this for type hinting purposes. Runtime import causes circular dependency issues.
@@ -120,7 +121,10 @@ class DataCube(ImageCollection):
                 bands = [metadata.band_dimension.band_name(b) for b in bands]
             arguments['bands'] = bands
         if properties:
-            arguments['properties'] = {prop: PGNode.to_process_graph_argument(pred) for prop, pred in properties.items()}
+            arguments['properties'] = {
+                prop: PGNode.to_process_graph_argument(pred)
+                for prop, pred in properties.items()
+            }
         pg = PGNode(
             process_id='load_collection',
             arguments=arguments
@@ -432,7 +436,9 @@ class DataCube(ImageCollection):
 
         return self.process(process_id, args)
 
-    def apply_dimension(self, code: str, runtime=None, version="latest", dimension='t',target_dimension=None) -> 'DataCube':
+    def apply_dimension(
+            self, code: str, runtime=None, version="latest", dimension='t', target_dimension=None
+    ) -> 'DataCube':
         """
         Applies a user defined process to all pixel values along a dimension of a raster data cube. For example,
         if the temporal dimension is specified the process will work on a time series of pixel values.
@@ -643,7 +649,7 @@ class DataCube(ImageCollection):
             )
         )
 
-    def rename_dimension(self, source:str, target:str):
+    def rename_dimension(self, source: str, target: str):
         """
         Renames a dimension in the data cube while preserving all other properties.
 
@@ -653,7 +659,7 @@ class DataCube(ImageCollection):
         :return: A new datacube with the dimension renamed.
         """
         if target in self.metadata.dimension_names():
-            raise ValueError('Target dimension name conflicts with existing dimension: %s.'%target)
+            raise ValueError('Target dimension name conflicts with existing dimension: %s.' % target)
         return self.process(
             process_id='rename_dimension',
             args=dict_no_none(

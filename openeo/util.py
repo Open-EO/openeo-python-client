@@ -5,8 +5,8 @@ import functools
 import logging
 import re
 from datetime import datetime, date
-from typing import Any, Union, Tuple, Callable
 from pathlib import Path
+from typing import Any, Union, Tuple, Callable
 
 _rfc3339_date_format = re.compile(r'\d{4}-\d{2}-\d{2}')
 
@@ -160,6 +160,7 @@ class TimingLogger:
         """
         Use TimingLogger as function/method decorator
         """
+
         @functools.wraps(f)
         def wrapper(*args, **kwargs):
             with self:
