@@ -291,7 +291,7 @@ class CollectionMetadata:
         return CollectionMetadata(
             metadata=self._orig_metadata,
             dimensions=[
-                d.add_band(band) if isinstance(d, BandDimension) else d
+                d.append_band(band) if isinstance(d, BandDimension) else d
                 for d in self._dimensions
             ]
         )
