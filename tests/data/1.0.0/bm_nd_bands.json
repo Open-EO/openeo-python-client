@@ -1,0 +1,54 @@
+{
+  "loadcollection1": {
+    "process_id": "load_collection",
+    "arguments": {
+      "spatial_extent": null,
+      "id": "S2",
+      "temporal_extent": null
+    }
+  },
+  "reducedimension1": {
+    "process_id": "reduce_dimension",
+    "arguments": {
+      "dimension": "bands",
+      "data": {
+        "from_node": "loadcollection1"
+      },
+      "reducer": {
+        "process_graph": {
+          "arrayelement1": {
+            "process_id": "array_element",
+            "arguments": {
+              "index": 3,
+              "data": {
+                "from_parameter": "data"
+              }
+            }
+          },
+          "arrayelement2": {
+            "process_id": "array_element",
+            "arguments": {
+              "index": 2,
+              "data": {
+                "from_parameter": "data"
+              }
+            }
+          },
+          "normalizeddifference1": {
+            "process_id": "normalized_difference",
+            "arguments": {
+              "x": {
+                "from_node": "arrayelement1"
+              },
+              "y": {
+                "from_node": "arrayelement2"
+              }
+            },
+            "result": true
+          }
+        }
+      }
+    },
+    "result": true
+  }
+}

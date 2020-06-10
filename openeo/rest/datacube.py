@@ -268,6 +268,9 @@ class DataCube(ImageCollection):
     def multiply(self, other: Union['DataCube', int, float], reverse=False) -> 'DataCube':
         return self._operator_binary("multiply", other, reverse=reverse)
 
+    def normalized_difference(self, other: 'DataCube') -> 'DataCube':
+        return self._operator_binary("normalized_difference", other)
+
     def logical_or(self, other: 'DataCube') -> 'DataCube':
         """
         Apply element-wise logical `or` operation
@@ -632,8 +635,8 @@ class DataCube(ImageCollection):
     def ndvi(self, nir: str = None, red: str = None, target_band: str = None) -> 'DataCube':
         """ Normalized Difference Vegetation Index (NDVI)
 
-            :param nir: name of NIR band
-            :param red: name of red band
+            :param nir: (optional) name of NIR band
+            :param red: (optional) name of red band
             :param target_band: (optional) name of the newly created band
 
             :return: a DataCube instance

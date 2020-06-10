@@ -296,3 +296,13 @@ def test_fuzzy_mask_band_math(connection, api_version):
     fuzzy = clouds.apply_kernel(kernel=0.1 * np.ones((3, 3)))
     mask = fuzzy.add_dimension("bands", "mask", "bands").band("mask") > 0.3
     assert mask.graph == load_json_resource('data/%s/fuzzy_mask_add_dim.json' % api_version)
+
+
+def test_normalized_difference(connection, api_version):
+    cube = connection.load_collection("S2")
+    nir = cube.band("B08")
+    red = cube.band("B04")
+
+    result = nir.normalized_difference(red)
+
+    assert result.graph == load_json_resource('data/%s/bm_nd_bands.json' % api_version)
