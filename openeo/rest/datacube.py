@@ -14,6 +14,7 @@ from openeo.internal.graph_building import PGNode, ReduceNode
 from openeo.rest import BandMathException, OperatorException
 from openeo.rest.job import RESTJob
 from openeo.util import get_temporal_extent, dict_no_none
+from openeo.vectorcube import VectorCube
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Only import this for type hinting purposes. Runtime import causes circular dependency issues.
@@ -824,6 +825,18 @@ class DataCube(ImageCollection):
             'kernel': kernel.tolist(),
             'factor': factor
         })
+
+    def raster_to_vector(self) -> 'VectorCube':
+        """
+        EXPERIMENTAL: not generally supported, API subject to change
+        Converts this raster data cube into a vector data cube. The bounding polygon of homogenous areas of pixels is constructed.
+
+
+        @return: A vectorcube
+        """
+        return VectorCube(PGNode(
+            process_id='raster_to_vector',
+            arguments={}), metadata=self.metadata)
 
     ####VIEW methods #######
 

@@ -370,6 +370,16 @@ class ImageCollection(ABC):
         """
         pass
 
+    def raster_to_vector(self) -> 'VectorCube':
+        """
+        EXPERIMENTAL: not generally supported, API subject to change
+        Converts this raster data cube into a vector data cube. The bounding polygon of homogenous areas of pixels is constructed.
+
+
+        @return: A vectorcube
+        """
+        pass
+
     ####VIEW methods #######
 
     def zonal_statistics(self, regions, func, scale=1000, interval="day") -> 'ImageCollection':
