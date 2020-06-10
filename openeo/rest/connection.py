@@ -318,23 +318,16 @@ class Connection(RestApiConnection):
     def _version_discovery(self):
         try:
             well_known_url_response = self.get('/.well-known/openeo')
+            assert well_known_url_response.status_code == 200
+            versions = well_known_url_response.json()["versions"]
         except Exception:
             # be very lenient about failing on the well-known doc, capabilities retrieval will be tried
             return
-        if well_known_url_response.status_code == 200:
-            versions = well_known_url_response.json()
-            if 'versions' not in versions:
-                # did not find a valid well-known document
-                return
-            supported_versions = {
-                version['api_version']: version for version in versions["versions"]
-                if ComparableVersion(version['api_version']) >= self._MINIMUM_API_VERSION
-                   and version.get('production', True)
-            }
-            highest_version = sorted(supported_versions).pop()
-            _log.debug("Highest supported version available in backend: %s" % highest_version)
-            self._root_url = supported_versions[highest_version]['url']
-            _log.debug("Using backend url: %s " % self._root_url)
+        supported_versions = [v for v in versions if self._MINIMUM_API_VERSION <= v["api_version"]]
+        production_versions = [v for v in supported_versions if v.get("production", True)]
+        highest_version = max(production_versions or supported_versions, key=lambda v: v["api_version"])
+        _log.debug("Highest supported version available in backend: %s" % highest_version)
+        self._root_url = highest_version['url']
 
     @deprecated("Use 'list_output_formats' instead")
     def list_file_types(self) -> dict:

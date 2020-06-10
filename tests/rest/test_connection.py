@@ -109,27 +109,57 @@ def test_connect_with_session():
     )
 
 
-def test_connect_version_negotiation_040(requests_mock):
+@pytest.mark.parametrize(["versions", "expected_url", "expected_version"], [
+    (
+            [
+                {"api_version": "0.4.1", "url": "https://oeo.net/openeo/0.4.1/"},
+                {"api_version": "0.4.2", "url": "https://oeo.net/openeo/0.4.2/"},
+                {"api_version": "1.0.0", "url": "https://oeo.net/openeo/1.0.0/"},
+            ],
+            "https://oeo.net/openeo/1.0.0/",
+            "1.0.0",
+    ),
+    (
+            [
+                {"api_version": "0.4.1", "url": "https://oeo.net/openeo/0.4.1/"},
+                {"api_version": "0.4.2", "url": "https://oeo.net/openeo/0.4.2/"},
+                {"api_version": "1.0.0", "url": "https://oeo.net/openeo/1.0.0/", "production": False},
+            ],
+            "https://oeo.net/openeo/0.4.2/",
+            "0.4.2",
+    ),
+    (
+            [
+                {"api_version": "0.4.1", "url": "https://oeo.net/openeo/0.4.1/", "production": True},
+                {"api_version": "0.4.2", "url": "https://oeo.net/openeo/0.4.2/", "production": True},
+                {"api_version": "1.0.0", "url": "https://oeo.net/openeo/1.0.0/", "production": False},
+            ],
+            "https://oeo.net/openeo/0.4.2/",
+            "0.4.2",
+    ),
+    (
+            [
+                {"api_version": "0.4.1", "url": "https://oeo.net/openeo/0.4.1/", "production": False},
+                {"api_version": "0.4.2", "url": "https://oeo.net/openeo/0.4.2/", "production": False},
+                {"api_version": "1.0.0", "url": "https://oeo.net/openeo/1.0.0/", "production": False},
+            ],
+            "https://oeo.net/openeo/1.0.0/",
+            "1.0.0",
+    ),
+    (
+            [
+                {"api_version": "0.1.0", "url": "https://oeo.net/openeo/0.1.0/", "production": True},
+                {"api_version": "0.4.2", "url": "https://oeo.net/openeo/0.4.2/", "production": False},
+            ],
+            "https://oeo.net/openeo/0.4.2/",
+            "0.4.2",
+    ),
+
+])
+def test_connect_version_discovery(requests_mock, versions, expected_url, expected_version):
     requests_mock.get("https://oeo.net/", status_code=404)
-    requests_mock.get("https://oeo.net/.well-known/openeo", status_code=200, json={"versions": [
-        {"api_version": "0.4.0", "url": "https://oeo.net/openeo/0.4.0/"},
-        {"api_version": "0.4.1", "url": "https://oeo.net/openeo/0.4.1/"},
-        {"api_version": "1.0.0", "url": "https://oeo.net/openeo/1.0.0/", "production": False},
-    ]})
-    requests_mock.get("https://oeo.net/openeo/0.4.1/", status_code=200, json={"foo": "bar", "api_version": "0.4.1"})
-
-    conn = connect("https://oeo.net/")
-    assert conn.capabilities().capabilities["foo"] == "bar"
-
-
-def test_connect_version_negotiation_100(requests_mock):
-    requests_mock.get("https://oeo.net/", status_code=404)
-    requests_mock.get("https://oeo.net/.well-known/openeo", status_code=200, json={"versions": [
-        {"api_version": "0.4.1", "url": "https://oeo.net/openeo/0.4.1/"},
-        {"api_version": "0.4.2", "url": "https://oeo.net/openeo/0.4.2/", "production": True},
-        {"api_version": "1.0.0", "url": "https://oeo.net/openeo/1.0.0/", "production": True},
-    ]})
-    requests_mock.get("https://oeo.net/openeo/1.0.0/", status_code=200, json={"foo": "bar", "api_version": "1.0.0"})
+    requests_mock.get("https://oeo.net/.well-known/openeo", status_code=200, json={"versions": versions})
+    requests_mock.get(expected_url, status_code=200, json={"foo": "bar", "api_version": expected_version})
 
     conn = connect("https://oeo.net/")
     assert conn.capabilities().capabilities["foo"] == "bar"
