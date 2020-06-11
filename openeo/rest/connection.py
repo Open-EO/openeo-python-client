@@ -189,6 +189,10 @@ class Connection(RestApiConnection):
 
     _MINIMUM_API_VERSION = ComparableVersion("0.4.0")
 
+    # Temporary workaround flag to enable for backends (e.g. EURAC) that expect id_token to be sent as bearer token
+    # TODO DEPRECATED To remove when all backends properly expect access_token
+    oidc_auth_user_id_token_as_bearer = False
+
     def __init__(self, url, auth: AuthBase = None, session: requests.Session = None, default_timeout: int = None):
         """
         Constructor of Connection, authenticates user.
@@ -285,13 +289,16 @@ class Connection(RestApiConnection):
         return provider_id, oidc_discovery_url
 
     def _authenticate_oidc(self, authenticator: OidcAuthenticator, provider_id: str) -> 'Connection':
-        # Do the Oauth/OpenID Connect flow and use the access token as bearer token.
+        """
+        Authenticate through OIDC and set up bearer token (based on OIDC access_token) for further requests.
+        """
         tokens = authenticator.get_tokens()
         # TODO: store refresh token?
+        token = tokens.access_token if not self.oidc_auth_user_id_token_as_bearer else tokens.id_token
         if self._api_version.at_least("1.0.0"):
-            self.auth = BearerAuth(bearer='oidc/{p}/{t}'.format(p=provider_id, t=tokens.access_token))
+            self.auth = BearerAuth(bearer='oidc/{p}/{t}'.format(p=provider_id, t=token))
         else:
-            self.auth = BearerAuth(bearer=tokens.access_token)
+            self.auth = BearerAuth(bearer=token)
         return self
 
     def authenticate_oidc_authorization_code(
