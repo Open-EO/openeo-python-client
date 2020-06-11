@@ -836,7 +836,9 @@ class DataCube(ImageCollection):
         """
         return VectorCube(PGNode(
             process_id='raster_to_vector',
-            arguments={}), metadata=self.metadata)
+            arguments={
+                'data': self._pg
+            }),connection=self._connection, metadata=self.metadata)
 
     ####VIEW methods #######
 

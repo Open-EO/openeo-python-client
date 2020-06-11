@@ -14,7 +14,7 @@ class VectorCube():
     """
 
     def __init__(self, graph: PGNode, connection: 'Connection', metadata: CollectionMetadata = None):
-        super().__init__(metadata=metadata)
+        super().__init__()
         # Process graph
         self._pg = graph
         self._connection = connection
