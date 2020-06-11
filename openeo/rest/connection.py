@@ -20,7 +20,8 @@ from openeo.imagecollection import CollectionMetadata
 from openeo.rest import OpenEoClientException
 from openeo.rest.auth.auth import NullAuth, BearerAuth
 from openeo.rest.auth.oidc import OidcClientCredentialsAuthenticator, OidcAuthCodePkceAuthenticator, \
-    OidcClientInfo, OidcAuthenticator, OidcRefreshTokenAuthenticator, OidcResourceOwnerPasswordAuthenticator
+    OidcClientInfo, OidcAuthenticator, OidcRefreshTokenAuthenticator, OidcResourceOwnerPasswordAuthenticator, \
+    OidcDeviceAuthenticator
 from openeo.rest.datacube import DataCube
 from openeo.rest.imagecollectionclient import ImageCollectionClient
 from openeo.rest.job import RESTJob
@@ -237,6 +238,8 @@ class Connection(RestApiConnection):
             (opens a webbrowser by default)
         :param timeout: number of seconds after which to abort the authentication procedure
         :param server_address: optional tuple (hostname, port_number) to serve the OAuth redirect callback on
+
+        TODO: deprecated?
         """
         # TODO: option to increase log level temporarily?
         provider_id, oidc_discovery_url = self._get_oidc_discovery_url(provider_id=provider_id)
@@ -302,6 +305,8 @@ class Connection(RestApiConnection):
     ) -> 'Connection':
         """
         OpenID Connect Authorization Code Flow (with PKCE).
+
+        WARNING: this API is in experimental phase
         """
         provider_id, oidc_discovery_url = self._get_oidc_discovery_url(provider_id=provider_id)
         # TODO: load client info and settings from config file?
@@ -323,7 +328,7 @@ class Connection(RestApiConnection):
         """
         OpenID Connect Client Credentials flow.
 
-        TODO: is this a useful flow in practice?
+        WARNING: this API is in experimental phase
         """
         provider_id, oidc_discovery_url = self._get_oidc_discovery_url(provider_id=provider_id)
         # TODO: load credentials from file/config
@@ -341,6 +346,8 @@ class Connection(RestApiConnection):
     ) -> 'Connection':
         """
         OpenId Connect Resource Owner Password Credentials
+
+        WARNING: this API is in experimental phase
         """
         provider_id, oidc_discovery_url = self._get_oidc_discovery_url(provider_id=provider_id)
         # TODO: load password from file/config
@@ -355,6 +362,8 @@ class Connection(RestApiConnection):
     ) -> 'Connection':
         """
         OpenId Connect Refresh Token
+
+        WARNING: this API is in experimental phase
         """
         provider_id, oidc_discovery_url = self._get_oidc_discovery_url(provider_id=provider_id)
         # TODO: refresh_token: load from file/cache?
@@ -366,6 +375,19 @@ class Connection(RestApiConnection):
             ),
             refresh_token=refresh_token
         )
+        return self._authenticate_oidc(authenticator, provider_id=provider_id)
+
+    def authenticate_oidc_device(
+            self, client_id: str, client_secret: str, provider_id: str = None, **kwargs
+    ) -> 'Connection':
+        """
+        Authenticate with OAuth Device Authorization grant/flow
+
+        WARNING: this API is in experimental phase
+        """
+        provider_id, provider = self._get_oidc_provider(provider_id)
+        client_info = OidcClientInfo(client_id=client_id, provider=provider, client_secret=client_secret)
+        authenticator = OidcDeviceAuthenticator(client_info=client_info, **kwargs)
         return self._authenticate_oidc(authenticator, provider_id=provider_id)
 
     def describe_account(self) -> str:

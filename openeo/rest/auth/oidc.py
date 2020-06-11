@@ -118,6 +118,16 @@ class HttpServerThread(threading.Thread):
         self._log_status("thread joined")
 
 
+def create_timer() -> Callable[[], float]:
+    """Create a timer function that returns elapsed time since creation of the timer function"""
+    start = time.time()
+
+    def elapsed():
+        return time.time() - start
+
+    return elapsed
+
+
 def drain_queue(queue: Queue, initial_timeout: float = 10, item_minimum: int = 1, tail_timeout=5,
                 on_empty=lambda **kwargs: None):
     """
@@ -130,10 +140,7 @@ def drain_queue(queue: Queue, initial_timeout: float = 10, item_minimum: int = 1
     :param on_empty: callable to call when/while queue is empty
     :return: generator of items from the queue
     """
-    start = time.time()
-
-    def elapsed():
-        return time.time() - start
+    elapsed = create_timer()
 
     count = 0
     while True:
@@ -226,12 +233,7 @@ class OidcAuthenticator:
     def get_tokens(self) -> AccessTokenResult:
         """Get access_token and possibly id_token+refresh_token."""
         result = self._do_token_post_request(post_data=self._get_token_endpoint_post_data())
-
-        return AccessTokenResult(
-            access_token=self._extract_token(result, "access_token"),
-            id_token=self._extract_token(result, "id_token", allow_absent=True),
-            refresh_token=self._extract_token(result, "refresh_token", allow_absent=True)
-        )
+        return self._get_access_token_result(result)
 
     def _get_token_endpoint_post_data(self) -> dict:
         """Build POST data dict to send to token endpoint"""
@@ -257,6 +259,14 @@ class OidcAuthenticator:
         result = resp.json()
         log.debug("Token response with keys {k}".format(k=result.keys()))
         return result
+
+    def _get_access_token_result(self, data: dict, expected_nonce: str = None) -> AccessTokenResult:
+        """Parse JSON result from token request"""
+        return AccessTokenResult(
+            access_token=self._extract_token(data, "access_token"),
+            id_token=self._extract_token(data, "id_token", expected_nonce=expected_nonce, allow_absent=True),
+            refresh_token=self._extract_token(data, "refresh_token", allow_absent=True)
+        )
 
     @staticmethod
     def _extract_token(data: dict, key: str, expected_nonce: str = None, allow_absent=False) -> Union[str, None]:
@@ -429,12 +439,7 @@ class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
             code_verifier=auth_code_result.code_verifier,
         ))
 
-        nonce = auth_code_result.nonce
-        return AccessTokenResult(
-            access_token=self._extract_token(result, "access_token"),
-            id_token=self._extract_token(result, "id_token", expected_nonce=nonce, allow_absent=True),
-            refresh_token=self._extract_token(result, "refresh_token", allow_absent=True)
-        )
+        return self._get_access_token_result(result, expected_nonce=auth_code_result.nonce)
 
 
 class OidcClientCredentialsAuthenticator(OidcAuthenticator):
@@ -490,3 +495,91 @@ class OidcRefreshTokenAuthenticator(OidcAuthenticator):
         data["client_secret"] = self.client_secret
         data["refresh_token"] = self._refresh_token
         return data
+
+
+class OidcDeviceAuthenticator(OidcAuthenticator):
+    """
+    Implementation of OAuth Device Authorization grant/flow
+    """
+
+    grant_type = "urn:ietf:params:oauth:grant-type:device_code"
+
+    VerificationInfo = namedtuple("VerificationInfo", ["verification_uri", "device_code", "user_code", "interval"])
+
+    def __init__(self, client_info: OidcClientInfo, display: Callable = print, device_code_url: str = None,
+                 max_poll_time=5 * 60):
+        super().__init__(client_info=client_info)
+        self._display = display
+        # Allow to specify/override device code URL for cases when it is not available in OIDC discovery doc.
+        self._device_code_url = device_code_url
+        self._max_poll_time = max_poll_time
+
+    def _get_verification_info(self) -> VerificationInfo:
+        """Get verification URL and user code"""
+        resp = requests.post(
+            url=self._device_code_url or self._provider_info["device_authorization_endpoint"],
+            # TODO: scopes according to /credentials/oidc
+            data={"client_id": self.client_id, "scope": ["openid"]}
+        )
+        if resp.status_code != 200:
+            raise OidcException("Failed to get verification URL and user code from {u!r}: {s} {r!r} {t!r}".format(
+                s=resp.status_code, r=resp.reason, u=resp.url, t=resp.text
+            ))
+        try:
+            data = resp.json()
+            return self.VerificationInfo(
+                # Google OAuth/OIDC implementation uses non standard "verification_url" instead of "verification_uri"
+                verification_uri=data["verification_uri"] if "verification_uri" in data else data["verification_url"],
+                device_code=data["device_code"],
+                user_code=data["user_code"],
+                interval=data.get("interval", 5),
+            )
+        except Exception as e:
+            raise OidcException("Failed to parse device authorization request: {e!r}".format(e=e))
+
+    def get_tokens(self) -> AccessTokenResult:
+        # Get verification url and user code
+        verification_info = self._get_verification_info()
+        self._display("To authenticate: visit {u} and enter the user code {c!r}.".format(
+            u=verification_info.verification_uri, c=verification_info.user_code)
+        )
+
+        # Poll token endpoint
+        elapsed = create_timer()
+        token_endpoint = self._provider_info['token_endpoint']
+        post_data = {
+            "client_id": self.client_id,
+            "client_secret": self.client_secret,
+            "device_code": verification_info.device_code,
+            "grant_type": self.grant_type
+        }
+        poll_interval = verification_info.interval
+        while elapsed() <= self._max_poll_time:
+            time.sleep(poll_interval)
+
+            log.debug("Doing {g!r} token request {u!r} with post data fields {p!r} (client_id {c!r})".format(
+                g=self.grant_type, c=self.client_id, u=token_endpoint, p=list(post_data.keys()))
+            )
+            resp = requests.post(url=token_endpoint, data=post_data)
+            if resp.status_code == 200:
+                log.info("[{e:5.1f}s] Authorized successfully.".format(e=elapsed()))
+                self._display("Authorized successfully.")
+                return self._get_access_token_result(data=resp.json())
+            else:
+                try:
+                    error = resp.json()["error"]
+                except Exception:
+                    error = "unknown"
+                if error == "authorization_pending":
+                    log.info("[{e:5.1f}s] Authorization pending.".format(e=elapsed()))
+                elif error == "slow_down":
+                    log.info("[{e:5.1f}s] Polling too fast, will slow down".format(e=elapsed()))
+                    poll_interval += 5
+                else:
+                    raise OidcException("Failed to retrieve access token at {u!r}: {s} {r!r} {t!r}".format(
+                        s=resp.status_code, r=resp.reason, u=token_endpoint, t=resp.text
+                    ))
+
+        raise OidcException("Timeout exceeded {m:.1f}s while polling for access token at {u!r}".format(
+            u=token_endpoint, m=self._max_poll_time
+        ))
