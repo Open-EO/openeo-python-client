@@ -992,7 +992,7 @@ class DataCube(ImageCollection):
             args = process.get("arguments", {})
             # Build label
             label = '<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">'
-            label += '<TR><TD COLSPAN="2" BGCOLOR="#eeeeee">{pid}</TD></TR>'.format(pid=process.process_id)
+            label += '<TR><TD COLSPAN="2" BGCOLOR="#eeeeee">{pid}</TD></TR>'.format(pid=process.get("process_id","unknown"))
             label += "".join(
                 '''<TR><TD ALIGN="RIGHT">{arg}</TD>
                        <TD ALIGN="LEFT"><FONT FACE="monospace">{value}</FONT></TD></TR>'''.format(
