@@ -10,7 +10,7 @@ import requests_mock.request
 import requests_mock.request
 
 from openeo.rest.auth.oidc import QueuingRequestHandler, drain_queue, HttpServerThread, OidcAuthCodePkceAuthenticator, \
-    OidcClientCredentialsAuthenticator, OidcResourceOwnerPasswordAuthenticator, OidcClientInfo
+    OidcClientCredentialsAuthenticator, OidcResourceOwnerPasswordAuthenticator, OidcClientInfo, OidcProviderInfo
 
 
 def handle_request(handler_class, path: str):
@@ -72,6 +72,32 @@ def test_http_server_thread_port():
     server_thread.join()
 
 
+def test_provider_info_issuer():
+    p = OidcProviderInfo(issuer="https://akkoint.net")
+    assert p.discovery_url == "https://akkoint.net/.well-known/openid-configuration"
+    assert p.scopes == ["openid"]
+
+
+def test_provider_info_issuer_slash():
+    p = OidcProviderInfo(issuer="https://akkoint.net/")
+    assert p.discovery_url == "https://akkoint.net/.well-known/openid-configuration"
+
+
+def test_provider_info_discovery_url():
+    p = OidcProviderInfo(discovery_url="https://akkoint.net/.well-known/openid-configuration")
+    assert p.discovery_url == "https://akkoint.net/.well-known/openid-configuration"
+    assert p.scopes == ["openid"]
+
+
+def test_provider_info_scopes():
+    assert ["openid"] == OidcProviderInfo(issuer="https://akkoint.net").scopes
+    assert ["openid"] == OidcProviderInfo(issuer="https://akkoint.net", scopes=[]).scopes
+    assert ["openid", "test"] == OidcProviderInfo(issuer="https://akkoint.net", scopes=["test"]).scopes
+    assert ["openid", "test"] == OidcProviderInfo(issuer="https://akkoint.net", scopes=["openid", "test"]).scopes
+    assert ["openid", "test"] == OidcProviderInfo(issuer="https://akkoint.net", scopes=("openid", "test")).scopes
+    assert ["openid", "test"] == OidcProviderInfo(issuer="https://akkoint.net", scopes={"openid", "test"}).scopes
+
+
 class OidcMock:
     """
     Mock object to test OIDC flows
@@ -117,6 +143,7 @@ class OidcMock:
         params = self._get_query_params(url=url)
         assert params["client_id"] == self.expected_client_id
         assert params["response_type"] == "code"
+        assert params["scope"] == self.expected_fields["scope"]
         for key in ["state", "nonce", "code_challenge", "redirect_uri"]:
             self.state[key] = params[key]
         redirect_uri = params["redirect_uri"]
@@ -158,6 +185,7 @@ class OidcMock:
         assert params["grant_type"] == "password"
         assert params["username"] == self.expected_fields["username"]
         assert params["password"] == self.expected_fields["password"]
+        assert params["scope"] == self.expected_fields["scope"]
         self.state["access_token"] = self._jwt_encode({}, {"sub": "123", "name": "john"})
         return json.dumps({
             "access_token": self.state["access_token"],
@@ -193,11 +221,12 @@ def test_oidc_auth_code_pkce_flow(requests_mock):
         requests_mock=requests_mock,
         expected_grant_type="authorization_code",
         expected_client_id=client_id,
+        expected_fields={"scope": "openid testpkce"},
         oidc_discovery_url=oidc_discovery_url
     )
-
+    provider = OidcProviderInfo(discovery_url=oidc_discovery_url, scopes=["openid", "testpkce"])
     authenticator = OidcAuthCodePkceAuthenticator(
-        client_info=OidcClientInfo(client_id=client_id, oidc_discovery_url=oidc_discovery_url),
+        client_info=OidcClientInfo(client_id=client_id, provider=provider),
         webbrowser_open=oidc_mock.webbrowser_open
     )
     # Do the Oauth/OpenID Connect flow
@@ -217,12 +246,9 @@ def test_oidc_client_credentials_flow(requests_mock):
         oidc_discovery_url=oidc_discovery_url
     )
 
+    provider = OidcProviderInfo(discovery_url=oidc_discovery_url)
     authenticator = OidcClientCredentialsAuthenticator(
-        client_info=OidcClientInfo(
-            client_id=client_id,
-            oidc_discovery_url=oidc_discovery_url,
-            client_secret=client_secret
-        )
+        client_info=OidcClientInfo(client_id=client_id, provider=provider, client_secret=client_secret)
     )
     tokens = authenticator.get_tokens()
     assert oidc_mock.state["access_token"] == tokens.access_token
@@ -236,15 +262,13 @@ def test_oidc_resource_owner_password_credentials_flow(requests_mock):
         requests_mock=requests_mock,
         expected_grant_type="password",
         expected_client_id=client_id,
-        expected_fields={"username": username, "password": password},
+        expected_fields={"username": username, "password": password, "scope": "openid testpwd"},
         oidc_discovery_url=oidc_discovery_url
     )
+    provider = OidcProviderInfo(discovery_url=oidc_discovery_url, scopes=["testpwd"])
 
     authenticator = OidcResourceOwnerPasswordAuthenticator(
-        client_info=OidcClientInfo(
-            client_id=client_id,
-            oidc_discovery_url=oidc_discovery_url,
-        ),
+        client_info=OidcClientInfo(client_id=client_id, provider=provider),
         username=username, password=password,
     )
     tokens = authenticator.get_tokens()

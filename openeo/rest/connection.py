@@ -21,7 +21,7 @@ from openeo.rest import OpenEoClientException
 from openeo.rest.auth.auth import NullAuth, BearerAuth
 from openeo.rest.auth.oidc import OidcClientCredentialsAuthenticator, OidcAuthCodePkceAuthenticator, \
     OidcClientInfo, OidcAuthenticator, OidcRefreshTokenAuthenticator, OidcResourceOwnerPasswordAuthenticator, \
-    OidcDeviceAuthenticator
+    OidcDeviceAuthenticator, OidcProviderInfo
 from openeo.rest.datacube import DataCube
 from openeo.rest.imagecollectionclient import ImageCollectionClient
 from openeo.rest.job import RESTJob
@@ -246,23 +246,24 @@ class Connection(RestApiConnection):
         TODO: deprecated?
         """
         # TODO: option to increase log level temporarily?
-        provider_id, oidc_discovery_url = self._get_oidc_discovery_url(provider_id=provider_id)
+        provider_id, provider = self._get_oidc_provider(provider_id)
 
+        client_info = OidcClientInfo(client_id=client_id, provider=provider)
         authenticator = OidcAuthCodePkceAuthenticator(
-            client_info=OidcClientInfo(client_id=client_id, oidc_discovery_url=oidc_discovery_url),
+            client_info=client_info,
             webbrowser_open=webbrowser_open,
             timeout=timeout,
             server_address=server_address,
         )
         return self._authenticate_oidc(authenticator, provider_id=provider_id)
 
-    def _get_oidc_discovery_url(self, provider_id: Union[str, None] = None) -> Tuple[str, str]:
+    def _get_oidc_provider(self, provider_id: Union[str, None] = None) -> Tuple[str, OidcProviderInfo]:
         """
         Get OpenID Connect discovery URL for given provider_id
 
         :param provider_id: id of OIDC provider as specified by backend (/credentials/oidc).
             Can be None if there is just one provider.
-        :return:
+        :return: updated provider_id and provider info object
         """
         if self._api_version.at_least("1.0.0"):
             oidc_info = self.get("/credentials/oidc", expected_status=200).json()
@@ -281,12 +282,11 @@ class Connection(RestApiConnection):
                 raise OpenEoClientException("No provider_id given. Available: {p!r}.".format(
                     p=list(providers.keys()))
                 )
-            oidc_discovery_url = provider["issuer"] + "/.well-known/openid-configuration"
+            provider = OidcProviderInfo(issuer=provider["issuer"], scopes=provider.get("scopes"))
         else:
             # Per spec: '/credentials/oidc' will redirect to  OpenID Connect discovery document
-            oidc_discovery_url = self.build_url('/credentials/oidc')
-        _log.info("Using OIDC discovery_url {u!r}".format(u=oidc_discovery_url))
-        return provider_id, oidc_discovery_url
+            provider = OidcProviderInfo(discovery_url=self.build_url('/credentials/oidc'))
+        return provider_id, provider
 
     def _authenticate_oidc(self, authenticator: OidcAuthenticator, provider_id: str) -> 'Connection':
         """
@@ -315,11 +315,9 @@ class Connection(RestApiConnection):
 
         WARNING: this API is in experimental phase
         """
-        provider_id, oidc_discovery_url = self._get_oidc_discovery_url(provider_id=provider_id)
+        provider_id, provider = self._get_oidc_provider(provider_id)
         # TODO: load client info and settings from config file?
-        client_info = OidcClientInfo(
-            client_id=client_id, client_secret=client_secret, oidc_discovery_url=oidc_discovery_url
-        )
+        client_info = OidcClientInfo(client_id=client_id, client_secret=client_secret, provider=provider)
         authenticator = OidcAuthCodePkceAuthenticator(
             client_info=client_info,
             webbrowser_open=webbrowser_open, timeout=timeout, server_address=server_address
@@ -337,15 +335,10 @@ class Connection(RestApiConnection):
 
         WARNING: this API is in experimental phase
         """
-        provider_id, oidc_discovery_url = self._get_oidc_discovery_url(provider_id=provider_id)
+        provider_id, provider = self._get_oidc_provider(provider_id)
         # TODO: load credentials from file/config
-        authenticator = OidcClientCredentialsAuthenticator(
-            client_info=OidcClientInfo(
-                client_id=client_id,
-                oidc_discovery_url=oidc_discovery_url,
-                client_secret=client_secret
-            )
-        )
+        client_info = OidcClientInfo(client_id=client_id, provider=provider, client_secret=client_secret)
+        authenticator = OidcClientCredentialsAuthenticator(client_info=client_info)
         return self._authenticate_oidc(authenticator, provider_id=provider_id)
 
     def authenticate_oidc_resource_owner_password_credentials(
@@ -356,11 +349,11 @@ class Connection(RestApiConnection):
 
         WARNING: this API is in experimental phase
         """
-        provider_id, oidc_discovery_url = self._get_oidc_discovery_url(provider_id=provider_id)
+        provider_id, provider = self._get_oidc_provider(provider_id)
         # TODO: load password from file/config
+        client_info = OidcClientInfo(client_id=client_id, provider=provider)
         authenticator = OidcResourceOwnerPasswordAuthenticator(
-            client_info=OidcClientInfo(client_id=client_id, oidc_discovery_url=oidc_discovery_url),
-            username=username, password=password
+            client_info=client_info, username=username, password=password
         )
         return self._authenticate_oidc(authenticator, provider_id=provider_id)
 
@@ -372,16 +365,10 @@ class Connection(RestApiConnection):
 
         WARNING: this API is in experimental phase
         """
-        provider_id, oidc_discovery_url = self._get_oidc_discovery_url(provider_id=provider_id)
+        provider_id, provider = self._get_oidc_provider(provider_id)
         # TODO: refresh_token: load from file/cache?
-        authenticator = OidcRefreshTokenAuthenticator(
-            client_info=OidcClientInfo(
-                client_id=client_id,
-                oidc_discovery_url=oidc_discovery_url,
-                client_secret=client_secret
-            ),
-            refresh_token=refresh_token
-        )
+        client_info = OidcClientInfo(client_id=client_id, provider=provider, client_secret=client_secret)
+        authenticator = OidcRefreshTokenAuthenticator(client_info=client_info, refresh_token=refresh_token)
         return self._authenticate_oidc(authenticator, provider_id=provider_id)
 
     def authenticate_oidc_device(

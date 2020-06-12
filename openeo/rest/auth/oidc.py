@@ -18,7 +18,7 @@ import warnings
 import webbrowser
 from collections import namedtuple
 from queue import Queue, Empty
-from typing import Tuple, Callable, Union
+from typing import Tuple, Callable, Union, List
 
 import requests
 
@@ -195,14 +195,32 @@ def jwt_decode(token: str) -> Tuple[dict, dict]:
     return _decode(header), _decode(payload)
 
 
+# Minimal set of scopes a provider is expected to support
+SCOPES_MINIMAL = ["openid"]
+
+
+class OidcProviderInfo:
+    def __init__(self, issuer: str = None, discovery_url: str = None, scopes: List[str] = None):
+        if issuer is None and discovery_url is None:
+            raise ValueError("At least `issuer` or `discovery_url` should be specified")
+        self.discovery_url = discovery_url or issuer.rstrip("/") + "/.well-known/openid-configuration"
+        self.scopes = sorted(set(SCOPES_MINIMAL).union(scopes or []))
+
+    def get_config(self) -> dict:
+        """Load discovery document"""
+        resp = requests.get(self.discovery_url, timeout=20)
+        resp.raise_for_status()
+        return resp.json()
+
+
 class OidcClientInfo:
     """
     Simple container holding basic info of an OIDC client
     """
 
-    def __init__(self, client_id: str, oidc_discovery_url: str, client_secret: str = None):
+    def __init__(self, client_id: str, provider: OidcProviderInfo, client_secret: str = None):
         self.client_id = client_id
-        self.oidc_discovery_url = oidc_discovery_url
+        self.provider = provider
         self.client_secret = client_secret
         # TODO: also info client type (desktop app, web app, SPA, ...)?
 
@@ -217,10 +235,8 @@ class OidcAuthenticator:
 
     def __init__(self, client_info: OidcClientInfo):
         self._client_info = client_info
-        resp = requests.get(client_info.oidc_discovery_url, timeout=20)
-        resp.raise_for_status()
-        self._provider_info = resp.json()
-        # TODO: check provider info (e.g. if grant type is supported)
+        self._provider_config = client_info.provider.get_config()
+        # TODO: check provider config (e.g. if grant type is supported)
 
     @property
     def client_id(self):
@@ -240,12 +256,11 @@ class OidcAuthenticator:
         return {
             "grant_type": self.grant_type,
             "client_id": self.client_id,
-            "scope": [],  # TODO scope
         }
 
     def _do_token_post_request(self, post_data: dict) -> dict:
         """Do POST to token endpoint to get access token"""
-        token_endpoint = self._provider_info['token_endpoint']
+        token_endpoint = self._provider_config['token_endpoint']
         log.info("Doing {g!r} token request {u!r} with post data fields {p!r} (client_id {c!r})".format(
             g=self.grant_type, c=self.client_id, u=token_endpoint, p=list(post_data.keys()))
         )
@@ -345,9 +360,6 @@ class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
         state = random_string(32)
         nonce = random_string(21)
         code_verifier, code_challenge = self.get_pkce_codes()
-        # TODO Get scopes from  openeEO /credentials/oidc response
-        supported_scopes = set(self._provider_info.get('scopes_supported', []))
-        scopes = supported_scopes.intersection({"openid", "email", "profile"})
 
         # Set up HTTP server (in separate thread) to catch OAuth redirect URL
         callback_queue = Queue()
@@ -368,11 +380,11 @@ class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
 
             # Build authentication URL
             auth_url = "{endpoint}?{params}".format(
-                endpoint=self._provider_info['authorization_endpoint'],
+                endpoint=self._provider_config['authorization_endpoint'],
                 params=urllib.parse.urlencode({
                     "response_type": "code",
                     "client_id": self.client_id,
-                    "scope": " ".join(scopes),
+                    "scope": " ".join(self._client_info.provider.scopes),
                     "redirect_uri": redirect_uri,
                     "state": state,
                     "nonce": nonce,
@@ -474,6 +486,7 @@ class OidcResourceOwnerPasswordAuthenticator(OidcAuthenticator):
 
     def _get_token_endpoint_post_data(self) -> dict:
         data = super()._get_token_endpoint_post_data()
+        data["scope"] = " ".join(self._client_info.provider.scopes)
         data["username"] = self._username
         data["password"] = self._password
         return data
@@ -511,15 +524,14 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
         super().__init__(client_info=client_info)
         self._display = display
         # Allow to specify/override device code URL for cases when it is not available in OIDC discovery doc.
-        self._device_code_url = device_code_url
+        self._device_code_url = device_code_url or self._provider_config["device_authorization_endpoint"]
         self._max_poll_time = max_poll_time
 
     def _get_verification_info(self) -> VerificationInfo:
         """Get verification URL and user code"""
         resp = requests.post(
-            url=self._device_code_url or self._provider_info["device_authorization_endpoint"],
-            # TODO: scopes according to /credentials/oidc
-            data={"client_id": self.client_id, "scope": ["openid"]}
+            url=self._device_code_url,
+            data={"client_id": self.client_id, "scope": self._client_info.provider.scopes}
         )
         if resp.status_code != 200:
             raise OidcException("Failed to get verification URL and user code from {u!r}: {s} {r!r} {t!r}".format(
@@ -546,7 +558,7 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
 
         # Poll token endpoint
         elapsed = create_timer()
-        token_endpoint = self._provider_info['token_endpoint']
+        token_endpoint = self._provider_config['token_endpoint']
         post_data = {
             "client_id": self.client_id,
             "client_secret": self.client_secret,

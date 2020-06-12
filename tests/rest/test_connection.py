@@ -101,6 +101,7 @@ Reason: <strong>Error reading from remote server</strong></p></p>
     with pytest.raises(OpenEoApiError, match="Consider.*batch jobs.*instead.*synchronous"):
         conn.get("/bar")
 
+
 def test_connection_with_session():
     session = mock.Mock()
     response = session.request.return_value
@@ -237,6 +238,7 @@ def test_authenticate_oidc_040(requests_mock):
         requests_mock=requests_mock,
         expected_grant_type="authorization_code",
         expected_client_id=client_id,
+        expected_fields={"scope": "openid"},
         oidc_discovery_url=oidc_discovery_url
     )
     requests_mock.get(API_URL, json={"api_version": "0.4.0"})
@@ -253,12 +255,13 @@ def test_authenticate_oidc_100_single_implicit(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
     requests_mock.get(API_URL + 'credentials/oidc', json={
-        "providers": [{"id": "foidc", "issuer": "https://auth.foidc.net", "title": "FOIDC"}]
+        "providers": [{"id": "foidc", "issuer": "https://auth.foidc.net", "title": "FOIDC", "scopes": ["openid", "im"]}]
     })
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
         expected_grant_type="authorization_code",
         expected_client_id=client_id,
+        expected_fields={"scope": "im openid"},
         oidc_discovery_url="https://auth.foidc.net/.well-known/openid-configuration"
     )
 
@@ -274,7 +277,7 @@ def test_authenticate_oidc_100_single_wrong_id(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
     requests_mock.get(API_URL + 'credentials/oidc', json={
-        "providers": [{"id": "foidc", "issuer": "https://auth.foidc.net", "title": "FOIDC"}]
+        "providers": [{"id": "foidc", "issuer": "https://auth.foidc.net", "title": "FOIDC", "scopes": ["openid", "w"]}]
     })
 
     # With all this set up, kick off the openid connect flow
@@ -289,8 +292,8 @@ def test_authenticate_oidc_100_multiple_no_id(requests_mock):
     client_id = "myclient"
     requests_mock.get(API_URL + 'credentials/oidc', json={
         "providers": [
-            {"id": "foidc", "issuer": "https://auth.foidc.net", "title": "FOIDC"},
-            {"id": "baroi", "issuer": "https://acco.baroi.net", "title": "BarOI"},
+            {"id": "foidc", "issuer": "https://auth.foidc.net", "title": "FOIDC", "scopes": ["openid", "w"]},
+            {"id": "baroi", "issuer": "https://acco.baroi.net", "title": "BarOI", "scopes": ["openid", "w"]},
         ]
     })
 
@@ -307,8 +310,8 @@ def test_authenticate_oidc_100_multiple_wrong_id(requests_mock):
     client_id = "myclient"
     requests_mock.get(API_URL + 'credentials/oidc', json={
         "providers": [
-            {"id": "foidc", "issuer": "https://auth.foidc.net", "title": "FOIDC"},
-            {"id": "baroi", "issuer": "https://acco.baroi.net", "title": "BarOI"},
+            {"id": "foidc", "issuer": "https://auth.foidc.net", "title": "FOIDC", "scopes": ["openid", "w"]},
+            {"id": "baroi", "issuer": "https://acco.baroi.net", "title": "BarOI", "scopes": ["openid", "w"]},
         ]
     })
 
@@ -325,14 +328,15 @@ def test_authenticate_oidc_100_multiple_success(requests_mock):
     client_id = "myclient"
     requests_mock.get(API_URL + 'credentials/oidc', json={
         "providers": [
-            {"id": "foidc", "issuer": "https://auth.foidc.net", "title": "FOIDC"},
-            {"id": "baroi", "issuer": "https://acco.baroi.net", "title": "BarOI"},
+            {"id": "foidc", "issuer": "https://auth.foidc.net", "title": "FOIDC", "scopes": ["openid", "mu"]},
+            {"id": "baroi", "issuer": "https://acco.baroi.net", "title": "BarOI", "scopes": ["openid", "mu"]},
         ]
     })
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
         expected_grant_type="authorization_code",
         expected_client_id=client_id,
+        expected_fields={"scope": "mu openid"},
         oidc_discovery_url="https://acco.baroi.net/.well-known/openid-configuration"
     )
 
