@@ -261,3 +261,60 @@ def test_apply_dimension_temporal_cumsum_with_target(con100):
     expected_graph['applydimension1']['result'] = True
     del expected_graph['saveresult1']
     assert actual_graph == expected_graph
+
+
+def test_filter_spatial_callbak(con100):
+    """
+    Experiment test showing how to introduce a callback for preprocessing process arguments
+    https://github.com/Open-EO/openeo-processes/issues/156
+    @param con100:
+    @return:
+    """
+    collection = con100.load_collection("S2")
+
+    point_to_bbox_callback = PGNode(process_id="run_udf", arguments={
+        "data": {
+            "type": "FeatureCollection",
+            "features": [{
+                "type": "Feature",
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [125.6, 10.1]
+                }
+            }]
+        },
+        "runtime": "Python",
+        "udf": "def transform_point_into_bbox(data:UdfData): blabla"
+    })
+
+    filtered_collection = collection.process("filter_spatial",{
+        "data": collection._pg,
+        "geometries": point_to_bbox_callback
+    })
+
+    assert filtered_collection.graph == {
+        'filterspatial1': {
+            'arguments': {
+                'data': {'from_node': 'loadcollection1'},
+                'geometries': {'from_node': 'runudf1'}
+            },
+            'process_id': 'filter_spatial',
+            'result': True
+        },
+        'loadcollection1': {
+            'arguments': {
+                'id': 'S2',
+                'spatial_extent': None,
+                'temporal_extent': None
+            },
+            'process_id': 'load_collection'
+        },
+        'runudf1': {
+            'arguments': {
+                'data': {'features': [{'geometry': {'coordinates': [125.6,10.1],'type': 'Point'},'type': 'Feature'}],'type': 'FeatureCollection'},
+                'runtime': 'Python',
+                'udf': 'def transform_point_into_bbox(data:UdfData): blabla'
+            },
+            'process_id': 'run_udf'}
+        }
+
