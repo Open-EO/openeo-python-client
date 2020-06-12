@@ -519,7 +519,7 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
 
     VerificationInfo = namedtuple("VerificationInfo", ["verification_uri", "device_code", "user_code", "interval"])
 
-    def __init__(self, client_info: OidcClientInfo, display: Callable = print, device_code_url: str = None,
+    def __init__(self, client_info: OidcClientInfo, display: Callable[[str], None] = print, device_code_url: str = None,
                  max_poll_time=5 * 60):
         super().__init__(client_info=client_info)
         self._display = display
@@ -531,7 +531,7 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
         """Get verification URL and user code"""
         resp = requests.post(
             url=self._device_code_url,
-            data={"client_id": self.client_id, "scope": self._client_info.provider.scopes}
+            data={"client_id": self.client_id, "scope": " ".join(self._client_info.provider.scopes)}
         )
         if resp.status_code != 200:
             raise OidcException("Failed to get verification URL and user code from {u!r}: {s} {r!r} {t!r}".format(
@@ -585,7 +585,7 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
                 if error == "authorization_pending":
                     log.info("[{e:5.1f}s] Authorization pending.".format(e=elapsed()))
                 elif error == "slow_down":
-                    log.info("[{e:5.1f}s] Polling too fast, will slow down".format(e=elapsed()))
+                    log.info("[{e:5.1f}s] Polling too fast, will slow down.".format(e=elapsed()))
                     poll_interval += 5
                 else:
                     raise OidcException("Failed to retrieve access token at {u!r}: {s} {r!r} {t!r}".format(
