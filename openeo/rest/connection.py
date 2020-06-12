@@ -104,19 +104,28 @@ class RestApiConnection:
 
     def _raise_api_error(self, response: requests.Response):
         """Convert API error response to Python exception"""
+        status_code = response.status_code
         try:
             # Try parsing the error info according to spec and wrap it in an exception.
             info = response.json()
             exception = OpenEoApiError(
-                http_status_code=response.status_code,
+                http_status_code=status_code,
                 code=info.get("code", "unknown"),
                 message=info.get("message", "unknown error"),
                 id=info.get("id"),
                 url=info.get("url"),
             )
         except Exception:
-            # When parsing went wrong: give minimal information.
-            exception = OpenEoApiError(http_status_code=response.status_code, message=response.text)
+            # Parsing of error info went wrong: let's see if we can still extract some helpful information.
+            text = response.text
+            _log.warning("Failed to parse API error response: {s} {t!r}".format(s=status_code, t=text))
+            if status_code == 502 and "Proxy Error" in text:
+                msg = "Received 502 Proxy Error." \
+                      " This typically happens if an OpenEO request takes too long and is killed." \
+                      " Consider using batch jobs instead of doing synchronous processing."
+                exception = OpenEoApiError(http_status_code=status_code, message=msg)
+            else:
+                exception = OpenEoApiError(http_status_code=status_code, message=text)
         raise exception
 
     def get(self, path, stream=False, auth: AuthBase = None, **kwargs) -> Response:
