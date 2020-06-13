@@ -85,6 +85,22 @@ def test_rest_api_expected_status_with_error(requests_mock):
         conn.get("/bar", check_error=False, expected_status=[302, 303])
 
 
+def test_502_proxy_error(requests_mock):
+    """EP-3387"""
+    requests_mock.get("https://oeo.net/bar", status_code=502, text="""<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<html><head>
+<title>502 Proxy Error</title>
+</head><body>
+<h1>Proxy Error</h1>
+<p>The proxy server received an invalid
+response from an upstream server.<br />
+The proxy server could not handle the request <em><a href="/openeo/0.4.0/result">POST&nbsp;/openeo/0.4.0/result</a></em>.<p>
+Reason: <strong>Error reading from remote server</strong></p></p>
+</body></html>""")
+    conn = RestApiConnection(API_URL)
+    with pytest.raises(OpenEoApiError, match="Consider.*batch jobs.*instead.*synchronous"):
+        conn.get("/bar")
+
 def test_connection_with_session():
     session = mock.Mock()
     response = session.request.return_value
