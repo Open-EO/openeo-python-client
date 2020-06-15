@@ -18,11 +18,12 @@ import warnings
 import webbrowser
 from collections import namedtuple
 from queue import Queue, Empty
-from typing import Tuple, Callable
+from typing import Tuple, Callable, Union, List
 
 import requests
 
 from openeo.rest import OpenEoClientException
+from openeo.util import dict_no_none
 
 log = logging.getLogger(__name__)
 
@@ -117,8 +118,18 @@ class HttpServerThread(threading.Thread):
         self._log_status("thread joined")
 
 
+def create_timer() -> Callable[[], float]:
+    """Create a timer function that returns elapsed time since creation of the timer function"""
+    start = time.time()
+
+    def elapsed():
+        return time.time() - start
+
+    return elapsed
+
+
 def drain_queue(queue: Queue, initial_timeout: float = 10, item_minimum: int = 1, tail_timeout=5,
-                on_empty=lambda: None):
+                on_empty=lambda **kwargs: None):
     """
     Drain the given queue, requiring at least a given number of items (within an initial timeout).
 
@@ -129,22 +140,22 @@ def drain_queue(queue: Queue, initial_timeout: float = 10, item_minimum: int = 1
     :param on_empty: callable to call when/while queue is empty
     :return: generator of items from the queue
     """
-    start = time.time()
+    elapsed = create_timer()
+
     count = 0
     while True:
         try:
             yield queue.get(timeout=initial_timeout / 10)
             count += 1
         except Empty:
-            on_empty()
-        now = time.time()
+            on_empty(elapsed=elapsed(), count=count)
 
-        if now > start + initial_timeout and count < item_minimum:
+        if elapsed() > initial_timeout and count < item_minimum:
             raise TimeoutError("Items after initial {t} timeout: {c} (<{m})".format(
                 c=count, m=item_minimum, t=initial_timeout))
         if queue.empty() and count >= item_minimum:
             break
-        if now > start + initial_timeout + tail_timeout:
+        if elapsed() > initial_timeout + tail_timeout:
             warnings.warn("Queue still not empty after overall timeout: aborting.")
             break
 
@@ -159,12 +170,136 @@ def random_string(length=32, characters: str = None):
     return "".join(random.choice(characters) for _ in range(length))
 
 
-class OAuthException(OpenEoClientException):
+class OidcException(OpenEoClientException):
     pass
+
+
+# Container for result of access_token request.
+AccessTokenResult = namedtuple(
+    typename="AccessTokenResult",
+    field_names=["access_token", "id_token", "refresh_token"]
+)
+
+
+def jwt_decode(token: str) -> Tuple[dict, dict]:
+    """
+    Poor man's JWT decoding
+    TODO: use a real library that also handles verification properly?
+    """
+
+    def _decode(data: str) -> dict:
+        decoded = base64.b64decode(data + '=' * (4 - len(data) % 4)).decode('ascii')
+        return json.loads(decoded)
+
+    header, payload, signature = token.split('.')
+    return _decode(header), _decode(payload)
+
+
+# Minimal set of scopes a provider is expected to support
+SCOPES_MINIMAL = ["openid"]
+
+
+class OidcProviderInfo:
+    def __init__(self, issuer: str = None, discovery_url: str = None, scopes: List[str] = None):
+        if issuer is None and discovery_url is None:
+            raise ValueError("At least `issuer` or `discovery_url` should be specified")
+        self.discovery_url = discovery_url or issuer.rstrip("/") + "/.well-known/openid-configuration"
+        self.scopes = sorted(set(SCOPES_MINIMAL).union(scopes or []))
+
+    def get_config(self) -> dict:
+        """Load discovery document"""
+        resp = requests.get(self.discovery_url, timeout=20)
+        resp.raise_for_status()
+        return resp.json()
+
+
+class OidcClientInfo:
+    """
+    Simple container holding basic info of an OIDC client
+    """
+
+    def __init__(self, client_id: str, provider: OidcProviderInfo, client_secret: str = None):
+        self.client_id = client_id
+        self.provider = provider
+        self.client_secret = client_secret
+        # TODO: also info client type (desktop app, web app, SPA, ...)?
+
+    # TODO: load from config file
 
 
 class OidcAuthenticator:
-    pass
+    """
+    Base class for OpenID Connect authentication flows.
+    """
+    grant_type = NotImplemented
+
+    def __init__(self, client_info: OidcClientInfo):
+        self._client_info = client_info
+        self._provider_config = client_info.provider.get_config()
+        # TODO: check provider config (e.g. if grant type is supported)
+
+    @property
+    def client_id(self):
+        return self._client_info.client_id
+
+    @property
+    def client_secret(self):
+        return self._client_info.client_secret
+
+    def get_tokens(self) -> AccessTokenResult:
+        """Get access_token and possibly id_token+refresh_token."""
+        result = self._do_token_post_request(post_data=self._get_token_endpoint_post_data())
+        return self._get_access_token_result(result)
+
+    def _get_token_endpoint_post_data(self) -> dict:
+        """Build POST data dict to send to token endpoint"""
+        return {
+            "grant_type": self.grant_type,
+            "client_id": self.client_id,
+        }
+
+    def _do_token_post_request(self, post_data: dict) -> dict:
+        """Do POST to token endpoint to get access token"""
+        token_endpoint = self._provider_config['token_endpoint']
+        log.info("Doing {g!r} token request {u!r} with post data fields {p!r} (client_id {c!r})".format(
+            g=self.grant_type, c=self.client_id, u=token_endpoint, p=list(post_data.keys()))
+        )
+        resp = requests.post(url=token_endpoint, data=post_data)
+        if resp.status_code != 200:
+            # TODO: are other status_code values valid too?
+            raise OidcException("Failed to retrieve access token at {u!r}: {s} {r!r} {t!r}".format(
+                s=resp.status_code, r=resp.reason, u=resp.url, t=resp.text
+            ))
+
+        result = resp.json()
+        log.debug("Token response with keys {k}".format(k=result.keys()))
+        return result
+
+    def _get_access_token_result(self, data: dict, expected_nonce: str = None) -> AccessTokenResult:
+        """Parse JSON result from token request"""
+        return AccessTokenResult(
+            access_token=self._extract_token(data, "access_token"),
+            id_token=self._extract_token(data, "id_token", expected_nonce=expected_nonce, allow_absent=True),
+            refresh_token=self._extract_token(data, "refresh_token", allow_absent=True)
+        )
+
+    @staticmethod
+    def _extract_token(data: dict, key: str, expected_nonce: str = None, allow_absent=False) -> Union[str, None]:
+        """
+        Extract token of given type ("access_token", "id_token", "refresh_token") from a token JSON response
+        """
+        try:
+            token = data[key]
+        except KeyError:
+            if allow_absent:
+                return
+            raise OidcException("No {k!r} in response".format(k=key))
+        if expected_nonce:
+            # TODO: verify the JWT properly?
+            _, payload = jwt_decode(token)
+            if payload['nonce'] != expected_nonce:
+                raise OidcException("Invalid nonce in {k}".format(k=key))
+        return token
 
 
 class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
@@ -188,14 +323,19 @@ class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
     """
 
     AuthCodeResult = namedtuple("AuthCodeResult", ["auth_code", "nonce", "code_verifier", "redirect_uri"])
-    AccessTokenResult = namedtuple("AccessTokenResult", ["access_token", "id_token", "refresh_token"])
 
-    def __init__(self, client_id: str, oidc_discovery_url: str, webbrowser_open: Callable = None, timeout=120,
-                 server_address: Tuple[str, int] = None):
-        self._client_id = client_id
-        self._provider_info = requests.get(oidc_discovery_url).json()
+    grant_type = "authorization_code"
+
+    TIMEOUT_DEFAULT = 60
+
+    def __init__(
+            self,
+            client_info: OidcClientInfo,
+            webbrowser_open: Callable = None, timeout: int = None, server_address: Tuple[str, int] = None
+    ):
+        super().__init__(client_info=client_info)
         self._webbrowser_open = webbrowser_open or webbrowser.open
-        self._authentication_timeout = timeout
+        self._authentication_timeout = timeout or self.TIMEOUT_DEFAULT
         self._server_address = server_address
 
     @staticmethod
@@ -220,9 +360,6 @@ class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
         state = random_string(32)
         nonce = random_string(21)
         code_verifier, code_challenge = self.get_pkce_codes()
-        # TODO: maybe just the openid scope is enough?
-        supported_scopes = set(self._provider_info.get('scopes_supported', []))
-        scopes = supported_scopes.intersection({"openid", "email", "profile"})
 
         # Set up HTTP server (in separate thread) to catch OAuth redirect URL
         callback_queue = Queue()
@@ -243,11 +380,11 @@ class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
 
             # Build authentication URL
             auth_url = "{endpoint}?{params}".format(
-                endpoint=self._provider_info['authorization_endpoint'],
+                endpoint=self._provider_config['authorization_endpoint'],
                 params=urllib.parse.urlencode({
                     "response_type": "code",
-                    "client_id": self._client_id,
-                    "scope": " ".join(scopes),
+                    "client_id": self.client_id,
+                    "scope": " ".join(self._client_info.provider.scopes),
                     "redirect_uri": redirect_uri,
                     "state": state,
                     "nonce": nonce,
@@ -265,19 +402,21 @@ class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
                 # Collect data from redirect uri
                 log.info("Waiting for request to redirect URI (timeout {t}s)".format(t=self._authentication_timeout))
                 # TODO: When authentication fails (e.g. identity provider is down), this might hang the client
-                #       (e.g. jupyter notebook). Is there a way to abort this? e.g. use signals?
+                #       (e.g. jupyter notebook). Is there a way to abort this? use signals? handle "abort" request?
                 callbacks = list(drain_queue(
                     callback_queue,
                     initial_timeout=self._authentication_timeout,
-                    on_empty=lambda: log.info("No result yet")
+                    on_empty=lambda **kwargs: log.info(
+                        "No result yet (elapsed: {e:.2f}s)".format(e=kwargs.get("elapsed", 0))
+                    )
                 ))
             except TimeoutError:
-                raise OAuthException("Failed to collect OAuth authorization code from redirect (timeout={t}s)".format(
+                raise OidcException("Timeout: no request to redirect URI after {t}s".format(
                     t=self._authentication_timeout)
                 )
 
         if len(callbacks) != 1:
-            raise OAuthException("Expected 1 OAuth redirect request, but got: {c}".format(c=len(callbacks)))
+            raise OidcException("Expected 1 OAuth redirect request, but got: {c}".format(c=len(callbacks)))
 
         # Parse OAuth redirect URL
         redirect_request = callbacks[0]
@@ -285,13 +424,14 @@ class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
         redirect_params = urllib.parse.parse_qs(urllib.parse.urlparse(redirect_request).query)
         log.debug('Parsed redirect request: {p}'.format(p=redirect_params))
         if 'state' not in redirect_params or redirect_params['state'] != [state]:
-            raise OAuthException("Invalid state")
+            raise OidcException("Invalid state")
         if 'code' not in redirect_params:
-            raise OAuthException("No auth code in redirect")
+            raise OidcException("No auth code in redirect")
         auth_code = redirect_params["code"][0]
 
-        return self.AuthCodeResult(auth_code=auth_code, nonce=nonce, code_verifier=code_verifier,
-                                   redirect_uri=redirect_uri)
+        return self.AuthCodeResult(
+            auth_code=auth_code, nonce=nonce, code_verifier=code_verifier, redirect_uri=redirect_uri
+        )
 
     def get_tokens(self) -> AccessTokenResult:
         """
@@ -301,54 +441,157 @@ class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
         # Get auth code from authentication provider
         auth_code_result = self._get_auth_code()
 
-        # Resolve auth code to access token and id token
-        token_endpoint = self._provider_info['token_endpoint']
-        log.info("Exchanging auth code for access token at {u}".format(u=token_endpoint))
-        token_response = requests.post(
-            url=token_endpoint,
-            data={
-                "grant_type": "authorization_code",
-                "client_id": self._client_id,
-                "redirect_uri": auth_code_result.redirect_uri,
-                "code": auth_code_result.auth_code,
-                "code_verifier": auth_code_result.code_verifier,
-            },
-        )
-        token_response.raise_for_status()
+        # Exchange authentication code for access token
+        result = self._do_token_post_request(post_data=dict_no_none(
+            grant_type=self.grant_type,
+            client_id=self.client_id,
+            client_secret=self.client_secret,
+            redirect_uri=auth_code_result.redirect_uri,
+            code=auth_code_result.auth_code,
+            code_verifier=auth_code_result.code_verifier,
+        ))
 
-        result = token_response.json()
-        log.debug("Token response with keys {k}".format(k=result.keys()))
-
-        def extract_token(key):
-            try:
-                token = result[key]
-            except KeyError:
-                raise OAuthException("No {k} in response".format(k=key))
-            # TODO: verify the JWT properly?
-            _, payload = jwt_decode(token)
-            if payload['nonce'] != auth_code_result.nonce:
-                raise OAuthException("Invalid nonce in {k}".format(k=key))
-            return token
-
-        access_token = extract_token("access_token")
-        id_token = extract_token("id_token")
-        refresh_token = extract_token("refresh_token")
-        return self.AccessTokenResult(
-            access_token=access_token,
-            id_token=id_token,
-            refresh_token=refresh_token
-        )
+        return self._get_access_token_result(result, expected_nonce=auth_code_result.nonce)
 
 
-def jwt_decode(token: str) -> Tuple[dict, dict]:
+class OidcClientCredentialsAuthenticator(OidcAuthenticator):
     """
-    Poor man's JWT decoding
-    TODO: use a real library that also handles verification properly?
+    Implementation of "Client Credentials" Flow.
+
+    TODO: is this a useful flow in practice?
     """
 
-    def _decode(data: str) -> dict:
-        decoded = base64.b64decode(data + '=' * (4 - len(data) % 4)).decode('ascii')
-        return json.loads(decoded)
+    grant_type = "client_credentials"
 
-    header, payload, signature = token.split('.')
-    return _decode(header), _decode(payload)
+    def _get_token_endpoint_post_data(self) -> dict:
+        data = super()._get_token_endpoint_post_data()
+        data["client_secret"] = self.client_secret
+        return data
+
+
+class OidcResourceOwnerPasswordAuthenticator(OidcAuthenticator):
+    """
+    Implementation of "Resource Owner Password Credentials" (ROPC) grant type.
+
+    Note: This flow should only be used when end user owns (or highly trusts) the client code
+    and the password can be handled/stored/retrieved in a secure manner.
+    """
+
+    grant_type = "password"
+
+    def __init__(self, client_info: OidcClientInfo, username: str, password: str):
+        super().__init__(client_info=client_info)
+        self._username = username
+        self._password = password
+
+    def _get_token_endpoint_post_data(self) -> dict:
+        data = super()._get_token_endpoint_post_data()
+        data["scope"] = " ".join(self._client_info.provider.scopes)
+        data["username"] = self._username
+        data["password"] = self._password
+        return data
+
+
+class OidcRefreshTokenAuthenticator(OidcAuthenticator):
+    """
+    Implementation of obtaining a new OpenID Connect access token through a refresh token.
+    """
+
+    grant_type = "refresh_token"
+
+    def __init__(self, client_info: OidcClientInfo, refresh_token: str):
+        super().__init__(client_info=client_info)
+        self._refresh_token = refresh_token
+
+    def _get_token_endpoint_post_data(self) -> dict:
+        data = super()._get_token_endpoint_post_data()
+        data["client_secret"] = self.client_secret
+        data["refresh_token"] = self._refresh_token
+        return data
+
+
+class OidcDeviceAuthenticator(OidcAuthenticator):
+    """
+    Implementation of OAuth Device Authorization grant/flow
+    """
+
+    grant_type = "urn:ietf:params:oauth:grant-type:device_code"
+
+    VerificationInfo = namedtuple("VerificationInfo", ["verification_uri", "device_code", "user_code", "interval"])
+
+    def __init__(self, client_info: OidcClientInfo, display: Callable[[str], None] = print, device_code_url: str = None,
+                 max_poll_time=5 * 60):
+        super().__init__(client_info=client_info)
+        self._display = display
+        # Allow to specify/override device code URL for cases when it is not available in OIDC discovery doc.
+        self._device_code_url = device_code_url or self._provider_config["device_authorization_endpoint"]
+        self._max_poll_time = max_poll_time
+
+    def _get_verification_info(self) -> VerificationInfo:
+        """Get verification URL and user code"""
+        resp = requests.post(
+            url=self._device_code_url,
+            data={"client_id": self.client_id, "scope": " ".join(self._client_info.provider.scopes)}
+        )
+        if resp.status_code != 200:
+            raise OidcException("Failed to get verification URL and user code from {u!r}: {s} {r!r} {t!r}".format(
+                s=resp.status_code, r=resp.reason, u=resp.url, t=resp.text
+            ))
+        try:
+            data = resp.json()
+            return self.VerificationInfo(
+                # Google OAuth/OIDC implementation uses non standard "verification_url" instead of "verification_uri"
+                verification_uri=data["verification_uri"] if "verification_uri" in data else data["verification_url"],
+                device_code=data["device_code"],
+                user_code=data["user_code"],
+                interval=data.get("interval", 5),
+            )
+        except Exception as e:
+            raise OidcException("Failed to parse device authorization request: {e!r}".format(e=e))
+
+    def get_tokens(self) -> AccessTokenResult:
+        # Get verification url and user code
+        verification_info = self._get_verification_info()
+        self._display("To authenticate: visit {u} and enter the user code {c!r}.".format(
+            u=verification_info.verification_uri, c=verification_info.user_code)
+        )
+
+        # Poll token endpoint
+        elapsed = create_timer()
+        token_endpoint = self._provider_config['token_endpoint']
+        post_data = {
+            "client_id": self.client_id,
+            "client_secret": self.client_secret,
+            "device_code": verification_info.device_code,
+            "grant_type": self.grant_type
+        }
+        poll_interval = verification_info.interval
+        while elapsed() <= self._max_poll_time:
+            time.sleep(poll_interval)
+
+            log.debug("Doing {g!r} token request {u!r} with post data fields {p!r} (client_id {c!r})".format(
+                g=self.grant_type, c=self.client_id, u=token_endpoint, p=list(post_data.keys()))
+            )
+            resp = requests.post(url=token_endpoint, data=post_data)
+            if resp.status_code == 200:
+                log.info("[{e:5.1f}s] Authorized successfully.".format(e=elapsed()))
+                self._display("Authorized successfully.")
+                return self._get_access_token_result(data=resp.json())
+            else:
+                try:
+                    error = resp.json()["error"]
+                except Exception:
+                    error = "unknown"
+                if error == "authorization_pending":
+                    log.info("[{e:5.1f}s] Authorization pending.".format(e=elapsed()))
+                elif error == "slow_down":
+                    log.info("[{e:5.1f}s] Polling too fast, will slow down.".format(e=elapsed()))
+                    poll_interval += 5
+                else:
+                    raise OidcException("Failed to retrieve access token at {u!r}: {s} {r!r} {t!r}".format(
+                        s=resp.status_code, r=resp.reason, u=token_endpoint, t=resp.text
+                    ))
+
+        raise OidcException("Timeout exceeded {m:.1f}s while polling for access token at {u!r}".format(
+            u=token_endpoint, m=self._max_poll_time
+        ))
