@@ -191,6 +191,7 @@ class Connection(RestApiConnection):
 
     # Temporary workaround flag to enable for backends (e.g. EURAC) that expect id_token to be sent as bearer token
     # TODO DEPRECATED To remove when all backends properly expect access_token
+    # see https://github.com/Open-EO/openeo-wcps-driver/issues/45
     oidc_auth_user_id_token_as_bearer = False
 
     def __init__(self, url, auth: AuthBase = None, session: requests.Session = None, default_timeout: int = None):

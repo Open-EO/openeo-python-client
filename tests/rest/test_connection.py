@@ -262,7 +262,8 @@ def test_authenticate_oidc_100_single_implicit(requests_mock):
         expected_grant_type="authorization_code",
         expected_client_id=client_id,
         expected_fields={"scope": "im openid"},
-        oidc_discovery_url="https://auth.foidc.net/.well-known/openid-configuration"
+        oidc_discovery_url="https://auth.foidc.net/.well-known/openid-configuration",
+        scopes_supported=["openid", "im"],
     )
 
     # With all this set up, kick off the openid connect flow
@@ -337,7 +338,8 @@ def test_authenticate_oidc_100_multiple_success(requests_mock):
         expected_grant_type="authorization_code",
         expected_client_id=client_id,
         expected_fields={"scope": "mu openid"},
-        oidc_discovery_url="https://acco.baroi.net/.well-known/openid-configuration"
+        oidc_discovery_url="https://acco.baroi.net/.well-known/openid-configuration",
+        scopes_supported=["openid", "mu"],
     )
 
     # With all this set up, kick off the openid connect flow

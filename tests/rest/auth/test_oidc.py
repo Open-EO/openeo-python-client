@@ -7,6 +7,7 @@ import urllib.parse
 import urllib.parse
 from io import BytesIO
 from queue import Queue
+from typing import List
 from unittest import mock
 
 import pytest
@@ -79,32 +80,44 @@ def test_http_server_thread_port():
     server_thread.join()
 
 
-def test_provider_info_issuer():
+def test_provider_info_issuer(requests_mock):
+    requests_mock.get("https://akkoint.net/.well-known/openid-configuration", json={"scopes_supported": ["openid"]})
     p = OidcProviderInfo(issuer="https://akkoint.net")
     assert p.discovery_url == "https://akkoint.net/.well-known/openid-configuration"
-    assert p.scopes == ["openid"]
+    assert p.get_scopes_string() == "openid"
 
 
-def test_provider_info_issuer_slash():
+def test_provider_info_issuer_slash(requests_mock):
+    requests_mock.get("https://akkoint.net/.well-known/openid-configuration", json={"scopes_supported": ["openid"]})
     p = OidcProviderInfo(issuer="https://akkoint.net/")
     assert p.discovery_url == "https://akkoint.net/.well-known/openid-configuration"
 
 
 def test_provider_info_discovery_url(requests_mock):
     discovery_url = "https://akkoint.net/.well-known/openid-configuration"
-    requests_mock.get(discovery_url, json={"issuer":"https://akkoint.net"})
+    requests_mock.get(discovery_url, json={"issuer": "https://akkoint.net"})
     p = OidcProviderInfo(discovery_url=discovery_url)
     assert p.discovery_url == "https://akkoint.net/.well-known/openid-configuration"
-    assert p.scopes == ["openid"]
+    assert p.get_scopes_string() == "openid"
 
 
-def test_provider_info_scopes():
-    assert ["openid"] == OidcProviderInfo(issuer="https://akkoint.net").scopes
-    assert ["openid"] == OidcProviderInfo(issuer="https://akkoint.net", scopes=[]).scopes
-    assert ["openid", "test"] == OidcProviderInfo(issuer="https://akkoint.net", scopes=["test"]).scopes
-    assert ["openid", "test"] == OidcProviderInfo(issuer="https://akkoint.net", scopes=["openid", "test"]).scopes
-    assert ["openid", "test"] == OidcProviderInfo(issuer="https://akkoint.net", scopes=("openid", "test")).scopes
-    assert ["openid", "test"] == OidcProviderInfo(issuer="https://akkoint.net", scopes={"openid", "test"}).scopes
+def test_provider_info_scopes(requests_mock):
+    requests_mock.get(
+        "https://akkoint.net/.well-known/openid-configuration",
+        json={"scopes_supported": ["openid", "test"]}
+    )
+    assert "openid" == OidcProviderInfo(issuer="https://akkoint.net").get_scopes_string()
+    assert "openid" == OidcProviderInfo(issuer="https://akkoint.net", scopes=[]).get_scopes_string()
+    assert "openid test" == OidcProviderInfo(issuer="https://akkoint.net", scopes=["test"]).get_scopes_string()
+    assert "openid test" == OidcProviderInfo(
+        issuer="https://akkoint.net", scopes=["openid", "test"]
+    ).get_scopes_string()
+    assert "openid test" == OidcProviderInfo(
+        issuer="https://akkoint.net", scopes=("openid", "test")
+    ).get_scopes_string()
+    assert "openid test" == OidcProviderInfo(
+        issuer="https://akkoint.net", scopes={"openid", "test"}
+    ).get_scopes_string()
 
 
 class OidcMock:
@@ -121,6 +134,7 @@ class OidcMock:
             expected_fields: dict = None,
             provider_root_url: str = "https://auth.example.com",
             state: dict = None,
+            scopes_supported: List[str] = None
     ):
         self.requests_mock = requests_mock
         self.oidc_discovery_url = oidc_discovery_url
@@ -140,6 +154,7 @@ class OidcMock:
             "authorization_endpoint": self.authorization_endpoint,
             "token_endpoint": self.token_endpoint,
             "device_authorization_endpoint": self.device_code_endpoint,
+            "scopes_supported": scopes_supported or ["openid", "email", "profile"]
         }))
         self.requests_mock.post(
             self.token_endpoint,
@@ -268,6 +283,8 @@ class OidcMock:
 
 
 def test_oidc_auth_code_pkce_flow(requests_mock):
+    requests_mock.get("http://oidc.example.com/.well-known/openid-configuration", json={"scopes_supported": ["openid"]})
+
     client_id = "myclient"
     oidc_discovery_url = "http://oidc.example.com/.well-known/openid-configuration"
     oidc_mock = OidcMock(
@@ -275,7 +292,8 @@ def test_oidc_auth_code_pkce_flow(requests_mock):
         expected_grant_type="authorization_code",
         expected_client_id=client_id,
         expected_fields={"scope": "openid testpkce"},
-        oidc_discovery_url=oidc_discovery_url
+        oidc_discovery_url=oidc_discovery_url,
+        scopes_supported=["openid", "testpkce"]
     )
     provider = OidcProviderInfo(discovery_url=oidc_discovery_url, scopes=["openid", "testpkce"])
     authenticator = OidcAuthCodePkceAuthenticator(
@@ -316,7 +334,8 @@ def test_oidc_resource_owner_password_credentials_flow(requests_mock):
         expected_grant_type="password",
         expected_client_id=client_id,
         expected_fields={"username": username, "password": password, "scope": "openid testpwd"},
-        oidc_discovery_url=oidc_discovery_url
+        oidc_discovery_url=oidc_discovery_url,
+        scopes_supported=["openid", "testpwd"],
     )
     provider = OidcProviderInfo(discovery_url=oidc_discovery_url, scopes=["testpwd"])
 
@@ -341,7 +360,8 @@ def test_oidc_device_flow(requests_mock, caplog):
         expected_client_id=client_id,
         oidc_discovery_url=oidc_discovery_url,
         expected_fields={"scope": "df openid", "client_secret": client_secret},
-        state={"device_authorization_errors": ["authorization_pending", "slow_down"]}
+        state={"device_authorization_errors": ["authorization_pending", "slow_down"]},
+        scopes_supported=["openid", "df"]
     )
     provider = OidcProviderInfo(discovery_url=oidc_discovery_url, scopes=["df"])
     display = []

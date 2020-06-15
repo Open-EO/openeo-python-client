@@ -9,15 +9,14 @@ import hashlib
 import http.server
 import json
 import logging
-import os
 import random
+import stat
 import string
 import threading
 import time
 import urllib.parse
 import warnings
 import webbrowser
-import stat
 from collections import namedtuple
 from datetime import datetime
 from pathlib import Path
@@ -199,23 +198,24 @@ def jwt_decode(token: str) -> Tuple[dict, dict]:
     return _decode(header), _decode(payload)
 
 
-# Minimal set of scopes a provider is expected to support
-SCOPES_MINIMAL = ["openid"]
-
-
 class OidcProviderInfo:
     def __init__(self, issuer: str = None, discovery_url: str = None, scopes: List[str] = None):
         if issuer is None and discovery_url is None:
             raise ValueError("At least `issuer` or `discovery_url` should be specified")
-        self.discovery_url = discovery_url or issuer.rstrip("/") + "/.well-known/openid-configuration"
-        self.issuer = issuer or requests.get(self.discovery_url).json()["issuer"]
-        self.scopes = sorted(set(SCOPES_MINIMAL).union(scopes or []))
+        self.discovery_url = discovery_url or (issuer.rstrip("/") + "/.well-known/openid-configuration")
+        discovery_resp = requests.get(self.discovery_url, timeout=20)
+        discovery_resp.raise_for_status()
+        self.config = discovery_resp.json()
+        self.issuer = issuer or self.config["issuer"]
+        # Scopes to request
+        self._scopes = {
+            "openid",
+            # `offline_access` is required to get refresh tokens with Microsoft Identity platform
+            "offline_access",
+        }.union(scopes or []).intersection(self.config.get("scopes_supported", ["openid"]))
 
-    def get_config(self) -> dict:
-        """Load discovery document"""
-        resp = requests.get(self.discovery_url, timeout=20)
-        resp.raise_for_status()
-        return resp.json()
+    def get_scopes_string(self):
+        return " ".join(sorted(self._scopes))
 
 
 class OidcClientInfo:
@@ -240,7 +240,7 @@ class OidcAuthenticator:
 
     def __init__(self, client_info: OidcClientInfo):
         self._client_info = client_info
-        self._provider_config = client_info.provider.get_config()
+        self._provider_config = client_info.provider.config
         # TODO: check provider config (e.g. if grant type is supported)
 
     @property
@@ -389,7 +389,7 @@ class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
                 params=urllib.parse.urlencode({
                     "response_type": "code",
                     "client_id": self.client_id,
-                    "scope": " ".join(self._client_info.provider.scopes),
+                    "scope": self._client_info.provider.get_scopes_string(),
                     "redirect_uri": redirect_uri,
                     "state": state,
                     "nonce": nonce,
@@ -491,7 +491,7 @@ class OidcResourceOwnerPasswordAuthenticator(OidcAuthenticator):
 
     def _get_token_endpoint_post_data(self) -> dict:
         data = super()._get_token_endpoint_post_data()
-        data["scope"] = " ".join(self._client_info.provider.scopes)
+        data["scope"] = self._client_info.provider.get_scopes_string()
         data["username"] = self._username
         data["password"] = self._password
         return data
@@ -537,7 +537,7 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
         """Get verification URL and user code"""
         resp = requests.post(
             url=self._device_code_url,
-            data={"client_id": self.client_id, "scope": " ".join(self._client_info.provider.scopes)}
+            data={"client_id": self.client_id, "scope": self._client_info.provider.get_scopes_string()}
         )
         if resp.status_code != 200:
             raise OidcException("Failed to get verification URL and user code from {u!r}: {s} {r!r} {t!r}".format(
