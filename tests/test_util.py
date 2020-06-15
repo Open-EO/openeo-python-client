@@ -8,7 +8,7 @@ import unittest.mock as mock
 import pytest
 
 from openeo.util import first_not_none, get_temporal_extent, TimingLogger, ensure_list, ensure_dir, dict_no_none, \
-    deep_get, DeepKeyError
+    deep_get, DeepKeyError, get_user_config_dir, get_user_data_dir
 
 
 def test_dict_no_none():
@@ -245,3 +245,11 @@ def test_deep_get_mixed():
     assert deep_get(d, "bar", 1, "b", 0) == "ar"
     with pytest.raises(DeepKeyError, match=re.escape("2 (from deep key ('bar', 2, 22, 222))")):
         deep_get(d, "bar", 2, 22, 222)
+
+
+def test_get_user_config_dir():
+    assert get_user_config_dir() == pathlib.Path(__file__).parent / "data/user_dirs/config/openeo-python-client"
+
+
+def test_get_user_data_dir():
+    assert get_user_data_dir() == pathlib.Path(__file__).parent / "data/user_dirs/data/openeo-python-client"
