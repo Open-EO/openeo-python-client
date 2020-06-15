@@ -3,10 +3,10 @@ This module provides a Connection object to manage and persist settings when int
 """
 
 import logging
-import pathlib
 import shutil
 import sys
-from typing import Dict, List, Tuple, Union
+from pathlib import Path
+from typing import Dict, List, Tuple, Union, Callable
 from urllib.parse import urljoin
 
 import requests
@@ -15,10 +15,13 @@ from requests import Response
 from requests.auth import HTTPBasicAuth, AuthBase
 
 import openeo
-from openeo.capabilities import Capabilities, ApiVersionException, ComparableVersion
+from openeo.capabilities import ApiVersionException, ComparableVersion
 from openeo.imagecollection import CollectionMetadata
 from openeo.rest import OpenEoClientException
 from openeo.rest.auth.auth import NullAuth, BearerAuth
+from openeo.rest.auth.oidc import OidcClientCredentialsAuthenticator, OidcAuthCodePkceAuthenticator, \
+    OidcClientInfo, OidcAuthenticator, OidcRefreshTokenAuthenticator, OidcResourceOwnerPasswordAuthenticator, \
+    OidcDeviceAuthenticator, OidcProviderInfo
 from openeo.rest.datacube import DataCube
 from openeo.rest.imagecollectionclient import ImageCollectionClient
 from openeo.rest.job import RESTJob
@@ -104,19 +107,28 @@ class RestApiConnection:
 
     def _raise_api_error(self, response: requests.Response):
         """Convert API error response to Python exception"""
+        status_code = response.status_code
         try:
             # Try parsing the error info according to spec and wrap it in an exception.
             info = response.json()
             exception = OpenEoApiError(
-                http_status_code=response.status_code,
+                http_status_code=status_code,
                 code=info.get("code", "unknown"),
                 message=info.get("message", "unknown error"),
                 id=info.get("id"),
                 url=info.get("url"),
             )
         except Exception:
-            # When parsing went wrong: give minimal information.
-            exception = OpenEoApiError(http_status_code=response.status_code, message=response.text)
+            # Parsing of error info went wrong: let's see if we can still extract some helpful information.
+            text = response.text
+            _log.warning("Failed to parse API error response: {s} {t!r}".format(s=status_code, t=text))
+            if status_code == 502 and "Proxy Error" in text:
+                msg = "Received 502 Proxy Error." \
+                      " This typically happens if an OpenEO request takes too long and is killed." \
+                      " Consider using batch jobs instead of doing synchronous processing."
+                exception = OpenEoApiError(http_status_code=status_code, message=msg)
+            else:
+                exception = OpenEoApiError(http_status_code=status_code, message=text)
         raise exception
 
     def get(self, path, stream=False, auth: AuthBase = None, **kwargs) -> Response:
@@ -177,6 +189,10 @@ class Connection(RestApiConnection):
 
     _MINIMUM_API_VERSION = ComparableVersion("0.4.0")
 
+    # Temporary workaround flag to enable for backends (e.g. EURAC) that expect id_token to be sent as bearer token
+    # TODO DEPRECATED To remove when all backends properly expect access_token
+    oidc_auth_user_id_token_as_bearer = False
+
     def __init__(self, url, auth: AuthBase = None, session: requests.Session = None, default_timeout: int = None):
         """
         Constructor of Connection, authenticates user.
@@ -226,11 +242,29 @@ class Connection(RestApiConnection):
             (opens a webbrowser by default)
         :param timeout: number of seconds after which to abort the authentication procedure
         :param server_address: optional tuple (hostname, port_number) to serve the OAuth redirect callback on
-        """
-        # Local import to avoid importing the whole OpenID Connect dependency chain. TODO: just do global import?
-        from openeo.rest.auth.oidc import OidcAuthCodePkceAuthenticator
-        # TODO: option to increase log level temporarily?
 
+        TODO: deprecated?
+        """
+        # TODO: option to increase log level temporarily?
+        provider_id, provider = self._get_oidc_provider(provider_id)
+
+        client_info = OidcClientInfo(client_id=client_id, provider=provider)
+        authenticator = OidcAuthCodePkceAuthenticator(
+            client_info=client_info,
+            webbrowser_open=webbrowser_open,
+            timeout=timeout,
+            server_address=server_address,
+        )
+        return self._authenticate_oidc(authenticator, provider_id=provider_id)
+
+    def _get_oidc_provider(self, provider_id: Union[str, None] = None) -> Tuple[str, OidcProviderInfo]:
+        """
+        Get OpenID Connect discovery URL for given provider_id
+
+        :param provider_id: id of OIDC provider as specified by backend (/credentials/oidc).
+            Can be None if there is just one provider.
+        :return: updated provider_id and provider info object
+        """
         if self._api_version.at_least("1.0.0"):
             oidc_info = self.get("/credentials/oidc", expected_status=200).json()
             providers = {p["id"]: p for p in oidc_info["providers"]}
@@ -242,34 +276,113 @@ class Connection(RestApiConnection):
                     )
                 provider = providers[provider_id]
             elif len(providers) == 1:
-                # No provider id given, but there is only one anyway: we can manage that.
+                # No provider id given, but there is only one anyway: we can handle that.
                 provider_id, provider = providers.popitem()
             else:
                 raise OpenEoClientException("No provider_id given. Available: {p!r}.".format(
                     p=list(providers.keys()))
                 )
-            oidc_discovery_url = provider["issuer"] + "/.well-known/openid-configuration"
+            provider = OidcProviderInfo(issuer=provider["issuer"], scopes=provider.get("scopes"))
         else:
             # Per spec: '/credentials/oidc' will redirect to  OpenID Connect discovery document
-            oidc_discovery_url = self.build_url('/credentials/oidc')
-        _log.info("Using OIDC discovery_url {u!r}".format(u=oidc_discovery_url))
+            provider = OidcProviderInfo(discovery_url=self.build_url('/credentials/oidc'))
+        return provider_id, provider
 
-        authenticator = OidcAuthCodePkceAuthenticator(
-            client_id=client_id,
-            oidc_discovery_url=oidc_discovery_url,
-            webbrowser_open=webbrowser_open,
-            timeout=timeout,
-            server_address=server_address,
-        )
-        # Do the Oauth/OpenID Connect flow and use the access token as bearer token.
+    def _authenticate_oidc(self, authenticator: OidcAuthenticator, provider_id: str) -> 'Connection':
+        """
+        Authenticate through OIDC and set up bearer token (based on OIDC access_token) for further requests.
+        """
         tokens = authenticator.get_tokens()
-        # TODO: ability to refresh the token when expired?
+        # TODO: store refresh token?
+        token = tokens.access_token if not self.oidc_auth_user_id_token_as_bearer else tokens.id_token
         if self._api_version.at_least("1.0.0"):
-            # TODO: properly specify provider id
-            self.auth = BearerAuth(bearer='oidc/{p}/{t}'.format(p=provider_id, t=tokens.access_token))
+            self.auth = BearerAuth(bearer='oidc/{p}/{t}'.format(p=provider_id, t=token))
         else:
-            self.auth = BearerAuth(bearer=tokens.access_token)
+            self.auth = BearerAuth(bearer=token)
         return self
+
+    def authenticate_oidc_authorization_code(
+            self,
+            client_id: str,
+            client_secret: str = None,
+            provider_id: str = None,
+            timeout: int = None,
+            server_address: Tuple[str, int] = None,
+            webbrowser_open: Callable = None
+    ) -> 'Connection':
+        """
+        OpenID Connect Authorization Code Flow (with PKCE).
+
+        WARNING: this API is in experimental phase
+        """
+        provider_id, provider = self._get_oidc_provider(provider_id)
+        # TODO: load client info and settings from config file?
+        client_info = OidcClientInfo(client_id=client_id, client_secret=client_secret, provider=provider)
+        authenticator = OidcAuthCodePkceAuthenticator(
+            client_info=client_info,
+            webbrowser_open=webbrowser_open, timeout=timeout, server_address=server_address
+        )
+        return self._authenticate_oidc(authenticator, provider_id=provider_id)
+
+    def authenticate_oidc_client_credentials(
+            self,
+            client_id: str,
+            client_secret: str = None,
+            provider_id: str = None,
+    ) -> 'Connection':
+        """
+        OpenID Connect Client Credentials flow.
+
+        WARNING: this API is in experimental phase
+        """
+        provider_id, provider = self._get_oidc_provider(provider_id)
+        # TODO: load credentials from file/config
+        client_info = OidcClientInfo(client_id=client_id, provider=provider, client_secret=client_secret)
+        authenticator = OidcClientCredentialsAuthenticator(client_info=client_info)
+        return self._authenticate_oidc(authenticator, provider_id=provider_id)
+
+    def authenticate_oidc_resource_owner_password_credentials(
+            self, client_id: str, username: str, password: str, provider_id: str = None
+    ) -> 'Connection':
+        """
+        OpenId Connect Resource Owner Password Credentials
+
+        WARNING: this API is in experimental phase
+        """
+        provider_id, provider = self._get_oidc_provider(provider_id)
+        # TODO: load password from file/config
+        client_info = OidcClientInfo(client_id=client_id, provider=provider)
+        authenticator = OidcResourceOwnerPasswordAuthenticator(
+            client_info=client_info, username=username, password=password
+        )
+        return self._authenticate_oidc(authenticator, provider_id=provider_id)
+
+    def authenticate_oidc_refresh_token(
+            self, client_id: str, refresh_token: str, client_secret: str = None, provider_id: str = None
+    ) -> 'Connection':
+        """
+        OpenId Connect Refresh Token
+
+        WARNING: this API is in experimental phase
+        """
+        provider_id, provider = self._get_oidc_provider(provider_id)
+        # TODO: refresh_token: load from file/cache?
+        client_info = OidcClientInfo(client_id=client_id, provider=provider, client_secret=client_secret)
+        authenticator = OidcRefreshTokenAuthenticator(client_info=client_info, refresh_token=refresh_token)
+        return self._authenticate_oidc(authenticator, provider_id=provider_id)
+
+    def authenticate_oidc_device(
+            self, client_id: str, client_secret: str, provider_id: str = None, **kwargs
+    ) -> 'Connection':
+        """
+        Authenticate with OAuth Device Authorization grant/flow
+
+        WARNING: this API is in experimental phase
+        """
+        provider_id, provider = self._get_oidc_provider(provider_id)
+        client_info = OidcClientInfo(client_id=client_id, provider=provider, client_secret=client_secret)
+        authenticator = OidcDeviceAuthenticator(client_info=client_info, **kwargs)
+        return self._authenticate_oidc(authenticator, provider_id=provider_id)
 
     def describe_account(self) -> str:
         """
@@ -492,7 +605,7 @@ class Connection(RestApiConnection):
         """
         request = self._build_request_with_process_graph(process_graph=graph)
         r = self.post(path="/result", json=request, stream=True, timeout=1000)
-        with pathlib.Path(outputfile).open(mode="wb") as f:
+        with Path(outputfile).open(mode="wb") as f:
             shutil.copyfileobj(r.raw, f)
 
     def execute(self, process_graph: dict):

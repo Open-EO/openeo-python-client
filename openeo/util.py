@@ -2,7 +2,10 @@
 Various utilities and helpers.
 """
 import functools
+import json
 import logging
+import os
+import platform
 import re
 from datetime import datetime, date
 from pathlib import Path
@@ -199,3 +202,46 @@ def deep_get(data: dict, *keys, default=_deep_get_default_undefined):
             else:
                 return default
     return data
+
+
+def load_json(path: Union[Path, str]) -> dict:
+    with Path(path).open("r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def get_user_config_dir(app_name="openeo-python-client", auto_create=True) -> Path:
+    """
+    Get platform specific config folder
+    """
+    # Platform specific config root locations (from highest priority to lowest)
+    if platform.system() == 'Windows':
+        config_roots = [os.environ.get('APPDATA'), '~\\AppData\\Roaming']
+    elif platform.system() == 'Darwin':
+        config_roots = [os.environ.get('XDG_CONFIG_HOME'), '~/Library/Preferences', '~/.config']
+    else:
+        # Assume unix
+        config_roots = [os.environ.get('XDG_CONFIG_HOME'), '~/.config']
+
+    # Filter out None's, expand user prefix and append app name
+    config_dirs = [Path(r).expanduser() / app_name for r in config_roots if r]
+
+    # Use highest prio config dir that already exists.
+    for p in config_dirs:
+        if p.exists() and p.is_dir():
+            return p
+
+    # No existing config dir: create highest prio one (if possible)
+    if auto_create:
+        for p in config_dirs:
+            try:
+                p.mkdir(parents=True)
+                logger.info("Created user config dir for {a!r}: {p}".format(a=app_name, p=p))
+                return p
+            except OSError:
+                pass
+
+    raise Exception("Failed to find user config dir for {a!r}. Tried: {p!r}".format(a=app_name, p=config_dirs))
+
+
+def get_user_config() -> Path:
+    return get_user_config_dir() / "openeo-config.json"
