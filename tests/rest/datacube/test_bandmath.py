@@ -67,6 +67,12 @@ def test_evi(connection, api_version):
     expected_graph = load_json_resource('data/%s/evi_graph.json' % api_version)
     assert actual_graph == expected_graph
 
+def test_db_to_natural(con100):
+    cube = con100.load_collection("SENTINEL2_RADIOMETRY_10M")
+    B02 = cube.band('B02')
+    natural = 10 ** ((B02 * 0.001 - 45) / 10)
+    expected_graph = load_json_resource('data/1.0.0/db_to_natural.json')
+    assert natural.graph == expected_graph
 
 def test_ndvi_udf(connection, api_version):
     s2_radio = connection.load_collection("SENTINEL2_RADIOMETRY_10M")

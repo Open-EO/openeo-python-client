@@ -346,6 +346,25 @@ class DataCube(ImageCollection):
     def __rmul__(self, other) -> 'DataCube':
         return self.multiply(other, reverse=True)
 
+    def __rpow__(self, other) -> 'DataCube':
+        return self.power(other,reverse=True)
+
+    def __pow__(self, other) -> 'DataCube':
+        return self.power(other,reverse=False)
+
+    def power(self,other,reverse):
+        operator = "power"
+        node = self._get_bandmath_node()
+        x = {'from_node': node.reducer_process_graph()}
+        y = other
+        if reverse:
+            x, y = y, x
+        return self.process_with_node(node.clone_with_new_reducer(
+            PGNode(operator, base=x, p=y)
+        ))
+
+
+
     def __or__(self, other) -> 'DataCube':
         return self.logical_or(other)
 

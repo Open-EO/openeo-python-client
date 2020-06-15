@@ -1,0 +1,70 @@
+{
+  "loadcollection1": {
+    "process_id": "load_collection",
+    "arguments": {
+      "id": "SENTINEL2_RADIOMETRY_10M",
+      "spatial_extent": null,
+      "temporal_extent": null
+    }
+  },
+  "reducedimension1": {
+    "process_id": "reduce_dimension",
+    "arguments": {
+      "data": {
+        "from_node": "loadcollection1"
+      },
+      "dimension": "bands",
+      "reducer": {
+        "process_graph": {
+          "arrayelement1": {
+            "process_id": "array_element",
+            "arguments": {
+              "data": {
+                "from_parameter": "data"
+              },
+              "index": 0
+            }
+          },
+          "multiply1": {
+            "process_id": "multiply",
+            "arguments": {
+              "x": {
+                "from_node": "arrayelement1"
+              },
+              "y": 0.001
+            }
+          },
+          "subtract1": {
+            "process_id": "subtract",
+            "arguments": {
+              "x": {
+                "from_node": "multiply1"
+              },
+              "y": 45
+            }
+          },
+          "divide1": {
+            "process_id": "divide",
+            "arguments": {
+              "x": {
+                "from_node": "subtract1"
+              },
+              "y": 10
+            }
+          },
+          "power1": {
+            "process_id": "power",
+            "arguments": {
+              "base": 10,
+              "p": {
+                "from_node": "divide1"
+              }
+            },
+            "result": true
+          }
+        }
+      }
+    },
+    "result": true
+  }
+}
