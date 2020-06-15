@@ -209,39 +209,67 @@ def load_json(path: Union[Path, str]) -> dict:
         return json.load(f)
 
 
-def get_user_config_dir(app_name="openeo-python-client", auto_create=True) -> Path:
+def _get_user_dir(
+        app_name="openeo-python-client",
+        xdg_env_var='XDG_CONFIG_HOME',
+        win_env_var='APPDATA',
+        fallback='~/.config',
+        win_fallback='~\\AppData\\Roaming',
+        macos_fallback='~/Library/Preferences',
+        auto_create=True
+) -> Path:
     """
-    Get platform specific config folder
+    Get platform specific config/data/cache folder
     """
-    # Platform specific config root locations (from highest priority to lowest)
+    # Platform specific root locations (from highest priority to lowest)
     if platform.system() == 'Windows':
-        config_roots = [os.environ.get('APPDATA'), '~\\AppData\\Roaming']
+        roots = [os.environ.get(win_env_var), win_fallback, fallback]
     elif platform.system() == 'Darwin':
-        config_roots = [os.environ.get('XDG_CONFIG_HOME'), '~/Library/Preferences', '~/.config']
+        roots = [os.environ.get(xdg_env_var), macos_fallback, fallback]
     else:
         # Assume unix
-        config_roots = [os.environ.get('XDG_CONFIG_HOME'), '~/.config']
+        roots = [os.environ.get(xdg_env_var), fallback]
 
     # Filter out None's, expand user prefix and append app name
-    config_dirs = [Path(r).expanduser() / app_name for r in config_roots if r]
+    dirs = [Path(r).expanduser() / app_name for r in roots if r]
 
-    # Use highest prio config dir that already exists.
-    for p in config_dirs:
+    # Use highest prio dir that already exists.
+    for p in dirs:
         if p.exists() and p.is_dir():
             return p
 
-    # No existing config dir: create highest prio one (if possible)
+    # No existing dir: create highest prio one (if possible)
     if auto_create:
-        for p in config_dirs:
+        for p in dirs:
             try:
                 p.mkdir(parents=True)
-                logger.info("Created user config dir for {a!r}: {p}".format(a=app_name, p=p))
+                logger.info("Created user dir for {a!r}: {p}".format(a=app_name, p=p))
                 return p
             except OSError:
                 pass
 
-    raise Exception("Failed to find user config dir for {a!r}. Tried: {p!r}".format(a=app_name, p=config_dirs))
+    raise Exception("Failed to find user dir for {a!r}. Tried: {p!r}".format(a=app_name, p=dirs))
 
 
-def get_user_config() -> Path:
-    return get_user_config_dir() / "openeo-config.json"
+def get_user_config_dir(app_name="openeo-python-client", auto_create=True) -> Path:
+    """
+    Get platform specific config folder
+    """
+    return _get_user_dir(
+        app_name=app_name,
+        xdg_env_var='XDG_CONFIG_HOME', win_env_var='APPDATA',
+        fallback='~/.config', win_fallback='~\\AppData\\Roaming', macos_fallback='~/Library/Preferences',
+        auto_create=auto_create
+    )
+
+
+def get_user_data_dir(app_name="openeo-python-client", auto_create=True) -> Path:
+    """
+    Get platform specific data folder
+    """
+    return _get_user_dir(
+        app_name=app_name,
+        xdg_env_var='XDG_DATA_HOME', win_env_var='APPDATA',
+        fallback='~/.local/share', win_fallback='~\\AppData\\Roaming', macos_fallback='~/Library',
+        auto_create=auto_create
+    )

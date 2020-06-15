@@ -21,12 +21,12 @@ from openeo.rest import OpenEoClientException
 from openeo.rest.auth.auth import NullAuth, BearerAuth
 from openeo.rest.auth.oidc import OidcClientCredentialsAuthenticator, OidcAuthCodePkceAuthenticator, \
     OidcClientInfo, OidcAuthenticator, OidcRefreshTokenAuthenticator, OidcResourceOwnerPasswordAuthenticator, \
-    OidcDeviceAuthenticator, OidcProviderInfo
+    OidcDeviceAuthenticator, OidcProviderInfo, RefreshTokenStore
 from openeo.rest.datacube import DataCube
 from openeo.rest.imagecollectionclient import ImageCollectionClient
 from openeo.rest.job import RESTJob
 from openeo.rest.rest_capabilities import RESTCapabilities
-from openeo.util import ensure_list
+from openeo.util import ensure_list, get_user_data_dir
 
 _log = logging.getLogger(__name__)
 
@@ -293,7 +293,13 @@ class Connection(RestApiConnection):
         Authenticate through OIDC and set up bearer token (based on OIDC access_token) for further requests.
         """
         tokens = authenticator.get_tokens()
-        # TODO: store refresh token?
+        _log.info("Obtained tokens: {t}".format(t=[k for k, v in tokens._asdict().items() if v]))
+        if tokens.refresh_token:
+            r = RefreshTokenStore().set(
+                issuer=authenticator._client_info.provider.issuer,
+                client_id=authenticator.client_id,
+                refresh_token=tokens.refresh_token
+            )
         token = tokens.access_token if not self.oidc_auth_user_id_token_as_bearer else tokens.id_token
         if self._api_version.at_least("1.0.0"):
             self.auth = BearerAuth(bearer='oidc/{p}/{t}'.format(p=provider_id, t=token))
@@ -358,7 +364,7 @@ class Connection(RestApiConnection):
         return self._authenticate_oidc(authenticator, provider_id=provider_id)
 
     def authenticate_oidc_refresh_token(
-            self, client_id: str, refresh_token: str, client_secret: str = None, provider_id: str = None
+            self, client_id: str, refresh_token: str = None, client_secret: str = None, provider_id: str = None
     ) -> 'Connection':
         """
         OpenId Connect Refresh Token
@@ -366,7 +372,13 @@ class Connection(RestApiConnection):
         WARNING: this API is in experimental phase
         """
         provider_id, provider = self._get_oidc_provider(provider_id)
-        # TODO: refresh_token: load from file/cache?
+        if refresh_token is None:
+            store = RefreshTokenStore()
+            # TODO: allow client_id/secret to be None and fetch it from config/cache?
+            refresh_token = store.get(issuer=provider.issuer, client_id=client_id)
+            if refresh_token is None:
+                raise OpenEoClientException("No refresh token")
+
         client_info = OidcClientInfo(client_id=client_id, provider=provider, client_secret=client_secret)
         authenticator = OidcRefreshTokenAuthenticator(client_info=client_info, refresh_token=refresh_token)
         return self._authenticate_oidc(authenticator, provider_id=provider_id)

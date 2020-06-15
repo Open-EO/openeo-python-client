@@ -2,12 +2,14 @@ import base64
 import json
 import logging
 import re
+import stat
 import urllib.parse
 import urllib.parse
 from io import BytesIO
 from queue import Queue
 from unittest import mock
 
+import pytest
 import requests
 import requests_mock.request
 import requests_mock.request
@@ -15,7 +17,7 @@ import requests_mock.request
 import openeo.rest.auth.oidc
 from openeo.rest.auth.oidc import QueuingRequestHandler, drain_queue, HttpServerThread, OidcAuthCodePkceAuthenticator, \
     OidcClientCredentialsAuthenticator, OidcResourceOwnerPasswordAuthenticator, OidcClientInfo, OidcProviderInfo, \
-    OidcDeviceAuthenticator, random_string
+    OidcDeviceAuthenticator, random_string, RefreshTokenStore
 
 
 def handle_request(handler_class, path: str):
@@ -88,8 +90,10 @@ def test_provider_info_issuer_slash():
     assert p.discovery_url == "https://akkoint.net/.well-known/openid-configuration"
 
 
-def test_provider_info_discovery_url():
-    p = OidcProviderInfo(discovery_url="https://akkoint.net/.well-known/openid-configuration")
+def test_provider_info_discovery_url(requests_mock):
+    discovery_url = "https://akkoint.net/.well-known/openid-configuration"
+    requests_mock.get(discovery_url, json={"issuer":"https://akkoint.net"})
+    p = OidcProviderInfo(discovery_url=discovery_url)
     assert p.discovery_url == "https://akkoint.net/.well-known/openid-configuration"
     assert p.scopes == ["openid"]
 
@@ -132,6 +136,7 @@ class OidcMock:
 
         self.requests_mock.get(oidc_discovery_url, text=json.dumps({
             # Rudimentary OpenID Connect discovery document
+            "issuer": self.provider_root_url,
             "authorization_endpoint": self.authorization_endpoint,
             "token_endpoint": self.token_endpoint,
             "device_authorization_endpoint": self.device_code_endpoint,
@@ -359,3 +364,49 @@ def test_oidc_device_flow(requests_mock, caplog):
         caplog.text,
         flags=re.DOTALL
     )
+
+
+class TestRefreshTokenStorage:
+
+    def test_start_empty(self, tmp_path):
+        r = RefreshTokenStore(path=tmp_path)
+        assert r.get("foo", "bar") is None
+
+    def test_pass_dir(self, tmp_path):
+        r = RefreshTokenStore(path=tmp_path)
+        r.set("foo", "bar", "imd6$3cr3t")
+        assert (tmp_path / RefreshTokenStore.DEFAULT_FILENAME).exists()
+        assert [p.name for p in tmp_path.iterdir()] == [RefreshTokenStore.DEFAULT_FILENAME]
+
+    def test_pass_file(self, tmp_path):
+        path = tmp_path / "my_tokens.secret"
+        r = RefreshTokenStore(path=path)
+        r.set("foo", "bar", "imd6$3cr3t")
+        assert path.exists()
+        assert [p.name for p in tmp_path.iterdir()] == ["my_tokens.secret"]
+
+    def test_public_file(self, tmp_path):
+        path = tmp_path / "refresh_tokens.json"
+        with path.open("w") as f:
+            json.dump({}, f)
+        r = RefreshTokenStore(path=path)
+        with pytest.raises(PermissionError, match="readable by others.*expected permissions: 600"):
+            r.get("foo", "bar")
+        with pytest.raises(PermissionError, match="readable by others.*expected permissions: 600"):
+            r.set("foo", "bar", "imd6$3cr3t")
+
+    def test_permissions(self, tmp_path):
+        r = RefreshTokenStore(path=tmp_path)
+        r.set("foo", "bar", "imd6$3cr3t")
+        st_mode = (tmp_path / RefreshTokenStore.DEFAULT_FILENAME).stat().st_mode
+        assert st_mode & 0o777 == 0o600
+
+    def test_start_empty_exception_on_miss(self, tmp_path):
+        r = RefreshTokenStore(path=tmp_path)
+        with pytest.raises(RefreshTokenStore.NoRefreshToken):
+            r.get("foo", "bar", allow_miss=False)
+
+    def test_get_set(self, tmp_path):
+        r = RefreshTokenStore(path=tmp_path)
+        r.set("foo", "bar", "ih6zdaT0k3n")
+        assert r.get("foo", "bar") == "ih6zdaT0k3n"

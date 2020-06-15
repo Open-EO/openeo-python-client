@@ -9,6 +9,7 @@ import hashlib
 import http.server
 import json
 import logging
+import os
 import random
 import string
 import threading
@@ -16,14 +17,17 @@ import time
 import urllib.parse
 import warnings
 import webbrowser
+import stat
 from collections import namedtuple
+from datetime import datetime
+from pathlib import Path
 from queue import Queue, Empty
 from typing import Tuple, Callable, Union, List
 
 import requests
 
 from openeo.rest import OpenEoClientException
-from openeo.util import dict_no_none
+from openeo.util import dict_no_none, get_user_data_dir, date_to_rfc3339
 
 log = logging.getLogger(__name__)
 
@@ -204,6 +208,7 @@ class OidcProviderInfo:
         if issuer is None and discovery_url is None:
             raise ValueError("At least `issuer` or `discovery_url` should be specified")
         self.discovery_url = discovery_url or issuer.rstrip("/") + "/.well-known/openid-configuration"
+        self.issuer = issuer or requests.get(self.discovery_url).json()["issuer"]
         self.scopes = sorted(set(SCOPES_MINIMAL).union(scopes or []))
 
     def get_config(self) -> dict:
@@ -505,7 +510,8 @@ class OidcRefreshTokenAuthenticator(OidcAuthenticator):
 
     def _get_token_endpoint_post_data(self) -> dict:
         data = super()._get_token_endpoint_post_data()
-        data["client_secret"] = self.client_secret
+        if self.client_secret:
+            data["client_secret"] = self.client_secret
         data["refresh_token"] = self._refresh_token
         return data
 
@@ -595,3 +601,60 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
         raise OidcException("Timeout exceeded {m:.1f}s while polling for access token at {u!r}".format(
             u=token_endpoint, m=self._max_poll_time
         ))
+
+
+class RefreshTokenStore:
+    """
+    Basic JSON-file based storage of refresh tokens.
+    """
+    _PERMS = stat.S_IRUSR | stat.S_IWUSR
+
+    DEFAULT_FILENAME = "refresh_tokens.json"
+
+    class NoRefreshToken(Exception):
+        pass
+
+    def __init__(self, path: Path = None):
+        if path is None:
+            path = get_user_data_dir()
+        if path.is_dir():
+            path = path / self.DEFAULT_FILENAME
+        self._path = path
+
+    def _get_all(self, empty_on_file_not_found=True) -> dict:
+        if not self._path.exists():
+            if empty_on_file_not_found:
+                return {}
+            raise FileNotFoundError(self._path)
+        mode = self._path.stat().st_mode
+        if (mode & stat.S_IRWXG) or (mode & stat.S_IRWXO):
+            raise PermissionError(
+                "Refresh token file {p} is readable by others: st_mode {a:o} (expected permissions: {e:o}).".format(
+                    p=self._path, a=mode, e=self._PERMS)
+            )
+        with self._path.open("r", encoding="utf8") as f:
+            return json.load(f)
+
+    def _write_all(self, data: dict):
+        with self._path.open("w", encoding="utf8") as f:
+            json.dump(data, f, indent=2)
+        self._path.chmod(mode=self._PERMS)
+
+    def get(self, issuer: str, client_id: str, allow_miss=True) -> Union[str, None]:
+        try:
+            data = self._get_all()
+            return data[issuer][client_id]["refresh_token"]
+        except (FileNotFoundError, KeyError):
+            if allow_miss:
+                return None
+            else:
+                raise self.NoRefreshToken()
+
+    def set(self, issuer: str, client_id: str, refresh_token: str):
+        data = self._get_all(empty_on_file_not_found=True)
+        log.info("Storing refresh token for issuer {i!r} (client {c!r})".format(i=issuer, c=client_id))
+        data.setdefault(issuer, {}).setdefault(client_id, {
+            "date": date_to_rfc3339(datetime.utcnow()),
+            "refresh_token": refresh_token,
+        })
+        self._write_all(data)
