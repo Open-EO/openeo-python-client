@@ -8,7 +8,7 @@ class RESTCapabilities(Capabilities):
         super(RESTCapabilities, self).__init__(data)
         self.capabilities = data
 
-    def api_version(self):
+    def api_version(self) -> str:
         """ Get openEO version."""
         if 'api_version' in self.capabilities:
             return self.capabilities.get('api_version')

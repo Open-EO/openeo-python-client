@@ -25,8 +25,8 @@ class Dimension:
     def __eq__(self, other):
         return self.__class__ == other.__class__ and self.__dict__ == other.__dict__
 
-    def rename(self,newName) -> 'Dimension':
-        return Dimension(self.type,newName)
+    def rename(self, name) -> 'Dimension':
+        return Dimension(type=self.type, name=name)
 
 
 class SpatialDimension(Dimension):
@@ -37,8 +37,8 @@ class SpatialDimension(Dimension):
         self.extent = extent
         self.crs = crs
 
-    def rename(self,newName) -> 'Dimension':
-        return SpatialDimension(self,newName,self.extent,self.crs)
+    def rename(self, name) -> 'Dimension':
+        return SpatialDimension(name=name, extent=self.extent, crs=self.crs)
 
 
 class TemporalDimension(Dimension):
@@ -46,8 +46,8 @@ class TemporalDimension(Dimension):
         super().__init__(type="temporal", name=name)
         self.extent = extent
 
-    def rename(self,newName) -> 'Dimension':
-        return TemporalDimension(newName,self.extent)
+    def rename(self, name) -> 'Dimension':
+        return TemporalDimension(name=name, extent=self.extent)
 
 
 # Simple container class for band metadata (name, common name, wavelength in micrometer)
@@ -296,7 +296,7 @@ class CollectionMetadata:
             ]
         )
 
-    def rename_dimension(self,source:str,target:str) -> 'CollectionMetadata':
+    def rename_dimension(self, source: str, target: str) -> 'CollectionMetadata':
         """
         Rename source dimension into target, preserving other properties
         """

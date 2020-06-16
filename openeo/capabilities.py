@@ -15,10 +15,9 @@ class Capabilities(ABC):
         # TODO: raise deprecation warning here?
         return self.api_version()
 
-    def api_version(self):
+    def api_version(self) -> str:
         """Get OpenEO API version."""
-        # Field: api_version
-        return
+        raise NotImplementedError
 
     @property
     def api_version_check(self) -> 'ComparableVersion':

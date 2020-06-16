@@ -307,6 +307,9 @@ class OidcAuthenticator:
         return token
 
 
+AuthCodeResult = namedtuple("AuthCodeResult", ["auth_code", "nonce", "code_verifier", "redirect_uri"])
+
+
 class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
     """
     Implementation of OpenID Connect authentication using OAuth Authorization Code Flow with PKCE.
@@ -326,8 +329,6 @@ class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
     - The authorization code is exchanged for an access code and id token
     - The access code can be used as bearer token for subsequent API calls
     """
-
-    AuthCodeResult = namedtuple("AuthCodeResult", ["auth_code", "nonce", "code_verifier", "redirect_uri"])
 
     grant_type = "authorization_code"
 
@@ -516,14 +517,15 @@ class OidcRefreshTokenAuthenticator(OidcAuthenticator):
         return data
 
 
+VerificationInfo = namedtuple("VerificationInfo", ["verification_uri", "device_code", "user_code", "interval"])
+
+
 class OidcDeviceAuthenticator(OidcAuthenticator):
     """
     Implementation of OAuth Device Authorization grant/flow
     """
 
     grant_type = "urn:ietf:params:oauth:grant-type:device_code"
-
-    VerificationInfo = namedtuple("VerificationInfo", ["verification_uri", "device_code", "user_code", "interval"])
 
     def __init__(self, client_info: OidcClientInfo, display: Callable[[str], None] = print, device_code_url: str = None,
                  max_poll_time=5 * 60):
