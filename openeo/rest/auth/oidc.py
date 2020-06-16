@@ -435,7 +435,7 @@ class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
             raise OidcException("No auth code in redirect")
         auth_code = redirect_params["code"][0]
 
-        return self.AuthCodeResult(
+        return AuthCodeResult(
             auth_code=auth_code, nonce=nonce, code_verifier=code_verifier, redirect_uri=redirect_uri
         )
 
@@ -547,7 +547,7 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
             ))
         try:
             data = resp.json()
-            return self.VerificationInfo(
+            return VerificationInfo(
                 # Google OAuth/OIDC implementation uses non standard "verification_url" instead of "verification_uri"
                 verification_uri=data["verification_uri"] if "verification_uri" in data else data["verification_url"],
                 device_code=data["device_code"],
