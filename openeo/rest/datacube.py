@@ -1003,6 +1003,7 @@ class DataCube(ImageCollection):
         Build a graphviz DiGraph from the process graph
         :return:
         """
+        # pylint: disable=import-error, import-outside-toplevel
         import graphviz
         import pprint
 
