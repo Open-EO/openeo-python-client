@@ -11,6 +11,7 @@ from urllib.parse import urljoin
 
 import requests
 from deprecated import deprecated
+from openeo.internal.graph_building import PGNode
 from requests import Response
 from requests.auth import HTTPBasicAuth, AuthBase
 
@@ -532,6 +533,21 @@ class Connection(RestApiConnection):
     def _api_version(self) -> ComparableVersion:
         # TODO make this a public property (it's also useful outside the Connection class)
         return self.capabilities().api_version_check
+
+    def datacube_from_process(self,process_id:str, **kwargs) -> DataCube:
+        """
+        Load a raster datacube, from a custom process.
+
+        @param process_id: The process id of the custom process.
+        @param kwargs: The arguments of the custom process
+        @return: A DataCube, without valid metadata, as the client is not aware of this custom process.
+        """
+
+        if self._api_version.at_least("1.0.0"):
+            graph = PGNode(process_id,kwargs)
+            return DataCube(graph,self)
+        else:
+            raise OpenEoClientException("This method requires support for at least version 1.0.0 in the openEO backend.")
 
     def load_collection(self, collection_id: str, **kwargs) -> Union[ImageCollectionClient, DataCube]:
         """
