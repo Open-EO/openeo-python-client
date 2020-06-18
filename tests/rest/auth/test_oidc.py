@@ -217,6 +217,7 @@ class OidcMock:
         params = self._get_query_params(query=request.text)
         assert params["client_id"] == self.expected_client_id
         assert params["grant_type"] == "password"
+        assert params["client_secret"] == self.expected_fields["client_secret"]
         assert params["username"] == self.expected_fields["username"]
         assert params["password"] == self.expected_fields["password"]
         assert params["scope"] == self.expected_fields["scope"]
@@ -327,20 +328,23 @@ def test_oidc_client_credentials_flow(requests_mock):
 
 def test_oidc_resource_owner_password_credentials_flow(requests_mock):
     client_id = "myclient"
+    client_secret = "$3cr3t"
     oidc_discovery_url = "http://oidc.example.com/.well-known/openid-configuration"
     username, password = "john", "j0hn"
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
         expected_grant_type="password",
         expected_client_id=client_id,
-        expected_fields={"username": username, "password": password, "scope": "openid testpwd"},
+        expected_fields={
+            "username": username, "password": password, "scope": "openid testpwd", "client_secret": client_secret
+        },
         oidc_discovery_url=oidc_discovery_url,
         scopes_supported=["openid", "testpwd"],
     )
     provider = OidcProviderInfo(discovery_url=oidc_discovery_url, scopes=["testpwd"])
 
     authenticator = OidcResourceOwnerPasswordAuthenticator(
-        client_info=OidcClientInfo(client_id=client_id, provider=provider),
+        client_info=OidcClientInfo(client_id=client_id, provider=provider, client_secret=client_secret),
         username=username, password=password,
     )
     tokens = authenticator.get_tokens()

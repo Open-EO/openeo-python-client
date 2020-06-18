@@ -350,7 +350,7 @@ class Connection(RestApiConnection):
         return self._authenticate_oidc(authenticator, provider_id=provider_id)
 
     def authenticate_oidc_resource_owner_password_credentials(
-            self, client_id: str, username: str, password: str, provider_id: str = None
+            self, client_id: str, username: str, password: str, client_secret: str = None, provider_id: str = None
     ) -> 'Connection':
         """
         OpenId Connect Resource Owner Password Credentials
@@ -359,7 +359,7 @@ class Connection(RestApiConnection):
         """
         provider_id, provider = self._get_oidc_provider(provider_id)
         # TODO: load password from file/config
-        client_info = OidcClientInfo(client_id=client_id, provider=provider)
+        client_info = OidcClientInfo(client_id=client_id, provider=provider, client_secret=client_secret)
         authenticator = OidcResourceOwnerPasswordAuthenticator(
             client_info=client_info, username=username, password=password
         )
