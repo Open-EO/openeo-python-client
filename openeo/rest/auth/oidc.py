@@ -636,6 +636,7 @@ class RefreshTokenStore:
                     p=self._path, a=mode, e=self._PERMS)
             )
         with self._path.open("r", encoding="utf8") as f:
+            log.info("Using refresh tokens from {p}".format(p=self._path))
             return json.load(f)
 
     def _write_all(self, data: dict):
@@ -656,6 +657,8 @@ class RefreshTokenStore:
     def set(self, issuer: str, client_id: str, refresh_token: str):
         data = self._get_all(empty_on_file_not_found=True)
         log.info("Storing refresh token for issuer {i!r} (client {c!r})".format(i=issuer, c=client_id))
+        # TODO: should OIDC grant type also be a part of the key?
+        #       e.g. to avoid mixing client credential flow tokens with tokens of other (user oriented) flows?
         data.setdefault(issuer, {}).setdefault(client_id, {
             "date": date_to_rfc3339(datetime.utcnow()),
             "refresh_token": refresh_token,

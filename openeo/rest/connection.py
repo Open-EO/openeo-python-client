@@ -297,11 +297,15 @@ class Connection(RestApiConnection):
         tokens = authenticator.get_tokens()
         _log.info("Obtained tokens: {t}".format(t=[k for k, v in tokens._asdict().items() if v]))
         if tokens.refresh_token:
-            RefreshTokenStore().set(
-                issuer=authenticator._client_info.provider.issuer,
-                client_id=authenticator.client_id,
-                refresh_token=tokens.refresh_token
-            )
+            # TODO: option to not store refresh token? Or opt-in to store refresh token?
+            try:
+                RefreshTokenStore().set(
+                    issuer=authenticator._client_info.provider.issuer,
+                    client_id=authenticator.client_id,
+                    refresh_token=tokens.refresh_token
+                )
+            except Exception as e:
+                _log.warning("Failed to store refresh token: {e!r}".format(e=e))
         token = tokens.access_token if not self.oidc_auth_user_id_token_as_bearer else tokens.id_token
         if self._api_version.at_least("1.0.0"):
             self.auth = BearerAuth(bearer='oidc/{p}/{t}'.format(p=provider_id, t=token))
