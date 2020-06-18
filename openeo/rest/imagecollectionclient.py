@@ -1061,12 +1061,13 @@ class ImageCollectionClient(ImageCollection):
 
     def send_job(self, out_format=None, job_options=None, **format_options) -> RESTJob:
         """
-        Sends a job to the backend and returns a ClientJob instance.
+        Sends a job to the backend and returns a Job instance. The job will still need to be started and managed explicitly.
+        The :func:`~openeo.imagecollection.ImageCollection.execute_batch` method allows you to run batch jobs without managing it.
 
         :param out_format: String Format of the job result.
-        :param job_options:
+        :param job_options: A dictionary containing (custom) job options
         :param format_options: String Parameters for the job result format
-        :return: status: ClientJob resulting job.
+        :return: status: Job resulting job.
         """
         img = self
         if out_format:

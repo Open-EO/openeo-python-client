@@ -1,13 +1,14 @@
 from abc import ABC
 from datetime import datetime, date
 from typing import List, Dict, Union, Tuple, Callable
+import pathlib
 
 from deprecated import deprecated
 from shapely.geometry import Polygon, MultiPolygon
 
 from openeo.metadata import CollectionMetadata
 from openeo.util import get_temporal_extent, first_not_none
-
+from openeo.job import Job
 
 class ImageCollection(ABC):
     """Class representing Processes. """
@@ -453,6 +454,38 @@ class ImageCollection(ABC):
         :param service_type: The type of viewing service to create, for instance: 'WMTS'
 
         :return: A dictionary object containing the viewing service metadata, such as the connection 'url'.
+        """
+        pass
+
+    def execute_batch(
+            self,
+            outputfile: Union[str, pathlib.Path], out_format: str = None,
+            print=print, max_poll_interval=60, connection_retry_interval=30,
+            job_options=None, **format_options) -> Job:
+        """
+        Evaluate the process graph by creating a batch job, and retrieving the results when it is finished.
+        This method is mostly recommended if the batch job is expected to run in a reasonable amount of time.
+
+        For very long running jobs, you probably do not want to keep the client running. In that case, using
+        :func:`~openeo.imagecollection.ImageCollection.send_job` might be more appropriate.
+
+        :param job_options: A dictionary containing (custom) job options
+        :param outputfile: The path of a file to which a result can be written
+        :param out_format: (optional) Format of the job result.
+        :param format_options: String Parameters for the job result format
+
+        """
+        pass
+
+    def send_job(self, out_format:str=None, job_options:Dict=None, **format_options) -> Job:
+        """
+        Sends a job to the backend and returns a Job instance. The job will still need to be started and managed explicitly.
+        The :func:`~openeo.imagecollection.ImageCollection.execute_batch` method allows you to run batch jobs without managing it.
+
+        :param out_format: String Format of the job result.
+        :param job_options: A dictionary containing (custom) job options
+        :param format_options: String Parameters for the job result format
+        :return: status: Job resulting job.
         """
         pass
 
