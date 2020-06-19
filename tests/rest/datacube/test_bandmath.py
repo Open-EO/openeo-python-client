@@ -76,7 +76,7 @@ def test_db_to_natural(con100):
 
 def test_ndvi_udf(connection, api_version):
     s2_radio = connection.load_collection("SENTINEL2_RADIOMETRY_10M")
-    ndvi_coverage = s2_radio.apply_tiles("def myfunction(tile):\n"
+    ndvi_coverage = s2_radio.reduce_bands_udf("def myfunction(tile):\n"
                                          "    print(tile)\n"
                                          "    return tile")
     actual_graph = get_download_graph(ndvi_coverage)
