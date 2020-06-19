@@ -546,21 +546,6 @@ class DataCube(ImageCollection):
             metadata=self.metadata.add_dimension(name=name, label=label, type=type)
         )
 
-    @deprecated("use `reduce_bands_udf` instead")
-    def apply_tiles(self, code: str, runtime="Python", version="latest") -> 'DataCube':
-        """Apply a function to the given set of tiles in this image collection.
-
-            This type applies a simple function to one pixel of the input image or image collection.
-            The function gets the value of one pixel (including all bands) as input and produces a single scalar or tuple output.
-            The result has the same schema as the input image (collection) but different bands.
-            Examples include the computation of vegetation indexes or filtering cloudy pixels.
-
-            Code should follow the OpenEO UDF conventions.
-
-            :param code: String representing Python code to be executed in the backend.
-        """
-        return self.reduce_bands_udf(code=code, runtime=runtime, version=version)
-
     def _create_run_udf(self, code, runtime, version) -> PGNode:
         # TODO: expose this publicly (or create dedicated PGNode subclass)? Also encapsulate/decouple UDF loading better?
         return PGNode(

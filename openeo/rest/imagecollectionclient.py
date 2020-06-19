@@ -588,23 +588,6 @@ class ImageCollectionClient(ImageCollection):
         }
         return self.graph_add_process(process_id, args)
 
-    @deprecated("use `reduce_bands_udf` instead")
-    def apply_tiles(self, code: str, runtime="Python", version="latest") -> 'ImageCollection':
-        """Apply a function to the given set of tiles in this image collection.
-
-            This type applies a simple function to one pixel of the input image or image collection.
-            The function gets the value of one pixel (including all bands) as input and produces a single scalar or tuple output.
-            The result has the same schema as the input image (collection) but different bands.
-            Examples include the computation of vegetation indexes or filtering cloudy pixels.
-
-            Code should follow the OpenEO UDF conventions.
-
-            TODO: Deprecated since 0.4.0? #140
-
-            :param code: String representing Python code to be executed in the backend.
-        """
-        return self.reduce_bands_udf(code=code, runtime=runtime, version=version)
-
     def reduce_bands_udf(self, code: str, runtime="Python", version="latest") -> 'ImageCollection':
         """
         Reduce "band" dimension with a UDF
