@@ -444,3 +444,73 @@ def test_execute_100(requests_mock):
     assert request.call_args_list == [
         mock.call("post", path="/result", json={"process": {"process_graph": {"foo1": {"process_id": "foo"}}}})
     ]
+
+
+def test_store_process_graph(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    conn = Connection(API_URL)
+
+    # TODO: read it from a file?
+    expected_body = {
+        'description': "Computes the Enhanced Vegetation Index (EVI).",
+        'parameters': [],
+        'process_graph': {
+            'sub': {
+                'process_id': 'subtract'
+            }
+        }
+    }
+
+    def check_body(request):
+        assert request.json() == expected_body
+        return True
+
+    requests_mock.put(API_URL + "process_graphs/evi", additional_matcher=check_body)
+
+    conn.store_process_graph(
+        process_graph_id='evi',
+        process_graph={
+            'sub': {
+                'process_id': 'subtract'
+            }
+        },
+        description="Computes the Enhanced Vegetation Index (EVI).",
+        parameters=[]
+    )
+
+
+def test_list_process_graphs(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    conn = Connection(API_URL)
+
+    # TODO: read it from a file?
+    requests_mock.get(API_URL + "process_graphs", json={
+        'processes': [
+            {
+                "id": "evi",
+                "summary": "Enhanced Vegetation Index",
+                "description": "Computes the Enhanced Vegetation Index (EVI). It is computed with the following formula: `2.5 * (NIR - RED) / (1 + NIR + 6*RED + -7.5*BLUE)`.",
+            }
+        ]
+    })
+
+    udps = conn.list_process_graphs()
+
+    assert len(udps) == 1
+    assert udps[0]['id'] == 'evi'
+
+
+def test_get_process_graph(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    conn = Connection(API_URL)
+
+    # TODO: read it from a file?
+    requests_mock.get(API_URL + "process_graphs/evi", json={
+        "id": "evi",
+        "summary": "Enhanced Vegetation Index",
+        "description": "Computes the Enhanced Vegetation Index (EVI). It is computed with the following formula: `2.5 * (NIR - RED) / (1 + NIR + 6*RED + -7.5*BLUE)`.",
+    })
+
+    udp = conn.process_graph(process_graph_id='evi')
+
+    assert udp['summary'] == "Enhanced Vegetation Index"

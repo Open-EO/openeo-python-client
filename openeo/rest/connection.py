@@ -171,7 +171,7 @@ class RestApiConnection:
         """
         return self.request("patch", path=path)
 
-    def put(self, path, headers: dict = None, data=None) -> Response:
+    def put(self, path, headers: dict = None, data=None, **kwargs) -> Response:
         """
         Do PUT request to REST API.
 
@@ -180,7 +180,7 @@ class RestApiConnection:
         :param data: data that gets added to the request.
         :return: response: Response
         """
-        return self.request("put", path=path, data=data, headers=headers)
+        return self.request("put", path=path, data=data, headers=headers, **kwargs)
 
 
 class Connection(RestApiConnection):
@@ -524,6 +524,27 @@ class Connection(RestApiConnection):
         # TODO: Maybe format the result so that there get Job classes returned.
         # TODO: duplication with `user_jobs()` method
         return self.get('/jobs').json()["jobs"]
+
+    def store_process_graph(self, process_graph_id: str, process_graph: dict, **kwargs) -> None:
+        """
+        Creates or updates an existing user-defined processes (process graphs) for the authenticated user.
+        """
+        req = kwargs
+        req['process_graph'] = process_graph
+
+        self.put(path="/process_graphs/{}".format(process_graph_id), json=req)
+
+    def list_process_graphs(self) -> List[dict]:
+        """
+        Lists all user-defined processes (process graphs) of the authenticated user.
+        """
+        return self.get("/process_graphs").json()["processes"]
+
+    def process_graph(self, process_graph_id: str) -> dict:  # TODO: return a ProcessGraph/UDP object
+        """
+        Returns all information about a user-defined process, including its process graph.
+        """
+        return self.get(path="/process_graphs/{}".format(process_graph_id)).json()
 
     def validate_processgraph(self, process_graph):
         # Endpoint: POST /validate
