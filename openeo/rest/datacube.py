@@ -67,9 +67,13 @@ class DataCube(ImageCollection):
         :param args: argument dictionary for the process.
         :return: new DataCube instance
         """
+        arguments = {**(args or {}), **kwargs}
+        for k, v in arguments.items():
+            if isinstance(v, DataCube):
+                arguments[k] = {"from_node": v._pg}
         return self.process_with_node(PGNode(
             process_id=process_id,
-            arguments=args, **kwargs
+            arguments=arguments,
         ), metadata=metadata)
 
     # Legacy `graph_add_node` method

@@ -318,3 +318,40 @@ def test_filter_spatial_callbak(con100):
             'process_id': 'run_udf'}
         }
 
+
+def test_custom_process_kwargs_datacube(con100: Connection):
+    img = con100.load_collection("S2")
+    res = img.process(process_id="foo", data=img, bar=123)
+    assert res.graph == {
+        'loadcollection1': {
+            'process_id': 'load_collection',
+            'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
+        },
+        'foo1': {
+            'process_id': 'foo',
+            'arguments': {
+                'data': {'from_node': 'loadcollection1'},
+                'bar': 123,
+            },
+            'result': True
+        }
+    }
+
+
+def test_custom_process_args_datacube(con100: Connection):
+    img = con100.load_collection("S2")
+    res = img.process(process_id="foo", args={"data": img, "bar": 123})
+    assert res.graph == {
+        'loadcollection1': {
+            'process_id': 'load_collection',
+            'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
+        },
+        'foo1': {
+            'process_id': 'foo',
+            'arguments': {
+                'data': {'from_node': 'loadcollection1'},
+                'bar': 123,
+            },
+            'result': True
+        }
+    }
