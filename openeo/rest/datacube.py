@@ -59,15 +59,15 @@ class DataCube(ImageCollection):
     def connection(self):
         return self._connection
 
-    def process(self, process_id: str, args: dict = None, metadata: CollectionMetadata = None, **kwargs) -> 'DataCube':
+    def process(self, process_id: str, arguments: dict = None, metadata: CollectionMetadata = None, **kwargs) -> 'DataCube':
         """
         Generic helper to create a new DataCube by applying a process.
 
         :param process_id: process id of the process.
-        :param args: argument dictionary for the process.
+        :param arguments: argument dictionary for the process.
         :return: new DataCube instance
         """
-        arguments = {**(args or {}), **kwargs}
+        arguments = {**(arguments or {}), **kwargs}
         for k, v in arguments.items():
             if isinstance(v, DataCube):
                 arguments[k] = {"from_node": v._pg}
@@ -168,7 +168,7 @@ class DataCube(ImageCollection):
     def _filter_temporal(self, start: str, end: str) -> 'DataCube':
         return self.process(
             process_id='filter_temporal',
-            args={
+            arguments={
                 'data': {'from_node': self._pg},
                 'extent': [start, end]
             }
@@ -183,7 +183,7 @@ class DataCube(ImageCollection):
             extent.update(base=base, height=height)
         return self.process(
             process_id='filter_bbox',
-            args={
+            arguments={
                 'data': {'from_node': self._pg},
                 'extent': extent
             }
@@ -200,7 +200,7 @@ class DataCube(ImageCollection):
         bands = [self.metadata.band_dimension.band_name(b) for b in bands]
         cube = self.process(
             process_id='filter_bands',
-            args={'data': {'from_node': self._pg}, 'bands': bands}
+            arguments={'data': {'from_node': self._pg}, 'bands': bands}
         )
         if cube.metadata:
             cube.metadata = cube.metadata.filter_bands(bands)
@@ -546,7 +546,7 @@ class DataCube(ImageCollection):
     def add_dimension(self, name: str, label: str, type: str = None):
         return self.process(
             process_id="add_dimension",
-            args={"data": self._pg, "name": name, "label": label, "type": type},
+            arguments={"data": self._pg, "name": name, "label": label, "type": type},
             metadata=self.metadata.add_dimension(name=name, label=label, type=type)
         )
 
@@ -652,7 +652,7 @@ class DataCube(ImageCollection):
         """
         return self.process(
             process_id='ndvi',
-            args=dict_no_none(
+            arguments=dict_no_none(
                 data={'from_node': self._pg},
                 nir=nir, red=red, target_band=target_band
             )
@@ -671,7 +671,7 @@ class DataCube(ImageCollection):
             raise ValueError('Target dimension name conflicts with existing dimension: %s.' % target)
         return self.process(
             process_id='rename_dimension',
-            args=dict_no_none(
+            arguments=dict_no_none(
                 data={'from_node': self._pg},
                 source=self.metadata.assert_valid_dimension(source),
                 target=target
@@ -689,7 +689,7 @@ class DataCube(ImageCollection):
         """
         return self.process(
             process_id='rename_labels',
-            args=dict_no_none(
+            arguments=dict_no_none(
                 data={'from_node': self._pg},
                 dimension=self.metadata.assert_valid_dimension(dimension),
                 target=target,
@@ -748,7 +748,7 @@ class DataCube(ImageCollection):
         """
         return self.process(
             process_id="mask",
-            args=dict_no_none(
+            arguments=dict_no_none(
                 data={'from_node': self._pg},
                 mask={'from_node': mask._pg},
                 replacement=replacement
@@ -778,7 +778,7 @@ class DataCube(ImageCollection):
             # TODO: change read_vector to load_uploaded_files https://github.com/Open-EO/openeo-processes/pull/106
             read_vector = self.process(
                 process_id='read_vector',
-                args={'filename': str(mask)}
+                arguments={'filename': str(mask)}
             )
             mask = {'from_node': read_vector._pg}
         elif isinstance(mask, shapely.geometry.base.BaseGeometry):
@@ -795,7 +795,7 @@ class DataCube(ImageCollection):
 
         return self.process(
             process_id="mask_polygon",
-            args=dict_no_none(
+            arguments=dict_no_none(
                 data={"from_node": self._pg},
                 mask=mask,
                 replacement=replacement,
@@ -929,7 +929,7 @@ class DataCube(ImageCollection):
     def save_result(self, format: str = "GTIFF", options: dict = None):
         return self.process(
             process_id="save_result",
-            args={
+            arguments={
                 "data": {"from_node": self._pg},
                 "format": format,
                 "options": options or {}

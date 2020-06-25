@@ -340,7 +340,7 @@ def test_custom_process_kwargs_datacube(con100: Connection):
 
 def test_custom_process_args_datacube(con100: Connection):
     img = con100.load_collection("S2")
-    res = img.process(process_id="foo", args={"data": img, "bar": 123})
+    res = img.process(process_id="foo", arguments={"data": img, "bar": 123})
     assert res.graph == {
         'loadcollection1': {
             'process_id': 'load_collection',

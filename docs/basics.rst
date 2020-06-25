@@ -146,10 +146,10 @@ This will return a new DataCube with the new process.
 
 Example::
 
-   >>> args= {
+   >>> arguments= {
          'data': [1,3,-1]
        }
-       cube.process('mean',args)
+       cube.process('mean', arguments)
 
 or 
 
