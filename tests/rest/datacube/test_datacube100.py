@@ -322,36 +322,26 @@ def test_filter_spatial_callbak(con100):
 def test_custom_process_kwargs_datacube(con100: Connection):
     img = con100.load_collection("S2")
     res = img.process(process_id="foo", data=img, bar=123)
-    assert res.graph == {
-        'loadcollection1': {
-            'process_id': 'load_collection',
-            'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
-        },
-        'foo1': {
-            'process_id': 'foo',
-            'arguments': {
-                'data': {'from_node': 'loadcollection1'},
-                'bar': 123,
-            },
-            'result': True
-        }
-    }
+    expected = load_json_resource('data/1.0.0/process_foo.json')
+    assert res.graph == expected
 
 
-def test_custom_process_args_datacube(con100: Connection):
+def test_custom_process_kwargs_datacube_pg(con100: Connection):
+    img = con100.load_collection("S2")
+    res = img.process(process_id="foo", data=img._pg, bar=123)
+    expected = load_json_resource('data/1.0.0/process_foo.json')
+    assert res.graph == expected
+
+
+def test_custom_process_arguments_datacube(con100: Connection):
     img = con100.load_collection("S2")
     res = img.process(process_id="foo", arguments={"data": img, "bar": 123})
-    assert res.graph == {
-        'loadcollection1': {
-            'process_id': 'load_collection',
-            'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
-        },
-        'foo1': {
-            'process_id': 'foo',
-            'arguments': {
-                'data': {'from_node': 'loadcollection1'},
-                'bar': 123,
-            },
-            'result': True
-        }
-    }
+    expected = load_json_resource('data/1.0.0/process_foo.json')
+    assert res.graph == expected
+
+
+def test_custom_process_arguments_datacube_pg(con100: Connection):
+    img = con100.load_collection("S2")
+    res = img.process(process_id="foo", arguments={"data": img._pg, "bar": 123})
+    expected = load_json_resource('data/1.0.0/process_foo.json')
+    assert res.graph == expected
