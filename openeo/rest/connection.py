@@ -26,6 +26,7 @@ from openeo.rest.auth.oidc import OidcClientCredentialsAuthenticator, OidcAuthCo
 from openeo.rest.datacube import DataCube
 from openeo.rest.imagecollectionclient import ImageCollectionClient
 from openeo.rest.job import RESTJob
+from openeo.rest.udp import RESTProcessGraph
 from openeo.rest.rest_capabilities import RESTCapabilities
 from openeo.util import ensure_list, get_user_data_dir
 
@@ -525,14 +526,16 @@ class Connection(RestApiConnection):
         # TODO: duplication with `user_jobs()` method
         return self.get('/jobs').json()["jobs"]
 
-    def store_process_graph(self, process_graph_id: str, process_graph: dict, **kwargs) -> None:
+    def save_process_graph(self, process_graph_id: str, process_graph: dict, **kwargs) -> RESTProcessGraph:
         """
-        Creates or updates an existing user-defined processes (process graphs) for the authenticated user.
+        Creates or updates an existing user-defined process (process graph) for the authenticated user.
         """
         req = kwargs
         req['process_graph'] = process_graph
 
         self.put(path="/process_graphs/{}".format(process_graph_id), json=req)
+
+        return RESTProcessGraph(process_graph_id=process_graph_id, connection=self)
 
     def list_process_graphs(self) -> List[dict]:
         """
@@ -540,11 +543,11 @@ class Connection(RestApiConnection):
         """
         return self.get("/process_graphs").json()["processes"]
 
-    def process_graph(self, process_graph_id: str) -> dict:  # TODO: return a ProcessGraph/UDP object
+    def process_graph(self, process_graph_id: str) -> RESTProcessGraph:
         """
-        Returns all information about a user-defined process, including its process graph.
+        Get the user-defined process based on the id. The process with the given id should already exist.
         """
-        return self.get(path="/process_graphs/{}".format(process_graph_id)).json()
+        return RESTProcessGraph(process_graph_id=process_graph_id, connection=self)
 
     def validate_processgraph(self, process_graph):
         # Endpoint: POST /validate

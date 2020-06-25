@@ -446,12 +446,12 @@ def test_execute_100(requests_mock):
     ]
 
 
-def test_store_process_graph(requests_mock):
+def test_create_process_graph(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     conn = Connection(API_URL)
 
     # TODO: read it from a file?
-    expected_body = {
+    new_process_graph = {
         'description': "Computes the Enhanced Vegetation Index (EVI).",
         'parameters': [],
         'process_graph': {
@@ -462,12 +462,12 @@ def test_store_process_graph(requests_mock):
     }
 
     def check_body(request):
-        assert request.json() == expected_body
+        assert request.json() == new_process_graph
         return True
 
     requests_mock.put(API_URL + "process_graphs/evi", additional_matcher=check_body)
 
-    conn.store_process_graph(
+    conn.save_process_graph(
         process_graph_id='evi',
         process_graph={
             'sub': {
@@ -504,6 +504,16 @@ def test_get_process_graph(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     conn = Connection(API_URL)
 
+    udp = conn.process_graph('evi')
+
+    assert udp.process_graph_id == 'evi'
+
+
+def test_describe_process_graph(requests_mock):
+    # TODO: move this method to tests/udp.py
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    conn = Connection(API_URL)
+
     # TODO: read it from a file?
     requests_mock.get(API_URL + "process_graphs/evi", json={
         "id": "evi",
@@ -512,5 +522,39 @@ def test_get_process_graph(requests_mock):
     })
 
     udp = conn.process_graph(process_graph_id='evi')
+    details = udp.describe()
 
-    assert udp['summary'] == "Enhanced Vegetation Index"
+    assert details['summary'] == "Enhanced Vegetation Index"
+
+
+def test_update_process_graph(requests_mock):
+    # TODO: move this method to tests/udp.py
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    conn = Connection(API_URL)
+
+    updated_process_graph = {
+        'description': "Computes the Enhanced Vegetation Index (EVI).",
+        'parameters': [],
+        'process_graph': {
+            'sub': {
+                'process_id': 'add'
+            }
+        }
+    }
+
+    def check_body(request):
+        assert request.json() == updated_process_graph
+        return True
+
+    requests_mock.put(API_URL + "process_graphs/evi", additional_matcher=check_body)
+
+    udp = conn.process_graph(process_graph_id='evi')
+    udp.update(
+        process_graph={
+            'sub': {
+                'process_id': 'add'
+            }
+        },
+        description="Computes the Enhanced Vegetation Index (EVI).",
+        parameters=[]
+    )
