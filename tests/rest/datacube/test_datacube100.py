@@ -3,12 +3,12 @@
 Unit tests specifically for 1.0.0-style DataCube
 
 """
-import openeo.metadata
 import pytest
 import shapely.geometry
+
+import openeo.metadata
 from openeo.internal.graph_building import PGNode
 from openeo.rest.connection import Connection
-
 from .conftest import API_URL
 from ... import load_json_resource
 
@@ -97,26 +97,30 @@ def test_ndvi_args(con100: Connection):
         "result": True,
     }
 
+
 def test_rename_dimension(con100):
     s2 = con100.load_collection("S2")
     x = s2.rename_dimension(source="bands", target="ThisIsNotTheBandsDimension")
-    assert x.graph=={'loadcollection1': {
-                        'arguments': {
-                            'id': 'S2',
-                            'spatial_extent': None,
-                            'temporal_extent': None
-                        },
-                        'process_id': 'load_collection'
-                      },
-                     'renamedimension1': {
-                        'arguments': {
-                         'data': {'from_node': 'loadcollection1'},
-                         'source': 'bands',
-                         'target': 'ThisIsNotTheBandsDimension'
-                        },
-                      'process_id': 'rename_dimension',
-                      'result': True
-                     }}
+    assert x.graph == {
+        'loadcollection1': {
+            'arguments': {
+                'id': 'S2',
+                'spatial_extent': None,
+                'temporal_extent': None
+            },
+            'process_id': 'load_collection'
+        },
+        'renamedimension1': {
+            'arguments': {
+                'data': {'from_node': 'loadcollection1'},
+                'source': 'bands',
+                'target': 'ThisIsNotTheBandsDimension'
+            },
+            'process_id': 'rename_dimension',
+            'result': True
+        }
+    }
+
 
 def test_reduce_dimension(con100):
     s2 = con100.load_collection("S2")
@@ -233,7 +237,10 @@ def test_apply_absolute_pgnode(con100):
 def test_load_collection_properties(con100):
     # TODO: put this somewhere and expose it to the user?
     def eq(value, case_sensitive=True) -> PGNode:
-        return PGNode(process_id="eq", arguments={"x": {"from_parameter": "value"}, "y": value, "case_sensitive": case_sensitive})
+        return PGNode(
+            process_id="eq",
+            arguments={"x": {"from_parameter": "value"}, "y": value, "case_sensitive": case_sensitive}
+        )
 
     def between(min, max) -> PGNode:
         return PGNode(process_id="between", arguments={"x": {"from_parameter": "value"}, "min": min, "max": max})
@@ -250,7 +257,6 @@ def test_load_collection_properties(con100):
 
     expected = load_json_resource('data/1.0.0/load_collection_properties.json')
     assert im.graph == expected
-
 
 
 def test_apply_dimension_temporal_cumsum_with_target(con100):
@@ -287,7 +293,7 @@ def test_filter_spatial_callbak(con100):
         "udf": "def transform_point_into_bbox(data:UdfData): blabla"
     })
 
-    filtered_collection = collection.process("filter_spatial",{
+    filtered_collection = collection.process("filter_spatial", {
         "data": collection._pg,
         "geometries": point_to_bbox_callback
     })
@@ -311,12 +317,15 @@ def test_filter_spatial_callbak(con100):
         },
         'runudf1': {
             'arguments': {
-                'data': {'features': [{'geometry': {'coordinates': [125.6,10.1],'type': 'Point'},'type': 'Feature'}],'type': 'FeatureCollection'},
+                'data': {
+                    'features': [{'geometry': {'coordinates': [125.6, 10.1], 'type': 'Point'}, 'type': 'Feature'}],
+                    'type': 'FeatureCollection'
+                },
                 'runtime': 'Python',
                 'udf': 'def transform_point_into_bbox(data:UdfData): blabla'
             },
             'process_id': 'run_udf'}
-        }
+    }
 
 
 def test_custom_process_kwargs_datacube(con100: Connection):
