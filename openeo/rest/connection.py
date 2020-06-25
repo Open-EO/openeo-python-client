@@ -183,6 +183,9 @@ class RestApiConnection:
         """
         return self.request("put", path=path, data=data, headers=headers, **kwargs)
 
+    def __repr__(self):
+        return "<{c} to {r!r} with {a}>".format(c=type(self).__name__, r=self._root_url, a=type(self.auth).__name__)
+
 
 class Connection(RestApiConnection):
     """

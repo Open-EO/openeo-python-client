@@ -183,6 +183,20 @@ def test_connect_version_discovery(requests_mock, versions, expected_url, expect
     assert conn.capabilities().capabilities["foo"] == "bar"
 
 
+def test_connection_repr(requests_mock):
+    requests_mock.get("https://oeo.net/", status_code=404)
+    requests_mock.get("https://oeo.net/.well-known/openeo", status_code=200, json={
+        "versions": [{"api_version": "1.0.0", "url": "https://oeo.net/openeo/1.x/", "production": True}],
+    })
+    requests_mock.get("https://oeo.net/openeo/1.x/", status_code=200, json={"api_version": "1.0.0"})
+    requests_mock.get("https://oeo.net/openeo/1.x/credentials/basic", json={"access_token": "w3lc0m3"})
+
+    conn = connect("https://oeo.net/")
+    assert repr(conn) == "<Connection to 'https://oeo.net/openeo/1.x/' with NullAuth>"
+    conn.authenticate_basic("foo", "bar")
+    assert repr(conn) == "<Connection to 'https://oeo.net/openeo/1.x/' with BearerAuth>"
+
+
 def test_api_error(requests_mock):
     requests_mock.get('https://oeo.net/', json={"api_version": "0.4.0"})
     conn = Connection(API_URL)
