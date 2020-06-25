@@ -459,6 +459,8 @@ class Connection(RestApiConnection):
             # be very lenient about failing on the well-known doc, capabilities retrieval will be tried
             return
         supported_versions = [v for v in versions if self._MINIMUM_API_VERSION <= v["api_version"]]
+        if not supported_versions:
+            return
         production_versions = [v for v in supported_versions if v.get("production", True)]
         highest_version = max(production_versions or supported_versions, key=lambda v: v["api_version"])
         _log.debug("Highest supported version available in backend: %s" % highest_version)
