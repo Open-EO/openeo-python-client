@@ -528,7 +528,11 @@ class Connection(RestApiConnection):
 
     def save_process_graph(self, process_graph_id: str, process_graph: dict, **metadata) -> RESTProcessGraph:
         """
-        Creates or updates an existing user-defined process (process graph) for the authenticated user.
+        Saves this process graph in the backend as a user-defined process for the authenticated user.
+
+        :param process_graph_id: unique identifier for the process
+        :param metadata: additional process graph metadata
+        :return: a ProcessGraph instance
         """
         req = metadata
         req['process_graph'] = process_graph
@@ -545,7 +549,10 @@ class Connection(RestApiConnection):
 
     def process_graph(self, process_graph_id: str) -> RESTProcessGraph:
         """
-        Get the user-defined process based on the id. The process with the given id should already exist.
+        Get the user-defined process based on its id. The process with the given id should already exist.
+
+        :param process_graph_id: the id of the user-defined process
+        :return: a ProcessGraph instance
         """
         return RESTProcessGraph(process_graph_id=process_graph_id, connection=self)
 

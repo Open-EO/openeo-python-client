@@ -984,7 +984,8 @@ class DataCube(ImageCollection):
     def save_process_graph(self, process_graph_id: str, **metadata) -> RESTProcessGraph:
         """
         Saves this process graph in the backend as a user-defined process for the authenticated user.
-        :param process_graph_id: Unique identifier for the process
+
+        :param process_graph_id: unique identifier for the process
         :param metadata: additional process graph metadata
         :return: a ProcessGraph instance
         """
