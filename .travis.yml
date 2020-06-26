@@ -6,7 +6,7 @@ python:
 - '3.7'
 - '3.8'
 install:
-- pip install travis-sphinx==2.2.1 sphinx==3.1.1
+- pip install travis-sphinx==2.2.1 sphinx
 - pip install .[dev]
 script:
 - pytest
