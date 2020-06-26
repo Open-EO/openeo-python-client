@@ -476,7 +476,6 @@ def test_list_udps(requests_mock):
 
     udp = load_json_resource("data/1.0.0/udp_details.json")
 
-    # TODO: read it from a file?
     requests_mock.get(API_URL + "process_graphs", json={
         'processes': [udp]
     })
