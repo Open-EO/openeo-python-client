@@ -12,8 +12,8 @@ class RESTProcessGraph(ProcessGraph):
         super().__init__(process_graph_id)
         self._connection = connection
 
-    def update(self, process_graph: dict, **kwargs) -> ProcessGraph:
-        return self._connection.save_process_graph(self.process_graph_id, process_graph, **kwargs)
+    def update(self, process_graph: dict, **metadata) -> ProcessGraph:
+        return self._connection.save_process_graph(self.process_graph_id, process_graph, **metadata)
 
     def describe(self) -> dict:
         return self._connection.get(path="/process_graphs/{}".format(self.process_graph_id)).json()

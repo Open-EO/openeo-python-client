@@ -526,11 +526,11 @@ class Connection(RestApiConnection):
         # TODO: duplication with `user_jobs()` method
         return self.get('/jobs').json()["jobs"]
 
-    def save_process_graph(self, process_graph_id: str, process_graph: dict, **kwargs) -> RESTProcessGraph:
+    def save_process_graph(self, process_graph_id: str, process_graph: dict, **metadata) -> RESTProcessGraph:
         """
         Creates or updates an existing user-defined process (process graph) for the authenticated user.
         """
-        req = kwargs
+        req = metadata
         req['process_graph'] = process_graph
 
         self.put(path="/process_graphs/{}".format(process_graph_id), json=req)

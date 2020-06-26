@@ -9,6 +9,7 @@ from openeo.rest import OpenEoClientException
 from openeo.rest.auth.auth import NullAuth, BearerAuth
 from openeo.rest.connection import Connection, RestApiConnection, connect, OpenEoApiError
 from .auth.test_oidc import OidcMock
+from .. import load_json_resource
 
 API_URL = "https://oeo.net/"
 
@@ -446,61 +447,47 @@ def test_execute_100(requests_mock):
     ]
 
 
-def test_create_process_graph(requests_mock):
+def test_create_udp(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     conn = Connection(API_URL)
 
-    # TODO: read it from a file?
-    new_process_graph = {
-        'description': "Computes the Enhanced Vegetation Index (EVI).",
-        'parameters': [],
-        'process_graph': {
-            'sub': {
-                'process_id': 'subtract'
-            }
-        }
-    }
+    new_udp = load_json_resource("data/1.0.0/udp_details.json")
 
     def check_body(request):
-        assert request.json() == new_process_graph
+        assert request.json() == new_udp
         return True
 
-    requests_mock.put(API_URL + "process_graphs/evi", additional_matcher=check_body)
+    adapter = requests_mock.put(API_URL + "process_graphs/evi", additional_matcher=check_body)
+
+    metadata = {k: v for k, v in new_udp.items() if k != 'process_graph'}
 
     conn.save_process_graph(
         process_graph_id='evi',
-        process_graph={
-            'sub': {
-                'process_id': 'subtract'
-            }
-        },
-        description="Computes the Enhanced Vegetation Index (EVI).",
-        parameters=[]
+        process_graph=new_udp['process_graph'],
+        **metadata
     )
 
+    assert adapter.called
 
-def test_list_process_graphs(requests_mock):
+
+def test_list_udps(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     conn = Connection(API_URL)
 
+    udp = load_json_resource("data/1.0.0/udp_details.json")
+
     # TODO: read it from a file?
     requests_mock.get(API_URL + "process_graphs", json={
-        'processes': [
-            {
-                "id": "evi",
-                "summary": "Enhanced Vegetation Index",
-                "description": "Computes the Enhanced Vegetation Index (EVI). It is computed with the following formula: `2.5 * (NIR - RED) / (1 + NIR + 6*RED + -7.5*BLUE)`.",
-            }
-        ]
+        'processes': [udp]
     })
 
-    udps = conn.list_process_graphs()
+    user_udps = conn.list_process_graphs()
 
-    assert len(udps) == 1
-    assert udps[0]['id'] == 'evi'
+    assert len(user_udps) == 1
+    assert user_udps[0] == udp
 
 
-def test_get_process_graph(requests_mock):
+def test_get_udp(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     conn = Connection(API_URL)
 

@@ -1,0 +1,113 @@
+{
+  "id": "evi",
+  "summary": "Enhanced Vegetation Index",
+  "description": "Computes the Enhanced Vegetation Index (EVI). It is computed with the following formula: `2.5 * (NIR - RED) / (1 + NIR + 6*RED + -7.5*BLUE)`.",
+  "parameters": [
+    {
+      "name": "red",
+      "description": "Value from the red band.",
+      "schema": {
+        "type": "number"
+      }
+    },
+    {
+      "name": "blue",
+      "description": "Value from the blue band.",
+      "schema": {
+        "type": "number"
+      }
+    },
+    {
+      "name": "nir",
+      "description": "Value from the near infrared band.",
+      "schema": {
+        "type": "number"
+      }
+    }
+  ],
+  "returns": {
+    "description": "Computed EVI.",
+    "schema": {
+      "type": "number"
+    }
+  },
+  "process_graph": {
+    "sub": {
+      "process_id": "subtract",
+      "arguments": {
+        "data": [
+          {
+            "from_parameter": "nir"
+          },
+          {
+            "from_parameter": "red"
+          }
+        ]
+      }
+    },
+    "p1": {
+      "process_id": "product",
+      "arguments": {
+        "data": [
+          6,
+          {
+            "from_parameter": "red"
+          }
+        ]
+      }
+    },
+    "p2": {
+      "process_id": "product",
+      "arguments": {
+        "data": [
+          -7.5,
+          {
+            "from_parameter": "blue"
+          }
+        ]
+      }
+    },
+    "sum": {
+      "process_id": "sum",
+      "arguments": {
+        "data": [
+          1,
+          {
+            "from_parameter": "nir"
+          },
+          {
+            "from_node": "p1"
+          },
+          {
+            "from_node": "p2"
+          }
+        ]
+      }
+    },
+    "div": {
+      "process_id": "divide",
+      "arguments": {
+        "data": [
+          {
+            "from_node": "sub"
+          },
+          {
+            "from_node": "sum"
+          }
+        ]
+      }
+    },
+    "p3": {
+      "process_id": "product",
+      "arguments": {
+        "data": [
+          2.5,
+          {
+            "from_node": "div"
+          }
+        ]
+      },
+      "result": true
+    }
+  }
+}
