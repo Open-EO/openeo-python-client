@@ -318,3 +318,25 @@ def test_filter_spatial_callbak(con100):
             'process_id': 'run_udf'}
         }
 
+
+def test_save_process_graph(con100, requests_mock):
+    expected_body = load_json_resource("data/1.0.0/save_process_graph.json")
+
+    def check_body(request):
+        assert request.json() == expected_body
+        return True
+
+    requests_mock.put(API_URL + "/process_graphs/my_udp", additional_matcher=check_body)
+
+    collection = con100.load_collection("S2") \
+        .filter_bbox(west=16.1, east=16.6, north=48.6, south=47.2) \
+        .filter_temporal(start_date="2018-01-01", end_date="2019-01-01")
+
+    process_graph_metadata = {
+        'parameters': [],
+        'returns': {
+            'description': 'a data cube'
+        }
+    }
+
+    collection.save_process_graph(process_graph_id='my_udp', **process_graph_metadata)
