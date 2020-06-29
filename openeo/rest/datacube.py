@@ -13,7 +13,7 @@ from openeo.imagecollection import ImageCollection, CollectionMetadata
 from openeo.internal.graph_building import PGNode, ReduceNode
 from openeo.rest import BandMathException, OperatorException
 from openeo.rest.job import RESTJob
-from openeo.rest.udp import RESTProcessGraph
+from openeo.rest.udp import RESTUserDefinedProcess
 from openeo.util import get_temporal_extent, dict_no_none
 from openeo.vectorcube import VectorCube
 
@@ -985,12 +985,12 @@ class DataCube(ImageCollection):
             img = img.save_result(format=out_format, options=format_options)
         return self._connection.create_job(process_graph=img.graph, additional=job_options)
 
-    def save_user_defined_process(self, user_defined_process_id: str) -> RESTProcessGraph:
+    def save_user_defined_process(self, user_defined_process_id: str) -> RESTUserDefinedProcess:
         """
         Saves this process graph in the backend as a user-defined process for the authenticated user.
 
         :param user_defined_process_id: unique identifier for the process
-        :return: a RESTProcessGraph instance
+        :return: a RESTUserDefinedProcess instance
         """
         return self._connection.save_user_defined_process(user_defined_process_id=user_defined_process_id,
                                                           process_graph=self.graph)

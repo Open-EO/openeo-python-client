@@ -11,12 +11,12 @@ if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
 Parameter = namedtuple('Parameter', ['name', 'description', 'schema'])
 
 
-class RESTProcessGraph:
+class RESTUserDefinedProcess:
     def __init__(self, user_defined_process_id: str, connection: 'Connection'):
         self.user_defined_process_id = user_defined_process_id
         self._connection = connection
 
-    def update(self, process_graph: dict, parameters: List[Parameter] = None) -> 'RESTProcessGraph':
+    def update(self, process_graph: dict, parameters: List[Parameter] = None) -> 'RESTUserDefinedProcess':
         return self._connection.save_user_defined_process(self.user_defined_process_id, process_graph, parameters)
 
     def describe(self) -> dict:
