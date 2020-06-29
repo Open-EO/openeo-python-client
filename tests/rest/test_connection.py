@@ -9,6 +9,7 @@ from openeo.rest import OpenEoClientException
 from openeo.rest.auth.auth import NullAuth, BearerAuth
 from openeo.rest.connection import Connection, RestApiConnection, connect, OpenEoApiError
 from .auth.test_oidc import OidcMock
+from .. import load_json_resource
 
 API_URL = "https://oeo.net/"
 
@@ -444,3 +445,50 @@ def test_execute_100(requests_mock):
     assert request.call_args_list == [
         mock.call("post", path="/result", json={"process": {"process_graph": {"foo1": {"process_id": "foo"}}}})
     ]
+
+
+def test_create_udp(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    conn = Connection(API_URL)
+
+    new_udp = {k: v for k, v in load_json_resource("data/1.0.0/udp_details.json").items()
+               if k in ['process_graph', 'parameters']}
+
+    def check_body(request):
+        assert request.json() == new_udp
+        return True
+
+    adapter = requests_mock.put(API_URL + "process_graphs/evi", additional_matcher=check_body)
+
+    conn.save_user_defined_process(
+        user_defined_process_id='evi',
+        process_graph=new_udp['process_graph'],
+        parameters=new_udp['parameters']
+    )
+
+    assert adapter.called
+
+
+def test_list_udps(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    conn = Connection(API_URL)
+
+    udp = load_json_resource("data/1.0.0/udp_details.json")
+
+    requests_mock.get(API_URL + "process_graphs", json={
+        'processes': [udp]
+    })
+
+    user_udps = conn.list_user_defined_processes()
+
+    assert len(user_udps) == 1
+    assert user_udps[0] == udp
+
+
+def test_get_udp(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    conn = Connection(API_URL)
+
+    udp = conn.user_defined_process('evi')
+
+    assert udp.user_defined_process_id == 'evi'

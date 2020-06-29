@@ -26,6 +26,7 @@ from openeo.rest.auth.oidc import OidcClientCredentialsAuthenticator, OidcAuthCo
 from openeo.rest.datacube import DataCube
 from openeo.rest.imagecollectionclient import ImageCollectionClient
 from openeo.rest.job import RESTJob
+from openeo.rest.udp import RESTUserDefinedProcess, Parameter
 from openeo.rest.rest_capabilities import RESTCapabilities
 from openeo.util import ensure_list, get_user_data_dir
 
@@ -171,7 +172,7 @@ class RestApiConnection:
         """
         return self.request("patch", path=path)
 
-    def put(self, path, headers: dict = None, data=None) -> Response:
+    def put(self, path, headers: dict = None, data=None, **kwargs) -> Response:
         """
         Do PUT request to REST API.
 
@@ -180,7 +181,7 @@ class RestApiConnection:
         :param data: data that gets added to the request.
         :return: response: Response
         """
-        return self.request("put", path=path, data=data, headers=headers)
+        return self.request("put", path=path, data=data, headers=headers, **kwargs)
 
 
 class Connection(RestApiConnection):
@@ -524,6 +525,43 @@ class Connection(RestApiConnection):
         # TODO: Maybe format the result so that there get Job classes returned.
         # TODO: duplication with `user_jobs()` method
         return self.get('/jobs').json()["jobs"]
+
+    def save_user_defined_process(self, user_defined_process_id: str, process_graph: dict,
+                                  parameters: List[Parameter] = None) -> RESTUserDefinedProcess:
+        """
+        Saves a process graph and its metadata in the backend as a user-defined process for the authenticated user.
+
+        :param user_defined_process_id: unique identifier for the user-defined process
+        :param process_graph: a process graph
+        :param parameters: a list of parameters
+        :return: a RESTUserDefinedProcess instance
+        """
+        if parameters is None:
+            parameters = []
+
+        req = {
+            'process_graph': process_graph,
+            'parameters': parameters
+        }
+
+        self.put(path="/process_graphs/{}".format(user_defined_process_id), json=req)
+
+        return RESTUserDefinedProcess(user_defined_process_id=user_defined_process_id, connection=self)
+
+    def list_user_defined_processes(self) -> List[dict]:
+        """
+        Lists all user-defined processes of the authenticated user.
+        """
+        return self.get("/process_graphs").json()["processes"]
+
+    def user_defined_process(self, user_defined_process_id: str) -> RESTUserDefinedProcess:
+        """
+        Get the user-defined process based on its id. The process with the given id should already exist.
+
+        :param user_defined_process_id: the id of the user-defined process
+        :return: a RESTUserDefinedProcess instance
+        """
+        return RESTUserDefinedProcess(user_defined_process_id=user_defined_process_id, connection=self)
 
     def validate_processgraph(self, process_graph):
         # Endpoint: POST /validate

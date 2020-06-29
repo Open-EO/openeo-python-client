@@ -354,3 +354,19 @@ def test_custom_process_arguments_datacube_pg(con100: Connection):
     res = img.process(process_id="foo", arguments={"data": img._pg, "bar": 123})
     expected = load_json_resource('data/1.0.0/process_foo.json')
     assert res.graph == expected
+
+
+def test_save_user_defined_process(con100, requests_mock):
+    expected_body = load_json_resource("data/1.0.0/save_user_defined_process.json")
+
+    def check_body(request):
+        assert request.json()['process_graph'] == expected_body['process_graph']
+        return True
+
+    requests_mock.put(API_URL + "/process_graphs/my_udp", additional_matcher=check_body)
+
+    collection = con100.load_collection("S2") \
+        .filter_bbox(west=16.1, east=16.6, north=48.6, south=47.2) \
+        .filter_temporal(start_date="2018-01-01", end_date="2019-01-01")
+
+    collection.save_user_defined_process(user_defined_process_id='my_udp')
