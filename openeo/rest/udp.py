@@ -1,5 +1,6 @@
 import typing
-from typing import List, NamedTuple
+from typing import List
+from collections import namedtuple
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Only import this for type hinting purposes. Runtime import causes circular dependency issues.
@@ -7,10 +8,7 @@ if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     from openeo.rest.connection import Connection
 
 
-class Parameter(NamedTuple):
-    name: str
-    description: str = None
-    schema: dict = None
+Parameter = namedtuple('Parameter', ['name', 'description', 'schema'])
 
 
 class RESTProcessGraph:
