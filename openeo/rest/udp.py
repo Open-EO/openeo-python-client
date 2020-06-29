@@ -1,4 +1,5 @@
 import typing
+from typing import List, NamedTuple
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Only import this for type hinting purposes. Runtime import causes circular dependency issues.
@@ -6,13 +7,19 @@ if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     from openeo.rest.connection import Connection
 
 
+class Parameter(NamedTuple):
+    name: str
+    description: str = None
+    schema: dict = None
+
+
 class RESTProcessGraph:
     def __init__(self, user_defined_process_id: str, connection: 'Connection'):
         self.user_defined_process_id = user_defined_process_id
         self._connection = connection
 
-    def update(self, process_graph: dict, **metadata) -> 'RESTProcessGraph':
-        return self._connection.save_user_defined_process(self.user_defined_process_id, process_graph, **metadata)
+    def update(self, process_graph: dict, parameters: List[Parameter] = None) -> 'RESTProcessGraph':
+        return self._connection.save_user_defined_process(self.user_defined_process_id, process_graph, parameters)
 
     def describe(self) -> dict:
         return self._connection.get(path="/process_graphs/{}".format(self.user_defined_process_id)).json()
@@ -22,3 +29,4 @@ class RESTProcessGraph:
 
     def validate(self) -> None:
         raise NotImplementedError
+

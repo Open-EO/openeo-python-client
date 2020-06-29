@@ -23,7 +23,8 @@ def test_describe(con100, requests_mock):
 
 
 def test_update(con100, requests_mock):
-    updated_udp = load_json_resource("data/1.0.0/udp_details.json")
+    updated_udp = {k: v for k, v in load_json_resource("data/1.0.0/udp_details.json").items()
+                   if k in ['process_graph', 'parameters']}
 
     def check_body(request):
         assert request.json() == updated_udp
@@ -31,10 +32,8 @@ def test_update(con100, requests_mock):
 
     adapter = requests_mock.put(API_URL + "/process_graphs/evi", additional_matcher=check_body)
 
-    udp = con100.user_defined_process(user_defined_process_id
-                                      ='evi')
-    process_graph_metadata = {k: v for k, v in updated_udp.items() if k != 'process_graph'}
+    udp = con100.user_defined_process(user_defined_process_id='evi')
 
-    udp.update(process_graph=updated_udp['process_graph'], **process_graph_metadata)
+    udp.update(process_graph=updated_udp['process_graph'], parameters=updated_udp['parameters'])
 
     assert adapter.called

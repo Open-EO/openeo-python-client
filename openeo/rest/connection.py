@@ -26,7 +26,7 @@ from openeo.rest.auth.oidc import OidcClientCredentialsAuthenticator, OidcAuthCo
 from openeo.rest.datacube import DataCube
 from openeo.rest.imagecollectionclient import ImageCollectionClient
 from openeo.rest.job import RESTJob
-from openeo.rest.udp import RESTProcessGraph
+from openeo.rest.udp import RESTProcessGraph, Parameter
 from openeo.rest.rest_capabilities import RESTCapabilities
 from openeo.util import ensure_list, get_user_data_dir
 
@@ -526,16 +526,23 @@ class Connection(RestApiConnection):
         # TODO: duplication with `user_jobs()` method
         return self.get('/jobs').json()["jobs"]
 
-    def save_user_defined_process(self, user_defined_process_id: str, process_graph: dict, **metadata) -> RESTProcessGraph:
+    def save_user_defined_process(self, user_defined_process_id: str, process_graph: dict,
+                                  parameters=None) -> RESTProcessGraph:
         """
         Saves a process graph and its metadata in the backend as a user-defined process for the authenticated user.
 
         :param user_defined_process_id: unique identifier for the user-defined process
-        :param metadata: additional process graph metadata
+        :param process_graph: a process graph
+        :param parameters: a list of parameters
         :return: a RESTProcessGraph instance
         """
-        req = metadata
-        req['process_graph'] = process_graph
+        if parameters is None:
+            parameters = []
+
+        req = {
+            'process_graph': process_graph,
+            'parameters': parameters
+        }
 
         self.put(path="/process_graphs/{}".format(user_defined_process_id), json=req)
 

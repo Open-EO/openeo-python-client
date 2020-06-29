@@ -985,16 +985,15 @@ class DataCube(ImageCollection):
             img = img.save_result(format=out_format, options=format_options)
         return self._connection.create_job(process_graph=img.graph, additional=job_options)
 
-    def save_user_defined_process(self, user_defined_process_id: str, **metadata) -> RESTProcessGraph:
+    def save_user_defined_process(self, user_defined_process_id: str) -> RESTProcessGraph:
         """
         Saves this process graph in the backend as a user-defined process for the authenticated user.
 
         :param user_defined_process_id: unique identifier for the process
-        :param metadata: additional process graph metadata
         :return: a RESTProcessGraph instance
         """
         return self._connection.save_user_defined_process(user_defined_process_id=user_defined_process_id,
-                                                          process_graph=self.graph, **metadata)
+                                                          process_graph=self.graph)
 
     def execute(self) -> Dict:
         """Executes the process graph of the imagery. """

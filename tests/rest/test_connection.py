@@ -451,7 +451,8 @@ def test_create_udp(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     conn = Connection(API_URL)
 
-    new_udp = load_json_resource("data/1.0.0/udp_details.json")
+    new_udp = {k: v for k, v in load_json_resource("data/1.0.0/udp_details.json").items()
+               if k in ['process_graph', 'parameters']}
 
     def check_body(request):
         assert request.json() == new_udp
@@ -459,12 +460,10 @@ def test_create_udp(requests_mock):
 
     adapter = requests_mock.put(API_URL + "process_graphs/evi", additional_matcher=check_body)
 
-    metadata = {k: v for k, v in new_udp.items() if k != 'process_graph'}
-
     conn.save_user_defined_process(
         user_defined_process_id='evi',
         process_graph=new_udp['process_graph'],
-        **metadata
+        parameters=new_udp['parameters']
     )
 
     assert adapter.called
