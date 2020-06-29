@@ -8,15 +8,15 @@ if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
 
 
 class RESTProcessGraph(ProcessGraph):
-    def __init__(self, process_graph_id: str, connection: 'Connection'):
-        super().__init__(process_graph_id)
+    def __init__(self, user_defined_process_id: str, connection: 'Connection'):
+        super().__init__(user_defined_process_id)
         self._connection = connection
 
     def update(self, process_graph: dict, **metadata) -> ProcessGraph:
-        return self._connection.save_process_graph(self.process_graph_id, process_graph, **metadata)
+        return self._connection.save_user_defined_process(self.user_defined_process_id, process_graph, **metadata)
 
     def describe(self) -> dict:
-        return self._connection.get(path="/process_graphs/{}".format(self.process_graph_id)).json()
+        return self._connection.get(path="/process_graphs/{}".format(self.user_defined_process_id)).json()
 
     def delete(self) -> None:
         raise NotImplementedError

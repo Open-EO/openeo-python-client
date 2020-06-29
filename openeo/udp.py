@@ -2,8 +2,8 @@ from abc import ABC, abstractmethod
 
 
 class ProcessGraph(ABC):
-    def __init__(self, process_graph_id: str):
-        self.process_graph_id = process_graph_id
+    def __init__(self, user_defined_process_id: str):
+        self.user_defined_process_id = user_defined_process_id
 
     @abstractmethod
     def update(self, process_graph: dict, **kwargs) -> 'ProcessGraph':

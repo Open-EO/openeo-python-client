@@ -461,8 +461,8 @@ def test_create_udp(requests_mock):
 
     metadata = {k: v for k, v in new_udp.items() if k != 'process_graph'}
 
-    conn.save_process_graph(
-        process_graph_id='evi',
+    conn.save_user_defined_process(
+        user_defined_process_id='evi',
         process_graph=new_udp['process_graph'],
         **metadata
     )
@@ -480,7 +480,7 @@ def test_list_udps(requests_mock):
         'processes': [udp]
     })
 
-    user_udps = conn.list_process_graphs()
+    user_udps = conn.list_user_defined_processes()
 
     assert len(user_udps) == 1
     assert user_udps[0] == udp
@@ -490,6 +490,6 @@ def test_get_udp(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     conn = Connection(API_URL)
 
-    udp = conn.process_graph('evi')
+    udp = conn.user_defined_process('evi')
 
-    assert udp.process_graph_id == 'evi'
+    assert udp.user_defined_process_id == 'evi'

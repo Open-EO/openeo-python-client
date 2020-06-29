@@ -356,8 +356,8 @@ def test_custom_process_arguments_datacube_pg(con100: Connection):
     assert res.graph == expected
 
 
-def test_save_process_graph(con100, requests_mock):
-    expected_body = load_json_resource("data/1.0.0/save_process_graph.json")
+def test_save_user_defined_process(con100, requests_mock):
+    expected_body = load_json_resource("data/1.0.0/save_user_defined_process.json")
 
     def check_body(request):
         assert request.json() == expected_body
@@ -376,4 +376,4 @@ def test_save_process_graph(con100, requests_mock):
         }
     }
 
-    collection.save_process_graph(process_graph_id='my_udp', **process_graph_metadata)
+    collection.save_user_defined_process(user_defined_process_id='my_udp', **process_graph_metadata)

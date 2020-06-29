@@ -526,35 +526,35 @@ class Connection(RestApiConnection):
         # TODO: duplication with `user_jobs()` method
         return self.get('/jobs').json()["jobs"]
 
-    def save_process_graph(self, process_graph_id: str, process_graph: dict, **metadata) -> RESTProcessGraph:
+    def save_user_defined_process(self, user_defined_process_id: str, process_graph: dict, **metadata) -> RESTProcessGraph:
         """
-        Saves this process graph in the backend as a user-defined process for the authenticated user.
+        Saves a process graph and its metadata in the backend as a user-defined process for the authenticated user.
 
-        :param process_graph_id: unique identifier for the process
+        :param user_defined_process_id: unique identifier for the user-defined process
         :param metadata: additional process graph metadata
         :return: a ProcessGraph instance
         """
         req = metadata
         req['process_graph'] = process_graph
 
-        self.put(path="/process_graphs/{}".format(process_graph_id), json=req)
+        self.put(path="/process_graphs/{}".format(user_defined_process_id), json=req)
 
-        return RESTProcessGraph(process_graph_id=process_graph_id, connection=self)
+        return RESTProcessGraph(user_defined_process_id=user_defined_process_id, connection=self)
 
-    def list_process_graphs(self) -> List[dict]:
+    def list_user_defined_processes(self) -> List[dict]:
         """
-        Lists all user-defined processes (process graphs) of the authenticated user.
+        Lists all user-defined processes of the authenticated user.
         """
         return self.get("/process_graphs").json()["processes"]
 
-    def process_graph(self, process_graph_id: str) -> RESTProcessGraph:
+    def user_defined_process(self, user_defined_process_id: str) -> RESTProcessGraph:
         """
         Get the user-defined process based on its id. The process with the given id should already exist.
 
-        :param process_graph_id: the id of the user-defined process
+        :param user_defined_process_id: the id of the user-defined process
         :return: a ProcessGraph instance
         """
-        return RESTProcessGraph(process_graph_id=process_graph_id, connection=self)
+        return RESTProcessGraph(user_defined_process_id=user_defined_process_id, connection=self)
 
     def validate_processgraph(self, process_graph):
         # Endpoint: POST /validate
