@@ -37,3 +37,12 @@ def test_update(con100, requests_mock):
     udp.update(process_graph=updated_udp['process_graph'], parameters=updated_udp['parameters'])
 
     assert adapter.called
+
+
+def test_delete(con100, requests_mock):
+    adapter = requests_mock.delete(API_URL + "/process_graphs/evi")
+
+    udp = con100.user_defined_process(user_defined_process_id='evi')
+    udp.delete()
+
+    assert adapter.called

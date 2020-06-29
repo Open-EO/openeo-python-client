@@ -23,8 +23,7 @@ class RESTUserDefinedProcess:
         return self._connection.get(path="/process_graphs/{}".format(self.user_defined_process_id)).json()
 
     def delete(self) -> None:
-        raise NotImplementedError
+        self._connection.delete(path="/process_graphs/{}".format(self.user_defined_process_id))
 
     def validate(self) -> None:
         raise NotImplementedError
-
