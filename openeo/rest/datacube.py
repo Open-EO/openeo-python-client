@@ -991,7 +991,7 @@ class DataCube(ImageCollection):
 
         :param user_defined_process_id: unique identifier for the process
         :param metadata: additional process graph metadata
-        :return: a ProcessGraph instance
+        :return: a RESTProcessGraph instance
         """
         return self._connection.save_user_defined_process(user_defined_process_id=user_defined_process_id,
                                                           process_graph=self.graph, **metadata)

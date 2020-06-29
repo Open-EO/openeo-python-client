@@ -532,7 +532,7 @@ class Connection(RestApiConnection):
 
         :param user_defined_process_id: unique identifier for the user-defined process
         :param metadata: additional process graph metadata
-        :return: a ProcessGraph instance
+        :return: a RESTProcessGraph instance
         """
         req = metadata
         req['process_graph'] = process_graph
@@ -552,7 +552,7 @@ class Connection(RestApiConnection):
         Get the user-defined process based on its id. The process with the given id should already exist.
 
         :param user_defined_process_id: the id of the user-defined process
-        :return: a ProcessGraph instance
+        :return: a RESTProcessGraph instance
         """
         return RESTProcessGraph(user_defined_process_id=user_defined_process_id, connection=self)
 

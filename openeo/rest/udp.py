@@ -1,4 +1,3 @@
-from ..udp import ProcessGraph
 import typing
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
@@ -7,12 +6,12 @@ if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     from openeo.rest.connection import Connection
 
 
-class RESTProcessGraph(ProcessGraph):
+class RESTProcessGraph:
     def __init__(self, user_defined_process_id: str, connection: 'Connection'):
-        super().__init__(user_defined_process_id)
+        self.user_defined_process_id = user_defined_process_id
         self._connection = connection
 
-    def update(self, process_graph: dict, **metadata) -> ProcessGraph:
+    def update(self, process_graph: dict, **metadata) -> 'RESTProcessGraph':
         return self._connection.save_user_defined_process(self.user_defined_process_id, process_graph, **metadata)
 
     def describe(self) -> dict:
