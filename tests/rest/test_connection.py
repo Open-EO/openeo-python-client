@@ -173,16 +173,9 @@ def test_connect_with_session():
             "0.4.2",
     ),
     (
-            [
-                {"api_version": "0.1.0", "url": "https://oeo.net/openeo/0.1.0/", "production": True},
-            ],
-            "https://oeo.net/",
-            "0.3.0",
-    ),
-    (
             [],
             "https://oeo.net/",
-            "0.3.0",
+            "1.0.0",
     ),
 ])
 def test_connect_version_discovery(requests_mock, versions, expected_url, expected_version):
