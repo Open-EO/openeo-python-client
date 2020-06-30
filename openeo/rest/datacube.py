@@ -24,6 +24,9 @@ if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+# Sentinel object to refer to "current" cube in chained process expressions.
+THIS = object()
+
 
 class DataCube(ImageCollection):
     """
@@ -72,6 +75,8 @@ class DataCube(ImageCollection):
         for k, v in arguments.items():
             if isinstance(v, DataCube):
                 arguments[k] = {"from_node": v._pg}
+            elif v is THIS:
+                arguments[k] = {"from_node": self._pg}
         return self.process_with_node(PGNode(
             process_id=process_id,
             arguments=arguments,

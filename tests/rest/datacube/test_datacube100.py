@@ -9,6 +9,7 @@ import shapely.geometry
 import openeo.metadata
 from openeo.internal.graph_building import PGNode
 from openeo.rest.connection import Connection
+from openeo.rest.datacube import THIS
 from .conftest import API_URL
 from ... import load_json_resource
 
@@ -355,6 +356,12 @@ def test_custom_process_kwargs_datacube_pg(con100: Connection):
     assert res.graph == expected
 
 
+def test_custom_process_kwargs_datacube_chained(con100: Connection):
+    res = con100.load_collection("S2").process(process_id="foo", data=THIS, bar=123)
+    expected = load_json_resource('data/1.0.0/process_foo.json')
+    assert res.graph == expected
+
+
 def test_custom_process_arguments_datacube(con100: Connection):
     img = con100.load_collection("S2")
     res = img.process(process_id="foo", arguments={"data": img, "bar": 123})
@@ -365,6 +372,12 @@ def test_custom_process_arguments_datacube(con100: Connection):
 def test_custom_process_arguments_datacube_pg(con100: Connection):
     img = con100.load_collection("S2")
     res = img.process(process_id="foo", arguments={"data": img._pg, "bar": 123})
+    expected = load_json_resource('data/1.0.0/process_foo.json')
+    assert res.graph == expected
+
+
+def test_custom_process_arguments_datacube_chained(con100: Connection):
+    res = con100.load_collection("S2").process(process_id="foo", arguments={"data": THIS, "bar": 123})
     expected = load_json_resource('data/1.0.0/process_foo.json')
     assert res.graph == expected
 
