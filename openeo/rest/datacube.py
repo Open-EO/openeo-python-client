@@ -235,6 +235,13 @@ class DataCube(ImageCollection):
             'align': align
         })
 
+    def resample_cube_spatial(self, target: 'DataCube' , method: str = 'near'):
+        return self.process('resample_cube_spatial', {
+            'data': {'from_node': self._pg},
+            'target': {'from_node': target._pg},
+            'method': method
+        })
+
     def _operator_binary(self, operator: str, other: Union['DataCube', int, float], reverse=False) -> 'DataCube':
         """Generic handling of (mathematical) binary operator"""
         band_math_mode = self._in_bandmath_mode()

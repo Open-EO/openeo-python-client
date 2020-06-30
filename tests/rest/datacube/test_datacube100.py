@@ -77,6 +77,19 @@ def test_merge_cubes(con100: Connection):
         "result": True
     }
 
+def test_resample_spatial(con100: Connection):
+    data = con100.load_collection("S2")
+    target = con100.load_collection("MASK")
+    im = data.resample_cube_spatial(target,method='spline')
+    print(im.graph)
+    assert im.graph["resamplecubespatial1"] == {
+        'arguments': {
+           'data': {'from_node': 'loadcollection1'},
+           'method': 'spline',
+           'target': {'from_node': 'loadcollection2'}
+        },
+        'process_id': 'resample_cube_spatial',
+        'result': True}
 
 def test_ndvi_simple(con100: Connection):
     ndvi = con100.load_collection("S2").ndvi()
