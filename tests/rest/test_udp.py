@@ -23,11 +23,13 @@ def test_describe(con100, requests_mock):
 
 
 def test_update(con100, requests_mock):
-    updated_udp = {k: v for k, v in load_json_resource("data/1.0.0/udp_details.json").items()
-                   if k in ['process_graph', 'parameters']}
+    updated_udp = load_json_resource("data/1.0.0/udp_details.json")
 
     def check_body(request):
-        assert request.json() == updated_udp
+        body = request.json()
+        assert body['process_graph'] == updated_udp['process_graph']
+        assert body['parameters'] == updated_udp['parameters']
+        assert not body.get('public', False)
         return True
 
     adapter = requests_mock.put(API_URL + "/process_graphs/evi", additional_matcher=check_body)
@@ -35,6 +37,25 @@ def test_update(con100, requests_mock):
     udp = con100.user_defined_process(user_defined_process_id='evi')
 
     udp.update(process_graph=updated_udp['process_graph'], parameters=updated_udp['parameters'])
+
+    assert adapter.called
+
+
+def test_make_public(con100, requests_mock):
+    udp = con100.user_defined_process(user_defined_process_id='evi')
+
+    def check_body(request):
+        body = request.json()
+        assert body['process_graph'] == updated_udp['process_graph']
+        assert body['parameters'] == updated_udp['parameters']
+        assert body['public']
+        return True
+
+    adapter = requests_mock.put(API_URL + "/process_graphs/evi", additional_matcher=check_body)
+
+    updated_udp = load_json_resource("data/1.0.0/udp_details.json")
+
+    udp.update(process_graph=updated_udp['process_graph'], parameters=updated_udp['parameters'], public=True)
 
     assert adapter.called
 

@@ -532,13 +532,14 @@ class Connection(RestApiConnection):
         return self.get('/jobs').json()["jobs"]
 
     def save_user_defined_process(self, user_defined_process_id: str, process_graph: dict,
-                                  parameters: List[Parameter] = None) -> RESTUserDefinedProcess:
+                                  parameters: List[Parameter] = None, public: bool = False) -> RESTUserDefinedProcess:
         """
         Saves a process graph and its metadata in the backend as a user-defined process for the authenticated user.
 
         :param user_defined_process_id: unique identifier for the user-defined process
         :param process_graph: a process graph
         :param parameters: a list of parameters
+        :param public: visible to other users?
         :return: a RESTUserDefinedProcess instance
         """
         if parameters is None:
@@ -546,7 +547,8 @@ class Connection(RestApiConnection):
 
         req = {
             'process_graph': process_graph,
-            'parameters': parameters
+            'parameters': parameters,
+            'public': public
         }
 
         self.put(path="/process_graphs/{}".format(user_defined_process_id), json=req)

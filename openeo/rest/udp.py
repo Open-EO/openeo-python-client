@@ -16,8 +16,9 @@ class RESTUserDefinedProcess:
         self.user_defined_process_id = user_defined_process_id
         self._connection = connection
 
-    def update(self, process_graph: dict, parameters: List[Parameter] = None) -> 'RESTUserDefinedProcess':
-        return self._connection.save_user_defined_process(self.user_defined_process_id, process_graph, parameters)
+    def update(self, process_graph: dict, parameters: List[Parameter] = None, public: bool = False) -> 'RESTUserDefinedProcess':
+        return self._connection.save_user_defined_process(self.user_defined_process_id, process_graph, parameters,
+                                                          public)
 
     def describe(self) -> dict:
         return self._connection.get(path="/process_graphs/{}".format(self.user_defined_process_id)).json()

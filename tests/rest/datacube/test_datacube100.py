@@ -373,13 +373,37 @@ def test_save_user_defined_process(con100, requests_mock):
     expected_body = load_json_resource("data/1.0.0/save_user_defined_process.json")
 
     def check_body(request):
-        assert request.json()['process_graph'] == expected_body['process_graph']
+        body = request.json()
+        assert body['process_graph'] == expected_body['process_graph']
+        assert not body.get('public', False)
         return True
 
-    requests_mock.put(API_URL + "/process_graphs/my_udp", additional_matcher=check_body)
+    adapter = requests_mock.put(API_URL + "/process_graphs/my_udp", additional_matcher=check_body)
 
     collection = con100.load_collection("S2") \
         .filter_bbox(west=16.1, east=16.6, north=48.6, south=47.2) \
         .filter_temporal(start_date="2018-01-01", end_date="2019-01-01")
 
     collection.save_user_defined_process(user_defined_process_id='my_udp')
+
+    assert adapter.called
+
+
+def test_save_user_defined_process(con100, requests_mock):
+    expected_body = load_json_resource("data/1.0.0/save_user_defined_process.json")
+
+    def check_body(request):
+        body = request.json()
+        assert body['process_graph'] == expected_body['process_graph']
+        assert body['public']
+        return True
+
+    adapter = requests_mock.put(API_URL + "/process_graphs/my_udp", additional_matcher=check_body)
+
+    collection = con100.load_collection("S2") \
+        .filter_bbox(west=16.1, east=16.6, north=48.6, south=47.2) \
+        .filter_temporal(start_date="2018-01-01", end_date="2019-01-01")
+
+    collection.save_user_defined_process(user_defined_process_id='my_udp', public=True)
+
+    assert adapter.called
