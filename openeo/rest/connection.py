@@ -531,8 +531,9 @@ class Connection(RestApiConnection):
         # TODO: duplication with `user_jobs()` method
         return self.get('/jobs').json()["jobs"]
 
-    def save_user_defined_process(self, user_defined_process_id: str, process_graph: dict,
-                                  parameters: List[Parameter] = None, public: bool = False) -> RESTUserDefinedProcess:
+    def save_user_defined_process(
+            self, user_defined_process_id: str, process_graph: dict,
+            parameters: List[Union[dict, Parameter]] = None, public: bool = False) -> RESTUserDefinedProcess:
         """
         Saves a process graph and its metadata in the backend as a user-defined process for the authenticated user.
 
@@ -542,14 +543,20 @@ class Connection(RestApiConnection):
         :param public: visible to other users?
         :return: a RESTUserDefinedProcess instance
         """
-        if parameters is None:
-            parameters = []
 
         req = {
             'process_graph': process_graph,
-            'parameters': parameters,
             'public': public
         }
+        if parameters is not None:
+            parameters = [
+                p if isinstance(p, Parameter) else Parameter(**p)
+                for p in parameters
+            ]
+            req["parameters"] = [
+                {"name": p.name, "description": p.description, "schema": p.schema}
+                for p in parameters
+            ]
 
         self.put(path="/process_graphs/{}".format(user_defined_process_id), json=req)
 

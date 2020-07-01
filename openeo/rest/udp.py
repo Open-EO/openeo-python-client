@@ -1,5 +1,5 @@
 import typing
-from typing import List
+from typing import List, Union
 from collections import namedtuple
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
@@ -16,11 +16,14 @@ class RESTUserDefinedProcess:
         self.user_defined_process_id = user_defined_process_id
         self._connection = connection
 
-    def update(self, process_graph: dict, parameters: List[Parameter] = None, public: bool = False) -> 'RESTUserDefinedProcess':
+    def update(
+            self, process_graph: dict, parameters: List[Union[Parameter, dict]] = None, public: bool = False
+    ) -> 'RESTUserDefinedProcess':
         return self._connection.save_user_defined_process(self.user_defined_process_id, process_graph, parameters,
                                                           public)
 
     def describe(self) -> dict:
+        # TODO: parse the "parameters" to Parameter objects?
         return self._connection.get(path="/process_graphs/{}".format(self.user_defined_process_id)).json()
 
     def delete(self) -> None:

@@ -1,5 +1,7 @@
 import openeo
 import pytest
+
+from openeo.rest.udp import Parameter
 from .. import load_json_resource
 
 API_URL = "https://oeo.net"
@@ -20,6 +22,68 @@ def test_describe(con100, requests_mock):
     details = udp.describe()
 
     assert details == expected_details
+
+
+def test_store_simple(con100, requests_mock):
+    two = {
+        "add": {
+            "process_id": "add",
+            "arguments": {"x": 1, "y": 1, },
+            "result": True,
+        }
+    }
+
+    def check_body(request):
+        body = request.json()
+        assert body == {
+            "process_graph": two,
+            "public": False,
+        }
+        return True
+
+    requests_mock.put(API_URL + "/process_graphs/two", additional_matcher=check_body)
+
+    con100.save_user_defined_process("two", two)
+
+
+@pytest.mark.parametrize(["parameters", "expected_parameters"], [
+    (
+            [Parameter(name="data", description="A data cube.", schema={"type": "number"})],
+            {"parameters": [{"name": "data", "description": "A data cube.", "schema": {"type": "number"}}]}
+    ),
+    (
+            [{"name": "data", "description": "A data cube.", "schema": {"type": "number"}}],
+            {"parameters": [{"name": "data", "description": "A data cube.", "schema": {"type": "number"}}]}
+    ),
+    ([], {"parameters": []}),
+    (None, {}),
+])
+def test_store_with_parameter(con100, requests_mock, parameters, expected_parameters):
+    increment = {
+        "add1": {
+            "process_id": "add",
+            "arguments": {
+                "x": {"from_parameter": "data"},
+                "y": 1,
+            },
+            "result": True,
+        }
+    }
+
+    def check_body(request):
+        body = request.json()
+        assert body == {
+            "process_graph": increment,
+            "public": False,
+            **expected_parameters,
+        }
+        return True
+
+    requests_mock.put(API_URL + "/process_graphs/increment", additional_matcher=check_body)
+
+    con100.save_user_defined_process(
+        "increment", increment, parameters=parameters
+    )
 
 
 def test_update(con100, requests_mock):
