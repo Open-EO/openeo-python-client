@@ -175,7 +175,7 @@ class DataCube(ImageCollection):
         return self.process(
             process_id='filter_temporal',
             arguments={
-                'data': {'from_node': self._pg},
+                'data': THIS,
                 'extent': [start, end]
             }
         )
@@ -190,7 +190,7 @@ class DataCube(ImageCollection):
         return self.process(
             process_id='filter_bbox',
             arguments={
-                'data': {'from_node': self._pg},
+                'data': THIS,
                 'extent': extent
             }
         )
@@ -206,7 +206,7 @@ class DataCube(ImageCollection):
         bands = [self.metadata.band_dimension.band_name(b) for b in bands]
         cube = self.process(
             process_id='filter_bands',
-            arguments={'data': {'from_node': self._pg}, 'bands': bands}
+            arguments={'data': THIS, 'bands': bands}
         )
         if cube.metadata:
             cube.metadata = cube.metadata.filter_bands(bands)
@@ -233,7 +233,7 @@ class DataCube(ImageCollection):
     def resample_spatial(self, resolution: Union[float, Tuple[float, float]],
                          projection: Union[int, str] = None, method: str = 'near', align: str = 'upper-left'):
         return self.process('resample_spatial', {
-            'data': {'from_node': self._pg},
+            'data': THIS,
             'resolution': resolution,
             'projection': projection,
             'method': method,
@@ -242,7 +242,7 @@ class DataCube(ImageCollection):
 
     def resample_cube_spatial(self, target: 'DataCube' , method: str = 'near'):
         return self.process('resample_cube_spatial', {
-            'data': {'from_node': self._pg},
+            'data': THIS,
             'target': {'from_node': target._pg},
             'method': method
         })
@@ -464,7 +464,7 @@ class DataCube(ImageCollection):
             regions_geojson = mapping(regions)
         process_id = 'zonal_statistics'
         args = {
-            'data': {'from_node': self._pg},
+            'data': THIS,
             'regions': regions_geojson,
             'func': func,
             'scale': scale,
@@ -666,7 +666,7 @@ class DataCube(ImageCollection):
         return self.process(
             process_id='ndvi',
             arguments=dict_no_none(
-                data={'from_node': self._pg},
+                data=THIS,
                 nir=nir, red=red, target_band=target_band
             )
         )
@@ -685,7 +685,7 @@ class DataCube(ImageCollection):
         return self.process(
             process_id='rename_dimension',
             arguments=dict_no_none(
-                data={'from_node': self._pg},
+                data=THIS,
                 source=self.metadata.assert_valid_dimension(source),
                 target=target
             )
@@ -703,7 +703,7 @@ class DataCube(ImageCollection):
         return self.process(
             process_id='rename_labels',
             arguments=dict_no_none(
-                data={'from_node': self._pg},
+                data=THIS,
                 dimension=self.metadata.assert_valid_dimension(dimension),
                 target=target,
                 source=source
@@ -721,7 +721,7 @@ class DataCube(ImageCollection):
         """
         process_id = 'stretch_colors'
         args = {
-            'data': {'from_node': self._pg},
+            'data': THIS,
             'min': min,
             'max': max
         }
@@ -738,7 +738,7 @@ class DataCube(ImageCollection):
         """
         process_id = 'linear_scale_range'
         args = {
-            'x': {'from_node': self._pg},
+            'x': THIS,
             'inputMin': input_min,
             'inputMax': input_max,
             'outputMin': output_min,
@@ -762,7 +762,7 @@ class DataCube(ImageCollection):
         return self.process(
             process_id="mask",
             arguments=dict_no_none(
-                data={'from_node': self._pg},
+                data=THIS,
                 mask={'from_node': mask._pg},
                 replacement=replacement
             )
@@ -809,7 +809,7 @@ class DataCube(ImageCollection):
         return self.process(
             process_id="mask_polygon",
             arguments=dict_no_none(
-                data={"from_node": self._pg},
+                data=THIS,
                 mask=mask,
                 replacement=replacement,
                 inside=inside
@@ -842,7 +842,7 @@ class DataCube(ImageCollection):
         :return: A data cube with the newly computed values. The resolution, cardinality and the number of dimensions are the same as for the original data cube.
         """
         return self.process('apply_kernel', {
-            'data': {'from_node': self._pg},
+            'data': THIS,
             'kernel': kernel.tolist(),
             'factor': factor
         })
@@ -943,7 +943,7 @@ class DataCube(ImageCollection):
         return self.process(
             process_id="save_result",
             arguments={
-                "data": {"from_node": self._pg},
+                "data": THIS,
                 "format": format,
                 "options": options or {}
             }
