@@ -239,8 +239,10 @@ class DataCube(ImageCollection):
             },
         ))
 
-    def resample_spatial(self, resolution: Union[float, Tuple[float, float]],
-                         projection: Union[int, str] = None, method: str = 'near', align: str = 'upper-left'):
+    def resample_spatial(
+            self, resolution: Union[float, Tuple[float, float]], projection: Union[int, str] = None,
+            method: str = 'near', align: str = 'upper-left'
+    ):
         return self.process('resample_spatial', {
             'data': THIS,
             'resolution': resolution,
@@ -456,17 +458,20 @@ class DataCube(ImageCollection):
         ))
 
     def zonal_statistics(self, regions, func, scale=1000, interval="day") -> 'DataCube':
-        """Calculates statistics for each zone specified in a file.
-            :param regions: GeoJSON or a path to a GeoJSON file containing the
-                            regions. For paths you must specify the path to a
-                            user-uploaded file without the user id in the path.
-            :param func: Statistical function to calculate for the specified
-                         zones. example values: min, max, mean, median, mode
-            :param scale: A nominal scale in meters of the projection to work
-                          in. Defaults to 1000.
-            :param interval: Interval to group the time series. Allowed values:
-                            day, wee, month, year. Defaults to day.
-            :return: a DataCube instance
+        """
+        Calculates statistics for each zone specified in a file.
+
+        :param regions: GeoJSON or a path to a GeoJSON file containing the
+                        regions. For paths you must specify the path to a
+                        user-uploaded file without the user id in the path.
+        :param func: Statistical function to calculate for the specified
+                     zones. example values: min, max, mean, median, mode
+        :param scale: A nominal scale in meters of the projection to work
+                      in. Defaults to 1000.
+        :param interval: Interval to group the time series. Allowed values:
+                        day, wee, month, year. Defaults to day.
+
+        :return: a DataCube instance
         """
         regions_geojson = regions
         if isinstance(regions, Polygon) or isinstance(regions, MultiPolygon):
@@ -506,8 +511,8 @@ class DataCube(ImageCollection):
         :param version: Version of the UDF runtime to use
         :param dimension: The name of the source dimension to apply the process on. Fails with a DimensionNotAvailable error if the specified dimension does not exist.
         :param target_dimension: The name of the target dimension or null (the default) to use the source dimension
-        specified in the parameter dimension. By specifying a target dimension, the source dimension is removed.
-        The target dimension with the specified name and the type other (see add_dimension) is created, if it doesn't exist yet.
+            specified in the parameter dimension. By specifying a target dimension, the source dimension is removed.
+            The target dimension with the specified name and the type other (see add_dimension) is created, if it doesn't exist yet.
 
         :return: A datacube with the UDF applied to the given dimension.
         :raises: DimensionNotAvailable
