@@ -1,7 +1,7 @@
 import openeo
 import pytest
 
-from openeo.rest.udp import Parameter
+from openeo.rest.udp import Parameter, RESTUserDefinedProcess
 from .. import load_json_resource
 
 API_URL = "https://oeo.net"
@@ -12,6 +12,32 @@ def con100(requests_mock):
     requests_mock.get(API_URL + "/", json={"api_version": "1.0.0"})
     con = openeo.connect(API_URL)
     return con
+
+
+def test_parameter_simple():
+    p = Parameter(name="x", description="the x value.", schema={"type": "number"})
+    assert p.to_dict() == {"name": "x", "description": "the x value.", "schema": {"type": "number"}}
+
+
+def test_parameter_schema_str():
+    p = Parameter(name="x", description="the x value.", schema="number")
+    assert p.to_dict() == {"name": "x", "description": "the x value.", "schema": {"type": "number"}}
+
+
+def test_parameter_schema_default():
+    p = Parameter(name="x", description="the x value.", schema="number", default=42)
+    assert p.to_dict() == {"name": "x", "description": "the x value.", "schema": {"type": "number"}, "default": 42}
+
+
+def test_parameter_schema_default_none():
+    p = Parameter(name="x", description="the x value.", schema="number", default=None)
+    assert p.to_dict() == {"name": "x", "description": "the x value.", "schema": {"type": "number"}, "default": None}
+
+
+def test_parameter_raster_cube():
+    p = Parameter.raster_cube(name="x")
+    assert p.to_dict() == {"name": "x", "description": "A data cube.",
+                           "schema": {"type": "object", "subtype": "raster-cube"}}
 
 
 def test_describe(con100, requests_mock):
@@ -41,19 +67,29 @@ def test_store_simple(con100, requests_mock):
         }
         return True
 
-    requests_mock.put(API_URL + "/process_graphs/two", additional_matcher=check_body)
+    adapter = requests_mock.put(API_URL + "/process_graphs/two", additional_matcher=check_body)
 
-    con100.save_user_defined_process("two", two)
+    udp = con100.save_user_defined_process("two", two)
+    assert isinstance(udp, RESTUserDefinedProcess)
+    assert adapter.called
 
 
 @pytest.mark.parametrize(["parameters", "expected_parameters"], [
     (
-            [Parameter(name="data", description="A data cube.", schema={"type": "number"})],
+            [Parameter(name="data", description="A data cube.", schema="number")],
             {"parameters": [{"name": "data", "description": "A data cube.", "schema": {"type": "number"}}]}
+    ),
+    (
+            [Parameter(name="data", description="A cube.", schema="number", default=42)],
+            {"parameters": [{"name": "data", "description": "A cube.", "schema": {"type": "number"}, "default": 42}]}
     ),
     (
             [{"name": "data", "description": "A data cube.", "schema": {"type": "number"}}],
             {"parameters": [{"name": "data", "description": "A data cube.", "schema": {"type": "number"}}]}
+    ),
+    (
+            [{"name": "data", "description": "A cube.", "schema": {"type": "number"}, "default": 42}],
+            {"parameters": [{"name": "data", "description": "A cube.", "schema": {"type": "number"}, "default": 42}]}
     ),
     ([], {"parameters": []}),
     (None, {}),
@@ -79,11 +115,13 @@ def test_store_with_parameter(con100, requests_mock, parameters, expected_parame
         }
         return True
 
-    requests_mock.put(API_URL + "/process_graphs/increment", additional_matcher=check_body)
+    adapter = requests_mock.put(API_URL + "/process_graphs/increment", additional_matcher=check_body)
 
     con100.save_user_defined_process(
         "increment", increment, parameters=parameters
     )
+
+    assert adapter.called
 
 
 def test_update(con100, requests_mock):
@@ -125,7 +163,7 @@ def test_make_public(con100, requests_mock):
 
 
 def test_delete(con100, requests_mock):
-    adapter = requests_mock.delete(API_URL + "/process_graphs/evi")
+    adapter = requests_mock.delete(API_URL + "/process_graphs/evi", status_code=204)
 
     udp = con100.user_defined_process(user_defined_process_id='evi')
     udp.delete()

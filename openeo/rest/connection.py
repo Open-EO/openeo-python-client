@@ -154,14 +154,14 @@ class RestApiConnection:
         """
         return self.request("post", path=path, json=json, **kwargs)
 
-    def delete(self, path) -> Response:
+    def delete(self, path, **kwargs) -> Response:
         """
         Do DELETE request to REST API.
 
         :param path: API path (without root url)
         :return: response: Response
         """
-        return self.request("delete", path=path)
+        return self.request("delete", path=path, **kwargs)
 
     def patch(self, path) -> Response:
         """
@@ -543,24 +543,9 @@ class Connection(RestApiConnection):
         :param public: visible to other users?
         :return: a RESTUserDefinedProcess instance
         """
-
-        req = {
-            'process_graph': process_graph,
-            'public': public
-        }
-        if parameters is not None:
-            parameters = [
-                p if isinstance(p, Parameter) else Parameter(**p)
-                for p in parameters
-            ]
-            req["parameters"] = [
-                {"name": p.name, "description": p.description, "schema": p.schema}
-                for p in parameters
-            ]
-
-        self.put(path="/process_graphs/{}".format(user_defined_process_id), json=req)
-
-        return RESTUserDefinedProcess(user_defined_process_id=user_defined_process_id, connection=self)
+        udp = RESTUserDefinedProcess(user_defined_process_id=user_defined_process_id, connection=self)
+        udp.store(process_graph=process_graph, parameters=parameters, public=public)
+        return udp
 
     def list_user_defined_processes(self) -> List[dict]:
         """
