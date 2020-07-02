@@ -4,6 +4,7 @@ import pathlib
 import typing
 from typing import List, Dict, Union, Tuple
 
+import numpy as np
 import shapely.geometry
 import shapely.geometry.base
 from deprecated import deprecated
@@ -833,17 +834,17 @@ class DataCube(ImageCollection):
         # TODO: set metadata of reduced cube?
         return self.process_with_node(PGNode(process_id="merge_cubes", arguments=arguments))
 
-    def apply_kernel(self, kernel, factor=1.0) -> 'DataCube':
+    def apply_kernel(self, kernel: Union[np.ndarray, List[List[float]]], factor=1.0) -> 'DataCube':
         """
         Applies a focal operation based on a weighted kernel to each value of the specified dimensions in the data cube.
 
-        :param kernel: The kernel to be applied on the data cube. It should be a 2D numpy array.
+        :param kernel: The kernel to be applied on the data cube. It should be a 2D (numpy) array.
         :param factor: A factor that is multiplied to each value computed by the focal operation. This is basically a shortcut for explicitly multiplying each value by a factor afterwards, which is often required for some kernel-based algorithms such as the Gaussian blur.
         :return: A data cube with the newly computed values. The resolution, cardinality and the number of dimensions are the same as for the original data cube.
         """
         return self.process('apply_kernel', {
             'data': THIS,
-            'kernel': kernel.tolist(),
+            'kernel': kernel.tolist() if isinstance(kernel, np.ndarray) else kernel,
             'factor': factor
         })
 
