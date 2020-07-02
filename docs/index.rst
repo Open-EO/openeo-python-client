@@ -15,6 +15,7 @@ Open-EO Client
    :caption: Contents:
 
    basics
+   processes
    udf
    api
 

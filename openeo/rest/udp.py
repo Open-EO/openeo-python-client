@@ -1,33 +1,12 @@
 import typing
 from typing import List, Union
 
+from openeo.api.process import Parameter
+
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Only import this for type hinting purposes. Runtime import causes circular dependency issues.
     # Note: the `hasattr` check is necessary for Python versions before 3.5.2.
     from openeo.rest.connection import Connection
-
-
-class Parameter:
-    """Process parameter"""
-    _DEFAULT_UNDEFINED = object()
-
-    def __init__(self, name: str, description: str, schema: Union[dict, str], default=_DEFAULT_UNDEFINED):
-        self.name = name
-        self.description = description
-        self.schema = {"type": schema} if isinstance(schema, str) else schema
-        self.default = default
-
-    @classmethod
-    def raster_cube(cls, name: str = "data", description: str = "A data cube."):
-        """Helper to easily create a 'raster-cube' parameter."""
-        return cls(name=name, description=description, schema={"type": "object", "subtype": "raster-cube"})
-
-    def to_dict(self) -> dict:
-        """Convert to dict for JSON-serialization."""
-        d = {"name": self.name, "description": self.description, "schema": self.schema}
-        if self.default is not self._DEFAULT_UNDEFINED:
-            d["default"] = self.default
-        return d
 
 
 class RESTUserDefinedProcess:

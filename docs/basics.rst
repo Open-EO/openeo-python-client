@@ -135,30 +135,3 @@ Once the mask is created, it can be applied to the cube:
 
    >>> evi_cube_masked = evi_cube.mask(mask)
 
-Using custom processes
-----------------------
-An openEO backend may offer processes that are not part of the core API, or the client may not yet
-have a corresponding method for a process that you wish to use. In that case, you can fall back to
-a more generic API that allows you to add processes directly.
-
-To add a simple process to the graph, use: :func:`~openeo.rest.datacube.DataCube#process`.
-This will return a new DataCube with the new process.
-
-Example::
-
-   >>> arguments= {
-         'data': [1,3,-1]
-       }
-       cube.process('mean', arguments)
-
-or 
-
-   >>> cube.process('mean', data= [1,3,-1])
-
-To be able to use custom processes, you need to have some documentation. A list of processes can be
-retrieved with: :func:`~openeo.rest.connection.Connection#list_processes`.
-
-There is a convenience function to directly create a DataCube using the Connection: 
-:func:`~openeo.rest.connection.Connection.datacube_from_process`.
-
-   >>> cube=connection.datacube_from_process('mean',data=[1,3,-1])

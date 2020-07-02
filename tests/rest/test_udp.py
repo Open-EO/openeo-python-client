@@ -1,7 +1,8 @@
 import openeo
 import pytest
 
-from openeo.rest.udp import Parameter, RESTUserDefinedProcess
+from openeo.api.process import Parameter
+from openeo.rest.udp import  RESTUserDefinedProcess
 from .. import load_json_resource
 
 API_URL = "https://oeo.net"
@@ -13,31 +14,6 @@ def con100(requests_mock):
     con = openeo.connect(API_URL)
     return con
 
-
-def test_parameter_simple():
-    p = Parameter(name="x", description="the x value.", schema={"type": "number"})
-    assert p.to_dict() == {"name": "x", "description": "the x value.", "schema": {"type": "number"}}
-
-
-def test_parameter_schema_str():
-    p = Parameter(name="x", description="the x value.", schema="number")
-    assert p.to_dict() == {"name": "x", "description": "the x value.", "schema": {"type": "number"}}
-
-
-def test_parameter_schema_default():
-    p = Parameter(name="x", description="the x value.", schema="number", default=42)
-    assert p.to_dict() == {"name": "x", "description": "the x value.", "schema": {"type": "number"}, "default": 42}
-
-
-def test_parameter_schema_default_none():
-    p = Parameter(name="x", description="the x value.", schema="number", default=None)
-    assert p.to_dict() == {"name": "x", "description": "the x value.", "schema": {"type": "number"}, "default": None}
-
-
-def test_parameter_raster_cube():
-    p = Parameter.raster_cube(name="x")
-    assert p.to_dict() == {"name": "x", "description": "A data cube.",
-                           "schema": {"type": "object", "subtype": "raster-cube"}}
 
 
 def test_describe(con100, requests_mock):

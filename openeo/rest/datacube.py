@@ -1,3 +1,11 @@
+"""
+
+
+.. data:: THIS
+
+    Symbolic reference to the current data cube, to be used as argument in DataCube.process() calls
+
+"""
 import datetime
 import logging
 import pathlib
