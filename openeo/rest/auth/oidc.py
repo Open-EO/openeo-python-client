@@ -26,7 +26,7 @@ from typing import Tuple, Callable, Union, List
 import requests
 
 from openeo.rest import OpenEoClientException
-from openeo.util import dict_no_none, get_user_data_dir, date_to_rfc3339
+from openeo.util import dict_no_none, get_user_data_dir, rfc3339
 
 log = logging.getLogger(__name__)
 
@@ -660,7 +660,7 @@ class RefreshTokenStore:
         # TODO: should OIDC grant type also be a part of the key?
         #       e.g. to avoid mixing client credential flow tokens with tokens of other (user oriented) flows?
         data.setdefault(issuer, {}).setdefault(client_id, {
-            "date": date_to_rfc3339(datetime.utcnow()),
+            "date": rfc3339.datetime(datetime.utcnow()),
             "refresh_token": refresh_token,
         })
         self._write_all(data)

@@ -1,34 +1,151 @@
 """
 Various utilities and helpers.
 """
+import datetime as dt
 import functools
 import json
 import logging
 import os
 import platform
 import re
-from datetime import datetime, date
 from pathlib import Path
 from typing import Any, Union, Tuple, Callable
 
-_rfc3339_date_format = re.compile(r'\d{4}-\d{2}-\d{2}')
+from deprecated import deprecated
 
 logger = logging.getLogger(__name__)
 
 
+class Rfc3339:
+    """
+    Formatter for dates according to RFC-3339.
+
+    Parses date(time)-like input and formats according to RFC-3339. Some examples:
+
+        >>> rfc3339.date("2020:03:17")
+        "2020-03-17"
+        >>> rfc3339.date(2020, 3, 17)
+        "2020-03-17"
+        >>> rfc3339.datetime("2020/03/17/12/34/56")
+        "2020-03-17T12:34:56Z"
+        >>> rfc3339.datetime([2020, 3, 17, 12, 34, 56])
+        "2020-03-17T12:34:56Z"
+        >>> rfc3339.datetime(2020, 3, 17)
+        "2020-03-17T00:00:00Z"
+        >>> rfc3339.datetime(datetime(2020, 3, 17, 12, 34, 56))
+        "2020-03-17T12:34:56Z"
+
+    Or just normalize (automatically preserve date/datetime resolution):
+
+        >>> rfc3339.normalize("2020/03/17")
+        "2020-03-17"
+        >>> rfc3339.normalize("2020-03-17-12-34-56")
+        "2020-03-17T12:34:56Z"
+
+    Also see https://tools.ietf.org/html/rfc3339#section-5.6
+    """
+    # TODO: currently we hard code timezone 'Z' for simplicity. Add real time zone support?
+    _FMT_DATE = '%Y-%m-%d'
+    _FMT_TIME = '%H:%M:%SZ'
+    _FMT_DATETIME = _FMT_DATE + "T" + _FMT_TIME
+
+    _regex_datetime = re.compile(r"""
+        ^(?P<Y>\d{4})[:/_-](?P<m>\d{2})[:/_-](?P<d>\d{2})[T :/_-]?
+        (?:(?P<H>\d{2})[:/_-](?P<M>\d{2})(?:[:/_-](?P<S>\d{2}))?)?""", re.VERBOSE)
+
+    def __init__(self, propagate_none: bool = False):
+        self._propagate_none = propagate_none
+
+    def datetime(self, x: Any, *args) -> Union[str, None]:
+        """
+        Format given date(time)-like object as RFC-3339 datetime string.
+        """
+        if args:
+            return self.datetime((x,) + args)
+        elif isinstance(x, dt.datetime):
+            return self._format_datetime(x)
+        elif isinstance(x, dt.date):
+            return self._format_datetime(dt.datetime.combine(x, dt.time()))
+        elif isinstance(x, str):
+            return self._format_datetime(dt.datetime(*self._parse_datetime(x)))
+        elif isinstance(x, (tuple, list)):
+            return self._format_datetime(dt.datetime(*(int(v) for v in x)))
+        elif x is None and self._propagate_none:
+            return None
+        raise ValueError(x)
+
+    def date(self, x: Any, *args) -> Union[str, None]:
+        """
+        Format given date-like object as RFC-3339 date string.
+        """
+        if args:
+            return self.date((x,) + args)
+        elif isinstance(x, (dt.date, dt.datetime)):
+            return self._format_date(x)
+        elif isinstance(x, str):
+            return self._format_date(dt.datetime(*self._parse_datetime(x)))
+        elif isinstance(x, (tuple, list)):
+            return self._format_date(dt.datetime(*(int(v) for v in x)))
+        elif x is None and self._propagate_none:
+            return None
+        raise ValueError(x)
+
+    def normalize(self, x: Any, *args) -> Union[str, None]:
+        """
+        Format given date(time)-like object as RFC-333 date or date-time string depending on given resolution
+
+            >>> rfc3339.normalize("2020/03/17")
+            "2020-03-17"
+            >>> rfc3339.normalize("2020/03/17/12/34/56")
+            "2020-03-17T12:34:56Z"
+        """
+        if args:
+            return self.normalize((x,) + args)
+        elif isinstance(x, dt.datetime):
+            return self.datetime(x)
+        elif isinstance(x, dt.date):
+            return self.date(x)
+        elif isinstance(x, str):
+            x = self._parse_datetime(x)
+            return self.date(x) if len(x) <= 3 else self.datetime(x)
+        elif isinstance(x, (tuple, list)):
+            return self.date(x) if len(x) <= 3 else self.datetime(x)
+        elif x is None and self._propagate_none:
+            return None
+        raise ValueError(x)
+
+    @classmethod
+    def _format_datetime(cls, d: dt.datetime) -> str:
+        """Format given datetime as RFC-3339 date-time string."""
+        assert d.tzinfo is None, "timezone handling not supported (TODO)"
+        return d.strftime(cls._FMT_DATETIME)
+
+    @classmethod
+    def _format_date(cls, d: dt.date) -> str:
+        """Format given datetime as RFC-3339 date-time string."""
+        return d.strftime(cls._FMT_DATE)
+
+    @classmethod
+    def _parse_datetime(cls, s: str) -> Tuple[int]:
+        """Try to parse string to a date(time) tuple"""
+        try:
+            return tuple(int(v) for v in cls._regex_datetime.match(s).groups() if v is not None)
+        except Exception:
+            raise ValueError("Can not parse as date: {s}".format(s=s))
+
+
+# Default RFC3339 date-time formatter
+rfc3339 = Rfc3339()
+
+
+@deprecated("Use `rfc3339.normalize`, `rfc3339.date` or `rfc3339.datetime` instead")
 def date_to_rfc3339(d: Any) -> str:
     """
     Convert date-like object to a RFC 3339 formatted date string
+
+    see https://tools.ietf.org/html/rfc3339#section-5.6
     """
-    if isinstance(d, str):
-        if _rfc3339_date_format.match(d):
-            return d
-    elif isinstance(d, datetime):
-        assert d.tzinfo is None, "timezone handling not supported (TODO)"
-        return d.strftime('%Y-%m-%dT%H:%M:%SZ')
-    elif isinstance(d, date):
-        return d.strftime('%Y-%m-%d')
-    raise NotImplementedError("TODO")
+    return rfc3339.normalize(d)
 
 
 def dict_no_none(**kwargs):
@@ -68,9 +185,10 @@ def ensure_list(x):
 
 
 def get_temporal_extent(*args,
-                        start_date: Union[str, datetime, date] = None, end_date: Union[str, datetime, date] = None,
+                        start_date: Union[str, dt.datetime, dt.date] = None,
+                        end_date: Union[str, dt.datetime, dt.date] = None,
                         extent: Union[list, tuple] = None,
-                        convertor=date_to_rfc3339
+                        convertor=rfc3339.normalize
                         ) -> Tuple[Union[str, None], Union[str, None]]:
     """
     Helper to derive a date extent from from various call forms:
@@ -124,7 +242,7 @@ class TimingLogger:
     """
 
     # Function that returns current datetime (overridable for unit tests)
-    _now = datetime.now
+    _now = dt.datetime.now
 
     def __init__(self, title: str = "Timing", logger: Union[logging.Logger, str, Callable] = logger):
         """
