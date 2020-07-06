@@ -109,6 +109,17 @@ def test_rfc3339_datetime_propagate_none():
     assert formatter.date(None) is None
 
 
+def test_rfc3339_parse_datetime():
+    assert rfc3339.parse_datetime("2011-12-13T14:15:16Z") == datetime(2011, 12, 13, 14, 15, 16)
+
+
+def test_rfc3339_parse_datetime_none():
+    with pytest.raises(ValueError):
+        rfc3339.parse_datetime(None)
+
+    assert Rfc3339(propagate_none=True).parse_datetime(None) is None
+
+
 def test_dict_no_none():
     assert dict_no_none() == {}
     assert dict_no_none(a=3) == {"a": 3}

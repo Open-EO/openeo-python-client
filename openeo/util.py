@@ -114,6 +114,13 @@ class Rfc3339:
             return None
         raise ValueError(x)
 
+    def parse_datetime(self, x: Union[str, None]) -> datetime:
+        if isinstance(x, str):
+            return dt.datetime.strptime(x, '%Y-%m-%dT%H:%M:%SZ')
+        elif x is None and self._propagate_none:
+            return None
+        raise ValueError(x)
+
     @classmethod
     def _format_datetime(cls, d: dt.datetime) -> str:
         """Format given datetime as RFC-3339 date-time string."""
