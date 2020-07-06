@@ -188,7 +188,7 @@ For example::
 
 This user-defined process can now be applied to a data cube as follows::
 
-    res = cube.process("blur", arguments={"data": THIS})
+    res = cube.process("blur", arguments={"data": THIS}, namespace="user")
 
 
 Process parameters in user-defined processes

@@ -72,12 +72,16 @@ class DataCube(ImageCollection):
     def connection(self):
         return self._connection
 
-    def process(self, process_id: str, arguments: dict = None, metadata: CollectionMetadata = None, **kwargs) -> 'DataCube':
+    def process(
+            self, process_id: str, arguments: dict = None, namespace:str=None,
+            metadata: CollectionMetadata = None, **kwargs
+    ) -> 'DataCube':
         """
         Generic helper to create a new DataCube by applying a process.
 
         :param process_id: process id of the process.
         :param arguments: argument dictionary for the process.
+        :param namespace: process namespace
         :return: new DataCube instance
         """
         arguments = {**(arguments or {}), **kwargs}
@@ -89,6 +93,7 @@ class DataCube(ImageCollection):
         return self.process_with_node(PGNode(
             process_id=process_id,
             arguments=arguments,
+            namespace=namespace,
         ), metadata=metadata)
 
     # Legacy `graph_add_node` method

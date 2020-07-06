@@ -17,11 +17,25 @@ def test_pgnode_arguments():
         PGNode("foo", arguments={"bar": 123}, bar=456)
 
 
+def test_pgnode_namespace():
+    assert PGNode("foo").namespace is None
+    assert PGNode("foo", namespace="user").namespace == "user"
+
+
 def test_pgnode_to_dict():
     pg = PGNode(process_id="load_collection", arguments={"collection_id": "S2"})
     assert pg.to_dict() == {
         "process_id": "load_collection",
         "arguments": {"collection_id": "S2"}
+    }
+
+
+def test_pgnode_to_dict_namespace():
+    pg = PGNode(process_id="load_collection", arguments={"collection_id": "S2"}, namespace="user")
+    assert pg.to_dict() == {
+        "process_id": "load_collection",
+        "arguments": {"collection_id": "S2"},
+        "namespace": "user"
     }
 
 

@@ -7,6 +7,7 @@ import collections
 from typing import Union
 
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
+from openeo.util import dict_no_none
 
 
 class PGNode:
@@ -22,7 +23,7 @@ class PGNode:
 
     """
 
-    def __init__(self, process_id: str, arguments: dict = None, **kwargs):
+    def __init__(self, process_id: str, arguments: dict = None, namespace: Union[None, str] = None, **kwargs):
         self._process_id = process_id
         # Merge arguments dict and kwargs
         arguments = dict(**(arguments or {}), **kwargs)
@@ -32,6 +33,7 @@ class PGNode:
                 arguments[arg] = {"from_node": value}
         # TODO: use a frozendict of some sort to ensure immutability?
         self._arguments = arguments
+        self._namespace = namespace
 
     def __repr__(self):
         return "<{c} {p!r} at 0x{m:x}>".format(c=self.__class__.__name__, p=self.process_id, m=id(self))
@@ -44,6 +46,10 @@ class PGNode:
     def arguments(self) -> dict:
         return self._arguments
 
+    @property
+    def namespace(self) -> Union[None, str]:
+        return self._namespace
+
     def to_dict(self) -> dict:
         """
         Convert process graph to a nested dictionary structure.
@@ -53,7 +59,11 @@ class PGNode:
         def _deep_copy(x):
             """PGNode aware deep copy helper"""
             if isinstance(x, PGNode):
-                return {"process_id": x.process_id, "arguments": _deep_copy(x.arguments)}
+                return dict_no_none(
+                    process_id=x.process_id,
+                    arguments=_deep_copy(x.arguments),
+                    namespace=self.namespace,
+                )
             elif isinstance(x, dict):
                 return {str(k): _deep_copy(v) for k, v in x.items()}
             elif isinstance(x, (list, tuple)):
