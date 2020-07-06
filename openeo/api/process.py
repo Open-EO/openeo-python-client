@@ -29,4 +29,5 @@ class Parameter:
         d = {"name": self.name, "description": self.description, "schema": self.schema}
         if self.default is not self._DEFAULT_UNDEFINED:
             d["default"] = self.default
+            d["optional"] = True
         return d

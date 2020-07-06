@@ -2,7 +2,7 @@ import openeo
 import pytest
 
 from openeo.api.process import Parameter
-from openeo.rest.udp import  RESTUserDefinedProcess
+from openeo.rest.udp import RESTUserDefinedProcess
 from .. import load_json_resource
 
 API_URL = "https://oeo.net"
@@ -13,7 +13,6 @@ def con100(requests_mock):
     requests_mock.get(API_URL + "/", json={"api_version": "1.0.0"})
     con = openeo.connect(API_URL)
     return con
-
 
 
 def test_describe(con100, requests_mock):
@@ -57,7 +56,10 @@ def test_store_simple(con100, requests_mock):
     ),
     (
             [Parameter(name="data", description="A cube.", schema="number", default=42)],
-            {"parameters": [{"name": "data", "description": "A cube.", "schema": {"type": "number"}, "default": 42}]}
+            {"parameters": [
+                {"name": "data", "description": "A cube.", "schema": {"type": "number"}, "optional": True,
+                 "default": 42}
+            ]}
     ),
     (
             [{"name": "data", "description": "A data cube.", "schema": {"type": "number"}}],
@@ -65,7 +67,10 @@ def test_store_simple(con100, requests_mock):
     ),
     (
             [{"name": "data", "description": "A cube.", "schema": {"type": "number"}, "default": 42}],
-            {"parameters": [{"name": "data", "description": "A cube.", "schema": {"type": "number"}, "default": 42}]}
+            {"parameters": [
+                {"name": "data", "description": "A cube.", "schema": {"type": "number"}, "optional": True,
+                 "default": 42}
+            ]}
     ),
     ([], {"parameters": []}),
     (None, {}),

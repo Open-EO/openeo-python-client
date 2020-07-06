@@ -13,12 +13,18 @@ def test_parameter_schema_str():
 
 def test_parameter_schema_default():
     p = Parameter(name="x", description="the x value.", schema="number", default=42)
-    assert p.to_dict() == {"name": "x", "description": "the x value.", "schema": {"type": "number"}, "default": 42}
+    assert p.to_dict() == {
+        "name": "x", "description": "the x value.", "schema": {"type": "number"},
+        "optional": True, "default": 42
+    }
 
 
 def test_parameter_schema_default_none():
     p = Parameter(name="x", description="the x value.", schema="number", default=None)
-    assert p.to_dict() == {"name": "x", "description": "the x value.", "schema": {"type": "number"}, "default": None}
+    assert p.to_dict() == {
+        "name": "x", "description": "the x value.", "schema": {"type": "number"},
+        "optional": True, "default": None
+    }
 
 
 def test_parameter_raster_cube():
