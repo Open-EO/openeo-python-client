@@ -121,17 +121,33 @@ class ImageCollection(ABC):
 
         Use filter_bbox to set the target spatial extent.
 
-        https://open-eo.github.io/openeo-api/v/0.4.0/processreference/#resample_spatial
+        https://processes.openeo.org/#resample_spatial
 
-        :param resolution: Either a single number or an array with separate resolutions for each spatial dimension. Resamples the data cube to the target resolution, which can be specified either as separate values for x and y or as a single value for both axes.  Specified in the units of the target projection. Doesn't change the resolution by default (0).
+        :param resolution: Either a single number or an array with separate resolutions for each spatial dimension.
+            Resamples the data cube to the target resolution, which can be specified either as separate values
+            for x and y or as a single value for both axes.  Specified in the units of the target projection.
+            Doesn't change the resolution by default (0).
         :param projection: Either an epsg code, as an integer, or a proj-definition
-        string. Warps the data cube to the target projection. Target projection specified as EPSG code or PROJ
-        definition. Doesn't change the projection by default (null).
+            string. Warps the data cube to the target projection. Target projection specified as EPSG code or PROJ
+            definition. Doesn't change the projection by default (null).
         :param method: Resampling method. Methods are
-        inspired by GDAL, see gdalwarp for more information. Possible values: near, bilinear, cubic, cubicspline,
-        lanczos, average, mode, max, min, med, q1, q3
+            inspired by GDAL, see gdalwarp for more information. Possible values: near, bilinear, cubic, cubicspline,
+            lanczos, average, mode, max, min, med, q1, q3
         :param align: Specifies to which corner of the spatial extent
-        the new resampled data is aligned to. Possible values: lower-left, upper-left, lower-right, upper-right
+            the new resampled data is aligned to. Possible values: lower-left, upper-left, lower-right, upper-right
+
+        :return: A raster data cube with values warped onto the new projection.
+        """
+        pass
+
+    def resample_cube_spatial(self, target:'ImageCollection', method:str='near')-> 'ImageCollection':
+        """
+        Resamples the spatial dimensions (x,y) of this data cube to a target data cube and return the results as a new data cube.
+
+        https://processes.openeo.org/#resample_cube_spatial
+
+        :param target: An ImageCollection that specifies the target
+        :param method: The resampling method.
         :return: A raster data cube with values warped onto the new projection.
         """
         pass

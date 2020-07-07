@@ -1,9 +1,18 @@
+"""
+
+
+.. data:: THIS
+
+    Symbolic reference to the current data cube, to be used as argument in DataCube.process() calls
+
+"""
 import datetime
 import logging
 import pathlib
 import typing
 from typing import List, Dict, Union, Tuple
 
+import numpy as np
 import shapely.geometry
 import shapely.geometry.base
 from deprecated import deprecated
@@ -13,6 +22,7 @@ from openeo.imagecollection import ImageCollection, CollectionMetadata
 from openeo.internal.graph_building import PGNode, ReduceNode
 from openeo.rest import BandMathException, OperatorException
 from openeo.rest.job import RESTJob
+from openeo.rest.udp import RESTUserDefinedProcess
 from openeo.util import get_temporal_extent, dict_no_none
 from openeo.vectorcube import VectorCube
 
@@ -22,6 +32,9 @@ if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     from openeo.rest.connection import Connection
 
 log = logging.getLogger(__name__)
+
+# Sentinel object to refer to "current" cube in chained process expressions.
+THIS = object()
 
 
 class DataCube(ImageCollection):
@@ -59,17 +72,23 @@ class DataCube(ImageCollection):
     def connection(self):
         return self._connection
 
-    def process(self, process_id: str, args: dict = None, metadata: CollectionMetadata = None, **kwargs) -> 'DataCube':
+    def process(self, process_id: str, arguments: dict = None, metadata: CollectionMetadata = None, **kwargs) -> 'DataCube':
         """
         Generic helper to create a new DataCube by applying a process.
 
         :param process_id: process id of the process.
-        :param args: argument dictionary for the process.
+        :param arguments: argument dictionary for the process.
         :return: new DataCube instance
         """
+        arguments = {**(arguments or {}), **kwargs}
+        for k, v in arguments.items():
+            if isinstance(v, DataCube):
+                arguments[k] = {"from_node": v._pg}
+            elif v is THIS:
+                arguments[k] = {"from_node": self._pg}
         return self.process_with_node(PGNode(
             process_id=process_id,
-            arguments=args, **kwargs
+            arguments=arguments,
         ), metadata=metadata)
 
     # Legacy `graph_add_node` method
@@ -164,8 +183,8 @@ class DataCube(ImageCollection):
     def _filter_temporal(self, start: str, end: str) -> 'DataCube':
         return self.process(
             process_id='filter_temporal',
-            args={
-                'data': {'from_node': self._pg},
+            arguments={
+                'data': THIS,
                 'extent': [start, end]
             }
         )
@@ -179,8 +198,8 @@ class DataCube(ImageCollection):
             extent.update(base=base, height=height)
         return self.process(
             process_id='filter_bbox',
-            args={
-                'data': {'from_node': self._pg},
+            arguments={
+                'data': THIS,
                 'extent': extent
             }
         )
@@ -196,7 +215,7 @@ class DataCube(ImageCollection):
         bands = [self.metadata.band_dimension.band_name(b) for b in bands]
         cube = self.process(
             process_id='filter_bands',
-            args={'data': {'from_node': self._pg}, 'bands': bands}
+            arguments={'data': THIS, 'bands': bands}
         )
         if cube.metadata:
             cube.metadata = cube.metadata.filter_bands(bands)
@@ -220,14 +239,23 @@ class DataCube(ImageCollection):
             },
         ))
 
-    def resample_spatial(self, resolution: Union[float, Tuple[float, float]],
-                         projection: Union[int, str] = None, method: str = 'near', align: str = 'upper-left'):
+    def resample_spatial(
+            self, resolution: Union[float, Tuple[float, float]], projection: Union[int, str] = None,
+            method: str = 'near', align: str = 'upper-left'
+    ):
         return self.process('resample_spatial', {
-            'data': {'from_node': self._pg},
+            'data': THIS,
             'resolution': resolution,
             'projection': projection,
             'method': method,
             'align': align
+        })
+
+    def resample_cube_spatial(self, target: 'DataCube' , method: str = 'near'):
+        return self.process('resample_cube_spatial', {
+            'data': THIS,
+            'target': {'from_node': target._pg},
+            'method': method
         })
 
     def _operator_binary(self, operator: str, other: Union['DataCube', int, float], reverse=False) -> 'DataCube':
@@ -430,24 +458,27 @@ class DataCube(ImageCollection):
         ))
 
     def zonal_statistics(self, regions, func, scale=1000, interval="day") -> 'DataCube':
-        """Calculates statistics for each zone specified in a file.
-            :param regions: GeoJSON or a path to a GeoJSON file containing the
-                            regions. For paths you must specify the path to a
-                            user-uploaded file without the user id in the path.
-            :param func: Statistical function to calculate for the specified
-                         zones. example values: min, max, mean, median, mode
-            :param scale: A nominal scale in meters of the projection to work
-                          in. Defaults to 1000.
-            :param interval: Interval to group the time series. Allowed values:
-                            day, wee, month, year. Defaults to day.
-            :return: a DataCube instance
+        """
+        Calculates statistics for each zone specified in a file.
+
+        :param regions: GeoJSON or a path to a GeoJSON file containing the
+                        regions. For paths you must specify the path to a
+                        user-uploaded file without the user id in the path.
+        :param func: Statistical function to calculate for the specified
+                     zones. example values: min, max, mean, median, mode
+        :param scale: A nominal scale in meters of the projection to work
+                      in. Defaults to 1000.
+        :param interval: Interval to group the time series. Allowed values:
+                        day, wee, month, year. Defaults to day.
+
+        :return: a DataCube instance
         """
         regions_geojson = regions
         if isinstance(regions, Polygon) or isinstance(regions, MultiPolygon):
             regions_geojson = mapping(regions)
         process_id = 'zonal_statistics'
         args = {
-            'data': {'from_node': self._pg},
+            'data': THIS,
             'regions': regions_geojson,
             'func': func,
             'scale': scale,
@@ -480,8 +511,8 @@ class DataCube(ImageCollection):
         :param version: Version of the UDF runtime to use
         :param dimension: The name of the source dimension to apply the process on. Fails with a DimensionNotAvailable error if the specified dimension does not exist.
         :param target_dimension: The name of the target dimension or null (the default) to use the source dimension
-        specified in the parameter dimension. By specifying a target dimension, the source dimension is removed.
-        The target dimension with the specified name and the type other (see add_dimension) is created, if it doesn't exist yet.
+            specified in the parameter dimension. By specifying a target dimension, the source dimension is removed.
+            The target dimension with the specified name and the type other (see add_dimension) is created, if it doesn't exist yet.
 
         :return: A datacube with the UDF applied to the given dimension.
         :raises: DimensionNotAvailable
@@ -542,7 +573,7 @@ class DataCube(ImageCollection):
     def add_dimension(self, name: str, label: str, type: str = None):
         return self.process(
             process_id="add_dimension",
-            args={"data": self._pg, "name": name, "label": label, "type": type},
+            arguments={"data": self._pg, "name": name, "label": label, "type": type},
             metadata=self.metadata.add_dimension(name=name, label=label, type=type)
         )
 
@@ -648,8 +679,8 @@ class DataCube(ImageCollection):
         """
         return self.process(
             process_id='ndvi',
-            args=dict_no_none(
-                data={'from_node': self._pg},
+            arguments=dict_no_none(
+                data=THIS,
                 nir=nir, red=red, target_band=target_band
             )
         )
@@ -667,8 +698,8 @@ class DataCube(ImageCollection):
             raise ValueError('Target dimension name conflicts with existing dimension: %s.' % target)
         return self.process(
             process_id='rename_dimension',
-            args=dict_no_none(
-                data={'from_node': self._pg},
+            arguments=dict_no_none(
+                data=THIS,
                 source=self.metadata.assert_valid_dimension(source),
                 target=target
             )
@@ -685,8 +716,8 @@ class DataCube(ImageCollection):
         """
         return self.process(
             process_id='rename_labels',
-            args=dict_no_none(
-                data={'from_node': self._pg},
+            arguments=dict_no_none(
+                data=THIS,
                 dimension=self.metadata.assert_valid_dimension(dimension),
                 target=target,
                 source=source
@@ -704,7 +735,7 @@ class DataCube(ImageCollection):
         """
         process_id = 'stretch_colors'
         args = {
-            'data': {'from_node': self._pg},
+            'data': THIS,
             'min': min,
             'max': max
         }
@@ -721,7 +752,7 @@ class DataCube(ImageCollection):
         """
         process_id = 'linear_scale_range'
         args = {
-            'x': {'from_node': self._pg},
+            'x': THIS,
             'inputMin': input_min,
             'inputMax': input_max,
             'outputMin': output_min,
@@ -744,8 +775,8 @@ class DataCube(ImageCollection):
         """
         return self.process(
             process_id="mask",
-            args=dict_no_none(
-                data={'from_node': self._pg},
+            arguments=dict_no_none(
+                data=THIS,
                 mask={'from_node': mask._pg},
                 replacement=replacement
             )
@@ -774,7 +805,7 @@ class DataCube(ImageCollection):
             # TODO: change read_vector to load_uploaded_files https://github.com/Open-EO/openeo-processes/pull/106
             read_vector = self.process(
                 process_id='read_vector',
-                args={'filename': str(mask)}
+                arguments={'filename': str(mask)}
             )
             mask = {'from_node': read_vector._pg}
         elif isinstance(mask, shapely.geometry.base.BaseGeometry):
@@ -791,8 +822,8 @@ class DataCube(ImageCollection):
 
         return self.process(
             process_id="mask_polygon",
-            args=dict_no_none(
-                data={"from_node": self._pg},
+            arguments=dict_no_none(
+                data=THIS,
                 mask=mask,
                 replacement=replacement,
                 inside=inside
@@ -816,17 +847,17 @@ class DataCube(ImageCollection):
         # TODO: set metadata of reduced cube?
         return self.process_with_node(PGNode(process_id="merge_cubes", arguments=arguments))
 
-    def apply_kernel(self, kernel, factor=1.0) -> 'DataCube':
+    def apply_kernel(self, kernel: Union[np.ndarray, List[List[float]]], factor=1.0) -> 'DataCube':
         """
         Applies a focal operation based on a weighted kernel to each value of the specified dimensions in the data cube.
 
-        :param kernel: The kernel to be applied on the data cube. It should be a 2D numpy array.
+        :param kernel: The kernel to be applied on the data cube. It should be a 2D (numpy) array.
         :param factor: A factor that is multiplied to each value computed by the focal operation. This is basically a shortcut for explicitly multiplying each value by a factor afterwards, which is often required for some kernel-based algorithms such as the Gaussian blur.
         :return: A data cube with the newly computed values. The resolution, cardinality and the number of dimensions are the same as for the original data cube.
         """
         return self.process('apply_kernel', {
-            'data': {'from_node': self._pg},
-            'kernel': kernel.tolist(),
+            'data': THIS,
+            'kernel': kernel.tolist() if isinstance(kernel, np.ndarray) else kernel,
             'factor': factor
         })
 
@@ -925,8 +956,8 @@ class DataCube(ImageCollection):
     def save_result(self, format: str = "GTIFF", options: dict = None):
         return self.process(
             process_id="save_result",
-            args={
-                "data": {"from_node": self._pg},
+            arguments={
+                "data": THIS,
                 "format": format,
                 "options": options or {}
             }
@@ -979,6 +1010,17 @@ class DataCube(ImageCollection):
             # add `save_result` node
             img = img.save_result(format=out_format, options=format_options)
         return self._connection.create_job(process_graph=img.graph, additional=job_options)
+
+    def save_user_defined_process(self, user_defined_process_id: str, public: bool = False) -> RESTUserDefinedProcess:
+        """
+        Saves this process graph in the backend as a user-defined process for the authenticated user.
+
+        :param user_defined_process_id: unique identifier for the process
+        :param public: visible to other users?
+        :return: a RESTUserDefinedProcess instance
+        """
+        return self._connection.save_user_defined_process(user_defined_process_id=user_defined_process_id,
+                                                          process_graph=self.graph, public=public)
 
     def execute(self) -> Dict:
         """Executes the process graph of the imagery. """

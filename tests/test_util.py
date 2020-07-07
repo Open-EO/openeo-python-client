@@ -2,13 +2,122 @@ import logging
 import os
 import pathlib
 import re
-from datetime import datetime
-from typing import List
 import unittest.mock as mock
+from datetime import datetime, date
+from typing import List
+
 import pytest
 
 from openeo.util import first_not_none, get_temporal_extent, TimingLogger, ensure_list, ensure_dir, dict_no_none, \
-    deep_get, DeepKeyError, get_user_config_dir, get_user_data_dir
+    deep_get, DeepKeyError, get_user_config_dir, get_user_data_dir, Rfc3339, rfc3339
+
+
+def test_rfc3339_date():
+    assert "2020-03-17" == rfc3339.date("2020-03-17")
+    assert "2020-03-17" == rfc3339.date("2020/03/17")
+    assert "2020-03-17" == rfc3339.date("2020:03:17")
+    assert "2020-03-17" == rfc3339.date("2020_03_17")
+    assert "2020-03-17" == rfc3339.date("2020-03-17-12-34-56")
+    assert "2020-03-17" == rfc3339.date("2020-03-17-12-34")
+    assert "2020-03-17" == rfc3339.date("2020:03:17:12:34:56")
+    assert "2020-03-17" == rfc3339.date("2020/03/17/12/34/56")
+    assert "2020-03-17" == rfc3339.date("2020/03/17/12/34")
+    assert "2020-03-17" == rfc3339.date("2020_03_17_12_34_56")
+    assert "2020-03-17" == rfc3339.date("2020-03-17T12:34:56Z")
+    assert "2020-03-17" == rfc3339.date(date(2020, 3, 17))
+    assert "2020-03-17" == rfc3339.date(datetime(2020, 3, 17, 12, 34, 56))
+    assert "2020-03-17" == rfc3339.date((2020, 3, 17))
+    assert "2020-03-17" == rfc3339.date([2020, 3, 17])
+    assert "2020-03-17" == rfc3339.date(2020, 3, 17)
+    assert "2020-03-17" == rfc3339.date((2020, 3, 17, 12, 34, 56))
+    assert "2020-03-17" == rfc3339.date([2020, 3, 17, 12, 34, 56])
+    assert "2020-03-17" == rfc3339.date(2020, 3, 17, 12, 34, 56)
+    assert "2020-03-17" == rfc3339.date(2020, 3, 17, 12, 34)
+    assert "2020-03-17" == rfc3339.date(("2020", "3", 17))
+    assert "2020-09-17" == rfc3339.date(["2020", "09", 17])
+    assert "2020-09-17" == rfc3339.date("2020", "09", 17)
+
+
+def test_rfc3339_datetime():
+    assert "2020-03-17T00:00:00Z" == rfc3339.datetime("2020-03-17")
+    assert "2020-03-17T00:00:00Z" == rfc3339.datetime("2020/03/17")
+    assert "2020-03-17T00:00:00Z" == rfc3339.datetime("2020:03:17")
+    assert "2020-03-17T00:00:00Z" == rfc3339.datetime("2020_03_17")
+    assert "2020-03-17T12:34:56Z" == rfc3339.datetime("2020-03-17-12-34-56")
+    assert "2020-03-17T12:34:00Z" == rfc3339.datetime("2020-03-17-12-34")
+    assert "2020-03-17T12:34:56Z" == rfc3339.datetime("2020:03:17:12:34:56")
+    assert "2020-03-17T12:34:56Z" == rfc3339.datetime("2020/03/17/12/34/56")
+    assert "2020-03-17T12:34:00Z" == rfc3339.datetime("2020/03/17/12/34")
+    assert "2020-03-17T12:34:56Z" == rfc3339.datetime("2020_03_17_12_34_56")
+    assert "2020-03-17T12:34:56Z" == rfc3339.datetime("2020-03-17T12:34:56Z")
+    assert "2020-03-17T00:00:00Z" == rfc3339.datetime(date(2020, 3, 17))
+    assert "2020-03-17T12:34:56Z" == rfc3339.datetime(datetime(2020, 3, 17, 12, 34, 56))
+    assert "2020-03-17T00:00:00Z" == rfc3339.datetime((2020, 3, 17))
+    assert "2020-03-17T00:00:00Z" == rfc3339.datetime([2020, 3, 17])
+    assert "2020-03-17T00:00:00Z" == rfc3339.datetime(2020, 3, 17)
+    assert "2020-03-17T12:34:56Z" == rfc3339.datetime((2020, 3, 17, 12, 34, 56))
+    assert "2020-03-17T12:34:56Z" == rfc3339.datetime([2020, 3, 17, 12, 34, 56])
+    assert "2020-03-17T12:34:56Z" == rfc3339.datetime(2020, 3, 17, 12, 34, 56)
+    assert "2020-03-17T12:34:00Z" == rfc3339.datetime(2020, 3, 17, 12, 34)
+    assert "2020-03-17T12:34:56Z" == rfc3339.datetime((2020, "3", 17, "12", "34", 56))
+    assert "2020-09-17T12:34:56Z" == rfc3339.datetime([2020, "09", 17, "12", "34", 56])
+    assert "2020-09-17T12:34:56Z" == rfc3339.datetime(2020, "09", "17", "12", "34", 56)
+
+
+def test_rfc3339_normalize():
+    assert "2020-03-17" == rfc3339.normalize("2020-03-17")
+    assert "2020-03-17" == rfc3339.normalize("2020/03/17")
+    assert "2020-03-17" == rfc3339.normalize("2020:03:17")
+    assert "2020-03-17" == rfc3339.normalize("2020_03_17")
+    assert "2020-03-17T12:34:56Z" == rfc3339.normalize("2020-03-17-12-34-56")
+    assert "2020-03-17T12:34:00Z" == rfc3339.normalize("2020-03-17-12-34")
+    assert "2020-03-17T12:34:56Z" == rfc3339.normalize("2020:03:17:12:34:56")
+    assert "2020-03-17T12:34:56Z" == rfc3339.normalize("2020/03/17/12/34/56")
+    assert "2020-03-17T12:34:00Z" == rfc3339.normalize("2020/03/17/12/34")
+    assert "2020-03-17T12:34:56Z" == rfc3339.normalize("2020_03_17_12_34_56")
+    assert "2020-03-17T12:34:56Z" == rfc3339.normalize("2020-03-17T12:34:56Z")
+    assert "2020-03-17" == rfc3339.normalize(date(2020, 3, 17))
+    assert "2020-03-17T12:34:56Z" == rfc3339.normalize(datetime(2020, 3, 17, 12, 34, 56))
+    assert "2020-03-17" == rfc3339.normalize((2020, 3, 17))
+    assert "2020-03-17" == rfc3339.normalize([2020, 3, 17])
+    assert "2020-03-17" == rfc3339.normalize(2020, 3, 17)
+    assert "2020-03-17T12:34:56Z" == rfc3339.normalize((2020, 3, 17, 12, 34, 56))
+    assert "2020-03-17T12:34:56Z" == rfc3339.normalize([2020, 3, 17, 12, 34, 56])
+    assert "2020-03-17T12:34:56Z" == rfc3339.normalize(2020, 3, 17, 12, 34, 56)
+    assert "2020-03-17T12:00:00Z" == rfc3339.normalize(2020, 3, 17, 12)
+    assert "2020-03-17T12:34:00Z" == rfc3339.normalize(2020, 3, 17, 12, 34)
+    assert "2020-03-17T12:34:56Z" == rfc3339.normalize((2020, "3", 17, "12", "34", 56))
+    assert "2020-09-17T12:34:56Z" == rfc3339.normalize([2020, "09", 17, "12", "34", 56])
+    assert "2020-09-17T12:34:56Z" == rfc3339.normalize(2020, "09", "17", "12", "34", 56)
+
+
+def test_rfc3339_datetime_dont_propagate_none():
+    formatter = Rfc3339(propagate_none=False)
+    assert formatter.datetime("2020-03-17") == "2020-03-17T00:00:00Z"
+    assert formatter.date("2020-03-17") == "2020-03-17"
+    with pytest.raises(ValueError):
+        formatter.datetime(None)
+    with pytest.raises(ValueError):
+        formatter.date(None)
+
+
+def test_rfc3339_datetime_propagate_none():
+    formatter = Rfc3339(propagate_none=True)
+    assert formatter.datetime("2020-03-17") == "2020-03-17T00:00:00Z"
+    assert formatter.datetime(None) is None
+    assert formatter.date("2020-03-17") == "2020-03-17"
+    assert formatter.date(None) is None
+
+
+def test_rfc3339_parse_datetime():
+    assert rfc3339.parse_datetime("2011-12-13T14:15:16Z") == datetime(2011, 12, 13, 14, 15, 16)
+
+
+def test_rfc3339_parse_datetime_none():
+    with pytest.raises(ValueError):
+        rfc3339.parse_datetime(None)
+
+    assert Rfc3339(propagate_none=True).parse_datetime(None) is None
 
 
 def test_dict_no_none():

@@ -9,6 +9,7 @@ from openeo.rest import OpenEoClientException
 from openeo.rest.auth.auth import NullAuth, BearerAuth
 from openeo.rest.connection import Connection, RestApiConnection, connect, OpenEoApiError
 from .auth.test_oidc import OidcMock
+from .. import load_json_resource
 
 API_URL = "https://oeo.net/"
 
@@ -171,7 +172,11 @@ def test_connect_with_session():
             "https://oeo.net/openeo/0.4.2/",
             "0.4.2",
     ),
-
+    (
+            [],
+            "https://oeo.net/",
+            "1.0.0",
+    ),
 ])
 def test_connect_version_discovery(requests_mock, versions, expected_url, expected_version):
     requests_mock.get("https://oeo.net/", status_code=404)
@@ -180,6 +185,20 @@ def test_connect_version_discovery(requests_mock, versions, expected_url, expect
 
     conn = connect("https://oeo.net/")
     assert conn.capabilities().capabilities["foo"] == "bar"
+
+
+def test_connection_repr(requests_mock):
+    requests_mock.get("https://oeo.net/", status_code=404)
+    requests_mock.get("https://oeo.net/.well-known/openeo", status_code=200, json={
+        "versions": [{"api_version": "1.0.0", "url": "https://oeo.net/openeo/1.x/", "production": True}],
+    })
+    requests_mock.get("https://oeo.net/openeo/1.x/", status_code=200, json={"api_version": "1.0.0"})
+    requests_mock.get("https://oeo.net/openeo/1.x/credentials/basic", json={"access_token": "w3lc0m3"})
+
+    conn = connect("https://oeo.net/")
+    assert repr(conn) == "<Connection to 'https://oeo.net/openeo/1.x/' with NullAuth>"
+    conn.authenticate_basic("foo", "bar")
+    assert repr(conn) == "<Connection to 'https://oeo.net/openeo/1.x/' with BearerAuth>"
 
 
 def test_api_error(requests_mock):
@@ -350,6 +369,166 @@ def test_authenticate_oidc_100_multiple_success(requests_mock):
     assert conn.auth.bearer == 'oidc/baroi/' + oidc_mock.state["access_token"]
 
 
+def test_authenticate_oidc_auth_code_pkce_flow(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    client_id = "myclient"
+    issuer = "https://oidc.example.com"
+    oidc_discovery_url = "https://oidc.example.com/.well-known/openid-configuration"
+    requests_mock.get(API_URL + 'credentials/oidc', json={
+        "providers": [{"id": "oi", "issuer": issuer, "title": "example", "scopes": ["openid"]}]
+    })
+    oidc_mock = OidcMock(
+        requests_mock=requests_mock,
+        expected_grant_type="authorization_code",
+        expected_client_id=client_id,
+        expected_fields={"scope": "openid"},
+        oidc_discovery_url=oidc_discovery_url,
+        scopes_supported=["openid"],
+    )
+
+    # With all this set up, kick off the openid connect flow
+    refresh_token_store = mock.Mock()
+    conn = Connection(API_URL, refresh_token_store=refresh_token_store)
+    assert isinstance(conn.auth, NullAuth)
+    conn.authenticate_oidc_authorization_code(
+        client_id=client_id, webbrowser_open=oidc_mock.webbrowser_open
+    )
+    assert isinstance(conn.auth, BearerAuth)
+    assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
+    assert refresh_token_store.mock_calls == []
+    # Again but store refresh token
+    conn.authenticate_oidc_authorization_code(
+        client_id=client_id, webbrowser_open=oidc_mock.webbrowser_open, store_refresh_token=True
+    )
+    assert isinstance(conn.auth, BearerAuth)
+    assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
+    assert refresh_token_store.mock_calls == [
+        mock.call.set(client_id=client_id, issuer=issuer, refresh_token=oidc_mock.state["refresh_token"])
+    ]
+
+
+def test_authenticate_oidc_client_credentials(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    client_id = "myclient"
+    client_secret = "$3cr3t"
+    issuer = "https://oidc.example.com"
+    oidc_discovery_url = "https://oidc.example.com/.well-known/openid-configuration"
+    requests_mock.get(API_URL + 'credentials/oidc', json={
+        "providers": [{"id": "oi", "issuer": issuer, "title": "example", "scopes": ["openid"]}]
+    })
+    oidc_mock = OidcMock(
+        requests_mock=requests_mock,
+        expected_grant_type="client_credentials",
+        expected_client_id=client_id,
+        expected_fields={"client_secret": client_secret},
+        oidc_discovery_url=oidc_discovery_url,
+    )
+
+    # With all this set up, kick off the openid connect flow
+    refresh_token_store = mock.Mock()
+    conn = Connection(API_URL, refresh_token_store=refresh_token_store)
+    assert isinstance(conn.auth, NullAuth)
+    conn.authenticate_oidc_client_credentials(
+        client_id=client_id, client_secret=client_secret
+    )
+    assert isinstance(conn.auth, BearerAuth)
+    assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
+    assert refresh_token_store.mock_calls == []
+    # Again but store refresh token
+    conn.authenticate_oidc_client_credentials(
+        client_id=client_id, client_secret=client_secret, store_refresh_token=True
+    )
+    assert isinstance(conn.auth, BearerAuth)
+    assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
+    assert refresh_token_store.mock_calls == [
+        mock.call.set(client_id=client_id, issuer=issuer, refresh_token=oidc_mock.state["refresh_token"])
+    ]
+
+
+def test_authenticate_oidc_resource_owner_password_credentials(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    client_id = "myclient"
+    client_secret = "$3cr3t"
+    username, password = "john", "j0hn"
+    issuer = "https://oidc.example.com"
+    oidc_discovery_url = "https://oidc.example.com/.well-known/openid-configuration"
+    requests_mock.get(API_URL + 'credentials/oidc', json={
+        "providers": [{"id": "oi", "issuer": issuer, "title": "example", "scopes": ["openid"]}]
+    })
+    oidc_mock = OidcMock(
+        requests_mock=requests_mock,
+        expected_grant_type="password",
+        expected_client_id=client_id,
+        expected_fields={
+            "username": username, "password": password, "scope": "openid", "client_secret": client_secret
+        },
+        oidc_discovery_url=oidc_discovery_url,
+    )
+
+    # With all this set up, kick off the openid connect flow
+    refresh_token_store = mock.Mock()
+    conn = Connection(API_URL, refresh_token_store=refresh_token_store)
+    assert isinstance(conn.auth, NullAuth)
+    conn.authenticate_oidc_resource_owner_password_credentials(
+        client_id=client_id, username=username, password=password, client_secret=client_secret
+    )
+    assert isinstance(conn.auth, BearerAuth)
+    assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
+    assert refresh_token_store.mock_calls == []
+    # Again but store refresh token
+    conn.authenticate_oidc_resource_owner_password_credentials(
+        client_id=client_id, username=username, password=password, client_secret=client_secret,
+        store_refresh_token=True
+    )
+    assert isinstance(conn.auth, BearerAuth)
+    assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
+    assert refresh_token_store.mock_calls == [
+        mock.call.set(client_id=client_id, issuer=issuer, refresh_token=oidc_mock.state["refresh_token"])
+    ]
+
+
+def test_authenticate_oidc_device_flow(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    client_id = "myclient"
+    client_secret = "$3cr3t"
+    issuer = "https://oidc.example.com"
+    oidc_discovery_url = "https://oidc.example.com/.well-known/openid-configuration"
+    requests_mock.get(API_URL + 'credentials/oidc', json={
+        "providers": [{"id": "oi", "issuer": issuer, "title": "example", "scopes": ["openid"]}]
+    })
+    oidc_mock = OidcMock(
+        requests_mock=requests_mock,
+        expected_grant_type="urn:ietf:params:oauth:grant-type:device_code",
+        expected_client_id=client_id,
+        expected_fields={
+            "scope": "openid", "client_secret": client_secret
+        },
+        oidc_discovery_url=oidc_discovery_url,
+    )
+
+    # With all this set up, kick off the openid connect flow
+    refresh_token_store = mock.Mock()
+    conn = Connection(API_URL, refresh_token_store=refresh_token_store)
+    assert isinstance(conn.auth, NullAuth)
+    oidc_mock.state["device_code_callback_timeline"] = ["great success"]
+    conn.authenticate_oidc_device(
+        client_id=client_id, client_secret=client_secret
+    )
+    assert isinstance(conn.auth, BearerAuth)
+    assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
+    assert refresh_token_store.mock_calls == []
+    # Again but store refresh token
+    oidc_mock.state["device_code_callback_timeline"] = ["great success"]
+    conn.authenticate_oidc_device(
+        client_id=client_id, client_secret=client_secret, store_refresh_token=True
+    )
+    assert isinstance(conn.auth, BearerAuth)
+    assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
+    assert refresh_token_store.mock_calls == [
+        mock.call.set(client_id=client_id, issuer=issuer, refresh_token=oidc_mock.state["refresh_token"])
+    ]
+
+
 def test_load_collection_arguments_040(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "0.4.0"})
     conn = Connection(API_URL)
@@ -444,3 +623,77 @@ def test_execute_100(requests_mock):
     assert request.call_args_list == [
         mock.call("post", path="/result", json={"process": {"process_graph": {"foo1": {"process_id": "foo"}}}})
     ]
+
+
+def test_create_udp(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    conn = Connection(API_URL)
+
+    new_udp = load_json_resource("data/1.0.0/udp_details.json")
+
+    def check_body(request):
+        body = request.json()
+        assert body['process_graph'] == new_udp['process_graph']
+        assert body['parameters'] == new_udp['parameters']
+        assert not body.get('public', False)
+        return True
+
+    adapter = requests_mock.put(API_URL + "process_graphs/evi", additional_matcher=check_body)
+
+    conn.save_user_defined_process(
+        user_defined_process_id='evi',
+        process_graph=new_udp['process_graph'],
+        parameters=new_udp['parameters']
+    )
+
+    assert adapter.called
+
+
+def test_create_public_udp(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    conn = Connection(API_URL)
+
+    new_udp = load_json_resource("data/1.0.0/udp_details.json")
+
+    def check_body(request):
+        body = request.json()
+        assert body['process_graph'] == new_udp['process_graph']
+        assert body['parameters'] == new_udp['parameters']
+        assert body['public']
+        return True
+
+    adapter = requests_mock.put(API_URL + "process_graphs/evi", additional_matcher=check_body)
+
+    conn.save_user_defined_process(
+        user_defined_process_id='evi',
+        process_graph=new_udp['process_graph'],
+        parameters=new_udp['parameters'],
+        public=True
+    )
+
+    assert adapter.called
+
+
+def test_list_udps(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    conn = Connection(API_URL)
+
+    udp = load_json_resource("data/1.0.0/udp_details.json")
+
+    requests_mock.get(API_URL + "process_graphs", json={
+        'processes': [udp]
+    })
+
+    user_udps = conn.list_user_defined_processes()
+
+    assert len(user_udps) == 1
+    assert user_udps[0] == udp
+
+
+def test_get_udp(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    conn = Connection(API_URL)
+
+    udp = conn.user_defined_process('evi')
+
+    assert udp.user_defined_process_id == 'evi'

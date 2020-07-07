@@ -22,7 +22,7 @@ openeo.rest.connection
    :members: Connection, OpenEoApiError
 
 
-openeo.rest.imagecollectionclient
+openeo.rest.datacube
 ----------------------------------
 
 .. automodule:: openeo.rest.datacube
@@ -34,3 +34,11 @@ openeo_udf.api.datacube.DataCube
 --------------------------------
 .. automodule:: openeo_udf.api.datacube
    :members: DataCube
+
+
+openeo.api
+-----------
+
+.. automodule:: openeo.api.process
+    :members: Parameter
+

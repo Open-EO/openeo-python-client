@@ -29,7 +29,7 @@ datacube = mean.reduce_dimension(dimension="bands", reducer=reducer)
 
 # TODO maybe add "add_dimension" to the datacube class
 datacube = datacube.process(process_id='add_dimension',
-                 args={"data": {"from_node": datacube._pg}, "name": "bands", "type": "bands"})
+                            arguments={"data": {"from_node": datacube._pg}, "name": "bands", "type": "bands"})
 
 # B
 

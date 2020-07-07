@@ -3,12 +3,13 @@
 Unit tests specifically for 1.0.0-style DataCube
 
 """
-import openeo.metadata
 import pytest
 import shapely.geometry
+
+import openeo.metadata
 from openeo.internal.graph_building import PGNode
 from openeo.rest.connection import Connection
-
+from openeo.rest.datacube import THIS
 from .conftest import API_URL
 from ... import load_json_resource
 
@@ -77,6 +78,19 @@ def test_merge_cubes(con100: Connection):
         "result": True
     }
 
+def test_resample_spatial(con100: Connection):
+    data = con100.load_collection("S2")
+    target = con100.load_collection("MASK")
+    im = data.resample_cube_spatial(target,method='spline')
+    print(im.graph)
+    assert im.graph["resamplecubespatial1"] == {
+        'arguments': {
+           'data': {'from_node': 'loadcollection1'},
+           'method': 'spline',
+           'target': {'from_node': 'loadcollection2'}
+        },
+        'process_id': 'resample_cube_spatial',
+        'result': True}
 
 def test_ndvi_simple(con100: Connection):
     ndvi = con100.load_collection("S2").ndvi()
@@ -97,26 +111,30 @@ def test_ndvi_args(con100: Connection):
         "result": True,
     }
 
+
 def test_rename_dimension(con100):
     s2 = con100.load_collection("S2")
     x = s2.rename_dimension(source="bands", target="ThisIsNotTheBandsDimension")
-    assert x.graph=={'loadcollection1': {
-                        'arguments': {
-                            'id': 'S2',
-                            'spatial_extent': None,
-                            'temporal_extent': None
-                        },
-                        'process_id': 'load_collection'
-                      },
-                     'renamedimension1': {
-                        'arguments': {
-                         'data': {'from_node': 'loadcollection1'},
-                         'source': 'bands',
-                         'target': 'ThisIsNotTheBandsDimension'
-                        },
-                      'process_id': 'rename_dimension',
-                      'result': True
-                     }}
+    assert x.graph == {
+        'loadcollection1': {
+            'arguments': {
+                'id': 'S2',
+                'spatial_extent': None,
+                'temporal_extent': None
+            },
+            'process_id': 'load_collection'
+        },
+        'renamedimension1': {
+            'arguments': {
+                'data': {'from_node': 'loadcollection1'},
+                'source': 'bands',
+                'target': 'ThisIsNotTheBandsDimension'
+            },
+            'process_id': 'rename_dimension',
+            'result': True
+        }
+    }
+
 
 def test_reduce_dimension(con100):
     s2 = con100.load_collection("S2")
@@ -233,7 +251,10 @@ def test_apply_absolute_pgnode(con100):
 def test_load_collection_properties(con100):
     # TODO: put this somewhere and expose it to the user?
     def eq(value, case_sensitive=True) -> PGNode:
-        return PGNode(process_id="eq", arguments={"x": {"from_parameter": "value"}, "y": value, "case_sensitive": case_sensitive})
+        return PGNode(
+            process_id="eq",
+            arguments={"x": {"from_parameter": "value"}, "y": value, "case_sensitive": case_sensitive}
+        )
 
     def between(min, max) -> PGNode:
         return PGNode(process_id="between", arguments={"x": {"from_parameter": "value"}, "min": min, "max": max})
@@ -250,7 +271,6 @@ def test_load_collection_properties(con100):
 
     expected = load_json_resource('data/1.0.0/load_collection_properties.json')
     assert im.graph == expected
-
 
 
 def test_apply_dimension_temporal_cumsum_with_target(con100):
@@ -287,7 +307,7 @@ def test_filter_spatial_callbak(con100):
         "udf": "def transform_point_into_bbox(data:UdfData): blabla"
     })
 
-    filtered_collection = collection.process("filter_spatial",{
+    filtered_collection = collection.process("filter_spatial", {
         "data": collection._pg,
         "geometries": point_to_bbox_callback
     })
@@ -311,10 +331,92 @@ def test_filter_spatial_callbak(con100):
         },
         'runudf1': {
             'arguments': {
-                'data': {'features': [{'geometry': {'coordinates': [125.6,10.1],'type': 'Point'},'type': 'Feature'}],'type': 'FeatureCollection'},
+                'data': {
+                    'features': [{'geometry': {'coordinates': [125.6, 10.1], 'type': 'Point'}, 'type': 'Feature'}],
+                    'type': 'FeatureCollection'
+                },
                 'runtime': 'Python',
                 'udf': 'def transform_point_into_bbox(data:UdfData): blabla'
             },
             'process_id': 'run_udf'}
-        }
+    }
 
+
+def test_custom_process_kwargs_datacube(con100: Connection):
+    img = con100.load_collection("S2")
+    res = img.process(process_id="foo", data=img, bar=123)
+    expected = load_json_resource('data/1.0.0/process_foo.json')
+    assert res.graph == expected
+
+
+def test_custom_process_kwargs_datacube_pg(con100: Connection):
+    img = con100.load_collection("S2")
+    res = img.process(process_id="foo", data=img._pg, bar=123)
+    expected = load_json_resource('data/1.0.0/process_foo.json')
+    assert res.graph == expected
+
+
+def test_custom_process_kwargs_datacube_chained(con100: Connection):
+    res = con100.load_collection("S2").process(process_id="foo", data=THIS, bar=123)
+    expected = load_json_resource('data/1.0.0/process_foo.json')
+    assert res.graph == expected
+
+
+def test_custom_process_arguments_datacube(con100: Connection):
+    img = con100.load_collection("S2")
+    res = img.process(process_id="foo", arguments={"data": img, "bar": 123})
+    expected = load_json_resource('data/1.0.0/process_foo.json')
+    assert res.graph == expected
+
+
+def test_custom_process_arguments_datacube_pg(con100: Connection):
+    img = con100.load_collection("S2")
+    res = img.process(process_id="foo", arguments={"data": img._pg, "bar": 123})
+    expected = load_json_resource('data/1.0.0/process_foo.json')
+    assert res.graph == expected
+
+
+def test_custom_process_arguments_datacube_chained(con100: Connection):
+    res = con100.load_collection("S2").process(process_id="foo", arguments={"data": THIS, "bar": 123})
+    expected = load_json_resource('data/1.0.0/process_foo.json')
+    assert res.graph == expected
+
+
+def test_save_user_defined_process(con100, requests_mock):
+    expected_body = load_json_resource("data/1.0.0/save_user_defined_process.json")
+
+    def check_body(request):
+        body = request.json()
+        assert body['process_graph'] == expected_body['process_graph']
+        assert not body.get('public', False)
+        return True
+
+    adapter = requests_mock.put(API_URL + "/process_graphs/my_udp", additional_matcher=check_body)
+
+    collection = con100.load_collection("S2") \
+        .filter_bbox(west=16.1, east=16.6, north=48.6, south=47.2) \
+        .filter_temporal(start_date="2018-01-01", end_date="2019-01-01")
+
+    collection.save_user_defined_process(user_defined_process_id='my_udp')
+
+    assert adapter.called
+
+
+def test_save_user_defined_process(con100, requests_mock):
+    expected_body = load_json_resource("data/1.0.0/save_user_defined_process.json")
+
+    def check_body(request):
+        body = request.json()
+        assert body['process_graph'] == expected_body['process_graph']
+        assert body['public']
+        return True
+
+    adapter = requests_mock.put(API_URL + "/process_graphs/my_udp", additional_matcher=check_body)
+
+    collection = con100.load_collection("S2") \
+        .filter_bbox(west=16.1, east=16.6, north=48.6, south=47.2) \
+        .filter_temporal(start_date="2018-01-01", end_date="2019-01-01")
+
+    collection.save_user_defined_process(user_defined_process_id='my_udp', public=True)
+
+    assert adapter.called

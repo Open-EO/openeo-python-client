@@ -26,6 +26,7 @@ from openeo.rest.auth.oidc import OidcClientCredentialsAuthenticator, OidcAuthCo
 from openeo.rest.datacube import DataCube
 from openeo.rest.imagecollectionclient import ImageCollectionClient
 from openeo.rest.job import RESTJob
+from openeo.rest.udp import RESTUserDefinedProcess, Parameter
 from openeo.rest.rest_capabilities import RESTCapabilities
 from openeo.util import ensure_list, get_user_data_dir
 
@@ -153,14 +154,14 @@ class RestApiConnection:
         """
         return self.request("post", path=path, json=json, **kwargs)
 
-    def delete(self, path) -> Response:
+    def delete(self, path, **kwargs) -> Response:
         """
         Do DELETE request to REST API.
 
         :param path: API path (without root url)
         :return: response: Response
         """
-        return self.request("delete", path=path)
+        return self.request("delete", path=path, **kwargs)
 
     def patch(self, path) -> Response:
         """
@@ -171,7 +172,7 @@ class RestApiConnection:
         """
         return self.request("patch", path=path)
 
-    def put(self, path, headers: dict = None, data=None) -> Response:
+    def put(self, path, headers: dict = None, data=None, **kwargs) -> Response:
         """
         Do PUT request to REST API.
 
@@ -180,7 +181,10 @@ class RestApiConnection:
         :param data: data that gets added to the request.
         :return: response: Response
         """
-        return self.request("put", path=path, data=data, headers=headers)
+        return self.request("put", path=path, data=data, headers=headers, **kwargs)
+
+    def __repr__(self):
+        return "<{c} to {r!r} with {a}>".format(c=type(self).__name__, r=self._root_url, a=type(self.auth).__name__)
 
 
 class Connection(RestApiConnection):
@@ -195,7 +199,10 @@ class Connection(RestApiConnection):
     # see https://github.com/Open-EO/openeo-wcps-driver/issues/45
     oidc_auth_user_id_token_as_bearer = False
 
-    def __init__(self, url, auth: AuthBase = None, session: requests.Session = None, default_timeout: int = None):
+    def __init__(
+            self, url, auth: AuthBase = None, session: requests.Session = None, default_timeout: int = None,
+            refresh_token_store: RefreshTokenStore = None
+    ):
         """
         Constructor of Connection, authenticates user.
 
@@ -209,6 +216,8 @@ class Connection(RestApiConnection):
             raise ApiVersionException("OpenEO API version should be at least {m!s}, but got {v!s}".format(
                 m=self._MINIMUM_API_VERSION, v=self._api_version)
             )
+
+        self._refresh_token_store = refresh_token_store or RefreshTokenStore()
 
     def authenticate_basic(self, username: str, password: str) -> 'Connection':
         """
@@ -290,22 +299,23 @@ class Connection(RestApiConnection):
             provider = OidcProviderInfo(discovery_url=self.build_url('/credentials/oidc'))
         return provider_id, provider
 
-    def _authenticate_oidc(self, authenticator: OidcAuthenticator, provider_id: str) -> 'Connection':
+    def _authenticate_oidc(
+            self,
+            authenticator: OidcAuthenticator,
+            provider_id: str,
+            store_refresh_token: bool = False
+    ) -> 'Connection':
         """
         Authenticate through OIDC and set up bearer token (based on OIDC access_token) for further requests.
         """
         tokens = authenticator.get_tokens()
         _log.info("Obtained tokens: {t}".format(t=[k for k, v in tokens._asdict().items() if v]))
-        if tokens.refresh_token:
-            # TODO: option to not store refresh token? Or opt-in to store refresh token?
-            try:
-                RefreshTokenStore().set(
-                    issuer=authenticator._client_info.provider.issuer,
-                    client_id=authenticator.client_id,
-                    refresh_token=tokens.refresh_token
-                )
-            except Exception as e:
-                _log.warning("Failed to store refresh token: {e!r}".format(e=e))
+        if tokens.refresh_token and store_refresh_token:
+            self._refresh_token_store.set(
+                issuer=authenticator._client_info.provider.issuer,
+                client_id=authenticator.client_id,
+                refresh_token=tokens.refresh_token
+            )
         token = tokens.access_token if not self.oidc_auth_user_id_token_as_bearer else tokens.id_token
         if self._api_version.at_least("1.0.0"):
             self.auth = BearerAuth(bearer='oidc/{p}/{t}'.format(p=provider_id, t=token))
@@ -320,7 +330,8 @@ class Connection(RestApiConnection):
             provider_id: str = None,
             timeout: int = None,
             server_address: Tuple[str, int] = None,
-            webbrowser_open: Callable = None
+            webbrowser_open: Callable = None,
+            store_refresh_token=False,
     ) -> 'Connection':
         """
         OpenID Connect Authorization Code Flow (with PKCE).
@@ -334,13 +345,14 @@ class Connection(RestApiConnection):
             client_info=client_info,
             webbrowser_open=webbrowser_open, timeout=timeout, server_address=server_address
         )
-        return self._authenticate_oidc(authenticator, provider_id=provider_id)
+        return self._authenticate_oidc(authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token)
 
     def authenticate_oidc_client_credentials(
             self,
             client_id: str,
             client_secret: str = None,
             provider_id: str = None,
+            store_refresh_token=False,
     ) -> 'Connection':
         """
         OpenID Connect Client Credentials flow.
@@ -351,10 +363,11 @@ class Connection(RestApiConnection):
         # TODO: load credentials from file/config
         client_info = OidcClientInfo(client_id=client_id, provider=provider, client_secret=client_secret)
         authenticator = OidcClientCredentialsAuthenticator(client_info=client_info)
-        return self._authenticate_oidc(authenticator, provider_id=provider_id)
+        return self._authenticate_oidc(authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token)
 
     def authenticate_oidc_resource_owner_password_credentials(
-            self, client_id: str, username: str, password: str, client_secret: str = None, provider_id: str = None
+            self, client_id: str, username: str, password: str, client_secret: str = None, provider_id: str = None,
+            store_refresh_token=False
     ) -> 'Connection':
         """
         OpenId Connect Resource Owner Password Credentials
@@ -367,7 +380,7 @@ class Connection(RestApiConnection):
         authenticator = OidcResourceOwnerPasswordAuthenticator(
             client_info=client_info, username=username, password=password
         )
-        return self._authenticate_oidc(authenticator, provider_id=provider_id)
+        return self._authenticate_oidc(authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token)
 
     def authenticate_oidc_refresh_token(
             self, client_id: str, refresh_token: str = None, client_secret: str = None, provider_id: str = None
@@ -379,9 +392,8 @@ class Connection(RestApiConnection):
         """
         provider_id, provider = self._get_oidc_provider(provider_id)
         if refresh_token is None:
-            store = RefreshTokenStore()
             # TODO: allow client_id/secret to be None and fetch it from config/cache?
-            refresh_token = store.get(issuer=provider.issuer, client_id=client_id)
+            refresh_token = self._refresh_token_store.get(issuer=provider.issuer, client_id=client_id)
             if refresh_token is None:
                 raise OpenEoClientException("No refresh token")
 
@@ -390,7 +402,9 @@ class Connection(RestApiConnection):
         return self._authenticate_oidc(authenticator, provider_id=provider_id)
 
     def authenticate_oidc_device(
-            self, client_id: str, client_secret: str, provider_id: str = None, **kwargs
+            self, client_id: str, client_secret: str, provider_id: str = None,
+            store_refresh_token=False,
+            **kwargs
     ) -> 'Connection':
         """
         Authenticate with OAuth Device Authorization grant/flow
@@ -400,7 +414,7 @@ class Connection(RestApiConnection):
         provider_id, provider = self._get_oidc_provider(provider_id)
         client_info = OidcClientInfo(client_id=client_id, provider=provider, client_secret=client_secret)
         authenticator = OidcDeviceAuthenticator(client_info=client_info, **kwargs)
-        return self._authenticate_oidc(authenticator, provider_id=provider_id)
+        return self._authenticate_oidc(authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token)
 
     def describe_account(self) -> str:
         """
@@ -455,6 +469,8 @@ class Connection(RestApiConnection):
             # be very lenient about failing on the well-known doc, capabilities retrieval will be tried
             return
         supported_versions = [v for v in versions if self._MINIMUM_API_VERSION <= v["api_version"]]
+        if not supported_versions:
+            return
         production_versions = [v for v in supported_versions if v.get("production", True)]
         highest_version = max(production_versions or supported_versions, key=lambda v: v["api_version"])
         _log.debug("Highest supported version available in backend: %s" % highest_version)
@@ -524,6 +540,37 @@ class Connection(RestApiConnection):
         # TODO: Maybe format the result so that there get Job classes returned.
         # TODO: duplication with `user_jobs()` method
         return self.get('/jobs').json()["jobs"]
+
+    def save_user_defined_process(
+            self, user_defined_process_id: str, process_graph: dict,
+            parameters: List[Union[dict, Parameter]] = None, public: bool = False) -> RESTUserDefinedProcess:
+        """
+        Saves a process graph and its metadata in the backend as a user-defined process for the authenticated user.
+
+        :param user_defined_process_id: unique identifier for the user-defined process
+        :param process_graph: a process graph
+        :param parameters: a list of parameters
+        :param public: visible to other users?
+        :return: a RESTUserDefinedProcess instance
+        """
+        udp = RESTUserDefinedProcess(user_defined_process_id=user_defined_process_id, connection=self)
+        udp.store(process_graph=process_graph, parameters=parameters, public=public)
+        return udp
+
+    def list_user_defined_processes(self) -> List[dict]:
+        """
+        Lists all user-defined processes of the authenticated user.
+        """
+        return self.get("/process_graphs").json()["processes"]
+
+    def user_defined_process(self, user_defined_process_id: str) -> RESTUserDefinedProcess:
+        """
+        Get the user-defined process based on its id. The process with the given id should already exist.
+
+        :param user_defined_process_id: the id of the user-defined process
+        :return: a RESTUserDefinedProcess instance
+        """
+        return RESTUserDefinedProcess(user_defined_process_id=user_defined_process_id, connection=self)
 
     def validate_processgraph(self, process_graph):
         # Endpoint: POST /validate
