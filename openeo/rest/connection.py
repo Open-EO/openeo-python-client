@@ -20,9 +20,10 @@ from openeo.capabilities import ApiVersionException, ComparableVersion
 from openeo.imagecollection import CollectionMetadata
 from openeo.rest import OpenEoClientException
 from openeo.rest.auth.auth import NullAuth, BearerAuth
+from openeo.rest.auth.config import RefreshTokenStore
 from openeo.rest.auth.oidc import OidcClientCredentialsAuthenticator, OidcAuthCodePkceAuthenticator, \
     OidcClientInfo, OidcAuthenticator, OidcRefreshTokenAuthenticator, OidcResourceOwnerPasswordAuthenticator, \
-    OidcDeviceAuthenticator, OidcProviderInfo, RefreshTokenStore
+    OidcDeviceAuthenticator, OidcProviderInfo
 from openeo.rest.datacube import DataCube
 from openeo.rest.imagecollectionclient import ImageCollectionClient
 from openeo.rest.job import RESTJob
