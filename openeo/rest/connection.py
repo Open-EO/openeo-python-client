@@ -199,7 +199,10 @@ class Connection(RestApiConnection):
     # see https://github.com/Open-EO/openeo-wcps-driver/issues/45
     oidc_auth_user_id_token_as_bearer = False
 
-    def __init__(self, url, auth: AuthBase = None, session: requests.Session = None, default_timeout: int = None):
+    def __init__(
+            self, url, auth: AuthBase = None, session: requests.Session = None, default_timeout: int = None,
+            refresh_token_store: RefreshTokenStore = None
+    ):
         """
         Constructor of Connection, authenticates user.
 
@@ -213,6 +216,8 @@ class Connection(RestApiConnection):
             raise ApiVersionException("OpenEO API version should be at least {m!s}, but got {v!s}".format(
                 m=self._MINIMUM_API_VERSION, v=self._api_version)
             )
+
+        self._refresh_token_store = refresh_token_store or RefreshTokenStore()
 
     def authenticate_basic(self, username: str, password: str) -> 'Connection':
         """
@@ -294,22 +299,23 @@ class Connection(RestApiConnection):
             provider = OidcProviderInfo(discovery_url=self.build_url('/credentials/oidc'))
         return provider_id, provider
 
-    def _authenticate_oidc(self, authenticator: OidcAuthenticator, provider_id: str) -> 'Connection':
+    def _authenticate_oidc(
+            self,
+            authenticator: OidcAuthenticator,
+            provider_id: str,
+            store_refresh_token: bool = False
+    ) -> 'Connection':
         """
         Authenticate through OIDC and set up bearer token (based on OIDC access_token) for further requests.
         """
         tokens = authenticator.get_tokens()
         _log.info("Obtained tokens: {t}".format(t=[k for k, v in tokens._asdict().items() if v]))
-        if tokens.refresh_token:
-            # TODO: option to not store refresh token? Or opt-in to store refresh token?
-            try:
-                RefreshTokenStore().set(
-                    issuer=authenticator._client_info.provider.issuer,
-                    client_id=authenticator.client_id,
-                    refresh_token=tokens.refresh_token
-                )
-            except Exception as e:
-                _log.warning("Failed to store refresh token: {e!r}".format(e=e))
+        if tokens.refresh_token and store_refresh_token:
+            self._refresh_token_store.set(
+                issuer=authenticator._client_info.provider.issuer,
+                client_id=authenticator.client_id,
+                refresh_token=tokens.refresh_token
+            )
         token = tokens.access_token if not self.oidc_auth_user_id_token_as_bearer else tokens.id_token
         if self._api_version.at_least("1.0.0"):
             self.auth = BearerAuth(bearer='oidc/{p}/{t}'.format(p=provider_id, t=token))
@@ -324,7 +330,8 @@ class Connection(RestApiConnection):
             provider_id: str = None,
             timeout: int = None,
             server_address: Tuple[str, int] = None,
-            webbrowser_open: Callable = None
+            webbrowser_open: Callable = None,
+            store_refresh_token=False,
     ) -> 'Connection':
         """
         OpenID Connect Authorization Code Flow (with PKCE).
@@ -338,13 +345,14 @@ class Connection(RestApiConnection):
             client_info=client_info,
             webbrowser_open=webbrowser_open, timeout=timeout, server_address=server_address
         )
-        return self._authenticate_oidc(authenticator, provider_id=provider_id)
+        return self._authenticate_oidc(authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token)
 
     def authenticate_oidc_client_credentials(
             self,
             client_id: str,
             client_secret: str = None,
             provider_id: str = None,
+            store_refresh_token=False,
     ) -> 'Connection':
         """
         OpenID Connect Client Credentials flow.
@@ -355,10 +363,11 @@ class Connection(RestApiConnection):
         # TODO: load credentials from file/config
         client_info = OidcClientInfo(client_id=client_id, provider=provider, client_secret=client_secret)
         authenticator = OidcClientCredentialsAuthenticator(client_info=client_info)
-        return self._authenticate_oidc(authenticator, provider_id=provider_id)
+        return self._authenticate_oidc(authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token)
 
     def authenticate_oidc_resource_owner_password_credentials(
-            self, client_id: str, username: str, password: str, client_secret: str = None, provider_id: str = None
+            self, client_id: str, username: str, password: str, client_secret: str = None, provider_id: str = None,
+            store_refresh_token=False
     ) -> 'Connection':
         """
         OpenId Connect Resource Owner Password Credentials
@@ -371,7 +380,7 @@ class Connection(RestApiConnection):
         authenticator = OidcResourceOwnerPasswordAuthenticator(
             client_info=client_info, username=username, password=password
         )
-        return self._authenticate_oidc(authenticator, provider_id=provider_id)
+        return self._authenticate_oidc(authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token)
 
     def authenticate_oidc_refresh_token(
             self, client_id: str, refresh_token: str = None, client_secret: str = None, provider_id: str = None
@@ -383,9 +392,8 @@ class Connection(RestApiConnection):
         """
         provider_id, provider = self._get_oidc_provider(provider_id)
         if refresh_token is None:
-            store = RefreshTokenStore()
             # TODO: allow client_id/secret to be None and fetch it from config/cache?
-            refresh_token = store.get(issuer=provider.issuer, client_id=client_id)
+            refresh_token = self._refresh_token_store.get(issuer=provider.issuer, client_id=client_id)
             if refresh_token is None:
                 raise OpenEoClientException("No refresh token")
 
@@ -394,7 +402,9 @@ class Connection(RestApiConnection):
         return self._authenticate_oidc(authenticator, provider_id=provider_id)
 
     def authenticate_oidc_device(
-            self, client_id: str, client_secret: str, provider_id: str = None, **kwargs
+            self, client_id: str, client_secret: str, provider_id: str = None,
+            store_refresh_token=False,
+            **kwargs
     ) -> 'Connection':
         """
         Authenticate with OAuth Device Authorization grant/flow
@@ -404,7 +414,7 @@ class Connection(RestApiConnection):
         provider_id, provider = self._get_oidc_provider(provider_id)
         client_info = OidcClientInfo(client_id=client_id, provider=provider, client_secret=client_secret)
         authenticator = OidcDeviceAuthenticator(client_info=client_info, **kwargs)
-        return self._authenticate_oidc(authenticator, provider_id=provider_id)
+        return self._authenticate_oidc(authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token)
 
     def describe_account(self) -> str:
         """

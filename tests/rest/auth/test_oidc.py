@@ -2,7 +2,6 @@ import base64
 import json
 import logging
 import re
-import stat
 import urllib.parse
 import urllib.parse
 from io import BytesIO
@@ -19,6 +18,7 @@ import openeo.rest.auth.oidc
 from openeo.rest.auth.oidc import QueuingRequestHandler, drain_queue, HttpServerThread, OidcAuthCodePkceAuthenticator, \
     OidcClientCredentialsAuthenticator, OidcResourceOwnerPasswordAuthenticator, OidcClientInfo, OidcProviderInfo, \
     OidcDeviceAuthenticator, random_string, RefreshTokenStore
+from openeo.util import dict_no_none
 
 
 def handle_request(handler_class, path: str):
@@ -194,23 +194,14 @@ class OidcMock:
         assert self.state["code_challenge"] == OidcAuthCodePkceAuthenticator.hash_code_verifier(params["code_verifier"])
         assert params["code"] == self.expected_authorization_code
         assert params["redirect_uri"] == self.state["redirect_uri"]
-        self.state["access_token"] = self._jwt_encode({}, {"sub": "123", "name": "john", "nonce": self.state["nonce"]})
-        return json.dumps({
-            "access_token": self.state["access_token"],
-            "id_token": self._jwt_encode({}, {"sub": "123", "name": "john", "nonce": self.state["nonce"]}),
-            "refresh_token": self._jwt_encode({}, {}),
-        })
+        return self._build_token_response()
 
     def token_callback_client_credentials(self, request: requests_mock.request._RequestObjectProxy, context):
         params = self._get_query_params(query=request.text)
         assert params["client_id"] == self.expected_client_id
         assert params["grant_type"] == "client_credentials"
         assert params["client_secret"] == self.expected_fields["client_secret"]
-        self.state["access_token"] = self._jwt_encode({}, {"sub": "123", "name": "john"})
-        return json.dumps({
-            "access_token": self.state["access_token"],
-            "refresh_token": self._jwt_encode({}, {}),
-        })
+        return self._build_token_response(include_id_token=False)
 
     def token_callback_resource_owner_password_credentials(self, request: requests_mock.request._RequestObjectProxy,
                                                            context):
@@ -221,12 +212,7 @@ class OidcMock:
         assert params["username"] == self.expected_fields["username"]
         assert params["password"] == self.expected_fields["password"]
         assert params["scope"] == self.expected_fields["scope"]
-        self.state["access_token"] = self._jwt_encode({}, {"sub": "123", "name": "john"})
-        return json.dumps({
-            "access_token": self.state["access_token"],
-            "id_token": self._jwt_encode({}, {"sub": "123", "name": "john"}),
-            "refresh_token": self._jwt_encode({}, {}),
-        })
+        return self._build_token_response()
 
     def device_code_callback(self, request: requests_mock.request._RequestObjectProxy, context):
         params = self._get_query_params(query=request.text)
@@ -249,18 +235,15 @@ class OidcMock:
         assert params["device_code"] == self.state["device_code"]
         assert params["grant_type"] == "urn:ietf:params:oauth:grant-type:device_code"
         # Fail with pending/too fast?
-        device_authorization_errors = self.state.get("device_authorization_errors", [])
-        if device_authorization_errors:
-            error = device_authorization_errors.pop(0)
-            context.status_code = 400
-            return json.dumps({"error": error})
+        try:
+            result = self.state["device_code_callback_timeline"].pop(0)
+        except Exception:
+            result = "rest in peace"
+        if result == "great success":
+            return self._build_token_response()
         else:
-            self.state["access_token"] = self._jwt_encode({}, {"sub": "123", "name": "john"})
-            return json.dumps({
-                "access_token": self.state["access_token"],
-                "id_token": self._jwt_encode({}, {"sub": "123", "name": "john"}),
-                "refresh_token": self._jwt_encode({}, {}),
-            })
+            context.status_code = 400
+            return json.dumps({"error": result})
 
     @staticmethod
     def _get_query_params(*, url=None, query=None):
@@ -281,6 +264,18 @@ class OidcMock:
             return base64.urlsafe_b64encode(json.dumps(d).encode("ascii")).decode("ascii").replace('=', '')
 
         return ".".join([encode(header), encode(payload), signature])
+
+    def _build_token_response(self, sub="123", name="john", include_id_token=True) -> str:
+        """Build JSON serialized access/id/refresh token response (and store tokens for use in assertions)"""
+        access_token = self._jwt_encode({}, dict_no_none(sub=sub, name=name, nonce=self.state.get("nonce")))
+        res = {
+            "access_token": access_token,
+            "refresh_token": self._jwt_encode({}, {"foo": "refresh"})
+        }
+        if include_id_token:
+            res["id_token"] = access_token
+        self.state.update(res)
+        return json.dumps(res)
 
 
 def test_oidc_auth_code_pkce_flow(requests_mock):
@@ -364,7 +359,7 @@ def test_oidc_device_flow(requests_mock, caplog):
         expected_client_id=client_id,
         oidc_discovery_url=oidc_discovery_url,
         expected_fields={"scope": "df openid", "client_secret": client_secret},
-        state={"device_authorization_errors": ["authorization_pending", "slow_down"]},
+        state={"device_code_callback_timeline": ["authorization_pending", "slow_down", "great success"]},
         scopes_supported=["openid", "df"]
     )
     provider = OidcProviderInfo(discovery_url=oidc_discovery_url, scopes=["df"])
