@@ -609,6 +609,33 @@ class DataCube(ImageCollection):
         """
         return self.reduce_temporal_udf(code=code, runtime=runtime, version=version)
 
+    def apply_neighborhood(self,process:PGNode, size:List[Dict],overlap:List[Dict]):
+        """
+        Applies a focal process to a data cube.
+
+        A focal process is a process that works on a 'neighbourhood' of pixels. The neighbourhood can extend into multiple dimensions, this extent is specified by the `size` argument. It is not only (part of) the size of the input window, but also the size of the output for a given position of the sliding window. The sliding window moves with multiples of `size`.
+
+        An overlap can be specified so that neighbourhoods can have overlapping boundaries. This allows for continuity of the output. The values included in the data cube as overlap can't be modified by the given `process`.
+
+        The neighbourhood size should be kept small enough, to avoid running beyond computational resources, but a too small size will result in a larger number of process invocations, which may slow down processing. Window sizes for spatial dimensions typically are in the range of 64 to 512 pixels, while overlaps of 8 to 32 pixels are common.\n\nThe process must not add new dimensions, or remove entire dimensions, but the result can have different dimension labels.
+
+        For the special case of 2D convolution, it is recommended to use ``apply_kernel()``.
+
+        @param process:
+        @param size:
+        @param overlap:
+        @return:
+        """
+        return self.process_with_node(PGNode(
+            process_id='apply_neighborhood',
+            arguments={
+                "data": self._pg,
+                "process": {"process_graph": process},
+                "size": size,
+                "overlap": overlap
+            }
+        ))
+
     def apply(self, process: Union[str, PGNode], data_argument='x') -> 'DataCube':
         if isinstance(process, str):
             # Simple single string process specification

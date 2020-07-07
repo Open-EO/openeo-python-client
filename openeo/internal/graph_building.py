@@ -4,8 +4,9 @@ Process graph building functionality for 1.0.0-style process graphs and DataCube
 
 """
 import collections
-from typing import Union
+from typing import Union, Dict
 
+from openeo import ImageCollection
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 
 
@@ -86,6 +87,24 @@ class PGNode:
         else:
             raise ValueError(value)
 
+class UDF(PGNode):
+    """
+    A 'run_udf' process graph node. This is offered as a convenient way to construct run_udf processes.
+    """
+
+    def __init__(self, code:str,runtime:str,version:str = None,context:Dict=None):
+        arguments = {
+            "data": {"from_parameter": "data"},
+            "code": code,
+            "runtime": runtime
+        }
+        if version is not None:
+            arguments["version"] = version
+
+        if context is not None:
+            arguments["context"] = context
+
+        super().__init__(process_id='run_udf', arguments=arguments)
 
 class ReduceNode(PGNode):
     """

@@ -18,6 +18,7 @@ from openeo.catalog import EOProduct
 from openeo.imagecollection import ImageCollection
 from openeo.rest.connection import connect, session, Connection
 from openeo.job import Job
+from openeo.internal.graph_building import UDF
 
 
 def client_version() -> str:

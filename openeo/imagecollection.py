@@ -222,6 +222,7 @@ class ImageCollection(ABC):
         """
         pass
 
+    @deprecated("Use a more specific reduce method instead.")
     def reduce(self,reducer,dimension):
         """
         Applies a reducer to a data cube dimension by collapsing all the input values along the specified dimension into a single output value computed by the reducer.

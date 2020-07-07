@@ -260,6 +260,11 @@ class CollectionMetadata:
         return self._temporal_dimension
 
     @property
+    def spatial_dimensions(self) -> List[SpatialDimension]:
+        return [d for d in self._dimensions if isinstance(d,SpatialDimension)]
+
+
+    @property
     def bands(self) -> List[Band]:
         """Get band metadata as list of Band metadata tuples"""
         return self.band_dimension.bands

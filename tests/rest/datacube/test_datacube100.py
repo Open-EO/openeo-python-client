@@ -8,6 +8,7 @@ import shapely.geometry
 
 import openeo.metadata
 from openeo.internal.graph_building import PGNode
+from openeo import UDF
 from openeo.rest.connection import Connection
 from openeo.rest.datacube import THIS
 from .conftest import API_URL
@@ -281,6 +282,30 @@ def test_apply_dimension_temporal_cumsum_with_target(con100):
     expected_graph['applydimension1']['result'] = True
     del expected_graph['saveresult1']
     assert actual_graph == expected_graph
+
+
+def test_apply_neighborhood_udf(con100):
+    collection = con100.load_collection("S2")
+    neighbors = collection.apply_neighborhood(UDF(code="myfancycode", runtime="Python"), size=[
+        {'name': 'x', 'value': 128, 'unit': 'px'},
+        {'name': 'y', 'value': 128, 'unit': 'px'}
+    ], overlap=[
+        {'name': 't', 'value': 'P10d'},
+    ])
+    actual_graph = neighbors.graph['applyneighborhood1']
+    assert actual_graph == {'arguments': {'data': {'from_node': 'loadcollection1'},
+                                          'overlap': [{'name': 't', 'value': 'P10d'}],
+                                          'process': {'process_graph': {'runudf1': {'arguments': {'code': 'myfancycode',
+                                                                                                  'data': {'from_parameter': 'data'},
+                                                                                                  'runtime': 'Python'},
+                                                                                    'process_id': 'run_udf',
+                                                                                    'result': True}}},
+                                          'size': [{'name': 'x', 'unit': 'px', 'value': 128},
+                                                   {'name': 'y', 'unit': 'px', 'value': 128}]},
+                            'process_id': 'apply_neighborhood',
+                            'result': True}
+
+
 
 
 def test_filter_spatial_callbak(con100):
