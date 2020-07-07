@@ -712,7 +712,11 @@ class Connection(RestApiConnection):
         :param options: options specific to the file format
         :return: the data as an ImageCollection
         """
-        return ImageCollectionClient.load_disk_collection(self, format, glob_pattern, **options)
+        
+        if self._api_version.at_least("1.0.0"):
+            return DataCube.load_disk_collection(self, format, glob_pattern, **options)
+        else:
+            return ImageCollectionClient.load_disk_collection(self, format, glob_pattern, **options)
 
 
 def connect(url, auth_type: str = None, auth_options: dict = {}, session: requests.Session = None,
