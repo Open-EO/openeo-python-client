@@ -29,7 +29,7 @@ class Result:
         if target.exists() and not target.is_dir():
             raise OpenEoClientException("The target argument must be a folder. Got {t!r}".format(t=str(target)))
 
-        assets = {target / f: m for (f, m) in self.assets.items()}
+        assets = {target / f: m for (f, m) in self._download_get_assets().items()}
         if len(assets) == 0:
             raise OpenEoClientException("Expected at least one result file to download, but got 0.")
 
