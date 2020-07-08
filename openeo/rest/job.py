@@ -137,7 +137,8 @@ class RESTJob(Job):
             print=print, max_poll_interval=max_poll_interval, connection_retry_interval=connection_retry_interval
         )
         # TODO #135 support multi file result sets too?
-        self.download_result(outputfile)
+        if outputfile is not None:
+            self.download_result(outputfile)
         return self
 
     def start_and_wait(self, print=print, max_poll_interval: int = 60, connection_retry_interval: int = 30):

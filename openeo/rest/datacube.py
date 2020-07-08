@@ -1000,7 +1000,7 @@ class DataCube(ImageCollection):
 
     def execute_batch(
             self,
-            outputfile: Union[str, pathlib.Path], out_format: str = None,
+            outputfile: Union[str, pathlib.Path] = None, out_format: str = None,
             print=print, max_poll_interval=60, connection_retry_interval=30,
             job_options=None, **format_options) -> RESTJob:
         """
