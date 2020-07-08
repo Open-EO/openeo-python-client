@@ -58,32 +58,36 @@ class TestAuthConfig:
     def test_start_empty(self, tmp_path):
         config = AuthConfig(path=tmp_path)
         assert config.get_basic_auth("foo") == (None, None)
-        assert config.get_oidc_client_info("oeo.net", "default") == (None, None)
+        assert config.get_oidc_client_configs("oeo.net", "default") == (None, None)
 
     def test_basic(self, tmp_path):
         config = AuthConfig(path=tmp_path)
-        config.set_basic_auth("oeo.net", "John", "j0hn123")
+        with mock.patch.object(openeo.rest.auth.config, "utcnow_rfc3339", return_value="2020-06-08T11:18:27Z"):
+            config.set_basic_auth("oeo.net", "John", "j0hn123")
         assert config.path.exists()
         assert [p.name for p in tmp_path.iterdir()] == [AuthConfig.DEFAULT_FILENAME]
         with config.path.open("r") as f:
             data = json.load(f)
-        assert data["backends"] == {"oeo.net": {"basic": {"username": "John", "password": "j0hn123"}}}
+        assert data["backends"] == {"oeo.net": {
+            "basic": {"date": "2020-06-08T11:18:27Z", "username": "John", "password": "j0hn123"}
+        }}
         assert config.get_basic_auth("oeo.net") == ("John", "j0hn123")
 
     def test_oidc(self, tmp_path):
         config = AuthConfig(path=tmp_path)
         with mock.patch.object(openeo.rest.auth.config, "utcnow_rfc3339", return_value="2020-06-08T11:18:27Z"):
-            config.set_oidc_client_info("oeo.net", "default", client_id="client123", client_secret="$6cr67")
+            config.set_oidc_client_config("oeo.net", "default", client_id="client123", client_secret="$6cr67")
         assert config.path.exists()
         assert [p.name for p in tmp_path.iterdir()] == [AuthConfig.DEFAULT_FILENAME]
         with config.path.open("r") as f:
             data = json.load(f)
-        assert data["backends"] == {"oeo.net": {"oidc": {"providers": {"default": {
-            "date": "2020-06-08T11:18:27Z",
-            "client_id": "client123",
-            "client_secret": "$6cr67"
-        }}}}}
-        assert config.get_oidc_client_info("oeo.net", "default") == ("client123", "$6cr67")
+        assert data["backends"] == {"oeo.net": {"oidc": {"providers": {
+            "default": {"date": "2020-06-08T11:18:27Z", "client_id": "client123", "client_secret": "$6cr67"}
+        }}}}
+        assert config.get_oidc_client_configs("oeo.net", "default") == ("client123", "$6cr67")
+        assert config.get_oidc_provider_configs("oeo.net") == {
+            "default": {"date": "2020-06-08T11:18:27Z", "client_id": "client123", "client_secret": "$6cr67"}
+        }
 
 
 class TestRefreshTokenStorage:

@@ -8,7 +8,7 @@ import logging
 import stat
 from datetime import datetime
 from pathlib import Path
-from typing import Union, Tuple
+from typing import Union, Tuple, List, Dict
 
 from openeo import __version__
 from openeo.util import get_user_data_dir, rfc3339, get_user_config_dir, deep_get, deep_set
@@ -55,7 +55,7 @@ class PrivateJsonFile:
     def default_path(cls) -> Path:
         return get_user_config_dir(auto_create=True) / cls.DEFAULT_FILENAME
 
-    def _load(self, empty_on_file_not_found=True) -> dict:
+    def load(self, empty_on_file_not_found=True) -> dict:
         """Load all data from file"""
         if not self._path.exists():
             if empty_on_file_not_found:
@@ -78,13 +78,13 @@ class PrivateJsonFile:
 
     def get(self, *keys, default=None) -> Union[dict, str, int]:
         """Load JSON file and do deep get with given keys."""
-        result = deep_get(self._load(), *keys, default=default)
+        result = deep_get(self.load(), *keys, default=default)
         if isinstance(result, Exception) or (isinstance(result, type) and issubclass(result, Exception)):
             raise result
         return result
 
     def set(self, *keys, value):
-        data = self._load()
+        data = self.load()
         deep_set(data, *keys, value=value)
         self._write(data)
 
@@ -117,12 +117,24 @@ class AuthConfig(PrivateJsonFile):
         return username, password
 
     def set_basic_auth(self, backend: str, username: str, password: Union[str, None]):
-        data = self._load()
-        deep_set(data, "backends", backend, "basic", "username", value=username)
-        deep_set(data, "backends", backend, "basic", "password", value=password)
+        data = self.load()
+        keys = ("backends", backend, "basic",)
+        # TODO: support multiple basic auth credentials? (pick latest by default for example)
+        deep_set(data, *keys, "date", value=utcnow_rfc3339())
+        deep_set(data, *keys, "username", value=username)
+        if password:
+            deep_set(data, *keys, "password", value=password)
         self._write(data)
 
-    def get_oidc_client_info(self, backend: str, provider_id: str) -> Tuple[str, str]:
+    def get_oidc_provider_configs(self, backend: str) -> Dict[str, dict]:
+        """
+        Get provider config items for given backend.
+
+        Returns a dict mapping provider_id to dicts with "client_id" and "client_secret" items
+        """
+        return self.get("backends", backend, "oidc", "providers", default={})
+
+    def get_oidc_client_configs(self, backend: str, provider_id: str) -> Tuple[str, str]:
         """
         Get client_id and client_secret for given backend+provider_id. Values will be None when no config is available.
         """
@@ -131,11 +143,12 @@ class AuthConfig(PrivateJsonFile):
         client_secret = client.get("client_secret") if client_id else None
         return client_id, client_secret
 
-    def set_oidc_client_info(
+    def set_oidc_client_config(
             self, backend: str, provider_id: str, client_id: str, client_secret: str = None, issuer: str = None
     ):
-        data = self._load()
+        data = self.load()
         keys = ("backends", backend, "oidc", "providers", provider_id)
+        # TODO: support multiple clients? (pick latest by default for example)
         deep_set(data, *keys, "date", value=utcnow_rfc3339())
         deep_set(data, *keys, "client_id", value=client_id)
         if client_secret:
@@ -160,7 +173,7 @@ class RefreshTokenStore(PrivateJsonFile):
         return self.get(issuer, client_id, "refresh_token", default=None)
 
     def set_refresh_token(self, issuer: str, client_id: str, refresh_token: str):
-        data = self._load()
+        data = self.load()
         log.info("Storing refresh token for issuer {i!r} (client {c!r})".format(i=issuer, c=client_id))
         deep_set(data, issuer, client_id, value={
             "date": utcnow_rfc3339(),
