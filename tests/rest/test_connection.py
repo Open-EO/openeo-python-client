@@ -422,7 +422,7 @@ def test_authenticate_oidc_auth_code_pkce_flow(requests_mock):
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
     assert refresh_token_store.mock_calls == [
-        mock.call.set(client_id=client_id, issuer=issuer, refresh_token=oidc_mock.state["refresh_token"])
+        mock.call.set_refresh_token(client_id=client_id, issuer=issuer, refresh_token=oidc_mock.state["refresh_token"])
     ]
 
 
@@ -460,7 +460,7 @@ def test_authenticate_oidc_client_credentials(requests_mock):
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
     assert refresh_token_store.mock_calls == [
-        mock.call.set(client_id=client_id, issuer=issuer, refresh_token=oidc_mock.state["refresh_token"])
+        mock.call.set_refresh_token(client_id=client_id, issuer=issuer, refresh_token=oidc_mock.state["refresh_token"])
     ]
 
 
@@ -502,7 +502,7 @@ def test_authenticate_oidc_resource_owner_password_credentials(requests_mock):
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
     assert refresh_token_store.mock_calls == [
-        mock.call.set(client_id=client_id, issuer=issuer, refresh_token=oidc_mock.state["refresh_token"])
+        mock.call.set_refresh_token(client_id=client_id, issuer=issuer, refresh_token=oidc_mock.state["refresh_token"])
     ]
 
 
@@ -544,7 +544,7 @@ def test_authenticate_oidc_device_flow(requests_mock):
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
     assert refresh_token_store.mock_calls == [
-        mock.call.set(client_id=client_id, issuer=issuer, refresh_token=oidc_mock.state["refresh_token"])
+        mock.call.set_refresh_token(client_id=client_id, issuer=issuer, refresh_token=oidc_mock.state["refresh_token"])
     ]
 
 

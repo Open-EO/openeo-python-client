@@ -312,7 +312,7 @@ class Connection(RestApiConnection):
         tokens = authenticator.get_tokens()
         _log.info("Obtained tokens: {t}".format(t=[k for k, v in tokens._asdict().items() if v]))
         if tokens.refresh_token and store_refresh_token:
-            self._refresh_token_store.set(
+            self._refresh_token_store.set_refresh_token(
                 issuer=authenticator._client_info.provider.issuer,
                 client_id=authenticator.client_id,
                 refresh_token=tokens.refresh_token
@@ -394,7 +394,7 @@ class Connection(RestApiConnection):
         provider_id, provider = self._get_oidc_provider(provider_id)
         if refresh_token is None:
             # TODO: allow client_id/secret to be None and fetch it from config/cache?
-            refresh_token = self._refresh_token_store.get(issuer=provider.issuer, client_id=client_id)
+            refresh_token = self._refresh_token_store.get_refresh_token(issuer=provider.issuer, client_id=client_id)
             if refresh_token is None:
                 raise OpenEoClientException("No refresh token")
 

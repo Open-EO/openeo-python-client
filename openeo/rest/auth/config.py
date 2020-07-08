@@ -8,23 +8,37 @@ import logging
 import stat
 from datetime import datetime
 from pathlib import Path
-from typing import Union
+from typing import Union, Tuple
 
-from openeo.util import get_user_data_dir, rfc3339
+from openeo import __version__
+from openeo.util import get_user_data_dir, rfc3339, get_user_config_dir, deep_get, deep_set
+
+_PRIVATE_PERMS = stat.S_IRUSR | stat.S_IWUSR
 
 log = logging.getLogger(__name__)
 
 
-class RefreshTokenStore:
-    """
-    Basic JSON-file based storage of refresh tokens.
-    """
-    _PERMS = stat.S_IRUSR | stat.S_IWUSR
+def assert_private_file(path: Path):
+    """Check that given file is only readable by user."""
+    mode = path.stat().st_mode
+    if (mode & stat.S_IRWXG) or (mode & stat.S_IRWXO):
+        raise PermissionError(
+            "File {p} is readable by others: st_mode {a:o} (expected permissions: {e:o}).".format(
+                p=path, a=mode, e=_PRIVATE_PERMS)
+        )
 
-    DEFAULT_FILENAME = "refresh_tokens.json"
 
-    class NoRefreshToken(Exception):
-        pass
+def utcnow_rfc3339() -> str:
+    """Current datetime formatted as RFC-3339 string."""
+    return rfc3339.datetime(datetime.utcnow())
+
+
+class PrivateJsonFile:
+    """
+    Base class for private config/data files in JSON format.
+    """
+
+    DEFAULT_FILENAME = "private.json"
 
     def __init__(self, path: Path = None):
         if path is None:
@@ -33,47 +47,123 @@ class RefreshTokenStore:
             path = path / self.DEFAULT_FILENAME
         self._path = path
 
+    @property
+    def path(self) -> Path:
+        return self._path
+
     @classmethod
     def default_path(cls) -> Path:
-        return get_user_data_dir(auto_create=True) / cls.DEFAULT_FILENAME
+        return get_user_config_dir(auto_create=True) / cls.DEFAULT_FILENAME
 
-    def _get_all(self, empty_on_file_not_found=True) -> dict:
+    def _load(self, empty_on_file_not_found=True) -> dict:
+        """Load all data from file"""
         if not self._path.exists():
             if empty_on_file_not_found:
                 return {}
             raise FileNotFoundError(self._path)
-        mode = self._path.stat().st_mode
-        if (mode & stat.S_IRWXG) or (mode & stat.S_IRWXO):
-            raise PermissionError(
-                "Refresh token file {p} is readable by others: st_mode {a:o} (expected permissions: {e:o}).".format(
-                    p=self._path, a=mode, e=self._PERMS)
-            )
+        assert_private_file(self._path)
+        log.debug("Loading private JSON file {p}".format(p=self._path))
+        # TODO: add file locking to avoid race conditions?
         with self._path.open("r", encoding="utf8") as f:
-            log.info("Using refresh tokens from {p}".format(p=self._path))
             return json.load(f)
 
-    def _write_all(self, data: dict):
+    def _write(self, data: dict):
+        """Write whole data to file."""
+        log.debug("Writing private JSON file {p}".format(p=self._path))
+        # TODO: add file locking to avoid race conditions?
         with self._path.open("w", encoding="utf8") as f:
             json.dump(data, f, indent=2)
-        self._path.chmod(mode=self._PERMS)
+        self._path.chmod(mode=_PRIVATE_PERMS)
+        assert_private_file(self._path)
 
-    def get(self, issuer: str, client_id: str, allow_miss=True) -> Union[str, None]:
-        try:
-            data = self._get_all()
-            return data[issuer][client_id]["refresh_token"]
-        except (FileNotFoundError, KeyError):
-            if allow_miss:
-                return None
-            else:
-                raise self.NoRefreshToken()
+    def get(self, *keys, default=None) -> Union[dict, str, int]:
+        """Load JSON file and do deep get with given keys."""
+        result = deep_get(self._load(), *keys, default=default)
+        if isinstance(result, Exception) or (isinstance(result, type) and issubclass(result, Exception)):
+            raise result
+        return result
 
-    def set(self, issuer: str, client_id: str, refresh_token: str):
-        data = self._get_all(empty_on_file_not_found=True)
+    def set(self, *keys, value):
+        data = self._load()
+        deep_set(data, *keys, value=value)
+        self._write(data)
+
+
+class AuthConfig(PrivateJsonFile):
+    DEFAULT_FILENAME = "auth-config.json"
+
+    @classmethod
+    def default_path(cls) -> Path:
+        return get_user_config_dir(auto_create=True) / cls.DEFAULT_FILENAME
+
+    def _write(self, data: dict):
+        # When starting fresh: add some metadata and defaults
+        if "metadata" not in data:
+            data["metadata"] = {
+                "type": "AuthConfig",
+                "created": utcnow_rfc3339(),
+                "created_by": "openeo-python-client {v}".format(v=__version__),
+                "version": 1,
+            }
+            data.setdefault("general", {})
+            data.setdefault("backends", {})
+        return super()._write(data=data)
+
+    def get_basic_auth(self, backend: str) -> Tuple[Union[None, str], Union[None, str]]:
+        """Get username/password combo for given backend. Values will be None when no config is available."""
+        basic = self.get("backends", backend, "basic", default={})
+        username = basic.get("username")
+        password = basic.get("password") if username else None
+        return username, password
+
+    def set_basic_auth(self, backend: str, username: str, password: Union[str, None]):
+        data = self._load()
+        deep_set(data, "backends", backend, "basic", "username", value=username)
+        deep_set(data, "backends", backend, "basic", "password", value=password)
+        self._write(data)
+
+    def get_oidc_client_info(self, backend: str, provider_id: str) -> Tuple[str, str]:
+        """
+        Get client_id and client_secret for given backend+provider_id. Values will be None when no config is available.
+        """
+        client = self.get("backends", backend, "oidc", "providers", provider_id, default={})
+        client_id = client.get("client_id")
+        client_secret = client.get("client_secret") if client_id else None
+        return client_id, client_secret
+
+    def set_oidc_client_info(
+            self, backend: str, provider_id: str, client_id: str, client_secret: str = None, issuer: str = None
+    ):
+        data = self._load()
+        keys = ("backends", backend, "oidc", "providers", provider_id)
+        deep_set(data, *keys, "date", value=utcnow_rfc3339())
+        deep_set(data, *keys, "client_id", value=client_id)
+        if client_secret:
+            deep_set(data, *keys, "client_secret", value=client_secret)
+        if issuer:
+            deep_set(data, *keys, "issuer", value=issuer)
+        self._write(data)
+
+
+class RefreshTokenStore(PrivateJsonFile):
+    """
+    Basic JSON-file based storage of refresh tokens.
+    """
+
+    DEFAULT_FILENAME = "refresh-tokens.json"
+
+    @classmethod
+    def default_path(cls) -> Path:
+        return get_user_data_dir(auto_create=True) / cls.DEFAULT_FILENAME
+
+    def get_refresh_token(self, issuer: str, client_id: str) -> Union[str, None]:
+        return self.get(issuer, client_id, "refresh_token", default=None)
+
+    def set_refresh_token(self, issuer: str, client_id: str, refresh_token: str):
+        data = self._load()
         log.info("Storing refresh token for issuer {i!r} (client {c!r})".format(i=issuer, c=client_id))
-        # TODO: should OIDC grant type also be a part of the key?
-        #       e.g. to avoid mixing client credential flow tokens with tokens of other (user oriented) flows?
-        data.setdefault(issuer, {}).setdefault(client_id, {
-            "date": rfc3339.datetime(datetime.utcnow()),
+        deep_set(data, issuer, client_id, value={
+            "date": utcnow_rfc3339(),
             "refresh_token": refresh_token,
         })
-        self._write_all(data)
+        self._write(data)
