@@ -195,6 +195,26 @@ class ImageCollection(ABC):
         """
         pass
 
+    def apply_neighborhood(self,process, size:List[Dict],overlap:List[Dict]):
+        """
+        Applies a focal process to a data cube.
+        A focal process is a process that works on a 'neighbourhood' of pixels. The neighbourhood can extend into multiple dimensions, this extent is specified by the `size` argument. It is not only (part of) the size of the input window, but also the size of the output for a given position of the sliding window. The sliding window moves with multiples of `size`.
+
+        An overlap can be specified so that neighbourhoods can have overlapping boundaries. This allows for continuity of the output. The values included in the data cube as overlap can't be modified by the given `process`.
+
+        The neighbourhood size should be kept small enough, to avoid running beyond computational resources, but a too small size will result in a larger number of process invocations, which may slow down processing. Window sizes for spatial dimensions typically are in the range of 64 to 512 pixels, while overlaps of 8 to 32 pixels are common.
+        
+        The process must not add new dimensions, or remove entire dimensions, but the result can have different dimension labels.
+
+        For the special case of 2D convolution, it is recommended to use ``apply_kernel()``.
+
+        @param process: Process to be applied on all neighbourhoods.
+        @param size: Neighbourhood sizes along each dimension. This object maps dimension names to either a physical measure (e.g. 100 m, 10 days) or pixels (e.g. 32 pixels). For dimensions not specified, the default is to provide all values. Be aware that including all values from overly large dimensions may not be processed at once.
+        @param overlap: Overlap of neighbourhoods along each dimension to avoid border effects. For instance a temporal dimension can add 1 month before and after a neighbourhood. In the spatial dimensions, this is often a number of pixels. The overlap specified is added before and after, so an overlap of 8 pixels will add 8 pixels on both sides of the window, so 16 in total. Be aware that large overlaps increase the need for computational resources and modifying overlapping data in subsequent operations have no effect.
+        @return: A data cube with the newly computed values. The cardinality, resolution and the number of dimensions are the same as for the original data cube.
+        """
+        pass
+
     def aggregate_time(self, temporal_window, aggregationfunction) -> 'ImageCollection' :
         """ Applies a windowed reduction to a timeseries by applying a user defined function.
             DEPRECATED: use Aggregate_temporal
