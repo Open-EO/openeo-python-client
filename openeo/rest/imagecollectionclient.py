@@ -1008,7 +1008,7 @@ class ImageCollectionClient(ImageCollection):
             }
         )
 
-    def download(self, outputfile: str, format: str = "GTIFF", options: dict = None):
+    def download(self, outputfile: str = None, format: str = "GTIFF", options: dict = None):
         """Download image collection, e.g. as GeoTIFF."""
         newcollection = self.save_result(format=format, options=options)
         newcollection.graph[newcollection.node_id]["result"] = True

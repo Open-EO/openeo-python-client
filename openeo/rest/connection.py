@@ -677,7 +677,8 @@ class Connection(RestApiConnection):
     # TODO: Maybe rename to execute and merge with execute().
     def download(self, graph: dict, outputfile):
         """
-        Downloads the result of a process graph synchronously, and save the result to the given file.
+        Downloads the result of a process graph synchronously,
+        and save the result to the given file or return bytes object if no outputfile is specified.
         This method is useful to export binary content such as images. For json content, the execute method is recommended.
 
         :param graph: (flat) dict representing a process graph
@@ -685,8 +686,11 @@ class Connection(RestApiConnection):
         """
         request = self._build_request_with_process_graph(process_graph=graph)
         r = self.post(path="/result", json=request, stream=True, timeout=1000)
-        with Path(outputfile).open(mode="wb") as f:
-            shutil.copyfileobj(r.raw, f)
+        if outputfile is not None:
+            with Path(outputfile).open(mode="wb") as f:
+                shutil.copyfileobj(r.raw, f)
+        else:
+            return r.content
 
     def execute(self, process_graph: dict):
         """
