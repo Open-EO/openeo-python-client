@@ -100,9 +100,10 @@ class RestApiConnection:
         )
         # Check for API errors and unexpected HTTP status codes as desired.
         status = resp.status_code
-        if check_error and status >= 400:
+        expected_status = ensure_list(expected_status) if expected_status else []
+        if check_error and status >= 400 and status not in expected_status:
             self._raise_api_error(resp)
-        if expected_status and status not in ensure_list(expected_status):
+        if expected_status and status not in expected_status:
             raise OpenEoClientException("Got status code {s!r} for `{m} {p}` (expected {e!r})".format(
                 m=method.upper(), p=path, s=status, e=expected_status)
             )
