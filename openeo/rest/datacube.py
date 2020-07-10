@@ -990,7 +990,7 @@ class DataCube(ImageCollection):
             }
         )
 
-    def download(self, outputfile: str = None, format: str = "GTIFF", options: dict = None):
+    def download(self, outputfile: Union[str, pathlib.Path, None] = None, format: str = "GTIFF", options: dict = None):
         """Download image collection, e.g. as GeoTIFF."""
         newcollection = self.save_result(format=format, options=options)
         return self._connection.download(newcollection._pg.flatten(), outputfile)

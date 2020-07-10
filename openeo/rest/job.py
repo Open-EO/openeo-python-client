@@ -9,7 +9,7 @@ from typing import List, Union, Dict
 from deprecated import deprecated
 from openeo.job import Job, JobResult, JobLogEntry
 from openeo.rest import JobFailedException
-from openeo.result import Result
+from openeo.rest.result import Result
 from requests import ConnectionError
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:

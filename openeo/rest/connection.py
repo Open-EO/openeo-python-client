@@ -675,7 +675,7 @@ class Connection(RestApiConnection):
         return result
 
     # TODO: Maybe rename to execute and merge with execute().
-    def download(self, graph: dict, outputfile):
+    def download(self, graph: dict, outputfile: Union[Path, str, None] = None):
         """
         Downloads the result of a process graph synchronously,
         and save the result to the given file or return bytes object if no outputfile is specified.
