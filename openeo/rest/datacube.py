@@ -1,5 +1,6 @@
 """
-
+The main module for creating earth observation processes. It aims to easily build complex process chains, that can
+be evaluated by an openEO backend.
 
 .. data:: THIS
 
@@ -39,7 +40,8 @@ THIS = object()
 
 class DataCube(ImageCollection):
     """
-    Class representing a OpenEO Data Cube.
+    Class representing a openEO Data Cube. Data loaded from the backend is returned as an object of this class.
+    Various processing methods can be invoked to build a complete workflow.
 
     Supports openEO API 1.0.
     In earlier versions this was called `ImageCollectionClient`

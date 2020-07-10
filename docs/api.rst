@@ -15,13 +15,6 @@ use the lower level classes.
 .. autofunction:: openeo.connect
 
 
-openeo.rest.connection
-----------------------
-
-.. automodule:: openeo.rest.connection
-   :members: Connection, OpenEoApiError
-
-
 openeo.rest.datacube
 ----------------------------------
 
@@ -30,11 +23,6 @@ openeo.rest.datacube
 
 .. _datacube-api:
 
-openeo_udf.api.datacube.DataCube
---------------------------------
-.. automodule:: openeo_udf.api.datacube
-   :members: DataCube
-
 
 openeo.api
 -----------
@@ -42,3 +30,9 @@ openeo.api
 .. automodule:: openeo.api.process
     :members: Parameter
 
+
+openeo.rest.connection
+----------------------
+
+.. automodule:: openeo.rest.connection
+   :members: Connection, OpenEoApiError

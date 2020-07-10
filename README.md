@@ -2,7 +2,7 @@
 
 Python client API for OpenEO. Allows you to interact with OpenEO backends from your own environment.
 
-[![Status](https://img.shields.io/badge/Status-proof--of--concept-yellow.svg)]()
+[![Status](https://img.shields.io/pypi/status/openeo)]()
 [![Build Status](https://travis-ci.org/Open-EO/openeo-python-client.svg?branch=master)](https://travis-ci.org/Open-EO/openeo-python-client)
 ![PyPI](https://img.shields.io/pypi/v/openeo)
 
