@@ -982,7 +982,10 @@ class DataCube(ImageCollection):
             }
         ))
 
-    def save_result(self, format: str = "GTIFF", options: dict = None):
+    def save_result(self, format: str = "GTiff", options: dict = None):
+        formats = set(self._connection.list_output_formats().keys())
+        if format.lower() not in {f.lower() for f in formats}:
+            raise ValueError("Invalid format {f!r}. Should be one of {s}".format(f=format, s=formats))
         return self.process(
             process_id="save_result",
             arguments={

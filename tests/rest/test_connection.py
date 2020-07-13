@@ -107,7 +107,7 @@ def test_connection_with_session():
     session = mock.Mock()
     response = session.request.return_value
     response.status_code = 200
-    response.json.return_value = {"foo": "bar", "api_version": "0.4.0"}
+    response.json.return_value = {"foo": "bar", "api_version": "1.0.0"}
     conn = Connection("https://oeo.net/", session=session)
     assert conn.capabilities().capabilities["foo"] == "bar"
     session.request.assert_any_call(
@@ -119,7 +119,7 @@ def test_connect_with_session():
     session = mock.Mock()
     response = session.request.return_value
     response.status_code = 200
-    response.json.return_value = {"foo": "bar", "api_version": "0.4.0"}
+    response.json.return_value = {"foo": "bar", "api_version": "1.0.0"}
     conn = connect("https://oeo.net/", session=session)
     assert conn.capabilities().capabilities["foo"] == "bar"
     session.request.assert_any_call(
@@ -199,6 +199,25 @@ def test_connection_repr(requests_mock):
     assert repr(conn) == "<Connection to 'https://oeo.net/openeo/1.x/' with NullAuth>"
     conn.authenticate_basic("foo", "bar")
     assert repr(conn) == "<Connection to 'https://oeo.net/openeo/1.x/' with BearerAuth>"
+
+
+def test_capabilities_caching(requests_mock):
+    m = requests_mock.get("https://oeo.net/", json={"api_version": "1.0.0"})
+    con = Connection(API_URL)
+    assert con.capabilities().api_version() == "1.0.0"
+    assert m.call_count == 1
+    assert con.capabilities().api_version() == "1.0.0"
+    assert m.call_count == 1
+
+
+def test_file_formats(requests_mock):
+    requests_mock.get("https://oeo.net/", json={"api_version": "1.0.0"})
+    m = requests_mock.get("https://oeo.net/file_formats", json={"output": {"GTiff": {"gis_data_types": ["raster"]}}})
+    con = Connection(API_URL)
+    assert con.list_file_formats() == {"output": {"GTiff": {"gis_data_types": ["raster"]}}}
+    assert m.call_count == 1
+    assert con.list_output_formats() == {"GTiff": {"gis_data_types": ["raster"]}}
+    assert m.call_count == 1
 
 
 def test_api_error(requests_mock):

@@ -79,6 +79,7 @@ def test_merge_cubes(con100: Connection):
         "result": True
     }
 
+
 def test_resample_spatial(con100: Connection):
     data = con100.load_collection("S2")
     target = con100.load_collection("MASK")
@@ -92,6 +93,7 @@ def test_resample_spatial(con100: Connection):
         },
         'process_id': 'resample_cube_spatial',
         'result': True}
+
 
 def test_ndvi_simple(con100: Connection):
     ndvi = con100.load_collection("S2").ndvi()
@@ -306,8 +308,6 @@ def test_apply_neighborhood_udf(con100):
                             'result': True}
 
 
-
-
 def test_filter_spatial_callbak(con100):
     """
     Experiment test showing how to introduce a callback for preprocessing process arguments
@@ -445,3 +445,19 @@ def test_save_user_defined_process(con100, requests_mock):
     collection.save_user_defined_process(user_defined_process_id='my_udp', public=True)
 
     assert adapter.called
+
+
+def test_save_result_format(con100, requests_mock):
+    requests_mock.get(API_URL + "/file_formats", json={
+        "output": {
+            "GTiff": {"gis_data_types": ["raster"]},
+            "PNG": {"gis_data_types": ["raster"]},
+        }
+    })
+
+    cube = con100.load_collection("S2")
+    with pytest.raises(ValueError):
+        cube.save_result(format="hdmi")
+    cube.save_result(format="GTiff")
+    cube.save_result(format="gtIFF")
+    cube.save_result(format="pNg")

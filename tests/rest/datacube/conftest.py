@@ -44,6 +44,13 @@ def _setup_connection(api_version, requests_mock) -> Connection:
             ]
         },
     })
+
+    requests_mock.get(API_URL + "/file_formats", json={
+        "output": {
+            "GTiff": {"gis_data_types": ["raster"]}
+        }
+    })
+
     return openeo.connect(API_URL)
 
 
