@@ -1,5 +1,6 @@
 """
-
+The main module for creating earth observation processes. It aims to easily build complex process chains, that can
+be evaluated by an openEO backend.
 
 .. data:: THIS
 
@@ -39,7 +40,8 @@ THIS = object()
 
 class DataCube(ImageCollection):
     """
-    Class representing a OpenEO Data Cube.
+    Class representing a openEO Data Cube. Data loaded from the backend is returned as an object of this class.
+    Various processing methods can be invoked to build a complete workflow.
 
     Supports openEO API 1.0.
     In earlier versions this was called `ImageCollectionClient`
@@ -980,7 +982,10 @@ class DataCube(ImageCollection):
             }
         ))
 
-    def save_result(self, format: str = "GTIFF", options: dict = None):
+    def save_result(self, format: str = "GTiff", options: dict = None):
+        formats = set(self._connection.list_output_formats().keys())
+        if format.lower() not in {f.lower() for f in formats}:
+            raise ValueError("Invalid format {f!r}. Should be one of {s}".format(f=format, s=formats))
         return self.process(
             process_id="save_result",
             arguments={

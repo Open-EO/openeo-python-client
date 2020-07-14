@@ -7,10 +7,12 @@ from pathlib import Path
 from typing import List, Union, Dict
 
 from deprecated import deprecated
-from openeo.job import Job, JobResult, JobLogEntry
-from openeo.rest import JobFailedException
-from openeo.rest.result import Result
 from requests import ConnectionError
+
+from openeo.job import Job, JobResult, JobLogEntry
+from openeo.rest import OpenEoClientException, JobFailedException
+from openeo.rest.result import Result
+from openeo.util import ensure_dir
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Only import this for type hinting purposes. Runtime import causes circular dependency issues.
@@ -101,7 +103,6 @@ class RESTJob(Job):
     def get_result(self):
         return Result(self)
 
-    # TODO: All below methods are deprecated (at least not specified in the coreAPI)
     @deprecated
     def download(self, outputfile: str, outputformat=None):
         """ Download the result as a raster."""
@@ -110,7 +111,6 @@ class RESTJob(Job):
         except ConnectionAbortedError as e:
             return print(str(e))
 
-    @deprecated
     def status(self):
         """ Returns the status of the job."""
         return self.describe_job().get("status", "N/A")

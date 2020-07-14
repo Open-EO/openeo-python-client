@@ -209,7 +209,7 @@ class Connection(RestApiConnection):
         :param url: String Backend root url
         """
         super().__init__(root_url=url, auth=auth, session=session, default_timeout=default_timeout)
-        self._cached_capabilities = None
+        self._capabilities_cache = {}
 
         # Initial API version check.
         if self._api_version.below(self._MINIMUM_API_VERSION):
@@ -453,12 +453,11 @@ class Connection(RestApiConnection):
 
         :return: data_dict: Dict All available data types
         """
-        if self._cached_capabilities is None:
+        if "capabilities" not in self._capabilities_cache:
             self._version_discovery()
-            base_url_response = self.get('/', check_error=False)
-            self._cached_capabilities = RESTCapabilities(base_url_response.json())
+            self._capabilities_cache["capabilities"] = RESTCapabilities(self.get('/', check_error=False).json())
 
-        return self._cached_capabilities
+        return self._capabilities_cache["capabilities"]
 
     def _version_discovery(self):
         try:
@@ -490,7 +489,9 @@ class Connection(RestApiConnection):
         """
         Get available input and output formats
         """
-        return self.get('/file_formats').json()
+        if "file_formats" not in self._capabilities_cache:
+            self._capabilities_cache["file_formats"] = self.get('/file_formats').json()
+        return self._capabilities_cache["file_formats"]
 
     def list_service_types(self) -> dict:
         """
@@ -745,14 +746,6 @@ class Connection(RestApiConnection):
         :return: A job object.
         """
         return RESTJob(job_id, self)
-
-    def get_outputformats(self) -> dict:
-        """
-        Loads all available output formats.
-
-        :return: data_dict: Dict All available output formats
-        """
-        raise NotImplementedError()
 
     def load_disk_collection(self, format: str, glob_pattern: str, options: dict = {}) -> ImageCollectionClient:
         """

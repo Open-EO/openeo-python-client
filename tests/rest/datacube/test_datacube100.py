@@ -79,6 +79,7 @@ def test_merge_cubes(con100: Connection):
         "result": True
     }
 
+
 def test_resample_spatial(con100: Connection):
     data = con100.load_collection("S2")
     target = con100.load_collection("MASK")
@@ -92,6 +93,7 @@ def test_resample_spatial(con100: Connection):
         },
         'process_id': 'resample_cube_spatial',
         'result': True}
+
 
 def test_ndvi_simple(con100: Connection):
     ndvi = con100.load_collection("S2").ndvi()
@@ -287,25 +289,23 @@ def test_apply_dimension_temporal_cumsum_with_target(con100):
 def test_apply_neighborhood_udf(con100):
     collection = con100.load_collection("S2")
     neighbors = collection.apply_neighborhood(UDF(code="myfancycode", runtime="Python"), size=[
-        {'name': 'x', 'value': 128, 'unit': 'px'},
-        {'name': 'y', 'value': 128, 'unit': 'px'}
+        {'dimension': 'x', 'value': 128, 'unit': 'px'},
+        {'dimension': 'y', 'value': 128, 'unit': 'px'}
     ], overlap=[
-        {'name': 't', 'value': 'P10d'},
+        {'dimension': 't', 'value': 'P10d'},
     ])
     actual_graph = neighbors.graph['applyneighborhood1']
     assert actual_graph == {'arguments': {'data': {'from_node': 'loadcollection1'},
-                                          'overlap': [{'name': 't', 'value': 'P10d'}],
+                                          'overlap': [{'dimension': 't', 'value': 'P10d'}],
                                           'process': {'process_graph': {'runudf1': {'arguments': {'code': 'myfancycode',
                                                                                                   'data': {'from_parameter': 'data'},
                                                                                                   'runtime': 'Python'},
                                                                                     'process_id': 'run_udf',
                                                                                     'result': True}}},
-                                          'size': [{'name': 'x', 'unit': 'px', 'value': 128},
-                                                   {'name': 'y', 'unit': 'px', 'value': 128}]},
+                                          'size': [{'dimension': 'x', 'unit': 'px', 'value': 128},
+                                                   {'dimension': 'y', 'unit': 'px', 'value': 128}]},
                             'process_id': 'apply_neighborhood',
                             'result': True}
-
-
 
 
 def test_filter_spatial_callbak(con100):
@@ -445,3 +445,19 @@ def test_save_user_defined_process(con100, requests_mock):
     collection.save_user_defined_process(user_defined_process_id='my_udp', public=True)
 
     assert adapter.called
+
+
+def test_save_result_format(con100, requests_mock):
+    requests_mock.get(API_URL + "/file_formats", json={
+        "output": {
+            "GTiff": {"gis_data_types": ["raster"]},
+            "PNG": {"gis_data_types": ["raster"]},
+        }
+    })
+
+    cube = con100.load_collection("S2")
+    with pytest.raises(ValueError):
+        cube.save_result(format="hdmi")
+    cube.save_result(format="GTiff")
+    cube.save_result(format="gtIFF")
+    cube.save_result(format="pNg")
