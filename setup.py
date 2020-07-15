@@ -32,6 +32,7 @@ setup(name=name,
       test_suite='tests',
       install_requires=[
           'requests',
+          'requests_mock',
           'shapely>=1.6.4',
           'numpy>=1.17.0',
           'pandas>0.20.0;python_version>="3.5.3"',
