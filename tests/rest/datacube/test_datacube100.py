@@ -288,7 +288,7 @@ def test_apply_dimension_temporal_cumsum_with_target(con100):
 
 def test_apply_neighborhood_udf(con100):
     collection = con100.load_collection("S2")
-    neighbors = collection.apply_neighborhood(UDF(code="myfancycode", runtime="Python"), size=[
+    neighbors = collection.apply_neighborhood(UDF(code="myfancycode", runtime="Python",data={'from_parameter': 'data'}), size=[
         {'dimension': 'x', 'value': 128, 'unit': 'px'},
         {'dimension': 'y', 'value': 128, 'unit': 'px'}
     ], overlap=[
@@ -297,7 +297,7 @@ def test_apply_neighborhood_udf(con100):
     actual_graph = neighbors.graph['applyneighborhood1']
     assert actual_graph == {'arguments': {'data': {'from_node': 'loadcollection1'},
                                           'overlap': [{'dimension': 't', 'value': 'P10d'}],
-                                          'process': {'process_graph': {'runudf1': {'arguments': {'code': 'myfancycode',
+                                          'process': {'process_graph': {'runudf1': {'arguments': {'udf': 'myfancycode',
                                                                                                   'data': {'from_parameter': 'data'},
                                                                                                   'runtime': 'Python'},
                                                                                     'process_id': 'run_udf',
@@ -317,8 +317,7 @@ def test_filter_spatial_callbak(con100):
     """
     collection = con100.load_collection("S2")
 
-    point_to_bbox_callback = PGNode(process_id="run_udf", arguments={
-        "data": {
+    feature_collection = {
             "type": "FeatureCollection",
             "features": [{
                 "type": "Feature",
@@ -327,14 +326,13 @@ def test_filter_spatial_callbak(con100):
                     "coordinates": [125.6, 10.1]
                 }
             }]
-        },
-        "runtime": "Python",
-        "udf": "def transform_point_into_bbox(data:UdfData): blabla"
-    })
+        }
+    udf_process = UDF("def transform_point_into_bbox(data:UdfData): blabla","Python",data=feature_collection)
+
 
     filtered_collection = collection.process("filter_spatial", {
-        "data": collection._pg,
-        "geometries": point_to_bbox_callback
+        "data": THIS,
+        "geometries": udf_process
     })
 
     assert filtered_collection.graph == {

@@ -1,15 +1,13 @@
 import pytest
 from openeo.internal.graph_building import PGNode
 from openeo.rest.connection import Connection
-
+import openeo
 
 def test_raster_to_vector(con100):
     img = con100.load_collection("S2")
     vector_cube = img.raster_to_vector()
-    vector_cube_tranformed = vector_cube.process("run_udf",{
-        "data": vector_cube._pg,
-        "udf":"python source code","runtime":"Python"
-    })
+    vector_cube_tranformed = vector_cube.process(openeo.UDF("python source code","Python"))
+
     assert vector_cube_tranformed.graph == {
         'loadcollection1': {
             'arguments': {
