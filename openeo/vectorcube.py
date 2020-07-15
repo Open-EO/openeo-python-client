@@ -43,7 +43,7 @@ class VectorCube():
     def connection(self):
         return self._connection
 
-    def process(self, process_id: str, args: dict = None, metadata: CollectionMetadata = None, **kwargs) -> 'DataCube':
+    def process(self, process_id: str, args: dict = None, metadata: CollectionMetadata = None, **kwargs) -> 'VectorCube':
         """
         Generic helper to create a new DataCube by applying a process.
 
@@ -56,8 +56,17 @@ class VectorCube():
             arguments=args, **kwargs
         ), metadata=metadata)
 
+    def process(self,pg:PGNode) -> 'VectorCube':
+        """
+        Generic helper to create a new DataCube by applying a process.
 
-    def process_with_node(self, pg: PGNode, metadata: CollectionMetadata = None) -> 'DataCube':
+        :param pg: A process graph node, constructed using other helpers.
+        :return: new DataCube instance
+        """
+        return self.process_with_node(pg)
+
+
+    def process_with_node(self, pg: PGNode, metadata: CollectionMetadata = None) -> 'VectorCube':
         """
         Generic helper to create a new DataCube by applying a process (given as process graph node)
 
@@ -65,6 +74,13 @@ class VectorCube():
         :param metadata: (optional) metadata to override original cube metadata (e.g. when reducing dimensions)
         :return: new DataCube instance
         """
+        from openeo.rest.datacube import DataCube, THIS
+        arguments = pg.arguments
+        for k, v in arguments.items():
+            if isinstance(v, DataCube) or isinstance(v, VectorCube):
+                arguments[k] = {"from_node": v._pg}
+            elif v is THIS:
+                arguments[k] = {"from_node": self._pg}
         # TODO: deep copy `self.metadata` instead of using same instance?
         # TODO: cover more cases where metadata has to be altered
         return VectorCube(graph=pg, connection=self._connection, metadata=metadata or self.metadata)

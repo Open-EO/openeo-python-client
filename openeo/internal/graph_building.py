@@ -92,9 +92,12 @@ class UDF(PGNode):
     A 'run_udf' process graph node. This is offered as a convenient way to construct run_udf processes.
     """
 
-    def __init__(self, code:str,runtime:str,version:str = None,context:Dict=None):
+    def __init__(self, code:str,runtime:str,data=None,version:str = None,context:Dict=None):
+        from openeo.rest.datacube import THIS
+        if data==None:
+            data=THIS
         arguments = {
-            "data": {"from_parameter": "data"},
+            "data": data,
             "udf": code,
             "runtime": runtime
         }
