@@ -297,7 +297,7 @@ def test_apply_neighborhood_udf(con100):
     actual_graph = neighbors.graph['applyneighborhood1']
     assert actual_graph == {'arguments': {'data': {'from_node': 'loadcollection1'},
                                           'overlap': [{'dimension': 't', 'value': 'P10d'}],
-                                          'process': {'process_graph': {'runudf1': {'arguments': {'code': 'myfancycode',
+                                          'process': {'process_graph': {'runudf1': {'arguments': {'udf': 'myfancycode',
                                                                                                   'data': {'from_parameter': 'data'},
                                                                                                   'runtime': 'Python'},
                                                                                     'process_id': 'run_udf',

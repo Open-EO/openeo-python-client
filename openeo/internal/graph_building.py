@@ -95,7 +95,7 @@ class UDF(PGNode):
     def __init__(self, code:str,runtime:str,version:str = None,context:Dict=None):
         arguments = {
             "data": {"from_parameter": "data"},
-            "code": code,
+            "udf": code,
             "runtime": runtime
         }
         if version is not None:
