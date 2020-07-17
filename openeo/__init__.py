@@ -14,7 +14,6 @@ __title__ = 'openeo'
 __author__ = 'Jeroen Dries'
 
 from openeo._version import __version__
-from openeo.catalog import EOProduct
 from openeo.imagecollection import ImageCollection
 from openeo.rest.connection import connect, session, Connection
 from openeo.job import Job
