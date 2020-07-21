@@ -26,6 +26,7 @@ from openeo.rest.job import RESTJob
 from openeo.rest.udp import RESTUserDefinedProcess
 from openeo.util import get_temporal_extent, dict_no_none
 from openeo.vectorcube import VectorCube
+from openeo.metadata import Band
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Only import this for type hinting purposes. Runtime import causes circular dependency issues.
@@ -697,7 +698,7 @@ class DataCube(ImageCollection):
         """
         return self.reduce_temporal_simple("count")
 
-    def ndvi(self, nir: str = None, red: str = None, target_band: str = None) -> 'DataCube':
+    def ndvi(self, nir: str = None, red: str = None, target_band: str = 'ndvi') -> 'DataCube':
         """ Normalized Difference Vegetation Index (NDVI)
 
             :param nir: (optional) name of NIR band
@@ -711,7 +712,9 @@ class DataCube(ImageCollection):
             arguments=dict_no_none(
                 data=THIS,
                 nir=nir, red=red, target_band=target_band
-            )
+            ),
+            metadata=self.metadata.append_band(Band(target_band,None,None))
+            
         )
 
     def rename_dimension(self, source: str, target: str):
