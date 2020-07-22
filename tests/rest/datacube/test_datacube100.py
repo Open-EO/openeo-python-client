@@ -103,6 +103,7 @@ def test_ndvi_simple(con100: Connection):
         "arguments": {"data": {"from_node": "loadcollection1"}},
         "result": True,
     }
+    assert not ndvi.metadata.has_band_dimension()
 
 
 def test_ndvi_args(con100: Connection):
@@ -113,6 +114,8 @@ def test_ndvi_args(con100: Connection):
         "arguments": {"data": {"from_node": "loadcollection1"}, "nir": "nirr", "red": "rred", "target_band": "ndvii"},
         "result": True,
     }
+    assert ndvi.metadata.has_band_dimension()
+    assert ndvi.metadata.band_dimension.band_names == ["B02", "B03", "B04", "B08", "ndvii"]
 
 
 def test_rename_dimension(con100):

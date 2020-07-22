@@ -698,7 +698,7 @@ class DataCube(ImageCollection):
         """
         return self.reduce_temporal_simple("count")
 
-    def ndvi(self, nir: str = None, red: str = None, target_band: str = 'ndvi') -> 'DataCube':
+    def ndvi(self, nir: str = None, red: str = None, target_band: str = None) -> 'DataCube':
         """ Normalized Difference Vegetation Index (NDVI)
 
             :param nir: (optional) name of NIR band
@@ -707,14 +707,17 @@ class DataCube(ImageCollection):
 
             :return: a DataCube instance
         """
+        if target_band is None:
+            metadata = self.metadata.reduce_dimension(self.metadata.band_dimension.name)
+        else:
+            metadata = self.metadata.append_band(Band(target_band, "ndvi", None))
         return self.process(
             process_id='ndvi',
             arguments=dict_no_none(
                 data=THIS,
                 nir=nir, red=red, target_band=target_band
             ),
-            metadata=self.metadata.append_band(Band(target_band,None,None))
-            
+            metadata=metadata
         )
 
     def rename_dimension(self, source: str, target: str):
