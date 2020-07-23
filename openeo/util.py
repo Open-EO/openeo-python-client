@@ -308,7 +308,7 @@ _deep_get_default_undefined = object()
 
 def deep_get(data: dict, *keys, default=_deep_get_default_undefined):
     """
-    Get "deep" value from nested dictionaries/lists/tuples
+    Get value deeply from nested dictionaries/lists/tuples
 
     :param data: nested data structure of dicts, lists, tuples
     :param keys: sequence of keys/indexes to traverse
@@ -327,6 +327,27 @@ def deep_get(data: dict, *keys, default=_deep_get_default_undefined):
             else:
                 return default
     return data
+
+
+def deep_set(data: dict, *keys, value):
+    """
+    Set a value deeply in nested dictionary
+
+    :param data: nested data structure of dicts, lists, tuples
+    :param keys: sequence of keys/indexes to traverse
+    :param value: value to set
+    """
+    if len(keys) == 1:
+        data[keys[0]] = value
+    elif len(keys) > 1:
+        if isinstance(data, dict):
+            deep_set(data.setdefault(keys[0], {}), *keys[1:], value=value)
+        elif isinstance(data, (list, tuple)):
+            deep_set(data[keys[0]], *keys[1:], value=value)
+        else:
+            ValueError(data)
+    else:
+        raise ValueError("No keys given")
 
 
 def load_json(path: Union[Path, str]) -> dict:

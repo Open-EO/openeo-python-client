@@ -9,7 +9,7 @@ from typing import List
 import pytest
 
 from openeo.util import first_not_none, get_temporal_extent, TimingLogger, ensure_list, ensure_dir, dict_no_none, \
-    deep_get, DeepKeyError, get_user_config_dir, get_user_data_dir, Rfc3339, rfc3339
+    deep_get, DeepKeyError, get_user_config_dir, get_user_data_dir, Rfc3339, rfc3339, deep_set
 
 
 def test_rfc3339_date():
@@ -354,6 +354,24 @@ def test_deep_get_mixed():
     assert deep_get(d, "bar", 1, "b", 0) == "ar"
     with pytest.raises(DeepKeyError, match=re.escape("2 (from deep key ('bar', 2, 22, 222))")):
         deep_get(d, "bar", 2, 22, 222)
+
+
+@pytest.mark.parametrize(["init", "keys", "expected"], [
+    ({}, ("foo",), {"foo": 42}),
+    ({}, ("foo", "bar", "baz"), {"foo": {"bar": {"baz": 42}}}),
+    ({"foo": {"x": "y"}}, ("foo", "bar"), {"foo": {"x": "y", "bar": 42}}),
+    ({"foo": {"x": "y"}}, ("foo", "bar", "baz"), {"foo": {"x": "y", "bar": {"baz": 42}}}),
+    ({"foo": [1, 2, 3]}, ("foo", 1), {"foo": [1, 42, 3]}),
+    ({"foo": {1: "a", 2: "b"}}, ("foo", 1), {"foo": {1: 42, 2: "b"}}),
+    ({"foo": [{"x": 1}, {"x": 2}, {"x": 3}]}, ("foo", 1, "x"), {"foo": [{"x": 1}, {"x": 42}, {"x": 3}]}),
+    ({"foo": ({"x": 1}, {"x": 2}, {"x": 3})}, ("foo", 1, "x"), {"foo": ({"x": 1}, {"x": 42}, {"x": 3})}),
+    ({"foo": [{"x": {}}, {"x": {}}]}, ("foo", 1, "x", "bar"), {"foo": [{"x": {}}, {"x": {"bar": 42}}]}),
+    ({"foo": [{"x": {}}, {"x": {}}]}, ("foo", 1, "x", "y", "z"), {"foo": [{"x": {}}, {"x": {"y": {"z": 42}}}]}),
+])
+def test_deep_set_dict(init, keys, expected):
+    d = init
+    deep_set(d, *keys, value=42)
+    assert d == expected
 
 
 def test_get_user_config_dir():
