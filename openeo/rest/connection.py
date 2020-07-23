@@ -455,7 +455,7 @@ class Connection(RestApiConnection):
         """
         if "capabilities" not in self._capabilities_cache:
             self._version_discovery()
-            self._capabilities_cache["capabilities"] = RESTCapabilities(self.get('/', check_error=False).json())
+            self._capabilities_cache["capabilities"] = RESTCapabilities(self.get('/').json())
 
         return self._capabilities_cache["capabilities"]
 
