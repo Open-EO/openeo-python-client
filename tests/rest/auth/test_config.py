@@ -60,7 +60,7 @@ class TestAuthConfig:
         assert config.get_basic_auth("foo") == (None, None)
         assert config.get_oidc_client_configs("oeo.net", "default") == (None, None)
 
-    def test_basic(self, tmp_path):
+    def test_basic_auth(self, tmp_path):
         config = AuthConfig(path=tmp_path)
         with mock.patch.object(openeo.rest.auth.config, "utcnow_rfc3339", return_value="2020-06-08T11:18:27Z"):
             config.set_basic_auth("oeo.net", "John", "j0hn123")
@@ -72,6 +72,17 @@ class TestAuthConfig:
             "basic": {"date": "2020-06-08T11:18:27Z", "username": "John", "password": "j0hn123"}
         }}
         assert config.get_basic_auth("oeo.net") == ("John", "j0hn123")
+        assert config.get_basic_auth("oeo.net") == ("John", "j0hn123")
+
+    @pytest.mark.parametrize(["to_set", "to_get"], [
+        ("https://oeo.net", "https://oeo.net/"),
+        ("https://oeo.net/", "https://oeo.net"),
+    ])
+    def test_basic_auth_url_normalization(self, tmp_path, to_set, to_get):
+        config = AuthConfig(path=tmp_path)
+        config.set_basic_auth(to_set, "John", "j0hn123")
+        assert config.get_basic_auth(to_set) == ("John", "j0hn123")
+        assert config.get_basic_auth(to_get) == ("John", "j0hn123")
 
     def test_oidc(self, tmp_path):
         config = AuthConfig(path=tmp_path)
@@ -88,6 +99,20 @@ class TestAuthConfig:
         assert config.get_oidc_provider_configs("oeo.net") == {
             "default": {"date": "2020-06-08T11:18:27Z", "client_id": "client123", "client_secret": "$6cr67"}
         }
+
+    @pytest.mark.parametrize(["to_set", "to_get"], [
+        ("https://oeo.net", "https://oeo.net/"),
+        ("https://oeo.net/", "https://oeo.net"),
+    ])
+    def test_oidc_backend_normalization(self, tmp_path, to_set, to_get):
+        config = AuthConfig(path=tmp_path)
+        with mock.patch.object(openeo.rest.auth.config, "utcnow_rfc3339", return_value="2020-06-08T11:18:27Z"):
+            config.set_oidc_client_config(to_set, "default", client_id="client123", client_secret="$6cr67")
+        for backend in [to_set, to_get]:
+            assert config.get_oidc_client_configs(backend, "default") == ("client123", "$6cr67")
+            assert config.get_oidc_provider_configs(backend) == {
+                "default": {"date": "2020-06-08T11:18:27Z", "client_id": "client123", "client_secret": "$6cr67"}
+            }
 
 
 class TestRefreshTokenStorage:
@@ -108,7 +133,7 @@ class TestRefreshTokenStorage:
         st_mode = (tmp_path / RefreshTokenStore.DEFAULT_FILENAME).stat().st_mode
         assert st_mode & 0o777 == 0o600
 
-    def test_get_set(self, tmp_path):
+    def test_get_set_refresh_token(self, tmp_path):
         r = RefreshTokenStore(path=tmp_path)
         r.set_refresh_token("foo", "bar", "ih6zdaT0k3n")
         assert r.get_refresh_token("foo", "bar") == "ih6zdaT0k3n"

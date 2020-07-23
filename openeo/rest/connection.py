@@ -20,7 +20,7 @@ from openeo.capabilities import ApiVersionException, ComparableVersion
 from openeo.imagecollection import CollectionMetadata
 from openeo.rest import OpenEoClientException
 from openeo.rest.auth.auth import NullAuth, BearerAuth
-from openeo.rest.auth.config import RefreshTokenStore
+from openeo.rest.auth.config import RefreshTokenStore, AuthConfig
 from openeo.rest.auth.oidc import OidcClientCredentialsAuthenticator, OidcAuthCodePkceAuthenticator, \
     OidcClientInfo, OidcAuthenticator, OidcRefreshTokenAuthenticator, OidcResourceOwnerPasswordAuthenticator, \
     OidcDeviceAuthenticator, OidcProviderInfo
@@ -70,6 +70,10 @@ class RestApiConnection:
                 pl=sys.platform
             )
         }
+
+    @property
+    def root_url(self):
+        return self._root_url
 
     def build_url(self, path: str):
         return url_join(self._root_url, path)
@@ -210,7 +214,11 @@ class Connection(RestApiConnection):
 
         :param url: String Backend root url
         """
-        super().__init__(root_url=url, auth=auth, session=session, default_timeout=default_timeout)
+        self._orig_url = url
+        super().__init__(
+            root_url=self.version_discovery(url, session=session),
+            auth=auth, session=session, default_timeout=default_timeout
+        )
         self._capabilities_cache = {}
 
         # Initial API version check.
@@ -220,6 +228,28 @@ class Connection(RestApiConnection):
             )
 
         self._refresh_token_store = refresh_token_store or RefreshTokenStore()
+
+    @classmethod
+    def version_discovery(cls, url: str, session: requests.Session = None) -> str:
+        """
+        Do automatic openEO API version discovery from given url, using a "well-known URI" strategy.
+
+        :param url: initial backend url (not including "/.well-known/openeo")
+        :return: root url of highest supported backend version
+        """
+        try:
+            well_known_url_response = RestApiConnection(url, session=session).get("/.well-known/openeo")
+            assert well_known_url_response.status_code == 200
+            versions = well_known_url_response.json()["versions"]
+            supported_versions = [v for v in versions if cls._MINIMUM_API_VERSION <= v["api_version"]]
+            assert supported_versions
+            production_versions = [v for v in supported_versions if v.get("production", True)]
+            highest_version = max(production_versions or supported_versions, key=lambda v: v["api_version"])
+            _log.debug("Highest supported version available in backend: %s" % highest_version)
+            return highest_version['url']
+        except Exception:
+            # Be very lenient about failing on the well-known URI strategy.
+            return url
 
     def authenticate_basic(self, username: str, password: str) -> 'Connection':
         """
@@ -385,7 +415,7 @@ class Connection(RestApiConnection):
         return self._authenticate_oidc(authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token)
 
     def authenticate_oidc_refresh_token(
-            self, client_id: str, refresh_token: str = None, client_secret: str = None, provider_id: str = None
+            self, client_id: str = None, refresh_token: str = None, client_secret: str = None, provider_id: str = None
     ) -> 'Connection':
         """
         OpenId Connect Refresh Token
@@ -393,8 +423,12 @@ class Connection(RestApiConnection):
         WARNING: this API is in experimental phase
         """
         provider_id, provider = self._get_oidc_provider(provider_id)
+        if client_id is None:
+            client_id, client_secret = AuthConfig().get_oidc_client_configs(
+                backend=self._orig_url, provider_id=provider_id
+            )
+
         if refresh_token is None:
-            # TODO: allow client_id/secret to be None and fetch it from config/cache?
             refresh_token = self._refresh_token_store.get_refresh_token(issuer=provider.issuer, client_id=client_id)
             if refresh_token is None:
                 raise OpenEoClientException("No refresh token")
@@ -456,26 +490,8 @@ class Connection(RestApiConnection):
         :return: data_dict: Dict All available data types
         """
         if "capabilities" not in self._capabilities_cache:
-            self._version_discovery()
             self._capabilities_cache["capabilities"] = RESTCapabilities(self.get('/').json())
-
         return self._capabilities_cache["capabilities"]
-
-    def _version_discovery(self):
-        try:
-            well_known_url_response = self.get('/.well-known/openeo')
-            assert well_known_url_response.status_code == 200
-            versions = well_known_url_response.json()["versions"]
-        except Exception:
-            # be very lenient about failing on the well-known doc, capabilities retrieval will be tried
-            return
-        supported_versions = [v for v in versions if self._MINIMUM_API_VERSION <= v["api_version"]]
-        if not supported_versions:
-            return
-        production_versions = [v for v in supported_versions if v.get("production", True)]
-        highest_version = max(production_versions or supported_versions, key=lambda v: v["api_version"])
-        _log.debug("Highest supported version available in backend: %s" % highest_version)
-        self._root_url = highest_version['url']
 
     @deprecated("Use 'list_output_formats' instead")
     def list_file_types(self) -> dict:
