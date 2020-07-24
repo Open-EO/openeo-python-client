@@ -80,42 +80,42 @@ def test_http_server_thread_port():
 
 
 def test_provider_info_issuer(requests_mock):
-    requests_mock.get("https://akkoint.net/.well-known/openid-configuration", json={"scopes_supported": ["openid"]})
-    p = OidcProviderInfo(issuer="https://akkoint.net")
-    assert p.discovery_url == "https://akkoint.net/.well-known/openid-configuration"
+    requests_mock.get("https://authit.test/.well-known/openid-configuration", json={"scopes_supported": ["openid"]})
+    p = OidcProviderInfo(issuer="https://authit.test")
+    assert p.discovery_url == "https://authit.test/.well-known/openid-configuration"
     assert p.get_scopes_string() == "openid"
 
 
 def test_provider_info_issuer_slash(requests_mock):
-    requests_mock.get("https://akkoint.net/.well-known/openid-configuration", json={"scopes_supported": ["openid"]})
-    p = OidcProviderInfo(issuer="https://akkoint.net/")
-    assert p.discovery_url == "https://akkoint.net/.well-known/openid-configuration"
+    requests_mock.get("https://authit.test/.well-known/openid-configuration", json={"scopes_supported": ["openid"]})
+    p = OidcProviderInfo(issuer="https://authit.test/")
+    assert p.discovery_url == "https://authit.test/.well-known/openid-configuration"
 
 
 def test_provider_info_discovery_url(requests_mock):
-    discovery_url = "https://akkoint.net/.well-known/openid-configuration"
-    requests_mock.get(discovery_url, json={"issuer": "https://akkoint.net"})
+    discovery_url = "https://authit.test/.well-known/openid-configuration"
+    requests_mock.get(discovery_url, json={"issuer": "https://authit.test"})
     p = OidcProviderInfo(discovery_url=discovery_url)
-    assert p.discovery_url == "https://akkoint.net/.well-known/openid-configuration"
+    assert p.discovery_url == "https://authit.test/.well-known/openid-configuration"
     assert p.get_scopes_string() == "openid"
 
 
 def test_provider_info_scopes(requests_mock):
     requests_mock.get(
-        "https://akkoint.net/.well-known/openid-configuration",
+        "https://authit.test/.well-known/openid-configuration",
         json={"scopes_supported": ["openid", "test"]}
     )
-    assert "openid" == OidcProviderInfo(issuer="https://akkoint.net").get_scopes_string()
-    assert "openid" == OidcProviderInfo(issuer="https://akkoint.net", scopes=[]).get_scopes_string()
-    assert "openid test" == OidcProviderInfo(issuer="https://akkoint.net", scopes=["test"]).get_scopes_string()
+    assert "openid" == OidcProviderInfo(issuer="https://authit.test").get_scopes_string()
+    assert "openid" == OidcProviderInfo(issuer="https://authit.test", scopes=[]).get_scopes_string()
+    assert "openid test" == OidcProviderInfo(issuer="https://authit.test", scopes=["test"]).get_scopes_string()
     assert "openid test" == OidcProviderInfo(
-        issuer="https://akkoint.net", scopes=["openid", "test"]
+        issuer="https://authit.test", scopes=["openid", "test"]
     ).get_scopes_string()
     assert "openid test" == OidcProviderInfo(
-        issuer="https://akkoint.net", scopes=("openid", "test")
+        issuer="https://authit.test", scopes=("openid", "test")
     ).get_scopes_string()
     assert "openid test" == OidcProviderInfo(
-        issuer="https://akkoint.net", scopes={"openid", "test"}
+        issuer="https://authit.test", scopes={"openid", "test"}
     ).get_scopes_string()
 
 
@@ -131,7 +131,7 @@ class OidcMock:
             expected_grant_type: str,
             expected_client_id: str = "myclient",
             expected_fields: dict = None,
-            provider_root_url: str = "https://auth.example.com",
+            provider_root_url: str = "https://auth.test",
             state: dict = None,
             scopes_supported: List[str] = None
     ):
@@ -278,10 +278,10 @@ class OidcMock:
 
 
 def test_oidc_auth_code_pkce_flow(requests_mock):
-    requests_mock.get("http://oidc.example.com/.well-known/openid-configuration", json={"scopes_supported": ["openid"]})
+    requests_mock.get("http://oidc.test/.well-known/openid-configuration", json={"scopes_supported": ["openid"]})
 
     client_id = "myclient"
-    oidc_discovery_url = "http://oidc.example.com/.well-known/openid-configuration"
+    oidc_discovery_url = "http://oidc.test/.well-known/openid-configuration"
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
         expected_grant_type="authorization_code",
@@ -302,7 +302,7 @@ def test_oidc_auth_code_pkce_flow(requests_mock):
 
 def test_oidc_client_credentials_flow(requests_mock):
     client_id = "myclient"
-    oidc_discovery_url = "http://oidc.example.com/.well-known/openid-configuration"
+    oidc_discovery_url = "http://oidc.test/.well-known/openid-configuration"
     client_secret = "$3cr3t"
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
@@ -323,7 +323,7 @@ def test_oidc_client_credentials_flow(requests_mock):
 def test_oidc_resource_owner_password_credentials_flow(requests_mock):
     client_id = "myclient"
     client_secret = "$3cr3t"
-    oidc_discovery_url = "http://oidc.example.com/.well-known/openid-configuration"
+    oidc_discovery_url = "http://oidc.test/.well-known/openid-configuration"
     username, password = "john", "j0hn"
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
@@ -372,13 +372,13 @@ def test_oidc_device_flow(requests_mock, caplog):
             tokens = authenticator.get_tokens()
     assert oidc_mock.state["access_token"] == tokens.access_token
     assert re.search(
-        r"visit https://auth\.example\.com/dc and enter the user code {c!r}".format(c=oidc_mock.state['user_code']),
+        r"visit https://auth\.test/dc and enter the user code {c!r}".format(c=oidc_mock.state['user_code']),
         display[0]
     )
     assert display[1] == "Authorized successfully."
     assert sleep.mock_calls == [mock.call(2), mock.call(2), mock.call(7)]
     assert re.search(
-        "Authorization pending\..*Polling too fast, will slow down\..*Authorized successfully\.",
+        r"Authorization pending\..*Polling too fast, will slow down\..*Authorized successfully\.",
         caplog.text,
         flags=re.DOTALL
     )

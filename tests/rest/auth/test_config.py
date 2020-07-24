@@ -58,25 +58,25 @@ class TestAuthConfig:
     def test_start_empty(self, tmp_path):
         config = AuthConfig(path=tmp_path)
         assert config.get_basic_auth("foo") == (None, None)
-        assert config.get_oidc_client_configs("oeo.net", "default") == (None, None)
+        assert config.get_oidc_client_configs("oeo.test", "default") == (None, None)
 
     def test_basic_auth(self, tmp_path):
         config = AuthConfig(path=tmp_path)
         with mock.patch.object(openeo.rest.auth.config, "utcnow_rfc3339", return_value="2020-06-08T11:18:27Z"):
-            config.set_basic_auth("oeo.net", "John", "j0hn123")
+            config.set_basic_auth("oeo.test", "John", "j0hn123")
         assert config.path.exists()
         assert [p.name for p in tmp_path.iterdir()] == [AuthConfig.DEFAULT_FILENAME]
         with config.path.open("r") as f:
             data = json.load(f)
-        assert data["backends"] == {"oeo.net": {
+        assert data["backends"] == {"oeo.test": {
             "basic": {"date": "2020-06-08T11:18:27Z", "username": "John", "password": "j0hn123"}
         }}
-        assert config.get_basic_auth("oeo.net") == ("John", "j0hn123")
-        assert config.get_basic_auth("oeo.net") == ("John", "j0hn123")
+        assert config.get_basic_auth("oeo.test") == ("John", "j0hn123")
+        assert config.get_basic_auth("oeo.test") == ("John", "j0hn123")
 
     @pytest.mark.parametrize(["to_set", "to_get"], [
-        ("https://oeo.net", "https://oeo.net/"),
-        ("https://oeo.net/", "https://oeo.net"),
+        ("https://oeo.test", "https://oeo.test/"),
+        ("https://oeo.test/", "https://oeo.test"),
     ])
     def test_basic_auth_url_normalization(self, tmp_path, to_set, to_get):
         config = AuthConfig(path=tmp_path)
@@ -87,22 +87,22 @@ class TestAuthConfig:
     def test_oidc(self, tmp_path):
         config = AuthConfig(path=tmp_path)
         with mock.patch.object(openeo.rest.auth.config, "utcnow_rfc3339", return_value="2020-06-08T11:18:27Z"):
-            config.set_oidc_client_config("oeo.net", "default", client_id="client123", client_secret="$6cr67")
+            config.set_oidc_client_config("oeo.test", "default", client_id="client123", client_secret="$6cr67")
         assert config.path.exists()
         assert [p.name for p in tmp_path.iterdir()] == [AuthConfig.DEFAULT_FILENAME]
         with config.path.open("r") as f:
             data = json.load(f)
-        assert data["backends"] == {"oeo.net": {"oidc": {"providers": {
+        assert data["backends"] == {"oeo.test": {"oidc": {"providers": {
             "default": {"date": "2020-06-08T11:18:27Z", "client_id": "client123", "client_secret": "$6cr67"}
         }}}}
-        assert config.get_oidc_client_configs("oeo.net", "default") == ("client123", "$6cr67")
-        assert config.get_oidc_provider_configs("oeo.net") == {
+        assert config.get_oidc_client_configs("oeo.test", "default") == ("client123", "$6cr67")
+        assert config.get_oidc_provider_configs("oeo.test") == {
             "default": {"date": "2020-06-08T11:18:27Z", "client_id": "client123", "client_secret": "$6cr67"}
         }
 
     @pytest.mark.parametrize(["to_set", "to_get"], [
-        ("https://oeo.net", "https://oeo.net/"),
-        ("https://oeo.net/", "https://oeo.net"),
+        ("https://oeo.test", "https://oeo.test/"),
+        ("https://oeo.test/", "https://oeo.test"),
     ])
     def test_oidc_backend_normalization(self, tmp_path, to_set, to_get):
         config = AuthConfig(path=tmp_path)

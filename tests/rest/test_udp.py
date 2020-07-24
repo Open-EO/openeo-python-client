@@ -5,7 +5,7 @@ from openeo.api.process import Parameter
 from openeo.rest.udp import RESTUserDefinedProcess
 from .. import load_json_resource
 
-API_URL = "https://oeo.net"
+API_URL = "https://oeo.test"
 
 
 @pytest.fixture

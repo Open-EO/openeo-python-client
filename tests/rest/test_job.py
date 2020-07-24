@@ -7,7 +7,7 @@ import pytest
 from openeo.rest.job import RESTJob
 from .. import as_path
 
-API_URL = "https://oeo.net"
+API_URL = "https://oeo.test"
 
 TIFF_CONTENT = b'T1f7D6t6l0l' * 1000
 
