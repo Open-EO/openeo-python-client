@@ -71,7 +71,7 @@ def test_add_basic_auth(auth_config):
 def test_add_basic_auth_input_username(auth_config):
     with mock_input("user55") as input_mock, mock_secret_input("p455w0r6"):
         cli.main(["add-basic", "https://oeo.test", "--no-try"])
-    input_mock.assert_called_once()
+    assert input_mock.call_count == 1
     assert "Enter username" in input_mock.call_args[0][0]
     assert auth_config.get_basic_auth("https://oeo.test") == ("user55", "p455w0r6")
 
