@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -21,7 +22,7 @@ def mock_secret_input(secret: str):
 
 @pytest.fixture
 def tmp_openeo_config(tmp_path):
-    path = ensure_dir(tmp_path / "openeo_conf")
+    path = ensure_dir(Path(str(tmp_path)) / "openeo_conf")
     with mock.patch.dict("os.environ", {"OPENEO_CONFIG_HOME": str(path)}):
         yield path
 
