@@ -5,7 +5,7 @@ import logging
 import sys
 from getpass import getpass
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Tuple
 
 from openeo import connect, Connection
 from openeo.rest.auth.config import AuthConfig, RefreshTokenStore
@@ -180,14 +180,13 @@ def main_add_basic(args):
     print("Saved credentials to {p!r}".format(p=str(config.path)))
 
 
-def _interactive_choice(title: str, options: Dict[str, str], attempts=10) -> str:
+def _interactive_choice(title: str, options: List[Tuple[str, str]], attempts=10) -> str:
     """
     Let user choose between options (given as dict) and return chosen key
     """
     print(title)
-    options = list(options.items())
     for c, (k, v) in enumerate(options):
-        print("[{c:d}] {k}: {v}".format(c=c + 1, k=k, v=v))
+        print("[{c:d}] {v}".format(c=c + 1, v=v))
     for _ in range(attempts):
         try:
             entered = builtins.input("Choose one (enter index): ")
@@ -221,13 +220,15 @@ def main_add_oidc(args):
     # Find provider ID
     oidc_info = con.get("/credentials/oidc", expected_status=200).json()
     providers = {p["id"]: p for p in oidc_info["providers"]}
+    if not providers:
+        raise CliToolException("No OpenID Connect providers listed by backend {b!r}.".format(b=backend))
     if not provider_id:
         if len(providers) == 1:
             provider_id = list(providers.keys())[0]
         else:
             provider_id = _interactive_choice(
                 title="Backend {b!r} has multiple OpenID Connect providers.".format(b=backend),
-                options={p["id"]: "{t} (issuer {s})".format(t=p["title"], s=p["issuer"]) for p in providers.values()}
+                options=[(p["id"], "{t} (issuer {s})".format(t=p["title"], s=p["issuer"])) for p in providers.values()]
             )
     if provider_id not in providers:
         raise CliToolException("Invalid provider ID {p!r}. Should be one of {o}.".format(
@@ -253,6 +254,9 @@ def main_add_oidc(args):
     print("Saved client information to {p!r}".format(p=str(config.path)))
 
 
+_webbrowser_open = None
+
+
 def main_oidc_auth(args):
     """
     Do OIDC auth flow and store refresh tokens.
@@ -269,6 +273,8 @@ def main_oidc_auth(args):
 
     # Determine provider
     provider_configs = config.get_oidc_provider_configs(backend=backend)
+    if not provider_configs:
+        raise CliToolException("No OpenID Connect provider configs found for backend {b!r}".format(b=backend))
     _log.debug("Provider configs: {c!r}".format(c=provider_configs))
     if not provider_id:
         if len(provider_configs) == 1:
@@ -276,7 +282,10 @@ def main_oidc_auth(args):
         else:
             provider_id = _interactive_choice(
                 title="Multiple OpenID Connect providers available for backend {b!r}".format(b=backend),
-                options={k: "issuer {s}".format(s=v["issuer"]) for k, v in provider_configs.items()}
+                options=[
+                    (k, "{k}: issuer {s}".format(k=k, s=v.get("issuer", "n/a")))
+                    for k, v in provider_configs.items()
+                ]
             )
     if provider_id not in provider_configs:
         raise CliToolException("Invalid provider ID {p!r}. Should be one of {o}.".format(
@@ -290,14 +299,14 @@ def main_oidc_auth(args):
         raise CliToolException("Client ID for provide {p} is empty (config {c!r})".format(
             p=provider_id, c=str(config.path)
         ))
-    print("Using client_id {c!r}.".format(c=client_id))
+    print("Using client ID {c!r}.".format(c=client_id))
     if not client_secret:
         show_warning("Empty client secret.")
 
     if oidc_flow is None:
         oidc_flow = _interactive_choice(
             "Which OpenID Connect flow should be used? (Note: some options might not be supported by the provider.)",
-            options={"auth-code": "Authorization code flow", "device": "Device flow"}
+            options=[("auth-code", "Authorization code flow"), ("device", "Device flow")]
         )
     refresh_token_store = RefreshTokenStore()
     con = Connection(backend, refresh_token_store=refresh_token_store)
@@ -310,6 +319,7 @@ def main_oidc_auth(args):
             provider_id=provider_id,
             timeout=timeout,
             store_refresh_token=True,
+            webbrowser_open=_webbrowser_open
         )
         print("The OpenID Connect authorization code flow was successful.")
     elif oidc_flow == "device":

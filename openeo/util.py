@@ -355,29 +355,36 @@ def load_json(path: Union[Path, str]) -> dict:
         return json.load(f)
 
 
+DEFAULT_APP_NAME = "openeo-python-client"
+
+
 def _get_user_dir(
-        app_name="openeo-python-client",
+        app_name=DEFAULT_APP_NAME,
         xdg_env_var='XDG_CONFIG_HOME',
         win_env_var='APPDATA',
         fallback='~/.config',
         win_fallback='~\\AppData\\Roaming',
         macos_fallback='~/Library/Preferences',
-        auto_create=True
+        auto_create=True,
 ) -> Path:
     """
     Get platform specific config/data/cache folder
     """
     # Platform specific root locations (from highest priority to lowest)
+    env = os.environ
     if platform.system() == 'Windows':
-        roots = [os.environ.get(win_env_var), win_fallback, fallback]
+        roots = [env.get(win_env_var), win_fallback, fallback]
     elif platform.system() == 'Darwin':
-        roots = [os.environ.get(xdg_env_var), macos_fallback, fallback]
+        roots = [env.get(xdg_env_var), macos_fallback, fallback]
     else:
         # Assume unix
-        roots = [os.environ.get(xdg_env_var), fallback]
+        roots = [env.get(xdg_env_var), fallback]
 
     # Filter out None's, expand user prefix and append app name
     dirs = [Path(r).expanduser() / app_name for r in roots if r]
+    # Prepend with OPENEO_CONFIG_HOME if set.
+    if env.get("OPENEO_CONFIG_HOME"):
+        dirs.insert(0, Path(env.get("OPENEO_CONFIG_HOME")))
 
     # Use highest prio dir that already exists.
     for p in dirs:
@@ -397,7 +404,7 @@ def _get_user_dir(
     raise Exception("Failed to find user dir for {a!r}. Tried: {p!r}".format(a=app_name, p=dirs))
 
 
-def get_user_config_dir(app_name="openeo-python-client", auto_create=True) -> Path:
+def get_user_config_dir(app_name=DEFAULT_APP_NAME, auto_create=True) -> Path:
     """
     Get platform specific config folder
     """
@@ -409,7 +416,7 @@ def get_user_config_dir(app_name="openeo-python-client", auto_create=True) -> Pa
     )
 
 
-def get_user_data_dir(app_name="openeo-python-client", auto_create=True) -> Path:
+def get_user_data_dir(app_name=DEFAULT_APP_NAME, auto_create=True) -> Path:
     """
     Get platform specific data folder
     """
