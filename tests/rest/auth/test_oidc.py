@@ -16,7 +16,7 @@ import requests_mock.request
 import openeo.rest.auth.oidc
 from openeo.rest.auth.oidc import QueuingRequestHandler, drain_queue, HttpServerThread, OidcAuthCodePkceAuthenticator, \
     OidcClientCredentialsAuthenticator, OidcResourceOwnerPasswordAuthenticator, OidcClientInfo, OidcProviderInfo, \
-    OidcDeviceAuthenticator, random_string
+    OidcDeviceAuthenticator, random_string, OidcRefreshTokenAuthenticator
 from openeo.util import dict_no_none
 
 
@@ -162,6 +162,7 @@ class OidcMock:
                 "client_credentials": self.token_callback_client_credentials,
                 "password": self.token_callback_resource_owner_password_credentials,
                 "urn:ietf:params:oauth:grant-type:device_code": self.token_callback_device_code,
+                "refresh_token": self.token_callback_refresh_token,
             }[expected_grant_type]
         )
 
@@ -243,6 +244,14 @@ class OidcMock:
         else:
             context.status_code = 400
             return json.dumps({"error": result})
+
+    def token_callback_refresh_token(self, request: requests_mock.request._RequestObjectProxy, context):
+        params = self._get_query_params(query=request.text)
+        assert params["client_id"] == self.expected_client_id
+        assert params["grant_type"] == "refresh_token"
+        assert params["client_secret"] == self.expected_fields["client_secret"]
+        assert params["refresh_token"] == self.expected_fields["refresh_token"]
+        return self._build_token_response(include_id_token=False)
 
     @staticmethod
     def _get_query_params(*, url=None, query=None):
@@ -345,13 +354,10 @@ def test_oidc_resource_owner_password_credentials_flow(requests_mock):
     assert oidc_mock.state["access_token"] == tokens.access_token
 
 
-# TODO test for OidcRefreshTokenAuthenticator
-
-
 def test_oidc_device_flow(requests_mock, caplog):
     client_id = "myclient"
     client_secret = "$3cr3t"
-    oidc_discovery_url = "http://oidc.example.com/.well-known/openid-configuration"
+    oidc_discovery_url = "http://oidc.test/.well-known/openid-configuration"
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
         expected_grant_type="urn:ietf:params:oauth:grant-type:device_code",
@@ -383,3 +389,25 @@ def test_oidc_device_flow(requests_mock, caplog):
         flags=re.DOTALL
     )
 
+
+def test_oidc_refresh_token_flow(requests_mock, caplog):
+    client_id = "myclient"
+    client_secret = "$3cr3t"
+    refresh_token = "r3fr35h.d4.t0k3n.w1lly4"
+    oidc_discovery_url = "http://oidc.test/.well-known/openid-configuration"
+    oidc_mock = OidcMock(
+        requests_mock=requests_mock,
+        expected_grant_type="refresh_token",
+        expected_client_id=client_id,
+        oidc_discovery_url=oidc_discovery_url,
+        expected_fields={"scope": "openid", "client_secret": client_secret, "refresh_token": refresh_token},
+        scopes_supported=["openid"]
+    )
+    provider = OidcProviderInfo(discovery_url=oidc_discovery_url)
+    authenticator = OidcRefreshTokenAuthenticator(
+        client_info=OidcClientInfo(client_id=client_id, provider=provider, client_secret=client_secret),
+        refresh_token=refresh_token
+    )
+    tokens = authenticator.get_tokens()
+    assert oidc_mock.state["access_token"] == tokens.access_token
+    assert oidc_mock.state["refresh_token"] == tokens.refresh_token
