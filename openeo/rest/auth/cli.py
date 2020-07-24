@@ -193,8 +193,7 @@ def _interactive_choice(title: str, options: List[Tuple[str, str]], attempts=10)
             return options[int(entered) - 1][0]
         except Exception:
             pass
-    else:
-        raise CliToolException("Failed to pick valid option.")
+    raise CliToolException("Failed to pick valid option.")
 
 
 def show_warning(message: str):

@@ -88,6 +88,7 @@ class PrivateJsonFile:
         """Load JSON file and do deep get with given keys."""
         result = deep_get(self.load(), *keys, default=default)
         if isinstance(result, Exception) or (isinstance(result, type) and issubclass(result, Exception)):
+            # pylint: disable=raising-bad-type
             raise result
         return result
 

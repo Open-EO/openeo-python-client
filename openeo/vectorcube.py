@@ -56,16 +56,6 @@ class VectorCube():
             arguments=args, **kwargs
         ), metadata=metadata)
 
-    def process(self,pg:PGNode) -> 'VectorCube':
-        """
-        Generic helper to create a new DataCube by applying a process.
-
-        :param pg: A process graph node, constructed using other helpers.
-        :return: new DataCube instance
-        """
-        return self.process_with_node(pg)
-
-
     def process_with_node(self, pg: PGNode, metadata: CollectionMetadata = None) -> 'VectorCube':
         """
         Generic helper to create a new DataCube by applying a process (given as process graph node)

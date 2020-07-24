@@ -197,6 +197,7 @@ def jwt_decode(token: str) -> Tuple[dict, dict]:
 
 class OidcProviderInfo:
     """OpenID Connect Provider information, as provided by an openEO back-end (endpoint `/credentials/oidc`)"""
+
     def __init__(self, issuer: str = None, discovery_url: str = None, scopes: List[str] = None):
         if issuer is None and discovery_url is None:
             raise ValueError("At least `issuer` or `discovery_url` should be specified")
@@ -242,12 +243,16 @@ class OidcAuthenticator:
         # TODO: check provider config (e.g. if grant type is supported)
 
     @property
-    def client_id(self):
+    def client_id(self) -> str:
         return self._client_info.client_id
 
     @property
-    def client_secret(self):
+    def client_secret(self) -> str:
         return self._client_info.client_secret
+
+    @property
+    def provider_info(self) -> OidcProviderInfo:
+        return self._client_info.provider
 
     def get_tokens(self) -> AccessTokenResult:
         """Get access_token and possibly id_token+refresh_token."""
@@ -602,4 +607,3 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
         raise OidcException("Timeout exceeded {m:.1f}s while polling for access token at {u!r}".format(
             u=token_endpoint, m=self._max_poll_time
         ))
-

@@ -350,7 +350,7 @@ class Connection(RestApiConnection):
         _log.info("Obtained tokens: {t}".format(t=[k for k, v in tokens._asdict().items() if v]))
         if tokens.refresh_token and store_refresh_token:
             self._refresh_token_store.set_refresh_token(
-                issuer=authenticator._client_info.provider.issuer,
+                issuer=authenticator.provider_info.issuer,
                 client_id=authenticator.client_id,
                 refresh_token=tokens.refresh_token
             )
