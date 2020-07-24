@@ -50,6 +50,9 @@ setup(name=name,
               "flake8",
           ]
       },
+      entry_points={
+          "console_scripts": ["openeo-auth=openeo.rest.auth.cli:main"],
+      },
       classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: Apache Software License",

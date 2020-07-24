@@ -10,7 +10,6 @@ import http.server
 import json
 import logging
 import random
-import stat
 import string
 import threading
 import time
@@ -18,15 +17,13 @@ import urllib.parse
 import warnings
 import webbrowser
 from collections import namedtuple
-from datetime import datetime
-from pathlib import Path
 from queue import Queue, Empty
 from typing import Tuple, Callable, Union, List
 
 import requests
 
 from openeo.rest import OpenEoClientException
-from openeo.util import dict_no_none, get_user_data_dir, rfc3339
+from openeo.util import dict_no_none
 
 log = logging.getLogger(__name__)
 
@@ -199,6 +196,7 @@ def jwt_decode(token: str) -> Tuple[dict, dict]:
 
 
 class OidcProviderInfo:
+    """OpenID Connect Provider information, as provided by an openEO back-end (endpoint `/credentials/oidc`)"""
     def __init__(self, issuer: str = None, discovery_url: str = None, scopes: List[str] = None):
         if issuer is None and discovery_url is None:
             raise ValueError("At least `issuer` or `discovery_url` should be specified")
@@ -605,62 +603,3 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
             u=token_endpoint, m=self._max_poll_time
         ))
 
-
-class RefreshTokenStore:
-    """
-    Basic JSON-file based storage of refresh tokens.
-    """
-    _PERMS = stat.S_IRUSR | stat.S_IWUSR
-
-    DEFAULT_FILENAME = "refresh_tokens.json"
-
-    class NoRefreshToken(Exception):
-        pass
-
-    def __init__(self, path: Path = None):
-        if path is None:
-            path = get_user_data_dir()
-        if path.is_dir():
-            path = path / self.DEFAULT_FILENAME
-        self._path = path
-
-    def _get_all(self, empty_on_file_not_found=True) -> dict:
-        if not self._path.exists():
-            if empty_on_file_not_found:
-                return {}
-            raise FileNotFoundError(self._path)
-        mode = self._path.stat().st_mode
-        if (mode & stat.S_IRWXG) or (mode & stat.S_IRWXO):
-            raise PermissionError(
-                "Refresh token file {p} is readable by others: st_mode {a:o} (expected permissions: {e:o}).".format(
-                    p=self._path, a=mode, e=self._PERMS)
-            )
-        with self._path.open("r", encoding="utf8") as f:
-            log.info("Using refresh tokens from {p}".format(p=self._path))
-            return json.load(f)
-
-    def _write_all(self, data: dict):
-        with self._path.open("w", encoding="utf8") as f:
-            json.dump(data, f, indent=2)
-        self._path.chmod(mode=self._PERMS)
-
-    def get(self, issuer: str, client_id: str, allow_miss=True) -> Union[str, None]:
-        try:
-            data = self._get_all()
-            return data[issuer][client_id]["refresh_token"]
-        except (FileNotFoundError, KeyError):
-            if allow_miss:
-                return None
-            else:
-                raise self.NoRefreshToken()
-
-    def set(self, issuer: str, client_id: str, refresh_token: str):
-        data = self._get_all(empty_on_file_not_found=True)
-        log.info("Storing refresh token for issuer {i!r} (client {c!r})".format(i=issuer, c=client_id))
-        # TODO: should OIDC grant type also be a part of the key?
-        #       e.g. to avoid mixing client credential flow tokens with tokens of other (user oriented) flows?
-        data.setdefault(issuer, {}).setdefault(client_id, {
-            "date": rfc3339.datetime(datetime.utcnow()),
-            "refresh_token": refresh_token,
-        })
-        self._write_all(data)

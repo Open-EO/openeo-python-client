@@ -5,7 +5,7 @@ import openeo.internal.graphbuilder_040
 from openeo.rest.connection import Connection
 from openeo.rest.datacube import DataCube
 
-API_URL = "https://oeo.net"
+API_URL = "https://oeo.test"
 
 
 def _setup_connection(api_version, requests_mock) -> Connection:

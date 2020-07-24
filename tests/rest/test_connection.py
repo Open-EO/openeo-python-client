@@ -3,31 +3,33 @@ import unittest.mock as mock
 
 import pytest
 import requests_mock
+import requests.auth
 
 from openeo.capabilities import ComparableVersion
 from openeo.rest import OpenEoClientException
 from openeo.rest.auth.auth import NullAuth, BearerAuth
+from openeo.rest.auth.config import AuthConfig
 from openeo.rest.connection import Connection, RestApiConnection, connect, OpenEoApiError
 from .auth.test_oidc import OidcMock
 from .. import load_json_resource
 
-API_URL = "https://oeo.net/"
+API_URL = "https://oeo.test/"
 
 
 @pytest.mark.parametrize(
     ["base", "paths", "expected_path"],
     [
         # Simple
-        ("https://oeo.net", ["foo", "/foo"], "https://oeo.net/foo"),
-        ("https://oeo.net/", ["foo", "/foo"], "https://oeo.net/foo"),
+        ("https://oeo.test", ["foo", "/foo"], "https://oeo.test/foo"),
+        ("https://oeo.test/", ["foo", "/foo"], "https://oeo.test/foo"),
         # With trailing slash
-        ("https://oeo.net", ["foo/", "/foo/"], "https://oeo.net/foo/"),
-        ("https://oeo.net/", ["foo/", "/foo/"], "https://oeo.net/foo/"),
+        ("https://oeo.test", ["foo/", "/foo/"], "https://oeo.test/foo/"),
+        ("https://oeo.test/", ["foo/", "/foo/"], "https://oeo.test/foo/"),
         # Deeper
-        ("https://oeo.net/api/v04", ["foo/bar", "/foo/bar"], "https://oeo.net/api/v04/foo/bar"),
-        ("https://oeo.net/api/v04/", ["foo/bar", "/foo/bar"], "https://oeo.net/api/v04/foo/bar"),
-        ("https://oeo.net/api/v04", ["foo/bar/", "/foo/bar/"], "https://oeo.net/api/v04/foo/bar/"),
-        ("https://oeo.net/api/v04/", ["foo/bar/", "/foo/bar/"], "https://oeo.net/api/v04/foo/bar/"),
+        ("https://oeo.test/api/v04", ["foo/bar", "/foo/bar"], "https://oeo.test/api/v04/foo/bar"),
+        ("https://oeo.test/api/v04/", ["foo/bar", "/foo/bar"], "https://oeo.test/api/v04/foo/bar"),
+        ("https://oeo.test/api/v04", ["foo/bar/", "/foo/bar/"], "https://oeo.test/api/v04/foo/bar/"),
+        ("https://oeo.test/api/v04/", ["foo/bar/", "/foo/bar/"], "https://oeo.test/api/v04/foo/bar/"),
     ]
 )
 def test_rest_api_connection_url_handling(requests_mock, base, paths, expected_path):
@@ -59,12 +61,12 @@ def test_rest_api_headers():
 
 def test_rest_api_expected_status(requests_mock):
     conn = RestApiConnection(API_URL)
-    requests_mock.get("https://oeo.net/foo", status_code=200, json={"o": "k"})
+    requests_mock.get("https://oeo.test/foo", status_code=200, json={"o": "k"})
     # Expected status
     assert conn.get("/foo", expected_status=200).json() == {"o": "k"}
     assert conn.get("/foo", expected_status=[200, 201]).json() == {"o": "k"}
     # Unexpected status
-    with pytest.raises(OpenEoClientException, match=r"Got status code 200 for `GET /foo` \(expected 204\)"):
+    with pytest.raises(OpenEoClientException, match=r"Got status code 200 for `GET /foo` \(expected \[204\]\)"):
         conn.get("/foo", expected_status=204)
     with pytest.raises(OpenEoClientException, match=r"Got status code 200 for `GET /foo` \(expected \[203, 204\]\)"):
         conn.get("/foo", expected_status=[203, 204])
@@ -72,15 +74,21 @@ def test_rest_api_expected_status(requests_mock):
 
 def test_rest_api_expected_status_with_error(requests_mock):
     conn = RestApiConnection(API_URL)
-    requests_mock.get("https://oeo.net/bar", status_code=406, json={"code": "NoBar", "message": "no bar please"})
+    requests_mock.get("https://oeo.test/bar", status_code=406, json={"code": "NoBar", "message": "no bar please"})
     # First check for API error by default
     with pytest.raises(OpenEoApiError, match=r"\[406\] NoBar: no bar please"):
         conn.get("/bar", expected_status=200)
     with pytest.raises(OpenEoApiError, match=r"\[406\] NoBar: no bar please"):
         conn.get("/bar", expected_status=[201, 202])
+    # Don't fail when an error status is actually expected
+    conn.get("/bar", expected_status=406)
+    conn.get("/bar", expected_status=[406, 407])
+    with pytest.raises(OpenEoApiError, match=r"\[406\] NoBar: no bar please"):
+        conn.get("/bar", expected_status=[401, 402])
+
     # Don't check for error, just status
     conn.get("/bar", check_error=False, expected_status=406)
-    with pytest.raises(OpenEoClientException, match=r"Got status code 406 for `GET /bar` \(expected 302\)"):
+    with pytest.raises(OpenEoClientException, match=r"Got status code 406 for `GET /bar` \(expected \[302\]\)"):
         conn.get("/bar", check_error=False, expected_status=302)
     with pytest.raises(OpenEoClientException, match=r"Got status code 406 for `GET /bar` \(expected \[302, 303\]\)"):
         conn.get("/bar", check_error=False, expected_status=[302, 303])
@@ -88,7 +96,7 @@ def test_rest_api_expected_status_with_error(requests_mock):
 
 def test_502_proxy_error(requests_mock):
     """EP-3387"""
-    requests_mock.get("https://oeo.net/bar", status_code=502, text="""<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+    requests_mock.get("https://oeo.test/bar", status_code=502, text="""<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
 <html><head>
 <title>502 Proxy Error</title>
 </head><body>
@@ -108,10 +116,10 @@ def test_connection_with_session():
     response = session.request.return_value
     response.status_code = 200
     response.json.return_value = {"foo": "bar", "api_version": "1.0.0"}
-    conn = Connection("https://oeo.net/", session=session)
+    conn = Connection("https://oeo.test/", session=session)
     assert conn.capabilities().capabilities["foo"] == "bar"
     session.request.assert_any_call(
-        url="https://oeo.net/", method="get", headers=mock.ANY, stream=mock.ANY, auth=mock.ANY, timeout=None
+        url="https://oeo.test/", method="get", headers=mock.ANY, stream=mock.ANY, auth=mock.ANY, timeout=None
     )
 
 
@@ -120,89 +128,89 @@ def test_connect_with_session():
     response = session.request.return_value
     response.status_code = 200
     response.json.return_value = {"foo": "bar", "api_version": "1.0.0"}
-    conn = connect("https://oeo.net/", session=session)
+    conn = connect("https://oeo.test/", session=session)
     assert conn.capabilities().capabilities["foo"] == "bar"
     session.request.assert_any_call(
-        url="https://oeo.net/", method="get", headers=mock.ANY, stream=mock.ANY, auth=mock.ANY, timeout=None
+        url="https://oeo.test/", method="get", headers=mock.ANY, stream=mock.ANY, auth=mock.ANY, timeout=None
     )
 
 
 @pytest.mark.parametrize(["versions", "expected_url", "expected_version"], [
     (
             [
-                {"api_version": "0.4.1", "url": "https://oeo.net/openeo/0.4.1/"},
-                {"api_version": "0.4.2", "url": "https://oeo.net/openeo/0.4.2/"},
-                {"api_version": "1.0.0", "url": "https://oeo.net/openeo/1.0.0/"},
+                {"api_version": "0.4.1", "url": "https://oeo.test/openeo/0.4.1/"},
+                {"api_version": "0.4.2", "url": "https://oeo.test/openeo/0.4.2/"},
+                {"api_version": "1.0.0", "url": "https://oeo.test/openeo/1.0.0/"},
             ],
-            "https://oeo.net/openeo/1.0.0/",
+            "https://oeo.test/openeo/1.0.0/",
             "1.0.0",
     ),
     (
             [
-                {"api_version": "0.4.1", "url": "https://oeo.net/openeo/0.4.1/"},
-                {"api_version": "0.4.2", "url": "https://oeo.net/openeo/0.4.2/"},
-                {"api_version": "1.0.0", "url": "https://oeo.net/openeo/1.0.0/", "production": False},
+                {"api_version": "0.4.1", "url": "https://oeo.test/openeo/0.4.1/"},
+                {"api_version": "0.4.2", "url": "https://oeo.test/openeo/0.4.2/"},
+                {"api_version": "1.0.0", "url": "https://oeo.test/openeo/1.0.0/", "production": False},
             ],
-            "https://oeo.net/openeo/0.4.2/",
+            "https://oeo.test/openeo/0.4.2/",
             "0.4.2",
     ),
     (
             [
-                {"api_version": "0.4.1", "url": "https://oeo.net/openeo/0.4.1/", "production": True},
-                {"api_version": "0.4.2", "url": "https://oeo.net/openeo/0.4.2/", "production": True},
-                {"api_version": "1.0.0", "url": "https://oeo.net/openeo/1.0.0/", "production": False},
+                {"api_version": "0.4.1", "url": "https://oeo.test/openeo/0.4.1/", "production": True},
+                {"api_version": "0.4.2", "url": "https://oeo.test/openeo/0.4.2/", "production": True},
+                {"api_version": "1.0.0", "url": "https://oeo.test/openeo/1.0.0/", "production": False},
             ],
-            "https://oeo.net/openeo/0.4.2/",
+            "https://oeo.test/openeo/0.4.2/",
             "0.4.2",
     ),
     (
             [
-                {"api_version": "0.4.1", "url": "https://oeo.net/openeo/0.4.1/", "production": False},
-                {"api_version": "0.4.2", "url": "https://oeo.net/openeo/0.4.2/", "production": False},
-                {"api_version": "1.0.0", "url": "https://oeo.net/openeo/1.0.0/", "production": False},
+                {"api_version": "0.4.1", "url": "https://oeo.test/openeo/0.4.1/", "production": False},
+                {"api_version": "0.4.2", "url": "https://oeo.test/openeo/0.4.2/", "production": False},
+                {"api_version": "1.0.0", "url": "https://oeo.test/openeo/1.0.0/", "production": False},
             ],
-            "https://oeo.net/openeo/1.0.0/",
+            "https://oeo.test/openeo/1.0.0/",
             "1.0.0",
     ),
     (
             [
-                {"api_version": "0.1.0", "url": "https://oeo.net/openeo/0.1.0/", "production": True},
-                {"api_version": "0.4.2", "url": "https://oeo.net/openeo/0.4.2/", "production": False},
+                {"api_version": "0.1.0", "url": "https://oeo.test/openeo/0.1.0/", "production": True},
+                {"api_version": "0.4.2", "url": "https://oeo.test/openeo/0.4.2/", "production": False},
             ],
-            "https://oeo.net/openeo/0.4.2/",
+            "https://oeo.test/openeo/0.4.2/",
             "0.4.2",
     ),
     (
             [],
-            "https://oeo.net/",
+            "https://oeo.test/",
             "1.0.0",
     ),
 ])
 def test_connect_version_discovery(requests_mock, versions, expected_url, expected_version):
-    requests_mock.get("https://oeo.net/", status_code=404)
-    requests_mock.get("https://oeo.net/.well-known/openeo", status_code=200, json={"versions": versions})
+    requests_mock.get("https://oeo.test/", status_code=404)
+    requests_mock.get("https://oeo.test/.well-known/openeo", status_code=200, json={"versions": versions})
     requests_mock.get(expected_url, status_code=200, json={"foo": "bar", "api_version": expected_version})
 
-    conn = connect("https://oeo.net/")
+    conn = connect("https://oeo.test/")
     assert conn.capabilities().capabilities["foo"] == "bar"
 
 
 def test_connection_repr(requests_mock):
-    requests_mock.get("https://oeo.net/", status_code=404)
-    requests_mock.get("https://oeo.net/.well-known/openeo", status_code=200, json={
-        "versions": [{"api_version": "1.0.0", "url": "https://oeo.net/openeo/1.x/", "production": True}],
+    requests_mock.get("https://oeo.test/", status_code=404)
+    requests_mock.get("https://oeo.test/.well-known/openeo", status_code=200, json={
+        "versions": [{"api_version": "1.0.0", "url": "https://oeo.test/openeo/1.x/", "production": True}],
     })
-    requests_mock.get("https://oeo.net/openeo/1.x/", status_code=200, json={"api_version": "1.0.0"})
-    requests_mock.get("https://oeo.net/openeo/1.x/credentials/basic", json={"access_token": "w3lc0m3"})
+    requests_mock.get("https://oeo.test/openeo/1.x/", status_code=200, json={"api_version": "1.0.0"})
+    requests_mock.get("https://oeo.test/openeo/1.x/credentials/basic", json={"access_token": "w3lc0m3"})
 
-    conn = connect("https://oeo.net/")
-    assert repr(conn) == "<Connection to 'https://oeo.net/openeo/1.x/' with NullAuth>"
+    conn = connect("https://oeo.test/")
+    assert repr(conn) == "<Connection to 'https://oeo.test/openeo/1.x/' with NullAuth>"
     conn.authenticate_basic("foo", "bar")
-    assert repr(conn) == "<Connection to 'https://oeo.net/openeo/1.x/' with BearerAuth>"
+    assert repr(conn) == "<Connection to 'https://oeo.test/openeo/1.x/' with BearerAuth>"
 
 
 def test_capabilities_caching(requests_mock):
-    m = requests_mock.get("https://oeo.net/", json={"api_version": "1.0.0"})
+    m = requests_mock.get("https://oeo.test/", json={"api_version": "1.0.0"})
     con = Connection(API_URL)
     assert con.capabilities().api_version() == "1.0.0"
     assert m.call_count == 1
@@ -211,8 +219,8 @@ def test_capabilities_caching(requests_mock):
 
 
 def test_file_formats(requests_mock):
-    requests_mock.get("https://oeo.net/", json={"api_version": "1.0.0"})
-    m = requests_mock.get("https://oeo.net/file_formats", json={"output": {"GTiff": {"gis_data_types": ["raster"]}}})
+    requests_mock.get("https://oeo.test/", json={"api_version": "1.0.0"})
+    m = requests_mock.get("https://oeo.test/file_formats", json={"output": {"GTiff": {"gis_data_types": ["raster"]}}})
     con = Connection(API_URL)
     assert con.list_file_formats() == {"output": {"GTiff": {"gis_data_types": ["raster"]}}}
     assert m.call_count == 1
@@ -221,9 +229,9 @@ def test_file_formats(requests_mock):
 
 
 def test_api_error(requests_mock):
-    requests_mock.get('https://oeo.net/', json={"api_version": "0.4.0"})
+    requests_mock.get('https://oeo.test/', json={"api_version": "0.4.0"})
     conn = Connection(API_URL)
-    requests_mock.get('https://oeo.net/collections/foobar', status_code=404, json={
+    requests_mock.get('https://oeo.test/collections/foobar', status_code=404, json={
         "code": "CollectionNotFound", "message": "No such things as a collection 'foobar'", "id": "54321"
     })
     with pytest.raises(OpenEoApiError) as exc_info:
@@ -237,9 +245,9 @@ def test_api_error(requests_mock):
 
 
 def test_api_error_non_json(requests_mock):
-    requests_mock.get('https://oeo.net/', json={"api_version": "0.4.0"})
+    requests_mock.get('https://oeo.test/', json={"api_version": "0.4.0"})
     conn = Connection(API_URL)
-    requests_mock.get('https://oeo.net/collections/foobar', status_code=500, text="olapola")
+    requests_mock.get('https://oeo.test/collections/foobar', status_code=500, text="olapola")
     with pytest.raises(OpenEoApiError) as exc_info:
         conn.describe_collection("foobar")
     exc = exc_info.value
@@ -251,17 +259,39 @@ def test_api_error_non_json(requests_mock):
 
 
 def test_authenticate_basic(requests_mock, api_version):
+    user, pwd = "john262", "J0hndo3"
     requests_mock.get(API_URL, json={"api_version": api_version})
-    conn = Connection(API_URL)
 
     def text_callback(request, context):
-        assert request.headers["Authorization"] == "Basic am9objpqMGhu"
+        assert request.headers["Authorization"] == requests.auth._basic_auth_str(username=user, password=pwd)
         return '{"access_token":"w3lc0m3"}'
 
     requests_mock.get(API_URL + 'credentials/basic', text=text_callback)
 
+    conn = Connection(API_URL)
     assert isinstance(conn.auth, NullAuth)
-    conn.authenticate_basic(username="john", password="j0hn")
+    conn.authenticate_basic(username=user, password=pwd)
+    assert isinstance(conn.auth, BearerAuth)
+    if ComparableVersion(api_version).at_least("1.0.0"):
+        assert conn.auth.bearer == "basic//w3lc0m3"
+    else:
+        assert conn.auth.bearer == "w3lc0m3"
+
+
+def test_authenticate_basic_from_config(requests_mock, api_version):
+    user, pwd = "john281", "J0hndo3"
+    requests_mock.get(API_URL, json={"api_version": api_version})
+
+    def text_callback(request, context):
+        assert request.headers["Authorization"] == requests.auth._basic_auth_str(username=user, password=pwd)
+        return '{"access_token":"w3lc0m3"}'
+
+    requests_mock.get(API_URL + 'credentials/basic', text=text_callback)
+    AuthConfig().set_basic_auth(backend=API_URL, username=user, password=pwd)
+
+    conn = Connection(API_URL)
+    assert isinstance(conn.auth, NullAuth)
+    conn.authenticate_basic()
     assert isinstance(conn.auth, BearerAuth)
     if ComparableVersion(api_version).at_least("1.0.0"):
         assert conn.auth.bearer == "basic//w3lc0m3"
@@ -271,7 +301,7 @@ def test_authenticate_basic(requests_mock, api_version):
 
 def test_authenticate_oidc_040(requests_mock):
     client_id = "myclient"
-    oidc_discovery_url = "https://oeo.net/credentials/oidc"
+    oidc_discovery_url = "https://oeo.test/credentials/oidc"
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
         expected_grant_type="authorization_code",
@@ -293,14 +323,14 @@ def test_authenticate_oidc_100_single_implicit(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
     requests_mock.get(API_URL + 'credentials/oidc', json={
-        "providers": [{"id": "foidc", "issuer": "https://auth.foidc.net", "title": "FOIDC", "scopes": ["openid", "im"]}]
+        "providers": [{"id": "fauth", "issuer": "https://fauth.test", "title": "Foo Auth", "scopes": ["openid", "im"]}]
     })
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
         expected_grant_type="authorization_code",
         expected_client_id=client_id,
         expected_fields={"scope": "im openid"},
-        oidc_discovery_url="https://auth.foidc.net/.well-known/openid-configuration",
+        oidc_discovery_url="https://fauth.test/.well-known/openid-configuration",
         scopes_supported=["openid", "im"],
     )
 
@@ -309,20 +339,20 @@ def test_authenticate_oidc_100_single_implicit(requests_mock):
     assert isinstance(conn.auth, NullAuth)
     conn.authenticate_OIDC(client_id=client_id, webbrowser_open=oidc_mock.webbrowser_open)
     assert isinstance(conn.auth, BearerAuth)
-    assert conn.auth.bearer == 'oidc/foidc/' + oidc_mock.state["access_token"]
+    assert conn.auth.bearer == 'oidc/fauth/' + oidc_mock.state["access_token"]
 
 
 def test_authenticate_oidc_100_single_wrong_id(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
     requests_mock.get(API_URL + 'credentials/oidc', json={
-        "providers": [{"id": "foidc", "issuer": "https://auth.foidc.net", "title": "FOIDC", "scopes": ["openid", "w"]}]
+        "providers": [{"id": "fauth", "issuer": "https://fauth.test", "title": "Foo Auth", "scopes": ["openid", "w"]}]
     })
 
     # With all this set up, kick off the openid connect flow
     conn = Connection(API_URL)
     assert isinstance(conn.auth, NullAuth)
-    with pytest.raises(OpenEoClientException, match=r"'nopenope' not available\. Should be one of \['foidc'\]\."):
+    with pytest.raises(OpenEoClientException, match=r"'nopenope' not available\. Should be one of \['fauth'\]\."):
         conn.authenticate_OIDC(client_id=client_id, provider_id="nopenope", webbrowser_open=pytest.fail)
 
 
@@ -331,15 +361,15 @@ def test_authenticate_oidc_100_multiple_no_id(requests_mock):
     client_id = "myclient"
     requests_mock.get(API_URL + 'credentials/oidc', json={
         "providers": [
-            {"id": "foidc", "issuer": "https://auth.foidc.net", "title": "FOIDC", "scopes": ["openid", "w"]},
-            {"id": "baroi", "issuer": "https://acco.baroi.net", "title": "BarOI", "scopes": ["openid", "w"]},
+            {"id": "fauth", "issuer": "https://fauth.test", "title": "Foo Auth", "scopes": ["openid", "w"]},
+            {"id": "bauth", "issuer": "https://bauth.test", "title": "Bar Auth", "scopes": ["openid", "w"]},
         ]
     })
 
     # With all this set up, kick off the openid connect flow
     conn = Connection(API_URL)
     assert isinstance(conn.auth, NullAuth)
-    match = r"No provider_id given. Available: \[('foidc', 'baroi'|'baroi', 'foidc')\]\."
+    match = r"No provider_id given. Available: \[('fauth', 'bauth'|'bauth', 'fauth')\]\."
     with pytest.raises(OpenEoClientException, match=match):
         conn.authenticate_OIDC(client_id=client_id, webbrowser_open=pytest.fail)
 
@@ -349,15 +379,15 @@ def test_authenticate_oidc_100_multiple_wrong_id(requests_mock):
     client_id = "myclient"
     requests_mock.get(API_URL + 'credentials/oidc', json={
         "providers": [
-            {"id": "foidc", "issuer": "https://auth.foidc.net", "title": "FOIDC", "scopes": ["openid", "w"]},
-            {"id": "baroi", "issuer": "https://acco.baroi.net", "title": "BarOI", "scopes": ["openid", "w"]},
+            {"id": "fauth", "issuer": "https://fauth.test", "title": "Foo Auth", "scopes": ["openid", "w"]},
+            {"id": "bauth", "issuer": "https://bauth.test", "title": "Bar Auth", "scopes": ["openid", "w"]},
         ]
     })
 
     # With all this set up, kick off the openid connect flow
     conn = Connection(API_URL)
     assert isinstance(conn.auth, NullAuth)
-    match = r"'lol' not available\. Should be one of \[('foidc', 'baroi'|'baroi', 'foidc')\]\."
+    match = r"'lol' not available\. Should be one of \[('fauth', 'bauth'|'bauth', 'fauth')\]\."
     with pytest.raises(OpenEoClientException, match=match):
         conn.authenticate_OIDC(client_id=client_id, provider_id="lol", webbrowser_open=pytest.fail)
 
@@ -367,8 +397,8 @@ def test_authenticate_oidc_100_multiple_success(requests_mock):
     client_id = "myclient"
     requests_mock.get(API_URL + 'credentials/oidc', json={
         "providers": [
-            {"id": "foidc", "issuer": "https://auth.foidc.net", "title": "FOIDC", "scopes": ["openid", "mu"]},
-            {"id": "baroi", "issuer": "https://acco.baroi.net", "title": "BarOI", "scopes": ["openid", "mu"]},
+            {"id": "fauth", "issuer": "https://fauth.test", "title": "Foo Auth", "scopes": ["openid", "mu"]},
+            {"id": "bauth", "issuer": "https://bauth.test", "title": "Bar Auth", "scopes": ["openid", "mu"]},
         ]
     })
     oidc_mock = OidcMock(
@@ -376,23 +406,23 @@ def test_authenticate_oidc_100_multiple_success(requests_mock):
         expected_grant_type="authorization_code",
         expected_client_id=client_id,
         expected_fields={"scope": "mu openid"},
-        oidc_discovery_url="https://acco.baroi.net/.well-known/openid-configuration",
+        oidc_discovery_url="https://bauth.test/.well-known/openid-configuration",
         scopes_supported=["openid", "mu"],
     )
 
     # With all this set up, kick off the openid connect flow
     conn = Connection(API_URL)
     assert isinstance(conn.auth, NullAuth)
-    conn.authenticate_OIDC(client_id=client_id, provider_id="baroi", webbrowser_open=oidc_mock.webbrowser_open)
+    conn.authenticate_OIDC(client_id=client_id, provider_id="bauth", webbrowser_open=oidc_mock.webbrowser_open)
     assert isinstance(conn.auth, BearerAuth)
-    assert conn.auth.bearer == 'oidc/baroi/' + oidc_mock.state["access_token"]
+    assert conn.auth.bearer == 'oidc/bauth/' + oidc_mock.state["access_token"]
 
 
 def test_authenticate_oidc_auth_code_pkce_flow(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
-    issuer = "https://oidc.example.com"
-    oidc_discovery_url = "https://oidc.example.com/.well-known/openid-configuration"
+    issuer = "https://oidc.test"
+    oidc_discovery_url = "https://oidc.test/.well-known/openid-configuration"
     requests_mock.get(API_URL + 'credentials/oidc', json={
         "providers": [{"id": "oi", "issuer": issuer, "title": "example", "scopes": ["openid"]}]
     })
@@ -422,7 +452,7 @@ def test_authenticate_oidc_auth_code_pkce_flow(requests_mock):
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
     assert refresh_token_store.mock_calls == [
-        mock.call.set(client_id=client_id, issuer=issuer, refresh_token=oidc_mock.state["refresh_token"])
+        mock.call.set_refresh_token(client_id=client_id, issuer=issuer, refresh_token=oidc_mock.state["refresh_token"])
     ]
 
 
@@ -430,8 +460,8 @@ def test_authenticate_oidc_client_credentials(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
     client_secret = "$3cr3t"
-    issuer = "https://oidc.example.com"
-    oidc_discovery_url = "https://oidc.example.com/.well-known/openid-configuration"
+    issuer = "https://oidc.test"
+    oidc_discovery_url = "https://oidc.test/.well-known/openid-configuration"
     requests_mock.get(API_URL + 'credentials/oidc', json={
         "providers": [{"id": "oi", "issuer": issuer, "title": "example", "scopes": ["openid"]}]
     })
@@ -460,7 +490,7 @@ def test_authenticate_oidc_client_credentials(requests_mock):
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
     assert refresh_token_store.mock_calls == [
-        mock.call.set(client_id=client_id, issuer=issuer, refresh_token=oidc_mock.state["refresh_token"])
+        mock.call.set_refresh_token(client_id=client_id, issuer=issuer, refresh_token=oidc_mock.state["refresh_token"])
     ]
 
 
@@ -469,8 +499,8 @@ def test_authenticate_oidc_resource_owner_password_credentials(requests_mock):
     client_id = "myclient"
     client_secret = "$3cr3t"
     username, password = "john", "j0hn"
-    issuer = "https://oidc.example.com"
-    oidc_discovery_url = "https://oidc.example.com/.well-known/openid-configuration"
+    issuer = "https://oidc.test"
+    oidc_discovery_url = "https://oidc.test/.well-known/openid-configuration"
     requests_mock.get(API_URL + 'credentials/oidc', json={
         "providers": [{"id": "oi", "issuer": issuer, "title": "example", "scopes": ["openid"]}]
     })
@@ -502,7 +532,7 @@ def test_authenticate_oidc_resource_owner_password_credentials(requests_mock):
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
     assert refresh_token_store.mock_calls == [
-        mock.call.set(client_id=client_id, issuer=issuer, refresh_token=oidc_mock.state["refresh_token"])
+        mock.call.set_refresh_token(client_id=client_id, issuer=issuer, refresh_token=oidc_mock.state["refresh_token"])
     ]
 
 
@@ -510,8 +540,8 @@ def test_authenticate_oidc_device_flow(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
     client_secret = "$3cr3t"
-    issuer = "https://oidc.example.com"
-    oidc_discovery_url = "https://oidc.example.com/.well-known/openid-configuration"
+    issuer = "https://oidc.test"
+    oidc_discovery_url = "https://oidc.test/.well-known/openid-configuration"
     requests_mock.get(API_URL + 'credentials/oidc', json={
         "providers": [{"id": "oi", "issuer": issuer, "title": "example", "scopes": ["openid"]}]
     })
@@ -544,7 +574,7 @@ def test_authenticate_oidc_device_flow(requests_mock):
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
     assert refresh_token_store.mock_calls == [
-        mock.call.set(client_id=client_id, issuer=issuer, refresh_token=oidc_mock.state["refresh_token"])
+        mock.call.set_refresh_token(client_id=client_id, issuer=issuer, refresh_token=oidc_mock.state["refresh_token"])
     ]
 
 

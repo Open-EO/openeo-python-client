@@ -11,24 +11,25 @@ from urllib.parse import urljoin
 
 import requests
 from deprecated import deprecated
-from openeo.internal.graph_building import PGNode
 from requests import Response
 from requests.auth import HTTPBasicAuth, AuthBase
 
 import openeo
 from openeo.capabilities import ApiVersionException, ComparableVersion
 from openeo.imagecollection import CollectionMetadata
+from openeo.internal.graph_building import PGNode
 from openeo.rest import OpenEoClientException
 from openeo.rest.auth.auth import NullAuth, BearerAuth
+from openeo.rest.auth.config import RefreshTokenStore, AuthConfig
 from openeo.rest.auth.oidc import OidcClientCredentialsAuthenticator, OidcAuthCodePkceAuthenticator, \
     OidcClientInfo, OidcAuthenticator, OidcRefreshTokenAuthenticator, OidcResourceOwnerPasswordAuthenticator, \
-    OidcDeviceAuthenticator, OidcProviderInfo, RefreshTokenStore
+    OidcDeviceAuthenticator, OidcProviderInfo
 from openeo.rest.datacube import DataCube
 from openeo.rest.imagecollectionclient import ImageCollectionClient
 from openeo.rest.job import RESTJob
-from openeo.rest.udp import RESTUserDefinedProcess, Parameter
 from openeo.rest.rest_capabilities import RESTCapabilities
-from openeo.util import ensure_list, get_user_data_dir
+from openeo.rest.udp import RESTUserDefinedProcess, Parameter
+from openeo.util import ensure_list
 
 _log = logging.getLogger(__name__)
 
@@ -70,6 +71,10 @@ class RestApiConnection:
             )
         }
 
+    @property
+    def root_url(self):
+        return self._root_url
+
     def build_url(self, path: str):
         return url_join(self._root_url, path)
 
@@ -99,9 +104,10 @@ class RestApiConnection:
         )
         # Check for API errors and unexpected HTTP status codes as desired.
         status = resp.status_code
-        if check_error and status >= 400:
+        expected_status = ensure_list(expected_status) if expected_status else []
+        if check_error and status >= 400 and status not in expected_status:
             self._raise_api_error(resp)
-        if expected_status and status not in ensure_list(expected_status):
+        if expected_status and status not in expected_status:
             raise OpenEoClientException("Got status code {s!r} for `{m} {p}` (expected {e!r})".format(
                 m=method.upper(), p=path, s=status, e=expected_status)
             )
@@ -201,14 +207,18 @@ class Connection(RestApiConnection):
 
     def __init__(
             self, url, auth: AuthBase = None, session: requests.Session = None, default_timeout: int = None,
-            refresh_token_store: RefreshTokenStore = None
+            auth_config: AuthConfig = None, refresh_token_store: RefreshTokenStore = None
     ):
         """
         Constructor of Connection, authenticates user.
 
         :param url: String Backend root url
         """
-        super().__init__(root_url=url, auth=auth, session=session, default_timeout=default_timeout)
+        self._orig_url = url
+        super().__init__(
+            root_url=self.version_discovery(url, session=session),
+            auth=auth, session=session, default_timeout=default_timeout
+        )
         self._capabilities_cache = {}
 
         # Initial API version check.
@@ -217,15 +227,43 @@ class Connection(RestApiConnection):
                 m=self._MINIMUM_API_VERSION, v=self._api_version)
             )
 
+        self._auth_config = auth_config or AuthConfig()
         self._refresh_token_store = refresh_token_store or RefreshTokenStore()
 
-    def authenticate_basic(self, username: str, password: str) -> 'Connection':
+    @classmethod
+    def version_discovery(cls, url: str, session: requests.Session = None) -> str:
+        """
+        Do automatic openEO API version discovery from given url, using a "well-known URI" strategy.
+
+        :param url: initial backend url (not including "/.well-known/openeo")
+        :return: root url of highest supported backend version
+        """
+        try:
+            well_known_url_response = RestApiConnection(url, session=session).get("/.well-known/openeo")
+            assert well_known_url_response.status_code == 200
+            versions = well_known_url_response.json()["versions"]
+            supported_versions = [v for v in versions if cls._MINIMUM_API_VERSION <= v["api_version"]]
+            assert supported_versions
+            production_versions = [v for v in supported_versions if v.get("production", True)]
+            highest_version = max(production_versions or supported_versions, key=lambda v: v["api_version"])
+            _log.debug("Highest supported version available in backend: %s" % highest_version)
+            return highest_version['url']
+        except Exception:
+            # Be very lenient about failing on the well-known URI strategy.
+            return url
+
+    def authenticate_basic(self, username: str = None, password: str = None) -> 'Connection':
         """
         Authenticate a user to the backend using basic username and password.
 
         :param username: User name
         :param password: User passphrase
         """
+        if username is None:
+            username, password = self._auth_config.get_basic_auth(backend=self._orig_url)
+            if username is None:
+                raise OpenEoClientException("No username/password given or found.")
+
         resp = self.get(
             '/credentials/basic',
             # /credentials/basic is the only endpoint that expects a Basic HTTP auth
@@ -311,7 +349,7 @@ class Connection(RestApiConnection):
         tokens = authenticator.get_tokens()
         _log.info("Obtained tokens: {t}".format(t=[k for k, v in tokens._asdict().items() if v]))
         if tokens.refresh_token and store_refresh_token:
-            self._refresh_token_store.set(
+            self._refresh_token_store.set_refresh_token(
                 issuer=authenticator._client_info.provider.issuer,
                 client_id=authenticator.client_id,
                 refresh_token=tokens.refresh_token
@@ -383,7 +421,7 @@ class Connection(RestApiConnection):
         return self._authenticate_oidc(authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token)
 
     def authenticate_oidc_refresh_token(
-            self, client_id: str, refresh_token: str = None, client_secret: str = None, provider_id: str = None
+            self, client_id: str = None, refresh_token: str = None, client_secret: str = None, provider_id: str = None
     ) -> 'Connection':
         """
         OpenId Connect Refresh Token
@@ -391,11 +429,17 @@ class Connection(RestApiConnection):
         WARNING: this API is in experimental phase
         """
         provider_id, provider = self._get_oidc_provider(provider_id)
+        if client_id is None:
+            client_id, client_secret = self._auth_config.get_oidc_client_configs(
+                backend=self._orig_url, provider_id=provider_id
+            )
+            if client_id is None:
+                raise OpenEoClientException("No client ID given or found.")
+
         if refresh_token is None:
-            # TODO: allow client_id/secret to be None and fetch it from config/cache?
-            refresh_token = self._refresh_token_store.get(issuer=provider.issuer, client_id=client_id)
+            refresh_token = self._refresh_token_store.get_refresh_token(issuer=provider.issuer, client_id=client_id)
             if refresh_token is None:
-                raise OpenEoClientException("No refresh token")
+                raise OpenEoClientException("No refresh token given or found")
 
         client_info = OidcClientInfo(client_id=client_id, provider=provider, client_secret=client_secret)
         authenticator = OidcRefreshTokenAuthenticator(client_info=client_info, refresh_token=refresh_token)
@@ -454,26 +498,8 @@ class Connection(RestApiConnection):
         :return: data_dict: Dict All available data types
         """
         if "capabilities" not in self._capabilities_cache:
-            self._version_discovery()
             self._capabilities_cache["capabilities"] = RESTCapabilities(self.get('/').json())
-
         return self._capabilities_cache["capabilities"]
-
-    def _version_discovery(self):
-        try:
-            well_known_url_response = self.get('/.well-known/openeo')
-            assert well_known_url_response.status_code == 200
-            versions = well_known_url_response.json()["versions"]
-        except Exception:
-            # be very lenient about failing on the well-known doc, capabilities retrieval will be tried
-            return
-        supported_versions = [v for v in versions if self._MINIMUM_API_VERSION <= v["api_version"]]
-        if not supported_versions:
-            return
-        production_versions = [v for v in supported_versions if v.get("production", True)]
-        highest_version = max(production_versions or supported_versions, key=lambda v: v["api_version"])
-        _log.debug("Highest supported version available in backend: %s" % highest_version)
-        self._root_url = highest_version['url']
 
     @deprecated("Use 'list_output_formats' instead")
     def list_file_types(self) -> dict:
