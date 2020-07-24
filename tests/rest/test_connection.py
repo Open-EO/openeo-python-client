@@ -3,10 +3,12 @@ import unittest.mock as mock
 
 import pytest
 import requests_mock
+import requests.auth
 
 from openeo.capabilities import ComparableVersion
 from openeo.rest import OpenEoClientException
 from openeo.rest.auth.auth import NullAuth, BearerAuth
+from openeo.rest.auth.config import AuthConfig
 from openeo.rest.connection import Connection, RestApiConnection, connect, OpenEoApiError
 from .auth.test_oidc import OidcMock
 from .. import load_json_resource
@@ -257,17 +259,39 @@ def test_api_error_non_json(requests_mock):
 
 
 def test_authenticate_basic(requests_mock, api_version):
+    user, pwd = "john262", "J0hndo3"
     requests_mock.get(API_URL, json={"api_version": api_version})
-    conn = Connection(API_URL)
 
     def text_callback(request, context):
-        assert request.headers["Authorization"] == "Basic am9objpqMGhu"
+        assert request.headers["Authorization"] == requests.auth._basic_auth_str(username=user, password=pwd)
         return '{"access_token":"w3lc0m3"}'
 
     requests_mock.get(API_URL + 'credentials/basic', text=text_callback)
 
+    conn = Connection(API_URL)
     assert isinstance(conn.auth, NullAuth)
-    conn.authenticate_basic(username="john", password="j0hn")
+    conn.authenticate_basic(username=user, password=pwd)
+    assert isinstance(conn.auth, BearerAuth)
+    if ComparableVersion(api_version).at_least("1.0.0"):
+        assert conn.auth.bearer == "basic//w3lc0m3"
+    else:
+        assert conn.auth.bearer == "w3lc0m3"
+
+
+def test_authenticate_basic_from_config(requests_mock, api_version):
+    user, pwd = "john281", "J0hndo3"
+    requests_mock.get(API_URL, json={"api_version": api_version})
+
+    def text_callback(request, context):
+        assert request.headers["Authorization"] == requests.auth._basic_auth_str(username=user, password=pwd)
+        return '{"access_token":"w3lc0m3"}'
+
+    requests_mock.get(API_URL + 'credentials/basic', text=text_callback)
+    AuthConfig().set_basic_auth(backend=API_URL, username=user, password=pwd)
+
+    conn = Connection(API_URL)
+    assert isinstance(conn.auth, NullAuth)
+    conn.authenticate_basic()
     assert isinstance(conn.auth, BearerAuth)
     if ComparableVersion(api_version).at_least("1.0.0"):
         assert conn.auth.bearer == "basic//w3lc0m3"

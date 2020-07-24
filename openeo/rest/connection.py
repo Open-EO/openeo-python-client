@@ -11,13 +11,13 @@ from urllib.parse import urljoin
 
 import requests
 from deprecated import deprecated
-from openeo.internal.graph_building import PGNode
 from requests import Response
 from requests.auth import HTTPBasicAuth, AuthBase
 
 import openeo
 from openeo.capabilities import ApiVersionException, ComparableVersion
 from openeo.imagecollection import CollectionMetadata
+from openeo.internal.graph_building import PGNode
 from openeo.rest import OpenEoClientException
 from openeo.rest.auth.auth import NullAuth, BearerAuth
 from openeo.rest.auth.config import RefreshTokenStore, AuthConfig
@@ -27,9 +27,9 @@ from openeo.rest.auth.oidc import OidcClientCredentialsAuthenticator, OidcAuthCo
 from openeo.rest.datacube import DataCube
 from openeo.rest.imagecollectionclient import ImageCollectionClient
 from openeo.rest.job import RESTJob
-from openeo.rest.udp import RESTUserDefinedProcess, Parameter
 from openeo.rest.rest_capabilities import RESTCapabilities
-from openeo.util import ensure_list, get_user_data_dir
+from openeo.rest.udp import RESTUserDefinedProcess, Parameter
+from openeo.util import ensure_list
 
 _log = logging.getLogger(__name__)
 
@@ -207,7 +207,7 @@ class Connection(RestApiConnection):
 
     def __init__(
             self, url, auth: AuthBase = None, session: requests.Session = None, default_timeout: int = None,
-            refresh_token_store: RefreshTokenStore = None
+            auth_config: AuthConfig = None, refresh_token_store: RefreshTokenStore = None
     ):
         """
         Constructor of Connection, authenticates user.
@@ -227,6 +227,7 @@ class Connection(RestApiConnection):
                 m=self._MINIMUM_API_VERSION, v=self._api_version)
             )
 
+        self._auth_config = auth_config or AuthConfig()
         self._refresh_token_store = refresh_token_store or RefreshTokenStore()
 
     @classmethod
@@ -251,13 +252,18 @@ class Connection(RestApiConnection):
             # Be very lenient about failing on the well-known URI strategy.
             return url
 
-    def authenticate_basic(self, username: str, password: str) -> 'Connection':
+    def authenticate_basic(self, username: str = None, password: str = None) -> 'Connection':
         """
         Authenticate a user to the backend using basic username and password.
 
         :param username: User name
         :param password: User passphrase
         """
+        if username is None:
+            username, password = self._auth_config.get_basic_auth(backend=self._orig_url)
+            if username is None:
+                raise OpenEoClientException("No username/password given or found.")
+
         resp = self.get(
             '/credentials/basic',
             # /credentials/basic is the only endpoint that expects a Basic HTTP auth
@@ -424,14 +430,16 @@ class Connection(RestApiConnection):
         """
         provider_id, provider = self._get_oidc_provider(provider_id)
         if client_id is None:
-            client_id, client_secret = AuthConfig().get_oidc_client_configs(
+            client_id, client_secret = self._auth_config.get_oidc_client_configs(
                 backend=self._orig_url, provider_id=provider_id
             )
+            if client_id is None:
+                raise OpenEoClientException("No client ID given or found.")
 
         if refresh_token is None:
             refresh_token = self._refresh_token_store.get_refresh_token(issuer=provider.issuer, client_id=client_id)
             if refresh_token is None:
-                raise OpenEoClientException("No refresh token")
+                raise OpenEoClientException("No refresh token given or found")
 
         client_info = OidcClientInfo(client_id=client_id, provider=provider, client_secret=client_secret)
         authenticator = OidcRefreshTokenAuthenticator(client_info=client_info, refresh_token=refresh_token)
