@@ -3,6 +3,7 @@ import builtins
 import json
 import logging
 import sys
+from collections import OrderedDict
 from getpass import getpass
 from pathlib import Path
 from typing import List, Tuple
@@ -218,7 +219,7 @@ def main_add_oidc(args):
         raise CliToolException("Backend API version is too low: {v} < 1.0.0".format(v=api_version))
     # Find provider ID
     oidc_info = con.get("/credentials/oidc", expected_status=200).json()
-    providers = {p["id"]: p for p in oidc_info["providers"]}
+    providers = OrderedDict([(p["id"], p) for p in oidc_info["providers"]])
     if not providers:
         raise CliToolException("No OpenID Connect providers listed by backend {b!r}.".format(b=backend))
     if not provider_id:
