@@ -14,6 +14,7 @@ There are a few different types of operations where UDF's can be used:
 1. Applying a process to each pixel: https://open-eo.github.io/openeo-api/processreference/#apply
 2. Applying a process to all pixels along a dimension, without changing cardinality: apply_dimension
 3. Reducing values along a dimension: https://open-eo.github.io/openeo-api/processreference/#reduce
+4. Applying a process to all pixels in a multidimensional neighborhood: apply_neighborhood
 
 Not all functions will require you to write a custom process. For instance, if you want to take the absolute
 value of your datacube, you can simply use the predefined absolute value function. In fact, it is
