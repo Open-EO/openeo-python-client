@@ -8,6 +8,7 @@ import logging
 import os
 import platform
 import re
+from collections import OrderedDict
 from pathlib import Path
 from typing import Any, Union, Tuple, Callable
 
@@ -341,7 +342,7 @@ def deep_set(data: dict, *keys, value):
         data[keys[0]] = value
     elif len(keys) > 1:
         if isinstance(data, dict):
-            deep_set(data.setdefault(keys[0], {}), *keys[1:], value=value)
+            deep_set(data.setdefault(keys[0], OrderedDict()), *keys[1:], value=value)
         elif isinstance(data, (list, tuple)):
             deep_set(data[keys[0]], *keys[1:], value=value)
         else:
