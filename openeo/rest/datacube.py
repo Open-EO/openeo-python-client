@@ -882,18 +882,32 @@ class DataCube(ImageCollection):
         # TODO: set metadata of reduced cube?
         return self.process_with_node(PGNode(process_id="merge_cubes", arguments=arguments))
 
-    def apply_kernel(self, kernel: Union[np.ndarray, List[List[float]]], factor=1.0) -> 'DataCube':
+    def apply_kernel(self, kernel: Union[np.ndarray, List[List[float]]], factor=1.0, border = 0, replace_invalid=0) -> 'DataCube':
         """
         Applies a focal operation based on a weighted kernel to each value of the specified dimensions in the data cube.
 
-        :param kernel: The kernel to be applied on the data cube. It should be a 2D (numpy) array.
+        The border parameter determines how the data is extended when the kernel overlaps with the borders.
+        The following options are available:
+
+        * numeric value - fill with a user-defined constant number n: nnnnnn|abcdefgh|nnnnnn (default, with n = 0)
+        * replicate - repeat the value from the pixel at the border: aaaaaa|abcdefgh|hhhhhh
+        * reflect - mirror/reflect from the border: fedcba|abcdefgh|hgfedc
+        * reflect_pixel - mirror/reflect from the center of the pixel at the border: gfedcb|abcdefgh|gfedcb
+        * wrap - repeat/wrap the image: cdefgh|abcdefgh|abcdef
+
+
+        :param kernel: The kernel to be applied on the data cube. The kernel has to be as many dimensions as the data cube has dimensions.
         :param factor: A factor that is multiplied to each value computed by the focal operation. This is basically a shortcut for explicitly multiplying each value by a factor afterwards, which is often required for some kernel-based algorithms such as the Gaussian blur.
+        :param border: Determines how the data is extended when the kernel overlaps with the borders. Defaults to fill the border with zeroes.
+        :param: replace_invalid: This parameter specifies the value to replace non-numerical or infinite numerical values with. By default, those values are replaced with zeroes.
         :return: A data cube with the newly computed values. The resolution, cardinality and the number of dimensions are the same as for the original data cube.
         """
         return self.process('apply_kernel', {
             'data': THIS,
             'kernel': kernel.tolist() if isinstance(kernel, np.ndarray) else kernel,
-            'factor': factor
+            'factor': factor,
+            'border': border,
+            'replace_invalid': replace_invalid
         })
 
     def raster_to_vector(self) -> 'VectorCube':

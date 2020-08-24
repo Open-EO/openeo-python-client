@@ -203,7 +203,7 @@ class ImageCollection(ABC):
         An overlap can be specified so that neighbourhoods can have overlapping boundaries. This allows for continuity of the output. The values included in the data cube as overlap can't be modified by the given `process`.
 
         The neighbourhood size should be kept small enough, to avoid running beyond computational resources, but a too small size will result in a larger number of process invocations, which may slow down processing. Window sizes for spatial dimensions typically are in the range of 64 to 512 pixels, while overlaps of 8 to 32 pixels are common.
-        
+
         The process must not add new dimensions, or remove entire dimensions, but the result can have different dimension labels.
 
         For the special case of 2D convolution, it is recommended to use ``apply_kernel()``.
@@ -382,12 +382,24 @@ class ImageCollection(ABC):
         """
         pass
 
-    def apply_kernel(self, kernel, factor=1.0) -> 'ImageCollection':
+    def apply_kernel(self, kernel, factor=1.0, border = 0, replace_invalid=0) -> 'ImageCollection':
         """
         Applies a focal operation based on a weighted kernel to each value of the specified dimensions in the data cube.
 
+        The border parameter determines how the data is extended when the kernel overlaps with the borders.
+        The following options are available:
+
+        * numeric value - fill with a user-defined constant number n: nnnnnn|abcdefgh|nnnnnn (default, with n = 0)
+        * replicate - repeat the value from the pixel at the border: aaaaaa|abcdefgh|hhhhhh
+        * reflect - mirror/reflect from the border: fedcba|abcdefgh|hgfedc
+        * reflect_pixel - mirror/reflect from the center of the pixel at the border: gfedcb|abcdefgh|gfedcb
+        * wrap - repeat/wrap the image: cdefgh|abcdefgh|abcdef
+
+
         :param kernel: The kernel to be applied on the data cube. The kernel has to be as many dimensions as the data cube has dimensions.
         :param factor: A factor that is multiplied to each value computed by the focal operation. This is basically a shortcut for explicitly multiplying each value by a factor afterwards, which is often required for some kernel-based algorithms such as the Gaussian blur.
+        :param border: Determines how the data is extended when the kernel overlaps with the borders. Defaults to fill the border with zeroes.
+        :param: replace_invalid: This parameter specifies the value to replace non-numerical or infinite numerical values with. By default, those values are replaced with zeroes.
         :return: A data cube with the newly computed values. The resolution, cardinality and the number of dimensions are the same as for the original data cube.
         """
         pass
