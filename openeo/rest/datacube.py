@@ -27,6 +27,8 @@ from openeo.rest.udp import RESTUserDefinedProcess
 from openeo.util import get_temporal_extent, dict_no_none
 from openeo.vectorcube import VectorCube
 from openeo.metadata import Band
+import numpy
+from builtins import staticmethod
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Only import this for type hinting purposes. Runtime import causes circular dependency issues.
@@ -1077,6 +1079,50 @@ class DataCube(ImageCollection):
     def execute(self) -> Dict:
         """Executes the process graph of the imagery. """
         return self._connection.execute(self._pg.flatten())
+
+    @staticmethod
+    def execute_local_udf(udf: str, datacube: Union[str, 'openeo_udf.api.datacube.DataCube'] =None , fmt='netcdf'):
+        """
+        Locally executes an user defined function on a previously downloaded datacube.
+        
+        :param udf: the code of the user defined function
+        :param datacube: the path to the downloaded data in disk or a DataCube
+        :param fmt: format of the file if datacube is string
+        :return: the resulting DataCube
+        """
+        from openeo_udf.api.udf_data import UdfData
+        from openeo_udf.api.run_code import run_user_code
+        from openeo_udf.api.datacube import DataCube as udf_DataCube
+        
+        udf_data=None
+        # if it is a datacube
+        if datacube is not None:
+            # get input
+            if isinstance(datacube, str):
+                d=udf_DataCube.from_file(datacube, fmt)
+            elif isinstance(datacube, udf_DataCube):
+                d=datacube
+            else:
+                raise TypeError("Data should be either file name to the Data or a DataCube, got "+str(datacube.__class__ if datacube is not None else 'None'))
+            # datacube's data is to be float and x,y not provided
+            d=udf_DataCube(d.get_array()
+                .astype(numpy.float64)
+                .drop(labels='x')
+                .drop(labels='y')
+            )
+            # wrap to udf_data
+            udf_data=UdfData(datacube_list=[d])
+            
+        # TODO: enrich to other types like time series, vector data,... probalby by adding  named arguments
+        # signature: UdfData(proj, datacube_list, feature_collection_list, structured_data_list, ml_model_list, metadata)
+        
+        # run the udf through the same routine as it would have been parsed in the backend
+        if udf_data is not None:
+            result=run_user_code(udf, udf_data)
+            return result
+        
+        return None
+
 
     def to_graphviz(self):
         """
