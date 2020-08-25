@@ -8,8 +8,9 @@ import numpy
 from xarray.core.dataarray import DataArray
 from openeo_udf.api.datacube import DataCube
 import xarray
-import tempfile
 from openeo.rest.datacube import DataCube as rest_DataCube
+from tempfile import TemporaryDirectory
+import os
 
 
 udfcode=(
@@ -50,14 +51,15 @@ class TestLocalUDF(unittest.TestCase):
 
 
     def test_run_local_udf_fromfile(self):
-        dc=self.buildData()
-        tmpfile=tempfile.TemporaryFile()
-        dc.to_file(str(tmpfile.name))
-        r=rest_DataCube.execute_local_udf(udfcode, str(tmpfile.name))
-        result=r.get_datacube_list()[0].get_array()
-        exec(udfcode)
-        ref=locals()["apply_datacube"](DataCube(dc.get_array().astype(numpy.float64).drop(labels='x').drop(labels='y')), {}).get_array()
-        xarray.testing.assert_allclose(result,ref)
+        with TemporaryDirectory() as td:
+            dc=self.buildData()
+            tmpfile=os.path.join(td,'test_data')
+            dc.to_file(tmpfile)
+            r=rest_DataCube.execute_local_udf(udfcode, tmpfile)
+            result=r.get_datacube_list()[0].get_array()
+            exec(udfcode)
+            ref=locals()["apply_datacube"](DataCube(dc.get_array().astype(numpy.float64).drop(labels='x').drop(labels='y')), {}).get_array()
+            xarray.testing.assert_allclose(result,ref)
 
 
     def test_run_local_udf_frommemory(self):
