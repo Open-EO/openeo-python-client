@@ -38,6 +38,7 @@ setup(name=name,
           'pandas>0.20.0;python_version>="3.5.3"',
           'pandas<0.25.0;python_version<"3.5.3"',
           'deprecated',
+          'openeo_udf==1.0.0rc2',
       ],
       extras_require={
           "dev": [
