@@ -28,7 +28,7 @@ setup(name=name,
       url="https://github.com/Open-EO/openeo-python-client",
       packages=find_packages(include=['openeo*']),
       setup_requires=['pytest-runner'],
-      tests_require=['pytest', 'mock', 'requests-mock'],
+      tests_require=['pytest', 'mock', 'requests-mock','xarray==0.12.3'],
       test_suite='tests',
       install_requires=[
           'requests',
