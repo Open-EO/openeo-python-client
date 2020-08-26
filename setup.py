@@ -48,6 +48,7 @@ setup(name=name,
               "requests-mock",
               "pytest",
               "flake8",
+              "xarray==0.12.3",
           ]
       },
       entry_points={
