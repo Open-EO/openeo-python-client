@@ -50,6 +50,7 @@ setup(name=name,
               "pytest",
               "flake8",
               "xarray==0.12.3",
+              "geopandas"
           ]
       },
       entry_points={
