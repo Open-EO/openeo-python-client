@@ -368,6 +368,8 @@ def test_apply_kernel(s2cube):
     assert graph["arguments"] == {
         'data': {'from_node': 'loadcollection1'},
         'factor': 3,
+        'border': 0,
+        'replace_invalid': 0,
         'kernel': [[0, 1, 0], [1, 1, 1], [0, 1, 0]]
     }
 
