@@ -17,6 +17,7 @@ import numpy as np
 import shapely.geometry
 import shapely.geometry.base
 from deprecated import deprecated
+from openeo.rest.processbuilder import ProcessBuilder
 from shapely.geometry import Polygon, MultiPolygon, mapping
 
 from openeo.imagecollection import ImageCollection, CollectionMetadata
@@ -62,6 +63,10 @@ class DataCube(ImageCollection):
     def graph(self) -> dict:
         """Get the process graph in flattened dict representation"""
         return self.flatten()
+
+    @property
+    def processgraph_node(self) -> PGNode:
+        return self._pg
 
     def flatten(self) -> dict:
         """Get the process graph in flattened dict representation"""
@@ -491,7 +496,7 @@ class DataCube(ImageCollection):
         return self.process(process_id, args)
 
     def apply_dimension(
-            self, code: str, runtime=None, version="latest", dimension='t', target_dimension=None
+            self, code: str=None, runtime=None, version="latest", dimension='t', target_dimension=None
     ) -> 'DataCube':
         """
         Applies a user defined process to all pixel values along a dimension of a raster data cube. For example,
@@ -522,11 +527,13 @@ class DataCube(ImageCollection):
         """
         if runtime:
             process = self._create_run_udf(code, runtime, version)
-        else:
+        elif isinstance(code,str):
             process = PGNode(
                 process_id=code,
                 arguments={"data": {"from_parameter": "data"}},
             )
+        else:
+            process = None
         arguments = {
             "data": self._pg,
             "process": PGNode.to_process_graph_argument(process),
@@ -535,10 +542,12 @@ class DataCube(ImageCollection):
         }
         if target_dimension is not None:
             arguments["target_dimension"] = target_dimension
-        return self.process_with_node(PGNode(
-            process_id="apply_dimension",
-            arguments=arguments
-        ))
+        result_cube = self.process_with_node(PGNode(process_id="apply_dimension", arguments=arguments))
+
+        if process is None:
+            return ProcessBuilder(final_callback=ProcessBuilder.datacube_callback(result_cube))
+        else:
+            return result_cube
 
     def reduce_dimension(self, dimension: str, reducer: Union[PGNode, str],
                          process_id="reduce_dimension", band_math_mode: bool = False) -> 'DataCube':
@@ -612,7 +621,7 @@ class DataCube(ImageCollection):
         """
         return self.reduce_temporal_udf(code=code, runtime=runtime, version=version)
 
-    def apply_neighborhood(self,process:PGNode, size:List[Dict],overlap:List[Dict]):
+    def apply_neighborhood(self, size:List[Dict],overlap:List[Dict]=[],process:PGNode = None):
         """
         Applies a focal process to a data cube.
 
@@ -629,24 +638,33 @@ class DataCube(ImageCollection):
         @param overlap:
         @return:
         """
-        return self.process_with_node(PGNode(
+        args = {
+            "data": self._pg,
+            "process": {"process_graph": process},
+            "size": size,
+            "overlap": overlap
+        }
+        result_cube = self.process_with_node(PGNode(
             process_id='apply_neighborhood',
-            arguments={
-                "data": self._pg,
-                "process": {"process_graph": process},
-                "size": size,
-                "overlap": overlap
-            }
+            arguments=args
         ))
+        if process == None:
+            return ProcessBuilder(final_callback=ProcessBuilder.datacube_callback(result_cube))
+        if isinstance(process, typing.Callable):
+            builder = ProcessBuilder()
+            callback_graph = process(builder)
+            result_cube.processgraph_node.arguments['process'] = {'process_graph': callback_graph.pgnode}
 
-    def apply(self, process: Union[str, PGNode], data_argument='x') -> 'DataCube':
+        return result_cube
+
+    def apply(self, process: Union[str, PGNode]=None, data_argument='x') -> 'DataCube':
         if isinstance(process, str):
             # Simple single string process specification
             process = PGNode(
                 process_id=process,
                 arguments={data_argument: {"from_parameter": "x"}}
             )
-        return self.process_with_node(PGNode(
+        result_cube = self.process_with_node(PGNode(
             process_id='apply',
             arguments={
                 "data": self._pg,
@@ -654,6 +672,10 @@ class DataCube(ImageCollection):
                 # TODO #125 context
             }
         ))
+        if process == None:
+            return ProcessBuilder(final_callback=ProcessBuilder.datacube_callback(result_cube))
+        else:
+            return result_cube
 
     def reduce_temporal_simple(self, process_id="max") -> 'DataCube':
         """Do temporal reduce with a simple given process as callback."""
