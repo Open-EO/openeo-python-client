@@ -1081,7 +1081,7 @@ class DataCube(ImageCollection):
         return self._connection.execute(self._pg.flatten())
 
     @staticmethod
-    def execute_local_udf(udf: str, datacube: Union[str, 'openeo_udf.api.datacube.DataCube'] =None , fmt='netcdf'):
+    def execute_local_udf(udf: str, datacube: Union[str, 'xarray.DataArray', 'openeo_udf.api.datacube.DataCube'] =None , fmt='netcdf'):
         """
         Locally executes an user defined function on a previously downloaded datacube.
         
@@ -1093,6 +1093,7 @@ class DataCube(ImageCollection):
         from openeo_udf.api.udf_data import UdfData
         from openeo_udf.api.run_code import run_user_code
         from openeo_udf.api.datacube import DataCube as udf_DataCube
+        from xarray import DataArray
         
         udf_data=None
         # if it is a datacube
@@ -1102,6 +1103,8 @@ class DataCube(ImageCollection):
                 d=udf_DataCube.from_file(datacube, fmt)
             elif isinstance(datacube, udf_DataCube):
                 d=datacube
+            elif isinstance(datacube, DataArray):
+                d=udf_DataCube(datacube)
             else:
                 raise TypeError("Data should be either file name to the Data or a DataCube, got "+str(datacube.__class__ if datacube is not None else 'None'))
             # datacube's data is to be float and x,y not provided
