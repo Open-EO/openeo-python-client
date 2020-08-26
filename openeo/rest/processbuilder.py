@@ -2,6 +2,39 @@
 from openeo import ImageCollection
 from openeo.internal.graph_building import PGNode
 
+def max(data:'ProcessBuilder',ignore_nodata=True) -> 'ProcessBuilder':
+    """
+    Computes the largest value of an array of numbers, which is is equal to the first element of a sorted (i.e., ordered) version the array.
+
+    An array without non-null elements resolves always with null.
+
+    @param ignore_nodata:
+    @return:
+    """
+    return data.max(ignore_nodata)
+
+def array_element(data,index=None,label=None,return_nodata=None):
+    args = {'data': data._ancestor()}
+    if index is not None:
+        args['index']=index
+    elif label is not None:
+        args['label'] = label
+    else:
+        raise ValueError("Either the index or label argument should be specified.")
+
+    if return_nodata is not None:
+        args['return_nodata'] = return_nodata
+    return data.process('array_element', args)
+
+
+def add(x:'ProcessBuilder',y:'ProcessBuilder') -> 'ProcessBuilder':
+
+    args = {
+        'x': x._ancestor(),
+        'y': y._ancestor()
+            }
+    return x.process('add', args)
+
 
 class ProcessBuilder(ImageCollection):
     """
@@ -40,6 +73,20 @@ class ProcessBuilder(ImageCollection):
 
     def absolute(self):
         return self.process('absolute', {'x': self._ancestor()})
+
+    def __add__(self, other) -> 'ProcessBuilder':
+        return add(self,other)
+
+    def max(self,ignore_nodata=True):
+        """
+        Computes the largest value of an array of numbers, which is is equal to the first element of a sorted (i.e., ordered) version the array.
+
+        An array without non-null elements resolves always with null.
+
+        @param ignore_nodata:
+        @return:
+        """
+        return self.process('max', {'data': self._ancestor(), 'ignore_nodata':ignore_nodata})
 
     def process(self, process_id: str, arguments: dict = None, **kwargs) -> 'ProcessBuilder':
         """

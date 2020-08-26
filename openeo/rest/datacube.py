@@ -676,8 +676,12 @@ class DataCube(ImageCollection):
         ))
         if process == None:
             return ProcessBuilder(final_callback=ProcessBuilder.datacube_callback(result_cube))
-        else:
-            return result_cube
+        elif isinstance(process, typing.Callable):
+            builder = ProcessBuilder()
+            callback_graph = process(builder)
+            result_cube.processgraph_node.arguments['process'] = {'process_graph': callback_graph.pgnode}
+
+        return result_cube
 
     def reduce_temporal_simple(self, process_id="max") -> 'DataCube':
         """Do temporal reduce with a simple given process as callback."""
