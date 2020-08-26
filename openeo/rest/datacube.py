@@ -72,9 +72,6 @@ class DataCube(ImageCollection):
     def connection(self):
         return self._connection
 
-    def create_subgraph(self):
-        return DataCube(None, self.connection, metadata=self.metadata)
-
     def process(self, process_id: str, arguments: dict = None, metadata: CollectionMetadata = None, **kwargs) -> 'DataCube':
         """
         Generic helper to create a new DataCube by applying a process.
@@ -639,12 +636,7 @@ class DataCube(ImageCollection):
             }
         ))
 
-    def apply(self, process: Union[str, PGNode, 'DataCube'], data_argument='x') -> 'DataCube':
-
-        if isinstance(process, DataCube):
-            # Simple single string process specification
-            process._pg.arguments[data_argument] = {"from_parameter": data_argument}
-            process = process._pg
+    def apply(self, process: Union[str, PGNode], data_argument='x') -> 'DataCube':
 
         if isinstance(process, str):
             # Simple single string process specification
