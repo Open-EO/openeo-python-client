@@ -27,6 +27,7 @@ udfcode=(
 "    return DataCube(ndvi)\n"
 )
 
+@unittest.skip
 class TestLocalUDF(unittest.TestCase):
 
     def buildData(self):
