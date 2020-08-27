@@ -94,3 +94,53 @@ def test_apply_bandmath(con100):
                             'process_id': 'apply',
                             'result': True}
 
+
+
+def test_reduce_dimension(con100):
+    collection = con100.load_collection("S2")
+
+    from openeo.rest.processbuilder import array_element
+
+    bandsum = collection.reduce_dimension(dimension='bands',reducer=lambda data:array_element(data,index=1) + array_element(data,index=2))
+
+    actual_graph = bandsum.graph['reducedimension1']
+    assert actual_graph == {'arguments': {'data': {'from_node': 'loadcollection1'},
+                                          'dimension': 'bands',
+                                          'reducer': {'process_graph': {'add1': {'arguments': {'x': {'from_node': 'arrayelement1'},
+                                                                    'y': {'from_node': 'arrayelement2'}},
+                                                      'process_id': 'add',
+                                                      'result': True},
+                                             'arrayelement1': {'arguments': {'data': {'from_parameter': 'data'},
+                                                                             'index': 1},
+                                                               'process_id': 'array_element'},
+                                             'arrayelement2': {'arguments': {'data': {'from_parameter': 'data'},
+                                                                             'index': 2},
+                                                               'process_id': 'array_element'}}}},
+                            'process_id': 'reduce_dimension',
+                            'result': True}
+
+
+
+def test_apply_dimension(con100):
+    collection = con100.load_collection("S2")
+
+    from openeo.rest.processbuilder import array_element
+
+    bandsum = collection.apply_dimension(dimension='bands',process=lambda data:array_element(data,index=1) + array_element(data,index=2))
+
+    actual_graph = bandsum.graph['applydimension1']
+    assert actual_graph == {'arguments': {'data': {'from_node': 'loadcollection1'},
+                                          'dimension': 'bands',
+                                          'process': {'process_graph': {'add1': {'arguments': {'x': {'from_node': 'arrayelement1'},
+                                                                    'y': {'from_node': 'arrayelement2'}},
+                                                      'process_id': 'add',
+                                                      'result': True},
+                                             'arrayelement1': {'arguments': {'data': {'from_parameter': 'data'},
+                                                                             'index': 1},
+                                                               'process_id': 'array_element'},
+                                             'arrayelement2': {'arguments': {'data': {'from_parameter': 'data'},
+                                                                             'index': 2},
+                                                               'process_id': 'array_element'}}}},
+                            'process_id': 'apply_dimension',
+                            'result': True}
+

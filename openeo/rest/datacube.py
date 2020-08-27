@@ -498,11 +498,14 @@ class DataCube(ImageCollection):
         return self.process(process_id, args)
 
     def apply_dimension(
-            self, code: str=None, runtime=None, version="latest", dimension='t', target_dimension=None
+            self, code: str=None, runtime=None,process:typing.Callable=None, version="latest", dimension='t', target_dimension=None
     ) -> 'DataCube':
         """
-        Applies a user defined process to all pixel values along a dimension of a raster data cube. For example,
+        Applies a process to all pixel values along a dimension of a raster data cube. For example,
         if the temporal dimension is specified the process will work on a time series of pixel values.
+
+        The process to apply is specified by either `code` and `runtime` in case of a UDF, or by providing a callback function
+        in the `process` argument.
 
         The process reduce_dimension also applies a process to pixel values along a dimension, but drops
         the dimension afterwards. The process apply applies a process to each pixel value in the data cube.
@@ -516,8 +519,9 @@ class DataCube(ImageCollection):
         the dimension labels will be incrementing integers starting from zero, which can be changed using
         rename_labels afterwards. The number of labels will equal to the number of values computed by the process.
 
-        :param code: UDF code or process identifier
-        :param runtime: UDF runtime to use
+        :param code: UDF code or process identifier (optional)
+        :param runtime: UDF runtime to use (optional)
+        :param process: a callback function that creates a process graph
         :param version: Version of the UDF runtime to use
         :param dimension: The name of the source dimension to apply the process on. Fails with a DimensionNotAvailable error if the specified dimension does not exist.
         :param target_dimension: The name of the target dimension or null (the default) to use the source dimension
@@ -528,17 +532,21 @@ class DataCube(ImageCollection):
         :raises: DimensionNotAvailable
         """
         if runtime:
-            process = self._create_run_udf(code, runtime, version)
+            callback_process_node = self._create_run_udf(code, runtime, version)
         elif isinstance(code,str):
-            process = PGNode(
+            callback_process_node = PGNode(
                 process_id=code,
                 arguments={"data": {"from_parameter": "data"}},
             )
+        elif isinstance(process, typing.Callable):
+            builder = ProcessBuilder()
+            callback_graph = process(builder)
+            callback_process_node =  callback_graph.pgnode
         else:
-            process = None
+            callback_process_node = None
         arguments = {
             "data": self._pg,
-            "process": PGNode.to_process_graph_argument(process),
+            "process": PGNode.to_process_graph_argument(callback_process_node),
             "dimension": self.metadata.assert_valid_dimension(dimension),
             # TODO #125 arguments: context
         }
@@ -551,7 +559,7 @@ class DataCube(ImageCollection):
         else:
             return result_cube
 
-    def reduce_dimension(self, dimension: str, reducer: Union[PGNode, str],
+    def reduce_dimension(self, dimension: str, reducer: Union[typing.Callable, str],
                          process_id="reduce_dimension", band_math_mode: bool = False) -> 'DataCube':
         """
         Add a reduce process with given reducer callback along given dimension
@@ -561,6 +569,11 @@ class DataCube(ImageCollection):
         if isinstance(reducer, str):
             # Assume given reducer is a simple predefined reduce process_id
             reducer = PGNode(process_id=reducer, arguments={"data": {"from_parameter": "data"}})
+        elif isinstance(reducer, typing.Callable):
+            builder = ProcessBuilder()
+            callback_graph = reducer(builder)
+            reducer =  callback_graph.pgnode
+
         return self.process_with_node(ReduceNode(
             process_id=process_id,
             data=self._pg,
@@ -893,7 +906,7 @@ class DataCube(ImageCollection):
             )
         )
 
-    def merge(self, other: 'DataCube', overlap_resolver: Union[str, PGNode] = None) -> 'DataCube':
+    def merge(self, other: 'DataCube', overlap_resolver: Union[str, typing.Callable] = None) -> 'DataCube':
         arguments = {
             'cube1': {'from_node': self._pg},
             'cube2': {'from_node': other._pg},
@@ -901,11 +914,16 @@ class DataCube(ImageCollection):
         if overlap_resolver:
             if isinstance(overlap_resolver, str):
                 # Simple resolver (specified as process_id string)
-                overlap_resolver = PGNode(
+                overlap_resolver_node = PGNode(
                     process_id=overlap_resolver,
                     arguments={"data": [{"from_parameter": "x"}, {"from_parameter": "y"}]}
                 )
-            arguments["overlap_resolver"] = {"process_graph": overlap_resolver}
+            elif isinstance(overlap_resolver,typing.Callable):
+                builder = ProcessBuilder()
+                callback_graph = overlap_resolver(builder)
+                overlap_resolver_node = callback_graph.pgnode
+
+            arguments["overlap_resolver"] = {"process_graph": overlap_resolver_node}
         # TODO #125 context
         # TODO: set metadata of reduced cube?
         return self.process_with_node(PGNode(process_id="merge_cubes", arguments=arguments))
