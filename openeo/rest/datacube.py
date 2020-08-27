@@ -555,7 +555,7 @@ class DataCube(ImageCollection):
             arguments["target_dimension"] = target_dimension
         result_cube = self.process_with_node(PGNode(process_id="apply_dimension", arguments=arguments))
 
-        if process is None:
+        if process is None and code is None:
             return ProcessBuilder(final_callback=ProcessBuilder.datacube_callback(result_cube))
         else:
             return result_cube
@@ -688,7 +688,7 @@ class DataCube(ImageCollection):
             # Simple single string process specification
             process = PGNode(
                 process_id=process,
-                arguments={data_argument: {"from_parameter": "x"}}
+                arguments={data_argument: {"from_parameter": "data"}}
             )
         result_cube = self.process_with_node(PGNode(
             process_id='apply',
@@ -933,6 +933,10 @@ class DataCube(ImageCollection):
                 builder = ProcessBuilder()
                 callback_graph = overlap_resolver(builder)
                 overlap_resolver_node = callback_graph.pgnode
+            elif isinstance(overlap_resolver,PGNode):
+                overlap_resolver_node = overlap_resolver
+            else:
+                raise ValueError("Unsupported overlap_resolver: %s" % str(overlap_resolver))
 
             arguments["overlap_resolver"] = {"process_graph": overlap_resolver_node}
         # TODO #125 context
