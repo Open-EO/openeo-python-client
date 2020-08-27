@@ -249,7 +249,14 @@ def test_metadata_load_collection_100(con100, requests_mock):
 
 def test_apply_absolute_pgnode(con100):
     im = con100.load_collection("S2")
-    result = im.apply(PGNode(process_id="absolute", arguments={"x": {"from_parameter": "x"}}))
+    result = im.apply(PGNode(process_id="absolute", arguments={"x": {"from_parameter": "data"}}))
+    expected_graph = load_json_resource('data/1.0.0/apply_absolute.json')
+    assert result.graph == expected_graph
+
+def test_apply_absolute_callback(con100):
+    im = con100.load_collection("S2")
+    result = im.apply().absolute().done()
+
     expected_graph = load_json_resource('data/1.0.0/apply_absolute.json')
     assert result.graph == expected_graph
 
@@ -291,12 +298,12 @@ def test_apply_dimension_temporal_cumsum_with_target(con100):
 
 def test_apply_neighborhood_udf(con100):
     collection = con100.load_collection("S2")
-    neighbors = collection.apply_neighborhood(UDF(code="myfancycode", runtime="Python",data={'from_parameter': 'data'}), size=[
+    neighbors = collection.apply_neighborhood(size=[
         {'dimension': 'x', 'value': 128, 'unit': 'px'},
         {'dimension': 'y', 'value': 128, 'unit': 'px'}
     ], overlap=[
         {'dimension': 't', 'value': 'P10d'},
-    ])
+    ],process= lambda data:data.run_udf(code="myfancycode", runtime="Python"))
     actual_graph = neighbors.graph['applyneighborhood1']
     assert actual_graph == {'arguments': {'data': {'from_node': 'loadcollection1'},
                                           'overlap': [{'dimension': 't', 'value': 'P10d'}],

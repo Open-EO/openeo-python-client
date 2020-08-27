@@ -8,6 +8,9 @@ This client allows users to communicate with OpenEO backends, in a way that feel
     :caption: Basic example
     :name: basic_example
 
+
+In this example, a 'datacube' is created using `load_collection`. Datacubes can be transformed by applying operations directly.
+
 """
 
 __title__ = 'openeo'
