@@ -20,6 +20,7 @@ from deprecated import deprecated
 from openeo.rest.processbuilder import ProcessBuilder
 from shapely.geometry import Polygon, MultiPolygon, mapping
 
+import openeo
 from openeo.imagecollection import ImageCollection, CollectionMetadata
 from openeo.internal.graph_building import PGNode, ReduceNode
 from openeo.rest import BandMathException, OperatorException
@@ -51,7 +52,7 @@ class DataCube(ImageCollection):
     In earlier versions this was called `ImageCollectionClient`
     """
 
-    def __init__(self, graph: PGNode, connection: 'Connection', metadata: CollectionMetadata = None):
+    def __init__(self, graph: PGNode, connection: 'openeo.Connection', metadata: CollectionMetadata = None):
         super().__init__(metadata=metadata)
         # Process graph
         self._pg = graph
@@ -79,7 +80,7 @@ class DataCube(ImageCollection):
         return self._connection.capabilities().api_version_check
 
     @property
-    def connection(self):
+    def connection(self) -> 'openeo.Connection':
         return self._connection
 
     def process(self, process_id: str, arguments: dict = None, metadata: CollectionMetadata = None, **kwargs) -> 'DataCube':
@@ -118,7 +119,7 @@ class DataCube(ImageCollection):
 
     @classmethod
     def load_collection(
-            cls, collection_id: str, connection: 'Connection' = None,
+            cls, collection_id: str, connection: 'openeo.Connection' = None,
             spatial_extent: Union[Dict[str, float], None] = None,
             temporal_extent: Union[List[Union[str, datetime.datetime, datetime.date]], None] = None,
             bands: Union[List[str], None] = None,
@@ -169,7 +170,7 @@ class DataCube(ImageCollection):
         return cls.load_collection(*args, **kwargs)
 
     @classmethod
-    def load_disk_collection(cls, connection: 'Connection', file_format: str, glob_pattern: str,
+    def load_disk_collection(cls, connection: 'openeo.Connection', file_format: str, glob_pattern: str,
                              **options) -> 'DataCube':
         """
         Loads image data from disk as a DataCube.
@@ -521,7 +522,7 @@ class DataCube(ImageCollection):
 
         :param code: UDF code or process identifier (optional)
         :param runtime: UDF runtime to use (optional)
-        :param process: a callback function that creates a process graph
+        :param process: a callback function that creates a process graph, see :ref:`callbackfunctions`
         :param version: Version of the UDF runtime to use
         :param dimension: The name of the source dimension to apply the process on. Fails with a DimensionNotAvailable error if the specified dimension does not exist.
         :param target_dimension: The name of the target dimension or null (the default) to use the source dimension
@@ -563,6 +564,9 @@ class DataCube(ImageCollection):
                          process_id="reduce_dimension", band_math_mode: bool = False) -> 'DataCube':
         """
         Add a reduce process with given reducer callback along given dimension
+
+        :param dimension: the label of the dimension to reduce
+        :param reducer: a callback function that creates a process graph, see :ref:`callbackfunctions`
         """
         # TODO: check if dimension is valid according to metadata? #116
         # TODO: #125 use/test case for `reduce_dimension_binary`?
@@ -636,7 +640,7 @@ class DataCube(ImageCollection):
         """
         return self.reduce_temporal_udf(code=code, runtime=runtime, version=version)
 
-    def apply_neighborhood(self, size:List[Dict],overlap:List[Dict]=[],process:PGNode = None):
+    def apply_neighborhood(self, size:List[Dict],overlap:List[Dict]=[],process:PGNode = None) -> 'DataCube':
         """
         Applies a focal process to a data cube.
 
@@ -648,10 +652,10 @@ class DataCube(ImageCollection):
 
         For the special case of 2D convolution, it is recommended to use ``apply_kernel()``.
 
-        @param process:
-        @param size:
-        @param overlap:
-        @return:
+        :param size:
+        :param overlap:
+        :param process: a callback function that creates a process graph, see :ref:`callbackfunctions`
+        :return:
         """
         args = {
             "data": self._pg,
@@ -673,6 +677,13 @@ class DataCube(ImageCollection):
         return result_cube
 
     def apply(self, process: Union[str, PGNode]=None, data_argument='x') -> 'DataCube':
+        """
+        Applies a unary process (a local operation) to each value of the specified or all dimensions in the data cube.
+
+        :param process: the name of a process, or a callback function that creates a process graph, see :ref:`callbackfunctions`
+        :param dimensions: The names of the dimensions to apply the process on. Defaults to an empty array so that all dimensions are used.
+        :return: A data cube with the newly computed values. The resolution, cardinality and the number of dimensions are the same as for the original data cube.
+        """
         if isinstance(process, str):
             # Simple single string process specification
             process = PGNode(
