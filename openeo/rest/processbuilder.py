@@ -68,8 +68,8 @@ class ProcessBuilder(ImageCollection):
         else:
             return {'from_parameter': self.parent_data_parameter}
 
-    def run_udf(self,code=str,runtime:str=""):
-        return self.process('run_udf',{'data':self._ancestor(),'udf':code,'runtime':runtime})
+    def run_udf(self,code=str,runtime:str="",**kwargs):
+        return self.process('run_udf',{'data':self._ancestor(),'udf':code,'runtime':runtime,'context':kwargs})
 
     def absolute(self):
         return self.process('absolute', {'x': self._ancestor()})

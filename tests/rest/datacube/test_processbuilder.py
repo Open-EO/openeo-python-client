@@ -9,7 +9,7 @@ def test_apply_neighborhood_udf(con100):
     ], overlap=[
         {'dimension': 't', 'value': 'P10d'},
     ])
-    neighbors = callback.run_udf(code='myfancycode',runtime='Python').done()
+    neighbors = callback.run_udf(code='myfancycode',runtime='Python', my_parameter="blabla", int_param=1).done()
     check_apply_neighbors(neighbors)
 
 
@@ -20,7 +20,12 @@ def check_apply_neighbors(neighbors):
                                           'process': {'process_graph': {'runudf1': {'arguments': {'udf': 'myfancycode',
                                                                                                   'data': {
                                                                                                       'from_parameter': 'data'},
-                                                                                                  'runtime': 'Python'},
+                                                                                                  'runtime': 'Python',
+                                                                                                  'context': {
+                                                                                                      'my_parameter': 'blabla',
+                                                                                                      'int_param': 1
+                                                                                                  }
+                                                                                                  },
                                                                                     'process_id': 'run_udf',
                                                                                     'result': True}}},
                                           'size': [{'dimension': 'x', 'unit': 'px', 'value': 128},
@@ -33,7 +38,7 @@ def test_apply_neighborhood_udf_callback(con100):
     collection = con100.load_collection("S2")
 
     def callback(data:ProcessBuilder):
-        return data.run_udf(code='myfancycode', runtime='Python')
+        return data.run_udf(code='myfancycode', runtime='Python', my_parameter="blabla", int_param=1)
 
     neighbors = collection.apply_neighborhood(process=callback, size=[
         {'dimension': 'x', 'value': 128, 'unit': 'px'},
