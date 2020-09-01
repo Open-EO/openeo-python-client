@@ -46,7 +46,7 @@ class ProcessBuilder(ImageCollection):
     @classmethod
     def datacube_callback(cls,datacube:'DataCube'):
         def callback(pgnode,process_argname='process'):
-            parent_node: PGNode = datacube.processgraph_node
+            parent_node = datacube.processgraph_node
             parent_node.arguments[process_argname] = {'process_graph':pgnode}
             return datacube
         return callback
