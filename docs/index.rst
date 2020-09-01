@@ -7,7 +7,7 @@ Open-EO Client
 ==============
 
 
-.. image:: https://img.shields.io/badge/Status-proof--of--concept-yellow.svg
+.. image:: https://img.shields.io/badge/Status-Stable-yellow.svg
 
 
 .. toctree::
