@@ -6,7 +6,6 @@ Created on Aug 17, 2020
 import unittest
 import numpy
 from xarray.core.dataarray import DataArray
-from openeo_udf.api.datacube import DataCube
 import xarray
 from openeo.rest.datacube import DataCube as rest_DataCube
 from tempfile import TemporaryDirectory
@@ -31,6 +30,7 @@ udfcode=(
 class TestLocalUDF(unittest.TestCase):
 
     def buildData(self):
+        from openeo_udf.api.datacube import DataCube
         a=numpy.zeros((3,2,5,6),numpy.int32)
         for t in range(a.shape[0]):
             for b in range(a.shape[1]):
@@ -52,6 +52,7 @@ class TestLocalUDF(unittest.TestCase):
 
 
     def test_run_local_udf_fromfile(self):
+        from openeo_udf.api.datacube import DataCube
         with TemporaryDirectory() as td:
             dc=self.buildData()
             tmpfile=os.path.join(td,'test_data')
@@ -64,6 +65,7 @@ class TestLocalUDF(unittest.TestCase):
 
 
     def test_run_local_udf_frommemory(self):
+        from openeo_udf.api.datacube import DataCube
         dc=self.buildData()
         r=rest_DataCube.execute_local_udf(udfcode, dc)
         result=r.get_datacube_list()[0].get_array()
