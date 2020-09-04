@@ -13,7 +13,7 @@ as a user:
 *   OpenID Connect (recommended, but not always straightforward to use)
 *   Basic HTTP Authentication (not recommended, but practically easier in some situations)
 
-To illustrate how to authenticate with the openEO Python client,
+To illustrate how to authenticate with the openEO Python client library,
 we start form a backend connection::
 
     import openeo
@@ -92,8 +92,8 @@ these OpenID Connect concepts are useful to understand:
     to complete the whole OpenID Connect authentication dance:
 
     * Authorization Code Flow
-    * Client Credentials Flow
     * Device Flow
+    * Client Credentials Flow
     * Resource Owner Password flow
     * Refresh Token Flow
 
@@ -253,11 +253,69 @@ some of the following finetuning options:
     with the ``timeout`` argument.
 
 
+Device Flow
+-----------
+
+The device flow (also called device authorization grant)
+is a recently added OpenID Connect flow.
+It is not as widely supported across different OpenID Connect Providers
+as the other flows.
+It provides a nice alternative that is roughly comparable
+to the authorization code flow but without the previously mentioned issues related
+to short-living webservers, network access and browser redirects.
+
+The device flow is only suited for interactive use cases
+and requires a web browser for the authentication
+with the OpenID Connect provider.
+However, it can be any web browser, even one on your mobile phone.
+There is no networking magic required to be able to access
+any short-living background webserver like with the authorization code flow.
+
+To illustrate the flow, this is how to initiate the authentication::
+
+    con.authenticate_oidc_device(
+        client_id=client_id,
+        client_secret=client_secret
+    )
+
+This will print a message like this::
+
+    To authenticate: visit https://provider.example/device
+    and enter the user code 'DTNY-KLNX'.
+
+You should now visit this URL.
+Usually it is intentionally a short URL to make it feasible to type it
+instead of copy-pasting it (e.g. on another device).
+Authenticate with the OpenID Connect provider and enter the user code
+shown in the message.
+Meanwhile, the openEO Python client library is actively polling the OpenID Connect
+provider and when you complete the authentication and entering of the user code,
+it will receive the necessary tokens for authenticated communication
+with the backend and print::
+
+    Authorized successfully.
+
+Some additional options for this flow:
+
+*   By default, the messages containing the authentication URL, user code
+    and success message are printed with standard Python ``print``.
+    You can provide a custom function to display them with the ``display`` option, e.g.::
+
+        con.authenticate_oidc_device(
+            ...
+            display=lambda msg: render_popup(msg)
+
+*   The openEO Python client library waits actively
+    for successful authentication, so your application is
+    hanging for a certain time.
+    You can increate or reduce this maximum polling time (in seconds)
+    with the ``max_poll_time`` argument.
+
+
+
 Client Credentials Flow
 -----------------------
 
-Device Flow
------------
 
 
 Resource Owner Password flow
@@ -269,6 +327,6 @@ Refresh Token Flow
 
 
 .. TODO:
-.. - config files, refresh token files, ...
+.. - config files, refresh token files, cli tool ...
 
 
