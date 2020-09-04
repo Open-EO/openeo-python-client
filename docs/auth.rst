@@ -183,6 +183,9 @@ to inspect the "user" as seen by the backend, e.g.::
     >>> con.describe_account()
     {'user_id': 'nIrHtS4rhk4ru7531RhtLHXd6Ou0AW3vHfg'}
 
+The browser window should show a simple success page
+that you can safely close.
+
 
 Options and finetuning
 ``````````````````````
