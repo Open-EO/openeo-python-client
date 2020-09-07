@@ -22,6 +22,7 @@ from typing import Tuple, Callable, Union, List
 
 import requests
 
+import openeo
 from openeo.rest import OpenEoClientException
 from openeo.util import dict_no_none
 
@@ -40,12 +41,17 @@ class QueuingRequestHandler(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self):
         log.debug('{c} GET {p}'.format(c=self.__class__.__name__, p=self.path))
-        self.queue(self.path)
+        status, body, headers = self.queue(self.path)
+        self.send_response(status)
+        self.send_header('Content-Length', str(len(body)))
+        for k, v in headers.items():
+            self.send_header(k, v)
+        self.end_headers()
+        self.wfile.write(body.encode("utf-8"))
 
     def queue(self, path: str):
         self._queue.put(path)
-        self.send_response(200)
-        self.end_headers()
+        return 200, "queued", {}
 
     @classmethod
     def with_queue(cls, queue: Queue):
@@ -61,12 +67,28 @@ class OAuthRedirectRequestHandler(QueuingRequestHandler):
     """Request handler for OAuth redirects"""
     PATH = '/callback'
 
+    TEMPLATE = """
+        <!doctype html><html>
+        <head><title>openEO OIDC auth</title></head>
+        <body>
+            {content}
+            <hr><p><small>openEO Python client {version}</small></p>
+        </body>
+        </html>
+    """
+
     def queue(self, path: str):
         if path.startswith(self.PATH + '?'):
             super().queue(path)
             # TODO: auto-close browser tab/window?
-            # TODO: have a nicer page with title and bit of metadata?
-            self.wfile.write(b'You can close this browser tab/window now.')
+            # TODO: make it a nicer page and bit more of metadata?
+            status = 200
+            content = "<h1>OIDC Redirect URL request received.</h1><p>You can close this browser tab now.</p>"
+        else:
+            status = 404
+            content = "<p>Not found.</p>"
+        body = self.TEMPLATE.format(content=content, version=openeo.client_version())
+        return status, body, {"Content-Type": "text/html; charset=UTF-8"}
 
 
 class HttpServerThread(threading.Thread):

@@ -337,6 +337,32 @@ class Connection(RestApiConnection):
             provider = OidcProviderInfo(discovery_url=self.build_url('/credentials/oidc'))
         return provider_id, provider
 
+    def _get_oidc_provider_and_client_info(
+            self, provider_id: str,
+            client_id: Union[str, None], client_secret: Union[str, None]
+    ) -> Tuple[str, OidcClientInfo]:
+        """
+        Resolve provider_id and client info (as given or from config)
+
+        :param provider_id: id of OIDC provider as specified by backend (/credentials/oidc).
+            Can be None if there is just one provider.
+
+        :return: (client_id, client_secret)
+        """
+        provider_id, provider = self._get_oidc_provider(provider_id)
+
+        if client_id is None:
+            client_id, client_secret = self._auth_config.get_oidc_client_configs(
+                backend=self._orig_url, provider_id=provider_id
+            )
+            _log.info("Using client_id {c!r} from config (provider {p!r})".format(c=client_id, p=provider_id))
+            if client_id is None:
+                raise OpenEoClientException("No client ID found.")
+
+        client_info = OidcClientInfo(client_id=client_id, client_secret=client_secret, provider=provider)
+
+        return provider_id, client_info
+
     def _authenticate_oidc(
             self,
             authenticator: OidcAuthenticator,
@@ -363,7 +389,7 @@ class Connection(RestApiConnection):
 
     def authenticate_oidc_authorization_code(
             self,
-            client_id: str,
+            client_id: str = None,
             client_secret: str = None,
             provider_id: str = None,
             timeout: int = None,
@@ -376,9 +402,9 @@ class Connection(RestApiConnection):
 
         WARNING: this API is in experimental phase
         """
-        provider_id, provider = self._get_oidc_provider(provider_id)
-        # TODO: load client info and settings from config file?
-        client_info = OidcClientInfo(client_id=client_id, client_secret=client_secret, provider=provider)
+        provider_id, client_info = self._get_oidc_provider_and_client_info(
+            provider_id=provider_id, client_id=client_id, client_secret=client_secret
+        )
         authenticator = OidcAuthCodePkceAuthenticator(
             client_info=client_info,
             webbrowser_open=webbrowser_open, timeout=timeout, server_address=server_address
@@ -387,7 +413,7 @@ class Connection(RestApiConnection):
 
     def authenticate_oidc_client_credentials(
             self,
-            client_id: str,
+            client_id: str = None,
             client_secret: str = None,
             provider_id: str = None,
             store_refresh_token=False,
@@ -397,14 +423,18 @@ class Connection(RestApiConnection):
 
         WARNING: this API is in experimental phase
         """
-        provider_id, provider = self._get_oidc_provider(provider_id)
-        # TODO: load credentials from file/config
-        client_info = OidcClientInfo(client_id=client_id, provider=provider, client_secret=client_secret)
+        provider_id, client_info = self._get_oidc_provider_and_client_info(
+            provider_id=provider_id, client_id=client_id, client_secret=client_secret
+        )
         authenticator = OidcClientCredentialsAuthenticator(client_info=client_info)
         return self._authenticate_oidc(authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token)
 
     def authenticate_oidc_resource_owner_password_credentials(
-            self, client_id: str, username: str, password: str, client_secret: str = None, provider_id: str = None,
+            self,
+            username: str, password: str,
+            client_id: str = None,
+            client_secret: str = None,
+            provider_id: str = None,
             store_refresh_token=False
     ) -> 'Connection':
         """
@@ -412,9 +442,10 @@ class Connection(RestApiConnection):
 
         WARNING: this API is in experimental phase
         """
-        provider_id, provider = self._get_oidc_provider(provider_id)
-        # TODO: load password from file/config
-        client_info = OidcClientInfo(client_id=client_id, provider=provider, client_secret=client_secret)
+        provider_id, client_info = self._get_oidc_provider_and_client_info(
+            provider_id=provider_id, client_id=client_id, client_secret=client_secret
+        )
+        # TODO: also get username and password from config?
         authenticator = OidcResourceOwnerPasswordAuthenticator(
             client_info=client_info, username=username, password=password
         )
@@ -428,25 +459,23 @@ class Connection(RestApiConnection):
 
         WARNING: this API is in experimental phase
         """
-        provider_id, provider = self._get_oidc_provider(provider_id)
-        if client_id is None:
-            client_id, client_secret = self._auth_config.get_oidc_client_configs(
-                backend=self._orig_url, provider_id=provider_id
-            )
-            if client_id is None:
-                raise OpenEoClientException("No client ID given or found.")
+        provider_id, client_info = self._get_oidc_provider_and_client_info(
+            provider_id=provider_id, client_id=client_id, client_secret=client_secret
+        )
 
         if refresh_token is None:
-            refresh_token = self._refresh_token_store.get_refresh_token(issuer=provider.issuer, client_id=client_id)
+            refresh_token = self._refresh_token_store.get_refresh_token(
+                issuer=client_info.provider.issuer,
+                client_id=client_info.client_id
+            )
             if refresh_token is None:
                 raise OpenEoClientException("No refresh token given or found")
 
-        client_info = OidcClientInfo(client_id=client_id, provider=provider, client_secret=client_secret)
         authenticator = OidcRefreshTokenAuthenticator(client_info=client_info, refresh_token=refresh_token)
         return self._authenticate_oidc(authenticator, provider_id=provider_id)
 
     def authenticate_oidc_device(
-            self, client_id: str, client_secret: str, provider_id: str = None,
+            self, client_id: str=None, client_secret: str=None, provider_id: str = None,
             store_refresh_token=False,
             **kwargs
     ) -> 'Connection':
@@ -455,8 +484,9 @@ class Connection(RestApiConnection):
 
         WARNING: this API is in experimental phase
         """
-        provider_id, provider = self._get_oidc_provider(provider_id)
-        client_info = OidcClientInfo(client_id=client_id, provider=provider, client_secret=client_secret)
+        provider_id, client_info = self._get_oidc_provider_and_client_info(
+            provider_id=provider_id, client_id=client_id, client_secret=client_secret
+        )
         authenticator = OidcDeviceAuthenticator(client_info=client_info, **kwargs)
         return self._authenticate_oidc(authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token)
 
@@ -612,7 +642,7 @@ class Connection(RestApiConnection):
         # TODO make this a public property (it's also useful outside the Connection class)
         return self.capabilities().api_version_check
 
-    def datacube_from_process(self,process_id:str, **kwargs) -> DataCube:
+    def datacube_from_process(self, process_id: str, **kwargs) -> DataCube:
         """
         Load a raster datacube, from a custom process.
 
@@ -622,10 +652,11 @@ class Connection(RestApiConnection):
         """
 
         if self._api_version.at_least("1.0.0"):
-            graph = PGNode(process_id,kwargs)
-            return DataCube(graph,self)
+            graph = PGNode(process_id, kwargs)
+            return DataCube(graph, self)
         else:
-            raise OpenEoClientException("This method requires support for at least version 1.0.0 in the openEO backend.")
+            raise OpenEoClientException(
+                "This method requires support for at least version 1.0.0 in the openEO backend.")
 
     def load_collection(self, collection_id: str, **kwargs) -> Union[ImageCollectionClient, DataCube]:
         """
@@ -778,7 +809,7 @@ class Connection(RestApiConnection):
         :param options: options specific to the file format
         :return: the data as an ImageCollection
         """
-        
+
         if self._api_version.at_least("1.0.0"):
             return DataCube.load_disk_collection(self, format, glob_pattern, **options)
         else:
