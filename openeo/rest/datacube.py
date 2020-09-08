@@ -683,7 +683,7 @@ class DataCube(ImageCollection):
             # Simple single string process specification
             process = PGNode(
                 process_id=process,
-                arguments={data_argument: {"from_parameter": "data"}}
+                arguments={data_argument: {"from_parameter": "x"}}
             )
         result_cube = self.process_with_node(PGNode(
             process_id='apply',
@@ -694,7 +694,7 @@ class DataCube(ImageCollection):
             }
         ))
         if isinstance(process, typing.Callable):
-            builder = ProcessBuilder()
+            builder = ProcessBuilder(parent_data_parameter="x")
             callback_graph = process(builder)
             result_cube.processgraph_node.arguments['process'] = {'process_graph': callback_graph.pgnode}
 

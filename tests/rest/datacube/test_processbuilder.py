@@ -59,29 +59,39 @@ def test_apply_neighborhood_complex_callback(con100):
                             'result': True}
 
 
-def test_apply_bandmath(con100):
-    collection = con100.load_collection("S2")
-
+def test_apply_dimension_bandmath(con100):
     from openeo.rest.processbuilder import array_element
 
-    bandsum = collection.apply(process=lambda data:array_element(data,index=1) + array_element(data,index=2))
+    collection = con100.load_collection("S2")
+    bandsum = collection.apply_dimension(
+        process=lambda d: array_element(d, index=1) + array_element(d, index=2),
+        dimension="bands"
+    )
 
-    actual_graph = bandsum.graph['apply1']
-    assert actual_graph == {'arguments': {'data': {'from_node': 'loadcollection1'},
-
-                                          'process': {'process_graph': {'add1': {'arguments': {'x': {'from_node': 'arrayelement1'},
-                                                                    'y': {'from_node': 'arrayelement2'}},
-                                                      'process_id': 'add',
-                                                      'result': True},
-                                             'arrayelement1': {'arguments': {'data': {'from_parameter': 'data'},
-                                                                             'index': 1},
-                                                               'process_id': 'array_element'},
-                                             'arrayelement2': {'arguments': {'data': {'from_parameter': 'data'},
-                                                                             'index': 2},
-                                                               'process_id': 'array_element'}}}},
-                            'process_id': 'apply',
-                            'result': True}
-
+    actual_graph = bandsum.graph['applydimension1']
+    assert actual_graph == {
+        'process_id': 'apply_dimension',
+        'arguments': {
+            'data': {'from_node': 'loadcollection1'},
+            'dimension': 'bands',
+            'process': {'process_graph': {
+                'arrayelement1': {
+                    'process_id': 'array_element',
+                    'arguments': {'data': {'from_parameter': 'data'}, 'index': 1},
+                },
+                'arrayelement2': {
+                    'process_id': 'array_element',
+                    'arguments': {'data': {'from_parameter': 'data'}, 'index': 2},
+                },
+                'add1': {
+                    'process_id': 'add',
+                    'arguments': {'x': {'from_node': 'arrayelement1'}, 'y': {'from_node': 'arrayelement2'}},
+                    'result': True
+                },
+            }}
+        },
+        'result': True
+    }
 
 
 def test_reduce_dimension(con100):

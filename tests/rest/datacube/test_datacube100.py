@@ -249,14 +249,22 @@ def test_metadata_load_collection_100(con100, requests_mock):
 
 def test_apply_absolute_pgnode(con100):
     im = con100.load_collection("S2")
-    result = im.apply(PGNode(process_id="absolute", arguments={"x": {"from_parameter": "data"}}))
+    result = im.apply(PGNode(process_id="absolute", arguments={"x": {"from_parameter": "x"}}))
     expected_graph = load_json_resource('data/1.0.0/apply_absolute.json')
     assert result.graph == expected_graph
 
 
-def test_apply_absolute_callback(con100):
+def test_apply_absolute_callback_lambda_method(con100):
     im = con100.load_collection("S2")
     result = im.apply(lambda data: data.absolute())
+    expected_graph = load_json_resource('data/1.0.0/apply_absolute.json')
+    assert result.graph == expected_graph
+
+
+def test_apply_absolute_callback_function(con100):
+    im = con100.load_collection("S2")
+    from openeo.rest.processbuilder import absolute
+    result = im.apply(absolute)
     expected_graph = load_json_resource('data/1.0.0/apply_absolute.json')
     assert result.graph == expected_graph
 
