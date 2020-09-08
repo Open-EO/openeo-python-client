@@ -89,3 +89,7 @@ class ProcessBuilder(ImageCollection):
         arguments = {**(arguments or {}), **kwargs}
         return ProcessBuilder(PGNode(process_id=process_id, arguments=arguments))
 
+
+
+def absolute(data: ProcessBuilder) -> ProcessBuilder:
+    return data.absolute()
