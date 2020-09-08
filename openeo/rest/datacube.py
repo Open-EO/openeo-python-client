@@ -555,10 +555,7 @@ class DataCube(ImageCollection):
             arguments["target_dimension"] = target_dimension
         result_cube = self.process_with_node(PGNode(process_id="apply_dimension", arguments=arguments))
 
-        if process is None and code is None:
-            return ProcessBuilder(final_callback=ProcessBuilder.datacube_callback(result_cube))
-        else:
-            return result_cube
+        return result_cube
 
     def reduce_dimension(self, dimension: str, reducer: Union[typing.Callable, str],
                          process_id="reduce_dimension", band_math_mode: bool = False) -> 'DataCube':
@@ -667,8 +664,6 @@ class DataCube(ImageCollection):
             process_id='apply_neighborhood',
             arguments=args
         ))
-        if process == None:
-            return ProcessBuilder(final_callback=ProcessBuilder.datacube_callback(result_cube))
         if isinstance(process, typing.Callable):
             builder = ProcessBuilder()
             callback_graph = process(builder)
@@ -698,9 +693,7 @@ class DataCube(ImageCollection):
                 # TODO #125 context
             }
         ))
-        if process == None:
-            return ProcessBuilder(final_callback=ProcessBuilder.datacube_callback(result_cube))
-        elif isinstance(process, typing.Callable):
+        if isinstance(process, typing.Callable):
             builder = ProcessBuilder()
             callback_graph = process(builder)
             result_cube.processgraph_node.arguments['process'] = {'process_graph': callback_graph.pgnode}

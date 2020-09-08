@@ -1,18 +1,6 @@
 from openeo.rest.processbuilder import ProcessBuilder
 
 
-def test_apply_neighborhood_udf(con100):
-    collection = con100.load_collection("S2")
-    callback = collection.apply_neighborhood( size=[
-        {'dimension': 'x', 'value': 128, 'unit': 'px'},
-        {'dimension': 'y', 'value': 128, 'unit': 'px'}
-    ], overlap=[
-        {'dimension': 't', 'value': 'P10d'},
-    ])
-    neighbors = callback.run_udf(code='myfancycode',runtime='Python').done()
-    check_apply_neighbors(neighbors)
-
-
 def check_apply_neighbors(neighbors):
     actual_graph = neighbors.graph['applyneighborhood1']
     assert actual_graph == {'arguments': {'data': {'from_node': 'loadcollection1'},

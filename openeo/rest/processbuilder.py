@@ -43,22 +43,12 @@ class ProcessBuilder(ImageCollection):
 
     PARENT='PARENT'
 
-    @classmethod
-    def datacube_callback(cls,datacube:'DataCube'):
-        def callback(pgnode,process_argname='process'):
-            parent_node = datacube.processgraph_node
-            parent_node.arguments[process_argname] = {'process_graph':pgnode}
-            return datacube
-        return callback
-
-    def __init__(self, final_callback=None, pgnode=None, parent_data_parameter='data'):
+    def __init__(self, pgnode=None, parent_data_parameter='data'):
         """
 
-        @param final_callback: A function to invoke when the graph is ready.
         @param pgnode:
         @param parent_data_parameter:
         """
-        self.final_callback = final_callback
         self.pgnode = pgnode
         self.parent_data_parameter = parent_data_parameter
 
@@ -97,10 +87,5 @@ class ProcessBuilder(ImageCollection):
         :return: new DataCube instance
         """
         arguments = {**(arguments or {}), **kwargs}
-        return ProcessBuilder(self.final_callback, PGNode(process_id=process_id, arguments=arguments))
+        return ProcessBuilder(PGNode(process_id=process_id, arguments=arguments))
 
-    def done(self):
-        return self.finish()
-
-    def finish(self):
-        return self.final_callback(self.pgnode)
