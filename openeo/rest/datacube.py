@@ -17,13 +17,13 @@ import numpy as np
 import shapely.geometry
 import shapely.geometry.base
 from deprecated import deprecated
-from openeo.rest.processbuilder import ProcessBuilder
+from openeo.processes.processes import ProcessBuilder
 from shapely.geometry import Polygon, MultiPolygon, mapping
 
 import openeo
 from openeo.imagecollection import ImageCollection, CollectionMetadata
 from openeo.internal.graph_building import PGNode, ReduceNode
-from openeo.rest import BandMathException, OperatorException
+from openeo.rest import BandMathException, OperatorException, OpenEoClientException
 from openeo.rest.job import RESTJob
 from openeo.rest.udp import RESTUserDefinedProcess
 from openeo.util import get_temporal_extent, dict_no_none
@@ -540,11 +540,10 @@ class DataCube(ImageCollection):
                 arguments={"data": {"from_parameter": "data"}},
             )
         elif isinstance(process, typing.Callable):
-            builder = ProcessBuilder()
-            callback_graph = process(builder)
-            callback_process_node =  callback_graph.pgnode
+            builder = process(ProcessBuilder.from_parameter("data"))
+            callback_process_node = builder.pgnode
         else:
-            callback_process_node = None
+            raise OpenEoClientException("No code or process given")
         arguments = {
             "data": self._pg,
             "process": PGNode.to_process_graph_argument(callback_process_node),
@@ -571,9 +570,7 @@ class DataCube(ImageCollection):
             # Assume given reducer is a simple predefined reduce process_id
             reducer = PGNode(process_id=reducer, arguments={"data": {"from_parameter": "data"}})
         elif isinstance(reducer, typing.Callable):
-            builder = ProcessBuilder()
-            callback_graph = reducer(builder)
-            reducer =  callback_graph.pgnode
+            reducer = reducer(ProcessBuilder.from_parameter("data")).pgnode
 
         return self.process_with_node(ReduceNode(
             process_id=process_id,
@@ -665,9 +662,8 @@ class DataCube(ImageCollection):
             arguments=args
         ))
         if isinstance(process, typing.Callable):
-            builder = ProcessBuilder()
-            callback_graph = process(builder)
-            result_cube.processgraph_node.arguments['process'] = {'process_graph': callback_graph.pgnode}
+            process_builder = process(ProcessBuilder.from_parameter("data"))
+            result_cube.processgraph_node.arguments['process'] = {'process_graph': process_builder.pgnode}
 
         return result_cube
 
@@ -694,9 +690,8 @@ class DataCube(ImageCollection):
             }
         ))
         if isinstance(process, typing.Callable):
-            builder = ProcessBuilder(parent_data_parameter="x")
-            callback_graph = process(builder)
-            result_cube.processgraph_node.arguments['process'] = {'process_graph': callback_graph.pgnode}
+            process_builder = process(ProcessBuilder.from_parameter("x"))
+            result_cube.processgraph_node.arguments['process'] = {'process_graph': process_builder.pgnode}
 
         return result_cube
 
@@ -923,10 +918,11 @@ class DataCube(ImageCollection):
                     arguments={"data": [{"from_parameter": "x"}, {"from_parameter": "y"}]}
                 )
             elif isinstance(overlap_resolver,typing.Callable):
-                builder = ProcessBuilder()
-                callback_graph = overlap_resolver(builder)
-                overlap_resolver_node = callback_graph.pgnode
-            elif isinstance(overlap_resolver,PGNode):
+                process_builder = overlap_resolver(
+                    ProcessBuilder.from_parameter("x"), ProcessBuilder.from_parameter("y")
+                )
+                overlap_resolver_node = process_builder.pgnode
+            elif isinstance(overlap_resolver, PGNode):
                 overlap_resolver_node = overlap_resolver
             else:
                 raise ValueError("Unsupported overlap_resolver: %s" % str(overlap_resolver))

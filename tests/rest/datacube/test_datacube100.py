@@ -7,8 +7,8 @@ import pytest
 import shapely.geometry
 
 import openeo.metadata
-from openeo.internal.graph_building import PGNode
 from openeo import UDF
+from openeo.internal.graph_building import PGNode
 from openeo.rest.connection import Connection
 from openeo.rest.datacube import THIS
 from .conftest import API_URL
@@ -254,21 +254,6 @@ def test_apply_absolute_pgnode(con100):
     assert result.graph == expected_graph
 
 
-def test_apply_absolute_callback_lambda_method(con100):
-    im = con100.load_collection("S2")
-    result = im.apply(lambda data: data.absolute())
-    expected_graph = load_json_resource('data/1.0.0/apply_absolute.json')
-    assert result.graph == expected_graph
-
-
-def test_apply_absolute_callback_function(con100):
-    im = con100.load_collection("S2")
-    from openeo.rest.processbuilder import absolute
-    result = im.apply(absolute)
-    expected_graph = load_json_resource('data/1.0.0/apply_absolute.json')
-    assert result.graph == expected_graph
-
-
 def test_load_collection_properties(con100):
     # TODO: put this somewhere and expose it to the user?
     def eq(value, case_sensitive=True) -> PGNode:
@@ -311,7 +296,7 @@ def test_apply_neighborhood_udf(con100):
         {'dimension': 'y', 'value': 128, 'unit': 'px'}
     ], overlap=[
         {'dimension': 't', 'value': 'P10d'},
-    ],process= lambda data:data.run_udf(code="myfancycode", runtime="Python"))
+    ],process= lambda data:data.run_udf(udf="myfancycode", runtime="Python"))
     actual_graph = neighbors.graph['applyneighborhood1']
     assert actual_graph == {'arguments': {'data': {'from_node': 'loadcollection1'},
                                           'overlap': [{'dimension': 't', 'value': 'P10d'}],
