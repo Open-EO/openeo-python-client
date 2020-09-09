@@ -277,14 +277,14 @@ def test_timing_logger_decorator():
 
     with mock.patch.object(TimingLogger, '_now', new=_fake_clock()):
         fun(2, 3)
-        fun(3, 5)
+        fun(y=3, x=5)
 
     assert logger.logs == [
         'Decorated: start 2020-03-04 05:00:01.001000',
         'calculating 2 + 3',
         'Decorated: end 2020-03-04 06:02:04.001000, elapsed 1:02:03',
         'Decorated: start 2020-03-04 07:04:07.001000',
-        'calculating 3 + 5',
+        'calculating 5 + 3',
         'Decorated: end 2020-03-04 08:06:10.001000, elapsed 1:02:03'
     ]
 

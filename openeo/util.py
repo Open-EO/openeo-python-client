@@ -293,7 +293,7 @@ class TimingLogger:
         @functools.wraps(f)
         def wrapper(*args, **kwargs):
             with self:
-                return f(*args, *kwargs)
+                return f(*args, **kwargs)
 
         return wrapper
 
