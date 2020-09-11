@@ -145,6 +145,7 @@ def test_add_oidc_interactive(auth_config, requests_mock, capsys):
         assert e in out
 
 
+@pytest.mark.slow
 def test_oidc_auth_device_flow(auth_config, refresh_token_store, requests_mock, capsys):
     requests_mock.get("https://oeo.test/", json={"api_version": "1.0.0"})
     requests_mock.get("https://oeo.test/credentials/oidc", json={"providers": [
@@ -184,6 +185,7 @@ def test_oidc_auth_device_flow(auth_config, refresh_token_store, requests_mock, 
         assert e in out
 
 
+@pytest.mark.slow
 def test_oidc_auth_auth_code_flow(auth_config, refresh_token_store, requests_mock, capsys):
     requests_mock.get("https://oeo.test/", json={"api_version": "1.0.0"})
     requests_mock.get("https://oeo.test/credentials/oidc", json={"providers": [

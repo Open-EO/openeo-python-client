@@ -299,6 +299,7 @@ def test_authenticate_basic_from_config(requests_mock, api_version):
         assert conn.auth.bearer == "w3lc0m3"
 
 
+@pytest.mark.slow
 def test_authenticate_oidc_040(requests_mock):
     client_id = "myclient"
     oidc_discovery_url = "https://oeo.test/credentials/oidc"
@@ -319,6 +320,7 @@ def test_authenticate_oidc_040(requests_mock):
     assert conn.auth.bearer == oidc_mock.state["access_token"]
 
 
+@pytest.mark.slow
 def test_authenticate_oidc_100_single_implicit(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
@@ -392,6 +394,7 @@ def test_authenticate_oidc_100_multiple_wrong_id(requests_mock):
         conn.authenticate_OIDC(client_id=client_id, provider_id="lol", webbrowser_open=pytest.fail)
 
 
+@pytest.mark.slow
 def test_authenticate_oidc_100_multiple_success(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
@@ -418,6 +421,7 @@ def test_authenticate_oidc_100_multiple_success(requests_mock):
     assert conn.auth.bearer == 'oidc/bauth/' + oidc_mock.state["access_token"]
 
 
+@pytest.mark.slow
 def test_authenticate_oidc_auth_code_pkce_flow(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
@@ -456,6 +460,7 @@ def test_authenticate_oidc_auth_code_pkce_flow(requests_mock):
     ]
 
 
+@pytest.mark.slow
 def test_authenticate_oidc_auth_code_pkce_flow_client_from_config(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
@@ -627,6 +632,7 @@ def test_authenticate_oidc_resource_owner_password_credentials_client_from_confi
     assert refresh_token_store.mock_calls == []
 
 
+@pytest.mark.slow
 def test_authenticate_oidc_device_flow(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
@@ -669,6 +675,7 @@ def test_authenticate_oidc_device_flow(requests_mock):
     ]
 
 
+@pytest.mark.slow
 def test_authenticate_oidc_device_flow_client_from_config(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"

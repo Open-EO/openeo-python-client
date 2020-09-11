@@ -9,6 +9,7 @@ from queue import Queue
 from typing import List
 from unittest import mock
 
+import pytest
 import requests
 import requests_mock.request
 import requests_mock.request
@@ -51,6 +52,7 @@ def test_queuing_request_handler():
     assert list(drain_queue(queue)) == ['/foo/bar']
 
 
+@pytest.mark.slow
 def test_http_server_thread():
     queue = Queue()
     server_thread = HttpServerThread(RequestHandlerClass=QueuingRequestHandler.with_queue(queue))
@@ -64,6 +66,7 @@ def test_http_server_thread():
     server_thread.join()
 
 
+@pytest.mark.slow
 def test_http_server_thread_port():
     queue = Queue()
     server_thread = HttpServerThread(RequestHandlerClass=QueuingRequestHandler.with_queue(queue),
@@ -286,6 +289,7 @@ class OidcMock:
         return json.dumps(res)
 
 
+@pytest.mark.slow
 def test_oidc_auth_code_pkce_flow(requests_mock):
     requests_mock.get("http://oidc.test/.well-known/openid-configuration", json={"scopes_supported": ["openid"]})
 

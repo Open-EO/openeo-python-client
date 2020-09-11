@@ -26,6 +26,7 @@ def con100(requests_mock):
     return con
 
 
+@pytest.mark.slow
 def test_execute_batch(session040, requests_mock, tmpdir):
     requests_mock.get(API_URL + "/collections/SENTINEL2", json={"foo": "bar"})
     requests_mock.post(API_URL + "/jobs", status_code=201, headers={"OpenEO-Identifier": "f00ba5"})
@@ -65,6 +66,7 @@ def test_execute_batch(session040, requests_mock, tmpdir):
     assert job.logs() == []
 
 
+@pytest.mark.slow
 def test_execute_batch_with_error(session040, requests_mock, tmpdir):
     requests_mock.get(API_URL + "/collections/SENTINEL2", json={"foo": "bar"})
     requests_mock.post(API_URL + "/jobs", status_code=201, headers={"OpenEO-Identifier": "f00ba5"})
