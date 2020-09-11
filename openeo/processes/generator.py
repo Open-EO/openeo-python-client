@@ -96,10 +96,24 @@ def generate_process_py(processes_dir: Union[Path, str], output=sys.stdout):
         
         class ProcessBuilder(ProcessBuilderBase):
         
-            def __add__(self, other):
+            def __add__(self, other) -> 'ProcessBuilder':
                 return self.add(other)
 
-    
+            def __sub__(self, other) -> 'ProcessBuilder':
+                return self.subtract(other)
+
+            def __mul__(self, other) -> 'ProcessBuilder':
+                return self.multiply(other)
+
+            def __truediv__(self, other) -> 'ProcessBuilder':
+                return self.divide(other)
+
+            def __neg__(self) -> 'ProcessBuilder':
+                return self.multiply(-1)
+
+            def __pow__(self, other) -> 'ProcessBuilder':
+                return self.power(other)
+
     """)
     fun_src = textwrap.dedent("""
         # Shortcut

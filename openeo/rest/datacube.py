@@ -361,9 +361,6 @@ class DataCube(ImageCollection):
         """
         return self._operator_binary("lt", other)
 
-    def __truediv__(self, other) -> 'DataCube':
-        return self.divide(other)
-
     def __add__(self, other) -> 'DataCube':
         return self.add(other)
 
@@ -384,6 +381,9 @@ class DataCube(ImageCollection):
 
     def __rmul__(self, other) -> 'DataCube':
         return self.multiply(other, reverse=True)
+
+    def __truediv__(self, other) -> 'DataCube':
+        return self.divide(other)
 
     def __rpow__(self, other) -> 'DataCube':
         return self.power(other,reverse=True)
