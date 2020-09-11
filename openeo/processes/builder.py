@@ -11,6 +11,8 @@ class ProcessBuilderBase:
     by calling functions.
     """
 
+    # TODO: can this implementation be merged with PGNode directly?
+
     def __init__(self, pgnode: Union[PGNode, dict]):
         self.pgnode = pgnode
 

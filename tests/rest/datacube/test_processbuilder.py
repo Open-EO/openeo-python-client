@@ -1,3 +1,4 @@
+from openeo.internal.graph_building import PGNode
 from openeo.processes.processes import ProcessBuilder
 
 from ... import load_json_resource
@@ -91,8 +92,44 @@ def test_apply_callback_math_custom_function(con100):
     assert result.graph == load_json_resource('data/1.0.0/apply_math.json')
 
 
-def test_apply_neighborhood_udf_callback(con100):
+def test_apply_neighborhood_trim_str(con100):
+    im = con100.load_collection("S2")
+    result = im.apply_neighborhood(
+        process="trim_cube",
+        size=[{'dimension': 'x', 'value': 128, 'unit': 'px'}, {'dimension': 'y', 'value': 128, 'unit': 'px'}]
+    )
+    assert result.graph == load_json_resource('data/1.0.0/apply_neighborhood_trim.json')
 
+
+def test_apply_neighborhood_trim_pgnode(con100):
+    im = con100.load_collection("S2")
+    result = im.apply_neighborhood(
+        process=PGNode("trim_cube", data={"from_parameter": "data"}),
+        size=[{'dimension': 'x', 'value': 128, 'unit': 'px'}, {'dimension': 'y', 'value': 128, 'unit': 'px'}]
+    )
+    assert result.graph == load_json_resource('data/1.0.0/apply_neighborhood_trim.json')
+
+
+def test_apply_neighborhood_trim_callable(con100):
+    from openeo.processes.processes import trim_cube
+    im = con100.load_collection("S2")
+    result = im.apply_neighborhood(
+        process=trim_cube,
+        size=[{'dimension': 'x', 'value': 128, 'unit': 'px'}, {'dimension': 'y', 'value': 128, 'unit': 'px'}]
+    )
+    assert result.graph == load_json_resource('data/1.0.0/apply_neighborhood_trim.json')
+
+
+def test_apply_neighborhood_trim_lambda(con100):
+    im = con100.load_collection("S2")
+    result = im.apply_neighborhood(
+        process=lambda data: data.trim_cube(),
+        size=[{'dimension': 'x', 'value': 128, 'unit': 'px'}, {'dimension': 'y', 'value': 128, 'unit': 'px'}]
+    )
+    assert result.graph == load_json_resource('data/1.0.0/apply_neighborhood_trim.json')
+
+
+def test_apply_neighborhood_udf_callback(con100):
     def callback(data: ProcessBuilder):
         return data.run_udf(udf='myfancycode', runtime='Python')
 
@@ -157,106 +194,72 @@ def test_apply_neighborhood_complex_callback(con100):
     }
 
 
-def test_apply_dimension_bandmath(con100):
-    from openeo.processes.processes import array_element
+def test_apply_dimension_max_str(con100):
+    im = con100.load_collection("S2")
+    res = im.apply_dimension(process="max", dimension="bands")
+    assert res.graph == load_json_resource('data/1.0.0/apply_dimension_max.json')
 
-    collection = con100.load_collection("S2")
-    bandsum = collection.apply_dimension(
+
+def test_apply_dimension_max_pgnode(con100):
+    im = con100.load_collection("S2")
+    res = im.apply_dimension(process=PGNode("max", data={"from_parameter": "data"}), dimension="bands")
+    assert res.graph == load_json_resource('data/1.0.0/apply_dimension_max.json')
+
+
+def test_apply_dimension_max_callable(con100):
+    im = con100.load_collection("S2")
+    from openeo.processes.processes import max
+    res = im.apply_dimension(process=max, dimension="bands")
+    assert res.graph == load_json_resource('data/1.0.0/apply_dimension_max.json')
+
+
+def test_apply_dimension_max_lambda(con100):
+    im = con100.load_collection("S2")
+    res = im.apply_dimension(process=lambda data: data.max(), dimension="bands")
+    assert res.graph == load_json_resource('data/1.0.0/apply_dimension_max.json')
+
+
+def test_apply_dimension_bandmath_lambda(con100):
+    from openeo.processes.processes import array_element
+    im = con100.load_collection("S2")
+    res = im.apply_dimension(
         process=lambda d: array_element(d, index=1) + array_element(d, index=2),
         dimension="bands"
     )
-
-    actual_graph = bandsum.graph['applydimension1']
-    assert actual_graph == {
-        'process_id': 'apply_dimension',
-        'arguments': {
-            'data': {'from_node': 'loadcollection1'},
-            'dimension': 'bands',
-            'process': {'process_graph': {
-                'arrayelement1': {
-                    'process_id': 'array_element',
-                    'arguments': {'data': {'from_parameter': 'data'}, 'index': 1},
-                },
-                'arrayelement2': {
-                    'process_id': 'array_element',
-                    'arguments': {'data': {'from_parameter': 'data'}, 'index': 2},
-                },
-                'add1': {
-                    'process_id': 'add',
-                    'arguments': {'x': {'from_node': 'arrayelement1'}, 'y': {'from_node': 'arrayelement2'}},
-                    'result': True
-                },
-            }}
-        },
-        'result': True
-    }
+    assert res.graph == load_json_resource('data/1.0.0/apply_dimension_bandmath.json')
 
 
-def test_reduce_dimension(con100):
-    collection = con100.load_collection("S2")
+def test_reduce_dimension_max_str(con100):
+    im = con100.load_collection("S2")
+    res = im.reduce_dimension(reducer="max", dimension="bands")
+    assert res.graph == load_json_resource('data/1.0.0/reduce_dimension_max.json')
 
+
+def test_reduce_dimension_max_pgnode(con100):
+    im = con100.load_collection("S2")
+    res = im.reduce_dimension(reducer=PGNode("max", data={"from_parameter": "data"}), dimension="bands")
+    assert res.graph == load_json_resource('data/1.0.0/reduce_dimension_max.json')
+
+
+def test_reduce_dimension_max_callable(con100):
+    im = con100.load_collection("S2")
+    from openeo.processes.processes import max
+    res = im.reduce_dimension(reducer=max, dimension="bands")
+    assert res.graph == load_json_resource('data/1.0.0/reduce_dimension_max.json')
+
+
+def test_reduce_dimension_max_lambda(con100):
+    im = con100.load_collection("S2")
+    res = im.reduce_dimension(reducer=lambda data: data.max(), dimension="bands")
+    assert res.graph == load_json_resource('data/1.0.0/reduce_dimension_max.json')
+
+
+def test_reduce_dimension_bandmath_lambda(con100):
     from openeo.processes.processes import array_element
-
-    bandsum = collection.reduce_dimension(
-        dimension='bands',
-        reducer=lambda data: array_element(data, index=1) + array_element(data, index=2)
-    )
-
-    actual_graph = bandsum.graph['reducedimension1']
-    assert actual_graph == {
-        'arguments': {
-            'data': {'from_node': 'loadcollection1'},
-            'dimension': 'bands',
-            'reducer': {'process_graph': {
-                'arrayelement1': {
-                    'process_id': 'array_element',
-                    'arguments': {'data': {'from_parameter': 'data'}, 'index': 1},
-                },
-                'arrayelement2': {
-                    'process_id': 'array_element',
-                    'arguments': {'data': {'from_parameter': 'data'}, 'index': 2},
-                },
-                'add1': {
-                    'arguments': {'x': {'from_node': 'arrayelement1'}, 'y': {'from_node': 'arrayelement2'}},
-                    'process_id': 'add',
-                    'result': True
-                },
-            }},
-        },
-        'process_id': 'reduce_dimension',
-        'result': True}
-
-
-def test_apply_dimension(con100):
     collection = con100.load_collection("S2")
-
-    from openeo.processes.processes import array_element
-
-    bandsum = collection.apply_dimension(
-        dimension='bands',
-        process=lambda data: array_element(data, index=1) + array_element(data, index=2)
+    im = con100.load_collection("S2")
+    res = collection.reduce_dimension(
+        reducer=lambda data: array_element(data, index=1) + array_element(data, index=2),
+        dimension='bands'
     )
-
-    actual_graph = bandsum.graph['applydimension1']
-    assert actual_graph == {
-        'process_id': 'apply_dimension',
-        'arguments': {
-            'data': {'from_node': 'loadcollection1'},
-            'dimension': 'bands',
-            'process': {'process_graph': {
-                'arrayelement1': {
-                    'process_id': 'array_element',
-                    'arguments': {'data': {'from_parameter': 'data'}, 'index': 1},
-                },
-                'arrayelement2': {
-                    'process_id': 'array_element',
-                    'arguments': {'data': {'from_parameter': 'data'}, 'index': 2},
-                },
-                'add1': {
-                    'process_id': 'add',
-                    'arguments': {'x': {'from_node': 'arrayelement1'}, 'y': {'from_node': 'arrayelement2'}},
-                    'result': True
-                },
-            }}
-        },
-        'result': True}
+    assert res.graph == load_json_resource('data/1.0.0/reduce_dimension_bandmath.json')

@@ -1,0 +1,44 @@
+{
+  "loadcollection1": {
+    "process_id": "load_collection",
+    "arguments": {
+      "spatial_extent": null,
+      "id": "S2",
+      "temporal_extent": null
+    }
+  },
+  "applyneighborhood1": {
+    "process_id": "apply_neighborhood",
+    "arguments": {
+      "data": {
+        "from_node": "loadcollection1"
+      },
+      "process": {
+        "process_graph": {
+          "trimcube1": {
+            "process_id": "trim_cube",
+            "arguments": {
+              "data": {
+                "from_parameter": "data"
+              }
+            },
+            "result": true
+          }
+        }
+      },
+      "size": [
+        {
+          "dimension": "x",
+          "unit": "px",
+          "value": 128
+        },
+        {
+          "dimension": "y",
+          "unit": "px",
+          "value": 128
+        }
+      ]
+    },
+    "result": true
+  }
+}

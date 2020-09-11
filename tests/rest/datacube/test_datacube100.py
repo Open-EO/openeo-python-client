@@ -279,6 +279,22 @@ def test_load_collection_properties(con100):
     assert im.graph == expected
 
 
+def test_load_collection_properties_process_builder_function(con100):
+    from openeo.processes.processes import between, eq
+    im = con100.load_collection(
+        "S2",
+        spatial_extent={"west": 16.1, "east": 16.6, "north": 48.6, "south": 47.2},
+        temporal_extent=["2018-01-01", "2019-01-01"],
+        properties={
+            "eo:cloud_cover": lambda x: between(x=x, min=0, max=50),
+            "platform": lambda x: eq(x=x, y="Sentinel-2B", case_sensitive=False)
+        }
+    )
+
+    expected = load_json_resource('data/1.0.0/load_collection_properties.json')
+    assert im.graph == expected
+
+
 def test_apply_dimension_temporal_cumsum_with_target(con100):
     cumsum = con100.load_collection("S2").apply_dimension('cumsum', dimension="t", target_dimension="MyNewTime")
     actual_graph = cumsum.graph
