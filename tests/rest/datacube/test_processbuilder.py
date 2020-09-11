@@ -4,6 +4,18 @@ from openeo.processes.processes import ProcessBuilder
 from ... import load_json_resource
 
 
+def test_apply_callback_absolute_str(con100):
+    im = con100.load_collection("S2")
+    result = im.apply("absolute")
+    assert result.graph == load_json_resource('data/1.0.0/apply_absolute.json')
+
+
+def test_apply_callback_absolute_pgnode(con100):
+    im = con100.load_collection("S2")
+    result = im.apply(PGNode("absolute", x={"from_parameter": "x"}))
+    assert result.graph == load_json_resource('data/1.0.0/apply_absolute.json')
+
+
 def test_apply_callback_absolute_lambda_method(con100):
     im = con100.load_collection("S2")
     result = im.apply(lambda data: data.absolute())
@@ -256,10 +268,73 @@ def test_reduce_dimension_max_lambda(con100):
 
 def test_reduce_dimension_bandmath_lambda(con100):
     from openeo.processes.processes import array_element
-    collection = con100.load_collection("S2")
     im = con100.load_collection("S2")
-    res = collection.reduce_dimension(
+    res = im.reduce_dimension(
         reducer=lambda data: array_element(data, index=1) + array_element(data, index=2),
         dimension='bands'
     )
     assert res.graph == load_json_resource('data/1.0.0/reduce_dimension_bandmath.json')
+
+
+def test_merge_cubes_add_str(con100):
+    im1 = con100.load_collection("S2")
+    im2 = con100.load_collection("MASK")
+    res = im1.merge_cubes(other=im2, overlap_resolver="add")
+    assert res.graph == load_json_resource('data/1.0.0/merge_cubes_add.json')
+
+
+def test_merge_cubes_add_pgnode(con100):
+    im1 = con100.load_collection("S2")
+    im2 = con100.load_collection("MASK")
+    res = im1.merge_cubes(
+        other=im2,
+        overlap_resolver=PGNode("add", x={"from_parameter": "x"}, y={"from_parameter": "y"})
+    )
+    assert res.graph == load_json_resource('data/1.0.0/merge_cubes_add.json')
+
+
+def test_merge_cubes_add_callable(con100):
+    im1 = con100.load_collection("S2")
+    im2 = con100.load_collection("MASK")
+    from openeo.processes.processes import add
+    res = im1.merge_cubes(other=im2, overlap_resolver=add)
+    assert res.graph == load_json_resource('data/1.0.0/merge_cubes_add.json')
+
+
+def test_merge_cubes_add_lambda(con100):
+    im1 = con100.load_collection("S2")
+    im2 = con100.load_collection("MASK")
+    res = im1.merge_cubes(other=im2, overlap_resolver=lambda x, y: x + y)
+    assert res.graph == load_json_resource('data/1.0.0/merge_cubes_add.json')
+
+
+def test_merge_cubes_max_str(con100):
+    im1 = con100.load_collection("S2")
+    im2 = con100.load_collection("MASK")
+    res = im1.merge_cubes(other=im2, overlap_resolver="max")
+    assert res.graph == load_json_resource('data/1.0.0/merge_cubes_max.json')
+
+
+def test_merge_cubes_max_pgnode(con100):
+    im1 = con100.load_collection("S2")
+    im2 = con100.load_collection("MASK")
+    res = im1.merge_cubes(
+        other=im2,
+        overlap_resolver=PGNode("max", data=[{"from_parameter": "x"}, {"from_parameter": "y"}])
+    )
+    assert res.graph == load_json_resource('data/1.0.0/merge_cubes_max.json')
+
+
+def test_merge_cubes_max_callable(con100):
+    im1 = con100.load_collection("S2")
+    im2 = con100.load_collection("MASK")
+    from openeo.processes.processes import max
+    res = im1.merge_cubes(other=im2, overlap_resolver=max)
+    assert res.graph == load_json_resource('data/1.0.0/merge_cubes_max.json')
+
+
+def test_merge_cubes_max_lambda(con100):
+    im1 = con100.load_collection("S2")
+    im2 = con100.load_collection("MASK")
+    res = im1.merge_cubes(other=im2, overlap_resolver=lambda data: data.max())
+    assert res.graph == load_json_resource('data/1.0.0/merge_cubes_max.json')

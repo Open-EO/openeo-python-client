@@ -13,12 +13,8 @@ class ProcessBuilderBase:
 
     # TODO: can this implementation be merged with PGNode directly?
 
-    def __init__(self, pgnode: Union[PGNode, dict]):
+    def __init__(self, pgnode: Union[PGNode, dict, list]):
         self.pgnode = pgnode
-
-    @classmethod
-    def from_parameter(cls, parameter: str):
-        return cls({"from_parameter": parameter})
 
     @classmethod
     def process(cls, process_id: str, arguments: dict = None, **kwargs):

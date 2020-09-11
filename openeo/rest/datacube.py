@@ -8,6 +8,7 @@ be evaluated by an openEO backend.
 
 """
 import datetime
+import inspect
 import logging
 import pathlib
 import typing
@@ -28,6 +29,7 @@ from openeo.rest.job import RESTJob
 from openeo.rest.udp import RESTUserDefinedProcess
 from openeo.util import get_temporal_extent, dict_no_none
 from openeo.vectorcube import VectorCube
+import openeo.processes.processes
 from openeo.metadata import Band
 import numpy
 from builtins import staticmethod
@@ -149,7 +151,7 @@ class DataCube(ImageCollection):
             arguments['bands'] = bands
         if properties:
             arguments['properties'] = {
-                prop: cls._get_callback(pred, parameter_mapping={"x": "value"})
+                prop: cls._get_callback(pred, parent_parameters=["value"])
                 for prop, pred in properties.items()
             }
         pg = PGNode(
@@ -459,8 +461,8 @@ class DataCube(ImageCollection):
         return self.merge(other, overlap_resolver=PGNode(
             process_id=operator,
             arguments={
-                left_arg_name: {"from_parameter": "cube1"},
-                right_arg_name: {"from_parameter": "cube2"},
+                left_arg_name: {"from_parameter": "x"},
+                right_arg_name: {"from_parameter": "y"},
             }
         ))
 
@@ -495,7 +497,7 @@ class DataCube(ImageCollection):
         return self.process(process_id, args)
 
     @staticmethod
-    def _get_callback(process: Union[str, PGNode, typing.Callable], parameter_mapping: dict) -> dict:
+    def _get_callback(process: Union[str, PGNode, typing.Callable], parent_parameters: List[str]) -> dict:
         """
         Build a "callback" process: a user defined process that is used by another process (such
         as `apply`, `apply_dimension`, `reduce`, ....)
@@ -505,36 +507,39 @@ class DataCube(ImageCollection):
         :return:
         """
 
-        def get_args(parameter_mapping: dict, factory: typing.Callable) -> dict:
-            """Helper to build a dict of process arguments (in desired format)."""
-            args = {}
-            for child_param, parent_param in parameter_mapping.items():
-                if isinstance(parent_param, str):
-                    args[child_param] = factory(parent_param)
-                elif isinstance(parent_param, list):
-                    args[child_param] = [factory(p) for p in parent_param]
-                else:
-                    raise ValueError(parent_param)
-            return args
+        def get_parameter_names(process: typing.Callable) -> List[str]:
+            signature = inspect.signature(process)
+            return [
+                p.name for p in signature.parameters.values()
+                if p.kind in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+            ]
 
         # TODO: autodetect the parameters defined by process?
-        if isinstance(process, str):
-            # Assume given reducer is a simple predefined reduce process_id
-            pg = PGNode(
-                process_id=process,
-                arguments=get_args(parameter_mapping, factory=lambda p: {"from_parameter": p})
-            )
-        elif isinstance(process, PGNode):
+        if isinstance(process, PGNode):
             # Assume this is already a valid callback process
-            # TODO: check used parameters against expected ones?
-            pg=process
-        elif isinstance(process, typing.Callable):
-            args = get_args(parameter_mapping, factory=lambda p: ProcessBuilder.from_parameter(p))
-            # Only call with kwargs to avoid being picky towards user about argument names when there is no confusion.
-            if len(args) < 2:
-                pg = process(*args.values()).pgnode
+            pg = process
+        elif isinstance(process, str):
+            # Assume given reducer is a simple predefined reduce process_id
+            if process in openeo.processes.processes.__dict__:
+                process_params = get_parameter_names(openeo.processes.processes.__dict__[process])
             else:
-                pg = process(**args).pgnode
+                # Best effort guess
+                process_params = parent_parameters
+            if parent_parameters == ["x", "y"] and (len(process_params) == 1 or process_params[:1] == ["data"]):
+                # Special case: wrap all parent parameters in an array
+                arguments = {process_params[0]: [{"from_parameter": p} for p in parent_parameters]}
+            else:
+                arguments = {a: {"from_parameter": b} for a, b in zip(process_params, parent_parameters)}
+            pg = PGNode(process_id=process, arguments=arguments)
+        elif isinstance(process, typing.Callable):
+            process_params = get_parameter_names(process)
+            if parent_parameters == ["x", "y"] and (len(process_params) == 1 or process_params[:1] == ["data"]):
+                # Special case: wrap all parent parameters in an array
+                arguments = [ProcessBuilder([{"from_parameter": p} for p in parent_parameters])]
+            else:
+                arguments = [ProcessBuilder({"from_parameter": p}) for p in parent_parameters]
+
+            pg = process(*arguments).pgnode
         else:
             raise ValueError(process)
 
@@ -582,7 +587,7 @@ class DataCube(ImageCollection):
             process = PGNode.to_process_graph_argument(callback_process_node)
         elif code or process:
             # TODO EP-3555 unify `code` and `process`
-            process = self._get_callback(code or process, parameter_mapping={"data": "data"})
+            process = self._get_callback(code or process, parent_parameters=["data"])
         else:
             raise OpenEoClientException("No UDF code or process given")
         arguments = {
@@ -609,7 +614,7 @@ class DataCube(ImageCollection):
         """
         # TODO: check if dimension is valid according to metadata? #116
         # TODO: #125 use/test case for `reduce_dimension_binary`?
-        reducer = self._get_callback(reducer, parameter_mapping={"data": "data"})
+        reducer = self._get_callback(reducer, parent_parameters=["data"])
 
         return self.process_with_node(ReduceNode(
             process_id=process_id,
@@ -699,13 +704,13 @@ class DataCube(ImageCollection):
             process_id='apply_neighborhood',
             arguments=dict_no_none(
                 data=THIS,
-                process=self._get_callback(process, parameter_mapping={"data": "data"}),
+                process=self._get_callback(process, parent_parameters=["data"]),
                 size=size,
                 overlap=overlap
             )
         )
 
-    def apply(self, process: Union[str, PGNode, typing.Callable] = None, data_argument="x") -> 'DataCube':
+    def apply(self, process: Union[str, PGNode, typing.Callable] = None) -> 'DataCube':
         """
         Applies a unary process (a local operation) to each value of the specified or all dimensions in the data cube.
 
@@ -717,7 +722,7 @@ class DataCube(ImageCollection):
             process_id="apply",
             arguments={
                 "data": THIS,
-                "process": self._get_callback(process, parameter_mapping={data_argument: "x"}),
+                "process": self._get_callback(process, parent_parameters=["x"]),
                 # TODO #125 context
             }
         )
@@ -940,7 +945,7 @@ class DataCube(ImageCollection):
             'cube2': {'from_node': other._pg},
         }
         if overlap_resolver:
-            arguments["overlap_resolver"] = self._get_callback(overlap_resolver, parameter_mapping={"data": ["x", "y"]})
+            arguments["overlap_resolver"] = self._get_callback(overlap_resolver, parent_parameters=["x", "y"])
         # TODO #125 context
         # TODO: set metadata of reduced cube?
         return self.process(process_id="merge_cubes", arguments=arguments)
@@ -1061,7 +1066,7 @@ class DataCube(ImageCollection):
             arguments={
                 "data": self._pg,
                 "geometries": geometries,
-                "reducer": self._get_callback(func, parameter_mapping={"data":"data"})
+                "reducer": self._get_callback(func, parent_parameters=["data"])
                 # TODO #125 target dimension, context
             }
         )
