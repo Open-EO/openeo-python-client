@@ -2,7 +2,6 @@ from typing import Union
 
 from openeo.internal.graph_building import PGNode
 
-
 UNSET = object()
 
 
@@ -20,7 +19,7 @@ class ProcessBuilderBase:
         return cls({"from_parameter": parameter})
 
     @classmethod
-    def process(cls, process_id: str, arguments: dict = None, **kwargs) -> 'ProcessBuilderBase':
+    def process(cls, process_id: str, arguments: dict = None, **kwargs):
         """
         Apply process, using given arguments
 

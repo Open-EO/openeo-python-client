@@ -102,6 +102,29 @@ def test_render_with_optional():
             return process('foo', x=x, y=y)''')
 
 
+def test_render_return_type_hint():
+    process = Process.from_dict({
+        "id": "incr",
+        "description": "Increment a value",
+        "summary": "Increment a value",
+        "parameters": [{"name": "x", "description": "value", "schema": {"type": "integer"}}],
+        "returns": {"description": "incremented value", "schema": {"type": "integer"}}
+    })
+
+    renderer = PythonRenderer(return_type_hint="FooBar")
+    src = renderer.render_process(process)
+    assert src == dedent('''\
+        def incr(x) -> FooBar:
+            """
+            Increment a value
+
+            :param x: value
+
+            :return: incremented value
+            """
+            return process('incr', x=x)''')
+
+
 def test_render_oo_no_params():
     process = Process.from_dict({
         "id": "pi",
@@ -112,12 +135,13 @@ def test_render_oo_no_params():
     })
 
     renderer = PythonRenderer(oo_mode=True)
-    src = renderer.render_process(process)
+    src = "class Consts:\n" + renderer.render_process(process)
     assert src == dedent('''\
-        def pi(self):
-            """
-            Pi
-
-            :return: value of pi
-            """
-            return process('pi', )''')
+        class Consts:
+            def pi(self):
+                """
+                Pi
+    
+                :return: value of pi
+                """
+                return process('pi', )''')

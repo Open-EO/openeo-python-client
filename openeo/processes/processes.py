@@ -11,7 +11,7 @@ class ProcessBuilder(ProcessBuilderBase):
         return self.add(other)
 
 
-    def absolute(self):
+    def absolute(self) -> 'ProcessBuilder':
         """
         Absolute value
 
@@ -21,7 +21,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return absolute(x=self)
 
-    def add(self, y):
+    def add(self, y) -> 'ProcessBuilder':
         """
         Addition of two numbers
 
@@ -32,7 +32,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return add(x=self, y=y)
 
-    def add_dimension(self, name, label, type=UNSET):
+    def add_dimension(self, name, label, type=UNSET) -> 'ProcessBuilder':
         """
         Add a new dimension
 
@@ -46,7 +46,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return add_dimension(data=self, name=name, label=label, type=type)
 
-    def aggregate_spatial(self, geometries, reducer, target_dimension=UNSET, context=UNSET):
+    def aggregate_spatial(self, geometries, reducer, target_dimension=UNSET, context=UNSET) -> 'ProcessBuilder':
         """
         Zonal statistics for geometries
 
@@ -70,7 +70,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return aggregate_spatial(data=self, geometries=geometries, reducer=reducer, target_dimension=target_dimension, context=context)
 
-    def aggregate_spatial_binary(self, geometries, reducer, target_dimension=UNSET, context=UNSET):
+    def aggregate_spatial_binary(self, geometries, reducer, target_dimension=UNSET, context=UNSET) -> 'ProcessBuilder':
         """
         Zonal statistics for geometries by binary aggregation
 
@@ -95,7 +95,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return aggregate_spatial_binary(data=self, geometries=geometries, reducer=reducer, target_dimension=target_dimension, context=context)
 
-    def aggregate_temporal(self, intervals, reducer, labels=UNSET, dimension=UNSET, context=UNSET):
+    def aggregate_temporal(self, intervals, reducer, labels=UNSET, dimension=UNSET, context=UNSET) -> 'ProcessBuilder':
         """
         Temporal aggregations
 
@@ -127,7 +127,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return aggregate_temporal(data=self, intervals=intervals, reducer=reducer, labels=labels, dimension=dimension, context=context)
 
-    def aggregate_temporal_period(self, period, reducer, dimension=UNSET, context=UNSET):
+    def aggregate_temporal_period(self, period, reducer, dimension=UNSET, context=UNSET) -> 'ProcessBuilder':
         """
         Temporal aggregations based on calendar hierarchies
 
@@ -164,7 +164,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return aggregate_temporal_period(data=self, period=period, reducer=reducer, dimension=dimension, context=context)
 
-    def all(self, ignore_nodata=UNSET):
+    def all(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
         Are all of the values true?
 
@@ -175,7 +175,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return all(data=self, ignore_nodata=ignore_nodata)
 
-    def and_(self, y):
+    def and_(self, y) -> 'ProcessBuilder':
         """
         Logical AND
 
@@ -186,7 +186,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return and_(x=self, y=y)
 
-    def anomaly(self, normals, period):
+    def anomaly(self, normals, period) -> 'ProcessBuilder':
         """
         Computes anomalies
 
@@ -225,7 +225,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return anomaly(data=self, normals=normals, period=period)
 
-    def any(self, ignore_nodata=UNSET):
+    def any(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
         Is at least one value true?
 
@@ -236,7 +236,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return any(data=self, ignore_nodata=ignore_nodata)
 
-    def apply(self, process, context=UNSET):
+    def apply(self, process, context=UNSET) -> 'ProcessBuilder':
         """
         Apply a process to each pixel
 
@@ -249,7 +249,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return apply(data=self, process=process, context=context)
 
-    def apply_dimension(self, process, dimension, target_dimension=UNSET, context=UNSET):
+    def apply_dimension(self, process, dimension, target_dimension=UNSET, context=UNSET) -> 'ProcessBuilder':
         """
         Apply a process to pixels along a dimension
 
@@ -286,7 +286,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return apply_dimension(data=self, process=process, dimension=dimension, target_dimension=target_dimension, context=context)
 
-    def apply_kernel(self, kernel, factor=UNSET, border=UNSET, replace_invalid=UNSET):
+    def apply_kernel(self, kernel, factor=UNSET, border=UNSET, replace_invalid=UNSET) -> 'ProcessBuilder':
         """
         Apply a spatial convolution with a kernel
 
@@ -312,7 +312,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return apply_kernel(data=self, kernel=kernel, factor=factor, border=border, replace_invalid=replace_invalid)
 
-    def apply_neighborhood(self, process, size, overlap=UNSET, context=UNSET):
+    def apply_neighborhood(self, process, size, overlap=UNSET, context=UNSET) -> 'ProcessBuilder':
         """
         Apply a process to pixels in a n-dimensional neighbourhood
 
@@ -335,7 +335,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return apply_neighborhood(data=self, process=process, size=size, overlap=overlap, context=context)
 
-    def arccos(self):
+    def arccos(self) -> 'ProcessBuilder':
         """
         Inverse cosine
 
@@ -345,7 +345,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return arccos(x=self)
 
-    def arcosh(self):
+    def arcosh(self) -> 'ProcessBuilder':
         """
         Inverse hyperbolic cosine
 
@@ -355,7 +355,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return arcosh(x=self)
 
-    def arcsin(self):
+    def arcsin(self) -> 'ProcessBuilder':
         """
         Inverse sine
 
@@ -365,7 +365,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return arcsin(x=self)
 
-    def arctan(self):
+    def arctan(self) -> 'ProcessBuilder':
         """
         Inverse tangent
 
@@ -375,7 +375,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return arctan(x=self)
 
-    def arctan2(self, x):
+    def arctan2(self, x) -> 'ProcessBuilder':
         """
         Inverse tangent of two numbers
 
@@ -386,7 +386,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return arctan2(y=self, x=x)
 
-    def array_apply(self, process, context=UNSET):
+    def array_apply(self, process, context=UNSET) -> 'ProcessBuilder':
         """
         Applies a unary process to each array element
 
@@ -400,7 +400,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return array_apply(data=self, process=process, context=context)
 
-    def array_contains(self, value):
+    def array_contains(self, value) -> 'ProcessBuilder':
         """
         Check whether the array contains a given value
 
@@ -411,7 +411,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return array_contains(data=self, value=value)
 
-    def array_element(self, index=UNSET, label=UNSET, return_nodata=UNSET):
+    def array_element(self, index=UNSET, label=UNSET, return_nodata=UNSET) -> 'ProcessBuilder':
         """
         Get an element from an array
 
@@ -425,7 +425,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return array_element(data=self, index=index, label=label, return_nodata=return_nodata)
 
-    def array_filter(self, condition, context=UNSET):
+    def array_filter(self, condition, context=UNSET) -> 'ProcessBuilder':
         """
         Filter an array based on a condition
 
@@ -439,7 +439,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return array_filter(data=self, condition=condition, context=context)
 
-    def array_find(self, value):
+    def array_find(self, value) -> 'ProcessBuilder':
         """
         Get the index for a value in an array
 
@@ -451,7 +451,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return array_find(data=self, value=value)
 
-    def array_labels(self):
+    def array_labels(self) -> 'ProcessBuilder':
         """
         Get the labels for an array
 
@@ -461,7 +461,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return array_labels(data=self)
 
-    def arsinh(self):
+    def arsinh(self) -> 'ProcessBuilder':
         """
         Inverse hyperbolic sine
 
@@ -471,7 +471,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return arsinh(x=self)
 
-    def artanh(self):
+    def artanh(self) -> 'ProcessBuilder':
         """
         Inverse hyperbolic tangent
 
@@ -481,7 +481,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return artanh(x=self)
 
-    def between(self, min, max, exclude_max=UNSET):
+    def between(self, min, max, exclude_max=UNSET) -> 'ProcessBuilder':
         """
         Between comparison
 
@@ -494,7 +494,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return between(x=self, min=min, max=max, exclude_max=exclude_max)
 
-    def ceil(self):
+    def ceil(self) -> 'ProcessBuilder':
         """
         Round fractions up
 
@@ -504,7 +504,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return ceil(x=self)
 
-    def climatological_normal(self, period, climatology_period=UNSET):
+    def climatological_normal(self, period, climatology_period=UNSET) -> 'ProcessBuilder':
         """
         Computes climatology normals
 
@@ -534,7 +534,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return climatological_normal(data=self, period=period, climatology_period=climatology_period)
 
-    def clip(self, min, max):
+    def clip(self, min, max) -> 'ProcessBuilder':
         """
         Clip a value between a minimum and a maximum
 
@@ -548,7 +548,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return clip(x=self, min=min, max=max)
 
-    def constant(self):
+    def constant(self) -> 'ProcessBuilder':
         """
         Define a constant value
 
@@ -558,7 +558,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return constant(x=self)
 
-    def cos(self):
+    def cos(self) -> 'ProcessBuilder':
         """
         Cosine
 
@@ -568,7 +568,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return cos(x=self)
 
-    def cosh(self):
+    def cosh(self) -> 'ProcessBuilder':
         """
         Hyperbolic cosine
 
@@ -578,7 +578,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return cosh(x=self)
 
-    def count(self, condition=UNSET, context=UNSET):
+    def count(self, condition=UNSET, context=UNSET) -> 'ProcessBuilder':
         """
         Count the number of elements
 
@@ -593,7 +593,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return count(data=self, condition=condition, context=context)
 
-    def create_raster_cube(self):
+    def create_raster_cube(self) -> 'ProcessBuilder':
         """
         Create an empty raster data cube
 
@@ -601,7 +601,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return create_raster_cube()
 
-    def cummax(self, ignore_nodata=UNSET):
+    def cummax(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
         Cumulative maxima
 
@@ -614,7 +614,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return cummax(data=self, ignore_nodata=ignore_nodata)
 
-    def cummin(self, ignore_nodata=UNSET):
+    def cummin(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
         Cumulative minima
 
@@ -627,7 +627,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return cummin(data=self, ignore_nodata=ignore_nodata)
 
-    def cumproduct(self, ignore_nodata=UNSET):
+    def cumproduct(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
         Cumulative products
 
@@ -640,7 +640,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return cumproduct(data=self, ignore_nodata=ignore_nodata)
 
-    def cumsum(self, ignore_nodata=UNSET):
+    def cumsum(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
         Cumulative sums
 
@@ -653,7 +653,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return cumsum(data=self, ignore_nodata=ignore_nodata)
 
-    def debug(self, code=UNSET, level=UNSET, message=UNSET):
+    def debug(self, code=UNSET, level=UNSET, message=UNSET) -> 'ProcessBuilder':
         """
         Publish debugging information
 
@@ -667,7 +667,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return debug(data=self, code=code, level=level, message=message)
 
-    def dimension_labels(self, dimension):
+    def dimension_labels(self, dimension) -> 'ProcessBuilder':
         """
         Get the dimension labels
 
@@ -678,7 +678,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return dimension_labels(data=self, dimension=dimension)
 
-    def divide(self, y):
+    def divide(self, y) -> 'ProcessBuilder':
         """
         Division of two numbers
 
@@ -689,7 +689,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return divide(x=self, y=y)
 
-    def drop_dimension(self, name):
+    def drop_dimension(self, name) -> 'ProcessBuilder':
         """
         Remove a dimension
 
@@ -702,7 +702,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return drop_dimension(data=self, name=name)
 
-    def e(self):
+    def e(self) -> 'ProcessBuilder':
         """
         Euler's number (e)
 
@@ -710,7 +710,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return e()
 
-    def eq(self, y, delta=UNSET, case_sensitive=UNSET):
+    def eq(self, y, delta=UNSET, case_sensitive=UNSET) -> 'ProcessBuilder':
         """
         Equal to comparison
 
@@ -727,7 +727,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return eq(x=self, y=y, delta=delta, case_sensitive=case_sensitive)
 
-    def exp(self):
+    def exp(self) -> 'ProcessBuilder':
         """
         Exponentiation to the base e
 
@@ -737,7 +737,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return exp(p=self)
 
-    def extrema(self, ignore_nodata=UNSET):
+    def extrema(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
         Minimum and maximum values
 
@@ -752,7 +752,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return extrema(data=self, ignore_nodata=ignore_nodata)
 
-    def filter_bands(self, bands=UNSET, wavelengths=UNSET):
+    def filter_bands(self, bands=UNSET, wavelengths=UNSET) -> 'ProcessBuilder':
         """
         Filter the bands by name
 
@@ -774,7 +774,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return filter_bands(data=self, bands=bands, wavelengths=wavelengths)
 
-    def filter_bbox(self, extent):
+    def filter_bbox(self, extent) -> 'ProcessBuilder':
         """
         Spatial filter using a bounding box
 
@@ -787,7 +787,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return filter_bbox(data=self, extent=extent)
 
-    def filter_labels(self, condition, dimension, context=UNSET):
+    def filter_labels(self, condition, dimension, context=UNSET) -> 'ProcessBuilder':
         """
         Filter dimension labels based on a condition
 
@@ -805,7 +805,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return filter_labels(data=self, condition=condition, dimension=dimension, context=context)
 
-    def filter_spatial(self, geometries):
+    def filter_spatial(self, geometries) -> 'ProcessBuilder':
         """
         Spatial filter using geometries
 
@@ -818,7 +818,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return filter_spatial(data=self, geometries=geometries)
 
-    def filter_temporal(self, extent, dimension=UNSET):
+    def filter_temporal(self, extent, dimension=UNSET) -> 'ProcessBuilder':
         """
         Temporal filter for a temporal intervals
 
@@ -839,7 +839,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return filter_temporal(data=self, extent=extent, dimension=dimension)
 
-    def first(self, ignore_nodata=UNSET):
+    def first(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
         First element
 
@@ -852,7 +852,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return first(data=self, ignore_nodata=ignore_nodata)
 
-    def floor(self):
+    def floor(self) -> 'ProcessBuilder':
         """
         Round fractions down
 
@@ -862,7 +862,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return floor(x=self)
 
-    def gt(self, y):
+    def gt(self, y) -> 'ProcessBuilder':
         """
         Greater than comparison
 
@@ -874,7 +874,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return gt(x=self, y=y)
 
-    def gte(self, y):
+    def gte(self, y) -> 'ProcessBuilder':
         """
         Greater than or equal to comparison
 
@@ -886,7 +886,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return gte(x=self, y=y)
 
-    def if_(self, accept, reject=UNSET):
+    def if_(self, accept, reject=UNSET) -> 'ProcessBuilder':
         """
         If-Then-Else conditional
 
@@ -898,7 +898,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return if_(value=self, accept=accept, reject=reject)
 
-    def int(self):
+    def int(self) -> 'ProcessBuilder':
         """
         Integer part of a number
 
@@ -908,7 +908,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return int(x=self)
 
-    def is_nan(self):
+    def is_nan(self) -> 'ProcessBuilder':
         """
         Value is not a number
 
@@ -918,7 +918,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return is_nan(x=self)
 
-    def is_nodata(self):
+    def is_nodata(self) -> 'ProcessBuilder':
         """
         Value is not a no-data value
 
@@ -928,7 +928,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return is_nodata(x=self)
 
-    def is_valid(self):
+    def is_valid(self) -> 'ProcessBuilder':
         """
         Value is valid data
 
@@ -938,7 +938,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return is_valid(x=self)
 
-    def last(self, ignore_nodata=UNSET):
+    def last(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
         Last element
 
@@ -951,7 +951,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return last(data=self, ignore_nodata=ignore_nodata)
 
-    def linear_scale_range(self, inputMin, inputMax, outputMin=UNSET, outputMax=UNSET):
+    def linear_scale_range(self, inputMin, inputMax, outputMin=UNSET, outputMax=UNSET) -> 'ProcessBuilder':
         """
         Linear transformation between two ranges
 
@@ -966,7 +966,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return linear_scale_range(x=self, inputMin=inputMin, inputMax=inputMax, outputMin=outputMin, outputMax=outputMax)
 
-    def ln(self):
+    def ln(self) -> 'ProcessBuilder':
         """
         Natural logarithm
 
@@ -976,7 +976,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return ln(x=self)
 
-    def load_collection(self, spatial_extent, temporal_extent, bands=UNSET, properties=UNSET):
+    def load_collection(self, spatial_extent, temporal_extent, bands=UNSET, properties=UNSET) -> 'ProcessBuilder':
         """
         Load a collection
 
@@ -1014,7 +1014,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return load_collection(id=self, spatial_extent=spatial_extent, temporal_extent=temporal_extent, bands=bands, properties=properties)
 
-    def load_result(self):
+    def load_result(self) -> 'ProcessBuilder':
         """
         Load batch job results
 
@@ -1024,7 +1024,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return load_result(id=self)
 
-    def load_uploaded_files(self, format, options=UNSET):
+    def load_uploaded_files(self, format, options=UNSET) -> 'ProcessBuilder':
         """
         Load files from the user workspace
 
@@ -1042,7 +1042,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return load_uploaded_files(paths=self, format=format, options=options)
 
-    def log(self, base):
+    def log(self, base) -> 'ProcessBuilder':
         """
         Logarithm to a base
 
@@ -1053,7 +1053,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return log(x=self, base=base)
 
-    def lt(self, y):
+    def lt(self, y) -> 'ProcessBuilder':
         """
         Less than comparison
 
@@ -1064,7 +1064,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return lt(x=self, y=y)
 
-    def lte(self, y):
+    def lte(self, y) -> 'ProcessBuilder':
         """
         Less than or equal to comparison
 
@@ -1076,7 +1076,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return lte(x=self, y=y)
 
-    def mask(self, mask, replacement=UNSET):
+    def mask(self, mask, replacement=UNSET) -> 'ProcessBuilder':
         """
         Apply a raster mask
 
@@ -1090,7 +1090,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return mask(data=self, mask=mask, replacement=replacement)
 
-    def mask_polygon(self, mask, replacement=UNSET, inside=UNSET):
+    def mask_polygon(self, mask, replacement=UNSET, inside=UNSET) -> 'ProcessBuilder':
         """
         Apply a polygon mask
 
@@ -1107,7 +1107,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return mask_polygon(data=self, mask=mask, replacement=replacement, inside=inside)
 
-    def max(self, ignore_nodata=UNSET):
+    def max(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
         Maximum value
 
@@ -1120,7 +1120,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return max(data=self, ignore_nodata=ignore_nodata)
 
-    def mean(self, ignore_nodata=UNSET):
+    def mean(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
         Arithmetic mean (average)
 
@@ -1133,7 +1133,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return mean(data=self, ignore_nodata=ignore_nodata)
 
-    def median(self, ignore_nodata=UNSET):
+    def median(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
         Statistical median
 
@@ -1146,7 +1146,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return median(data=self, ignore_nodata=ignore_nodata)
 
-    def merge_cubes(self, cube2, overlap_resolver=UNSET, context=UNSET):
+    def merge_cubes(self, cube2, overlap_resolver=UNSET, context=UNSET) -> 'ProcessBuilder':
         """
         Merging two data cubes
 
@@ -1163,7 +1163,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return merge_cubes(cube1=self, cube2=cube2, overlap_resolver=overlap_resolver, context=context)
 
-    def min(self, ignore_nodata=UNSET):
+    def min(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
         Minimum value
 
@@ -1176,7 +1176,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return min(data=self, ignore_nodata=ignore_nodata)
 
-    def mod(self, y):
+    def mod(self, y) -> 'ProcessBuilder':
         """
         Modulo
 
@@ -1187,7 +1187,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return mod(x=self, y=y)
 
-    def multiply(self, y):
+    def multiply(self, y) -> 'ProcessBuilder':
         """
         Multiplication of two numbers
 
@@ -1198,7 +1198,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return multiply(x=self, y=y)
 
-    def ndvi(self, nir=UNSET, red=UNSET, target_band=UNSET):
+    def ndvi(self, nir=UNSET, red=UNSET, target_band=UNSET) -> 'ProcessBuilder':
         """
         Normalized Difference Vegetation Index
 
@@ -1225,7 +1225,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return ndvi(data=self, nir=nir, red=red, target_band=target_band)
 
-    def neq(self, y, delta=UNSET, case_sensitive=UNSET):
+    def neq(self, y, delta=UNSET, case_sensitive=UNSET) -> 'ProcessBuilder':
         """
         Not equal to comparison
 
@@ -1243,7 +1243,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return neq(x=self, y=y, delta=delta, case_sensitive=case_sensitive)
 
-    def normalized_difference(self, y):
+    def normalized_difference(self, y) -> 'ProcessBuilder':
         """
         Normalized difference
 
@@ -1254,7 +1254,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return normalized_difference(x=self, y=y)
 
-    def not_(self):
+    def not_(self) -> 'ProcessBuilder':
         """
         Inverting a boolean
 
@@ -1264,7 +1264,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return not_(x=self)
 
-    def or_(self, y):
+    def or_(self, y) -> 'ProcessBuilder':
         """
         Logical OR
 
@@ -1275,7 +1275,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return or_(x=self, y=y)
 
-    def order(self, asc=UNSET, nodata=UNSET):
+    def order(self, asc=UNSET, nodata=UNSET) -> 'ProcessBuilder':
         """
         Create a permutation
 
@@ -1289,7 +1289,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return order(data=self, asc=asc, nodata=nodata)
 
-    def pi(self):
+    def pi(self) -> 'ProcessBuilder':
         """
         Pi (π)
 
@@ -1297,7 +1297,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return pi()
 
-    def power(self, p):
+    def power(self, p) -> 'ProcessBuilder':
         """
         Exponentiation
 
@@ -1308,7 +1308,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return power(base=self, p=p)
 
-    def product(self, ignore_nodata=UNSET):
+    def product(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
         Compute the product by multiplying numbers
 
@@ -1321,7 +1321,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return product(data=self, ignore_nodata=ignore_nodata)
 
-    def quantiles(self, probabilities=UNSET, q=UNSET, ignore_nodata=UNSET):
+    def quantiles(self, probabilities=UNSET, q=UNSET, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
         Quantiles
 
@@ -1341,7 +1341,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return quantiles(data=self, probabilities=probabilities, q=q, ignore_nodata=ignore_nodata)
 
-    def rearrange(self, order):
+    def rearrange(self, order) -> 'ProcessBuilder':
         """
         Rearrange an array based on a permutation
 
@@ -1352,7 +1352,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return rearrange(data=self, order=order)
 
-    def reduce_dimension(self, reducer, dimension, context=UNSET):
+    def reduce_dimension(self, reducer, dimension, context=UNSET) -> 'ProcessBuilder':
         """
         Reduce dimensions
 
@@ -1370,7 +1370,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return reduce_dimension(data=self, reducer=reducer, dimension=dimension, context=context)
 
-    def reduce_dimension_binary(self, reducer, dimension, context=UNSET):
+    def reduce_dimension_binary(self, reducer, dimension, context=UNSET) -> 'ProcessBuilder':
         """
         Reduce dimensions using binary reduction
 
@@ -1389,7 +1389,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return reduce_dimension_binary(data=self, reducer=reducer, dimension=dimension, context=context)
 
-    def rename_dimension(self, source, target):
+    def rename_dimension(self, source, target) -> 'ProcessBuilder':
         """
         Rename a dimension
 
@@ -1405,7 +1405,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return rename_dimension(data=self, source=source, target=target)
 
-    def rename_labels(self, dimension, target, source=UNSET):
+    def rename_labels(self, dimension, target, source=UNSET) -> 'ProcessBuilder':
         """
         Rename dimension labels
 
@@ -1426,7 +1426,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return rename_labels(data=self, dimension=dimension, target=target, source=source)
 
-    def resample_cube_spatial(self, target, method=UNSET):
+    def resample_cube_spatial(self, target, method=UNSET) -> 'ProcessBuilder':
         """
         Resample the spatial dimensions to match a target data cube
 
@@ -1441,7 +1441,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return resample_cube_spatial(data=self, target=target, method=method)
 
-    def resample_cube_temporal(self, target, method, dimension=UNSET, context=UNSET):
+    def resample_cube_temporal(self, target, method, dimension=UNSET, context=UNSET) -> 'ProcessBuilder':
         """
         Resample a temporal dimension to match a target data cube
 
@@ -1463,7 +1463,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return resample_cube_temporal(data=self, target=target, method=method, dimension=dimension, context=context)
 
-    def resample_spatial(self, resolution=UNSET, projection=UNSET, method=UNSET, align=UNSET):
+    def resample_spatial(self, resolution=UNSET, projection=UNSET, method=UNSET, align=UNSET) -> 'ProcessBuilder':
         """
         Resample and warp the spatial dimensions
 
@@ -1487,7 +1487,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return resample_spatial(data=self, resolution=resolution, projection=projection, method=method, align=align)
 
-    def round(self, p=UNSET):
+    def round(self, p=UNSET) -> 'ProcessBuilder':
         """
         Round to a specified precision
 
@@ -1500,7 +1500,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return round(x=self, p=p)
 
-    def run_udf(self, udf, runtime, version=UNSET, context=UNSET):
+    def run_udf(self, udf, runtime, version=UNSET, context=UNSET) -> 'ProcessBuilder':
         """
         Run an UDF
 
@@ -1518,7 +1518,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return run_udf(data=self, udf=udf, runtime=runtime, version=version, context=context)
 
-    def run_udf_externally(self, url, context=UNSET):
+    def run_udf_externally(self, url, context=UNSET) -> 'ProcessBuilder':
         """
         Run an externally hosted UDF container
 
@@ -1533,7 +1533,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return run_udf_externally(data=self, url=url, context=context)
 
-    def save_result(self, format, options=UNSET):
+    def save_result(self, format, options=UNSET) -> 'ProcessBuilder':
         """
         Save processed data to storage
 
@@ -1550,7 +1550,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return save_result(data=self, format=format, options=options)
 
-    def sd(self, ignore_nodata=UNSET):
+    def sd(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
         Standard deviation
 
@@ -1563,7 +1563,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return sd(data=self, ignore_nodata=ignore_nodata)
 
-    def sgn(self):
+    def sgn(self) -> 'ProcessBuilder':
         """
         Signum
 
@@ -1573,7 +1573,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return sgn(x=self)
 
-    def sin(self):
+    def sin(self) -> 'ProcessBuilder':
         """
         Sine
 
@@ -1583,7 +1583,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return sin(x=self)
 
-    def sinh(self):
+    def sinh(self) -> 'ProcessBuilder':
         """
         Hyperbolic sine
 
@@ -1593,7 +1593,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return sinh(x=self)
 
-    def sort(self, asc=UNSET, nodata=UNSET):
+    def sort(self, asc=UNSET, nodata=UNSET) -> 'ProcessBuilder':
         """
         Sort data
 
@@ -1607,7 +1607,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return sort(data=self, asc=asc, nodata=nodata)
 
-    def sqrt(self):
+    def sqrt(self) -> 'ProcessBuilder':
         """
         Square root
 
@@ -1617,7 +1617,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return sqrt(x=self)
 
-    def subtract(self, y):
+    def subtract(self, y) -> 'ProcessBuilder':
         """
         Subtraction of two numbers
 
@@ -1628,7 +1628,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return subtract(x=self, y=y)
 
-    def sum(self, ignore_nodata=UNSET):
+    def sum(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
         Compute the sum by adding up numbers
 
@@ -1641,7 +1641,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return sum(data=self, ignore_nodata=ignore_nodata)
 
-    def tan(self):
+    def tan(self) -> 'ProcessBuilder':
         """
         Tangent
 
@@ -1651,7 +1651,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return tan(x=self)
 
-    def tanh(self):
+    def tanh(self) -> 'ProcessBuilder':
         """
         Hyperbolic tangent
 
@@ -1661,7 +1661,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return tanh(x=self)
 
-    def text_begins(self, pattern, case_sensitive=UNSET):
+    def text_begins(self, pattern, case_sensitive=UNSET) -> 'ProcessBuilder':
         """
         Text begins with another text
 
@@ -1673,7 +1673,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return text_begins(data=self, pattern=pattern, case_sensitive=case_sensitive)
 
-    def text_contains(self, pattern, case_sensitive=UNSET):
+    def text_contains(self, pattern, case_sensitive=UNSET) -> 'ProcessBuilder':
         """
         Text contains another text
 
@@ -1685,7 +1685,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return text_contains(data=self, pattern=pattern, case_sensitive=case_sensitive)
 
-    def text_ends(self, pattern, case_sensitive=UNSET):
+    def text_ends(self, pattern, case_sensitive=UNSET) -> 'ProcessBuilder':
         """
         Text ends with another text
 
@@ -1697,7 +1697,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return text_ends(data=self, pattern=pattern, case_sensitive=case_sensitive)
 
-    def text_merge(self, separator=UNSET):
+    def text_merge(self, separator=UNSET) -> 'ProcessBuilder':
         """
         Concatenate elements to a string
 
@@ -1711,7 +1711,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return text_merge(data=self, separator=separator)
 
-    def trim_cube(self):
+    def trim_cube(self) -> 'ProcessBuilder':
         """
         Remove dimension labels with no-data values
 
@@ -1722,7 +1722,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return trim_cube(data=self)
 
-    def variance(self, ignore_nodata=UNSET):
+    def variance(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
         Variance
 
@@ -1735,7 +1735,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return variance(data=self, ignore_nodata=ignore_nodata)
 
-    def xor(self, y):
+    def xor(self, y) -> 'ProcessBuilder':
         """
         Logical XOR (exclusive or)
 
@@ -1751,7 +1751,7 @@ class ProcessBuilder(ProcessBuilderBase):
 process = ProcessBuilder.process
 
 
-def absolute(x):
+def absolute(x) -> ProcessBuilder:
     """
     Absolute value
 
@@ -1762,7 +1762,7 @@ def absolute(x):
     return process('absolute', x=x)
 
 
-def add(x, y):
+def add(x, y) -> ProcessBuilder:
     """
     Addition of two numbers
 
@@ -1774,7 +1774,7 @@ def add(x, y):
     return process('add', x=x, y=y)
 
 
-def add_dimension(data, name, label, type=UNSET):
+def add_dimension(data, name, label, type=UNSET) -> ProcessBuilder:
     """
     Add a new dimension
 
@@ -1789,7 +1789,7 @@ def add_dimension(data, name, label, type=UNSET):
     return process('add_dimension', data=data, name=name, label=label, type=type)
 
 
-def aggregate_spatial(data, geometries, reducer, target_dimension=UNSET, context=UNSET):
+def aggregate_spatial(data, geometries, reducer, target_dimension=UNSET, context=UNSET) -> ProcessBuilder:
     """
     Zonal statistics for geometries
 
@@ -1813,7 +1813,7 @@ def aggregate_spatial(data, geometries, reducer, target_dimension=UNSET, context
     return process('aggregate_spatial', data=data, geometries=geometries, reducer=reducer, target_dimension=target_dimension, context=context)
 
 
-def aggregate_spatial_binary(data, geometries, reducer, target_dimension=UNSET, context=UNSET):
+def aggregate_spatial_binary(data, geometries, reducer, target_dimension=UNSET, context=UNSET) -> ProcessBuilder:
     """
     Zonal statistics for geometries by binary aggregation
 
@@ -1838,7 +1838,7 @@ def aggregate_spatial_binary(data, geometries, reducer, target_dimension=UNSET, 
     return process('aggregate_spatial_binary', data=data, geometries=geometries, reducer=reducer, target_dimension=target_dimension, context=context)
 
 
-def aggregate_temporal(data, intervals, reducer, labels=UNSET, dimension=UNSET, context=UNSET):
+def aggregate_temporal(data, intervals, reducer, labels=UNSET, dimension=UNSET, context=UNSET) -> ProcessBuilder:
     """
     Temporal aggregations
 
@@ -1870,7 +1870,7 @@ def aggregate_temporal(data, intervals, reducer, labels=UNSET, dimension=UNSET, 
     return process('aggregate_temporal', data=data, intervals=intervals, reducer=reducer, labels=labels, dimension=dimension, context=context)
 
 
-def aggregate_temporal_period(data, period, reducer, dimension=UNSET, context=UNSET):
+def aggregate_temporal_period(data, period, reducer, dimension=UNSET, context=UNSET) -> ProcessBuilder:
     """
     Temporal aggregations based on calendar hierarchies
 
@@ -1907,7 +1907,7 @@ def aggregate_temporal_period(data, period, reducer, dimension=UNSET, context=UN
     return process('aggregate_temporal_period', data=data, period=period, reducer=reducer, dimension=dimension, context=context)
 
 
-def all(data, ignore_nodata=UNSET):
+def all(data, ignore_nodata=UNSET) -> ProcessBuilder:
     """
     Are all of the values true?
 
@@ -1919,7 +1919,7 @@ def all(data, ignore_nodata=UNSET):
     return process('all', data=data, ignore_nodata=ignore_nodata)
 
 
-def and_(x, y):
+def and_(x, y) -> ProcessBuilder:
     """
     Logical AND
 
@@ -1931,7 +1931,7 @@ def and_(x, y):
     return process('and_', x=x, y=y)
 
 
-def anomaly(data, normals, period):
+def anomaly(data, normals, period) -> ProcessBuilder:
     """
     Computes anomalies
 
@@ -1970,7 +1970,7 @@ def anomaly(data, normals, period):
     return process('anomaly', data=data, normals=normals, period=period)
 
 
-def any(data, ignore_nodata=UNSET):
+def any(data, ignore_nodata=UNSET) -> ProcessBuilder:
     """
     Is at least one value true?
 
@@ -1982,7 +1982,7 @@ def any(data, ignore_nodata=UNSET):
     return process('any', data=data, ignore_nodata=ignore_nodata)
 
 
-def apply(data, process, context=UNSET):
+def apply(data, process, context=UNSET) -> ProcessBuilder:
     """
     Apply a process to each pixel
 
@@ -1996,7 +1996,7 @@ def apply(data, process, context=UNSET):
     return process('apply', data=data, process=process, context=context)
 
 
-def apply_dimension(data, process, dimension, target_dimension=UNSET, context=UNSET):
+def apply_dimension(data, process, dimension, target_dimension=UNSET, context=UNSET) -> ProcessBuilder:
     """
     Apply a process to pixels along a dimension
 
@@ -2033,7 +2033,7 @@ def apply_dimension(data, process, dimension, target_dimension=UNSET, context=UN
     return process('apply_dimension', data=data, process=process, dimension=dimension, target_dimension=target_dimension, context=context)
 
 
-def apply_kernel(data, kernel, factor=UNSET, border=UNSET, replace_invalid=UNSET):
+def apply_kernel(data, kernel, factor=UNSET, border=UNSET, replace_invalid=UNSET) -> ProcessBuilder:
     """
     Apply a spatial convolution with a kernel
 
@@ -2059,7 +2059,7 @@ def apply_kernel(data, kernel, factor=UNSET, border=UNSET, replace_invalid=UNSET
     return process('apply_kernel', data=data, kernel=kernel, factor=factor, border=border, replace_invalid=replace_invalid)
 
 
-def apply_neighborhood(data, process, size, overlap=UNSET, context=UNSET):
+def apply_neighborhood(data, process, size, overlap=UNSET, context=UNSET) -> ProcessBuilder:
     """
     Apply a process to pixels in a n-dimensional neighbourhood
 
@@ -2082,7 +2082,7 @@ def apply_neighborhood(data, process, size, overlap=UNSET, context=UNSET):
     return process('apply_neighborhood', data=data, process=process, size=size, overlap=overlap, context=context)
 
 
-def arccos(x):
+def arccos(x) -> ProcessBuilder:
     """
     Inverse cosine
 
@@ -2093,7 +2093,7 @@ def arccos(x):
     return process('arccos', x=x)
 
 
-def arcosh(x):
+def arcosh(x) -> ProcessBuilder:
     """
     Inverse hyperbolic cosine
 
@@ -2104,7 +2104,7 @@ def arcosh(x):
     return process('arcosh', x=x)
 
 
-def arcsin(x):
+def arcsin(x) -> ProcessBuilder:
     """
     Inverse sine
 
@@ -2115,7 +2115,7 @@ def arcsin(x):
     return process('arcsin', x=x)
 
 
-def arctan(x):
+def arctan(x) -> ProcessBuilder:
     """
     Inverse tangent
 
@@ -2126,7 +2126,7 @@ def arctan(x):
     return process('arctan', x=x)
 
 
-def arctan2(y, x):
+def arctan2(y, x) -> ProcessBuilder:
     """
     Inverse tangent of two numbers
 
@@ -2138,7 +2138,7 @@ def arctan2(y, x):
     return process('arctan2', y=y, x=x)
 
 
-def array_apply(data, process, context=UNSET):
+def array_apply(data, process, context=UNSET) -> ProcessBuilder:
     """
     Applies a unary process to each array element
 
@@ -2153,7 +2153,7 @@ def array_apply(data, process, context=UNSET):
     return process('array_apply', data=data, process=process, context=context)
 
 
-def array_contains(data, value):
+def array_contains(data, value) -> ProcessBuilder:
     """
     Check whether the array contains a given value
 
@@ -2165,7 +2165,7 @@ def array_contains(data, value):
     return process('array_contains', data=data, value=value)
 
 
-def array_element(data, index=UNSET, label=UNSET, return_nodata=UNSET):
+def array_element(data, index=UNSET, label=UNSET, return_nodata=UNSET) -> ProcessBuilder:
     """
     Get an element from an array
 
@@ -2180,7 +2180,7 @@ def array_element(data, index=UNSET, label=UNSET, return_nodata=UNSET):
     return process('array_element', data=data, index=index, label=label, return_nodata=return_nodata)
 
 
-def array_filter(data, condition, context=UNSET):
+def array_filter(data, condition, context=UNSET) -> ProcessBuilder:
     """
     Filter an array based on a condition
 
@@ -2195,7 +2195,7 @@ def array_filter(data, condition, context=UNSET):
     return process('array_filter', data=data, condition=condition, context=context)
 
 
-def array_find(data, value):
+def array_find(data, value) -> ProcessBuilder:
     """
     Get the index for a value in an array
 
@@ -2208,7 +2208,7 @@ def array_find(data, value):
     return process('array_find', data=data, value=value)
 
 
-def array_labels(data):
+def array_labels(data) -> ProcessBuilder:
     """
     Get the labels for an array
 
@@ -2219,7 +2219,7 @@ def array_labels(data):
     return process('array_labels', data=data)
 
 
-def arsinh(x):
+def arsinh(x) -> ProcessBuilder:
     """
     Inverse hyperbolic sine
 
@@ -2230,7 +2230,7 @@ def arsinh(x):
     return process('arsinh', x=x)
 
 
-def artanh(x):
+def artanh(x) -> ProcessBuilder:
     """
     Inverse hyperbolic tangent
 
@@ -2241,7 +2241,7 @@ def artanh(x):
     return process('artanh', x=x)
 
 
-def between(x, min, max, exclude_max=UNSET):
+def between(x, min, max, exclude_max=UNSET) -> ProcessBuilder:
     """
     Between comparison
 
@@ -2255,7 +2255,7 @@ def between(x, min, max, exclude_max=UNSET):
     return process('between', x=x, min=min, max=max, exclude_max=exclude_max)
 
 
-def ceil(x):
+def ceil(x) -> ProcessBuilder:
     """
     Round fractions up
 
@@ -2266,7 +2266,7 @@ def ceil(x):
     return process('ceil', x=x)
 
 
-def climatological_normal(data, period, climatology_period=UNSET):
+def climatological_normal(data, period, climatology_period=UNSET) -> ProcessBuilder:
     """
     Computes climatology normals
 
@@ -2295,7 +2295,7 @@ def climatological_normal(data, period, climatology_period=UNSET):
     return process('climatological_normal', data=data, period=period, climatology_period=climatology_period)
 
 
-def clip(x, min, max):
+def clip(x, min, max) -> ProcessBuilder:
     """
     Clip a value between a minimum and a maximum
 
@@ -2310,7 +2310,7 @@ def clip(x, min, max):
     return process('clip', x=x, min=min, max=max)
 
 
-def constant(x):
+def constant(x) -> ProcessBuilder:
     """
     Define a constant value
 
@@ -2321,7 +2321,7 @@ def constant(x):
     return process('constant', x=x)
 
 
-def cos(x):
+def cos(x) -> ProcessBuilder:
     """
     Cosine
 
@@ -2332,7 +2332,7 @@ def cos(x):
     return process('cos', x=x)
 
 
-def cosh(x):
+def cosh(x) -> ProcessBuilder:
     """
     Hyperbolic cosine
 
@@ -2343,7 +2343,7 @@ def cosh(x):
     return process('cosh', x=x)
 
 
-def count(data, condition=UNSET, context=UNSET):
+def count(data, condition=UNSET, context=UNSET) -> ProcessBuilder:
     """
     Count the number of elements
 
@@ -2359,7 +2359,7 @@ def count(data, condition=UNSET, context=UNSET):
     return process('count', data=data, condition=condition, context=context)
 
 
-def create_raster_cube():
+def create_raster_cube() -> ProcessBuilder:
     """
     Create an empty raster data cube
 
@@ -2368,7 +2368,7 @@ def create_raster_cube():
     return process('create_raster_cube', )
 
 
-def cummax(data, ignore_nodata=UNSET):
+def cummax(data, ignore_nodata=UNSET) -> ProcessBuilder:
     """
     Cumulative maxima
 
@@ -2381,7 +2381,7 @@ def cummax(data, ignore_nodata=UNSET):
     return process('cummax', data=data, ignore_nodata=ignore_nodata)
 
 
-def cummin(data, ignore_nodata=UNSET):
+def cummin(data, ignore_nodata=UNSET) -> ProcessBuilder:
     """
     Cumulative minima
 
@@ -2394,7 +2394,7 @@ def cummin(data, ignore_nodata=UNSET):
     return process('cummin', data=data, ignore_nodata=ignore_nodata)
 
 
-def cumproduct(data, ignore_nodata=UNSET):
+def cumproduct(data, ignore_nodata=UNSET) -> ProcessBuilder:
     """
     Cumulative products
 
@@ -2407,7 +2407,7 @@ def cumproduct(data, ignore_nodata=UNSET):
     return process('cumproduct', data=data, ignore_nodata=ignore_nodata)
 
 
-def cumsum(data, ignore_nodata=UNSET):
+def cumsum(data, ignore_nodata=UNSET) -> ProcessBuilder:
     """
     Cumulative sums
 
@@ -2420,7 +2420,7 @@ def cumsum(data, ignore_nodata=UNSET):
     return process('cumsum', data=data, ignore_nodata=ignore_nodata)
 
 
-def debug(data, code=UNSET, level=UNSET, message=UNSET):
+def debug(data, code=UNSET, level=UNSET, message=UNSET) -> ProcessBuilder:
     """
     Publish debugging information
 
@@ -2435,7 +2435,7 @@ def debug(data, code=UNSET, level=UNSET, message=UNSET):
     return process('debug', data=data, code=code, level=level, message=message)
 
 
-def dimension_labels(data, dimension):
+def dimension_labels(data, dimension) -> ProcessBuilder:
     """
     Get the dimension labels
 
@@ -2447,7 +2447,7 @@ def dimension_labels(data, dimension):
     return process('dimension_labels', data=data, dimension=dimension)
 
 
-def divide(x, y):
+def divide(x, y) -> ProcessBuilder:
     """
     Division of two numbers
 
@@ -2459,7 +2459,7 @@ def divide(x, y):
     return process('divide', x=x, y=y)
 
 
-def drop_dimension(data, name):
+def drop_dimension(data, name) -> ProcessBuilder:
     """
     Remove a dimension
 
@@ -2473,7 +2473,7 @@ def drop_dimension(data, name):
     return process('drop_dimension', data=data, name=name)
 
 
-def e():
+def e() -> ProcessBuilder:
     """
     Euler's number (e)
 
@@ -2482,7 +2482,7 @@ def e():
     return process('e', )
 
 
-def eq(x, y, delta=UNSET, case_sensitive=UNSET):
+def eq(x, y, delta=UNSET, case_sensitive=UNSET) -> ProcessBuilder:
     """
     Equal to comparison
 
@@ -2500,7 +2500,7 @@ def eq(x, y, delta=UNSET, case_sensitive=UNSET):
     return process('eq', x=x, y=y, delta=delta, case_sensitive=case_sensitive)
 
 
-def exp(p):
+def exp(p) -> ProcessBuilder:
     """
     Exponentiation to the base e
 
@@ -2511,7 +2511,7 @@ def exp(p):
     return process('exp', p=p)
 
 
-def extrema(data, ignore_nodata=UNSET):
+def extrema(data, ignore_nodata=UNSET) -> ProcessBuilder:
     """
     Minimum and maximum values
 
@@ -2527,7 +2527,7 @@ def extrema(data, ignore_nodata=UNSET):
     return process('extrema', data=data, ignore_nodata=ignore_nodata)
 
 
-def filter_bands(data, bands=UNSET, wavelengths=UNSET):
+def filter_bands(data, bands=UNSET, wavelengths=UNSET) -> ProcessBuilder:
     """
     Filter the bands by name
 
@@ -2549,7 +2549,7 @@ def filter_bands(data, bands=UNSET, wavelengths=UNSET):
     return process('filter_bands', data=data, bands=bands, wavelengths=wavelengths)
 
 
-def filter_bbox(data, extent):
+def filter_bbox(data, extent) -> ProcessBuilder:
     """
     Spatial filter using a bounding box
 
@@ -2563,7 +2563,7 @@ def filter_bbox(data, extent):
     return process('filter_bbox', data=data, extent=extent)
 
 
-def filter_labels(data, condition, dimension, context=UNSET):
+def filter_labels(data, condition, dimension, context=UNSET) -> ProcessBuilder:
     """
     Filter dimension labels based on a condition
 
@@ -2582,7 +2582,7 @@ def filter_labels(data, condition, dimension, context=UNSET):
     return process('filter_labels', data=data, condition=condition, dimension=dimension, context=context)
 
 
-def filter_spatial(data, geometries):
+def filter_spatial(data, geometries) -> ProcessBuilder:
     """
     Spatial filter using geometries
 
@@ -2596,7 +2596,7 @@ def filter_spatial(data, geometries):
     return process('filter_spatial', data=data, geometries=geometries)
 
 
-def filter_temporal(data, extent, dimension=UNSET):
+def filter_temporal(data, extent, dimension=UNSET) -> ProcessBuilder:
     """
     Temporal filter for a temporal intervals
 
@@ -2618,7 +2618,7 @@ def filter_temporal(data, extent, dimension=UNSET):
     return process('filter_temporal', data=data, extent=extent, dimension=dimension)
 
 
-def first(data, ignore_nodata=UNSET):
+def first(data, ignore_nodata=UNSET) -> ProcessBuilder:
     """
     First element
 
@@ -2632,7 +2632,7 @@ def first(data, ignore_nodata=UNSET):
     return process('first', data=data, ignore_nodata=ignore_nodata)
 
 
-def floor(x):
+def floor(x) -> ProcessBuilder:
     """
     Round fractions down
 
@@ -2643,7 +2643,7 @@ def floor(x):
     return process('floor', x=x)
 
 
-def gt(x, y):
+def gt(x, y) -> ProcessBuilder:
     """
     Greater than comparison
 
@@ -2655,7 +2655,7 @@ def gt(x, y):
     return process('gt', x=x, y=y)
 
 
-def gte(x, y):
+def gte(x, y) -> ProcessBuilder:
     """
     Greater than or equal to comparison
 
@@ -2667,7 +2667,7 @@ def gte(x, y):
     return process('gte', x=x, y=y)
 
 
-def if_(value, accept, reject=UNSET):
+def if_(value, accept, reject=UNSET) -> ProcessBuilder:
     """
     If-Then-Else conditional
 
@@ -2680,7 +2680,7 @@ def if_(value, accept, reject=UNSET):
     return process('if_', value=value, accept=accept, reject=reject)
 
 
-def int(x):
+def int(x) -> ProcessBuilder:
     """
     Integer part of a number
 
@@ -2691,7 +2691,7 @@ def int(x):
     return process('int', x=x)
 
 
-def is_nan(x):
+def is_nan(x) -> ProcessBuilder:
     """
     Value is not a number
 
@@ -2702,7 +2702,7 @@ def is_nan(x):
     return process('is_nan', x=x)
 
 
-def is_nodata(x):
+def is_nodata(x) -> ProcessBuilder:
     """
     Value is not a no-data value
 
@@ -2713,7 +2713,7 @@ def is_nodata(x):
     return process('is_nodata', x=x)
 
 
-def is_valid(x):
+def is_valid(x) -> ProcessBuilder:
     """
     Value is valid data
 
@@ -2724,7 +2724,7 @@ def is_valid(x):
     return process('is_valid', x=x)
 
 
-def last(data, ignore_nodata=UNSET):
+def last(data, ignore_nodata=UNSET) -> ProcessBuilder:
     """
     Last element
 
@@ -2737,7 +2737,7 @@ def last(data, ignore_nodata=UNSET):
     return process('last', data=data, ignore_nodata=ignore_nodata)
 
 
-def linear_scale_range(x, inputMin, inputMax, outputMin=UNSET, outputMax=UNSET):
+def linear_scale_range(x, inputMin, inputMax, outputMin=UNSET, outputMax=UNSET) -> ProcessBuilder:
     """
     Linear transformation between two ranges
 
@@ -2753,7 +2753,7 @@ def linear_scale_range(x, inputMin, inputMax, outputMin=UNSET, outputMax=UNSET):
     return process('linear_scale_range', x=x, inputMin=inputMin, inputMax=inputMax, outputMin=outputMin, outputMax=outputMax)
 
 
-def ln(x):
+def ln(x) -> ProcessBuilder:
     """
     Natural logarithm
 
@@ -2764,7 +2764,7 @@ def ln(x):
     return process('ln', x=x)
 
 
-def load_collection(id, spatial_extent, temporal_extent, bands=UNSET, properties=UNSET):
+def load_collection(id, spatial_extent, temporal_extent, bands=UNSET, properties=UNSET) -> ProcessBuilder:
     """
     Load a collection
 
@@ -2802,7 +2802,7 @@ def load_collection(id, spatial_extent, temporal_extent, bands=UNSET, properties
     return process('load_collection', id=id, spatial_extent=spatial_extent, temporal_extent=temporal_extent, bands=bands, properties=properties)
 
 
-def load_result(id):
+def load_result(id) -> ProcessBuilder:
     """
     Load batch job results
 
@@ -2813,7 +2813,7 @@ def load_result(id):
     return process('load_result', id=id)
 
 
-def load_uploaded_files(paths, format, options=UNSET):
+def load_uploaded_files(paths, format, options=UNSET) -> ProcessBuilder:
     """
     Load files from the user workspace
 
@@ -2832,7 +2832,7 @@ def load_uploaded_files(paths, format, options=UNSET):
     return process('load_uploaded_files', paths=paths, format=format, options=options)
 
 
-def log(x, base):
+def log(x, base) -> ProcessBuilder:
     """
     Logarithm to a base
 
@@ -2844,7 +2844,7 @@ def log(x, base):
     return process('log', x=x, base=base)
 
 
-def lt(x, y):
+def lt(x, y) -> ProcessBuilder:
     """
     Less than comparison
 
@@ -2856,7 +2856,7 @@ def lt(x, y):
     return process('lt', x=x, y=y)
 
 
-def lte(x, y):
+def lte(x, y) -> ProcessBuilder:
     """
     Less than or equal to comparison
 
@@ -2868,7 +2868,7 @@ def lte(x, y):
     return process('lte', x=x, y=y)
 
 
-def mask(data, mask, replacement=UNSET):
+def mask(data, mask, replacement=UNSET) -> ProcessBuilder:
     """
     Apply a raster mask
 
@@ -2882,7 +2882,7 @@ def mask(data, mask, replacement=UNSET):
     return process('mask', data=data, mask=mask, replacement=replacement)
 
 
-def mask_polygon(data, mask, replacement=UNSET, inside=UNSET):
+def mask_polygon(data, mask, replacement=UNSET, inside=UNSET) -> ProcessBuilder:
     """
     Apply a polygon mask
 
@@ -2900,7 +2900,7 @@ def mask_polygon(data, mask, replacement=UNSET, inside=UNSET):
     return process('mask_polygon', data=data, mask=mask, replacement=replacement, inside=inside)
 
 
-def max(data, ignore_nodata=UNSET):
+def max(data, ignore_nodata=UNSET) -> ProcessBuilder:
     """
     Maximum value
 
@@ -2913,7 +2913,7 @@ def max(data, ignore_nodata=UNSET):
     return process('max', data=data, ignore_nodata=ignore_nodata)
 
 
-def mean(data, ignore_nodata=UNSET):
+def mean(data, ignore_nodata=UNSET) -> ProcessBuilder:
     """
     Arithmetic mean (average)
 
@@ -2926,7 +2926,7 @@ def mean(data, ignore_nodata=UNSET):
     return process('mean', data=data, ignore_nodata=ignore_nodata)
 
 
-def median(data, ignore_nodata=UNSET):
+def median(data, ignore_nodata=UNSET) -> ProcessBuilder:
     """
     Statistical median
 
@@ -2939,7 +2939,7 @@ def median(data, ignore_nodata=UNSET):
     return process('median', data=data, ignore_nodata=ignore_nodata)
 
 
-def merge_cubes(cube1, cube2, overlap_resolver=UNSET, context=UNSET):
+def merge_cubes(cube1, cube2, overlap_resolver=UNSET, context=UNSET) -> ProcessBuilder:
     """
     Merging two data cubes
 
@@ -2957,7 +2957,7 @@ def merge_cubes(cube1, cube2, overlap_resolver=UNSET, context=UNSET):
     return process('merge_cubes', cube1=cube1, cube2=cube2, overlap_resolver=overlap_resolver, context=context)
 
 
-def min(data, ignore_nodata=UNSET):
+def min(data, ignore_nodata=UNSET) -> ProcessBuilder:
     """
     Minimum value
 
@@ -2970,7 +2970,7 @@ def min(data, ignore_nodata=UNSET):
     return process('min', data=data, ignore_nodata=ignore_nodata)
 
 
-def mod(x, y):
+def mod(x, y) -> ProcessBuilder:
     """
     Modulo
 
@@ -2982,7 +2982,7 @@ def mod(x, y):
     return process('mod', x=x, y=y)
 
 
-def multiply(x, y):
+def multiply(x, y) -> ProcessBuilder:
     """
     Multiplication of two numbers
 
@@ -2994,7 +2994,7 @@ def multiply(x, y):
     return process('multiply', x=x, y=y)
 
 
-def ndvi(data, nir=UNSET, red=UNSET, target_band=UNSET):
+def ndvi(data, nir=UNSET, red=UNSET, target_band=UNSET) -> ProcessBuilder:
     """
     Normalized Difference Vegetation Index
 
@@ -3022,7 +3022,7 @@ def ndvi(data, nir=UNSET, red=UNSET, target_band=UNSET):
     return process('ndvi', data=data, nir=nir, red=red, target_band=target_band)
 
 
-def neq(x, y, delta=UNSET, case_sensitive=UNSET):
+def neq(x, y, delta=UNSET, case_sensitive=UNSET) -> ProcessBuilder:
     """
     Not equal to comparison
 
@@ -3040,7 +3040,7 @@ def neq(x, y, delta=UNSET, case_sensitive=UNSET):
     return process('neq', x=x, y=y, delta=delta, case_sensitive=case_sensitive)
 
 
-def normalized_difference(x, y):
+def normalized_difference(x, y) -> ProcessBuilder:
     """
     Normalized difference
 
@@ -3052,7 +3052,7 @@ def normalized_difference(x, y):
     return process('normalized_difference', x=x, y=y)
 
 
-def not_(x):
+def not_(x) -> ProcessBuilder:
     """
     Inverting a boolean
 
@@ -3063,7 +3063,7 @@ def not_(x):
     return process('not_', x=x)
 
 
-def or_(x, y):
+def or_(x, y) -> ProcessBuilder:
     """
     Logical OR
 
@@ -3075,7 +3075,7 @@ def or_(x, y):
     return process('or_', x=x, y=y)
 
 
-def order(data, asc=UNSET, nodata=UNSET):
+def order(data, asc=UNSET, nodata=UNSET) -> ProcessBuilder:
     """
     Create a permutation
 
@@ -3090,7 +3090,7 @@ def order(data, asc=UNSET, nodata=UNSET):
     return process('order', data=data, asc=asc, nodata=nodata)
 
 
-def pi():
+def pi() -> ProcessBuilder:
     """
     Pi (π)
 
@@ -3099,7 +3099,7 @@ def pi():
     return process('pi', )
 
 
-def power(base, p):
+def power(base, p) -> ProcessBuilder:
     """
     Exponentiation
 
@@ -3111,7 +3111,7 @@ def power(base, p):
     return process('power', base=base, p=p)
 
 
-def product(data, ignore_nodata=UNSET):
+def product(data, ignore_nodata=UNSET) -> ProcessBuilder:
     """
     Compute the product by multiplying numbers
 
@@ -3124,7 +3124,7 @@ def product(data, ignore_nodata=UNSET):
     return process('product', data=data, ignore_nodata=ignore_nodata)
 
 
-def quantiles(data, probabilities=UNSET, q=UNSET, ignore_nodata=UNSET):
+def quantiles(data, probabilities=UNSET, q=UNSET, ignore_nodata=UNSET) -> ProcessBuilder:
     """
     Quantiles
 
@@ -3145,7 +3145,7 @@ def quantiles(data, probabilities=UNSET, q=UNSET, ignore_nodata=UNSET):
     return process('quantiles', data=data, probabilities=probabilities, q=q, ignore_nodata=ignore_nodata)
 
 
-def rearrange(data, order):
+def rearrange(data, order) -> ProcessBuilder:
     """
     Rearrange an array based on a permutation
 
@@ -3157,7 +3157,7 @@ def rearrange(data, order):
     return process('rearrange', data=data, order=order)
 
 
-def reduce_dimension(data, reducer, dimension, context=UNSET):
+def reduce_dimension(data, reducer, dimension, context=UNSET) -> ProcessBuilder:
     """
     Reduce dimensions
 
@@ -3176,7 +3176,7 @@ def reduce_dimension(data, reducer, dimension, context=UNSET):
     return process('reduce_dimension', data=data, reducer=reducer, dimension=dimension, context=context)
 
 
-def reduce_dimension_binary(data, reducer, dimension, context=UNSET):
+def reduce_dimension_binary(data, reducer, dimension, context=UNSET) -> ProcessBuilder:
     """
     Reduce dimensions using binary reduction
 
@@ -3196,7 +3196,7 @@ def reduce_dimension_binary(data, reducer, dimension, context=UNSET):
     return process('reduce_dimension_binary', data=data, reducer=reducer, dimension=dimension, context=context)
 
 
-def rename_dimension(data, source, target):
+def rename_dimension(data, source, target) -> ProcessBuilder:
     """
     Rename a dimension
 
@@ -3213,7 +3213,7 @@ def rename_dimension(data, source, target):
     return process('rename_dimension', data=data, source=source, target=target)
 
 
-def rename_labels(data, dimension, target, source=UNSET):
+def rename_labels(data, dimension, target, source=UNSET) -> ProcessBuilder:
     """
     Rename dimension labels
 
@@ -3235,7 +3235,7 @@ def rename_labels(data, dimension, target, source=UNSET):
     return process('rename_labels', data=data, dimension=dimension, target=target, source=source)
 
 
-def resample_cube_spatial(data, target, method=UNSET):
+def resample_cube_spatial(data, target, method=UNSET) -> ProcessBuilder:
     """
     Resample the spatial dimensions to match a target data cube
 
@@ -3251,7 +3251,7 @@ def resample_cube_spatial(data, target, method=UNSET):
     return process('resample_cube_spatial', data=data, target=target, method=method)
 
 
-def resample_cube_temporal(data, target, method, dimension=UNSET, context=UNSET):
+def resample_cube_temporal(data, target, method, dimension=UNSET, context=UNSET) -> ProcessBuilder:
     """
     Resample a temporal dimension to match a target data cube
 
@@ -3273,7 +3273,7 @@ def resample_cube_temporal(data, target, method, dimension=UNSET, context=UNSET)
     return process('resample_cube_temporal', data=data, target=target, method=method, dimension=dimension, context=context)
 
 
-def resample_spatial(data, resolution=UNSET, projection=UNSET, method=UNSET, align=UNSET):
+def resample_spatial(data, resolution=UNSET, projection=UNSET, method=UNSET, align=UNSET) -> ProcessBuilder:
     """
     Resample and warp the spatial dimensions
 
@@ -3297,7 +3297,7 @@ def resample_spatial(data, resolution=UNSET, projection=UNSET, method=UNSET, ali
     return process('resample_spatial', data=data, resolution=resolution, projection=projection, method=method, align=align)
 
 
-def round(x, p=UNSET):
+def round(x, p=UNSET) -> ProcessBuilder:
     """
     Round to a specified precision
 
@@ -3311,7 +3311,7 @@ def round(x, p=UNSET):
     return process('round', x=x, p=p)
 
 
-def run_udf(data, udf, runtime, version=UNSET, context=UNSET):
+def run_udf(data, udf, runtime, version=UNSET, context=UNSET) -> ProcessBuilder:
     """
     Run an UDF
 
@@ -3330,7 +3330,7 @@ def run_udf(data, udf, runtime, version=UNSET, context=UNSET):
     return process('run_udf', data=data, udf=udf, runtime=runtime, version=version, context=context)
 
 
-def run_udf_externally(data, url, context=UNSET):
+def run_udf_externally(data, url, context=UNSET) -> ProcessBuilder:
     """
     Run an externally hosted UDF container
 
@@ -3346,7 +3346,7 @@ def run_udf_externally(data, url, context=UNSET):
     return process('run_udf_externally', data=data, url=url, context=context)
 
 
-def save_result(data, format, options=UNSET):
+def save_result(data, format, options=UNSET) -> ProcessBuilder:
     """
     Save processed data to storage
 
@@ -3364,7 +3364,7 @@ def save_result(data, format, options=UNSET):
     return process('save_result', data=data, format=format, options=options)
 
 
-def sd(data, ignore_nodata=UNSET):
+def sd(data, ignore_nodata=UNSET) -> ProcessBuilder:
     """
     Standard deviation
 
@@ -3377,7 +3377,7 @@ def sd(data, ignore_nodata=UNSET):
     return process('sd', data=data, ignore_nodata=ignore_nodata)
 
 
-def sgn(x):
+def sgn(x) -> ProcessBuilder:
     """
     Signum
 
@@ -3388,7 +3388,7 @@ def sgn(x):
     return process('sgn', x=x)
 
 
-def sin(x):
+def sin(x) -> ProcessBuilder:
     """
     Sine
 
@@ -3399,7 +3399,7 @@ def sin(x):
     return process('sin', x=x)
 
 
-def sinh(x):
+def sinh(x) -> ProcessBuilder:
     """
     Hyperbolic sine
 
@@ -3410,7 +3410,7 @@ def sinh(x):
     return process('sinh', x=x)
 
 
-def sort(data, asc=UNSET, nodata=UNSET):
+def sort(data, asc=UNSET, nodata=UNSET) -> ProcessBuilder:
     """
     Sort data
 
@@ -3425,7 +3425,7 @@ def sort(data, asc=UNSET, nodata=UNSET):
     return process('sort', data=data, asc=asc, nodata=nodata)
 
 
-def sqrt(x):
+def sqrt(x) -> ProcessBuilder:
     """
     Square root
 
@@ -3436,7 +3436,7 @@ def sqrt(x):
     return process('sqrt', x=x)
 
 
-def subtract(x, y):
+def subtract(x, y) -> ProcessBuilder:
     """
     Subtraction of two numbers
 
@@ -3448,7 +3448,7 @@ def subtract(x, y):
     return process('subtract', x=x, y=y)
 
 
-def sum(data, ignore_nodata=UNSET):
+def sum(data, ignore_nodata=UNSET) -> ProcessBuilder:
     """
     Compute the sum by adding up numbers
 
@@ -3461,7 +3461,7 @@ def sum(data, ignore_nodata=UNSET):
     return process('sum', data=data, ignore_nodata=ignore_nodata)
 
 
-def tan(x):
+def tan(x) -> ProcessBuilder:
     """
     Tangent
 
@@ -3472,7 +3472,7 @@ def tan(x):
     return process('tan', x=x)
 
 
-def tanh(x):
+def tanh(x) -> ProcessBuilder:
     """
     Hyperbolic tangent
 
@@ -3483,7 +3483,7 @@ def tanh(x):
     return process('tanh', x=x)
 
 
-def text_begins(data, pattern, case_sensitive=UNSET):
+def text_begins(data, pattern, case_sensitive=UNSET) -> ProcessBuilder:
     """
     Text begins with another text
 
@@ -3496,7 +3496,7 @@ def text_begins(data, pattern, case_sensitive=UNSET):
     return process('text_begins', data=data, pattern=pattern, case_sensitive=case_sensitive)
 
 
-def text_contains(data, pattern, case_sensitive=UNSET):
+def text_contains(data, pattern, case_sensitive=UNSET) -> ProcessBuilder:
     """
     Text contains another text
 
@@ -3509,7 +3509,7 @@ def text_contains(data, pattern, case_sensitive=UNSET):
     return process('text_contains', data=data, pattern=pattern, case_sensitive=case_sensitive)
 
 
-def text_ends(data, pattern, case_sensitive=UNSET):
+def text_ends(data, pattern, case_sensitive=UNSET) -> ProcessBuilder:
     """
     Text ends with another text
 
@@ -3522,7 +3522,7 @@ def text_ends(data, pattern, case_sensitive=UNSET):
     return process('text_ends', data=data, pattern=pattern, case_sensitive=case_sensitive)
 
 
-def text_merge(data, separator=UNSET):
+def text_merge(data, separator=UNSET) -> ProcessBuilder:
     """
     Concatenate elements to a string
 
@@ -3536,7 +3536,7 @@ def text_merge(data, separator=UNSET):
     return process('text_merge', data=data, separator=separator)
 
 
-def trim_cube(data):
+def trim_cube(data) -> ProcessBuilder:
     """
     Remove dimension labels with no-data values
 
@@ -3548,7 +3548,7 @@ def trim_cube(data):
     return process('trim_cube', data=data)
 
 
-def variance(data, ignore_nodata=UNSET):
+def variance(data, ignore_nodata=UNSET) -> ProcessBuilder:
     """
     Variance
 
@@ -3561,7 +3561,7 @@ def variance(data, ignore_nodata=UNSET):
     return process('variance', data=data, ignore_nodata=ignore_nodata)
 
 
-def xor(x, y):
+def xor(x, y) -> ProcessBuilder:
     """
     Logical XOR (exclusive or)
 
