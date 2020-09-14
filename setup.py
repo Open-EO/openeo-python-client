@@ -46,7 +46,7 @@ setup(name=name,
               "sphinx-autodoc-typehints",
               "mock",
               "requests-mock",
-              "pytest",
+              "pytest>=4.5.0",
               "flake8",
               "xarray==0.12.3",
               "geopandas"
