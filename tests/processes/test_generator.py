@@ -145,3 +145,43 @@ def test_render_oo_no_params():
                 :return: value of pi
                 """
                 return process('pi', )''')
+
+
+def test_render_keyword():
+    process = Process.from_dict({
+        "id": "or",
+        "description": "Boolean and",
+        "summary": "Boolean and",
+        "parameters": [
+            {"name": "x", "description": "value", "schema": {"type": ["boolean", "null"]}},
+            {"name": "y", "description": "value", "schema": {"type": ["boolean", "null"]}}
+        ],
+        "returns": {"description": "result", "schema": {"type": ["boolean", "null"]}},
+    })
+    renderer = PythonRenderer()
+    src = renderer.render_process(process)
+    assert src == dedent('''\
+        def or_(x, y):
+            """
+            Boolean and
+
+            :param x: value
+            :param y: value
+
+            :return: result
+            """
+            return process('or', x=x, y=y)''')
+
+    oo_renderer = PythonRenderer(oo_mode=True, body_template="return {safe_name}({args})", )
+    src = oo_renderer.render_process(process)
+    assert dedent(src) == dedent('''\
+        def or_(self, y):
+            """
+            Boolean and
+
+            :param self: value
+            :param y: value
+
+            :return: result
+            """
+            return or_(x=self, y=y)''')

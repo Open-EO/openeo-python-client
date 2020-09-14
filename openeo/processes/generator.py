@@ -1,4 +1,5 @@
 import argparse
+import keyword
 import sys
 import textwrap
 from pathlib import Path
@@ -36,7 +37,9 @@ class PythonRenderer:
         call_args = ", ".join(
             ["{p}={a}".format(p=p, a=a) for (p, a) in zip(self._par_names(process), self._arg_names(process))]
         )
-        body = self.indent + self.body_template.format(id=self._safe_name(process.id), args=call_args)
+        body = self.indent + self.body_template.format(
+            id=process.id, safe_name=self._safe_name(process.id), args=call_args
+        )
 
         return textwrap.indent("\n".join([
             def_line,
@@ -45,7 +48,7 @@ class PythonRenderer:
         ]), prefix=prefix)
 
     def _safe_name(self, name: str) -> str:
-        if name in {'and', 'or', 'if', 'not'}:
+        if keyword.iskeyword(name):
             name += '_'
         return name
 
@@ -128,7 +131,7 @@ def generate_process_py(processes_dir: Union[Path, str], output=sys.stdout):
     )
     oo_renderer = PythonRenderer(
         oo_mode=True,
-        body_template="return {id}({args})",
+        body_template="return {safe_name}({args})",
         optional_default="UNSET",
         return_type_hint="'ProcessBuilder'"
     )

@@ -1942,7 +1942,7 @@ def and_(x, y) -> ProcessBuilder:
 
     :return: Boolean result of the logical AND.
     """
-    return process('and_', x=x, y=y)
+    return process('and', x=x, y=y)
 
 
 def anomaly(data, normals, period) -> ProcessBuilder:
@@ -2691,7 +2691,7 @@ def if_(value, accept, reject=UNSET) -> ProcessBuilder:
 
     :return: Either the `accept` or `reject` argument depending on the given boolean value.
     """
-    return process('if_', value=value, accept=accept, reject=reject)
+    return process('if', value=value, accept=accept, reject=reject)
 
 
 def int(x) -> ProcessBuilder:
@@ -3074,7 +3074,7 @@ def not_(x) -> ProcessBuilder:
 
     :return: Inverted boolean value.
     """
-    return process('not_', x=x)
+    return process('not', x=x)
 
 
 def or_(x, y) -> ProcessBuilder:
@@ -3086,7 +3086,7 @@ def or_(x, y) -> ProcessBuilder:
 
     :return: Boolean result of the logical OR.
     """
-    return process('or_', x=x, y=y)
+    return process('or', x=x, y=y)
 
 
 def order(data, asc=UNSET, nodata=UNSET) -> ProcessBuilder:
