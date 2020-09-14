@@ -89,6 +89,16 @@ def test_apply_callback_chain_custom_function_mixed_and_operator(con100):
     assert result.graph == load_json_resource('data/1.0.0/apply_chain.json')
 
 
+def test_apply_callback_chain_pgnode(con100):
+    im = con100.load_collection("S2")
+    result = im.apply(PGNode(
+        "add",
+        x=PGNode("cos", x=PGNode("absolute", x={"from_parameter": "x"})),
+        y=1.23
+    ))
+    assert result.graph == load_json_resource('data/1.0.0/apply_chain.json')
+
+
 def test_apply_callback_math_lambda(con100):
     im = con100.load_collection("S2")
     result = im.apply(lambda data: (((data + 1) - 2) * 3) / 4)
