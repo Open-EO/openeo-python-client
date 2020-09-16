@@ -282,10 +282,10 @@ def main_oidc_auth(args):
         else:
             provider_id = _interactive_choice(
                 title="Multiple OpenID Connect providers available for backend {b!r}".format(b=backend),
-                options=[
+                options=sorted(
                     (k, "{k}: issuer {s}".format(k=k, s=v.get("issuer", "n/a")))
                     for k, v in provider_configs.items()
-                ]
+                )
             )
     if provider_id not in provider_configs:
         raise CliToolException("Invalid provider ID {p!r}. Should be one of {o}.".format(
