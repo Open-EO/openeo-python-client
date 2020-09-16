@@ -18,7 +18,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 tests_require = [
-    'pytest',
+    'pytest>=4.5.0',
     'mock',
     'requests-mock',
     'xarray==0.12.3',
