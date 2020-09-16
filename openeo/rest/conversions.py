@@ -1,12 +1,13 @@
 """
 Helpers for data conversions between Python ecosystem data types and openEO data structures.
 """
+import collections
+import json
+from typing import Union
 
 import numpy as np
 import pandas
 import xarray
-import json
-from typing import Union
 
 
 class InvalidTimeSeriesException(ValueError):
@@ -195,7 +196,7 @@ def _save_DataArray_to_NetCDF(filename, array: xarray.DataArray):
         result=result.transpose(*(l+['y','x']))
     # turn it into a dataset where each band becomes a variable
     if not 'bands' in result.dims:
-        result=result.expand_dims(dim={'bands':['band_0']})
+        result=result.expand_dims(dim=collections.OrderedDict({'bands':['band_0']}))
     else:
         if not 'bands' in result.coords:
             labels=['band_'+str(i) for i in range(result.shape[result.dims.index('bands')])]
