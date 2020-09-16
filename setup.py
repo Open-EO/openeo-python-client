@@ -23,6 +23,7 @@ tests_require = [
     'requests-mock',
     'xarray==0.12.3',
     'openeo-udf',
+    'matplotlib',
 ]
 
 name = 'openeo'
