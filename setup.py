@@ -17,6 +17,14 @@ with open('openeo/_version.py') as fp:
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
+tests_require = [
+    'pytest',
+    'mock',
+    'requests-mock',
+    'xarray==0.12.3',
+    'openeo-udf',
+]
+
 name = 'openeo'
 setup(name=name,
       version=_version['__version__'],
@@ -28,13 +36,7 @@ setup(name=name,
       url="https://github.com/Open-EO/openeo-python-client",
       packages=find_packages(include=['openeo*']),
       setup_requires=['pytest-runner'],
-      tests_require=[
-          'pytest',
-          'mock',
-          'requests-mock',
-          'xarray==0.12.3',
-          'openeo-udf',
-      ],
+      tests_require=tests_require,
       test_suite='tests',
       install_requires=[
           'requests',
@@ -46,16 +48,12 @@ setup(name=name,
           'deprecated'
       ],
       extras_require={
-          "dev": [
+          "dev": tests_require + [
+              "pytest>=4.5.0",
               "sphinx",
               "sphinx-autodoc-annotation",
               "sphinx-autodoc-typehints",
-              "mock",
-              "requests-mock",
-              "pytest>=4.5.0",
               "flake8",
-              "xarray==0.12.3",
-              "geopandas"
           ]
       },
       entry_points={
