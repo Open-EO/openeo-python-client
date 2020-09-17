@@ -11,6 +11,7 @@ from requests import ConnectionError
 
 from openeo.job import Job, JobResult, JobLogEntry
 from openeo.rest import OpenEoClientException, JobFailedException
+from openeo.rest.result import Result
 from openeo.util import ensure_dir
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
@@ -78,27 +79,6 @@ class RESTJob(Job):
         # GET /jobs/{job_id}/results
         raise NotImplementedError
 
-    def _download_get_assets(self) -> Dict[str, dict]:
-        results_url = "/jobs/{}/results".format(self.job_id)
-        response = self.connection.get(results_url, expected_status=200).json()
-        if "assets" in response:
-            # API 1.0 style: dictionary mapping filenames to metadata dict (with at least a "href" field)
-            return response["assets"]
-        else:
-            # Best effort translation of on old style to "assets" style (#134)
-            return {a["href"].split("/")[-1]: a for a in response["links"]}
-
-    def _download_url(self, url: str, path: Path):
-        ensure_dir(path.parent)
-        with path.open('wb') as handle:
-            # TODO: finetune download parameters/chunking?
-            response = self.connection.get(url, stream=True)
-            for block in response.iter_content(1024):
-                if not block:
-                    break
-                handle.write(block)
-        return path
-
     def download_result(self, target: Union[str, Path] = None) -> Path:
         """
         Download single job result to the target file path or into folder (current working dir by default).
@@ -107,19 +87,7 @@ class RESTJob(Job):
 
         :param target: String or path where the file should be downloaded to.
         """
-        assets = self._download_get_assets()
-        if len(assets) != 1:
-            raise OpenEoClientException(
-                "Expected one result file to download, but got {c}: {u!r}".format(c=len(assets), u=assets))
-        filename, metadata = assets.popitem()
-        url = metadata["href"]
-
-        target = Path(target or Path.cwd())
-        if target.is_dir():
-            target = target / filename
-
-        self._download_url(url, target)
-        return target
+        return self.get_result().download_file(target)
 
     def download_results(self, target: Union[str, Path] = None) -> Dict[Path, dict]:
         """
@@ -130,18 +98,10 @@ class RESTJob(Job):
         :param target: String/path, folder where to put the result files.
         :return: file_list: Dict containing the downloaded file path as value and asset metadata
         """
-        target = Path(target or Path.cwd())
-        if target.exists() and not target.is_dir():
-            raise OpenEoClientException("The target argument must be a folder. Got {t!r}".format(t=str(target)))
+        return self.get_result().download_files(target)
 
-        assets = {target / f: m for (f, m) in self._download_get_assets().items()}
-        if len(assets) == 0:
-            raise OpenEoClientException("Expected at least one result file to download, but got 0.")
-
-        for path, metadata in assets.items():
-            self._download_url(metadata["href"], path)
-
-        return assets
+    def get_result(self):
+        return Result(self)
 
     @deprecated
     def download(self, outputfile: str, outputformat=None):
@@ -177,7 +137,8 @@ class RESTJob(Job):
             print=print, max_poll_interval=max_poll_interval, connection_retry_interval=connection_retry_interval
         )
         # TODO #135 support multi file result sets too?
-        self.download_result(outputfile)
+        if outputfile is not None:
+            self.download_result(outputfile)
         return self
 
     def start_and_wait(self, print=print, max_poll_interval: int = 60, connection_retry_interval: int = 30):

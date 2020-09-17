@@ -1084,7 +1084,7 @@ class DataCube(ImageCollection):
             }
         )
 
-    def download(self, outputfile: str, format: str = "GTIFF", options: dict = None):
+    def download(self, outputfile: Union[str, pathlib.Path, None] = None, format: str = "GTIFF", options: dict = None):
         """Download image collection, e.g. as GeoTIFF."""
         newcollection = self.save_result(format=format, options=options)
         return self._connection.download(newcollection._pg.flatten(), outputfile)
@@ -1094,7 +1094,7 @@ class DataCube(ImageCollection):
 
     def execute_batch(
             self,
-            outputfile: Union[str, pathlib.Path], out_format: str = None,
+            outputfile: Union[str, pathlib.Path] = None, out_format: str = None,
             print=print, max_poll_interval=60, connection_retry_interval=30,
             job_options=None, **format_options) -> RESTJob:
         """
@@ -1115,7 +1115,6 @@ class DataCube(ImageCollection):
             outputfile=outputfile,
             print=print, max_poll_interval=max_poll_interval, connection_retry_interval=connection_retry_interval
         )
-
     def send_job(self, out_format=None, job_options=None, **format_options) -> RESTJob:
         """
         Sends a job to the backend and returns a Job instance. The job will still need to be started and managed explicitly.
