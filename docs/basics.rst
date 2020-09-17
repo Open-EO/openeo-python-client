@@ -157,30 +157,3 @@ It can easily be converted into a pandas dataframe:
 
 The same method also works for multiple polygons, or GeoJSON or SHP files that are
 accessible by the backend. This allows computing aggregated values over very large areas.
-
-Some openEO process allow you to specify a process to be invoked on a subset of the datacube. This library allows this by specifying
-a 'callback' function.
-
-
-.. _callbackfunctions:
-
-Callback functions
-------------------
-
-A callback function is created by defining an actual Python function, or a lambda expression. This function is then passed on
-to processes such as :py:meth:`openeo.rest.datacube.DataCube.apply`, :py:meth:`openeo.rest.datacube.DataCube.apply_dimension`, :py:meth:`openeo.rest.datacube.DataCube.apply_neighborhood`,
-and :py:meth:`openeo.rest.datacube.DataCube.reduce_dimension`.
-
-This is an example:
-
-.. code-block:: python
-
-    datacube_absolute = cube.apply(process=lambda data:absolute(data))
-
-For more complex operations, you can define a function:
-
-.. code-block:: python
-
-   def callback(data):
-       return absolute(data)
-

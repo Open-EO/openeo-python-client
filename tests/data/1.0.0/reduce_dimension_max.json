@@ -7,19 +7,20 @@
       "temporal_extent": null
     }
   },
-  "apply1": {
-    "process_id": "apply",
+  "reducedimension1": {
+    "process_id": "reduce_dimension",
     "arguments": {
       "data": {
         "from_node": "loadcollection1"
       },
-      "process": {
+      "dimension": "bands",
+      "reducer": {
         "process_graph": {
-          "absolute1": {
-            "process_id": "absolute",
+          "max1": {
+            "process_id": "max",
             "arguments": {
-              "x": {
-                "from_parameter": "x"
+              "data": {
+                "from_parameter": "data"
               }
             },
             "result": true

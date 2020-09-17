@@ -7,19 +7,33 @@
       "temporal_extent": null
     }
   },
-  "apply1": {
-    "process_id": "apply",
+  "loadcollection2": {
+    "process_id": "load_collection",
     "arguments": {
-      "data": {
+      "spatial_extent": null,
+      "id": "MASK",
+      "temporal_extent": null
+    }
+  },
+  "mergecubes1": {
+    "process_id": "merge_cubes",
+    "arguments": {
+      "cube1": {
         "from_node": "loadcollection1"
       },
-      "process": {
+      "cube2": {
+        "from_node": "loadcollection2"
+      },
+      "overlap_resolver": {
         "process_graph": {
-          "absolute1": {
-            "process_id": "absolute",
+          "add1": {
+            "process_id": "add",
             "arguments": {
               "x": {
                 "from_parameter": "x"
+              },
+              "y": {
+                "from_parameter": "y"
               }
             },
             "result": true

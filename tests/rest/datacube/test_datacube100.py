@@ -7,8 +7,8 @@ import pytest
 import shapely.geometry
 
 import openeo.metadata
-from openeo.internal.graph_building import PGNode
 from openeo import UDF
+from openeo.internal.graph_building import PGNode
 from openeo.rest.connection import Connection
 from openeo.rest.datacube import THIS
 from .conftest import API_URL
@@ -249,14 +249,7 @@ def test_metadata_load_collection_100(con100, requests_mock):
 
 def test_apply_absolute_pgnode(con100):
     im = con100.load_collection("S2")
-    result = im.apply(PGNode(process_id="absolute", arguments={"x": {"from_parameter": "data"}}))
-    expected_graph = load_json_resource('data/1.0.0/apply_absolute.json')
-    assert result.graph == expected_graph
-
-
-def test_apply_absolute_callback(con100):
-    im = con100.load_collection("S2")
-    result = im.apply(lambda data: data.absolute())
+    result = im.apply(PGNode(process_id="absolute", arguments={"x": {"from_parameter": "x"}}))
     expected_graph = load_json_resource('data/1.0.0/apply_absolute.json')
     assert result.graph == expected_graph
 
@@ -286,6 +279,22 @@ def test_load_collection_properties(con100):
     assert im.graph == expected
 
 
+def test_load_collection_properties_process_builder_function(con100):
+    from openeo.processes import between, eq
+    im = con100.load_collection(
+        "S2",
+        spatial_extent={"west": 16.1, "east": 16.6, "north": 48.6, "south": 47.2},
+        temporal_extent=["2018-01-01", "2019-01-01"],
+        properties={
+            "eo:cloud_cover": lambda x: between(x=x, min=0, max=50),
+            "platform": lambda x: eq(x=x, y="Sentinel-2B", case_sensitive=False)
+        }
+    )
+
+    expected = load_json_resource('data/1.0.0/load_collection_properties.json')
+    assert im.graph == expected
+
+
 def test_apply_dimension_temporal_cumsum_with_target(con100):
     cumsum = con100.load_collection("S2").apply_dimension('cumsum', dimension="t", target_dimension="MyNewTime")
     actual_graph = cumsum.graph
@@ -303,7 +312,7 @@ def test_apply_neighborhood_udf(con100):
         {'dimension': 'y', 'value': 128, 'unit': 'px'}
     ], overlap=[
         {'dimension': 't', 'value': 'P10d'},
-    ],process= lambda data:data.run_udf(code="myfancycode", runtime="Python"))
+    ],process= lambda data:data.run_udf(udf="myfancycode", runtime="Python"))
     actual_graph = neighbors.graph['applyneighborhood1']
     assert actual_graph == {'arguments': {'data': {'from_node': 'loadcollection1'},
                                           'overlap': [{'dimension': 't', 'value': 'P10d'}],

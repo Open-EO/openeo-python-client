@@ -7,25 +7,37 @@
       "temporal_extent": null
     }
   },
-  "apply1": {
-    "process_id": "apply",
+  "applyneighborhood1": {
+    "process_id": "apply_neighborhood",
     "arguments": {
       "data": {
         "from_node": "loadcollection1"
       },
       "process": {
         "process_graph": {
-          "absolute1": {
-            "process_id": "absolute",
+          "trimcube1": {
+            "process_id": "trim_cube",
             "arguments": {
-              "x": {
-                "from_parameter": "x"
+              "data": {
+                "from_parameter": "data"
               }
             },
             "result": true
           }
         }
-      }
+      },
+      "size": [
+        {
+          "dimension": "x",
+          "unit": "px",
+          "value": 128
+        },
+        {
+          "dimension": "y",
+          "unit": "px",
+          "value": 128
+        }
+      ]
     },
     "result": true
   }

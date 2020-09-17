@@ -8,6 +8,7 @@ be evaluated by an openEO backend.
 
 """
 import datetime
+import inspect
 import logging
 import pathlib
 import typing
@@ -17,18 +18,19 @@ import numpy as np
 import shapely.geometry
 import shapely.geometry.base
 from deprecated import deprecated
-from openeo.rest.processbuilder import ProcessBuilder
 from shapely.geometry import Polygon, MultiPolygon, mapping
 
 import openeo
+import openeo.processes
 from openeo.imagecollection import ImageCollection, CollectionMetadata
 from openeo.internal.graph_building import PGNode, ReduceNode
-from openeo.rest import BandMathException, OperatorException
+from openeo.metadata import Band
+from openeo.processes import ProcessBuilder
+from openeo.rest import BandMathException, OperatorException, OpenEoClientException
 from openeo.rest.job import RESTJob
 from openeo.rest.udp import RESTUserDefinedProcess
 from openeo.util import get_temporal_extent, dict_no_none
 from openeo.vectorcube import VectorCube
-from openeo.metadata import Band
 import numpy
 from builtins import staticmethod
 
@@ -66,10 +68,6 @@ class DataCube(ImageCollection):
     def graph(self) -> dict:
         """Get the process graph in flattened dict representation"""
         return self.flatten()
-
-    @property
-    def processgraph_node(self) -> PGNode:
-        return self._pg
 
     def flatten(self) -> dict:
         """Get the process graph in flattened dict representation"""
@@ -124,7 +122,7 @@ class DataCube(ImageCollection):
             temporal_extent: Union[List[Union[str, datetime.datetime, datetime.date]], None] = None,
             bands: Union[List[str], None] = None,
             fetch_metadata=True,
-            properties: Dict[str, PGNode] = None
+            properties: Dict[str, Union[str, PGNode, typing.Callable]] = None
     ):
         """
         Create a new Raster Data cube.
@@ -153,7 +151,7 @@ class DataCube(ImageCollection):
             arguments['bands'] = bands
         if properties:
             arguments['properties'] = {
-                prop: PGNode.to_process_graph_argument(pred)
+                prop: cls._get_callback(pred, parent_parameters=["value"])
                 for prop, pred in properties.items()
             }
         pg = PGNode(
@@ -361,9 +359,6 @@ class DataCube(ImageCollection):
         """
         return self._operator_binary("lt", other)
 
-    def __truediv__(self, other) -> 'DataCube':
-        return self.divide(other)
-
     def __add__(self, other) -> 'DataCube':
         return self.add(other)
 
@@ -384,6 +379,9 @@ class DataCube(ImageCollection):
 
     def __rmul__(self, other) -> 'DataCube':
         return self.multiply(other, reverse=True)
+
+    def __truediv__(self, other) -> 'DataCube':
+        return self.divide(other)
 
     def __rpow__(self, other) -> 'DataCube':
         return self.power(other,reverse=True)
@@ -463,8 +461,8 @@ class DataCube(ImageCollection):
         return self.merge(other, overlap_resolver=PGNode(
             process_id=operator,
             arguments={
-                left_arg_name: {"from_parameter": "cube1"},
-                right_arg_name: {"from_parameter": "cube2"},
+                left_arg_name: {"from_parameter": "x"},
+                right_arg_name: {"from_parameter": "y"},
             }
         ))
 
@@ -498,8 +496,59 @@ class DataCube(ImageCollection):
 
         return self.process(process_id, args)
 
+    @staticmethod
+    def _get_callback(process: Union[str, PGNode, typing.Callable], parent_parameters: List[str]) -> dict:
+        """
+        Build a "callback" process: a user defined process that is used by another process (such
+        as `apply`, `apply_dimension`, `reduce`, ....)
+
+        :param process: process id string, PGNode or callable that uses the ProcessBuilder mechanism to build a process
+        :parameter parameter_mapping: mapping of child (callback) parameters names to parent process parameter names
+        :return:
+        """
+
+        def get_parameter_names(process: typing.Callable) -> List[str]:
+            signature = inspect.signature(process)
+            return [
+                p.name for p in signature.parameters.values()
+                if p.kind in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+            ]
+
+        # TODO: autodetect the parameters defined by process?
+        if isinstance(process, PGNode):
+            # Assume this is already a valid callback process
+            pg = process
+        elif isinstance(process, str):
+            # Assume given reducer is a simple predefined reduce process_id
+            if process in openeo.processes.__dict__:
+                process_params = get_parameter_names(openeo.processes.__dict__[process])
+            else:
+                # Best effort guess
+                process_params = parent_parameters
+            if parent_parameters == ["x", "y"] and (len(process_params) == 1 or process_params[:1] == ["data"]):
+                # Special case: wrap all parent parameters in an array
+                arguments = {process_params[0]: [{"from_parameter": p} for p in parent_parameters]}
+            else:
+                arguments = {a: {"from_parameter": b} for a, b in zip(process_params, parent_parameters)}
+            pg = PGNode(process_id=process, arguments=arguments)
+        elif isinstance(process, typing.Callable):
+            process_params = get_parameter_names(process)
+            if parent_parameters == ["x", "y"] and (len(process_params) == 1 or process_params[:1] == ["data"]):
+                # Special case: wrap all parent parameters in an array
+                arguments = [ProcessBuilder([{"from_parameter": p} for p in parent_parameters])]
+            else:
+                arguments = [ProcessBuilder({"from_parameter": p}) for p in parent_parameters]
+
+            pg = process(*arguments).pgnode
+        else:
+            raise ValueError(process)
+
+        return PGNode.to_process_graph_argument(pg)
+
     def apply_dimension(
-            self, code: str=None, runtime=None,process:typing.Callable=None, version="latest", dimension='t', target_dimension=None
+            self, code: str = None, runtime=None,
+            process: [str, PGNode, typing.Callable] = None,
+            version="latest", dimension='t', target_dimension=None
     ) -> 'DataCube':
         """
         Applies a process to all pixel values along a dimension of a raster data cube. For example,
@@ -533,32 +582,30 @@ class DataCube(ImageCollection):
         :raises: DimensionNotAvailable
         """
         if runtime:
+            # TODO EP-3555: unify better with UDF(PGNode) class and avoid doing same UDF code-runtime-version argument stuff in each method
             callback_process_node = self._create_run_udf(code, runtime, version)
-        elif isinstance(code,str):
-            callback_process_node = PGNode(
-                process_id=code,
-                arguments={"data": {"from_parameter": "data"}},
-            )
-        elif isinstance(process, typing.Callable):
-            builder = ProcessBuilder()
-            callback_graph = process(builder)
-            callback_process_node =  callback_graph.pgnode
+            process = PGNode.to_process_graph_argument(callback_process_node)
+        elif code or process:
+            # TODO EP-3555 unify `code` and `process`
+            process = self._get_callback(code or process, parent_parameters=["data"])
         else:
-            callback_process_node = None
+            raise OpenEoClientException("No UDF code or process given")
         arguments = {
-            "data": self._pg,
-            "process": PGNode.to_process_graph_argument(callback_process_node),
+            "data": THIS,
+            "process": process,
             "dimension": self.metadata.assert_valid_dimension(dimension),
             # TODO #125 arguments: context
         }
         if target_dimension is not None:
             arguments["target_dimension"] = target_dimension
-        result_cube = self.process_with_node(PGNode(process_id="apply_dimension", arguments=arguments))
+        result_cube = self.process(process_id="apply_dimension", arguments=arguments)
 
         return result_cube
 
-    def reduce_dimension(self, dimension: str, reducer: Union[typing.Callable, str],
-                         process_id="reduce_dimension", band_math_mode: bool = False) -> 'DataCube':
+    def reduce_dimension(
+            self, dimension: str, reducer: Union[str, PGNode, typing.Callable],
+            process_id="reduce_dimension", band_math_mode: bool = False
+    ) -> 'DataCube':
         """
         Add a reduce process with given reducer callback along given dimension
 
@@ -567,13 +614,7 @@ class DataCube(ImageCollection):
         """
         # TODO: check if dimension is valid according to metadata? #116
         # TODO: #125 use/test case for `reduce_dimension_binary`?
-        if isinstance(reducer, str):
-            # Assume given reducer is a simple predefined reduce process_id
-            reducer = PGNode(process_id=reducer, arguments={"data": {"from_parameter": "data"}})
-        elif isinstance(reducer, typing.Callable):
-            builder = ProcessBuilder()
-            callback_graph = reducer(builder)
-            reducer =  callback_graph.pgnode
+        reducer = self._get_callback(reducer, parent_parameters=["data"])
 
         return self.process_with_node(ReduceNode(
             process_id=process_id,
@@ -596,6 +637,7 @@ class DataCube(ImageCollection):
         """
         Apply reduce (`reduce_dimension`) process with given UDF along band/spectral dimension.
         """
+        # TODO EP-3555: unify better with UDF(PGNode) class and avoid doing same UDF code-runtime-version argument stuff in each method
         return self._reduce_bands(reducer=self._create_run_udf(code, runtime, version))
 
     def add_dimension(self, name: str, label: str, type: str = None):
@@ -606,7 +648,7 @@ class DataCube(ImageCollection):
         )
 
     def _create_run_udf(self, code, runtime, version) -> PGNode:
-        # TODO: expose this publicly (or create dedicated PGNode subclass)? Also encapsulate/decouple UDF loading better?
+        # TODO EP-3555: unify better with UDF(PGNode) class
         return PGNode(
             process_id="run_udf",
             arguments={
@@ -622,6 +664,7 @@ class DataCube(ImageCollection):
         """
         Apply reduce (`reduce_dimension`) process with given UDF along temporal dimension.
         """
+        # TODO EP-3555: unify better with UDF(PGNode) class and avoid doing same UDF code-runtime-version argument stuff in each method
         return self._reduce_temporal(reducer=self._create_run_udf(code, runtime, version))
 
     @deprecated("use `reduce_temporal_udf` instead")
@@ -637,7 +680,10 @@ class DataCube(ImageCollection):
         """
         return self.reduce_temporal_udf(code=code, runtime=runtime, version=version)
 
-    def apply_neighborhood(self, size:List[Dict],overlap:List[Dict]=[],process:PGNode = None) -> 'DataCube':
+    def apply_neighborhood(
+            self, process: [str, PGNode, typing.Callable],
+            size: List[Dict], overlap: List[dict] = None
+    ) -> 'DataCube':
         """
         Applies a focal process to a data cube.
 
@@ -654,24 +700,17 @@ class DataCube(ImageCollection):
         :param process: a callback function that creates a process graph, see :ref:`callbackfunctions`
         :return:
         """
-        args = {
-            "data": self._pg,
-            "process": {"process_graph": process},
-            "size": size,
-            "overlap": overlap
-        }
-        result_cube = self.process_with_node(PGNode(
+        return self.process(
             process_id='apply_neighborhood',
-            arguments=args
-        ))
-        if isinstance(process, typing.Callable):
-            builder = ProcessBuilder()
-            callback_graph = process(builder)
-            result_cube.processgraph_node.arguments['process'] = {'process_graph': callback_graph.pgnode}
+            arguments=dict_no_none(
+                data=THIS,
+                process=self._get_callback(process, parent_parameters=["data"]),
+                size=size,
+                overlap=overlap
+            )
+        )
 
-        return result_cube
-
-    def apply(self, process: Union[str, PGNode]=None, data_argument='x') -> 'DataCube':
+    def apply(self, process: Union[str, PGNode, typing.Callable] = None) -> 'DataCube':
         """
         Applies a unary process (a local operation) to each value of the specified or all dimensions in the data cube.
 
@@ -679,26 +718,14 @@ class DataCube(ImageCollection):
         :param dimensions: The names of the dimensions to apply the process on. Defaults to an empty array so that all dimensions are used.
         :return: A data cube with the newly computed values. The resolution, cardinality and the number of dimensions are the same as for the original data cube.
         """
-        if isinstance(process, str):
-            # Simple single string process specification
-            process = PGNode(
-                process_id=process,
-                arguments={data_argument: {"from_parameter": "data"}}
-            )
-        result_cube = self.process_with_node(PGNode(
-            process_id='apply',
+        return self.process(
+            process_id="apply",
             arguments={
-                "data": self._pg,
-                "process": {"process_graph": process},
+                "data": THIS,
+                "process": self._get_callback(process, parent_parameters=["x"]),
                 # TODO #125 context
             }
-        ))
-        if isinstance(process, typing.Callable):
-            builder = ProcessBuilder()
-            callback_graph = process(builder)
-            result_cube.processgraph_node.arguments['process'] = {'process_graph': callback_graph.pgnode}
-
-        return result_cube
+        )
 
     def reduce_temporal_simple(self, process_id="max") -> 'DataCube':
         """Do temporal reduce with a simple given process as callback."""
@@ -910,31 +937,21 @@ class DataCube(ImageCollection):
             )
         )
 
-    def merge(self, other: 'DataCube', overlap_resolver: Union[str, typing.Callable] = None) -> 'DataCube':
+    def merge_cubes(
+            self, other: 'DataCube', overlap_resolver: Union[str, PGNode, typing.Callable] = None
+    ) -> 'DataCube':
         arguments = {
             'cube1': {'from_node': self._pg},
             'cube2': {'from_node': other._pg},
         }
         if overlap_resolver:
-            if isinstance(overlap_resolver, str):
-                # Simple resolver (specified as process_id string)
-                overlap_resolver_node = PGNode(
-                    process_id=overlap_resolver,
-                    arguments={"data": [{"from_parameter": "x"}, {"from_parameter": "y"}]}
-                )
-            elif isinstance(overlap_resolver,typing.Callable):
-                builder = ProcessBuilder()
-                callback_graph = overlap_resolver(builder)
-                overlap_resolver_node = callback_graph.pgnode
-            elif isinstance(overlap_resolver,PGNode):
-                overlap_resolver_node = overlap_resolver
-            else:
-                raise ValueError("Unsupported overlap_resolver: %s" % str(overlap_resolver))
-
-            arguments["overlap_resolver"] = {"process_graph": overlap_resolver_node}
+            arguments["overlap_resolver"] = self._get_callback(overlap_resolver, parent_parameters=["x", "y"])
         # TODO #125 context
         # TODO: set metadata of reduced cube?
-        return self.process_with_node(PGNode(process_id="merge_cubes", arguments=arguments))
+        return self.process(process_id="merge_cubes", arguments=arguments)
+
+    # Legacy alias
+    merge = merge_cubes
 
     def apply_kernel(self, kernel: Union[np.ndarray, List[List[float]]], factor=1.0, border = 0, replace_invalid=0) -> 'DataCube':
         """
@@ -1028,8 +1045,9 @@ class DataCube(ImageCollection):
 
         return self._polygonal_timeseries(polygon, "sd")
 
-    def _polygonal_timeseries(self, polygon: Union[Polygon, MultiPolygon, str], func: str) -> 'DataCube':
-
+    def _polygonal_timeseries(
+            self, polygon: Union[Polygon, MultiPolygon, str], func: Union[str, PGNode, typing.Callable]
+    ) -> 'DataCube':
         if isinstance(polygon, str):
             # polygon is a path to vector file
             # TODO this is non-standard process: check capabilities? #104 #40
@@ -1043,18 +1061,15 @@ class DataCube(ImageCollection):
                 }
             }
 
-        return self.process_with_node(PGNode(
+        return self.process(
             process_id="aggregate_spatial",
             arguments={
                 "data": self._pg,
                 "geometries": geometries,
-                "reducer": {"process_graph": PGNode(
-                    process_id=func,
-                    arguments={"data": {"from_parameter": "data"}}
-                )},
+                "reducer": self._get_callback(func, parent_parameters=["data"])
                 # TODO #125 target dimension, context
             }
-        ))
+        )
 
     def save_result(self, format: str = "GTiff", options: dict = None):
         formats = set(self._connection.list_output_formats().keys())

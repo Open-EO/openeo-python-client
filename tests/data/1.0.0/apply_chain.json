@@ -21,6 +21,23 @@
               "x": {
                 "from_parameter": "x"
               }
+            }
+          },
+          "cos1": {
+            "process_id": "cos",
+            "arguments": {
+              "x": {
+                "from_node": "absolute1"
+              }
+            }
+          },
+          "add1": {
+            "process_id": "add",
+            "arguments": {
+              "x": {
+                "from_node": "cos1"
+              },
+              "y": 1.23
             },
             "result": true
           }
