@@ -1085,7 +1085,16 @@ class DataCube(ImageCollection):
         )
 
     def download(self, outputfile: Union[str, pathlib.Path, None] = None, format: str = "GTIFF", options: dict = None):
-        """Download image collection, e.g. as GeoTIFF."""
+        """
+        Download image collection, e.g. as GeoTIFF.
+        If :param: outputfile is provided, the result is stored on disk locally, otherwise, a bytes object is returned.
+        The bytes object can be passed on to a suitable decoder for decoding.
+
+        :param outputfile: Optional, an output file if the result needs to be stored on disk.
+        :param format: Optional, defaults to "GTIFF", an output format supported by the backend.
+        :param options: Optional, file format options
+        :return: None if the result is stored to disk, or a bytes object returned by the backend.
+        """
         newcollection = self.save_result(format=format, options=options)
         return self._connection.download(newcollection._pg.flatten(), outputfile)
 
