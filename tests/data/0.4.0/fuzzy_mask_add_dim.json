@@ -49,6 +49,8 @@
         "from_node": "reduce1"
       },
       "factor": 1.0,
+      "border": 0,
+      "replace_invalid": 0,
       "kernel": [
         [
           0.1,

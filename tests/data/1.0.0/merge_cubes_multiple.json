@@ -57,10 +57,10 @@
             "process_id": "add",
             "arguments": {
               "x": {
-                "from_parameter": "cube1"
+                "from_parameter": "x"
               },
               "y": {
-                "from_parameter": "cube2"
+                "from_parameter": "y"
               }
             },
             "result": true
@@ -84,10 +84,10 @@
             "process_id": "add",
             "arguments": {
               "x": {
-                "from_parameter": "cube1"
+                "from_parameter": "x"
               },
               "y": {
-                "from_parameter": "cube2"
+                "from_parameter": "y"
               }
             },
             "result": true

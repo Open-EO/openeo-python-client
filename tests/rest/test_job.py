@@ -7,7 +7,7 @@ import pytest
 from openeo.rest.job import RESTJob
 from .. import as_path
 
-API_URL = "https://oeo.net"
+API_URL = "https://oeo.test"
 
 TIFF_CONTENT = b'T1f7D6t6l0l' * 1000
 
@@ -26,6 +26,7 @@ def con100(requests_mock):
     return con
 
 
+@pytest.mark.slow
 def test_execute_batch(session040, requests_mock, tmpdir):
     requests_mock.get(API_URL + "/collections/SENTINEL2", json={"foo": "bar"})
     requests_mock.post(API_URL + "/jobs", status_code=201, headers={"OpenEO-Identifier": "f00ba5"})
@@ -53,9 +54,7 @@ def test_execute_batch(session040, requests_mock, tmpdir):
         outputfile=as_path(path), out_format="GTIFF",
         max_poll_interval=.1, print=print
     )
-
-    for log_entry in job.logs():
-        print(log_entry.message)
+    assert job.status() == "finished"
 
     assert re.match(r"0:00:00(.0\d*)? Job 'f00ba5': submitted \(progress N/A\)", log[0])
     assert re.match(r"0:00:00.1\d* Job 'f00ba5': queued \(progress N/A\)", log[1])
@@ -64,8 +63,10 @@ def test_execute_batch(session040, requests_mock, tmpdir):
     assert re.match(r"0:00:00.4\d* Job 'f00ba5': finished \(progress 100%\)", log[4])
 
     assert path.read() == "tiffdata"
+    assert job.logs() == []
 
 
+@pytest.mark.slow
 def test_execute_batch_with_error(session040, requests_mock, tmpdir):
     requests_mock.get(API_URL + "/collections/SENTINEL2", json={"foo": "bar"})
     requests_mock.post(API_URL + "/jobs", status_code=201, headers={"OpenEO-Identifier": "f00ba5"})
@@ -96,12 +97,12 @@ def test_execute_batch_with_error(session040, requests_mock, tmpdir):
             outputfile=as_path(path), out_format="GTIFF",
             max_poll_interval=.1, print=print
         )
-
-        assert False
+        pytest.fail("execute_batch should fail")
     except JobFailedException as e:
-        log_entries = e.job.logs()
-
-        assert log_entries[0].message == "error processing batch job"
+        assert e.job.status() == "error"
+        assert [(l.level, l.message) for l in e.job.logs()] == [
+            ("error", "error processing batch job"),
+        ]
 
     assert re.match(r"0:00:00(.0\d*)? Job 'f00ba5': submitted \(progress N/A\)", log[0])
     assert re.match(r"0:00:00.1\d* Job 'f00ba5': queued \(progress N/A\)", log[1])

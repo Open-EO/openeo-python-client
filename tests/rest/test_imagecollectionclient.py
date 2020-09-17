@@ -7,7 +7,7 @@ from openeo.internal.graphbuilder_040 import GraphBuilder
 import openeo.metadata
 from openeo.rest.imagecollectionclient import ImageCollectionClient
 
-API_URL = "https://oeo.net"
+API_URL = "https://oeo.test"
 
 
 @pytest.fixture

@@ -26,6 +26,7 @@ class Dimension:
         return self.__class__ == other.__class__ and self.__dict__ == other.__dict__
 
     def rename(self, name) -> 'Dimension':
+        """Create new dimension with new name."""
         return Dimension(type=self.type, name=name)
 
 
@@ -111,6 +112,7 @@ class BandDimension(Dimension):
         )
 
     def append_band(self, band: Band) -> 'BandDimension':
+        """Create new BandDimension with appended band."""
         if band.name in self.band_names:
             raise ValueError("Duplicate band {b!r}".format(b=band))
 
@@ -261,8 +263,7 @@ class CollectionMetadata:
 
     @property
     def spatial_dimensions(self) -> List[SpatialDimension]:
-        return [d for d in self._dimensions if isinstance(d,SpatialDimension)]
-
+        return [d for d in self._dimensions if isinstance(d, SpatialDimension)]
 
     @property
     def bands(self) -> List[Band]:
@@ -281,7 +282,12 @@ class CollectionMetadata:
     def get_band_index(self, band: Union[int, str]) -> int:
         return self.band_dimension.band_index(band)
 
-    def filter_bands(self, band_names) -> 'CollectionMetadata':
+    def filter_bands(self, band_names: List[Union[int, str]]) -> 'CollectionMetadata':
+        """
+        Create new `CollectionMetadata` with filtered band dimension
+        :param band_names: list of band names/indices to keep
+        :return:
+        """
         assert self.band_dimension
         return CollectionMetadata(
             metadata=self._orig_metadata,
@@ -292,6 +298,9 @@ class CollectionMetadata:
         )
 
     def append_band(self, band: Band) -> 'CollectionMetadata':
+        """
+        Create new `CollectionMetadata` with given band added to band dimension.
+        """
         assert self.band_dimension
         return CollectionMetadata(
             metadata=self._orig_metadata,

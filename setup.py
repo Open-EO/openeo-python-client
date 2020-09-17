@@ -17,6 +17,16 @@ with open('openeo/_version.py') as fp:
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
+tests_require = [
+    'pytest>=4.5.0',
+    'mock',
+    'requests-mock',
+    'xarray==0.12.3',
+    'h5netcdf',
+    'openeo-udf',
+    'matplotlib',
+]
+
 name = 'openeo'
 setup(name=name,
       version=_version['__version__'],
@@ -28,31 +38,33 @@ setup(name=name,
       url="https://github.com/Open-EO/openeo-python-client",
       packages=find_packages(include=['openeo*']),
       setup_requires=['pytest-runner'],
-      tests_require=['pytest', 'mock', 'requests-mock'],
+      tests_require=tests_require,
       test_suite='tests',
       install_requires=[
           'requests',
+          'requests_mock',
           'shapely>=1.6.4',
           'numpy>=1.17.0',
           'pandas>0.20.0;python_version>="3.5.3"',
           'pandas<0.25.0;python_version<"3.5.3"',
-          'deprecated',
+          'deprecated'
       ],
       extras_require={
-          "dev": [
+          "dev": tests_require + [
+              "pytest>=4.5.0",
               "sphinx",
               "sphinx-autodoc-annotation",
               "sphinx-autodoc-typehints",
-              "mock",
-              "requests-mock",
-              "pytest",
               "flake8",
           ]
+      },
+      entry_points={
+          "console_scripts": ["openeo-auth=openeo.rest.auth.cli:main"],
       },
       classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: Apache Software License",
-        "Development Status :: 4 - Beta",
+        "Development Status :: 5 - Production/Stable",
         "Operating System :: OS Independent",
       ]
       )

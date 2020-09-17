@@ -10,7 +10,6 @@ import http.server
 import json
 import logging
 import random
-import stat
 import string
 import threading
 import time
@@ -18,15 +17,14 @@ import urllib.parse
 import warnings
 import webbrowser
 from collections import namedtuple
-from datetime import datetime
-from pathlib import Path
 from queue import Queue, Empty
 from typing import Tuple, Callable, Union, List
 
 import requests
 
+import openeo
 from openeo.rest import OpenEoClientException
-from openeo.util import dict_no_none, get_user_data_dir, rfc3339
+from openeo.util import dict_no_none
 
 log = logging.getLogger(__name__)
 
@@ -43,12 +41,17 @@ class QueuingRequestHandler(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self):
         log.debug('{c} GET {p}'.format(c=self.__class__.__name__, p=self.path))
-        self.queue(self.path)
+        status, body, headers = self.queue(self.path)
+        self.send_response(status)
+        self.send_header('Content-Length', str(len(body)))
+        for k, v in headers.items():
+            self.send_header(k, v)
+        self.end_headers()
+        self.wfile.write(body.encode("utf-8"))
 
     def queue(self, path: str):
         self._queue.put(path)
-        self.send_response(200)
-        self.end_headers()
+        return 200, "queued", {}
 
     @classmethod
     def with_queue(cls, queue: Queue):
@@ -64,12 +67,28 @@ class OAuthRedirectRequestHandler(QueuingRequestHandler):
     """Request handler for OAuth redirects"""
     PATH = '/callback'
 
+    TEMPLATE = """
+        <!doctype html><html>
+        <head><title>openEO OIDC auth</title></head>
+        <body>
+            {content}
+            <hr><p><small>openEO Python client {version}</small></p>
+        </body>
+        </html>
+    """
+
     def queue(self, path: str):
         if path.startswith(self.PATH + '?'):
             super().queue(path)
             # TODO: auto-close browser tab/window?
-            # TODO: have a nicer page with title and bit of metadata?
-            self.wfile.write(b'You can close this browser tab/window now.')
+            # TODO: make it a nicer page and bit more of metadata?
+            status = 200
+            content = "<h1>OIDC Redirect URL request received.</h1><p>You can close this browser tab now.</p>"
+        else:
+            status = 404
+            content = "<p>Not found.</p>"
+        body = self.TEMPLATE.format(content=content, version=openeo.client_version())
+        return status, body, {"Content-Type": "text/html; charset=UTF-8"}
 
 
 class HttpServerThread(threading.Thread):
@@ -199,6 +218,8 @@ def jwt_decode(token: str) -> Tuple[dict, dict]:
 
 
 class OidcProviderInfo:
+    """OpenID Connect Provider information, as provided by an openEO back-end (endpoint `/credentials/oidc`)"""
+
     def __init__(self, issuer: str = None, discovery_url: str = None, scopes: List[str] = None):
         if issuer is None and discovery_url is None:
             raise ValueError("At least `issuer` or `discovery_url` should be specified")
@@ -244,12 +265,16 @@ class OidcAuthenticator:
         # TODO: check provider config (e.g. if grant type is supported)
 
     @property
-    def client_id(self):
+    def client_id(self) -> str:
         return self._client_info.client_id
 
     @property
-    def client_secret(self):
+    def client_secret(self) -> str:
         return self._client_info.client_secret
+
+    @property
+    def provider_info(self) -> OidcProviderInfo:
+        return self._client_info.provider
 
     def get_tokens(self) -> AccessTokenResult:
         """Get access_token and possibly id_token+refresh_token."""
@@ -604,63 +629,3 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
         raise OidcException("Timeout exceeded {m:.1f}s while polling for access token at {u!r}".format(
             u=token_endpoint, m=self._max_poll_time
         ))
-
-
-class RefreshTokenStore:
-    """
-    Basic JSON-file based storage of refresh tokens.
-    """
-    _PERMS = stat.S_IRUSR | stat.S_IWUSR
-
-    DEFAULT_FILENAME = "refresh_tokens.json"
-
-    class NoRefreshToken(Exception):
-        pass
-
-    def __init__(self, path: Path = None):
-        if path is None:
-            path = get_user_data_dir()
-        if path.is_dir():
-            path = path / self.DEFAULT_FILENAME
-        self._path = path
-
-    def _get_all(self, empty_on_file_not_found=True) -> dict:
-        if not self._path.exists():
-            if empty_on_file_not_found:
-                return {}
-            raise FileNotFoundError(self._path)
-        mode = self._path.stat().st_mode
-        if (mode & stat.S_IRWXG) or (mode & stat.S_IRWXO):
-            raise PermissionError(
-                "Refresh token file {p} is readable by others: st_mode {a:o} (expected permissions: {e:o}).".format(
-                    p=self._path, a=mode, e=self._PERMS)
-            )
-        with self._path.open("r", encoding="utf8") as f:
-            log.info("Using refresh tokens from {p}".format(p=self._path))
-            return json.load(f)
-
-    def _write_all(self, data: dict):
-        with self._path.open("w", encoding="utf8") as f:
-            json.dump(data, f, indent=2)
-        self._path.chmod(mode=self._PERMS)
-
-    def get(self, issuer: str, client_id: str, allow_miss=True) -> Union[str, None]:
-        try:
-            data = self._get_all()
-            return data[issuer][client_id]["refresh_token"]
-        except (FileNotFoundError, KeyError):
-            if allow_miss:
-                return None
-            else:
-                raise self.NoRefreshToken()
-
-    def set(self, issuer: str, client_id: str, refresh_token: str):
-        data = self._get_all(empty_on_file_not_found=True)
-        log.info("Storing refresh token for issuer {i!r} (client {c!r})".format(i=issuer, c=client_id))
-        # TODO: should OIDC grant type also be a part of the key?
-        #       e.g. to avoid mixing client credential flow tokens with tokens of other (user oriented) flows?
-        data.setdefault(issuer, {}).setdefault(client_id, {
-            "date": rfc3339.datetime(datetime.utcnow()),
-            "refresh_token": refresh_token,
-        })
-        self._write_all(data)

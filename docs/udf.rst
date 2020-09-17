@@ -14,6 +14,7 @@ There are a few different types of operations where UDF's can be used:
 1. Applying a process to each pixel: https://open-eo.github.io/openeo-api/processreference/#apply
 2. Applying a process to all pixels along a dimension, without changing cardinality: apply_dimension
 3. Reducing values along a dimension: https://open-eo.github.io/openeo-api/processreference/#reduce
+4. Applying a process to all pixels in a multidimensional neighborhood: apply_neighborhood
 
 Not all functions will require you to write a custom process. For instance, if you want to take the absolute
 value of your datacube, you can simply use the predefined absolute value function. In fact, it is
@@ -64,6 +65,29 @@ after that, we can simply apply it along a dimension::
 
     >>> smoothed_evi = evi_cube_masked.apply_dimension(smoothing_udf,runtime='Python')
 
+Example: downloading a datacube and executing an UDF locally 
+------------------------------------------------------------
+
+Sometimes it is advantageous to run a UDF on the client machine (for example when developing/testing that UDF). 
+This is possible by using the convenience function :func:`~openeo.rest.datacube.DataCube.execute_local_udf`.
+For example running the .. include:: ../examples/udf/smooth_savitzky_golay.py locally, one has to:
+* Run the process and download the result in 'NetCDF' or 'JSON' format.
+* Run execute_local_udf on the file.
+
+For example::
+
+    >>> def load_udf(path):
+            with open(path), 'r+') as f:
+                return f.read()
+
+    >>> ... # preparing the process
+    
+    >>> myprocess.download('test_input.nc', format='NetCDF')
+    
+    >>> udfstr=load_udf('../examples/udf/smooth_savitzky_golay.py')
+    >>> DataCube.execute_local_udf(udfstr, 'test_input.nc', fmt='netcdf'):
+
+Note: this algorithm's primary purpose is to aid client side development of UDFs using small datasets. It is not designed for large jobs.
 
 UDF function names
 ------------------

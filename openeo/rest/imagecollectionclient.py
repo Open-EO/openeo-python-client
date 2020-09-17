@@ -894,7 +894,7 @@ class ImageCollectionClient(ImageCollection):
 
 
 
-    def apply_kernel(self, kernel, factor=1.0) -> 'ImageCollection':
+    def apply_kernel(self, kernel, factor=1.0, border = 0, replace_invalid=0) -> 'ImageCollection':
         """
         Applies a focal operation based on a weighted kernel to each value of the specified dimensions in the data cube.
 
@@ -905,7 +905,9 @@ class ImageCollectionClient(ImageCollection):
         return self.graph_add_process('apply_kernel', {
             'data': {'from_node': self.node_id},
             'kernel':kernel.tolist(),
-            'factor':factor
+            'factor':factor,
+            'border': border,
+            'replace_invalid': replace_invalid
         })
 
     ####VIEW methods #######
@@ -1008,7 +1010,7 @@ class ImageCollectionClient(ImageCollection):
             }
         )
 
-    def download(self, outputfile: str, format: str = "GTIFF", options: dict = None):
+    def download(self, outputfile: str = None, format: str = "GTIFF", options: dict = None):
         """Download image collection, e.g. as GeoTIFF."""
         newcollection = self.save_result(format=format, options=options)
         newcollection.graph[newcollection.node_id]["result"] = True

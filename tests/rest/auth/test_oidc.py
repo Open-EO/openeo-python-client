@@ -17,7 +17,7 @@ import requests_mock.request
 import openeo.rest.auth.oidc
 from openeo.rest.auth.oidc import QueuingRequestHandler, drain_queue, HttpServerThread, OidcAuthCodePkceAuthenticator, \
     OidcClientCredentialsAuthenticator, OidcResourceOwnerPasswordAuthenticator, OidcClientInfo, OidcProviderInfo, \
-    OidcDeviceAuthenticator, random_string, RefreshTokenStore
+    OidcDeviceAuthenticator, random_string, OidcRefreshTokenAuthenticator
 from openeo.util import dict_no_none
 
 
@@ -52,6 +52,7 @@ def test_queuing_request_handler():
     assert list(drain_queue(queue)) == ['/foo/bar']
 
 
+@pytest.mark.slow
 def test_http_server_thread():
     queue = Queue()
     server_thread = HttpServerThread(RequestHandlerClass=QueuingRequestHandler.with_queue(queue))
@@ -65,6 +66,7 @@ def test_http_server_thread():
     server_thread.join()
 
 
+@pytest.mark.slow
 def test_http_server_thread_port():
     queue = Queue()
     server_thread = HttpServerThread(RequestHandlerClass=QueuingRequestHandler.with_queue(queue),
@@ -81,42 +83,42 @@ def test_http_server_thread_port():
 
 
 def test_provider_info_issuer(requests_mock):
-    requests_mock.get("https://akkoint.net/.well-known/openid-configuration", json={"scopes_supported": ["openid"]})
-    p = OidcProviderInfo(issuer="https://akkoint.net")
-    assert p.discovery_url == "https://akkoint.net/.well-known/openid-configuration"
+    requests_mock.get("https://authit.test/.well-known/openid-configuration", json={"scopes_supported": ["openid"]})
+    p = OidcProviderInfo(issuer="https://authit.test")
+    assert p.discovery_url == "https://authit.test/.well-known/openid-configuration"
     assert p.get_scopes_string() == "openid"
 
 
 def test_provider_info_issuer_slash(requests_mock):
-    requests_mock.get("https://akkoint.net/.well-known/openid-configuration", json={"scopes_supported": ["openid"]})
-    p = OidcProviderInfo(issuer="https://akkoint.net/")
-    assert p.discovery_url == "https://akkoint.net/.well-known/openid-configuration"
+    requests_mock.get("https://authit.test/.well-known/openid-configuration", json={"scopes_supported": ["openid"]})
+    p = OidcProviderInfo(issuer="https://authit.test/")
+    assert p.discovery_url == "https://authit.test/.well-known/openid-configuration"
 
 
 def test_provider_info_discovery_url(requests_mock):
-    discovery_url = "https://akkoint.net/.well-known/openid-configuration"
-    requests_mock.get(discovery_url, json={"issuer": "https://akkoint.net"})
+    discovery_url = "https://authit.test/.well-known/openid-configuration"
+    requests_mock.get(discovery_url, json={"issuer": "https://authit.test"})
     p = OidcProviderInfo(discovery_url=discovery_url)
-    assert p.discovery_url == "https://akkoint.net/.well-known/openid-configuration"
+    assert p.discovery_url == "https://authit.test/.well-known/openid-configuration"
     assert p.get_scopes_string() == "openid"
 
 
 def test_provider_info_scopes(requests_mock):
     requests_mock.get(
-        "https://akkoint.net/.well-known/openid-configuration",
+        "https://authit.test/.well-known/openid-configuration",
         json={"scopes_supported": ["openid", "test"]}
     )
-    assert "openid" == OidcProviderInfo(issuer="https://akkoint.net").get_scopes_string()
-    assert "openid" == OidcProviderInfo(issuer="https://akkoint.net", scopes=[]).get_scopes_string()
-    assert "openid test" == OidcProviderInfo(issuer="https://akkoint.net", scopes=["test"]).get_scopes_string()
+    assert "openid" == OidcProviderInfo(issuer="https://authit.test").get_scopes_string()
+    assert "openid" == OidcProviderInfo(issuer="https://authit.test", scopes=[]).get_scopes_string()
+    assert "openid test" == OidcProviderInfo(issuer="https://authit.test", scopes=["test"]).get_scopes_string()
     assert "openid test" == OidcProviderInfo(
-        issuer="https://akkoint.net", scopes=["openid", "test"]
+        issuer="https://authit.test", scopes=["openid", "test"]
     ).get_scopes_string()
     assert "openid test" == OidcProviderInfo(
-        issuer="https://akkoint.net", scopes=("openid", "test")
+        issuer="https://authit.test", scopes=("openid", "test")
     ).get_scopes_string()
     assert "openid test" == OidcProviderInfo(
-        issuer="https://akkoint.net", scopes={"openid", "test"}
+        issuer="https://authit.test", scopes={"openid", "test"}
     ).get_scopes_string()
 
 
@@ -132,7 +134,7 @@ class OidcMock:
             expected_grant_type: str,
             expected_client_id: str = "myclient",
             expected_fields: dict = None,
-            provider_root_url: str = "https://auth.example.com",
+            provider_root_url: str = "https://auth.test",
             state: dict = None,
             scopes_supported: List[str] = None
     ):
@@ -163,6 +165,7 @@ class OidcMock:
                 "client_credentials": self.token_callback_client_credentials,
                 "password": self.token_callback_resource_owner_password_credentials,
                 "urn:ietf:params:oauth:grant-type:device_code": self.token_callback_device_code,
+                "refresh_token": self.token_callback_refresh_token,
             }[expected_grant_type]
         )
 
@@ -245,6 +248,14 @@ class OidcMock:
             context.status_code = 400
             return json.dumps({"error": result})
 
+    def token_callback_refresh_token(self, request: requests_mock.request._RequestObjectProxy, context):
+        params = self._get_query_params(query=request.text)
+        assert params["client_id"] == self.expected_client_id
+        assert params["grant_type"] == "refresh_token"
+        assert params["client_secret"] == self.expected_fields["client_secret"]
+        assert params["refresh_token"] == self.expected_fields["refresh_token"]
+        return self._build_token_response(include_id_token=False)
+
     @staticmethod
     def _get_query_params(*, url=None, query=None):
         """Helper to extract query params from an url or query string"""
@@ -278,11 +289,12 @@ class OidcMock:
         return json.dumps(res)
 
 
+@pytest.mark.slow
 def test_oidc_auth_code_pkce_flow(requests_mock):
-    requests_mock.get("http://oidc.example.com/.well-known/openid-configuration", json={"scopes_supported": ["openid"]})
+    requests_mock.get("http://oidc.test/.well-known/openid-configuration", json={"scopes_supported": ["openid"]})
 
     client_id = "myclient"
-    oidc_discovery_url = "http://oidc.example.com/.well-known/openid-configuration"
+    oidc_discovery_url = "http://oidc.test/.well-known/openid-configuration"
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
         expected_grant_type="authorization_code",
@@ -303,7 +315,7 @@ def test_oidc_auth_code_pkce_flow(requests_mock):
 
 def test_oidc_client_credentials_flow(requests_mock):
     client_id = "myclient"
-    oidc_discovery_url = "http://oidc.example.com/.well-known/openid-configuration"
+    oidc_discovery_url = "http://oidc.test/.well-known/openid-configuration"
     client_secret = "$3cr3t"
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
@@ -324,7 +336,7 @@ def test_oidc_client_credentials_flow(requests_mock):
 def test_oidc_resource_owner_password_credentials_flow(requests_mock):
     client_id = "myclient"
     client_secret = "$3cr3t"
-    oidc_discovery_url = "http://oidc.example.com/.well-known/openid-configuration"
+    oidc_discovery_url = "http://oidc.test/.well-known/openid-configuration"
     username, password = "john", "j0hn"
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
@@ -346,13 +358,10 @@ def test_oidc_resource_owner_password_credentials_flow(requests_mock):
     assert oidc_mock.state["access_token"] == tokens.access_token
 
 
-# TODO test for OidcRefreshTokenAuthenticator
-
-
 def test_oidc_device_flow(requests_mock, caplog):
     client_id = "myclient"
     client_secret = "$3cr3t"
-    oidc_discovery_url = "http://oidc.example.com/.well-known/openid-configuration"
+    oidc_discovery_url = "http://oidc.test/.well-known/openid-configuration"
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
         expected_grant_type="urn:ietf:params:oauth:grant-type:device_code",
@@ -373,59 +382,36 @@ def test_oidc_device_flow(requests_mock, caplog):
             tokens = authenticator.get_tokens()
     assert oidc_mock.state["access_token"] == tokens.access_token
     assert re.search(
-        r"visit https://auth\.example\.com/dc and enter the user code {c!r}".format(c=oidc_mock.state['user_code']),
+        r"visit https://auth\.test/dc and enter the user code {c!r}".format(c=oidc_mock.state['user_code']),
         display[0]
     )
     assert display[1] == "Authorized successfully."
     assert sleep.mock_calls == [mock.call(2), mock.call(2), mock.call(7)]
     assert re.search(
-        "Authorization pending\..*Polling too fast, will slow down\..*Authorized successfully\.",
+        r"Authorization pending\..*Polling too fast, will slow down\..*Authorized successfully\.",
         caplog.text,
         flags=re.DOTALL
     )
 
 
-class TestRefreshTokenStorage:
-
-    def test_start_empty(self, tmp_path):
-        r = RefreshTokenStore(path=tmp_path)
-        assert r.get("foo", "bar") is None
-
-    def test_pass_dir(self, tmp_path):
-        r = RefreshTokenStore(path=tmp_path)
-        r.set("foo", "bar", "imd6$3cr3t")
-        assert (tmp_path / RefreshTokenStore.DEFAULT_FILENAME).exists()
-        assert [p.name for p in tmp_path.iterdir()] == [RefreshTokenStore.DEFAULT_FILENAME]
-
-    def test_pass_file(self, tmp_path):
-        path = tmp_path / "my_tokens.secret"
-        r = RefreshTokenStore(path=path)
-        r.set("foo", "bar", "imd6$3cr3t")
-        assert path.exists()
-        assert [p.name for p in tmp_path.iterdir()] == ["my_tokens.secret"]
-
-    def test_public_file(self, tmp_path):
-        path = tmp_path / "refresh_tokens.json"
-        with path.open("w") as f:
-            json.dump({}, f)
-        r = RefreshTokenStore(path=path)
-        with pytest.raises(PermissionError, match="readable by others.*expected permissions: 600"):
-            r.get("foo", "bar")
-        with pytest.raises(PermissionError, match="readable by others.*expected permissions: 600"):
-            r.set("foo", "bar", "imd6$3cr3t")
-
-    def test_permissions(self, tmp_path):
-        r = RefreshTokenStore(path=tmp_path)
-        r.set("foo", "bar", "imd6$3cr3t")
-        st_mode = (tmp_path / RefreshTokenStore.DEFAULT_FILENAME).stat().st_mode
-        assert st_mode & 0o777 == 0o600
-
-    def test_start_empty_exception_on_miss(self, tmp_path):
-        r = RefreshTokenStore(path=tmp_path)
-        with pytest.raises(RefreshTokenStore.NoRefreshToken):
-            r.get("foo", "bar", allow_miss=False)
-
-    def test_get_set(self, tmp_path):
-        r = RefreshTokenStore(path=tmp_path)
-        r.set("foo", "bar", "ih6zdaT0k3n")
-        assert r.get("foo", "bar") == "ih6zdaT0k3n"
+def test_oidc_refresh_token_flow(requests_mock, caplog):
+    client_id = "myclient"
+    client_secret = "$3cr3t"
+    refresh_token = "r3fr35h.d4.t0k3n.w1lly4"
+    oidc_discovery_url = "http://oidc.test/.well-known/openid-configuration"
+    oidc_mock = OidcMock(
+        requests_mock=requests_mock,
+        expected_grant_type="refresh_token",
+        expected_client_id=client_id,
+        oidc_discovery_url=oidc_discovery_url,
+        expected_fields={"scope": "openid", "client_secret": client_secret, "refresh_token": refresh_token},
+        scopes_supported=["openid"]
+    )
+    provider = OidcProviderInfo(discovery_url=oidc_discovery_url)
+    authenticator = OidcRefreshTokenAuthenticator(
+        client_info=OidcClientInfo(client_id=client_id, provider=provider, client_secret=client_secret),
+        refresh_token=refresh_token
+    )
+    tokens = authenticator.get_tokens()
+    assert oidc_mock.state["access_token"] == tokens.access_token
+    assert oidc_mock.state["refresh_token"] == tokens.refresh_token

@@ -5,7 +5,7 @@ import openeo.internal.graphbuilder_040
 from openeo.rest.connection import Connection
 from openeo.rest.datacube import DataCube
 
-API_URL = "https://oeo.net"
+API_URL = "https://oeo.test"
 
 
 def _setup_connection(api_version, requests_mock) -> Connection:
@@ -44,6 +44,13 @@ def _setup_connection(api_version, requests_mock) -> Connection:
             ]
         },
     })
+
+    requests_mock.get(API_URL + "/file_formats", json={
+        "output": {
+            "GTiff": {"gis_data_types": ["raster"]}
+        }
+    })
+
     return openeo.connect(API_URL)
 
 

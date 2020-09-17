@@ -4,10 +4,11 @@ from pprint import pprint
 import shapely.geometry
 
 import openeo
+from openeo.rest.conversions import timeseries_json_to_pandas
 
 
 def main():
-    url = "http://openeo.vgt.vito.be/openeo/0.4.0"
+    url = "https://openeo.vito.be"
 
     conn = openeo.connect(url)
 
@@ -16,15 +17,16 @@ def main():
 
     result = (
         conn
-            .load_collection("CGS_SENTINEL2_RADIOMETRY_V102_001")
-            .filter_temporal("2020-01-01", "2020-03-10")
-            .filter_bbox(crs="EPSG:4326", **dict(zip(["west", "south", "east", "north"], bbox)))
+            .load_collection("TERRASCOPE_S2_TOC_V2",
+                             temporal_extent = ["2020-01-01", "2020-03-10"],
+                             spatial_extent=dict(zip(["west", "south", "east", "north"], bbox)),
+                             bands=["TOC-B04_10M","TOC-B08_10M"])
             .ndvi()
             .polygonal_mean_timeseries(polygon)
             .execute()
     )
 
-    pprint(result)
+    pprint(timeseries_json_to_pandas(result))
 
 
 if __name__ == '__main__':

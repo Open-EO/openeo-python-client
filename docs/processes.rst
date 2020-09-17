@@ -240,3 +240,201 @@ The parameter listing of the example above could be written like this::
     ]
 
 
+
+.. _callbackfunctions:
+
+Processes with "callbacks"
+==========================
+
+Some openEO processes expect some kind of sub-process
+to be invoked on a subset or slice of the datacube.
+For example:
+
+*   process ``apply`` requires a transformation that will be applied
+    to each pixel in the cube (separately)
+*   process ``reduce_dimension`` requires an aggregation function to convert
+    an array of pixel values (along a given dimension) to a single value
+*   process ``apply_neighborhood`` requires a function to transform a small
+    "neighborhood" cube to another
+
+These transformation functions are usually called "**callbacks**"
+because instead of being called explicitly by the user,
+they are called by their "parent" process
+(the ``apply``, ``reduce_dimension`` and ``apply_neighborhood`` in the examples)
+
+
+The openEO Python Client Library currently provides a couple of functions
+that expect a callback, including:
+:py:meth:`openeo.rest.datacube.DataCube.apply`,
+:py:meth:`openeo.rest.datacube.DataCube.apply_dimension`,
+:py:meth:`openeo.rest.datacube.DataCube.apply_neighborhood`,
+:py:meth:`openeo.rest.datacube.DataCube.merge_cubes`,
+:py:meth:`openeo.rest.datacube.DataCube.reduce_dimension`,
+and :py:meth:`openeo.rest.datacube.DataCube.load_collection`.
+These functions support several ways to specify the desired callback.
+
+
+Callback as string
+------------------
+
+The easiest way is passing a process name as a string,
+for example:
+
+.. code-block:: python
+
+    # Take the absolute value of each pixel
+    cube.apply("absolute")
+
+    # Reduce a cube along the temporal dimension by taking the maximum value
+    cube.reduce_dimension("max", dimension="t")
+
+This approach is only possible if the desired transformation is available
+as a single process. If not, use one of the methods below.
+
+Also important is that the "signature" of the provided callback process
+should correspond properly with what the parent process expects.
+For example: ``apply`` requires a callback process that receives a
+number and returns one (like ``absolute`` or ``sqrt``),
+while ``reduce_dimension`` requires a callback process that receives
+an array of numbers and returns a single number (like ``max`` or ``mean``).
+
+
+Callback as a callable
+-----------------------
+
+You can also specify the callback as a "callable":
+a Python object that can be called (e.g. a function without parenthesis).
+
+The openEO Python Client Library defines the
+official processes in the :py:mod:`openeo.process.processes` module,
+which can be used directly:
+
+.. code-block:: python
+
+    from openeo.processes import absolute, max
+
+    cube.apply(absolute)
+    cube.reduce_dimension(max, dimension="t")
+
+You can also use ``lambda`` functions:
+
+.. code-block:: python
+
+    cube.apply(lambda x: x * 2 + 3)
+
+
+or normal Python functions:
+
+.. code-block:: python
+
+    from openeo.processes import array_element
+
+    def my_bandmath(data):
+        band1 = array_element(data, index=1)
+        band1 = array_element(data, index=1)
+        return band1 + 1.2 * band 2
+
+
+    cube.reduce_dimension(my_bandmath, dimension="bands")
+
+
+The argument that is passed to these functions is
+an instance of :py:class:`openeo.processes.ProcessBuilder`.
+This is a helper object with predefined methods for all standard processes,
+allowing to use an object oriented coding style to define the callback.
+For example:
+
+.. code-block:: python
+
+    from openeo.processes import ProcessBuilder
+
+    def avg(data: ProcessBuilder):
+        return data.mean()
+
+    cube.reduce_dimension(avg, dimension="t")
+
+
+These methods also return ``ProcessBuilder`` objects,
+which also allows writing callbacks in chained fashion:
+
+.. code-block:: python
+
+    cube.apply(lambda x: x.absolute().cos().add(y=1.23))
+
+
+All this gives a lot of flexibility to define callbacks compactly
+in a desired coding style.
+The following examples result in the same callback:
+
+.. code-block:: python
+
+    from openeo.processes import ProcessBuilder, mean, cos, add
+
+    # Chained methods
+    cube.reduce_dimension(
+        lambda data: data.mean().cos().add(y=1.23),
+        dimension="t"
+    )
+
+    # Functions
+    cube.reduce_dimension(
+        lambda data: add(x=cos(mean(data)), y=1.23),
+        dimension="t"
+    )
+
+    # Mixing methods, functions and operators
+    cube.reduce_dimension(
+        lambda data: cos(data.mean())) + 1.23,
+        dimension="t"
+    )
+
+
+Caveats
+````````
+
+Specifying callbacks through Python functions (or lambdas)
+looks intuitive and straightforward, but it should be noted
+that not everything is allowed in these functions.
+You should just limit yourself to calling
+:py:mod:`openeo.process.processes` functions, :py:class:`openeo.processes.ProcessBuilder` methods and basic math operators.
+Don't call functions from other libraries like numpy or scipy.
+Don't use Python control flow statements like ``if/else`` constructs
+or ``for`` loops.
+
+The reason for this is that the openEO Python Client Library
+does not translate the function source code itself
+to an openEO process graph.
+Instead, when building the openEO process graph,
+it passes a special object to the function
+and keeps track of which :py:mod:`openeo.process.processes` functions
+were called to assemble the corresponding process graph.
+If you use control flow statements or use numpy functions for example,
+this procedure will incorrectly detect what you want to do in the callback.
+
+
+Callback as ``PGNode``
+-----------------------
+
+You can also pass a ``PGNode`` object as callback.
+This method is used internally and could be useful for more
+advanced use cases, but it requires more in-depth knowledge of
+the openEO API and openEO Python Client Library to construct correctly.
+Some examples:
+
+.. code-block:: python
+
+    from openeo.internal.graph_building import PGNode
+
+    cube.apply(PGNode(
+        "add",
+        x=PGNode(
+            "cos",
+            x=PGNode("absolute", x={"from_parameter": "x"})
+        ),
+        y=1.23
+    ))
+
+    cube.reduce_dimension(
+        reducer=PGNode("max", data={"from_parameter": "data"}),
+        dimension="bands"
+    )

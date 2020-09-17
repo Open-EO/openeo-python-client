@@ -7,8 +7,8 @@ import pytest
 import shapely.geometry
 
 import openeo.metadata
-from openeo.internal.graph_building import PGNode
 from openeo import UDF
+from openeo.internal.graph_building import PGNode
 from openeo.rest.connection import Connection
 from openeo.rest.datacube import THIS
 from .conftest import API_URL
@@ -79,6 +79,7 @@ def test_merge_cubes(con100: Connection):
         "result": True
     }
 
+
 def test_resample_spatial(con100: Connection):
     data = con100.load_collection("S2")
     target = con100.load_collection("MASK")
@@ -93,6 +94,7 @@ def test_resample_spatial(con100: Connection):
         'process_id': 'resample_cube_spatial',
         'result': True}
 
+
 def test_ndvi_simple(con100: Connection):
     ndvi = con100.load_collection("S2").ndvi()
     assert sorted(ndvi.graph.keys()) == ["loadcollection1", "ndvi1"]
@@ -101,6 +103,7 @@ def test_ndvi_simple(con100: Connection):
         "arguments": {"data": {"from_node": "loadcollection1"}},
         "result": True,
     }
+    assert not ndvi.metadata.has_band_dimension()
 
 
 def test_ndvi_args(con100: Connection):
@@ -111,6 +114,8 @@ def test_ndvi_args(con100: Connection):
         "arguments": {"data": {"from_node": "loadcollection1"}, "nir": "nirr", "red": "rred", "target_band": "ndvii"},
         "result": True,
     }
+    assert ndvi.metadata.has_band_dimension()
+    assert ndvi.metadata.band_dimension.band_names == ["B02", "B03", "B04", "B08", "ndvii"]
 
 
 def test_rename_dimension(con100):
@@ -274,6 +279,22 @@ def test_load_collection_properties(con100):
     assert im.graph == expected
 
 
+def test_load_collection_properties_process_builder_function(con100):
+    from openeo.processes import between, eq
+    im = con100.load_collection(
+        "S2",
+        spatial_extent={"west": 16.1, "east": 16.6, "north": 48.6, "south": 47.2},
+        temporal_extent=["2018-01-01", "2019-01-01"],
+        properties={
+            "eo:cloud_cover": lambda x: between(x=x, min=0, max=50),
+            "platform": lambda x: eq(x=x, y="Sentinel-2B", case_sensitive=False)
+        }
+    )
+
+    expected = load_json_resource('data/1.0.0/load_collection_properties.json')
+    assert im.graph == expected
+
+
 def test_apply_dimension_temporal_cumsum_with_target(con100):
     cumsum = con100.load_collection("S2").apply_dimension('cumsum', dimension="t", target_dimension="MyNewTime")
     actual_graph = cumsum.graph
@@ -286,16 +307,16 @@ def test_apply_dimension_temporal_cumsum_with_target(con100):
 
 def test_apply_neighborhood_udf(con100):
     collection = con100.load_collection("S2")
-    neighbors = collection.apply_neighborhood(UDF(code="myfancycode", runtime="Python"), size=[
+    neighbors = collection.apply_neighborhood(size=[
         {'dimension': 'x', 'value': 128, 'unit': 'px'},
         {'dimension': 'y', 'value': 128, 'unit': 'px'}
     ], overlap=[
         {'dimension': 't', 'value': 'P10d'},
-    ])
+    ],process= lambda data:data.run_udf(udf="myfancycode", runtime="Python"))
     actual_graph = neighbors.graph['applyneighborhood1']
     assert actual_graph == {'arguments': {'data': {'from_node': 'loadcollection1'},
                                           'overlap': [{'dimension': 't', 'value': 'P10d'}],
-                                          'process': {'process_graph': {'runudf1': {'arguments': {'code': 'myfancycode',
+                                          'process': {'process_graph': {'runudf1': {'arguments': {'udf': 'myfancycode',
                                                                                                   'data': {'from_parameter': 'data'},
                                                                                                   'runtime': 'Python'},
                                                                                     'process_id': 'run_udf',
@@ -304,8 +325,6 @@ def test_apply_neighborhood_udf(con100):
                                                    {'dimension': 'y', 'unit': 'px', 'value': 128}]},
                             'process_id': 'apply_neighborhood',
                             'result': True}
-
-
 
 
 def test_filter_spatial_callbak(con100):
@@ -317,8 +336,7 @@ def test_filter_spatial_callbak(con100):
     """
     collection = con100.load_collection("S2")
 
-    point_to_bbox_callback = PGNode(process_id="run_udf", arguments={
-        "data": {
+    feature_collection = {
             "type": "FeatureCollection",
             "features": [{
                 "type": "Feature",
@@ -327,14 +345,13 @@ def test_filter_spatial_callbak(con100):
                     "coordinates": [125.6, 10.1]
                 }
             }]
-        },
-        "runtime": "Python",
-        "udf": "def transform_point_into_bbox(data:UdfData): blabla"
-    })
+        }
+    udf_process = UDF("def transform_point_into_bbox(data:UdfData): blabla","Python",data=feature_collection)
+
 
     filtered_collection = collection.process("filter_spatial", {
-        "data": collection._pg,
-        "geometries": point_to_bbox_callback
+        "data": THIS,
+        "geometries": udf_process
     })
 
     assert filtered_collection.graph == {
@@ -445,3 +462,19 @@ def test_save_user_defined_process(con100, requests_mock):
     collection.save_user_defined_process(user_defined_process_id='my_udp', public=True)
 
     assert adapter.called
+
+
+def test_save_result_format(con100, requests_mock):
+    requests_mock.get(API_URL + "/file_formats", json={
+        "output": {
+            "GTiff": {"gis_data_types": ["raster"]},
+            "PNG": {"gis_data_types": ["raster"]},
+        }
+    })
+
+    cube = con100.load_collection("S2")
+    with pytest.raises(ValueError):
+        cube.save_result(format="hdmi")
+    cube.save_result(format="GTiff")
+    cube.save_result(format="gtIFF")
+    cube.save_result(format="pNg")

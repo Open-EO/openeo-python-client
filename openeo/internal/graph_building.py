@@ -12,7 +12,7 @@ from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 
 class PGNode:
     """
-    Generic node in a process graph.
+    Wrapper for process node in a process graph (has process_id and arguments).
 
     While this is a simple, thin container, it allows a bit more abstraction, basic encapsulation,
     type hinting and code intelligence in your IDE than something generic like a dict.
@@ -71,7 +71,7 @@ class PGNode:
         return GraphFlattener().flatten(node=self)
 
     @staticmethod
-    def to_process_graph_argument(value: Union['PGNode', str, dict]):
+    def to_process_graph_argument(value: Union['PGNode', str, dict]) -> dict:
         """
         Normalize given argument properly to a "process_graph" argument
         to be used as reducer/subprocess for processes like
@@ -79,6 +79,7 @@ class PGNode:
         """
         if isinstance(value, str):
             # assume string with predefined reduce/apply process ("mean", "sum", ...)
+            # TODO: is this case still used? It's invalid anyway for 1.0 openEO spec I think?
             return value
         elif isinstance(value, PGNode):
             return {"process_graph": value}
@@ -92,10 +93,13 @@ class UDF(PGNode):
     A 'run_udf' process graph node. This is offered as a convenient way to construct run_udf processes.
     """
 
-    def __init__(self, code:str,runtime:str,version:str = None,context:Dict=None):
+    def __init__(self, code:str,runtime:str,data=None,version:str = None,context:Dict=None):
+        from openeo.rest.datacube import THIS
+        if data==None:
+            data=THIS
         arguments = {
-            "data": {"from_parameter": "data"},
-            "code": code,
+            "data": data,
+            "udf": code,
             "runtime": runtime
         }
         if version is not None:
@@ -106,12 +110,13 @@ class UDF(PGNode):
 
         super().__init__(process_id='run_udf', arguments=arguments)
 
+
 class ReduceNode(PGNode):
     """
     A process graph node for "reduce" processes (has a reducer sub-process-graph)
     """
 
-    def __init__(self, data: PGNode, reducer: Union[PGNode, str], dimension: str, process_id="reduce_dimension",
+    def __init__(self, data: PGNode, reducer: Union[PGNode, str, dict], dimension: str, process_id="reduce_dimension",
                  band_math_mode: bool = False):
         assert process_id in ("reduce_dimension", "reduce_dimension_binary")
         arguments = {
