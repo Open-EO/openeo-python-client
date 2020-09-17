@@ -1,7 +1,7 @@
 from textwrap import dedent
 
-from openeo.processes.generator import PythonRenderer
-from openeo.processes.parse import Process
+from openeo.internal.processes.generator import PythonRenderer
+from openeo.internal.processes.parse import Process
 
 
 def test_render_basic():

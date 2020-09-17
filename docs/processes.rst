@@ -311,7 +311,7 @@ which can be used directly:
 
 .. code-block:: python
 
-    from openeo.processes.processes import absolute, max
+    from openeo.processes import absolute, max
 
     cube.apply(absolute)
     cube.reduce_dimension(max, dimension="t")
@@ -327,7 +327,7 @@ or normal Python functions:
 
 .. code-block:: python
 
-    from openeo.processes.processes import array_element
+    from openeo.processes import array_element
 
     def my_bandmath(data):
         band1 = array_element(data, index=1)
@@ -339,14 +339,14 @@ or normal Python functions:
 
 
 The argument that is passed to these functions is
-an instance of :py:class:`openeo.processes.processes.ProcessBuilder`.
+an instance of :py:class:`openeo.processes.ProcessBuilder`.
 This is a helper object with predefined methods for all standard processes,
 allowing to use an object oriented coding style to define the callback.
 For example:
 
 .. code-block:: python
 
-    from openeo.processes.processes import ProcessBuilder
+    from openeo.processes import ProcessBuilder
 
     def avg(data: ProcessBuilder):
         return data.mean()
@@ -368,7 +368,7 @@ The following examples result in the same callback:
 
 .. code-block:: python
 
-    from openeo.processes.processes import ProcessBuilder, mean, cos, add
+    from openeo.processes import ProcessBuilder, mean, cos, add
 
     # Chained methods
     cube.reduce_dimension(
@@ -396,7 +396,7 @@ Specifying callbacks through Python functions (or lambdas)
 looks intuitive and straightforward, but it should be noted
 that not everything is allowed in these functions.
 You should just limit yourself to calling
-:py:mod:`openeo.process.processes` functions, :py:class:`openeo.processes.processes.ProcessBuilder` methods and basic math operators.
+:py:mod:`openeo.process.processes` functions, :py:class:`openeo.processes.ProcessBuilder` methods and basic math operators.
 Don't call functions from other libraries like numpy or scipy.
 Don't use Python control flow statements like ``if/else`` constructs
 or ``for`` loops.

@@ -18,19 +18,19 @@ import numpy as np
 import shapely.geometry
 import shapely.geometry.base
 from deprecated import deprecated
-from openeo.processes.processes import ProcessBuilder
 from shapely.geometry import Polygon, MultiPolygon, mapping
 
 import openeo
+import openeo.processes
 from openeo.imagecollection import ImageCollection, CollectionMetadata
 from openeo.internal.graph_building import PGNode, ReduceNode
+from openeo.metadata import Band
+from openeo.processes import ProcessBuilder
 from openeo.rest import BandMathException, OperatorException, OpenEoClientException
 from openeo.rest.job import RESTJob
 from openeo.rest.udp import RESTUserDefinedProcess
 from openeo.util import get_temporal_extent, dict_no_none
 from openeo.vectorcube import VectorCube
-import openeo.processes.processes
-from openeo.metadata import Band
 import numpy
 from builtins import staticmethod
 
@@ -520,8 +520,8 @@ class DataCube(ImageCollection):
             pg = process
         elif isinstance(process, str):
             # Assume given reducer is a simple predefined reduce process_id
-            if process in openeo.processes.processes.__dict__:
-                process_params = get_parameter_names(openeo.processes.processes.__dict__[process])
+            if process in openeo.processes.__dict__:
+                process_params = get_parameter_names(openeo.processes.__dict__[process])
             else:
                 # Best effort guess
                 process_params = parent_parameters

@@ -1,5 +1,5 @@
 from openeo.internal.graph_building import PGNode
-from openeo.processes.processes import ProcessBuilder
+from openeo.processes import ProcessBuilder
 
 from ... import load_json_resource
 
@@ -24,7 +24,7 @@ def test_apply_callback_absolute_lambda_method(con100):
 
 def test_apply_callback_absolute_function(con100):
     im = con100.load_collection("S2")
-    from openeo.processes.processes import absolute
+    from openeo.processes import absolute
     result = im.apply(absolute)
     assert result.graph == load_json_resource('data/1.0.0/apply_absolute.json')
 
@@ -46,14 +46,14 @@ def test_apply_callback_chain_lambda_method(con100):
 
 def test_apply_callback_chain_lambda_functions(con100):
     im = con100.load_collection("S2")
-    from openeo.processes.processes import absolute, cos, add
+    from openeo.processes import absolute, cos, add
     result = im.apply(lambda data: add(cos(absolute(data)), 1.23))
     assert result.graph == load_json_resource('data/1.0.0/apply_chain.json')
 
 
 def test_apply_callback_chain_lambda_mixed_and_operator(con100):
     im = con100.load_collection("S2")
-    from openeo.processes.processes import cos
+    from openeo.processes import cos
     result = im.apply(lambda data: cos(data.absolute()) + 1.23)
     assert result.graph == load_json_resource('data/1.0.0/apply_chain.json')
 
@@ -68,7 +68,7 @@ def test_apply_callback_chain_custom_function_methods(con100):
 
 
 def test_apply_callback_chain_custom_function_functions(con100):
-    from openeo.processes.processes import absolute, cos, add
+    from openeo.processes import absolute, cos, add
 
     def transform(x: ProcessBuilder) -> ProcessBuilder:
         return add(cos(absolute(x)), y=1.23)
@@ -79,7 +79,7 @@ def test_apply_callback_chain_custom_function_functions(con100):
 
 
 def test_apply_callback_chain_custom_function_mixed_and_operator(con100):
-    from openeo.processes.processes import cos
+    from openeo.processes import cos
 
     def transform(x: ProcessBuilder) -> ProcessBuilder:
         return cos(x.absolute()) + 1.23
@@ -133,7 +133,7 @@ def test_apply_neighborhood_trim_pgnode(con100):
 
 
 def test_apply_neighborhood_trim_callable(con100):
-    from openeo.processes.processes import trim_cube
+    from openeo.processes import trim_cube
     im = con100.load_collection("S2")
     result = im.apply_neighborhood(
         process=trim_cube,
@@ -187,7 +187,7 @@ def test_apply_neighborhood_udf_callback(con100):
 def test_apply_neighborhood_complex_callback(con100):
     collection = con100.load_collection("S2")
 
-    from openeo.processes.processes import max
+    from openeo.processes import max
     neighbors = collection.apply_neighborhood(process=lambda data: max(data).absolute(), size=[
         {'dimension': 'x', 'value': 128, 'unit': 'px'},
         {'dimension': 'y', 'value': 128, 'unit': 'px'}
@@ -230,7 +230,7 @@ def test_apply_dimension_max_pgnode(con100):
 
 def test_apply_dimension_max_callable(con100):
     im = con100.load_collection("S2")
-    from openeo.processes.processes import max
+    from openeo.processes import max
     res = im.apply_dimension(process=max, dimension="bands")
     assert res.graph == load_json_resource('data/1.0.0/apply_dimension_max.json')
 
@@ -242,7 +242,7 @@ def test_apply_dimension_max_lambda(con100):
 
 
 def test_apply_dimension_bandmath_lambda(con100):
-    from openeo.processes.processes import array_element
+    from openeo.processes import array_element
     im = con100.load_collection("S2")
     res = im.apply_dimension(
         process=lambda d: array_element(d, index=1) + array_element(d, index=2),
@@ -265,7 +265,7 @@ def test_reduce_dimension_max_pgnode(con100):
 
 def test_reduce_dimension_max_callable(con100):
     im = con100.load_collection("S2")
-    from openeo.processes.processes import max
+    from openeo.processes import max
     res = im.reduce_dimension(reducer=max, dimension="bands")
     assert res.graph == load_json_resource('data/1.0.0/reduce_dimension_max.json')
 
@@ -277,7 +277,7 @@ def test_reduce_dimension_max_lambda(con100):
 
 
 def test_reduce_dimension_bandmath_lambda(con100):
-    from openeo.processes.processes import array_element
+    from openeo.processes import array_element
     im = con100.load_collection("S2")
     res = im.reduce_dimension(
         reducer=lambda data: array_element(data, index=1) + array_element(data, index=2),
@@ -306,7 +306,7 @@ def test_merge_cubes_add_pgnode(con100):
 def test_merge_cubes_add_callable(con100):
     im1 = con100.load_collection("S2")
     im2 = con100.load_collection("MASK")
-    from openeo.processes.processes import add
+    from openeo.processes import add
     res = im1.merge_cubes(other=im2, overlap_resolver=add)
     assert res.graph == load_json_resource('data/1.0.0/merge_cubes_add.json')
 
@@ -338,7 +338,7 @@ def test_merge_cubes_max_pgnode(con100):
 def test_merge_cubes_max_callable(con100):
     im1 = con100.load_collection("S2")
     im2 = con100.load_collection("MASK")
-    from openeo.processes.processes import max
+    from openeo.processes import max
     res = im1.merge_cubes(other=im2, overlap_resolver=max)
     assert res.graph == load_json_resource('data/1.0.0/merge_cubes_max.json')
 

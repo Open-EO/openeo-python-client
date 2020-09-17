@@ -280,7 +280,7 @@ def test_load_collection_properties(con100):
 
 
 def test_load_collection_properties_process_builder_function(con100):
-    from openeo.processes.processes import between, eq
+    from openeo.processes import between, eq
     im = con100.load_collection(
         "S2",
         spatial_extent={"west": 16.1, "east": 16.6, "north": 48.6, "south": 47.2},

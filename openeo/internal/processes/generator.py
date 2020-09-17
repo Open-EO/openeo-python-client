@@ -5,7 +5,7 @@ import textwrap
 from pathlib import Path
 from typing import Union, List, Iterator
 
-from openeo.processes.parse import Process, parse_all_from_dir
+from openeo.internal.processes.parse import Process, parse_all_from_dir
 
 
 class PythonRenderer:
@@ -148,7 +148,7 @@ def generate_process_py(processes_dir: Union[Path, str], output=sys.stdout):
 
 def main():
     # Usage example (from project root, assuming the `openeo-process` repo is checked out as well):
-    #     python openeo/processes//generator.py  ../openeo-processes  --output openeo/processes/processes.py
+    #     python openeo/internal/processes/generator.py  ../openeo-processes  --output openeo/processes.py
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument("dir", help="""Directory that holds openEO process definitions in JSON format""")
     arg_parser.add_argument("--output", help="Path to output 'processes.py' file")
