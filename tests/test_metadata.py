@@ -104,6 +104,16 @@ def test_band_dimension_rename_labels():
     assert newdim.band_names == ['1','2','3']
 
 
+def test_band_dimension_set_labels():
+
+    bdim = BandDimension(name="bs", bands=[Band('some_name',None,None)])
+    metadata = CollectionMetadata({},dimensions=[bdim])
+    newdim = metadata.rename_labels("bs",target=['1','2','3']).band_dimension
+
+    assert metadata.band_dimension.band_names == ['some_name']
+    assert newdim.band_names == ['1','2','3']
+
+
 def test_band_dimension_rename_labels_with_source():
     b02 = Band("B02", "blue", 0.490)
     b03 = Band("B03", "green", 0.560)

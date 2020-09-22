@@ -133,14 +133,20 @@ class BandDimension(Dimension):
 
     def rename_labels(self, target, source) -> 'Dimension':
         if not source or len(source) == 0:
-            source = self.band_names
-        if len(target) != len(source):
+            source = None
+        elif len(target) != len(source):
             raise ValueError('In rename_labels, the number of labels in target should equal length of source, or the number of original labels in the dimension. Received target labels: %s and source: %s' % (str(target),str(source)))
-        new_bands = self.bands.copy()
-        for old_name,new_name in zip(source,target):
-            band_index = self.band_index(old_name)
-            the_band = new_bands[band_index]
-            new_bands[band_index] = Band(new_name,the_band.common_name,the_band.wavelength_um)
+
+        if source:
+            new_bands = self.bands.copy()
+            for old_name,new_name in zip(source,target):
+                band_index = self.band_index(old_name)
+                the_band = new_bands[band_index]
+                new_bands[band_index] = Band(new_name,the_band.common_name,the_band.wavelength_um)
+        else:
+            new_bands = []
+            for new_name in target:
+                new_bands.append(Band(name=new_name,common_name=None,wavelength_um=None))
         return BandDimension(self.name,new_bands)
 
 
