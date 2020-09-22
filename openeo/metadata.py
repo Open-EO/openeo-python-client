@@ -29,6 +29,16 @@ class Dimension:
         """Create new dimension with new name."""
         return Dimension(type=self.type, name=name)
 
+    def rename_labels(self,target,source) -> 'Dimension':
+        """
+        Rename labels, if the type of dimension allows it.
+
+        @param target: List of target labels
+        @param source: Source labels, or empty list
+        @return: A new dimension with modified labels, or the same if no change is applied.
+        """
+        raise MetadataException("Trying to rename labels of dimension %s of type %s, which is not supported." % (self.name,self.type))
+
 
 class SpatialDimension(Dimension):
     DEFAULT_CRS = 4326
@@ -120,6 +130,19 @@ class BandDimension(Dimension):
             name=self.name,
             bands=self.bands + [band]
         )
+
+    def rename_labels(self, target, source) -> 'Dimension':
+        if not source or len(source) == 0:
+            source = self.band_names
+        if len(target) != len(source):
+            raise ValueError('In rename_labels, the number of labels in target should equal length of source, or the number of original labels in the dimension. Received target labels: %s and source: %s' % (str(target),str(source)))
+        new_bands = self.bands.copy()
+        for old_name,new_name in zip(source,target):
+            band_index = self.band_index(old_name)
+            the_band = new_bands[band_index]
+            new_bands[band_index] = Band(new_name,the_band.common_name,the_band.wavelength_um)
+        return BandDimension(self.name,new_bands)
+
 
 
 class CollectionMetadata:
@@ -309,6 +332,23 @@ class CollectionMetadata:
                 for d in self._dimensions
             ]
         )
+
+    def rename_labels(self, dimension: str, target: list, source: list=None) -> 'CollectionMetadata':
+        """
+        Renames the labels of the specified dimension from source to target.
+
+        :param dimension: Dimension name
+        :param target: The new names for the labels.
+        :param source: The names of the labels as they are currently in the data cube.
+
+        :return: Updated metadata
+        """
+        self.assert_valid_dimension(dimension)
+        loc = self.dimension_names().index(dimension)
+        new_dimensions = self._dimensions.copy()
+        new_dimensions[loc] = new_dimensions[loc].rename_labels(target,source)
+
+        return CollectionMetadata(metadata=self._orig_metadata, dimensions=new_dimensions)
 
     def rename_dimension(self, source: str, target: str) -> 'CollectionMetadata':
         """

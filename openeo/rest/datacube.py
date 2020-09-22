@@ -821,7 +821,8 @@ class DataCube(ImageCollection):
                 data=THIS,
                 source=self.metadata.assert_valid_dimension(source),
                 target=target
-            )
+            ),
+            metadata=self.metadata.rename_dimension(source,target)
         )
 
     def rename_labels(self, dimension: str, target: list, source: list = None) -> 'DataCube':
@@ -840,7 +841,8 @@ class DataCube(ImageCollection):
                 dimension=self.metadata.assert_valid_dimension(dimension),
                 target=target,
                 source=source
-            )
+            ),
+            metadata=self.metadata.rename_labels(dimension,target,source)
         )
 
     @deprecated("use 'linear_scale_range' instead")

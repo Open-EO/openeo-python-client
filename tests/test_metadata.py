@@ -92,6 +92,30 @@ def test_band_dimension_filter_bands():
     assert bdim.filter_bands(["green", 2]) == BandDimension(name="bs", bands=[b03, b04])
 
 
+def test_band_dimension_rename_labels():
+    b02 = Band("B02", "blue", 0.490)
+    b03 = Band("B03", "green", 0.560)
+    b04 = Band("B04", "red", 0.665)
+    bdim = BandDimension(name="bs", bands=[b02, b03, b04])
+    metadata = CollectionMetadata({},dimensions=[bdim])
+    newdim = metadata.rename_labels("bs",target=['1','2','3']).band_dimension
+
+    assert metadata.band_dimension.band_names == ['B02','B03','B04']
+    assert newdim.band_names == ['1','2','3']
+
+
+def test_band_dimension_rename_labels_with_source():
+    b02 = Band("B02", "blue", 0.490)
+    b03 = Band("B03", "green", 0.560)
+    b04 = Band("B04", "red", 0.665)
+    bdim = BandDimension(name="bs", bands=[b02, b03, b04])
+    metadata = CollectionMetadata({},dimensions=[bdim])
+    newdim = metadata.rename_labels("bs",target=['2'],source=['B03']).band_dimension
+
+    assert metadata.band_dimension.band_names == ['B02','B03','B04']
+    assert newdim.band_names == ['B02','2','B04']
+
+
 def assert_same_dimensions(dims1: List[Dimension], dims2: List[Dimension]):
     assert sorted(dims1, key=lambda d: d.name) == sorted(dims2, key=lambda d: d.name)
 
