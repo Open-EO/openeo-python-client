@@ -187,7 +187,7 @@ class DataCube(ImageCollection):
                 'options': options
             }
         )
-        return cls(graph=pg, connection=connection, metadata={})
+        return cls(graph=pg, connection=connection, metadata=CollectionMetadata({}))
 
     def _filter_temporal(self, start: str, end: str) -> 'DataCube':
         return self.process(
@@ -641,6 +641,18 @@ class DataCube(ImageCollection):
         return self._reduce_bands(reducer=self._create_run_udf(code, runtime, version))
 
     def add_dimension(self, name: str, label: str, type: str = None):
+        """
+        Adds a new named dimension to the data cube.
+        Afterwards, the dimension can be referenced with the specified name. If a dimension with the specified name exists,
+        the process fails with a DimensionExists error. The dimension label of the dimension is set to the specified label.
+
+        This call does not modify the datacube in place, but returns a new datacube with the additional dimension.
+
+        @param name: The name of the dimension to add
+        @param label: The dimension label.
+        @param type: Dimension type, allowed values: 'spatial', 'temporal', 'bands', 'other', default value is 'other'
+        @return: The data cube with a newly added dimension. The new dimension has exactly one dimension label. All other dimensions remain unchanged.
+        """
         return self.process(
             process_id="add_dimension",
             arguments={"data": self._pg, "name": name, "label": label, "type": type},
@@ -940,6 +952,25 @@ class DataCube(ImageCollection):
     def merge_cubes(
             self, other: 'DataCube', overlap_resolver: Union[str, PGNode, typing.Callable] = None
     ) -> 'DataCube':
+        """
+        Merging two data cubes
+
+        The data cubes have to be compatible. A merge operation without overlap should be reversible with (a set of) filter operations for each of the two cubes. The process performs the join on overlapping dimensions, with the same name and type.
+        An overlapping dimension has the same name, type, reference system and resolution in both dimensions, but can have different labels. One of the dimensions can have different labels, for all other dimensions the labels must be equal. If data overlaps, the parameter overlap_resolver must be specified to resolve the overlap.
+
+        Examples for merging two data cubes:
+
+        #. Data cubes with the dimensions x, y, t and bands have the same dimension labels in x,y and t, but the labels for the dimension bands are B1 and B2 for the first cube and B3 and B4. An overlap resolver is not needed. The merged data cube has the dimensions x, y, t and bands and the dimension bands has four dimension labels: B1, B2, B3, B4.
+        #. Data cubes with the dimensions x, y, t and bands have the same dimension labels in x,y and t, but the labels for the dimension bands are B1 and B2 for the first data cube and B2 and B3 for the second. An overlap resolver is required to resolve overlap in band B2. The merged data cube has the dimensions x, y, t and bands and the dimension bands has three dimension labels: B1, B2, B3.
+        #. Data cubes with the dimensions x, y and t have the same dimension labels in x,y and t. There are two options:
+                * Keep the overlapping values separately in the merged data cube: An overlap resolver is not needed, but for each data cube you need to add a new dimension using add_dimension. The new dimensions must be equal, except that the labels for the new dimensions must differ by name. The merged data cube has the same dimensions and labels as the original data cubes, plus the dimension added with add_dimension, which has the two dimension labels after the merge.
+                * Combine the overlapping values into a single value: An overlap resolver is required to resolve the overlap for all pixels. The merged data cube has the same dimensions and labels as the original data cubes, but all pixel values have been processed by the overlap resolver.
+        #. Merging a data cube with dimensions x, y, t with another cube with dimensions x, y will join on the x, y dimension, so the lower dimension cube is merged with each time step in the higher dimensional cube. This can for instance be used to apply a digital elevation model to a spatiotemporal data cube.
+
+        @param other: The data cube to merge with.
+        @param overlap_resolver: A reduction operator that resolves the conflict if the data overlaps. The reducer must return a value of the same data type as the input values are. The reduction operator may be a single process such as multiply or consist of multiple sub-processes. null (the default) can be specified if no overlap resolver is required.
+        @return: The merged data cube.
+        """
         arguments = {
             'cube1': {'from_node': self._pg},
             'cube2': {'from_node': other._pg},
