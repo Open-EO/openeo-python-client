@@ -289,9 +289,7 @@ class ImageCollectionClient(ImageCollection):
         return self._create_reduced_collection(new_builder, extend_previous_callback_graph)
 
     def __ne__(self, other: Union[ImageCollection, Union[int, float]]):
-        return self.__eq__(other).__invert__()
-    
-    
+        return self._reduce_bands_binary_xy('neq', other)
 
     def __eq__(self, other:Union[ImageCollection,Union[int,float]]):
         """
@@ -300,7 +298,7 @@ class ImageCollectionClient(ImageCollection):
         :param other: Another data cube, or a constant
         :return:
         """
-        return self._reduce_bands_binary_xy('eq',other)
+        return self._reduce_bands_binary_xy('eq', other)
     
     def __gt__(self, other:Union[ImageCollection,Union[int,float]]):
         """
@@ -310,8 +308,11 @@ class ImageCollectionClient(ImageCollection):
         :param other:
         :return ImageCollection: this + other
         """
-        return self._reduce_bands_binary_xy('gt',other)
+        return self._reduce_bands_binary_xy('gt', other)
             
+    def __ge__(self, other:Union[ImageCollection,Union[int,float]]):
+        return self._reduce_bands_binary_xy('gte', other)
+
     def __lt__(self, other:Union[ImageCollection,Union[int,float]]):
         """
         Pairwise comparison of the bands in this data cube with the bands in the 'other' data cube.
@@ -320,7 +321,10 @@ class ImageCollectionClient(ImageCollection):
         :param other:
         :return ImageCollection: this + other
         """
-        return self._reduce_bands_binary_xy('lt',other)
+        return self._reduce_bands_binary_xy('lt', other)
+
+    def __le__(self, other:Union[ImageCollection,Union[int,float]]):
+        return self._reduce_bands_binary_xy('lte',other)
 
     def _create_reduced_collection(self, callback_graph_builder, extend_previous_callback_graph):
         if not extend_previous_callback_graph:

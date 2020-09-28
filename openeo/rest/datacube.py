@@ -349,6 +349,9 @@ class DataCube(ImageCollection):
         """
         return self._operator_binary("gt", other)
 
+    def __ge__(self, other: Union['DataCube', int, float]) -> 'DataCube':
+        return self._operator_binary("gte", other)
+
     def __lt__(self, other: Union['DataCube', int, float]) -> 'DataCube':
         """
         Pairwise comparison of the bands in this data cube with the bands in the 'other' data cube.
@@ -358,6 +361,9 @@ class DataCube(ImageCollection):
         :return DataCube: this < other
         """
         return self._operator_binary("lt", other)
+
+    def __le__(self, other: Union['DataCube', int, float]) -> 'DataCube':
+        return self._operator_binary("lte", other)
 
     def __add__(self, other) -> 'DataCube':
         return self.add(other)

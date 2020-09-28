@@ -1,6 +1,7 @@
 import json
 import os
 from pathlib import Path
+from typing import Callable
 
 
 def get_test_resource(relative_path):
@@ -8,9 +9,12 @@ def get_test_resource(relative_path):
     return str(dir / relative_path)
 
 
-def load_json_resource(relative_path):
+def load_json_resource(relative_path, preprocess: Callable = None):
     with open(get_test_resource(relative_path), 'r+') as f:
-        return json.load(f)
+        data = f.read()
+        if preprocess:
+            data = preprocess(data)
+        return json.loads(data)
 
 
 def as_path(path) -> Path:

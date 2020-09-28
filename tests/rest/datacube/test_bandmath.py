@@ -190,6 +190,24 @@ def test_gt_scalar(connection, api_version):
     assert result.graph == load_json_resource('data/%s/bm_gt_scalar.json' % api_version)
 
 
+@pytest.mark.parametrize(["operation", "expected"], (
+        (lambda b: b == 42, "eq"),
+        (lambda b: b != 42, "neq"),
+        (lambda b: b > 42, "gt"),
+        (lambda b: b >= 42, "gte"),
+        (lambda b: b < 42, "lt"),
+        (lambda b: b <= 42, "lte"),
+))
+def test_comparison(connection, api_version, operation, expected):
+    cube = connection.load_collection("S2")
+    band = cube.band('B04')
+    result = operation(band)
+    assert result.graph == load_json_resource(
+        'data/%s/bm_comparison.json' % api_version,
+        preprocess=lambda data: data.replace("OPERATOR", expected)
+    )
+
+
 def test_add_sub_mul_div_scalar(connection, api_version):
     cube = connection.load_collection("S2")
     band = cube.band('B04')
