@@ -44,12 +44,14 @@ COLLECTIONS = [{'product_id': 'ASTER/AST_L1T_003',
   'bottom': -90,
   'top': 90}}]
 
-PROCESSES = [{'process_id': 'zonal_statistics',
-  'description': 'Calculates statistics for each zone specified in a file.'},
- {'process_id': 'NDVI',
-  'description': 'Finds the minimum value of time series for all bands of the input dataset.'},
- {'process_id': 'filter_bands',
-  'description': 'Selects certain bands from a collection.'}]
+PROCESSES = [
+    {'id': 'zonal_statistics',
+     'description': 'Calculates statistics for each zone specified in a file.'},
+    {'id': 'ndvi',
+     'description': 'Finds the minimum value of time series for all bands of the input dataset.'},
+    {'id': 'filter_bands',
+     'description': 'Selects certain bands from a collection.'}
+]
 
 
 @requests_mock.mock()
@@ -73,7 +75,6 @@ class TestUserFiles(TestCase):
         return True
 
     def match_process_graph(self, request):
-
         assert request.json() == PROCESSES
         return True
 

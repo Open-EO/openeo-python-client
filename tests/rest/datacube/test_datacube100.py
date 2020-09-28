@@ -425,6 +425,8 @@ def test_custom_process_arguments_datacube_chained(con100: Connection):
 
 
 def test_save_user_defined_process(con100, requests_mock):
+    requests_mock.get(API_URL + "/processes", json={"processes": [{"id": "add"}]})
+
     expected_body = load_json_resource("data/1.0.0/save_user_defined_process.json")
 
     def check_body(request):
@@ -444,7 +446,9 @@ def test_save_user_defined_process(con100, requests_mock):
     assert adapter.called
 
 
-def test_save_user_defined_process(con100, requests_mock):
+def test_save_user_defined_process_public(con100, requests_mock):
+    requests_mock.get(API_URL + "/processes", json={"processes": [{"id": "add"}]})
+
     expected_body = load_json_resource("data/1.0.0/save_user_defined_process.json")
 
     def check_body(request):

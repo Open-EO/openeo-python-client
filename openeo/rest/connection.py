@@ -5,6 +5,7 @@ This module provides a Connection object to manage and persist settings when int
 import logging
 import shutil
 import sys
+import warnings
 from pathlib import Path
 from typing import Dict, List, Tuple, Union, Callable
 from urllib.parse import urljoin
@@ -579,7 +580,7 @@ class Connection(RestApiConnection):
     def collection_metadata(self, name) -> CollectionMetadata:
         return CollectionMetadata(metadata=self.describe_collection(name))
 
-    def list_processes(self) -> dict:
+    def list_processes(self) -> List[dict]:
         # TODO: Maybe format the result dictionary so that the process_id is the key of the dictionary.
         """
         Loads all available processes of the back end.
@@ -610,6 +611,9 @@ class Connection(RestApiConnection):
         :param public: visible to other users?
         :return: a RESTUserDefinedProcess instance
         """
+        if user_defined_process_id in set(p["id"] for p in self.list_processes()):
+            warnings.warn("Defining user-defined process {u!r} with same id as a pre-defined process".format(
+                u=user_defined_process_id))
         udp = RESTUserDefinedProcess(user_defined_process_id=user_defined_process_id, connection=self)
         udp.store(process_graph=process_graph, parameters=parameters, public=public)
         return udp

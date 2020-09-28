@@ -26,6 +26,8 @@ def test_describe(con100, requests_mock):
 
 
 def test_store_simple(con100, requests_mock):
+    requests_mock.get(API_URL + "/processes", json={"processes": [{"id": "add"}]})
+
     two = {
         "add": {
             "process_id": "add",
@@ -47,6 +49,44 @@ def test_store_simple(con100, requests_mock):
     udp = con100.save_user_defined_process("two", two)
     assert isinstance(udp, RESTUserDefinedProcess)
     assert adapter.called
+
+
+def test_store_collision(con100, requests_mock):
+    subtract = {
+        "minusy": {
+            "process_id": "multiply",
+            "arguments": {"x": {"from_parameter": "y", "y": -1}}
+        },
+        "add": {
+            "process_id": "add",
+            "arguments": {"x": {"from_parameter": "x"}, "y": {"from_node": "minusy"}, },
+            "result": True,
+        }
+    }
+
+    def check_body(request):
+        body = request.json()
+        assert body == {
+            "process_graph": subtract,
+            "public": False,
+        }
+        return True
+
+    requests_mock.get(API_URL + "/processes", json={"processes": [{"id": "add"}, {"id": "subtract"}]})
+    adapter1 = requests_mock.put(API_URL + "/process_graphs/my_subtract", additional_matcher=check_body)
+    adapter2 = requests_mock.put(API_URL + "/process_graphs/subtract", additional_matcher=check_body)
+
+    with pytest.warns(None) as recorder:
+        udp = con100.save_user_defined_process("my_subtract", subtract)
+    assert isinstance(udp, RESTUserDefinedProcess)
+    assert adapter1.call_count == 1
+    assert len(recorder) == 0
+
+    with pytest.warns(UserWarning, match="same id as a pre-defined process") as recorder:
+        udp = con100.save_user_defined_process("subtract", subtract)
+    assert isinstance(udp, RESTUserDefinedProcess)
+    assert adapter2.call_count == 1
+    assert len(recorder) == 1
 
 
 @pytest.mark.parametrize(["parameters", "expected_parameters"], [
@@ -76,6 +116,8 @@ def test_store_simple(con100, requests_mock):
     (None, {}),
 ])
 def test_store_with_parameter(con100, requests_mock, parameters, expected_parameters):
+    requests_mock.get(API_URL + "/processes", json={"processes": [{"id": "add"}]})
+
     increment = {
         "add1": {
             "process_id": "add",

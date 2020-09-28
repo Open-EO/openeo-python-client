@@ -807,6 +807,7 @@ def test_execute_100(requests_mock):
 
 def test_create_udp(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    requests_mock.get(API_URL + "processes", json={"processes": [{"id": "add"}]})
     conn = Connection(API_URL)
 
     new_udp = load_json_resource("data/1.0.0/udp_details.json")
@@ -831,6 +832,7 @@ def test_create_udp(requests_mock):
 
 def test_create_public_udp(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    requests_mock.get(API_URL + "processes", json={"processes": [{"id": "add"}]})
     conn = Connection(API_URL)
 
     new_udp = load_json_resource("data/1.0.0/udp_details.json")
