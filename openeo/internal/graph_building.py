@@ -88,6 +88,7 @@ class PGNode:
         else:
             raise ValueError(value)
 
+
 class UDF(PGNode):
     """
     A 'run_udf' process graph node. This is offered as a convenient way to construct run_udf processes.

@@ -14,7 +14,7 @@ def test_visit_node():
     visitor = ProcessGraphVisitor()
     visitor.enterProcess = MagicMock()
     visitor.enterArgument = MagicMock()
-    visitor.accept(node)
+    visitor.accept_node(node)
 
     assert visitor.enterProcess.call_args_list == [call(process_id="cos", arguments={"x": {"from_argument": "data"}})]
     assert visitor.enterArgument.call_args_list == [call(argument_id="x", value={"from_argument": "data"})]
@@ -120,7 +120,7 @@ def test_visit_array_with_dereferenced_nodes():
     visitor.arrayElementDone = MagicMock()
     visitor.constantArrayElement = MagicMock()
 
-    visitor.accept(dereferenced)
+    visitor.accept_node(dereferenced)
     assert visitor.leaveProcess.call_args_list == [
         call(process_id='array_element', arguments=ANY),
         call(process_id='product', arguments=ANY)
@@ -192,6 +192,75 @@ def test_dereference_basic():
         },
         "node4": {}
 
+    }
+
+
+def test_dereference_list_arg():
+    graph = {
+        "start": {"process_id": "constant", "arguments": {"x": "2020-02-02"}},
+        "end": {"process_id": "constant", "arguments": {"x": "2020-03-03"}},
+        "temporal": {
+            "process_id": "filter_temporal",
+            "arguments": {
+                "extent": [{"from_node": "start"}, {"from_node": "end"}],
+            },
+            "result": True,
+        },
+    }
+    result = ProcessGraphVisitor.dereference_from_node_arguments(graph)
+    assert result == "temporal"
+    assert graph == {
+        "start": {"process_id": "constant", "arguments": {"x": "2020-02-02"}},
+        "end": {"process_id": "constant", "arguments": {"x": "2020-03-03"}},
+        "temporal": {
+            "process_id": "filter_temporal",
+            "arguments": {
+                "extent": [
+                    {"process_id": "constant", "arguments": {"x": "2020-02-02"}},
+                    {"process_id": "constant", "arguments": {"x": "2020-03-03"}},
+                ],
+            },
+            "result": True,
+        },
+    }
+
+
+def test_dereference_dict_arg():
+    graph = {
+        "west": {"process_id": "add", "arguments": {"x": 1, "y": 1}},
+        "east": {"process_id": "add", "arguments": {"x": 2, "y": 3}},
+        "bbox": {
+            "process_id": "filter_bbox",
+            "arguments": {
+                "extent": {
+                    "west": {"from_node": "west"},
+                    "east": {"from_node": "east"},
+                }
+            },
+            "result": True,
+        }
+    }
+    result = ProcessGraphVisitor.dereference_from_node_arguments(graph)
+    assert result == "bbox"
+    assert graph == {
+        "west": {"process_id": "add", "arguments": {"x": 1, "y": 1}},
+        "east": {"process_id": "add", "arguments": {"x": 2, "y": 3}},
+        "bbox": {
+            "process_id": "filter_bbox",
+            "arguments": {
+                "extent": {
+                    "west": {
+                        "from_node": "west",
+                        "node": {"process_id": "add", "arguments": {"x": 1, "y": 1}},
+                    },
+                    "east": {
+                        "from_node": "east",
+                        "node": {"process_id": "add", "arguments": {"x": 2, "y": 3}},
+                    },
+                }
+            },
+            "result": True,
+        }
     }
 
 

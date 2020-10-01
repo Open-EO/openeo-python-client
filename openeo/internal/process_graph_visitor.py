@@ -1,5 +1,7 @@
 from abc import ABC
 
+from deprecated import deprecated
+
 
 class ProcessGraphVisitor(ABC):
     """
@@ -38,8 +40,13 @@ class ProcessGraphVisitor(ABC):
                 result_node = node
             arguments = node_dict.get("arguments", {})
             for arg in arguments.values():
-                if isinstance(arg, dict) and "from_node" in arg:
-                    arg["node"] = resolve_from_node(process_graph, node, arg["from_node"])
+                if isinstance(arg, dict):
+                    if "from_node" in arg:
+                        arg["node"] = resolve_from_node(process_graph, node, arg["from_node"])
+                    else:
+                        for k, v in arg.items():
+                            if isinstance(v, dict) and "from_node" in v:
+                                v["node"] = resolve_from_node(process_graph, node, v["from_node"])
                 elif isinstance(arg, list):
                     for i, element in enumerate(arg):
                         if isinstance(element, dict) and "from_node" in element:
@@ -58,9 +65,10 @@ class ProcessGraphVisitor(ABC):
         """
         # TODO: this is driver specific functionality, working on flattened graph structures. Make this more clear?
         top_level_node = self.dereference_from_node_arguments(graph)
-        self.accept(graph[top_level_node])
+        self.accept_node(graph[top_level_node])
         return self
 
+    @deprecated(reason="Use accept_node() instead")
     def accept(self, node: dict):
         self.accept_node(node)
 
