@@ -228,7 +228,7 @@ class Connection(RestApiConnection):
                 m=self._MINIMUM_API_VERSION, v=self._api_version)
             )
 
-        self._auth_config = auth_config or AuthConfig()
+        self._auth_config = auth_config
         self._refresh_token_store = refresh_token_store or RefreshTokenStore()
 
     @classmethod
@@ -253,6 +253,11 @@ class Connection(RestApiConnection):
             # Be very lenient about failing on the well-known URI strategy.
             return url
 
+    def _get_auth_config(self) -> AuthConfig:
+        if self._auth_config is None:
+            self._auth_config = AuthConfig()
+        return self._auth_config
+
     def authenticate_basic(self, username: str = None, password: str = None) -> 'Connection':
         """
         Authenticate a user to the backend using basic username and password.
@@ -261,7 +266,7 @@ class Connection(RestApiConnection):
         :param password: User passphrase
         """
         if username is None:
-            username, password = self._auth_config.get_basic_auth(backend=self._orig_url)
+            username, password = self._get_auth_config().get_basic_auth(backend=self._orig_url)
             if username is None:
                 raise OpenEoClientException("No username/password given or found.")
 
@@ -353,7 +358,7 @@ class Connection(RestApiConnection):
         provider_id, provider = self._get_oidc_provider(provider_id)
 
         if client_id is None:
-            client_id, client_secret = self._auth_config.get_oidc_client_configs(
+            client_id, client_secret = self._get_auth_config().get_oidc_client_configs(
                 backend=self._orig_url, provider_id=provider_id
             )
             _log.info("Using client_id {c!r} from config (provider {p!r})".format(c=client_id, p=provider_id))

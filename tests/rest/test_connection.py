@@ -258,6 +258,28 @@ def test_api_error_non_json(requests_mock):
     assert exc.url is None
 
 
+def test_create_connection_lazy_auth_config(requests_mock, api_version):
+    user, pwd = "john262", "J0hndo3"
+    requests_mock.get(API_URL, json={"api_version": api_version})
+
+    def text_callback(request, context):
+        assert request.headers["Authorization"] == requests.auth._basic_auth_str(username=user, password=pwd)
+        return '{"access_token":"w3lc0m3"}'
+
+    requests_mock.get(API_URL + 'credentials/basic', text=text_callback)
+
+    with mock.patch('openeo.rest.connection.AuthConfig') as AuthConfig:
+        # Don't create default AuthConfig when not necessary
+        conn = Connection(API_URL)
+        AuthConfig.assert_not_called()
+        conn.authenticate_basic(user, pwd)
+        AuthConfig.assert_not_called()
+        # call `authenticate_basic` so that fallback AuthConfig is created/used
+        AuthConfig.return_value.get_basic_auth.return_value = (user, pwd)
+        conn.authenticate_basic()
+        AuthConfig.assert_called()
+
+
 def test_authenticate_basic(requests_mock, api_version):
     user, pwd = "john262", "J0hndo3"
     requests_mock.get(API_URL, json={"api_version": api_version})
