@@ -100,6 +100,20 @@ class RESTJob(Job):
         """
         return self.get_result().download_files(target)
 
+    def download_profile(self, target: Union[str, Path] = None) -> Path:
+        """
+        Downloads the profiling results if exists 
+        
+        Fails if file does not exist.
+        
+        :param target: String or path where the file should be downloaded to.
+        """
+        
+        try:
+            self.get_result().download_file(target,'profile_dumps.tar.gz')
+        except OpenEoClientException as e:
+            raise OpenEoClientException("Profiler data not found, did you run the job with profiling?") from e
+
     def get_result(self):
         return Result(self)
 
