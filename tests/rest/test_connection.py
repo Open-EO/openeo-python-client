@@ -271,13 +271,15 @@ def test_create_connection_lazy_auth_config(requests_mock, api_version):
     with mock.patch('openeo.rest.connection.AuthConfig') as AuthConfig:
         # Don't create default AuthConfig when not necessary
         conn = Connection(API_URL)
-        AuthConfig.assert_not_called()
+        assert AuthConfig.call_count == 0
         conn.authenticate_basic(user, pwd)
-        AuthConfig.assert_not_called()
-        # call `authenticate_basic` so that fallback AuthConfig is created/used
+        assert AuthConfig.call_count == 0
+        # call `authenticate_basic` so that fallback AuthConfig is created/used lazily
         AuthConfig.return_value.get_basic_auth.return_value = (user, pwd)
         conn.authenticate_basic()
-        AuthConfig.assert_called()
+        assert AuthConfig.call_count == 1
+        conn.authenticate_basic()
+        assert AuthConfig.call_count == 1
 
 
 def test_authenticate_basic(requests_mock, api_version):
