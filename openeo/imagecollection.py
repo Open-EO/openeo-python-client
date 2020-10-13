@@ -226,7 +226,7 @@ class ImageCollection(ABC):
         """
         pass
 
-    def aggregate_temporal(self, intervals:List,labels:List, reducer, dimension:str = None) -> 'ImageCollection' :
+    def aggregate_temporal(self, intervals:List[List],reducer,labels:List = None, dimension:str = None,context:Dict=None) -> 'ImageCollection' :
         """ Computes a temporal aggregation based on an array of date and/or time intervals.
 
             Calendar hierarchies such as year, month, week etc. must be transformed into specific intervals by the clients. For each interval, all data along the dimension will be passed through the reducer. The computed values will be projected to the labels, so the number of labels and the number of intervals need to be equal.

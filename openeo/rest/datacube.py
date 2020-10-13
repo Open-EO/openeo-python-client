@@ -788,6 +788,33 @@ class DataCube(ImageCollection):
         """
         return self.reduce_temporal_simple("count")
 
+    def aggregate_temporal(self, intervals:List[List],reducer: Union[str, PGNode, typing.Callable],labels:List = None, dimension:str = None, context:Dict=None) -> 'DataCube' :
+        """ Computes a temporal aggregation based on an array of date and/or time intervals.
+
+            Calendar hierarchies such as year, month, week etc. must be transformed into specific intervals by the clients. For each interval, all data along the dimension will be passed through the reducer. The computed values will be projected to the labels, so the number of labels and the number of intervals need to be equal.
+
+            If the dimension is not set, the data cube is expected to only have one temporal dimension.
+
+            :param intervals: Temporal left-closed intervals so that the start time is contained, but not the end time.
+            :param reducer: A reducer to be applied on all values along the specified dimension. The reducer must be a callable process (or a set processes) that accepts an array and computes a single return value of the same type as the input values, for example median.
+            :param labels: Labels for the intervals. The number of labels and the number of groups need to be equal.
+            :param dimension: The temporal dimension for aggregation. All data along the dimension will be passed through the specified reducer. If the dimension is not set, the data cube is expected to only have one temporal dimension.
+            :param context: Additional data to be passed to the reducer. Not set by default.
+
+            :return: An ImageCollection containing  a result for each time window
+        """
+        return self.process(
+            process_id="aggregate_temporal",
+            arguments=dict_no_none(
+                data= THIS,
+                intervals = intervals,
+                labels = labels,
+                dimension = dimension,
+                reducer = self._get_callback(reducer, parent_parameters=["data"])
+
+            )
+        )
+
     def ndvi(self, nir: str = None, red: str = None, target_band: str = None) -> 'DataCube':
         """ Normalized Difference Vegetation Index (NDVI)
 
@@ -1214,7 +1241,8 @@ class DataCube(ImageCollection):
         if datacube is not None:
             # get input
             if isinstance(datacube, str):
-                d=udf_DataCube.from_file(datacube, fmt)
+                from openeo.rest.conversions import datacube_from_file
+                d=datacube_from_file(datacube, fmt)
             elif isinstance(datacube, udf_DataCube):
                 d=datacube
             elif isinstance(datacube, DataArray):
