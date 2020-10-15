@@ -12,8 +12,10 @@ import inspect
 import logging
 import pathlib
 import typing
+from builtins import staticmethod
 from typing import List, Dict, Union, Tuple
 
+import numpy
 import numpy as np
 import shapely.geometry
 import shapely.geometry.base
@@ -29,10 +31,8 @@ from openeo.processes import ProcessBuilder
 from openeo.rest import BandMathException, OperatorException, OpenEoClientException
 from openeo.rest.job import RESTJob
 from openeo.rest.udp import RESTUserDefinedProcess
-from openeo.util import get_temporal_extent, dict_no_none
+from openeo.util import get_temporal_extent, dict_no_none, legacy_alias
 from openeo.vectorcube import VectorCube
-import numpy
-from builtins import staticmethod
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Only import this for type hinting purposes. Runtime import causes circular dependency issues.
@@ -100,8 +100,7 @@ class DataCube(ImageCollection):
             arguments=arguments,
         ), metadata=metadata)
 
-    # Legacy `graph_add_node` method
-    graph_add_node = deprecated(reason="just use `process()`")(process)
+    graph_add_node = legacy_alias(process, "graph_add_node")
 
     def process_with_node(self, pg: PGNode, metadata: CollectionMetadata = None) -> 'DataCube':
         """
@@ -162,10 +161,7 @@ class DataCube(ImageCollection):
             metadata = metadata.filter_bands(bands)
         return cls(graph=pg, connection=connection, metadata=metadata)
 
-    @classmethod
-    @deprecated("use load_collection instead")
-    def create_collection(cls, *args, **kwargs):
-        return cls.load_collection(*args, **kwargs)
+    create_collection = legacy_alias(load_collection, name="create_collection")
 
     @classmethod
     def load_disk_collection(cls, connection: 'openeo.Connection', file_format: str, glob_pattern: str,
@@ -230,9 +226,7 @@ class DataCube(ImageCollection):
             cube.metadata = cube.metadata.filter_bands(bands)
         return cube
 
-    @deprecated("use `filter_bands()` instead")
-    def band_filter(self, bands) -> 'DataCube':
-        return self.filter_bands(bands)
+    band_filter = legacy_alias(filter_bands, "band_filter")
 
     def band(self, band: Union[str, int]) -> 'DataCube':
         """Filter the imagery by the given bands
@@ -682,22 +676,15 @@ class DataCube(ImageCollection):
     def reduce_temporal_udf(self, code: str, runtime="Python", version="latest"):
         """
         Apply reduce (`reduce_dimension`) process with given UDF along temporal dimension.
-        """
-        # TODO EP-3555: unify better with UDF(PGNode) class and avoid doing same UDF code-runtime-version argument stuff in each method
-        return self._reduce_temporal(reducer=self._create_run_udf(code, runtime, version))
-
-    @deprecated("use `reduce_temporal_udf` instead")
-    def reduce_tiles_over_time(self, code: str, runtime="Python", version="latest"):
-        """
-        Applies a user defined function to a timeseries of tiles. The size of the tile is backend specific, and can be limited to one pixel.
-        The function should reduce the given timeseries into a single (multiband) tile.
 
         :param code: The UDF code, compatible with the given runtime and version
         :param runtime: The UDF runtime
         :param version: The UDF runtime version
-        :return:
         """
-        return self.reduce_temporal_udf(code=code, runtime=runtime, version=version)
+        # TODO EP-3555: unify better with UDF(PGNode) class and avoid doing same UDF code-runtime-version argument stuff in each method
+        return self._reduce_temporal(reducer=self._create_run_udf(code, runtime, version))
+
+    reduce_tiles_over_time = legacy_alias(reduce_temporal_udf, name="reduce_tiles_over_time")
 
     def apply_neighborhood(
             self, process: [str, PGNode, typing.Callable],
@@ -999,8 +986,7 @@ class DataCube(ImageCollection):
         # TODO: set metadata of reduced cube?
         return self.process(process_id="merge_cubes", arguments=arguments)
 
-    # Legacy alias
-    merge = merge_cubes
+    merge = legacy_alias(merge_cubes, name="merge")
 
     def apply_kernel(self, kernel: Union[np.ndarray, List[List[float]]], factor=1.0, border = 0, replace_invalid=0) -> 'DataCube':
         """

@@ -10,7 +10,7 @@ from openeo.imagecollection import ImageCollection, CollectionMetadata
 from openeo.internal.graphbuilder_040 import GraphBuilder
 from openeo.rest import BandMathException
 from openeo.rest.job import RESTJob
-from openeo.util import get_temporal_extent
+from openeo.util import get_temporal_extent, legacy_alias
 from shapely.geometry import Polygon, MultiPolygon, mapping
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
@@ -85,10 +85,7 @@ class ImageCollectionClient(ImageCollection):
             metadata = metadata.filter_bands(bands)
         return cls(node_id, builder, session, metadata=metadata)
 
-    @classmethod
-    @deprecated("use load_collection instead")
-    def create_collection(cls, *args, **kwargs):
-        return cls.load_collection(*args, **kwargs)
+    create_collection = legacy_alias(load_collection, "create_collection")
 
     @classmethod
     def load_disk_collection(cls, session: 'Connection', file_format: str, glob_pattern: str, **options) -> 'ImageCollection':
@@ -158,9 +155,7 @@ class ImageCollectionClient(ImageCollection):
             im.metadata = im.metadata.filter_bands(bands)
         return im
 
-    @deprecated("use `filter_bands()` instead")
-    def band_filter(self, bands) -> ImageCollection:
-        return self.filter_bands(bands)
+    band_filter = legacy_alias(filter_bands, "band_filter")
 
     def band(self, band: Union[str, int]) -> 'ImageCollection':
         """Filter the imagery by the given bands
@@ -626,22 +621,13 @@ class ImageCollectionClient(ImageCollection):
             "result": True
         }
 
-    @deprecated("use `reduce_temporal_udf` instead")
-    def reduce_tiles_over_time(self,code: str,runtime="Python",version="latest"):
+    def reduce_temporal_udf(self, code: str, runtime="Python", version="latest"):
         """
-        Applies a user defined function to a timeseries of tiles. The size of the tile is backend specific, and can be limited to one pixel.
-        The function should reduce the given timeseries into a single (multiband) tile.
+        Apply reduce (`reduce_dimension`) process with given UDF along temporal dimension.
 
         :param code: The UDF code, compatible with the given runtime and version
         :param runtime: The UDF runtime
         :param version: The UDF runtime version
-        :return:
-        """
-        return self.reduce_temporal_udf(code=code, runtime=runtime, version=version)
-
-    def reduce_temporal_udf(self, code: str, runtime="Python", version="latest"):
-        """
-        Apply reduce (`reduce_dimension`) process with given UDF along temporal dimension.
         """
         process_id = 'reduce'
         args = {
@@ -657,6 +643,8 @@ class ImageCollectionClient(ImageCollection):
             }
         }
         return self.graph_add_process(process_id, args)
+
+    reduce_tiles_over_time = legacy_alias(reduce_temporal_udf, "reduce_tiles_over_time")
 
     def apply(self, process: str, data_argument='data',arguments={}) -> 'ImageCollection':
         process_id = 'apply'

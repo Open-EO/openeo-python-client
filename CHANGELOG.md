@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 ### Changed
+- Deprecated legacy functions/methods are better documented as such and link to a recommended alternative (EP-3617).
 
 ### Removed
 - Remove support for old, non-standard `stretch_colors` process (Use `linear_scale_range` instead).

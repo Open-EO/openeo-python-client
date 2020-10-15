@@ -9,7 +9,7 @@ from typing import List
 import pytest
 
 from openeo.util import first_not_none, get_temporal_extent, TimingLogger, ensure_list, ensure_dir, dict_no_none, \
-    deep_get, DeepKeyError, get_user_config_dir, get_user_data_dir, Rfc3339, rfc3339, deep_set
+    deep_get, DeepKeyError, get_user_config_dir, get_user_data_dir, Rfc3339, rfc3339, deep_set, legacy_alias
 
 
 def test_rfc3339_date():
@@ -380,3 +380,81 @@ def test_get_user_config_dir():
 
 def test_get_user_data_dir():
     assert get_user_data_dir() == pathlib.Path(__file__).parent / "data/user_dirs/data/openeo-python-client"
+
+
+def test_legacy_alias_function(recwarn):
+    def add(x, y):
+        """Add x and y."""
+        return x + y
+
+    do_plus = legacy_alias(add, "do_plus")
+
+    assert add.__doc__ == "Add x and y."
+    assert do_plus.__doc__ == "Use of this legacy function is deprecated, use :py:func:`.add` instead."
+
+    assert add(2, 3) == 5
+    assert len(recwarn) == 0
+
+    with pytest.warns(DeprecationWarning, match="Call to deprecated function `do_plus`, use `add` instead."):
+        res = do_plus(2, 3)
+    assert res == 5
+
+
+def test_legacy_alias_method(recwarn):
+    class Foo:
+        def add(self, x, y):
+            """Add x and y."""
+            return x + y
+
+        do_plus = legacy_alias(add, "do_plus")
+
+    assert Foo.add.__doc__ == "Add x and y."
+    assert Foo.do_plus.__doc__ == "Use of this legacy method is deprecated, use :py:meth:`.add` instead."
+
+    assert Foo().add(2, 3) == 5
+    assert len(recwarn) == 0
+
+    with pytest.warns(DeprecationWarning, match="Call to deprecated method `do_plus`, use `add` instead."):
+        res = Foo().do_plus(2, 3)
+    assert res == 5
+
+
+def test_legacy_alias_classmethod(recwarn):
+    class Foo:
+        @classmethod
+        def add(cls, x, y):
+            """Add x and y."""
+            assert cls is Foo
+            return x + y
+
+        do_plus = legacy_alias(add, "do_plus")
+
+    assert Foo.add.__doc__ == "Add x and y."
+    assert Foo.do_plus.__doc__ == "Use of this legacy class method is deprecated, use :py:meth:`.add` instead."
+
+    assert Foo().add(2, 3) == 5
+    assert len(recwarn) == 0
+
+    with pytest.warns(DeprecationWarning, match="Call to deprecated class method `do_plus`, use `add` instead."):
+        res = Foo().do_plus(2, 3)
+    assert res == 5
+
+
+def test_legacy_alias_staticmethod(recwarn):
+    class Foo:
+        @staticmethod
+        def add(x, y):
+            """Add x and y."""
+            return x + y
+
+        do_plus = legacy_alias(add, "do_plus")
+
+    assert Foo.add.__doc__ == "Add x and y."
+    assert Foo.do_plus.__doc__ == "Use of this legacy static method is deprecated, use :py:meth:`.add` instead."
+
+    assert Foo().add(2, 3) == 5
+    assert len(recwarn) == 0
+
+    with pytest.warns(DeprecationWarning, match="Call to deprecated static method `do_plus`, use `add` instead."):
+        res = Foo().do_plus(2, 3)
+    assert res == 5
