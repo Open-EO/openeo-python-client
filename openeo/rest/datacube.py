@@ -472,6 +472,7 @@ class DataCube(ImageCollection):
             }
         ))
 
+    @deprecated(reason="use aggregate_spatial instead")
     def zonal_statistics(self, regions, func, scale=1000, interval="day") -> 'DataCube':
         """
         Calculates statistics for each zone specified in a file.

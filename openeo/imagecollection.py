@@ -416,6 +416,7 @@ class ImageCollection(ABC):
 
     ####VIEW methods #######
 
+    @deprecated(reason="use aggregate_spatial instead")
     def zonal_statistics(self, regions, func, scale=1000, interval="day") -> 'ImageCollection':
         """
         Calculates statistics for each zone specified in a file.
