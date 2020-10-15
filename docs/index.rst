@@ -19,6 +19,7 @@ Open-EO Client
    auth
    udf
    api
+   development
 
 Indices and tables
 ==================
