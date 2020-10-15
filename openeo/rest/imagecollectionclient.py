@@ -757,24 +757,6 @@ class ImageCollectionClient(ImageCollection):
     def normalized_difference(self, other: ImageCollection) -> 'ImageCollection':
         return self._reduce_bands_binary("normalized_difference", other)
 
-    @deprecated("use 'linear_scale_range' instead")
-    def stretch_colors(self, min, max) -> 'ImageCollection':
-        """ Color stretching
-        deprecated, use 'linear_scale_range' instead
-
-            :param min: Minimum value
-            :param max: Maximum value
-            :return: An ImageCollection instance
-        """
-        process_id = 'stretch_colors'
-        args = {
-                'data': {'from_node': self.node_id},
-                'min': min,
-                'max': max
-            }
-
-        return self.graph_add_process(process_id, args)
-
     def linear_scale_range(self, input_min, input_max, output_min, output_max) -> 'ImageCollection':
         """ Color stretching
             :param input_min: Minimum input value

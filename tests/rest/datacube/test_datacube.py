@@ -349,17 +349,6 @@ def test_mask_raster(s2cube, connection, api_version):
     }
 
 
-def test_stretch_colors(s2cube):
-    im = s2cube.stretch_colors(-1, 1)
-    graph = _get_leaf_node(im)
-    assert graph["process_id"] == "stretch_colors"
-    assert graph["arguments"] == {
-        'data': {'from_node': 'loadcollection1'},
-        'max': 1,
-        'min': -1,
-    }
-
-
 def test_apply_kernel(s2cube):
     kernel = [[0, 1, 0], [1, 1, 1], [0, 1, 0]]
     im = s2cube.apply_kernel(np.asarray(kernel), 3)

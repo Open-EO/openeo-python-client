@@ -11,13 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 ### Removed
+- Remove support for old, non-standard `stretch_colors` process (Use `linear_scale_range` instead).
 
 ### Fixed
 
 ## 0.4.4 - 2020-08-20
 
 ### Added
-- Added `openeo-auth` command line tool to manage OpenID Connect (and basic auth) related configs (EP-3377/EP-3493)
+- Add `openeo-auth` command line tool to manage OpenID Connect (and basic auth) related configs (EP-3377/EP-3493)
 - Support for using config files for OpenID Connect and basic auth based authentication, instead of hardcoding credentials (EP-3377/EP-3493)
 
 ### Changed

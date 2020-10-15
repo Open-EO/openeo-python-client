@@ -337,16 +337,6 @@ class ImageCollection(ABC):
         """
         pass
 
-    def stretch_colors(self, min, max) -> 'ImageCollection':
-        """ Color stretching
-
-            :param min: Minimum value
-            :param max: Maximum value
-
-            :return: An ImageCollection instance
-        """
-        pass
-
     def filter_bands(self, bands) -> 'ImageCollection':
         """Filters the bands in the data cube so that bands that don't match any of the criteria are dropped from the data cube.
         The data cube is expected to have only one spectral dimension.

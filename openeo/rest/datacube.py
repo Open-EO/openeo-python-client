@@ -879,24 +879,6 @@ class DataCube(ImageCollection):
             metadata=self.metadata.rename_labels(dimension,target,source)
         )
 
-    @deprecated("use 'linear_scale_range' instead")
-    def stretch_colors(self, min, max) -> 'DataCube':
-        """ Color stretching
-        deprecated, use 'linear_scale_range' instead
-
-            :param min: Minimum value
-            :param max: Maximum value
-            :return: a DataCube instance
-        """
-        process_id = 'stretch_colors'
-        args = {
-            'data': THIS,
-            'min': min,
-            'max': max
-        }
-
-        return self.process(process_id, args)
-
     def linear_scale_range(self, input_min, input_max, output_min, output_max) -> 'DataCube':
         """ Color stretching
             :param input_min: Minimum input value
