@@ -55,7 +55,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = 'openeo'
+project = 'openEO'
 copyright = '2017 - {d}, Jeroen Dries'.format(d=datetime.datetime.utcnow().strftime("%Y"))
 author = 'Jeroen Dries'
 
@@ -104,6 +104,10 @@ html_theme_options = {
     'github_repo': 'openeo-python-client',
     'github_banner': True,
     'travis_button': True,
+    'fixed_sidebar': True,
+    'page_width':'600px',
+    'font_family':'Cantarell',
+    'code_font_family':'Liberation Mono'
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,
