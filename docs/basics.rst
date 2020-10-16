@@ -21,10 +21,10 @@ Now we need to connect to a backend::
 
     >>> connection = openeo.connect('https://openeo.vito.be')
 
-Now, we have a :class:`Connection <openeo.Connection>` object called ``connection``. We can
-This object is our entry point to the backend, and allows us to discover its capabilities.
-
-Information about a backend is most easily found on the OpenEO HUB: http://hub.openeo.org/
+Now, we have a :class:`Connection <openeo.Connection>` object called ``connection``.
+This is our entry point to the backend and allows us to discover its capabilities and collections programmatically.
+Use the openEO Hub (http://hub.openeo.org/) to explore a backend
+in a more graphical interactive way.
 
 Band math usually starts from a raster data cube, with multiple spectral bands available.
 The backend used here has a Sentinel-2 collection: TERRASCOPE_S2_TOC_V2
@@ -50,13 +50,13 @@ On this data cube, we can now select the individual bands::
 In this example, we'll compute the enhanced vegetation index (EVI)::
 
     >>> evi_cube = (2.5 * (B08 - B04)) / ((B08 + 6.0 * B04 - 7.5 * B02) + 1.0)
-        evi_cube.download("out.geotiff",format="GeoTIFF")
+        evi_cube.download("out.geotiff", format="GTiff")
 
 
 Some results take a longer time to compute, in that case, the 'download' method used above may result in a timeout.
 To prevent that, it is also possible to use a 'batch' job. An easy way to run a batch job and downloading the result is:
 
-   >>> evi_cube.execute_batch("out.geotiff",out_format="GeoTIFF")
+   >>> evi_cube.execute_batch("out.geotiff", out_format="GTiff")
 
 This method will wait until the result is generated, which may take quite a long time. Use the batch job API if you want to
 manage your jobs directly.
@@ -70,7 +70,7 @@ Once submitted, the client can check the status of the batch job on a regular ba
 
 For basic usage, the recommended approach to batch jobs is to use this all-in-one call:
 
-   >>> evi_cube.execute_batch("out.geotiff",out_format="GeoTIFF")
+   >>> evi_cube.execute_batch("out.geotiff", out_format="GTiff")
 
 This will start your job, wait for it to finish, and download the result. One very important thing to note,
 is that your application may stop unexpectedly before your job finishes (for instance if you machine decides to reboot).

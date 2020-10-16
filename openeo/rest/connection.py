@@ -642,10 +642,6 @@ class Connection(RestApiConnection):
         # Endpoint: POST /validate
         raise NotImplementedError()
 
-    def list_processgraphs(self, process_graph):
-        # Endpoint: GET /process_graphs
-        raise NotImplementedError()
-
     @property
     def _api_version(self) -> ComparableVersion:
         # TODO make this a public property (it's also useful outside the Connection class)

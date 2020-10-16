@@ -459,7 +459,7 @@ class DataCube(ImageCollection):
                                      right_arg_name="y") -> 'DataCube':
         """Merge two cubes with given operator as overlap_resolver."""
         # TODO #123 reuse an existing merge_cubes process graph if it already exists?
-        return self.merge(other, overlap_resolver=PGNode(
+        return self.merge_cubes(other, overlap_resolver=PGNode(
             process_id=operator,
             arguments={
                 left_arg_name: {"from_parameter": "x"},
