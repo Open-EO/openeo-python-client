@@ -23,7 +23,7 @@ tests_require = [
     'requests-mock',
     'xarray==0.12.3',
     'h5netcdf',
-    'openeo-udf',
+    'openeo-udf>=1.0.0rc2',
     'matplotlib',
 ]
 
