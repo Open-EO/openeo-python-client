@@ -1161,7 +1161,7 @@ class DataCube(ImageCollection):
         )
         # relying on RestJOB::start_and_wait called in run_synchronous throws if job is not finished properly
         # TODO: avoid calling private methods from openeo.rest.Result
-        result: Result = job.get_result()
+        result = job.get_result()
         assets = result._get_assets();
         if (len(assets)==1):
             result._download_url(assets.popitem()[1]["href"], pathlib.Path(outputfile))
