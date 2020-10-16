@@ -21,10 +21,10 @@ Now we need to connect to a backend::
 
     >>> connection = openeo.connect('https://openeo.vito.be')
 
-Now, we have a :class:`Connection <openeo.Connection>` object called ``connection``. We can
-This object is our entry point to the backend, and allows us to discover its capabilities.
-
-Information about a backend is most easily found on the OpenEO HUB: http://hub.openeo.org/
+Now, we have a :class:`Connection <openeo.Connection>` object called ``connection``.
+This is our entry point to the backend and allows us to discover its capabilities and collections programmatically.
+Use the openEO Hub (http://hub.openeo.org/) to explore a backend
+in a more graphical interactive way.
 
 Band math usually starts from a raster data cube, with multiple spectral bands available.
 The backend used here has a Sentinel-2 collection: TERRASCOPE_S2_TOC_V2
