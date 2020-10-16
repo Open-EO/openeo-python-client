@@ -33,6 +33,7 @@ from openeo.rest.job import RESTJob
 from openeo.rest.udp import RESTUserDefinedProcess
 from openeo.util import get_temporal_extent, dict_no_none, legacy_alias
 from openeo.vectorcube import VectorCube
+from openeo.rest.result import Result
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Only import this for type hinting purposes. Runtime import causes circular dependency issues.
@@ -1154,11 +1155,25 @@ class DataCube(ImageCollection):
 
         """
         job = self.send_job(out_format, job_options=job_options, **format_options)
-        return job.run_synchronous(
-            # TODO #135 support multi file result sets too
-            outputfile=outputfile,
+        job = job.run_synchronous(
+            outputfile=None,
             print=print, max_poll_interval=max_poll_interval, connection_retry_interval=connection_retry_interval
         )
+        # relying on RestJOB::start_and_wait called in run_synchronous throws if job is not finished properly
+        # TODO: avoid calling private methods from openeo.rest.Result
+        result: Result = job.get_result()
+        assets = result._get_assets();
+        if (len(assets)==1):
+            result._download_url(assets.popitem()[1]["href"], pathlib.Path(outputfile))
+        else:
+            # TODO: find a mechanism that works accross the backends that can reliable choose "primary" result
+            log.warning("FIXME: Multiple result files detected, those will be saved by the name advertised on the server!")
+            for iname,iurl in assets.items():
+                result._download_url(iurl["href"], pathlib.Path(iname))
+                
+        return job;
+        
+        
     def send_job(self, out_format=None, job_options=None, **format_options) -> RESTJob:
         """
         Sends a job to the backend and returns a Job instance. The job will still need to be started and managed explicitly.
