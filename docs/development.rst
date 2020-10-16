@@ -78,16 +78,27 @@ To be as concrete as possible, we will assume that we are about to release versi
     so that a build of final release ``0.4.7``
     is properly uploaded to **VITO artifactory**.
 
-#.  **Build** the distribution archives::
+#.  Obtain a wheel archive of the package:
 
-        python setup.py sdist bdist_wheel
+    -   Path of least surprise: download the built wheel
+        directly from VITO artifactory, e.g.::
 
-    This should create ``dist/openeo-0.4.7-py3-none-any.whl``
-    and ``dist/openeo-0.4.7.tar.gz``
+            curl --fail -O https://artifactory.vgt.vito.be/python-openeo/openeo/0.4.7/openeo-0.4.7-py3-none-any.whl
 
-#.  **Upload** these archives to PyPI::
+        This downloads ``openeo-0.4.7-py3-none-any.whl``
 
-        python -m twine upload dist/openeo-0.4.7*
+    -   Or, if you know what you are doing and you're sure your
+        local checkout is clean without temporary source files
+        all over the place, you can also build it locally::
+
+            python setup.py sdist bdist_wheel
+
+        This should create ``dist/openeo-0.4.7-py3-none-any.whl``
+
+#.  **Upload** this wheel archive to PyPI::
+
+        python -m twine upload openeo-0.4.7-py3-none-any.whl
+
 
 #.  Create a **git version tag** and push it to GitHub::
 
@@ -107,3 +118,22 @@ To be as concrete as possible, we will assume that we are about to release versi
 
     Commit this and push to GitHub.
 
+Verification
+~~~~~~~~~~~~
+
+The new release should now be available/listed at:
+
+- `https://pypi.org/project/openeo/#history <https://pypi.org/project/openeo/#history>`_
+- `https://github.com/Open-EO/openeo-python-client/releases <https://github.com/Open-EO/openeo-python-client/releases>`_
+
+Here is a bash oneliner to verify that the PyPI release works properly::
+
+    (cd /tmp &&\
+        python -m venv tmp-venv-openeo &&\
+        . tmp-venv-openeo/bin/activate &&\
+        pip install openeo==0.4.7 &&\
+        python -c "import openeo;print(openeo);print(openeo.__version__)"\
+    )
+
+It tries to install the package in a temporary virtual env,
+import it and print the package version.
