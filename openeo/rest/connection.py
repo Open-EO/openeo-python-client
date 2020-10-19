@@ -783,9 +783,6 @@ class Connection(RestApiConnection):
             process_graph=process_graph,
             title=title, description=description, plan=plan, budget=budget
         )
-        if additional:
-            # TODO: get rid of this non-standard field? https://github.com/Open-EO/openeo-api/issues/276
-            req["job_options"] = additional
 
         response = self.post("/jobs", json=req, expected_status=201)
 

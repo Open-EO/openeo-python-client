@@ -1172,8 +1172,7 @@ class DataCube(ImageCollection):
                 result._download_url(iurl["href"], pathlib.Path(iname))
                 
         return job;
-        
-        
+
     def send_job(self, out_format=None, job_options=None, **format_options) -> RESTJob:
         """
         Sends a job to the backend and returns a Job instance. The job will still need to be started and managed explicitly.
@@ -1188,7 +1187,8 @@ class DataCube(ImageCollection):
         if out_format:
             # add `save_result` node
             img = img.save_result(format=out_format, options=format_options)
-        return self._connection.create_job(process_graph=img.graph, additional=job_options)
+        job_options = dict() if job_options is None else job_options
+        return self._connection.create_job(process_graph=img.graph, **job_options)
 
     def save_user_defined_process(self, user_defined_process_id: str, public: bool = False) -> RESTUserDefinedProcess:
         """
