@@ -9,6 +9,7 @@ be evaluated by an openEO backend.
 """
 import datetime
 import inspect
+import json
 import logging
 import pathlib
 import typing
@@ -73,6 +74,12 @@ class DataCube(ImageCollection):
     def flatten(self) -> dict:
         """Get the process graph in flattened dict representation"""
         return self._pg.flatten()
+
+    def to_json(self, indent=2, separators=None) -> str:
+        """
+        Get JSON representation of (flattened) process graph.
+        """
+        return json.dumps(self.flatten(), indent=indent, separators=separators)
 
     @property
     def _api_version(self):

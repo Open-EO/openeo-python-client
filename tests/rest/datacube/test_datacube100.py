@@ -3,6 +3,9 @@
 Unit tests specifically for 1.0.0-style DataCube
 
 """
+import sys
+import textwrap
+
 import pytest
 import shapely.geometry
 
@@ -482,3 +485,38 @@ def test_save_result_format(con100, requests_mock):
     cube.save_result(format="GTiff")
     cube.save_result(format="gtIFF")
     cube.save_result(format="pNg")
+
+
+@pytest.mark.skipif(sys.version_info < (3, 6), reason="requires 'insertion ordered' dicts from python3.6 or higher")
+def test_to_json(con100):
+    ndvi = con100.load_collection("S2").ndvi()
+    expected = textwrap.dedent('''\
+        {
+          "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {
+              "id": "S2",
+              "spatial_extent": null,
+              "temporal_extent": null
+            }
+          },
+          "ndvi1": {
+            "process_id": "ndvi",
+            "arguments": {
+              "data": {
+                "from_node": "loadcollection1"
+              }
+            },
+            "result": true
+          }
+        }''')
+    assert ndvi.to_json() == expected
+
+
+@pytest.mark.skipif(sys.version_info < (3, 6), reason="requires 'insertion ordered' dicts from python3.6 or higher")
+def test_to_json_compact(con100):
+    ndvi = con100.load_collection("S2").ndvi()
+    expected = '{"loadcollection1": {"process_id": "load_collection", "arguments": {"id": "S2", "spatial_extent": null, "temporal_extent": null}}, "ndvi1": {"process_id": "ndvi", "arguments": {"data": {"from_node": "loadcollection1"}}, "result": true}}'
+    assert ndvi.to_json(indent=None) == expected
+    expected = '{"loadcollection1":{"process_id":"load_collection","arguments":{"id":"S2","spatial_extent":null,"temporal_extent":null}},"ndvi1":{"process_id":"ndvi","arguments":{"data":{"from_node":"loadcollection1"}},"result":true}}'
+    assert ndvi.to_json(indent=None, separators=(',', ':')) == expected
