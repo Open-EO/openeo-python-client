@@ -10,32 +10,14 @@ class Result:
     def __init__(self, job):
         self.job = job
 
-#     def download_file(self, target: Union[str, Path] = None) -> Path:
-#         filename, metadata = self._get_asset()
-#         url = metadata["href"]
-# 
-#         target = Path(target or Path.cwd())
-#         if target.is_dir():
-#             target = target / filename
-# 
-#         self._download_url(url, target)
-#         return target
-
-    def download_file(self, target: Union[str, Path] = None, source: str = None) -> Path:
-        if source is None:
-            filename, metadata = self._get_asset()
-            url = metadata["href"]
-        else:
-            assets=self._get_assets()
-            if source not in assets:
-                raise OpenEoClientException("Remote file not found: "+source+" is not in "+str(list(assets)))
-            filename=source
-            url = assets[source]["href"]
-
+    def download_file(self, target: Union[str, Path] = None) -> Path:
+        filename, metadata = self._get_asset()
+        url = metadata["href"]
+ 
         target = Path(target or Path.cwd())
         if target.is_dir():
             target = target / filename
-
+ 
         self._download_url(url, target)
         return target
 

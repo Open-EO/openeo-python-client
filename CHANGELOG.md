@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 ### Changed
+- Changed execute_batch to support downloading multiple files (within EP-3359, support profiling)  
 
 ### Removed
 
