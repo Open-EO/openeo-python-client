@@ -30,7 +30,7 @@ from openeo.rest.imagecollectionclient import ImageCollectionClient
 from openeo.rest.job import RESTJob
 from openeo.rest.rest_capabilities import RESTCapabilities
 from openeo.rest.udp import RESTUserDefinedProcess, Parameter
-from openeo.util import ensure_list, legacy_alias
+from openeo.util import ensure_list, legacy_alias, dict_no_none
 
 _log = logging.getLogger(__name__)
 
@@ -781,7 +781,7 @@ class Connection(RestApiConnection):
         # TODO move all this (RESTJob factory) logic to RESTJob?
         req = self._build_request_with_process_graph(
             process_graph=process_graph,
-            title=title, description=description, plan=plan, budget=budget
+            **dict_no_none(title=title, description=description, plan=plan, budget=budget)
         )
         if additional:
             # TODO: get rid of this non-standard field? https://github.com/Open-EO/openeo-api/issues/276

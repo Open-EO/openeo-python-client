@@ -1018,7 +1018,10 @@ class ImageCollectionClient(ImageCollection):
             print=print, max_poll_interval=max_poll_interval, connection_retry_interval=connection_retry_interval
         )
 
-    def send_job(self, out_format=None, job_options=None, **format_options) -> RESTJob:
+    def send_job(
+            self, out_format=None, title: str = None, description: str = None, plan: str = None, budget=None,
+            job_options=None, **format_options
+    ) -> RESTJob:
         """
         Sends a job to the backend and returns a Job instance. The job will still need to be started and managed explicitly.
         The :func:`~openeo.imagecollection.ImageCollection.execute_batch` method allows you to run batch jobs without managing it.
@@ -1033,7 +1036,10 @@ class ImageCollectionClient(ImageCollection):
             # add `save_result` node
             img = img.save_result(format=out_format, options=format_options)
         img.graph[img.node_id]["result"] = True
-        return self.session.create_job(process_graph=img.graph, additional=job_options)
+        return self.session.create_job(
+            process_graph=img.graph,
+            title=title, description=description, plan=plan, budget=budget, additional=job_options
+        )
 
     def execute(self) -> Dict:
         """Executes the process graph of the imagery. """

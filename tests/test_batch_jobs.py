@@ -32,5 +32,5 @@ class TestBatchJobs(TestCase):
 
         session = openeo.connect("http://localhost:8000/api")
         s2_radio = session.imagecollection("SENTINEL2_RADIOMETRY_10M")
-        job = s2_radio.send_job(out_format="GTIFF")
+        job = s2_radio.send_job(out_format="GTIFF", title="my job", description="just testing")
         assert job.job_id == "my-identifier"
