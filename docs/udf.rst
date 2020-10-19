@@ -70,7 +70,12 @@ Example: downloading a datacube and executing an UDF locally
 
 Sometimes it is advantageous to run a UDF on the client machine (for example when developing/testing that UDF). 
 This is possible by using the convenience function :func:`~openeo.rest.datacube.DataCube.execute_local_udf`.
-For example running the .. include:: ../examples/udf/smooth_savitzky_golay.py locally, one has to:
+For example running this UDF:
+
+.. include:: ../examples/udf/smooth_savitzky_golay.py
+
+locally, one has to:
+
 * Run the process and download the result in 'NetCDF' or 'JSON' format.
 * Run execute_local_udf on the file.
 

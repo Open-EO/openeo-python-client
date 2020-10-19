@@ -9,6 +9,7 @@ be evaluated by an openEO backend.
 """
 import datetime
 import inspect
+import json
 import logging
 import pathlib
 import typing
@@ -73,6 +74,12 @@ class DataCube(ImageCollection):
     def flatten(self) -> dict:
         """Get the process graph in flattened dict representation"""
         return self._pg.flatten()
+
+    def to_json(self, indent=2, separators=None) -> str:
+        """
+        Get JSON representation of (flattened) process graph.
+        """
+        return json.dumps(self.flatten(), indent=indent, separators=separators)
 
     @property
     def _api_version(self):
@@ -459,7 +466,7 @@ class DataCube(ImageCollection):
                                      right_arg_name="y") -> 'DataCube':
         """Merge two cubes with given operator as overlap_resolver."""
         # TODO #123 reuse an existing merge_cubes process graph if it already exists?
-        return self.merge(other, overlap_resolver=PGNode(
+        return self.merge_cubes(other, overlap_resolver=PGNode(
             process_id=operator,
             arguments={
                 left_arg_name: {"from_parameter": "x"},
@@ -1161,7 +1168,7 @@ class DataCube(ImageCollection):
         )
         # relying on RestJOB::start_and_wait called in run_synchronous throws if job is not finished properly
         # TODO: avoid calling private methods from openeo.rest.Result
-        result: Result = job.get_result()
+        result = job.get_result()
         assets = result._get_assets();
         if (len(assets)==1):
             result._download_url(assets.popitem()[1]["href"], pathlib.Path(outputfile))
@@ -1171,10 +1178,12 @@ class DataCube(ImageCollection):
             for iname,iurl in assets.items():
                 result._download_url(iurl["href"], pathlib.Path(iname))
                 
-        return job;
-        
-        
-    def send_job(self, out_format=None, job_options=None, **format_options) -> RESTJob:
+        return job
+
+    def send_job(
+            self, out_format=None, title: str = None, description: str = None, plan: str = None, budget=None,
+            job_options=None, **format_options
+    ) -> RESTJob:
         """
         Sends a job to the backend and returns a Job instance. The job will still need to be started and managed explicitly.
         The :func:`~openeo.imagecollection.ImageCollection.execute_batch` method allows you to run batch jobs without managing it.
@@ -1188,7 +1197,10 @@ class DataCube(ImageCollection):
         if out_format:
             # add `save_result` node
             img = img.save_result(format=out_format, options=format_options)
-        return self._connection.create_job(process_graph=img.graph, additional=job_options)
+        return self._connection.create_job(
+            process_graph=img.graph,
+            title=title, description=description, plan=plan, budget=budget, additional=job_options
+        )
 
     def save_user_defined_process(self, user_defined_process_id: str, public: bool = False) -> RESTUserDefinedProcess:
         """

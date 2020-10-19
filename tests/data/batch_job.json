@@ -21,8 +21,6 @@
       "result": true
     }
   },
-  "title": null,
-  "description": null,
-  "plan": null,
-  "budget": null
+  "title": "my job",
+  "description": "just testing"
 }
