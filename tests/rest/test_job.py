@@ -129,13 +129,12 @@ def test_create_job_100(con100, requests_mock):
     def check_request(request):
         assert request.json() == {
             "process": {"process_graph": {"foo1": {"process_id": "foo"}}},
-            "title": "Foo", 'description': None,
-            'budget': None, 'plan': None,
+            "title": "Foo", "description": "just testing"
         }
         return True
 
     requests_mock.post(API_URL + "/jobs", status_code=201, headers={"OpenEO-Identifier": "f00ba5"}, additional_matcher=check_request)
-    con100.create_job({"foo1": {"process_id": "foo"}}, title="Foo")
+    con100.create_job({"foo1": {"process_id": "foo"}}, title="Foo", description="just testing")
 
 
 def test_download_result_040(session040, requests_mock, tmp_path):

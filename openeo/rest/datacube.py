@@ -1171,10 +1171,12 @@ class DataCube(ImageCollection):
             for iname,iurl in assets.items():
                 result._download_url(iurl["href"], pathlib.Path(iname))
                 
-        return job;
-        
-        
-    def send_job(self, out_format=None, job_options=None, **format_options) -> RESTJob:
+        return job
+
+    def send_job(
+            self, out_format=None, title: str = None, description: str = None, plan: str = None, budget=None,
+            job_options=None, **format_options
+    ) -> RESTJob:
         """
         Sends a job to the backend and returns a Job instance. The job will still need to be started and managed explicitly.
         The :func:`~openeo.imagecollection.ImageCollection.execute_batch` method allows you to run batch jobs without managing it.
@@ -1188,7 +1190,10 @@ class DataCube(ImageCollection):
         if out_format:
             # add `save_result` node
             img = img.save_result(format=out_format, options=format_options)
-        return self._connection.create_job(process_graph=img.graph, additional=job_options)
+        return self._connection.create_job(
+            process_graph=img.graph,
+            title=title, description=description, plan=plan, budget=budget, additional=job_options
+        )
 
     def save_user_defined_process(self, user_defined_process_id: str, public: bool = False) -> RESTUserDefinedProcess:
         """
