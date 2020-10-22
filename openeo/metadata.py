@@ -150,7 +150,6 @@ class BandDimension(Dimension):
         return BandDimension(self.name,new_bands)
 
 
-
 class CollectionMetadata:
     """
     Wrapper for Image Collection metadata.

@@ -492,8 +492,10 @@ def test_metadata_subclass():
             super().__init__(metadata=metadata, dimensions=dimensions)
             self.bbox = bbox
 
-        def _clone_and_update(self, metadata: dict = None, dimensions: List[Dimension] = None, bbox=None):
-            return super()._clone_and_update(metadata=metadata, dimensions=dimensions, bbox=bbox or self.bbox)
+        def _clone_and_update(
+                self, metadata: dict = None, dimensions: List[Dimension] = None, bbox=None, **kwargs
+        ) -> 'MyCollectionMetadata':
+            return super()._clone_and_update(metadata=metadata, dimensions=dimensions, bbox=bbox or self.bbox, **kwargs)
 
         def filter_bbox(self, bbox):
             return self._clone_and_update(bbox=bbox)
