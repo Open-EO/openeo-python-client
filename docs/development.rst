@@ -87,7 +87,8 @@ To be as concrete as possible, we will assume that we are about to release versi
         ### Fixed
 
 
-#.  **Commit** these changes in git and **push** to GitHub
+#.  **Commit** these changes in git with a commit message like ``Release 0.4.7``
+    and **push** to GitHub
 #.  Wait for **Jenkins** to build this updated master
     (trigger it manually if necessary),
     so that a build of final release ``0.4.7``
