@@ -69,8 +69,23 @@ To be as concrete as possible, we will assume that we are about to release versi
     so that it just a "final" semantic versioning string, e.g. ``0.4.7``
 
 #.  **Update CHANGELOG.md**: rename the "Unreleased" section title
-    to contain version and date, e.g. ``## [0.4.7] - 2020-12-15``
-    and start a new "Unreleased" section above it.
+    to contain version and date, e.g.::
+
+        ## [0.4.7] - 2020-12-15
+
+    remove empty subsections
+    and start a new "Unreleased" section above it, like::
+
+        ## [Unreleased / Draft]
+
+        ### Added
+
+        ### Changed
+
+        ### Removed
+
+        ### Fixed
+
 
 #.  **Commit** these changes in git and **push** to GitHub
 #.  Wait for **Jenkins** to build this updated master

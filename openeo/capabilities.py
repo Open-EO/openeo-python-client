@@ -60,9 +60,9 @@ class ComparableVersion:
         >>> v > "2.0"
         False
 
-    To express a threshold condition you sometimes want the reference value on
-    the left hand side or right hand side. There are two groups of methods
-    to handle each case:
+    To express a threshold condition you sometimes want the reference or threshold value on
+    the left hand side or right hand side of the logical expression.
+    There are two groups of methods to handle each case:
 
     - right hand side referencing methods. These read more intuitively. For example:
 
