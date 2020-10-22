@@ -3,6 +3,31 @@ Development and maintenance
 ###########################
 
 
+For development on the ``openeo`` package itself,
+it is recommended to install a local git checkout of the project
+in development mode (``-e``)
+with additional development related dependencies (``[dev]``)
+like this::
+
+    pip install -e .[dev]
+
+
+Building the documentation
+==========================
+
+Building the documentation requires `Sphinx <https://www.sphinx-doc.org/en/master/>`_
+and some plugins
+(which are installed automatically as part of the ``[dev]`` install).
+
+To building the documentation locally as HTML::
+
+    python setup.py build_sphinx -c docs
+
+or as LaTeX documents::
+
+    python setup.py build_sphinx -c docs -b latex
+
+
 
 Creating a release
 ==================

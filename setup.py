@@ -62,9 +62,11 @@ setup(name=name,
           "console_scripts": ["openeo-auth=openeo.rest.auth.cli:main"],
       },
       classifiers=[
-        "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: Apache Software License",
-        "Development Status :: 5 - Production/Stable",
-        "Operating System :: OS Independent",
+          "Programming Language :: Python :: 3.6",
+          "Programming Language :: Python :: 3.7",
+          "Programming Language :: Python :: 3.8",
+          "License :: OSI Approved :: Apache Software License",
+          "Development Status :: 5 - Production/Stable",
+          "Operating System :: OS Independent",
       ]
       )
