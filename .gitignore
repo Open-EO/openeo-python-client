@@ -111,3 +111,6 @@ temp/
 Temp/
 /.project
 /.pydevproject
+
+# Locally built/downloaded wheels
+openeo-*.whl

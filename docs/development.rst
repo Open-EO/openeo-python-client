@@ -123,8 +123,10 @@ To be as concrete as possible, we will assume that we are about to release versi
 
 #.  Create a **release in GitHub**:
     Go to `https://github.com/Open-EO/openeo-python-client/releases/new <https://github.com/Open-EO/openeo-python-client/releases/new>`_,
-    Enter ``v0.4.7`` under "tag", use it also as title,
-    optionally describe the release a bit and publish it
+    Enter ``v0.4.7`` under "tag",
+    enter title: ``openEO Python Client v0.4.7``,
+    use the corresponding ``CHANGELOG.md`` section as description
+    and publish it
     (no need to attach binaries).
 
 #.  **Bump version** in ``openeo/_version.py``,
@@ -132,7 +134,8 @@ To be as concrete as possible, we will assume that we are about to release versi
 
         __version__ = '0.4.8a1'
 
-    Commit this and push to GitHub.
+    Commit this (e.g. with message ``_version.py: next alpha version 0.4.8a1``)
+    and push to GitHub.
 
 Verification
 ~~~~~~~~~~~~
