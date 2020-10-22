@@ -25,11 +25,10 @@ Prerequisites
     the `openeo-python-client project on GitHub <https://github.com/Open-EO/openeo-python-client>`_.
 -   You have permissions to upload releases to the
     `openeo project on pypi.org <https://pypi.org/project/openeo/>`_
--   The Python virtual environment you work in has the latests versions
-    of the ``setuptools``, ``wheel`` and ``twine`` packages installed
-    (as describe in the `packaging tutorial <https://packaging.python.org/tutorials/packaging-projects/#generating-distribution-archives>`_)::
-
-        pip install --upgrade setuptools wheel twine
+-   The Python virtual environment you work in has the latest versions
+    of the ``twine`` package installed.
+    If you plan to build the wheel yourself (instead of letting Jenkins do this),
+    you also need recent enough versions of the ``setuptools`` and ``wheel`` packages.
 
 Important files
 ---------------
@@ -48,8 +47,9 @@ Important files
 
         __version__ = '0.4.7a1'
 
-    This pre-release suffix should only be removed during the release procedure
-    (and restored when bumping the version after the release procedure).
+    As discussed below, this pre-release suffix should
+    only be removed during the release procedure
+    and restored when bumping the version after the release procedure.
 
 ``CHANGELOG.md``
     keeps track of important changes associated with each release.
@@ -76,7 +76,7 @@ To be as concrete as possible, we will assume that we are about to release versi
     remove empty subsections
     and start a new "Unreleased" section above it, like::
 
-        ## [Unreleased / Draft]
+        ## [Unreleased]
 
         ### Added
 
