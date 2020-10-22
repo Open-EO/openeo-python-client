@@ -484,3 +484,34 @@ def test_metadata_add_temporal_dimension():
     assert new.dimension_names() == ["x", "date"]
     assert new.temporal_dimension.name == "date"
     assert new.temporal_dimension.extent == ["2020-05-15", "2020-05-15"]
+
+
+def test_metadata_subclass():
+    class MyCollectionMetadata(CollectionMetadata):
+        def __init__(self, metadata: dict, dimensions: List[Dimension] = None, bbox=None):
+            super().__init__(metadata=metadata, dimensions=dimensions)
+            self.bbox = bbox
+
+        def _clone_and_update(self, metadata: dict = None, dimensions: List[Dimension] = None, bbox=None):
+            return super()._clone_and_update(metadata=metadata, dimensions=dimensions, bbox=bbox or self.bbox)
+
+        def filter_bbox(self, bbox):
+            return self._clone_and_update(bbox=bbox)
+
+    orig = MyCollectionMetadata({"cube:dimensions": {"x": {"type": "spatial"}}})
+    assert orig.bbox is None
+
+    new = orig.add_dimension(name="layer", label="red", type="bands")
+    assert isinstance(new, MyCollectionMetadata)
+    assert orig.bbox is None
+    assert new.bbox is None
+
+    new = new.filter_bbox((1, 2, 3, 4))
+    assert isinstance(new, MyCollectionMetadata)
+    assert orig.bbox is None
+    assert new.bbox == (1, 2, 3, 4)
+
+    new = new.add_dimension(name="time", label="2020", type="time")
+    assert isinstance(new, MyCollectionMetadata)
+    assert orig.bbox is None
+    assert new.bbox == (1, 2, 3, 4)

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add support for `title`/`description`/`plan`/`budget` in `DataCube.send_job` ([#157](https://github.com/Open-EO/openeo-python-client/pull/157) / [#158](https://github.com/Open-EO/openeo-python-client/pull/158))
 - Add `DataCube.to_json()` to easily get JSON representation of a DataCube
+- Allow to subclass CollectionMetadata and preserve original type when "cloning"
 
 ### Changed
 - Changed execute_batch to support downloading multiple files (within EP-3359, support profiling)  

@@ -29,7 +29,7 @@ class Dimension:
         """Create new dimension with new name."""
         return Dimension(type=self.type, name=name)
 
-    def rename_labels(self,target,source) -> 'Dimension':
+    def rename_labels(self, target, source) -> 'Dimension':
         """
         Rename labels, if the type of dimension allows it.
 
@@ -178,6 +178,11 @@ class CollectionMetadata:
             if dim.type == "temporal":
                 self._temporal_dimension = dim
 
+    def _clone_and_update(self, metadata: dict = None, dimensions: List[Dimension] = None, **kwargs) -> 'CollectionMetadata':
+        """Create a new instance (of same class) with copied/updated fields."""
+        cls = type(self)
+        return cls(metadata=metadata or self._orig_metadata, dimensions=dimensions or self._dimensions, **kwargs)
+
     @classmethod
     def _parse_dimensions(cls, spec: dict, complain: Callable[[str], None] = warnings.warn) -> List[Dimension]:
         """
@@ -318,28 +323,22 @@ class CollectionMetadata:
         :return:
         """
         assert self.band_dimension
-        return CollectionMetadata(
-            metadata=self._orig_metadata,
-            dimensions=[
-                d.filter_bands(band_names) if isinstance(d, BandDimension) else d
-                for d in self._dimensions
-            ]
-        )
+        return self._clone_and_update(dimensions=[
+            d.filter_bands(band_names) if isinstance(d, BandDimension) else d
+            for d in self._dimensions
+        ])
 
     def append_band(self, band: Band) -> 'CollectionMetadata':
         """
         Create new `CollectionMetadata` with given band added to band dimension.
         """
         assert self.band_dimension
-        return CollectionMetadata(
-            metadata=self._orig_metadata,
-            dimensions=[
-                d.append_band(band) if isinstance(d, BandDimension) else d
-                for d in self._dimensions
-            ]
-        )
+        return self._clone_and_update(dimensions=[
+            d.append_band(band) if isinstance(d, BandDimension) else d
+            for d in self._dimensions
+        ])
 
-    def rename_labels(self, dimension: str, target: list, source: list=None) -> 'CollectionMetadata':
+    def rename_labels(self, dimension: str, target: list, source: list = None) -> 'CollectionMetadata':
         """
         Renames the labels of the specified dimension from source to target.
 
@@ -352,9 +351,9 @@ class CollectionMetadata:
         self.assert_valid_dimension(dimension)
         loc = self.dimension_names().index(dimension)
         new_dimensions = self._dimensions.copy()
-        new_dimensions[loc] = new_dimensions[loc].rename_labels(target,source)
+        new_dimensions[loc] = new_dimensions[loc].rename_labels(target, source)
 
-        return CollectionMetadata(metadata=self._orig_metadata, dimensions=new_dimensions)
+        return self._clone_and_update(dimensions=new_dimensions)
 
     def rename_dimension(self, source: str, target: str) -> 'CollectionMetadata':
         """
@@ -365,7 +364,7 @@ class CollectionMetadata:
         new_dimensions = self._dimensions.copy()
         new_dimensions[loc] = new_dimensions[loc].rename(target)
 
-        return CollectionMetadata(metadata=self._orig_metadata, dimensions=new_dimensions)
+        return self._clone_and_update(dimensions=new_dimensions)
 
     def reduce_dimension(self, dimension_name: str) -> 'CollectionMetadata':
         """Create new metadata object by collapsing/reducing a dimension."""
@@ -373,7 +372,7 @@ class CollectionMetadata:
         self.assert_valid_dimension(dimension_name)
         loc = self.dimension_names().index(dimension_name)
         dimensions = self._dimensions[:loc] + self._dimensions[loc + 1:]
-        return CollectionMetadata(metadata=self._orig_metadata, dimensions=dimensions)
+        return self._clone_and_update(dimensions=dimensions)
 
     def add_dimension(self, name: str, label: Union[str, float], type: str = None) -> 'CollectionMetadata':
         """Create new metadata object with added dimension"""
@@ -385,4 +384,4 @@ class CollectionMetadata:
             dim = TemporalDimension(name=name, extent=[label, label])
         else:
             dim = Dimension(type=type or "other", name=name)
-        return CollectionMetadata(metadata=self._orig_metadata, dimensions=self._dimensions + [dim])
+        return self._clone_and_update(dimensions=self._dimensions + [dim])
