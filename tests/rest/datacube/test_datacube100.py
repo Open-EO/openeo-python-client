@@ -330,7 +330,7 @@ def test_apply_neighborhood_udf(con100):
                             'result': True}
 
 
-def test_filter_spatial_callbak(con100):
+def test_filter_spatial_callback(con100):
     """
     Experiment test showing how to introduce a callback for preprocessing process arguments
     https://github.com/Open-EO/openeo-processes/issues/156

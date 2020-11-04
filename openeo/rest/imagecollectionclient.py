@@ -966,12 +966,6 @@ class ImageCollectionClient(ImageCollection):
             return graph_add_aggregate_process(with_read_vector)
         else:
             polygons = mapping(polygon)
-            polygons['crs'] = {
-                'type': 'name',
-                'properties': {
-                    'name': 'EPSG:4326'
-                }
-            }
             return graph_add_aggregate_process(self)
 
     def save_result(self, format: str = "GTIFF", options: dict = None):

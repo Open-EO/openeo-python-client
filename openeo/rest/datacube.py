@@ -474,6 +474,36 @@ class DataCube(ImageCollection):
             }
         ))
 
+    def aggregate_spatial(
+            self,
+            geometries: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path],
+            reducer: Union[str, PGNode, typing.Callable]
+    ) -> 'DataCube':
+        """
+        Aggregates statistics for one or more geometries (e.g. zonal statistics for polygons)
+        over the spatial dimensions.
+
+        :param geometries: shapely geometry, GeoJSON dictionary or path to GeoJSON file
+        :param reducer: a callback function that creates a process graph, see :ref:`callbackfunctions`
+        :return:
+        """
+        # TODO #125 arguments: target dimension, context
+        if isinstance(geometries, (str, pathlib.Path)):
+            # polygon is a path to vector file
+            # TODO this is non-standard process: check capabilities? #104 #40. Load polygon client side otherwise
+            geometries = PGNode(process_id="read_vector", arguments={"filename": str(geometries)})
+        elif isinstance(geometries, shapely.geometry.base.BaseGeometry):
+            geometries = mapping(geometries)
+        elif isinstance(geometries, dict) and geometries["type"] in (
+                # TODO: support more geometry types?
+                "Polygon", "MultiPolygon", "GeometryCollection"
+        ):
+            pass
+        else:
+            raise OpenEoClientException("Invalid `geometries`: {g!r}".format(g=geometries))
+        reducer = self._get_callback(reducer, parent_parameters=["data"])
+        return self.process(process_id="aggregate_spatial", data=THIS, geometries=geometries, reducer=reducer)
+
     @deprecated(reason="use aggregate_spatial instead")
     def zonal_statistics(self, regions, func, scale=1000, interval="day") -> 'DataCube':
         """
@@ -1091,28 +1121,7 @@ class DataCube(ImageCollection):
     def _polygonal_timeseries(
             self, polygon: Union[Polygon, MultiPolygon, str], func: Union[str, PGNode, typing.Callable]
     ) -> 'DataCube':
-        if isinstance(polygon, str):
-            # polygon is a path to vector file
-            # TODO this is non-standard process: check capabilities? #104 #40
-            geometries = PGNode(process_id="read_vector", arguments={"filename": polygon})
-        else:
-            geometries = shapely.geometry.mapping(polygon)
-            geometries['crs'] = {
-                'type': 'name',  # TODO: name?
-                'properties': {
-                    'name': 'EPSG:4326'
-                }
-            }
-
-        return self.process(
-            process_id="aggregate_spatial",
-            arguments={
-                "data": self._pg,
-                "geometries": geometries,
-                "reducer": self._get_callback(func, parent_parameters=["data"])
-                # TODO #125 target dimension, context
-            }
-        )
+        return self.aggregate_spatial(geometries=polygon, reducer=func)
 
     def save_result(self, format: str = "GTiff", options: dict = None):
         formats = set(self._connection.list_output_formats().keys())
