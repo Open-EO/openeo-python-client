@@ -110,10 +110,15 @@ class ProcessGraphVisitor(ABC):
             self.accept_node(value['from_node'])
         elif "process_id" in value:
             self.accept_node(value)
+        elif "from_parameter" in value:
+            self.from_parameter(value['from_parameter'])
         else:
             self._accept_dict(value)
 
     def _accept_dict(self, value: dict):
+        pass
+
+    def from_parameter(self,parameter_id:str):
         pass
 
     def enterProcess(self, process_id: str, arguments: dict):
