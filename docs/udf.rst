@@ -103,8 +103,9 @@ There's a predefined set of function signatures that you have to use to implemen
  :members:
 
 
+-----------------------------
 Profile a process server-side
-=============================
+-----------------------------
 
 .. warning::
     Experimental feature - This feature only works on backends running the Geotrellis implementation, and has not yet been
