@@ -1123,6 +1123,21 @@ class DataCube(ImageCollection):
     ) -> 'DataCube':
         return self.aggregate_spatial(geometries=polygon, reducer=func)
 
+    def atmospheric_correction(self,method=None):
+        """
+        EXPERIMENTAL
+        Applies an atmospheric correction that converts top of atmosphere reflectance values into bottom of atmosphere/top of canopy reflectance values.
+
+        Note that multiple atmospheric methods exist, but may not be supported by all backends. The method parameter gives
+        you the option of requiring a specific method, but this may result in an error if the backend does not support it.
+
+        @return: datacube with bottom of atmosphere reflectances
+        """
+        return self.process('atmospheric_correction', {
+            'data': THIS,
+            'method': method
+        })
+
     def save_result(self, format: str = "GTiff", options: dict = None):
         formats = set(self._connection.list_output_formats().keys())
         if format.lower() not in {f.lower() for f in formats}:
