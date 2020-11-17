@@ -69,6 +69,7 @@ class DataCube(ImageCollection):
     @property
     def graph(self) -> dict:
         """Get the process graph in flattened dict representation"""
+        # TODO: deprecate this property and promote flatten/to_json more.
         return self.flatten()
 
     def flatten(self) -> dict:
@@ -1223,7 +1224,7 @@ class DataCube(ImageCollection):
             # add `save_result` node
             img = img.save_result(format=out_format, options=format_options)
         return self._connection.create_job(
-            process_graph=img.graph,
+            process_graph=img.flatten(),
             title=title, description=description, plan=plan, budget=budget, additional=job_options
         )
 
@@ -1237,8 +1238,9 @@ class DataCube(ImageCollection):
         :param description: Detailed description to explain the entity. CommonMark 0.29 syntax MAY be used for rich text representation.
         :return: a RESTUserDefinedProcess instance
         """
-        return self._connection.save_user_defined_process(user_defined_process_id=user_defined_process_id,
-                                                          process_graph=self.graph, public=public, summary=summary, description=description)
+        return self._connection.save_user_defined_process(
+            user_defined_process_id=user_defined_process_id,
+            process_graph=self.flatten(), public=public, summary=summary, description=description)
 
     def execute(self) -> Dict:
         """Executes the process graph of the imagery. """
@@ -1302,7 +1304,7 @@ class DataCube(ImageCollection):
         import pprint
 
         graph = graphviz.Digraph(node_attr={"shape": "none", "fontname": "sans", "fontsize": "11"})
-        for name, process in self.graph.items():
+        for name, process in self.flatten().items():
             args = process.get("arguments", {})
             # Build label
             label = '<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">'

@@ -82,7 +82,8 @@ def execute(
     cube = cube.filter_bbox( **bbox)
     cube = cube.filter_temporal(extent=temporal_extent)
 
-    logger.info("cube.graph: \n%s\n", json.dumps(cube.graph, indent=2))
+    logger.info("cube.to_json: \n%s\n", cube.to_json())
+
 
     logger.info("File Format: %s", band_format)
     logger.info(

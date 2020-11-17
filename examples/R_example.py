@@ -38,19 +38,19 @@ con = openeo.connect(GEE_DRIVER_URL, auth_type=BearerAuth, auth_options={"userna
 
 processes = con.get_processes()
 pg = processes.get_collection(name="sentinel2_subset")
-print(pg.graph)
+print(pg.to_json())
 pg = processes.filter_bbox(pg, west=16.138916, south=-19, east=16.524124, north=-18.9825) #crs="EPSG:4326")
-print(pg.graph)
+print(pg.to_json())
 pg = processes.filter_daterange(pg, extent=["2017-01-01T00:00:00Z", "2017-01-31T23:59:59Z"])
-print(pg.graph)
+print(pg.to_json())
 pg = processes.ndvi(pg, nir="B4", red="B8A")
-print(pg.graph)
+print(pg.to_json())
 pg = processes.min_time(pg)
-print(pg.graph)
+print(pg.to_json())
 
 # Test Job
 
-job = con.create_job(pg.graph)
+job = pg.send_job()
 print(job.job_id)
 print(job.start_job())
 print (job.describe_job())

@@ -1,8 +1,6 @@
 import openeo
-from openeo.internal.graph_building import PGNode
 import logging
-import time
-import json
+
 logging.basicConfig(level=logging.INFO)
 
 GEE_DRIVER_URL = "https://earthengine.openeo.org/v1.0"
@@ -39,7 +37,7 @@ RGB = RG.merge(B_band)
 #
 # datacube = RGB.apply(lin_scale)
 datacube = RGB.save_result(format="GTIFF-THUMB")
-print(json.dumps(datacube.graph, indent=2))
+print(datacube.to_json())
 
 # Send Job to backend
 job = datacube.send_job()

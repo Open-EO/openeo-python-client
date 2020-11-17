@@ -1,5 +1,4 @@
 import openeo
-import json
 
 BACKEND_URL = "https://openeo.eurac.edu"
 
@@ -43,7 +42,7 @@ datacube = datacube.max_time()
 # Provide result as geotiff image
 datacube = datacube.save_result(format="gtiff")
 
-print(json.dumps(datacube.graph, indent=2))
+print(datacube.to_json())
 
 # Submit your process graph as new batch job to back-end
 job = datacube.send_job()

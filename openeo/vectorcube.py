@@ -29,6 +29,7 @@ class VectorCube():
     @property
     def graph(self) -> dict:
         """Get the process graph in flattened dict representation"""
+        # TODO: deprecate this property in favor of flatten/to_json
         return self.flatten()
 
     def flatten(self) -> dict:
@@ -128,4 +129,4 @@ class VectorCube():
         if out_format:
             # add `save_result` node
             shp = shp.save_result(format=out_format, options=format_options)
-        return self._connection.create_job(process_graph=shp.graph, additional=job_options)
+        return self._connection.create_job(process_graph=shp.flatten(), additional=job_options)
