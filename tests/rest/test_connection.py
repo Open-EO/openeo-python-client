@@ -282,6 +282,37 @@ def test_create_connection_lazy_auth_config(requests_mock, api_version):
         assert AuthConfig.call_count == 1
 
 
+def test_create_connection_lazy_refresh_token_store(requests_mock):
+    user, pwd = "john262", "J0hndo3"
+    client_id = "myclient"
+    client_secret = "$3cr3t"
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    issuer = "https://oidc.test"
+    oidc_discovery_url = "https://oidc.test/.well-known/openid-configuration"
+    requests_mock.get(API_URL + 'credentials/oidc', json={
+        "providers": [{"id": "oi", "issuer": issuer, "title": "example", "scopes": ["openid"]}]
+    })
+    oidc_mock = OidcMock(
+        requests_mock=requests_mock,
+        expected_grant_type="client_credentials",
+        expected_client_id=client_id,
+        expected_fields={"client_secret": client_secret},
+        oidc_discovery_url=oidc_discovery_url,
+    )
+
+    with mock.patch('openeo.rest.connection.RefreshTokenStore') as RefreshTokenStore:
+        conn = Connection(API_URL)
+        assert RefreshTokenStore.call_count == 0
+        # Create RefreshTokenStore lazily when necessary
+        conn.authenticate_oidc_client_credentials(
+            client_id=client_id, client_secret=client_secret, store_refresh_token=True
+        )
+        assert RefreshTokenStore.call_count == 1
+        RefreshTokenStore.return_value.set_refresh_token.assert_called_with(
+            issuer=issuer, client_id=client_id, refresh_token=oidc_mock.state["refresh_token"]
+        )
+
+
 def test_authenticate_basic(requests_mock, api_version):
     user, pwd = "john262", "J0hndo3"
     requests_mock.get(API_URL, json={"api_version": api_version})
