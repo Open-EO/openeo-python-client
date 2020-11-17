@@ -7,15 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Add `DataCube.aggregate_spatial()`
 
 ### Changed
-- Get/create default `RefreshTokenStore` lazily in `Connection`
 
 ### Removed
 
 ### Fixed
 
+
+## [0.4.8] - 2020-11-17
+
+### Added
+- Add `DataCube.aggregate_spatial()`
+
+### Changed
+- Get/create default `RefreshTokenStore` lazily in `Connection`
+- Various documentation tweaks
 
 ## [0.4.7] - 2020-10-22
 
