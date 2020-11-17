@@ -229,7 +229,7 @@ class Connection(RestApiConnection):
             )
 
         self._auth_config = auth_config
-        self._refresh_token_store = refresh_token_store or RefreshTokenStore()
+        self._refresh_token_store = refresh_token_store
 
     @classmethod
     def version_discovery(cls, url: str, session: requests.Session = None) -> str:
@@ -257,6 +257,11 @@ class Connection(RestApiConnection):
         if self._auth_config is None:
             self._auth_config = AuthConfig()
         return self._auth_config
+
+    def _get_refresh_token_store(self) -> RefreshTokenStore:
+        if self._refresh_token_store is None:
+            self._refresh_token_store = RefreshTokenStore()
+        return self._refresh_token_store
 
     def authenticate_basic(self, username: str = None, password: str = None) -> 'Connection':
         """
@@ -381,7 +386,7 @@ class Connection(RestApiConnection):
         tokens = authenticator.get_tokens()
         _log.info("Obtained tokens: {t}".format(t=[k for k, v in tokens._asdict().items() if v]))
         if tokens.refresh_token and store_refresh_token:
-            self._refresh_token_store.set_refresh_token(
+            self._get_refresh_token_store().set_refresh_token(
                 issuer=authenticator.provider_info.issuer,
                 client_id=authenticator.client_id,
                 refresh_token=tokens.refresh_token
@@ -470,7 +475,7 @@ class Connection(RestApiConnection):
         )
 
         if refresh_token is None:
-            refresh_token = self._refresh_token_store.get_refresh_token(
+            refresh_token = self._get_refresh_token_store().get_refresh_token(
                 issuer=client_info.provider.issuer,
                 client_id=client_info.client_id
             )
