@@ -79,7 +79,8 @@ class DataCube(ImageCollection):
         """
         Get JSON representation of (flattened) process graph.
         """
-        return json.dumps(self.flatten(), indent=indent, separators=separators)
+        pg = {"process_graph": self.flatten()}
+        return json.dumps(pg, indent=indent, separators=separators)
 
     @property
     def _api_version(self):
