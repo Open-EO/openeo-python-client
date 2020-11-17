@@ -103,7 +103,7 @@ There's a predefined set of function signatures that you have to use to implemen
  :members:
 
 
------------------------------
+
 Profile a process server-side
 -----------------------------
 
@@ -116,7 +116,7 @@ same manner as you can debug UDF's, backends may support profiling directly.
 Note that this will only generate statistics over the python part of the execution, therefore it is only suitable for profiling UDFs.
 
 Usage
------
+_____
 
 Only batch jobs are supported! In order to turn on profiling, set 'profile' to 'true' in job options::
 
@@ -130,7 +130,7 @@ When the process has finished, it will also download a file called 'profile_dump
 -   the rest are the profiling results of the individual rdd id-s (that can be correlated with the execution using the SPARK UI).
 
 Viewing profiling information
------------------------------
+_____________________________
 
 The simplest way is to visualize the results with a graphical visualization tool called kcachegrind.
 In order to do that, install `kcachegrind <http://kcachegrind.sourceforge.net/>`_ packages (most linux distributions have it installed by default) and it's python connector `pyprof2calltree <https://pypi.org/project/pyprof2calltree/>`_.
@@ -145,6 +145,6 @@ Another way is to use the builtin pstats functionality from within python::
 		p.print_stats()
 
 Example
--------
+_______
 
 An example code can be found `here <https://github.com/Open-EO/openeo-python-client/tree/master/examples/profiling_example.py>`_ .
