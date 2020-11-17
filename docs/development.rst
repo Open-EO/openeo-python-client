@@ -126,7 +126,8 @@ To be as concrete as possible, we will assume that we are about to release versi
 
             curl --fail -O https://artifactory.vgt.vito.be/python-openeo/openeo/0.4.7/openeo-0.4.7-py3-none-any.whl
 
-        This downloads ``openeo-0.4.7-py3-none-any.whl``
+        This downloads ``openeo-0.4.7-py3-none-any.whl``.
+        To obtain download URL: browse from `here <https://artifactory.vgt.vito.be/python-openeo/openeo/>`_
 
     -   Or, if you know what you are doing and you're sure your
         local checkout is clean without temporary source files
