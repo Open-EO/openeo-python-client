@@ -14,7 +14,7 @@ class RESTUserDefinedProcess:
         self.user_defined_process_id = user_defined_process_id
         self._connection = connection
 
-    def store(self, process_graph: dict, parameters: List[Union[Parameter, dict]] = None, public: bool = False):
+    def store(self, process_graph: dict, parameters: List[Union[Parameter, dict]] = None, public: bool = False, summary:str = None, description:str=None):
         req = {
             'process_graph': process_graph,
             'public': public
@@ -24,10 +24,14 @@ class RESTUserDefinedProcess:
                 (p if isinstance(p, Parameter) else Parameter(**p)).to_dict()
                 for p in parameters
             ]
+        if summary is not None:
+            req["summary"] = summary
+        if description is not None:
+            req["description"] = description
         self._connection.put(path="/process_graphs/{}".format(self.user_defined_process_id), json=req)
 
-    def update(self, process_graph: dict, parameters: List[Union[Parameter, dict]] = None, public: bool = False):
-        self.store(process_graph=process_graph, parameters=parameters, public=public)
+    def update(self, process_graph: dict, parameters: List[Union[Parameter, dict]] = None, public: bool = False, summary:str = None, description:str=None):
+        self.store(process_graph=process_graph, parameters=parameters, public=public, summary=summary,description=description)
 
     def describe(self) -> dict:
         # TODO: parse the "parameters" to Parameter objects?

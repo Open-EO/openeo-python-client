@@ -606,7 +606,7 @@ class Connection(RestApiConnection):
 
     def save_user_defined_process(
             self, user_defined_process_id: str, process_graph: dict,
-            parameters: List[Union[dict, Parameter]] = None, public: bool = False) -> RESTUserDefinedProcess:
+            parameters: List[Union[dict, Parameter]] = None, public: bool = False, summary:str=None,description:str=None) -> RESTUserDefinedProcess:
         """
         Saves a process graph and its metadata in the backend as a user-defined process for the authenticated user.
 
@@ -614,13 +614,15 @@ class Connection(RestApiConnection):
         :param process_graph: a process graph
         :param parameters: a list of parameters
         :param public: visible to other users?
+        :param summary: A short summary of what the process does.
+        :param description: Detailed description to explain the entity. CommonMark 0.29 syntax MAY be used for rich text representation.
         :return: a RESTUserDefinedProcess instance
         """
         if user_defined_process_id in set(p["id"] for p in self.list_processes()):
             warnings.warn("Defining user-defined process {u!r} with same id as a pre-defined process".format(
                 u=user_defined_process_id))
         udp = RESTUserDefinedProcess(user_defined_process_id=user_defined_process_id, connection=self)
-        udp.store(process_graph=process_graph, parameters=parameters, public=public)
+        udp.store(process_graph=process_graph, parameters=parameters, public=public,summary=summary,description=description)
         return udp
 
     def list_user_defined_processes(self) -> List[dict]:

@@ -1226,16 +1226,18 @@ class DataCube(ImageCollection):
             title=title, description=description, plan=plan, budget=budget, additional=job_options
         )
 
-    def save_user_defined_process(self, user_defined_process_id: str, public: bool = False) -> RESTUserDefinedProcess:
+    def save_user_defined_process(self, user_defined_process_id: str, public: bool = False, summary:str=None, description:str=None) -> RESTUserDefinedProcess:
         """
         Saves this process graph in the backend as a user-defined process for the authenticated user.
 
         :param user_defined_process_id: unique identifier for the process
         :param public: visible to other users?
+        :param summary: A short summary of what the process does.
+        :param description: Detailed description to explain the entity. CommonMark 0.29 syntax MAY be used for rich text representation.
         :return: a RESTUserDefinedProcess instance
         """
         return self._connection.save_user_defined_process(user_defined_process_id=user_defined_process_id,
-                                                          process_graph=self.graph, public=public)
+                                                          process_graph=self.graph, public=public, summary=summary, description=description)
 
     def execute(self) -> Dict:
         """Executes the process graph of the imagery. """
