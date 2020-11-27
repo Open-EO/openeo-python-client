@@ -13,9 +13,99 @@ import openeo.metadata
 from openeo import UDF
 from openeo.internal.graph_building import PGNode
 from openeo.rest.connection import Connection
-from openeo.rest.datacube import THIS
+from openeo.rest.datacube import THIS, DataCube
 from .conftest import API_URL
 from ... import load_json_resource
+
+
+def _get_leaf_node(cube: DataCube) -> dict:
+    """Get leaf node (node with result=True), supporting old and new style of graph building."""
+    flattened = cube.flatten()
+    node, = [n for n in flattened.values() if n.get("result")]
+    return node
+
+
+@pytest.mark.parametrize(["kwargs", "expected"], [
+    ({"west": 3, "south": 51, "east": 4, "north": 52}, {"west": 3, "south": 51, "east": 4, "north": 52}),
+    (
+            {"west": 3, "south": 51, "east": 4, "north": 52, "crs": 4326},
+            {"west": 3, "south": 51, "east": 4, "north": 52, "crs": 4326}
+    ),
+    ({"bbox": [3, 51, 4, 52]}, {"west": 3, "south": 51, "east": 4, "north": 52}),
+    ({"bbox": (3, 51, 4, 52)}, {"west": 3, "south": 51, "east": 4, "north": 52}),
+    ({"bbox": shapely.geometry.box(3, 51, 4, 52)}, {"west": 3, "south": 51, "east": 4, "north": 52}),
+    ({"bbox": {"west": 3, "south": 51, "east": 4, "north": 52}}, {"west": 3, "south": 51, "east": 4, "north": 52}),
+    (
+            {"bbox": {"west": 3, "south": 51, "east": 4, "north": 52, "crs": 4326}},
+            {"west": 3, "south": 51, "east": 4, "north": 52, "crs": 4326}
+    ),
+
+])
+def test_filter_bbox_kwargs(con100: Connection, kwargs, expected):
+    cube = con100.load_collection("S2").filter_bbox(**kwargs)
+    node = _get_leaf_node(cube)
+    assert node["process_id"] == "filter_bbox"
+    assert node["arguments"]["extent"] == expected
+
+
+@pytest.mark.parametrize(["args", "expected"], [
+    ((3, 4, 52, 51,), {"west": 3, "south": 51, "east": 4, "north": 52}),
+    ((3, 4, 52, 51, 4326,), {"west": 3, "south": 51, "east": 4, "north": 52, "crs": 4326}),
+    (([3, 51, 4, 52],), {"west": 3, "south": 51, "east": 4, "north": 52}),
+    (((3, 51, 4, 52),), {"west": 3, "south": 51, "east": 4, "north": 52}),
+    (({"west": 3, "south": 51, "east": 4, "north": 52},), {"west": 3, "south": 51, "east": 4, "north": 52}),
+    (
+            ({"west": 3, "south": 51, "east": 4, "north": 52, "crs": 4326},),
+            {"west": 3, "south": 51, "east": 4, "north": 52, "crs": 4326}
+    ),
+    ((shapely.geometry.box(3, 51, 4, 52),), {"west": 3, "south": 51, "east": 4, "north": 52}),
+
+])
+def test_filter_bbox_positional_args(con100: Connection, args, expected):
+    cube = con100.load_collection("S2").filter_bbox(*args)
+    node = _get_leaf_node(cube)
+    assert node["process_id"] == "filter_bbox"
+    assert node["arguments"]["extent"] == expected
+
+
+def test_filter_bbox_legacy_positional_args(con100: Connection):
+    with pytest.warns(UserWarning, match="Deprecated argument order"):
+        cube = con100.load_collection("S2").filter_bbox(3, 4, 52, 51)
+    node = _get_leaf_node(cube)
+    assert node["process_id"] == "filter_bbox"
+    assert node["arguments"]["extent"] == {"west": 3, "south": 51, "east": 4, "north": 52}
+
+
+@pytest.mark.parametrize(["args", "kwargs", "expected"], [
+    ((3, 4, 52, 51,), {"crs": 4326}, {"west": 3, "south": 51, "east": 4, "north": 52, "crs": 4326}),
+    (([3, 51, 4, 52],), {"crs": 4326}, {"west": 3, "south": 51, "east": 4, "north": 52, "crs": 4326}),
+    (((3, 51, 4, 52),), {"crs": 4326}, {"west": 3, "south": 51, "east": 4, "north": 52, "crs": 4326}),
+    (
+            ({"west": 3, "south": 51, "east": 4, "north": 52},),
+            {"crs": 4326},
+            {"west": 3, "south": 51, "east": 4, "north": 52, "crs": 4326}
+    ),
+    (
+            (shapely.geometry.box(3, 51, 4, 52),),
+            {"crs": 4326},
+            {"west": 3, "south": 51, "east": 4, "north": 52, "crs": 4326}
+    ),
+])
+def test_filter_bbox_args_and_kwargs(con100: Connection, args, kwargs, expected):
+    cube = con100.load_collection("S2").filter_bbox(*args, **kwargs)
+    node = _get_leaf_node(cube)
+    assert node["process_id"] == "filter_bbox"
+    assert node["arguments"]["extent"] == expected
+
+
+@pytest.mark.parametrize(["args", "kwargs", "expected"], [
+    ((3, 4, 52, 51,), {"west": 2}, "Don't mix positional arguments with keyword arguments"),
+    (([3, 51, 4, 52],), {"west": 2}, "Don't mix positional arguments with keyword arguments"),
+    ((), {"west": 2, "bbox": [3, 51, 4, 52]}, "Don't mix `bbox` with `west`/`south`/`east`/`north` keyword arguments"),
+])
+def test_filter_bbox_args_and_kwargs_conflict(con100: Connection, args, kwargs, expected):
+    with pytest.raises(ValueError, match=expected):
+        con100.load_collection("S2").filter_bbox(*args, **kwargs)
 
 
 def test_mask_polygon(con100: Connection):

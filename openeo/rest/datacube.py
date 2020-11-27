@@ -13,6 +13,7 @@ import json
 import logging
 import pathlib
 import typing
+import warnings
 from builtins import staticmethod
 from typing import List, Dict, Union, Tuple
 
@@ -34,7 +35,7 @@ from openeo.rest.job import RESTJob
 from openeo.rest.udp import RESTUserDefinedProcess
 from openeo.util import get_temporal_extent, dict_no_none, legacy_alias
 from openeo.vectorcube import VectorCube
-from openeo.rest.result import Result
+
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Only import this for type hinting purposes. Runtime import causes circular dependency issues.
@@ -204,11 +205,82 @@ class DataCube(ImageCollection):
             }
         )
 
-    def filter_bbox(self, west, east, north, south, crs=None, base=None, height=None) -> 'DataCube':
-        extent = {
-            'west': west, 'east': east, 'north': north, 'south': south,
-            'crs': crs,
-        }
+    def filter_bbox(
+            self,
+            *args,
+            west=None, south=None, east=None, north=None,
+            crs=None,
+            base=None, height=None,
+            bbox=None
+    ) -> 'DataCube':
+        """
+        Limits the data cube to the specified bounding box.
+
+        The bounding box can be specified in multiple ways.
+
+            - With keyword arguments::
+
+                >>> cube.filter_bbox(west=3, south=51, east=4, north=52, crs=4326)
+
+            - With a (west, south, east, north) list or tuple::
+
+                >>> cube.filter_bbox([3, 51, 4, 52])
+                >>> cube.filter_bbox(bbox=[3, 51, 4, 52])
+
+            - With a bbox dictionary::
+
+                >>> bbox = {"west": 3, "south": 51, "east": 4, "north": 52, "crs": 4326}
+                >>> cube.filter_bbox(bbox)
+                >>> cube.filter_bbox(bbox=bbox)
+                >>> cube.filter_bbox(**bbox)
+
+            - With a shapely geometry (of which the bounding box will be used)::
+
+                >>> cube.filter(geometry)
+                >>> cube.filter(bbox=geometry)
+
+            - Deprecated: positional arguments are also supported,
+              but follow a non-standard order for legacy reasons::
+
+                >>> west, east, north, south = 3, 4, 52, 51
+                >>> cube.filter_bbox(west, east, north, south)
+
+        """
+        if args and any(k is not None for k in (west, south, east, north, bbox)):
+            raise ValueError("Don't mix positional arguments with keyword arguments.")
+        if bbox and any(k is not None for k in (west, south, east, north)):
+            raise ValueError("Don't mix `bbox` with `west`/`south`/`east`/`north` keyword arguments.")
+
+        if args:
+            if 4 <= len(args) <= 5:
+                # Handle old-style west-east-north-south order
+                # TODO remove handling of this legacy order?
+                warnings.warn("Deprecated argument order usage: `filter_bbox(west, east, north, south)`."
+                              " Use keyword arguments or tuple/list argument instead.")
+                west, east, north, south = args[:4]
+                if len(args) > 4:
+                    crs = args[4]
+            elif len(args) == 1 and (isinstance(args[0], (list, tuple)) and len(args[0]) == 4
+                                     or isinstance(args[0], (dict, shapely.geometry.base.BaseGeometry))):
+                bbox = args[0]
+            else:
+                raise ValueError(args)
+
+        if bbox:
+            if isinstance(bbox, shapely.geometry.base.BaseGeometry):
+                west, south, east, north = bbox.bounds
+            elif isinstance(bbox, (list, tuple)) and len(bbox) == 4:
+                west, south, east, north = bbox[:4]
+            elif isinstance(bbox, dict):
+                west, south, east, north = (bbox[k] for k in ["west", "south", "east", "north"])
+                if "crs" in bbox:
+                    crs = bbox["crs"]
+            else:
+                ValueError(bbox)
+
+        extent = {'west': west, 'east': east, 'north': north, 'south': south}
+        if crs:
+            extent["crs"] = crs
         if base is not None or height is not None:
             extent.update(base=base, height=height)
         return self.process(
