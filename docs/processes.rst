@@ -344,8 +344,8 @@ or normal Python functions:
     from openeo.processes import array_element
 
     def my_bandmath(data):
-        band1 = array_element(data, index=1)
-        band2 = array_element(data, index=2)
+        band1 = array_element(data, index=0)
+        band2 = array_element(data, index=1)
         return band1 + 1.2 * band2
 
 
