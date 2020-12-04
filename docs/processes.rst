@@ -131,7 +131,7 @@ a data cube as ``data`` argument ::
     res = cube.process("ndvi", data=cube)
 
 
-Note that you have have to specify ``cube`` twice here:
+Note that you have to specify ``cube`` twice here:
 a first time to call the method and a second time as argument.
 Moreover, it requires you to define a Python variable for the data
 cube, which is annoying if you want to use a chained expressions.
@@ -344,9 +344,9 @@ or normal Python functions:
     from openeo.processes import array_element
 
     def my_bandmath(data):
-        band1 = array_element(data, index=1)
-        band1 = array_element(data, index=1)
-        return band1 + 1.2 * band 2
+        band1 = array_element(data, index=0)
+        band2 = array_element(data, index=1)
+        return band1 + 1.2 * band2
 
 
     cube.reduce_dimension(my_bandmath, dimension="bands")
