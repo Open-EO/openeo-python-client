@@ -244,14 +244,21 @@ def datacube_plot(
     else: 
         vmin=limits[0]
         vmax=limits[1]
-    nrow=data.shape[0]
-    ncol=data.shape[1]
+    
+    if 'bands' not in data.coords:
+        data=data.expand_dims(dim={'bands':['band0']})
+    if 't' not in data.coords:
+        data=data.expand_dims(dim={'t':[np.datetime64('today')]})
+    
     data=data.transpose('t','bands','y','x')
     dpi=100
     xres=len(data.x)/dpi
     yres=len(data.y)/dpi
     fs=fontsize/oversample
     frame=0.33
+
+    nrow=data.shape[0]
+    ncol=data.shape[1]
 
     fig = pyplot.figure(figsize=((ncol+frame)*xres*1.1,(nrow+frame)*yres),dpi=int(dpi*oversample)) 
     gs = pyplot.GridSpec(nrow,ncol,wspace=0.,hspace=0.,top=nrow/(nrow+frame),bottom=0.,left=frame/(ncol+frame),right=1.) 
