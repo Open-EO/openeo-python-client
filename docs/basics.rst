@@ -82,7 +82,10 @@ In that case, your job will not be lost, and can be managed with the commands be
 
 When running a batch job, it is sometimes necessary to cancel it, or to manually retrieve status information.
 
-Usually, you first need to get hold of your job, this can be done based on a job id::
+Usually, you first need to get hold of your job, this can be done through a job id
+(an opaque string like for example ``0915ed2c-44a0-4519-8949-c58176ed2859``)
+which is displayed when launching the job through a call like ``execute_batch`` above.
+In a separate/new Python session, you can then inspect this job::
 
     import openeo
     connection = openeo.connect("https://openeo.vito.be").authenticate_basic("your_user", "your_password")
@@ -142,8 +145,10 @@ Example: Retrieving aggregated timeseries
 -----------------------------------------
 A common type of analysis is aggregating pixel values over one or more regions of interest.
 This is also referred to as 'zonal statistics'. This library has a number of predefined methods
-for various types of aggregations. In this example, we'll show how to compute an
-aggregated NDVI value::
+for various types of aggregations.
+In this example, we'll show how to compute an aggregated NDVI value,
+using :func:`~openeo.rest.connection.DataCube.polygonal_mean_timeseries`
+with the region of interest given as Shapely (multi)polygon object ::
 
     timeseries_dict = (
         connection.load_collection(
@@ -160,6 +165,7 @@ aggregated NDVI value::
 The result is a dictionary object containing values for each polygon and band.
 It can easily be converted into a pandas dataframe::
 
+    import pandas as pd
     from openeo.rest.conversions import timeseries_json_to_pandas
     dataframe = timeseries_json_to_pandas(timeseries_dict)
     dataframe.index = pd.to_datetime(dataframe.index)
