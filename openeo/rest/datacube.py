@@ -363,10 +363,10 @@ class DataCube(ImageCollection):
         raise OperatorException("Unsupported operator {op!r} with {other!r} (band math mode={b})".format(
             op=operator, other=other, b=band_math_mode))
 
-    def _operator_unary(self, operator: str) -> 'DataCube':
+    def _operator_unary(self, operator: str, **kwargs) -> 'DataCube':
         band_math_mode = self._in_bandmath_mode()
         if band_math_mode:
-            return self._bandmath_operator_unary(operator)
+            return self._bandmath_operator_unary(operator, **kwargs)
         raise OperatorException("Unsupported unary operator {op!r} (band math mode={b})".format(
             op=operator, b=band_math_mode))
 
@@ -482,7 +482,17 @@ class DataCube(ImageCollection):
             PGNode(operator, base=x, p=y)
         ))
 
+    def ln(self) -> 'DataCube':
+        return self._operator_unary("ln")
 
+    def logarithm(self, base: float) -> 'DataCube':
+        return self._operator_unary("log", base=base)
+
+    def log2(self) -> 'DataCube':
+        return self.logarithm(base=2)
+
+    def log10(self) -> 'DataCube':
+        return self.logarithm(base=10)
 
     def __or__(self, other) -> 'DataCube':
         return self.logical_or(other)
@@ -520,10 +530,10 @@ class DataCube(ImageCollection):
             PGNode(operator, x=x, y=y)
         ))
 
-    def _bandmath_operator_unary(self, operator: str) -> 'DataCube':
+    def _bandmath_operator_unary(self, operator: str, **kwargs) -> 'DataCube':
         node = self._get_bandmath_node()
         return self.process_with_node(node.clone_with_new_reducer(
-            PGNode(operator, x={'from_node': node.reducer_process_graph()})
+            PGNode(operator, x={'from_node': node.reducer_process_graph()}, **kwargs)
         ))
 
     def _in_bandmath_mode(self) -> bool:

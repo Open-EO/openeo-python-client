@@ -330,3 +330,28 @@ def test_normalized_difference(connection, api_version):
     result = nir.normalized_difference(red)
 
     assert result.graph == load_json_resource('data/%s/bm_nd_bands.json' % api_version)
+
+
+def test_ln(con100):
+    result = con100.load_collection("S2").band('B04').ln()
+    assert result.graph == load_json_resource('data/1.0.0/bm_ln.json' )
+
+
+def test_log10(con100):
+    result = con100.load_collection("S2").band('B04').log10()
+    assert result.graph == load_json_resource('data/1.0.0/bm_log.json')
+
+
+def test_log2(con100):
+    result = con100.load_collection("S2").band('B04').log2()
+    assert result.graph == load_json_resource(
+        'data/1.0.0/bm_log.json',
+        preprocess=lambda s: s.replace('"base": 10', '"base": 2')
+    )
+
+def test_log3(con100):
+    result = con100.load_collection("S2").band('B04').logarithm(base=3)
+    assert result.graph == load_json_resource(
+        'data/1.0.0/bm_log.json',
+        preprocess=lambda s: s.replace('"base": 10', '"base": 3')
+    )
