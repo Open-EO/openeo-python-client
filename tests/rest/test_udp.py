@@ -55,7 +55,7 @@ def test_store_collision(con100, requests_mock):
     subtract = {
         "minusy": {
             "process_id": "multiply",
-            "arguments": {"x": {"from_parameter": "y", "y": -1}}
+            "arguments": {"x": {"from_parameter": "y"}, "y": -1}
         },
         "add": {
             "process_id": "add",
@@ -68,6 +68,10 @@ def test_store_collision(con100, requests_mock):
         body = request.json()
         assert body == {
             "process_graph": subtract,
+            "parameters": [
+                {"name": "x", "description": "x", "schema": {"type": "number"}},
+                {"name": "y", "description": "y", "schema": {"type": "number"}}
+            ],
             "public": False,
         }
         return True
@@ -76,14 +80,15 @@ def test_store_collision(con100, requests_mock):
     adapter1 = requests_mock.put(API_URL + "/process_graphs/my_subtract", additional_matcher=check_body)
     adapter2 = requests_mock.put(API_URL + "/process_graphs/subtract", additional_matcher=check_body)
 
+    parameters = [Parameter.number("x"), Parameter.number("y")]
     with pytest.warns(None) as recorder:
-        udp = con100.save_user_defined_process("my_subtract", subtract)
+        udp = con100.save_user_defined_process("my_subtract", subtract, parameters=parameters)
     assert isinstance(udp, RESTUserDefinedProcess)
     assert adapter1.call_count == 1
     assert len(recorder) == 0
 
     with pytest.warns(UserWarning, match="same id as a pre-defined process") as recorder:
-        udp = con100.save_user_defined_process("subtract", subtract)
+        udp = con100.save_user_defined_process("subtract", subtract, parameters=parameters)
     assert isinstance(udp, RESTUserDefinedProcess)
     assert adapter2.call_count == 1
     assert len(recorder) == 1

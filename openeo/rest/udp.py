@@ -2,6 +2,8 @@ import typing
 from typing import List, Union
 
 from openeo.api.process import Parameter
+from openeo.internal.graph_building import as_flat_graph
+from openeo.internal.processes.builder import ProcessBuilderBase
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Only import this for type hinting purposes. Runtime import causes circular dependency issues.
@@ -14,9 +16,12 @@ class RESTUserDefinedProcess:
         self.user_defined_process_id = user_defined_process_id
         self._connection = connection
 
-    def store(self, process_graph: dict, parameters: List[Union[Parameter, dict]] = None, public: bool = False, summary:str = None, description:str=None):
+    def store(
+            self, process_graph: Union[dict, ProcessBuilderBase], parameters: List[Union[Parameter, dict]] = None,
+            public: bool = False, summary: str = None, description: str = None
+    ):
         req = {
-            'process_graph': process_graph,
+            'process_graph': as_flat_graph(process_graph),
             'public': public
         }
         if parameters is not None:
@@ -30,7 +35,11 @@ class RESTUserDefinedProcess:
             req["description"] = description
         self._connection.put(path="/process_graphs/{}".format(self.user_defined_process_id), json=req)
 
-    def update(self, process_graph: dict, parameters: List[Union[Parameter, dict]] = None, public: bool = False, summary:str = None, description:str=None):
+    def update(
+            self, process_graph: Union[dict, ProcessBuilderBase], parameters: List[Union[Parameter, dict]] = None,
+            public: bool = False, summary: str = None, description: str = None
+    ):
+        # TODO: the openEO API does not allow partial updates, while this method might suggest that.
         self.store(process_graph=process_graph, parameters=parameters, public=public, summary=summary,description=description)
 
     def describe(self) -> dict:

@@ -1,5 +1,7 @@
+.. _user-defined-functions:
+
 ========================================
-User Defined Functions (UDF's) explained
+User-Defined Functions (UDF) explained
 ========================================
 
 User defined functions are a very important feature of OpenEO. They allow you as a user to
@@ -126,7 +128,7 @@ Only batch jobs are supported! In order to turn on profiling, set 'profile' to '
 
 When the process has finished, it will also download a file called 'profile_dumps.tar.gz':
 
--   rdd_-1.pstats is the profile data of the python driver,
+-   ``rdd_-1.pstats`` is the profile data of the python driver,
 -   the rest are the profiling results of the individual rdd id-s (that can be correlated with the execution using the SPARK UI).
 
 Viewing profiling information

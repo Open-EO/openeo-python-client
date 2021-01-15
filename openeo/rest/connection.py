@@ -4,10 +4,9 @@ This module provides a Connection object to manage and persist settings when int
 import datetime
 import logging
 import sys
-import typing
 import warnings
 from pathlib import Path
-from typing import Dict, List, Tuple, Union, Callable, Optional
+from typing import Dict, List, Tuple, Union, Callable, Optional, Any
 from urllib.parse import urljoin
 
 import requests
@@ -18,7 +17,9 @@ from requests.auth import HTTPBasicAuth, AuthBase
 import openeo
 from openeo.capabilities import ApiVersionException, ComparableVersion
 from openeo.imagecollection import CollectionMetadata
-from openeo.internal.graph_building import PGNode
+from openeo.internal.graph_building import PGNode, as_flat_graph
+from openeo.internal.jupyter import VisualDict, VisualList
+from openeo.internal.processes.builder import ProcessBuilderBase
 from openeo.rest import OpenEoClientException
 from openeo.rest.auth.auth import NullAuth, BearerAuth
 from openeo.rest.auth.config import RefreshTokenStore, AuthConfig
@@ -31,7 +32,6 @@ from openeo.rest.job import RESTJob
 from openeo.rest.rest_capabilities import RESTCapabilities
 from openeo.rest.udp import RESTUserDefinedProcess, Parameter
 from openeo.util import ensure_list, legacy_alias, dict_no_none
-from openeo.internal.jupyter import VisualDict, VisualList
 
 _log = logging.getLogger(__name__)
 
@@ -628,8 +628,11 @@ class Connection(RestApiConnection):
         return self.get('/jobs').json()["jobs"]
 
     def save_user_defined_process(
-            self, user_defined_process_id: str, process_graph: dict,
-            parameters: List[Union[dict, Parameter]] = None, public: bool = False, summary:str=None,description:str=None) -> RESTUserDefinedProcess:
+            self, user_defined_process_id: str,
+            process_graph: Union[dict, ProcessBuilderBase],
+            parameters: List[Union[dict, Parameter]] = None,
+            public: bool = False, summary: str = None, description: str = None
+    ) -> RESTUserDefinedProcess:
         """
         Saves a process graph and its metadata in the backend as a user-defined process for the authenticated user.
 
@@ -644,6 +647,8 @@ class Connection(RestApiConnection):
         if user_defined_process_id in set(p["id"] for p in self.list_processes()):
             warnings.warn("Defining user-defined process {u!r} with same id as a pre-defined process".format(
                 u=user_defined_process_id))
+        if not parameters:
+            warnings.warn("Defining user-defined process {u!r} without parameters".format(u=user_defined_process_id))
         udp = RESTUserDefinedProcess(user_defined_process_id=user_defined_process_id, connection=self)
         udp.store(process_graph=process_graph, parameters=parameters, public=public,summary=summary,description=description)
         return udp
@@ -694,7 +699,7 @@ class Connection(RestApiConnection):
             spatial_extent: Optional[Dict[str, float]] = None,
             temporal_extent: Optional[List[Union[str, datetime.datetime, datetime.date]]] = None,
             bands: Optional[List[str]] = None,
-            properties: Optional[Dict[str, Union[str, PGNode, typing.Callable]]] = None
+            properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None
     ) -> DataCube:
         """
         Load a DataCube by collection id.
@@ -763,12 +768,13 @@ class Connection(RestApiConnection):
         # No endpoint just returns a file object.
         raise NotImplementedError()
 
-    def _build_request_with_process_graph(self, process_graph: dict, **kwargs) -> dict:
+    def _build_request_with_process_graph(self, process_graph: Union[dict, Any], **kwargs) -> dict:
         """
         Prepare a json payload with a process graph to submit to /result, /services, /jobs, ...
         :param process_graph: flat dict representing a process graph
         """
         result = kwargs
+        process_graph = as_flat_graph(process_graph)
         if self._api_version.at_least("1.0.0"):
             result["process"] = {"process_graph": process_graph}
         else:

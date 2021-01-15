@@ -4,7 +4,7 @@ Process graph building functionality for 1.0.0-style process graphs and DataCube
 
 """
 import collections
-from typing import Union, Dict
+from typing import Union, Dict, Any
 
 from openeo.api.process import Parameter
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
@@ -92,6 +92,19 @@ class PGNode:
             return value
         else:
             raise ValueError(value)
+
+
+def as_flat_graph(x: Union[dict, Any]) -> dict:
+    """
+    Convert given object to a flat dict graph representation.
+    """
+    if isinstance(x, dict):
+        return x
+    elif hasattr(x, 'flat_graph'):
+        # The "flat_graph" API (supported by `PGNode`, `DataCube`, `ProcessBuilderBase`, ...)
+        return x.flat_graph()
+    else:
+        raise ValueError(x)
 
 
 class UDF(PGNode):
