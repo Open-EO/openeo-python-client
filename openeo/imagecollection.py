@@ -14,6 +14,7 @@ class ImageCollection(ABC):
     """Class representing Processes. """
 
     def __init__(self, metadata: CollectionMetadata = None):
+        # TODO get rid of this unused property in abstract constructor (move type massaging to `CollectionMetadata`)
         self.metadata = metadata if isinstance(metadata, CollectionMetadata) else CollectionMetadata(metadata or {})
 
     @deprecated("Use `filter_temporal()` instead")
