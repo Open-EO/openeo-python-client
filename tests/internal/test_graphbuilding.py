@@ -1,5 +1,7 @@
 import pytest
 
+import openeo.processes
+from openeo.api.process import Parameter
 from openeo.internal.graph_building import FlatGraphNodeIdGenerator, PGNode, ReduceNode
 
 
@@ -178,4 +180,24 @@ def test_reduce_node_process_graph():
             }},
             'dimension': 'time',
         },
+    }
+
+
+def test_pgnode_parameter_basic():
+    pg = openeo.processes.add(x=Parameter.number("a", description="A."), y=42)
+    assert pg.flatten() == {
+        "add1": {
+            "process_id": "add",
+            "arguments": {"x": {"from_parameter": "a"}, "y": 42},
+            "result": True
+        }
+    }
+
+
+def test_pgnode_parameter_fahrenheit():
+    from openeo.processes import divide, subtract
+    pg = divide(x=subtract(x=Parameter.number("f", description="Fahrenheit"), y=32), y=1.8)
+    assert pg.flatten() == {
+        "subtract1": {"process_id": "subtract", "arguments": {"x": {"from_parameter": "f"}, "y": 32}},
+        "divide1": {"process_id": "divide", "arguments": {"x": {"from_node": "subtract1"}, "y": 1.8}, "result": True},
     }

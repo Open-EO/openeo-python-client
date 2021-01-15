@@ -1,5 +1,7 @@
+.. _user-defined-functions:
+
 ========================================
-User Defined Functions (UDF's) explained
+User-Defined Functions (UDF) explained
 ========================================
 
 User defined functions are a very important feature of OpenEO. They allow you as a user to

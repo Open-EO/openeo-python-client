@@ -3,33 +3,42 @@ Working with processes
 ***********************
 
 In openEO, a **process** is an operation that performs a specific task on
-a set of parameters and returns a result. For example: one wishes to
-apply a statistical operation such as mean or median on selected EO data.
-A process is similar to a *function* or method in common programming languages
+a set of parameters and returns a result.
+For example, with the ``add`` process you can add two numbers, in openEO's JSON notation::
+
+    {
+        "process_id": "add",
+        "arguments": {"x": 3, "y": 5}
+    }
+
+
+A process is similar to a *function* in common programming languages.
 and likewise, multiple processes can be combined or chained together
 into new, more complex operations.
 
-A **pre-defined process** is a process provided by a given *backend*.
-These are often the processes `defined centrally by openEO <https://openeo.org/documentation/1.0/processes.html>`_,
-including but not limited to common
-mathematical (``sum``, ``divide``, ``sqrt``, ...),
-logical (``and``, ``if``, ...), statistical (``mean``, ``max``, ...),
+A bit of terminology
+====================
+
+A **pre-defined process** is a process provided out of the box by a given *backend*.
+These are often the `centrally defined openEO processes <https://openeo.org/documentation/1.0/processes.html>`_,
+such as common mathematical (``sum``, ``divide``, ``sqrt``, ...),
+statistical (``mean``, ``max``, ...) and
 image processing (``mask``, ``apply_kernel``, ...)
 operations.
-Backends are expected to support most of these.
-Backends are also free to pre-define additional processes that are
-not (yet) centrally defined by openEO.
+Backends are expected to support most of these standard ones,
+but are free to pre-define additional ones too.
 
-As noted above, processes can be combined into a larger, reusable unit
-and stored on the backend as a **user-defined process**.
-Note: don't confuse user-defined processes with
-**user-defined functions** (UDF's) in openEO, which is a mechanism to
-inject actual source code (for example Python code) into a process
-for fine-grained processing.
+
+Processes can be combined into a larger pipeline, parameterized
+and stored on the backend as a so called **user-defined process**.
+This allows you to build a library of reusable building blocks
+that can be be inserted easily in multiple other places.
+See :ref:`user-defined-processes` for more information.
+
 
 How processes are combined into a larger unit
 is internally represented by a so-called **process graph**.
-It describes how the inputs and outputs of process graphs
+It describes how the inputs and outputs of processes
 should be linked together.
 A user of the Python client should normally not worry about
 the details of a process graph structure, as most of these aspects
@@ -104,6 +113,8 @@ You have to specify the process id and arguments
 It will return a new DataCube with the new process appended
 to the internal process graph.
 
+.. # TODO this example makes no sense: it uses cube for what?
+
 A very simple example using the ``mean`` process and a
 literal list in an arguments dictionary::
 
@@ -151,6 +162,8 @@ constant as symbolic reference to the "current" cube::
 Data cube from process
 -----------------------
 
+.. # TODO needs more explanation
+
 There is a convenience function
 :func:`~openeo.rest.connection.Connection.datacube_from_process`
 to directly create a DataCube from a single process using the Connection::
@@ -158,107 +171,12 @@ to directly create a DataCube from a single process using the Connection::
     cube = connection.datacube_from_process("mean", data=[1, 3, -1])
 
 
-Publishing your process as a service
-====================================
-
-The openEO API specification allow users to define their
-own **user-defined processes**, expressed in terms of other
-existing pre-defined or other user-defined processes,
-and to store them on the backend so they can easily be reused.
-
-It is also possible to publicly expose your process, so that other users can invoke
-it as a service with custom parameters that you have defined.
-This turns your process into a web application that can be run using the regular openEO
-support for synchronous and asynchronous jobs.
-
-To store a user-defined process, you have to express it as
-a process graph.
-Where you expect input (e.g. a data cube from preceding processes),
-you have to reference a *parameter* of your user-defined process
-with ``{"from_parameter": "parameter_name"}``.
-For example::
-
-    blur = {
-        "applykernel1": {
-            "process_id": "apply_kernel",
-            "arguments": {
-                "data": {"from_parameter": "data"},
-                "kernel": [[1, 1, 1], [1, 2, 1], [1, 1, 1]],
-                "factor": 0.1,
-            },
-            "result": True,
-        },
-    }
-    connection.save_user_defined_process("blur", blur)
-
-To make your process usable by other users,
-you can set the 'public' flag in ``save_user_defined_process`` to True.
-
-.. warning::
-    Beta feature - while the support for storing processes is defined in the API, there is
-    still some work ongoing concerning how to publicly share those processes, so this is subject
-    to small changes in the future. Nevertheless, we foresee that this support will be further improved.
-    Related `issue <https://github.com/Open-EO/openeo-api/issues/310>`_.
-
-This user-defined process can now be applied to a data cube as follows::
-
-    res = cube.process("blur", arguments={"data": THIS})
-
-
-Process parameters in user-defined processes
----------------------------------------------
-
-To keep things well-documented, it is recommended to properly list
-the parameters used in your user-defined process, as
-:class:`~openeo.api.process.Parameter` instances.
-This also allows to specify default values.
-For example, iterating on the "blur" example::
-
-    from openeo.api.process import Parameter
-
-    blur = {
-        "applykernel1": {
-            "process_id": "apply_kernel",
-            "arguments": {
-                "data": {"from_parameter": "data"},
-                "kernel": [[1, 1, 1], [1, 2, 1], [1, 1, 1]],
-                "factor": {"from_parameter": "scale"},
-            },
-            "result": True,
-        },
-    }
-    connection.save_user_defined_process("blur", blur, parameters=[
-        Parameter(
-            name="data", description="A data cube",
-            schema={"type": "object", "subtype": "raster-cube"}
-        ),
-        Parameter(
-            name="scale", description="Kernel multiplication factor",
-            schema="number", default=0.1
-        ),
-    ])
-
-Because the "raster-cube" parameter is so common,
-there is a helper function :func:`~openeo.api.process.Parameter.raster_cube`
-to easily create such a parameter.
-Also, you can specify the parameters as dictionaries if that would be
-more convenient.
-The parameter listing of the example above could be written like this::
-
-    parameters=[
-        Parameter.raster_cube(name="data"),
-        {
-            "name": "scale", "description": "Kernel multiplication factor",
-            "schema": "number", "default": 0.1
-        }
-    ]
-
 
 
 .. _callbackfunctions:
 
-Processes with "callbacks"
-==========================
+Processes with child "callbacks"
+================================
 
 Some openEO processes expect some kind of sub-process
 to be invoked on a subset or slice of the datacube.
@@ -313,6 +231,7 @@ while ``reduce_dimension`` requires a callback process that receives
 an array of numbers and returns a single number (like ``max`` or ``mean``).
 
 
+.. _child_callback_callable:
 Callback as a callable
 -----------------------
 
@@ -320,7 +239,7 @@ You can also specify the callback as a "callable":
 a Python object that can be called (e.g. a function without parenthesis).
 
 The openEO Python Client Library defines the
-official processes in the :py:mod:`openeo.process.processes` module,
+official processes in the :py:mod:`openeo.processes` module,
 which can be used directly:
 
 .. code-block:: python
@@ -410,7 +329,7 @@ Specifying callbacks through Python functions (or lambdas)
 looks intuitive and straightforward, but it should be noted
 that not everything is allowed in these functions.
 You should just limit yourself to calling
-:py:mod:`openeo.process.processes` functions, :py:class:`openeo.processes.ProcessBuilder` methods and basic math operators.
+:py:mod:`openeo.processes` functions, :py:class:`openeo.processes.ProcessBuilder` methods and basic math operators.
 Don't call functions from other libraries like numpy or scipy.
 Don't use Python control flow statements like ``if/else`` constructs
 or ``for`` loops.
@@ -420,7 +339,7 @@ does not translate the function source code itself
 to an openEO process graph.
 Instead, when building the openEO process graph,
 it passes a special object to the function
-and keeps track of which :py:mod:`openeo.process.processes` functions
+and keeps track of which :py:mod:`openeo.processes` functions
 were called to assemble the corresponding process graph.
 If you use control flow statements or use numpy functions for example,
 this procedure will incorrectly detect what you want to do in the callback.

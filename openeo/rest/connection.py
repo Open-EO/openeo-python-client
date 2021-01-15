@@ -19,6 +19,7 @@ import openeo
 from openeo.capabilities import ApiVersionException, ComparableVersion
 from openeo.imagecollection import CollectionMetadata
 from openeo.internal.graph_building import PGNode
+from openeo.internal.processes.builder import ProcessBuilderBase
 from openeo.rest import OpenEoClientException
 from openeo.rest.auth.auth import NullAuth, BearerAuth
 from openeo.rest.auth.config import RefreshTokenStore, AuthConfig
@@ -610,8 +611,10 @@ class Connection(RestApiConnection):
         return self.get('/jobs').json()["jobs"]
 
     def save_user_defined_process(
-            self, user_defined_process_id: str, process_graph: dict,
-            parameters: List[Union[dict, Parameter]] = None, public: bool = False, summary:str=None,description:str=None) -> RESTUserDefinedProcess:
+            self, user_defined_process_id: str, process_graph: Union[dict, ProcessBuilderBase],
+            parameters: List[Union[dict, Parameter]] = None, public: bool = False, summary: str = None,
+            description: str = None
+    ) -> RESTUserDefinedProcess:
         """
         Saves a process graph and its metadata in the backend as a user-defined process for the authenticated user.
 
@@ -626,6 +629,8 @@ class Connection(RestApiConnection):
         if user_defined_process_id in set(p["id"] for p in self.list_processes()):
             warnings.warn("Defining user-defined process {u!r} with same id as a pre-defined process".format(
                 u=user_defined_process_id))
+        if not parameters:
+            warnings.warn("Defining user-defined process {u!r} without parameters".format(u=user_defined_process_id))
         udp = RESTUserDefinedProcess(user_defined_process_id=user_defined_process_id, connection=self)
         udp.store(process_graph=process_graph, parameters=parameters, public=public,summary=summary,description=description)
         return udp
@@ -738,6 +743,11 @@ class Connection(RestApiConnection):
         :param process_graph: flat dict representing a process graph
         """
         result = kwargs
+        if not isinstance(process_graph, dict):
+            if hasattr(process_graph, "flatten"):
+                process_graph = process_graph.flatten()
+            else:
+                raise ValueError(process_graph)
         if self._api_version.at_least("1.0.0"):
             result["process"] = {"process_graph": process_graph}
         else:

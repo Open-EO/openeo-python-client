@@ -16,6 +16,7 @@ Open-EO Client
 
    basics
    processes
+   udp
    auth
    udf
    api
