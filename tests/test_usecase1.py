@@ -6,9 +6,6 @@ import requests_mock
 import openeo
 from openeo.rest.auth.auth import BearerAuth
 
-POST_DATA = '{"process_id": "filter_daterange", "args": { "imagery": { "product_id": "landsat7_ndvi"}, ' \
-            '"from": "2014-01-01", "to": "2014-06-01"}}'
-
 
 @requests_mock.mock()
 class TestUsecase1(TestCase):
@@ -67,8 +64,9 @@ class TestUsecase1(TestCase):
 
         con = openeo.connect(self.endpoint).authenticate_basic(self.auth_id, self.auth_pwd)
 
-        job_id = con.create_job(POST_DATA)
-        self.assertIsNotNone(job_id)
+        pg = {"add35": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}}
+        job = con.create_job(pg)
+        assert job.job_id == "748df7caa8c84a7ff6e"
 
 
 if __name__ == '__main__':
