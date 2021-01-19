@@ -1,12 +1,14 @@
 from openeo.capabilities import Capabilities
+from openeo.internal.jupyter import VisualDict
 
 
 class RESTCapabilities(Capabilities):
     """Represents REST capabilities of a connection / back end."""
 
-    def __init__(self, data: dict):
+    def __init__(self, data: dict, url: str = None):
         super(RESTCapabilities, self).__init__(data)
         self.capabilities = data
+        self.url = url
 
     def api_version(self) -> str:
         """ Get openEO version."""
@@ -32,3 +34,6 @@ class RESTCapabilities(Capabilities):
     def list_plans(self):
         """ List all billing plans."""
         return self.capabilities.get('billing', {}).get('plans')
+
+    def _repr_html_(self):
+        return VisualDict("capabilities", parameters = {"capabilities": self.capabilities, "url": self.url})._repr_html_()

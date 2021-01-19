@@ -31,6 +31,7 @@ from openeo.rest.job import RESTJob
 from openeo.rest.rest_capabilities import RESTCapabilities
 from openeo.rest.udp import RESTUserDefinedProcess, Parameter
 from openeo.util import ensure_list, legacy_alias, dict_no_none
+from openeo.internal.jupyter import VisualDict
 
 _log = logging.getLogger(__name__)
 
@@ -517,7 +518,8 @@ class Connection(RestApiConnection):
 
         :return: list of collection meta data dictionaries
         """
-        return self.get('/collections').json()["collections"]
+        data  = self.get('/collections').json()["collections"]
+        return VisualDict("collections", parameters = {"collections": data})
 
     def list_collection_ids(self) -> List[str]:
         """
@@ -534,7 +536,7 @@ class Connection(RestApiConnection):
         :return: data_dict: Dict All available data types
         """
         if "capabilities" not in self._capabilities_cache:
-            self._capabilities_cache["capabilities"] = RESTCapabilities(self.get('/').json())
+            self._capabilities_cache["capabilities"] = RESTCapabilities(self.get('/').json(), self._orig_url)
         return self._capabilities_cache["capabilities"]
 
 
@@ -553,7 +555,7 @@ class Connection(RestApiConnection):
         """
         if "file_formats" not in self._capabilities_cache:
             self._capabilities_cache["file_formats"] = self.get('/file_formats').json()
-        return self._capabilities_cache["file_formats"]
+        return VisualDict("file-formats", parameters = {"formats": self._capabilities_cache["file_formats"]})
 
     def list_service_types(self) -> dict:
         """
@@ -561,7 +563,19 @@ class Connection(RestApiConnection):
 
         :return: data_dict: Dict All available service types
         """
-        return self.get('/service_types').json()
+        if "service_types" not in self._capabilities_cache:
+            self._capabilities_cache["service_types"] = self.get('/service_types').json()
+        return VisualDict("service-types", parameters = {"services": self._capabilities_cache["service_types"]})
+
+    def list_udf_runtimes(self) -> dict:
+        """
+        Loads all available UDF runtimes.
+
+        :return: data_dict: Dict All available UDF runtimes
+        """
+        if "udf_runtimes" not in self._capabilities_cache:
+            self._capabilities_cache["udf_runtimes"] = self.get('/udf_runtimes').json()
+        return VisualDict("udf-runtimes", parameters = {"runtimes": self._capabilities_cache["udf_runtimes"]})
 
     def list_services(self) -> dict:
         """
@@ -570,7 +584,8 @@ class Connection(RestApiConnection):
         :return: data_dict: Dict All available service types
         """
         # TODO return parsed service objects
-        return self.get('/services').json()
+        data = self.get('/services').json()
+        return data
 
     def describe_collection(self, name) -> dict:
         # TODO: Maybe create some kind of Data class.
@@ -580,7 +595,8 @@ class Connection(RestApiConnection):
         :param name: String Id of the collection
         :return: data_dict: Dict Detailed information about the collection
         """
-        return self.get('/collections/{}'.format(name)).json()
+        data = self.get('/collections/{}'.format(name)).json()
+        return VisualDict("collection", parameters = {"collection": data})
 
     def collection_metadata(self, name) -> CollectionMetadata:
         return CollectionMetadata(metadata=self.describe_collection(name))
@@ -592,7 +608,8 @@ class Connection(RestApiConnection):
 
         :return: processes_dict: Dict All available processes of the back end.
         """
-        return self.get('/processes').json()["processes"]
+        data = self.get('/processes').json()["processes"]
+        return VisualDict("processes", parameters = {"processes": data})
 
     def list_jobs(self) -> dict:
         """
