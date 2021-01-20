@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 
-import json
 import logging
 import openeo
-# TODO remove next line, create a "cube" through connection.load_collection()
-from openeo.rest.imagecollectionclient import ImageCollectionClient
 import time
 
 logging.basicConfig(level=logging.INFO)
@@ -43,13 +40,14 @@ datacube = datacube.filter_bbox(west=11.279182, south=46.464349, east=11.406898,
 datacube = datacube.filter_temporal(extent=["2018-05-01T00:00:00Z", "2018-10-10T23:59:59Z"])
 datacube = datacube.ndvi()
 datacube = datacube.max_time()
-print(json.dumps(datacube.graph, indent=2))
+print(datacube.to_json())
+
 
 # Test Job
 
 # datacube.download("/tmp/testfile.tiff", format="GeoTIFF")
 
-job = con.create_job(datacube.graph)
+job = datacube.send_job()
 if job:
     print(job.job_id)
     print(job.start_job())

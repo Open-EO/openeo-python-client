@@ -35,6 +35,9 @@ def test_visit_nodes():
             "arguments": {
                 "data": {
                     "from_node": "abs"
+                },
+                "data2": {
+                    "from_parameter": "x"
                 }
             },
             "result": True
@@ -43,6 +46,7 @@ def test_visit_nodes():
     visitor = ProcessGraphVisitor()
     visitor.leaveProcess = MagicMock()
     visitor.enterArgument = MagicMock()
+    visitor.from_parameter = MagicMock()
 
     visitor.accept_process_graph(graph)
 
@@ -53,6 +57,10 @@ def test_visit_nodes():
     assert visitor.enterArgument.call_args_list == [
         call(argument_id="data", value=ANY),
         call(argument_id="data", value={"from_argument": "data"}),
+        call(argument_id='data2', value={'from_parameter': 'x'})
+    ]
+    assert visitor.from_parameter.call_args_list == [
+        call("x")
     ]
 
 

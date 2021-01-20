@@ -126,7 +126,8 @@ To be as concrete as possible, we will assume that we are about to release versi
 
             curl --fail -O https://artifactory.vgt.vito.be/python-openeo/openeo/0.4.7/openeo-0.4.7-py3-none-any.whl
 
-        This downloads ``openeo-0.4.7-py3-none-any.whl``
+        This downloads ``openeo-0.4.7-py3-none-any.whl``.
+        To obtain download URL: browse from `here <https://artifactory.vgt.vito.be/python-openeo/openeo/>`_
 
     -   Or, if you know what you are doing and you're sure your
         local checkout is clean without temporary source files
@@ -182,45 +183,3 @@ Here is a bash oneliner to verify that the PyPI release works properly::
 It tries to install the package in a temporary virtual env,
 import it and print the package version.
 
-
-Profile a process server-side
-=============================
-
-Using PySPARK's profiler API it is possible to obtain profiling information of a job executed server-side.
-Currently SPARK's builtin BasicProfiler is used, which runs cProfiler under the hood.
-Note that this will only generate statistics over the python part of the execution, therefore it is most suitable for profiling UDFs.
-However the statistics of the driver may also give insights about time spent in various Scala/Java codes.  
-
-Usage
------
-
-Only batch jobs are supported! In order to turn on profiling, set 'profile' to 'true' in job options::
-
-        job_options={'profile':'true'}
-        ... # prepare the process
-        process.execute_batch('result.tif',job_options=job_options)
-
-When the process has finished, it will also download a file called 'profile_dumps.tar.gz':
-
--   rdd_-1.pstats is the profile data of the python driver,
--   the rest are the profiling results of the individual rdd id-s (that can be correlated with the execution using the SPARK UI).
-
-Viewing profiling information
------------------------------
-
-The simplest way is to visualize the results with a graphical visualization tool called kcachegrind.
-In order to do that, install `kcachegrind <http://kcachegrind.sourceforge.net/>`_ packages (most linux distributions have it installed by default) and it's python connector `pyprof2calltree <https://pypi.org/project/pyprof2calltree/>`_.
-From command line run::
-
-       pyprof2calltree rdd_<INTERESTING_RDD_ID>.pstats.
-
-Another way is to use the builtin pstats functionality from within python::
-
-        import pstats
-		p = pstats.Stats('restats')
-		p.print_stats()
-
-Example
--------
-
-An example code can be found `here <https://github.com/Open-EO/openeo-python-client/tree/master/examples/profiling_example.py>`_ .

@@ -211,6 +211,7 @@ def datacube_plot(
         limits=None,
         show_bandnames:bool=True,
         show_dates:bool=True,
+        show_axeslabels:bool=False,
         fontsize:float=10.,
         oversample:int=1,
         cmap:Union[str,'matplotlib.colors.ColorMap']='RdYlBu_r', 
@@ -224,7 +225,8 @@ def datacube_plot(
     :param title: title text drawn in the top left corner (default: nothing)
     :param limits: range of the contour plot as a tuple(min,max) (default: None, in which case the min/max is computed from the data)
     :param show_bandnames: whether to plot the column names (default: True)
-    :param show_dates: whether to show the dates for each row (defaukt: True)
+    :param show_dates: whether to show the dates for each row (default: True)
+    :param show_axeslabels: whether to show the labels on the axes (default: False)
     :param fontsize: font size in pixels (default: 10)
     :param oversample: one value is plotted into oversample x oversample number of pixels (default: 1 which means each value is plotted as a single pixel)
     :param cmap: built-in matplotlib color map name or ColorMap object (default: RdYlBu_r which is a blue-yellow-red rainbow)
@@ -244,8 +246,14 @@ def datacube_plot(
     else: 
         vmin=limits[0]
         vmax=limits[1]
-    nrow=data.shape[0]
-    ncol=data.shape[1]
+    
+    if 'bands' not in data.dims:
+        data=data.expand_dims(dim={'bands':['band0']})
+    if 'bands' not in data.coords:
+        data['bands']=['band0']
+    if 't' not in data.coords:
+        data=data.expand_dims(dim={'t':[np.datetime64('today')]})
+    
     data=data.transpose('t','bands','y','x')
     dpi=100
     xres=len(data.x)/dpi
@@ -253,17 +261,38 @@ def datacube_plot(
     fs=fontsize/oversample
     frame=0.33
 
+    nrow=data.shape[0]
+    ncol=data.shape[1]
+
     fig = pyplot.figure(figsize=((ncol+frame)*xres*1.1,(nrow+frame)*yres),dpi=int(dpi*oversample)) 
     gs = pyplot.GridSpec(nrow,ncol,wspace=0.,hspace=0.,top=nrow/(nrow+frame),bottom=0.,left=frame/(ncol+frame),right=1.) 
+
+    xmin=data.x.min()
+    xmax=data.x.max()
+    ymin=data.y.min()
+    ymax=data.y.max()
+    
+    # flip around if incorrect, this is in harmony with origin='lower'
+    if (data.x[0]>data.x[-1]):
+        data=data.reindex(x=list(reversed(data.x)))
+    if (data.y[0]>data.y[-1]):
+        data=data.reindex(y=list(reversed(data.y)))
+    
+    extent=(data.x[0],data.x[-1],data.y[0],data.y[-1])
      
     for i in range(nrow):
         for j in range(ncol):
             im = data[i,j]
             ax= pyplot.subplot(gs[i,j])
-            ax.set_axis_off()
-            img=ax.imshow(im[::-1,:],vmin=vmin,vmax=vmax,cmap=cmap)
-            ax.set_xticklabels([])
-            ax.set_yticklabels([])
+            ax.set_xlim(xmin,xmax)
+            ax.set_ylim(ymin,ymax)
+            img=ax.imshow(im,vmin=vmin,vmax=vmax,cmap=cmap,origin='lower',extent=extent)
+            ax.xaxis.set_tick_params(labelsize=fs)
+            ax.yaxis.set_tick_params(labelsize=fs)
+            if not show_axeslabels:
+                ax.set_axis_off()
+                ax.set_xticklabels([])
+                ax.set_yticklabels([])
             if show_bandnames:
                 if i==0: ax.text(0.5,1.08, data.bands.values[j]+" ("+str(data.dtype)+")", size=fs, va="center", ha="center", transform=ax.transAxes)
             if show_dates:

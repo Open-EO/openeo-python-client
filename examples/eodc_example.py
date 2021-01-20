@@ -20,20 +20,20 @@ session = openeo.connect(EODC_DRIVER_URL,auth_type=BearerAuth, auth_options={"us
 
 
 s2a_prd_msil1c = session.image("s2a_prd_msil1c")
-logging.debug("{}".format(s2a_prd_msil1c.graph))
+logging.debug(s2a_prd_msil1c.to_json(indent=None))
 
 timeseries = s2a_prd_msil1c.filter_bbox(west=652000, east=672000, north=5161000,
                                               south=5181000, crs="EPSG:32632")
-logging.debug("{}".format(timeseries.graph))
+logging.debug(timeseries.to_json(indent=None))
 
 timeseries = timeseries.filter_temporal("2017-01-01", "2017-01-08")
-logging.debug("{}".format(timeseries.graph))
+logging.debug(timeseries.to_json(indent=None))
 
 timeseries = timeseries.ndvi("B04", "B08")
-logging.debug("{}".format(timeseries.graph))
+logging.debug(timeseries.to_json(indent=None))
 
 composite = timeseries.min_time()
-logging.debug("{}".format(composite.graph))
+logging.debug(timeseries.to_json(indent=None))
 
 job = timeseries.send_job()
 logging.debug("{}".format(job.job_id))

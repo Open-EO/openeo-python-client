@@ -1,8 +1,7 @@
 import openeo
 from openeo.internal.graph_building import PGNode
 import logging
-import time
-import json
+
 logging.basicConfig(level=logging.INFO)
 
 GEE_DRIVER_URL = "https://earthengine.openeo.org/v1.0"
@@ -41,7 +40,7 @@ ndvi = PGNode("normalized_difference", arguments={"x": {"from_node": nir}, "y": 
 
 datacube = datacube.reduce_dimension(dimension="bands", reducer=ndvi)
 
-print(json.dumps(datacube.graph, indent=2))
+print(datacube.to_json())
 
 datacube = datacube.min_time(dimension="t")
 
@@ -50,7 +49,8 @@ lin_scale = PGNode("linear_scale_range", arguments={"x": {"from_parameter": "x"}
 
 datacube = datacube.apply(lin_scale)
 datacube = datacube.save_result(format="PNG")
-print(json.dumps(datacube.graph, indent=2))
+print(datacube.to_json())
+
 
 # Send Job to backend
 job = datacube.send_job()

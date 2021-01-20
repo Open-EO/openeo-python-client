@@ -13,6 +13,7 @@ import json
 import logging
 import pathlib
 import typing
+import warnings
 from builtins import staticmethod
 from typing import List, Dict, Union, Tuple
 
@@ -34,7 +35,7 @@ from openeo.rest.job import RESTJob
 from openeo.rest.udp import RESTUserDefinedProcess
 from openeo.util import get_temporal_extent, dict_no_none, legacy_alias
 from openeo.vectorcube import VectorCube
-from openeo.rest.result import Result
+
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Only import this for type hinting purposes. Runtime import causes circular dependency issues.
@@ -57,11 +58,10 @@ class DataCube(ImageCollection):
     """
 
     def __init__(self, graph: PGNode, connection: 'openeo.Connection', metadata: CollectionMetadata = None):
-        super().__init__(metadata=metadata)
         # Process graph
         self._pg = graph
         self._connection = connection
-        self.metadata = metadata
+        self.metadata = CollectionMetadata.get_or_create(metadata)
 
     def __str__(self):
         return "DataCube({pg})".format(pg=self._pg)
@@ -69,6 +69,7 @@ class DataCube(ImageCollection):
     @property
     def graph(self) -> dict:
         """Get the process graph in flattened dict representation"""
+        # TODO: deprecate this property and promote flatten/to_json more.
         return self.flatten()
 
     def flatten(self) -> dict:
@@ -79,7 +80,8 @@ class DataCube(ImageCollection):
         """
         Get JSON representation of (flattened) process graph.
         """
-        return json.dumps(self.flatten(), indent=indent, separators=separators)
+        pg = {"process_graph": self.flatten()}
+        return json.dumps(pg, indent=indent, separators=separators)
 
     @property
     def _api_version(self):
@@ -202,11 +204,82 @@ class DataCube(ImageCollection):
             }
         )
 
-    def filter_bbox(self, west, east, north, south, crs=None, base=None, height=None) -> 'DataCube':
-        extent = {
-            'west': west, 'east': east, 'north': north, 'south': south,
-            'crs': crs,
-        }
+    def filter_bbox(
+            self,
+            *args,
+            west=None, south=None, east=None, north=None,
+            crs=None,
+            base=None, height=None,
+            bbox=None
+    ) -> 'DataCube':
+        """
+        Limits the data cube to the specified bounding box.
+
+        The bounding box can be specified in multiple ways.
+
+            - With keyword arguments::
+
+                >>> cube.filter_bbox(west=3, south=51, east=4, north=52, crs=4326)
+
+            - With a (west, south, east, north) list or tuple::
+
+                >>> cube.filter_bbox([3, 51, 4, 52])
+                >>> cube.filter_bbox(bbox=[3, 51, 4, 52])
+
+            - With a bbox dictionary::
+
+                >>> bbox = {"west": 3, "south": 51, "east": 4, "north": 52, "crs": 4326}
+                >>> cube.filter_bbox(bbox)
+                >>> cube.filter_bbox(bbox=bbox)
+                >>> cube.filter_bbox(**bbox)
+
+            - With a shapely geometry (of which the bounding box will be used)::
+
+                >>> cube.filter(geometry)
+                >>> cube.filter(bbox=geometry)
+
+            - Deprecated: positional arguments are also supported,
+              but follow a non-standard order for legacy reasons::
+
+                >>> west, east, north, south = 3, 4, 52, 51
+                >>> cube.filter_bbox(west, east, north, south)
+
+        """
+        if args and any(k is not None for k in (west, south, east, north, bbox)):
+            raise ValueError("Don't mix positional arguments with keyword arguments.")
+        if bbox and any(k is not None for k in (west, south, east, north)):
+            raise ValueError("Don't mix `bbox` with `west`/`south`/`east`/`north` keyword arguments.")
+
+        if args:
+            if 4 <= len(args) <= 5:
+                # Handle old-style west-east-north-south order
+                # TODO remove handling of this legacy order?
+                warnings.warn("Deprecated argument order usage: `filter_bbox(west, east, north, south)`."
+                              " Use keyword arguments or tuple/list argument instead.")
+                west, east, north, south = args[:4]
+                if len(args) > 4:
+                    crs = args[4]
+            elif len(args) == 1 and (isinstance(args[0], (list, tuple)) and len(args[0]) == 4
+                                     or isinstance(args[0], (dict, shapely.geometry.base.BaseGeometry))):
+                bbox = args[0]
+            else:
+                raise ValueError(args)
+
+        if bbox:
+            if isinstance(bbox, shapely.geometry.base.BaseGeometry):
+                west, south, east, north = bbox.bounds
+            elif isinstance(bbox, (list, tuple)) and len(bbox) == 4:
+                west, south, east, north = bbox[:4]
+            elif isinstance(bbox, dict):
+                west, south, east, north = (bbox[k] for k in ["west", "south", "east", "north"])
+                if "crs" in bbox:
+                    crs = bbox["crs"]
+            else:
+                ValueError(bbox)
+
+        extent = {'west': west, 'east': east, 'north': north, 'south': south}
+        if crs:
+            extent["crs"] = crs
         if base is not None or height is not None:
             extent.update(base=base, height=height)
         return self.process(
@@ -289,10 +362,10 @@ class DataCube(ImageCollection):
         raise OperatorException("Unsupported operator {op!r} with {other!r} (band math mode={b})".format(
             op=operator, other=other, b=band_math_mode))
 
-    def _operator_unary(self, operator: str) -> 'DataCube':
+    def _operator_unary(self, operator: str, **kwargs) -> 'DataCube':
         band_math_mode = self._in_bandmath_mode()
         if band_math_mode:
-            return self._bandmath_operator_unary(operator)
+            return self._bandmath_operator_unary(operator, **kwargs)
         raise OperatorException("Unsupported unary operator {op!r} (band math mode={b})".format(
             op=operator, b=band_math_mode))
 
@@ -408,7 +481,17 @@ class DataCube(ImageCollection):
             PGNode(operator, base=x, p=y)
         ))
 
+    def ln(self) -> 'DataCube':
+        return self._operator_unary("ln")
 
+    def logarithm(self, base: float) -> 'DataCube':
+        return self._operator_unary("log", base=base)
+
+    def log2(self) -> 'DataCube':
+        return self.logarithm(base=2)
+
+    def log10(self) -> 'DataCube':
+        return self.logarithm(base=10)
 
     def __or__(self, other) -> 'DataCube':
         return self.logical_or(other)
@@ -446,10 +529,10 @@ class DataCube(ImageCollection):
             PGNode(operator, x=x, y=y)
         ))
 
-    def _bandmath_operator_unary(self, operator: str) -> 'DataCube':
+    def _bandmath_operator_unary(self, operator: str, **kwargs) -> 'DataCube':
         node = self._get_bandmath_node()
         return self.process_with_node(node.clone_with_new_reducer(
-            PGNode(operator, x={'from_node': node.reducer_process_graph()})
+            PGNode(operator, x={'from_node': node.reducer_process_graph()}, **kwargs)
         ))
 
     def _in_bandmath_mode(self) -> bool:
@@ -473,6 +556,36 @@ class DataCube(ImageCollection):
                 right_arg_name: {"from_parameter": "y"},
             }
         ))
+
+    def aggregate_spatial(
+            self,
+            geometries: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path],
+            reducer: Union[str, PGNode, typing.Callable]
+    ) -> 'DataCube':
+        """
+        Aggregates statistics for one or more geometries (e.g. zonal statistics for polygons)
+        over the spatial dimensions.
+
+        :param geometries: shapely geometry, GeoJSON dictionary or path to GeoJSON file
+        :param reducer: a callback function that creates a process graph, see :ref:`callbackfunctions`
+        :return:
+        """
+        # TODO #125 arguments: target dimension, context
+        if isinstance(geometries, (str, pathlib.Path)):
+            # polygon is a path to vector file
+            # TODO this is non-standard process: check capabilities? #104 #40. Load polygon client side otherwise
+            geometries = PGNode(process_id="read_vector", arguments={"filename": str(geometries)})
+        elif isinstance(geometries, shapely.geometry.base.BaseGeometry):
+            geometries = mapping(geometries)
+        elif isinstance(geometries, dict) and geometries["type"] in (
+                # TODO: support more geometry types?
+                "Polygon", "MultiPolygon", "GeometryCollection"
+        ):
+            pass
+        else:
+            raise OpenEoClientException("Invalid `geometries`: {g!r}".format(g=geometries))
+        reducer = self._get_callback(reducer, parent_parameters=["data"])
+        return self.process(process_id="aggregate_spatial", data=THIS, geometries=geometries, reducer=reducer)
 
     @deprecated(reason="use aggregate_spatial instead")
     def zonal_statistics(self, regions, func, scale=1000, interval="day") -> 'DataCube':
@@ -1091,28 +1204,22 @@ class DataCube(ImageCollection):
     def _polygonal_timeseries(
             self, polygon: Union[Polygon, MultiPolygon, str], func: Union[str, PGNode, typing.Callable]
     ) -> 'DataCube':
-        if isinstance(polygon, str):
-            # polygon is a path to vector file
-            # TODO this is non-standard process: check capabilities? #104 #40
-            geometries = PGNode(process_id="read_vector", arguments={"filename": polygon})
-        else:
-            geometries = shapely.geometry.mapping(polygon)
-            geometries['crs'] = {
-                'type': 'name',  # TODO: name?
-                'properties': {
-                    'name': 'EPSG:4326'
-                }
-            }
+        return self.aggregate_spatial(geometries=polygon, reducer=func)
 
-        return self.process(
-            process_id="aggregate_spatial",
-            arguments={
-                "data": self._pg,
-                "geometries": geometries,
-                "reducer": self._get_callback(func, parent_parameters=["data"])
-                # TODO #125 target dimension, context
-            }
-        )
+    def atmospheric_correction(self,method=None):
+        """
+        EXPERIMENTAL
+        Applies an atmospheric correction that converts top of atmosphere reflectance values into bottom of atmosphere/top of canopy reflectance values.
+
+        Note that multiple atmospheric methods exist, but may not be supported by all backends. The method parameter gives
+        you the option of requiring a specific method, but this may result in an error if the backend does not support it.
+
+        @return: datacube with bottom of atmosphere reflectances
+        """
+        return self.process('atmospheric_correction', {
+            'data': THIS,
+            'method': method
+        })
 
     def save_result(self, format: str = "GTiff", options: dict = None):
         formats = set(self._connection.list_output_formats().keys())
@@ -1198,20 +1305,23 @@ class DataCube(ImageCollection):
             # add `save_result` node
             img = img.save_result(format=out_format, options=format_options)
         return self._connection.create_job(
-            process_graph=img.graph,
+            process_graph=img.flatten(),
             title=title, description=description, plan=plan, budget=budget, additional=job_options
         )
 
-    def save_user_defined_process(self, user_defined_process_id: str, public: bool = False) -> RESTUserDefinedProcess:
+    def save_user_defined_process(self, user_defined_process_id: str, public: bool = False, summary:str=None, description:str=None) -> RESTUserDefinedProcess:
         """
         Saves this process graph in the backend as a user-defined process for the authenticated user.
 
         :param user_defined_process_id: unique identifier for the process
         :param public: visible to other users?
+        :param summary: A short summary of what the process does.
+        :param description: Detailed description to explain the entity. CommonMark 0.29 syntax MAY be used for rich text representation.
         :return: a RESTUserDefinedProcess instance
         """
-        return self._connection.save_user_defined_process(user_defined_process_id=user_defined_process_id,
-                                                          process_graph=self.graph, public=public)
+        return self._connection.save_user_defined_process(
+            user_defined_process_id=user_defined_process_id,
+            process_graph=self.flatten(), public=public, summary=summary, description=description)
 
     def execute(self) -> Dict:
         """Executes the process graph of the imagery. """
@@ -1275,7 +1385,7 @@ class DataCube(ImageCollection):
         import pprint
 
         graph = graphviz.Digraph(node_attr={"shape": "none", "fontname": "sans", "fontsize": "11"})
-        for name, process in self.graph.items():
+        for name, process in self.flatten().items():
             args = process.get("arguments", {})
             # Build label
             label = '<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">'

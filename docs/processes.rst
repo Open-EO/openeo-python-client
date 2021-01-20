@@ -131,7 +131,7 @@ a data cube as ``data`` argument ::
     res = cube.process("ndvi", data=cube)
 
 
-Note that you have have to specify ``cube`` twice here:
+Note that you have to specify ``cube`` twice here:
 a first time to call the method and a second time as argument.
 Moreover, it requires you to define a Python variable for the data
 cube, which is annoying if you want to use a chained expressions.
@@ -158,13 +158,18 @@ to directly create a DataCube from a single process using the Connection::
     cube = connection.datacube_from_process("mean", data=[1, 3, -1])
 
 
-Working with User-Defined Processes (UDP)
-==========================================
+Publishing your process as a service
+====================================
 
 The openEO API specification allow users to define their
 own **user-defined processes**, expressed in terms of other
 existing pre-defined or other user-defined processes,
 and to store them on the backend so they can easily be reused.
+
+It is also possible to publicly expose your process, so that other users can invoke
+it as a service with custom parameters that you have defined.
+This turns your process into a web application that can be run using the regular openEO
+support for synchronous and asynchronous jobs.
 
 To store a user-defined process, you have to express it as
 a process graph.
@@ -185,6 +190,15 @@ For example::
         },
     }
     connection.save_user_defined_process("blur", blur)
+
+To make your process usable by other users,
+you can set the 'public' flag in ``save_user_defined_process`` to True.
+
+.. warning::
+    Beta feature - while the support for storing processes is defined in the API, there is
+    still some work ongoing concerning how to publicly share those processes, so this is subject
+    to small changes in the future. Nevertheless, we foresee that this support will be further improved.
+    Related `issue <https://github.com/Open-EO/openeo-api/issues/310>`_.
 
 This user-defined process can now be applied to a data cube as follows::
 
@@ -330,9 +344,9 @@ or normal Python functions:
     from openeo.processes import array_element
 
     def my_bandmath(data):
-        band1 = array_element(data, index=1)
-        band1 = array_element(data, index=1)
-        return band1 + 1.2 * band 2
+        band1 = array_element(data, index=0)
+        band2 = array_element(data, index=1)
+        return band1 + 1.2 * band2
 
 
     cube.reduce_dimension(my_bandmath, dimension="bands")

@@ -32,13 +32,13 @@ datacube = con.imagecollection("BIOPAR_FAPAR_V1_GLOBAL")
 datacube = datacube.filter_bbox(west=16.138916, south=48.138600, east=16.524124, north=48.320647, crs="EPSG:4326")
 datacube = datacube.filter_daterange(extent=["2016-01-01T00:00:00Z", "2016-03-10T23:59:59Z"])
 datacube = datacube.max_time()
-print(json.dumps(datacube.graph,indent=2))
+print(datacube.to_json())
 
 # Test Job
 
 datacube.download("/tmp/testfile.tiff")
 
-job = con.create_job(datacube.graph)
+job = datacube.send_job()
 if job:
     print(job.job_id)
     print(job.start_job())

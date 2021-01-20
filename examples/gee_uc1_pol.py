@@ -1,5 +1,4 @@
 import openeo
-import json
 from openeo.internal.graph_building import PGNode
 
 # Connect to backend via basic authentication
@@ -51,7 +50,8 @@ red = red.apply(lin_scale)
 datacube = red.merge(green).merge(blue)
 
 datacube = datacube.save_result(format="PNG", options={"red": "R", "green": "G", "blue": "B"})
-print(json.dumps(datacube.graph, indent=2))
+print(datacube.to_json())
+
 # Send Job to backend
 job = datacube.send_job()
 

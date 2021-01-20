@@ -10,11 +10,9 @@ from openeo.metadata import CollectionMetadata
 from openeo.util import get_temporal_extent, first_not_none
 from openeo.job import Job
 
+
 class ImageCollection(ABC):
     """Class representing Processes. """
-
-    def __init__(self, metadata: CollectionMetadata = None):
-        self.metadata = metadata if isinstance(metadata, CollectionMetadata) else CollectionMetadata(metadata or {})
 
     @deprecated("Use `filter_temporal()` instead")
     def date_range_filter(self, start_date:Union[str,datetime,date],end_date:Union[str,datetime,date]) -> 'ImageCollection':

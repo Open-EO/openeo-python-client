@@ -4,6 +4,7 @@ from openeo.internal.graph_building import PGNode
 from openeo.metadata import CollectionMetadata
 from typing import Union
 import pathlib
+import json
 from openeo.rest.job import RESTJob
 
 
@@ -29,11 +30,19 @@ class VectorCube():
     @property
     def graph(self) -> dict:
         """Get the process graph in flattened dict representation"""
+        # TODO: deprecate this property in favor of flatten/to_json
         return self.flatten()
 
     def flatten(self) -> dict:
         """Get the process graph in flattened dict representation"""
         return self._pg.flatten()
+
+    def to_json(self, indent=2, separators=None) -> str:
+        """
+        Get JSON representation of (flattened) process graph.
+        """
+        pg = {"process_graph": self.flatten()}
+        return json.dumps(pg, indent=indent, separators=separators)
 
     @property
     def _api_version(self):
@@ -128,4 +137,4 @@ class VectorCube():
         if out_format:
             # add `save_result` node
             shp = shp.save_result(format=out_format, options=format_options)
-        return self._connection.create_job(process_graph=shp.graph, additional=job_options)
+        return self._connection.create_job(process_graph=shp.flatten(), additional=job_options)

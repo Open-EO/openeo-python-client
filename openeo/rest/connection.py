@@ -230,7 +230,7 @@ class Connection(RestApiConnection):
             )
 
         self._auth_config = auth_config
-        self._refresh_token_store = refresh_token_store or RefreshTokenStore()
+        self._refresh_token_store = refresh_token_store
 
     @classmethod
     def version_discovery(cls, url: str, session: requests.Session = None) -> str:
@@ -258,6 +258,11 @@ class Connection(RestApiConnection):
         if self._auth_config is None:
             self._auth_config = AuthConfig()
         return self._auth_config
+
+    def _get_refresh_token_store(self) -> RefreshTokenStore:
+        if self._refresh_token_store is None:
+            self._refresh_token_store = RefreshTokenStore()
+        return self._refresh_token_store
 
     def authenticate_basic(self, username: str = None, password: str = None) -> 'Connection':
         """
@@ -382,7 +387,7 @@ class Connection(RestApiConnection):
         tokens = authenticator.get_tokens()
         _log.info("Obtained tokens: {t}".format(t=[k for k, v in tokens._asdict().items() if v]))
         if tokens.refresh_token and store_refresh_token:
-            self._refresh_token_store.set_refresh_token(
+            self._get_refresh_token_store().set_refresh_token(
                 issuer=authenticator.provider_info.issuer,
                 client_id=authenticator.client_id,
                 refresh_token=tokens.refresh_token
@@ -471,7 +476,7 @@ class Connection(RestApiConnection):
         )
 
         if refresh_token is None:
-            refresh_token = self._refresh_token_store.get_refresh_token(
+            refresh_token = self._get_refresh_token_store().get_refresh_token(
                 issuer=client_info.provider.issuer,
                 client_id=client_info.client_id
             )
@@ -623,7 +628,7 @@ class Connection(RestApiConnection):
 
     def save_user_defined_process(
             self, user_defined_process_id: str, process_graph: dict,
-            parameters: List[Union[dict, Parameter]] = None, public: bool = False) -> RESTUserDefinedProcess:
+            parameters: List[Union[dict, Parameter]] = None, public: bool = False, summary:str=None,description:str=None) -> RESTUserDefinedProcess:
         """
         Saves a process graph and its metadata in the backend as a user-defined process for the authenticated user.
 
@@ -631,13 +636,15 @@ class Connection(RestApiConnection):
         :param process_graph: a process graph
         :param parameters: a list of parameters
         :param public: visible to other users?
+        :param summary: A short summary of what the process does.
+        :param description: Detailed description to explain the entity. CommonMark 0.29 syntax MAY be used for rich text representation.
         :return: a RESTUserDefinedProcess instance
         """
         if user_defined_process_id in set(p["id"] for p in self.list_processes()):
             warnings.warn("Defining user-defined process {u!r} with same id as a pre-defined process".format(
                 u=user_defined_process_id))
         udp = RESTUserDefinedProcess(user_defined_process_id=user_defined_process_id, connection=self)
-        udp.store(process_graph=process_graph, parameters=parameters, public=public)
+        udp.store(process_graph=process_graph, parameters=parameters, public=public,summary=summary,description=description)
         return udp
 
     def list_user_defined_processes(self) -> List[dict]:
