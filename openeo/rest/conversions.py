@@ -247,13 +247,17 @@ def datacube_plot(
         vmin=limits[0]
         vmax=limits[1]
     
+    # fill bands and t if missing
     if 'bands' not in data.dims:
         data=data.expand_dims(dim={'bands':['band0']})
+    if 't' not in data.dims:
+        data=data.expand_dims(dim={'t':[np.datetime64('today')]})
     if 'bands' not in data.coords:
         data['bands']=['band0']
     if 't' not in data.coords:
-        data=data.expand_dims(dim={'t':[np.datetime64('today')]})
+        data['t']=[np.datetime64('today')]
     
+    # align with plot
     data=data.transpose('t','bands','y','x')
     dpi=100
     xres=len(data.x)/dpi
