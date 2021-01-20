@@ -2,7 +2,7 @@ from string import Template
 from collections import Mapping
 import json
 
-SCRIPT_URL = 'http://127.0.0.1:8080/assets/openeo.js'
+SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/@openeo/vue-components@2.0.0-beta.1/assets/openeo.js'
 
 # This is a Proxy to visualize openEO responses nicely in Jupyter
 # To show the actual dict in Jupyter, use repr() or print()
