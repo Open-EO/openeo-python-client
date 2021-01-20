@@ -58,11 +58,10 @@ class DataCube(ImageCollection):
     """
 
     def __init__(self, graph: PGNode, connection: 'openeo.Connection', metadata: CollectionMetadata = None):
-        super().__init__(metadata=metadata)
         # Process graph
         self._pg = graph
         self._connection = connection
-        self.metadata = metadata
+        self.metadata = CollectionMetadata.get_or_create(metadata)
 
     def __str__(self):
         return "DataCube({pg})".format(pg=self._pg)

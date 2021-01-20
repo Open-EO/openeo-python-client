@@ -27,13 +27,12 @@ class ImageCollectionClient(ImageCollection):
         Supports 0.4.
     """
 
-    def __init__(self, node_id: str, builder: GraphBuilder, session: 'Connection', metadata: CollectionMetadata=None):
-        super().__init__(metadata=metadata)
+    def __init__(self, node_id: str, builder: GraphBuilder, session: 'Connection', metadata: CollectionMetadata = None):
         self.node_id = node_id
         self.builder= builder
         self.session = session
         self.graph = builder.processes
-        self.metadata = metadata
+        self.metadata = CollectionMetadata.get_or_create(metadata)
 
     def __str__(self):
         return "ImageCollection: %s" % self.node_id

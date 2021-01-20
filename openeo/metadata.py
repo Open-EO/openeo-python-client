@@ -177,6 +177,14 @@ class CollectionMetadata:
             if dim.type == "temporal":
                 self._temporal_dimension = dim
 
+    @classmethod
+    def get_or_create(cls, metadata: Union[dict, 'CollectionMetadata', None]) -> 'CollectionMetadata':
+        """Get or create CollectionMetadata from given argument."""
+        if isinstance(metadata, cls):
+            return metadata
+        else:
+            return cls(metadata=metadata or {})
+
     def _clone_and_update(self, metadata: dict = None, dimensions: List[Dimension] = None, **kwargs) -> 'CollectionMetadata':
         """Create a new instance (of same class) with copied/updated fields."""
         cls = type(self)
