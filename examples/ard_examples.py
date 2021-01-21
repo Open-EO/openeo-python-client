@@ -1,3 +1,4 @@
+import time
 
 import openeo
 
@@ -33,3 +34,61 @@ def test_sentinel2_sen2cor():
     download = rgb \
     .download("/tmp/openeo-rgb-sen2cor.geotiff",format="GTiff")
     print(download)
+
+from shapely.geometry import Polygon, mapping
+
+polygon = Polygon(shell=[
+        [
+            5.152158737182616,
+            51.18469636040683
+        ],
+        [
+            5.15183687210083,
+            51.181979395425095
+        ],
+        [
+            5.152802467346191,
+            51.18192559252128
+        ],
+        [
+            5.153381824493408,
+            51.184588760878924
+        ],
+        [
+            5.152158737182616,
+            51.18469636040683
+        ]
+    ])
+
+
+def test_icor_timeseries():
+    l1c = connection.load_collection("SENTINEL2_L1C_SENTINELHUB",
+                                     temporal_extent=["2019-04-01", "2019-09-01"],
+                                     bands=['B08','B04', 'B8A','B09', 'B11', 'sunAzimuthAngles',
+                                            'sunZenithAngles', 'viewAzimuthMean', 'viewZenithMean'])
+
+    start_time = time.time()
+    json = l1c.atmospheric_correction().ndvi(nir='B08',red='B04').polygonal_mean_timeseries(polygon).execute()
+    elapsed_time = time.time() - start_time
+    print("seconds: " + str(elapsed_time))
+    from openeo.rest.conversions import timeseries_json_to_pandas
+    df = timeseries_json_to_pandas(json)
+
+    l2a = connection.load_collection("SENTINEL2_L2A_SENTINELHUB",
+                                     temporal_extent=["2019-04-01", "2019-09-01"], bands=['B08','B04', 'B8A','B09', 'B11', 'sunAzimuthAngles',
+                                            'sunZenithAngles', 'viewAzimuthMean', 'viewZenithMean'])
+    start_time = time.time()
+    l2a_json = l2a.ndvi(nir='B08',red='B04').polygonal_mean_timeseries(polygon).execute()
+    elapsed_time = time.time() - start_time
+    print("seconds: " + str(elapsed_time))
+    df_l2a = timeseries_json_to_pandas(l2a_json)
+
+    import pandas as pd
+    df.index = pd.to_datetime(df.index)
+    df_l2a.index = pd.to_datetime(df_l2a.index)
+
+    df.name = "iCor"
+    df_l2a.name = "Sen2Cor"
+    joined = pd.concat([df, df_l2a], axis=1)
+    print(joined)
+    joined.to_csv('timeseries_icor.csv')
