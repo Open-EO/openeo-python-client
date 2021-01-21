@@ -8,32 +8,28 @@ SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/@openeo/vue-components@2.0.0-beta.1/a
 
 class JupyterIntegration:
 
-    # Class instance to store whether the script has been inserted into the DOM
-    # TODO: This fails if a page is reloaded in Jupyter. The variable is still True, but the script doesn't exist in the page any longer.
-    script_sent = False
-
     def __init__(self, component: str, parameters: dict = {}):
         self.component = component
         self.parameters = parameters
 
     def _repr_html_(self):
-        # Output script tag only once, otherwise JS throws errors
-        script = ''
-        if JupyterIntegration.script_sent == False:
-            script = '<script src="{}"></script>'.format(SCRIPT_URL)
-            JupyterIntegration.script_sent = True
-
-        # Construct HTML
+        # Construct HTML, load Vue Components source files only if the openEO HTML tag is not yet defined
         return """
-        {script}
+        <script>
+        if (!window.customElements || !window.customElements.get('openeo-{component}')) {{
+            var el = document.createElement('script');
+            el.src = "{script}";
+            document.head.appendChild(el);
+        }}
+        </script>
         <openeo-{component}>
             <script type="application/json">{props}</script>
         </openeo-{component}>
         """.format(
-            script = script,
+            script = SCRIPT_URL,
             component = self.component,
             props = json.dumps(self.parameters)
-		)
+        )
 
 
 class VisualDict(dict, JupyterIntegration):
