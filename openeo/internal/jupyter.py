@@ -1,4 +1,3 @@
-from string import Template
 from collections import Mapping
 import json
 
@@ -25,17 +24,16 @@ class JupyterIntegration:
             JupyterIntegration.script_sent = True
 
         # Construct HTML
-        template = Template("""
-        $script
-        <openeo-$component>
-            <script type="application/json">$props</script>
-        </openeo-$component>
-        """)
-        return template.substitute(
+        return """
+        {script}
+        <openeo-{component}>
+            <script type="application/json">{props}</script>
+        </openeo-{component}>
+        """.format(
             script = script,
             component = self.component,
             props = json.dumps(self.parameters)
-        )
+		)
 
 
 class VisualDict(dict, JupyterIntegration):
