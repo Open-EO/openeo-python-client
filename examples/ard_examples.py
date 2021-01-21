@@ -2,11 +2,11 @@
 import openeo
 
 #connect with VITO backend
-connection = openeo.connect("https://openeo-dev.vito.be").authenticate_basic("driesj","driesj123")
+connection = openeo.connect("https://openeo-dev.vito.be").authenticate_basic()
 
 l1c = connection.load_collection("SENTINEL2_L1C_SENTINELHUB",
             spatial_extent={'west':3.758216409030558,'east':4.087806252,'south':51.291835566,'north':51.3927399,'crs':'EPSG:4326'},
-            temporal_extent=["2017-03-07","2017-03-07"],bands=['B04','B03','B02','sunAzimuthAngles','sunZenithAngles','viewAzimuthMean','viewZenithMean'] )
+            temporal_extent=["2017-03-07","2017-03-07"],bands=['B04','B03','B02','B09','B8A','B11','sunAzimuthAngles','sunZenithAngles','viewAzimuthMean','viewZenithMean'] )
 
 def test_l1c():
     l1c.download("/tmp/openeo-rgb-l1c.geotiff", format="GTiff")
@@ -19,8 +19,7 @@ def test_sentinel2_icor():
     rgb = l1c.atmospheric_correction()
 
     #specify process graph
-    download = rgb \
-    .download("/tmp/openeo-rgb-icor.geotiff",format="GTiff")
+    download = rgb.download("/tmp/openeo-rgb-icor.geotiff",format="GTiff")
     print(download)
 
 
