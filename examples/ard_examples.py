@@ -62,23 +62,24 @@ polygon = Polygon(shell=[
 
 
 def test_icor_timeseries():
+    cloudmask = connection.load_collection("SENTINEL2_L2A_SENTINELHUB",temporal_extent=["2019-02-01", "2019-11-01"],bands=["CLM"])
+
     l1c = connection.load_collection("SENTINEL2_L1C_SENTINELHUB",
-                                     temporal_extent=["2019-04-01", "2019-09-01"],
+                                     temporal_extent=["2019-02-01", "2019-11-01"],
                                      bands=['B08','B04', 'B8A','B09', 'B11', 'sunAzimuthAngles',
                                             'sunZenithAngles', 'viewAzimuthMean', 'viewZenithMean'])
 
     start_time = time.time()
-    json = l1c.atmospheric_correction().ndvi(nir='B08',red='B04').polygonal_mean_timeseries(polygon).execute()
+    json = l1c.mask(cloudmask).atmospheric_correction().ndvi(nir='B08',red='B04').polygonal_mean_timeseries(polygon).execute()
     elapsed_time = time.time() - start_time
     print("seconds: " + str(elapsed_time))
     from openeo.rest.conversions import timeseries_json_to_pandas
     df = timeseries_json_to_pandas(json)
 
     l2a = connection.load_collection("SENTINEL2_L2A_SENTINELHUB",
-                                     temporal_extent=["2019-04-01", "2019-09-01"], bands=['B08','B04', 'B8A','B09', 'B11', 'sunAzimuthAngles',
-                                            'sunZenithAngles', 'viewAzimuthMean', 'viewZenithMean'])
+                                     temporal_extent=["2019-02-01", "2019-11-01"], bands=['B08','B04'])
     start_time = time.time()
-    l2a_json = l2a.ndvi(nir='B08',red='B04').polygonal_mean_timeseries(polygon).execute()
+    l2a_json = l2a.mask(cloudmask).ndvi(nir='B08',red='B04').polygonal_mean_timeseries(polygon).execute()
     elapsed_time = time.time() - start_time
     print("seconds: " + str(elapsed_time))
     df_l2a = timeseries_json_to_pandas(l2a_json)
@@ -91,4 +92,11 @@ def test_icor_timeseries():
     df_l2a.name = "Sen2Cor"
     joined = pd.concat([df, df_l2a], axis=1)
     print(joined)
-    joined.to_csv('timeseries_icor.csv')
+    joined.to_csv('timeseries_icor_masked.csv')
+
+def test_read_plot():
+    import pandas as pd
+    df = pd.read_csv("/home/driesj/python/openeo-python-client/examples/timeseries_icor_masked.csv")
+    df.columns = ["date", "iCor", "Sen2Cor"]
+    df.index = pd.to_datetime(df.date)
+    df.dropna().plot()
