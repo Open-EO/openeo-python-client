@@ -9,7 +9,27 @@ in development mode (``-e``)
 with additional development related dependencies (``[dev]``)
 like this::
 
-    pip install -e .[dev]
+    pip install -e .[dev] --extra-index-url https://artifactory.vgt.vito.be/api/pypi/python-openeo/simple
+
+The ``--extra-index-url`` is necessary to be able to find certain
+(development) versions of packages that are not available in the standard channels.
+
+
+Running the unit tests
+======================
+
+The test suite of the openEO Python Client leverages
+the nice `pytest <https://docs.pytest.org/en/stable/>`_ framework.
+It is installed automatically when installing the openEO Python Client
+with the ``[dev]`` extra as shown above.
+Running the whole tests is as simple as executing::
+
+    pytest
+
+There are a ton of command line options for fine-tuning
+(e.g. select a subset of tests, how results should be reported, ...).
+Run ``pytest -h`` for a quick overview
+or check the `pytest <https://docs.pytest.org/en/stable/>`_ documentation for more information.
 
 
 Building the documentation
