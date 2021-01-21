@@ -589,8 +589,7 @@ class Connection(RestApiConnection):
         :return: data_dict: Dict All available service types
         """
         # TODO return parsed service objects
-        data = self.get('/services').json()
-        return data
+        return self.get('/services').json()
 
     def describe_collection(self, name) -> dict:
         # TODO: Maybe create some kind of Data class.
