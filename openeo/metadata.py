@@ -395,4 +395,4 @@ class CollectionMetadata:
         return self._clone_and_update(dimensions=self._dimensions + [dim])
     
     def _repr_html_(self):
-        return VisualDict('collection', parameters = {'collection': self._orig_metadata})._repr_html_()
+        return VisualDict('collection', data = self._orig_metadata)._repr_html_()

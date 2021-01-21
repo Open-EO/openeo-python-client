@@ -5,12 +5,25 @@ import json
 # To show the actual list or dict in Jupyter, use repr() or print()
 
 SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/@openeo/vue-components@2.0.0-beta.1/assets/openeo.js'
+COMPONENT_MAP = {
+    'file-format': 'format',
+    'file-formats': 'formats',
+    'service-type': 'service',
+    'service-types': 'services',
+    'udf-runtime': 'runtime',
+    'udf-runtimes': 'runtimes',
+}
 
 class JupyterIntegration:
 
-    def __init__(self, component: str, parameters: dict = {}):
+    def __init__(self, component: str, data = None, parameters: dict = {}):
         self.component = component
         self.parameters = parameters
+
+        # Set the data as the corresponding parameter in the Vue components
+        key = COMPONENT_MAP.get(component, component)
+        if data != None:
+            self.parameters[key] = data
 
     def _repr_html_(self):
         # Construct HTML, load Vue Components source files only if the openEO HTML tag is not yet defined
@@ -35,30 +48,14 @@ class JupyterIntegration:
 class VisualDict(dict, JupyterIntegration):
 
     # The first entry of the dict is expected to always be the actual dict with the data
-    def __init__(self, component: str, parameters: dict = {}):
-        JupyterIntegration.__init__(self, component, parameters)
-
-        data = {}
-        if len(parameters) > 0:
-            i = next(iter(parameters))
-            if isinstance(parameters[i], Mapping):
-                data = parameters[i]
-            else:
-                   raise ValueError("First value in the dict 'parameters' must be of type dict or Mapping")
+    def __init__(self, component: str, data : dict, parameters: dict = {}):
+        JupyterIntegration.__init__(self, component, data, parameters)
         dict.__init__(self, data)
 
 
 class VisualList(list, JupyterIntegration):
 
     # The first entry of the dict is expected to always be the actual list with the data
-    def __init__(self, component: str, parameters: dict = {}):
-        JupyterIntegration.__init__(self, component, parameters)
-
-        data = []
-        if len(parameters) > 0:
-            i = next(iter(parameters))
-            if isinstance(parameters[i], list):
-                data = parameters[i]
-            else:
-                   raise ValueError("First value in the dict 'parameters' must be of type list")
+    def __init__(self, component: str, data : list, parameters: dict = {}):
+        JupyterIntegration.__init__(self, component, data, parameters)
         list.__init__(self, data)

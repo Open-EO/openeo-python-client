@@ -524,7 +524,7 @@ class Connection(RestApiConnection):
         :return: list of collection meta data dictionaries
         """
         data  = self.get('/collections').json()["collections"]
-        return VisualList("collections", parameters = {"collections": data})
+        return VisualList("collections", data = data)
 
     def list_collection_ids(self) -> List[str]:
         """
@@ -560,7 +560,7 @@ class Connection(RestApiConnection):
         """
         if "file_formats" not in self._capabilities_cache:
             self._capabilities_cache["file_formats"] = self.get('/file_formats').json()
-        return VisualDict("file-formats", parameters = {"formats": self._capabilities_cache["file_formats"]})
+        return VisualDict("file-formats", data = self._capabilities_cache["file_formats"])
 
     def list_service_types(self) -> dict:
         """
@@ -570,7 +570,7 @@ class Connection(RestApiConnection):
         """
         if "service_types" not in self._capabilities_cache:
             self._capabilities_cache["service_types"] = self.get('/service_types').json()
-        return VisualDict("service-types", parameters = {"services": self._capabilities_cache["service_types"]})
+        return VisualDict("service-types", data = self._capabilities_cache["service_types"])
 
     def list_udf_runtimes(self) -> dict:
         """
@@ -580,7 +580,7 @@ class Connection(RestApiConnection):
         """
         if "udf_runtimes" not in self._capabilities_cache:
             self._capabilities_cache["udf_runtimes"] = self.get('/udf_runtimes').json()
-        return VisualDict("udf-runtimes", parameters = {"runtimes": self._capabilities_cache["udf_runtimes"]})
+        return VisualDict("udf-runtimes", data = self._capabilities_cache["udf_runtimes"])
 
     def list_services(self) -> dict:
         """
@@ -600,7 +600,7 @@ class Connection(RestApiConnection):
         :return: data_dict: Dict Detailed information about the collection
         """
         data = self.get('/collections/{}'.format(name)).json()
-        return VisualDict("collection", parameters = {"collection": data})
+        return VisualDict("collection", data = data)
 
     def collection_metadata(self, name) -> CollectionMetadata:
         return CollectionMetadata(metadata=self.describe_collection(name))
@@ -613,7 +613,7 @@ class Connection(RestApiConnection):
         :return: processes_dict: Dict All available processes of the back end.
         """
         data = self.get('/processes').json()["processes"]
-        return VisualList("processes", parameters = {"processes": data})
+        return VisualList("processes", data = data)
 
     def list_jobs(self) -> dict:
         """

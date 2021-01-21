@@ -36,4 +36,4 @@ class RESTCapabilities(Capabilities):
         return self.capabilities.get('billing', {}).get('plans')
 
     def _repr_html_(self):
-        return VisualDict("capabilities", parameters = {"capabilities": self.capabilities, "url": self.url})._repr_html_()
+        return VisualDict("capabilities", data = self.capabilities, parameters = {"url": self.url})._repr_html_()
