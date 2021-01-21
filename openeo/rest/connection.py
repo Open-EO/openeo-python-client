@@ -31,7 +31,7 @@ from openeo.rest.job import RESTJob
 from openeo.rest.rest_capabilities import RESTCapabilities
 from openeo.rest.udp import RESTUserDefinedProcess, Parameter
 from openeo.util import ensure_list, legacy_alias, dict_no_none
-from openeo.internal.jupyter import VisualDict
+from openeo.internal.jupyter import VisualDict, VisualList
 
 _log = logging.getLogger(__name__)
 
@@ -524,7 +524,7 @@ class Connection(RestApiConnection):
         :return: list of collection meta data dictionaries
         """
         data  = self.get('/collections').json()["collections"]
-        return VisualDict("collections", parameters = {"collections": data})
+        return VisualList("collections", parameters = {"collections": data})
 
     def list_collection_ids(self) -> List[str]:
         """
@@ -614,7 +614,7 @@ class Connection(RestApiConnection):
         :return: processes_dict: Dict All available processes of the back end.
         """
         data = self.get('/processes').json()["processes"]
-        return VisualDict("processes", parameters = {"processes": data})
+        return VisualList("processes", parameters = {"processes": data})
 
     def list_jobs(self) -> dict:
         """
