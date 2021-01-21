@@ -50,13 +50,13 @@ class VisualDict(dict, JupyterIntegration):
 			if isinstance(parameters[i], Mapping):
 				data = parameters[i]
 			else:
-	   			raise ValueError("First parameter must be a dict")
+	   			raise ValueError("First value in the dict 'parameters' must be of type dict or Mapping")
 		dict.__init__(self, data)
 
 
 class VisualList(list, JupyterIntegration):
 
-	# The first entry of the dict is expected to always be the actual dict with the data
+	# The first entry of the dict is expected to always be the actual list with the data
 	def __init__(self, component: str, parameters: dict = {}):
 		JupyterIntegration.__init__(self, component, parameters)
 
@@ -66,5 +66,5 @@ class VisualList(list, JupyterIntegration):
 			if isinstance(parameters[i], list):
 				data = parameters[i]
 			else:
-	   			raise ValueError("First parameter must be a List[dict]")
+	   			raise ValueError("First value in the dict 'parameters' must be of type list")
 		list.__init__(self, data)
