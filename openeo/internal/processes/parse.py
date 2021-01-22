@@ -22,6 +22,7 @@ class Schema:
 
 class Parameter:
     """openEO process parameter"""
+    # TODO unify with openeo.api.process.Parameter?
 
     NO_DEFAULT = object()
 
