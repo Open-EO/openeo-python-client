@@ -4,7 +4,7 @@ import json
 # These classes are proxies to visualize openEO responses nicely in Jupyter
 # To show the actual list or dict in Jupyter, use repr() or print()
 
-SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/@openeo/vue-components@2.0.0-beta.2/assets/openeo.js'
+SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/@openeo/vue-components@2.0.0-rc.1/assets/openeo.js'
 COMPONENT_MAP = {
     'file-format': 'format',
     'file-formats': 'formats',
