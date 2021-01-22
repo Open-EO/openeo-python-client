@@ -275,7 +275,7 @@ class DataCube(ImageCollection):
                 if "crs" in bbox:
                     crs = bbox["crs"]
             else:
-                ValueError(bbox)
+                raise ValueError(bbox)
 
         extent = {'west': west, 'east': east, 'north': north, 'south': south}
         if crs:
