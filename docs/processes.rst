@@ -268,23 +268,25 @@ For example:
     to each pixel in the cube (separately)
 *   process ``reduce_dimension`` requires an aggregation function to convert
     an array of pixel values (along a given dimension) to a single value
-*   process ``apply_neighborhood`` requires a function to transform a small
-    "neighborhood" cube to another
+*   process ``aggregate_spatial`` requires a function to aggregate the values
+    in one or more geometries
 
 These transformation functions are usually called "**callbacks**"
 because instead of being called explicitly by the user,
 they are called by their "parent" process
-(the ``apply``, ``reduce_dimension`` and ``apply_neighborhood`` in the examples)
+(the ``apply``, ``reduce_dimension`` and ``aggregate_spatial`` in the examples)
 
 
-The openEO Python Client Library currently provides a couple of functions
-that expect a callback, including:
-:py:meth:`openeo.rest.datacube.DataCube.apply`,
-:py:meth:`openeo.rest.datacube.DataCube.apply_dimension`,
-:py:meth:`openeo.rest.datacube.DataCube.apply_neighborhood`,
-:py:meth:`openeo.rest.datacube.DataCube.merge_cubes`,
-:py:meth:`openeo.rest.datacube.DataCube.reduce_dimension`,
-and :py:meth:`openeo.rest.datacube.DataCube.load_collection`.
+The openEO Python Client Library currently provides a couple of DataCube methods
+that expect a callback, most commonly:
+
+- :py:meth:`openeo.rest.datacube.DataCube.aggregate_spatial`
+- :py:meth:`openeo.rest.datacube.DataCube.aggregate_temporal`
+- :py:meth:`openeo.rest.datacube.DataCube.apply`
+- :py:meth:`openeo.rest.datacube.DataCube.apply_dimension`
+- :py:meth:`openeo.rest.datacube.DataCube.apply_neighborhood`
+- :py:meth:`openeo.rest.datacube.DataCube.reduce_dimension`
+
 These functions support several ways to specify the desired callback.
 
 
