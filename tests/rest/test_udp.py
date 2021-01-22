@@ -302,3 +302,46 @@ def test_build_parameterized_cube_load_collection_band(con100):
             "result": True,
         }
     }
+
+
+def test_build_parameterized_cube_band_math(con100):
+    layer = Parameter.string("layer")
+    bands = [Parameter.string("band8"), Parameter.string("band12")]
+    cube = con100.load_collection(layer, bands=bands)
+    x = cube.band(0) * cube.band(Parameter.string("band12"))
+    assert x.flatten() == {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {
+                "id": {"from_parameter": "layer"},
+                "spatial_extent": None,
+                "temporal_extent": None,
+                "bands": [{"from_parameter": "band8"}, {"from_parameter": "band12"}],
+            },
+        },
+        "reducedimension1": {
+            "process_id": "reduce_dimension",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "dimension": "bands",
+                "reducer": {"process_graph": {
+                    "arrayelement1": {
+                        "process_id": "array_element",
+                        "arguments": {"data": {"from_parameter": "data"}, "index": 0},
+                    },
+                    "arrayelement2": {
+                        "process_id": "array_element",
+                        "arguments": {"data": {"from_parameter": "data"}, "index": 1},
+                    },
+                    "multiply1": {
+                        "process_id": "multiply",
+                        "arguments": {
+                            "x": {"from_node": "arrayelement1"},
+                            "y": {"from_node": "arrayelement2"}},
+                        "result": True
+                    }
+                }}
+            },
+            "result": True
+        }
+    }

@@ -27,9 +27,9 @@ from shapely.geometry import Polygon, MultiPolygon, mapping
 import openeo
 import openeo.processes
 from openeo.api.process import Parameter
-from openeo.imagecollection import ImageCollection, CollectionMetadata
+from openeo.imagecollection import ImageCollection
 from openeo.internal.graph_building import PGNode, ReduceNode
-from openeo.metadata import Band
+from openeo.metadata import CollectionMetadata, Band, BandDimension
 from openeo.processes import ProcessBuilder
 from openeo.rest import BandMathException, OperatorException, OpenEoClientException
 from openeo.rest.job import RESTJob
@@ -161,6 +161,10 @@ class DataCube(ImageCollection):
             if metadata:
                 bands = [metadata.band_dimension.band_name(b) for b in bands]
                 metadata = metadata.filter_bands(bands)
+            else:
+                # Ensure minimal metadata with best effort band dimension guess (based on `bands` argument).
+                band_dimension = BandDimension("bands", bands=[Band(b, None, None) for b in bands])
+                metadata = CollectionMetadata({}, dimensions=[band_dimension])
             arguments['bands'] = bands
         if properties:
             arguments['properties'] = {
