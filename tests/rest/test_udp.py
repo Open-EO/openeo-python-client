@@ -308,7 +308,7 @@ def test_build_parameterized_cube_band_math(con100):
     layer = Parameter.string("layer")
     bands = [Parameter.string("band8"), Parameter.string("band12")]
     cube = con100.load_collection(layer, bands=bands)
-    x = cube.band(0) * cube.band(Parameter.string("band12"))
+    x = cube.band(0) * cube.band(1)
     assert x.flatten() == {
         "loadcollection1": {
             "process_id": "load_collection",
