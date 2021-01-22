@@ -32,3 +32,7 @@ class ProcessBuilderBase:
         for arg in [a for a, v in arguments.items() if v is UNSET]:
             del arguments[arg]
         return cls(PGNode(process_id=process_id, arguments=arguments))
+
+    def flatten(self) -> dict:
+        """Get the process graph in flattened dict representation"""
+        return self.pgnode.flatten()

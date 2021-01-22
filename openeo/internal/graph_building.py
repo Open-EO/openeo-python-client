@@ -6,7 +6,7 @@ Process graph building functionality for 1.0.0-style process graphs and DataCube
 import collections
 from typing import Union, Dict
 
-from openeo import ImageCollection
+from openeo.api.process import Parameter
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
 
 
@@ -55,6 +55,8 @@ class PGNode:
             """PGNode aware deep copy helper"""
             if isinstance(x, PGNode):
                 return {"process_id": x.process_id, "arguments": _deep_copy(x.arguments)}
+            if isinstance(x, Parameter):
+                return {"from_parameter": x.name}
             elif isinstance(x, dict):
                 return {str(k): _deep_copy(v) for k, v in x.items()}
             elif isinstance(x, (list, tuple)):
@@ -201,6 +203,8 @@ class GraphFlattener(ProcessGraphVisitor):
         self._last_node_id = node_id
 
     def _store_argument(self, argument_id: str, value):
+        if isinstance(value, Parameter):
+            value = {"from_parameter": value.name}
         self._argument_stack[-1][argument_id] = value
 
     def _store_array_element(self, value):
