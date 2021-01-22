@@ -26,6 +26,7 @@ from shapely.geometry import Polygon, MultiPolygon, mapping
 
 import openeo
 import openeo.processes
+from openeo.api.process import Parameter
 from openeo.imagecollection import ImageCollection, CollectionMetadata
 from openeo.internal.graph_building import PGNode, ReduceNode
 from openeo.metadata import Band
@@ -235,8 +236,14 @@ class DataCube(ImageCollection):
 
             - With a shapely geometry (of which the bounding box will be used)::
 
-                >>> cube.filter(geometry)
-                >>> cube.filter(bbox=geometry)
+                >>> cube.filter_bbox(geometry)
+                >>> cube.filter_bbox(bbox=geometry)
+
+            - Passing a parameter::
+
+                >>> bbox_param = Parameter(name="my_bbox", schema="object")
+                >>> cube.filter_bbox(bbox_param)
+                >>> cube.filter_bbox(bbox=bbox_param)
 
             - Deprecated: positional arguments are also supported,
               but follow a non-standard order for legacy reasons::
@@ -260,28 +267,32 @@ class DataCube(ImageCollection):
                 if len(args) > 4:
                     crs = args[4]
             elif len(args) == 1 and (isinstance(args[0], (list, tuple)) and len(args[0]) == 4
-                                     or isinstance(args[0], (dict, shapely.geometry.base.BaseGeometry))):
+                                     or isinstance(args[0], (dict, shapely.geometry.base.BaseGeometry, Parameter))):
                 bbox = args[0]
             else:
                 raise ValueError(args)
 
-        if bbox:
-            if isinstance(bbox, shapely.geometry.base.BaseGeometry):
-                west, south, east, north = bbox.bounds
-            elif isinstance(bbox, (list, tuple)) and len(bbox) == 4:
-                west, south, east, north = bbox[:4]
-            elif isinstance(bbox, dict):
-                west, south, east, north = (bbox[k] for k in ["west", "south", "east", "north"])
-                if "crs" in bbox:
-                    crs = bbox["crs"]
-            else:
-                raise ValueError(bbox)
+        if isinstance(bbox, Parameter):
+            extent = bbox
+        else:
+            if bbox:
+                if isinstance(bbox, shapely.geometry.base.BaseGeometry):
+                    west, south, east, north = bbox.bounds
+                elif isinstance(bbox, (list, tuple)) and len(bbox) == 4:
+                    west, south, east, north = bbox[:4]
+                elif isinstance(bbox, dict):
+                    west, south, east, north = (bbox[k] for k in ["west", "south", "east", "north"])
+                    if "crs" in bbox:
+                        crs = bbox["crs"]
+                else:
+                    raise ValueError(bbox)
 
-        extent = {'west': west, 'east': east, 'north': north, 'south': south}
-        if crs:
-            extent["crs"] = crs
-        if base is not None or height is not None:
-            extent.update(base=base, height=height)
+            extent = {'west': west, 'east': east, 'north': north, 'south': south}
+            if crs:
+                extent["crs"] = crs
+            if base is not None or height is not None:
+                extent.update(base=base, height=height)
+
         return self.process(
             process_id='filter_bbox',
             arguments={

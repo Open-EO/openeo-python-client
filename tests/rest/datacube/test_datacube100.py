@@ -11,6 +11,7 @@ import shapely.geometry
 
 import openeo.metadata
 from openeo import UDF
+from openeo.api.process import Parameter
 from openeo.internal.graph_building import PGNode
 from openeo.rest.connection import Connection
 from openeo.rest.datacube import THIS, DataCube
@@ -46,6 +47,24 @@ def test_filter_bbox_kwargs(con100: Connection, kwargs, expected):
     node = _get_leaf_node(cube)
     assert node["process_id"] == "filter_bbox"
     assert node["arguments"]["extent"] == expected
+
+
+def test_filter_bbox_parameter(con100: Connection):
+    expected = {
+        "process_id": "filter_bbox",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "extent": {"from_parameter": "my_bbox"}
+        },
+        "result": True
+    }
+    bbox_param = Parameter(name="my_bbox", schema={"type": "object"})
+
+    cube = con100.load_collection("S2").filter_bbox(bbox_param)
+    assert _get_leaf_node(cube) == expected
+
+    cube = con100.load_collection("S2").filter_bbox(bbox=bbox_param)
+    assert _get_leaf_node(cube) == expected
 
 
 @pytest.mark.parametrize(["args", "expected"], [
