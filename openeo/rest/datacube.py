@@ -34,7 +34,7 @@ from openeo.processes import ProcessBuilder
 from openeo.rest import BandMathException, OperatorException, OpenEoClientException
 from openeo.rest.job import RESTJob
 from openeo.rest.udp import RESTUserDefinedProcess
-from openeo.util import get_temporal_extent, dict_no_none, legacy_alias
+from openeo.util import get_temporal_extent, dict_no_none, legacy_alias, rfc3339
 from openeo.vectorcube import VectorCube
 
 
@@ -145,19 +145,22 @@ class DataCube(ImageCollection):
         :param properties: limit data by metadata property predicates
         :return:
         """
-        normalized_temporal_extent = list(
-            get_temporal_extent(extent=temporal_extent)) if temporal_extent is not None else None
+        if temporal_extent:
+            temporal_extent = cls._get_temporal_extent(extent=temporal_extent)
         arguments = {
             'id': collection_id,
             'spatial_extent': spatial_extent,
-            'temporal_extent': normalized_temporal_extent,
+            'temporal_extent': temporal_extent,
         }
+        if isinstance(collection_id, Parameter):
+            fetch_metadata = False
         metadata = connection.collection_metadata(collection_id) if fetch_metadata else None
         if bands:
             if isinstance(bands, str):
                 bands = [bands]
             if metadata:
                 bands = [metadata.band_dimension.band_name(b) for b in bands]
+                metadata = metadata.filter_bands(bands)
             arguments['bands'] = bands
         if properties:
             arguments['properties'] = {
@@ -168,8 +171,6 @@ class DataCube(ImageCollection):
             process_id='load_collection',
             arguments=arguments
         )
-        if bands:
-            metadata = metadata.filter_bands(bands)
         return cls(graph=pg, connection=connection, metadata=metadata)
 
     create_collection = legacy_alias(load_collection, name="create_collection")
@@ -196,12 +197,53 @@ class DataCube(ImageCollection):
         )
         return cls(graph=pg, connection=connection, metadata=CollectionMetadata({}))
 
-    def _filter_temporal(self, start: str, end: str) -> 'DataCube':
+    @classmethod
+    def _get_temporal_extent(
+            cls, *args,
+            start_date: Union[str, datetime.datetime, datetime.date, Parameter] = None,
+            end_date: Union[str, datetime.datetime, datetime.date, Parameter] = None,
+            extent: Union[list, tuple, Parameter] = None
+    ) -> Union[List[Union[str, None, Parameter]], Parameter]:
+        """Parameter aware temporal_extent normalizer"""
+        if len(args) == 1 and isinstance(args[0], Parameter):
+            assert start_date is None and end_date is None and extent is None
+            return args[0]
+        elif len(args) == 0 and isinstance(extent, Parameter):
+            assert start_date is None and end_date is None
+            return extent
+        else:
+            return list(get_temporal_extent(
+                *args, start_date=start_date, end_date=end_date, extent=extent,
+                convertor=lambda d: d if isinstance(d, Parameter) else rfc3339.normalize(d)
+            ))
+
+
+    def filter_temporal(
+            self, *args,
+            start_date: Union[str, datetime.datetime, datetime.date] = None,
+            end_date: Union[str, datetime.datetime, datetime.date] = None,
+            extent: Union[list, tuple] = None
+    ) -> 'ImageCollection':
+        """
+        Limit the DataCube to a certain date range, which can be specified in several ways:
+
+        >>> im.filter_temporal("2019-07-01", "2019-08-01")
+        >>> im.filter_temporal(["2019-07-01", "2019-08-01"])
+        >>> im.filter_temporal(extent=["2019-07-01", "2019-08-01"])
+        >>> im.filter_temporal(start_date="2019-07-01", end_date="2019-08-01"])
+
+        :param start_date: start date of the filter (inclusive), as a string or date object
+        :param end_date: end date of the filter (exclusive), as a string or date object
+        :param extent: two element list/tuple start and end date of the filter
+        :return: An ImageCollection filtered by date.
+
+        https://open-eo.github.io/openeo-api/processreference/#filter_temporal
+        """
         return self.process(
             process_id='filter_temporal',
             arguments={
                 'data': THIS,
-                'extent': [start, end]
+                'extent': self._get_temporal_extent(*args, start_date=start_date, end_date=end_date, extent=extent)
             }
         )
 

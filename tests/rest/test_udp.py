@@ -1,6 +1,6 @@
-import openeo
 import pytest
 
+import openeo
 from openeo.api.process import Parameter
 from openeo.rest.udp import RESTUserDefinedProcess
 from .. import load_json_resource
@@ -192,3 +192,113 @@ def test_delete(con100, requests_mock):
     udp.delete()
 
     assert adapter.called
+
+
+def test_build_parameterized_cube_basic(con100):
+    layer = Parameter.string("layer")
+    dates = Parameter.string("dates")
+    bbox = Parameter("bbox", schema="object")
+    cube = con100.load_collection(layer).filter_temporal(dates).filter_bbox(bbox)
+
+    assert cube.flatten() == {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": {"from_parameter": "layer"}, "temporal_extent": None, "spatial_extent": None},
+        },
+        "filtertemporal1": {
+            "process_id": "filter_temporal",
+            "arguments": {"data": {"from_node": "loadcollection1"}, "extent": {"from_parameter": "dates"}},
+        },
+        "filterbbox1": {
+            "process_id": "filter_bbox",
+            "arguments": {"data": {"from_node": "filtertemporal1"}, "extent": {"from_parameter": "bbox"}},
+            "result": True,
+        }
+    }
+
+
+def test_build_parameterized_cube_single_date(con100):
+    layer = Parameter.string("layer")
+    date = Parameter.string("date")
+    bbox = Parameter("bbox", schema="object")
+    cube = con100.load_collection(layer).filter_temporal(date, date).filter_bbox(bbox)
+
+    assert cube.flatten() == {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": {"from_parameter": "layer"}, "temporal_extent": None, "spatial_extent": None},
+        },
+        "filtertemporal1": {
+            "process_id": "filter_temporal",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "extent": [{"from_parameter": "date"}, {"from_parameter": "date"}]
+            },
+        },
+        "filterbbox1": {
+            "process_id": "filter_bbox",
+            "arguments": {"data": {"from_node": "filtertemporal1"}, "extent": {"from_parameter": "bbox"}},
+            "result": True,
+        }
+    }
+
+
+def test_build_parameterized_cube_start_date(con100):
+    layer = Parameter.string("layer")
+    start = Parameter.string("start")
+    bbox = Parameter("bbox", schema="object")
+    cube = con100.load_collection(layer).filter_temporal(start, None).filter_bbox(bbox)
+
+    assert cube.flatten() == {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": {"from_parameter": "layer"}, "temporal_extent": None, "spatial_extent": None},
+        },
+        "filtertemporal1": {
+            "process_id": "filter_temporal",
+            "arguments": {"data": {"from_node": "loadcollection1"}, "extent": [{"from_parameter": "start"}, None]},
+        },
+        "filterbbox1": {
+            "process_id": "filter_bbox",
+            "arguments": {"data": {"from_node": "filtertemporal1"}, "extent": {"from_parameter": "bbox"}},
+            "result": True,
+        }
+    }
+
+
+def test_build_parameterized_cube_load_collection(con100):
+    layer = Parameter.string("layer")
+    dates = Parameter.string("dates")
+    bbox = Parameter("bbox", schema="object")
+    cube = con100.load_collection(layer, spatial_extent=bbox, temporal_extent=dates)
+
+    assert cube.flatten() == {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {
+                "id": {"from_parameter": "layer"},
+                "temporal_extent": {"from_parameter": "dates"},
+                "spatial_extent": {"from_parameter": "bbox"}
+            },
+            "result": True,
+        }
+    }
+
+
+def test_build_parameterized_cube_load_collection_band(con100):
+    layer = Parameter.string("layer")
+    bands = [Parameter.string("band8"), Parameter.string("band12")]
+    cube = con100.load_collection(layer, bands=bands)
+
+    assert cube.flatten() == {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {
+                "id": {"from_parameter": "layer"},
+                "temporal_extent": None,
+                "spatial_extent": None,
+                "bands": [{"from_parameter": "band8"}, {"from_parameter": "band12"}]
+            },
+            "result": True,
+        }
+    }

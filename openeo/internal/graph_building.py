@@ -208,6 +208,8 @@ class GraphFlattener(ProcessGraphVisitor):
         self._argument_stack[-1][argument_id] = value
 
     def _store_array_element(self, value):
+        if isinstance(value, Parameter):
+            value = {"from_parameter": value.name}
         self._argument_stack[-1].append(value)
 
     def enterArray(self, argument_id: str):
