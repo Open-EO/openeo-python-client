@@ -1,8 +1,4 @@
-from collections import Mapping
 import json
-
-# These classes are proxies to visualize openEO responses nicely in Jupyter
-# To show the actual list or dict in Jupyter, use repr() or print()
 
 SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/@openeo/vue-components@2.0.0-rc.1/assets/openeo.js'
 COMPONENT_MAP = {
@@ -14,46 +10,52 @@ COMPONENT_MAP = {
     'udf-runtimes': 'runtimes',
 }
 
-class JupyterIntegration:
+def render_component(component: str, data = None, parameters: dict = {}):
+    # Set the data as the corresponding parameter in the Vue components
+    key = COMPONENT_MAP.get(component, component)
+    if data != None:
+        parameters[key] = data
 
-    def __init__(self, component: str, data = None, parameters: dict = {}):
+    # Construct HTML, load Vue Components source files only if the openEO HTML tag is not yet defined
+    return """
+    <script>
+    if (!window.customElements || !window.customElements.get('openeo-{component}')) {{
+        var el = document.createElement('script');
+        el.src = "{script}";
+        document.head.appendChild(el);
+    }}
+    </script>
+    <openeo-{component}>
+        <script type="application/json">{props}</script>
+    </openeo-{component}>
+    """.format(
+        script = SCRIPT_URL,
+        component = component,
+        props = json.dumps(parameters)
+    )
+
+# These classes are proxies to visualize openEO responses nicely in Jupyter
+# To show the actual list or dict in Jupyter, use repr() or print()
+
+class VisualDict(dict):
+
+    def __init__(self, component: str, data : dict, parameters: dict = {}):
+        dict.__init__(self, data)
+
         self.component = component
         self.parameters = parameters
 
-        # Set the data as the corresponding parameter in the Vue components
-        key = COMPONENT_MAP.get(component, component)
-        if data != None:
-            self.parameters[key] = data
-
     def _repr_html_(self):
-        # Construct HTML, load Vue Components source files only if the openEO HTML tag is not yet defined
-        return """
-        <script>
-        if (!window.customElements || !window.customElements.get('openeo-{component}')) {{
-            var el = document.createElement('script');
-            el.src = "{script}";
-            document.head.appendChild(el);
-        }}
-        </script>
-        <openeo-{component}>
-            <script type="application/json">{props}</script>
-        </openeo-{component}>
-        """.format(
-            script = SCRIPT_URL,
-            component = self.component,
-            props = json.dumps(self.parameters)
-        )
+        return render_component(self.component, self, self.parameters)
 
 
-class VisualDict(dict, JupyterIntegration):
-
-    def __init__(self, component: str, data : dict, parameters: dict = {}):
-        JupyterIntegration.__init__(self, component, data, parameters)
-        dict.__init__(self, data)
-
-
-class VisualList(list, JupyterIntegration):
+class VisualList(list):
 
     def __init__(self, component: str, data : list, parameters: dict = {}):
-        JupyterIntegration.__init__(self, component, data, parameters)
         list.__init__(self, data)
+
+        self.component = component
+        self.parameters = parameters
+
+    def _repr_html_(self):
+        return render_component(self.component, self, self.parameters)

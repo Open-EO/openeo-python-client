@@ -1,5 +1,5 @@
 from openeo.capabilities import Capabilities
-from openeo.internal.jupyter import JupyterIntegration
+from openeo.internal.jupyter import render_component
 
 
 class RESTCapabilities(Capabilities):
@@ -36,4 +36,4 @@ class RESTCapabilities(Capabilities):
         return self.capabilities.get('billing', {}).get('plans')
 
     def _repr_html_(self):
-        return JupyterIntegration("capabilities", data = self.capabilities, parameters = {"url": self.url})._repr_html_()
+        return render_component("capabilities", data = self.capabilities, parameters = {"url": self.url})
