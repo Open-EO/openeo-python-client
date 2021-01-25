@@ -47,7 +47,6 @@ class JupyterIntegration:
 
 class VisualDict(dict, JupyterIntegration):
 
-    # The first entry of the dict is expected to always be the actual dict with the data
     def __init__(self, component: str, data : dict, parameters: dict = {}):
         JupyterIntegration.__init__(self, component, data, parameters)
         dict.__init__(self, data)
@@ -55,7 +54,6 @@ class VisualDict(dict, JupyterIntegration):
 
 class VisualList(list, JupyterIntegration):
 
-    # The first entry of the dict is expected to always be the actual list with the data
     def __init__(self, component: str, data : list, parameters: dict = {}):
         JupyterIntegration.__init__(self, component, data, parameters)
         list.__init__(self, data)
