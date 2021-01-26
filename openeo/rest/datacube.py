@@ -1201,15 +1201,17 @@ class DataCube(ImageCollection):
         Resolution merging algorithms try to improve the spatial resolution of lower resolution bands
         (e.g. Sentinel-2 20M) based on higher resolution bands. (e.g. Sentinel-2 10M).
 
-        `Pansharpening explained: <https://bok.eo4geo.eu/IP2-1-3>`_
+        External references:
+
+        `Pansharpening explained <https://bok.eo4geo.eu/IP2-1-3>`_
 
         `Example publication: 'Improving the Spatial Resolution of Land Surface Phenology by Fusing Medium- and
         Coarse-Resolution Inputs' <https://doi.org/10.1109/TGRS.2016.2537929>`_
 
-        @param high_resolution_bands: A list of band names to use as 'high-resolution' band. Either the unique band name (metadata field `name` in bands) or one of the common band names (metadata field `common_name` in bands). If unique band name and common name conflict, the unique band name has higher priority. The order of the specified array defines the order of the bands in the data cube. If multiple bands match a common name, all matched bands are included in the original order. These bands will remain unmodified.
-        @param low_resolution_bands: A list of band names for which the spatial resolution should be increased. Either the unique band name (metadata field `name` in bands) or one of the common band names (metadata field `common_name` in bands). If unique band name and common name conflict, the unique band name has higher priority. The order of the specified array defines the order of the bands in the data cube. If multiple bands match a common name, all matched bands are included in the original order. These bands will be modified by the process.
-        @param method: The method to use. The supported algorithms can vary between back-ends. Set to `null` (the default) to allow the back-end to choose, which will improve portability, but reduce reproducibility..
-        @return: A datacube with the same bands and metadata as the input, but algorithmically increased spatial resolution for the selected bands.
+        :param high_resolution_bands: A list of band names to use as 'high-resolution' band. Either the unique band name (metadata field `name` in bands) or one of the common band names (metadata field `common_name` in bands). If unique band name and common name conflict, the unique band name has higher priority. The order of the specified array defines the order of the bands in the data cube. If multiple bands match a common name, all matched bands are included in the original order. These bands will remain unmodified.
+        :param low_resolution_bands: A list of band names for which the spatial resolution should be increased. Either the unique band name (metadata field `name` in bands) or one of the common band names (metadata field `common_name` in bands). If unique band name and common name conflict, the unique band name has higher priority. The order of the specified array defines the order of the bands in the data cube. If multiple bands match a common name, all matched bands are included in the original order. These bands will be modified by the process.
+        :param method: The method to use. The supported algorithms can vary between back-ends. Set to `null` (the default) to allow the back-end to choose, which will improve portability, but reduce reproducibility..
+        :return: A datacube with the same bands and metadata as the input, but algorithmically increased spatial resolution for the selected bands.
         """
         return self.process('resolution_merge', {
             'data': THIS,
