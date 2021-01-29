@@ -12,12 +12,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Handling of the legacy non-standard west-east-north-south positional argument order is preserved for now ([#136](https://github.com/Open-EO/openeo-python-client/issues/136))
 - Add "band math" methods `DataCube.ln()`, `DataCube.logarithm(base)`, `DataCube.log10()` and `DataCube.log2()`
 - Improved support for creating and handling parameters when defining user-defined processes (EP-3698)
+- Initial Jupyter integration: add rich HTML rendering of backend metadata (collections, file formats, UDF runtimes, ...)
+  ([#170](https://github.com/Open-EO/openeo-python-client/pull/170))
+- add `resolution_merge` process (experimental) (EP-3687)
 
 ### Changed
 
 ### Removed
 
 ### Fixed
+
+- Fixed 'Content-Encoding' handling in `Connection.download`: client did not automatically decompress `/result` 
+  responses when necessary ([#175](https://github.com/Open-EO/openeo-python-client/issues/175))
 
 
 ## [0.4.8] - 2020-11-17
