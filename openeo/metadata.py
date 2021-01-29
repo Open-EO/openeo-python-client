@@ -3,6 +3,7 @@ from collections import namedtuple
 from typing import List, Union, Tuple, Callable
 
 from openeo.util import deep_get
+from openeo.internal.jupyter import render_component
 
 
 class MetadataException(Exception):
@@ -392,3 +393,6 @@ class CollectionMetadata:
         else:
             dim = Dimension(type=type or "other", name=name)
         return self._clone_and_update(dimensions=self._dimensions + [dim])
+    
+    def _repr_html_(self):
+        return render_component('collection', data = self._orig_metadata)
