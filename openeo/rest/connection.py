@@ -104,6 +104,8 @@ class RestApiConnection:
             timeout=kwargs.pop("timeout", self.default_timeout),
             **kwargs
         )
+        if _log.isEnabledFor(logging.DEBUG):
+            _log.debug("Got {r} headers {h!r}".format(r=resp, h=resp.headers))
         # Check for API errors and unexpected HTTP status codes as desired.
         status = resp.status_code
         expected_status = ensure_list(expected_status) if expected_status else []
