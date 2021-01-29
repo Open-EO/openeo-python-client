@@ -20,7 +20,7 @@ with open("README.md", "r") as fh:
 tests_require = [
     'pytest>=4.5.0',
     'mock',
-    'requests-mock',
+    'requests-mock>=1.8.0',
     'xarray==0.12.3',
     'h5netcdf',
     'openeo-udf>=1.0.0rc2',

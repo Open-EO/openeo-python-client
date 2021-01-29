@@ -1,9 +1,11 @@
 import re
 import unittest.mock as mock
+import zlib
+from pathlib import Path
 
 import pytest
-import requests_mock
 import requests.auth
+import requests_mock
 
 from openeo.capabilities import ComparableVersion
 from openeo.rest import OpenEoClientException
@@ -934,3 +936,40 @@ def test_get_udp(requests_mock):
     udp = conn.user_defined_process('evi')
 
     assert udp.user_defined_process_id == 'evi'
+
+
+def _gzip_compress(data: bytes) -> bytes:
+    compressor = zlib.compressobj(wbits=16 + zlib.MAX_WBITS)
+    return compressor.compress(data) + compressor.flush()
+
+
+def _deflate_compress(data: bytes) -> bytes:
+    compressor = zlib.compressobj()
+    return compressor.compress(data) + compressor.flush()
+
+
+@pytest.mark.parametrize(["content_encoding", "compress"], [
+    (None, None),
+    ("gzip", _gzip_compress),
+    ("deflate", _deflate_compress),
+
+])
+def test_download_content_encoding(requests_mock, tmp_path, content_encoding, compress):
+    tmp_path = Path(str(tmp_path))  # Python 3.5 workaround
+
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+
+    tiff_data = b"hello world, I'm a tiff file."
+    if content_encoding:
+        response_data = compress(tiff_data)
+        response_headers = {"Content-Encoding": content_encoding}
+    else:
+        response_data = tiff_data
+        response_headers = {}
+    requests_mock.post(API_URL + "result", content=response_data, headers=response_headers)
+
+    conn = Connection(API_URL)
+    output = tmp_path / "result.tiff"
+    conn.download(graph={}, outputfile=output)
+    with output.open("rb") as f:
+        assert f.read() == tiff_data

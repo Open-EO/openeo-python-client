@@ -760,8 +760,8 @@ class Connection(RestApiConnection):
             result["process_graph"] = process_graph
         return result
 
-    # TODO: Maybe rename to execute and merge with execute().
-    def download(self, graph: dict, outputfile: Union[Path, str, None] = None):
+    # TODO: unify `download` and `execute` better: e.g. `download` always writes to disk, `execute` returns result (raw or as JSON decoded dict)
+    def download(self, graph: dict, outputfile: Union[Path, str, None] = None, timeout:int=30*60):
         """
         Downloads the result of a process graph synchronously,
         and save the result to the given file or return bytes object if no outputfile is specified.
@@ -771,12 +771,14 @@ class Connection(RestApiConnection):
         :param outputfile: output file
         """
         request = self._build_request_with_process_graph(process_graph=graph)
-        r = self.post(path="/result", json=request, stream=True, timeout=1000)
+        response = self.post(path="/result", json=request, stream=True, timeout=timeout)
+
         if outputfile is not None:
             with Path(outputfile).open(mode="wb") as f:
-                shutil.copyfileobj(r.raw, f)
+                for chunk in response.iter_content(chunk_size=None):
+                    f.write(chunk)
         else:
-            return r.content
+            return response.content
 
     def execute(self, process_graph: dict):
         """
