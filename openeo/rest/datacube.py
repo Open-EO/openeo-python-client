@@ -1490,3 +1490,36 @@ class DataCube(ImageCollection):
             # TODO: add subgraph for "reducer" arguments?
 
         return graph
+
+    def sar_backscatter(
+            self, coefficient: str = "gamma0", orthorectify: bool = True, elevation_model: str = None,
+            scaling: str = "dB", options: dict = None
+    ):
+        """
+        *EXPERIMENTAL*
+
+        Computes backscatter from SAR input.
+
+        Note that backscatter computation may require instrument specific metadata that is tightly coupled to the
+        original SAR products. As a result, this process may only work in combination with loading data from
+        specific collections, not with general data cubes.
+
+        :param coefficient: The backscatter coefficient to compute, either `sigma0` or `gamma0` (the default).
+        :param orthorectify: Set to `true` to enable orthorectification. The non-orthorectified products use a
+            simple earth model as provided in the products themselves. This may be sufficient for very
+            flat target areas and is faster to process.
+        :param elevation_model: The digital elevation model to use. Set to `null` (the default) to allow
+            the back-end to choose, which will improve portability, but reduce reproducibility.
+        :param scaling: By default, all values are given in logarithmic decibel (dB) scale.
+            If set to `linear`, the values are given in linear scale.
+        :param options: dictionary with additional options
+        :return:
+        """
+        return self.process(process_id="sar_backscatter", arguments={
+            "data": THIS,
+            "coefficient": coefficient,
+            "orthorectify": orthorectify,
+            "elevation_model": elevation_model,
+            "scaling": scaling,
+            "options": options,
+        })
