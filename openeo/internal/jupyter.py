@@ -1,6 +1,6 @@
 import json
 
-SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/@openeo/vue-components@2.0.0-rc.1/assets/openeo.js'
+SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/@openeo/vue-components@2.0.0-rc.2/assets/openeo.min.js'
 COMPONENT_MAP = {
     'file-format': 'format',
     'file-formats': 'formats',
