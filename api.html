@@ -1,0 +1,1969 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>API &#8212; openEO 0.4.10a1 documentation</title>
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Development and maintenance" href="development.html" />
+    <link rel="prev" title="User Defined Functions (UDF’s) explained" href="udf.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  <div class="document">
+    
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">openEO</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Open-EO&repo=openeo-python-client&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/Open-EO/openeo-python-client">
+    <img
+        alt="https://secure.travis-ci.org/Open-EO/openeo-python-client.svg?branch=master"
+        src="https://secure.travis-ci.org/Open-EO/openeo-python-client.svg?branch=master"
+    />
+</a>
+</p>
+
+
+
+  <h3><a href="index.html">Table of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">API</a><ul>
+<li><a class="reference internal" href="#high-level-interface">High level Interface</a></li>
+<li><a class="reference internal" href="#module-openeo.rest.datacube">openeo.rest.datacube</a></li>
+<li><a class="reference internal" href="#module-openeo.api.process">openeo.api</a></li>
+<li><a class="reference internal" href="#module-openeo.rest.connection">openeo.rest.connection</a></li>
+</ul>
+</li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="udf.html" title="previous chapter">User Defined Functions (UDF’s) explained</a></li>
+      <li>Next: <a href="development.html" title="next chapter">Development and maintenance</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script><!-- Alabaster (krTheme++) Hacks -->
+
+<!-- CSS Adjustments from requests: https://github.com/kennethreitz/requests/blob/master/docs/_templates/hacks.html-->
+<style type="text/css">
+  /* Rezzy requires precise alignment. */
+  img.logo {margin-left: -20px!important;}
+  /* "Quick Search" should be capitalized. */
+  div#searchbox h3 {text-transform: capitalize;}
+  /* Make the document a little wider, less code is cut-off. */
+  div.document {width: 1008px;}
+  /* Much-improved spacing around code blocks. */
+  div.highlight pre {padding: 11px 14px;}
+  /* Remain Responsive! */
+  @media screen and (max-width: 1008px) {
+    div.sphinxsidebar {display: none;}
+    div.document {width: 100%!important;}
+    /* Have code blocks escape the document right-margin. */
+    div.highlight pre {margin-right: -30px;}
+  }
+</style>
+        </div>
+      </div>
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="api">
+<h1>API<a class="headerlink" href="#api" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="high-level-interface">
+<h2>High level Interface<a class="headerlink" href="#high-level-interface" title="Permalink to this headline">¶</a></h2>
+<p>The high-level interface tries to provide an opinionated, Pythonic, API
+to interact with OpenEO backends. It’s aim is to hide some of the details
+of using a web service, so the user can produce concise and readable code.</p>
+<p>Users that want to interact with OpenEO on a lower level, and have more control, can
+use the lower level classes.</p>
+<dl class="py function">
+<dt id="openeo.connect">
+<code class="sig-prename descclassname">openeo.</code><code class="sig-name descname">connect</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">url</span></em>, <em class="sig-param"><span class="n">auth_type</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">auth_options</span><span class="o">=</span><span class="default_value">{}</span></em>, <em class="sig-param"><span class="n">session</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">default_timeout</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/connection.html#connect"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.connect" title="Permalink to this definition">¶</a></dt>
+<dd><p>This method is the entry point to OpenEO.
+You typically create one connection object in your script or application
+and re-use it for all calls to that backend.</p>
+<p>If the backend requires authentication, you should can pass authentication data directly to this function
+but it could be easier to authenticate as follows:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># For basic authentication</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">conn</span> <span class="o">=</span> <span class="n">connect</span><span class="p">(</span><span class="n">url</span><span class="p">)</span><span class="o">.</span><span class="n">authenticate_basic</span><span class="p">(</span><span class="n">username</span><span class="o">=</span><span class="s2">&quot;john&quot;</span><span class="p">,</span> <span class="n">password</span><span class="o">=</span><span class="s2">&quot;foo&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># For OpenID Connect authentication</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">conn</span> <span class="o">=</span> <span class="n">connect</span><span class="p">(</span><span class="n">url</span><span class="p">)</span><span class="o">.</span><span class="n">authenticate_OIDC</span><span class="p">(</span><span class="n">client_id</span><span class="o">=</span><span class="s2">&quot;myclient&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>url</strong> – The http url of an OpenEO endpoint.</p></li>
+<li><p><strong>auth_type</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – Which authentication to use: None, “basic” or “oidc” (for OpenID Connect)</p></li>
+<li><p><strong>auth_options</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code>) – Options/arguments specific to the authentication type</p></li>
+<li><p><strong>default_timeout</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code>]) – default timeout (in seconds) for requests</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>openeo.connections.Connection</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="module-openeo.rest.datacube">
+<span id="openeo-rest-datacube"></span><h2>openeo.rest.datacube<a class="headerlink" href="#module-openeo.rest.datacube" title="Permalink to this headline">¶</a></h2>
+<p>The main module for creating earth observation processes. It aims to easily build complex process chains, that can
+be evaluated by an openEO backend.</p>
+<dl class="py data">
+<dt id="openeo.rest.datacube.THIS">
+<code class="sig-prename descclassname">openeo.rest.datacube.</code><code class="sig-name descname">THIS</code><a class="headerlink" href="#openeo.rest.datacube.THIS" title="Permalink to this definition">¶</a></dt>
+<dd><p>Symbolic reference to the current data cube, to be used as argument in DataCube.process() calls</p>
+</dd></dl>
+
+<dl class="py class">
+<dt id="openeo.rest.datacube.DataCube">
+<em class="property">class </em><code class="sig-prename descclassname">openeo.rest.datacube.</code><code class="sig-name descname">DataCube</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">graph</span></em>, <em class="sig-param"><span class="n">connection</span></em>, <em class="sig-param"><span class="n">metadata</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube" title="Permalink to this definition">¶</a></dt>
+<dd><p>Class representing a openEO Data Cube. Data loaded from the backend is returned as an object of this class.
+Various processing methods can be invoked to build a complete workflow.</p>
+<p>Supports openEO API 1.0.
+In earlier versions this was called <cite>ImageCollectionClient</cite></p>
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.add_dimension">
+<code class="sig-name descname">add_dimension</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">name</span></em>, <em class="sig-param"><span class="n">label</span></em>, <em class="sig-param"><span class="n">type</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.add_dimension"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.add_dimension" title="Permalink to this definition">¶</a></dt>
+<dd><p>Adds a new named dimension to the data cube.
+Afterwards, the dimension can be referenced with the specified name. If a dimension with the specified name exists,
+the process fails with a DimensionExists error. The dimension label of the dimension is set to the specified label.</p>
+<p>This call does not modify the datacube in place, but returns a new datacube with the additional dimension.</p>
+<p>&#64;param name: The name of the dimension to add
+&#64;param label: The dimension label.
+&#64;param type: Dimension type, allowed values: ‘spatial’, ‘temporal’, ‘bands’, ‘other’, default value is ‘other’
+&#64;return: The data cube with a newly added dimension. The new dimension has exactly one dimension label. All other dimensions remain unchanged.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.aggregate_spatial">
+<code class="sig-name descname">aggregate_spatial</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">geometries</span></em>, <em class="sig-param"><span class="n">reducer</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.aggregate_spatial"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.aggregate_spatial" title="Permalink to this definition">¶</a></dt>
+<dd><p>Aggregates statistics for one or more geometries (e.g. zonal statistics for polygons)
+over the spatial dimensions.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>geometries</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">BaseGeometry</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">Path</span></code>]) – shapely geometry, GeoJSON dictionary or path to GeoJSON file</p></li>
+<li><p><strong>reducer</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">PGNode</span></code>, <code class="xref py py-data docutils literal notranslate"><span class="pre">Callable</span></code>]) – a callback function that creates a process graph, see <a class="reference internal" href="processes.html#callbackfunctions"><span class="std std-ref">Processes with “callbacks”</span></a></p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></p>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.aggregate_temporal">
+<code class="sig-name descname">aggregate_temporal</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">intervals</span></em>, <em class="sig-param"><span class="n">reducer</span></em>, <em class="sig-param"><span class="n">labels</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">dimension</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">context</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.aggregate_temporal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.aggregate_temporal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computes a temporal aggregation based on an array of date and/or time intervals.</p>
+<p>Calendar hierarchies such as year, month, week etc. must be transformed into specific intervals by the clients. For each interval, all data along the dimension will be passed through the reducer. The computed values will be projected to the labels, so the number of labels and the number of intervals need to be equal.</p>
+<p>If the dimension is not set, the data cube is expected to only have one temporal dimension.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>intervals</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code>]) – Temporal left-closed intervals so that the start time is contained, but not the end time.</p></li>
+<li><p><strong>reducer</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">PGNode</span></code>, <code class="xref py py-data docutils literal notranslate"><span class="pre">Callable</span></code>]) – A reducer to be applied on all values along the specified dimension. The reducer must be a callable process (or a set processes) that accepts an array and computes a single return value of the same type as the input values, for example median.</p></li>
+<li><p><strong>labels</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code>]) – Labels for the intervals. The number of labels and the number of groups need to be equal.</p></li>
+<li><p><strong>dimension</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – The temporal dimension for aggregation. All data along the dimension will be passed through the specified reducer. If the dimension is not set, the data cube is expected to only have one temporal dimension.</p></li>
+<li><p><strong>context</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code>]) – Additional data to be passed to the reducer. Not set by default.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></p>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>An ImageCollection containing  a result for each time window</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.apply">
+<code class="sig-name descname">apply</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">process</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.apply"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.apply" title="Permalink to this definition">¶</a></dt>
+<dd><p>Applies a unary process (a local operation) to each value of the specified or all dimensions in the data cube.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>process</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">PGNode</span></code>, <code class="xref py py-data docutils literal notranslate"><span class="pre">Callable</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code>]) – the name of a process, or a callback function that creates a process graph, see <a class="reference internal" href="processes.html#callbackfunctions"><span class="std std-ref">Processes with “callbacks”</span></a></p></li>
+<li><p><strong>dimensions</strong> – The names of the dimensions to apply the process on. Defaults to an empty array so that all dimensions are used.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></p>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>A data cube with the newly computed values. The resolution, cardinality and the number of dimensions are the same as for the original data cube.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.apply_dimension">
+<code class="sig-name descname">apply_dimension</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">code</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">runtime</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">process</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">version</span><span class="o">=</span><span class="default_value">'latest'</span></em>, <em class="sig-param"><span class="n">dimension</span><span class="o">=</span><span class="default_value">'t'</span></em>, <em class="sig-param"><span class="n">target_dimension</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.apply_dimension"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.apply_dimension" title="Permalink to this definition">¶</a></dt>
+<dd><p>Applies a process to all pixel values along a dimension of a raster data cube. For example,
+if the temporal dimension is specified the process will work on a time series of pixel values.</p>
+<p>The process to apply is specified by either <cite>code</cite> and <cite>runtime</cite> in case of a UDF, or by providing a callback function
+in the <cite>process</cite> argument.</p>
+<p>The process reduce_dimension also applies a process to pixel values along a dimension, but drops
+the dimension afterwards. The process apply applies a process to each pixel value in the data cube.</p>
+<p>The target dimension is the source dimension if not specified otherwise in the target_dimension parameter.
+The pixel values in the target dimension get replaced by the computed pixel values. The name, type and
+reference system are preserved.</p>
+<p>The dimension labels are preserved when the target dimension is the source dimension and the number of
+pixel values in the source dimension is equal to the number of values computed by the process. Otherwise,
+the dimension labels will be incrementing integers starting from zero, which can be changed using
+rename_labels afterwards. The number of labels will equal to the number of values computed by the process.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>code</strong> (<code class="docutils literal notranslate"><span class="pre">str</span></code>) – UDF code or process identifier (optional)</p></li>
+<li><p><strong>runtime</strong> – UDF runtime to use (optional)</p></li>
+<li><p><strong>process</strong> – a callback function that creates a process graph, see <a class="reference internal" href="processes.html#callbackfunctions"><span class="std std-ref">Processes with “callbacks”</span></a></p></li>
+<li><p><strong>version</strong> (<code class="docutils literal notranslate"><span class="pre">str</span></code>) – Version of the UDF runtime to use</p></li>
+<li><p><strong>dimension</strong> (<code class="docutils literal notranslate"><span class="pre">str</span></code>) – The name of the source dimension to apply the process on. Fails with a DimensionNotAvailable error if the specified dimension does not exist.</p></li>
+<li><p><strong>target_dimension</strong> – The name of the target dimension or null (the default) to use the source dimension
+specified in the parameter dimension. By specifying a target dimension, the source dimension is removed.
+The target dimension with the specified name and the type other (see add_dimension) is created, if it doesn’t exist yet.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A datacube with the UDF applied to the given dimension.</p>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p>DimensionNotAvailable</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.apply_kernel">
+<code class="sig-name descname">apply_kernel</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">kernel</span></em>, <em class="sig-param"><span class="n">factor</span><span class="o">=</span><span class="default_value">1.0</span></em>, <em class="sig-param"><span class="n">border</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">replace_invalid</span><span class="o">=</span><span class="default_value">0</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.apply_kernel"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.apply_kernel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Applies a focal operation based on a weighted kernel to each value of the specified dimensions in the data cube.</p>
+<p>The border parameter determines how the data is extended when the kernel overlaps with the borders.
+The following options are available:</p>
+<ul class="simple">
+<li><p>numeric value - fill with a user-defined constant number n: nnnnnn|abcdefgh|nnnnnn (default, with n = 0)</p></li>
+<li><p>replicate - repeat the value from the pixel at the border: aaaaaa|abcdefgh|hhhhhh</p></li>
+<li><p>reflect - mirror/reflect from the border: fedcba|abcdefgh|hgfedc</p></li>
+<li><p>reflect_pixel - mirror/reflect from the center of the pixel at the border: gfedcb|abcdefgh|gfedcb</p></li>
+<li><p>wrap - repeat/wrap the image: cdefgh|abcdefgh|abcdef</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>kernel</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>]]]) – The kernel to be applied on the data cube. The kernel has to be as many dimensions as the data cube has dimensions.</p></li>
+<li><p><strong>factor</strong> (<code class="docutils literal notranslate"><span class="pre">float</span></code>) – A factor that is multiplied to each value computed by the focal operation. This is basically a shortcut for explicitly multiplying each value by a factor afterwards, which is often required for some kernel-based algorithms such as the Gaussian blur.</p></li>
+<li><p><strong>border</strong> (<code class="docutils literal notranslate"><span class="pre">int</span></code>) – Determines how the data is extended when the kernel overlaps with the borders. Defaults to fill the border with zeroes.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Param</dt>
+<dd class="field-even"><p>replace_invalid: This parameter specifies the value to replace non-numerical or infinite numerical values with. By default, those values are replaced with zeroes.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A data cube with the newly computed values. The resolution, cardinality and the number of dimensions are the same as for the original data cube.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.apply_neighborhood">
+<code class="sig-name descname">apply_neighborhood</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">process</span></em>, <em class="sig-param"><span class="n">size</span></em>, <em class="sig-param"><span class="n">overlap</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.apply_neighborhood"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.apply_neighborhood" title="Permalink to this definition">¶</a></dt>
+<dd><blockquote>
+<div><p>Applies a focal process to a data cube.</p>
+<p>A focal process is a process that works on a ‘neighbourhood’ of pixels. The neighbourhood can extend into multiple dimensions, this extent is specified by the <cite>size</cite> argument. It is not only (part of) the size of the input window, but also the size of the output for a given position of the sliding window. The sliding window moves with multiples of <cite>size</cite>.</p>
+<p>An overlap can be specified so that neighbourhoods can have overlapping boundaries. This allows for continuity of the output. The values included in the data cube as overlap can’t be modified by the given <cite>process</cite>.</p>
+<p>The neighbourhood size should be kept small enough, to avoid running beyond computational resources, but a too small size will result in a larger number of process invocations, which may slow down processing. Window sizes for spatial dimensions typically are in the range of 64 to 512 pixels, while overlaps of 8 to 32 pixels are common.</p>
+</div></blockquote>
+<p>The process must not add new dimensions, or remove entire dimensions, but the result can have different dimension labels.</p>
+<blockquote>
+<div><p>For the special case of 2D convolution, it is recommended to use <code class="docutils literal notranslate"><span class="pre">apply_kernel()</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">param size</dt>
+<dd class="field-odd"><p></p></dd>
+<dt class="field-even">param overlap</dt>
+<dd class="field-even"><p></p></dd>
+<dt class="field-odd">param process</dt>
+<dd class="field-odd"><p>a callback function that creates a process graph, see <a class="reference internal" href="processes.html#callbackfunctions"><span class="std std-ref">Processes with “callbacks”</span></a></p>
+</dd>
+<dt class="field-even">return</dt>
+<dd class="field-even"><p></p></dd>
+</dl>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.atmospheric_correction">
+<code class="sig-name descname">atmospheric_correction</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">method</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.atmospheric_correction"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.atmospheric_correction" title="Permalink to this definition">¶</a></dt>
+<dd><p>EXPERIMENTAL
+Applies an atmospheric correction that converts top of atmosphere reflectance values into bottom of atmosphere/top of canopy reflectance values.</p>
+<p>Note that multiple atmospheric methods exist, but may not be supported by all backends. The method parameter gives
+you the option of requiring a specific method, but this may result in an error if the backend does not support it.</p>
+<p>&#64;return: datacube with bottom of atmosphere reflectances</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.band">
+<code class="sig-name descname">band</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">band</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.band"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.band" title="Permalink to this definition">¶</a></dt>
+<dd><p>Filter the imagery by the given bands
+:type band: <code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code>]
+:param band: band name, band common name or band index.
+:return a DataCube instance</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.band_filter">
+<code class="sig-name descname">band_filter</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">bands</span></em><span class="sig-paren">)</span><a class="headerlink" href="#openeo.rest.datacube.DataCube.band_filter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Use of this legacy method is deprecated, use <a class="reference internal" href="#openeo.rest.datacube.DataCube.filter_bands" title="openeo.rest.datacube.DataCube.filter_bands"><code class="xref py py-meth docutils literal notranslate"><span class="pre">filter_bands()</span></code></a> instead.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.count_time">
+<code class="sig-name descname">count_time</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.count_time"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.count_time" title="Permalink to this definition">¶</a></dt>
+<dd><p>Counts the number of images with a valid mask in a time series for all bands of the input dataset.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a DataCube instance</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.create_collection">
+<em class="property">classmethod </em><code class="sig-name descname">create_collection</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">cls</span></em>, <em class="sig-param"><span class="n">collection_id</span></em>, <em class="sig-param"><span class="n">connection</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">spatial_extent</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">temporal_extent</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">bands</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">fetch_metadata</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">properties</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#openeo.rest.datacube.DataCube.create_collection" title="Permalink to this definition">¶</a></dt>
+<dd><p>Use of this legacy class method is deprecated, use <a class="reference internal" href="#openeo.rest.datacube.DataCube.load_collection" title="openeo.rest.datacube.DataCube.load_collection"><code class="xref py py-meth docutils literal notranslate"><span class="pre">load_collection()</span></code></a> instead.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.download">
+<code class="sig-name descname">download</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">outputfile</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">format</span><span class="o">=</span><span class="default_value">'GTIFF'</span></em>, <em class="sig-param"><span class="n">options</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.download"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.download" title="Permalink to this definition">¶</a></dt>
+<dd><p>Download image collection, e.g. as GeoTIFF.
+:type options: <code class="docutils literal notranslate"><span class="pre">dict</span></code>
+:type format: <code class="docutils literal notranslate"><span class="pre">str</span></code>
+If :param: outputfile is provided, the result is stored on disk locally, otherwise, a bytes object is returned.
+The bytes object can be passed on to a suitable decoder for decoding.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>outputfile</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">Path</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code>]) – Optional, an output file if the result needs to be stored on disk.</p></li>
+<li><p><strong>format</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – Optional, defaults to “GTIFF”, an output format supported by the backend.</p></li>
+<li><p><strong>options</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code>]) – Optional, file format options</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>None if the result is stored to disk, or a bytes object returned by the backend.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.execute">
+<code class="sig-name descname">execute</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.execute"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.execute" title="Permalink to this definition">¶</a></dt>
+<dd><p>Executes the process graph of the imagery.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.execute_batch">
+<code class="sig-name descname">execute_batch</code><span class="sig-paren">(</span><em class="sig-param">outputfile=None</em>, <em class="sig-param">out_format=None</em>, <em class="sig-param">print=&lt;built-in function print&gt;</em>, <em class="sig-param">max_poll_interval=60</em>, <em class="sig-param">connection_retry_interval=30</em>, <em class="sig-param">job_options=None</em>, <em class="sig-param">**format_options</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.execute_batch"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.execute_batch" title="Permalink to this definition">¶</a></dt>
+<dd><p>Evaluate the process graph by creating a batch job, and retrieving the results when it is finished.
+This method is mostly recommended if the batch job is expected to run in a reasonable amount of time.</p>
+<p>For very long running jobs, you probably do not want to keep the client running.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">RESTJob</span></code></p>
+</dd>
+<dt class="field-even">Parameters</dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>job_options</strong> – </p></li>
+<li><p><strong>outputfile</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">Path</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code>]) – The path of a file to which a result can be written</p></li>
+<li><p><strong>out_format</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – (optional) Format of the job result.</p></li>
+<li><p><strong>format_options</strong> – String Parameters for the job result format</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.execute_local_udf">
+<em class="property">static </em><code class="sig-name descname">execute_local_udf</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">udf</span></em>, <em class="sig-param"><span class="n">datacube</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">fmt</span><span class="o">=</span><span class="default_value">'netcdf'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.execute_local_udf"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.execute_local_udf" title="Permalink to this definition">¶</a></dt>
+<dd><p>Locally executes an user defined function on a previously downloaded datacube.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>udf</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – the code of the user defined function</p></li>
+<li><p><strong>datacube</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">ForwardRef</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">ForwardRef</span></code>]) – the path to the downloaded data in disk or a DataCube</p></li>
+<li><p><strong>fmt</strong> (<code class="docutils literal notranslate"><span class="pre">str</span></code>) – format of the file if datacube is string</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>the resulting DataCube</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.filter_bands">
+<code class="sig-name descname">filter_bands</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">bands</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.filter_bands"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.filter_bands" title="Permalink to this definition">¶</a></dt>
+<dd><p>Filter the data cube by the given bands
+:type bands: <code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code>[<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]], <code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]
+:param bands: list of band names, common names or band indices. Single band name can also be given as string.
+:return a DataCube instance</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.filter_bbox">
+<code class="sig-name descname">filter_bbox</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="n">west</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">south</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">east</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">north</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">crs</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">base</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">height</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">bbox</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.filter_bbox"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.filter_bbox" title="Permalink to this definition">¶</a></dt>
+<dd><p>Limits the data cube to the specified bounding box.</p>
+<p>The bounding box can be specified in multiple ways.</p>
+<blockquote>
+<div><ul>
+<li><p>With keyword arguments:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">cube</span><span class="o">.</span><span class="n">filter_bbox</span><span class="p">(</span><span class="n">west</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">south</span><span class="o">=</span><span class="mi">51</span><span class="p">,</span> <span class="n">east</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">north</span><span class="o">=</span><span class="mi">52</span><span class="p">,</span> <span class="n">crs</span><span class="o">=</span><span class="mi">4326</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p>With a (west, south, east, north) list or tuple:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">cube</span><span class="o">.</span><span class="n">filter_bbox</span><span class="p">([</span><span class="mi">3</span><span class="p">,</span> <span class="mi">51</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">52</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cube</span><span class="o">.</span><span class="n">filter_bbox</span><span class="p">(</span><span class="n">bbox</span><span class="o">=</span><span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">51</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">52</span><span class="p">])</span>
+</pre></div>
+</div>
+</li>
+<li><p>With a bbox dictionary:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">bbox</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;west&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s2">&quot;south&quot;</span><span class="p">:</span> <span class="mi">51</span><span class="p">,</span> <span class="s2">&quot;east&quot;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span> <span class="s2">&quot;north&quot;</span><span class="p">:</span> <span class="mi">52</span><span class="p">,</span> <span class="s2">&quot;crs&quot;</span><span class="p">:</span> <span class="mi">4326</span><span class="p">}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cube</span><span class="o">.</span><span class="n">filter_bbox</span><span class="p">(</span><span class="n">bbox</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cube</span><span class="o">.</span><span class="n">filter_bbox</span><span class="p">(</span><span class="n">bbox</span><span class="o">=</span><span class="n">bbox</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cube</span><span class="o">.</span><span class="n">filter_bbox</span><span class="p">(</span><span class="o">**</span><span class="n">bbox</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p>With a shapely geometry (of which the bounding box will be used):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">cube</span><span class="o">.</span><span class="n">filter_bbox</span><span class="p">(</span><span class="n">geometry</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cube</span><span class="o">.</span><span class="n">filter_bbox</span><span class="p">(</span><span class="n">bbox</span><span class="o">=</span><span class="n">geometry</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p>Passing a parameter:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">bbox_param</span> <span class="o">=</span> <span class="n">Parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;my_bbox&quot;</span><span class="p">,</span> <span class="n">schema</span><span class="o">=</span><span class="s2">&quot;object&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cube</span><span class="o">.</span><span class="n">filter_bbox</span><span class="p">(</span><span class="n">bbox_param</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cube</span><span class="o">.</span><span class="n">filter_bbox</span><span class="p">(</span><span class="n">bbox</span><span class="o">=</span><span class="n">bbox_param</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p>Deprecated: positional arguments are also supported,
+but follow a non-standard order for legacy reasons:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">west</span><span class="p">,</span> <span class="n">east</span><span class="p">,</span> <span class="n">north</span><span class="p">,</span> <span class="n">south</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">52</span><span class="p">,</span> <span class="mi">51</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cube</span><span class="o">.</span><span class="n">filter_bbox</span><span class="p">(</span><span class="n">west</span><span class="p">,</span> <span class="n">east</span><span class="p">,</span> <span class="n">north</span><span class="p">,</span> <span class="n">south</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.filter_temporal">
+<code class="sig-name descname">filter_temporal</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="n">start_date</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">end_date</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">extent</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.filter_temporal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.filter_temporal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Limit the DataCube to a certain date range, which can be specified in several ways:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">im</span><span class="o">.</span><span class="n">filter_temporal</span><span class="p">(</span><span class="s2">&quot;2019-07-01&quot;</span><span class="p">,</span> <span class="s2">&quot;2019-08-01&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">im</span><span class="o">.</span><span class="n">filter_temporal</span><span class="p">([</span><span class="s2">&quot;2019-07-01&quot;</span><span class="p">,</span> <span class="s2">&quot;2019-08-01&quot;</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">im</span><span class="o">.</span><span class="n">filter_temporal</span><span class="p">(</span><span class="n">extent</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;2019-07-01&quot;</span><span class="p">,</span> <span class="s2">&quot;2019-08-01&quot;</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">im</span><span class="o">.</span><span class="n">filter_temporal</span><span class="p">(</span><span class="n">start_date</span><span class="o">=</span><span class="s2">&quot;2019-07-01&quot;</span><span class="p">,</span> <span class="n">end_date</span><span class="o">=</span><span class="s2">&quot;2019-08-01&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>start_date</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">datetime</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">date</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code>]) – start date of the filter (inclusive), as a string or date object</p></li>
+<li><p><strong>end_date</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">datetime</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">date</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code>]) – end date of the filter (exclusive), as a string or date object</p></li>
+<li><p><strong>extent</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code>]) – two element list/tuple start and end date of the filter</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">ImageCollection</span></code></p>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>An ImageCollection filtered by date.</p>
+</dd>
+</dl>
+<p><a class="reference external" href="https://open-eo.github.io/openeo-api/processreference/#filter_temporal">https://open-eo.github.io/openeo-api/processreference/#filter_temporal</a></p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.flatten">
+<code class="sig-name descname">flatten</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.flatten"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.flatten" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the process graph in flattened dict representation</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.graph">
+<em class="property">property </em><code class="sig-name descname">graph</code><a class="headerlink" href="#openeo.rest.datacube.DataCube.graph" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the process graph in flattened dict representation</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.graph_add_node">
+<code class="sig-name descname">graph_add_node</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">process_id</span></em>, <em class="sig-param"><span class="n">arguments</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">metadata</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#openeo.rest.datacube.DataCube.graph_add_node" title="Permalink to this definition">¶</a></dt>
+<dd><p>Use of this legacy method is deprecated, use <a class="reference internal" href="#openeo.rest.datacube.DataCube.process" title="openeo.rest.datacube.DataCube.process"><code class="xref py py-meth docutils literal notranslate"><span class="pre">process()</span></code></a> instead.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.linear_scale_range">
+<code class="sig-name descname">linear_scale_range</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">input_min</span></em>, <em class="sig-param"><span class="n">input_max</span></em>, <em class="sig-param"><span class="n">output_min</span></em>, <em class="sig-param"><span class="n">output_max</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.linear_scale_range"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.linear_scale_range" title="Permalink to this definition">¶</a></dt>
+<dd><p>Color stretching
+:param input_min: Minimum input value
+:param input_max: Maximum input value
+:param output_min: Minimum output value
+:param output_max: Maximum output value
+:return a DataCube instance</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.load_collection">
+<em class="property">classmethod </em><code class="sig-name descname">load_collection</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">collection_id</span></em>, <em class="sig-param"><span class="n">connection</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">spatial_extent</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">temporal_extent</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">bands</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">fetch_metadata</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">properties</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.load_collection"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.load_collection" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a new Raster Data cube.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>collection_id</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – A collection id, should exist in the backend.</p></li>
+<li><p><strong>connection</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<a class="reference internal" href="#openeo.rest.connection.Connection" title="openeo.rest.connection.Connection"><code class="xref py py-class docutils literal notranslate"><span class="pre">Connection</span></code></a>]) – The connection to use to connect with the backend.</p></li>
+<li><p><strong>spatial_extent</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>]]) – limit data to specified bounding box or polygons</p></li>
+<li><p><strong>temporal_extent</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code>[<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">datetime</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">date</span></code>]]]) – limit data to specified temporal interval</p></li>
+<li><p><strong>bands</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]]) – only add the specified bands</p></li>
+<li><p><strong>properties</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">PGNode</span></code>, <code class="xref py py-data docutils literal notranslate"><span class="pre">Callable</span></code>]]]) – limit data by metadata property predicates</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.load_disk_collection">
+<em class="property">classmethod </em><code class="sig-name descname">load_disk_collection</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">connection</span></em>, <em class="sig-param"><span class="n">file_format</span></em>, <em class="sig-param"><span class="n">glob_pattern</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">options</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.load_disk_collection"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.load_disk_collection" title="Permalink to this definition">¶</a></dt>
+<dd><p>Loads image data from disk as a DataCube.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>connection</strong> (<a class="reference internal" href="#openeo.rest.connection.Connection" title="openeo.rest.connection.Connection"><code class="xref py py-class docutils literal notranslate"><span class="pre">Connection</span></code></a>) – The connection to use to connect with the backend.</p></li>
+<li><p><strong>file_format</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – the file format, e.g. ‘GTiff’</p></li>
+<li><p><strong>glob_pattern</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – a glob pattern that matches the files to load from disk</p></li>
+<li><p><strong>options</strong> – options specific to the file format</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></p>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>the data as a DataCube</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.logical_and">
+<code class="sig-name descname">logical_and</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">other</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.logical_and"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.logical_and" title="Permalink to this definition">¶</a></dt>
+<dd><p>Apply element-wise logical <cite>and</cite> operation
+:type other: <a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a>
+:param other:
+:return DataCube: logical_and(this, other)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.logical_or">
+<code class="sig-name descname">logical_or</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">other</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.logical_or"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.logical_or" title="Permalink to this definition">¶</a></dt>
+<dd><p>Apply element-wise logical <cite>or</cite> operation
+:type other: <a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a>
+:param other:
+:return DataCube: logical_or(this, other)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.mask">
+<code class="sig-name descname">mask</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">mask</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">replacement</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.mask"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.mask" title="Permalink to this definition">¶</a></dt>
+<dd><p>Applies a mask to a raster data cube. To apply a vector mask use <cite>mask_polygon</cite>.</p>
+<p>A mask is a raster data cube for which corresponding pixels among <cite>data</cite> and <cite>mask</cite>
+are compared and those pixels in <cite>data</cite> are replaced whose pixels in <cite>mask</cite> are non-zero
+(for numbers) or true (for boolean values).
+The pixel values are replaced with the value specified for <cite>replacement</cite>,
+which defaults to null (no data).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mask</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a>]) – the raster mask</p></li>
+<li><p><strong>replacement</strong> – the value to replace the masked pixels with</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.mask_polygon">
+<code class="sig-name descname">mask_polygon</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">mask</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">srs</span><span class="o">=</span><span class="default_value">'EPSG:4326'</span></em>, <em class="sig-param"><span class="n">replacement</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">inside</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.mask_polygon"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.mask_polygon" title="Permalink to this definition">¶</a></dt>
+<dd><p>Applies a polygon mask to a raster data cube. To apply a raster mask use <cite>mask</cite>.</p>
+<p>All pixels for which the point at the pixel center does not intersect with any
+polygon (as defined in the Simple Features standard by the OGC) are replaced.
+This behaviour can be inverted by setting the parameter <cite>inside</cite> to true.</p>
+<p>The pixel values are replaced with the value specified for <cite>replacement</cite>,
+which defaults to <cite>no data</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mask</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">Polygon</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">MultiPolygon</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">Path</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code>]) – A polygon, provided as a <code class="xref py py-class docutils literal notranslate"><span class="pre">shapely.geometry.Polygon</span></code> or <code class="xref py py-class docutils literal notranslate"><span class="pre">shapely.geometry.MultiPolygon</span></code>, or a filename pointing to a valid vector file</p></li>
+<li><p><strong>srs</strong> (<code class="docutils literal notranslate"><span class="pre">str</span></code>) – The reference system of the provided polygon, by default this is Lat Lon (EPSG:4326).</p></li>
+<li><p><strong>replacement</strong> – the value to replace the masked pixels with</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.max_time">
+<code class="sig-name descname">max_time</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.max_time"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.max_time" title="Permalink to this definition">¶</a></dt>
+<dd><p>Finds the maximum value of a time series for all bands of the input dataset.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a DataCube instance</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.mean_time">
+<code class="sig-name descname">mean_time</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.mean_time"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.mean_time" title="Permalink to this definition">¶</a></dt>
+<dd><p>Finds the mean value of a time series for all bands of the input dataset.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a DataCube instance</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.median_time">
+<code class="sig-name descname">median_time</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.median_time"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.median_time" title="Permalink to this definition">¶</a></dt>
+<dd><p>Finds the median value of a time series for all bands of the input dataset.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a DataCube instance</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.merge">
+<code class="sig-name descname">merge</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">other</span></em>, <em class="sig-param"><span class="n">overlap_resolver</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#openeo.rest.datacube.DataCube.merge" title="Permalink to this definition">¶</a></dt>
+<dd><p>Use of this legacy method is deprecated, use <a class="reference internal" href="#openeo.rest.datacube.DataCube.merge_cubes" title="openeo.rest.datacube.DataCube.merge_cubes"><code class="xref py py-meth docutils literal notranslate"><span class="pre">merge_cubes()</span></code></a> instead.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.merge_cubes">
+<code class="sig-name descname">merge_cubes</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">other</span></em>, <em class="sig-param"><span class="n">overlap_resolver</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.merge_cubes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.merge_cubes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Merging two data cubes</p>
+<p>The data cubes have to be compatible. A merge operation without overlap should be reversible with (a set of) filter operations for each of the two cubes. The process performs the join on overlapping dimensions, with the same name and type.
+An overlapping dimension has the same name, type, reference system and resolution in both dimensions, but can have different labels. One of the dimensions can have different labels, for all other dimensions the labels must be equal. If data overlaps, the parameter overlap_resolver must be specified to resolve the overlap.</p>
+<p>Examples for merging two data cubes:</p>
+<ol class="arabic simple">
+<li><p>Data cubes with the dimensions x, y, t and bands have the same dimension labels in x,y and t, but the labels for the dimension bands are B1 and B2 for the first cube and B3 and B4. An overlap resolver is not needed. The merged data cube has the dimensions x, y, t and bands and the dimension bands has four dimension labels: B1, B2, B3, B4.</p></li>
+<li><p>Data cubes with the dimensions x, y, t and bands have the same dimension labels in x,y and t, but the labels for the dimension bands are B1 and B2 for the first data cube and B2 and B3 for the second. An overlap resolver is required to resolve overlap in band B2. The merged data cube has the dimensions x, y, t and bands and the dimension bands has three dimension labels: B1, B2, B3.</p></li>
+<li><dl class="simple">
+<dt>Data cubes with the dimensions x, y and t have the same dimension labels in x,y and t. There are two options:</dt><dd><ul class="simple">
+<li><p>Keep the overlapping values separately in the merged data cube: An overlap resolver is not needed, but for each data cube you need to add a new dimension using add_dimension. The new dimensions must be equal, except that the labels for the new dimensions must differ by name. The merged data cube has the same dimensions and labels as the original data cubes, plus the dimension added with add_dimension, which has the two dimension labels after the merge.</p></li>
+<li><p>Combine the overlapping values into a single value: An overlap resolver is required to resolve the overlap for all pixels. The merged data cube has the same dimensions and labels as the original data cubes, but all pixel values have been processed by the overlap resolver.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><p>Merging a data cube with dimensions x, y, t with another cube with dimensions x, y will join on the x, y dimension, so the lower dimension cube is merged with each time step in the higher dimensional cube. This can for instance be used to apply a digital elevation model to a spatiotemporal data cube.</p></li>
+</ol>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>other</strong> (<a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a>) – The data cube to merge with.</p></li>
+<li><p><strong>overlap_resolver</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">PGNode</span></code>, <code class="xref py py-data docutils literal notranslate"><span class="pre">Callable</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code>]) – A reduction operator that resolves the conflict if the data overlaps. The reducer must return a value of the same data type as the input values are. The reduction operator may be a single process such as multiply or consist of multiple sub-processes. null (the default) can be specified if no overlap resolver is required.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></p>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>The merged data cube.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.min_time">
+<code class="sig-name descname">min_time</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.min_time"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.min_time" title="Permalink to this definition">¶</a></dt>
+<dd><p>Finds the minimum value of a time series for all bands of the input dataset.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a DataCube instance</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.ndvi">
+<code class="sig-name descname">ndvi</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">nir</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">red</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">target_band</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.ndvi"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.ndvi" title="Permalink to this definition">¶</a></dt>
+<dd><p>Normalized Difference Vegetation Index (NDVI)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>nir</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – (optional) name of NIR band</p></li>
+<li><p><strong>red</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – (optional) name of red band</p></li>
+<li><p><strong>target_band</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – (optional) name of the newly created band</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></p>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>a DataCube instance</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.polygonal_histogram_timeseries">
+<code class="sig-name descname">polygonal_histogram_timeseries</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">polygon</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.polygonal_histogram_timeseries"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.polygonal_histogram_timeseries" title="Permalink to this definition">¶</a></dt>
+<dd><p>Extract a histogram time series for the given (multi)polygon. Its points are
+expected to be in the EPSG:4326 coordinate
+reference system.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>polygon</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">Polygon</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">MultiPolygon</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – The (multi)polygon; or a file path or HTTP URL to a GeoJSON file or shape file</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></p>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>DataCube</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.polygonal_mean_timeseries">
+<code class="sig-name descname">polygonal_mean_timeseries</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">polygon</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.polygonal_mean_timeseries"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.polygonal_mean_timeseries" title="Permalink to this definition">¶</a></dt>
+<dd><p>Extract a mean time series for the given (multi)polygon. Its points are
+expected to be in the EPSG:4326 coordinate
+reference system.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>polygon</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">Polygon</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">MultiPolygon</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – The (multi)polygon; or a file path or HTTP URL to a GeoJSON file or shape file</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></p>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>DataCube</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.polygonal_median_timeseries">
+<code class="sig-name descname">polygonal_median_timeseries</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">polygon</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.polygonal_median_timeseries"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.polygonal_median_timeseries" title="Permalink to this definition">¶</a></dt>
+<dd><p>Extract a median time series for the given (multi)polygon. Its points are
+expected to be in the EPSG:4326 coordinate
+reference system.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>polygon</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">Polygon</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">MultiPolygon</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – The (multi)polygon; or a file path or HTTP URL to a GeoJSON file or shape file</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></p>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>DataCube</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.polygonal_standarddeviation_timeseries">
+<code class="sig-name descname">polygonal_standarddeviation_timeseries</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">polygon</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.polygonal_standarddeviation_timeseries"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.polygonal_standarddeviation_timeseries" title="Permalink to this definition">¶</a></dt>
+<dd><p>Extract a time series of standard deviations for the given (multi)polygon. Its points are
+expected to be in the EPSG:4326 coordinate
+reference system.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>polygon</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">Polygon</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">MultiPolygon</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – The (multi)polygon; or a file path or HTTP URL to a GeoJSON file or shape file</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></p>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>DataCube</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.process">
+<code class="sig-name descname">process</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">process_id</span></em>, <em class="sig-param"><span class="n">arguments</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">metadata</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.process" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generic helper to create a new DataCube by applying a process.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>process_id</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – process id of the process.</p></li>
+<li><p><strong>arguments</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code>]) – argument dictionary for the process.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></p>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>new DataCube instance</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.process_with_node">
+<code class="sig-name descname">process_with_node</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">pg</span></em>, <em class="sig-param"><span class="n">metadata</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.process_with_node"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.process_with_node" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generic helper to create a new DataCube by applying a process (given as process graph node)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>pg</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">PGNode</span></code>) – process graph node (containing process id and arguments)</p></li>
+<li><p><strong>metadata</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">CollectionMetadata</span></code>]) – (optional) metadata to override original cube metadata (e.g. when reducing dimensions)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></p>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>new DataCube instance</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.raster_to_vector">
+<code class="sig-name descname">raster_to_vector</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.raster_to_vector"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.raster_to_vector" title="Permalink to this definition">¶</a></dt>
+<dd><p>EXPERIMENTAL: not generally supported, API subject to change
+Converts this raster data cube into a vector data cube. The bounding polygon of homogenous areas of pixels is constructed.</p>
+<p>&#64;return: A vectorcube</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">VectorCube</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.reduce_bands_udf">
+<code class="sig-name descname">reduce_bands_udf</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">code</span></em>, <em class="sig-param"><span class="n">runtime</span><span class="o">=</span><span class="default_value">'Python'</span></em>, <em class="sig-param"><span class="n">version</span><span class="o">=</span><span class="default_value">'latest'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.reduce_bands_udf"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.reduce_bands_udf" title="Permalink to this definition">¶</a></dt>
+<dd><p>Apply reduce (<cite>reduce_dimension</cite>) process with given UDF along band/spectral dimension.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.reduce_dimension">
+<code class="sig-name descname">reduce_dimension</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">dimension</span></em>, <em class="sig-param"><span class="n">reducer</span></em>, <em class="sig-param"><span class="n">process_id</span><span class="o">=</span><span class="default_value">'reduce_dimension'</span></em>, <em class="sig-param"><span class="n">band_math_mode</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.reduce_dimension"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.reduce_dimension" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add a reduce process with given reducer callback along given dimension</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dimension</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – the label of the dimension to reduce</p></li>
+<li><p><strong>reducer</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">PGNode</span></code>, <code class="xref py py-data docutils literal notranslate"><span class="pre">Callable</span></code>]) – a callback function that creates a process graph, see <a class="reference internal" href="processes.html#callbackfunctions"><span class="std std-ref">Processes with “callbacks”</span></a></p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.reduce_temporal_simple">
+<code class="sig-name descname">reduce_temporal_simple</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">process_id</span><span class="o">=</span><span class="default_value">'max'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.reduce_temporal_simple"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.reduce_temporal_simple" title="Permalink to this definition">¶</a></dt>
+<dd><p>Do temporal reduce with a simple given process as callback.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.reduce_temporal_udf">
+<code class="sig-name descname">reduce_temporal_udf</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">code</span></em>, <em class="sig-param"><span class="n">runtime</span><span class="o">=</span><span class="default_value">'Python'</span></em>, <em class="sig-param"><span class="n">version</span><span class="o">=</span><span class="default_value">'latest'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.reduce_temporal_udf"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.reduce_temporal_udf" title="Permalink to this definition">¶</a></dt>
+<dd><p>Apply reduce (<cite>reduce_dimension</cite>) process with given UDF along temporal dimension.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>code</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – The UDF code, compatible with the given runtime and version</p></li>
+<li><p><strong>runtime</strong> (<code class="docutils literal notranslate"><span class="pre">str</span></code>) – The UDF runtime</p></li>
+<li><p><strong>version</strong> (<code class="docutils literal notranslate"><span class="pre">str</span></code>) – The UDF runtime version</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.reduce_tiles_over_time">
+<code class="sig-name descname">reduce_tiles_over_time</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">code</span></em>, <em class="sig-param"><span class="n">runtime</span><span class="o">=</span><span class="default_value">'Python'</span></em>, <em class="sig-param"><span class="n">version</span><span class="o">=</span><span class="default_value">'latest'</span></em><span class="sig-paren">)</span><a class="headerlink" href="#openeo.rest.datacube.DataCube.reduce_tiles_over_time" title="Permalink to this definition">¶</a></dt>
+<dd><p>Use of this legacy method is deprecated, use <a class="reference internal" href="#openeo.rest.datacube.DataCube.reduce_temporal_udf" title="openeo.rest.datacube.DataCube.reduce_temporal_udf"><code class="xref py py-meth docutils literal notranslate"><span class="pre">reduce_temporal_udf()</span></code></a> instead.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.rename_dimension">
+<code class="sig-name descname">rename_dimension</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">source</span></em>, <em class="sig-param"><span class="n">target</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.rename_dimension"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.rename_dimension" title="Permalink to this definition">¶</a></dt>
+<dd><p>Renames a dimension in the data cube while preserving all other properties.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>source</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – The current name of the dimension. Fails with a DimensionNotAvailable error if the specified dimension does not exist.</p></li>
+<li><p><strong>target</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – A new Name for the dimension. Fails with a DimensionExists error if a dimension with the specified name exists.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A new datacube with the dimension renamed.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.rename_labels">
+<code class="sig-name descname">rename_labels</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">dimension</span></em>, <em class="sig-param"><span class="n">target</span></em>, <em class="sig-param"><span class="n">source</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.rename_labels"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.rename_labels" title="Permalink to this definition">¶</a></dt>
+<dd><p>Renames the labels of the specified dimension in the data cube from source to target.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dimension</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – Dimension name</p></li>
+<li><p><strong>target</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>) – The new names for the labels.</p></li>
+<li><p><strong>source</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>]) – The names of the labels as they are currently in the data cube.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></p>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>An DataCube instance</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.resample_cube_spatial">
+<code class="sig-name descname">resample_cube_spatial</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">target</span></em>, <em class="sig-param"><span class="n">method</span><span class="o">=</span><span class="default_value">'near'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.resample_cube_spatial"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.resample_cube_spatial" title="Permalink to this definition">¶</a></dt>
+<dd><p>Resamples the spatial dimensions (x,y) of this data cube to a target data cube and return the results as a new data cube.</p>
+<p><a class="reference external" href="https://processes.openeo.org/#resample_cube_spatial">https://processes.openeo.org/#resample_cube_spatial</a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>target</strong> (<a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a>) – An ImageCollection that specifies the target</p></li>
+<li><p><strong>method</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – The resampling method.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A raster data cube with values warped onto the new projection.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.resample_spatial">
+<code class="sig-name descname">resample_spatial</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">resolution</span></em>, <em class="sig-param"><span class="n">projection</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">method</span><span class="o">=</span><span class="default_value">'near'</span></em>, <em class="sig-param"><span class="n">align</span><span class="o">=</span><span class="default_value">'upper-left'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.resample_spatial"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.resample_spatial" title="Permalink to this definition">¶</a></dt>
+<dd><p>Resamples the spatial dimensions (x,y) of the data cube to a specified resolution and/or warps the data cube
+to the target projection. At least resolution or projection must be specified.</p>
+<p>Use filter_bbox to set the target spatial extent.</p>
+<p><a class="reference external" href="https://processes.openeo.org/#resample_spatial">https://processes.openeo.org/#resample_spatial</a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>resolution</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>, <code class="xref py py-data docutils literal notranslate"><span class="pre">Tuple</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>]]) – Either a single number or an array with separate resolutions for each spatial dimension.
+Resamples the data cube to the target resolution, which can be specified either as separate values
+for x and y or as a single value for both axes.  Specified in the units of the target projection.
+Doesn’t change the resolution by default (0).</p></li>
+<li><p><strong>projection</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code>]) – Either an epsg code, as an integer, or a proj-definition
+string. Warps the data cube to the target projection. Target projection specified as EPSG code or PROJ
+definition. Doesn’t change the projection by default (null).</p></li>
+<li><p><strong>method</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – Resampling method. Methods are
+inspired by GDAL, see gdalwarp for more information. Possible values: near, bilinear, cubic, cubicspline,
+lanczos, average, mode, max, min, med, q1, q3</p></li>
+<li><p><strong>align</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – Specifies to which corner of the spatial extent
+the new resampled data is aligned to. Possible values: lower-left, upper-left, lower-right, upper-right</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A raster data cube with values warped onto the new projection.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.resolution_merge">
+<code class="sig-name descname">resolution_merge</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">high_resolution_bands</span></em>, <em class="sig-param"><span class="n">low_resolution_bands</span></em>, <em class="sig-param"><span class="n">method</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.resolution_merge"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.resolution_merge" title="Permalink to this definition">¶</a></dt>
+<dd><p>EXPERIMENTAL
+Resolution merging algorithms try to improve the spatial resolution of lower resolution bands
+(e.g. Sentinel-2 20M) based on higher resolution bands. (e.g. Sentinel-2 10M).</p>
+<p>External references:</p>
+<p><a class="reference external" href="https://bok.eo4geo.eu/IP2-1-3">Pansharpening explained</a></p>
+<p><a class="reference external" href="https://doi.org/10.1109/TGRS.2016.2537929">Example publication: ‘Improving the Spatial Resolution of Land Surface Phenology by Fusing Medium- and
+Coarse-Resolution Inputs’</a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>high_resolution_bands</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – A list of band names to use as ‘high-resolution’ band. Either the unique band name (metadata field <cite>name</cite> in bands) or one of the common band names (metadata field <cite>common_name</cite> in bands). If unique band name and common name conflict, the unique band name has higher priority. The order of the specified array defines the order of the bands in the data cube. If multiple bands match a common name, all matched bands are included in the original order. These bands will remain unmodified.</p></li>
+<li><p><strong>low_resolution_bands</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – A list of band names for which the spatial resolution should be increased. Either the unique band name (metadata field <cite>name</cite> in bands) or one of the common band names (metadata field <cite>common_name</cite> in bands). If unique band name and common name conflict, the unique band name has higher priority. The order of the specified array defines the order of the bands in the data cube. If multiple bands match a common name, all matched bands are included in the original order. These bands will be modified by the process.</p></li>
+<li><p><strong>method</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – The method to use. The supported algorithms can vary between back-ends. Set to <cite>null</cite> (the default) to allow the back-end to choose, which will improve portability, but reduce reproducibility..</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></p>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>A datacube with the same bands and metadata as the input, but algorithmically increased spatial resolution for the selected bands.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.sar_backscatter">
+<code class="sig-name descname">sar_backscatter</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">coefficient</span><span class="o">=</span><span class="default_value">'gamma0'</span></em>, <em class="sig-param"><span class="n">orthorectify</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">elevation_model</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">scaling</span><span class="o">=</span><span class="default_value">'dB'</span></em>, <em class="sig-param"><span class="n">options</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.sar_backscatter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.sar_backscatter" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>EXPERIMENTAL</em></p>
+<p>Computes backscatter from SAR input.</p>
+<p>Note that backscatter computation may require instrument specific metadata that is tightly coupled to the
+original SAR products. As a result, this process may only work in combination with loading data from
+specific collections, not with general data cubes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>coefficient</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – The backscatter coefficient to compute, either <cite>sigma0</cite> or <cite>gamma0</cite> (the default).</p></li>
+<li><p><strong>orthorectify</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – Set to <cite>true</cite> to enable orthorectification. The non-orthorectified products use a
+simple earth model as provided in the products themselves. This may be sufficient for very
+flat target areas and is faster to process.</p></li>
+<li><p><strong>elevation_model</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – The digital elevation model to use. Set to <cite>null</cite> (the default) to allow
+the back-end to choose, which will improve portability, but reduce reproducibility.</p></li>
+<li><p><strong>scaling</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – By default, all values are given in logarithmic decibel (dB) scale.
+If set to <cite>linear</cite>, the values are given in linear scale.</p></li>
+<li><p><strong>options</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code>]) – dictionary with additional options</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.save_user_defined_process">
+<code class="sig-name descname">save_user_defined_process</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">user_defined_process_id</span></em>, <em class="sig-param"><span class="n">public</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">summary</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">description</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.save_user_defined_process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.save_user_defined_process" title="Permalink to this definition">¶</a></dt>
+<dd><p>Saves this process graph in the backend as a user-defined process for the authenticated user.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">RESTUserDefinedProcess</span></code></p>
+</dd>
+<dt class="field-even">Parameters</dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>user_defined_process_id</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – unique identifier for the process</p></li>
+<li><p><strong>public</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – visible to other users?</p></li>
+<li><p><strong>summary</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – A short summary of what the process does.</p></li>
+<li><p><strong>description</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – Detailed description to explain the entity. CommonMark 0.29 syntax MAY be used for rich text representation.</p></li>
+</ul>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>a RESTUserDefinedProcess instance</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.send_job">
+<code class="sig-name descname">send_job</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">out_format</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">title</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">description</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">plan</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">budget</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">job_options</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">format_options</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.send_job"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.send_job" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sends a job to the backend and returns a Job instance. The job will still need to be started and managed explicitly.
+The <code class="xref py py-func docutils literal notranslate"><span class="pre">execute_batch()</span></code> method allows you to run batch jobs without managing it.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">RESTJob</span></code></p>
+</dd>
+<dt class="field-even">Parameters</dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>out_format</strong> – String Format of the job result.</p></li>
+<li><p><strong>job_options</strong> – A dictionary containing (custom) job options</p></li>
+<li><p><strong>format_options</strong> – String Parameters for the job result format</p></li>
+</ul>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>status: Job resulting job.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.tiled_viewing_service">
+<code class="sig-name descname">tiled_viewing_service</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">type</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.tiled_viewing_service"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.tiled_viewing_service" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns metadata for a tiled viewing service that visualizes this layer.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>process_graph</strong> – process graph dict</p></li>
+<li><p><strong>service_type</strong> – The type of viewing service to create, for instance: ‘WMTS’</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></p>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>A dictionary object containing the viewing service metadata, such as the connection ‘url’.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.to_graphviz">
+<code class="sig-name descname">to_graphviz</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.to_graphviz"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.to_graphviz" title="Permalink to this definition">¶</a></dt>
+<dd><p>Build a graphviz DiGraph from the process graph
+:return:</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.to_json">
+<code class="sig-name descname">to_json</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">indent</span><span class="o">=</span><span class="default_value">2</span></em>, <em class="sig-param"><span class="n">separators</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.to_json"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.to_json" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get JSON representation of (flattened) process graph.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.datacube.DataCube.zonal_statistics">
+<code class="sig-name descname">zonal_statistics</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">regions</span></em>, <em class="sig-param"><span class="n">func</span></em>, <em class="sig-param"><span class="n">scale</span><span class="o">=</span><span class="default_value">1000</span></em>, <em class="sig-param"><span class="n">interval</span><span class="o">=</span><span class="default_value">'day'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/datacube.html#DataCube.zonal_statistics"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.datacube.DataCube.zonal_statistics" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates statistics for each zone specified in a file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>regions</strong> – GeoJSON or a path to a GeoJSON file containing the
+regions. For paths you must specify the path to a
+user-uploaded file without the user id in the path.</p></li>
+<li><p><strong>func</strong> – Statistical function to calculate for the specified
+zones. example values: min, max, mean, median, mode</p></li>
+<li><p><strong>scale</strong> (<code class="docutils literal notranslate"><span class="pre">int</span></code>) – A nominal scale in meters of the projection to work
+in. Defaults to 1000.</p></li>
+<li><p><strong>interval</strong> (<code class="docutils literal notranslate"><span class="pre">str</span></code>) – Interval to group the time series. Allowed values:
+day, wee, month, year. Defaults to day.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></p>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>a DataCube instance</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-openeo.api.process">
+<span id="openeo-api"></span><span id="datacube-api"></span><h2>openeo.api<a class="headerlink" href="#module-openeo.api.process" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt id="openeo.api.process.Parameter">
+<em class="property">class </em><code class="sig-prename descclassname">openeo.api.process.</code><code class="sig-name descname">Parameter</code><span class="sig-paren">(</span><em class="sig-param">name</em>, <em class="sig-param">description=None</em>, <em class="sig-param">schema=None</em>, <em class="sig-param">default=&lt;object object&gt;</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/api/process.html#Parameter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.api.process.Parameter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Wrapper for a process parameter, as used in predefined and user-defined processes.</p>
+<dl class="py method">
+<dt id="openeo.api.process.Parameter.array">
+<em class="property">classmethod </em><code class="sig-name descname">array</code><span class="sig-paren">(</span><em class="sig-param">name</em>, <em class="sig-param">description=None</em>, <em class="sig-param">default=&lt;object object&gt;</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/api/process.html#Parameter.array"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.api.process.Parameter.array" title="Permalink to this definition">¶</a></dt>
+<dd><p>Helper to create a ‘array’ type parameter.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#openeo.api.process.Parameter" title="openeo.api.process.Parameter"><code class="xref py py-class docutils literal notranslate"><span class="pre">Parameter</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.api.process.Parameter.boolean">
+<em class="property">classmethod </em><code class="sig-name descname">boolean</code><span class="sig-paren">(</span><em class="sig-param">name</em>, <em class="sig-param">description=None</em>, <em class="sig-param">default=&lt;object object&gt;</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/api/process.html#Parameter.boolean"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.api.process.Parameter.boolean" title="Permalink to this definition">¶</a></dt>
+<dd><p>Helper to create a ‘boolean’ type parameter.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#openeo.api.process.Parameter" title="openeo.api.process.Parameter"><code class="xref py py-class docutils literal notranslate"><span class="pre">Parameter</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.api.process.Parameter.integer">
+<em class="property">classmethod </em><code class="sig-name descname">integer</code><span class="sig-paren">(</span><em class="sig-param">name</em>, <em class="sig-param">description=None</em>, <em class="sig-param">default=&lt;object object&gt;</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/api/process.html#Parameter.integer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.api.process.Parameter.integer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Helper to create a ‘integer’ type parameter.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#openeo.api.process.Parameter" title="openeo.api.process.Parameter"><code class="xref py py-class docutils literal notranslate"><span class="pre">Parameter</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.api.process.Parameter.number">
+<em class="property">classmethod </em><code class="sig-name descname">number</code><span class="sig-paren">(</span><em class="sig-param">name</em>, <em class="sig-param">description=None</em>, <em class="sig-param">default=&lt;object object&gt;</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/api/process.html#Parameter.number"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.api.process.Parameter.number" title="Permalink to this definition">¶</a></dt>
+<dd><p>Helper to create a ‘number’ type parameter.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#openeo.api.process.Parameter" title="openeo.api.process.Parameter"><code class="xref py py-class docutils literal notranslate"><span class="pre">Parameter</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.api.process.Parameter.raster_cube">
+<em class="property">classmethod </em><code class="sig-name descname">raster_cube</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">name</span><span class="o">=</span><span class="default_value">'data'</span></em>, <em class="sig-param"><span class="n">description</span><span class="o">=</span><span class="default_value">'A data cube.'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/api/process.html#Parameter.raster_cube"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.api.process.Parameter.raster_cube" title="Permalink to this definition">¶</a></dt>
+<dd><p>Helper to easily create a ‘raster-cube’ parameter.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – name of the parameter.</p></li>
+<li><p><strong>description</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – description of the parameter</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><a class="reference internal" href="#openeo.api.process.Parameter" title="openeo.api.process.Parameter"><code class="xref py py-class docutils literal notranslate"><span class="pre">Parameter</span></code></a></p>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>Parameter</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.api.process.Parameter.string">
+<em class="property">classmethod </em><code class="sig-name descname">string</code><span class="sig-paren">(</span><em class="sig-param">name</em>, <em class="sig-param">description=None</em>, <em class="sig-param">default=&lt;object object&gt;</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/api/process.html#Parameter.string"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.api.process.Parameter.string" title="Permalink to this definition">¶</a></dt>
+<dd><p>Helper to create a ‘string’ type parameter.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#openeo.api.process.Parameter" title="openeo.api.process.Parameter"><code class="xref py py-class docutils literal notranslate"><span class="pre">Parameter</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.api.process.Parameter.to_dict">
+<code class="sig-name descname">to_dict</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/api/process.html#Parameter.to_dict"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.api.process.Parameter.to_dict" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert to dictionary for JSON-serialization.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-openeo.rest.connection">
+<span id="openeo-rest-connection"></span><h2>openeo.rest.connection<a class="headerlink" href="#module-openeo.rest.connection" title="Permalink to this headline">¶</a></h2>
+<p>This module provides a Connection object to manage and persist settings when interacting with the OpenEO API.</p>
+<dl class="py class">
+<dt id="openeo.rest.connection.Connection">
+<em class="property">class </em><code class="sig-prename descclassname">openeo.rest.connection.</code><code class="sig-name descname">Connection</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">url</span></em>, <em class="sig-param"><span class="n">auth</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">session</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">default_timeout</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">auth_config</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">refresh_token_store</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/connection.html#Connection"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.connection.Connection" title="Permalink to this definition">¶</a></dt>
+<dd><p>Connection to an openEO backend.</p>
+<dl class="py method">
+<dt id="openeo.rest.connection.Connection.authenticate_OIDC">
+<code class="sig-name descname">authenticate_OIDC</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">client_id</span></em>, <em class="sig-param"><span class="n">provider_id</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">webbrowser_open</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">timeout</span><span class="o">=</span><span class="default_value">120</span></em>, <em class="sig-param"><span class="n">server_address</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/connection.html#Connection.authenticate_OIDC"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.connection.Connection.authenticate_OIDC" title="Permalink to this definition">¶</a></dt>
+<dd><p>Authenticates a user to the backend using OpenID Connect.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>client_id</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – Client id to use for OpenID Connect authentication</p></li>
+<li><p><strong>webbrowser_open</strong> – optional handler for the initial OAuth authentication request
+(opens a webbrowser by default)</p></li>
+<li><p><strong>timeout</strong> (<code class="docutils literal notranslate"><span class="pre">int</span></code>) – number of seconds after which to abort the authentication procedure</p></li>
+<li><p><strong>server_address</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-data docutils literal notranslate"><span class="pre">Tuple</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code>]]) – optional tuple (hostname, port_number) to serve the OAuth redirect callback on</p></li>
+</ul>
+</dd>
+</dl>
+<p>TODO: deprecated?</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#openeo.rest.connection.Connection" title="openeo.rest.connection.Connection"><code class="xref py py-class docutils literal notranslate"><span class="pre">Connection</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.connection.Connection.authenticate_basic">
+<code class="sig-name descname">authenticate_basic</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">username</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">password</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/connection.html#Connection.authenticate_basic"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.connection.Connection.authenticate_basic" title="Permalink to this definition">¶</a></dt>
+<dd><p>Authenticate a user to the backend using basic username and password.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>username</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – User name</p></li>
+<li><p><strong>password</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – User passphrase</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><a class="reference internal" href="#openeo.rest.connection.Connection" title="openeo.rest.connection.Connection"><code class="xref py py-class docutils literal notranslate"><span class="pre">Connection</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.connection.Connection.authenticate_oidc_authorization_code">
+<code class="sig-name descname">authenticate_oidc_authorization_code</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">client_id</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">client_secret</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">provider_id</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">timeout</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">server_address</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">webbrowser_open</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">store_refresh_token</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/connection.html#Connection.authenticate_oidc_authorization_code"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.connection.Connection.authenticate_oidc_authorization_code" title="Permalink to this definition">¶</a></dt>
+<dd><p>OpenID Connect Authorization Code Flow (with PKCE).</p>
+<p>WARNING: this API is in experimental phase</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#openeo.rest.connection.Connection" title="openeo.rest.connection.Connection"><code class="xref py py-class docutils literal notranslate"><span class="pre">Connection</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.connection.Connection.authenticate_oidc_client_credentials">
+<code class="sig-name descname">authenticate_oidc_client_credentials</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">client_id</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">client_secret</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">provider_id</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">store_refresh_token</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/connection.html#Connection.authenticate_oidc_client_credentials"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.connection.Connection.authenticate_oidc_client_credentials" title="Permalink to this definition">¶</a></dt>
+<dd><p>OpenID Connect Client Credentials flow.</p>
+<p>WARNING: this API is in experimental phase</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#openeo.rest.connection.Connection" title="openeo.rest.connection.Connection"><code class="xref py py-class docutils literal notranslate"><span class="pre">Connection</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.connection.Connection.authenticate_oidc_device">
+<code class="sig-name descname">authenticate_oidc_device</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">client_id</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">client_secret</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">provider_id</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">store_refresh_token</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/connection.html#Connection.authenticate_oidc_device"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.connection.Connection.authenticate_oidc_device" title="Permalink to this definition">¶</a></dt>
+<dd><p>Authenticate with OAuth Device Authorization grant/flow</p>
+<p>WARNING: this API is in experimental phase</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#openeo.rest.connection.Connection" title="openeo.rest.connection.Connection"><code class="xref py py-class docutils literal notranslate"><span class="pre">Connection</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.connection.Connection.authenticate_oidc_refresh_token">
+<code class="sig-name descname">authenticate_oidc_refresh_token</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">client_id</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">refresh_token</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">client_secret</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">provider_id</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/connection.html#Connection.authenticate_oidc_refresh_token"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.connection.Connection.authenticate_oidc_refresh_token" title="Permalink to this definition">¶</a></dt>
+<dd><p>OpenId Connect Refresh Token</p>
+<p>WARNING: this API is in experimental phase</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#openeo.rest.connection.Connection" title="openeo.rest.connection.Connection"><code class="xref py py-class docutils literal notranslate"><span class="pre">Connection</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.connection.Connection.authenticate_oidc_resource_owner_password_credentials">
+<code class="sig-name descname">authenticate_oidc_resource_owner_password_credentials</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">username</span></em>, <em class="sig-param"><span class="n">password</span></em>, <em class="sig-param"><span class="n">client_id</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">client_secret</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">provider_id</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">store_refresh_token</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/connection.html#Connection.authenticate_oidc_resource_owner_password_credentials"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.connection.Connection.authenticate_oidc_resource_owner_password_credentials" title="Permalink to this definition">¶</a></dt>
+<dd><p>OpenId Connect Resource Owner Password Credentials</p>
+<p>WARNING: this API is in experimental phase</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#openeo.rest.connection.Connection" title="openeo.rest.connection.Connection"><code class="xref py py-class docutils literal notranslate"><span class="pre">Connection</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.connection.Connection.capabilities">
+<code class="sig-name descname">capabilities</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/connection.html#Connection.capabilities"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.connection.Connection.capabilities" title="Permalink to this definition">¶</a></dt>
+<dd><p>Loads all available capabilities.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">RESTCapabilities</span></code></p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>data_dict: Dict All available data types</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.connection.Connection.create_file">
+<code class="sig-name descname">create_file</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">path</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/connection.html#Connection.create_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.connection.Connection.create_file" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates virtual file</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>file object.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.connection.Connection.create_job">
+<code class="sig-name descname">create_job</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">process_graph</span></em>, <em class="sig-param"><span class="n">title</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">description</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">plan</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">budget</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">additional</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/connection.html#Connection.create_job"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.connection.Connection.create_job" title="Permalink to this definition">¶</a></dt>
+<dd><p>Posts a job to the back end.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">RESTJob</span></code></p>
+</dd>
+<dt class="field-even">Parameters</dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>process_graph</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code>) – (flat) dict representing process graph</p></li>
+<li><p><strong>title</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – String title of the job</p></li>
+<li><p><strong>description</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – String description of the job</p></li>
+<li><p><strong>plan</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – billing plan</p></li>
+<li><p><strong>budget</strong> – Budget</p></li>
+<li><p><strong>additional</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code>]) – additional job options to pass to the backend</p></li>
+</ul>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>job_id: String Job id of the new created job</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.connection.Connection.datacube_from_process">
+<code class="sig-name descname">datacube_from_process</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">process_id</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/connection.html#Connection.datacube_from_process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.connection.Connection.datacube_from_process" title="Permalink to this definition">¶</a></dt>
+<dd><p>Load a raster datacube, from a custom process.</p>
+<p>&#64;param process_id: The process id of the custom process.
+&#64;param kwargs: The arguments of the custom process
+&#64;return: A DataCube, without valid metadata, as the client is not aware of this custom process.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.connection.Connection.describe_account">
+<code class="sig-name descname">describe_account</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/connection.html#Connection.describe_account"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.connection.Connection.describe_account" title="Permalink to this definition">¶</a></dt>
+<dd><p>Describes the currently authenticated user account.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.connection.Connection.describe_collection">
+<code class="sig-name descname">describe_collection</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">name</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/connection.html#Connection.describe_collection"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.connection.Connection.describe_collection" title="Permalink to this definition">¶</a></dt>
+<dd><p>Loads detailed information of a specific image collection.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">dict</span></code></p>
+</dd>
+<dt class="field-even">Parameters</dt>
+<dd class="field-even"><p><strong>name</strong> – String Id of the collection</p>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>data_dict: Dict Detailed information about the collection</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.connection.Connection.download">
+<code class="sig-name descname">download</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">graph</span></em>, <em class="sig-param"><span class="n">outputfile</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">timeout</span><span class="o">=</span><span class="default_value">1800</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/connection.html#Connection.download"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.connection.Connection.download" title="Permalink to this definition">¶</a></dt>
+<dd><p>Downloads the result of a process graph synchronously,
+and save the result to the given file or return bytes object if no outputfile is specified.
+This method is useful to export binary content such as images. For json content, the execute method is recommended.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>graph</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code>) – (flat) dict representing a process graph</p></li>
+<li><p><strong>outputfile</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">Path</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code>]) – output file</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.connection.Connection.execute">
+<code class="sig-name descname">execute</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">process_graph</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/connection.html#Connection.execute"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.connection.Connection.execute" title="Permalink to this definition">¶</a></dt>
+<dd><p>Execute a process graph synchronously.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>process_graph</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code>) – (flat) dict representing a process graph</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.connection.Connection.imagecollection">
+<code class="sig-name descname">imagecollection</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">collection_id</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#openeo.rest.connection.Connection.imagecollection" title="Permalink to this definition">¶</a></dt>
+<dd><p>Load an image collection by collection id</p>
+<p>see <code class="xref py py-meth docutils literal notranslate"><span class="pre">openeo.rest.imagecollectionclient.ImageCollectionClient.load_collection()</span></code>
+for available arguments.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>collection_id</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – image collection identifier (string)</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">ImageCollectionClient</span></code>, <a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a>]</p>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>ImageCollectionClient</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.connection.Connection.job">
+<code class="sig-name descname">job</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">job_id</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/connection.html#Connection.job"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.connection.Connection.job" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the job based on the id. The job with the given id should already exist.</p>
+<p>Use <a class="reference internal" href="#openeo.rest.connection.Connection.create_job" title="openeo.rest.connection.Connection.create_job"><code class="xref py py-meth docutils literal notranslate"><span class="pre">openeo.rest.connection.Connection.create_job()</span></code></a> to create new jobs</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>job_id</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – the job id of an existing job</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A job object.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.connection.Connection.list_collection_ids">
+<code class="sig-name descname">list_collection_ids</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/connection.html#Connection.list_collection_ids"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.connection.Connection.list_collection_ids" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get list of all collection ids</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>list of collection ids</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.connection.Connection.list_collections">
+<code class="sig-name descname">list_collections</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/connection.html#Connection.list_collections"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.connection.Connection.list_collections" title="Permalink to this definition">¶</a></dt>
+<dd><p>Loads all available imagecollections types.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code>]</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>list of collection meta data dictionaries</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.connection.Connection.list_file_formats">
+<code class="sig-name descname">list_file_formats</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/connection.html#Connection.list_file_formats"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.connection.Connection.list_file_formats" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get available input and output formats</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.connection.Connection.list_file_types">
+<code class="sig-name descname">list_file_types</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#openeo.rest.connection.Connection.list_file_types" title="Permalink to this definition">¶</a></dt>
+<dd><p>Use of this legacy method is deprecated, use <code class="xref py py-meth docutils literal notranslate"><span class="pre">list_output_formats()</span></code> instead.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.connection.Connection.list_files">
+<code class="sig-name descname">list_files</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/connection.html#Connection.list_files"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.connection.Connection.list_files" title="Permalink to this definition">¶</a></dt>
+<dd><p>Lists all files that the logged in user uploaded.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>file_list: List of the user uploaded files.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.connection.Connection.list_jobs">
+<code class="sig-name descname">list_jobs</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/connection.html#Connection.list_jobs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.connection.Connection.list_jobs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Lists all jobs of the authenticated user.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>job_list: Dict of all jobs of the user.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.connection.Connection.list_processes">
+<code class="sig-name descname">list_processes</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/connection.html#Connection.list_processes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.connection.Connection.list_processes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Loads all available processes of the back end.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code>]</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>processes_dict: Dict All available processes of the back end.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.connection.Connection.list_service_types">
+<code class="sig-name descname">list_service_types</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/connection.html#Connection.list_service_types"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.connection.Connection.list_service_types" title="Permalink to this definition">¶</a></dt>
+<dd><p>Loads all available service types.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>data_dict: Dict All available service types</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.connection.Connection.list_services">
+<code class="sig-name descname">list_services</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/connection.html#Connection.list_services"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.connection.Connection.list_services" title="Permalink to this definition">¶</a></dt>
+<dd><p>Loads all available services of the authenticated user.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>data_dict: Dict All available service types</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.connection.Connection.list_udf_runtimes">
+<code class="sig-name descname">list_udf_runtimes</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/connection.html#Connection.list_udf_runtimes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.connection.Connection.list_udf_runtimes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Loads all available UDF runtimes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>data_dict: Dict All available UDF runtimes</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.connection.Connection.list_user_defined_processes">
+<code class="sig-name descname">list_user_defined_processes</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/connection.html#Connection.list_user_defined_processes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.connection.Connection.list_user_defined_processes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Lists all user-defined processes of the authenticated user.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.connection.Connection.load_collection">
+<code class="sig-name descname">load_collection</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">collection_id</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/connection.html#Connection.load_collection"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.connection.Connection.load_collection" title="Permalink to this definition">¶</a></dt>
+<dd><p>Load an image collection by collection id</p>
+<p>see <code class="xref py py-meth docutils literal notranslate"><span class="pre">openeo.rest.imagecollectionclient.ImageCollectionClient.load_collection()</span></code>
+for available arguments.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>collection_id</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – image collection identifier (string)</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">ImageCollectionClient</span></code>, <a class="reference internal" href="#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a>]</p>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>ImageCollectionClient</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.connection.Connection.load_disk_collection">
+<code class="sig-name descname">load_disk_collection</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">format</span></em>, <em class="sig-param"><span class="n">glob_pattern</span></em>, <em class="sig-param"><span class="n">options</span><span class="o">=</span><span class="default_value">{}</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/connection.html#Connection.load_disk_collection"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.connection.Connection.load_disk_collection" title="Permalink to this definition">¶</a></dt>
+<dd><p>Loads image data from disk as an ImageCollection.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">ImageCollectionClient</span></code></p>
+</dd>
+<dt class="field-even">Parameters</dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>format</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – the file format, e.g. ‘GTiff’</p></li>
+<li><p><strong>glob_pattern</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – a glob pattern that matches the files to load from disk</p></li>
+<li><p><strong>options</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code>) – options specific to the file format</p></li>
+</ul>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>the data as an ImageCollection</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.connection.Connection.remove_service">
+<code class="sig-name descname">remove_service</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">service_id</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/connection.html#Connection.remove_service"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.connection.Connection.remove_service" title="Permalink to this definition">¶</a></dt>
+<dd><p>Stop and remove a secondary web service.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>service_id</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – service identifier</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.connection.Connection.save_user_defined_process">
+<code class="sig-name descname">save_user_defined_process</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">user_defined_process_id</span></em>, <em class="sig-param"><span class="n">process_graph</span></em>, <em class="sig-param"><span class="n">parameters</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">public</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">summary</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">description</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/connection.html#Connection.save_user_defined_process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.connection.Connection.save_user_defined_process" title="Permalink to this definition">¶</a></dt>
+<dd><p>Saves a process graph and its metadata in the backend as a user-defined process for the authenticated user.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">RESTUserDefinedProcess</span></code></p>
+</dd>
+<dt class="field-even">Parameters</dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>user_defined_process_id</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – unique identifier for the user-defined process</p></li>
+<li><p><strong>process_graph</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code>) – a process graph</p></li>
+<li><p><strong>parameters</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code>[<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<a class="reference internal" href="#openeo.api.process.Parameter" title="openeo.api.process.Parameter"><code class="xref py py-class docutils literal notranslate"><span class="pre">Parameter</span></code></a>, <code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code>]]]) – a list of parameters</p></li>
+<li><p><strong>public</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – visible to other users?</p></li>
+<li><p><strong>summary</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – A short summary of what the process does.</p></li>
+<li><p><strong>description</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – Detailed description to explain the entity. CommonMark 0.29 syntax MAY be used for rich text representation.</p></li>
+</ul>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>a RESTUserDefinedProcess instance</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.connection.Connection.user_defined_process">
+<code class="sig-name descname">user_defined_process</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">user_defined_process_id</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/connection.html#Connection.user_defined_process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.connection.Connection.user_defined_process" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the user-defined process based on its id. The process with the given id should already exist.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">RESTUserDefinedProcess</span></code></p>
+</dd>
+<dt class="field-even">Parameters</dt>
+<dd class="field-even"><p><strong>user_defined_process_id</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – the id of the user-defined process</p>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>a RESTUserDefinedProcess instance</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.connection.Connection.user_jobs">
+<code class="sig-name descname">user_jobs</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/connection.html#Connection.user_jobs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.connection.Connection.user_jobs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Loads all jobs of the current user.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>jobs: Dict All jobs of the user</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="openeo.rest.connection.Connection.version_discovery">
+<em class="property">classmethod </em><code class="sig-name descname">version_discovery</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">url</span></em>, <em class="sig-param"><span class="n">session</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/connection.html#Connection.version_discovery"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.connection.Connection.version_discovery" title="Permalink to this definition">¶</a></dt>
+<dd><p>Do automatic openEO API version discovery from given url, using a “well-known URI” strategy.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">str</span></code></p>
+</dd>
+<dt class="field-even">Parameters</dt>
+<dd class="field-even"><p><strong>url</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – initial backend url (not including “/.well-known/openeo”)</p>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>root url of highest supported backend version</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py exception">
+<dt id="openeo.rest.connection.OpenEoApiError">
+<em class="property">exception </em><code class="sig-prename descclassname">openeo.rest.connection.</code><code class="sig-name descname">OpenEoApiError</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">http_status_code</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">code</span><span class="o">=</span><span class="default_value">'unknown'</span></em>, <em class="sig-param"><span class="n">message</span><span class="o">=</span><span class="default_value">'unknown error'</span></em>, <em class="sig-param"><span class="n">id</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">url</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/rest/connection.html#OpenEoApiError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openeo.rest.connection.OpenEoApiError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Error returned by OpenEO API according to <a class="reference external" href="https://open-eo.github.io/openeo-api/errors/">https://open-eo.github.io/openeo-api/errors/</a></p>
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+    <div class="clearer"></div>
+  </div>
+    <div class="footer">
+      &copy;2017 - 2021, Jeroen Dries.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.4.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/api.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+    <a href="https://github.com/Open-EO/openeo-python-client" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

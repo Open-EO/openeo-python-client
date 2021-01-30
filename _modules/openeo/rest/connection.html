@@ -1,0 +1,1029 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>openeo.rest.connection &#8212; openEO 0.4.10a1 documentation</title>
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/jquery.js"></script>
+    <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  <div class="document">
+    
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">openEO</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Open-EO&repo=openeo-python-client&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/Open-EO/openeo-python-client">
+    <img
+        alt="https://secure.travis-ci.org/Open-EO/openeo-python-client.svg?branch=master"
+        src="https://secure.travis-ci.org/Open-EO/openeo-python-client.svg?branch=master"
+    />
+</a>
+</p>
+
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script><!-- Alabaster (krTheme++) Hacks -->
+
+<!-- CSS Adjustments from requests: https://github.com/kennethreitz/requests/blob/master/docs/_templates/hacks.html-->
+<style type="text/css">
+  /* Rezzy requires precise alignment. */
+  img.logo {margin-left: -20px!important;}
+  /* "Quick Search" should be capitalized. */
+  div#searchbox h3 {text-transform: capitalize;}
+  /* Make the document a little wider, less code is cut-off. */
+  div.document {width: 1008px;}
+  /* Much-improved spacing around code blocks. */
+  div.highlight pre {padding: 11px 14px;}
+  /* Remain Responsive! */
+  @media screen and (max-width: 1008px) {
+    div.sphinxsidebar {display: none;}
+    div.document {width: 100%!important;}
+    /* Have code blocks escape the document right-margin. */
+    div.highlight pre {margin-right: -30px;}
+  }
+</style>
+        </div>
+      </div>
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for openeo.rest.connection</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">This module provides a Connection object to manage and persist settings when interacting with the OpenEO API.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Callable</span>
+<span class="kn">from</span> <span class="nn">urllib.parse</span> <span class="kn">import</span> <span class="n">urljoin</span>
+
+<span class="kn">import</span> <span class="nn">requests</span>
+<span class="kn">from</span> <span class="nn">deprecated</span> <span class="kn">import</span> <span class="n">deprecated</span>
+<span class="kn">from</span> <span class="nn">requests</span> <span class="kn">import</span> <span class="n">Response</span>
+<span class="kn">from</span> <span class="nn">requests.auth</span> <span class="kn">import</span> <span class="n">HTTPBasicAuth</span><span class="p">,</span> <span class="n">AuthBase</span>
+
+<span class="kn">import</span> <span class="nn">openeo</span>
+<span class="kn">from</span> <span class="nn">openeo.capabilities</span> <span class="kn">import</span> <span class="n">ApiVersionException</span><span class="p">,</span> <span class="n">ComparableVersion</span>
+<span class="kn">from</span> <span class="nn">openeo.imagecollection</span> <span class="kn">import</span> <span class="n">CollectionMetadata</span>
+<span class="kn">from</span> <span class="nn">openeo.internal.graph_building</span> <span class="kn">import</span> <span class="n">PGNode</span>
+<span class="kn">from</span> <span class="nn">openeo.rest</span> <span class="kn">import</span> <span class="n">OpenEoClientException</span>
+<span class="kn">from</span> <span class="nn">openeo.rest.auth.auth</span> <span class="kn">import</span> <span class="n">NullAuth</span><span class="p">,</span> <span class="n">BearerAuth</span>
+<span class="kn">from</span> <span class="nn">openeo.rest.auth.config</span> <span class="kn">import</span> <span class="n">RefreshTokenStore</span><span class="p">,</span> <span class="n">AuthConfig</span>
+<span class="kn">from</span> <span class="nn">openeo.rest.auth.oidc</span> <span class="kn">import</span> <span class="n">OidcClientCredentialsAuthenticator</span><span class="p">,</span> <span class="n">OidcAuthCodePkceAuthenticator</span><span class="p">,</span> \
+    <span class="n">OidcClientInfo</span><span class="p">,</span> <span class="n">OidcAuthenticator</span><span class="p">,</span> <span class="n">OidcRefreshTokenAuthenticator</span><span class="p">,</span> <span class="n">OidcResourceOwnerPasswordAuthenticator</span><span class="p">,</span> \
+    <span class="n">OidcDeviceAuthenticator</span><span class="p">,</span> <span class="n">OidcProviderInfo</span>
+<span class="kn">from</span> <span class="nn">openeo.rest.datacube</span> <span class="kn">import</span> <span class="n">DataCube</span>
+<span class="kn">from</span> <span class="nn">openeo.rest.imagecollectionclient</span> <span class="kn">import</span> <span class="n">ImageCollectionClient</span>
+<span class="kn">from</span> <span class="nn">openeo.rest.job</span> <span class="kn">import</span> <span class="n">RESTJob</span>
+<span class="kn">from</span> <span class="nn">openeo.rest.rest_capabilities</span> <span class="kn">import</span> <span class="n">RESTCapabilities</span>
+<span class="kn">from</span> <span class="nn">openeo.rest.udp</span> <span class="kn">import</span> <span class="n">RESTUserDefinedProcess</span><span class="p">,</span> <span class="n">Parameter</span>
+<span class="kn">from</span> <span class="nn">openeo.util</span> <span class="kn">import</span> <span class="n">ensure_list</span><span class="p">,</span> <span class="n">legacy_alias</span><span class="p">,</span> <span class="n">dict_no_none</span>
+<span class="kn">from</span> <span class="nn">openeo.internal.jupyter</span> <span class="kn">import</span> <span class="n">VisualDict</span><span class="p">,</span> <span class="n">VisualList</span>
+
+<span class="n">_log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">url_join</span><span class="p">(</span><span class="n">root_url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Join a base url and sub path properly.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">urljoin</span><span class="p">(</span><span class="n">root_url</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span><span class="p">,</span> <span class="n">path</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">))</span>
+
+
+<div class="viewcode-block" id="OpenEoApiError"><a class="viewcode-back" href="../../../api.html#openeo.OpenEoApiError">[docs]</a><span class="k">class</span> <span class="nc">OpenEoApiError</span><span class="p">(</span><span class="n">OpenEoClientException</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Error returned by OpenEO API according to https://open-eo.github.io/openeo-api/errors/</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">http_status_code</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">code</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;unknown&#39;</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;unknown error&#39;</span><span class="p">,</span> <span class="nb">id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">url</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">http_status_code</span> <span class="o">=</span> <span class="n">http_status_code</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">code</span> <span class="o">=</span> <span class="n">code</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">message</span> <span class="o">=</span> <span class="n">message</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="nb">id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">url</span> <span class="o">=</span> <span class="n">url</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="s2">&quot;[</span><span class="si">{s}</span><span class="s2">] </span><span class="si">{c}</span><span class="s2">: </span><span class="si">{m}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">s</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">http_status_code</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">code</span><span class="p">,</span> <span class="n">m</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">message</span><span class="p">))</span></div>
+
+
+<span class="k">class</span> <span class="nc">RestApiConnection</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Base connection class implementing generic REST API request functionality&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">root_url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">auth</span><span class="p">:</span> <span class="n">AuthBase</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">session</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">Session</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">default_timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_root_url</span> <span class="o">=</span> <span class="n">root_url</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">auth</span> <span class="o">=</span> <span class="n">auth</span> <span class="ow">or</span> <span class="n">NullAuth</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">session</span> <span class="o">=</span> <span class="n">session</span> <span class="ow">or</span> <span class="n">requests</span><span class="o">.</span><span class="n">Session</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">default_timeout</span> <span class="o">=</span> <span class="n">default_timeout</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">default_headers</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;User-Agent&quot;</span><span class="p">:</span> <span class="s2">&quot;openeo-python-client/</span><span class="si">{cv}</span><span class="s2"> </span><span class="si">{py}</span><span class="s2">/</span><span class="si">{pv}</span><span class="s2"> </span><span class="si">{pl}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">cv</span><span class="o">=</span><span class="n">openeo</span><span class="o">.</span><span class="n">client_version</span><span class="p">(),</span>
+                <span class="n">py</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">implementation</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">pv</span><span class="o">=</span><span class="s2">&quot;.&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">sys</span><span class="o">.</span><span class="n">version_info</span><span class="p">[:</span><span class="mi">3</span><span class="p">])),</span>
+                <span class="n">pl</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">platform</span>
+            <span class="p">)</span>
+        <span class="p">}</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">root_url</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_root_url</span>
+
+    <span class="k">def</span> <span class="nf">build_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">url_join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_root_url</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_merged_headers</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">headers</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Merge default headers with given headers&quot;&quot;&quot;</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">default_headers</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">headers</span><span class="p">:</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">headers</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">result</span>
+
+    <span class="k">def</span> <span class="nf">request</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">method</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">headers</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">auth</span><span class="p">:</span> <span class="n">AuthBase</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="n">check_error</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">expected_status</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Generic request send&quot;&quot;&quot;</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_url</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="n">auth</span> <span class="o">=</span> <span class="n">auth</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">auth</span>
+        <span class="k">if</span> <span class="n">_log</span><span class="o">.</span><span class="n">isEnabledFor</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">):</span>
+            <span class="n">_log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Request `</span><span class="si">{m}</span><span class="s2"> </span><span class="si">{u}</span><span class="s2">` with headers </span><span class="si">{h}</span><span class="s2">, auth </span><span class="si">{a}</span><span class="s2">, kwargs </span><span class="si">{k}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">m</span><span class="o">=</span><span class="n">method</span><span class="o">.</span><span class="n">upper</span><span class="p">(),</span> <span class="n">u</span><span class="o">=</span><span class="n">url</span><span class="p">,</span> <span class="n">h</span><span class="o">=</span><span class="n">headers</span> <span class="ow">and</span> <span class="n">headers</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="n">a</span><span class="o">=</span><span class="nb">type</span><span class="p">(</span><span class="n">auth</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+            <span class="p">)</span>
+        <span class="n">resp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">request</span><span class="p">(</span>
+            <span class="n">method</span><span class="o">=</span><span class="n">method</span><span class="p">,</span>
+            <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span>
+            <span class="n">headers</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_merged_headers</span><span class="p">(</span><span class="n">headers</span><span class="p">),</span>
+            <span class="n">auth</span><span class="o">=</span><span class="n">auth</span><span class="p">,</span>
+            <span class="n">timeout</span><span class="o">=</span><span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;timeout&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">default_timeout</span><span class="p">),</span>
+            <span class="o">**</span><span class="n">kwargs</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">_log</span><span class="o">.</span><span class="n">isEnabledFor</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">):</span>
+            <span class="n">_log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Got </span><span class="si">{r}</span><span class="s2"> headers </span><span class="si">{h!r}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">r</span><span class="o">=</span><span class="n">resp</span><span class="p">,</span> <span class="n">h</span><span class="o">=</span><span class="n">resp</span><span class="o">.</span><span class="n">headers</span><span class="p">))</span>
+        <span class="c1"># Check for API errors and unexpected HTTP status codes as desired.</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="n">resp</span><span class="o">.</span><span class="n">status_code</span>
+        <span class="n">expected_status</span> <span class="o">=</span> <span class="n">ensure_list</span><span class="p">(</span><span class="n">expected_status</span><span class="p">)</span> <span class="k">if</span> <span class="n">expected_status</span> <span class="k">else</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">check_error</span> <span class="ow">and</span> <span class="n">status</span> <span class="o">&gt;=</span> <span class="mi">400</span> <span class="ow">and</span> <span class="n">status</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">expected_status</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_raise_api_error</span><span class="p">(</span><span class="n">resp</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">expected_status</span> <span class="ow">and</span> <span class="n">status</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">expected_status</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">OpenEoClientException</span><span class="p">(</span><span class="s2">&quot;Got status code </span><span class="si">{s!r}</span><span class="s2"> for `</span><span class="si">{m}</span><span class="s2"> </span><span class="si">{p}</span><span class="s2">` (expected </span><span class="si">{e!r}</span><span class="s2">)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">m</span><span class="o">=</span><span class="n">method</span><span class="o">.</span><span class="n">upper</span><span class="p">(),</span> <span class="n">p</span><span class="o">=</span><span class="n">path</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="n">status</span><span class="p">,</span> <span class="n">e</span><span class="o">=</span><span class="n">expected_status</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">resp</span>
+
+    <span class="k">def</span> <span class="nf">_raise_api_error</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">response</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">Response</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Convert API error response to Python exception&quot;&quot;&quot;</span>
+        <span class="n">status_code</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># Try parsing the error info according to spec and wrap it in an exception.</span>
+            <span class="n">info</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+            <span class="n">exception</span> <span class="o">=</span> <span class="n">OpenEoApiError</span><span class="p">(</span>
+                <span class="n">http_status_code</span><span class="o">=</span><span class="n">status_code</span><span class="p">,</span>
+                <span class="n">code</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;code&quot;</span><span class="p">,</span> <span class="s2">&quot;unknown&quot;</span><span class="p">),</span>
+                <span class="n">message</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;message&quot;</span><span class="p">,</span> <span class="s2">&quot;unknown error&quot;</span><span class="p">),</span>
+                <span class="nb">id</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">),</span>
+                <span class="n">url</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;url&quot;</span><span class="p">),</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="c1"># Parsing of error info went wrong: let&#39;s see if we can still extract some helpful information.</span>
+            <span class="n">text</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">text</span>
+            <span class="n">_log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Failed to parse API error response: </span><span class="si">{s}</span><span class="s2"> </span><span class="si">{t!r}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">s</span><span class="o">=</span><span class="n">status_code</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="n">text</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">status_code</span> <span class="o">==</span> <span class="mi">502</span> <span class="ow">and</span> <span class="s2">&quot;Proxy Error&quot;</span> <span class="ow">in</span> <span class="n">text</span><span class="p">:</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;Received 502 Proxy Error.&quot;</span> \
+                      <span class="s2">&quot; This typically happens if an OpenEO request takes too long and is killed.&quot;</span> \
+                      <span class="s2">&quot; Consider using batch jobs instead of doing synchronous processing.&quot;</span>
+                <span class="n">exception</span> <span class="o">=</span> <span class="n">OpenEoApiError</span><span class="p">(</span><span class="n">http_status_code</span><span class="o">=</span><span class="n">status_code</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="n">msg</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">exception</span> <span class="o">=</span> <span class="n">OpenEoApiError</span><span class="p">(</span><span class="n">http_status_code</span><span class="o">=</span><span class="n">status_code</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="n">text</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="n">exception</span>
+
+    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">auth</span><span class="p">:</span> <span class="n">AuthBase</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Do GET request to REST API.</span>
+
+<span class="sd">        :param path: API path (without root url)</span>
+<span class="sd">        :param stream: True if the get request should be streamed, else False</span>
+<span class="sd">        :param auth: optional custom authentication to use instead of the default one</span>
+<span class="sd">        :return: response: Response</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="s2">&quot;get&quot;</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="n">path</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="n">stream</span><span class="p">,</span> <span class="n">auth</span><span class="o">=</span><span class="n">auth</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">post</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">json</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Do POST request to REST API.</span>
+
+<span class="sd">        :param path: API path (without root url)</span>
+<span class="sd">        :param json: Data (as dictionary) to be posted with JSON encoding)</span>
+<span class="sd">        :return: response: Response</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="s2">&quot;post&quot;</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="n">path</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="n">json</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Do DELETE request to REST API.</span>
+
+<span class="sd">        :param path: API path (without root url)</span>
+<span class="sd">        :return: response: Response</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="s2">&quot;delete&quot;</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="n">path</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">patch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Do PATCH request to REST API.</span>
+
+<span class="sd">        :param path: API path (without root url)</span>
+<span class="sd">        :return: response: Response</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="s2">&quot;patch&quot;</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="n">path</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">put</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">headers</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Do PUT request to REST API.</span>
+
+<span class="sd">        :param path: API path (without root url)</span>
+<span class="sd">        :param headers: headers that gets added to the request.</span>
+<span class="sd">        :param data: data that gets added to the request.</span>
+<span class="sd">        :return: response: Response</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="s2">&quot;put&quot;</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="n">path</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;&lt;</span><span class="si">{c}</span><span class="s2"> to </span><span class="si">{r!r}</span><span class="s2"> with </span><span class="si">{a}</span><span class="s2">&gt;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">c</span><span class="o">=</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="n">r</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_root_url</span><span class="p">,</span> <span class="n">a</span><span class="o">=</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">auth</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="Connection"><a class="viewcode-back" href="../../../api.html#openeo.Connection">[docs]</a><span class="k">class</span> <span class="nc">Connection</span><span class="p">(</span><span class="n">RestApiConnection</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Connection to an openEO backend.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">_MINIMUM_API_VERSION</span> <span class="o">=</span> <span class="n">ComparableVersion</span><span class="p">(</span><span class="s2">&quot;0.4.0&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Temporary workaround flag to enable for backends (e.g. EURAC) that expect id_token to be sent as bearer token</span>
+    <span class="c1"># TODO DEPRECATED To remove when all backends properly expect access_token</span>
+    <span class="c1"># see https://github.com/Open-EO/openeo-wcps-driver/issues/45</span>
+    <span class="n">oidc_auth_user_id_token_as_bearer</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">auth</span><span class="p">:</span> <span class="n">AuthBase</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">session</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">Session</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">default_timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">auth_config</span><span class="p">:</span> <span class="n">AuthConfig</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">refresh_token_store</span><span class="p">:</span> <span class="n">RefreshTokenStore</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Constructor of Connection, authenticates user.</span>
+
+<span class="sd">        :param url: String Backend root url</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_orig_url</span> <span class="o">=</span> <span class="n">url</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">root_url</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">version_discovery</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="n">session</span><span class="p">),</span>
+            <span class="n">auth</span><span class="o">=</span><span class="n">auth</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="n">session</span><span class="p">,</span> <span class="n">default_timeout</span><span class="o">=</span><span class="n">default_timeout</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_capabilities_cache</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c1"># Initial API version check.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_api_version</span><span class="o">.</span><span class="n">below</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_MINIMUM_API_VERSION</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">ApiVersionException</span><span class="p">(</span><span class="s2">&quot;OpenEO API version should be at least </span><span class="si">{m!s}</span><span class="s2">, but got </span><span class="si">{v!s}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">m</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_MINIMUM_API_VERSION</span><span class="p">,</span> <span class="n">v</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_api_version</span><span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_auth_config</span> <span class="o">=</span> <span class="n">auth_config</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_refresh_token_store</span> <span class="o">=</span> <span class="n">refresh_token_store</span>
+
+<div class="viewcode-block" id="Connection.version_discovery"><a class="viewcode-back" href="../../../api.html#openeo.Connection.version_discovery">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">version_discovery</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">session</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">Session</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Do automatic openEO API version discovery from given url, using a &quot;well-known URI&quot; strategy.</span>
+
+<span class="sd">        :param url: initial backend url (not including &quot;/.well-known/openeo&quot;)</span>
+<span class="sd">        :return: root url of highest supported backend version</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">well_known_url_response</span> <span class="o">=</span> <span class="n">RestApiConnection</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="n">session</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/.well-known/openeo&quot;</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="n">well_known_url_response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">200</span>
+            <span class="n">versions</span> <span class="o">=</span> <span class="n">well_known_url_response</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s2">&quot;versions&quot;</span><span class="p">]</span>
+            <span class="n">supported_versions</span> <span class="o">=</span> <span class="p">[</span><span class="n">v</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">versions</span> <span class="k">if</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_MINIMUM_API_VERSION</span> <span class="o">&lt;=</span> <span class="n">v</span><span class="p">[</span><span class="s2">&quot;api_version&quot;</span><span class="p">]]</span>
+            <span class="k">assert</span> <span class="n">supported_versions</span>
+            <span class="n">production_versions</span> <span class="o">=</span> <span class="p">[</span><span class="n">v</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">supported_versions</span> <span class="k">if</span> <span class="n">v</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;production&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)]</span>
+            <span class="n">highest_version</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">production_versions</span> <span class="ow">or</span> <span class="n">supported_versions</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="n">v</span><span class="p">[</span><span class="s2">&quot;api_version&quot;</span><span class="p">])</span>
+            <span class="n">_log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Highest supported version available in backend: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">highest_version</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">highest_version</span><span class="p">[</span><span class="s1">&#39;url&#39;</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="c1"># Be very lenient about failing on the well-known URI strategy.</span>
+            <span class="k">return</span> <span class="n">url</span></div>
+
+    <span class="k">def</span> <span class="nf">_get_auth_config</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AuthConfig</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_auth_config</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_auth_config</span> <span class="o">=</span> <span class="n">AuthConfig</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_auth_config</span>
+
+    <span class="k">def</span> <span class="nf">_get_refresh_token_store</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RefreshTokenStore</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_refresh_token_store</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_refresh_token_store</span> <span class="o">=</span> <span class="n">RefreshTokenStore</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_refresh_token_store</span>
+
+<div class="viewcode-block" id="Connection.authenticate_basic"><a class="viewcode-back" href="../../../api.html#openeo.Connection.authenticate_basic">[docs]</a>    <span class="k">def</span> <span class="nf">authenticate_basic</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">username</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">password</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;Connection&#39;</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Authenticate a user to the backend using basic username and password.</span>
+
+<span class="sd">        :param username: User name</span>
+<span class="sd">        :param password: User passphrase</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">username</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">username</span><span class="p">,</span> <span class="n">password</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_auth_config</span><span class="p">()</span><span class="o">.</span><span class="n">get_basic_auth</span><span class="p">(</span><span class="n">backend</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_orig_url</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">username</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">OpenEoClientException</span><span class="p">(</span><span class="s2">&quot;No username/password given or found.&quot;</span><span class="p">)</span>
+
+        <span class="n">resp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+            <span class="s1">&#39;/credentials/basic&#39;</span><span class="p">,</span>
+            <span class="c1"># /credentials/basic is the only endpoint that expects a Basic HTTP auth</span>
+            <span class="n">auth</span><span class="o">=</span><span class="n">HTTPBasicAuth</span><span class="p">(</span><span class="n">username</span><span class="p">,</span> <span class="n">password</span><span class="p">)</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+        <span class="c1"># Switch to bearer based authentication in further requests.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_api_version</span><span class="o">.</span><span class="n">at_least</span><span class="p">(</span><span class="s2">&quot;1.0.0&quot;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">auth</span> <span class="o">=</span> <span class="n">BearerAuth</span><span class="p">(</span><span class="n">bearer</span><span class="o">=</span><span class="s1">&#39;basic//</span><span class="si">{t}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">t</span><span class="o">=</span><span class="n">resp</span><span class="p">[</span><span class="s2">&quot;access_token&quot;</span><span class="p">]))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">auth</span> <span class="o">=</span> <span class="n">BearerAuth</span><span class="p">(</span><span class="n">bearer</span><span class="o">=</span><span class="n">resp</span><span class="p">[</span><span class="s2">&quot;access_token&quot;</span><span class="p">])</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+<div class="viewcode-block" id="Connection.authenticate_OIDC"><a class="viewcode-back" href="../../../api.html#openeo.Connection.authenticate_OIDC">[docs]</a>    <span class="k">def</span> <span class="nf">authenticate_OIDC</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">client_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="n">provider_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">webbrowser_open</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">timeout</span><span class="o">=</span><span class="mi">120</span><span class="p">,</span>
+            <span class="n">server_address</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;Connection&#39;</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Authenticates a user to the backend using OpenID Connect.</span>
+
+<span class="sd">        :param client_id: Client id to use for OpenID Connect authentication</span>
+<span class="sd">        :param webbrowser_open: optional handler for the initial OAuth authentication request</span>
+<span class="sd">            (opens a webbrowser by default)</span>
+<span class="sd">        :param timeout: number of seconds after which to abort the authentication procedure</span>
+<span class="sd">        :param server_address: optional tuple (hostname, port_number) to serve the OAuth redirect callback on</span>
+
+<span class="sd">        TODO: deprecated?</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># TODO: option to increase log level temporarily?</span>
+        <span class="n">provider_id</span><span class="p">,</span> <span class="n">provider</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_oidc_provider</span><span class="p">(</span><span class="n">provider_id</span><span class="p">)</span>
+
+        <span class="n">client_info</span> <span class="o">=</span> <span class="n">OidcClientInfo</span><span class="p">(</span><span class="n">client_id</span><span class="o">=</span><span class="n">client_id</span><span class="p">,</span> <span class="n">provider</span><span class="o">=</span><span class="n">provider</span><span class="p">)</span>
+        <span class="n">authenticator</span> <span class="o">=</span> <span class="n">OidcAuthCodePkceAuthenticator</span><span class="p">(</span>
+            <span class="n">client_info</span><span class="o">=</span><span class="n">client_info</span><span class="p">,</span>
+            <span class="n">webbrowser_open</span><span class="o">=</span><span class="n">webbrowser_open</span><span class="p">,</span>
+            <span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">,</span>
+            <span class="n">server_address</span><span class="o">=</span><span class="n">server_address</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_authenticate_oidc</span><span class="p">(</span><span class="n">authenticator</span><span class="p">,</span> <span class="n">provider_id</span><span class="o">=</span><span class="n">provider_id</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_get_oidc_provider</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">provider_id</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">OidcProviderInfo</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get OpenID Connect discovery URL for given provider_id</span>
+
+<span class="sd">        :param provider_id: id of OIDC provider as specified by backend (/credentials/oidc).</span>
+<span class="sd">            Can be None if there is just one provider.</span>
+<span class="sd">        :return: updated provider_id and provider info object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_api_version</span><span class="o">.</span><span class="n">at_least</span><span class="p">(</span><span class="s2">&quot;1.0.0&quot;</span><span class="p">):</span>
+            <span class="n">oidc_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/credentials/oidc&quot;</span><span class="p">,</span> <span class="n">expected_status</span><span class="o">=</span><span class="mi">200</span><span class="p">)</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+            <span class="n">providers</span> <span class="o">=</span> <span class="p">{</span><span class="n">p</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]:</span> <span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">oidc_info</span><span class="p">[</span><span class="s2">&quot;providers&quot;</span><span class="p">]}</span>
+            <span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Found OIDC providers: </span><span class="si">{p}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">providers</span><span class="o">.</span><span class="n">keys</span><span class="p">())))</span>
+            <span class="k">if</span> <span class="n">provider_id</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">provider_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">providers</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">OpenEoClientException</span><span class="p">(</span><span class="s2">&quot;Requested provider </span><span class="si">{r!r}</span><span class="s2"> not available. Should be one of </span><span class="si">{p}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="n">r</span><span class="o">=</span><span class="n">provider_id</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">providers</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+                    <span class="p">)</span>
+                <span class="n">provider</span> <span class="o">=</span> <span class="n">providers</span><span class="p">[</span><span class="n">provider_id</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">providers</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="c1"># No provider id given, but there is only one anyway: we can handle that.</span>
+                <span class="n">provider_id</span><span class="p">,</span> <span class="n">provider</span> <span class="o">=</span> <span class="n">providers</span><span class="o">.</span><span class="n">popitem</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">OpenEoClientException</span><span class="p">(</span><span class="s2">&quot;No provider_id given. Available: </span><span class="si">{p!r}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">p</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">providers</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+                <span class="p">)</span>
+            <span class="n">provider</span> <span class="o">=</span> <span class="n">OidcProviderInfo</span><span class="p">(</span><span class="n">issuer</span><span class="o">=</span><span class="n">provider</span><span class="p">[</span><span class="s2">&quot;issuer&quot;</span><span class="p">],</span> <span class="n">scopes</span><span class="o">=</span><span class="n">provider</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;scopes&quot;</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Per spec: &#39;/credentials/oidc&#39; will redirect to  OpenID Connect discovery document</span>
+            <span class="n">provider</span> <span class="o">=</span> <span class="n">OidcProviderInfo</span><span class="p">(</span><span class="n">discovery_url</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">build_url</span><span class="p">(</span><span class="s1">&#39;/credentials/oidc&#39;</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">provider_id</span><span class="p">,</span> <span class="n">provider</span>
+
+    <span class="k">def</span> <span class="nf">_get_oidc_provider_and_client_info</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">provider_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="n">client_id</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">],</span> <span class="n">client_secret</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">OidcClientInfo</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Resolve provider_id and client info (as given or from config)</span>
+
+<span class="sd">        :param provider_id: id of OIDC provider as specified by backend (/credentials/oidc).</span>
+<span class="sd">            Can be None if there is just one provider.</span>
+
+<span class="sd">        :return: (client_id, client_secret)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">provider_id</span><span class="p">,</span> <span class="n">provider</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_oidc_provider</span><span class="p">(</span><span class="n">provider_id</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">client_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">client_id</span><span class="p">,</span> <span class="n">client_secret</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_auth_config</span><span class="p">()</span><span class="o">.</span><span class="n">get_oidc_client_configs</span><span class="p">(</span>
+                <span class="n">backend</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_orig_url</span><span class="p">,</span> <span class="n">provider_id</span><span class="o">=</span><span class="n">provider_id</span>
+            <span class="p">)</span>
+            <span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Using client_id </span><span class="si">{c!r}</span><span class="s2"> from config (provider </span><span class="si">{p!r}</span><span class="s2">)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">c</span><span class="o">=</span><span class="n">client_id</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">provider_id</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">client_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">OpenEoClientException</span><span class="p">(</span><span class="s2">&quot;No client ID found.&quot;</span><span class="p">)</span>
+
+        <span class="n">client_info</span> <span class="o">=</span> <span class="n">OidcClientInfo</span><span class="p">(</span><span class="n">client_id</span><span class="o">=</span><span class="n">client_id</span><span class="p">,</span> <span class="n">client_secret</span><span class="o">=</span><span class="n">client_secret</span><span class="p">,</span> <span class="n">provider</span><span class="o">=</span><span class="n">provider</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">provider_id</span><span class="p">,</span> <span class="n">client_info</span>
+
+    <span class="k">def</span> <span class="nf">_authenticate_oidc</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">authenticator</span><span class="p">:</span> <span class="n">OidcAuthenticator</span><span class="p">,</span>
+            <span class="n">provider_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="n">store_refresh_token</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;Connection&#39;</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Authenticate through OIDC and set up bearer token (based on OIDC access_token) for further requests.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">tokens</span> <span class="o">=</span> <span class="n">authenticator</span><span class="o">.</span><span class="n">get_tokens</span><span class="p">()</span>
+        <span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Obtained tokens: </span><span class="si">{t}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">t</span><span class="o">=</span><span class="p">[</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">tokens</span><span class="o">.</span><span class="n">_asdict</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">v</span><span class="p">]))</span>
+        <span class="k">if</span> <span class="n">tokens</span><span class="o">.</span><span class="n">refresh_token</span> <span class="ow">and</span> <span class="n">store_refresh_token</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_get_refresh_token_store</span><span class="p">()</span><span class="o">.</span><span class="n">set_refresh_token</span><span class="p">(</span>
+                <span class="n">issuer</span><span class="o">=</span><span class="n">authenticator</span><span class="o">.</span><span class="n">provider_info</span><span class="o">.</span><span class="n">issuer</span><span class="p">,</span>
+                <span class="n">client_id</span><span class="o">=</span><span class="n">authenticator</span><span class="o">.</span><span class="n">client_id</span><span class="p">,</span>
+                <span class="n">refresh_token</span><span class="o">=</span><span class="n">tokens</span><span class="o">.</span><span class="n">refresh_token</span>
+            <span class="p">)</span>
+        <span class="n">token</span> <span class="o">=</span> <span class="n">tokens</span><span class="o">.</span><span class="n">access_token</span> <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">oidc_auth_user_id_token_as_bearer</span> <span class="k">else</span> <span class="n">tokens</span><span class="o">.</span><span class="n">id_token</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_api_version</span><span class="o">.</span><span class="n">at_least</span><span class="p">(</span><span class="s2">&quot;1.0.0&quot;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">auth</span> <span class="o">=</span> <span class="n">BearerAuth</span><span class="p">(</span><span class="n">bearer</span><span class="o">=</span><span class="s1">&#39;oidc/</span><span class="si">{p}</span><span class="s1">/</span><span class="si">{t}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="n">provider_id</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="n">token</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">auth</span> <span class="o">=</span> <span class="n">BearerAuth</span><span class="p">(</span><span class="n">bearer</span><span class="o">=</span><span class="n">token</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+<div class="viewcode-block" id="Connection.authenticate_oidc_authorization_code"><a class="viewcode-back" href="../../../api.html#openeo.Connection.authenticate_oidc_authorization_code">[docs]</a>    <span class="k">def</span> <span class="nf">authenticate_oidc_authorization_code</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">client_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">client_secret</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">provider_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">server_address</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">webbrowser_open</span><span class="p">:</span> <span class="n">Callable</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">store_refresh_token</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;Connection&#39;</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        OpenID Connect Authorization Code Flow (with PKCE).</span>
+
+<span class="sd">        WARNING: this API is in experimental phase</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">provider_id</span><span class="p">,</span> <span class="n">client_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_oidc_provider_and_client_info</span><span class="p">(</span>
+            <span class="n">provider_id</span><span class="o">=</span><span class="n">provider_id</span><span class="p">,</span> <span class="n">client_id</span><span class="o">=</span><span class="n">client_id</span><span class="p">,</span> <span class="n">client_secret</span><span class="o">=</span><span class="n">client_secret</span>
+        <span class="p">)</span>
+        <span class="n">authenticator</span> <span class="o">=</span> <span class="n">OidcAuthCodePkceAuthenticator</span><span class="p">(</span>
+            <span class="n">client_info</span><span class="o">=</span><span class="n">client_info</span><span class="p">,</span>
+            <span class="n">webbrowser_open</span><span class="o">=</span><span class="n">webbrowser_open</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">,</span> <span class="n">server_address</span><span class="o">=</span><span class="n">server_address</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_authenticate_oidc</span><span class="p">(</span><span class="n">authenticator</span><span class="p">,</span> <span class="n">provider_id</span><span class="o">=</span><span class="n">provider_id</span><span class="p">,</span> <span class="n">store_refresh_token</span><span class="o">=</span><span class="n">store_refresh_token</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Connection.authenticate_oidc_client_credentials"><a class="viewcode-back" href="../../../api.html#openeo.Connection.authenticate_oidc_client_credentials">[docs]</a>    <span class="k">def</span> <span class="nf">authenticate_oidc_client_credentials</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">client_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">client_secret</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">provider_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">store_refresh_token</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;Connection&#39;</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        OpenID Connect Client Credentials flow.</span>
+
+<span class="sd">        WARNING: this API is in experimental phase</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">provider_id</span><span class="p">,</span> <span class="n">client_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_oidc_provider_and_client_info</span><span class="p">(</span>
+            <span class="n">provider_id</span><span class="o">=</span><span class="n">provider_id</span><span class="p">,</span> <span class="n">client_id</span><span class="o">=</span><span class="n">client_id</span><span class="p">,</span> <span class="n">client_secret</span><span class="o">=</span><span class="n">client_secret</span>
+        <span class="p">)</span>
+        <span class="n">authenticator</span> <span class="o">=</span> <span class="n">OidcClientCredentialsAuthenticator</span><span class="p">(</span><span class="n">client_info</span><span class="o">=</span><span class="n">client_info</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_authenticate_oidc</span><span class="p">(</span><span class="n">authenticator</span><span class="p">,</span> <span class="n">provider_id</span><span class="o">=</span><span class="n">provider_id</span><span class="p">,</span> <span class="n">store_refresh_token</span><span class="o">=</span><span class="n">store_refresh_token</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Connection.authenticate_oidc_resource_owner_password_credentials"><a class="viewcode-back" href="../../../api.html#openeo.Connection.authenticate_oidc_resource_owner_password_credentials">[docs]</a>    <span class="k">def</span> <span class="nf">authenticate_oidc_resource_owner_password_credentials</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">username</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">password</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="n">client_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">client_secret</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">provider_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">store_refresh_token</span><span class="o">=</span><span class="kc">False</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;Connection&#39;</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        OpenId Connect Resource Owner Password Credentials</span>
+
+<span class="sd">        WARNING: this API is in experimental phase</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">provider_id</span><span class="p">,</span> <span class="n">client_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_oidc_provider_and_client_info</span><span class="p">(</span>
+            <span class="n">provider_id</span><span class="o">=</span><span class="n">provider_id</span><span class="p">,</span> <span class="n">client_id</span><span class="o">=</span><span class="n">client_id</span><span class="p">,</span> <span class="n">client_secret</span><span class="o">=</span><span class="n">client_secret</span>
+        <span class="p">)</span>
+        <span class="c1"># TODO: also get username and password from config?</span>
+        <span class="n">authenticator</span> <span class="o">=</span> <span class="n">OidcResourceOwnerPasswordAuthenticator</span><span class="p">(</span>
+            <span class="n">client_info</span><span class="o">=</span><span class="n">client_info</span><span class="p">,</span> <span class="n">username</span><span class="o">=</span><span class="n">username</span><span class="p">,</span> <span class="n">password</span><span class="o">=</span><span class="n">password</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_authenticate_oidc</span><span class="p">(</span><span class="n">authenticator</span><span class="p">,</span> <span class="n">provider_id</span><span class="o">=</span><span class="n">provider_id</span><span class="p">,</span> <span class="n">store_refresh_token</span><span class="o">=</span><span class="n">store_refresh_token</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Connection.authenticate_oidc_refresh_token"><a class="viewcode-back" href="../../../api.html#openeo.Connection.authenticate_oidc_refresh_token">[docs]</a>    <span class="k">def</span> <span class="nf">authenticate_oidc_refresh_token</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">client_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">refresh_token</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">client_secret</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">provider_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;Connection&#39;</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        OpenId Connect Refresh Token</span>
+
+<span class="sd">        WARNING: this API is in experimental phase</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">provider_id</span><span class="p">,</span> <span class="n">client_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_oidc_provider_and_client_info</span><span class="p">(</span>
+            <span class="n">provider_id</span><span class="o">=</span><span class="n">provider_id</span><span class="p">,</span> <span class="n">client_id</span><span class="o">=</span><span class="n">client_id</span><span class="p">,</span> <span class="n">client_secret</span><span class="o">=</span><span class="n">client_secret</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">refresh_token</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">refresh_token</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_refresh_token_store</span><span class="p">()</span><span class="o">.</span><span class="n">get_refresh_token</span><span class="p">(</span>
+                <span class="n">issuer</span><span class="o">=</span><span class="n">client_info</span><span class="o">.</span><span class="n">provider</span><span class="o">.</span><span class="n">issuer</span><span class="p">,</span>
+                <span class="n">client_id</span><span class="o">=</span><span class="n">client_info</span><span class="o">.</span><span class="n">client_id</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">refresh_token</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">OpenEoClientException</span><span class="p">(</span><span class="s2">&quot;No refresh token given or found&quot;</span><span class="p">)</span>
+
+        <span class="n">authenticator</span> <span class="o">=</span> <span class="n">OidcRefreshTokenAuthenticator</span><span class="p">(</span><span class="n">client_info</span><span class="o">=</span><span class="n">client_info</span><span class="p">,</span> <span class="n">refresh_token</span><span class="o">=</span><span class="n">refresh_token</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_authenticate_oidc</span><span class="p">(</span><span class="n">authenticator</span><span class="p">,</span> <span class="n">provider_id</span><span class="o">=</span><span class="n">provider_id</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Connection.authenticate_oidc_device"><a class="viewcode-back" href="../../../api.html#openeo.Connection.authenticate_oidc_device">[docs]</a>    <span class="k">def</span> <span class="nf">authenticate_oidc_device</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">client_id</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">client_secret</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">provider_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">store_refresh_token</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;Connection&#39;</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Authenticate with OAuth Device Authorization grant/flow</span>
+
+<span class="sd">        WARNING: this API is in experimental phase</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">provider_id</span><span class="p">,</span> <span class="n">client_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_oidc_provider_and_client_info</span><span class="p">(</span>
+            <span class="n">provider_id</span><span class="o">=</span><span class="n">provider_id</span><span class="p">,</span> <span class="n">client_id</span><span class="o">=</span><span class="n">client_id</span><span class="p">,</span> <span class="n">client_secret</span><span class="o">=</span><span class="n">client_secret</span>
+        <span class="p">)</span>
+        <span class="n">authenticator</span> <span class="o">=</span> <span class="n">OidcDeviceAuthenticator</span><span class="p">(</span><span class="n">client_info</span><span class="o">=</span><span class="n">client_info</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_authenticate_oidc</span><span class="p">(</span><span class="n">authenticator</span><span class="p">,</span> <span class="n">provider_id</span><span class="o">=</span><span class="n">provider_id</span><span class="p">,</span> <span class="n">store_refresh_token</span><span class="o">=</span><span class="n">store_refresh_token</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Connection.describe_account"><a class="viewcode-back" href="../../../api.html#openeo.Connection.describe_account">[docs]</a>    <span class="k">def</span> <span class="nf">describe_account</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Describes the currently authenticated user account.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;/me&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">json</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="Connection.user_jobs"><a class="viewcode-back" href="../../../api.html#openeo.Connection.user_jobs">[docs]</a>    <span class="k">def</span> <span class="nf">user_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Loads all jobs of the current user.</span>
+
+<span class="sd">        :return: jobs: Dict All jobs of the user</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># TODO duplication with `list_jobs()` method</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;/jobs&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s2">&quot;jobs&quot;</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="Connection.list_collections"><a class="viewcode-back" href="../../../api.html#openeo.Connection.list_collections">[docs]</a>    <span class="k">def</span> <span class="nf">list_collections</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Loads all available imagecollections types.</span>
+
+<span class="sd">        :return: list of collection meta data dictionaries</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">data</span>  <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;/collections&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s2">&quot;collections&quot;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">VisualList</span><span class="p">(</span><span class="s2">&quot;collections&quot;</span><span class="p">,</span> <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Connection.list_collection_ids"><a class="viewcode-back" href="../../../api.html#openeo.Connection.list_collection_ids">[docs]</a>    <span class="k">def</span> <span class="nf">list_collection_ids</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get list of all collection ids</span>
+
+<span class="sd">        :return: list of collection ids</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">collection</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">collection</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_collections</span><span class="p">()</span> <span class="k">if</span> <span class="s1">&#39;id&#39;</span> <span class="ow">in</span> <span class="n">collection</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="Connection.capabilities"><a class="viewcode-back" href="../../../api.html#openeo.Connection.capabilities">[docs]</a>    <span class="k">def</span> <span class="nf">capabilities</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RESTCapabilities</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Loads all available capabilities.</span>
+
+<span class="sd">        :return: data_dict: Dict All available data types</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="s2">&quot;capabilities&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_capabilities_cache</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_capabilities_cache</span><span class="p">[</span><span class="s2">&quot;capabilities&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">RESTCapabilities</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">json</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_orig_url</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_capabilities_cache</span><span class="p">[</span><span class="s2">&quot;capabilities&quot;</span><span class="p">]</span></div>
+
+
+
+    <span class="k">def</span> <span class="nf">list_output_formats</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_api_version</span><span class="o">.</span><span class="n">at_least</span><span class="p">(</span><span class="s2">&quot;1.0.0&quot;</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_file_formats</span><span class="p">()[</span><span class="s2">&quot;output&quot;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;/output_formats&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+
+    <span class="n">list_file_types</span> <span class="o">=</span> <span class="n">legacy_alias</span><span class="p">(</span><span class="n">list_output_formats</span><span class="p">,</span> <span class="s2">&quot;list_file_types&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Connection.list_file_formats"><a class="viewcode-back" href="../../../api.html#openeo.Connection.list_file_formats">[docs]</a>    <span class="k">def</span> <span class="nf">list_file_formats</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get available input and output formats</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="s2">&quot;file_formats&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_capabilities_cache</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_capabilities_cache</span><span class="p">[</span><span class="s2">&quot;file_formats&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;/file_formats&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">VisualDict</span><span class="p">(</span><span class="s2">&quot;file-formats&quot;</span><span class="p">,</span> <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_capabilities_cache</span><span class="p">[</span><span class="s2">&quot;file_formats&quot;</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="Connection.list_service_types"><a class="viewcode-back" href="../../../api.html#openeo.Connection.list_service_types">[docs]</a>    <span class="k">def</span> <span class="nf">list_service_types</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Loads all available service types.</span>
+
+<span class="sd">        :return: data_dict: Dict All available service types</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="s2">&quot;service_types&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_capabilities_cache</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_capabilities_cache</span><span class="p">[</span><span class="s2">&quot;service_types&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;/service_types&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">VisualDict</span><span class="p">(</span><span class="s2">&quot;service-types&quot;</span><span class="p">,</span> <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_capabilities_cache</span><span class="p">[</span><span class="s2">&quot;service_types&quot;</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="Connection.list_udf_runtimes"><a class="viewcode-back" href="../../../api.html#openeo.Connection.list_udf_runtimes">[docs]</a>    <span class="k">def</span> <span class="nf">list_udf_runtimes</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Loads all available UDF runtimes.</span>
+
+<span class="sd">        :return: data_dict: Dict All available UDF runtimes</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="s2">&quot;udf_runtimes&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_capabilities_cache</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_capabilities_cache</span><span class="p">[</span><span class="s2">&quot;udf_runtimes&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;/udf_runtimes&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">VisualDict</span><span class="p">(</span><span class="s2">&quot;udf-runtimes&quot;</span><span class="p">,</span> <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_capabilities_cache</span><span class="p">[</span><span class="s2">&quot;udf_runtimes&quot;</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="Connection.list_services"><a class="viewcode-back" href="../../../api.html#openeo.Connection.list_services">[docs]</a>    <span class="k">def</span> <span class="nf">list_services</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Loads all available services of the authenticated user.</span>
+
+<span class="sd">        :return: data_dict: Dict All available service types</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># TODO return parsed service objects</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;/services&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">json</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="Connection.describe_collection"><a class="viewcode-back" href="../../../api.html#openeo.Connection.describe_collection">[docs]</a>    <span class="k">def</span> <span class="nf">describe_collection</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="c1"># TODO: Maybe create some kind of Data class.</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Loads detailed information of a specific image collection.</span>
+
+<span class="sd">        :param name: String Id of the collection</span>
+<span class="sd">        :return: data_dict: Dict Detailed information about the collection</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;/collections/</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">))</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">VisualDict</span><span class="p">(</span><span class="s2">&quot;collection&quot;</span><span class="p">,</span> <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">collection_metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CollectionMetadata</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">CollectionMetadata</span><span class="p">(</span><span class="n">metadata</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">describe_collection</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
+
+<div class="viewcode-block" id="Connection.list_processes"><a class="viewcode-back" href="../../../api.html#openeo.Connection.list_processes">[docs]</a>    <span class="k">def</span> <span class="nf">list_processes</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+        <span class="c1"># TODO: Maybe format the result dictionary so that the process_id is the key of the dictionary.</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Loads all available processes of the back end.</span>
+
+<span class="sd">        :return: processes_dict: Dict All available processes of the back end.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;/processes&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s2">&quot;processes&quot;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">VisualList</span><span class="p">(</span><span class="s2">&quot;processes&quot;</span><span class="p">,</span> <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Connection.list_jobs"><a class="viewcode-back" href="../../../api.html#openeo.Connection.list_jobs">[docs]</a>    <span class="k">def</span> <span class="nf">list_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Lists all jobs of the authenticated user.</span>
+
+<span class="sd">        :return: job_list: Dict of all jobs of the user.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># TODO: Maybe format the result so that there get Job classes returned.</span>
+        <span class="c1"># TODO: duplication with `user_jobs()` method</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;/jobs&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s2">&quot;jobs&quot;</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="Connection.save_user_defined_process"><a class="viewcode-back" href="../../../api.html#openeo.Connection.save_user_defined_process">[docs]</a>    <span class="k">def</span> <span class="nf">save_user_defined_process</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">user_defined_process_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">process_graph</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+            <span class="n">parameters</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">dict</span><span class="p">,</span> <span class="n">Parameter</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">public</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">summary</span><span class="p">:</span><span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">description</span><span class="p">:</span><span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RESTUserDefinedProcess</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Saves a process graph and its metadata in the backend as a user-defined process for the authenticated user.</span>
+
+<span class="sd">        :param user_defined_process_id: unique identifier for the user-defined process</span>
+<span class="sd">        :param process_graph: a process graph</span>
+<span class="sd">        :param parameters: a list of parameters</span>
+<span class="sd">        :param public: visible to other users?</span>
+<span class="sd">        :param summary: A short summary of what the process does.</span>
+<span class="sd">        :param description: Detailed description to explain the entity. CommonMark 0.29 syntax MAY be used for rich text representation.</span>
+<span class="sd">        :return: a RESTUserDefinedProcess instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">user_defined_process_id</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">p</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_processes</span><span class="p">()):</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Defining user-defined process </span><span class="si">{u!r}</span><span class="s2"> with same id as a pre-defined process&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">u</span><span class="o">=</span><span class="n">user_defined_process_id</span><span class="p">))</span>
+        <span class="n">udp</span> <span class="o">=</span> <span class="n">RESTUserDefinedProcess</span><span class="p">(</span><span class="n">user_defined_process_id</span><span class="o">=</span><span class="n">user_defined_process_id</span><span class="p">,</span> <span class="n">connection</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+        <span class="n">udp</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">process_graph</span><span class="o">=</span><span class="n">process_graph</span><span class="p">,</span> <span class="n">parameters</span><span class="o">=</span><span class="n">parameters</span><span class="p">,</span> <span class="n">public</span><span class="o">=</span><span class="n">public</span><span class="p">,</span><span class="n">summary</span><span class="o">=</span><span class="n">summary</span><span class="p">,</span><span class="n">description</span><span class="o">=</span><span class="n">description</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">udp</span></div>
+
+<div class="viewcode-block" id="Connection.list_user_defined_processes"><a class="viewcode-back" href="../../../api.html#openeo.Connection.list_user_defined_processes">[docs]</a>    <span class="k">def</span> <span class="nf">list_user_defined_processes</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Lists all user-defined processes of the authenticated user.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/process_graphs&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s2">&quot;processes&quot;</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="Connection.user_defined_process"><a class="viewcode-back" href="../../../api.html#openeo.Connection.user_defined_process">[docs]</a>    <span class="k">def</span> <span class="nf">user_defined_process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user_defined_process_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RESTUserDefinedProcess</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the user-defined process based on its id. The process with the given id should already exist.</span>
+
+<span class="sd">        :param user_defined_process_id: the id of the user-defined process</span>
+<span class="sd">        :return: a RESTUserDefinedProcess instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">RESTUserDefinedProcess</span><span class="p">(</span><span class="n">user_defined_process_id</span><span class="o">=</span><span class="n">user_defined_process_id</span><span class="p">,</span> <span class="n">connection</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">validate_processgraph</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">process_graph</span><span class="p">):</span>
+        <span class="c1"># Endpoint: POST /validate</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">_api_version</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ComparableVersion</span><span class="p">:</span>
+        <span class="c1"># TODO make this a public property (it&#39;s also useful outside the Connection class)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">capabilities</span><span class="p">()</span><span class="o">.</span><span class="n">api_version_check</span>
+
+<div class="viewcode-block" id="Connection.datacube_from_process"><a class="viewcode-back" href="../../../api.html#openeo.Connection.datacube_from_process">[docs]</a>    <span class="k">def</span> <span class="nf">datacube_from_process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">process_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataCube</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load a raster datacube, from a custom process.</span>
+
+<span class="sd">        @param process_id: The process id of the custom process.</span>
+<span class="sd">        @param kwargs: The arguments of the custom process</span>
+<span class="sd">        @return: A DataCube, without valid metadata, as the client is not aware of this custom process.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_api_version</span><span class="o">.</span><span class="n">at_least</span><span class="p">(</span><span class="s2">&quot;1.0.0&quot;</span><span class="p">):</span>
+            <span class="n">graph</span> <span class="o">=</span> <span class="n">PGNode</span><span class="p">(</span><span class="n">process_id</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">DataCube</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">OpenEoClientException</span><span class="p">(</span>
+                <span class="s2">&quot;This method requires support for at least version 1.0.0 in the openEO backend.&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Connection.load_collection"><a class="viewcode-back" href="../../../api.html#openeo.Connection.load_collection">[docs]</a>    <span class="k">def</span> <span class="nf">load_collection</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">collection_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">ImageCollectionClient</span><span class="p">,</span> <span class="n">DataCube</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load an image collection by collection id</span>
+
+<span class="sd">        see :py:meth:`openeo.rest.imagecollectionclient.ImageCollectionClient.load_collection`</span>
+<span class="sd">        for available arguments.</span>
+
+<span class="sd">        :param collection_id: image collection identifier (string)</span>
+<span class="sd">        :return: ImageCollectionClient</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_api_version</span><span class="o">.</span><span class="n">at_least</span><span class="p">(</span><span class="s2">&quot;1.0.0&quot;</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">DataCube</span><span class="o">.</span><span class="n">load_collection</span><span class="p">(</span><span class="n">collection_id</span><span class="o">=</span><span class="n">collection_id</span><span class="p">,</span> <span class="n">connection</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">ImageCollectionClient</span><span class="o">.</span><span class="n">load_collection</span><span class="p">(</span><span class="n">collection_id</span><span class="o">=</span><span class="n">collection_id</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+    <span class="c1"># Legacy alias.</span>
+    <span class="n">imagecollection</span> <span class="o">=</span> <span class="n">load_collection</span>
+
+    <span class="k">def</span> <span class="nf">create_service</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">graph</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="nb">type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="c1"># TODO: type hint for graph: is it a nested or a flat one?</span>
+        <span class="n">req</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_request_with_process_graph</span><span class="p">(</span><span class="n">process_graph</span><span class="o">=</span><span class="n">graph</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">type</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="s2">&quot;/services&quot;</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="n">req</span><span class="p">,</span> <span class="n">expected_status</span><span class="o">=</span><span class="mi">201</span><span class="p">)</span>
+        <span class="c1"># TODO: &quot;location&quot; is url of the service metadata, not (base) url of service (https://github.com/Open-EO/openeo-api/issues/269)</span>
+        <span class="c1"># TODO: fetch this metadata and return a full metadata object instead?</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;url&#39;</span><span class="p">:</span> <span class="n">response</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;Location&#39;</span><span class="p">),</span>
+            <span class="s1">&#39;service_id&#39;</span><span class="p">:</span> <span class="n">response</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;OpenEO-Identifier&quot;</span><span class="p">),</span>
+        <span class="p">}</span>
+
+<div class="viewcode-block" id="Connection.remove_service"><a class="viewcode-back" href="../../../api.html#openeo.Connection.remove_service">[docs]</a>    <span class="k">def</span> <span class="nf">remove_service</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">service_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Stop and remove a secondary web service.</span>
+
+<span class="sd">        :param service_id: service identifier</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="s1">&#39;/services/&#39;</span> <span class="o">+</span> <span class="n">service_id</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">job_results</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/jobs/</span><span class="si">{}</span><span class="s2">/results&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job_id</span><span class="p">))</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">job_logs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">,</span> <span class="n">offset</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/jobs/</span><span class="si">{}</span><span class="s2">/logs&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job_id</span><span class="p">),</span> <span class="n">params</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;offset&#39;</span><span class="p">:</span> <span class="n">offset</span><span class="p">})</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+
+<div class="viewcode-block" id="Connection.list_files"><a class="viewcode-back" href="../../../api.html#openeo.Connection.list_files">[docs]</a>    <span class="k">def</span> <span class="nf">list_files</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Lists all files that the logged in user uploaded.</span>
+
+<span class="sd">        :return: file_list: List of the user uploaded files.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;/files&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s1">&#39;files&#39;</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="Connection.create_file"><a class="viewcode-back" href="../../../api.html#openeo.Connection.create_file">[docs]</a>    <span class="k">def</span> <span class="nf">create_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Creates virtual file</span>
+
+<span class="sd">        :return: file object.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># No endpoint just returns a file object.</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">_build_request_with_process_graph</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">process_graph</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Prepare a json payload with a process graph to submit to /result, /services, /jobs, ...</span>
+<span class="sd">        :param process_graph: flat dict representing a process graph</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">kwargs</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_api_version</span><span class="o">.</span><span class="n">at_least</span><span class="p">(</span><span class="s2">&quot;1.0.0&quot;</span><span class="p">):</span>
+            <span class="n">result</span><span class="p">[</span><span class="s2">&quot;process&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;process_graph&quot;</span><span class="p">:</span> <span class="n">process_graph</span><span class="p">}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">result</span><span class="p">[</span><span class="s2">&quot;process_graph&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">process_graph</span>
+        <span class="k">return</span> <span class="n">result</span>
+
+    <span class="c1"># TODO: unify `download` and `execute` better: e.g. `download` always writes to disk, `execute` returns result (raw or as JSON decoded dict)</span>
+<div class="viewcode-block" id="Connection.download"><a class="viewcode-back" href="../../../api.html#openeo.Connection.download">[docs]</a>    <span class="k">def</span> <span class="nf">download</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">graph</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">outputfile</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Path</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">timeout</span><span class="p">:</span><span class="nb">int</span><span class="o">=</span><span class="mi">30</span><span class="o">*</span><span class="mi">60</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Downloads the result of a process graph synchronously,</span>
+<span class="sd">        and save the result to the given file or return bytes object if no outputfile is specified.</span>
+<span class="sd">        This method is useful to export binary content such as images. For json content, the execute method is recommended.</span>
+
+<span class="sd">        :param graph: (flat) dict representing a process graph</span>
+<span class="sd">        :param outputfile: output file</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">request</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_request_with_process_graph</span><span class="p">(</span><span class="n">process_graph</span><span class="o">=</span><span class="n">graph</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="s2">&quot;/result&quot;</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="n">request</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">outputfile</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">with</span> <span class="n">Path</span><span class="p">(</span><span class="n">outputfile</span><span class="p">)</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">iter_content</span><span class="p">(</span><span class="n">chunk_size</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+                    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">response</span><span class="o">.</span><span class="n">content</span></div>
+
+<div class="viewcode-block" id="Connection.execute"><a class="viewcode-back" href="../../../api.html#openeo.Connection.execute">[docs]</a>    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">process_graph</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Execute a process graph synchronously.</span>
+
+<span class="sd">        :param process_graph: (flat) dict representing a process graph</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">req</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_request_with_process_graph</span><span class="p">(</span><span class="n">process_graph</span><span class="o">=</span><span class="n">process_graph</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="s2">&quot;/result&quot;</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="n">req</span><span class="p">)</span><span class="o">.</span><span class="n">json</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="Connection.create_job"><a class="viewcode-back" href="../../../api.html#openeo.Connection.create_job">[docs]</a>    <span class="k">def</span> <span class="nf">create_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">process_graph</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">title</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">description</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                   <span class="n">plan</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">budget</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                   <span class="n">additional</span><span class="p">:</span> <span class="n">Dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RESTJob</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Posts a job to the back end.</span>
+
+<span class="sd">        :param process_graph: (flat) dict representing process graph</span>
+<span class="sd">        :param title: String title of the job</span>
+<span class="sd">        :param description: String description of the job</span>
+<span class="sd">        :param plan: billing plan</span>
+<span class="sd">        :param budget: Budget</span>
+<span class="sd">        :param additional: additional job options to pass to the backend</span>
+<span class="sd">        :return: job_id: String Job id of the new created job</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># TODO move all this (RESTJob factory) logic to RESTJob?</span>
+        <span class="n">req</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_request_with_process_graph</span><span class="p">(</span>
+            <span class="n">process_graph</span><span class="o">=</span><span class="n">process_graph</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">dict_no_none</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="n">description</span><span class="p">,</span> <span class="n">plan</span><span class="o">=</span><span class="n">plan</span><span class="p">,</span> <span class="n">budget</span><span class="o">=</span><span class="n">budget</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">additional</span><span class="p">:</span>
+            <span class="c1"># TODO: get rid of this non-standard field? https://github.com/Open-EO/openeo-api/issues/276</span>
+            <span class="n">req</span><span class="p">[</span><span class="s2">&quot;job_options&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">additional</span>
+
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;/jobs&quot;</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="n">req</span><span class="p">,</span> <span class="n">expected_status</span><span class="o">=</span><span class="mi">201</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="s2">&quot;openeo-identifier&quot;</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">headers</span><span class="p">:</span>
+            <span class="n">job_id</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">headers</span><span class="p">[</span><span class="s1">&#39;openeo-identifier&#39;</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="s2">&quot;location&quot;</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">headers</span><span class="p">:</span>
+            <span class="n">_log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Backend did not explicitly respond with job id, will guess it from redirect URL.&quot;</span><span class="p">)</span>
+            <span class="n">job_id</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">headers</span><span class="p">[</span><span class="s1">&#39;location&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">OpenEoClientException</span><span class="p">(</span><span class="s2">&quot;Failed fo extract job id&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">RESTJob</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Connection.job"><a class="viewcode-back" href="../../../api.html#openeo.Connection.job">[docs]</a>    <span class="k">def</span> <span class="nf">job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the job based on the id. The job with the given id should already exist.</span>
+<span class="sd">        </span>
+<span class="sd">        Use :py:meth:`openeo.rest.connection.Connection.create_job` to create new jobs</span>
+
+<span class="sd">        :param job_id: the job id of an existing job</span>
+<span class="sd">        :return: A job object.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">RESTJob</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Connection.load_disk_collection"><a class="viewcode-back" href="../../../api.html#openeo.Connection.load_disk_collection">[docs]</a>    <span class="k">def</span> <span class="nf">load_disk_collection</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">format</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">glob_pattern</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">options</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{})</span> <span class="o">-&gt;</span> <span class="n">ImageCollectionClient</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Loads image data from disk as an ImageCollection.</span>
+
+<span class="sd">        :param format: the file format, e.g. &#39;GTiff&#39;</span>
+<span class="sd">        :param glob_pattern: a glob pattern that matches the files to load from disk</span>
+<span class="sd">        :param options: options specific to the file format</span>
+<span class="sd">        :return: the data as an ImageCollection</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_api_version</span><span class="o">.</span><span class="n">at_least</span><span class="p">(</span><span class="s2">&quot;1.0.0&quot;</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">DataCube</span><span class="o">.</span><span class="n">load_disk_collection</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">format</span><span class="p">,</span> <span class="n">glob_pattern</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">ImageCollectionClient</span><span class="o">.</span><span class="n">load_disk_collection</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">format</span><span class="p">,</span> <span class="n">glob_pattern</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="connect"><a class="viewcode-back" href="../../../api.html#openeo.connect">[docs]</a><span class="k">def</span> <span class="nf">connect</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">auth_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">auth_options</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{},</span> <span class="n">session</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">Session</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">default_timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Connection</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This method is the entry point to OpenEO.</span>
+<span class="sd">    You typically create one connection object in your script or application</span>
+<span class="sd">    and re-use it for all calls to that backend.</span>
+
+<span class="sd">    If the backend requires authentication, you should can pass authentication data directly to this function</span>
+<span class="sd">    but it could be easier to authenticate as follows:</span>
+
+<span class="sd">        &gt;&gt;&gt; # For basic authentication</span>
+<span class="sd">        &gt;&gt;&gt; conn = connect(url).authenticate_basic(username=&quot;john&quot;, password=&quot;foo&quot;)</span>
+
+<span class="sd">        &gt;&gt;&gt; # For OpenID Connect authentication</span>
+<span class="sd">        &gt;&gt;&gt; conn = connect(url).authenticate_OIDC(client_id=&quot;myclient&quot;)</span>
+
+<span class="sd">    :param url: The http url of an OpenEO endpoint.</span>
+<span class="sd">    :param auth_type: Which authentication to use: None, &quot;basic&quot; or &quot;oidc&quot; (for OpenID Connect)</span>
+<span class="sd">    :param auth_options: Options/arguments specific to the authentication type</span>
+<span class="sd">    :param default_timeout: default timeout (in seconds) for requests</span>
+<span class="sd">    :rtype: openeo.connections.Connection</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">connection</span> <span class="o">=</span> <span class="n">Connection</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="n">session</span><span class="p">,</span> <span class="n">default_timeout</span><span class="o">=</span><span class="n">default_timeout</span><span class="p">)</span>
+    <span class="n">auth_type</span> <span class="o">=</span> <span class="n">auth_type</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">auth_type</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="n">auth_type</span>
+    <span class="k">if</span> <span class="n">auth_type</span> <span class="ow">in</span> <span class="p">{</span><span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;null&#39;</span><span class="p">,</span> <span class="s1">&#39;none&#39;</span><span class="p">}:</span>
+        <span class="k">pass</span>
+    <span class="k">elif</span> <span class="n">auth_type</span> <span class="o">==</span> <span class="s2">&quot;basic&quot;</span><span class="p">:</span>
+        <span class="n">connection</span><span class="o">.</span><span class="n">authenticate_basic</span><span class="p">(</span><span class="o">**</span><span class="n">auth_options</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">auth_type</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;oidc&quot;</span><span class="p">,</span> <span class="s2">&quot;openid&quot;</span><span class="p">}:</span>
+        <span class="n">connection</span><span class="o">.</span><span class="n">authenticate_OIDC</span><span class="p">(</span><span class="o">**</span><span class="n">auth_options</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Unknown auth type </span><span class="si">{a!r}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">a</span><span class="o">=</span><span class="n">auth_type</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">connection</span></div>
+
+
+<span class="nd">@deprecated</span><span class="p">(</span><span class="s2">&quot;Use openeo.connect&quot;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">session</span><span class="p">(</span><span class="n">userid</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">endpoint</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;https://openeo.org/openeo&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Connection</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Deprecated, use openeo.connect</span>
+<span class="sd">    This method is the entry point to OpenEO. You typically create one session object in your script or application, per back-end.</span>
+<span class="sd">    and re-use it for all calls to that backend.</span>
+<span class="sd">    If the backend requires authentication, you should set pass your credentials.</span>
+
+<span class="sd">    :param endpoint: The http url of an OpenEO endpoint.</span>
+<span class="sd">    :rtype: openeo.sessions.Session</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">connect</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="n">endpoint</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+    <div class="clearer"></div>
+  </div>
+    <div class="footer">
+      &copy;2017 - 2021, Jeroen Dries.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.4.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+    <a href="https://github.com/Open-EO/openeo-python-client" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

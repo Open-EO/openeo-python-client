@@ -1,0 +1,340 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Basic Usage &#8212; openEO 0.4.10a1 documentation</title>
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Working with processes" href="processes.html" />
+    <link rel="prev" title="Open-EO Client" href="index.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  <div class="document">
+    
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">openEO</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Open-EO&repo=openeo-python-client&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/Open-EO/openeo-python-client">
+    <img
+        alt="https://secure.travis-ci.org/Open-EO/openeo-python-client.svg?branch=master"
+        src="https://secure.travis-ci.org/Open-EO/openeo-python-client.svg?branch=master"
+    />
+</a>
+</p>
+
+
+
+  <h3><a href="index.html">Table of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Basic Usage</a><ul>
+<li><a class="reference internal" href="#example-simple-band-math">Example: Simple band math</a><ul>
+<li><a class="reference internal" href="#managing-jobs-in-openeo">Managing jobs in openEO</a><ul>
+<li><a class="reference internal" href="#stopping-your-job">Stopping your job</a></li>
+<li><a class="reference internal" href="#restarting-a-job">Restarting a job</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#example-applying-a-mask">Example: Applying a mask</a></li>
+<li><a class="reference internal" href="#example-retrieving-aggregated-timeseries">Example: Retrieving aggregated timeseries</a></li>
+</ul>
+</li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="index.html" title="previous chapter">Open-EO Client</a></li>
+      <li>Next: <a href="processes.html" title="next chapter">Working with processes</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script><!-- Alabaster (krTheme++) Hacks -->
+
+<!-- CSS Adjustments from requests: https://github.com/kennethreitz/requests/blob/master/docs/_templates/hacks.html-->
+<style type="text/css">
+  /* Rezzy requires precise alignment. */
+  img.logo {margin-left: -20px!important;}
+  /* "Quick Search" should be capitalized. */
+  div#searchbox h3 {text-transform: capitalize;}
+  /* Make the document a little wider, less code is cut-off. */
+  div.document {width: 1008px;}
+  /* Much-improved spacing around code blocks. */
+  div.highlight pre {padding: 11px 14px;}
+  /* Remain Responsive! */
+  @media screen and (max-width: 1008px) {
+    div.sphinxsidebar {display: none;}
+    div.document {width: 100%!important;}
+    /* Have code blocks escape the document right-margin. */
+    div.highlight pre {margin-right: -30px;}
+  }
+</style>
+        </div>
+      </div>
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="module-openeo">
+<span id="basic-usage"></span><h1>Basic Usage<a class="headerlink" href="#module-openeo" title="Permalink to this headline">¶</a></h1>
+<p>Python Client API for OpenEO backends. This client is a lightweight implementation with limited dependencies on other modules.
+The aim of OpenEO is to process remote sensing data on dedicated processing resources close to the source data.</p>
+<p>This client allows users to communicate with OpenEO backends, in a way that feels familiar for Python programmers.</p>
+<div class="literal-block-wrapper docutils container" id="basic-example">
+<div class="code-block-caption"><span class="caption-text">Basic example</span><a class="headerlink" href="#basic-example" title="Permalink to this code">¶</a></div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">openeo</span>
+
+<span class="c1">#connect with VITO backend</span>
+<span class="n">connection</span> <span class="o">=</span> <span class="n">openeo</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="s2">&quot;https://openeo.vito.be&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">authenticate_basic</span><span class="p">(</span><span class="s2">&quot;username&quot;</span><span class="p">,</span><span class="s2">&quot;password&quot;</span><span class="p">)</span>
+
+<span class="c1">#create image collection</span>
+<span class="n">s2_fapar</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">load_collection</span><span class="p">(</span><span class="s2">&quot;TERRASCOPE_S2_FAPAR_V2&quot;</span><span class="p">,</span>
+            <span class="n">spatial_extent</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;west&#39;</span><span class="p">:</span><span class="mf">16.138916</span><span class="p">,</span><span class="s1">&#39;east&#39;</span><span class="p">:</span><span class="mf">16.524124</span><span class="p">,</span><span class="s1">&#39;south&#39;</span><span class="p">:</span><span class="mf">48.1386</span><span class="p">,</span><span class="s1">&#39;north&#39;</span><span class="p">:</span><span class="mf">48.320647</span><span class="p">,</span><span class="s1">&#39;crs&#39;</span><span class="p">:</span><span class="s1">&#39;EPSG:4326&#39;</span><span class="p">},</span>
+            <span class="n">temporal_extent</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;2020-05-01&quot;</span><span class="p">,</span><span class="s2">&quot;2020-05-20&quot;</span><span class="p">]</span> <span class="p">)</span>
+
+<span class="c1">#specify process graph</span>
+<span class="n">download</span> <span class="o">=</span> <span class="n">s2_fapar</span> \
+    <span class="o">.</span><span class="n">max_time</span><span class="p">()</span> \
+    <span class="o">.</span><span class="n">download</span><span class="p">(</span><span class="s2">&quot;/tmp/openeo-composite.geotiff&quot;</span><span class="p">,</span><span class="nb">format</span><span class="o">=</span><span class="s2">&quot;GTiff&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">download</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<a class="reference internal image-reference" href="_images/basic_example.png"><img alt="script result" src="_images/basic_example.png" style="width: 500px;" /></a>
+<p>In this example, a ‘datacube’ is created using <cite>load_collection</cite>. Datacubes can be transformed by applying operations directly.</p>
+<div class="toctree-wrapper compound">
+</div>
+<div class="section" id="example-simple-band-math">
+<h2>Example: Simple band math<a class="headerlink" href="#example-simple-band-math" title="Permalink to this headline">¶</a></h2>
+<p>A common task in earth observation, is to apply a formula to a number of bands
+in order to compute an ‘index’, such as NDVI, NDWI, EVI, …</p>
+<p>Begin by importing the openeo module:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">openeo</span>
+</pre></div>
+</div>
+<p>Now we need to connect to a backend:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">connection</span> <span class="o">=</span> <span class="n">openeo</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="s1">&#39;https://openeo.vito.be&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Now, we have a <code class="xref py py-class docutils literal notranslate"><span class="pre">Connection</span></code> object called <code class="docutils literal notranslate"><span class="pre">connection</span></code>.
+This is our entry point to the backend and allows us to discover its capabilities and collections programmatically.
+Use the openEO Hub (<a class="reference external" href="http://hub.openeo.org/">http://hub.openeo.org/</a>) to explore a backend
+in a more graphical interactive way.</p>
+<p>Band math usually starts from a raster data cube, with multiple spectral bands available.
+The backend used here has a Sentinel-2 collection: TERRASCOPE_S2_TOC_V2:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sentinel2_data_cube</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">load_collection</span><span class="p">(</span>
+    <span class="s2">&quot;TERRASCOPE_S2_TOC_V2&quot;</span><span class="p">,</span>
+    <span class="n">spatial_extent</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;west&quot;</span><span class="p">:</span> <span class="mf">5.1518</span><span class="p">,</span> <span class="s2">&quot;east&quot;</span><span class="p">:</span> <span class="mf">5.1533</span><span class="p">,</span> <span class="s2">&quot;south&quot;</span><span class="p">:</span> <span class="mf">51.1819</span><span class="p">,</span> <span class="s2">&quot;north&quot;</span><span class="p">:</span> <span class="mf">51.1846</span><span class="p">,</span> <span class="s2">&quot;crs&quot;</span><span class="p">:</span> <span class="mi">4326</span><span class="p">},</span>
+    <span class="n">temporal_extent</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;2016-01-01&quot;</span><span class="p">,</span> <span class="s2">&quot;2016-03-10&quot;</span><span class="p">],</span>
+    <span class="n">bands</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;TOC-B02_10M&quot;</span><span class="p">,</span> <span class="s2">&quot;TOC-B04_10M&quot;</span><span class="p">,</span> <span class="s2">&quot;TOC-B08_10M&quot;</span><span class="p">]</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Note how we specify a time range and set of bands to load. By filtering as early as possible, we avoid
+incurring unneeded costs, and make it easier for the backend to load the right data.</p>
+</div>
+<p>Now we have a <code class="xref py py-class docutils literal notranslate"><span class="pre">ImageCollection</span></code> object called <code class="docutils literal notranslate"><span class="pre">sentinel2_data_cube</span></code>.
+Creating this object does not yet load any data, but virtually it can contain a lot of data depending on the filters you
+specified.</p>
+<p>On this data cube, we can now select the individual bands:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">B02</span> <span class="o">=</span> <span class="n">sentinel2_data_cube</span><span class="o">.</span><span class="n">band</span><span class="p">(</span><span class="s2">&quot;TOC-B02_10M&quot;</span><span class="p">)</span>
+<span class="n">B04</span> <span class="o">=</span> <span class="n">sentinel2_data_cube</span><span class="o">.</span><span class="n">band</span><span class="p">(</span><span class="s2">&quot;TOC-B04_10M&quot;</span><span class="p">)</span>
+<span class="n">B08</span> <span class="o">=</span> <span class="n">sentinel2_data_cube</span><span class="o">.</span><span class="n">band</span><span class="p">(</span><span class="s2">&quot;TOC-B08_10M&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>In this example, we’ll compute the enhanced vegetation index (EVI):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">evi_cube</span> <span class="o">=</span> <span class="p">(</span><span class="mf">2.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">B08</span> <span class="o">-</span> <span class="n">B04</span><span class="p">))</span> <span class="o">/</span> <span class="p">((</span><span class="n">B08</span> <span class="o">+</span> <span class="mf">6.0</span> <span class="o">*</span> <span class="n">B04</span> <span class="o">-</span> <span class="mf">7.5</span> <span class="o">*</span> <span class="n">B02</span><span class="p">)</span> <span class="o">+</span> <span class="mf">1.0</span><span class="p">)</span>
+<span class="n">evi_cube</span><span class="o">.</span><span class="n">download</span><span class="p">(</span><span class="s2">&quot;out.geotiff&quot;</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;GTiff&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Some results take a longer time to compute, in that case, the ‘download’ method used above may result in a timeout.
+To prevent that, it is also possible to use a ‘batch’ job.
+An easy way to run a batch job and downloading the result is:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">evi_cube</span><span class="o">.</span><span class="n">execute_batch</span><span class="p">(</span><span class="s2">&quot;out.geotiff&quot;</span><span class="p">,</span> <span class="n">out_format</span><span class="o">=</span><span class="s2">&quot;GTiff&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This method will wait until the result is generated, which may take quite a long time. Use the batch job API if you want to
+manage your jobs directly.</p>
+<div class="section" id="managing-jobs-in-openeo">
+<h3>Managing jobs in openEO<a class="headerlink" href="#managing-jobs-in-openeo" title="Permalink to this headline">¶</a></h3>
+<p>There are 2 ways to get a result in openEO: either by retrieving it directly, which only works if the result
+is computed relatively fast, usually this means in a few minutes max.
+In other cases, you will need a ‘batch job’.
+Once submitted, the client can check the status of the batch job on a regular basis, and the results can be retrieved when it’s ready.</p>
+<p>For basic usage, the recommended approach to batch jobs is to use this all-in-one call:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">evi_cube</span><span class="o">.</span><span class="n">execute_batch</span><span class="p">(</span><span class="s2">&quot;out.geotiff&quot;</span><span class="p">,</span> <span class="n">out_format</span><span class="o">=</span><span class="s2">&quot;GTiff&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This will start your job, wait for it to finish, and download the result. One very important thing to note,
+is that your application may stop unexpectedly before your job finishes (for instance if you machine decides to reboot).
+In that case, your job will not be lost, and can be managed with the commands below.</p>
+<p>When running a batch job, it is sometimes necessary to cancel it, or to manually retrieve status information.</p>
+<p>Usually, you first need to get hold of your job, this can be done through a job id
+(an opaque string like for example <code class="docutils literal notranslate"><span class="pre">0915ed2c-44a0-4519-8949-c58176ed2859</span></code>)
+which is displayed when launching the job through a call like <code class="docutils literal notranslate"><span class="pre">execute_batch</span></code> above.
+In a separate/new Python session, you can then inspect this job:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">openeo</span>
+<span class="n">connection</span> <span class="o">=</span> <span class="n">openeo</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="s2">&quot;https://openeo.vito.be&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">authenticate_basic</span><span class="p">(</span><span class="s2">&quot;your_user&quot;</span><span class="p">,</span> <span class="s2">&quot;your_password&quot;</span><span class="p">)</span>
+<span class="n">my_job</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">job</span><span class="p">(</span><span class="s2">&quot;0915ed2c-44a0-4519-8949-c58176ed2859&quot;</span><span class="p">)</span>
+<span class="n">my_job</span><span class="o">.</span><span class="n">describe_job</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>If the job has finished, you can download results:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">my_job</span><span class="o">.</span><span class="n">download_results</span><span class="p">(</span><span class="s2">&quot;my_results.tiff&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="section" id="stopping-your-job">
+<h4>Stopping your job<a class="headerlink" href="#stopping-your-job" title="Permalink to this headline">¶</a></h4>
+<p>Use this simple call to stop your job:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">my_job</span><span class="o">.</span><span class="n">stop_job</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Logs can also be retrieved, this is mostly relevant in case your job failed:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">log_list</span> <span class="o">=</span> <span class="n">my_job</span><span class="o">.</span><span class="n">logs</span><span class="p">()</span>
+<span class="n">log_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">message</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="restarting-a-job">
+<h4>Restarting a job<a class="headerlink" href="#restarting-a-job" title="Permalink to this headline">¶</a></h4>
+<p>A job can also be restarted, for instance if an earlier run was aborted:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">openeo</span>
+<span class="n">connection</span> <span class="o">=</span> <span class="n">openeo</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="s2">&quot;https://openeo.vito.be&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">authenticate_basic</span><span class="p">(</span><span class="s2">&quot;your_user&quot;</span><span class="p">,</span><span class="s2">&quot;your_password&quot;</span><span class="p">)</span>
+<span class="n">my_job</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">job</span><span class="p">(</span><span class="s2">&quot;da34492c-4f9d-402b-a5e9-11b528eaa152&quot;</span><span class="p">)</span>
+<span class="n">my_job</span><span class="o">.</span><span class="n">start_job</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<div class="section" id="example-applying-a-mask">
+<h2>Example: Applying a mask<a class="headerlink" href="#example-applying-a-mask" title="Permalink to this headline">¶</a></h2>
+<p>It is very common for earth observation data to have separate masking layers that for instance indicate
+whether a pixel is covered by a (type of) cloud or not. For Sentinel-2, one such layer is the ‘scene classification’
+layer that is generated by the Sen2Cor algorithm. In this example, we will use this layer to mask clouds out of our data.</p>
+<p>First we load data, and create a binary mask. Vegetation pixels have a value of ‘4’ in the scene classification, so we set these
+pixels to 0 and all other pixels to 1 using a simple comparison:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">s2_sceneclassification</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="n">connection</span><span class="o">.</span><span class="n">load_collection</span><span class="p">(</span><span class="s2">&quot;TERRASCOPE_S2_TOC_V2&quot;</span><span class="p">,</span> <span class="n">bands</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;SCENECLASSIFICATION_20M&quot;</span><span class="p">])</span>
+    <span class="o">.</span><span class="n">filter_temporal</span><span class="p">(</span><span class="n">extent</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;2016-01-01&quot;</span><span class="p">,</span> <span class="s2">&quot;2016-03-10&quot;</span><span class="p">])</span>
+    <span class="o">.</span><span class="n">filter_bbox</span><span class="p">(</span><span class="n">west</span><span class="o">=</span><span class="mf">5.1518</span><span class="p">,</span> <span class="n">east</span><span class="o">=</span><span class="mf">5.1533</span><span class="p">,</span><span class="n">south</span><span class="o">=</span><span class="mf">51.1819</span><span class="p">,</span><span class="n">north</span><span class="o">=</span><span class="mf">51.1846</span><span class="p">,</span> <span class="n">crs</span><span class="o">=</span><span class="mi">4326</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">band</span><span class="p">(</span><span class="s2">&quot;SCENECLASSIFICATION_20M&quot;</span><span class="p">)</span>
+<span class="p">)</span>
+
+<span class="n">mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">s2_sceneclassification</span> <span class="o">!=</span> <span class="mi">4</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Once the mask is created, it can be applied to the cube:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">evi_cube_masked</span> <span class="o">=</span> <span class="n">evi_cube</span><span class="o">.</span><span class="n">mask</span><span class="p">(</span><span class="n">mask</span><span class="o">.</span><span class="n">resample_cube_spatial</span><span class="p">(</span><span class="n">evi_cube</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="example-retrieving-aggregated-timeseries">
+<h2>Example: Retrieving aggregated timeseries<a class="headerlink" href="#example-retrieving-aggregated-timeseries" title="Permalink to this headline">¶</a></h2>
+<p>A common type of analysis is aggregating pixel values over one or more regions of interest.
+This is also referred to as ‘zonal statistics’. This library has a number of predefined methods
+for various types of aggregations.
+In this example, we’ll show how to compute an aggregated NDVI value,
+using <code class="xref py py-func docutils literal notranslate"><span class="pre">polygonal_mean_timeseries()</span></code>
+with the region of interest given as Shapely (multi)polygon object</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">timeseries_dict</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="n">connection</span><span class="o">.</span><span class="n">load_collection</span><span class="p">(</span>
+        <span class="s2">&quot;TERRASCOPE_S2_TOC_V2&quot;</span><span class="p">,</span>
+        <span class="n">temporal_extent</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;2020-01-01&quot;</span><span class="p">,</span> <span class="s2">&quot;2020-03-10&quot;</span><span class="p">],</span>
+        <span class="n">spatial_extent</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">([</span><span class="s2">&quot;west&quot;</span><span class="p">,</span> <span class="s2">&quot;south&quot;</span><span class="p">,</span> <span class="s2">&quot;east&quot;</span><span class="p">,</span> <span class="s2">&quot;north&quot;</span><span class="p">],</span> <span class="n">bbox</span><span class="p">)),</span>
+        <span class="n">bands</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;TOC-B04_10M&quot;</span><span class="p">,</span><span class="s2">&quot;TOC-B08_10M&quot;</span><span class="p">]</span>
+    <span class="p">)</span>
+    <span class="o">.</span><span class="n">ndvi</span><span class="p">()</span>
+    <span class="o">.</span><span class="n">polygonal_mean_timeseries</span><span class="p">(</span><span class="n">polygon</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>The result is a dictionary object containing values for each polygon and band.
+It can easily be converted into a pandas dataframe:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">from</span> <span class="nn">openeo.rest.conversions</span> <span class="kn">import</span> <span class="n">timeseries_json_to_pandas</span>
+<span class="n">dataframe</span> <span class="o">=</span> <span class="n">timeseries_json_to_pandas</span><span class="p">(</span><span class="n">timeseries_dict</span><span class="p">)</span>
+<span class="n">dataframe</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">dataframe</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+<span class="n">dataframe</span><span class="o">.</span><span class="n">dropna</span><span class="p">()</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s1">&#39;openEO NDVI with clouds&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<a class="reference internal image-reference" href="_images/timeseries.png"><img alt="plotted timeseries" src="_images/timeseries.png" style="width: 400px;" /></a>
+<p>The same method also works for multiple polygons, or GeoJSON or SHP files that are
+accessible by the backend. This allows computing aggregated values over very large areas.</p>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+    <div class="clearer"></div>
+  </div>
+    <div class="footer">
+      &copy;2017 - 2021, Jeroen Dries.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.4.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/basics.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+    <a href="https://github.com/Open-EO/openeo-python-client" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>
