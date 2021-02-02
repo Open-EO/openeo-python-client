@@ -15,6 +15,7 @@ Open-EO Client
    :caption: Contents:
 
    basics
+   data_access
    processes
    auth
    udf
