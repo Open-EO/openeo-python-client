@@ -1,6 +1,6 @@
 <!-- Alabaster (krTheme++) Hacks -->
 
-<!-- CSS Adjustments from requests: https://github.com/kennethreitz/requests/blob/master/docs/_templates/hacks.html-->
+<!-- CSS Adjustments from requests: https://github.com/kennethreitz/requests/blob/master/docs/_templates/hacks.html -->
 <style type="text/css">
   /* Rezzy requires precise alignment. */
   img.logo {margin-left: -20px!important;}
@@ -17,4 +17,23 @@
     /* Have code blocks escape the document right-margin. */
     div.highlight pre {margin-right: -30px;}
   }
+
+  /* Reduce space between paragraphs for better visual structure */
+  p { margin: 1ex 0; }
+
+  /* Hide "view source code" links by default, only show on hover */
+  dt .viewcode-link { visibility: hidden; font-size: 70%; }
+  dt:hover .viewcode-link { visibility: visible; }
+
+  /* More breathing space between successive methods */
+  dl { margin-bottom: 1.5em; }
+
+  dl.field-list > dt {
+      /* Cleaner aligning of Parameters/Returns/Raises listing with method description paragraphs */
+      padding-left: 0;
+      /* Make Parameters/Returns/Raises labels less dominant */
+      text-transform: uppercase;
+      font-size: 70%;
+  }
+
 </style>
