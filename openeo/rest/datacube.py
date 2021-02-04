@@ -15,7 +15,7 @@ import pathlib
 import typing
 import warnings
 from builtins import staticmethod
-from typing import List, Dict, Union, Tuple
+from typing import List, Dict, Union, Tuple, Optional
 
 import numpy
 import numpy as np
@@ -127,17 +127,19 @@ class DataCube(ImageCollection):
 
     @classmethod
     def load_collection(
-            cls, collection_id: str, connection: 'openeo.Connection' = None,
-            spatial_extent: Union[Dict[str, float], None] = None,
-            temporal_extent: Union[List[Union[str, datetime.datetime, datetime.date]], None] = None,
-            bands: Union[List[str], None] = None,
-            fetch_metadata=True,
-            properties: Dict[str, Union[str, PGNode, typing.Callable]] = None
+            cls,
+            collection_id: str,
+            connection: 'openeo.Connection' = None,
+            spatial_extent: Optional[Dict[str, float]] = None,
+            temporal_extent: Optional[List[Union[str, datetime.datetime, datetime.date]]] = None,
+            bands: Optional[List[str]] = None,
+            fetch_metadata = True,
+            properties: Optional[Dict[str, Union[str, PGNode, typing.Callable]]] = None
     ):
         """
         Create a new Raster Data cube.
 
-        :param collection_id: A collection id, should exist in the backend.
+        :param collection_id: image collection identifier
         :param connection: The connection to use to connect with the backend.
         :param spatial_extent: limit data to specified bounding box or polygons
         :param temporal_extent: limit data to specified temporal interval

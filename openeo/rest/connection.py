@@ -3,12 +3,11 @@ This module provides a Connection object to manage and persist settings when int
 """
 import datetime
 import logging
-import shutil
 import sys
 import typing
 import warnings
 from pathlib import Path
-from typing import Dict, List, Tuple, Union, Callable, overload
+from typing import Dict, List, Tuple, Union, Callable, Optional
 from urllib.parse import urljoin
 
 import requests
@@ -689,42 +688,37 @@ class Connection(RestApiConnection):
             raise OpenEoClientException(
                 "This method requires support for at least version 1.0.0 in the openEO backend.")
 
-    @overload
-    def load_collection(self, collection_id: str, spatial_extent: typing.Optional[Dict[str, float]] = None,
-                        temporal_extent: Union[List[Union[str, datetime.datetime, datetime.date]], None] = None,
-                        bands: Union[List[str], None] = None,
-                        properties: Dict[str, Union[str, PGNode, typing.Callable]] = None) -> DataCube:
+    def load_collection(
+            self,
+            collection_id: str,
+            spatial_extent: Optional[Dict[str, float]] = None,
+            temporal_extent: Optional[List[Union[str, datetime.datetime, datetime.date]]] = None,
+            bands: Optional[List[str]] = None,
+            properties: Optional[Dict[str, Union[str, PGNode, typing.Callable]]] = None
+    ) -> DataCube:
         """
-        Create a new Raster Data cube.
-
-        :param collection_id: A collection id, should exist in the backend.
-        :param connection: The connection to use to connect with the backend.
-        :param spatial_extent: limit data to specified bounding box or polygons
-        :param temporal_extent: limit data to specified temporal interval
-        :param bands: only add the specified bands
-        :param properties: limit data by metadata property predicates
-        :return:a datacube containing the requested data
-        """
-        ...
-
-    def load_collection(self, collection_id: str, **kwargs) -> DataCube:
-        """
-        Load an image collection by collection id.
+        Load a DataCube by collection id.
 
         see :py:meth:`openeo.rest.datacube.DataCube.load_collection`
         for more details.
 
-        :param collection_id: image collection identifier (string)
-        :param Dict[str,float] spatial_extent: limit data to specified bounding box or polygons
-        :param List[Union[str,datetime.datetime,datetime.date]] temporal_extent: limit data to specified temporal interval
-        :param List[str] bands: only add the specified bands
-        :param Dict[str,Union[str,PGNode,typing.Callable]] properties: limit data by metadata property predicates
+        :param collection_id: image collection identifier
+        :param spatial_extent: limit data to specified bounding box or polygons
+        :param temporal_extent: limit data to specified temporal interval
+        :param bands: only add the specified bands
+        :param properties: limit data by metadata property predicates
         :return: a datacube containing the requested data
         """
         if self._api_version.at_least("1.0.0"):
-            return DataCube.load_collection(collection_id=collection_id, connection=self, **kwargs)
+            return DataCube.load_collection(
+                collection_id=collection_id, connection=self,
+                spatial_extent=spatial_extent, temporal_extent=temporal_extent, bands=bands, properties=properties
+            )
         else:
-            return ImageCollectionClient.load_collection(collection_id=collection_id, session=self, **kwargs)
+            return ImageCollectionClient.load_collection(
+                collection_id=collection_id, session=self,
+                spatial_extent=spatial_extent, temporal_extent=temporal_extent, bands=bands
+            )
 
     # Legacy alias.
     imagecollection = load_collection
