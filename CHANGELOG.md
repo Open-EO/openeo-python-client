@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Mark `Connection.imagecollection` more clearly as deprecated/legacy alias of `Connection.load_collection`
+
 ### Removed
 
 ### Fixed

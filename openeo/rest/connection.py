@@ -699,9 +699,6 @@ class Connection(RestApiConnection):
         """
         Load a DataCube by collection id.
 
-        see :py:meth:`openeo.rest.datacube.DataCube.load_collection`
-        for more details.
-
         :param collection_id: image collection identifier
         :param spatial_extent: limit data to specified bounding box or polygons
         :param temporal_extent: limit data to specified temporal interval
@@ -720,8 +717,7 @@ class Connection(RestApiConnection):
                 spatial_extent=spatial_extent, temporal_extent=temporal_extent, bands=bands
             )
 
-    # Legacy alias.
-    imagecollection = load_collection
+    imagecollection = legacy_alias(load_collection, name="imagecollection")
 
     def create_service(self, graph: dict, type: str, **kwargs) -> dict:
         # TODO: type hint for graph: is it a nested or a flat one?
