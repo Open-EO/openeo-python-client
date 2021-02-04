@@ -676,9 +676,9 @@ class Connection(RestApiConnection):
         """
         Load a raster datacube, from a custom process.
 
-        @param process_id: The process id of the custom process.
-        @param kwargs: The arguments of the custom process
-        @return: A DataCube, without valid metadata, as the client is not aware of this custom process.
+        :param process_id: The process id of the custom process.
+        :param kwargs: The arguments of the custom process
+        :return: A DataCube, without valid metadata, as the client is not aware of this custom process.
         """
 
         if self._api_version.at_least("1.0.0"):
@@ -877,7 +877,6 @@ def connect(url, auth_type: str = None, auth_options: dict = {}, session: reques
 
         >>> # For basic authentication
         >>> conn = connect(url).authenticate_basic(username="john", password="foo")
-
         >>> # For OpenID Connect authentication
         >>> conn = connect(url).authenticate_OIDC(client_id="myclient")
 

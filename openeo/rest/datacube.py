@@ -135,7 +135,7 @@ class DataCube(ImageCollection):
             bands: Optional[List[str]] = None,
             fetch_metadata = True,
             properties: Optional[Dict[str, Union[str, PGNode, typing.Callable]]] = None
-    ):
+    ) -> 'DataCube':
         """
         Create a new Raster Data cube.
 
@@ -145,7 +145,7 @@ class DataCube(ImageCollection):
         :param temporal_extent: limit data to specified temporal interval
         :param bands: only add the specified bands
         :param properties: limit data by metadata property predicates
-        :return:
+        :return: new DataCube containing the collection
         """
         if temporal_extent:
             temporal_extent = cls._get_temporal_extent(extent=temporal_extent)
@@ -352,8 +352,9 @@ class DataCube(ImageCollection):
     def filter_bands(self, bands: Union[List[Union[str, int]], str]) -> 'DataCube':
         """
         Filter the data cube by the given bands
+
         :param bands: list of band names, common names or band indices. Single band name can also be given as string.
-        :return a DataCube instance
+        :return: a DataCube instance
         """
         if isinstance(bands, str):
             bands = [bands]
@@ -369,9 +370,11 @@ class DataCube(ImageCollection):
     band_filter = legacy_alias(filter_bands, "band_filter")
 
     def band(self, band: Union[str, int]) -> 'DataCube':
-        """Filter the imagery by the given bands
-            :param band: band name, band common name or band index.
-            :return a DataCube instance
+        """
+        Filter out a single band
+
+        :param band: band name, band common name or band index.
+        :return: a DataCube instance
         """
         band_index = self.metadata.get_band_index(band)
         return self._reduce_bands(reducer=PGNode(
@@ -446,16 +449,18 @@ class DataCube(ImageCollection):
     def logical_or(self, other: 'DataCube') -> 'DataCube':
         """
         Apply element-wise logical `or` operation
+
         :param other:
-        :return DataCube: logical_or(this, other)
+        :return: logical_or(this, other)
         """
         return self._operator_binary("or", other)
 
     def logical_and(self, other: 'DataCube') -> 'DataCube':
         """
         Apply element-wise logical `and` operation
+
         :param other:
-        :return DataCube: logical_and(this, other)
+        :return: logical_and(this, other)
         """
         return self._operator_binary("and", other)
 
@@ -479,7 +484,7 @@ class DataCube(ImageCollection):
         Pairwise comparison of the bands in this data cube with the bands in the 'other' data cube.
 
         :param other:
-        :return DataCube: this > other
+        :return: this > other
         """
         return self._operator_binary("gt", other)
 
@@ -492,7 +497,7 @@ class DataCube(ImageCollection):
         The number of bands in both data cubes has to be the same.
 
         :param other:
-        :return DataCube: this < other
+        :return: this < other
         """
         return self._operator_binary("lt", other)
 
@@ -829,10 +834,10 @@ class DataCube(ImageCollection):
 
         This call does not modify the datacube in place, but returns a new datacube with the additional dimension.
 
-        @param name: The name of the dimension to add
-        @param label: The dimension label.
-        @param type: Dimension type, allowed values: 'spatial', 'temporal', 'bands', 'other', default value is 'other'
-        @return: The data cube with a newly added dimension. The new dimension has exactly one dimension label. All other dimensions remain unchanged.
+        :param name: The name of the dimension to add
+        :param label: The dimension label.
+        :param type: Dimension type, allowed values: 'spatial', 'temporal', 'bands', 'other', default value is 'other'
+        :return: The data cube with a newly added dimension. The new dimension has exactly one dimension label. All other dimensions remain unchanged.
         """
         return self.process(
             process_id="add_dimension",
@@ -877,7 +882,9 @@ class DataCube(ImageCollection):
 
         An overlap can be specified so that neighbourhoods can have overlapping boundaries. This allows for continuity of the output. The values included in the data cube as overlap can't be modified by the given `process`.
 
-        The neighbourhood size should be kept small enough, to avoid running beyond computational resources, but a too small size will result in a larger number of process invocations, which may slow down processing. Window sizes for spatial dimensions typically are in the range of 64 to 512 pixels, while overlaps of 8 to 32 pixels are common.\n\nThe process must not add new dimensions, or remove entire dimensions, but the result can have different dimension labels.
+        The neighbourhood size should be kept small enough, to avoid running beyond computational resources, but a too small size will result in a larger number of process invocations, which may slow down processing. Window sizes for spatial dimensions typically are in the range of 64 to 512 pixels, while overlaps of 8 to 32 pixels are common.
+
+        The process must not add new dimensions, or remove entire dimensions, but the result can have different dimension labels.
 
         For the special case of 2D convolution, it is recommended to use ``apply_kernel()``.
 
@@ -1047,12 +1054,14 @@ class DataCube(ImageCollection):
         )
 
     def linear_scale_range(self, input_min, input_max, output_min, output_max) -> 'DataCube':
-        """ Color stretching
-            :param input_min: Minimum input value
-            :param input_max: Maximum input value
-            :param output_min: Minimum output value
-            :param output_max: Maximum output value
-            :return a DataCube instance
+        """
+        Color stretching
+
+        :param input_min: Minimum input value
+        :param input_max: Maximum input value
+        :param output_min: Minimum output value
+        :param output_max: Maximum output value
+        :return: a DataCube instance
         """
         process_id = 'linear_scale_range'
         args = {
@@ -1185,7 +1194,7 @@ class DataCube(ImageCollection):
         :param kernel: The kernel to be applied on the data cube. The kernel has to be as many dimensions as the data cube has dimensions.
         :param factor: A factor that is multiplied to each value computed by the focal operation. This is basically a shortcut for explicitly multiplying each value by a factor afterwards, which is often required for some kernel-based algorithms such as the Gaussian blur.
         :param border: Determines how the data is extended when the kernel overlaps with the borders. Defaults to fill the border with zeroes.
-        :param: replace_invalid: This parameter specifies the value to replace non-numerical or infinite numerical values with. By default, those values are replaced with zeroes.
+        :param replace_invalid: This parameter specifies the value to replace non-numerical or infinite numerical values with. By default, those values are replaced with zeroes.
         :return: A data cube with the newly computed values. The resolution, cardinality and the number of dimensions are the same as for the original data cube.
         """
         return self.process('apply_kernel', {
@@ -1229,7 +1238,7 @@ class DataCube(ImageCollection):
         Converts this raster data cube into a vector data cube. The bounding polygon of homogenous areas of pixels is constructed.
 
 
-        @return: A vectorcube
+        :return: A vectorcube
         """
         return VectorCube(PGNode(
             process_id='raster_to_vector',
@@ -1300,7 +1309,7 @@ class DataCube(ImageCollection):
         Note that multiple atmospheric methods exist, but may not be supported by all backends. The method parameter gives
         you the option of requiring a specific method, but this may result in an error if the backend does not support it.
 
-        @return: datacube with bottom of atmosphere reflectances
+        :return: datacube with bottom of atmosphere reflectances
         """
         return self.process('atmospheric_correction', {
             'data': THIS,
@@ -1323,7 +1332,7 @@ class DataCube(ImageCollection):
     def download(self, outputfile: Union[str, pathlib.Path, None] = None, format: str = "GTIFF", options: dict = None):
         """
         Download image collection, e.g. as GeoTIFF.
-        If :param: outputfile is provided, the result is stored on disk locally, otherwise, a bytes object is returned.
+        If outputfile is provided, the result is stored on disk locally, otherwise, a bytes object is returned.
         The bytes object can be passed on to a suitable decoder for decoding.
 
         :param outputfile: Optional, an output file if the result needs to be stored on disk.
@@ -1460,11 +1469,11 @@ class DataCube(ImageCollection):
         
         return None
 
-
     def to_graphviz(self):
         """
         Build a graphviz DiGraph from the process graph
-        :return:
+
+        :return: graphviz graph object
         """
         # pylint: disable=import-error, import-outside-toplevel
         import graphviz
