@@ -8,7 +8,7 @@ import json
 from openeo.rest.job import RESTJob
 
 
-class VectorCube():
+class VectorCube:
     """
     A Vector Cube, or 'Vector Collection' is a data structure containing 'Features':
     https://www.w3.org/TR/sdw-bp/#dfn-feature

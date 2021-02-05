@@ -34,8 +34,8 @@ from openeo.processes import ProcessBuilder
 from openeo.rest import BandMathException, OperatorException, OpenEoClientException
 from openeo.rest.job import RESTJob
 from openeo.rest.udp import RESTUserDefinedProcess
+from openeo.rest.vectorcube import VectorCube
 from openeo.util import get_temporal_extent, dict_no_none, legacy_alias, rfc3339
-from openeo.vectorcube import VectorCube
 
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
@@ -1232,11 +1232,10 @@ class DataCube(ImageCollection):
 
         })
 
-    def raster_to_vector(self) -> 'VectorCube':
+    def raster_to_vector(self) -> VectorCube:
         """
         EXPERIMENTAL: not generally supported, API subject to change
         Converts this raster data cube into a vector data cube. The bounding polygon of homogenous areas of pixels is constructed.
-
 
         :return: A vectorcube
         """
