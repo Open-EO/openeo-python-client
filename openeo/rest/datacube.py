@@ -45,7 +45,7 @@ if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-# Sentinel object to refer to "current" cube in chained process expressions.
+# Sentinel object to refer to "current" cube in chained cube processing expressions.
 THIS = object()
 
 
