@@ -21,9 +21,37 @@ from ... import load_json_resource
 
 def _get_leaf_node(cube: DataCube) -> dict:
     """Get leaf node (node with result=True), supporting old and new style of graph building."""
-    flattened = cube.flatten()
-    node, = [n for n in flattened.values() if n.get("result")]
+    flat_graph = cube.flat_graph()
+    node, = [n for n in flat_graph.values() if n.get("result")]
     return node
+
+
+def test_datacube_graph(con100):
+    s2cube = con100.load_collection("S2")
+    assert s2cube.graph == {'loadcollection1': {
+        'process_id': 'load_collection',
+        'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
+        'result': True
+    }}
+
+
+def test_datacube_flat_graph(con100):
+    s2cube = con100.load_collection("S2")
+    assert s2cube.flat_graph() == {'loadcollection1': {
+        'process_id': 'load_collection',
+        'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
+        'result': True
+    }}
+
+
+def test_datacube_legacy_flatten(con100):
+    s2cube = con100.load_collection("S2")
+    with pytest.warns(DeprecationWarning, match="Call to deprecated method `flatten`, use `flat_graph` instead."):
+        assert s2cube.flatten() == {'loadcollection1': {
+            'process_id': 'load_collection',
+            'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
+            'result': True
+        }}
 
 
 @pytest.mark.parametrize(["kwargs", "expected"], [

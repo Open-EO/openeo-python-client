@@ -200,7 +200,7 @@ def test_build_parameterized_cube_basic(con100):
     bbox = Parameter("bbox", schema="object")
     cube = con100.load_collection(layer).filter_temporal(dates).filter_bbox(bbox)
 
-    assert cube.flatten() == {
+    assert cube.flat_graph() == {
         "loadcollection1": {
             "process_id": "load_collection",
             "arguments": {"id": {"from_parameter": "layer"}, "temporal_extent": None, "spatial_extent": None},
@@ -223,7 +223,7 @@ def test_build_parameterized_cube_single_date(con100):
     bbox = Parameter("bbox", schema="object")
     cube = con100.load_collection(layer).filter_temporal(date, date).filter_bbox(bbox)
 
-    assert cube.flatten() == {
+    assert cube.flat_graph() == {
         "loadcollection1": {
             "process_id": "load_collection",
             "arguments": {"id": {"from_parameter": "layer"}, "temporal_extent": None, "spatial_extent": None},
@@ -249,7 +249,7 @@ def test_build_parameterized_cube_start_date(con100):
     bbox = Parameter("bbox", schema="object")
     cube = con100.load_collection(layer).filter_temporal(start, None).filter_bbox(bbox)
 
-    assert cube.flatten() == {
+    assert cube.flat_graph() == {
         "loadcollection1": {
             "process_id": "load_collection",
             "arguments": {"id": {"from_parameter": "layer"}, "temporal_extent": None, "spatial_extent": None},
@@ -272,7 +272,7 @@ def test_build_parameterized_cube_load_collection(con100):
     bbox = Parameter("bbox", schema="object")
     cube = con100.load_collection(layer, spatial_extent=bbox, temporal_extent=dates)
 
-    assert cube.flatten() == {
+    assert cube.flat_graph() == {
         "loadcollection1": {
             "process_id": "load_collection",
             "arguments": {
@@ -290,7 +290,7 @@ def test_build_parameterized_cube_load_collection_band(con100):
     bands = [Parameter.string("band8"), Parameter.string("band12")]
     cube = con100.load_collection(layer, bands=bands)
 
-    assert cube.flatten() == {
+    assert cube.flat_graph() == {
         "loadcollection1": {
             "process_id": "load_collection",
             "arguments": {
@@ -309,7 +309,7 @@ def test_build_parameterized_cube_band_math(con100):
     bands = [Parameter.string("band8"), Parameter.string("band12")]
     cube = con100.load_collection(layer, bands=bands)
     x = cube.band(0) * cube.band(1)
-    assert x.flatten() == {
+    assert x.flat_graph() == {
         "loadcollection1": {
             "process_id": "load_collection",
             "arguments": {

@@ -8,6 +8,7 @@ from typing import Union, Dict
 
 from openeo.api.process import Parameter
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
+from openeo.util import legacy_alias
 
 
 class PGNode:
@@ -68,9 +69,11 @@ class PGNode:
 
         return _deep_copy(self)
 
-    def flatten(self):
-        # First convert to dict (as deep copy)
+    def flat_graph(self) -> dict:
+        """Get the process graph in flat dict representation"""
         return GraphFlattener().flatten(node=self)
+
+    flatten = legacy_alias(flat_graph, name="flatten")
 
     @staticmethod
     def to_process_graph_argument(value: Union['PGNode', str, dict]) -> dict:
@@ -153,7 +156,7 @@ class ReduceNode(PGNode):
 class FlatGraphNodeIdGenerator:
     """
     Helper class to generate unique node ids (e.g. autoincrement style)
-    for processes in a flattened process graph.
+    for processes in a flat process graph.
     """
 
     def __init__(self):
@@ -175,8 +178,8 @@ class GraphFlattener(ProcessGraphVisitor):
         self._argument_stack = []
         self._node_cache = {}
 
-    def flatten(self, node: PGNode):
-        """Consume given nested process graph and return flattened version"""
+    def flatten(self, node: PGNode) -> dict:
+        """Consume given nested process graph and return flat dict representation"""
         self.accept_node(node)
         assert len(self._argument_stack) == 0
         self._flattened[self._last_node_id]["result"] = True

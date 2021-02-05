@@ -33,6 +33,6 @@ class ProcessBuilderBase:
             del arguments[arg]
         return cls(PGNode(process_id=process_id, arguments=arguments))
 
-    def flatten(self) -> dict:
-        """Get the process graph in flattened dict representation"""
-        return self.pgnode.flatten()
+    def flat_graph(self) -> dict:
+        """Get the process graph in flat dict representation"""
+        return self.pgnode.flat_graph()

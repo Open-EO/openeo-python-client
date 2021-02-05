@@ -48,8 +48,8 @@ def _get_leaf_node(cube, force_flat=True) -> dict:
         return cube.graph[cube.node_id]
     elif isinstance(cube, DataCube):
         if force_flat:
-            flattened = cube.flatten()
-            node, = [n for n in flattened.values() if n.get("result")]
+            flat_graph = cube.flat_graph()
+            node, = [n for n in flat_graph.values() if n.get("result")]
             return node
         else:
             return cube._pg.to_dict()

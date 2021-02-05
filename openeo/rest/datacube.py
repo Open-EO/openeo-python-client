@@ -69,19 +69,20 @@ class DataCube(ImageCollection):
 
     @property
     def graph(self) -> dict:
-        """Get the process graph in flattened dict representation"""
-        # TODO: deprecate this property and promote flatten/to_json more.
-        return self.flatten()
+        """Get the process graph in flat dict representation"""
+        return self.flat_graph()
 
-    def flatten(self) -> dict:
-        """Get the process graph in flattened dict representation"""
-        return self._pg.flatten()
+    def flat_graph(self) -> dict:
+        """Get the process graph in flat dict representation"""
+        return self._pg.flat_graph()
+
+    flatten = legacy_alias(flat_graph, name="flatten")
 
     def to_json(self, indent=2, separators=None) -> str:
         """
-        Get JSON representation of (flattened) process graph.
+        Get JSON representation of (flat dict) process graph.
         """
-        pg = {"process_graph": self.flatten()}
+        pg = {"process_graph": self.flat_graph()}
         return json.dumps(pg, indent=indent, separators=separators)
 
     @property
@@ -1339,11 +1340,11 @@ class DataCube(ImageCollection):
         :param options: Optional, file format options
         :return: None if the result is stored to disk, or a bytes object returned by the backend.
         """
-        newcollection = self.save_result(format=format, options=options)
-        return self._connection.download(newcollection._pg.flatten(), outputfile)
+        cube = self.save_result(format=format, options=options)
+        return self._connection.download(cube.flat_graph(), outputfile)
 
     def tiled_viewing_service(self, type: str, **kwargs) -> Dict:
-        return self._connection.create_service(self._pg.flatten(), type=type, **kwargs)
+        return self._connection.create_service(self.flat_graph(), type=type, **kwargs)
 
     def execute_batch(
             self,
@@ -1399,7 +1400,7 @@ class DataCube(ImageCollection):
             # add `save_result` node
             img = img.save_result(format=out_format, options=format_options)
         return self._connection.create_job(
-            process_graph=img.flatten(),
+            process_graph=img.flat_graph(),
             title=title, description=description, plan=plan, budget=budget, additional=job_options
         )
 
@@ -1415,11 +1416,11 @@ class DataCube(ImageCollection):
         """
         return self._connection.save_user_defined_process(
             user_defined_process_id=user_defined_process_id,
-            process_graph=self.flatten(), public=public, summary=summary, description=description)
+            process_graph=self.flat_graph(), public=public, summary=summary, description=description)
 
     def execute(self) -> Dict:
         """Executes the process graph of the imagery. """
-        return self._connection.execute(self._pg.flatten())
+        return self._connection.execute(self.flat_graph())
 
     @staticmethod
     def execute_local_udf(udf: str, datacube: Union[str, 'xarray.DataArray', 'openeo_udf.api.datacube.DataCube'] =None , fmt='netcdf'):
@@ -1479,7 +1480,7 @@ class DataCube(ImageCollection):
         import pprint
 
         graph = graphviz.Digraph(node_attr={"shape": "none", "fontname": "sans", "fontsize": "11"})
-        for name, process in self.flatten().items():
+        for name, process in self.flat_graph().items():
             args = process.get("arguments", {})
             # Build label
             label = '<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">'

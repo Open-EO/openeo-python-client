@@ -1,11 +1,11 @@
-from typing import Dict
+import json
+import pathlib
+from typing import Union
 
 from openeo.internal.graph_building import PGNode
 from openeo.metadata import CollectionMetadata
-from typing import Union
-import pathlib
-import json
 from openeo.rest.job import RESTJob
+from openeo.util import legacy_alias
 
 
 class VectorCube:
@@ -29,19 +29,20 @@ class VectorCube:
 
     @property
     def graph(self) -> dict:
-        """Get the process graph in flattened dict representation"""
-        # TODO: deprecate this property in favor of flatten/to_json
-        return self.flatten()
+        """Get the process graph in flat dict representation"""
+        return self.flat_graph()
 
-    def flatten(self) -> dict:
-        """Get the process graph in flattened dict representation"""
-        return self._pg.flatten()
+    def flat_graph(self) -> dict:
+        """Get the process graph in flat dict representation"""
+        return self._pg.flat_graph()
+
+    flatten = legacy_alias(flat_graph, name="flatten")
 
     def to_json(self, indent=2, separators=None) -> str:
         """
-        Get JSON representation of (flattened) process graph.
+        Get JSON representation of (flat dict) process graph.
         """
-        pg = {"process_graph": self.flatten()}
+        pg = {"process_graph": self.flat_graph()}
         return json.dumps(pg, indent=indent, separators=separators)
 
     @property
@@ -94,11 +95,9 @@ class VectorCube:
             }
         )
 
-
     def download(self, outputfile: str, format: str = "GeoJson", options: dict = None):
-        newcollection = self.save_result(format=format, options=options)
-        return self._connection.download(newcollection._pg.flatten(), outputfile)
-
+        cube = self.save_result(format=format, options=options)
+        return self._connection.download(cube.flat_graph(), outputfile)
 
     def execute_batch(
             self,
@@ -137,4 +136,4 @@ class VectorCube:
         if out_format:
             # add `save_result` node
             shp = shp.save_result(format=out_format, options=format_options)
-        return self._connection.create_job(process_graph=shp.flatten(), additional=job_options)
+        return self._connection.create_job(process_graph=shp.flat_graph(), additional=job_options)
