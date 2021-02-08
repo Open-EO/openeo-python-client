@@ -25,17 +25,18 @@ This allows you to build your own *library of reusable building blocks*.
     see :ref:`user-defined-functions` for more information.
 
 A user-defined process can not only be constructed from
-pre-defined process, provided by the backend, but also
-other user-defined processes.
+pre-defined processes provided by the backend,
+but also other user-defined processes.
 
 Ultimately, the openEO API allows you to publicly expose your user-defined process,
 so that other users can invoke it as a service.
-This turns your process into a web application that can be run using the regular openEO
+This turns your openEO process into a web application
+that can be executed using the regular openEO
 support for synchronous and asynchronous jobs.
 
 
 Process Parameters
--------------------
+====================
 
 User-defined processes are usually **parameterized**,
 meaning certain inputs are expected when calling the process.
@@ -47,6 +48,7 @@ For example, if you often have to convert Fahrenheit to Celsius::
 you could define a user-defined process ``fahrenheit_to_celsius``,
 consisting of two simple mathematical operations
 (pre-defined processes ``subtract`` and ``divide``).
+
 We can represent this in openEO's JSON based format as follows
 (don't worry too much about the syntax details of this representation,
 the openEO Python client will hide this normally)::
@@ -55,7 +57,7 @@ the openEO Python client will hide this normally)::
     {
         "subtract32": {
             "process_id": "subtract",
-            "arguments": {"x": {"from_parameter": "f"}, "y": 32}
+            "arguments": {"x": {"from_parameter": "fahrenheit"}, "y": 32}
         },
         "divide18": {
             "process_id": "divide",
@@ -65,13 +67,13 @@ the openEO Python client will hide this normally)::
     }
 
 
-The important point here is the parameter reference ``{"from_parameter": "f"}`` in the subtraction.
-When we call this user-defined process, we will have to provide a Fahrenheit value,
-for example with 70 degrees Fahrenheit (again in openEO JSON format here)::
+The important point here is the parameter reference ``{"from_parameter": "fahrenheit"}`` in the subtraction.
+When we call this user-defined process we will have to provide a Fahrenheit value.
+For example with 70 degrees Fahrenheit (again in openEO JSON format here)::
 
     {
         "process_id": "fahrenheit_to_celsius",
-        "arguments" {"f": 70}
+        "arguments" {"fahrenheit": 70}
     }
 
 
@@ -85,7 +87,8 @@ It allows you to document your parameters, define the data type(s) you expect
 The openEO Python client lets you define parameters as
 :class:`~openeo.api.process.Parameter` instances.
 In general you have to specify at least the parameter name,
-a description and a schema, for example take the "fahrenheit" parameter from the example above::
+a description and a schema.
+The "fahrenheit" parameter from the example above can be defined like this::
 
     from openeo.api.process import Parameter
 
@@ -95,8 +98,60 @@ a description and a schema, for example take the "fahrenheit" parameter from the
         schema={"type": "number"}
     )
 
+
+Parameter schema
+-----------------
+
+The "schema" argument defines the data type of values that will be passed for this parameter.
+It is based on `JSON Schema draft-07 <https://json-schema.org/>`_,
+which defines the usual suspects:
+
+- ``{"type": "string"}`` for strings
+- ``{"type": "integer"}`` for integers
+- ``{"type": "number"}`` for general numeric types (integers and floats)
+- ``{"type": "boolean"}`` for booleans
+
+Apart from these basic primitives, one can also define arrays with ``{"type": "array"}``,
+or even specify the expected type of the array items, e.g. an array of integers as follows::
+
+    {
+        "type": "array",
+        "items": {"type": "integer"}
+    }
+
+Another more complex type is ``{"type": "object"}`` for parameters
+that are like Python dictionaries (or mappings).
+For example, to define a bounding box parameter
+that should contain certain fields with certain type::
+
+    {
+        "type": "object",
+        "properties": {
+            "west": {"type": "number"},
+            "south": {"type": "number"},
+            "east": {"type": "number"},
+            "north": {"type": "number"},
+            "crs": {"type": "string"}
+        }
+    }
+
+Check the documentation and examples of `JSON Schema draft-07 <https://json-schema.org/>`_
+for even more features.
+
+On top of these generic types, openEO defines a couple of custom types,
+most notably the **data cube** type::
+
+    {
+        "type": "object",
+        "subtype": "raster-cube"
+    }
+
+
+Schema-specific helpers
+````````````````````````
+
 The openEO Python client defines some helper functions
-to create parameters in a compact way.
+to create parameters with a given schema in a compact way.
 For example, the "fahrenheit" parameter, which is of type "number",
 can be created with the :func:`~openeo.api.process.Parameter.number` helper::
 
@@ -108,6 +163,7 @@ Very often you will need a "raster-cube" type parameter,
 easily created with the :func:`~openeo.api.process.Parameter.raster_cube` helper::
 
     cube_param = Parameter.raster_cube()
+
 
 Another example of an integer parameter with a default value::
 
@@ -256,7 +312,7 @@ from the dictionary above::
     )
 
 
-Evaluate user-define processes
+Evaluate user-defined processes
 ================================
 
 Let's evaluate the user-defined processes we defined.
@@ -300,10 +356,4 @@ in :func:`~openeo.rest.connection.Connection.save_user_defined_process` to ``Tru
     still some work ongoing concerning how to publicly share those processes, so this is subject
     to small changes in the future. Nevertheless, we foresee that this support will be further improved.
     Related `issue <https://github.com/Open-EO/openeo-api/issues/310>`_.
-
-
-
-
-
-.. TODO: parameter types
 
