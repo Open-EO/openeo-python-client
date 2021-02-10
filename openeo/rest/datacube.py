@@ -1503,8 +1503,9 @@ class DataCube(ImageCollection):
         return graph
 
     def sar_backscatter(
-            self, coefficient: str = "gamma0", orthorectify: bool = True, elevation_model: str = None,
-            scaling: str = "dB", options: dict = None
+            self, orthorectify: bool = True, elevation_model: str = None, rtc: bool = True, mask: bool = False,
+            contributing_area: bool = False, local_incidence_angle: bool = False,
+            ellipsoid_incidence_angle: bool = False, noise_removal: bool = False, options: dict = None
     ):
         """
         *EXPERIMENTAL*
@@ -1515,22 +1516,35 @@ class DataCube(ImageCollection):
         original SAR products. As a result, this process may only work in combination with loading data from
         specific collections, not with general data cubes.
 
-        :param coefficient: The backscatter coefficient to compute, either `sigma0` or `gamma0` (the default).
         :param orthorectify: Set to `true` to enable orthorectification. The non-orthorectified products use a
             simple earth model as provided in the products themselves. This may be sufficient for very
             flat target areas and is faster to process.
         :param elevation_model: The digital elevation model to use. Set to `null` (the default) to allow
             the back-end to choose, which will improve portability, but reduce reproducibility.
-        :param scaling: By default, all values are given in logarithmic decibel (dB) scale.
-            If set to `linear`, the values are given in linear scale.
+        :param rtc: Set to `false` to disable radiometrically terrain correction. By default, adjustments are made for
+            terrain by modelling the local illuminated reference area using an algorithm to produce a radiometrically
+            terrain corrected (RTC) values.
+        :param mask: If set to `true`, a data mask is added to the bands with the name `mask`. It indicates which values
+            are valid (1), invalid (0) or contain no-data (null).
+        :param contributing_area: If set to `true`, a DEM-based local contributing area band named `contributing_area`
+            is added. The values are given in square meters.
+        :param local_incidence_angle: If set to `true`, a DEM-based local incidence angle band named
+            `local_incidence_angle` is added. The values are given in degrees.
+        :param ellipsoid_incidence_angle: If set to `true`, an ellipsoidal incidence angle band named
+            `ellipsoid_incidence_angle` is added. The values are given in degrees.
+        :param noise_removal: If set to `false`, no noise removal is applied. Defaults to `true`, which removes noise.
         :param options: dictionary with additional options
         :return:
         """
         return self.process(process_id="sar_backscatter", arguments={
             "data": THIS,
-            "coefficient": coefficient,
             "orthorectify": orthorectify,
             "elevation_model": elevation_model,
-            "scaling": scaling,
+            "rtc": rtc,
+            "mask": mask,
+            "contributing_area": contributing_area,
+            "local_incidence_angle": local_incidence_angle,
+            "ellipsoid_incidence_angle": ellipsoid_incidence_angle,
+            "noise_removal": noise_removal,
             "options": options,
         })
