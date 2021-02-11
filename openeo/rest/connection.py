@@ -688,7 +688,7 @@ class Connection(RestApiConnection):
 
         if self._api_version.at_least("1.0.0"):
             graph = PGNode(process_id, kwargs)
-            return DataCube(graph, self)
+            return DataCube(graph=graph, connection=self)
         else:
             raise OpenEoClientException(
                 "This method requires support for at least version 1.0.0 in the openEO backend.")
