@@ -1301,6 +1301,22 @@ class DataCube(ImageCollection):
     ) -> 'DataCube':
         return self.aggregate_spatial(geometries=polygon, reducer=func)
 
+    def ard_surface_reflectance(self,atmospheric_correction_method:str,cloud_detection_method:str,elevation_model:str=None):
+        """
+        Computes CARD4L compliant surface reflectance values from optical input.
+
+        :param atmospheric_correction_method: The atmospheric correction method to use.
+        :param cloud_detection_method: The cloud detection method to use.
+        :param elevation_model: The digital elevation model to use, leave empty to allow the back-end to make a suitable choice.
+        :return: Data cube containing bottom of atmosphere reflectances with atmospheric disturbances like clouds and cloud shadows removed. The data returned is CARD4L compliant and contains metadata.
+        """
+        return self.process('atmospheric_correction', {
+            'data': THIS,
+            'atmospheric_correction_method': atmospheric_correction_method,
+            'cloud_detection_method':cloud_detection_method,
+            'elevation_model':elevation_model
+        })
+
     def atmospheric_correction(self,method=None):
         """
         EXPERIMENTAL
@@ -1501,6 +1517,26 @@ class DataCube(ImageCollection):
             # TODO: add subgraph for "reducer" arguments?
 
         return graph
+
+    def ard_normalized_radar_backscatter(self, elevation_model:str = None, ellipsoid_incidence_angle:bool = False, noise_removal:bool = True):
+        """
+        Computes CARD4L compliant backscatter (gamma0) from SAR input. This method is a variant of :meth:`openeo.rest.datacube.DataCube.sar_backscatter`,
+         with restricted parameters to generate backscatter according to CARD4L specifications.
+
+        Note that backscatter computation may require instrument specific metadata that is tightly coupled to the original SAR products.
+        As a result, this process may only work in combination with loading data from specific collections, not with general data cubes.
+
+        :param elevation_model: The digital elevation model to use. Set to None (the default) to allow the back-end to choose, which will improve portability, but reduce reproducibility.
+        :param ellipsoid_incidence_angle: If set to `True`, an ellipsoidal incidence angle band named `ellipsoid_incidence_angle` is added. The values are given in degrees.
+        :param noise_removal: If set to `false`, no noise removal is applied. Defaults to `True`, which removes noise.
+
+        :return: Backscatter values expressed as gamma0. The data returned is CARD4L compliant and contains metadata. By default, the backscatter values are given in linear scale.
+        """
+        return self.process(process_id="ard_normalized_radar_backscatter", arguments={
+            "data": THIS,
+            "elevation_model": elevation_model,
+            "ellipsoid_incidence_angle": ellipsoid_incidence_angle
+        })
 
     def sar_backscatter(
             self, orthorectify: bool = True, elevation_model: str = None, rtc: bool = True, mask: bool = False,
