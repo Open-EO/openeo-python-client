@@ -63,7 +63,7 @@ class TemporalDimension(Dimension):
 
 
 # Simple container class for band metadata (name, common name, wavelength in micrometer)
-Band = namedtuple("Band", ["name", "common_name", "wavelength_um"])
+Band = namedtuple("Band", ["name", "internal_name", "common_name", "wavelength_um"])
 
 
 class BandDimension(Dimension):
@@ -75,6 +75,10 @@ class BandDimension(Dimension):
     @property
     def band_names(self) -> List[str]:
         return [b.name for b in self.bands]
+
+    @property
+    def internal_band_names(self) -> List[str]:
+        return [b.internal_name for b in self.bands]
 
     @property
     def common_names(self) -> List[str]:
@@ -96,6 +100,10 @@ class BandDimension(Dimension):
                 return common_names.index(band)
             if band in band_names:
                 return band_names.index(band)
+            # Check internal band names to still support old band names
+            internal_band_names = self.internal_band_names
+            if band in internal_band_names:
+                return internal_band_names.index(band)
         raise ValueError("Invalid band name/index {b!r}. Valid names: {n!r}".format(b=band, n=band_names))
 
     def band_name(self, band: Union[str, int], allow_common=True) -> str:
@@ -143,11 +151,11 @@ class BandDimension(Dimension):
             for old_name,new_name in zip(source,target):
                 band_index = self.band_index(old_name)
                 the_band = new_bands[band_index]
-                new_bands[band_index] = Band(new_name,the_band.common_name,the_band.wavelength_um)
+                new_bands[band_index] = Band(new_name,new_name,the_band.common_name,the_band.wavelength_um)
         else:
             new_bands = []
             for new_name in target:
-                new_bands.append(Band(name=new_name,common_name=None,wavelength_um=None))
+                new_bands.append(Band(name=new_name,internal_name=new_name,common_name=None,wavelength_um=None))
         return BandDimension(self.name,new_bands)
 
 
@@ -227,7 +235,7 @@ class CollectionMetadata:
             elif dim_type == "temporal":
                 dimensions.append(TemporalDimension(name=name, extent=info.get("extent")))
             elif dim_type == "bands":
-                bands = [Band(b, None, None) for b in info.get("values", [])]
+                bands = [Band(b, b, None, None) for b in info.get("values", [])]
                 if not bands:
                     complain("No band names in dimension {d!r}".format(d=name))
                 dimensions.append(BandDimension(name=name, bands=bands))
@@ -242,7 +250,7 @@ class CollectionMetadata:
         )
         if eo_bands:
             # center_wavelength is in micrometer according to spec
-            bands_detailed = [Band(b['name'], b.get('common_name'), b.get('center_wavelength')) for b in eo_bands]
+            bands_detailed = [Band(b['name'], b.get('internal_name') or b['name'], b.get('common_name'), b.get('center_wavelength')) for b in eo_bands]
             # Update band dimension with more detailed info
             band_dimensions = [d for d in dimensions if d.type == "bands"]
             if len(band_dimensions) == 1:
@@ -318,6 +326,11 @@ class CollectionMetadata:
         return self.band_dimension.band_names
 
     @property
+    def internal_band_names(self) -> List[str]:
+        """Get internal band names of band dimension"""
+        return self.band_dimension.internal_band_names
+
+    @property
     def band_common_names(self) -> List[str]:
         return self.band_dimension.common_names
 
@@ -385,7 +398,7 @@ class CollectionMetadata:
     def add_dimension(self, name: str, label: Union[str, float], type: str = None) -> 'CollectionMetadata':
         """Create new metadata object with added dimension"""
         if type == "bands":
-            dim = BandDimension(name=name, bands=[Band(label, None, None)])
+            dim = BandDimension(name=name, bands=[Band(label, label, None, None)])
         elif type == "spatial":
             dim = SpatialDimension(name=name, extent=[label, label])
         elif type == "temporal":
