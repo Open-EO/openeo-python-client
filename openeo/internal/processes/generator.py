@@ -94,7 +94,7 @@ def generate_process_py(processes_dir: Union[Path, str], output=sys.stdout):
     processes = list(parse_all_from_dir(processes_dir))
 
     oo_src = textwrap.dedent("""
-        from openeo.processes.builder import ProcessBuilderBase, UNSET
+        from openeo.internal.processes.builder import ProcessBuilderBase, UNSET
         
         
         class ProcessBuilder(ProcessBuilderBase):
@@ -102,14 +102,26 @@ def generate_process_py(processes_dir: Union[Path, str], output=sys.stdout):
             def __add__(self, other) -> 'ProcessBuilder':
                 return self.add(other)
 
+            def __radd__(self, other) -> 'ProcessBuilder':
+                return add(other, self)
+
             def __sub__(self, other) -> 'ProcessBuilder':
                 return self.subtract(other)
 
+            def __rsub__(self, other) -> 'ProcessBuilder':
+                return subtract(other, self)
+            
             def __mul__(self, other) -> 'ProcessBuilder':
                 return self.multiply(other)
 
+            def __rmul__(self, other) -> 'ProcessBuilder':
+                return multiply(other, self)
+
             def __truediv__(self, other) -> 'ProcessBuilder':
                 return self.divide(other)
+
+            def __rtruediv__(self, other) -> 'ProcessBuilder':
+                return divide(other, self)
 
             def __neg__(self) -> 'ProcessBuilder':
                 return self.multiply(-1)

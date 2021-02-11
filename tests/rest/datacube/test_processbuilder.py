@@ -105,6 +105,13 @@ def test_apply_callback_math_lambda(con100):
     assert result.graph == load_json_resource('data/1.0.0/apply_math.json')
 
 
+def test_apply_callback_math_lambda_reflected(con100):
+    im = con100.load_collection("S2")
+    # Reflected operators __radd__, __rsub__, ...
+    result = im.apply(lambda data: 1 + (2 - (3 * (4 / data))))
+    assert result.graph == load_json_resource('data/1.0.0/apply_math_reflected.json')
+
+
 def test_apply_callback_math_custom_function(con100):
     def do_math(data: ProcessBuilder) -> ProcessBuilder:
         return (((data + 1) - 2) * 3) / 4
@@ -112,6 +119,16 @@ def test_apply_callback_math_custom_function(con100):
     im = con100.load_collection("S2")
     result = im.apply(do_math)
     assert result.graph == load_json_resource('data/1.0.0/apply_math.json')
+
+
+def test_apply_callback_math_custom_function_reflected(con100):
+    # Reflected operators __radd__, __rsub__, ...
+    def do_math(data: ProcessBuilder) -> ProcessBuilder:
+        return 1 + (2 - (3 * (4 / data)))
+
+    im = con100.load_collection("S2")
+    result = im.apply(do_math)
+    assert result.graph == load_json_resource('data/1.0.0/apply_math_reflected.json')
 
 
 def test_apply_neighborhood_trim_str(con100):

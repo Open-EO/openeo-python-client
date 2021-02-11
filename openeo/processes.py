@@ -10,14 +10,26 @@ class ProcessBuilder(ProcessBuilderBase):
     def __add__(self, other) -> 'ProcessBuilder':
         return self.add(other)
 
+    def __radd__(self, other) -> 'ProcessBuilder':
+        return add(other, self)
+
     def __sub__(self, other) -> 'ProcessBuilder':
         return self.subtract(other)
+
+    def __rsub__(self, other) -> 'ProcessBuilder':
+        return subtract(other, self)
 
     def __mul__(self, other) -> 'ProcessBuilder':
         return self.multiply(other)
 
+    def __rmul__(self, other) -> 'ProcessBuilder':
+        return multiply(other, self)
+
     def __truediv__(self, other) -> 'ProcessBuilder':
         return self.divide(other)
+
+    def __rtruediv__(self, other) -> 'ProcessBuilder':
+        return divide(other, self)
 
     def __neg__(self) -> 'ProcessBuilder':
         return self.multiply(-1)

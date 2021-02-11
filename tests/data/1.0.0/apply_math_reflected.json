@@ -1,0 +1,60 @@
+{
+  "loadcollection1": {
+    "process_id": "load_collection",
+    "arguments": {
+      "spatial_extent": null,
+      "id": "S2",
+      "temporal_extent": null
+    }
+  },
+  "apply1": {
+    "process_id": "apply",
+    "arguments": {
+      "data": {
+        "from_node": "loadcollection1"
+      },
+      "process": {
+        "process_graph": {
+          "divide1": {
+            "process_id": "divide",
+            "arguments": {
+              "x": 4,
+              "y": {
+                "from_parameter": "x"
+              }
+            }
+          },
+          "multiply1": {
+            "process_id": "multiply",
+            "arguments": {
+              "x": 3,
+              "y": {
+                "from_node": "divide1"
+              }
+            }
+          },
+          "subtract1": {
+            "process_id": "subtract",
+            "arguments": {
+              "x": 2,
+              "y": {
+                "from_node": "multiply1"
+              }
+            }
+          },
+          "add1": {
+            "process_id": "add",
+            "arguments": {
+              "x": 1,
+              "y": {
+                "from_node": "subtract1"
+              }
+            },
+            "result": true
+          }
+        }
+      }
+    },
+    "result": true
+  }
+}

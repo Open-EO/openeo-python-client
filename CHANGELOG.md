@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add "reflected" operator support to `ProcessBuilder` 
+
 ### Changed
 
 - Mark `Connection.imagecollection` more clearly as deprecated/legacy alias of `Connection.load_collection`
