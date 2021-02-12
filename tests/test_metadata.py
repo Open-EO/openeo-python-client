@@ -218,9 +218,9 @@ def test_get_dimensions_cube_dimensions_eo_bands():
         SpatialDimension(name="y", extent=[-56, 83], crs=123),
         TemporalDimension(name="t", extent=["2020-02-20", None]),
         BandDimension(name="spectral", bands=[
-            Band("r", "red", 5),
-            Band("g", None, 8),
-            Band("b", "blue", None),
+            Band("r", "red", 5, "r"),
+            Band("g", None, 8, "g"),
+            Band("b", "blue", None, "b"),
         ])
     ])
 
@@ -264,9 +264,9 @@ def test_get_dimensions_eo_bands_only():
     }, complain=logs.append)
     assert_same_dimensions(dims, [
         BandDimension(name="bands", bands=[
-            Band("y", "yellow", 5),
-            Band("c", None, 8),
-            Band("m", "magenta", None),
+            Band("y", "yellow", 5, "y"),
+            Band("c", None, 8, "c"),
+            Band("m", "magenta", None, "m"),
         ])
     ])
     assert logs == [
@@ -383,8 +383,8 @@ def test_metadata_bands_dimension_eo_bands(spec):
     metadata = CollectionMetadata(spec)
     assert metadata.band_dimension.name == "bands"
     assert metadata.bands == [
-        Band("foo", "F00", 0.543),
-        Band("bar", None, None)
+        Band("foo", "F00", 0.543, "foo"),
+        Band("bar", None, None, "bar")
     ]
     assert metadata.band_names == ["foo", "bar"]
     assert metadata.band_common_names == ["F00", None]
@@ -422,8 +422,8 @@ def test_metadata_bands_dimension(spec):
     metadata = CollectionMetadata(spec)
     assert metadata.band_dimension.name == "b"
     assert metadata.bands == [
-        Band("foo", "F00", 0.543),
-        Band("bar", None, None)
+        Band("foo", "F00", 0.543, "foo"),
+        Band("bar", None, None, "bar")
     ]
     assert metadata.band_names == ["foo", "bar"]
     assert metadata.band_common_names == ["F00", None]
