@@ -1541,7 +1541,7 @@ class DataCube(ImageCollection):
     def sar_backscatter(
             self, orthorectify: bool = True, elevation_model: str = None, rtc: bool = True, mask: bool = False,
             contributing_area: bool = False, local_incidence_angle: bool = False,
-            ellipsoid_incidence_angle: bool = False, noise_removal: bool = False, options: dict = None
+            ellipsoid_incidence_angle: bool = False, noise_removal: bool = True, options: dict = None
     ):
         """
         *EXPERIMENTAL*
