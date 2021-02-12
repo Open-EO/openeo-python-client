@@ -1535,7 +1535,8 @@ class DataCube(ImageCollection):
         return self.process(process_id="ard_normalized_radar_backscatter", arguments={
             "data": THIS,
             "elevation_model": elevation_model,
-            "ellipsoid_incidence_angle": ellipsoid_incidence_angle
+            "ellipsoid_incidence_angle": ellipsoid_incidence_angle,
+            "noise_removal": noise_removal
         })
 
     def sar_backscatter(
