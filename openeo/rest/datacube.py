@@ -230,7 +230,7 @@ class DataCube(ImageCollection):
             start_date: Union[str, datetime.datetime, datetime.date] = None,
             end_date: Union[str, datetime.datetime, datetime.date] = None,
             extent: Union[list, tuple] = None
-    ) -> 'ImageCollection':
+    ) -> 'DataCube':
         """
         Limit the DataCube to a certain date range, which can be specified in several ways:
 
