@@ -1301,7 +1301,7 @@ class DataCube(ImageCollection):
     ) -> 'DataCube':
         return self.aggregate_spatial(geometries=polygon, reducer=func)
 
-    def ard_surface_reflectance(self,atmospheric_correction_method:str,cloud_detection_method:str,elevation_model:str=None):
+    def ard_surface_reflectance(self,atmospheric_correction_method:str,cloud_detection_method:str,elevation_model:str=None) -> 'DataCube':
         """
         Computes CARD4L compliant surface reflectance values from optical input.
 
@@ -1317,22 +1317,24 @@ class DataCube(ImageCollection):
             'elevation_model':elevation_model
         })
 
-    def atmospheric_correction(self,method=None):
+    def atmospheric_correction(self,method:str=None,elevation_model:str=None) -> 'DataCube':
         """
-        EXPERIMENTAL
         Applies an atmospheric correction that converts top of atmosphere reflectance values into bottom of atmosphere/top of canopy reflectance values.
 
         Note that multiple atmospheric methods exist, but may not be supported by all backends. The method parameter gives
         you the option of requiring a specific method, but this may result in an error if the backend does not support it.
 
+        :param method: The atmospheric correction method to use. To get reproducible results, you have to set a specific method. Set to `null` to allow the back-end to choose, which will improve portability, but reduce reproducibility as you *may* get different results if you run the processes multiple times.
+        :param elevation_model: The digital elevation model to use, leave empty to allow the back-end to make a suitable choice.
         :return: datacube with bottom of atmosphere reflectances
         """
         return self.process('atmospheric_correction', {
             'data': THIS,
-            'method': method
+            'method': method,
+            'elevation_model': elevation_model
         })
 
-    def save_result(self, format: str = "GTiff", options: dict = None):
+    def save_result(self, format: str = "GTiff", options: dict = None) -> 'DataCube':
         formats = set(self._connection.list_output_formats().keys())
         if format.lower() not in {f.lower() for f in formats}:
             raise ValueError("Invalid format {f!r}. Should be one of {s}".format(f=format, s=formats))
