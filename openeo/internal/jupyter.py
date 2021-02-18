@@ -1,9 +1,11 @@
 import json
 
-SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/@openeo/vue-components@2.0.0-rc.2/assets/openeo.min.js'
+SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/@openeo/vue-components@2.0.0-rc.4/assets/openeo.min.js'
 COMPONENT_MAP = {
+    'collection': 'data',
     'file-format': 'format',
     'file-formats': 'formats',
+    'item': 'data',
     'service-type': 'service',
     'service-types': 'services',
     'udf-runtime': 'runtime',
@@ -11,6 +13,10 @@ COMPONENT_MAP = {
 }
 
 def render_component(component: str, data = None, parameters: dict = {}):
+    # Special handling for batch job results, show either item or collection depending on the data
+    if component == "batch-job-result":
+        component = "item" if data["type"] == "Feature" else "collection"
+
     # Set the data as the corresponding parameter in the Vue components
     key = COMPONENT_MAP.get(component, component)
     if data != None:

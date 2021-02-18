@@ -4,6 +4,7 @@ from typing import Union, Dict, Tuple
 from openeo.rest import OpenEoClientException
 from openeo.util import ensure_dir
 from requests import Response
+from openeo.internal.jupyter import render_component
 
 
 class Result:
@@ -66,11 +67,18 @@ class Result:
         return assets.popitem()
 
     def _get_assets(self) -> Dict[str, dict]:
-        results_url = "/jobs/{}/results".format(self.job.job_id)
-        response = self.job.connection.get(results_url, expected_status=200).json()
+        response = self.load()
         if "assets" in response:
             # API 1.0 style: dictionary mapping filenames to metadata dict (with at least a "href" field)
             return response["assets"]
         else:
             # Best effort translation of on old style to "assets" style (#134)
             return {a["href"].split("/")[-1]: a for a in response["links"]}
+
+    def load(self) -> dict:
+        results_url = "/jobs/{}/results".format(self.job.job_id)
+        return self.job.connection.get(results_url, expected_status=200).json()
+
+    def _repr_html_(self):
+        response = self.load()
+        return render_component("batch-job-result", data = response)

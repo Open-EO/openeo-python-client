@@ -13,6 +13,7 @@ from openeo.job import Job, JobResult, JobLogEntry
 from openeo.rest import OpenEoClientException, JobFailedException
 from openeo.rest.result import Result
 from openeo.util import ensure_dir
+from openeo.internal.jupyter import VisualDict
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Only import this for type hinting purposes. Runtime import causes circular dependency issues.
@@ -74,10 +75,11 @@ class RESTJob(Job):
 
         return request.status_code
 
-    def list_results(self, type=None):
+    def list_results(self):
         """ Get document with download links."""
         # GET /jobs/{job_id}/results
-        raise NotImplementedError
+        result = self.get_result().load()
+        return VisualDict("batch-job-result", data = result)
 
     def download_result(self, target: Union[str, Path] = None) -> Path:
         """
