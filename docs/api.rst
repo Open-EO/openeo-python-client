@@ -36,3 +36,16 @@ openeo.rest.connection
 
 .. automodule:: openeo.rest.connection
    :members: Connection, OpenEoApiError
+
+openeo.rest.connection
+----------------------
+
+.. automodule:: openeo.rest.connection
+   :members: Connection, OpenEoApiError
+
+
+openeo.job
+----------------------
+
+.. automodule:: openeo.job
+   :members: Job, JobResult, JobLogEntry
