@@ -510,14 +510,9 @@ class Connection(RestApiConnection):
         """
         return self.get('/me').json()
 
+    @deprecated("use `list_jobs() instead")
     def user_jobs(self) -> dict:
-        """
-        Loads all jobs of the current user.
-
-        :return: jobs: Dict All jobs of the user
-        """
-        # TODO duplication with `list_jobs()` method
-        return self.get('/jobs').json()["jobs"]
+        return self.list_jobs()
 
     def list_collections(self) -> List[dict]:
         """
@@ -623,8 +618,7 @@ class Connection(RestApiConnection):
 
         :return: job_list: Dict of all jobs of the user.
         """
-        # TODO: Maybe format the result so that there get Job classes returned.
-        # TODO: duplication with `user_jobs()` method
+        # TODO: Parse the result so that there get Job classes returned?
         return self.get('/jobs').json()["jobs"]
 
     def save_user_defined_process(
