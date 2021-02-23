@@ -20,6 +20,7 @@ Open-EO Client
    udp
    auth
    udf
+   ard
    api
    development
 
