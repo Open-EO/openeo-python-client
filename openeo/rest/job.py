@@ -65,10 +65,9 @@ class RESTJob(Job):
 
         return request.status_code
 
-    def list_results(self, type=None):
+    def list_results(self) -> dict:
         """ Get document with download links."""
-        # GET /jobs/{job_id}/results
-        raise NotImplementedError
+        return self.connection.get("/jobs/{}/results".format(self.job_id), expected_status=200).json()
 
     def download_result(self, target: Union[str, Path] = None) -> Path:
         """

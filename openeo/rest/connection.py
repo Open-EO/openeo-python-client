@@ -738,9 +738,11 @@ class Connection(RestApiConnection):
         """
         response = self.delete('/services/' + service_id)
 
+    @deprecated("Use `RESTJob.list_results() instead")
     def job_results(self, job_id):
-        return self.get("/jobs/{}/results".format(job_id)).json()
+        return RESTJob(job_id, connection=self).list_results()
 
+    @deprecated("Use `RESTJob.logs() instead")
     def job_logs(self, job_id, offset):
         return self.get("/jobs/{}/logs".format(job_id), params={'offset': offset}).json()
 

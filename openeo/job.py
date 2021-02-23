@@ -54,11 +54,6 @@ class Job(ABC):
         # DELETE /jobs/{job_id}/results
         pass
 
-    def list_results(self, type=None):
-        """ Get document with download links."""
-        # GET /jobs/{job_id}/results
-        pass
-
     def download_results(self, target):
         """ Download job results."""
         # GET /jobs/{job_id}/results > ...

@@ -143,6 +143,7 @@ def test_download_result_040(session040, requests_mock, tmp_path):
     ]})
     requests_mock.get(API_URL + "/dl/jjr1.tiff", content=TIFF_CONTENT)
     job = RESTJob("jj", connection=session040)
+    assert job.list_results() == {'links': [{'href': 'https://oeo.test/dl/jjr1.tiff'}]}
     target = as_path(tmp_path / "result.tiff")
     res = job.download_result(target)
     assert res == target
@@ -156,6 +157,7 @@ def test_download_result(con100, requests_mock, tmp_path):
     }})
     requests_mock.get(API_URL + "/dl/jjr1.tiff", content=TIFF_CONTENT)
     job = RESTJob("jj", connection=con100)
+    assert job.list_results() == {'assets': {'1.tiff': {'href': 'https://oeo.test/dl/jjr1.tiff'}}}
     target = as_path(tmp_path / "result.tiff")
     res = job.download_result(target)
     assert res == target
@@ -169,6 +171,7 @@ def test_download_result_folder(con100, requests_mock, tmp_path):
     }})
     requests_mock.get(API_URL + "/dl/jjr1.tiff", content=TIFF_CONTENT)
     job = RESTJob("jj", connection=con100)
+    assert job.list_results() == {'assets': {'1.tiff': {'href': 'https://oeo.test/dl/jjr1.tiff'}}}
     target = as_path(tmp_path / "folder")
     target.mkdir()
     res = job.download_result(target)
@@ -218,6 +221,10 @@ def test_download_results(con100, requests_mock, tmp_path):
     requests_mock.get(API_URL + "/dl/jjr1.tiff", content=TIFF_CONTENT)
     requests_mock.get(API_URL + "/dl/jjr2.tiff", content=TIFF_CONTENT)
     job = RESTJob("jj", connection=con100)
+    assert job.list_results() == {'assets': {
+        '1.tiff': {'href': 'https://oeo.test/dl/jjr1.tiff', 'type': 'image/tiff; application=geotiff'},
+        '2.tiff': {'href': 'https://oeo.test/dl/jjr2.tiff', 'type': 'image/tiff; application=geotiff'}
+    }}
     target = as_path(tmp_path / "folder")
     target.mkdir()
     downloads = job.download_results(target)
