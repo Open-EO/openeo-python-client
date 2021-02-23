@@ -3,14 +3,6 @@ from abc import ABC
 from typing import List
 
 
-class JobResult:
-    """
-    Represents the result of running a `batch <https://openeo.org/documentation/1.0/glossary.html#data-processing-modes>`_ job.
-    """
-
-    def save_as(self, target_file) -> None:
-        pass
-
 
 class JobLogEntry:
     """
@@ -88,9 +80,6 @@ class Job(ABC):
 
     def queue(self):
         """ Queues the job. """
-        pass
-
-    def results(self) -> List[JobResult]:
         pass
 
     def __repr__(self):

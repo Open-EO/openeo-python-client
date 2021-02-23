@@ -2,14 +2,13 @@ import datetime
 import logging
 import time
 import typing
-import urllib.request
 from pathlib import Path
 from typing import List, Union, Dict
 
 from deprecated import deprecated
 from requests import ConnectionError
 
-from openeo.job import Job, JobResult, JobLogEntry
+from openeo.job import Job, JobLogEntry
 from openeo.rest import OpenEoClientException, JobFailedException
 from openeo.rest.result import Result
 from openeo.util import ensure_dir
@@ -20,14 +19,6 @@ if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     from openeo.rest.connection import Connection
 
 logger = logging.getLogger(__name__)
-
-
-class RESTJobResult(JobResult):
-    def __init__(self, url):
-        self.url = url
-
-    def save_as(self, target_file):
-        urllib.request.urlretrieve(self.url, target_file)
 
 
 class RESTJob(Job):
@@ -119,11 +110,6 @@ class RESTJob(Job):
     def queue(self):
         """ Queues the job. """
         return self.connection.queue_job(self.job_id)
-
-    @deprecated
-    def results(self) -> List[RESTJobResult]:
-        """ Returns this job's results. """
-        return [RESTJobResult(link['href']) for link in self.connection.job_results(self.job_id)['links']]
 
     def logs(self, offset=None) -> List[JobLogEntry]:
         """ Retrieve job logs."""
