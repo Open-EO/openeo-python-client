@@ -35,3 +35,17 @@ The CARD4L variant of this process is: :func:`~openeo.rest.datacube.DataCube.ard
 CEOS specifications, and thus can additional processing steps, like a BRDF correction, that are not yet available as a
 separate process.
 
+
+SAR backscatter
+---------------
+
+Data from synthetic aperture radar sensors requires significant preprocessing to be calibrated and normalized for terrain.
+This is referred to as backscatter computation, and supported by
+`sar_backscatter <https://processes.openeo.org/draft/#sar_backscatter>`_ and the CARD4L compliant variant
+`ard_normalized_radar_backscatter <https://processes.openeo.org/draft/#ard_normalized_radar_backscatter>`_
+
+The user should load a datacube containing raw SAR data, such as Sentinel-1 GRD. On the resulting datacube, the
+:func:`~openeo.rest.datacube.DataCube.sar_backscatter` method can be invoked. The CEOS CARD4L variant is:
+:func:`~openeo.rest.datacube.DataCube.ard_normalized_radar_backscatter`. These processes are tightly coupled to
+metadata from specific sensors, so it is not possible to apply other processes to the datacube first,
+with the exception of specifying filters in space and time.
