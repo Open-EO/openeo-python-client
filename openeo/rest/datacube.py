@@ -1382,23 +1382,10 @@ class DataCube(ImageCollection):
 
         """
         job = self.send_job(out_format, job_options=job_options, **format_options)
-        job = job.run_synchronous(
-            outputfile=None,
+        return job.run_synchronous(
+            outputfile=outputfile,
             print=print, max_poll_interval=max_poll_interval, connection_retry_interval=connection_retry_interval
         )
-        # relying on RestJOB::start_and_wait called in run_synchronous throws if job is not finished properly
-        # TODO: avoid calling private methods from openeo.rest.Result
-        result = job.get_result()
-        assets = result._get_assets();
-        if (len(assets)==1):
-            result._download_url(assets.popitem()[1]["href"], pathlib.Path(outputfile))
-        else:
-            # TODO: find a mechanism that works accross the backends that can reliable choose "primary" result
-            log.warning("FIXME: Multiple result files detected, those will be saved by the name advertised on the server!")
-            for iname,iurl in assets.items():
-                result._download_url(iurl["href"], pathlib.Path(iname))
-                
-        return job
 
     def send_job(
             self, out_format=None, title: str = None, description: str = None, plan: str = None, budget=None,
