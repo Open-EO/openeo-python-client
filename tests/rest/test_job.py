@@ -219,7 +219,8 @@ def test_download_result_multiple(con100, requests_mock, tmp_path):
         "2.tiff": {"href": API_URL + "/dl/jjr2.tiff"},
     }})
     job = RESTJob("jj", connection=con100)
-    with pytest.raises(OpenEoClientException, match="Expected one result file to download, but got 2"):
+    expected = r"Failed to get single asset \(name None\) from \['1.tiff', '2.tiff'\]"
+    with pytest.raises(OpenEoClientException, match=expected):
         job.download_result(tmp_path / "res.tiff")
 
 
@@ -302,6 +303,7 @@ def test_get_results_download_files(con100, requests_mock, tmp_path):
     }})
     requests_mock.get(API_URL + "/dl/jjr1.tiff", content=TIFF_CONTENT)
     requests_mock.get(API_URL + "/dl/jjr2.tiff", content=TIFF_CONTENT)
+
     job = RESTJob("jj", connection=con100)
     assert job.list_results() == {'assets': {
         '1.tiff': {'href': 'https://oeo.test/dl/jjr1.tiff', 'type': 'image/tiff; application=geotiff'},
@@ -310,6 +312,13 @@ def test_get_results_download_files(con100, requests_mock, tmp_path):
     target = as_path(tmp_path / "folder")
     target.mkdir()
     results = job.get_results()
+
+    assets = job.get_results().get_assets()
+    assert {n: a.metadata for n, a in assets.items()} == {
+        "1.tiff": {"href": API_URL + "/dl/jjr1.tiff", "type": "image/tiff; application=geotiff"},
+        "2.tiff": {"href": API_URL + "/dl/jjr2.tiff", "type": "image/tiff; application=geotiff"},
+    }
+
     downloads = results.download_files(target)
     assert set(downloads) == {target / "1.tiff", target / "2.tiff"}
     assert set(p.name for p in target.iterdir()) == {"1.tiff", "2.tiff"}

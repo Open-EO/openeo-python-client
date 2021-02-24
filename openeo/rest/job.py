@@ -10,7 +10,6 @@ from requests import ConnectionError, Response
 
 from openeo.job import Job, JobLogEntry
 from openeo.rest import OpenEoClientException, JobFailedException
-from openeo.rest.result import Result
 from openeo.util import ensure_dir
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
@@ -77,11 +76,12 @@ class RESTJob(Job):
 
         :param target: String or path where the file should be downloaded to.
         """
-        return self.get_result().download_file(target)
+        return self.get_results().download_file(target=target)
 
+    @deprecated("Use `get_results().download_files()` instead")
     def download_results(self, target: Union[str, Path] = None) -> Dict[Path, dict]:
         """
-        Download job results into given folder (current working dir by default).
+        Download all job result files into given folder (current working dir by default).
 
         The names of the files are taken directly from the backend.
 
@@ -90,9 +90,9 @@ class RESTJob(Job):
         """
         return self.get_result().download_files(target)
 
-    @deprecated("Use get_results() instead.")
+    @deprecated("Use `get_results()` instead.")
     def get_result(self):
-        return Result(self)
+        return _Result(self)
 
     def get_results(self) -> "JobResults":
         return JobResults(self)
@@ -289,3 +289,31 @@ class JobResults:
         if target.exists() and not target.is_dir():
             raise OpenEoClientException("The target argument must be a folder. Got {t!r}".format(t=str(target)))
         return [a.download(target) for a in self.get_assets().values()]
+
+
+@deprecated("Use `JobResults` instead")
+class _Result:
+    """Wrapper around `JobResults` to adapt old deprecated "Result" API."""
+
+    # TODO: deprecated: remove this
+
+    def __init__(self, job):
+        self.results = JobResults(job=job)
+
+    def download_file(self, target: Union[str, Path] = None) -> Path:
+        return self.results.download_file(target=target)
+
+    def download_files(self, target: Union[str, Path] = None) -> Dict[Path, dict]:
+        target = Path(target or Path.cwd())
+        if target.exists() and not target.is_dir():
+            raise OpenEoClientException("The target argument must be a folder. Got {t!r}".format(t=str(target)))
+        return {
+            asset.download(target): asset.metadata
+            for name, asset in self.results.get_assets().items()
+        }
+
+    def load_json(self) -> dict:
+        return self.results.get_asset().load_json()
+
+    def load_bytes(self) -> bytes:
+        return self.results.get_asset().load_bytes()
