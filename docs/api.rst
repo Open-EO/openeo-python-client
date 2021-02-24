@@ -47,5 +47,5 @@ openeo.rest.connection
 openeo.job
 ----------------------
 
-.. automodule:: openeo.job
-   :members: Job, JobResult, JobLogEntry
+.. automodule:: openeo.rest.job
+   :members: RESTJob, JobLogEntry, JobResults

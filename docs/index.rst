@@ -17,6 +17,7 @@ Open-EO Client
    basics
    data_access
    processes
+   batch_jobs
    udp
    auth
    udf

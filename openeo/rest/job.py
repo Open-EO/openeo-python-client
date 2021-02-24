@@ -3,10 +3,10 @@ import logging
 import time
 import typing
 from pathlib import Path
-from typing import List, Union, Dict
+from typing import List, Union, Dict, Optional
 
 from deprecated import deprecated
-from requests import ConnectionError
+from requests import ConnectionError, Response
 
 from openeo.job import Job, JobLogEntry
 from openeo.rest import OpenEoClientException, JobFailedException
@@ -90,8 +90,12 @@ class RESTJob(Job):
         """
         return self.get_result().download_files(target)
 
+    @deprecated("Use get_results() instead.")
     def get_result(self):
         return Result(self)
+
+    def get_results(self) -> "JobResults":
+        return JobResults(self)
 
     @deprecated
     def download(self, outputfile: str, outputformat=None):
@@ -169,3 +173,119 @@ class RESTJob(Job):
             ), job=self)
 
         return self
+
+
+class ResultAsset:
+    """
+    Result asset of a batch job (e.g. a GeoTIFF or JSON file)
+    """
+
+    def __init__(self, job: RESTJob, name: str, href: str, metadata: dict):
+        self.job = job
+        self.name = name
+        self.href = href
+        self.metadata = metadata
+
+    def download(self, target: Optional[Union[Path, str]] = None, chunk_size=None) -> Path:
+        """
+        Download asset to given location
+
+        :param target: download target path
+        """
+        target = Path(target or Path.cwd())
+        if target.is_dir():
+            target = target / self.name
+        ensure_dir(target.parent)
+        logger.info("Downloading Job result asset {n!r} from {h!s} to {t!s}".format(n=self.name, h=self.href, t=target))
+        with target.open("wb") as f:
+            response = self._get_response(stream=True)
+            for block in response.iter_content(chunk_size=chunk_size):
+                f.write(block)
+        return target
+
+    def _get_response(self, stream=True) -> Response:
+        return self.job.connection.get(self.href, stream=stream)
+
+    def load_json(self) -> dict:
+        """Load asset in memory and parse as JSON."""
+        if not (self.name.lower().endswith(".json") or self.metadata.get("type") == "application/json"):
+            logger.warning("Asset might not be JSON")
+        return self._get_response().json()
+
+    def load_bytes(self) -> bytes:
+        """Load asset in memory as raw bytes."""
+        return self._get_response().content
+
+    # TODO: more `load` methods e.g.: load GTiff asset directly as numpy array
+
+
+class JobResults:
+    """
+    Results of a batch job: listing of output files (URLs) and
+    some metadata.
+    """
+
+    def __init__(self, job: RESTJob):
+        self._job = job
+        self._results_url = "/jobs/{j}/results".format(j=self._job.job_id)
+        self._results = None
+
+    def get_metadata(self, force=False) -> dict:
+        """Get batch job results metadata (parsed JSON)"""
+        if self._results is None or force:
+            self._results = self._job.connection.get(self._results_url, expected_status=200).json()
+        return self._results
+
+    # TODO: provide methods for `stac_version`, `id`, `geometry`, `properties`, `links`, ...?
+
+    def get_assets(self) -> Dict[str, ResultAsset]:
+        metadata = self.get_metadata()
+        if "assets" in metadata:
+            # API 1.0 style: dictionary mapping filenames to metadata dict (with at least a "href" field)
+            assets = metadata["assets"]
+        else:
+            # Best effort translation of on old style to "assets" style (#134)
+            assets = {a["href"].split("/")[-1]: a for a in metadata["links"]}
+        return {
+            name: ResultAsset(job=self._job, name=name, href=asset["href"], metadata=asset)
+            for name, asset in assets.items()
+        }
+
+    def get_asset(self, name: str = None) -> ResultAsset:
+        """Get single asset by name or without name if there is only one."""
+        # TODO: also support getting a single asset by type or role?
+        assets = self.get_assets()
+        if len(assets) == 0:
+            raise OpenEoClientException("No assets in result.")
+        if name in assets:
+            return assets[name]
+        elif name is None and len(assets) == 1:
+            return assets.popitem()[1]
+        else:
+            raise OpenEoClientException(
+                "Failed to get single asset (name {n!r}) from {a}".format(n=name, a=list(assets.keys()))
+            )
+
+    def download_file(self, target: Union[Path, str] = None, name: str = None) -> Path:
+        """
+        Download single asset.
+
+        :param target: path to download to. Can be an existing directory
+            (in which case the filename advertised by backend will be used)
+            or full file name. By default, the working directory will be used.
+        :param name: asset name to download (not required when there is only one asset)
+        :return: path of downloaded asset
+        """
+        return self.get_asset(name=name).download(target=target)
+
+    def download_files(self, target: Union[Path, str] = None) -> List[Path]:
+        """
+        Download all assets to given folder.
+
+        :param target: path to folder to download to (must be a folder if it already exists)
+        :return: list of paths to the downloaded assets.
+        """
+        target = Path(target or Path.cwd())
+        if target.exists() and not target.is_dir():
+            raise OpenEoClientException("The target argument must be a folder. Got {t!r}".format(t=str(target)))
+        return [a.download(target) for a in self.get_assets().values()]
