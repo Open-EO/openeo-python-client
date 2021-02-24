@@ -241,11 +241,11 @@ def test_get_results_multiple_download_single_by_name(con100, requests_mock, tmp
     }})
     requests_mock.get(API_URL + "/dl/jjr1.tiff", content=TIFF_CONTENT)
     job = RESTJob("jj", connection=con100)
-    target = tmp_path / "res.tiff"
+    target = as_path(tmp_path / "res.tiff")
     path = job.get_results().download_file(target, name="1.tiff")
     assert path == target
     assert list(p.name for p in tmp_path.iterdir()) == ["res.tiff"]
-    with (path).open("rb") as f:
+    with path.open("rb") as f:
         assert f.read() == TIFF_CONTENT
 
 
