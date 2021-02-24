@@ -87,6 +87,9 @@ class RESTJob(Job):
 
         :param target: String/path, folder where to put the result files.
         :return: file_list: Dict containing the downloaded file path as value and asset metadata
+
+        .. deprecated:: 0.4.10
+            use :py:meth:`get_results` and the more flexible download functionality of :py:class:`JobResults` instead
         """
         return self.get_result().download_files(target)
 
@@ -95,11 +98,13 @@ class RESTJob(Job):
         return _Result(self)
 
     def get_results(self) -> "JobResults":
+        """
+        Get handle to batch job results for result metadata inspection or downloading resulting assets.
+        """
         return JobResults(self)
 
     @deprecated
     def download(self, outputfile: str, outputformat=None):
-        """ Download the result as a raster."""
         try:
             return self.connection.download_job(self.job_id, outputfile, outputformat)
         except ConnectionAbortedError as e:
@@ -108,11 +113,6 @@ class RESTJob(Job):
     def status(self):
         """ Returns the status of the job."""
         return self.describe_job().get("status", "N/A")
-
-    @deprecated
-    def queue(self):
-        """ Queues the job. """
-        return self.connection.queue_job(self.job_id)
 
     def logs(self, offset=None) -> List[JobLogEntry]:
         """ Retrieve job logs."""
@@ -190,7 +190,9 @@ class ResultAsset:
         """
         Download asset to given location
 
-        :param target: download target path
+        :param target: download target path. Can be an existing folder
+            (in which case the filename advertised by backend will be used)
+            or full file name. By default, the working directory will be used.
         """
         target = Path(target or Path.cwd())
         if target.is_dir():
@@ -225,8 +227,8 @@ class MultipleAssetException(OpenEoClientException):
 
 class JobResults:
     """
-    Results of a batch job: listing of output files (URLs) and
-    some metadata.
+    Results of a batch job: listing of one or more output files (assets)
+    and some metadata.
     """
 
     def __init__(self, job: RESTJob):
@@ -243,6 +245,10 @@ class JobResults:
     # TODO: provide methods for `stac_version`, `id`, `geometry`, `properties`, `links`, ...?
 
     def get_assets(self) -> Dict[str, ResultAsset]:
+        """
+        Get all assets from the job results as a dictionary mapping the asset name (as advertised by the backend)
+        to a :py:class:`ResultAsset` instance.
+        """
         metadata = self.get_metadata()
         if "assets" in metadata:
             # API 1.0 style: dictionary mapping filenames to metadata dict (with at least a "href" field)
@@ -256,7 +262,9 @@ class JobResults:
         }
 
     def get_asset(self, name: str = None) -> ResultAsset:
-        """Get single asset by name or without name if there is only one."""
+        """
+        Get single asset by name or without name if there is only one.
+        """
         # TODO: also support getting a single asset by type or role?
         assets = self.get_assets()
         if len(assets) == 0:
@@ -277,7 +285,8 @@ class JobResults:
 
     def download_file(self, target: Union[Path, str] = None, name: str = None) -> Path:
         """
-        Download single asset.
+        Download single asset. Can be used when there is only one asset in the
+        :py:class:`JobResults`, or when the desired asset name is given explicitly.
 
         :param target: path to download to. Can be an existing directory
             (in which case the filename advertised by backend will be used)

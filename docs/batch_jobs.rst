@@ -12,7 +12,7 @@ Download batch job results
 
 Once a batch job is finished you can get a handle to the results
 (which can be a single file or multiple files) and metadata
-with :py:meth:`openeo.rest.job.RESTJob.get_results` ::
+with :py:meth:`~openeo.rest.job.RESTJob.get_results` ::
 
     results = job.get_results()
 
