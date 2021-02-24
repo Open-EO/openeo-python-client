@@ -219,7 +219,7 @@ def test_download_result_multiple(con100, requests_mock, tmp_path):
         "2.tiff": {"href": API_URL + "/dl/jjr2.tiff"},
     }})
     job = RESTJob("jj", connection=con100)
-    expected = r"Failed to get single asset \(name None\) from \['1.tiff', '2.tiff'\]"
+    expected = r"Can not use `download_file` with multiple assets. Use `download_files` instead"
     with pytest.raises(OpenEoClientException, match=expected):
         job.download_result(tmp_path / "res.tiff")
 
@@ -230,7 +230,7 @@ def test_get_results_multiple_download_single(con100, requests_mock, tmp_path):
         "2.tiff": {"href": API_URL + "/dl/jjr2.tiff"},
     }})
     job = RESTJob("jj", connection=con100)
-    expected = r"Failed to get single asset \(name None\) from \['1.tiff', '2.tiff'\]"
+    expected = r"Can not use `download_file` with multiple assets. Use `download_files` instead"
     with pytest.raises(OpenEoClientException, match=expected):
         job.get_results().download_file(tmp_path / "res.tiff")
 

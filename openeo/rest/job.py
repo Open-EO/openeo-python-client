@@ -219,6 +219,10 @@ class ResultAsset:
     # TODO: more `load` methods e.g.: load GTiff asset directly as numpy array
 
 
+class MultipleAssetException(OpenEoClientException):
+    pass
+
+
 class JobResults:
     """
     Results of a batch job: listing of output files (URLs) and
@@ -257,13 +261,18 @@ class JobResults:
         assets = self.get_assets()
         if len(assets) == 0:
             raise OpenEoClientException("No assets in result.")
-        if name in assets:
+        if name is None:
+            if len(assets) == 1:
+                return assets.popitem()[1]
+            else:
+                raise MultipleAssetException("Multiple result assets for job {j}: {a}".format(
+                    j=self._job.job_id, a=list(assets.keys())
+                ))
+        elif name in assets:
             return assets[name]
-        elif name is None and len(assets) == 1:
-            return assets.popitem()[1]
         else:
             raise OpenEoClientException(
-                "Failed to get single asset (name {n!r}) from {a}".format(n=name, a=list(assets.keys()))
+                "No asset {n!r} in: {a}".format(n=name, a=list(assets.keys()))
             )
 
     def download_file(self, target: Union[Path, str] = None, name: str = None) -> Path:
@@ -276,7 +285,11 @@ class JobResults:
         :param name: asset name to download (not required when there is only one asset)
         :return: path of downloaded asset
         """
-        return self.get_asset(name=name).download(target=target)
+        try:
+            return self.get_asset(name=name).download(target=target)
+        except MultipleAssetException:
+            raise OpenEoClientException(
+                "Can not use `download_file` with multiple assets. Use `download_files` instead.")
 
     def download_files(self, target: Union[Path, str] = None) -> List[Path]:
         """
