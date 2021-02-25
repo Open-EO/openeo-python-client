@@ -5,7 +5,7 @@ import typing
 from pathlib import Path
 from typing import List, Union, Dict, Optional
 
-from deprecated import deprecated
+from deprecated.sphinx import deprecated
 from requests import ConnectionError, Response
 
 from openeo.job import Job, JobLogEntry
@@ -78,7 +78,7 @@ class RESTJob(Job):
         """
         return self.get_results().download_file(target=target)
 
-    @deprecated("Use `get_results().download_files()` instead")
+    @deprecated("Instead use :py:meth:`RESTJob.get_results` and the more flexible download functionality of :py:class:`JobResults`", version="0.4.10")
     def download_results(self, target: Union[str, Path] = None) -> Dict[Path, dict]:
         """
         Download all job result files into given folder (current working dir by default).
@@ -87,13 +87,10 @@ class RESTJob(Job):
 
         :param target: String/path, folder where to put the result files.
         :return: file_list: Dict containing the downloaded file path as value and asset metadata
-
-        .. deprecated:: 0.4.10
-            use :py:meth:`get_results` and the more flexible download functionality of :py:class:`JobResults` instead
         """
         return self.get_result().download_files(target)
 
-    @deprecated("Use `get_results()` instead.")
+    @deprecated("Use :py:meth:`RESTJob.get_results` instead.", version="0.4.10")
     def get_result(self):
         return _Result(self)
 
@@ -102,13 +99,6 @@ class RESTJob(Job):
         Get handle to batch job results for result metadata inspection or downloading resulting assets.
         """
         return JobResults(self)
-
-    @deprecated
-    def download(self, outputfile: str, outputformat=None):
-        try:
-            return self.connection.download_job(self.job_id, outputfile, outputformat)
-        except ConnectionAbortedError as e:
-            return print(str(e))
 
     def status(self):
         """ Returns the status of the job."""
@@ -130,9 +120,10 @@ class RESTJob(Job):
             self.download_result(outputfile)
         return self
 
-    def start_and_wait(self, print=print, max_poll_interval: int = 60, connection_retry_interval: int = 30):
+    def start_and_wait(self, print=print, max_poll_interval: int = 60, connection_retry_interval: int = 30) -> "RESTJob":
         """
         Start the batch job, poll its status and wait till it finishes (or fails)
+
         :param print: print/logging function to show progress/status
         :param max_poll_interval: maximum number of seconds to sleep between status polls
         :param connection_retry_interval: how long to wait when status poll failed due to connection issue
@@ -182,9 +173,20 @@ class ResultAsset:
 
     def __init__(self, job: RESTJob, name: str, href: str, metadata: dict):
         self.job = job
+
         self.name = name
+        """Asset name as advertised by the backend."""
+
         self.href = href
+        """Download URL of the asset."""
+
         self.metadata = metadata
+        """Asset metadata provided by the backend, possibly containing keys "type" (for media type), "roles", "title", "description"."""
+
+    def __repr__(self):
+        return "<ResultAsset {n!r} (type {t}) at {h!r}>".format(
+            n=self.name, t=self.metadata.get("type", "unknown"), h=self.href
+        )
 
     def download(self, target: Optional[Union[Path, str]] = None, chunk_size=None) -> Path:
         """
@@ -236,6 +238,9 @@ class JobResults:
         self._results_url = "/jobs/{j}/results".format(j=self._job.job_id)
         self._results = None
 
+    def __repr__(self):
+        return "<JobResults for job {j!r}>".format(j=self._job.job_id)
+
     def get_metadata(self, force=False) -> dict:
         """Get batch job results metadata (parsed JSON)"""
         if self._results is None or force:
@@ -244,10 +249,9 @@ class JobResults:
 
     # TODO: provide methods for `stac_version`, `id`, `geometry`, `properties`, `links`, ...?
 
-    def get_assets(self) -> Dict[str, ResultAsset]:
+    def get_assets(self) -> List[ResultAsset]:
         """
-        Get all assets from the job results as a dictionary mapping the asset name (as advertised by the backend)
-        to a :py:class:`ResultAsset` instance.
+        Get all assets from the job results.
         """
         metadata = self.get_metadata()
         if "assets" in metadata:
@@ -256,10 +260,10 @@ class JobResults:
         else:
             # Best effort translation of on old style to "assets" style (#134)
             assets = {a["href"].split("/")[-1]: a for a in metadata["links"]}
-        return {
-            name: ResultAsset(job=self._job, name=name, href=asset["href"], metadata=asset)
+        return [
+            ResultAsset(job=self._job, name=name, href=asset["href"], metadata=asset)
             for name, asset in assets.items()
-        }
+        ]
 
     def get_asset(self, name: str = None) -> ResultAsset:
         """
@@ -271,17 +275,18 @@ class JobResults:
             raise OpenEoClientException("No assets in result.")
         if name is None:
             if len(assets) == 1:
-                return assets.popitem()[1]
+                return assets[0]
             else:
                 raise MultipleAssetException("Multiple result assets for job {j}: {a}".format(
-                    j=self._job.job_id, a=list(assets.keys())
+                    j=self._job.job_id, a=[a.name for a in assets]
                 ))
-        elif name in assets:
-            return assets[name]
         else:
-            raise OpenEoClientException(
-                "No asset {n!r} in: {a}".format(n=name, a=list(assets.keys()))
-            )
+            try:
+                return next(a for a in assets if a.name == name)
+            except StopIteration:
+                raise OpenEoClientException(
+                    "No asset {n!r} in: {a}".format(n=name, a=[a.name for a in assets])
+                )
 
     def download_file(self, target: Union[Path, str] = None, name: str = None) -> Path:
         """
@@ -310,10 +315,10 @@ class JobResults:
         target = Path(target or Path.cwd())
         if target.exists() and not target.is_dir():
             raise OpenEoClientException("The target argument must be a folder. Got {t!r}".format(t=str(target)))
-        return [a.download(target) for a in self.get_assets().values()]
+        return [a.download(target) for a in self.get_assets()]
 
 
-@deprecated("Use `JobResults` instead")
+@deprecated(reason="Use :py:class:`JobResults` instead", version="0.4.10")
 class _Result:
     """Wrapper around `JobResults` to adapt old deprecated "Result" API."""
 
@@ -329,10 +334,7 @@ class _Result:
         target = Path(target or Path.cwd())
         if target.exists() and not target.is_dir():
             raise OpenEoClientException("The target argument must be a folder. Got {t!r}".format(t=str(target)))
-        return {
-            asset.download(target): asset.metadata
-            for name, asset in self.results.get_assets().items()
-        }
+        return {a.download(target): a.metadata for a in self.results.get_assets()}
 
     def load_json(self) -> dict:
         return self.results.get_asset().load_json()

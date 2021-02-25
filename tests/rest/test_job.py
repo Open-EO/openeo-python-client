@@ -155,13 +155,30 @@ def test_download_result_040(session040, requests_mock, tmp_path):
         assert f.read() == TIFF_CONTENT
 
 
-def test_download_result(con100, requests_mock, tmp_path):
-    requests_mock.get(API_URL + "/jobs/jj/results", json={"assets": {
-        "1.tiff": {"href": API_URL + "/dl/jjr1.tiff"},
+@pytest.fixture
+def job_with_1_asset(con100, requests_mock, tmp_path) -> RESTJob:
+    requests_mock.get(API_URL + "/jobs/jj1/results", json={"assets": {
+        "1.tiff": {"href": API_URL + "/dl/jjr1.tiff", "type": "image/tiff; application=geotiff"},
     }})
     requests_mock.get(API_URL + "/dl/jjr1.tiff", content=TIFF_CONTENT)
-    job = RESTJob("jj", connection=con100)
-    assert job.list_results() == {'assets': {'1.tiff': {'href': 'https://oeo.test/dl/jjr1.tiff'}}}
+    job = RESTJob("jj1", connection=con100)
+    return job
+
+
+@pytest.fixture
+def job_with_2_assets(con100, requests_mock, tmp_path) -> RESTJob:
+    requests_mock.get(API_URL + "/jobs/jj2/results", json={"assets": {
+        "1.tiff": {"href": API_URL + "/dl/jjr1.tiff", "type": "image/tiff; application=geotiff"},
+        "2.tiff": {"href": API_URL + "/dl/jjr2.tiff", "type": "image/tiff; application=geotiff"},
+    }})
+    requests_mock.get(API_URL + "/dl/jjr1.tiff", content=TIFF_CONTENT)
+    requests_mock.get(API_URL + "/dl/jjr2.tiff", content=TIFF_CONTENT)
+    job = RESTJob("jj2", connection=con100)
+    return job
+
+
+def test_download_result(job_with_1_asset: RESTJob, tmp_path):
+    job = job_with_1_asset
     target = as_path(tmp_path / "result.tiff")
     res = job.download_result(target)
     assert res == target
@@ -169,12 +186,8 @@ def test_download_result(con100, requests_mock, tmp_path):
         assert f.read() == TIFF_CONTENT
 
 
-def test_get_results_download_file(con100, requests_mock, tmp_path):
-    requests_mock.get(API_URL + "/jobs/jj/results", json={"assets": {
-        "1.tiff": {"href": API_URL + "/dl/jjr1.tiff"},
-    }})
-    requests_mock.get(API_URL + "/dl/jjr1.tiff", content=TIFF_CONTENT)
-    job = RESTJob("jj", connection=con100)
+def test_get_results_download_file(job_with_1_asset: RESTJob, tmp_path):
+    job = job_with_1_asset
     target = as_path(tmp_path / "result.tiff")
     res = job.get_results().download_file(target)
     assert res == target
@@ -182,13 +195,8 @@ def test_get_results_download_file(con100, requests_mock, tmp_path):
         assert f.read() == TIFF_CONTENT
 
 
-def test_download_result_folder(con100, requests_mock, tmp_path):
-    requests_mock.get(API_URL + "/jobs/jj/results", json={"assets": {
-        "1.tiff": {"href": API_URL + "/dl/jjr1.tiff"},
-    }})
-    requests_mock.get(API_URL + "/dl/jjr1.tiff", content=TIFF_CONTENT)
-    job = RESTJob("jj", connection=con100)
-    assert job.list_results() == {'assets': {'1.tiff': {'href': 'https://oeo.test/dl/jjr1.tiff'}}}
+def test_download_result_folder(job_with_1_asset: RESTJob, tmp_path):
+    job = job_with_1_asset
     target = as_path(tmp_path / "folder")
     target.mkdir()
     res = job.download_result(target)
@@ -198,12 +206,8 @@ def test_download_result_folder(con100, requests_mock, tmp_path):
         assert f.read() == TIFF_CONTENT
 
 
-def test_get_results_download_file_to_folder(con100, requests_mock, tmp_path):
-    requests_mock.get(API_URL + "/jobs/jj/results", json={"assets": {
-        "1.tiff": {"href": API_URL + "/dl/jjr1.tiff"},
-    }})
-    requests_mock.get(API_URL + "/dl/jjr1.tiff", content=TIFF_CONTENT)
-    job = RESTJob("jj", connection=con100)
+def test_get_results_download_file_to_folder(job_with_1_asset: RESTJob, tmp_path):
+    job = job_with_1_asset
     target = as_path(tmp_path / "folder")
     target.mkdir()
     res = job.get_results().download_file(target)
@@ -213,41 +217,36 @@ def test_get_results_download_file_to_folder(con100, requests_mock, tmp_path):
         assert f.read() == TIFF_CONTENT
 
 
-def test_download_result_multiple(con100, requests_mock, tmp_path):
-    requests_mock.get(API_URL + "/jobs/jj/results", json={"assets": {
-        "1.tiff": {"href": API_URL + "/dl/jjr1.tiff"},
-        "2.tiff": {"href": API_URL + "/dl/jjr2.tiff"},
-    }})
-    job = RESTJob("jj", connection=con100)
-    expected = r"Can not use `download_file` with multiple assets. Use `download_files` instead"
+def test_download_result_multiple(job_with_2_assets: RESTJob, tmp_path):
+    job = job_with_2_assets
+    expected = re.escape("Can not use `download_file` with multiple assets. Use `download_files` instead")
     with pytest.raises(OpenEoClientException, match=expected):
         job.download_result(tmp_path / "res.tiff")
 
 
-def test_get_results_multiple_download_single(con100, requests_mock, tmp_path):
-    requests_mock.get(API_URL + "/jobs/jj/results", json={"assets": {
-        "1.tiff": {"href": API_URL + "/dl/jjr1.tiff"},
-        "2.tiff": {"href": API_URL + "/dl/jjr2.tiff"},
-    }})
-    job = RESTJob("jj", connection=con100)
-    expected = r"Can not use `download_file` with multiple assets. Use `download_files` instead"
+def test_get_results_multiple_download_single(job_with_2_assets: RESTJob, tmp_path):
+    job = job_with_2_assets
+    expected = re.escape("Can not use `download_file` with multiple assets. Use `download_files` instead")
     with pytest.raises(OpenEoClientException, match=expected):
         job.get_results().download_file(tmp_path / "res.tiff")
 
 
-def test_get_results_multiple_download_single_by_name(con100, requests_mock, tmp_path):
-    requests_mock.get(API_URL + "/jobs/jj/results", json={"assets": {
-        "1.tiff": {"href": API_URL + "/dl/jjr1.tiff"},
-        "2.tiff": {"href": API_URL + "/dl/jjr2.tiff"},
-    }})
-    requests_mock.get(API_URL + "/dl/jjr1.tiff", content=TIFF_CONTENT)
-    job = RESTJob("jj", connection=con100)
+def test_get_results_multiple_download_single_by_name(job_with_2_assets: RESTJob, tmp_path):
+    job = job_with_2_assets
     target = as_path(tmp_path / "res.tiff")
     path = job.get_results().download_file(target, name="1.tiff")
     assert path == target
     assert list(p.name for p in tmp_path.iterdir()) == ["res.tiff"]
     with path.open("rb") as f:
         assert f.read() == TIFF_CONTENT
+
+
+def test_get_results_multiple_download_single_by_wrong_name(job_with_2_assets: RESTJob, tmp_path):
+    job = job_with_2_assets
+    target = as_path(tmp_path / "res.tiff")
+    expected = re.escape("No asset 'foobar.tiff' in: ['1.tiff', '2.tiff']")
+    with pytest.raises(OpenEoClientException, match=expected):
+        job.get_results().download_file(target, name="foobar.tiff")
 
 
 def test_download_results_040(session040, requests_mock, tmp_path):
@@ -272,18 +271,8 @@ def test_download_results_040(session040, requests_mock, tmp_path):
         assert f.read() == TIFF_CONTENT
 
 
-def test_download_results(con100, requests_mock, tmp_path):
-    requests_mock.get(API_URL + "/jobs/jj/results", json={"assets": {
-        "1.tiff": {"href": API_URL + "/dl/jjr1.tiff", "type": "image/tiff; application=geotiff"},
-        "2.tiff": {"href": API_URL + "/dl/jjr2.tiff", "type": "image/tiff; application=geotiff"},
-    }})
-    requests_mock.get(API_URL + "/dl/jjr1.tiff", content=TIFF_CONTENT)
-    requests_mock.get(API_URL + "/dl/jjr2.tiff", content=TIFF_CONTENT)
-    job = RESTJob("jj", connection=con100)
-    assert job.list_results() == {'assets': {
-        '1.tiff': {'href': 'https://oeo.test/dl/jjr1.tiff', 'type': 'image/tiff; application=geotiff'},
-        '2.tiff': {'href': 'https://oeo.test/dl/jjr2.tiff', 'type': 'image/tiff; application=geotiff'}
-    }}
+def test_download_results(job_with_2_assets: RESTJob, tmp_path):
+    job = job_with_2_assets
     target = as_path(tmp_path / "folder")
     target.mkdir()
     downloads = job.download_results(target)
@@ -296,27 +285,25 @@ def test_download_results(con100, requests_mock, tmp_path):
         assert f.read() == TIFF_CONTENT
 
 
-def test_get_results_download_files(con100, requests_mock, tmp_path):
-    requests_mock.get(API_URL + "/jobs/jj/results", json={"assets": {
-        "1.tiff": {"href": API_URL + "/dl/jjr1.tiff", "type": "image/tiff; application=geotiff"},
-        "2.tiff": {"href": API_URL + "/dl/jjr2.tiff", "type": "image/tiff; application=geotiff"},
-    }})
-    requests_mock.get(API_URL + "/dl/jjr1.tiff", content=TIFF_CONTENT)
-    requests_mock.get(API_URL + "/dl/jjr2.tiff", content=TIFF_CONTENT)
-
-    job = RESTJob("jj", connection=con100)
+def test_list_results(job_with_2_assets: RESTJob, tmp_path):
+    job = job_with_2_assets
     assert job.list_results() == {'assets': {
         '1.tiff': {'href': 'https://oeo.test/dl/jjr1.tiff', 'type': 'image/tiff; application=geotiff'},
         '2.tiff': {'href': 'https://oeo.test/dl/jjr2.tiff', 'type': 'image/tiff; application=geotiff'}
     }}
+
+
+def test_get_results_download_files(job_with_2_assets: RESTJob, tmp_path):
+    job = job_with_2_assets
+
     target = as_path(tmp_path / "folder")
     target.mkdir()
     results = job.get_results()
 
     assets = job.get_results().get_assets()
-    assert {n: a.metadata for n, a in assets.items()} == {
-        "1.tiff": {"href": API_URL + "/dl/jjr1.tiff", "type": "image/tiff; application=geotiff"},
-        "2.tiff": {"href": API_URL + "/dl/jjr2.tiff", "type": "image/tiff; application=geotiff"},
+    assert {a.name: a.metadata for a in assets} == {
+        '1.tiff': {'href': 'https://oeo.test/dl/jjr1.tiff', 'type': 'image/tiff; application=geotiff'},
+        '2.tiff': {'href': 'https://oeo.test/dl/jjr2.tiff', 'type': 'image/tiff; application=geotiff'}
     }
 
     downloads = results.download_files(target)

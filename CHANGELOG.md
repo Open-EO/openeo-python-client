@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add "reflected" operator support to `ProcessBuilder` 
 - Add `RESTJob.get_results()`, `JobResults` and `ResultAsset` for more fine-grained batch job result handling. (EP-3739)
+- Add documentation on batch job result (asset) handling and downloading
 
 ### Changed
 
@@ -17,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deprecated `job_results()` and `job_logs()` on `Connection` object, it's better to work through `RESTJob` object. 
 
 ### Removed
+
+- Remove outdated batch job result download logic left-overs
 
 ### Fixed
 
