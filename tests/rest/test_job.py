@@ -244,7 +244,7 @@ def test_get_results_multiple_download_single_by_name(job_with_2_assets: RESTJob
 def test_get_results_multiple_download_single_by_wrong_name(job_with_2_assets: RESTJob, tmp_path):
     job = job_with_2_assets
     target = as_path(tmp_path / "res.tiff")
-    expected = re.escape("No asset 'foobar.tiff' in: ['1.tiff', '2.tiff']")
+    expected = r"No asset 'foobar\.tiff' in: \['.\.tiff', '.\.tiff'\]"
     with pytest.raises(OpenEoClientException, match=expected):
         job.get_results().download_file(target, name="foobar.tiff")
 
