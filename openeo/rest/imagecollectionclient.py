@@ -5,13 +5,14 @@ import pathlib
 import typing
 from typing import List, Dict, Union, Tuple
 
-from deprecated import deprecated
-from openeo.imagecollection import ImageCollection, CollectionMetadata
+from shapely.geometry import Polygon, MultiPolygon, mapping
+
+from openeo.imagecollection import ImageCollection
 from openeo.internal.graphbuilder_040 import GraphBuilder
+from openeo.metadata import CollectionMetadata
 from openeo.rest import BandMathException
 from openeo.rest.job import RESTJob
 from openeo.util import get_temporal_extent, legacy_alias
-from shapely.geometry import Polygon, MultiPolygon, mapping
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Only import this for type hinting purposes. Runtime import causes circular dependency issues.

@@ -1,14 +1,13 @@
+import pathlib
 from abc import ABC
 from datetime import datetime, date
 from typing import List, Dict, Union, Tuple, Callable
-import pathlib
 
 from deprecated import deprecated
 from shapely.geometry import Polygon, MultiPolygon
 
-from openeo.metadata import CollectionMetadata
+from openeo.rest.job import RESTJob
 from openeo.util import get_temporal_extent, first_not_none
-from openeo.job import Job
 
 
 class ImageCollection(ABC):
@@ -499,7 +498,7 @@ class ImageCollection(ABC):
             self,
             outputfile: Union[str, pathlib.Path], out_format: str = None,
             print=print, max_poll_interval=60, connection_retry_interval=30,
-            job_options=None, **format_options) -> Job:
+            job_options=None, **format_options) -> RESTJob:
         """
         Evaluate the process graph by creating a batch job, and retrieving the results when it is finished.
         This method is mostly recommended if the batch job is expected to run in a reasonable amount of time.
@@ -515,15 +514,15 @@ class ImageCollection(ABC):
         """
         pass
 
-    def send_job(self, out_format:str=None, job_options:Dict=None, **format_options) -> Job:
+    def send_job(self, out_format:str=None, job_options:Dict=None, **format_options) -> RESTJob:
         """
-        Sends a job to the backend and returns a Job instance. The job will still need to be started and managed explicitly.
+        Sends a job to the backend and returns a RESTJob instance. The job will still need to be started and managed explicitly.
         The :func:`~openeo.imagecollection.ImageCollection.execute_batch` method allows you to run batch jobs without managing it.
 
         :param out_format: String Format of the job result.
         :param job_options: A dictionary containing (custom) job options
         :param format_options: String Parameters for the job result format
-        :return: status: Job resulting job.
+        :return: status: RESTJob resulting job.
         """
         pass
 

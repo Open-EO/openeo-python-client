@@ -8,7 +8,6 @@ from typing import List, Union, Dict, Optional
 from deprecated.sphinx import deprecated
 from requests import ConnectionError, Response
 
-from openeo.job import Job, JobLogEntry
 from openeo.rest import OpenEoClientException, JobFailedException
 from openeo.util import ensure_dir
 
@@ -20,16 +19,33 @@ if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class RESTJob(Job):
+class JobLogEntry:
+    """
+    A Job log entry.
+    """
+
+    def __init__(self, log_id: str, level: str, message: str):
+        self.log_id = log_id
+        self.level = level
+        self.message = message
+
+
+class RESTJob:
+    # TODO: rename this to BatchJob?
 
     def __init__(self, job_id: str, connection: 'Connection'):
-        super().__init__(job_id)
+        self.job_id = job_id
+        """Unique identifier of the batch job (string)."""
+
         self.connection = connection
+
+    def __repr__(self):
+        return '<{c} job_id={i!r}>'.format(c=self.__class__.__name__, i=self.job_id)
 
     def describe_job(self):
         """ Get all job information."""
         # GET /jobs/{job_id}
-        return self.connection.get("/jobs/{}".format(self.job_id)).json()
+        return self.connection.get("/jobs/{}".format(self.job_id), expected_status=200).json()
 
     def update_job(self, process_graph=None, output_format=None,
                    output_parameters=None, title=None, description=None,
@@ -41,28 +57,22 @@ class RESTJob(Job):
     def delete_job(self):
         """ Delete a job."""
         # DELETE /jobs/{job_id}
-        request = self.connection.delete("/jobs/{}".format(self.job_id))
-        assert request.status_code == 204
+        self.connection.delete("/jobs/{}".format(self.job_id), expected_status=204)
 
     def estimate_job(self):
         """ Calculate an time/cost estimate for a job."""
         # GET /jobs/{job_id}/estimate
-        return self.connection.get("/jobs/{}/estimate".format(self.job_id)).json()
+        return self.connection.get("/jobs/{}/estimate".format(self.job_id), expected_status=200).json()
 
     def start_job(self):
         """ Start / queue a job for processing."""
         # POST /jobs/{job_id}/results
-        url = "/jobs/{}/results".format(self.job_id)
-        request = self.connection.post(url)
-        if request.status_code != 202:
-            logger.warning("{u} returned with status code {s} instead of 202".format(u=url, s=request.status_code))
+        self.connection.post("/jobs/{}/results".format(self.job_id), expected_status=202)
 
     def stop_job(self):
         """ Stop / cancel job processing."""
         # DELETE /jobs/{job_id}/results
-        request = self.connection.delete("/jobs/{}/results".format(self.job_id))
-
-        return request.status_code
+        self.connection.delete("/jobs/{}/results".format(self.job_id), expected_status=204)
 
     def list_results(self) -> dict:
         """ Get document with download links."""
@@ -78,7 +88,9 @@ class RESTJob(Job):
         """
         return self.get_results().download_file(target=target)
 
-    @deprecated("Instead use :py:meth:`RESTJob.get_results` and the more flexible download functionality of :py:class:`JobResults`", version="0.4.10")
+    @deprecated(
+        "Instead use :py:meth:`RESTJob.get_results` and the more flexible download functionality of :py:class:`JobResults`",
+        version="0.4.10")
     def download_results(self, target: Union[str, Path] = None) -> Dict[Path, dict]:
         """
         Download all job result files into given folder (current working dir by default).
@@ -106,8 +118,9 @@ class RESTJob(Job):
 
     def logs(self, offset=None) -> List[JobLogEntry]:
         """ Retrieve job logs."""
-        return [JobLogEntry(log_entry['id'], log_entry['level'], log_entry['message'])
-                for log_entry in self.connection.job_logs(self.job_id, offset)['logs']]
+        url = "/jobs/{}/logs".format(self.job_id)
+        logs = self.connection.get(url, params={'offset': offset}, expected_status=200).json()["logs"]
+        return [JobLogEntry(log['id'], log['level'], log['message']) for log in logs]
 
     def run_synchronous(self, outputfile: Union[str, Path],
                         print=print, max_poll_interval=60, connection_retry_interval=30) -> 'RESTJob':

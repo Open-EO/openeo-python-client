@@ -16,10 +16,10 @@ from requests.auth import HTTPBasicAuth, AuthBase
 
 import openeo
 from openeo.capabilities import ApiVersionException, ComparableVersion
-from openeo.imagecollection import CollectionMetadata
 from openeo.internal.graph_building import PGNode, as_flat_graph
 from openeo.internal.jupyter import VisualDict, VisualList
 from openeo.internal.processes.builder import ProcessBuilderBase
+from openeo.metadata import CollectionMetadata
 from openeo.rest import OpenEoClientException
 from openeo.rest.auth.auth import NullAuth, BearerAuth
 from openeo.rest.auth.config import RefreshTokenStore, AuthConfig
@@ -744,7 +744,7 @@ class Connection(RestApiConnection):
 
     @deprecated("Use `RESTJob.logs() instead")
     def job_logs(self, job_id, offset):
-        return self.get("/jobs/{}/logs".format(job_id), params={'offset': offset}).json()
+        return RESTJob(job_id, connection=self).logs(offset=offset)
 
     def list_files(self):
         """

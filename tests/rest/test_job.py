@@ -31,7 +31,7 @@ def con100(requests_mock):
 def test_execute_batch(session040, requests_mock, tmpdir):
     requests_mock.get(API_URL + "/collections/SENTINEL2", json={"foo": "bar"})
     requests_mock.post(API_URL + "/jobs", status_code=201, headers={"OpenEO-Identifier": "f00ba5"})
-    requests_mock.post(API_URL + "/jobs/f00ba5/results")
+    requests_mock.post(API_URL + "/jobs/f00ba5/results", status_code=202)
     requests_mock.get(API_URL + "/jobs/f00ba5", [
         {'json': {"status": "submitted"}},
         {'json': {"status": "queued"}},
@@ -71,7 +71,7 @@ def test_execute_batch(session040, requests_mock, tmpdir):
 def test_execute_batch_with_error(session040, requests_mock, tmpdir):
     requests_mock.get(API_URL + "/collections/SENTINEL2", json={"foo": "bar"})
     requests_mock.post(API_URL + "/jobs", status_code=201, headers={"OpenEO-Identifier": "f00ba5"})
-    requests_mock.post(API_URL + "/jobs/f00ba5/results")
+    requests_mock.post(API_URL + "/jobs/f00ba5/results", status_code=202)
     requests_mock.get(API_URL + "/jobs/f00ba5", [
         {'json': {"status": "submitted"}},
         {'json': {"status": "queued"}},
