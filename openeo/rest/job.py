@@ -328,6 +328,7 @@ class JobResults:
         target = Path(target or Path.cwd())
         if target.exists() and not target.is_dir():
             raise OpenEoClientException("The target argument must be a folder. Got {t!r}".format(t=str(target)))
+        ensure_dir(target)
         return [a.download(target) for a in self.get_assets()]
 
 

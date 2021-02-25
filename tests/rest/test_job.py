@@ -313,6 +313,21 @@ def test_get_results_download_files(job_with_2_assets: RESTJob, tmp_path):
         assert f.read() == TIFF_CONTENT
 
 
+def test_get_results_download_files_new_folder(job_with_2_assets: RESTJob, tmp_path):
+    job = job_with_2_assets
+
+    target = as_path(tmp_path / "folder")
+    results = job.get_results()
+    assert not target.exists()
+    downloads = results.download_files(target)
+    assert target.exists()
+    assert target.is_dir()
+    assert set(downloads) == {target / "1.tiff", target / "2.tiff"}
+    assert set(p.name for p in target.iterdir()) == {"1.tiff", "2.tiff"}
+    with (target / "1.tiff").open("rb") as f:
+        assert f.read() == TIFF_CONTENT
+
+
 def test_result_asset_download_file(con100, requests_mock, tmp_path):
     href = API_URL + "/dl/jjr1.tiff"
     requests_mock.get(href, content=TIFF_CONTENT)
