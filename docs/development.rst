@@ -110,6 +110,7 @@ To be as concrete as possible, we will assume that we are about to release versi
 
 #.  Make sure you are working on **latest master branch**,
     without uncommitted changes and all tests are properly passing.
+
 #.  **Drop the pre-release suffix** from the version string in ``openeo/_version.py``
     so that it just a "final" semantic versioning string, e.g. ``0.4.7``
 
@@ -134,15 +135,18 @@ To be as concrete as possible, we will assume that we are about to release versi
 
 #.  **Commit** these changes in git with a commit message like ``Release 0.4.7``
     and **push** to GitHub
-#.  Wait for **Jenkins** to build this updated master
+
+#.  Preferably: wait for **Jenkins** to build this updated master
     (trigger it manually if necessary),
     so that a build of final release ``0.4.7``
     is properly uploaded to **VITO artifactory**.
 
 #.  Obtain a wheel archive of the package:
 
-    -   Path of least surprise: download the built wheel
-        directly from VITO artifactory, e.g.::
+    -   Path of least surprise:
+        wait for `Travis CI <https://travis-ci.org/github/Open-EO/openeo-python-client/builds>`_
+        to build a wheel and push it to Artifactory
+        where it can be downloaded, e.g.::
 
             curl --fail -O https://artifactory.vgt.vito.be/python-openeo/openeo/0.4.7/openeo-0.4.7-py3-none-any.whl
 
