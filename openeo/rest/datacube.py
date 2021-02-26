@@ -1382,23 +1382,10 @@ class DataCube(ImageCollection):
 
         """
         job = self.send_job(out_format, job_options=job_options, **format_options)
-        job = job.run_synchronous(
-            outputfile=None,
+        return job.run_synchronous(
+            outputfile=outputfile,
             print=print, max_poll_interval=max_poll_interval, connection_retry_interval=connection_retry_interval
         )
-        # relying on RestJOB::start_and_wait called in run_synchronous throws if job is not finished properly
-        # TODO: avoid calling private methods from openeo.rest.Result
-        result = job.get_result()
-        assets = result._get_assets();
-        if (len(assets)==1):
-            result._download_url(assets.popitem()[1]["href"], pathlib.Path(outputfile))
-        else:
-            # TODO: find a mechanism that works accross the backends that can reliable choose "primary" result
-            log.warning("FIXME: Multiple result files detected, those will be saved by the name advertised on the server!")
-            for iname,iurl in assets.items():
-                result._download_url(iurl["href"], pathlib.Path(iname))
-                
-        return job
 
     def send_job(
             self, out_format=None, title: str = None, description: str = None, plan: str = None, budget=None,
@@ -1542,29 +1529,35 @@ class DataCube(ImageCollection):
         })
 
     def sar_backscatter(
-            self, orthorectify: bool = True, elevation_model: str = None, rtc: bool = True, mask: bool = False,
-            contributing_area: bool = False, local_incidence_angle: bool = False,
-            ellipsoid_incidence_angle: bool = False, noise_removal: bool = True, options: dict = None
-    ):
+            self,
+            coefficient: str = "gamma0-terrain",
+            elevation_model: str = None,
+            mask: bool = False,
+            contributing_area: bool = False,
+            local_incidence_angle: bool = False,
+            ellipsoid_incidence_angle: bool = False,
+            noise_removal: bool = True,
+            options: dict = None
+    ) -> "DataCube":
         """
-        *EXPERIMENTAL*
-
         Computes backscatter from SAR input.
 
         Note that backscatter computation may require instrument specific metadata that is tightly coupled to the
         original SAR products. As a result, this process may only work in combination with loading data from
         specific collections, not with general data cubes.
 
-        :param orthorectify: Set to `true` to enable orthorectification. The non-orthorectified products use a
-            simple earth model as provided in the products themselves. This may be sufficient for very
-            flat target areas and is faster to process.
+        :param coefficient: Select the radiometric correction coefficient.
+            The following options are available:
+            - `beta0`: radar brightness
+            - `sigma0-ellipsoid`: ground area computed with ellipsoid earth model
+            - `sigma0-terrain`: ground area computed with terrain earth model
+            - `gamma0-ellipsoid`: ground area computed with ellipsoid earth model in sensor line of sight
+            - `gamma0-terrain`: ground area computed with terrain earth model in sensor line of sight (default)
+            - `null`: non-normalized backscatter"
         :param elevation_model: The digital elevation model to use. Set to `null` (the default) to allow
             the back-end to choose, which will improve portability, but reduce reproducibility.
-        :param rtc: Set to `false` to disable radiometrically terrain correction. By default, adjustments are made for
-            terrain by modelling the local illuminated reference area using an algorithm to produce a radiometrically
-            terrain corrected (RTC) values.
-        :param mask: If set to `true`, a data mask is added to the bands with the name `mask`. It indicates which values
-            are valid (1), invalid (0) or contain no-data (null).
+        :param mask: If set to `true`, a data mask is added to the bands with the name `mask`.
+            It indicates which values are valid (1), invalid (0) or contain no-data (null).
         :param contributing_area: If set to `true`, a DEM-based local contributing area band named `contributing_area`
             is added. The values are given in square meters.
         :param local_incidence_angle: If set to `true`, a DEM-based local incidence angle band named
@@ -1572,18 +1565,22 @@ class DataCube(ImageCollection):
         :param ellipsoid_incidence_angle: If set to `true`, an ellipsoidal incidence angle band named
             `ellipsoid_incidence_angle` is added. The values are given in degrees.
         :param noise_removal: If set to `false`, no noise removal is applied. Defaults to `true`, which removes noise.
-        :param options: dictionary with additional options
+        :param options: dictionary with additional (backend-specific) options.
         :return:
+
+        .. versionadded :: 0.4.9
+        .. versionchanged :: 0.4.10 replace `orthorectify` and `rtc arguments with `coefficient`.
         """
-        return self.process(process_id="sar_backscatter", arguments={
+        arguments = {
             "data": THIS,
-            "orthorectify": orthorectify,
+            "coefficient": coefficient,
             "elevation_model": elevation_model,
-            "rtc": rtc,
             "mask": mask,
             "contributing_area": contributing_area,
             "local_incidence_angle": local_incidence_angle,
             "ellipsoid_incidence_angle": ellipsoid_incidence_angle,
             "noise_removal": noise_removal,
-            "options": options,
-        })
+        }
+        if options:
+            arguments["options"] = options
+        return self.process(process_id="sar_backscatter", arguments=arguments)

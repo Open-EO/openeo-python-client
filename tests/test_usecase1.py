@@ -27,13 +27,14 @@ class TestUsecase1(TestCase):
         con = openeo.connect(self.endpoint).authenticate_basic(username=self.auth_id, password=self.auth_pwd)
         assert isinstance(con.auth, BearerAuth)
 
-    def test_viewing_userjobs(self, m):
+    def test_viewing_list_jobs(self, m):
         m.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})
         m.get("http://localhost:8000/api/credentials/basic", json={"access_token": "blabla"})
-        m.get("http://localhost:8000/api/jobs", json={"jobs": [{"job_id": "748df7caa8c84a7ff6e"}]})
+        job_info = {"job_id": "748df7caa8c84a7ff6e", "status": "running", "created": "2021-02-22T09:00:00Z"}
+        m.get("http://localhost:8000/api/jobs", json={"jobs": [job_info]})
         con = openeo.connect(self.endpoint).authenticate_basic(username=self.auth_id, password=self.auth_pwd)
-        userjobs = con.list_jobs()
-        self.assertGreater(len(userjobs), 0)
+        jobs = con.list_jobs()
+        assert jobs == [job_info]
 
     def test_viewing_data(self, m):
         m.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})

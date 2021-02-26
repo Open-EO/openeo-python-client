@@ -230,15 +230,3 @@ class TestUserFiles(TestCase):
 
         assert resp.bands == ['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8',
                              'B8A', 'B9', 'B10', 'B11', 'B12', 'QA10', 'QA20', 'QA60']
-
-    @unittest.skip("Not yet upgraded to version 0.3.1")
-    def user_jobs(self, m):
-
-        collection_url = "{}/users/{}/jobs".format(self.endpoint, self.user_id)
-        m.register_uri('GET', collection_url, json=PROCESSES)
-
-        session = openeo.session(self.user_id, endpoint=self.endpoint)
-
-        resp = session.user_jobs()
-
-        assert resp == PROCESSES
