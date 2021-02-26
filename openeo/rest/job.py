@@ -31,6 +31,9 @@ class JobLogEntry:
 
 
 class RESTJob:
+    """
+    Handle for an openEO batch job, allowing it to describe, start, cancel, inspect results, etc.
+    """
     # TODO: rename this to BatchJob?
 
     def __init__(self, job_id: str, connection: 'Connection'):
@@ -74,9 +77,10 @@ class RESTJob:
         # DELETE /jobs/{job_id}/results
         self.connection.delete("/jobs/{}/results".format(self.job_id), expected_status=204)
 
+    @deprecated("Use :py:meth:`~RESTJOB.get_results` instead.", version="0.4.10")
     def list_results(self) -> dict:
-        """ Get document with download links."""
-        return self.connection.get("/jobs/{}/results".format(self.job_id), expected_status=200).json()
+        """Get batch job results metadata."""
+        return self.get_results().get_metadata()
 
     def download_result(self, target: Union[str, Path] = None) -> Path:
         """
@@ -109,6 +113,8 @@ class RESTJob:
     def get_results(self) -> "JobResults":
         """
         Get handle to batch job results for result metadata inspection or downloading resulting assets.
+
+        .. versionadded:: 0.4.10
         """
         return JobResults(self)
 
@@ -182,6 +188,8 @@ class RESTJob:
 class ResultAsset:
     """
     Result asset of a batch job (e.g. a GeoTIFF or JSON file)
+
+    .. versionadded:: 0.4.10
     """
 
     def __init__(self, job: RESTJob, name: str, href: str, metadata: dict):
@@ -244,6 +252,8 @@ class JobResults:
     """
     Results of a batch job: listing of one or more output files (assets)
     and some metadata.
+
+    .. versionadded:: 0.4.10
     """
 
     def __init__(self, job: RESTJob):
@@ -334,7 +344,11 @@ class JobResults:
 
 @deprecated(reason="Use :py:class:`JobResults` instead", version="0.4.10")
 class _Result:
-    """Wrapper around `JobResults` to adapt old deprecated "Result" API."""
+    """
+    Wrapper around `JobResults` to adapt old deprecated "Result" API.
+
+    .. deprecated:: 0.4.10
+    """
 
     # TODO: deprecated: remove this
 

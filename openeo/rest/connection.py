@@ -727,12 +727,14 @@ class Connection(RestApiConnection):
         """
         response = self.delete('/services/' + service_id)
 
-    @deprecated("Use :py:meth:`openeo.rest.job.RESTJob.list_results` instead", version="0.4.10")
-    def job_results(self, job_id):
+    @deprecated("Use :py:meth:`openeo.rest.job.RESTJob.get_results` instead.", version="0.4.10")
+    def job_results(self, job_id) -> dict:
+        """Get batch job results metadata."""
         return RESTJob(job_id, connection=self).list_results()
 
-    @deprecated("Use :py:meth:`openeo.rest.job.RESTJob.logs` instead", version="0.4.10")
-    def job_logs(self, job_id, offset):
+    @deprecated("Use :py:meth:`openeo.rest.job.RESTJob.logs` instead.", version="0.4.10")
+    def job_logs(self, job_id, offset) -> list:
+        """Get batch job logs."""
         return RESTJob(job_id, connection=self).logs(offset=offset)
 
     def list_files(self):
