@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Removed
+
+### Fixed
+
+
+## [0.4.10] - 2021-02-26
+
+### Added
+
 - Add "reflected" operator support to `ProcessBuilder` 
 - Add `RESTJob.get_results()`, `JobResults` and `ResultAsset` for more fine-grained batch job result handling. (EP-3739)
 - Add documentation on batch job result (asset) handling and downloading
@@ -23,8 +34,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Remove outdated batch job result download logic left-overs
 - Remove (outdated) abstract base class `openeo.job.Job`: did not add value, only caused maintenance overhead. ([#115](https://github.com/Open-EO/openeo-python-client/issues/115))
-
-### Fixed
 
 
 ## [0.4.9] - 2021-01-29
