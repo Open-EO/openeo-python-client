@@ -35,6 +35,32 @@ The CARD4L variant of this process is: :func:`~openeo.rest.datacube.DataCube.ard
 CEOS specifications, and thus can additional processing steps, like a BRDF correction, that are not yet available as a
 separate process.
 
+Reference implementations
+#########################
+
+This section shows a few working examples for these processes.
+
+EODC backend
+************
+
+EODC (https://openeo.eodc.eu/v1.0) supports ard_surface_reflectance, based on the FORCE toolbox. (https://github.com/davidfrantz/force)
+
+Geotrellis backend
+******************
+
+The geotrellis backend (https://openeo.vito.be) supports :func:`~openeo.rest.datacube.DataCube.atmospheric_correction` with iCor and SMAC as methods.
+The version of iCor only offers basic atmoshperic correction features, without special options for water products: https://remotesensing.vito.be/case/icor
+SMAC is implemented based on: https://github.com/olivierhagolle/SMAC
+Both methods have been tested with Sentinel-2 as input. The viewing and sun angles need to be selected by the user to make them
+available for the algorithm.
+
+This is an example of applying iCor::
+
+    l1c = connection.load_collection("SENTINEL2_L1C_SENTINELHUB",
+            spatial_extent={'west':3.758216409030558,'east':4.087806252,'south':51.291835566,'north':51.3927399,'crs':'EPSG:4326'},
+            temporal_extent=["2017-03-07","2017-03-07"],bands=['B04','B03','B02','B09','B8A','B11','sunAzimuthAngles','sunZenithAngles','viewAzimuthMean','viewZenithMean'] )
+    l1c.atmospheric_correction(method="iCor").download("rgb-icor.geotiff",format="GTiff")
+
 
 SAR backscatter
 ---------------
@@ -49,3 +75,28 @@ The user should load a datacube containing raw SAR data, such as Sentinel-1 GRD.
 :func:`~openeo.rest.datacube.DataCube.ard_normalized_radar_backscatter`. These processes are tightly coupled to
 metadata from specific sensors, so it is not possible to apply other processes to the datacube first,
 with the exception of specifying filters in space and time.
+
+
+Reference implementations
+#########################
+
+This section shows a few working examples for these processes.
+
+EODC backend
+************
+
+EODC (https://openeo.eodc.eu/v1.0) supports sar_backscatter, based on the Sentinel-1 toolbox. (https://sentinel.esa.int/web/sentinel/toolboxes/sentinel-1)
+
+Geotrellis backend
+******************
+
+When working with the Sentinelhub SENTINEL1_GRD collection, both sar processes can be used. The underlying implementation is
+provided by Sentinelhub, (https://docs.sentinel-hub.com/api/latest/data/sentinel-1-grd/#processing-options), and offers full
+CARD4L compliant processing options.
+
+When working with other GRD data, an implementation based on Orfeo Toolbox is used:
+
+- `Orfeo docs <https://www.orfeo-toolbox.org/CookBook/Applications/app_SARCalibration.html>`_
+- `Implementation <https://github.com/Open-EO/openeo-geopyspark-driver/blob/master/openeogeotrellis/collections/s1backscatter_orfeo.py>`_
+
+The Orfeo implementation currently only supports sigma0 computation, and is not CARD4L compliant.
