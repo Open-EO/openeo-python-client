@@ -44,13 +44,21 @@ class Dimension:
 class SpatialDimension(Dimension):
     DEFAULT_CRS = 4326
 
-    def __init__(self, name: str, extent: Union[Tuple[float, float], List[float]], crs: Union[str, int] = DEFAULT_CRS):
+    def __init__(self, name: str, extent: Union[Tuple[float, float], List[float]], crs: Union[str, int] = DEFAULT_CRS,step = None):
+        """
+
+        @param name:
+        @param extent:
+        @param crs:
+        @param step: The space between the values. Use null for irregularly spaced steps.
+        """
         super().__init__(type="spatial", name=name)
         self.extent = extent
         self.crs = crs
+        self.step = step
 
     def rename(self, name) -> 'Dimension':
-        return SpatialDimension(name=name, extent=self.extent, crs=self.crs)
+        return SpatialDimension(name=name, extent=self.extent, crs=self.crs, step=self.step)
 
 
 class TemporalDimension(Dimension):
@@ -222,7 +230,7 @@ class CollectionMetadata:
             dim_type = info.get("type")
             if dim_type == "spatial":
                 dimensions.append(SpatialDimension(
-                    name=name, extent=info.get("extent"), crs=info.get("reference_system", SpatialDimension.DEFAULT_CRS)
+                    name=name, extent=info.get("extent"), crs=info.get("reference_system", SpatialDimension.DEFAULT_CRS), step=info.get("step",None)
                 ))
             elif dim_type == "temporal":
                 dimensions.append(TemporalDimension(name=name, extent=info.get("extent")))
