@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Mark `Connection.imagecollection` more clearly as deprecated/legacy alias of `Connection.load_collection`
 - Deprecated `job_results()` and `job_logs()` on `Connection` object, it's better to work through `RESTJob` object. 
+- Update `DataCube.sar_backscatter` to the latest process spec: add `coefficient` argument 
+  and remove `orthorectify`, `rtc`. ([openeo-processes#210](https://github.com/Open-EO/openeo-processes/pull/210))
 
 ### Removed
 
