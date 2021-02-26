@@ -55,7 +55,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = 'openEO'
+project = 'openEO Python Client'
 copyright = '2017 - {d}, Jeroen Dries'.format(d=datetime.datetime.utcnow().strftime("%Y"))
 author = 'Jeroen Dries'
 
