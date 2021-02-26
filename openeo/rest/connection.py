@@ -588,10 +588,11 @@ class Connection(RestApiConnection):
         """
         Loads all available services of the authenticated user.
 
-        :return: data_dict: Dict All available service types
+        :return: data_dict: Dict All available services
         """
         # TODO return parsed service objects
-        return self.get('/services').json()
+        services = self.get('/services').json()["services"]
+        return VisualList("data-table", data = services, parameters = {'columns': 'services'})
 
     def describe_collection(self, name) -> dict:
         # TODO: Maybe create some kind of Data class.
@@ -625,7 +626,8 @@ class Connection(RestApiConnection):
         """
         # TODO: Maybe format the result so that there get Job classes returned.
         # TODO: duplication with `user_jobs()` method
-        return self.get('/jobs').json()["jobs"]
+        jobs = self.get('/jobs').json()["jobs"]
+        return VisualList("data-table", data = jobs, parameters = {'columns': 'jobs'})
 
     def save_user_defined_process(
             self, user_defined_process_id: str,
@@ -758,7 +760,8 @@ class Connection(RestApiConnection):
         :return: file_list: List of the user uploaded files.
         """
 
-        return self.get('/files').json()['files']
+        files = self.get('/files').json()['files']
+        return VisualList("data-table", data = files, parameters = {'columns': 'files'})
 
     def create_file(self, path):
         """

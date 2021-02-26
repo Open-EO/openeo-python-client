@@ -1,8 +1,9 @@
 import json
 
-SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/@openeo/vue-components@2.0.0-rc.4/assets/openeo.min.js'
+SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/@openeo/vue-components@2.0.0-rc.5/assets/openeo.min.js'
 COMPONENT_MAP = {
     'collection': 'data',
+    'data-table': 'data',
     'file-format': 'format',
     'file-formats': 'formats',
     'item': 'data',
@@ -12,10 +13,75 @@ COMPONENT_MAP = {
     'udf-runtimes': 'runtimes',
 }
 
+TABLE_COLUMNS = {
+    'jobs': {
+        'id': {
+            'name': 'ID',
+            'primaryKey': True
+        },
+        'title': {
+            'name': 'Title'
+        },
+        'status': {
+            'name': 'Status',
+#           'stylable': True
+        },
+        'created': {
+            'name': 'Submitted',
+            'format': 'Timestamp',
+            'sort': 'desc'
+        },
+        'updated': {
+            'name': 'Last update',
+            'format': 'Timestamp'
+        }
+    },
+    'services': {
+        'id': {
+            'name': 'ID',
+            'primaryKey': True
+        },
+        'title': {
+            'name': 'Title'
+        },
+        'type': {
+            'name': 'Type',
+#           'format': value => typeof value === 'string' ? value.toUpperCase() : value,
+        },
+        'enabled': {
+            'name': 'Enabled'
+        },
+        'created': {
+            'name': 'Submitted',
+            'format': 'Timestamp',
+            'sort': 'desc'
+        }
+    },
+    'files': {
+        'path': {
+            'name': 'Path',
+            'primaryKey': True,
+#           'sortFn': Utils.sortByPath,
+            'sort': 'asc'
+        },
+        'size': {
+            'name': 'Size',
+            'format': "FileSize",
+            'filterable': False
+        },
+        'modified': {
+            'name': 'Last modified',
+            'format': 'Timestamp'
+        }
+    }
+}
+
 def render_component(component: str, data = None, parameters: dict = {}):
     # Special handling for batch job results, show either item or collection depending on the data
     if component == "batch-job-result":
         component = "item" if data["type"] == "Feature" else "collection"
+    elif component == "data-table":
+        parameters['columns'] = TABLE_COLUMNS[parameters['columns']]
 
     # Set the data as the corresponding parameter in the Vue components
     key = COMPONENT_MAP.get(component, component)
