@@ -1530,14 +1530,14 @@ class DataCube(ImageCollection):
 
     def sar_backscatter(
             self,
-            coefficient: str = "gamma0-terrain",
-            elevation_model: str = None,
+            coefficient: Union[str, None] = "gamma0-terrain",
+            elevation_model: Union[str, None] = None,
             mask: bool = False,
             contributing_area: bool = False,
             local_incidence_angle: bool = False,
             ellipsoid_incidence_angle: bool = False,
             noise_removal: bool = True,
-            options: dict = None
+            options: Optional[dict] = None
     ) -> "DataCube":
         """
         Computes backscatter from SAR input.
@@ -1548,13 +1548,14 @@ class DataCube(ImageCollection):
 
         :param coefficient: Select the radiometric correction coefficient.
             The following options are available:
-            - `beta0`: radar brightness
-            - `sigma0-ellipsoid`: ground area computed with ellipsoid earth model
-            - `sigma0-terrain`: ground area computed with terrain earth model
-            - `gamma0-ellipsoid`: ground area computed with ellipsoid earth model in sensor line of sight
-            - `gamma0-terrain`: ground area computed with terrain earth model in sensor line of sight (default)
-            - `null`: non-normalized backscatter"
-        :param elevation_model: The digital elevation model to use. Set to `null` (the default) to allow
+
+            - `"beta0"`: radar brightness
+            - `"sigma0-ellipsoid"`: ground area computed with ellipsoid earth model
+            - `"sigma0-terrain"`: ground area computed with terrain earth model
+            - `"gamma0-ellipsoid"`: ground area computed with ellipsoid earth model in sensor line of sight
+            - `"gamma0-terrain"`: ground area computed with terrain earth model in sensor line of sight (default)
+            - `None`: non-normalized backscatter
+        :param elevation_model: The digital elevation model to use. Set to `None` (the default) to allow
             the back-end to choose, which will improve portability, but reduce reproducibility.
         :param mask: If set to `true`, a data mask is added to the bands with the name `mask`.
             It indicates which values are valid (1), invalid (0) or contain no-data (null).
@@ -1569,8 +1570,15 @@ class DataCube(ImageCollection):
         :return:
 
         .. versionadded :: 0.4.9
-        .. versionchanged :: 0.4.10 replace `orthorectify` and `rtc arguments with `coefficient`.
+        .. versionchanged :: 0.4.10 replace `orthorectify` and `rtc` arguments with `coefficient`.
         """
+        coefficient_options = [
+            "beta0", "sigma0-ellipsoid", "sigma0-terrain", "gamma0-ellipsoid", "gamma0-terrain", None
+        ]
+        if coefficient not in coefficient_options:
+            raise OpenEoClientException("Invalid `sar_backscatter` coefficient {c!r}. Should be one of {o}".format(
+                c=coefficient, o=coefficient_options
+            ))
         arguments = {
             "data": THIS,
             "coefficient": coefficient,
