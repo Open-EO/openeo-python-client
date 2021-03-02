@@ -445,6 +445,9 @@ class DataCube(ImageCollection):
         return self._operator_binary("multiply", other, reverse=reverse)
 
     def normalized_difference(self, other: 'DataCube') -> 'DataCube':
+        # This DataCube method is only a convenience function when in band math mode
+        assert self._in_bandmath_mode()
+        assert other._in_bandmath_mode()
         return self._operator_binary("normalized_difference", other)
 
     def logical_or(self, other: 'DataCube') -> 'DataCube':
