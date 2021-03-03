@@ -873,7 +873,7 @@ def test_create_udp(requests_mock):
         body = request.json()
         assert body['process_graph'] == new_udp['process_graph']
         assert body['parameters'] == new_udp['parameters']
-        assert not body.get('public', False)
+        assert body['public'] is False
         return True
 
     adapter = requests_mock.put(API_URL + "process_graphs/evi", additional_matcher=check_body)
@@ -898,7 +898,7 @@ def test_create_public_udp(requests_mock):
         body = request.json()
         assert body['process_graph'] == new_udp['process_graph']
         assert body['parameters'] == new_udp['parameters']
-        assert body['public']
+        assert body['public'] is True
         return True
 
     adapter = requests_mock.put(API_URL + "process_graphs/evi", additional_matcher=check_body)
