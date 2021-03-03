@@ -195,6 +195,7 @@ official processes in the :py:mod:`openeo.processes` module,
 which can be used to build a process graph as follows::
 
     from openeo.processes import subtract, divide
+    from openeo.api.process import Parameter
 
     # Define the input parameter.
     f = Parameter.number("f", description="Degrees Fahrenheit.")
@@ -211,7 +212,7 @@ which can be used to build a process graph as follows::
 
 
 The ``fahrenheit_to_celsius`` object encapsulates the subtract and divide calculations in a symbolic way.
-We can pass it directly to :func:`~openeo.rest.connection.Connection.save_user_defined_process`.
+We can pass it directly to :py:meth:`~openeo.rest.connection.Connection.save_user_defined_process`.
 
 
 If you want to inspect its openEO-style process graph representation,
@@ -312,6 +313,47 @@ from the dictionary above::
     )
 
 
+Store to a file
+---------------
+
+Some use cases might require storing the user-defined process in,
+for example, a JSON file instead of storing it directly on a backend.
+Use :py:func:`~openeo.rest.udp.build_process_dict` to build a dictionary
+compatible with the "process graph with metadata" format of the openEO API
+and dump it in JSON format to a file::
+
+    import json
+    from openeo.rest.udp import build_process_dict
+    from openeo.processes import subtract, divide
+    from openeo.api.process import Parameter
+
+    fahrenheit = Parameter.number("f", description="Degrees Fahrenheit.")
+    fahrenheit_to_celsius = divide(x=subtract(x=fahrenheit, y=32), y=1.8)
+
+    spec = build_process_dict(
+        process_id="fahrenheit_to_celsius",
+        process_graph=fahrenheit_to_celsius,
+        parameters=[fahrenheit]
+    )
+
+    with open("fahrenheit_to_celsius.json", "w") as f:
+        json.dump(spec, f, indent=2)
+
+This results in a JSON file like this::
+
+    {
+      "id": "fahrenheit_to_celsius",
+      "process_graph": {
+        "subtract1": {
+          "process_id": "subtract",
+           ...
+      "parameters": [
+        {
+          "name": "f",
+          ...
+
+
+
 Evaluate user-defined processes
 ================================
 
@@ -349,7 +391,7 @@ Public user-defined processes
 ================================
 
 To make your process usable by other users, you can set the 'public' flag
-in :func:`~openeo.rest.connection.Connection.save_user_defined_process` to ``True``.
+in :py:meth:`~openeo.rest.connection.Connection.save_user_defined_process` to ``True``.
 
 .. warning::
     Beta feature - while the support for storing processes is defined in the API, there is
