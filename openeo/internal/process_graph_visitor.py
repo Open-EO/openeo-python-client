@@ -1,4 +1,5 @@
 from abc import ABC
+from typing import Union
 
 from deprecated import deprecated
 
@@ -75,11 +76,12 @@ class ProcessGraphVisitor(ABC):
     def accept_node(self, node: dict):
         pid = node['process_id']
         arguments = node.get('arguments', {})
-        self._accept_process(process_id=pid, arguments=arguments)
+        namespace = node.get("namespace", None)
+        self._accept_process(process_id=pid, arguments=arguments, namespace=namespace)
 
-    def _accept_process(self, process_id: str, arguments: dict):
+    def _accept_process(self, process_id: str, arguments: dict, namespace: Union[str, None]):
         self.process_stack.append(process_id)
-        self.enterProcess(process_id=process_id, arguments=arguments)
+        self.enterProcess(process_id=process_id, arguments=arguments, namespace=namespace)
         for arg_id, value in sorted(arguments.items()):
             if isinstance(value, list):
                 self.enterArray(argument_id=arg_id)
@@ -91,7 +93,7 @@ class ProcessGraphVisitor(ABC):
                 self.leaveArgument(argument_id=arg_id, value=value)
             else:
                 self.constantArgument(argument_id=arg_id, value=value)
-        self.leaveProcess(process_id=process_id, arguments=arguments)
+        self.leaveProcess(process_id=process_id, arguments=arguments, namespace=namespace)
         assert self.process_stack.pop() == process_id
 
     def _accept_argument_list(self, elements: list):
@@ -121,10 +123,10 @@ class ProcessGraphVisitor(ABC):
     def from_parameter(self,parameter_id:str):
         pass
 
-    def enterProcess(self, process_id: str, arguments: dict):
+    def enterProcess(self, process_id: str, arguments: dict, namespace: Union[str, None]):
         pass
 
-    def leaveProcess(self, process_id: str, arguments: dict):
+    def leaveProcess(self, process_id: str, arguments: dict, namespace: Union[str, None]):
         pass
 
     def enterArgument(self, argument_id: str, value):

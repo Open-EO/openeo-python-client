@@ -1,4 +1,3 @@
-from unittest import TestCase
 from unittest.mock import MagicMock, call, ANY
 
 import pytest
@@ -16,7 +15,26 @@ def test_visit_node():
     visitor.enterArgument = MagicMock()
     visitor.accept_node(node)
 
-    assert visitor.enterProcess.call_args_list == [call(process_id="cos", arguments={"x": {"from_argument": "data"}})]
+    assert visitor.enterProcess.call_args_list == [
+        call(process_id="cos", arguments={"x": {"from_argument": "data"}}, namespace=None)
+    ]
+    assert visitor.enterArgument.call_args_list == [call(argument_id="x", value={"from_argument": "data"})]
+
+
+def test_visit_node_namespaced():
+    node = {
+        "process_id": "cos",
+        "namespace": "math",
+        "arguments": {"x": {"from_argument": "data"}}
+    }
+    visitor = ProcessGraphVisitor()
+    visitor.enterProcess = MagicMock()
+    visitor.enterArgument = MagicMock()
+    visitor.accept_node(node)
+
+    assert visitor.enterProcess.call_args_list == [
+        call(process_id="cos", arguments={"x": {"from_argument": "data"}}, namespace="math")
+    ]
     assert visitor.enterArgument.call_args_list == [call(argument_id="x", value={"from_argument": "data"})]
 
 
@@ -51,8 +69,8 @@ def test_visit_nodes():
     visitor.accept_process_graph(graph)
 
     assert visitor.leaveProcess.call_args_list == [
-        call(process_id="abs", arguments=ANY),
-        call(process_id="cos", arguments=ANY),
+        call(process_id="abs", arguments=ANY, namespace=None),
+        call(process_id="cos", arguments=ANY, namespace=None),
     ]
     assert visitor.enterArgument.call_args_list == [
         call(argument_id="data", value=ANY),
@@ -93,8 +111,8 @@ def test_visit_nodes_array():
 
     visitor.accept_process_graph(graph)
     assert visitor.leaveProcess.call_args_list == [
-        call(process_id='abs', arguments=ANY),
-        call(process_id='cos', arguments=ANY)
+        call(process_id='abs', arguments=ANY, namespace=None),
+        call(process_id='cos', arguments=ANY, namespace=None)
     ]
     assert visitor.enterArgument.call_args_list == [
         call(argument_id="data", value=ANY)
@@ -130,8 +148,8 @@ def test_visit_array_with_dereferenced_nodes():
 
     visitor.accept_node(dereferenced)
     assert visitor.leaveProcess.call_args_list == [
-        call(process_id='array_element', arguments=ANY),
-        call(process_id='product', arguments=ANY)
+        call(process_id='array_element', arguments=ANY, namespace=None),
+        call(process_id='product', arguments=ANY, namespace=None)
     ]
     assert visitor.enterArgument.call_args_list == [
         call(argument_id="data", value={'from_argument': 'data'})

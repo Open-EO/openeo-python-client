@@ -19,10 +19,24 @@ def test_pgnode_arguments():
         PGNode("foo", arguments={"bar": 123}, bar=456)
 
 
+def test_pgnode_namespace():
+    assert PGNode("foo").namespace is None
+    assert PGNode("foo", namespace="bar").namespace == "bar"
+
+
 def test_pgnode_to_dict():
     pg = PGNode(process_id="load_collection", arguments={"collection_id": "S2"})
     assert pg.to_dict() == {
         "process_id": "load_collection",
+        "arguments": {"collection_id": "S2"}
+    }
+
+
+def test_pgnode_to_dict_namespace():
+    pg = PGNode(process_id="load_collection", arguments={"collection_id": "S2"}, namespace="bar")
+    assert pg.to_dict() == {
+        "process_id": "load_collection",
+        "namespace": "bar",
         "arguments": {"collection_id": "S2"}
     }
 
@@ -86,6 +100,11 @@ def test_build_and_flatten_arguments():
 def test_build_and_flatten_argument_dict():
     node = PGNode("foo", {"bar": "red", "x": 3})
     assert node.flat_graph() == {"foo1": {"process_id": "foo", "arguments": {"bar": "red", "x": 3}, "result": True}}
+
+
+def test_build_and_flatten_namespace():
+    node = PGNode("foo", namespace="bar")
+    assert node.flat_graph() == {"foo1": {"process_id": "foo", "namespace": "bar", "arguments": {}, "result": True}}
 
 
 def test_pgnode_to_dict_subprocess_graphs():
