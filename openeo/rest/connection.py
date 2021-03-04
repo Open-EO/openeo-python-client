@@ -31,7 +31,7 @@ from openeo.rest.imagecollectionclient import ImageCollectionClient
 from openeo.rest.job import RESTJob
 from openeo.rest.rest_capabilities import RESTCapabilities
 from openeo.rest.udp import RESTUserDefinedProcess, Parameter
-from openeo.util import ensure_list, legacy_alias, dict_no_none
+from openeo.util import ensure_list, legacy_alias, dict_no_none, rfc3339
 
 _log = logging.getLogger(__name__)
 
@@ -55,6 +55,34 @@ class OpenEoApiError(OpenEoClientException):
         self.url = url
         super().__init__("[{s}] {c}: {m}".format(s=self.http_status_code, c=self.code, m=self.message))
 
+class Paginate:
+
+    def __init__(self, con, url: str = None, callback: Callable = None):
+        self.con = con
+        self.url = url
+        self.nextUrl = url
+        self.callback = callback
+        self.page = 0
+
+    def __iter__(self):
+        self.page = 0
+        self.nextUrl = self.url
+        return self
+
+    def __next__(self):
+        if self.nextUrl is None:
+            raise StopIteration
+        
+        response = self.con.get(self.nextUrl).json()
+        if isinstance(response['links'], list):
+            nextLink = next((link for link in response['links'] if link['rel'] == 'next'), None)
+            self.nextUrl = nextLink['href']
+        else:
+            self.nextUrl = None
+
+        self.page += 1
+        return self.callback(response, self.page)
+    
 
 class RestApiConnection:
     """Base connection class implementing generic REST API request functionality"""
@@ -588,6 +616,30 @@ class Connection(RestApiConnection):
         """
         data = self.get('/collections/{}'.format(name)).json()
         return VisualDict("collection", data = data)
+
+    def collection_items(self, name, spatial_extent: Optional[Dict[str, float]] = None, temporal_extent: Optional[List[Union[str, datetime.datetime]]] = None) -> Paginate:
+        """
+        Loads items for a specific image collection.
+        May not be available for all collections.
+
+        :param name: String Id of the collection
+        :param spatial_extent: Limits the items to the given bounding box.
+        :param temporal_extent: Limits the items to the specified temporal interval.
+        The interval has to be specified as an array with exactly two elements (start, end).
+        Also supports open intervals by setting one of the boundaries to None, but never both.
+        :return: data_list: List A list of items
+        """
+        q = []
+        if spatial_extent is not None:
+            bbox = map(lambda c: str(c), spatial_extent)
+            q.append('bbox={}'.format(','.join(bbox)))
+        
+        if temporal_extent is not None:
+            datetimes = map(lambda t: '..' if t is None else rfc3339.normalize(t), temporal_extent)
+            q.append('datetime={}'.format('/'.join(datetimes)))
+        
+        url = '/collections/{cid}/items?{q}'.format(cid = name, q = '&'.join(q))
+        return iter(Paginate(self, url, lambda response, page: VisualDict("items", data = response, parameters = {'show-map': True, 'heading': 'Page {} - Items'.format(page)})))
 
     def collection_metadata(self, name) -> CollectionMetadata:
         return CollectionMetadata(metadata=self.describe_collection(name))

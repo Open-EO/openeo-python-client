@@ -1,12 +1,13 @@
 import json
 
-SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/@openeo/vue-components@2.0.0-rc.5/assets/openeo.min.js'
+SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/@openeo/vue-components@2/assets/openeo.min.js'
 COMPONENT_MAP = {
     'collection': 'data',
     'data-table': 'data',
     'file-format': 'format',
     'file-formats': 'formats',
     'item': 'data',
+    'items': 'items',
     'service-type': 'service',
     'service-types': 'services',
     'udf-runtime': 'runtime',
