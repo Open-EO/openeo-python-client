@@ -539,9 +539,15 @@ def test_custom_process_kwargs_datacube_pg(con100: Connection):
     assert res.graph == expected
 
 
-def test_custom_process_kwargs_datacube_chained(con100: Connection):
+def test_custom_process_kwargs_this(con100: Connection):
     res = con100.load_collection("S2").process(process_id="foo", data=THIS, bar=123)
     expected = load_json_resource('data/1.0.0/process_foo.json')
+    assert res.graph == expected
+
+
+def test_custom_process_kwargs_namespaced(con100: Connection):
+    res = con100.load_collection("S2").process(process_id="foo", data=THIS, bar=123, namespace="bar")
+    expected = load_json_resource('data/1.0.0/process_foo_namespaced.json')
     assert res.graph == expected
 
 
@@ -559,9 +565,15 @@ def test_custom_process_arguments_datacube_pg(con100: Connection):
     assert res.graph == expected
 
 
-def test_custom_process_arguments_datacube_chained(con100: Connection):
+def test_custom_process_arguments_this(con100: Connection):
     res = con100.load_collection("S2").process(process_id="foo", arguments={"data": THIS, "bar": 123})
     expected = load_json_resource('data/1.0.0/process_foo.json')
+    assert res.graph == expected
+
+
+def test_custom_process_arguments_namespacd(con100: Connection):
+    res = con100.load_collection("S2").process(process_id="foo", arguments={"data": THIS, "bar": 123}, namespace="bar")
+    expected = load_json_resource('data/1.0.0/process_foo_namespaced.json')
     assert res.graph == expected
 
 

@@ -8,7 +8,7 @@ from typing import Union, Dict, Any
 
 from openeo.api.process import Parameter
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor
-from openeo.util import legacy_alias
+from openeo.util import legacy_alias, dict_no_none
 
 
 class PGNode:
@@ -24,7 +24,7 @@ class PGNode:
 
     """
 
-    def __init__(self, process_id: str, arguments: dict = None, **kwargs):
+    def __init__(self, process_id: str, arguments: dict = None, namespace: Union[str, None] = None, **kwargs):
         self._process_id = process_id
         # Merge arguments dict and kwargs
         arguments = dict(**(arguments or {}), **kwargs)
@@ -34,6 +34,7 @@ class PGNode:
                 arguments[arg] = {"from_node": value}
         # TODO: use a frozendict of some sort to ensure immutability?
         self._arguments = arguments
+        self._namespace = namespace
 
     def __repr__(self):
         return "<{c} {p!r} at 0x{m:x}>".format(c=self.__class__.__name__, p=self.process_id, m=id(self))
@@ -46,6 +47,10 @@ class PGNode:
     def arguments(self) -> dict:
         return self._arguments
 
+    @property
+    def namespace(self) -> Union[str, None]:
+        return self._namespace
+
     def to_dict(self) -> dict:
         """
         Convert process graph to a nested dictionary structure.
@@ -55,7 +60,7 @@ class PGNode:
         def _deep_copy(x):
             """PGNode aware deep copy helper"""
             if isinstance(x, PGNode):
-                return {"process_id": x.process_id, "arguments": _deep_copy(x.arguments)}
+                return dict_no_none(process_id=x.process_id, arguments=_deep_copy(x.arguments), namespace=x.namespace)
             if isinstance(x, Parameter):
                 return {"from_parameter": x.name}
             elif isinstance(x, dict):
@@ -201,20 +206,21 @@ class GraphFlattener(ProcessGraphVisitor):
         # Process reused nodes only first time and remember node id.
         node_id = id(node)
         if node_id not in self._node_cache:
-            super()._accept_process(process_id=node.process_id, arguments=node.arguments)
+            super()._accept_process(process_id=node.process_id, arguments=node.arguments, namespace=node.namespace)
             self._node_cache[node_id] = self._last_node_id
         else:
             self._last_node_id = self._node_cache[node_id]
 
-    def enterProcess(self, process_id: str, arguments: dict):
+    def enterProcess(self, process_id: str, arguments: dict, namespace: Union[str, None]):
         self._argument_stack.append({})
 
-    def leaveProcess(self, process_id: str, arguments: dict):
+    def leaveProcess(self, process_id: str, arguments: dict, namespace: Union[str, None]):
         node_id = self._node_id_generator.generate(process_id)
-        self._flattened[node_id] = {
-            "process_id": process_id,
-            "arguments": self._argument_stack.pop()
-        }
+        self._flattened[node_id] = dict_no_none(
+            process_id=process_id,
+            arguments=self._argument_stack.pop(),
+            namespace=namespace,
+        )
         self._last_node_id = node_id
 
     def _store_argument(self, argument_id: str, value):

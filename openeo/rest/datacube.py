@@ -93,12 +93,21 @@ class DataCube(ImageCollection):
     def connection(self) -> 'openeo.Connection':
         return self._connection
 
-    def process(self, process_id: str, arguments: dict = None, metadata: CollectionMetadata = None, **kwargs) -> 'DataCube':
+    def process(
+            self,
+            process_id: str,
+            arguments: dict = None,
+            metadata: Optional[CollectionMetadata] = None,
+            namespace: Optional[str] = None,
+            **kwargs
+    ) -> 'DataCube':
         """
         Generic helper to create a new DataCube by applying a process.
 
         :param process_id: process id of the process.
         :param arguments: argument dictionary for the process.
+        :param metadata: optional: metadata to override original cube metadata (e.g. when reducing dimensions)
+        :param namespace: optional: process namespace
         :return: new DataCube instance
         """
         arguments = {**(arguments or {}), **kwargs}
@@ -110,16 +119,17 @@ class DataCube(ImageCollection):
         return self.process_with_node(PGNode(
             process_id=process_id,
             arguments=arguments,
+            namespace=namespace,
         ), metadata=metadata)
 
     graph_add_node = legacy_alias(process, "graph_add_node")
 
-    def process_with_node(self, pg: PGNode, metadata: CollectionMetadata = None) -> 'DataCube':
+    def process_with_node(self, pg: PGNode, metadata: Optional[CollectionMetadata] = None) -> 'DataCube':
         """
         Generic helper to create a new DataCube by applying a process (given as process graph node)
 
         :param pg: process graph node (containing process id and arguments)
-        :param metadata: (optional) metadata to override original cube metadata (e.g. when reducing dimensions)
+        :param metadata: optional: metadata to override original cube metadata (e.g. when reducing dimensions)
         :return: new DataCube instance
         """
         # TODO: deep copy `self.metadata` instead of using same instance?
