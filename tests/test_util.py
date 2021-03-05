@@ -120,12 +120,20 @@ def test_rfc3339_parse_datetime_none():
     assert Rfc3339(propagate_none=True).parse_datetime(None) is None
 
 
-def test_dict_no_none():
+def test_dict_no_none_kwargs():
     assert dict_no_none() == {}
     assert dict_no_none(a=3) == {"a": 3}
     assert dict_no_none(a=3, b=0, c="foo") == {"a": 3, "b": 0, "c": "foo"}
     assert dict_no_none(a=3, b="", c="foo") == {"a": 3, "b": "", "c": "foo"}
     assert dict_no_none(a=3, b=None, c="foo") == {"a": 3, "c": "foo"}
+
+
+def test_dict_no_none_args():
+    assert dict_no_none() == {}
+    assert dict_no_none({"a": 3}) == {"a": 3}
+    assert dict_no_none({"a": 3, "b": 0, "c": "foo"}) == {"a": 3, "b": 0, "c": "foo"}
+    assert dict_no_none({"a": 3, "b": "", "c": "foo"}) == {"a": 3, "b": "", "c": "foo"}
+    assert dict_no_none({"a": 3, "b": None, "c": "foo"}) == {"a": 3, "c": "foo"}
 
 
 @pytest.mark.parametrize(['input', 'expected'], [

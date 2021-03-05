@@ -230,7 +230,7 @@ class DataCube(ImageCollection):
             start_date: Union[str, datetime.datetime, datetime.date] = None,
             end_date: Union[str, datetime.datetime, datetime.date] = None,
             extent: Union[list, tuple] = None
-    ) -> 'ImageCollection':
+    ) -> 'DataCube':
         """
         Limit the DataCube to a certain date range, which can be specified in several ways:
 
@@ -445,6 +445,9 @@ class DataCube(ImageCollection):
         return self._operator_binary("multiply", other, reverse=reverse)
 
     def normalized_difference(self, other: 'DataCube') -> 'DataCube':
+        # This DataCube method is only a convenience function when in band math mode
+        assert self._in_bandmath_mode()
+        assert other._in_bandmath_mode()
         return self._operator_binary("normalized_difference", other)
 
     def logical_or(self, other: 'DataCube') -> 'DataCube':
@@ -1301,7 +1304,7 @@ class DataCube(ImageCollection):
     ) -> 'DataCube':
         return self.aggregate_spatial(geometries=polygon, reducer=func)
 
-    def ard_surface_reflectance(self,atmospheric_correction_method:str,cloud_detection_method:str,elevation_model:str=None):
+    def ard_surface_reflectance(self,atmospheric_correction_method:str,cloud_detection_method:str,elevation_model:str=None) -> 'DataCube':
         """
         Computes CARD4L compliant surface reflectance values from optical input.
 
@@ -1317,22 +1320,24 @@ class DataCube(ImageCollection):
             'elevation_model':elevation_model
         })
 
-    def atmospheric_correction(self,method=None):
+    def atmospheric_correction(self,method:str=None,elevation_model:str=None) -> 'DataCube':
         """
-        EXPERIMENTAL
         Applies an atmospheric correction that converts top of atmosphere reflectance values into bottom of atmosphere/top of canopy reflectance values.
 
         Note that multiple atmospheric methods exist, but may not be supported by all backends. The method parameter gives
         you the option of requiring a specific method, but this may result in an error if the backend does not support it.
 
+        :param method: The atmospheric correction method to use. To get reproducible results, you have to set a specific method. Set to `null` to allow the back-end to choose, which will improve portability, but reduce reproducibility as you *may* get different results if you run the processes multiple times.
+        :param elevation_model: The digital elevation model to use, leave empty to allow the back-end to make a suitable choice.
         :return: datacube with bottom of atmosphere reflectances
         """
         return self.process('atmospheric_correction', {
             'data': THIS,
-            'method': method
+            'method': method,
+            'elevation_model': elevation_model
         })
 
-    def save_result(self, format: str = "GTiff", options: dict = None):
+    def save_result(self, format: str = "GTiff", options: dict = None) -> 'DataCube':
         formats = set(self._connection.list_output_formats().keys())
         if format.lower() not in {f.lower() for f in formats}:
             raise ValueError("Invalid format {f!r}. Should be one of {s}".format(f=format, s=formats))
@@ -1380,23 +1385,10 @@ class DataCube(ImageCollection):
 
         """
         job = self.send_job(out_format, job_options=job_options, **format_options)
-        job = job.run_synchronous(
-            outputfile=None,
+        return job.run_synchronous(
+            outputfile=outputfile,
             print=print, max_poll_interval=max_poll_interval, connection_retry_interval=connection_retry_interval
         )
-        # relying on RestJOB::start_and_wait called in run_synchronous throws if job is not finished properly
-        # TODO: avoid calling private methods from openeo.rest.Result
-        result = job.get_result()
-        assets = result._get_assets();
-        if (len(assets)==1):
-            result._download_url(assets.popitem()[1]["href"], pathlib.Path(outputfile))
-        else:
-            # TODO: find a mechanism that works accross the backends that can reliable choose "primary" result
-            log.warning("FIXME: Multiple result files detected, those will be saved by the name advertised on the server!")
-            for iname,iurl in assets.items():
-                result._download_url(iurl["href"], pathlib.Path(iname))
-                
-        return job
 
     def send_job(
             self, out_format=None, title: str = None, description: str = None, plan: str = None, budget=None,
@@ -1540,29 +1532,36 @@ class DataCube(ImageCollection):
         })
 
     def sar_backscatter(
-            self, orthorectify: bool = True, elevation_model: str = None, rtc: bool = True, mask: bool = False,
-            contributing_area: bool = False, local_incidence_angle: bool = False,
-            ellipsoid_incidence_angle: bool = False, noise_removal: bool = True, options: dict = None
-    ):
+            self,
+            coefficient: Union[str, None] = "gamma0-terrain",
+            elevation_model: Union[str, None] = None,
+            mask: bool = False,
+            contributing_area: bool = False,
+            local_incidence_angle: bool = False,
+            ellipsoid_incidence_angle: bool = False,
+            noise_removal: bool = True,
+            options: Optional[dict] = None
+    ) -> "DataCube":
         """
-        *EXPERIMENTAL*
-
         Computes backscatter from SAR input.
 
         Note that backscatter computation may require instrument specific metadata that is tightly coupled to the
         original SAR products. As a result, this process may only work in combination with loading data from
         specific collections, not with general data cubes.
 
-        :param orthorectify: Set to `true` to enable orthorectification. The non-orthorectified products use a
-            simple earth model as provided in the products themselves. This may be sufficient for very
-            flat target areas and is faster to process.
-        :param elevation_model: The digital elevation model to use. Set to `null` (the default) to allow
+        :param coefficient: Select the radiometric correction coefficient.
+            The following options are available:
+
+            - `"beta0"`: radar brightness
+            - `"sigma0-ellipsoid"`: ground area computed with ellipsoid earth model
+            - `"sigma0-terrain"`: ground area computed with terrain earth model
+            - `"gamma0-ellipsoid"`: ground area computed with ellipsoid earth model in sensor line of sight
+            - `"gamma0-terrain"`: ground area computed with terrain earth model in sensor line of sight (default)
+            - `None`: non-normalized backscatter
+        :param elevation_model: The digital elevation model to use. Set to `None` (the default) to allow
             the back-end to choose, which will improve portability, but reduce reproducibility.
-        :param rtc: Set to `false` to disable radiometrically terrain correction. By default, adjustments are made for
-            terrain by modelling the local illuminated reference area using an algorithm to produce a radiometrically
-            terrain corrected (RTC) values.
-        :param mask: If set to `true`, a data mask is added to the bands with the name `mask`. It indicates which values
-            are valid (1), invalid (0) or contain no-data (null).
+        :param mask: If set to `true`, a data mask is added to the bands with the name `mask`.
+            It indicates which values are valid (1), invalid (0) or contain no-data (null).
         :param contributing_area: If set to `true`, a DEM-based local contributing area band named `contributing_area`
             is added. The values are given in square meters.
         :param local_incidence_angle: If set to `true`, a DEM-based local incidence angle band named
@@ -1570,18 +1569,29 @@ class DataCube(ImageCollection):
         :param ellipsoid_incidence_angle: If set to `true`, an ellipsoidal incidence angle band named
             `ellipsoid_incidence_angle` is added. The values are given in degrees.
         :param noise_removal: If set to `false`, no noise removal is applied. Defaults to `true`, which removes noise.
-        :param options: dictionary with additional options
+        :param options: dictionary with additional (backend-specific) options.
         :return:
+
+        .. versionadded :: 0.4.9
+        .. versionchanged :: 0.4.10 replace `orthorectify` and `rtc` arguments with `coefficient`.
         """
-        return self.process(process_id="sar_backscatter", arguments={
+        coefficient_options = [
+            "beta0", "sigma0-ellipsoid", "sigma0-terrain", "gamma0-ellipsoid", "gamma0-terrain", None
+        ]
+        if coefficient not in coefficient_options:
+            raise OpenEoClientException("Invalid `sar_backscatter` coefficient {c!r}. Should be one of {o}".format(
+                c=coefficient, o=coefficient_options
+            ))
+        arguments = {
             "data": THIS,
-            "orthorectify": orthorectify,
+            "coefficient": coefficient,
             "elevation_model": elevation_model,
-            "rtc": rtc,
             "mask": mask,
             "contributing_area": contributing_area,
             "local_incidence_angle": local_incidence_angle,
             "ellipsoid_incidence_angle": ellipsoid_incidence_angle,
             "noise_removal": noise_removal,
-            "options": options,
-        })
+        }
+        if options:
+            arguments["options"] = options
+        return self.process(process_id="sar_backscatter", arguments=arguments)

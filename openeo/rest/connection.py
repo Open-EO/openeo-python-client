@@ -10,16 +10,16 @@ from typing import Dict, List, Tuple, Union, Callable, Optional, Any
 from urllib.parse import urljoin
 
 import requests
-from deprecated import deprecated
+from deprecated.sphinx import deprecated
 from requests import Response
 from requests.auth import HTTPBasicAuth, AuthBase
 
 import openeo
 from openeo.capabilities import ApiVersionException, ComparableVersion
-from openeo.imagecollection import CollectionMetadata
 from openeo.internal.graph_building import PGNode, as_flat_graph
 from openeo.internal.jupyter import VisualDict, VisualList
 from openeo.internal.processes.builder import ProcessBuilderBase
+from openeo.metadata import CollectionMetadata
 from openeo.rest import OpenEoClientException
 from openeo.rest.auth.auth import NullAuth, BearerAuth
 from openeo.rest.auth.config import RefreshTokenStore, AuthConfig
@@ -290,6 +290,7 @@ class Connection(RestApiConnection):
             self.auth = BearerAuth(bearer=resp["access_token"])
         return self
 
+    @deprecated("Use :py:meth:`authenticate_oidc_authorization_code` or something similar.", version="0.3.5")
     def authenticate_OIDC(
             self, client_id: str,
             provider_id: str = None,
@@ -305,8 +306,6 @@ class Connection(RestApiConnection):
             (opens a webbrowser by default)
         :param timeout: number of seconds after which to abort the authentication procedure
         :param server_address: optional tuple (hostname, port_number) to serve the OAuth redirect callback on
-
-        TODO: deprecated?
         """
         # TODO: option to increase log level temporarily?
         provider_id, provider = self._get_oidc_provider(provider_id)
@@ -413,8 +412,6 @@ class Connection(RestApiConnection):
     ) -> 'Connection':
         """
         OpenID Connect Authorization Code Flow (with PKCE).
-
-        WARNING: this API is in experimental phase
         """
         provider_id, client_info = self._get_oidc_provider_and_client_info(
             provider_id=provider_id, client_id=client_id, client_secret=client_secret
@@ -434,8 +431,6 @@ class Connection(RestApiConnection):
     ) -> 'Connection':
         """
         OpenID Connect Client Credentials flow.
-
-        WARNING: this API is in experimental phase
         """
         provider_id, client_info = self._get_oidc_provider_and_client_info(
             provider_id=provider_id, client_id=client_id, client_secret=client_secret
@@ -453,8 +448,6 @@ class Connection(RestApiConnection):
     ) -> 'Connection':
         """
         OpenId Connect Resource Owner Password Credentials
-
-        WARNING: this API is in experimental phase
         """
         provider_id, client_info = self._get_oidc_provider_and_client_info(
             provider_id=provider_id, client_id=client_id, client_secret=client_secret
@@ -470,8 +463,6 @@ class Connection(RestApiConnection):
     ) -> 'Connection':
         """
         OpenId Connect Refresh Token
-
-        WARNING: this API is in experimental phase
         """
         provider_id, client_info = self._get_oidc_provider_and_client_info(
             provider_id=provider_id, client_id=client_id, client_secret=client_secret
@@ -495,8 +486,6 @@ class Connection(RestApiConnection):
     ) -> 'Connection':
         """
         Authenticate with OAuth Device Authorization grant/flow
-
-        WARNING: this API is in experimental phase
         """
         provider_id, client_info = self._get_oidc_provider_and_client_info(
             provider_id=provider_id, client_id=client_id, client_secret=client_secret
@@ -510,14 +499,9 @@ class Connection(RestApiConnection):
         """
         return self.get('/me').json()
 
+    @deprecated("use :py:meth:`list_jobs` instead", version="0.4.10")
     def user_jobs(self) -> dict:
-        """
-        Loads all jobs of the current user.
-
-        :return: jobs: Dict All jobs of the user
-        """
-        # TODO duplication with `list_jobs()` method
-        return self.get('/jobs').json()["jobs"]
+        return self.list_jobs()
 
     def list_collections(self) -> List[dict]:
         """
@@ -623,8 +607,7 @@ class Connection(RestApiConnection):
 
         :return: job_list: Dict of all jobs of the user.
         """
-        # TODO: Maybe format the result so that there get Job classes returned.
-        # TODO: duplication with `user_jobs()` method
+        # TODO: Parse the result so that there get Job classes returned?
         return self.get('/jobs').json()["jobs"]
 
     def save_user_defined_process(
@@ -744,11 +727,15 @@ class Connection(RestApiConnection):
         """
         response = self.delete('/services/' + service_id)
 
-    def job_results(self, job_id):
-        return self.get("/jobs/{}/results".format(job_id)).json()
+    @deprecated("Use :py:meth:`openeo.rest.job.RESTJob.get_results` instead.", version="0.4.10")
+    def job_results(self, job_id) -> dict:
+        """Get batch job results metadata."""
+        return RESTJob(job_id, connection=self).list_results()
 
-    def job_logs(self, job_id, offset):
-        return self.get("/jobs/{}/logs".format(job_id), params={'offset': offset}).json()
+    @deprecated("Use :py:meth:`openeo.rest.job.RESTJob.logs` instead.", version="0.4.10")
+    def job_logs(self, job_id, offset) -> list:
+        """Get batch job logs."""
+        return RESTJob(job_id, connection=self).logs(offset=offset)
 
     def list_files(self):
         """
@@ -905,10 +892,9 @@ def connect(url, auth_type: str = None, auth_options: dict = {}, session: reques
     return connection
 
 
-@deprecated("Use openeo.connect")
+@deprecated("Use :py:func:`openeo.connect` instead", version="0.0.9")
 def session(userid=None, endpoint: str = "https://openeo.org/openeo") -> Connection:
     """
-    Deprecated, use openeo.connect
     This method is the entry point to OpenEO. You typically create one session object in your script or application, per back-end.
     and re-use it for all calls to that backend.
     If the backend requires authentication, you should set pass your credentials.

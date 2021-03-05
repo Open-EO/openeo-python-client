@@ -26,7 +26,6 @@ sys.path.insert(0, os.path.abspath('../'))
 
 import openeo
 
-
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
@@ -55,7 +54,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = 'openEO'
+project = 'openEO Python Client'
 copyright = '2017 - {d}, Jeroen Dries'.format(d=datetime.datetime.utcnow().strftime("%Y"))
 author = 'Jeroen Dries'
 
@@ -86,6 +85,7 @@ pygments_style = 'sphinx'
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = False
 
+html_last_updated_fmt = "%Y/%m/%d"
 
 # -- Options for HTML output ----------------------------------------------
 

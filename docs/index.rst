@@ -3,8 +3,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Open-EO Client
-==============
+OpenEO Python Client
+=====================
 
 
 .. image:: https://img.shields.io/badge/Status-Stable-yellow.svg
@@ -17,9 +17,11 @@ Open-EO Client
    basics
    data_access
    processes
+   batch_jobs
    udp
    auth
    udf
+   ard
    api
    development
 
