@@ -7,13 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `collection_items` to request collection items through a STAC API
+- `paginate` as a basic method to support link-based pagination
 
 ### Changed
+
+- `OpenEoApiError` moved from `openeo.rest.connection` to `openeo.rest`
+- Added HTML representation for `list_jobs`, `list_services`, `list_files` and for job results
 
 ### Removed
 
 ### Fixed
-
+- Updated Vue Components library (solves issue with loading from slower back-ends where no result was shown)
 
 ## [0.4.10] - 2021-02-26
 
