@@ -383,8 +383,8 @@ def test_metadata_load_collection_100(con100, requests_mock):
     })
     im = con100.load_collection('SENTINEL2')
     assert im.metadata.bands == [
-        openeo.metadata.Band("B2", "blue", None),
-        openeo.metadata.Band("B3", "green", None)
+        openeo.metadata.Band("B2", "blue", None, "B2"),
+        openeo.metadata.Band("B3", "green", None, "B3")
     ]
 
 

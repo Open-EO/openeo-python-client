@@ -71,7 +71,8 @@ class TemporalDimension(Dimension):
 
 
 # Simple container class for band metadata (name, common name, wavelength in micrometer)
-Band = namedtuple("Band", ["name", "common_name", "wavelength_um", "internal_name"], defaults=[None])
+Band = namedtuple("Band", ["name", "common_name", "wavelength_um", "internal_name"])
+Band.__new__.__defaults__ = (None,)
 
 
 class BandDimension(Dimension):
