@@ -55,14 +55,11 @@ class OpenEoApiError(OpenEoClientException):
         self.url = url
         super().__init__("[{s}] {c}: {m}".format(s=self.http_status_code, c=self.code, m=self.message))
 
-def paginate(con, url: str, params: dict = {}, callback: Callable = None):
+def paginate(con, url: str, params: dict = {}, callback: Callable = lambda resp, page: resp):
     page = 1
     while True:
         response = con.get(url, params = params).json()
-        if callback:
-            yield callback(response, page)
-        else:
-            yield response
+        yield callback(response, page)
         next_link = next((link for link in response['links'] if link['rel'] == 'next'), None)
         if next_link is None:
              break
