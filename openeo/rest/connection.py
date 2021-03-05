@@ -587,13 +587,17 @@ class Connection(RestApiConnection):
         data = self.get('/collections/{}'.format(name)).json()
         return VisualDict("collection", data = data)
 
-    def collection_items(self, name, spatial_extent: Optional[Dict[str, float]] = None, temporal_extent: Optional[List[Union[str, datetime.datetime]]] = None, limit: int = None) -> Iterator[dict]:
+    def collection_items(self, name, spatial_extent: Optional[List[float]] = None, temporal_extent: Optional[List[Union[str, datetime.datetime]]] = None, limit: int = None) -> Iterator[dict]:
         """
         Loads items for a specific image collection.
         May not be available for all collections.
 
         :param name: String Id of the collection
-        :param spatial_extent: Limits the items to the given bounding box.
+        :param spatial_extent: Limits the items to the given bounding box in WGS84:
+        1. Lower left corner, coordinate axis 1
+        2. Lower left corner, coordinate axis 2
+        3. Upper right corner, coordinate axis 1
+        4. Upper right corner, coordinate axis 2
         :param temporal_extent: Limits the items to the specified temporal interval.
         :param limit: The amount of items per request/page. If None, the back-end decides.
         The interval has to be specified as an array with exactly two elements (start, end).
