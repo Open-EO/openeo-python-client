@@ -417,3 +417,19 @@ def test_build_process_dict_from_datacube(con100):
         "returns": {"schema": {"type": "number"}},
     }
     assert actual == expected
+
+
+def test_store_udp_nan(con100, requests_mock):
+    """https://github.com/Open-EO/openeo-python-client/issues/185"""
+    requests_mock.get(API_URL + "/processes", json={"processes": [{"id": "add"}]})
+
+    udp = {
+        "add": {
+            "process_id": "add",
+            "arguments": {"x": 1, "y": float("nan"), },
+            "result": True,
+        }
+    }
+
+    with pytest.raises(ValueError, match="Out of range float values are not JSON compliant"):
+        con100.save_user_defined_process("two", udp)
