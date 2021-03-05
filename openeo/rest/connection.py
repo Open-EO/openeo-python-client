@@ -6,7 +6,7 @@ import logging
 import sys
 import warnings
 from pathlib import Path
-from typing import Dict, List, Tuple, Union, Callable, Optional, Any
+from typing import Dict, List, Tuple, Union, Callable, Optional, Any, Iterator
 from urllib.parse import urljoin
 
 import requests
@@ -57,9 +57,10 @@ class OpenEoApiError(OpenEoClientException):
 
 class Paginate:
 
-    def __init__(self, con, url: str = None, callback: Callable = None):
+    def __init__(self, con, url: str, params: dict = {}, callback: Callable = None):
         self.con = con
         self.url = url
+        self.params = params
         self.nextUrl = url
         self.callback = callback
         self.page = 0
@@ -73,15 +74,25 @@ class Paginate:
         if self.nextUrl is None:
             raise StopIteration
         
-        response = self.con.get(self.nextUrl).json()
+        params = {}
+        if self.nextUrl == self.url:
+            params = self.params
+
+        response = self.con.get(self.url, params = params).json()
         if isinstance(response['links'], list):
             nextLink = next((link for link in response['links'] if link['rel'] == 'next'), None)
-            self.nextUrl = nextLink['href']
+            if nextLink:
+                self.nextUrl = nextLink['href']
+            else:
+                self.nextUrl = None
         else:
             self.nextUrl = None
 
         self.page += 1
-        return self.callback(response, self.page)
+        if self.callback:
+            return self.callback(response, self.page)
+        else:
+            return response
     
 
 class RestApiConnection:
@@ -617,7 +628,7 @@ class Connection(RestApiConnection):
         data = self.get('/collections/{}'.format(name)).json()
         return VisualDict("collection", data = data)
 
-    def collection_items(self, name, spatial_extent: Optional[Dict[str, float]] = None, temporal_extent: Optional[List[Union[str, datetime.datetime]]] = None) -> Paginate:
+    def collection_items(self, name, spatial_extent: Optional[Dict[str, float]] = None, temporal_extent: Optional[List[Union[str, datetime.datetime]]] = None, limit: int = None) -> Iterator[dict]:
         """
         Loads items for a specific image collection.
         May not be available for all collections.
@@ -625,21 +636,21 @@ class Connection(RestApiConnection):
         :param name: String Id of the collection
         :param spatial_extent: Limits the items to the given bounding box.
         :param temporal_extent: Limits the items to the specified temporal interval.
+        :param limit: The amount of items per request/page. If None, the back-end decides.
         The interval has to be specified as an array with exactly two elements (start, end).
         Also supports open intervals by setting one of the boundaries to None, but never both.
         :return: data_list: List A list of items
         """
-        q = []
-        if spatial_extent is not None:
-            bbox = map(lambda c: str(c), spatial_extent)
-            q.append('bbox={}'.format(','.join(bbox)))
-        
-        if temporal_extent is not None:
-            datetimes = map(lambda t: '..' if t is None else rfc3339.normalize(t), temporal_extent)
-            q.append('datetime={}'.format('/'.join(datetimes)))
-        
-        url = '/collections/{cid}/items?{q}'.format(cid = name, q = '&'.join(q))
-        return iter(Paginate(self, url, lambda response, page: VisualDict("items", data = response, parameters = {'show-map': True, 'heading': 'Page {} - Items'.format(page)})))
+        url = '/collections/{}/items'.format( name)
+        params = {}
+        if spatial_extent:
+            params["bbox"] = ",".join(str(c) for c in spatial_extent)
+        if temporal_extent:
+            params["datetime"] = "/".join(".." if t is None else rfc3339.normalize(t) for t in temporal_extent)
+        if limit is not None and limit > 0:
+            params['limit'] = limit
+
+        return iter(Paginate(self, url, params, lambda response, page: VisualDict("items", data = response, parameters = {'show-map': True, 'heading': 'Page {} - Items'.format(page)})))
 
     def collection_metadata(self, name) -> CollectionMetadata:
         return CollectionMetadata(metadata=self.describe_collection(name))
