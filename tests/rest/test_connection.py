@@ -8,10 +8,10 @@ import requests.auth
 import requests_mock
 
 from openeo.capabilities import ComparableVersion
-from openeo.rest import OpenEoClientException
+from openeo.rest import OpenEoClientException, OpenEoApiError
 from openeo.rest.auth.auth import NullAuth, BearerAuth
 from openeo.rest.auth.config import AuthConfig
-from openeo.rest.connection import Connection, RestApiConnection, connect, OpenEoApiError
+from openeo.rest.connection import Connection, RestApiConnection, connect
 from .auth.test_oidc import OidcMock
 from .. import load_json_resource
 

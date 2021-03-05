@@ -1,4 +1,5 @@
 import json
+from openeo.rest import OpenEoApiError
 
 SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/@openeo/vue-components@2/assets/openeo.min.js'
 COMPONENT_MAP = {
@@ -7,7 +8,6 @@ COMPONENT_MAP = {
     'file-format': 'format',
     'file-formats': 'formats',
     'item': 'data',
-    'items': 'items',
     'service-type': 'service',
     'service-types': 'services',
     'udf-runtime': 'runtime',
@@ -106,6 +106,17 @@ def render_component(component: str, data = None, parameters: dict = {}):
         component = component,
         props = json.dumps(parameters)
     )
+
+def render_error(error: OpenEoApiError, fallback: str):
+    if error and error.message and error.message is not "unknown error":
+        fallback = error.message
+
+    # ToDo: Once we have a dedicated log/error component, use that instead of description
+    output = """## Error `{code}`\n\n{message}""".format(
+        code = error.code,
+        message = fallback
+    )
+    return render_component('description', data = output)
 
 # These classes are proxies to visualize openEO responses nicely in Jupyter
 # To show the actual list or dict in Jupyter, use repr() or print()

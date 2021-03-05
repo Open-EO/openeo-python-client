@@ -20,7 +20,7 @@ from openeo.internal.graph_building import PGNode, as_flat_graph
 from openeo.internal.jupyter import VisualDict, VisualList
 from openeo.internal.processes.builder import ProcessBuilderBase
 from openeo.metadata import CollectionMetadata
-from openeo.rest import OpenEoClientException
+from openeo.rest import OpenEoClientException, OpenEoApiError
 from openeo.rest.auth.auth import NullAuth, BearerAuth
 from openeo.rest.auth.config import RefreshTokenStore, AuthConfig
 from openeo.rest.auth.oidc import OidcClientCredentialsAuthenticator, OidcAuthCodePkceAuthenticator, \
@@ -40,20 +40,6 @@ def url_join(root_url: str, path: str):
     """Join a base url and sub path properly."""
     return urljoin(root_url.rstrip('/') + '/', path.lstrip('/'))
 
-
-class OpenEoApiError(OpenEoClientException):
-    """
-    Error returned by OpenEO API according to https://open-eo.github.io/openeo-api/errors/
-    """
-
-    def __init__(self, http_status_code: int = None,
-                 code: str = 'unknown', message: str = 'unknown error', id: str = None, url: str = None):
-        self.http_status_code = http_status_code
-        self.code = code
-        self.message = message
-        self.id = id
-        self.url = url
-        super().__init__("[{s}] {c}: {m}".format(s=self.http_status_code, c=self.code, m=self.message))
 
 def paginate(con, url: str, params: dict = {}, callback: Callable = lambda resp, page: resp):
     page = 1
