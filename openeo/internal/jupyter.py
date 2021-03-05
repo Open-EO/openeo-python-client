@@ -107,14 +107,11 @@ def render_component(component: str, data = None, parameters: dict = {}):
         props = json.dumps(parameters)
     )
 
-def render_error(error: OpenEoApiError, fallback: str):
-    if error and error.message and error.message is not "unknown error":
-        fallback = error.message
-
+def render_error(error: OpenEoApiError):
     # ToDo: Once we have a dedicated log/error component, use that instead of description
     output = """## Error `{code}`\n\n{message}""".format(
         code = error.code,
-        message = fallback
+        message = error.message
     )
     return render_component('description', data = output)
 

@@ -270,7 +270,7 @@ class JobResults:
             response = self.get_metadata()
             return render_component("batch-job-result", data = response)
         except OpenEoApiError as error:
-            return render_error(error, "Job not finished yet")
+            return render_error(error)
 
     def get_metadata(self, force=False) -> dict:
         """Get batch job results metadata (parsed JSON)"""
