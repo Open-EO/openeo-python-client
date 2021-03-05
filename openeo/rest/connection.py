@@ -55,44 +55,20 @@ class OpenEoApiError(OpenEoClientException):
         self.url = url
         super().__init__("[{s}] {c}: {m}".format(s=self.http_status_code, c=self.code, m=self.message))
 
-class Paginate:
-
-    def __init__(self, con, url: str, params: dict = {}, callback: Callable = None):
-        self.con = con
-        self.url = url
-        self.params = params
-        self.nextUrl = url
-        self.callback = callback
-        self.page = 0
-
-    def __iter__(self):
-        self.page = 0
-        self.nextUrl = self.url
-        return self
-
-    def __next__(self):
-        if self.nextUrl is None:
-            raise StopIteration
-        
+def paginate(con, url: str, params: dict = {}, callback: Callable = None):
+    page = 1
+    while True:
+        response = con.get(url, params = params).json()
+        if callback:
+            yield callback(response, page)
+        else:
+            yield response
+        next_link = next((link for link in response['links'] if link['rel'] == 'next'), None)
+        if next_link is None:
+             break
+        url = next_link['href']
+        page += 1
         params = {}
-        if self.nextUrl == self.url:
-            params = self.params
-
-        response = self.con.get(self.url, params = params).json()
-        if isinstance(response['links'], list):
-            nextLink = next((link for link in response['links'] if link['rel'] == 'next'), None)
-            if nextLink:
-                self.nextUrl = nextLink['href']
-            else:
-                self.nextUrl = None
-        else:
-            self.nextUrl = None
-
-        self.page += 1
-        if self.callback:
-            return self.callback(response, self.page)
-        else:
-            return response
     
 
 class RestApiConnection:
@@ -641,7 +617,7 @@ class Connection(RestApiConnection):
         Also supports open intervals by setting one of the boundaries to None, but never both.
         :return: data_list: List A list of items
         """
-        url = '/collections/{}/items'.format( name)
+        url = '/collections/{}/items'.format(name)
         params = {}
         if spatial_extent:
             params["bbox"] = ",".join(str(c) for c in spatial_extent)
@@ -650,7 +626,7 @@ class Connection(RestApiConnection):
         if limit is not None and limit > 0:
             params['limit'] = limit
 
-        return iter(Paginate(self, url, params, lambda response, page: VisualDict("items", data = response, parameters = {'show-map': True, 'heading': 'Page {} - Items'.format(page)})))
+        return paginate(self, url, params, lambda response, page: VisualDict("items", data = response, parameters = {'show-map': True, 'heading': 'Page {} - Items'.format(page)}))
 
     def collection_metadata(self, name) -> CollectionMetadata:
         return CollectionMetadata(metadata=self.describe_collection(name))
