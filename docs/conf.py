@@ -26,7 +26,6 @@ sys.path.insert(0, os.path.abspath('../'))
 
 import openeo
 
-
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
@@ -86,6 +85,7 @@ pygments_style = 'sphinx'
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = False
 
+html_last_updated_fmt = "%Y/%m/%d"
 
 # -- Options for HTML output ----------------------------------------------
 

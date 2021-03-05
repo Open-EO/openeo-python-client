@@ -93,12 +93,21 @@ class DataCube(ImageCollection):
     def connection(self) -> 'openeo.Connection':
         return self._connection
 
-    def process(self, process_id: str, arguments: dict = None, metadata: CollectionMetadata = None, **kwargs) -> 'DataCube':
+    def process(
+            self,
+            process_id: str,
+            arguments: dict = None,
+            metadata: Optional[CollectionMetadata] = None,
+            namespace: Optional[str] = None,
+            **kwargs
+    ) -> 'DataCube':
         """
         Generic helper to create a new DataCube by applying a process.
 
         :param process_id: process id of the process.
         :param arguments: argument dictionary for the process.
+        :param metadata: optional: metadata to override original cube metadata (e.g. when reducing dimensions)
+        :param namespace: optional: process namespace
         :return: new DataCube instance
         """
         arguments = {**(arguments or {}), **kwargs}
@@ -110,16 +119,17 @@ class DataCube(ImageCollection):
         return self.process_with_node(PGNode(
             process_id=process_id,
             arguments=arguments,
+            namespace=namespace,
         ), metadata=metadata)
 
     graph_add_node = legacy_alias(process, "graph_add_node")
 
-    def process_with_node(self, pg: PGNode, metadata: CollectionMetadata = None) -> 'DataCube':
+    def process_with_node(self, pg: PGNode, metadata: Optional[CollectionMetadata] = None) -> 'DataCube':
         """
         Generic helper to create a new DataCube by applying a process (given as process graph node)
 
         :param pg: process graph node (containing process id and arguments)
-        :param metadata: (optional) metadata to override original cube metadata (e.g. when reducing dimensions)
+        :param metadata: optional: metadata to override original cube metadata (e.g. when reducing dimensions)
         :return: new DataCube instance
         """
         # TODO: deep copy `self.metadata` instead of using same instance?
@@ -445,6 +455,9 @@ class DataCube(ImageCollection):
         return self._operator_binary("multiply", other, reverse=reverse)
 
     def normalized_difference(self, other: 'DataCube') -> 'DataCube':
+        # This DataCube method is only a convenience function when in band math mode
+        assert self._in_bandmath_mode()
+        assert other._in_bandmath_mode()
         return self._operator_binary("normalized_difference", other)
 
     def logical_or(self, other: 'DataCube') -> 'DataCube':
@@ -1530,14 +1543,14 @@ class DataCube(ImageCollection):
 
     def sar_backscatter(
             self,
-            coefficient: str = "gamma0-terrain",
-            elevation_model: str = None,
+            coefficient: Union[str, None] = "gamma0-terrain",
+            elevation_model: Union[str, None] = None,
             mask: bool = False,
             contributing_area: bool = False,
             local_incidence_angle: bool = False,
             ellipsoid_incidence_angle: bool = False,
             noise_removal: bool = True,
-            options: dict = None
+            options: Optional[dict] = None
     ) -> "DataCube":
         """
         Computes backscatter from SAR input.
@@ -1548,13 +1561,14 @@ class DataCube(ImageCollection):
 
         :param coefficient: Select the radiometric correction coefficient.
             The following options are available:
-            - `beta0`: radar brightness
-            - `sigma0-ellipsoid`: ground area computed with ellipsoid earth model
-            - `sigma0-terrain`: ground area computed with terrain earth model
-            - `gamma0-ellipsoid`: ground area computed with ellipsoid earth model in sensor line of sight
-            - `gamma0-terrain`: ground area computed with terrain earth model in sensor line of sight (default)
-            - `null`: non-normalized backscatter"
-        :param elevation_model: The digital elevation model to use. Set to `null` (the default) to allow
+
+            - `"beta0"`: radar brightness
+            - `"sigma0-ellipsoid"`: ground area computed with ellipsoid earth model
+            - `"sigma0-terrain"`: ground area computed with terrain earth model
+            - `"gamma0-ellipsoid"`: ground area computed with ellipsoid earth model in sensor line of sight
+            - `"gamma0-terrain"`: ground area computed with terrain earth model in sensor line of sight (default)
+            - `None`: non-normalized backscatter
+        :param elevation_model: The digital elevation model to use. Set to `None` (the default) to allow
             the back-end to choose, which will improve portability, but reduce reproducibility.
         :param mask: If set to `true`, a data mask is added to the bands with the name `mask`.
             It indicates which values are valid (1), invalid (0) or contain no-data (null).
@@ -1569,8 +1583,15 @@ class DataCube(ImageCollection):
         :return:
 
         .. versionadded :: 0.4.9
-        .. versionchanged :: 0.4.10 replace `orthorectify` and `rtc arguments with `coefficient`.
+        .. versionchanged :: 0.4.10 replace `orthorectify` and `rtc` arguments with `coefficient`.
         """
+        coefficient_options = [
+            "beta0", "sigma0-ellipsoid", "sigma0-terrain", "gamma0-ellipsoid", "gamma0-terrain", None
+        ]
+        if coefficient not in coefficient_options:
+            raise OpenEoClientException("Invalid `sar_backscatter` coefficient {c!r}. Should be one of {o}".format(
+                c=coefficient, o=coefficient_options
+            ))
         arguments = {
             "data": THIS,
             "coefficient": coefficient,

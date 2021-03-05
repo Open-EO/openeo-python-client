@@ -13,6 +13,7 @@ import openeo.metadata
 from openeo import UDF
 from openeo.api.process import Parameter
 from openeo.internal.graph_building import PGNode
+from openeo.rest import OpenEoClientException
 from openeo.rest.connection import Connection
 from openeo.rest.datacube import THIS, DataCube
 from .conftest import API_URL
@@ -538,9 +539,15 @@ def test_custom_process_kwargs_datacube_pg(con100: Connection):
     assert res.graph == expected
 
 
-def test_custom_process_kwargs_datacube_chained(con100: Connection):
+def test_custom_process_kwargs_this(con100: Connection):
     res = con100.load_collection("S2").process(process_id="foo", data=THIS, bar=123)
     expected = load_json_resource('data/1.0.0/process_foo.json')
+    assert res.graph == expected
+
+
+def test_custom_process_kwargs_namespaced(con100: Connection):
+    res = con100.load_collection("S2").process(process_id="foo", data=THIS, bar=123, namespace="bar")
+    expected = load_json_resource('data/1.0.0/process_foo_namespaced.json')
     assert res.graph == expected
 
 
@@ -558,9 +565,15 @@ def test_custom_process_arguments_datacube_pg(con100: Connection):
     assert res.graph == expected
 
 
-def test_custom_process_arguments_datacube_chained(con100: Connection):
+def test_custom_process_arguments_this(con100: Connection):
     res = con100.load_collection("S2").process(process_id="foo", arguments={"data": THIS, "bar": 123})
     expected = load_json_resource('data/1.0.0/process_foo.json')
+    assert res.graph == expected
+
+
+def test_custom_process_arguments_namespacd(con100: Connection):
+    res = con100.load_collection("S2").process(process_id="foo", arguments={"data": THIS, "bar": 123}, namespace="bar")
+    expected = load_json_resource('data/1.0.0/process_foo_namespaced.json')
     assert res.graph == expected
 
 
@@ -659,3 +672,44 @@ def test_to_json_compact(con100):
     assert ndvi.to_json(indent=None) == expected
     expected = '{"process_graph":{"loadcollection1":{"process_id":"load_collection","arguments":{"id":"S2","spatial_extent":null,"temporal_extent":null}},"ndvi1":{"process_id":"ndvi","arguments":{"data":{"from_node":"loadcollection1"}},"result":true}}}'
     assert ndvi.to_json(indent=None, separators=(',', ':')) == expected
+
+
+def test_sar_backscatter_defaults(con100):
+    cube = con100.load_collection("S2").sar_backscatter()
+    assert _get_leaf_node(cube) == {
+        "process_id": "sar_backscatter",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "coefficient": "gamma0-terrain", "elevation_model": None,
+            "mask": False, "contributing_area": False, "local_incidence_angle": False,
+            "ellipsoid_incidence_angle": False, "noise_removal": True
+        },
+        "result": True
+    }
+
+
+def test_sar_backscatter_custom(con100):
+    cube = con100.load_collection("S2")
+    cube = cube.sar_backscatter(coefficient="sigma0-ellipsoid", elevation_model="mapzen", options={"speed": "warp42"})
+    assert _get_leaf_node(cube) == {
+        "process_id": "sar_backscatter",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "coefficient": "sigma0-ellipsoid", "elevation_model": "mapzen",
+            "mask": False, "contributing_area": False, "local_incidence_angle": False,
+            "ellipsoid_incidence_angle": False, "noise_removal": True, "options": {"speed": "warp42"}
+        },
+        "result": True
+    }
+
+
+def test_sar_backscatter_coefficient_none(con100):
+    cube = con100.load_collection("S2")
+    cube = cube.sar_backscatter(coefficient=None)
+    assert _get_leaf_node(cube)["arguments"]["coefficient"] is None
+
+
+def test_sar_backscatter_coefficient_invalid(con100):
+    cube = con100.load_collection("S2")
+    with pytest.raises(OpenEoClientException, match="Invalid.*coef.*unicorn.*Should.*sigma0-ellipsoid.*gamma0-terrain"):
+        cube.sar_backscatter(coefficient="unicorn")

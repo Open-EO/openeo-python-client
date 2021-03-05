@@ -2,7 +2,7 @@ import pytest
 
 import openeo
 from openeo.api.process import Parameter
-from openeo.rest.udp import RESTUserDefinedProcess
+from openeo.rest.udp import RESTUserDefinedProcess, build_process_dict
 from .. import load_json_resource
 
 API_URL = "https://oeo.test"
@@ -159,7 +159,7 @@ def test_update(con100, requests_mock):
         body = request.json()
         assert body['process_graph'] == updated_udp['process_graph']
         assert body['parameters'] == updated_udp['parameters']
-        assert not body.get('public', False)
+        assert body['public'] is False
         return True
 
     adapter = requests_mock.put(API_URL + "/process_graphs/evi", additional_matcher=check_body)
@@ -178,7 +178,7 @@ def test_make_public(con100, requests_mock):
         body = request.json()
         assert body['process_graph'] == updated_udp['process_graph']
         assert body['parameters'] == updated_udp['parameters']
-        assert body['public']
+        assert body['public'] is True
         return True
 
     adapter = requests_mock.put(API_URL + "/process_graphs/evi", additional_matcher=check_body)
@@ -350,3 +350,25 @@ def test_build_parameterized_cube_band_math(con100):
             "result": True
         }
     }
+
+
+def test_build_process_dict():
+    expected = {
+        "id": "increment",
+        "description": "Add 1 to input.",
+        "summary": "Increment value",
+        "process_graph": {
+            "add": {"arguments": {"x": {"from_parameter": "data"}, "y": 1}, "process_id": "add", "result": True}
+        },
+        "parameters": [{"name": "data", "description": "data", "schema": {"type": "number"}}],
+        "returns": {"schema": {"type": "number"}},
+    }
+    actual = build_process_dict(
+        process_graph={
+            "add": {"process_id": "add", "arguments": {"x": {"from_parameter": "data"}, "y": 1}, "result": True}
+        },
+        process_id="increment", summary="Increment value", description="Add 1 to input.",
+        parameters=[Parameter.number(name="data")],
+        returns={"schema": {"type": "number"}}
+    )
+    assert actual == expected
