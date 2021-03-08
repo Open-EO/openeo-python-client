@@ -592,6 +592,8 @@ class Connection(RestApiConnection):
         Loads items for a specific image collection.
         May not be available for all collections.
 
+        This is an experimental API and is subject to change.
+
         :param name: String Id of the collection
         :param spatial_extent: Limits the items to the given bounding box in WGS84:
         1. Lower left corner, coordinate axis 1
