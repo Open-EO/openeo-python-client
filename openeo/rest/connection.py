@@ -931,10 +931,10 @@ def paginate(con: Connection, url: str, params: dict = None, callback: Callable 
     while True:
         response = con.get(url, params=params).json()
         yield callback(response, page)
-        next_link = next(link for link in response.get("links", []) if link.get("rel") == "next" and "href" in link)
-        if not next_link:
+        next_links = [link for link in response.get("links", []) if link.get("rel") == "next" and "href" in link]
+        if not next_links:
             break
-        url = next_link["href"]
+        url = next_links[0]["href"]
         page += 1
         params = {}
 
