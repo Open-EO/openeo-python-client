@@ -1,4 +1,5 @@
 import re
+import typing
 import unittest.mock as mock
 import zlib
 from pathlib import Path
@@ -11,7 +12,7 @@ from openeo.capabilities import ComparableVersion
 from openeo.rest import OpenEoClientException, OpenEoApiError
 from openeo.rest.auth.auth import NullAuth, BearerAuth
 from openeo.rest.auth.config import AuthConfig
-from openeo.rest.connection import Connection, RestApiConnection, connect
+from openeo.rest.connection import Connection, RestApiConnection, connect, paginate
 from .auth.test_oidc import OidcMock
 from .. import load_json_resource
 
@@ -973,3 +974,80 @@ def test_download_content_encoding(requests_mock, tmp_path, content_encoding, co
     conn.download(graph={}, outputfile=output)
     with output.open("rb") as f:
         assert f.read() == tiff_data
+
+
+def test_paginate_basic(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    requests_mock.get(
+        API_URL + "result/1",
+        json={"data": "first", "links": [{"rel": "next", "href": API_URL + "result-2"}]}
+    )
+    requests_mock.get(
+        API_URL + "result-2",
+        json={"data": "second", "links": [{"rel": "next", "href": API_URL + "resulthr33"}]}
+    )
+    requests_mock.get(
+        API_URL + "resulthr33",
+        json={"data": "third"}
+    )
+    con = Connection(API_URL)
+    res = paginate(con, API_URL + "result/1")
+    assert isinstance(res, typing.Iterator)
+    assert list(res) == [
+        {"data": "first", "links": [{"rel": "next", 'href': 'https://oeo.test/result-2', }]},
+        {"data": "second", "links": [{"rel": "next", 'href': 'https://oeo.test/resulthr33', }]},
+        {"data": "third"},
+    ]
+
+
+def test_paginate_no_links(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    requests_mock.get(API_URL + "results", json={"data": "d6t6"})
+    con = Connection(API_URL)
+    res = paginate(con, API_URL + "results")
+    assert isinstance(res, typing.Iterator)
+    assert list(res) == [{"data": "d6t6"}, ]
+
+
+def test_paginate_params(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    requests_mock.get(
+        API_URL + "result/1?bbox=square", complete_qs=True,
+        json={"data": "first", "links": [{"rel": "next", "href": API_URL + "result-2?_orig_bbox=square"}]}
+    )
+    requests_mock.get(
+        API_URL + "result-2?_orig_bbox=square", complete_qs=True,
+        json={"data": "second", "links": [{"rel": "next", "href": API_URL + "resulthr33?_orig_bbox=square"}]}
+    )
+    requests_mock.get(
+        API_URL + "resulthr33?_orig_bbox=square", complete_qs=True,
+        json={"data": "third"}
+    )
+    con = Connection(API_URL)
+    res = paginate(con, API_URL + "result/1", params={"bbox": "square"})
+    assert isinstance(res, typing.Iterator)
+    assert list(res) == [
+        {"data": "first", "links": [{"rel": "next", 'href': 'https://oeo.test/result-2?_orig_bbox=square', }]},
+        {"data": "second", "links": [{"rel": "next", 'href': 'https://oeo.test/resulthr33?_orig_bbox=square', }]},
+        {"data": "third"},
+    ]
+
+
+def test_paginate_callback(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    requests_mock.get(
+        API_URL + "result/1",
+        json={"data": "first", "links": [{"rel": "next", "href": API_URL + "result-2"}]}
+    )
+    requests_mock.get(
+        API_URL + "result-2",
+        json={"data": "second", "links": [{"rel": "next", "href": API_URL + "resulthr33"}]}
+    )
+    requests_mock.get(
+        API_URL + "resulthr33",
+        json={"data": "third"}
+    )
+    con = Connection(API_URL)
+    res = paginate(con, API_URL + "result/1", callback=lambda resp, page: (page, resp["data"]))
+    assert isinstance(res, typing.Iterator)
+    assert list(res) == [(1, "first"), (2, "second"), (3, "third")]

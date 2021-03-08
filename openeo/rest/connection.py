@@ -41,19 +41,6 @@ def url_join(root_url: str, path: str):
     return urljoin(root_url.rstrip('/') + '/', path.lstrip('/'))
 
 
-def paginate(con, url: str, params: dict = {}, callback: Callable = lambda resp, page: resp):
-    page = 1
-    while True:
-        response = con.get(url, params = params).json()
-        yield callback(response, page)
-        next_link = next((link for link in response['links'] if link['rel'] == 'next'), None)
-        if next_link is None:
-             break
-        url = next_link['href']
-        page += 1
-        params = {}
-    
-
 class RestApiConnection:
     """Base connection class implementing generic REST API request functionality"""
 
@@ -934,3 +921,20 @@ def session(userid=None, endpoint: str = "https://openeo.org/openeo") -> Connect
     :rtype: openeo.sessions.Session
     """
     return connect(url=endpoint)
+
+
+def paginate(con: Connection, url: str, params: dict = None, callback: Callable = lambda resp, page: resp):
+    # TODO: make this a method `get_paginated` on `RestApiConnection`?
+    # TODO: is it necessary to have `callback`? It's only used just before yielding,
+    #       so it's probably cleaner (even for the caller) to to move it outside.
+    page = 1
+    while True:
+        response = con.get(url, params=params).json()
+        yield callback(response, page)
+        next_link = next(link for link in response.get("links", []) if link.get("rel") == "next" and "href" in link)
+        if not next_link:
+            break
+        url = next_link["href"]
+        page += 1
+        params = {}
+
