@@ -6,7 +6,7 @@ import logging
 import sys
 import warnings
 from pathlib import Path
-from typing import Dict, List, Tuple, Union, Callable, Optional, Any
+from typing import Dict, List, Tuple, Union, Callable, Optional, Any, Iterator
 from urllib.parse import urljoin
 
 import requests
@@ -20,7 +20,7 @@ from openeo.internal.graph_building import PGNode, as_flat_graph
 from openeo.internal.jupyter import VisualDict, VisualList
 from openeo.internal.processes.builder import ProcessBuilderBase
 from openeo.metadata import CollectionMetadata
-from openeo.rest import OpenEoClientException
+from openeo.rest import OpenEoClientException, OpenEoApiError
 from openeo.rest.auth.auth import NullAuth, BearerAuth
 from openeo.rest.auth.config import RefreshTokenStore, AuthConfig
 from openeo.rest.auth.oidc import OidcClientCredentialsAuthenticator, OidcAuthCodePkceAuthenticator, \
@@ -31,7 +31,7 @@ from openeo.rest.imagecollectionclient import ImageCollectionClient
 from openeo.rest.job import RESTJob
 from openeo.rest.rest_capabilities import RESTCapabilities
 from openeo.rest.udp import RESTUserDefinedProcess, Parameter
-from openeo.util import ensure_list, legacy_alias, dict_no_none
+from openeo.util import ensure_list, legacy_alias, dict_no_none, rfc3339
 
 _log = logging.getLogger(__name__)
 
@@ -41,20 +41,18 @@ def url_join(root_url: str, path: str):
     return urljoin(root_url.rstrip('/') + '/', path.lstrip('/'))
 
 
-class OpenEoApiError(OpenEoClientException):
-    """
-    Error returned by OpenEO API according to https://open-eo.github.io/openeo-api/errors/
-    """
-
-    def __init__(self, http_status_code: int = None,
-                 code: str = 'unknown', message: str = 'unknown error', id: str = None, url: str = None):
-        self.http_status_code = http_status_code
-        self.code = code
-        self.message = message
-        self.id = id
-        self.url = url
-        super().__init__("[{s}] {c}: {m}".format(s=self.http_status_code, c=self.code, m=self.message))
-
+def paginate(con, url: str, params: dict = {}, callback: Callable = lambda resp, page: resp):
+    page = 1
+    while True:
+        response = con.get(url, params = params).json()
+        yield callback(response, page)
+        next_link = next((link for link in response['links'] if link['rel'] == 'next'), None)
+        if next_link is None:
+             break
+        url = next_link['href']
+        page += 1
+        params = {}
+    
 
 class RestApiConnection:
     """Base connection class implementing generic REST API request functionality"""
@@ -572,10 +570,11 @@ class Connection(RestApiConnection):
         """
         Loads all available services of the authenticated user.
 
-        :return: data_dict: Dict All available service types
+        :return: data_dict: Dict All available services
         """
         # TODO return parsed service objects
-        return self.get('/services').json()
+        services = self.get('/services').json()["services"]
+        return VisualList("data-table", data = services, parameters = {'columns': 'services'})
 
     def describe_collection(self, name) -> dict:
         # TODO: Maybe create some kind of Data class.
@@ -587,6 +586,36 @@ class Connection(RestApiConnection):
         """
         data = self.get('/collections/{}'.format(name)).json()
         return VisualDict("collection", data = data)
+
+    def collection_items(self, name, spatial_extent: Optional[List[float]] = None, temporal_extent: Optional[List[Union[str, datetime.datetime]]] = None, limit: int = None) -> Iterator[dict]:
+        """
+        Loads items for a specific image collection.
+        May not be available for all collections.
+
+        This is an experimental API and is subject to change.
+
+        :param name: String Id of the collection
+        :param spatial_extent: Limits the items to the given bounding box in WGS84:
+        1. Lower left corner, coordinate axis 1
+        2. Lower left corner, coordinate axis 2
+        3. Upper right corner, coordinate axis 1
+        4. Upper right corner, coordinate axis 2
+        :param temporal_extent: Limits the items to the specified temporal interval.
+        :param limit: The amount of items per request/page. If None, the back-end decides.
+        The interval has to be specified as an array with exactly two elements (start, end).
+        Also supports open intervals by setting one of the boundaries to None, but never both.
+        :return: data_list: List A list of items
+        """
+        url = '/collections/{}/items'.format(name)
+        params = {}
+        if spatial_extent:
+            params["bbox"] = ",".join(str(c) for c in spatial_extent)
+        if temporal_extent:
+            params["datetime"] = "/".join(".." if t is None else rfc3339.normalize(t) for t in temporal_extent)
+        if limit is not None and limit > 0:
+            params['limit'] = limit
+
+        return paginate(self, url, params, lambda response, page: VisualDict("items", data = response, parameters = {'show-map': True, 'heading': 'Page {} - Items'.format(page)}))
 
     def collection_metadata(self, name) -> CollectionMetadata:
         return CollectionMetadata(metadata=self.describe_collection(name))
@@ -608,7 +637,8 @@ class Connection(RestApiConnection):
         :return: job_list: Dict of all jobs of the user.
         """
         # TODO: Parse the result so that there get Job classes returned?
-        return self.get('/jobs').json()["jobs"]
+        jobs = self.get('/jobs').json()["jobs"]
+        return VisualList("data-table", data = jobs, parameters = {'columns': 'jobs'})
 
     def save_user_defined_process(
             self, user_defined_process_id: str,
@@ -744,7 +774,8 @@ class Connection(RestApiConnection):
         :return: file_list: List of the user uploaded files.
         """
 
-        return self.get('/files').json()['files']
+        files = self.get('/files').json()['files']
+        return VisualList("data-table", data = files, parameters = {'columns': 'files'})
 
     def create_file(self, path):
         """

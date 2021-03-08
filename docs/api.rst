@@ -35,7 +35,7 @@ openeo.rest.connection
 ----------------------
 
 .. automodule:: openeo.rest.connection
-    :members: Connection, OpenEoApiError
+    :members: Connection
 
 
 openeo.rest.job
