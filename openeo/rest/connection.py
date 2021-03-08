@@ -370,14 +370,17 @@ class Connection(RestApiConnection):
         """
         Authenticate through OIDC and set up bearer token (based on OIDC access_token) for further requests.
         """
-        tokens = authenticator.get_tokens()
+        tokens = authenticator.get_tokens(request_refresh_token=store_refresh_token)
         _log.info("Obtained tokens: {t}".format(t=[k for k, v in tokens._asdict().items() if v]))
-        if tokens.refresh_token and store_refresh_token:
-            self._get_refresh_token_store().set_refresh_token(
-                issuer=authenticator.provider_info.issuer,
-                client_id=authenticator.client_id,
-                refresh_token=tokens.refresh_token
-            )
+        if store_refresh_token:
+            if tokens.refresh_token:
+                self._get_refresh_token_store().set_refresh_token(
+                    issuer=authenticator.provider_info.issuer,
+                    client_id=authenticator.client_id,
+                    refresh_token=tokens.refresh_token
+                )
+            else:
+                _log.warning("OIDC token response did not contain refresh token.")
         token = tokens.access_token if not self.oidc_auth_user_id_token_as_bearer else tokens.id_token
         if self._api_version.at_least("1.0.0"):
             self.auth = BearerAuth(bearer='oidc/{p}/{t}'.format(p=provider_id, t=token))

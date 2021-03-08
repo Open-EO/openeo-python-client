@@ -7,15 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- `collection_items` to request collection items through a STAC API
-- `paginate` as a basic method to support link-based pagination
 
 - Add namespace support to `DataCube.process`, `PGNode`, `ProcessGraphVisitor` (minor API breaking change) and related. Allows building process graphs with processes from non-"backend" namespaces ([#182](https://github.com/Open-EO/openeo-python-client/issues/182))
+- `collection_items` to request collection items through a STAC API
+- `paginate` as a basic method to support link-based pagination
 
 ### Changed
 
 - `OpenEoApiError` moved from `openeo.rest.connection` to `openeo.rest`
 - Added HTML representation for `list_jobs`, `list_services`, `list_files` and for job results
+- Improve refresh token handling in OIDC logic: avoid requesting refresh token 
+  (which can fail if OIDC client is not set up for that) when not necessary (EP-3700)
 
 ### Removed
 

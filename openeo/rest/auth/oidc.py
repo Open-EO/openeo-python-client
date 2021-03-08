@@ -228,15 +228,22 @@ class OidcProviderInfo:
         discovery_resp.raise_for_status()
         self.config = discovery_resp.json()
         self.issuer = issuer or self.config["issuer"]
-        # Scopes to request
-        self._scopes = {
-            "openid",
-            # `offline_access` is required to get refresh tokens with Microsoft Identity platform
-            "offline_access",
-        }.union(scopes or []).intersection(self.config.get("scopes_supported", ["openid"]))
+        # Minimal set of scopes to request
+        self._supported_scopes = self.config.get("scopes_supported", ["openid"])
+        self._scopes = {"openid"}.union(scopes or []).intersection(self._supported_scopes)
 
-    def get_scopes_string(self):
-        return " ".join(sorted(self._scopes))
+    def get_scopes_string(self, request_refresh_token: bool = False):
+        """
+        Build "scope" string for authentication request.
+
+        :param request_refresh_token: include "offline_access" scope (if supported),
+            which some OIDC providers require in order to return refresh token
+        :return:
+        """
+        scopes = self._scopes
+        if request_refresh_token and "offline_access" in self._supported_scopes:
+            scopes = scopes | {"offline_access"}
+        return " ".join(sorted(scopes))
 
 
 class OidcClientInfo:
@@ -276,7 +283,7 @@ class OidcAuthenticator:
     def provider_info(self) -> OidcProviderInfo:
         return self._client_info.provider
 
-    def get_tokens(self) -> AccessTokenResult:
+    def get_tokens(self, request_refresh_token: bool = False) -> AccessTokenResult:
         """Get access_token and possibly id_token+refresh_token."""
         result = self._do_token_post_request(post_data=self._get_token_endpoint_post_data())
         return self._get_access_token_result(result)
@@ -383,7 +390,7 @@ class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
         code_challenge = OidcAuthCodePkceAuthenticator.hash_code_verifier(code_verifier)
         return code_verifier, code_challenge
 
-    def _get_auth_code(self) -> AuthCodeResult:
+    def _get_auth_code(self, request_refresh_token: bool = False) -> AuthCodeResult:
         """
         Do OAuth authentication request and catch redirect to extract authentication code
         :return:
@@ -415,7 +422,7 @@ class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
                 params=urllib.parse.urlencode({
                     "response_type": "code",
                     "client_id": self.client_id,
-                    "scope": self._client_info.provider.get_scopes_string(),
+                    "scope": self._client_info.provider.get_scopes_string(request_refresh_token=request_refresh_token),
                     "redirect_uri": redirect_uri,
                     "state": state,
                     "nonce": nonce,
@@ -464,13 +471,13 @@ class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
             auth_code=auth_code, nonce=nonce, code_verifier=code_verifier, redirect_uri=redirect_uri
         )
 
-    def get_tokens(self) -> AccessTokenResult:
+    def get_tokens(self, request_refresh_token: bool = False) -> AccessTokenResult:
         """
         Do OpenID authentication flow with PKCE:
         get auth code and exchange for access and id token
         """
         # Get auth code from authentication provider
-        auth_code_result = self._get_auth_code()
+        auth_code_result = self._get_auth_code(request_refresh_token=request_refresh_token)
 
         # Exchange authentication code for access token
         result = self._do_token_post_request(post_data=dict_no_none(
@@ -561,11 +568,14 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
         self._device_code_url = device_code_url or self._provider_config["device_authorization_endpoint"]
         self._max_poll_time = max_poll_time
 
-    def _get_verification_info(self) -> VerificationInfo:
+    def _get_verification_info(self, request_refresh_token: bool = False) -> VerificationInfo:
         """Get verification URL and user code"""
         resp = requests.post(
             url=self._device_code_url,
-            data={"client_id": self.client_id, "scope": self._client_info.provider.get_scopes_string()}
+            data={
+                "client_id": self.client_id,
+                "scope": self._client_info.provider.get_scopes_string(request_refresh_token=request_refresh_token)
+            }
         )
         if resp.status_code != 200:
             raise OidcException("Failed to get verification URL and user code from {u!r}: {s} {r!r} {t!r}".format(
@@ -583,9 +593,9 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
         except Exception as e:
             raise OidcException("Failed to parse device authorization request: {e!r}".format(e=e))
 
-    def get_tokens(self) -> AccessTokenResult:
+    def get_tokens(self, request_refresh_token: bool = False) -> AccessTokenResult:
         # Get verification url and user code
-        verification_info = self._get_verification_info()
+        verification_info = self._get_verification_info(request_refresh_token=request_refresh_token)
         self._display("To authenticate: visit {u} and enter the user code {c!r}.".format(
             u=verification_info.verification_uri, c=verification_info.user_code)
         )
