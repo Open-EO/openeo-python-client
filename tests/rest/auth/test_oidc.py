@@ -122,6 +122,22 @@ def test_provider_info_scopes(requests_mock):
     ).get_scopes_string()
 
 
+@pytest.mark.parametrize(
+    ["scopes_supported", "expected"], [
+        (["openid", "email"], "openid"),
+        (["openid", "email", "offline_access"], "offline_access openid"),
+    ])
+def test_provider_info_get_scopes_string_refresh_token_offline_access(requests_mock, scopes_supported, expected):
+    requests_mock.get(
+        "https://authit.test/.well-known/openid-configuration",
+        json={"scopes_supported": scopes_supported}
+    )
+    p = OidcProviderInfo(issuer="https://authit.test")
+    assert p.get_scopes_string() == "openid"
+    assert p.get_scopes_string(request_refresh_token=True) == expected
+    assert p.get_scopes_string() == "openid"
+
+
 class OidcMock:
     """
     Mock object to test OIDC flows
@@ -149,6 +165,7 @@ class OidcMock:
         self.token_endpoint = provider_root_url + "/token"
         self.device_code_endpoint = provider_root_url + "/device_code"
         self.state = state or {}
+        self.scopes_supported = scopes_supported or ["openid", "email", "profile"]
 
         self.requests_mock.get(oidc_discovery_url, text=json.dumps({
             # Rudimentary OpenID Connect discovery document
@@ -156,7 +173,7 @@ class OidcMock:
             "authorization_endpoint": self.authorization_endpoint,
             "token_endpoint": self.token_endpoint,
             "device_authorization_endpoint": self.device_code_endpoint,
-            "scopes_supported": scopes_supported or ["openid", "email", "profile"]
+            "scopes_supported": self.scopes_supported
         }))
         self.requests_mock.post(
             self.token_endpoint,
@@ -181,7 +198,7 @@ class OidcMock:
         assert params["client_id"] == self.expected_client_id
         assert params["response_type"] == "code"
         assert params["scope"] == self.expected_fields["scope"]
-        for key in ["state", "nonce", "code_challenge", "redirect_uri"]:
+        for key in ["state", "nonce", "code_challenge", "redirect_uri", "scope"]:
             self.state[key] = params[key]
         redirect_uri = params["redirect_uri"]
         # Don't mock the request to the redirect URI (it is hosted by the temporary web server in separate thread)
@@ -223,6 +240,7 @@ class OidcMock:
         assert params["scope"] == self.expected_fields["scope"]
         self.state["device_code"] = random_string()
         self.state["user_code"] = random_string(length=6).upper()
+        self.state["scope"] = params["scope"]
         return json.dumps({
             # TODO: also verification_url (google tweak)
             "verification_uri": self.provider_root_url + "/dc",
@@ -279,10 +297,19 @@ class OidcMock:
     def _build_token_response(self, sub="123", name="john", include_id_token=True) -> str:
         """Build JSON serialized access/id/refresh token response (and store tokens for use in assertions)"""
         access_token = self._jwt_encode({}, dict_no_none(sub=sub, name=name, nonce=self.state.get("nonce")))
-        res = {
-            "access_token": access_token,
-            "refresh_token": self._jwt_encode({}, {"foo": "refresh"})
-        }
+        res = {"access_token": access_token}
+
+        # Attempt to simulate real world refresh token support.
+        if "offline_access" in self.scopes_supported:
+            # "offline_access" scope as suggested in spec
+            # (https://openid.net/specs/openid-connect-core-1_0.html#OfflineAccess)
+            # Implemented by Microsoft, EGI Check-in
+            include_refresh_token = "offline_access" in self.state.get("scope", "").split(" ")
+        else:
+            # Google OAuth style: no support for "offline_access", return refresh token automatically?
+            include_refresh_token = True
+        if include_refresh_token:
+            res["refresh_token"] = self._jwt_encode({}, {"foo": "refresh"})
         if include_id_token:
             res["id_token"] = access_token
         self.state.update(res)

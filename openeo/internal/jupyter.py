@@ -1,16 +1,89 @@
 import json
+from openeo.rest import OpenEoApiError
 
-SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/@openeo/vue-components@2.0.0-rc.2/assets/openeo.min.js'
+SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/@openeo/vue-components@2/assets/openeo.min.js'
 COMPONENT_MAP = {
+    'collection': 'data',
+    'data-table': 'data',
     'file-format': 'format',
     'file-formats': 'formats',
+    'item': 'data',
     'service-type': 'service',
     'service-types': 'services',
     'udf-runtime': 'runtime',
     'udf-runtimes': 'runtimes',
 }
 
+TABLE_COLUMNS = {
+    'jobs': {
+        'id': {
+            'name': 'ID',
+            'primaryKey': True
+        },
+        'title': {
+            'name': 'Title'
+        },
+        'status': {
+            'name': 'Status',
+#           'stylable': True
+        },
+        'created': {
+            'name': 'Submitted',
+            'format': 'Timestamp',
+            'sort': 'desc'
+        },
+        'updated': {
+            'name': 'Last update',
+            'format': 'Timestamp'
+        }
+    },
+    'services': {
+        'id': {
+            'name': 'ID',
+            'primaryKey': True
+        },
+        'title': {
+            'name': 'Title'
+        },
+        'type': {
+            'name': 'Type',
+#           'format': value => typeof value === 'string' ? value.toUpperCase() : value,
+        },
+        'enabled': {
+            'name': 'Enabled'
+        },
+        'created': {
+            'name': 'Submitted',
+            'format': 'Timestamp',
+            'sort': 'desc'
+        }
+    },
+    'files': {
+        'path': {
+            'name': 'Path',
+            'primaryKey': True,
+#           'sortFn': Utils.sortByPath,
+            'sort': 'asc'
+        },
+        'size': {
+            'name': 'Size',
+            'format': "FileSize",
+            'filterable': False
+        },
+        'modified': {
+            'name': 'Last modified',
+            'format': 'Timestamp'
+        }
+    }
+}
+
 def render_component(component: str, data = None, parameters: dict = {}):
+    # Special handling for batch job results, show either item or collection depending on the data
+    if component == "batch-job-result":
+        component = "item" if data["type"] == "Feature" else "collection"
+    elif component == "data-table":
+        parameters['columns'] = TABLE_COLUMNS[parameters['columns']]
+
     # Set the data as the corresponding parameter in the Vue components
     key = COMPONENT_MAP.get(component, component)
     if data != None:
@@ -33,6 +106,14 @@ def render_component(component: str, data = None, parameters: dict = {}):
         component = component,
         props = json.dumps(parameters)
     )
+
+def render_error(error: OpenEoApiError):
+    # ToDo: Once we have a dedicated log/error component, use that instead of description
+    output = """## Error `{code}`\n\n{message}""".format(
+        code = error.code,
+        message = error.message
+    )
+    return render_component('description', data = output)
 
 # These classes are proxies to visualize openEO responses nicely in Jupyter
 # To show the actual list or dict in Jupyter, use repr() or print()

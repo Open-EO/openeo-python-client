@@ -539,9 +539,15 @@ def test_custom_process_kwargs_datacube_pg(con100: Connection):
     assert res.graph == expected
 
 
-def test_custom_process_kwargs_datacube_chained(con100: Connection):
+def test_custom_process_kwargs_this(con100: Connection):
     res = con100.load_collection("S2").process(process_id="foo", data=THIS, bar=123)
     expected = load_json_resource('data/1.0.0/process_foo.json')
+    assert res.graph == expected
+
+
+def test_custom_process_kwargs_namespaced(con100: Connection):
+    res = con100.load_collection("S2").process(process_id="foo", data=THIS, bar=123, namespace="bar")
+    expected = load_json_resource('data/1.0.0/process_foo_namespaced.json')
     assert res.graph == expected
 
 
@@ -559,9 +565,15 @@ def test_custom_process_arguments_datacube_pg(con100: Connection):
     assert res.graph == expected
 
 
-def test_custom_process_arguments_datacube_chained(con100: Connection):
+def test_custom_process_arguments_this(con100: Connection):
     res = con100.load_collection("S2").process(process_id="foo", arguments={"data": THIS, "bar": 123})
     expected = load_json_resource('data/1.0.0/process_foo.json')
+    assert res.graph == expected
+
+
+def test_custom_process_arguments_namespacd(con100: Connection):
+    res = con100.load_collection("S2").process(process_id="foo", arguments={"data": THIS, "bar": 123}, namespace="bar")
+    expected = load_json_resource('data/1.0.0/process_foo_namespaced.json')
     assert res.graph == expected
 
 
@@ -701,3 +713,17 @@ def test_sar_backscatter_coefficient_invalid(con100):
     cube = con100.load_collection("S2")
     with pytest.raises(OpenEoClientException, match="Invalid.*coef.*unicorn.*Should.*sigma0-ellipsoid.*gamma0-terrain"):
         cube.sar_backscatter(coefficient="unicorn")
+
+
+def test_datacube_from_process(con100):
+    cube = con100.datacube_from_process("colorize", color="red", size=4)
+    assert cube.flat_graph() == {
+        "colorize1": {"process_id": "colorize", "arguments": {"color": "red", "size": 4}, "result": True}
+    }
+
+
+def test_datacube_from_process_namespace(con100):
+    cube = con100.datacube_from_process("colorize", namespace="foo", color="red")
+    assert cube.flat_graph() == {
+        "colorize1": {"process_id": "colorize", "namespace": "foo", "arguments": {"color": "red"}, "result": True}
+    }

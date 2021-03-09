@@ -8,8 +8,9 @@ from typing import List, Union, Dict, Optional
 from deprecated.sphinx import deprecated
 from requests import ConnectionError, Response
 
-from openeo.rest import OpenEoClientException, JobFailedException
+from openeo.rest import OpenEoClientException, JobFailedException, OpenEoApiError
 from openeo.util import ensure_dir
+from openeo.internal.jupyter import render_component, render_error
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Only import this for type hinting purposes. Runtime import causes circular dependency issues.
@@ -263,6 +264,13 @@ class JobResults:
 
     def __repr__(self):
         return "<JobResults for job {j!r}>".format(j=self._job.job_id)
+
+    def _repr_html_(self):
+        try:
+            response = self.get_metadata()
+            return render_component("batch-job-result", data = response)
+        except OpenEoApiError as error:
+            return render_error(error)
 
     def get_metadata(self, force=False) -> dict:
         """Get batch job results metadata (parsed JSON)"""
