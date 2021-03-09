@@ -8,9 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add namespace support to `DataCube.process`, `PGNode`, `ProcessGraphVisitor` (minor API breaking change) and related. Allows building process graphs with processes from non-"backend" namespaces ([#182](https://github.com/Open-EO/openeo-python-client/issues/182))
+- Add namespace support to `DataCube.process`, `PGNode`, `ProcessGraphVisitor` (minor API breaking change) and related.
+  Allows building process graphs with processes from non-"backend" namespaces 
+  ([#182](https://github.com/Open-EO/openeo-python-client/issues/182))
 - `collection_items` to request collection items through a STAC API
 - `paginate` as a basic method to support link-based pagination
+- Add namespace support to `Connection.datacube_from_process`
 
 ### Changed
 

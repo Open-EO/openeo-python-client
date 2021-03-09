@@ -680,17 +680,18 @@ class Connection(RestApiConnection):
         # TODO make this a public property (it's also useful outside the Connection class)
         return self.capabilities().api_version_check
 
-    def datacube_from_process(self, process_id: str, **kwargs) -> DataCube:
+    def datacube_from_process(self, process_id: str, namespace: str = None, **kwargs) -> DataCube:
         """
         Load a raster datacube, from a custom process.
 
         :param process_id: The process id of the custom process.
+        :param namespace: optional: process namespace
         :param kwargs: The arguments of the custom process
         :return: A DataCube, without valid metadata, as the client is not aware of this custom process.
         """
 
         if self._api_version.at_least("1.0.0"):
-            graph = PGNode(process_id, kwargs)
+            graph = PGNode(process_id, namespace=namespace, arguments=kwargs)
             return DataCube(graph=graph, connection=self)
         else:
             raise OpenEoClientException(
