@@ -37,8 +37,8 @@ def test_metadata_load_collection_040(session040, requests_mock):
     })
     im = ImageCollectionClient.load_collection('SENTINEL2', session=session040)
     assert im.metadata.bands == [
-        openeo.metadata.Band("B2", "blue", None, "B2"),
-        openeo.metadata.Band("B3", "green", None, "B3")
+        openeo.metadata.Band("B2", "blue", None),
+        openeo.metadata.Band("B3", "green", None)
     ]
 
 

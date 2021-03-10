@@ -71,7 +71,7 @@ class TemporalDimension(Dimension):
 
 
 # Simple container class for band metadata (name, common name, wavelength in micrometer)
-Band = namedtuple("Band", ["name", "common_name", "wavelength_um", "internal_name"])
+Band = namedtuple("Band", ["name", "common_name", "wavelength_um", "aliases"])
 Band.__new__.__defaults__ = (None,)
 
 
@@ -86,8 +86,8 @@ class BandDimension(Dimension):
         return [b.name for b in self.bands]
 
     @property
-    def internal_band_names(self) -> List[str]:
-        return [b.internal_name for b in self.bands]
+    def band_aliases(self) -> List[List[str]]:
+        return [b.aliases for b in self.bands]
 
     @property
     def common_names(self) -> List[str]:
@@ -109,10 +109,10 @@ class BandDimension(Dimension):
                 return common_names.index(band)
             if band in band_names:
                 return band_names.index(band)
-            # Check internal band names to still support old band names
-            internal_band_names = self.internal_band_names
-            if band in internal_band_names:
-                return internal_band_names.index(band)
+            # Check band aliases to still support old band names
+            aliases = [True if aliases and band in aliases else False for aliases in self.band_aliases]
+            if any(aliases):
+                return aliases.index(True)
         raise ValueError("Invalid band name/index {b!r}. Valid names: {n!r}".format(b=band, n=band_names))
 
     def band_name(self, band: Union[str, int], allow_common=True) -> str:
@@ -259,8 +259,8 @@ class CollectionMetadata:
         )
         if eo_bands:
             # center_wavelength is in micrometer according to spec
-            bands_detailed = [Band(b['name'], b.get('common_name'), b.get('center_wavelength'),
-                                   b.get('internal_name') or b['name']) for b in eo_bands]
+            bands_detailed = [Band(b['name'], b.get('common_name'), b.get('center_wavelength'), b.get('aliases'))
+                              for b in eo_bands]
             # Update band dimension with more detailed info
             band_dimensions = [d for d in dimensions if d.type == "bands"]
             if len(band_dimensions) == 1:
@@ -334,11 +334,6 @@ class CollectionMetadata:
     def band_names(self) -> List[str]:
         """Get band names of band dimension"""
         return self.band_dimension.band_names
-
-    @property
-    def internal_band_names(self) -> List[str]:
-        """Get internal band names of band dimension"""
-        return self.band_dimension.internal_band_names
 
     @property
     def band_common_names(self) -> List[str]:
