@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `collection_items` to request collection items through a STAC API
 - `paginate` as a basic method to support link-based pagination
 - Add namespace support to `Connection.datacube_from_process`
+- Add basic support for band name aliases in `metadata.Band` for band index lookup (EP-3670) 
 
 ### Changed
 
