@@ -125,7 +125,7 @@ class BandDimension(Dimension):
                     return band
                 else:
                     return self.band_names[self.common_names.index(band)]
-            elif band in [alias for aliases in self.band_aliases for alias in aliases]:
+            elif any([True if aliases and band in aliases else False for aliases in self.band_aliases]):
                 return self.band_names[self.band_index(band)]
         elif isinstance(band, int) and 0 <= band < len(self.bands):
             return self.band_names[band]
