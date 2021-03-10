@@ -94,6 +94,17 @@ When working with the Sentinelhub SENTINEL1_GRD collection, both sar processes c
 provided by Sentinelhub, (https://docs.sentinel-hub.com/api/latest/data/sentinel-1-grd/#processing-options), and offers full
 CARD4L compliant processing options.
 
+This is an example of :func:`~openeo.rest.datacube.DataCube.ard_normalized_radar_backscatter`::
+
+    s1grd = (connection.load_collection('SENTINEL1_GRD', bands=['VH', 'VV'])
+     .filter_bbox(west=2.59003, east=2.8949, north=51.2206, south=51.069, crs="EPSG:4326")
+     .filter_temporal(extent=["2019-10-10","2019-10-10"]))
+
+    job = s1grd.ard_normalized_radar_backscatter().execute_batch()
+
+    for asset in job.get_results().get_assets():
+        asset.download()
+
 When working with other GRD data, an implementation based on Orfeo Toolbox is used:
 
 - `Orfeo docs <https://www.orfeo-toolbox.org/CookBook/Applications/app_SARCalibration.html>`_
