@@ -1520,7 +1520,7 @@ class DataCube(ImageCollection):
 
         return graph
 
-    def ard_normalized_radar_backscatter(self, elevation_model:str = None, ellipsoid_incidence_angle:bool = False, noise_removal:bool = True):
+    def ard_normalized_radar_backscatter(self, elevation_model:str = None, contributing_area = False, ellipsoid_incidence_angle:bool = False, noise_removal:bool = True):
         """
         Computes CARD4L compliant backscatter (gamma0) from SAR input. This method is a variant of :meth:`openeo.rest.datacube.DataCube.sar_backscatter`,
          with restricted parameters to generate backscatter according to CARD4L specifications.
@@ -1529,6 +1529,8 @@ class DataCube(ImageCollection):
         As a result, this process may only work in combination with loading data from specific collections, not with general data cubes.
 
         :param elevation_model: The digital elevation model to use. Set to None (the default) to allow the back-end to choose, which will improve portability, but reduce reproducibility.
+        :param contributing_area: If set to `true`, a DEM-based local contributing area band named `contributing_area`
+            is added. The values are given in square meters.
         :param ellipsoid_incidence_angle: If set to `True`, an ellipsoidal incidence angle band named `ellipsoid_incidence_angle` is added. The values are given in degrees.
         :param noise_removal: If set to `false`, no noise removal is applied. Defaults to `True`, which removes noise.
 
@@ -1537,6 +1539,7 @@ class DataCube(ImageCollection):
         return self.process(process_id="ard_normalized_radar_backscatter", arguments={
             "data": THIS,
             "elevation_model": elevation_model,
+            "contributing_area": contributing_area,
             "ellipsoid_incidence_angle": ellipsoid_incidence_angle,
             "noise_removal": noise_removal
         })
