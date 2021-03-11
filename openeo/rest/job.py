@@ -129,7 +129,7 @@ class RESTJob:
         logs = self.connection.get(url, params={'offset': offset}, expected_status=200).json()["logs"]
         return [JobLogEntry(log['id'], log['level'], log['message']) for log in logs]
 
-    def run_synchronous(self, outputfile: Union[str, Path],
+    def run_synchronous(self, outputfile: Union[str, Path, None] = None,
                         print=print, max_poll_interval=60, connection_retry_interval=30) -> 'RESTJob':
         """Start the job, wait for it to finish and download result"""
         self.start_and_wait(
