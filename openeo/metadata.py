@@ -162,7 +162,7 @@ class BandDimension(Dimension):
             for old_name,new_name in zip(source,target):
                 band_index = self.band_index(old_name)
                 the_band = new_bands[band_index]
-                new_bands[band_index] = Band(new_name,the_band.common_name,the_band.wavelength_um)
+                new_bands[band_index] = Band(new_name,the_band.common_name,the_band.wavelength_um, the_band.aliases)
         else:
             new_bands = []
             for new_name in target:
