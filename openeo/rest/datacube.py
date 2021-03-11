@@ -172,7 +172,7 @@ class DataCube(ImageCollection):
             if isinstance(bands, str):
                 bands = [bands]
             if metadata:
-                #bands = [metadata.band_dimension.band_name(b) for b in bands]
+                bands = [ b if isinstance(b,str) else metadata.band_dimension.band_name(b) for b in bands]
                 metadata = metadata.filter_bands(bands)
             else:
                 # Ensure minimal metadata with best effort band dimension guess (based on `bands` argument).
