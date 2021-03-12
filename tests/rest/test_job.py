@@ -1,9 +1,11 @@
 import re
 from pathlib import Path
+from unittest import mock
 
 import pytest
 
 import openeo
+import openeo.rest.job
 from openeo.rest import JobFailedException, OpenEoClientException
 from openeo.rest.job import RESTJob, ResultAsset
 from .. import as_path
@@ -27,8 +29,24 @@ def con100(requests_mock):
     return con
 
 
-@pytest.mark.slow
-def test_execute_batch(session040, requests_mock, tmpdir):
+def fake_time(times=[1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610]):
+    """Set up mock to fake time, so that successive `time.time()` calls return from given list"""
+    # TODO: unify this in central time mocking utility?
+    time_mock = mock.Mock()
+    time_mock.time.side_effect = iter(times)
+    return mock.patch.object(openeo.rest.job, "time", time_mock)
+
+
+def test_fake_time():
+    with fake_time():
+        assert openeo.rest.job.time.time() == 1
+        assert openeo.rest.job.time.time() == 2
+        assert openeo.rest.job.time.time() == 3
+        assert openeo.rest.job.time.time() == 5
+
+
+def test_execute_batch(con100, requests_mock, tmpdir):
+    requests_mock.get(API_URL + "/file_formats", json={"output": {"GTiff": {"gis_data_types": ["raster"]}}})
     requests_mock.get(API_URL + "/collections/SENTINEL2", json={"foo": "bar"})
     requests_mock.post(API_URL + "/jobs", status_code=201, headers={"OpenEO-Identifier": "f00ba5"})
     requests_mock.post(API_URL + "/jobs/f00ba5/results", status_code=202)
@@ -51,24 +69,26 @@ def test_execute_batch(session040, requests_mock, tmpdir):
     def print(msg):
         log.append(msg)
 
-    job = session040.load_collection("SENTINEL2").execute_batch(
-        outputfile=as_path(path), out_format="GTIFF",
-        max_poll_interval=.1, print=print
-    )
+    with fake_time():
+        job = con100.load_collection("SENTINEL2").execute_batch(
+            outputfile=as_path(path), out_format="GTIFF",
+            max_poll_interval=.1, print=print
+        )
     assert job.status() == "finished"
 
-    assert re.match(r"0:00:00(.0\d*)? Job 'f00ba5': submitted \(progress N/A\)", log[0])
-    assert re.match(r"0:00:00.1\d* Job 'f00ba5': queued \(progress N/A\)", log[1])
-    assert re.match(r"0:00:00.2\d* Job 'f00ba5': running \(progress 15%\)", log[2])
-    assert re.match(r"0:00:00.3\d* Job 'f00ba5': running \(progress 80%\)", log[3])
-    assert re.match(r"0:00:00.4\d* Job 'f00ba5': finished \(progress 100%\)", log[4])
+    assert re.match(r"0:00:01 Job 'f00ba5': send 'start'", log[0])
+    assert re.match(r"0:00:02 Job 'f00ba5': submitted \(progress N/A\)", log[1])
+    assert re.match(r"0:00:04 Job 'f00ba5': queued \(progress N/A\)", log[2])
+    assert re.match(r"0:00:07 Job 'f00ba5': running \(progress 15%\)", log[3])
+    assert re.match(r"0:00:12 Job 'f00ba5': running \(progress 80%\)", log[4])
+    assert re.match(r"0:00:20 Job 'f00ba5': finished \(progress 100%\)", log[5])
 
     assert path.read() == "tiffdata"
     assert job.logs() == []
 
 
-@pytest.mark.slow
-def test_execute_batch_with_error(session040, requests_mock, tmpdir):
+def test_execute_batch_with_error(con100, requests_mock, tmpdir):
+    requests_mock.get(API_URL + "/file_formats", json={"output": {"GTiff": {"gis_data_types": ["raster"]}}})
     requests_mock.get(API_URL + "/collections/SENTINEL2", json={"foo": "bar"})
     requests_mock.post(API_URL + "/jobs", status_code=201, headers={"OpenEO-Identifier": "f00ba5"})
     requests_mock.post(API_URL + "/jobs/f00ba5/results", status_code=202)
@@ -94,10 +114,11 @@ def test_execute_batch_with_error(session040, requests_mock, tmpdir):
         log.append(msg)
 
     try:
-        session040.load_collection("SENTINEL2").execute_batch(
-            outputfile=as_path(path), out_format="GTIFF",
-            max_poll_interval=.1, print=print
-        )
+        with fake_time():
+            con100.load_collection("SENTINEL2").execute_batch(
+                outputfile=as_path(path), out_format="GTIFF",
+                max_poll_interval=.1, print=print
+            )
         pytest.fail("execute_batch should fail")
     except JobFailedException as e:
         assert e.job.status() == "error"
@@ -105,11 +126,12 @@ def test_execute_batch_with_error(session040, requests_mock, tmpdir):
             ("error", "error processing batch job"),
         ]
 
-    assert re.match(r"0:00:00(.0\d*)? Job 'f00ba5': submitted \(progress N/A\)", log[0])
-    assert re.match(r"0:00:00.1\d* Job 'f00ba5': queued \(progress N/A\)", log[1])
-    assert re.match(r"0:00:00.2\d* Job 'f00ba5': running \(progress 15%\)", log[2])
-    assert re.match(r"0:00:00.3\d* Job 'f00ba5': running \(progress 80%\)", log[3])
-    assert re.match(r"0:00:00.4\d* Job 'f00ba5': error \(progress 100%\)", log[4])
+    assert re.match(r"0:00:01 Job 'f00ba5': send 'start'", log[0])
+    assert re.match(r"0:00:02 Job 'f00ba5': submitted \(progress N/A\)", log[1])
+    assert re.match(r"0:00:04 Job 'f00ba5': queued \(progress N/A\)", log[2])
+    assert re.match(r"0:00:07 Job 'f00ba5': running \(progress 15%\)", log[3])
+    assert re.match(r"0:00:12 Job 'f00ba5': running \(progress 80%\)", log[4])
+    assert re.match(r"0:00:20 Job 'f00ba5': error \(progress 100%\)", log[5])
 
 
 def test_get_job_logs(session040, requests_mock):

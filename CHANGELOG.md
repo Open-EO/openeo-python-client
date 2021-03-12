@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added HTML representation for `list_jobs`, `list_services`, `list_files` and for job results
 - Improve refresh token handling in OIDC logic: avoid requesting refresh token 
   (which can fail if OIDC client is not set up for that) when not necessary (EP-3700)
+- `RESTJob.start_and_wait`: add status line when sending "start" request, and drop microsecond resolution from status lines
+
 
 ### Removed
 

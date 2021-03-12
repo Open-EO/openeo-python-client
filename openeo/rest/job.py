@@ -149,27 +149,33 @@ class RESTJob:
         :param connection_retry_interval: how long to wait when status poll failed due to connection issue
         :return:
         """
+        start_time = time.time()
+
+        def elapsed() -> str:
+            return str(datetime.timedelta(seconds=time.time() - start_time)).rsplit(".")[0]
+
+        def print_status(msg: str):
+            print("{t} Job {i!r}: {m}".format(t=elapsed(), i=self.job_id, m=msg))
+
         # TODO: make `max_poll_interval`, `connection_retry_interval` class constants or instance properties?
+        print_status("send 'start'")
         self.start_job()
+
         # Start with fast polling.
         poll_interval = min(5, max_poll_interval)
         status = None
-        start_time = time.time()
         while True:
             # TODO: also allow a hard time limit on this infinite poll loop?
-            elapsed = str(datetime.timedelta(seconds=time.time() - start_time))
             try:
                 job_info = self.describe_job()
             except ConnectionError as e:
-                print("{t} Connection error while querying job status: {e}".format(t=elapsed, e=e))
+                print_status("Connection error while querying status: {e}".format(e=e))
                 time.sleep(connection_retry_interval)
                 continue
 
             status = job_info.get("status", "N/A")
-            print("{t} Job {i!r}: {s} (progress {p})".format(
-                t=elapsed, i=self.job_id, s=status,
-                p='{p}%'.format(p=job_info["progress"]) if "progress" in job_info else "N/A"
-            ))
+            progress = '{p}%'.format(p=job_info["progress"]) if "progress" in job_info else "N/A"
+            print_status("{s} (progress {p})".format(s=status, p=progress))
             if status not in ('submitted', 'created', 'queued', 'running'):
                 break
 
@@ -177,10 +183,9 @@ class RESTJob:
             time.sleep(poll_interval)
             poll_interval = min(1.25 * poll_interval, max_poll_interval)
 
-        elapsed = str(datetime.timedelta(seconds=time.time() - start_time))
         if status != "finished":
             raise JobFailedException("Batch job {i} didn't finish properly. Status: {s} (after {t}).".format(
-                i=self.job_id, s=status, t=elapsed
+                i=self.job_id, s=status, t=elapsed()
             ), job=self)
 
         return self
@@ -284,6 +289,7 @@ class JobResults:
         """
         Get all assets from the job results.
         """
+        # TODO: add arguments to filter on metadata, e.g. to only get assets of type "image/tiff"
         metadata = self.get_metadata()
         if "assets" in metadata:
             # API 1.0 style: dictionary mapping filenames to metadata dict (with at least a "href" field)
