@@ -30,8 +30,7 @@ def test_sentinel2_icor_creo():
                                      spatial_extent={'west': 3.758216409030558, 'east': 4.087806252,
                                                      'south': 51.291835566, 'north': 51.3927399, 'crs': 'EPSG:4326'},
                                      temporal_extent=["2017-03-07","2017-03-07"],
-                                     bands=[ 'B02','B09','B8A','B11', 'S2_Level-1C_Tile1_Metadata'])
-    l1c = l1c.rename_labels("bands",["B02",'B09','B8A','B11',"SAA","SZA","VAA","VZA"])
+                                     bands=[ 'B02','B09','B8A','B11', 'SAA', 'SZA', 'VAA', 'VZA'])
 
     rgb = l1c.atmospheric_correction(method="iCor")
     rgb._pg.arguments['aot'] = 0.2
