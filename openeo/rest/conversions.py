@@ -9,6 +9,9 @@ import numpy as np
 import pandas
 import xarray
 
+from openeo.rest import OpenEoClientException
+from openeo.udf.xarraydatacube import XarrayDataCube
+
 
 class InvalidTimeSeriesException(ValueError):
     pass
@@ -87,29 +90,35 @@ def timeseries_json_to_pandas(timeseries: dict, index: str = "date", auto_collap
         raise ValueError(index)
 
 
-def datacube_from_file(filename, fmt='netcdf') -> 'openeo_udf.api.datacube.DataCube':
+def datacube_from_file(filename, fmt='netcdf') -> XarrayDataCube:
     """
-    Converts source files of different formats into openeo_udf.api.datacube.DataCube in memory
+    Load data file as :py:class:`XarrayDataCube` in memory
+
     :param filename: the file on disk
     :param fmt: format to load from
     
-    :return: openeo_udf.api.datacube.DataCube
-    """ 
-    from openeo_udf.api.datacube import DataCube
-    if fmt.lower()=='netcdf':
-        return DataCube(_load_DataArray_from_NetCDF(filename))
-    if fmt.lower()=='json':
-        return DataCube(_load_DataArray_from_JSON(filename))
-
-
-def datacube_to_file(datacube: 'openeo_udf.api.datacube.DataCube', filename, fmt='netcdf'):
+    :return: XarrayDataCube
     """
-    Saves openeo_udf.api.datacube.DataCube to file to different formats
+    # TODO #159 move this to openeo.udf subpackage?
+    # TODO if format is not given: guess format from filename extension?
+    if fmt.lower() == 'netcdf':
+        return XarrayDataCube(_load_DataArray_from_NetCDF(filename))
+    elif fmt.lower() == 'json':
+        return XarrayDataCube(_load_DataArray_from_JSON(filename))
+    else:
+        raise OpenEoClientException("invalid format {f}".format(f=fmt))
+
+
+def datacube_to_file(datacube: XarrayDataCube, filename, fmt='netcdf'):
+    """
+    Store :py:class:`XarrayDataCube` to file
+
+    :param datacube: data cube to store
     :param filename: destination file on disk
     :param fmt: format to save as
     
-    :return: None
-    """ 
+    """
+    # TODO #159 move this to openeo.udf subpackage?
     if fmt.lower()=='netcdf':
         _save_DataArray_to_NetCDF(filename, datacube.get_array())
     if fmt.lower()=='json':
@@ -117,6 +126,7 @@ def datacube_to_file(datacube: 'openeo_udf.api.datacube.DataCube', filename, fmt
 
 
 def _load_DataArray_from_JSON(filename) -> xarray.DataArray:
+    # TODO #159 move this to openeo.udf subpackage?
     with open(filename) as f:
         # get the deserialized json
         d=json.load(f)
@@ -147,6 +157,7 @@ def _load_DataArray_from_JSON(filename) -> xarray.DataArray:
 
 
 def _load_DataArray_from_NetCDF(filename) -> xarray.DataArray:
+    # TODO #159 move this to openeo.udf subpackage?
     # load the dataset and convert to data array
     ds=xarray.open_dataset(filename, engine='h5netcdf')
     r=ds.to_array(dim='bands')
@@ -161,6 +172,7 @@ def _load_DataArray_from_NetCDF(filename) -> xarray.DataArray:
 
 
 def _save_DataArray_to_JSON(filename, array: xarray.DataArray):
+    # TODO #159 move this to openeo.udf subpackage?
     # to deserialized json
     jsonarray=array.to_dict()
     # add attributes that needed for re-creating xarray from json
@@ -189,6 +201,7 @@ def _save_DataArray_to_JSON(filename, array: xarray.DataArray):
 
 
 def _save_DataArray_to_NetCDF(filename, array: xarray.DataArray):
+    # TODO #159 move this to openeo.udf subpackage?
     # temp reference to avoid modifying the original array
     result=array
     # rearrange in a basic way because older xarray versions have a bug and ellipsis don't work in xarray.transpose()
@@ -207,7 +220,7 @@ def _save_DataArray_to_NetCDF(filename, array: xarray.DataArray):
 
 
 def datacube_plot(
-        datacube:'openeo_udf.api.datacube.DataCube',
+        datacube: XarrayDataCube,
         title:str=None, 
         limits=None,
         show_bandnames:bool=True,
@@ -221,7 +234,8 @@ def datacube_plot(
         to_show:bool=True
     ):
     """
-    Plots an openeo_udf.api.datacube.DataCube 
+    Visualize a :py:class:`XarrayDataCube` with matplotlib
+
     :param datacube: data to plot
     :param title: title text drawn in the top left corner (default: nothing)
     :param limits: range of the contour plot as a tuple(min,max) (default: None, in which case the min/max is computed from the data)
@@ -236,7 +250,8 @@ def datacube_plot(
     :param to_show: whether to show the image in a matplotlib window (default: True)
     
     :return: None
-    """ 
+    """
+    # TODO #159 move this to openeo.udf subpackage?
 
     from matplotlib import pyplot
     

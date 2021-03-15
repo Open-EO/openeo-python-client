@@ -1,0 +1,3 @@
+
+class OpenEoUdfException(Exception):
+    pass
