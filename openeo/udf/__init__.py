@@ -1,3 +1,5 @@
+from openeo import BaseOpenEoException
 
-class OpenEoUdfException(Exception):
+
+class OpenEoUdfException(BaseOpenEoException):
     pass

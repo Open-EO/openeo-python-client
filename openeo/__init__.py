@@ -20,6 +20,11 @@ In this example, a 'datacube' is created using `load_collection`. Datacubes can 
 __title__ = 'openeo'
 __author__ = 'Jeroen Dries'
 
+
+class BaseOpenEoException(Exception):
+    pass
+
+
 from openeo._version import __version__
 from openeo.imagecollection import ImageCollection
 from openeo.rest.connection import connect, session, Connection
