@@ -1,4 +1,5 @@
 import functools
+import importlib
 import inspect
 import logging
 import math
@@ -19,33 +20,26 @@ log = logging.getLogger(__name__)
 
 
 def _build_default_execution_context():
+    # TODO: is it really necessary to "pre-load" these modules? Isn't user going to import them explicitly in their script anyway?
     context = {
-        'numpy': numpy,
-        'xarray': xarray,
-        # 'geopandas': geopandas,
-        'pandas': pandas,
-        'shapely': shapely,
-        'math': math,
-        # 'FeatureCollection': FeatureCollection,
-        # 'SpatialExtent': SpatialExtent,
-        'StructuredData': StructuredData,
-        # 'MachineLearnModel': MachineLearnModelConfig,
-        'DataCube': XarrayDataCube,
-        'XarrayDataCube': XarrayDataCube,
-        'UdfData': UdfData
+        "numpy": numpy, "np": numpy,
+        "xarray": xarray,
+        "pandas": pandas, "pd": pandas,
+        "shapely": shapely,
+        "math": math,
+        "UdfData": UdfData,
+        "XarrayDataCube": XarrayDataCube,
+        "DataCube": XarrayDataCube,  # Legacy alias
+        "StructuredData": StructuredData,
+        # "FeatureCollection": FeatureCollection,  # TODO
+        # "SpatialExtent": SpatialExtent,  # TODO
+        # "MachineLearnModel": MachineLearnModelConfig, # TODO
     }
-    try:
-        import torch
-        context['torch'] = torch
-        import torchvision
-    except ImportError as e:
-        log.info('torch not available')
-    try:
-        import tensorflow
-        context['tensorflow'] = tensorflow
-        import tensorboard
-    except ImportError as e:
-        log.info('tensorflow not available')
+    for name in ["geopandas", "torch", "torchvision", "tensorflow", "tensorboard"]:
+        try:
+            context[name] = importlib.import_module(name)
+        except ImportError:
+            log.info("Module {m} not available for UDF execution context".format(m=name))
 
     return context
 
@@ -57,9 +51,9 @@ def load_module_from_string(code: str):
     @param code:
     @return:
     """
-    module = _build_default_execution_context()
-    exec(code, module)
-    return module
+    globals = _build_default_execution_context()
+    exec(code, globals)
+    return globals
 
 
 def _get_annotation_str(annotation: Union[str, type]) -> str:
@@ -220,4 +214,3 @@ def execute_local_udf(udf: str, datacube: Union[str, xarray.DataArray, XarrayDat
     # run the udf through the same routine as it would have been parsed in the backend
     result = run_udf_code(udf, udf_data)
     return result
-
