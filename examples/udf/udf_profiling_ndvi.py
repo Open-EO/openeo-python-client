@@ -1,11 +1,7 @@
-# -*- coding: utf-8 -*-
-# Uncomment the import only for coding support
-from openeo_udf.api.datacube import DataCube
-from typing import Dict
+from openeo.udf.xarraydatacube import XarrayDataCube
 
 
-def apply_datacube(cube: DataCube, context: Dict) -> DataCube:
-
+def apply_datacube(cube: XarrayDataCube, context: dict) -> XarrayDataCube:
     # access the underlying xarray
     inarr=cube.get_array()
 
@@ -18,6 +14,4 @@ def apply_datacube(cube: DataCube, context: Dict) -> DataCube:
     ndvi=ndvi.expand_dims(dim='bands', axis=-3).assign_coords(bands=['ndvi'])
     
     # wrap back to datacube and return
-    return DataCube(ndvi)
-
-
+    return XarrayDataCube(ndvi)
