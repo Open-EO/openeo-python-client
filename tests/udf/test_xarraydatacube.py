@@ -5,7 +5,7 @@ import pytest
 import xarray
 import xarray.testing
 
-from openeo.rest.conversions import datacube_to_file, datacube_from_file
+from openeo.rest.conversions import datacube_to_file, datacube_from_file, datacube_plot
 from openeo.udf.xarraydatacube import XarrayDataCube
 from .. import as_path
 
@@ -227,3 +227,19 @@ def test_save_load_dtype_float64(format, tmp_path):
     assert xdc.array.shape == (3, 2, 4, 5)
     result = _assert_equal_after_save_and_load(xdc, tmp_path, format)
     assert result.array.dtype == numpy.float64
+
+
+def test_datacube_plot(tmp_path):
+    import matplotlib.pyplot as plt  # TODO: mandatory dev dependency or optional?
+
+    ts = [numpy.datetime64('2020-08-01'), numpy.datetime64('2020-08-11'), numpy.datetime64('2020-08-21')]
+    xdc = _build_xdc(ts=ts, bands=["a", "b"], xs=100, ys=100)
+    path = as_path(tmp_path / "test.png")
+    datacube_plot(xdc, "title", oversample=1.2, cbartext="some\nvalue", to_file=path, to_show=False)
+
+    png_data = plt.imread(str(path))
+    # Just check basic file properties to make sure the file isn't empty.
+    assert len(png_data.shape) == 3
+    assert png_data.shape[0] > 100
+    assert png_data.shape[1] > 100
+    assert png_data.shape[2] == 4
