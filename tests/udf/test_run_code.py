@@ -5,7 +5,6 @@ import pandas
 import pytest
 import xarray
 
-from openeo.rest.conversions import datacube_to_file
 from openeo.udf.run_code import run_udf_code, _get_annotation_str, _annotation_is_pandas_series, \
     _annotation_is_udf_datacube, _annotation_is_udf_data, execute_local_udf
 from openeo.udf.udf_data import UdfData
@@ -190,7 +189,7 @@ def test_run_local_udf_from_file_json(tmp_path):
         bands=['bandzero', 'bandone'], xs=[10., 11., 12., 13., 14.], ys=[20., 21., 22., 23., 24., 25.]
     )
     data_path = as_path(tmp_path / "data.json")
-    datacube_to_file(xdc, data_path, fmt="json")
+    xdc.save_to_file(path=data_path, fmt="json")
 
     res = execute_local_udf(udf_code, data_path, fmt="json")
 
@@ -218,7 +217,7 @@ def test_run_local_udf_from_file_netcdf(tmp_path):
         bands=['bandzero', 'bandone'], xs=[10., 11., 12., 13., 14.], ys=[20., 21., 22., 23., 24., 25.]
     )
     data_path = as_path(tmp_path / "data.nc")
-    datacube_to_file(xdc, data_path, fmt="netcdf")
+    xdc.save_to_file(path=data_path, fmt="netcdf")
 
     res = execute_local_udf(udf_code, data_path, fmt="netcdf")
 

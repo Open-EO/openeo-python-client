@@ -197,8 +197,7 @@ def execute_local_udf(udf: str, datacube: Union[str, xarray.DataArray, XarrayDat
     """
 
     if isinstance(datacube, (str, pathlib.Path)):
-        from openeo.rest.conversions import datacube_from_file
-        d = datacube_from_file(datacube, fmt)
+        d = XarrayDataCube.from_file(path=datacube, fmt=fmt)
     elif isinstance(datacube, XarrayDataCube):
         d = datacube
     elif isinstance(datacube, xarray.DataArray):

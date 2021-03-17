@@ -5,7 +5,6 @@ import pytest
 import xarray
 import xarray.testing
 
-from openeo.rest.conversions import datacube_to_file, datacube_from_file, datacube_plot
 from openeo.udf.xarraydatacube import XarrayDataCube
 from .. import as_path
 
@@ -142,8 +141,8 @@ def test_build_xdc():
 
 def _assert_equal_after_save_and_load(xdc, tmp_path, format) -> XarrayDataCube:
     path = as_path(tmp_path / ("cube." + format))
-    datacube_to_file(xdc, path, fmt=format)
-    result = datacube_from_file(path, fmt=format)
+    xdc.save_to_file(path=path, fmt=format)
+    result = XarrayDataCube.from_file(path=path, fmt=format)
     xarray.testing.assert_equal(xdc.array, result.array)
     return result
 
@@ -235,7 +234,7 @@ def test_datacube_plot(tmp_path):
     ts = [numpy.datetime64('2020-08-01'), numpy.datetime64('2020-08-11'), numpy.datetime64('2020-08-21')]
     xdc = _build_xdc(ts=ts, bands=["a", "b"], xs=100, ys=100)
     path = as_path(tmp_path / "test.png")
-    datacube_plot(xdc, "title", oversample=1.2, cbartext="some\nvalue", to_file=path, to_show=False)
+    xdc.plot("title", oversample=1.2, cbartext="some\nvalue", to_file=path, to_show=False)
 
     png_data = plt.imread(str(path))
     # Just check basic file properties to make sure the file isn't empty.

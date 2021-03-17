@@ -104,7 +104,7 @@ def test_debug_udf_direct_invoke():
     https://open-eo.github.io/openeo-python-client/udf.html#example-downloading-a-datacube-and-executing-an-udf-locally
     depends on composite.nc file created in earlier function!
     """
-    from openeo.rest.conversions import datacube_from_file
-    udf_cube = datacube_from_file('masked.nc', fmt='netcdf')
+    from openeo.udf.xarraydatacube import XarrayDataCube
+    udf_cube = XarrayDataCube.from_file('masked.nc', fmt='netcdf')
 
     apply_datacube(udf_cube,context={})
