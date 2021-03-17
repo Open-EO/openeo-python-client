@@ -22,7 +22,6 @@ tests_require = [
     'mock',
     'requests-mock>=1.8.0',
     'h5netcdf',
-    'openeo-udf>=1.0.0rc2',
     'matplotlib',
 ]
 
