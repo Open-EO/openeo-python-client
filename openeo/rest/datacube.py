@@ -17,11 +17,10 @@ import warnings
 from builtins import staticmethod
 from typing import List, Dict, Union, Tuple, Optional
 
-import numpy
 import numpy as np
 import shapely.geometry
 import shapely.geometry.base
-from deprecated import deprecated
+from deprecated.sphinx import deprecated
 from shapely.geometry import Polygon, MultiPolygon, mapping
 
 import openeo
@@ -667,7 +666,7 @@ class DataCube(ImageCollection):
         reducer = self._get_callback(reducer, parent_parameters=["data"])
         return self.process(process_id="aggregate_spatial", data=THIS, geometries=geometries, reducer=reducer)
 
-    @deprecated(reason="use aggregate_spatial instead")
+    @deprecated(reason="use aggregate_spatial instead", version="0.4.6")
     def zonal_statistics(self, regions, func, scale=1000, interval="day") -> 'DataCube':
         """
         Calculates statistics for each zone specified in a file.
@@ -1446,55 +1445,10 @@ class DataCube(ImageCollection):
         return self._connection.execute(self.flat_graph())
 
     @staticmethod
+    @deprecated(reason="Use :py:func:`openeo.udf.run_code.execute_local_udf` instead", version="0.6.2")
     def execute_local_udf(udf: str, datacube: Union[str, 'xarray.DataArray', 'XarrayDataCube'] = None, fmt='netcdf'):
-        """
-        Locally executes an user defined function on a previously downloaded datacube.
-        
-        :param udf: the code of the user defined function
-        :param datacube: the path to the downloaded data in disk or a DataCube
-        :param fmt: format of the file if datacube is string
-        :return: the resulting DataCube
-        """
-        # TODO: this method has nothing to do with openeo.rest.DataCube, move it to openeo.udf package?
-        from openeo.udf.udf_data import UdfData
-        from openeo.udf.run_code import run_udf_code
-        from openeo.udf.xarraydatacube import XarrayDataCube
-        from xarray import DataArray
-
-        udf_data=None
-
-        # TODO: why support for datacube=None?
-        # if it is a datacube
-        if datacube is not None:
-            # get input
-            if isinstance(datacube, (str, pathlib.Path)):
-                from openeo.rest.conversions import datacube_from_file
-                d=datacube_from_file(datacube, fmt)
-            elif isinstance(datacube, XarrayDataCube):
-                d = datacube
-            elif isinstance(datacube, DataArray):
-                d = XarrayDataCube(datacube)
-            else:
-                raise TypeError("Data should be either file name to the Data or a DataCube, got "+str(datacube.__class__ if datacube is not None else 'None'))
-            # TODO: skip going through XarrayDataCube above, we only need xarray.DataArray here anyway.
-            # datacube's data is to be float and x,y not provided
-            d = XarrayDataCube(d.get_array()
-                .astype(numpy.float64)
-                .drop(labels='x')
-                .drop(labels='y')
-            )
-            # wrap to udf_data
-            udf_data=UdfData(datacube_list=[d])
-            
-        # TODO: enrich to other types like time series, vector data,... probalby by adding  named arguments
-        # signature: UdfData(proj, datacube_list, feature_collection_list, structured_data_list, ml_model_list, metadata)
-        
-        # run the udf through the same routine as it would have been parsed in the backend
-        if udf_data is not None:
-            result=run_udf_code(udf, udf_data)
-            return result
-        
-        return None
+        import openeo.udf.run_code
+        return openeo.udf.run_code.execute_local_udf(udf=udf, datacube=datacube, fmt=fmt)
 
     def to_graphviz(self):
         """

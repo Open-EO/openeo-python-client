@@ -2,8 +2,8 @@ import functools
 import inspect
 import logging
 import math
-from typing import Dict, Callable
-from typing import Union
+import pathlib
+from typing import Dict, Callable, Union
 
 import numpy
 import pandas
@@ -184,3 +184,41 @@ def run_udf_code(code: str, data: UdfData) -> UdfData:
             pass
 
     return data
+
+
+def execute_local_udf(udf: str, datacube: Union[str, xarray.DataArray, XarrayDataCube], fmt='netcdf'):
+    """
+    Locally executes an user defined function on a previously downloaded datacube.
+
+    :param udf: the code of the user defined function
+    :param datacube: the path to the downloaded data in disk or a DataCube
+    :param fmt: format of the file if datacube is string
+    :return: the resulting DataCube
+    """
+
+    if isinstance(datacube, (str, pathlib.Path)):
+        from openeo.rest.conversions import datacube_from_file
+        d = datacube_from_file(datacube, fmt)
+    elif isinstance(datacube, XarrayDataCube):
+        d = datacube
+    elif isinstance(datacube, xarray.DataArray):
+        d = XarrayDataCube(datacube)
+    else:
+        raise ValueError(datacube)
+    # TODO: skip going through XarrayDataCube above, we only need xarray.DataArray here anyway.
+    # datacube's data is to be float and x,y not provided
+    d = XarrayDataCube(d.get_array()
+                       .astype(numpy.float64)
+                       .drop(labels='x')
+                       .drop(labels='y')
+                       )
+    # wrap to udf_data
+    udf_data = UdfData(datacube_list=[d])
+
+    # TODO: enrich to other types like time series, vector data,... probalby by adding  named arguments
+    # signature: UdfData(proj, datacube_list, feature_collection_list, structured_data_list, ml_model_list, metadata)
+
+    # run the udf through the same routine as it would have been parsed in the backend
+    result = run_udf_code(udf, udf_data)
+    return result
+
