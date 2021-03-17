@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Removed
+
+### Fixed
+
+
+## [0.5.0] - 2021-03-17
+
+### Added
+
 - Add namespace support to `DataCube.process`, `PGNode`, `ProcessGraphVisitor` (minor API breaking change) and related.
   Allows building process graphs with processes from non-"backend" namespaces 
   ([#182](https://github.com/Open-EO/openeo-python-client/issues/182))
@@ -24,10 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (which can fail if OIDC client is not set up for that) when not necessary (EP-3700)
 - `RESTJob.start_and_wait`: add status line when sending "start" request, and drop microsecond resolution from status lines
 
-
-### Removed
-
 ### Fixed
+
 - Updated Vue Components library (solves issue with loading from slower back-ends where no result was shown)
 
 ## [0.4.10] - 2021-02-26
