@@ -3,6 +3,7 @@ Helpers for data conversions between Python ecosystem data types and openEO data
 """
 import collections
 import json
+from pathlib import Path
 from typing import Union
 
 import numpy as np
@@ -127,7 +128,7 @@ def datacube_to_file(datacube: XarrayDataCube, filename, fmt='netcdf'):
 
 def _load_DataArray_from_JSON(filename) -> xarray.DataArray:
     # TODO #159 move this to openeo.udf subpackage?
-    with open(filename) as f:
+    with Path(filename).open() as f:
         # get the deserialized json
         d=json.load(f)
         d['data']=np.array(d['data'],dtype=np.dtype(d['attrs']['dtype']))
@@ -182,7 +183,7 @@ def _save_DataArray_to_JSON(filename, array: xarray.DataArray):
         jsonarray['coords'][i.name]['attrs']['dtype']=str(i.dtype)
         jsonarray['coords'][i.name]['attrs']['shape']=list(i.shape)
     # custom print so resulting json file is humanly easy to read
-    with open(filename,'w') as f:
+    with Path(filename).open("w") as f:
         def custom_print(data_structure, indent=1):
             f.write("{\n")
             needs_comma=False

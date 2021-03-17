@@ -1446,7 +1446,7 @@ class DataCube(ImageCollection):
         return self._connection.execute(self.flat_graph())
 
     @staticmethod
-    def execute_local_udf(udf: str, datacube: Union[str, 'xarray.DataArray', 'openeo_udf.api.datacube.DataCube'] =None , fmt='netcdf'):
+    def execute_local_udf(udf: str, datacube: Union[str, 'xarray.DataArray', 'XarrayDataCube'] = None, fmt='netcdf'):
         """
         Locally executes an user defined function on a previously downloaded datacube.
         
@@ -1455,26 +1455,30 @@ class DataCube(ImageCollection):
         :param fmt: format of the file if datacube is string
         :return: the resulting DataCube
         """
-        from openeo_udf.api.udf_data import UdfData
-        from openeo_udf.api.run_code import run_user_code
-        from openeo_udf.api.datacube import DataCube as udf_DataCube
+        # TODO: this method has nothing to do with openeo.rest.DataCube, move it to openeo.udf package?
+        from openeo.udf.udf_data import UdfData
+        from openeo.udf.run_code import run_udf_code
+        from openeo.udf.xarraydatacube import XarrayDataCube
         from xarray import DataArray
-        
+
         udf_data=None
+
+        # TODO: why support for datacube=None?
         # if it is a datacube
         if datacube is not None:
             # get input
-            if isinstance(datacube, str):
+            if isinstance(datacube, (str, pathlib.Path)):
                 from openeo.rest.conversions import datacube_from_file
                 d=datacube_from_file(datacube, fmt)
-            elif isinstance(datacube, udf_DataCube):
-                d=datacube
+            elif isinstance(datacube, XarrayDataCube):
+                d = datacube
             elif isinstance(datacube, DataArray):
-                d=udf_DataCube(datacube)
+                d = XarrayDataCube(datacube)
             else:
                 raise TypeError("Data should be either file name to the Data or a DataCube, got "+str(datacube.__class__ if datacube is not None else 'None'))
+            # TODO: skip going through XarrayDataCube above, we only need xarray.DataArray here anyway.
             # datacube's data is to be float and x,y not provided
-            d=udf_DataCube(d.get_array()
+            d = XarrayDataCube(d.get_array()
                 .astype(numpy.float64)
                 .drop(labels='x')
                 .drop(labels='y')
@@ -1487,7 +1491,7 @@ class DataCube(ImageCollection):
         
         # run the udf through the same routine as it would have been parsed in the backend
         if udf_data is not None:
-            result=run_user_code(udf, udf_data)
+            result=run_udf_code(udf, udf_data)
             return result
         
         return None

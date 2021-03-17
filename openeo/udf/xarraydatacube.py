@@ -22,6 +22,8 @@ class XarrayDataCube:
         """
         return self._array
 
+    array = property(fget=get_array)
+
     @property
     def id(self):
         return self._array.name
