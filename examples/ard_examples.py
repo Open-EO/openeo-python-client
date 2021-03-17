@@ -24,7 +24,7 @@ def test_sentinel2_icor():
 
 
 def test_sentinel2_icor_creo():
-    connection = openeo.connect("https://openeo.creo.vito.be").authenticate_basic("driesj","driesj123")
+    connection = openeo.connect("https://openeo.creo.vito.be").authenticate_basic()
 
     l1c = connection.load_collection("SENTINEL2_L1C",
                                      spatial_extent={'west': 3.758216409030558, 'east': 4.087806252,

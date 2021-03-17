@@ -3,7 +3,7 @@ from openeo.internal.graph_building import PGNode
 
 # Connect to backend via basic authentication
 con = openeo.connect("https://earthengine.openeo.org/v1.0")
-con.authenticate_basic("group1", "test123")
+con.authenticate_basic()
 
 datacube = con.load_collection("COPERNICUS/S1_GRD",
                                spatial_extent={"west": 16.06, "south": 48.1, "east": 16.65,

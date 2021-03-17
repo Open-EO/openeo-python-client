@@ -1,7 +1,7 @@
 import openeo
 
 #connect with VITO backend
-connection = openeo.connect("https://openeo.vito.be").authenticate_basic("username","password")
+connection = openeo.connect("https://openeo.vito.be").authenticate_basic()
 
 #create image collection
 s2_fapar = connection.load_collection("TERRASCOPE_S2_FAPAR_V2",

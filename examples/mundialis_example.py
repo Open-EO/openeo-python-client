@@ -6,17 +6,14 @@ import time
 
 logging.basicConfig(level=logging.INFO)
 
-
 backend_url = 'https://openeo.mundialis.de'
-auth_id = "openeo"
-auth_pwd = "FIXME"
 
 collection_id = 'utm32n.openeo_bolzano.strds.openeo_bolzano_S2'
 
 outfile = "/tmp/openeo_mundialis_output.png"
 
 # connect with mundialis openeo/actinia backend
-con = openeo.connect(backend_url).authenticate_basic(auth_id, password = auth_pwd)
+con = openeo.connect(backend_url).authenticate_basic()
 
 # Test Connection
 print(con.list_processes())

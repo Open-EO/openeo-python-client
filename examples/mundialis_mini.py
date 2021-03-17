@@ -6,8 +6,6 @@ import openeo
 from openeo.rest.imagecollectionclient import ImageCollectionClient
 
 backend_url = 'https://openeo.mundialis.de'
-auth_id = "openeo"
-auth_pwd = "FIXME"
 
 # definitions
 collection_id = 'utm32n.openeo_bolzano.strds.openeo_bolzano_S2'
@@ -23,7 +21,7 @@ temporal_extent=["2018-05-01T00:00:00.000Z","2018-10-01T00:00:00.000Z"]
 spectral_extent = ["S2_8", "S2_4", "S2_2"]
 
 # connect to mundialis backend
-session = openeo.connect(backend_url).authenticate_basic(auth_id, password = auth_pwd)
+session = openeo.connect(backend_url).authenticate_basic()
 
 # TODO change to s2_radiometry = session.load_collection( ...)
 s2_radiometry = ImageCollectionClient.load_collection(

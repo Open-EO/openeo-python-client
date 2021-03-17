@@ -2,12 +2,9 @@ import openeo
 
 BACKEND_URL = "https://openeo.eurac.edu"
 
-USER = "guest"
-PASSWORD = "guest_123"
-
 # Connect to backend via basic authentication
 con = openeo.connect(BACKEND_URL)
-con.authenticate_basic(USER, PASSWORD)
+con.authenticate_basic()
 
 # Describe account
 print(con.describe_account())

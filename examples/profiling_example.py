@@ -14,7 +14,7 @@ class UDFString():
 if __name__ == '__main__':
 
     eoconn=openeo.connect('http://openeo-dev.vgt.vito.be/openeo/1.0.0/')
-    eoconn.authenticate_basic("<YOUR_USERNAME>","<YOUR_PASSWORD>")
+    eoconn.authenticate_basic()
 
     # creating a simple process that computes NDVI using python UDF 
     data=eoconn.load_collection("TERRASCOPE_S2_TOC_V2")\

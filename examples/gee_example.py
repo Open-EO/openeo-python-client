@@ -8,12 +8,9 @@ GEE_DRIVER_URL = "https://earthengine.openeo.org/v1.0"
 
 OUTPUT_FILE = "/tmp/openeo_gee_output.png"
 
-user = "group1"
-password = "test123"
-
 # Connect to backend via basic authentication
 con = openeo.connect(GEE_DRIVER_URL)
-con.authenticate_basic(user, password)
+con.authenticate_basic()
 
 # Get information about the backend
 print(con.list_processes())

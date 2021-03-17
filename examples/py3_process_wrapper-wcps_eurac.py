@@ -63,7 +63,7 @@ def execute(
     temporal_extent = temporal_extent.split("/")
     west, south, east, north = list(map(lambda value: value.strip(), bbox_string.split(",")))
     bbox = {"west": west, "east": east, "south": south, "north": north, "crs": "EPSG:4326"}
-    logger.info("Demo user:password: %s:%s", user, password)
+    logger.info("Demo user: %s", user)
     logger.info("Provider: %s with driver URL %s", provider, driver_url)
     logger.info("Image Collection: %s", image_collection)
     logger.info("Bands: %s", bands)
@@ -114,8 +114,8 @@ def execute(
 def example():
     execute(
         out_dir="/tmp",
-        user="guest",
-        password="guest_123",
+        user=None,
+        password=None,
         provider="Eurac Research",
         driver_url="https://openeo.eurac.edu",
         image_collection="S2_L2A_T32TPS_20M",

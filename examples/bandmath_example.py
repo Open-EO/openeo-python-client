@@ -1,7 +1,7 @@
 import openeo
 
 connection = openeo.connect("https://openeo.vito.be/openeo/1.0")
-connection.authenticate_basic("test", "test123")
+connection.authenticate_basic()
 
 sentinel2_data_cube = connection.imagecollection(
     "TERRASCOPE_S2_TOC_V2",

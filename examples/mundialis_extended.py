@@ -65,7 +65,7 @@ def execute(
     temporal_extent = temporal_extent.split("/")
     west, south, east, north = list(map(lambda value: value.strip(), bbox_string.split(",")))
     bbox = {"west": west, "east": east, "south": south, "north": north, "crs": "EPSG:4326"}
-    logger.info("Demo user:password: %s:%s", user, password)
+    logger.info("Demo user: %s", user)
     logger.info("Provider: %s with driver URL %s", provider, driver_url)
     logger.info("Image Collection: %s", image_collection)
     logger.info("Bands: %s", bands)
@@ -117,8 +117,8 @@ def example():
     execute(
         all_bands="S2_2 S2_3 S2_4 S2_5 S2_6 S2_7 S2_8A S2_11 S2_12",
         out_dir="/tmp",
-        user="openeo",
-        password="FIXME",
+        user=None,
+        password=None,
         provider="mundialis",
         driver_url="https://openeo.mundialis.de",
         image_collection="utm32n.openeo_bolzano.strds.openeo_bolzano_S2",
