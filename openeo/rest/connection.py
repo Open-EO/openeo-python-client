@@ -331,7 +331,11 @@ class Connection(RestApiConnection):
                 raise OpenEoClientException("No provider_id given. Available: {p!r}.".format(
                     p=list(providers.keys()))
                 )
-            provider = OidcProviderInfo(issuer=provider["issuer"], scopes=provider.get("scopes"))
+            provider = OidcProviderInfo(
+                issuer=provider["issuer"], scopes=provider.get("scopes"),
+                # TODO: This "default_client" feature is still experimental in openEO API. See Open-EO/openeo-api#366
+                default_client=provider.get("default_client")
+            )
         else:
             # Per spec: '/credentials/oidc' will redirect to  OpenID Connect discovery document
             provider = OidcProviderInfo(discovery_url=self.build_url('/credentials/oidc'))
@@ -355,9 +359,18 @@ class Connection(RestApiConnection):
             client_id, client_secret = self._get_auth_config().get_oidc_client_configs(
                 backend=self._orig_url, provider_id=provider_id
             )
-            _log.info("Using client_id {c!r} from config (provider {p!r})".format(c=client_id, p=provider_id))
-            if client_id is None:
-                raise OpenEoClientException("No client ID found.")
+            if client_id:
+                _log.info("Using client_id {c!r} from config (provider {p!r})".format(c=client_id, p=provider_id))
+        if client_id is None:
+            # TODO: This "default_client" feature is still experimental in openEO API. See Open-EO/openeo-api#366
+            # Try "default_client" from backend's provider info.
+            client_id = provider.get_default_client_id()
+            if client_id:
+                _log.info("Using default client_id {c!r} from OIDC provider {p!r} info.".format(
+                    c=client_id, p=provider_id
+                ))
+        if client_id is None:
+            raise OpenEoClientException("No client ID found.")
 
         client_info = OidcClientInfo(client_id=client_id, client_secret=client_secret, provider=provider)
 

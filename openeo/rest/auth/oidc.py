@@ -219,7 +219,12 @@ def jwt_decode(token: str) -> Tuple[dict, dict]:
 class OidcProviderInfo:
     """OpenID Connect Provider information, as provided by an openEO back-end (endpoint `/credentials/oidc`)"""
 
-    def __init__(self, issuer: str = None, discovery_url: str = None, scopes: List[str] = None):
+    # TODO: The "default_client" feature is still experimental in openEO API. See Open-EO/openeo-api#366
+
+    def __init__(
+            self, issuer: str = None, discovery_url: str = None, scopes: List[str] = None,
+            default_client: Union[dict, None] = None
+    ):
         if issuer is None and discovery_url is None:
             raise ValueError("At least `issuer` or `discovery_url` should be specified")
         self.discovery_url = discovery_url or (issuer.rstrip("/") + "/.well-known/openid-configuration")
@@ -230,6 +235,7 @@ class OidcProviderInfo:
         # Minimal set of scopes to request
         self._supported_scopes = self.config.get("scopes_supported", ["openid"])
         self._scopes = {"openid"}.union(scopes or []).intersection(self._supported_scopes)
+        self.default_client = default_client
 
     def get_scopes_string(self, request_refresh_token: bool = False):
         """
@@ -243,6 +249,9 @@ class OidcProviderInfo:
         if request_refresh_token and "offline_access" in self._supported_scopes:
             scopes = scopes | {"offline_access"}
         return " ".join(sorted(scopes))
+
+    def get_default_client_id(self) -> Union[str, None]:
+        return self.default_client and self.default_client.get("id")
 
 
 class OidcClientInfo:
