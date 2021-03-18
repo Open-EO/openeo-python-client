@@ -241,7 +241,8 @@ class OidcMock:
         self.state["device_code"] = random_string()
         self.state["user_code"] = random_string(length=6).upper()
         self.state["scope"] = params["scope"]
-        if "code_challenge" in params:
+        if "code_challenge" in self.expected_fields:
+            assert "code_challenge" in params
             self.state["code_challenge"] = params["code_challenge"]
         return json.dumps({
             # TODO: also verification_url (google tweak)
@@ -439,7 +440,7 @@ def test_oidc_device_flow_with_pkce(requests_mock, caplog):
         expected_grant_type="urn:ietf:params:oauth:grant-type:device_code",
         expected_client_id=client_id,
         oidc_discovery_url=oidc_discovery_url,
-        expected_fields={"scope": "df openid", "code_verifier": True},
+        expected_fields={"scope": "df openid", "code_challenge": True, "code_verifier": True},
         state={"device_code_callback_timeline": ["authorization_pending", "slow_down", "great success"]},
         scopes_supported=["openid", "df"]
     )
@@ -449,6 +450,48 @@ def test_oidc_device_flow_with_pkce(requests_mock, caplog):
         client_info=OidcClientInfo(client_id=client_id, provider=provider),
         display=display.append,
         use_pkce=True
+    )
+    with mock.patch.object(openeo.rest.auth.oidc.time, "sleep") as sleep:
+        with caplog.at_level(logging.INFO):
+            tokens = authenticator.get_tokens()
+    assert oidc_mock.state["access_token"] == tokens.access_token
+    assert re.search(
+        r"visit https://auth\.test/dc and enter the user code {c!r}".format(c=oidc_mock.state['user_code']),
+        display[0]
+    )
+    assert display[1] == "Authorized successfully."
+    assert sleep.mock_calls == [mock.call(2), mock.call(2), mock.call(7)]
+    assert re.search(
+        r"Authorization pending\..*Polling too fast, will slow down\..*Authorized successfully\.",
+        caplog.text,
+        flags=re.DOTALL
+    )
+
+
+@pytest.mark.parametrize(["mode", "use_pkce", "client_secret", "expected_fields"], [
+    ("client_secret explicit", False, "$3cr3t", {"scope": "df openid", "client_secret": "$3cr3t"}),
+    ("PKCE explicit", True, None, {"scope": "df openid", "code_challenge": True, "code_verifier": True}),
+    ("client_secret autodetect", None, "$3cr3t", {"scope": "df openid", "client_secret": "$3cr3t"}),
+    ("PKCE autodetect", None, None, {"scope": "df openid", "code_challenge": True, "code_verifier": True}),
+])
+def test_oidc_device_flow_auto_detect(requests_mock, caplog, mode, use_pkce, client_secret, expected_fields):
+    client_id = "myclient"
+    oidc_discovery_url = "http://oidc.test/.well-known/openid-configuration"
+    oidc_mock = OidcMock(
+        requests_mock=requests_mock,
+        expected_grant_type="urn:ietf:params:oauth:grant-type:device_code",
+        expected_client_id=client_id,
+        oidc_discovery_url=oidc_discovery_url,
+        expected_fields=expected_fields,
+        state={"device_code_callback_timeline": ["authorization_pending", "slow_down", "great success"]},
+        scopes_supported=["openid", "df"]
+    )
+    provider = OidcProviderInfo(discovery_url=oidc_discovery_url, scopes=["df"])
+    display = []
+    authenticator = OidcDeviceAuthenticator(
+        client_info=OidcClientInfo(client_id=client_id, provider=provider, client_secret=client_secret),
+        display=display.append,
+        use_pkce=use_pkce
     )
     with mock.patch.object(openeo.rest.auth.oidc.time, "sleep") as sleep:
         with caplog.at_level(logging.INFO):

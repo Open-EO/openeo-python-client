@@ -569,15 +569,18 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
 
     def __init__(
             self, client_info: OidcClientInfo, display: Callable[[str], None] = print, device_code_url: str = None,
-            max_poll_time=5 * 60, use_pkce: bool = False
+            max_poll_time=5 * 60, use_pkce: Union[bool, None] = None
     ):
         super().__init__(client_info=client_info)
         self._display = display
         # Allow to specify/override device code URL for cases when it is not available in OIDC discovery doc.
         self._device_code_url = device_code_url or self._provider_config["device_authorization_endpoint"]
         self._max_poll_time = max_poll_time
-        # TODO: automatically use PKCE if there is no client secret?
-        # TODO: detect if OIDC provider supports device flow + PKCE? E.g. get this from `OidcProviderInfo` (also see https://github.com/Open-EO/openeo-api/pull/366)?
+        if use_pkce is None:
+            # TODO: better auto-detection if PKCE should/can be used, e.g.:
+            #       does OIDC provider supports device flow + PKCE? Get this from `OidcProviderInfo`?
+            #       (also see https://github.com/Open-EO/openeo-api/pull/366)
+            use_pkce = client_info.client_secret is None
         self._pkce = PkceCode() if use_pkce else None
 
     def _get_verification_info(self, request_refresh_token: bool = False) -> VerificationInfo:

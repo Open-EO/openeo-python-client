@@ -469,14 +469,16 @@ class Connection(RestApiConnection):
 
     def authenticate_oidc_device(
             self, client_id: str = None, client_secret: str = None, provider_id: str = None,
-            store_refresh_token=False, use_pkce: bool = False,
+            store_refresh_token=False, use_pkce: Union[bool, None] = None,
             **kwargs
     ) -> 'Connection':
         """
         Authenticate with OAuth Device Authorization grant/flow
 
         :param use_pkce: Use PKCE instead of client secret.
-            Note that this features is not widely supported among OIDC providers.
+            If not set explicitly to `True` (use PKCE) or `False` (use client secret),
+            it will be attempted to detect the best mode automatically.
+            Note that PKCE for device code is not widely supported among OIDC providers.
 
         .. versionchanged:: 0.5.1 Add :py:obj:`use_pkce` argument
         """
