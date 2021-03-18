@@ -17,7 +17,7 @@ import requests_mock.request
 import openeo.rest.auth.oidc
 from openeo.rest.auth.oidc import QueuingRequestHandler, drain_queue, HttpServerThread, OidcAuthCodePkceAuthenticator, \
     OidcClientCredentialsAuthenticator, OidcResourceOwnerPasswordAuthenticator, OidcClientInfo, OidcProviderInfo, \
-    OidcDeviceAuthenticator, random_string, OidcRefreshTokenAuthenticator
+    OidcDeviceAuthenticator, random_string, OidcRefreshTokenAuthenticator, PkceCode
 from openeo.util import dict_no_none
 
 
@@ -211,7 +211,7 @@ class OidcMock:
         params = self._get_query_params(query=request.text)
         assert params["client_id"] == self.expected_client_id
         assert params["grant_type"] == "authorization_code"
-        assert self.state["code_challenge"] == OidcAuthCodePkceAuthenticator.hash_code_verifier(params["code_verifier"])
+        assert self.state["code_challenge"] == PkceCode.sha256_hash(params["code_verifier"])
         assert params["code"] == self.expected_authorization_code
         assert params["redirect_uri"] == self.state["redirect_uri"]
         return self._build_token_response()
@@ -241,6 +241,8 @@ class OidcMock:
         self.state["device_code"] = random_string()
         self.state["user_code"] = random_string(length=6).upper()
         self.state["scope"] = params["scope"]
+        if "code_challenge" in params:
+            self.state["code_challenge"] = params["code_challenge"]
         return json.dumps({
             # TODO: also verification_url (google tweak)
             "verification_uri": self.provider_root_url + "/dc",
@@ -252,7 +254,15 @@ class OidcMock:
     def token_callback_device_code(self, request: requests_mock.request._RequestObjectProxy, context):
         params = self._get_query_params(query=request.text)
         assert params["client_id"] == self.expected_client_id
-        assert params["client_secret"] == self.expected_fields["client_secret"]
+        expected_client_secret = self.expected_fields.get("client_secret")
+        if expected_client_secret:
+            assert params["client_secret"] == expected_client_secret
+        expect_code_verifier = bool(self.expected_fields.get("code_verifier"))
+        if expect_code_verifier:
+            assert PkceCode.sha256_hash(params["code_verifier"]) == self.state["code_challenge"]
+            self.state["code_verifier"] = params["code_verifier"]
+        if bool(expected_client_secret) == expect_code_verifier:
+            pytest.fail("Token callback should either have client secret or PKCE code verifier")
         assert params["device_code"] == self.state["device_code"]
         assert params["grant_type"] == "urn:ietf:params:oauth:grant-type:device_code"
         # Fail with pending/too fast?
@@ -385,7 +395,7 @@ def test_oidc_resource_owner_password_credentials_flow(requests_mock):
     assert oidc_mock.state["access_token"] == tokens.access_token
 
 
-def test_oidc_device_flow(requests_mock, caplog):
+def test_oidc_device_flow_with_client_secret(requests_mock, caplog):
     client_id = "myclient"
     client_secret = "$3cr3t"
     oidc_discovery_url = "http://oidc.test/.well-known/openid-configuration"
@@ -403,6 +413,42 @@ def test_oidc_device_flow(requests_mock, caplog):
     authenticator = OidcDeviceAuthenticator(
         client_info=OidcClientInfo(client_id=client_id, provider=provider, client_secret=client_secret),
         display=display.append
+    )
+    with mock.patch.object(openeo.rest.auth.oidc.time, "sleep") as sleep:
+        with caplog.at_level(logging.INFO):
+            tokens = authenticator.get_tokens()
+    assert oidc_mock.state["access_token"] == tokens.access_token
+    assert re.search(
+        r"visit https://auth\.test/dc and enter the user code {c!r}".format(c=oidc_mock.state['user_code']),
+        display[0]
+    )
+    assert display[1] == "Authorized successfully."
+    assert sleep.mock_calls == [mock.call(2), mock.call(2), mock.call(7)]
+    assert re.search(
+        r"Authorization pending\..*Polling too fast, will slow down\..*Authorized successfully\.",
+        caplog.text,
+        flags=re.DOTALL
+    )
+
+
+def test_oidc_device_flow_with_pkce(requests_mock, caplog):
+    client_id = "myclient"
+    oidc_discovery_url = "http://oidc.test/.well-known/openid-configuration"
+    oidc_mock = OidcMock(
+        requests_mock=requests_mock,
+        expected_grant_type="urn:ietf:params:oauth:grant-type:device_code",
+        expected_client_id=client_id,
+        oidc_discovery_url=oidc_discovery_url,
+        expected_fields={"scope": "df openid", "code_verifier": True},
+        state={"device_code_callback_timeline": ["authorization_pending", "slow_down", "great success"]},
+        scopes_supported=["openid", "df"]
+    )
+    provider = OidcProviderInfo(discovery_url=oidc_discovery_url, scopes=["df"])
+    display = []
+    authenticator = OidcDeviceAuthenticator(
+        client_info=OidcClientInfo(client_id=client_id, provider=provider),
+        display=display.append,
+        use_pkce=True
     )
     with mock.patch.object(openeo.rest.auth.oidc.time, "sleep") as sleep:
         with caplog.at_level(logging.INFO):

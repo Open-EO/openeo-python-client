@@ -468,17 +468,22 @@ class Connection(RestApiConnection):
         return self._authenticate_oidc(authenticator, provider_id=provider_id)
 
     def authenticate_oidc_device(
-            self, client_id: str=None, client_secret: str=None, provider_id: str = None,
-            store_refresh_token=False,
+            self, client_id: str = None, client_secret: str = None, provider_id: str = None,
+            store_refresh_token=False, use_pkce: bool = False,
             **kwargs
     ) -> 'Connection':
         """
         Authenticate with OAuth Device Authorization grant/flow
+
+        :param use_pkce: Use PKCE instead of client secret.
+            Note that this features is not widely supported among OIDC providers.
+
+        .. versionchanged:: 0.5.1 Add :py:obj:`use_pkce` argument
         """
         provider_id, client_info = self._get_oidc_provider_and_client_info(
             provider_id=provider_id, client_id=client_id, client_secret=client_secret
         )
-        authenticator = OidcDeviceAuthenticator(client_info=client_info, **kwargs)
+        authenticator = OidcDeviceAuthenticator(client_info=client_info, use_pkce=use_pkce, **kwargs)
         return self._authenticate_oidc(authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token)
 
     def describe_account(self) -> str:

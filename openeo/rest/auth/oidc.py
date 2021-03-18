@@ -185,9 +185,8 @@ def drain_queue(queue: Queue, initial_timeout: float = 10, item_minimum: int = 1
 def random_string(length=32, characters: str = None):
     """
     Build a random string from given characters (alphanumeric by default)
-
-    TODO: move this to a utils module?
     """
+    # TODO: move this to a utils module?
     characters = characters or (string.ascii_letters + string.digits)
     return "".join(random.choice(characters) for _ in range(length))
 
@@ -339,6 +338,28 @@ class OidcAuthenticator:
         return token
 
 
+class PkceCode:
+    """
+    Simple container for PKCE code verifier and code challenge.
+
+    PKCE, pronounced "pixy", is short for "Proof Key for Code Exchange".
+    Also see https://tools.ietf.org/html/rfc7636
+    """
+    __slots__ = ["code_verifier", "code_challenge", "code_challenge_method"]
+
+    def __init__(self):
+        self.code_verifier = random_string(64)
+        # Only SHA256 is supported for now.
+        self.code_challenge_method = "S256"
+        self.code_challenge = PkceCode.sha256_hash(self.code_verifier)
+
+    @staticmethod
+    def sha256_hash(code: str) -> str:
+        """Apply SHA256 hash to code verifier to get code challenge"""
+        data = hashlib.sha256(code.encode('ascii')).digest()
+        return base64.urlsafe_b64encode(data).decode('ascii').replace('=', '')
+
+
 AuthCodeResult = namedtuple("AuthCodeResult", ["auth_code", "nonce", "code_verifier", "redirect_uri"])
 
 
@@ -376,20 +397,6 @@ class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
         self._authentication_timeout = timeout or self.TIMEOUT_DEFAULT
         self._server_address = server_address
 
-    @staticmethod
-    def hash_code_verifier(code: str) -> str:
-        """Hash code verifier to code challenge"""
-        return base64.urlsafe_b64encode(
-            hashlib.sha256(code.encode('ascii')).digest()
-        ).decode('ascii').replace('=', '')
-
-    @staticmethod
-    def get_pkce_codes() -> Tuple[str, str]:
-        """Build random PKCE code verifier and challenge"""
-        code_verifier = random_string(64)
-        code_challenge = OidcAuthCodePkceAuthenticator.hash_code_verifier(code_verifier)
-        return code_verifier, code_challenge
-
     def _get_auth_code(self, request_refresh_token: bool = False) -> AuthCodeResult:
         """
         Do OAuth authentication request and catch redirect to extract authentication code
@@ -397,7 +404,7 @@ class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
         """
         state = random_string(32)
         nonce = random_string(21)
-        code_verifier, code_challenge = self.get_pkce_codes()
+        pkce = PkceCode()
 
         # Set up HTTP server (in separate thread) to catch OAuth redirect URL
         callback_queue = Queue()
@@ -426,8 +433,8 @@ class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
                     "redirect_uri": redirect_uri,
                     "state": state,
                     "nonce": nonce,
-                    "code_challenge": code_challenge,
-                    "code_challenge_method": "S256",
+                    "code_challenge": pkce.code_challenge,
+                    "code_challenge_method": pkce.code_challenge_method,
                 })
             )
             log.info("Sending user to auth URL {u!r}".format(u=auth_url))
@@ -468,7 +475,7 @@ class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
         auth_code = redirect_params["code"][0]
 
         return AuthCodeResult(
-            auth_code=auth_code, nonce=nonce, code_verifier=code_verifier, redirect_uri=redirect_uri
+            auth_code=auth_code, nonce=nonce, code_verifier=pkce.code_verifier, redirect_uri=redirect_uri
         )
 
     def get_tokens(self, request_refresh_token: bool = False) -> AccessTokenResult:
@@ -560,23 +567,29 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
 
     grant_type = "urn:ietf:params:oauth:grant-type:device_code"
 
-    def __init__(self, client_info: OidcClientInfo, display: Callable[[str], None] = print, device_code_url: str = None,
-                 max_poll_time=5 * 60):
+    def __init__(
+            self, client_info: OidcClientInfo, display: Callable[[str], None] = print, device_code_url: str = None,
+            max_poll_time=5 * 60, use_pkce: bool = False
+    ):
         super().__init__(client_info=client_info)
         self._display = display
         # Allow to specify/override device code URL for cases when it is not available in OIDC discovery doc.
         self._device_code_url = device_code_url or self._provider_config["device_authorization_endpoint"]
         self._max_poll_time = max_poll_time
+        # TODO: automatically use PKCE if there is no client secret?
+        # TODO: detect if OIDC provider supports device flow + PKCE? E.g. get this from `OidcProviderInfo` (also see https://github.com/Open-EO/openeo-api/pull/366)?
+        self._pkce = PkceCode() if use_pkce else None
 
     def _get_verification_info(self, request_refresh_token: bool = False) -> VerificationInfo:
         """Get verification URL and user code"""
-        resp = requests.post(
-            url=self._device_code_url,
-            data={
-                "client_id": self.client_id,
-                "scope": self._client_info.provider.get_scopes_string(request_refresh_token=request_refresh_token)
-            }
-        )
+        post_data = {
+            "client_id": self.client_id,
+            "scope": self._client_info.provider.get_scopes_string(request_refresh_token=request_refresh_token)
+        }
+        if self._pkce:
+            post_data["code_challenge"] = self._pkce.code_challenge,
+            post_data["code_challenge_method"] = self._pkce.code_challenge_method
+        resp = requests.post(url=self._device_code_url, data=post_data)
         if resp.status_code != 200:
             raise OidcException("Failed to get verification URL and user code from {u!r}: {s} {r!r} {t!r}".format(
                 s=resp.status_code, r=resp.reason, u=resp.url, t=resp.text
@@ -605,10 +618,13 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
         token_endpoint = self._provider_config['token_endpoint']
         post_data = {
             "client_id": self.client_id,
-            "client_secret": self.client_secret,
             "device_code": verification_info.device_code,
             "grant_type": self.grant_type
         }
+        if self._pkce:
+            post_data["code_verifier"] = self._pkce.code_verifier
+        else:
+            post_data["client_secret"] = self.client_secret
         poll_interval = verification_info.interval
         while elapsed() <= self._max_poll_time:
             time.sleep(poll_interval)
