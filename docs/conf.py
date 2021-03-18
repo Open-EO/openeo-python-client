@@ -106,8 +106,8 @@ html_theme_options = {
     'travis_button': True,
     'fixed_sidebar': True,
     'page_width':'600px',
-    'font_family':'Cantarell',
-    'code_font_family':'Liberation Mono'
+    'font_family': 'Cantarell, Georgia, serif',
+    'code_font_family': "'Liberation Mono', 'Consolas', 'Menlo', 'DejaVu Sans Mono', 'Bitstream Vera Sans Mono', monospace",
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,
