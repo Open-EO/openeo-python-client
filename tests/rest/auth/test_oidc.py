@@ -122,6 +122,18 @@ def test_provider_info_scopes(requests_mock):
     ).get_scopes_string()
 
 
+def test_provider_info_default_client_none(requests_mock):
+    requests_mock.get("https://authit.test/.well-known/openid-configuration", json={})
+    info = OidcProviderInfo(issuer="https://authit.test")
+    assert info.get_default_client_id() is None
+
+
+def test_provider_info_default_client_available(requests_mock):
+    requests_mock.get("https://authit.test/.well-known/openid-configuration", json={})
+    info = OidcProviderInfo(issuer="https://authit.test", default_client={"id": "jak4l0v3-45lsdfe3d"})
+    assert info.get_default_client_id() == "jak4l0v3-45lsdfe3d"
+
+
 @pytest.mark.parametrize(
     ["scopes_supported", "expected"], [
         (["openid", "email"], "openid"),
