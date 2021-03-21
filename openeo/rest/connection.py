@@ -203,6 +203,8 @@ class Connection(RestApiConnection):
 
         :param url: String Backend root url
         """
+        if "://" not in url:
+            url = "https://" + url
         self._orig_url = url
         super().__init__(
             root_url=self.version_discovery(url, session=session),

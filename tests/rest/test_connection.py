@@ -7,7 +7,6 @@ from pathlib import Path
 import pytest
 import requests.auth
 import requests_mock
-from typing import List, Tuple
 
 from openeo.capabilities import ComparableVersion
 from openeo.rest import OpenEoClientException, OpenEoApiError
@@ -113,6 +112,12 @@ Reason: <strong>Error reading from remote server</strong></p></p>
     conn = RestApiConnection(API_URL)
     with pytest.raises(OpenEoApiError, match="Consider.*batch jobs.*instead.*synchronous"):
         conn.get("/bar")
+
+
+def test_connection_default_https(requests_mock):
+    requests_mock.get("https://oeo.test/", json={"api_version": "1.0.0"})
+    con = Connection("oeo.test")
+    assert con.capabilities().api_version() == "1.0.0"
 
 
 def test_connection_with_session():
