@@ -1143,6 +1143,8 @@ class DataCube(ImageCollection):
                 'type': 'name',
                 'properties': {'name': srs}
             }
+        elif isinstance(mask, Parameter):
+            pass
         else:
             # Assume mask is already a valid GeoJSON object
             assert "type" in mask

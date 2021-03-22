@@ -174,6 +174,21 @@ def test_mask_polygon(con100: Connection):
     }
 
 
+def test_mask_polygon_parameter(con100: Connection):
+    img = con100.load_collection("S2")
+    polygon = Parameter(name="shape", schema="object")
+    masked = img.mask_polygon(mask=polygon)
+    assert sorted(masked.graph.keys()) == ["loadcollection1", "maskpolygon1"]
+    assert masked.graph["maskpolygon1"] == {
+        "process_id": "mask_polygon",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "mask": {"from_parameter": "shape"},
+        },
+        "result": True
+    }
+
+
 def test_mask_polygon_path(con100: Connection):
     img = con100.load_collection("S2")
     masked = img.mask_polygon(mask="path/to/polygon.json")
