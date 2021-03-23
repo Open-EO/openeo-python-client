@@ -153,15 +153,15 @@ class AuthConfig(PrivateJsonFile):
         return client_id, client_secret
 
     def set_oidc_client_config(
-            self, backend: str, provider_id: str, client_id: str, client_secret: str = None, issuer: str = None
+            self, backend: str, provider_id: str,
+            client_id: Union[str, None], client_secret: Union[str, None] = None, issuer: Union[str, None] = None
     ):
         data = self.load()
         keys = ("backends", _normalize_url(backend), "oidc", "providers", provider_id)
         # TODO: support multiple clients? (pick latest by default for example)
         deep_set(data, *keys, "date", value=utcnow_rfc3339())
         deep_set(data, *keys, "client_id", value=client_id)
-        if client_secret:
-            deep_set(data, *keys, "client_secret", value=client_secret)
+        deep_set(data, *keys, "client_secret", value=client_secret)
         if issuer:
             deep_set(data, *keys, "issuer", value=issuer)
         self._write(data)

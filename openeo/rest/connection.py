@@ -331,11 +331,7 @@ class Connection(RestApiConnection):
                 raise OpenEoClientException("No provider_id given. Available: {p!r}.".format(
                     p=list(providers.keys()))
                 )
-            provider = OidcProviderInfo(
-                issuer=provider["issuer"], scopes=provider.get("scopes"),
-                # TODO: This "default_client" feature is still experimental in openEO API. See Open-EO/openeo-api#366
-                default_client=provider.get("default_client")
-            )
+            provider = OidcProviderInfo.from_dict(provider)
         else:
             # Per spec: '/credentials/oidc' will redirect to  OpenID Connect discovery document
             provider = OidcProviderInfo(discovery_url=self.build_url('/credentials/oidc'))
