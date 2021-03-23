@@ -352,7 +352,15 @@ def test_build_parameterized_cube_band_math(con100):
     }
 
 
-def test_build_process_dict():
+def test_build_process_dict_from_pg_dict():
+    actual = build_process_dict(
+        process_graph={
+            "add": {"process_id": "add", "arguments": {"x": {"from_parameter": "data"}, "y": 1}, "result": True}
+        },
+        process_id="increment", summary="Increment value", description="Add 1 to input.",
+        parameters=[Parameter.number(name="data")],
+        returns={"schema": {"type": "number"}}
+    )
     expected = {
         "id": "increment",
         "description": "Add 1 to input.",
@@ -363,12 +371,49 @@ def test_build_process_dict():
         "parameters": [{"name": "data", "description": "data", "schema": {"type": "number"}}],
         "returns": {"schema": {"type": "number"}},
     }
+    assert actual == expected
+
+
+def test_build_process_dict_from_process(con100):
+    from openeo.processes import add
+    data = Parameter.number("data")
+    proc = add(x=data, y=1)
     actual = build_process_dict(
-        process_graph={
-            "add": {"process_id": "add", "arguments": {"x": {"from_parameter": "data"}, "y": 1}, "result": True}
-        },
+        process_graph=proc,
         process_id="increment", summary="Increment value", description="Add 1 to input.",
-        parameters=[Parameter.number(name="data")],
+        parameters=[data],
         returns={"schema": {"type": "number"}}
     )
+    expected = {
+        "id": "increment",
+        "description": "Add 1 to input.",
+        "summary": "Increment value",
+        "process_graph": {
+            "add1": {"arguments": {"x": {"from_parameter": "data"}, "y": 1}, "process_id": "add", "result": True}
+        },
+        "parameters": [{"name": "data", "description": "data", "schema": {"type": "number"}}],
+        "returns": {"schema": {"type": "number"}},
+    }
+    assert actual == expected
+
+
+def test_build_process_dict_from_datacube(con100):
+    data = Parameter.number("data")
+    cube = con100.datacube_from_process("add", x=data, y=1)
+    actual = build_process_dict(
+        process_graph=cube,
+        process_id="increment", summary="Increment value", description="Add 1 to input.",
+        parameters=[data],
+        returns={"schema": {"type": "number"}}
+    )
+    expected = {
+        "id": "increment",
+        "description": "Add 1 to input.",
+        "summary": "Increment value",
+        "process_graph": {
+            "add1": {"arguments": {"x": {"from_parameter": "data"}, "y": 1}, "process_id": "add", "result": True}
+        },
+        "parameters": [{"name": "data", "description": "data", "schema": {"type": "number"}}],
+        "returns": {"schema": {"type": "number"}},
+    }
     assert actual == expected
