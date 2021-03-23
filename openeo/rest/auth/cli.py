@@ -10,6 +10,7 @@ from typing import List, Tuple
 
 from openeo import connect, Connection
 from openeo.rest.auth.config import AuthConfig, RefreshTokenStore
+from openeo.rest.auth.oidc import OidcProviderInfo
 
 _log = logging.getLogger(__name__)
 
@@ -75,6 +76,14 @@ def main(argv=None):
     add_oidc_parser.add_argument("backend", help="OpenEO Backend URL.")
     add_oidc_parser.add_argument("--provider-id", help="Provider ID to use.")
     add_oidc_parser.add_argument("--client-id", help="Client ID to use.")
+    add_oidc_parser.add_argument(
+        "--no-client-secret", dest="ask_client_secret", default=True, action="store_false",
+        help="Don't ask for secret (because client does not need one)."
+    )
+    add_oidc_parser.add_argument(
+        "--use-default-client", action="store_true",
+        help="Use default client (as provided by backend)."
+    )
 
     # Command: oidc-auth
     oidc_auth_parser = root_subparsers.add_parser(
@@ -84,6 +93,7 @@ def main(argv=None):
     oidc_auth_parser.add_argument("backend", help="OpenEO Backend URL.")
     oidc_auth_parser.add_argument("--provider-id", help="Provider ID to use.")
     oidc_auth_parser.add_argument(
+        # TODO: use device flow by default? drop interactive choice?
         "--flow", choices=_OIDC_FLOW_CHOICES, default=None,
         help="OpenID Connect flow to use."
     )
@@ -208,6 +218,8 @@ def main_add_oidc(args):
     backend = args.backend
     provider_id = args.provider_id
     client_id = args.client_id
+    ask_client_secret = args.ask_client_secret
+    use_default_client = args.use_default_client
     config = AuthConfig()
 
     print("Will add OpenID Connect auth config for backend URL {b!r}".format(b=backend))
@@ -219,7 +231,8 @@ def main_add_oidc(args):
         raise CliToolException("Backend API version is too low: {v} < 1.0.0".format(v=api_version))
     # Find provider ID
     oidc_info = con.get("/credentials/oidc", expected_status=200).json()
-    providers = OrderedDict([(p["id"], p) for p in oidc_info["providers"]])
+    providers = OrderedDict((p["id"], OidcProviderInfo.from_dict(p)) for p in oidc_info["providers"])
+
     if not providers:
         raise CliToolException("No OpenID Connect providers listed by backend {b!r}.".format(b=backend))
     if not provider_id:
@@ -228,28 +241,39 @@ def main_add_oidc(args):
         else:
             provider_id = _interactive_choice(
                 title="Backend {b!r} has multiple OpenID Connect providers.".format(b=backend),
-                options=[(p["id"], "{t} (issuer {s})".format(t=p["title"], s=p["issuer"])) for p in providers.values()]
+                options=[(p.id, "{t} (issuer {s})".format(t=p.title, s=p.issuer)) for p in providers.values()]
             )
     if provider_id not in providers:
         raise CliToolException("Invalid provider ID {p!r}. Should be one of {o}.".format(
             p=provider_id, o=list(providers.keys())
         ))
-    issuer = providers[provider_id]["issuer"]
-    print("Using provider ID {p!r} (issuer {i!r})".format(p=provider_id, i=issuer))
+    provider = providers[provider_id]
+    print("Using provider ID {p!r} (issuer {i!r})".format(p=provider_id, i=provider.issuer))
 
-    # Get client_id and client_secret
-    # Find username and password
-    if not client_id:
-        client_id = builtins.input("Enter client_id and press enter: ")
-    print("Using client ID {u!r}".format(u=client_id))
-    if not client_id:
-        show_warning("Given client ID was empty.")
-    client_secret = getpass("Enter client_secret and press enter: ")
-    if not client_secret:
-        show_warning("Given client secret was empty.")
+    # Get client_id and client_secret (if necessary)
+    if use_default_client:
+        if not provider.default_client:
+            show_warning("No default client specified for provider {p!r}".format(p=provider_id))
+        client_id, client_secret = None, None
+    else:
+        if not client_id:
+            if provider.default_client:
+                client_prompt = "Enter client_id or leave empty to use default client, and press enter: "
+            else:
+                client_prompt = "Enter client_id and press enter: "
+            client_id = builtins.input(client_prompt).strip() or None
+        print("Using client ID {u!r}".format(u=client_id))
+        if not client_id and not provider.default_client:
+            show_warning("Given client ID was empty.")
+
+        if client_id and ask_client_secret:
+            client_secret = getpass("Enter client_secret or leave empty to not use a secret, and press enter: ") or None
+        else:
+            client_secret = None
 
     config.set_oidc_client_config(
-        backend=backend, provider_id=provider_id, client_id=client_id, client_secret=client_secret, issuer=issuer
+        backend=backend, provider_id=provider_id, client_id=client_id, client_secret=client_secret,
+        issuer=provider.issuer
     )
     print("Saved client information to {p!r}".format(p=str(config.path)))
 
@@ -274,6 +298,7 @@ def main_oidc_auth(args):
     # Determine provider
     provider_configs = config.get_oidc_provider_configs(backend=backend)
     if not provider_configs:
+        # TODO: automatically do add config flow here?
         raise CliToolException("No OpenID Connect provider configs found for backend {b!r}".format(b=backend))
     _log.debug("Provider configs: {c!r}".format(c=provider_configs))
     if not provider_id:
@@ -295,13 +320,10 @@ def main_oidc_auth(args):
 
     # Get client id and secret
     client_id, client_secret = config.get_oidc_client_configs(backend=backend, provider_id=provider_id)
-    if not client_id:
-        raise CliToolException("Client ID for provide {p} is empty (config {c!r})".format(
-            p=provider_id, c=str(config.path)
-        ))
-    print("Using client ID {c!r}.".format(c=client_id))
-    if not client_secret:
-        show_warning("Empty client secret.")
+    if client_id:
+        print("Using client ID {c!r}.".format(c=client_id))
+    else:
+        print("Will try to use default client.")
 
     if oidc_flow is None:
         oidc_flow = _interactive_choice(
