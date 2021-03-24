@@ -328,9 +328,16 @@ class Connection(RestApiConnection):
                 # No provider id given, but there is only one anyway: we can handle that.
                 provider_id, provider = providers.popitem()
             else:
-                raise OpenEoClientException("No provider_id given. Available: {p!r}.".format(
-                    p=list(providers.keys()))
-                )
+                # Check if there is a single provider in the config to use.
+                provider_configs = self._get_auth_config().get_oidc_provider_configs(backend=self._orig_url)
+                intersection = set(provider_configs.keys()).intersection(providers.keys())
+                if len(intersection) == 1:
+                    provider_id = intersection.pop()
+                    provider = providers[provider_id]
+                else:
+                    raise OpenEoClientException("No provider_id given but multiple to choose from: {p!r}.".format(
+                        p=list(providers.keys()))
+                    )
             provider = OidcProviderInfo.from_dict(provider)
         else:
             # Per spec: '/credentials/oidc' will redirect to  OpenID Connect discovery document
