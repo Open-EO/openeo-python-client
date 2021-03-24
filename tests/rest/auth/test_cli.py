@@ -20,21 +20,19 @@ def mock_secret_input(secret: str):
     return mock.patch.object(cli, "getpass", side_effect=[secret])
 
 
-@pytest.fixture
-def tmp_openeo_config(tmp_path):
-    path = ensure_dir(Path(str(tmp_path)) / "openeo_conf")
-    with mock.patch.dict("os.environ", {"OPENEO_CONFIG_HOME": str(path)}):
-        yield path
+@pytest.fixture(autouse=True)
+def auth_config(tmp_openeo_config_home) -> AuthConfig:
+    """Make sure we start with emtpy AuthConfig."""
+    config = AuthConfig(tmp_openeo_config_home)
+    assert not config.path.exists()
+    return config
 
 
-@pytest.fixture
-def auth_config(tmp_openeo_config) -> AuthConfig:
-    return AuthConfig(tmp_openeo_config)
-
-
-@pytest.fixture
-def refresh_token_store(tmp_openeo_config) -> RefreshTokenStore:
-    return RefreshTokenStore(tmp_openeo_config)
+@pytest.fixture(autouse=True)
+def refresh_token_store(tmp_openeo_config_home) -> RefreshTokenStore:
+    store = RefreshTokenStore(tmp_openeo_config_home)
+    assert not store.path.exists()
+    return store
 
 
 def test_paths(capsys):

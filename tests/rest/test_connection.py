@@ -19,6 +19,14 @@ from .. import load_json_resource
 API_URL = "https://oeo.test/"
 
 
+@pytest.fixture(autouse=True)
+def auth_config(tmp_openeo_config_home) -> AuthConfig:
+    """Make sure we start with emtpy AuthConfig."""
+    config = AuthConfig(tmp_openeo_config_home)
+    assert not config.path.exists()
+    return config
+
+
 @pytest.mark.parametrize(
     ["base", "paths", "expected_path"],
     [
@@ -342,7 +350,7 @@ def test_authenticate_basic(requests_mock, api_version):
         assert conn.auth.bearer == "w3lc0m3"
 
 
-def test_authenticate_basic_from_config(requests_mock, api_version):
+def test_authenticate_basic_from_config(requests_mock, api_version, auth_config):
     user, pwd = "john281", "J0hndo3"
     requests_mock.get(API_URL, json={"api_version": api_version})
 
@@ -351,7 +359,7 @@ def test_authenticate_basic_from_config(requests_mock, api_version):
         return '{"access_token":"w3lc0m3"}'
 
     requests_mock.get(API_URL + 'credentials/basic', text=text_callback)
-    AuthConfig().set_basic_auth(backend=API_URL, username=user, password=pwd)
+    auth_config.set_basic_auth(backend=API_URL, username=user, password=pwd)
 
     conn = Connection(API_URL)
     assert isinstance(conn.auth, NullAuth)
@@ -531,7 +539,7 @@ def test_authenticate_oidc_auth_code_pkce_flow(requests_mock, store_refresh_toke
 
 
 @pytest.mark.slow
-def test_authenticate_oidc_auth_code_pkce_flow_client_from_config(requests_mock):
+def test_authenticate_oidc_auth_code_pkce_flow_client_from_config(requests_mock, auth_config):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
     issuer = "https://oidc.test"
@@ -547,7 +555,7 @@ def test_authenticate_oidc_auth_code_pkce_flow_client_from_config(requests_mock)
         oidc_discovery_url=oidc_discovery_url,
         scopes_supported=["openid"],
     )
-    AuthConfig().set_oidc_client_config(backend=API_URL, provider_id="oi", client_id=client_id)
+    auth_config.set_oidc_client_config(backend=API_URL, provider_id="oi", client_id=client_id)
 
     # With all this set up, kick off the openid connect flow
     refresh_token_store = mock.Mock()
@@ -597,7 +605,7 @@ def test_authenticate_oidc_client_credentials(requests_mock):
     ]
 
 
-def test_authenticate_oidc_client_credentials_client_from_config(requests_mock):
+def test_authenticate_oidc_client_credentials_client_from_config(requests_mock, auth_config):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
     client_secret = "$3cr3t"
@@ -613,7 +621,7 @@ def test_authenticate_oidc_client_credentials_client_from_config(requests_mock):
         expected_fields={"client_secret": client_secret},
         oidc_discovery_url=oidc_discovery_url,
     )
-    AuthConfig().set_oidc_client_config(
+    auth_config.set_oidc_client_config(
         backend=API_URL, provider_id="oi", client_id=client_id, client_secret=client_secret
     )
 
@@ -669,7 +677,7 @@ def test_authenticate_oidc_resource_owner_password_credentials(requests_mock):
     ]
 
 
-def test_authenticate_oidc_resource_owner_password_credentials_client_from_config(requests_mock):
+def test_authenticate_oidc_resource_owner_password_credentials_client_from_config(requests_mock, auth_config):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
     client_secret = "$3cr3t"
@@ -688,7 +696,7 @@ def test_authenticate_oidc_resource_owner_password_credentials_client_from_confi
         },
         oidc_discovery_url=oidc_discovery_url,
     )
-    AuthConfig().set_oidc_client_config(
+    auth_config.set_oidc_client_config(
         backend=API_URL, provider_id="oi", client_id=client_id, client_secret=client_secret
     )
 
@@ -753,7 +761,7 @@ def test_authenticate_oidc_device_flow(requests_mock, store_refresh_token, scope
 
 
 @pytest.mark.slow
-def test_authenticate_oidc_device_flow_client_from_config(requests_mock):
+def test_authenticate_oidc_device_flow_client_from_config(requests_mock, auth_config):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
     client_secret = "$3cr3t"
@@ -772,7 +780,7 @@ def test_authenticate_oidc_device_flow_client_from_config(requests_mock):
         scopes_supported=["openid"],
         oidc_discovery_url=oidc_discovery_url,
     )
-    AuthConfig().set_oidc_client_config(
+    auth_config.set_oidc_client_config(
         backend=API_URL, provider_id="oi", client_id=client_id, client_secret=client_secret
     )
 
