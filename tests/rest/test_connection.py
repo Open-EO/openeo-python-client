@@ -369,7 +369,7 @@ def test_authenticate_basic_from_config(requests_mock, api_version, auth_config)
 
 
 @pytest.mark.slow
-def test_authenticate_oidc_040(requests_mock):
+def test_authenticate_oidc_authorization_code_040(requests_mock):
     client_id = "myclient"
     oidc_discovery_url = "https://oeo.test/credentials/oidc"
     oidc_mock = OidcMock(
@@ -384,13 +384,13 @@ def test_authenticate_oidc_040(requests_mock):
     # With all this set up, kick off the openid connect flow
     conn = Connection(API_URL)
     assert isinstance(conn.auth, NullAuth)
-    conn.authenticate_OIDC(client_id=client_id, webbrowser_open=oidc_mock.webbrowser_open)
+    conn.authenticate_oidc_authorization_code(client_id=client_id, webbrowser_open=oidc_mock.webbrowser_open)
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == oidc_mock.state["access_token"]
 
 
 @pytest.mark.slow
-def test_authenticate_oidc_100_single_implicit(requests_mock):
+def test_authenticate_oidc_authorization_code_100_single_implicit(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
     requests_mock.get(API_URL + 'credentials/oidc', json={
@@ -408,12 +408,12 @@ def test_authenticate_oidc_100_single_implicit(requests_mock):
     # With all this set up, kick off the openid connect flow
     conn = Connection(API_URL)
     assert isinstance(conn.auth, NullAuth)
-    conn.authenticate_OIDC(client_id=client_id, webbrowser_open=oidc_mock.webbrowser_open)
+    conn.authenticate_oidc_authorization_code(client_id=client_id, webbrowser_open=oidc_mock.webbrowser_open)
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/fauth/' + oidc_mock.state["access_token"]
 
 
-def test_authenticate_oidc_100_single_wrong_id(requests_mock):
+def test_authenticate_oidc_authorization_code_100_single_wrong_id(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
     requests_mock.get(API_URL + 'credentials/oidc', json={
@@ -424,10 +424,12 @@ def test_authenticate_oidc_100_single_wrong_id(requests_mock):
     conn = Connection(API_URL)
     assert isinstance(conn.auth, NullAuth)
     with pytest.raises(OpenEoClientException, match=r"'nopenope' not available\. Should be one of \['fauth'\]\."):
-        conn.authenticate_OIDC(client_id=client_id, provider_id="nopenope", webbrowser_open=pytest.fail)
+        conn.authenticate_oidc_authorization_code(
+            client_id=client_id, provider_id="nopenope", webbrowser_open=pytest.fail
+        )
 
 
-def test_authenticate_oidc_100_multiple_no_id(requests_mock):
+def test_authenticate_oidc_authorization_code_100_multiple_no_id(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
     requests_mock.get(API_URL + 'credentials/oidc', json={
@@ -442,10 +444,10 @@ def test_authenticate_oidc_100_multiple_no_id(requests_mock):
     assert isinstance(conn.auth, NullAuth)
     match = r"No OIDC provider id given. Pick one from: \[('fauth', 'bauth'|'bauth', 'fauth')\]\."
     with pytest.raises(OpenEoClientException, match=match):
-        conn.authenticate_OIDC(client_id=client_id, webbrowser_open=pytest.fail)
+        conn.authenticate_oidc_authorization_code(client_id=client_id, webbrowser_open=pytest.fail)
 
 
-def test_authenticate_oidc_100_multiple_wrong_id(requests_mock):
+def test_authenticate_oidc_authorization_code_100_multiple_wrong_id(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
     requests_mock.get(API_URL + 'credentials/oidc', json={
@@ -460,11 +462,11 @@ def test_authenticate_oidc_100_multiple_wrong_id(requests_mock):
     assert isinstance(conn.auth, NullAuth)
     match = r"'lol' not available\. Should be one of \[('fauth', 'bauth'|'bauth', 'fauth')\]\."
     with pytest.raises(OpenEoClientException, match=match):
-        conn.authenticate_OIDC(client_id=client_id, provider_id="lol", webbrowser_open=pytest.fail)
+        conn.authenticate_oidc_authorization_code(client_id=client_id, provider_id="lol", webbrowser_open=pytest.fail)
 
 
 @pytest.mark.slow
-def test_authenticate_oidc_100_multiple_success(requests_mock):
+def test_authenticate_oidc_authorization_code_100_multiple_success(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
     requests_mock.get(API_URL + 'credentials/oidc', json={
@@ -485,7 +487,9 @@ def test_authenticate_oidc_100_multiple_success(requests_mock):
     # With all this set up, kick off the openid connect flow
     conn = Connection(API_URL)
     assert isinstance(conn.auth, NullAuth)
-    conn.authenticate_OIDC(client_id=client_id, provider_id="bauth", webbrowser_open=oidc_mock.webbrowser_open)
+    conn.authenticate_oidc_authorization_code(
+        client_id=client_id, provider_id="bauth", webbrowser_open=oidc_mock.webbrowser_open
+    )
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/bauth/' + oidc_mock.state["access_token"]
 
