@@ -508,9 +508,12 @@ class Connection(RestApiConnection):
             try:
                 _log.info("Found refresh token: trying refresh token based authentication.")
                 authenticator = OidcRefreshTokenAuthenticator(client_info=client_info, refresh_token=refresh_token)
-                return self._authenticate_oidc(
+                con = self._authenticate_oidc(
                     authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token
                 )
+                # TODO: pluggable/jupyter-aware display function?
+                print("Authenticated using refresh token.")
+                return con
             except OidcException as e:
                 _log.info("Refresh token based authentication failed: {e}.".format(e=e))
 
@@ -518,7 +521,9 @@ class Connection(RestApiConnection):
         # TODO: make it possible to do other fallback flows too?
         _log.info("Trying device code flow.")
         authenticator = OidcDeviceAuthenticator(client_info=client_info)
-        return self._authenticate_oidc(authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token)
+        con = self._authenticate_oidc(authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token)
+        print("Authenticated using device code flow.")
+        return con
 
     def describe_account(self) -> str:
         """
