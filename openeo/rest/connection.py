@@ -25,7 +25,7 @@ from openeo.rest.auth.auth import NullAuth, BearerAuth
 from openeo.rest.auth.config import RefreshTokenStore, AuthConfig
 from openeo.rest.auth.oidc import OidcClientCredentialsAuthenticator, OidcAuthCodePkceAuthenticator, \
     OidcClientInfo, OidcAuthenticator, OidcRefreshTokenAuthenticator, OidcResourceOwnerPasswordAuthenticator, \
-    OidcDeviceAuthenticator, OidcProviderInfo
+    OidcDeviceAuthenticator, OidcProviderInfo, OidcException
 from openeo.rest.datacube import DataCube
 from openeo.rest.imagecollectionclient import ImageCollectionClient
 from openeo.rest.job import RESTJob
@@ -320,22 +320,31 @@ class Connection(RestApiConnection):
             _log.info("Found OIDC providers: {p}".format(p=list(providers.keys())))
             if provider_id:
                 if provider_id not in providers:
-                    raise OpenEoClientException("Requested provider {r!r} not available. Should be one of {p}.".format(
-                        r=provider_id, p=list(providers.keys()))
+                    raise OpenEoClientException(
+                        "Requested OIDC provider {r!r} not available. Should be one of {p}.".format(
+                            r=provider_id, p=list(providers.keys())
+                        )
                     )
                 provider = providers[provider_id]
             elif len(providers) == 1:
-                # No provider id given, but there is only one anyway: we can handle that.
                 provider_id, provider = providers.popitem()
+                _log.info("No OIDC provider given, but only one available: {p!r}. Use that one.".format(
+                    p=provider_id
+                ))
             else:
                 # Check if there is a single provider in the config to use.
-                provider_configs = self._get_auth_config().get_oidc_provider_configs(backend=self._orig_url)
+                backend = self._orig_url
+                provider_configs = self._get_auth_config().get_oidc_provider_configs(backend=backend)
                 intersection = set(provider_configs.keys()).intersection(providers.keys())
                 if len(intersection) == 1:
                     provider_id = intersection.pop()
                     provider = providers[provider_id]
+                    _log.info(
+                        "No OIDC provider id given, but only one in config (backend {b!r}): {p!r}."
+                        " Use that one.".format(b=backend, p=provider_id)
+                    )
                 else:
-                    raise OpenEoClientException("No provider_id given but multiple to choose from: {p!r}.".format(
+                    raise OpenEoClientException("No OIDC provider id given. Pick one from: {p!r}.".format(
                         p=list(providers.keys()))
                     )
             provider = OidcProviderInfo.from_dict(provider)
@@ -354,7 +363,7 @@ class Connection(RestApiConnection):
         :param provider_id: id of OIDC provider as specified by backend (/credentials/oidc).
             Can be None if there is just one provider.
 
-        :return: (client_id, client_secret)
+        :return: OIDC provider id and client info
         """
         provider_id, provider = self._get_oidc_provider(provider_id)
 
@@ -504,6 +513,40 @@ class Connection(RestApiConnection):
             provider_id=provider_id, client_id=client_id, client_secret=client_secret
         )
         authenticator = OidcDeviceAuthenticator(client_info=client_info, use_pkce=use_pkce, **kwargs)
+        return self._authenticate_oidc(authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token)
+
+    def authenticate_oidc(
+            self,
+            provider_id: str = None,
+            client_id: Union[str, None] = None, client_secret: Union[str, None] = None,
+            store_refresh_token: bool = True
+    ):
+        """
+        Do OpenID Connect authentication, first trying refresh tokens and falling back on device code flow.
+        """
+        provider_id, client_info = self._get_oidc_provider_and_client_info(
+            provider_id=provider_id, client_id=client_id, client_secret=client_secret
+        )
+
+        # Try refresh token first.
+        refresh_token = self._get_refresh_token_store().get_refresh_token(
+            issuer=client_info.provider.issuer,
+            client_id=client_info.client_id
+        )
+        if refresh_token:
+            try:
+                _log.info("Found refresh token: trying refresh token based authentication.")
+                authenticator = OidcRefreshTokenAuthenticator(client_info=client_info, refresh_token=refresh_token)
+                return self._authenticate_oidc(
+                    authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token
+                )
+            except OidcException as e:
+                _log.info("Refresh token based authentication failed: {e}.".format(e=e))
+
+        # Fall back on device code flow
+        # TODO: make it possible to do other fallback flows too?
+        _log.info("Trying device code flow.")
+        authenticator = OidcDeviceAuthenticator(client_info=client_info)
         return self._authenticate_oidc(authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token)
 
     def describe_account(self) -> str:
