@@ -12,6 +12,7 @@ from openeo.capabilities import ComparableVersion
 from openeo.rest import OpenEoClientException, OpenEoApiError
 from openeo.rest.auth.auth import NullAuth, BearerAuth
 from openeo.rest.auth.config import AuthConfig
+from openeo.rest.auth.oidc import OidcException
 from openeo.rest.connection import Connection, RestApiConnection, connect, paginate
 from .auth.test_oidc import OidcMock
 from .. import load_json_resource
@@ -793,6 +794,37 @@ def test_authenticate_oidc_device_flow_client_from_config(requests_mock, auth_co
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
     assert refresh_token_store.mock_calls == []
+
+
+@pytest.mark.slow
+def test_authenticate_oidc_device_flow_no_support(requests_mock, auth_config):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    client_id = "myclient"
+    client_secret = "$3cr3t"
+    issuer = "https://oidc.test"
+    oidc_discovery_url = "https://oidc.test/.well-known/openid-configuration"
+    requests_mock.get(API_URL + 'credentials/oidc', json={
+        "providers": [{"id": "oi", "issuer": issuer, "title": "example", "scopes": ["openid"]}]
+    })
+    oidc_mock = OidcMock(
+        requests_mock=requests_mock,
+        oidc_discovery_url=oidc_discovery_url,
+        expected_grant_type="urn:ietf:params:oauth:grant-type:device_code",
+        expected_client_id=client_id,
+        expected_fields={"scope": "openid"},
+        scopes_supported=["openid"],
+        device_code_flow_support=False
+    )
+    auth_config.set_oidc_client_config(
+        backend=API_URL, provider_id="oi", client_id=client_id, client_secret=client_secret
+    )
+
+    # With all this set up, kick off the openid connect flow
+    refresh_token_store = mock.Mock()
+    conn = Connection(API_URL, refresh_token_store=refresh_token_store)
+    assert isinstance(conn.auth, NullAuth)
+    with pytest.raises(OidcException, match="No support for device code flow"):
+        conn.authenticate_oidc_device()
 
 
 def test_authenticate_oidc_device_flow_multiple_providers_no_given(requests_mock, auth_config):

@@ -164,7 +164,8 @@ class OidcMock:
             expected_fields: dict = None,
             provider_root_url: str = "https://auth.test",
             state: dict = None,
-            scopes_supported: List[str] = None
+            scopes_supported: List[str] = None,
+            device_code_flow_support: bool = True,
     ):
         self.requests_mock = requests_mock
         self.oidc_discovery_url = oidc_discovery_url
@@ -175,18 +176,18 @@ class OidcMock:
         self.provider_root_url = provider_root_url
         self.authorization_endpoint = provider_root_url + "/auth"
         self.token_endpoint = provider_root_url + "/token"
-        self.device_code_endpoint = provider_root_url + "/device_code"
+        self.device_code_endpoint = provider_root_url + "/device_code" if device_code_flow_support else None
         self.state = state or {}
         self.scopes_supported = scopes_supported or ["openid", "email", "profile"]
 
-        self.requests_mock.get(oidc_discovery_url, text=json.dumps({
+        self.requests_mock.get(oidc_discovery_url, text=json.dumps(dict_no_none({
             # Rudimentary OpenID Connect discovery document
             "issuer": self.provider_root_url,
             "authorization_endpoint": self.authorization_endpoint,
             "token_endpoint": self.token_endpoint,
             "device_authorization_endpoint": self.device_code_endpoint,
             "scopes_supported": self.scopes_supported
-        }))
+        })))
         self.requests_mock.post(
             self.token_endpoint,
             text={
@@ -198,10 +199,11 @@ class OidcMock:
             }[expected_grant_type]
         )
 
-        self.requests_mock.post(
-            self.device_code_endpoint,
-            text=self.device_code_callback
-        )
+        if self.device_code_endpoint:
+            self.requests_mock.post(
+                self.device_code_endpoint,
+                text=self.device_code_callback
+            )
 
     def webbrowser_open(self, url: str):
         """Doing fake browser and Oauth Provider handling here"""

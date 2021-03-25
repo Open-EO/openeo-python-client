@@ -596,7 +596,9 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
         super().__init__(client_info=client_info)
         self._display = display
         # Allow to specify/override device code URL for cases when it is not available in OIDC discovery doc.
-        self._device_code_url = device_code_url or self._provider_config["device_authorization_endpoint"]
+        self._device_code_url = device_code_url or self._provider_config.get("device_authorization_endpoint")
+        if not self._device_code_url:
+            raise OidcException("No support for device code flow")
         self._max_poll_time = max_poll_time
         if use_pkce is None:
             # TODO: better auto-detection if PKCE should/can be used, e.g.:
