@@ -277,35 +277,6 @@ class Connection(RestApiConnection):
             self.auth = BearerAuth(bearer=resp["access_token"])
         return self
 
-    @deprecated("Use :py:meth:`authenticate_oidc_authorization_code` or something similar.", version="0.3.5")
-    def authenticate_OIDC(
-            self, client_id: str,
-            provider_id: str = None,
-            webbrowser_open=None,
-            timeout=120,
-            server_address: Tuple[str, int] = None
-    ) -> 'Connection':
-        """
-        Authenticates a user to the backend using OpenID Connect.
-
-        :param client_id: Client id to use for OpenID Connect authentication
-        :param webbrowser_open: optional handler for the initial OAuth authentication request
-            (opens a webbrowser by default)
-        :param timeout: number of seconds after which to abort the authentication procedure
-        :param server_address: optional tuple (hostname, port_number) to serve the OAuth redirect callback on
-        """
-        # TODO: option to increase log level temporarily?
-        provider_id, provider = self._get_oidc_provider(provider_id)
-
-        client_info = OidcClientInfo(client_id=client_id, provider=provider)
-        authenticator = OidcAuthCodePkceAuthenticator(
-            client_info=client_info,
-            webbrowser_open=webbrowser_open,
-            timeout=timeout,
-            server_address=server_address,
-        )
-        return self._authenticate_oidc(authenticator, provider_id=provider_id)
-
     def _get_oidc_provider(self, provider_id: Union[str, None] = None) -> Tuple[str, OidcProviderInfo]:
         """
         Get OpenID Connect discovery URL for given provider_id
@@ -961,7 +932,7 @@ def connect(url, auth_type: str = None, auth_options: dict = {}, session: reques
         >>> # For basic authentication
         >>> conn = connect(url).authenticate_basic(username="john", password="foo")
         >>> # For OpenID Connect authentication
-        >>> conn = connect(url).authenticate_OIDC(client_id="myclient")
+        >>> conn = connect(url).authenticate_oidc(client_id="myclient")
 
     :param url: The http url of an OpenEO endpoint.
     :param auth_type: Which authentication to use: None, "basic" or "oidc" (for OpenID Connect)
@@ -976,7 +947,7 @@ def connect(url, auth_type: str = None, auth_options: dict = {}, session: reques
     elif auth_type == "basic":
         connection.authenticate_basic(**auth_options)
     elif auth_type in {"oidc", "openid"}:
-        connection.authenticate_OIDC(**auth_options)
+        connection.authenticate_oidc(**auth_options)
     else:
         raise ValueError("Unknown auth type {a!r}".format(a=auth_type))
     return connection
