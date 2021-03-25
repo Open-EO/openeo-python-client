@@ -15,7 +15,7 @@ from openeo.api.process import Parameter
 from openeo.internal.graph_building import PGNode
 from openeo.rest import OpenEoClientException
 from openeo.rest.connection import Connection
-from openeo.rest.datacube import THIS, DataCube
+from openeo.rest.datacube import THIS, DataCube,ProcessBuilder
 from .conftest import API_URL
 from ... import load_json_resource
 
@@ -461,7 +461,12 @@ def test_apply_dimension_temporal_cumsum_with_target(con100):
     assert actual_graph == expected_graph
 
 def test_apply_dimension_modify_bands(con100):
-    cumsum = con100.load_collection("S2").apply_dimension(process=lambda x: x.array_modify(values=x.array_element(0)-x.array_element(1),index=0), dimension="bands")
+    def update_bands(x:ProcessBuilder):
+        b01 =  x.array_element(0)
+        b02 = x.array_element(1)
+        diff = b01-b02
+        return x.array_modify(values=diff, index=0)
+    cumsum = con100.load_collection("S2").apply_dimension(process=update_bands, dimension="bands")
     actual_graph = cumsum.graph
 
     assert actual_graph ==  {'applydimension1': {'arguments': {'data': {'from_node': 'loadcollection1'},
