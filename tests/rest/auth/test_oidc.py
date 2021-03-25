@@ -6,7 +6,7 @@ import urllib.parse
 import urllib.parse
 from io import BytesIO
 from queue import Queue
-from typing import List
+from typing import List, Union
 from unittest import mock
 
 import pytest
@@ -17,7 +17,7 @@ import requests_mock.request
 import openeo.rest.auth.oidc
 from openeo.rest.auth.oidc import QueuingRequestHandler, drain_queue, HttpServerThread, OidcAuthCodePkceAuthenticator, \
     OidcClientCredentialsAuthenticator, OidcResourceOwnerPasswordAuthenticator, OidcClientInfo, OidcProviderInfo, \
-    OidcDeviceAuthenticator, random_string, OidcRefreshTokenAuthenticator, PkceCode
+    OidcDeviceAuthenticator, random_string, OidcRefreshTokenAuthenticator, PkceCode, OidcException
 from openeo.util import dict_no_none
 
 
@@ -122,6 +122,18 @@ def test_provider_info_scopes(requests_mock):
     ).get_scopes_string()
 
 
+def test_provider_info_default_client_none(requests_mock):
+    requests_mock.get("https://authit.test/.well-known/openid-configuration", json={})
+    info = OidcProviderInfo(issuer="https://authit.test")
+    assert info.get_default_client_id() is None
+
+
+def test_provider_info_default_client_available(requests_mock):
+    requests_mock.get("https://authit.test/.well-known/openid-configuration", json={})
+    info = OidcProviderInfo(issuer="https://authit.test", default_client={"id": "jak4l0v3-45lsdfe3d"})
+    assert info.get_default_client_id() == "jak4l0v3-45lsdfe3d"
+
+
 @pytest.mark.parametrize(
     ["scopes_supported", "expected"], [
         (["openid", "email"], "openid"),
@@ -147,49 +159,43 @@ class OidcMock:
             self,
             requests_mock: requests_mock.Mocker,
             oidc_discovery_url: str,
-            expected_grant_type: str,
+            expected_grant_type: Union[str, None],
             expected_client_id: str = "myclient",
             expected_fields: dict = None,
             provider_root_url: str = "https://auth.test",
             state: dict = None,
-            scopes_supported: List[str] = None
+            scopes_supported: List[str] = None,
+            device_code_flow_support: bool = True,
     ):
         self.requests_mock = requests_mock
         self.oidc_discovery_url = oidc_discovery_url
         self.expected_grant_type = expected_grant_type
+        self.grant_request_history = []
         self.expected_client_id = expected_client_id
-        self.expected_fields = expected_fields
+        self.expected_fields = expected_fields or {}
         self.expected_authorization_code = None
         self.provider_root_url = provider_root_url
         self.authorization_endpoint = provider_root_url + "/auth"
         self.token_endpoint = provider_root_url + "/token"
-        self.device_code_endpoint = provider_root_url + "/device_code"
+        self.device_code_endpoint = provider_root_url + "/device_code" if device_code_flow_support else None
         self.state = state or {}
         self.scopes_supported = scopes_supported or ["openid", "email", "profile"]
 
-        self.requests_mock.get(oidc_discovery_url, text=json.dumps({
+        self.requests_mock.get(oidc_discovery_url, text=json.dumps(dict_no_none({
             # Rudimentary OpenID Connect discovery document
             "issuer": self.provider_root_url,
             "authorization_endpoint": self.authorization_endpoint,
             "token_endpoint": self.token_endpoint,
             "device_authorization_endpoint": self.device_code_endpoint,
             "scopes_supported": self.scopes_supported
-        }))
-        self.requests_mock.post(
-            self.token_endpoint,
-            text={
-                "authorization_code": self.token_callback_authorization_code,
-                "client_credentials": self.token_callback_client_credentials,
-                "password": self.token_callback_resource_owner_password_credentials,
-                "urn:ietf:params:oauth:grant-type:device_code": self.token_callback_device_code,
-                "refresh_token": self.token_callback_refresh_token,
-            }[expected_grant_type]
-        )
+        })))
+        self.requests_mock.post(self.token_endpoint, text=self.token_callback)
 
-        self.requests_mock.post(
-            self.device_code_endpoint,
-            text=self.device_code_callback
-        )
+        if self.device_code_endpoint:
+            self.requests_mock.post(
+                self.device_code_endpoint,
+                text=self.device_code_callback
+            )
 
     def webbrowser_open(self, url: str):
         """Doing fake browser and Oauth Provider handling here"""
@@ -206,9 +212,25 @@ class OidcMock:
         self.expected_authorization_code = "6uthc0d3"
         requests.get(redirect_uri, params={"state": params["state"], "code": self.expected_authorization_code})
 
-    def token_callback_authorization_code(self, request: requests_mock.request._RequestObjectProxy, context):
-        """Fake code to token exchange by Oauth Provider"""
+    def token_callback(self, request: requests_mock.request._RequestObjectProxy, context):
         params = self._get_query_params(query=request.text)
+        grant_type = params["grant_type"]
+        self.grant_request_history.append({"grant_type": grant_type})
+        if self.expected_grant_type:
+            assert grant_type == self.expected_grant_type
+        callback = {
+            "authorization_code": self.token_callback_authorization_code,
+            "client_credentials": self.token_callback_client_credentials,
+            "password": self.token_callback_resource_owner_password_credentials,
+            "urn:ietf:params:oauth:grant-type:device_code": self.token_callback_device_code,
+            "refresh_token": self.token_callback_refresh_token,
+        }[grant_type]
+        result = callback(params=params, context=context)
+        self.grant_request_history[-1]["response"] = result
+        return result
+
+    def token_callback_authorization_code(self, params: dict, context):
+        """Fake code to token exchange by Oauth Provider"""
         assert params["client_id"] == self.expected_client_id
         assert params["grant_type"] == "authorization_code"
         assert self.state["code_challenge"] == PkceCode.sha256_hash(params["code_verifier"])
@@ -216,16 +238,13 @@ class OidcMock:
         assert params["redirect_uri"] == self.state["redirect_uri"]
         return self._build_token_response()
 
-    def token_callback_client_credentials(self, request: requests_mock.request._RequestObjectProxy, context):
-        params = self._get_query_params(query=request.text)
+    def token_callback_client_credentials(self, params: dict, context):
         assert params["client_id"] == self.expected_client_id
         assert params["grant_type"] == "client_credentials"
         assert params["client_secret"] == self.expected_fields["client_secret"]
         return self._build_token_response(include_id_token=False)
 
-    def token_callback_resource_owner_password_credentials(self, request: requests_mock.request._RequestObjectProxy,
-                                                           context):
-        params = self._get_query_params(query=request.text)
+    def token_callback_resource_owner_password_credentials(self, params: dict, context):
         assert params["client_id"] == self.expected_client_id
         assert params["grant_type"] == "password"
         assert params["client_secret"] == self.expected_fields["client_secret"]
@@ -252,8 +271,7 @@ class OidcMock:
             "interval": 2,
         })
 
-    def token_callback_device_code(self, request: requests_mock.request._RequestObjectProxy, context):
-        params = self._get_query_params(query=request.text)
+    def token_callback_device_code(self, params: dict, context):
         assert params["client_id"] == self.expected_client_id
         expected_client_secret = self.expected_fields.get("client_secret")
         if expected_client_secret:
@@ -277,11 +295,14 @@ class OidcMock:
             context.status_code = 400
             return json.dumps({"error": result})
 
-    def token_callback_refresh_token(self, request: requests_mock.request._RequestObjectProxy, context):
-        params = self._get_query_params(query=request.text)
+    def token_callback_refresh_token(self, params: dict, context):
         assert params["client_id"] == self.expected_client_id
         assert params["grant_type"] == "refresh_token"
-        assert params["client_secret"] == self.expected_fields["client_secret"]
+        if "client_secret" in self.expected_fields:
+            assert params["client_secret"] == self.expected_fields["client_secret"]
+        if params["refresh_token"] != self.expected_fields["refresh_token"]:
+            context.status_code = 401
+            return json.dumps({"error": "invalid refresh token"})
         assert params["refresh_token"] == self.expected_fields["refresh_token"]
         return self._build_token_response(include_id_token=False)
 
@@ -531,3 +552,46 @@ def test_oidc_refresh_token_flow(requests_mock, caplog):
     tokens = authenticator.get_tokens()
     assert oidc_mock.state["access_token"] == tokens.access_token
     assert oidc_mock.state["refresh_token"] == tokens.refresh_token
+
+
+def test_oidc_refresh_token_flow_no_secret(requests_mock, caplog):
+    client_id = "myclient"
+    refresh_token = "r3fr35h.d4.t0k3n.w1lly4"
+    oidc_discovery_url = "http://oidc.test/.well-known/openid-configuration"
+    oidc_mock = OidcMock(
+        requests_mock=requests_mock,
+        expected_grant_type="refresh_token",
+        expected_client_id=client_id,
+        oidc_discovery_url=oidc_discovery_url,
+        expected_fields={"scope": "openid", "refresh_token": refresh_token},
+        scopes_supported=["openid"]
+    )
+    provider = OidcProviderInfo(discovery_url=oidc_discovery_url)
+    authenticator = OidcRefreshTokenAuthenticator(
+        client_info=OidcClientInfo(client_id=client_id, provider=provider),
+        refresh_token=refresh_token
+    )
+    tokens = authenticator.get_tokens()
+    assert oidc_mock.state["access_token"] == tokens.access_token
+    assert oidc_mock.state["refresh_token"] == tokens.refresh_token
+
+
+def test_oidc_refresh_token_invalid_token(requests_mock, caplog):
+    client_id = "myclient"
+    refresh_token = "wr0n9.t0k3n"
+    oidc_discovery_url = "http://oidc.test/.well-known/openid-configuration"
+    oidc_mock = OidcMock(
+        requests_mock=requests_mock,
+        expected_grant_type="refresh_token",
+        expected_client_id=client_id,
+        oidc_discovery_url=oidc_discovery_url,
+        expected_fields={"scope": "openid", "refresh_token": "c0rr3ct.t0k3n"},
+        scopes_supported=["openid"]
+    )
+    provider = OidcProviderInfo(discovery_url=oidc_discovery_url)
+    authenticator = OidcRefreshTokenAuthenticator(
+        client_info=OidcClientInfo(client_id=client_id, provider=provider),
+        refresh_token=refresh_token
+    )
+    with pytest.raises(OidcException, match="Failed to retrieve access token.*invalid refresh token"):
+        tokens = authenticator.get_tokens()

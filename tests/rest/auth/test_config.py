@@ -114,6 +114,14 @@ class TestAuthConfig:
                 "default": {"date": "2020-06-08T11:18:27Z", "client_id": "client123", "client_secret": "$6cr67"}
             }
 
+    def test_tmp_openeo_config_home(self, tmp_openeo_config_home, tmp_path):
+        expected_dir = str(tmp_path)
+        assert str(AuthConfig.default_path()).startswith(expected_dir)
+        assert not AuthConfig.default_path().exists()
+        config = AuthConfig()
+        assert str(config.path).startswith(expected_dir)
+        assert config.load() == {}
+
 
 class TestRefreshTokenStorage:
 

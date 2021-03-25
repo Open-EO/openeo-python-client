@@ -219,7 +219,16 @@ def jwt_decode(token: str) -> Tuple[dict, dict]:
 class OidcProviderInfo:
     """OpenID Connect Provider information, as provided by an openEO back-end (endpoint `/credentials/oidc`)"""
 
-    def __init__(self, issuer: str = None, discovery_url: str = None, scopes: List[str] = None):
+    # TODO: The "default_client" feature is still experimental in openEO API. See Open-EO/openeo-api#366
+
+    def __init__(
+            self, issuer: str = None, discovery_url: str = None, scopes: List[str] = None,
+            provider_id: str = None, title: str = None,
+            default_client: Union[dict, None] = None,
+    ):
+        # TODO: id and title are required in the openEO API spec.
+        self.id = provider_id
+        self.title = title
         if issuer is None and discovery_url is None:
             raise ValueError("At least `issuer` or `discovery_url` should be specified")
         self.discovery_url = discovery_url or (issuer.rstrip("/") + "/.well-known/openid-configuration")
@@ -230,6 +239,16 @@ class OidcProviderInfo:
         # Minimal set of scopes to request
         self._supported_scopes = self.config.get("scopes_supported", ["openid"])
         self._scopes = {"openid"}.union(scopes or []).intersection(self._supported_scopes)
+        self.default_client = default_client
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "OidcProviderInfo":
+        return cls(
+            provider_id=data["id"], title=data["title"],
+            issuer=data["issuer"],
+            scopes=data.get("scopes"),
+            default_client=data.get("default_client"),
+        )
 
     def get_scopes_string(self, request_refresh_token: bool = False):
         """
@@ -243,6 +262,9 @@ class OidcProviderInfo:
         if request_refresh_token and "offline_access" in self._supported_scopes:
             scopes = scopes | {"offline_access"}
         return " ".join(sorted(scopes))
+
+    def get_default_client_id(self) -> Union[str, None]:
+        return self.default_client and self.default_client.get("id")
 
 
 class OidcClientInfo:
@@ -574,7 +596,9 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
         super().__init__(client_info=client_info)
         self._display = display
         # Allow to specify/override device code URL for cases when it is not available in OIDC discovery doc.
-        self._device_code_url = device_code_url or self._provider_config["device_authorization_endpoint"]
+        self._device_code_url = device_code_url or self._provider_config.get("device_authorization_endpoint")
+        if not self._device_code_url:
+            raise OidcException("No support for device code flow")
         self._max_poll_time = max_poll_time
         if use_pkce is None:
             # TODO: better auto-detection if PKCE should/can be used, e.g.:
