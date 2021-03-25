@@ -460,6 +460,33 @@ def test_apply_dimension_temporal_cumsum_with_target(con100):
     del expected_graph['saveresult1']
     assert actual_graph == expected_graph
 
+def test_apply_dimension_modify_bands(con100):
+    cumsum = con100.load_collection("S2").apply_dimension(process=lambda x: x.array_modify(values=x.array_element(0)-x.array_element(1),index=0), dimension="bands")
+    actual_graph = cumsum.graph
+
+    assert actual_graph ==  {'applydimension1': {'arguments': {'data': {'from_node': 'loadcollection1'},
+                                                               'dimension': 'bands',
+                                                               'process': {'process_graph': {'arrayelement1': {'arguments': {'data': {'from_parameter': 'data'},
+                                                                                                                             'index': 0},
+                                                                                                               'process_id': 'array_element'},
+                                                                                             'arrayelement2': {'arguments': {'data': {'from_parameter': 'data'},
+                                                                                                                             'index': 1},
+                                                                                                               'process_id': 'array_element'},
+                                                                                             'arraymodify1': {'arguments': {'data': {'from_parameter': 'data'},
+                                                                                                                            'index': 0,
+                                                                                                                            'values': {'from_node': 'subtract1'}},
+                                                                                                              'process_id': 'array_modify',
+                                                                                                              'result': True},
+                                                                                             'subtract1': {'arguments': {'x': {'from_node': 'arrayelement1'},
+                                                                                                                         'y': {'from_node': 'arrayelement2'}},
+                                                                                                           'process_id': 'subtract'}}}},
+                                                 'process_id': 'apply_dimension',
+                                                 'result': True},
+                             'loadcollection1': {'arguments': {'id': 'S2',
+                                                               'spatial_extent': None,
+                                                               'temporal_extent': None},
+                                                 'process_id': 'load_collection'}}
+
 
 def test_apply_neighborhood_udf(con100):
     collection = con100.load_collection("S2")

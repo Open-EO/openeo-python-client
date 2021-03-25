@@ -487,6 +487,23 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return array_labels(data=self)
 
+    def array_modify(self, values, index, length=UNSET) -> 'ProcessBuilder':
+        """
+        Change the content of an array (insert, remove, update)
+
+        Allows to insert into, remove from or update an array.
+
+        All labels get discarded and the array indices are always a sequence of numbers with the step size of 1 and starting at 0.
+
+        :param data: An array.
+        :param values: The values to fill the array with.
+        :param index: The index of the element to insert the value(s) before. To insert after the last element, specify the number of elements in the array. If the index is greater than the number of elements, the array is filled with `null` (no-data) values until the index is reached and then the values are added starting at the index given. The number of elements can be retrieved with the process ``count()`` having the parameter `condition` set to true.
+        :param length: The number of elements to replace. This parameter has no effect in case the given `index` does not exist in the array given.
+
+        :return: An array with values added, updated or removed.
+        """
+        return array_modify(data=self, values=values, index=index, length=length)
+
     def arsinh(self) -> 'ProcessBuilder':
         """
         Inverse hyperbolic sine
@@ -2244,6 +2261,22 @@ def array_labels(data) -> ProcessBuilder:
     """
     return process('array_labels', data=data)
 
+def array_modify(data, values, index, length=UNSET) -> ProcessBuilder:
+    """
+    Change the content of an array (insert, remove, update)
+
+    Allows to insert into, remove from or update an array.
+
+    All labels get discarded and the array indices are always a sequence of numbers with the step size of 1 and starting at 0.
+
+    :param data: An array.
+    :param values: The values to fill the array with.
+    :param index: The index of the element to insert the value(s) before. To insert after the last element, specify the number of elements in the array. If the index is greater than the number of elements, the array is filled with `null` (no-data) values until the index is reached and then the values are added starting at the index given. The number of elements can be retrieved with the process ``count()`` having the parameter `condition` set to true.
+    :param length: The number of elements to replace. This parameter has no effect in case the given `index` does not exist in the array given.
+
+    :return: An array with values added, updated or removed.
+    """
+    return process('array_modify', data=data,values=values, index=index, length=length)
 
 def arsinh(x) -> ProcessBuilder:
     """
