@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `DataCube.mask_polygon`: support `Parameter` argument for `mask` 
 - Add initial/experimental support for default OIDC client ([#192](https://github.com/Open-EO/openeo-python-client/issues/192), [Open-EO/openeo-api#366](https://github.com/Open-EO/openeo-api/pull/366))
 - Add `Connection.authenticate_oidc` for user-friendlier OIDC authentication: first try refresh token and fall back on device code flow
+- Add experimental support for `array_modify` process ([Open-EO/openeo-processes#202](https://github.com/Open-EO/openeo-processes/issues/202))
 
 ### Changed
 
