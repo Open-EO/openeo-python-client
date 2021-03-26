@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Removed
+
+### Fixed
+
+## [0.6.0] - 2021-03-26
+
+### Added
+
 - Add initial/experimental support for OIDC device code flow with PKCE (alternative for client secret) ([#191](https://github.com/Open-EO/openeo-python-client/issues/191) / EP-3700)
 - When creating a connection: use "https://" by default when no protocol is specified
 - `DataCube.mask_polygon`: support `Parameter` argument for `mask` 
@@ -15,13 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `Connection.authenticate_oidc` for user-friendlier OIDC authentication: first try refresh token and fall back on device code flow
 - Add experimental support for `array_modify` process ([Open-EO/openeo-processes#202](https://github.com/Open-EO/openeo-processes/issues/202))
 
-### Changed
-
 ### Removed
 
 - Remove old/deprecated `Connection.authenticate_OIDC()`
-
-### Fixed
 
 
 ## [0.5.0] - 2021-03-17
