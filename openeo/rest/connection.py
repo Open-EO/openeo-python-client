@@ -494,6 +494,8 @@ class Connection(RestApiConnection):
     ):
         """
         Do OpenID Connect authentication, first trying refresh tokens and falling back on device code flow.
+
+        .. versionadded:: 0.6.0
         """
         provider_id, client_info = self._get_oidc_provider_and_client_info(
             provider_id=provider_id, client_id=client_id, client_secret=client_secret
