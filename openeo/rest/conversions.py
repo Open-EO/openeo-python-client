@@ -16,7 +16,7 @@ class InvalidTimeSeriesException(ValueError):
 
 def timeseries_json_to_pandas(timeseries: dict, index: str = "date", auto_collapse=True) -> pandas.DataFrame:
     """
-    Convert a timeseries JSON object as returned by the `aggregate_polygon` process to a pandas DataFrame object
+    Convert a timeseries JSON object as returned by the `aggregate_spatial` process to a pandas DataFrame object
 
     This timeseries data has three dimensions in general: date, polygon index and band index.
     One of these will be used as index of the resulting dataframe (as specified by the `index` argument),
@@ -24,7 +24,7 @@ def timeseries_json_to_pandas(timeseries: dict, index: str = "date", auto_collap
     When there is just a single polygon or band in play, the dataframe will be simplified
     by removing the corresponding dimension if `auto_collapse` is enabled (on by default).
 
-    :param timeseries: dictionary as returned by `aggregate_polygon` (TODO: is this standardized?)
+    :param timeseries: dictionary as returned by `aggregate_spatial` (TODO: is this standardized?)
     :param index: which dimension should be used for the DataFrame index: 'date' or 'polygon'
     :param auto_collapse: whether single band or single polygon cases should be simplified automatically
 
