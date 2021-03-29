@@ -12,7 +12,6 @@ logger = logging.getLogger(__name__)
 def execute(
     out_dir,
     user,
-    password,
     provider,
     driver_url,
     image_collection,
@@ -32,7 +31,6 @@ def execute(
     
     Inputs:
     user -- User -- 45/User String -- guest
-    password -- Password -- 45/User String -- guest_123
     provider -- Provider -- 45/User String -- Eurac Research
     driver_url -- Driver URL -- 45/User String -- https://openeo.eurac.edu
     image_collection -- Image Collection -- 45/User String -- S2_L2A_T32TPS_20M
@@ -105,7 +103,6 @@ if __name__ == "__main__":
     result = execute(
         out_dir="/tmp",
         user="guest",
-        password="guest_123",
         provider="Eurac Research",
         driver_url="https://openeo.eurac.edu",
         image_collection="S2_L2A_T32TPS_20M",
