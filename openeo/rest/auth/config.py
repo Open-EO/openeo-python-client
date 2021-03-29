@@ -8,7 +8,9 @@ from local config files.
 
 import json
 import logging
+import platform
 import stat
+import warnings
 from datetime import datetime
 from pathlib import Path
 from typing import Union, Tuple, Dict
@@ -25,10 +27,13 @@ def assert_private_file(path: Path):
     """Check that given file is only readable by user."""
     mode = path.stat().st_mode
     if (mode & stat.S_IRWXG) or (mode & stat.S_IRWXO):
-        raise PermissionError(
-            "File {p} is readable by others: st_mode {a:o} (expected permissions: {e:o}).".format(
-                p=path, a=mode, e=_PRIVATE_PERMS)
+        message = "File {p} could be readable by others: mode {a:o} (expected: {e:o}).".format(
+            p=path, a=mode & (stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO), e=_PRIVATE_PERMS
         )
+        if platform.system() == 'Windows':
+            warnings.warn(message)
+        else:
+            raise PermissionError(message)
 
 
 def utcnow_rfc3339() -> str:

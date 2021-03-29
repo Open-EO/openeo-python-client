@@ -39,9 +39,9 @@ class TestPrivateJsonFile:
         with private.path.open("w") as f:
             json.dump({"foo": "bar"}, f)
         assert private.path.stat().st_mode & 0o077 > 0
-        with pytest.raises(PermissionError, match="readable by others.*expected permissions: 600"):
+        with pytest.raises(PermissionError, match="readable by others.*expected: 600"):
             private.get("foo")
-        with pytest.raises(PermissionError, match="readable by others.*expected permissions: 600"):
+        with pytest.raises(PermissionError, match="readable by others.*expected: 600"):
             private.set("foo", value="lol")
 
     def test_set_get(self, tmp_path):
@@ -130,9 +130,9 @@ class TestRefreshTokenStorage:
         with path.open("w") as f:
             json.dump({}, f)
         r = RefreshTokenStore(path=path)
-        with pytest.raises(PermissionError, match="readable by others.*expected permissions: 600"):
+        with pytest.raises(PermissionError, match="readable by others.*expected: 600"):
             r.get_refresh_token("foo", "bar")
-        with pytest.raises(PermissionError, match="readable by others.*expected permissions: 600"):
+        with pytest.raises(PermissionError, match="readable by others.*expected: 600"):
             r.set_refresh_token("foo", "bar", "imd6$3cr3t")
 
     def test_permissions(self, tmp_path):
