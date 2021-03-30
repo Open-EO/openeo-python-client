@@ -657,7 +657,7 @@ class DataCube(ImageCollection):
             geometries = mapping(geometries)
         elif isinstance(geometries, dict) and geometries["type"] in (
                 # TODO: support more geometry types?
-                "Polygon", "MultiPolygon", "GeometryCollection"
+                "Polygon", "MultiPolygon", "GeometryCollection", 'FeatureCollection'
         ):
             pass
         else:
