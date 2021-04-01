@@ -637,7 +637,7 @@ class DataCube(ImageCollection):
 
     def aggregate_spatial(
             self,
-            geometries: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path],
+            geometries: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter],
             reducer: Union[str, PGNode, typing.Callable]
     ) -> 'DataCube':
         """
@@ -659,6 +659,8 @@ class DataCube(ImageCollection):
                 # TODO: support more geometry types?
                 "Polygon", "MultiPolygon", "GeometryCollection", 'FeatureCollection'
         ):
+            pass
+        elif isinstance(geometries, Parameter):
             pass
         else:
             raise OpenEoClientException("Invalid `geometries`: {g!r}".format(g=geometries))
