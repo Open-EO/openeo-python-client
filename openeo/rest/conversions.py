@@ -32,6 +32,7 @@ def timeseries_json_to_pandas(timeseries: dict, index: str = "date", auto_collap
     """
     # The input timeseries dictionary is assumed to have this structure:
     #       {dict mapping date -> [list with one item per polygon: [list with one float/None per band or empty list]]}
+    # TODO: option to pass a path to a JSON file as input?
 
     # Some quick checks
     if len(timeseries) == 0:

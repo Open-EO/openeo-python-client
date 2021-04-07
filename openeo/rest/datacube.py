@@ -1417,6 +1417,7 @@ class DataCube(ImageCollection):
         :param format_options: String Parameters for the job result format
         :return: status: Job resulting job.
         """
+        # TODO: add option to also automatically start the job?
         img = self
         if out_format:
             # add `save_result` node
