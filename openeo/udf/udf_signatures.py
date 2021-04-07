@@ -7,6 +7,7 @@ is compatible with the calling context of the process graph in which it is used.
 
 from pandas import Series
 
+from openeo.udf.udf_data import UdfData
 from openeo.udf.xarraydatacube import XarrayDataCube
 
 
@@ -39,3 +40,12 @@ def apply_datacube(cube: XarrayDataCube, context: dict) -> XarrayDataCube:
     :return: output data cube
     """
     return cube
+
+
+def apply_udf_data(data: UdfData):
+    """
+    Generic UDF function that directly manipulates a :py:class:`UdfData` object
+
+    :param data: :py:class:`UdfData` object to manipulate in-place
+    """
+    pass

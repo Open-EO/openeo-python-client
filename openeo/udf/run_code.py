@@ -12,6 +12,7 @@ import shapely
 import xarray
 from pandas import Series
 
+from openeo.udf import OpenEoUdfException
 from openeo.udf.structured_data import StructuredData
 from openeo.udf.udf_data import UdfData
 from openeo.udf.xarraydatacube import XarrayDataCube
@@ -96,7 +97,10 @@ def apply_timeseries_example(series: Series, context: Dict) -> Series:
     return series
 
 
-def apply_timeseries_generic(udf_data: UdfData, callback: Callable[[Series, dict], Series] = apply_timeseries_example):
+def apply_timeseries_generic(
+        udf_data: UdfData,
+        callback: Callable[[Series, dict], Series] = apply_timeseries_example
+) -> UdfData:
     """
     Implements the UDF contract by calling a user provided time series transformation function (apply_timeseries).
     Multiple bands are currently handled separately, another approach could provide a dataframe with a timeseries for each band.
@@ -173,11 +177,9 @@ def run_udf_code(code: str, data: UdfData) -> UdfData:
         elif len(params) == 1 and _annotation_is_udf_data(first_param.annotation):
             # found a generic UDF function
             func(data)
-        else:
-            # TODO: raise exception?
-            pass
+            return data
 
-    return data
+    raise OpenEoUdfException("No UDF found.")
 
 
 def execute_local_udf(udf: str, datacube: Union[str, xarray.DataArray, XarrayDataCube], fmt='netcdf'):
