@@ -101,7 +101,7 @@ UDF function names
 
 There's a predefined set of function signatures that you have to use to implement a UDF:
 
-.. automodule:: openeo_udf.api.udf_signatures
+.. automodule:: openeo.udf.udf_signatures
  :members:
 
 
