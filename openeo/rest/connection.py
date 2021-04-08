@@ -25,7 +25,7 @@ from openeo.rest.auth.auth import NullAuth, BearerAuth
 from openeo.rest.auth.config import RefreshTokenStore, AuthConfig
 from openeo.rest.auth.oidc import OidcClientCredentialsAuthenticator, OidcAuthCodePkceAuthenticator, \
     OidcClientInfo, OidcAuthenticator, OidcRefreshTokenAuthenticator, OidcResourceOwnerPasswordAuthenticator, \
-    OidcDeviceAuthenticator, OidcProviderInfo, OidcException
+    OidcDeviceAuthenticator, OidcProviderInfo, OidcException, DefaultOidcClientGrant
 from openeo.rest.datacube import DataCube
 from openeo.rest.imagecollectionclient import ImageCollectionClient
 from openeo.rest.job import RESTJob
@@ -332,7 +332,8 @@ class Connection(RestApiConnection):
 
     def _get_oidc_provider_and_client_info(
             self, provider_id: str,
-            client_id: Union[str, None], client_secret: Union[str, None]
+            client_id: Union[str, None], client_secret: Union[str, None],
+            default_client_grant_types: Union[None, List[DefaultOidcClientGrant]] = None
     ) -> Tuple[str, OidcClientInfo]:
         """
         Resolve provider_id and client info (as given or from config)
@@ -345,21 +346,22 @@ class Connection(RestApiConnection):
         provider_id, provider = self._get_oidc_provider(provider_id)
 
         if client_id is None:
+            _log.debug("No client_id: checking config for prefered client_id")
             client_id, client_secret = self._get_auth_config().get_oidc_client_configs(
                 backend=self._orig_url, provider_id=provider_id
             )
             if client_id:
                 _log.info("Using client_id {c!r} from config (provider {p!r})".format(c=client_id, p=provider_id))
-        if client_id is None:
-            # TODO: This "default_client" feature is still experimental in openEO API. See Open-EO/openeo-api#366
+        if client_id is None and default_client_grant_types:
             # Try "default_client" from backend's provider info.
-            client_id = provider.get_default_client_id()
+            _log.debug("No client_id given: checking default client in backend's provider info")
+            client_id = provider.get_default_client_id(grant_types=default_client_grant_types)
             if client_id:
                 _log.info("Using default client_id {c!r} from OIDC provider {p!r} info.".format(
                     c=client_id, p=provider_id
                 ))
         if client_id is None:
-            raise OpenEoClientException("No client ID found.")
+            raise OpenEoClientException("No client_id found.")
 
         client_info = OidcClientInfo(client_id=client_id, client_secret=client_secret, provider=provider)
 
@@ -406,7 +408,8 @@ class Connection(RestApiConnection):
         OpenID Connect Authorization Code Flow (with PKCE).
         """
         provider_id, client_info = self._get_oidc_provider_and_client_info(
-            provider_id=provider_id, client_id=client_id, client_secret=client_secret
+            provider_id=provider_id, client_id=client_id, client_secret=client_secret,
+            default_client_grant_types=[DefaultOidcClientGrant.AUTH_CODE_PKCE],
         )
         authenticator = OidcAuthCodePkceAuthenticator(
             client_info=client_info,
@@ -457,7 +460,8 @@ class Connection(RestApiConnection):
         OpenId Connect Refresh Token
         """
         provider_id, client_info = self._get_oidc_provider_and_client_info(
-            provider_id=provider_id, client_id=client_id, client_secret=client_secret
+            provider_id=provider_id, client_id=client_id, client_secret=client_secret,
+            default_client_grant_types=[DefaultOidcClientGrant.REFRESH_TOKEN],
         )
 
         if refresh_token is None:
@@ -487,7 +491,8 @@ class Connection(RestApiConnection):
         .. versionchanged:: 0.5.1 Add :py:obj:`use_pkce` argument
         """
         provider_id, client_info = self._get_oidc_provider_and_client_info(
-            provider_id=provider_id, client_id=client_id, client_secret=client_secret
+            provider_id=provider_id, client_id=client_id, client_secret=client_secret,
+            default_client_grant_types=[DefaultOidcClientGrant.DEVICE_CODE_PKCE],
         )
         authenticator = OidcDeviceAuthenticator(client_info=client_info, use_pkce=use_pkce, **kwargs)
         return self._authenticate_oidc(authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token)
@@ -504,7 +509,8 @@ class Connection(RestApiConnection):
         .. versionadded:: 0.6.0
         """
         provider_id, client_info = self._get_oidc_provider_and_client_info(
-            provider_id=provider_id, client_id=client_id, client_secret=client_secret
+            provider_id=provider_id, client_id=client_id, client_secret=client_secret,
+            default_client_grant_types=[DefaultOidcClientGrant.DEVICE_CODE_PKCE, DefaultOidcClientGrant.REFRESH_TOKEN]
         )
 
         # Try refresh token first.

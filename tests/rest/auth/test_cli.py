@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from unittest import mock
 
@@ -101,12 +102,15 @@ def test_add_oidc_no_secret(auth_config, requests_mock):
     assert auth_config.get_oidc_client_configs("https://oeo.test", "authit") == (client_id, None)
 
 
-def test_add_oidc_use_default_client(auth_config, requests_mock):
+def test_add_oidc_use_default_client(auth_config, requests_mock, caplog):
     requests_mock.get("https://oeo.test/", json={"api_version": "1.0.0"})
     requests_mock.get("https://oeo.test/credentials/oidc", json={
         "providers": [{
             "id": "authit", "issuer": "https://authit.test", "title": "Auth It", "scopes": ["openid"],
-            "default_client": {"id": "d3f6ul7cl13n7"}
+            "default_clients": [{
+                "id": "d3f6ul7cl13n7",
+                "grant_types": ["urn:ietf:params:oauth:grant-type:device_code+pkce", "refresh_token"],
+            }]
         }]
     })
     requests_mock.get("https://authit.test/.well-known/openid-configuration", json={"issuer": "https://authit.test"})
@@ -114,6 +118,24 @@ def test_add_oidc_use_default_client(auth_config, requests_mock):
 
     assert "authit" in auth_config.get_oidc_provider_configs("https://oeo.test")
     assert auth_config.get_oidc_client_configs("https://oeo.test", "authit") == (None, None)
+    warnings = [r[2] for r in caplog.record_tuples if r[1] == logging.WARN]
+    assert warnings == []
+
+
+def test_add_oidc_use_default_client_no_default(auth_config, requests_mock, caplog):
+    requests_mock.get("https://oeo.test/", json={"api_version": "1.0.0"})
+    requests_mock.get("https://oeo.test/credentials/oidc", json={
+        "providers": [{
+            "id": "authit", "issuer": "https://authit.test", "title": "Auth It", "scopes": ["openid"],
+        }]
+    })
+    requests_mock.get("https://authit.test/.well-known/openid-configuration", json={"issuer": "https://authit.test"})
+    cli.main(["add-oidc", "https://oeo.test", "--use-default-client"])
+
+    assert "authit" in auth_config.get_oidc_provider_configs("https://oeo.test")
+    assert auth_config.get_oidc_client_configs("https://oeo.test", "authit") == (None, None)
+    warnings = [r[2] for r in caplog.record_tuples if r[1] == logging.WARN]
+    assert warnings == ["No default clients declared for provider 'authit'"]
 
 
 def test_add_oidc_default_client_interactive(auth_config, requests_mock, capsys):
@@ -121,7 +143,10 @@ def test_add_oidc_default_client_interactive(auth_config, requests_mock, capsys)
     requests_mock.get("https://oeo.test/credentials/oidc", json={
         "providers": [{
             "id": "authit", "issuer": "https://authit.test", "title": "Auth It", "scopes": ["openid"],
-            "default_client": {"id": "d3f6ul7cl13n7"}
+            "default_clients": [{
+                "id": "d3f6ul7cl13n7",
+                "grant_types": ["urn:ietf:params:oauth:grant-type:device_code+pkce", "refresh_token"]
+            }]
         }]
     })
     requests_mock.get("https://authit.test/.well-known/openid-configuration", json={"issuer": "https://authit.test"})
@@ -136,12 +161,15 @@ def test_add_oidc_default_client_interactive(auth_config, requests_mock, capsys)
     assert "Using client ID None" in stdout
 
 
-def test_add_oidc_use_default_client_overwrite(auth_config, requests_mock):
+def test_add_oidc_use_default_client_overwrite(auth_config, requests_mock, caplog):
     requests_mock.get("https://oeo.test/", json={"api_version": "1.0.0"})
     requests_mock.get("https://oeo.test/credentials/oidc", json={
         "providers": [{
             "id": "authit", "issuer": "https://authit.test", "title": "Auth It", "scopes": ["openid"],
-            "default_client": {"id": "d3f6ul7cl13n7"}
+            "default_clients": [{
+                "id": "d3f6ul7cl13n7",
+                "grant_types": ["urn:ietf:params:oauth:grant-type:device_code+pkce", "refresh_token"]
+            }]
         }]
     })
     requests_mock.get("https://authit.test/.well-known/openid-configuration", json={"issuer": "https://authit.test"})
@@ -155,6 +183,9 @@ def test_add_oidc_use_default_client_overwrite(auth_config, requests_mock):
     cli.main(["add-oidc", "https://oeo.test", "--use-default-client"])
     assert "authit" in auth_config.get_oidc_provider_configs("https://oeo.test")
     assert auth_config.get_oidc_client_configs("https://oeo.test", "authit") == (None, None)
+
+    warnings = [r[2] for r in caplog.record_tuples if r[1] == logging.WARN]
+    assert warnings == []
 
 
 def test_add_oidc_04(auth_config, requests_mock):
@@ -265,7 +296,10 @@ def test_oidc_auth_device_flow_default_client(auth_config, refresh_token_store, 
     requests_mock.get("https://oeo.test/credentials/oidc", json={"providers": [
         {
             "id": "authit", "issuer": "https://authit.test", "title": "Auth It", "scopes": ["openid"],
-            "default_client": {"id": default_client_id}
+            "default_clients": [{
+                "id": default_client_id,
+                "grant_types": ["urn:ietf:params:oauth:grant-type:device_code+pkce", "refresh_token"],
+            }]
         },
         {"id": "youauth", "issuer": "https://youauth.test", "title": "YouAuth", "scopes": ["openid"]}
     ]})

@@ -961,7 +961,10 @@ def test_authenticate_oidc_device_flow_multiple_provider_one_config_no_given_def
             {"id": "fauth", "issuer": "https://fauth.test", "title": "Foo", "scopes": ["openid"]},
             {
                 "id": "bauth", "issuer": "https://bauth.test", "title": "Bar", "scopes": ["openid"],
-                "default_client": {"id": default_client_id}
+                "default_clients": [{
+                    "id": default_client_id,
+                    "grant_types": ["urn:ietf:params:oauth:grant-type:device_code+pkce", "refresh_token"]
+                }]
             },
         ]
     })
