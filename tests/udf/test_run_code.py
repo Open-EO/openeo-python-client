@@ -5,10 +5,9 @@ import pandas
 import pytest
 import xarray
 
+from openeo.udf import UdfData, XarrayDataCube
 from openeo.udf.run_code import run_udf_code, _get_annotation_str, _annotation_is_pandas_series, \
     _annotation_is_udf_datacube, _annotation_is_udf_data, execute_local_udf
-from openeo.udf.udf_data import UdfData
-from openeo.udf.xarraydatacube import XarrayDataCube
 from .test_xarraydatacube import _build_xdc
 from .. import as_path
 

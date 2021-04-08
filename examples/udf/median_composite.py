@@ -1,7 +1,7 @@
 import xarray
 import numpy as np
 
-from openeo.udf.xarraydatacube import XarrayDataCube
+from openeo.udf import XarrayDataCube
 
 
 def apply_datacube(cube: XarrayDataCube, context: dict) -> XarrayDataCube:

@@ -1,9 +1,7 @@
 import numpy
 import xarray
 
-from openeo.udf.structured_data import StructuredData
-from openeo.udf.udf_data import UdfData
-from openeo.udf.xarraydatacube import XarrayDataCube
+from openeo.udf import StructuredData, UdfData, XarrayDataCube
 
 
 def test_structured_data_list():

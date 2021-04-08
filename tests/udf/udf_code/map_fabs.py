@@ -1,7 +1,6 @@
 import numpy
 
-from openeo.udf.udf_data import UdfData
-from openeo.udf.xarraydatacube import XarrayDataCube
+from openeo.udf import UdfData, XarrayDataCube
 
 
 def hyper_map_fabs(udf_data: UdfData):

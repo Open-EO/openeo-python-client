@@ -1,4 +1,4 @@
-from openeo.udf.structured_data import StructuredData
+from openeo.udf import StructuredData
 
 
 def test_structured_data_list_basic():

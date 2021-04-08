@@ -5,7 +5,7 @@ import pytest
 import xarray
 import xarray.testing
 
-from openeo.udf.xarraydatacube import XarrayDataCube
+from openeo.udf import XarrayDataCube
 from .. import as_path
 
 

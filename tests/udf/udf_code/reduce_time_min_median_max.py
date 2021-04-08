@@ -1,5 +1,4 @@
-from openeo.udf.udf_data import UdfData
-from openeo.udf.xarraydatacube import XarrayDataCube
+from openeo.udf import UdfData, XarrayDataCube
 
 
 def hyper_min_median_max(udf_data: UdfData):

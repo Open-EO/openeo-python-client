@@ -1,5 +1,4 @@
-from openeo.udf.structured_data import StructuredData
-from openeo.udf.udf_data import UdfData
+from openeo.udf import StructuredData, UdfData
 
 
 def rct_stats(udf_data: UdfData):
