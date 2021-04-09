@@ -51,7 +51,6 @@ setup(name=name,
       ],
       extras_require={
           "dev": tests_require + [
-              "pytest>=4.5.0",
               "sphinx",
               "sphinx-autodoc-annotation",
               "sphinx-autodoc-typehints",
