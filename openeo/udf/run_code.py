@@ -13,6 +13,7 @@ import xarray
 from pandas import Series
 
 from openeo.udf import OpenEoUdfException
+from openeo.udf.feature_collection import FeatureCollection
 from openeo.udf.structured_data import StructuredData
 from openeo.udf.udf_data import UdfData
 from openeo.udf.xarraydatacube import XarrayDataCube
@@ -32,9 +33,9 @@ def _build_default_execution_context():
         "XarrayDataCube": XarrayDataCube,
         "DataCube": XarrayDataCube,  # Legacy alias
         "StructuredData": StructuredData,
-        # "FeatureCollection": FeatureCollection,  # TODO
-        # "SpatialExtent": SpatialExtent,  # TODO
-        # "MachineLearnModel": MachineLearnModelConfig, # TODO
+        "FeatureCollection": FeatureCollection,
+        # "SpatialExtent": SpatialExtent,  # TODO?
+        # "MachineLearnModel": MachineLearnModelConfig, # TODO?
     }
     for name in ["geopandas", "torch", "torchvision", "tensorflow", "tensorboard"]:
         try:

@@ -23,6 +23,7 @@ tests_require = [
     'requests-mock>=1.8.0',
     'h5netcdf',
     'matplotlib',
+    'geopandas',
 ]
 
 name = 'openeo'
