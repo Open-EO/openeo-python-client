@@ -105,9 +105,9 @@ class XarrayDataCube:
         """
         # TODO if format is not given: guess format from filename extension?
         if fmt.lower() == 'netcdf':
-            return cls(array=_load_DataArray_from_NetCDF(path))
+            return cls(array=XarrayIO.from_netcdf_file(path=path))
         elif fmt.lower() == 'json':
-            return cls(array=_load_DataArray_from_JSON(path))
+            return cls(array=XarrayIO.from_json_file(path=path))
         else:
             raise ValueError("invalid format {f}".format(f=fmt))
 
@@ -120,9 +120,11 @@ class XarrayDataCube:
 
         """
         if fmt.lower() == 'netcdf':
-            _save_DataArray_to_NetCDF(path, self.get_array())
-        if fmt.lower() == 'json':
-            _save_DataArray_to_JSON(path, self.get_array())
+            XarrayIO.to_netcdf_file(array=self.get_array(), path=path)
+        elif fmt.lower() == 'json':
+            XarrayIO.to_json_file(array=self.get_array(), path=path)
+        else:
+            raise ValueError(fmt)
 
     def plot(
             self,
@@ -245,10 +247,19 @@ class XarrayDataCube:
         pyplot.close()
 
 
-def _load_DataArray_from_JSON(filename) -> xarray.DataArray:
-    with Path(filename).open() as f:
-        # get the deserialized json
-        d = json.load(f)
+class XarrayIO:
+    """
+    Helpers to load/store :py:cass:`xarray.DataArray` objects,
+    with some conventions about expected dimensions/bands
+    """
+
+    @classmethod
+    def from_json_file(cls, path: Union[str, Path]) -> xarray.DataArray:
+        with Path(path).open() as f:
+            return cls.from_json(json.load(f))
+
+    @classmethod
+    def from_json(cls, d: dict) -> xarray.DataArray:
         d['data'] = numpy.array(d['data'], dtype=numpy.dtype(d['attrs']['dtype']))
         for k, v in d['coords'].items():
             # prepare coordinate
@@ -262,77 +273,78 @@ def _load_DataArray_from_JSON(filename) -> xarray.DataArray:
         if d.get('attrs', None) is not None:
             d['attrs'].pop('dtype', None)
             d['attrs'].pop('shape', None)
-        # vonvert to xarray
+        # convert to xarray
         r = xarray.DataArray.from_dict(d)
-        del d
-    # build dimension list in proper order
-    dims = list(filter(lambda i: i != 't' and i != 'bands' and i != 'x' and i != 'y', r.dims))
-    if 't' in r.dims: dims += ['t']
-    if 'bands' in r.dims: dims += ['bands']
-    if 'x' in r.dims: dims += ['x']
-    if 'y' in r.dims: dims += ['y']
-    # return the resulting data array
-    return r.transpose(*dims)
 
+        # build dimension list in proper order
+        dims = list(filter(lambda i: i != 't' and i != 'bands' and i != 'x' and i != 'y', r.dims))
+        if 't' in r.dims: dims += ['t']
+        if 'bands' in r.dims: dims += ['bands']
+        if 'x' in r.dims: dims += ['x']
+        if 'y' in r.dims: dims += ['y']
+        # return the resulting data array
+        return r.transpose(*dims)
 
-def _load_DataArray_from_NetCDF(filename) -> xarray.DataArray:
-    # load the dataset and convert to data array
-    ds = xarray.open_dataset(filename, engine='h5netcdf')
-    r = ds.to_array(dim='bands')
-    # build dimension list in proper order
-    dims = list(filter(lambda i: i != 't' and i != 'bands' and i != 'x' and i != 'y', r.dims))
-    if 't' in r.dims: dims += ['t']
-    if 'bands' in r.dims: dims += ['bands']
-    if 'x' in r.dims: dims += ['x']
-    if 'y' in r.dims: dims += ['y']
-    # return the resulting data array
-    return r.transpose(*dims)
+    @classmethod
+    def from_netcdf_file(cls, path: Union[str, Path]) -> xarray.DataArray:
+        # load the dataset and convert to data array
+        ds = xarray.open_dataset(path, engine='h5netcdf')
+        r = ds.to_array(dim='bands')
+        # build dimension list in proper order
+        dims = list(filter(lambda i: i != 't' and i != 'bands' and i != 'x' and i != 'y', r.dims))
+        if 't' in r.dims: dims += ['t']
+        if 'bands' in r.dims: dims += ['bands']
+        if 'x' in r.dims: dims += ['x']
+        if 'y' in r.dims: dims += ['y']
+        # return the resulting data array
+        return r.transpose(*dims)
 
+    @classmethod
+    def to_json_file(cls, array: xarray.DataArray, path: Union[str, Path]):
+        # to deserialized json
+        jsonarray = array.to_dict()
+        # add attributes that needed for re-creating xarray from json
+        jsonarray['attrs']['dtype'] = str(array.values.dtype)
+        jsonarray['attrs']['shape'] = list(array.values.shape)
+        for i in array.coords.values():
+            jsonarray['coords'][i.name]['attrs']['dtype'] = str(i.dtype)
+            jsonarray['coords'][i.name]['attrs']['shape'] = list(i.shape)
+        # custom print so resulting json file is humanly easy to read
+        # TODO: make this human friendly JSON format optional and allow compact JSON too.
+        with Path(path).open("w") as f:
+            def custom_print(data_structure, indent=1):
+                f.write("{\n")
+                needs_comma = False
+                for key, value in data_structure.items():
+                    if needs_comma:
+                        f.write(',\n')
+                    needs_comma = True
+                    f.write('  ' * indent + json.dumps(key) + ':')
+                    if isinstance(value, dict):
+                        custom_print(value, indent + 1)
+                    else:
+                        json.dump(value, f, default=str, separators=(',', ':'))
+                f.write('\n' + '  ' * (indent - 1) + "}")
 
-def _save_DataArray_to_JSON(filename, array: xarray.DataArray):
-    # to deserialized json
-    jsonarray = array.to_dict()
-    # add attributes that needed for re-creating xarray from json
-    jsonarray['attrs']['dtype'] = str(array.values.dtype)
-    jsonarray['attrs']['shape'] = list(array.values.shape)
-    for i in array.coords.values():
-        jsonarray['coords'][i.name]['attrs']['dtype'] = str(i.dtype)
-        jsonarray['coords'][i.name]['attrs']['shape'] = list(i.shape)
-    # custom print so resulting json file is humanly easy to read
-    with Path(filename).open("w") as f:
-        def custom_print(data_structure, indent=1):
-            f.write("{\n")
-            needs_comma = False
-            for key, value in data_structure.items():
-                if needs_comma:
-                    f.write(',\n')
-                needs_comma = True
-                f.write('  ' * indent + json.dumps(key) + ':')
-                if isinstance(value, dict):
-                    custom_print(value, indent + 1)
-                else:
-                    json.dump(value, f, default=str, separators=(',', ':'))
-            f.write('\n' + '  ' * (indent - 1) + "}")
+            custom_print(jsonarray)
 
-        custom_print(jsonarray)
-
-
-def _save_DataArray_to_NetCDF(filename, array: xarray.DataArray):
-    # temp reference to avoid modifying the original array
-    result = array
-    # rearrange in a basic way because older xarray versions have a bug and ellipsis don't work in xarray.transpose()
-    if result.dims[-2] == 'x' and result.dims[-1] == 'y':
-        l = list(result.dims[:-2])
-        result = result.transpose(*(l + ['y', 'x']))
-    # turn it into a dataset where each band becomes a variable
-    if not 'bands' in result.dims:
-        result = result.expand_dims(dim=collections.OrderedDict({'bands': ['band_0']}))
-    else:
-        if not 'bands' in result.coords:
-            labels = ['band_' + str(i) for i in range(result.shape[result.dims.index('bands')])]
-            result = result.assign_coords(bands=labels)
-    result = result.to_dataset('bands')
-    result.to_netcdf(filename, engine='h5netcdf')
+    @classmethod
+    def to_netcdf_file(cls, array: xarray.DataArray, path: Union[str, Path]):
+        # temp reference to avoid modifying the original array
+        result = array
+        # rearrange in a basic way because older xarray versions have a bug and ellipsis don't work in xarray.transpose()
+        if result.dims[-2] == 'x' and result.dims[-1] == 'y':
+            l = list(result.dims[:-2])
+            result = result.transpose(*(l + ['y', 'x']))
+        # turn it into a dataset where each band becomes a variable
+        if not 'bands' in result.dims:
+            result = result.expand_dims(dim=collections.OrderedDict({'bands': ['band_0']}))
+        else:
+            if not 'bands' in result.coords:
+                labels = ['band_' + str(i) for i in range(result.shape[result.dims.index('bands')])]
+                result = result.assign_coords(bands=labels)
+        result = result.to_dataset('bands')
+        result.to_netcdf(path, engine='h5netcdf')
 
 
 if __name__ == "__main__":
