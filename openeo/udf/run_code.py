@@ -98,42 +98,51 @@ def apply_timeseries_example(series: Series, context: Dict) -> Series:
     return series
 
 
+def _apply_timeseries_xarray(array: xarray.DataArray, callback: Callable[[Series], Series]) -> xarray.DataArray:
+    """
+    Apply timeseries callback to given xarray data array
+    along its time dimension (named "t" or "time")
+
+    :param array: array to transform
+    :param callback: function that transforms a timeseries in another (same size)
+    :return: transformed array
+    """
+    # Make time dimension the last one, and flatten the rest
+    # to create a 1D sequence of input time series (also 1D).
+    [time_position] = [i for (i, d) in enumerate(array.dims) if d in ["t", "time"]]
+    input_series = numpy.moveaxis(array.values, time_position, -1)
+    orig_shape = input_series.shape
+    input_series = input_series.reshape((-1, input_series.shape[-1]))
+
+    applied = numpy.asarray([callback(s) for s in input_series])
+
+    # Reshape to original shape
+    applied = applied.reshape(orig_shape)
+    applied = numpy.moveaxis(applied, -1, time_position)
+    assert applied.shape == array.shape
+
+    return xarray.DataArray(applied, coords=array.coords, dims=array.dims, name=array.name)
+
+
 def apply_timeseries_generic(
         udf_data: UdfData,
         callback: Callable[[Series, dict], Series] = apply_timeseries_example
 ) -> UdfData:
     """
-    Implements the UDF contract by calling a user provided time series transformation function (apply_timeseries).
-    Multiple bands are currently handled separately, another approach could provide a dataframe with a timeseries for each band.
+    Implements the UDF contract by calling a user provided time series transformation function.
 
     :param udf_data:
     :param callback: callable that takes a pandas Series and context dict and returns a pandas Series
     :return:
     """
-    # The list of tiles that were created
-    tile_results = []
-
-    # Iterate over each cube
-    for cube in udf_data.get_datacube_list():
-        array3d = []
-        # use rollaxis to make the time dimension the last one
-        for time_x_slice in numpy.rollaxis(cube.array.values, 1):
-            time_x_result = []
-            for time_slice in time_x_slice:
-                series = pandas.Series(time_slice)
-                transformed_series = callback(series, udf_data.user_context)
-                time_x_result.append(transformed_series)
-            array3d.append(time_x_result)
-
-        # We need to create a new 3D array with the correct shape for the computed aggregate
-        result_tile = numpy.rollaxis(numpy.asarray(array3d), 1)
-        assert result_tile.shape == cube.array.shape
-        # Create the new raster collection cube
-        rct = XarrayDataCube(xarray.DataArray(result_tile))
-        tile_results.append(rct)
+    callback = functools.partial(callback, context=udf_data.user_context)
+    datacubes = [
+        XarrayDataCube(_apply_timeseries_xarray(array=cube.array, callback=callback))
+        for cube in udf_data.get_datacube_list()
+    ]
     # Insert the new tiles as list of raster collection tiles in the input object. The new tiles will
     # replace the original input tiles.
-    udf_data.set_datacube_list(tile_results)
+    udf_data.set_datacube_list(datacubes)
     return udf_data
 
 

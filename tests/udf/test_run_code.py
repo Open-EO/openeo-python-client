@@ -1,3 +1,4 @@
+import textwrap
 from pathlib import Path
 
 import numpy
@@ -149,6 +150,70 @@ def test_run_udf_code_statistics():
         "data": {"temp": {"min": 2, "mean": 58, "max": 114, "sum": 696}},
         "type": "dict",
         "description": "Statistical data sum, min, max and mean for each raster collection cube as dict"
+    }
+
+
+def test_run_udf_code_apply_timeseries_txy():
+    udf_code = textwrap.dedent("""
+        import pandas as pd
+        def apply_timeseries(series: pd.Series, context: dict) -> pd.Series:
+            return series - series.mean()
+    """)
+    a = _build_txy_data(ts=[2018, 2019, 2020, 2021], xs=[2, 3], ys=[10, 20, 30], name="temp", t_factor=2)
+    b = _build_txy_data(ts=[2018, 2019, 2020, 2021], xs=[2, 3], ys=[10, 20, 30], name="prec", t_factor=10)
+    udf_data = UdfData(datacube_list=[a, b])
+    result = run_udf_code(code=udf_code, data=udf_data)
+
+    aa, bb = result.get_datacube_list()
+    assert isinstance(aa, XarrayDataCube)
+    expected_dims = [
+        {'name': 't', 'coordinates': [2018, 2019, 2020, 2021]},
+        {'name': 'x', 'coordinates': [2, 3]},
+        {'name': 'y', 'coordinates': [10, 20, 30]}
+    ]
+    assert aa.to_dict() == {
+        'id': 'temp',
+        'data': [
+            [[-3, -3, -3], [-3, -3, -3]],
+            [[-1, -1, -1], [-1, -1, -1]],
+            [[1, 1, 1], [1, 1, 1]],
+            [[3, 3, 3], [3, 3, 3]],
+        ],
+        'dimensions': expected_dims,
+    }
+    assert isinstance(bb, XarrayDataCube)
+    assert bb.to_dict() == {
+        'id': 'prec',
+        'data': [
+            [[-15, -15, -15], [-15, -15, -15]],
+            [[-5, -5, -5], [-5, -5, -5]],
+            [[5, 5, 5], [5, 5, 5]],
+            [[15, 15, 15], [15, 15, 15]]
+        ],
+        'dimensions': expected_dims,
+    }
+
+
+def test_run_udf_code_apply_timeseries_tb():
+    udf_code = textwrap.dedent("""
+        import pandas as pd
+        def apply_timeseries(series: pd.Series, context: dict) -> pd.Series:
+            return series - series.mean()
+    """)
+
+    xdc = _build_xdc(ts=[2018, 2019, 2020, 2021], bands=["red", "green", "blue"])
+    udf_data = UdfData(datacube_list=[xdc])
+    result = run_udf_code(code=udf_code, data=udf_data)
+
+    aa, = result.get_datacube_list()
+    assert isinstance(aa, XarrayDataCube)
+    expected_dims = [
+        {'name': 't', 'coordinates': [2018, 2019, 2020, 2021]},
+        {'name': 'bands', 'coordinates': ["red", "green", "blue"]},
+    ]
+    assert aa.to_dict() == {
+        'data': [[-15, -15, -15], [-5, -5, -5], [5, 5, 5], [15, 15, 15]],
+        'dimensions': expected_dims,
     }
 
 
