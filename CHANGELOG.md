@@ -8,7 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add dependency on `xarray` package ([#159](https://github.com/Open-EO/openeo-python-client/issues/159), [#190](https://github.com/Open-EO/openeo-python-client/pull/190), EP-3578)
+
 ### Changed
+
+- Eliminate development/optional dependency on `openeo_udf` project
+  ([#159](https://github.com/Open-EO/openeo-python-client/issues/159), [#190](https://github.com/Open-EO/openeo-python-client/pull/190), EP-3578). 
+  Now the openEO client library itself contains the necessary classes and implementation to run UDF code locally.
 
 ### Removed
 

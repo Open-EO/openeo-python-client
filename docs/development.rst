@@ -9,7 +9,7 @@ in development mode (``-e``)
 with additional development related dependencies (``[dev]``)
 like this::
 
-    pip install -e .[dev] --extra-index-url https://artifactory.vgt.vito.be/api/pypi/python-openeo/simple
+    pip install -e .[dev]
 
 The ``--extra-index-url`` is necessary to be able to find certain
 (development) versions of packages that are not available in the standard channels.
