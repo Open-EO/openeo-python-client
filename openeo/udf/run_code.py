@@ -24,7 +24,7 @@ from openeo.udf.structured_data import StructuredData
 from openeo.udf.udf_data import UdfData
 from openeo.udf.xarraydatacube import XarrayDataCube
 
-log = logging.getLogger(__name__)
+_log = logging.getLogger(__name__)
 
 
 def _build_default_execution_context():
@@ -47,7 +47,7 @@ def _build_default_execution_context():
         try:
             context[name] = importlib.import_module(name)
         except ImportError:
-            log.info("Module {m} not available for UDF execution context".format(m=name))
+            _log.info("Module {m} not available for UDF execution context".format(m=name))
 
     return context
 
@@ -161,7 +161,7 @@ def run_udf_code(code: str, data: UdfData) -> UdfData:
                 and _annotation_is_pandas_series(params["series"].annotation)
                 and _annotation_is_pandas_series(sig.return_annotation)
         ):
-            # this is a UDF that transforms pandas series
+            _log.info("Found timeseries mapping UDF `{n}` {f!r}".format(n=fn_name, f=func))
             return apply_timeseries_generic(data, func)
         elif (
                 fn_name in ['apply_hypercube', 'apply_datacube']
@@ -169,7 +169,7 @@ def run_udf_code(code: str, data: UdfData) -> UdfData:
                 and _annotation_is_udf_datacube(params["cube"].annotation)
                 and _annotation_is_udf_datacube(sig.return_annotation)
         ):
-            # found a datacube mapping function
+            _log.info("Found datacube mapping UDF `{n}` {f!r}".format(n=fn_name, f=func))
             if len(data.get_datacube_list()) != 1:
                 raise ValueError("The provided UDF expects exactly one datacube, but {c} were provided.".format(
                     c=len(data.get_datacube_list())
@@ -181,7 +181,7 @@ def run_udf_code(code: str, data: UdfData) -> UdfData:
             data.set_datacube_list([result_cube])
             return data
         elif len(params) == 1 and _annotation_is_udf_data(first_param.annotation):
-            # found a generic UDF function
+            _log.info("Found generic UDF `{n}` {f!r}".format(n=fn_name, f=func))
             func(data)
             return data
 
