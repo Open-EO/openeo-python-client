@@ -10,7 +10,7 @@ import inspect
 import logging
 import math
 import pathlib
-from typing import Dict, Callable, Union
+from typing import Callable, Union
 
 import numpy
 import pandas
@@ -93,17 +93,6 @@ def _annotation_is_udf_data(annotation) -> bool:
     }
 
 
-def apply_timeseries_example(series: Series, context: Dict) -> Series:
-    """
-    UDF Template for callbacks that process timeseries
-
-    :param series:
-    :param context:
-    :return:
-    """
-    return series
-
-
 def _apply_timeseries_xarray(array: xarray.DataArray, callback: Callable[[Series], Series]) -> xarray.DataArray:
     """
     Apply timeseries callback to given xarray data array
@@ -132,13 +121,14 @@ def _apply_timeseries_xarray(array: xarray.DataArray, callback: Callable[[Series
 
 def apply_timeseries_generic(
         udf_data: UdfData,
-        callback: Callable[[Series, dict], Series] = apply_timeseries_example
+        callback: Callable[[Series, dict], Series]
 ) -> UdfData:
     """
     Implements the UDF contract by calling a user provided time series transformation function.
 
     :param udf_data:
-    :param callback: callable that takes a pandas Series and context dict and returns a pandas Series
+    :param callback: callable that takes a pandas Series and context dict and returns a pandas Series.
+        See template :py:func:`openeo.udf.udf_signatures.apply_timeseries`
     :return:
     """
     callback = functools.partial(callback, context=udf_data.user_context)
