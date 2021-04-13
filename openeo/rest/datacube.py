@@ -1445,7 +1445,7 @@ class DataCube(ImageCollection):
         return self._connection.execute(self.flat_graph())
 
     @staticmethod
-    @deprecated(reason="Use :py:func:`openeo.udf.run_code.execute_local_udf` instead", version="0.6.2")
+    @deprecated(reason="Use :py:func:`openeo.udf.run_code.execute_local_udf` instead", version="0.7.0")
     def execute_local_udf(udf: str, datacube: Union[str, 'xarray.DataArray', 'XarrayDataCube'] = None, fmt='netcdf'):
         import openeo.udf.run_code
         return openeo.udf.run_code.execute_local_udf(udf=udf, datacube=datacube, fmt=fmt)
