@@ -47,7 +47,7 @@ setup(name=name,
           'xarray>=0.12.3',
           'pandas>0.20.0;python_version>="3.5.3"',
           'pandas<0.25.0;python_version<"3.5.3"',
-          'deprecated'
+          'deprecated>=1.2.12'
       ],
       extras_require={
           "dev": tests_require + [
