@@ -154,6 +154,39 @@ def test_save_load_full(format, tmp_path):
     _assert_equal_after_save_and_load(xdc, tmp_path, format)
 
 
+@pytest.mark.parametrize(["filename", "save_format", "load_format"], [
+    ("cube.nc", None, None),
+    ("cube.NC", None, None),
+    ("cube.NetCDF", None, None),
+    ("cube.nc", None, "netcdf"),
+    ("cube.nc", "netcdf", None),
+    ("cube.json", None, None),
+    ("cube.JSON", None, None),
+    ("cube.json", "json", None),
+    ("cube.json", None, "json"),
+])
+def test_save_load_guess_format(filename, save_format, load_format, tmp_path):
+    xdc = _build_xdc(ts=[2019, 2020, 2021], bands=["a", "b"], xs=[2, 3, 4, 5], ys=[5, 6, 7, 8, 9])
+    assert xdc.array.shape == (3, 2, 4, 5)
+    path = as_path(tmp_path / filename)
+    xdc.save_to_file(path, fmt=save_format)
+    result = XarrayDataCube.from_file(path, fmt=load_format)
+    xarray.testing.assert_equal(xdc.array, result.array)
+
+
+def test_save_load_guess_format_invalid(tmp_path):
+    xdc = _build_xdc(ts=[2019, 2020, 2021], bands=["a", "b"], xs=[2, 3, 4, 5], ys=[5, 6, 7, 8, 9])
+    assert xdc.array.shape == (3, 2, 4, 5)
+    path = as_path(tmp_path / "cube.foobar")
+    with pytest.raises(ValueError, match="Can not guess format"):
+        xdc.save_to_file(path)
+    xdc.save_to_file(path, fmt="netcdf")
+    with pytest.raises(ValueError, match="Can not guess format"):
+        result = XarrayDataCube.from_file(path)
+    result = XarrayDataCube.from_file(path, fmt="netcdf")
+    xarray.testing.assert_equal(xdc.array, result.array)
+
+
 @pytest.mark.parametrize("format", ["json", "netcdf"])
 def test_save_load_no_time_labels(format, tmp_path):
     xdc = _build_xdc(ts=3, bands=["a", "b"], xs=[2, 3, 4, 5], ys=[5, 6, 7, 8, 9])
