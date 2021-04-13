@@ -21,8 +21,8 @@ openeo.rest.datacube
 .. automodule:: openeo.rest.datacube
    :members: DataCube
 
-.. _datacube-api:
 
+.. _datacube-api:
 
 openeo.api
 -----------
@@ -43,3 +43,10 @@ openeo.rest.job
 
 .. automodule:: openeo.rest.job
     :members: RESTJob, JobLogEntry, JobResults, ResultAsset
+
+
+openeo.rest.conversions
+-------------------------
+
+.. automodule:: openeo.rest.conversions
+    :members:

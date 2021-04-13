@@ -4,7 +4,7 @@ Helpers for data conversions between Python ecosystem data types and openEO data
 
 import numpy as np
 import pandas
-from deprecated import deprecated
+from deprecated.sphinx import deprecated
 
 
 class InvalidTimeSeriesException(ValueError):
@@ -21,7 +21,7 @@ def timeseries_json_to_pandas(timeseries: dict, index: str = "date", auto_collap
     When there is just a single polygon or band in play, the dataframe will be simplified
     by removing the corresponding dimension if `auto_collapse` is enabled (on by default).
 
-    :param timeseries: dictionary as returned by `aggregate_spatial` (TODO: is this standardized?)
+    :param timeseries: dictionary as returned by `aggregate_spatial`
     :param index: which dimension should be used for the DataFrame index: 'date' or 'polygon'
     :param auto_collapse: whether single band or single polygon cases should be simplified automatically
 
@@ -29,6 +29,7 @@ def timeseries_json_to_pandas(timeseries: dict, index: str = "date", auto_collap
     """
     # The input timeseries dictionary is assumed to have this structure:
     #       {dict mapping date -> [list with one item per polygon: [list with one float/None per band or empty list]]}
+    # TODO is this format of `aggregate_spatial` standardized across backends? Or can we detect the structure?
     # TODO: option to pass a path to a JSON file as input?
 
     # Some quick checks
