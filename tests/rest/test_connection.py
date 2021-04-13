@@ -847,6 +847,7 @@ def test_authenticate_oidc_device_flow_multiple_providers_no_given(requests_mock
         conn.authenticate_oidc_device(client_id=client_id)
 
 
+@pytest.mark.slow
 def test_authenticate_oidc_device_flow_multiple_provider_one_config_no_given(requests_mock, auth_config):
     """OIDC device flow + PKCE with multiple OIDC providers, one in config and none specified to use."""
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
@@ -881,6 +882,7 @@ def test_authenticate_oidc_device_flow_multiple_provider_one_config_no_given(req
     assert refresh_token_store.mock_calls == []
 
 
+@pytest.mark.slow
 def test_authenticate_oidc_device_flow_multiple_provider_one_config_no_given_default_client(requests_mock, auth_config):
     """
     OIDC device flow + default_client + PKCE with multiple OIDC providers, one in config and none specified to use.
@@ -1006,6 +1008,7 @@ def test_authenticate_oidc_auto_with_existing_refresh_token(requests_mock, refre
     assert [r["grant_type"] for r in oidc_mock.grant_request_history] == ["refresh_token"]
 
 
+@pytest.mark.slow
 def test_authenticate_oidc_auto_no_existing_refresh_token(requests_mock, refresh_token_store):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
@@ -1039,6 +1042,7 @@ def test_authenticate_oidc_auto_no_existing_refresh_token(requests_mock, refresh
     ]
 
 
+@pytest.mark.slow
 def test_authenticate_oidc_auto_expired_refresh_token(requests_mock, refresh_token_store):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
