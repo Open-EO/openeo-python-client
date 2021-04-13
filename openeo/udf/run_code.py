@@ -1,8 +1,8 @@
 """
 
-Note: this module was initially developed under the ``openeo-udf`` project (https://github.com/Open-EO/openeo-udf)
-
 """
+
+# Note: this module was initially developed under the ``openeo-udf`` project (https://github.com/Open-EO/openeo-udf)
 
 import functools
 import importlib

@@ -632,14 +632,16 @@ class Connection(RestApiConnection):
 
         :param name: String Id of the collection
         :param spatial_extent: Limits the items to the given bounding box in WGS84:
-        1. Lower left corner, coordinate axis 1
-        2. Lower left corner, coordinate axis 2
-        3. Upper right corner, coordinate axis 1
-        4. Upper right corner, coordinate axis 2
+            1. Lower left corner, coordinate axis 1
+            2. Lower left corner, coordinate axis 2
+            3. Upper right corner, coordinate axis 1
+            4. Upper right corner, coordinate axis 2
+
         :param temporal_extent: Limits the items to the specified temporal interval.
         :param limit: The amount of items per request/page. If None, the back-end decides.
-        The interval has to be specified as an array with exactly two elements (start, end).
-        Also supports open intervals by setting one of the boundaries to None, but never both.
+            The interval has to be specified as an array with exactly two elements (start, end).
+            Also supports open intervals by setting one of the boundaries to None, but never both.
+
         :return: data_list: List A list of items
         """
         url = '/collections/{}/items'.format(name)

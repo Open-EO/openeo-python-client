@@ -50,3 +50,19 @@ openeo.rest.conversions
 
 .. automodule:: openeo.rest.conversions
     :members:
+
+
+openeo.udf
+-------------
+
+.. automodule:: openeo.udf.udf_data
+    :members: UdfData
+
+.. automodule:: openeo.udf.xarraydatacube
+    :members: XarrayDataCube
+
+.. automodule:: openeo.udf.structured_data
+    :members: StructuredData
+
+.. automodule:: openeo.udf.run_code
+    :members: execute_local_udf
