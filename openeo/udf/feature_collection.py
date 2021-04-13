@@ -1,3 +1,9 @@
+"""
+
+Note: this module was initially developed under the ``openeo-udf`` project (https://github.com/Open-EO/openeo-udf)
+
+"""
+
 from typing import Optional, Union, Any, List
 
 import pandas

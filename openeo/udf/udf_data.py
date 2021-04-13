@@ -1,3 +1,9 @@
+"""
+
+Note: this module was initially developed under the ``openeo-udf`` project (https://github.com/Open-EO/openeo-udf)
+
+"""
+
 from typing import Optional, List, Union
 
 from openeo.udf.feature_collection import FeatureCollection

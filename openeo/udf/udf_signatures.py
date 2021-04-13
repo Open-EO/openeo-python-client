@@ -4,6 +4,7 @@ Both the name of the function and the argument types are/can be used by the back
 is compatible with the calling context of the process graph in which it is used.
 
 """
+# Note: this module was initially developed under the ``openeo-udf`` project (https://github.com/Open-EO/openeo-udf)
 
 from pandas import Series
 
