@@ -18,8 +18,8 @@ def test_structured_data_list():
     udf_data = UdfData(structured_data_list=[sd1, sd2])
 
     assert udf_data.to_dict() == {
-        "datacubes": [],
-        "feature_collection_list": [],
+        "datacubes": None,
+        "feature_collection_list": None,
         "structured_data_list": [
             {"data": [1, 2, 3, 5, 8], "description": "list", "type": "list"},
             {"data": {"a": [3, 5], "b": "red"}, "description": "dict", "type": "dict"}
@@ -43,8 +43,8 @@ def test_datacube_list():
                     {"name": "y", "coordinates": [3, 4, 5]}
                 ],
             }],
-        "feature_collection_list": [],
-        "structured_data_list": [],
+        "feature_collection_list": None,
+        "structured_data_list": None,
         "proj": None,
         "user_context": {"kernel": 3}
     }
@@ -56,7 +56,7 @@ def test_feature_collection_list():
     fc = FeatureCollection(id="test", data=data)
     udf_data = UdfData(feature_collection_list=[fc])
     assert udf_data.to_dict() == {
-        'datacubes': [],
+        'datacubes': None,
         'feature_collection_list': [{
             'data': {
                 'type': 'FeatureCollection',
@@ -70,8 +70,8 @@ def test_feature_collection_list():
             },
             'id': 'test'}
         ],
+        'structured_data_list': None,
         'proj': None,
-        'structured_data_list': [],
         'user_context': {}
     }
 
@@ -79,9 +79,9 @@ def test_feature_collection_list():
 def test_udf_data_from_dict_empty():
     udf_data = UdfData.from_dict({})
     assert udf_data.to_dict() == {
-        'datacubes': [],
-        "feature_collection_list": [],
-        'structured_data_list': [],
+        'datacubes': None,
+        "feature_collection_list": None,
+        'structured_data_list': None,
         'proj': None, 'user_context': {},
     }
 
@@ -89,8 +89,8 @@ def test_udf_data_from_dict_empty():
 def test_udf_data_from_dict_structured_data():
     udf_data = UdfData.from_dict({"structured_data_list": [{"data": [1, 2, 3]}]})
     assert udf_data.to_dict() == {
-        'datacubes': [],
-        "feature_collection_list": [],
+        'datacubes': None,
+        "feature_collection_list": None,
         'structured_data_list': [{"data": [1, 2, 3], "type": "list", "description": "list"}],
         'proj': None, 'user_context': {},
     }
@@ -104,7 +104,7 @@ def test_udf_data_from_dict_datacube():
     })
     assert udf_data.to_dict() == {
         'datacubes': [{"data": [1, 2, 3], "dimensions": [{"name": "x"}]}],
-        "feature_collection_list": [],
-        'structured_data_list': [],
+        "feature_collection_list": None,
+        'structured_data_list': None,
         'proj': None, 'user_context': {},
     }

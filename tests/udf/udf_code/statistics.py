@@ -30,5 +30,5 @@ def rct_stats(udf_data: UdfData):
         description="Statistical data sum, min, max and mean for each raster collection cube as dict",
     )
     # Remove all collections and set the StructuredData list
-    udf_data.del_datacube_list()
+    udf_data.set_datacube_list(None)
     udf_data.set_structured_data_list([sd, ])
