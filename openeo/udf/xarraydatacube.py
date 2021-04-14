@@ -366,8 +366,3 @@ class XarrayIO:
         result = result.to_dataset('bands')
         result.to_netcdf(path, engine='h5netcdf')
 
-
-if __name__ == "__main__":
-    import doctest
-
-    doctest.testmod()
