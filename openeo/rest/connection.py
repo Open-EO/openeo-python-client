@@ -7,7 +7,7 @@ import sys
 import warnings
 from pathlib import Path
 from typing import Dict, List, Tuple, Union, Callable, Optional, Any, Iterator
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 import requests
 from deprecated.sphinx import deprecated
@@ -76,7 +76,9 @@ class RestApiConnection:
                 check_error=True, expected_status=None, **kwargs):
         """Generic request send"""
         url = self.build_url(path)
-        auth = auth or self.auth
+        # Don't send default auth headers to external domains.
+        external = urlparse(url)[:2] != urlparse(self.root_url)[:2]
+        auth = auth or (self.auth if not external else None)
         if _log.isEnabledFor(logging.DEBUG):
             _log.debug("Request `{m} {u}` with headers {h}, auth {a}, kwargs {k}".format(
                 m=method.upper(), u=url, h=headers and headers.keys(), a=type(auth).__name__, k=list(kwargs.keys()))

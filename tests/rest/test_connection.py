@@ -119,6 +119,47 @@ Reason: <strong>Error reading from remote server</strong></p></p>
         conn.get("/bar")
 
 
+@pytest.mark.parametrize(["api_root", "url"], [
+    ("https://oeo.test", "https://evilcorp.test/download/hello.txt"),
+    ("https://oeo.test", "https://oeo.test.evilcorp.test/download/hello.txt"),
+    ("https://oeo.test", "http://oeo.test/download/hello.txt"),
+])
+def test_rest_api_other_domain_auth_headers(requests_mock, api_root, url):
+    """https://github.com/Open-EO/openeo-python-client/issues/201"""
+    secret = "!secret token!"
+
+    def debug(request: requests.Request, context):
+        return repr(("hello world", request.headers))
+
+    requests_mock.get(url, text=debug)
+
+    con = RestApiConnection(api_root, auth=BearerAuth(secret))
+    res = con.get(url)
+    assert "hello world" in res.text
+    assert "User-Agent': 'openeo-python-client/" in res.text
+    assert secret not in res.text
+    assert "auth" not in res.text.lower()
+
+
+def test_connection_other_domain_auth_headers(requests_mock, api_version):
+    """https://github.com/Open-EO/openeo-python-client/issues/201"""
+    secret = "!secret token!"
+
+    def debug(request: requests.Request, context):
+        return repr(("hello world", request.headers))
+
+    requests_mock.get(API_URL, json={"api_version": api_version})
+    requests_mock.get(API_URL + 'credentials/basic', json={"access_token": secret})
+    requests_mock.get("https://evilcorp.test/download/hello.txt", text=debug)
+
+    con = Connection(API_URL).authenticate_basic("john", "j0hn")
+    res = con.get("https://evilcorp.test/download/hello.txt")
+    assert "hello world" in res.text
+    assert "User-Agent': 'openeo-python-client/" in res.text
+    assert secret not in res.text
+    assert "auth" not in res.text.lower()
+
+
 def test_connection_default_https(requests_mock):
     requests_mock.get("https://oeo.test/", json={"api_version": "1.0.0"})
     con = Connection("oeo.test")

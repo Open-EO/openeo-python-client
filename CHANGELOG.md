@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `Connection`: don't send default auth headers to non-backend domains ([#201](https://github.com/Open-EO/openeo-python-client/issues/201))
+
 
 ## [0.6.1] - 2021-03-29
 
