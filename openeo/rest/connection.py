@@ -7,7 +7,7 @@ import sys
 import warnings
 from pathlib import Path
 from typing import Dict, List, Tuple, Union, Callable, Optional, Any, Iterator
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin
 
 import requests
 from deprecated.sphinx import deprecated
@@ -72,13 +72,17 @@ class RestApiConnection:
             result.update(headers)
         return result
 
+    def _is_external(self, url: str) -> bool:
+        """Check if given url is external (not under root url)"""
+        root = self.root_url.rstrip("/")
+        return not (url == root or url.startswith(root + '/'))
+
     def request(self, method: str, path: str, headers: dict = None, auth: AuthBase = None,
                 check_error=True, expected_status=None, **kwargs):
         """Generic request send"""
         url = self.build_url(path)
         # Don't send default auth headers to external domains.
-        external = urlparse(url)[:2] != urlparse(self.root_url)[:2]
-        auth = auth or (self.auth if not external else None)
+        auth = auth or (self.auth if not self._is_external(url) else None)
         if _log.isEnabledFor(logging.DEBUG):
             _log.debug("Request `{m} {u}` with headers {h}, auth {a}, kwargs {k}".format(
                 m=method.upper(), u=url, h=headers and headers.keys(), a=type(auth).__name__, k=list(kwargs.keys()))

@@ -119,10 +119,36 @@ Reason: <strong>Error reading from remote server</strong></p></p>
         conn.get("/bar")
 
 
+@pytest.mark.parametrize(["root", "internals", "externals"], [
+    (
+            "https://openeo.test",
+            ["https://openeo.test", "https://openeo.test/", "https://openeo.test/foo"],
+            ["http://openeo.test", "https://openeo.test.foo.com"]
+    ),
+    (
+            "https://openeo.test/",
+            ["https://openeo.test", "https://openeo.test/", "https://openeo.test/foo"],
+            ["http://openeo.test", "https://openeo.test.foo.com"]
+    ),
+    (
+            "https://openeo.test/openeo/1.0",
+            ["https://openeo.test/openeo/1.0", "https://openeo.test/openeo/1.0/", "https://openeo.test/openeo/1.0/foo"],
+            ["https://openeo.test/openeo/0.4"]
+    ),
+])
+def test_rest_api_external_url(root, internals, externals):
+    con = RestApiConnection(root)
+    for url in internals:
+        assert con._is_external(url) is False
+    for url in externals:
+        assert con._is_external(url) is True
+
+
 @pytest.mark.parametrize(["api_root", "url"], [
     ("https://oeo.test", "https://evilcorp.test/download/hello.txt"),
     ("https://oeo.test", "https://oeo.test.evilcorp.test/download/hello.txt"),
     ("https://oeo.test", "http://oeo.test/download/hello.txt"),
+    ("https://oeo.test/foo", "https://oeo.test/bar/hello.txt"),
 ])
 def test_rest_api_other_domain_auth_headers(requests_mock, api_root, url):
     """https://github.com/Open-EO/openeo-python-client/issues/201"""
