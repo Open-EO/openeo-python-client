@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- Remove non-standard `srs` argument from `DataCube.mask_polygon` hmethod (EP-3747 related)
+
 ### Fixed
 
 - `Connection`: don't send default auth headers to non-backend domains ([#201](https://github.com/Open-EO/openeo-python-client/issues/201))

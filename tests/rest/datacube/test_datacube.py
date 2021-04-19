@@ -320,9 +320,8 @@ def test_mask_polygon(s2cube, api_version):
     assert graph["arguments"] == {
         "data": {'from_node': 'loadcollection1'},
         "mask": {
+            'type': 'Polygon',
             'coordinates': (((0.0, 0.0), (1.9, 0.0), (1.9, 1.9), (0.0, 1.9), (0.0, 0.0)),),
-            'crs': {'properties': {'name': 'EPSG:4326'}, 'type': 'name'},
-            'type': 'Polygon'
         }
     }
 

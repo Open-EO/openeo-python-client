@@ -763,7 +763,7 @@ class ImageCollectionClient(ImageCollection):
         }
         return self.graph_add_process(process_id, args)
 
-    def mask(self, polygon: Union[Polygon, MultiPolygon,str]=None, srs="EPSG:4326", rastermask: 'ImageCollection'=None,
+    def mask(self, polygon: Union[Polygon, MultiPolygon,str]=None, rastermask: 'ImageCollection'=None,
              replacement=None) -> 'ImageCollection':
         """
         Mask the image collection using either a polygon or a raster mask.
@@ -781,7 +781,6 @@ class ImageCollectionClient(ImageCollection):
         # TODO: also see `mask` vs `mask_polygon` processes in https://github.com/Open-EO/openeo-processes/pull/110
 
         :param polygon: A polygon, provided as a :class:`shapely.geometry.Polygon` or :class:`shapely.geometry.MultiPolygon`, or a filename pointing to a valid vector file
-        :param srs: The reference system of the provided polygon, by default this is Lat Lon (EPSG:4326).
         :param rastermask: the raster mask
         :param replacement: the value to replace the masked pixels with
         :raise: :class:`ValueError` if a polygon is supplied and its area is 0.
@@ -805,12 +804,6 @@ class ImageCollectionClient(ImageCollection):
                     raise ValueError("Mask {m!s} has an area of {a!r}".format(m=polygon, a=polygon.area))
 
                 geojson = mapping(polygon)
-                geojson['crs'] = {
-                    'type': 'name',
-                    'properties': {
-                        'name': srs
-                    }
-                }
                 mask = geojson
                 new_collection = self
         elif rastermask is not None:

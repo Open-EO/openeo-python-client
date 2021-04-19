@@ -1112,7 +1112,7 @@ class DataCube(ImageCollection):
 
     def mask_polygon(
             self, mask: Union[Polygon, MultiPolygon, str, pathlib.Path] = None,
-            srs="EPSG:4326", replacement=None, inside: bool = None
+            replacement=None, inside: bool = None
     ) -> 'DataCube':
         """
         Applies a polygon mask to a raster data cube. To apply a raster mask use `mask`.
@@ -1124,9 +1124,11 @@ class DataCube(ImageCollection):
         The pixel values are replaced with the value specified for `replacement`,
         which defaults to `no data`.
 
-        :param mask: A polygon, provided as a :class:`shapely.geometry.Polygon` or :class:`shapely.geometry.MultiPolygon`, or a filename pointing to a valid vector file
-        :param srs: The reference system of the provided polygon, by default this is Lat Lon (EPSG:4326).
+        :param mask: A polygon, provided as a :class:`shapely.geometry.Polygon`
+            or :class:`shapely.geometry.MultiPolygon`, or a filename pointing to a valid vector file
         :param replacement: the value to replace the masked pixels with
+        :param inside: If set to true all pixels for which the point at the pixel center
+            does intersect with any polygon are replaced.
         """
         if isinstance(mask, (str, pathlib.Path)):
             # TODO: default to loading file client side?
@@ -1140,10 +1142,6 @@ class DataCube(ImageCollection):
             if mask.area == 0:
                 raise ValueError("Mask {m!s} has an area of {a!r}".format(m=mask, a=mask.area))
             mask = shapely.geometry.mapping(mask)
-            mask['crs'] = {
-                'type': 'name',
-                'properties': {'name': srs}
-            }
         elif isinstance(mask, Parameter):
             pass
         else:

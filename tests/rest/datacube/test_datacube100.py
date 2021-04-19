@@ -166,9 +166,9 @@ def test_mask_polygon(con100: Connection):
         "arguments": {
             "data": {"from_node": "loadcollection1"},
             'mask': {
+                'type': 'Polygon',
                 'coordinates': (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),),
-                'crs': {'properties': {'name': 'EPSG:4326'}, 'type': 'name'},
-                'type': 'Polygon'}
+            }
         },
         "result": True
     }
