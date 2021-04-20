@@ -9,21 +9,13 @@ bbox = {"west": 4.996033, "south": 51.258922, "east": 5.091603, "north": 51.2826
 connection.authenticate_basic()
 
 
-sentinel2_data_cube = connection.imagecollection(
-    "TERRASCOPE_S2_TOC_V2",
-    bands=[ "TOC-B04_10M", "TOC-B08_10M"]
-)
+sentinel2_data_cube = connection.load_collection("TERRASCOPE_S2_TOC_V2", bands=["B04", "B08"])
 sentinel2_data_cube = sentinel2_data_cube.filter_bbox(**bbox)
 
 ndvi = sentinel2_data_cube.ndvi()
 
-
-scl = connection.imagecollection(
-    "TERRASCOPE_S2_TOC_V2",
-    bands=["SCENECLASSIFICATION_20M"]
-).filter_bbox(**bbox)
-
-classification = scl.band("SCENECLASSIFICATION_20M")
+scl = connection.load_collection("TERRASCOPE_S2_TOC_V2", bands=["SCL"]).filter_bbox(**bbox)
+classification = scl.band("SCL")
 
 
 #in openEO, 1 means mask (remove pixel) 0 means keep pixel

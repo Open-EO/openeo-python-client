@@ -6,8 +6,8 @@ def apply_datacube(cube: XarrayDataCube, context: dict) -> XarrayDataCube:
     inarr=cube.get_array()
 
     # ndvi
-    B4=inarr.loc[:,'TOC-B04_10M']
-    B8=inarr.loc[:,'TOC-B08_10M']
+    B4=inarr.loc[:,'B04']
+    B8=inarr.loc[:,'B08']
     ndvi=(B8-B4)/(B8+B4)
     
     # extend bands dim

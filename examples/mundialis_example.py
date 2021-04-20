@@ -32,7 +32,7 @@ print(cap.list_plans())
 
 # Test Processes
 # North Carolina MODIS LST example (TODO: change to con.load_collection() )
-datacube = con.imagecollection("utm32n.openeo_bolzano.strds.openeo_bolzano_S2")
+datacube = con.load_collection("utm32n.openeo_bolzano.strds.openeo_bolzano_S2")
 datacube = datacube.filter_bbox(west=11.279182, south=46.464349, east=11.406898, north=46.522729, crs="4326")
 datacube = datacube.filter_temporal(extent=["2018-05-01T00:00:00Z", "2018-10-10T23:59:59Z"])
 datacube = datacube.ndvi()
