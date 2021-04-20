@@ -1,3 +1,4 @@
+import logging
 import re
 import typing
 import unittest.mock as mock
@@ -457,7 +458,7 @@ def test_authenticate_oidc_authorization_code_040(requests_mock):
 
 
 @pytest.mark.slow
-def test_authenticate_oidc_authorization_code_100_single_implicit(requests_mock):
+def test_authenticate_oidc_authorization_code_100_single_implicit(requests_mock, caplog):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
     requests_mock.get(API_URL + 'credentials/oidc', json={
@@ -473,11 +474,13 @@ def test_authenticate_oidc_authorization_code_100_single_implicit(requests_mock)
     )
 
     # With all this set up, kick off the openid connect flow
+    caplog.set_level(logging.INFO)
     conn = Connection(API_URL)
     assert isinstance(conn.auth, NullAuth)
     conn.authenticate_oidc_authorization_code(client_id=client_id, webbrowser_open=oidc_mock.webbrowser_open)
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/fauth/' + oidc_mock.state["access_token"]
+    assert "No OIDC provider given, but only one available: 'fauth'. Using that one." in caplog.text
 
 
 def test_authenticate_oidc_authorization_code_100_single_wrong_id(requests_mock):
@@ -496,7 +499,7 @@ def test_authenticate_oidc_authorization_code_100_single_wrong_id(requests_mock)
         )
 
 
-def test_authenticate_oidc_authorization_code_100_multiple_no_id(requests_mock):
+def test_authenticate_oidc_authorization_code_100_multiple_no_given_id(requests_mock, caplog):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
     requests_mock.get(API_URL + 'credentials/oidc', json={
@@ -505,13 +508,23 @@ def test_authenticate_oidc_authorization_code_100_multiple_no_id(requests_mock):
             {"id": "bauth", "issuer": "https://bauth.test", "title": "Bar Auth", "scopes": ["openid", "w"]},
         ]
     })
+    oidc_mock = OidcMock(
+        requests_mock=requests_mock,
+        expected_grant_type="authorization_code",
+        expected_client_id=client_id,
+        expected_fields={"scope": "openid w"},
+        oidc_discovery_url="https://fauth.test/.well-known/openid-configuration",
+        scopes_supported=["openid", "w"],
+    )
 
     # With all this set up, kick off the openid connect flow
+    caplog.set_level(logging.INFO)
     conn = Connection(API_URL)
     assert isinstance(conn.auth, NullAuth)
-    match = r"No OIDC provider id given. Pick one from: \[('fauth', 'bauth'|'bauth', 'fauth')\]\."
-    with pytest.raises(OpenEoClientException, match=match):
-        conn.authenticate_oidc_authorization_code(client_id=client_id, webbrowser_open=pytest.fail)
+    conn.authenticate_oidc_authorization_code(client_id=client_id, webbrowser_open=oidc_mock.webbrowser_open)
+    assert isinstance(conn.auth, BearerAuth)
+    assert conn.auth.bearer == 'oidc/fauth/' + oidc_mock.state["access_token"]
+    assert "No OIDC provider given. Using first provider 'fauth' as advertised by backend." in caplog.text
 
 
 def test_authenticate_oidc_authorization_code_100_multiple_wrong_id(requests_mock):
@@ -829,7 +842,7 @@ def test_authenticate_oidc_device_flow(requests_mock, store_refresh_token, scope
 
 
 @pytest.mark.slow
-def test_authenticate_oidc_device_flow_client_from_config(requests_mock, auth_config):
+def test_authenticate_oidc_device_flow_client_from_config(requests_mock, auth_config, caplog):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
     client_secret = "$3cr3t"
@@ -853,6 +866,7 @@ def test_authenticate_oidc_device_flow_client_from_config(requests_mock, auth_co
     )
 
     # With all this set up, kick off the openid connect flow
+    caplog.set_level(logging.INFO)
     refresh_token_store = mock.Mock()
     conn = Connection(API_URL, refresh_token_store=refresh_token_store)
     assert isinstance(conn.auth, NullAuth)
@@ -861,6 +875,8 @@ def test_authenticate_oidc_device_flow_client_from_config(requests_mock, auth_co
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
     assert refresh_token_store.mock_calls == []
+    assert "No OIDC provider given, but only one available: 'oi'. Using that one." in caplog.text
+    assert "Using client_id 'myclient' from config (provider 'oi')" in caplog.text
 
 
 @pytest.mark.slow
@@ -893,9 +909,9 @@ def test_authenticate_oidc_device_flow_no_support(requests_mock, auth_config):
     with pytest.raises(OidcException, match="No support for device code flow"):
         conn.authenticate_oidc_device()
 
-
-def test_authenticate_oidc_device_flow_multiple_providers_no_given(requests_mock, auth_config):
-    """OIDC device flow with multiple OIDC providers and none specified to use."""
+@pytest.mark.slow
+def test_authenticate_oidc_device_flow_multiple_providers_no_given(requests_mock, auth_config, caplog):
+    """OIDC device flow + PKCE with multiple OIDC providers and none specified to use."""
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
     requests_mock.get(API_URL + 'credentials/oidc', json={
@@ -904,18 +920,33 @@ def test_authenticate_oidc_device_flow_multiple_providers_no_given(requests_mock
             {"id": "bauth", "issuer": "https://bauth.test", "title": "Bar Auth", "scopes": ["openid", "w"]},
         ]
     })
+    oidc_mock = OidcMock(
+        requests_mock=requests_mock,
+        expected_grant_type="urn:ietf:params:oauth:grant-type:device_code",
+        expected_client_id=client_id,
+        expected_fields={
+            "scope": "openid w", "code_verifier": True, "code_challenge": True
+        },
+        scopes_supported=["openid", "w"],
+        oidc_discovery_url="https://fauth.test/.well-known/openid-configuration",
+    )
     assert auth_config.load() == {}
 
     # With all this set up, kick off the openid connect flow
-    conn = Connection(API_URL)
+    caplog.set_level(logging.INFO)
+    refresh_token_store = mock.Mock()
+    conn = Connection(API_URL, refresh_token_store=refresh_token_store)
     assert isinstance(conn.auth, NullAuth)
-    match = r"No OIDC provider id given. Pick one from: \[('fauth', 'bauth'|'bauth', 'fauth')\]\."
-    with pytest.raises(OpenEoClientException, match=match):
-        conn.authenticate_oidc_device(client_id=client_id)
+    oidc_mock.state["device_code_callback_timeline"] = ["great success"]
+    conn.authenticate_oidc_device(client_id=client_id)
+    assert isinstance(conn.auth, BearerAuth)
+    assert conn.auth.bearer == 'oidc/fauth/' + oidc_mock.state["access_token"]
+    assert refresh_token_store.mock_calls == []
+    assert "No OIDC provider given. Using first provider 'fauth' as advertised by backend." in caplog.text
 
 
 @pytest.mark.slow
-def test_authenticate_oidc_device_flow_multiple_provider_one_config_no_given(requests_mock, auth_config):
+def test_authenticate_oidc_device_flow_multiple_provider_one_config_no_given(requests_mock, auth_config, caplog):
     """OIDC device flow + PKCE with multiple OIDC providers, one in config and none specified to use."""
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
@@ -939,6 +970,7 @@ def test_authenticate_oidc_device_flow_multiple_provider_one_config_no_given(req
     auth_config.set_oidc_client_config(backend=API_URL, provider_id="fauth", client_id=client_id)
 
     # With all this set up, kick off the openid connect flow
+    caplog.set_level(logging.INFO)
     refresh_token_store = mock.Mock()
     conn = Connection(API_URL, refresh_token_store=refresh_token_store)
     assert isinstance(conn.auth, NullAuth)
@@ -947,6 +979,8 @@ def test_authenticate_oidc_device_flow_multiple_provider_one_config_no_given(req
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/fauth/' + oidc_mock.state["access_token"]
     assert refresh_token_store.mock_calls == []
+    assert "No OIDC provider given, but only one in config (for backend 'https://oeo.test/'): 'fauth'. Using that one." in caplog.text
+    assert "Using client_id 'myclient' from config (provider 'fauth')" in caplog.text
 
 
 @pytest.mark.slow

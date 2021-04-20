@@ -5,6 +5,7 @@ import datetime
 import logging
 import sys
 import warnings
+from collections import OrderedDict
 from pathlib import Path
 from typing import Dict, List, Tuple, Union, Callable, Optional, Any, Iterator
 from urllib.parse import urljoin
@@ -293,7 +294,7 @@ class Connection(RestApiConnection):
         """
         if self._api_version.at_least("1.0.0"):
             oidc_info = self.get("/credentials/oidc", expected_status=200).json()
-            providers = {p["id"]: p for p in oidc_info["providers"]}
+            providers = OrderedDict((p["id"], p) for p in oidc_info["providers"])
             _log.info("Found OIDC providers: {p}".format(p=list(providers.keys())))
             if provider_id:
                 if provider_id not in providers:
@@ -305,7 +306,7 @@ class Connection(RestApiConnection):
                 provider = providers[provider_id]
             elif len(providers) == 1:
                 provider_id, provider = providers.popitem()
-                _log.info("No OIDC provider given, but only one available: {p!r}. Use that one.".format(
+                _log.info("No OIDC provider given, but only one available: {p!r}. Using that one.".format(
                     p=provider_id
                 ))
             else:
@@ -317,13 +318,14 @@ class Connection(RestApiConnection):
                     provider_id = intersection.pop()
                     provider = providers[provider_id]
                     _log.info(
-                        "No OIDC provider id given, but only one in config (backend {b!r}): {p!r}."
-                        " Use that one.".format(b=backend, p=provider_id)
+                        "No OIDC provider given, but only one in config (for backend {b!r}): {p!r}."
+                        " Using that one.".format(b=backend, p=provider_id)
                     )
                 else:
-                    raise OpenEoClientException("No OIDC provider id given. Pick one from: {p!r}.".format(
-                        p=list(providers.keys()))
-                    )
+                    provider_id, provider = providers.popitem(last=False)
+                    _log.info("No OIDC provider given. Using first provider {p!r} as advertised by backend.".format(
+                        p=provider_id
+                    ))
             provider = OidcProviderInfo.from_dict(provider)
         else:
             # Per spec: '/credentials/oidc' will redirect to  OpenID Connect discovery document
