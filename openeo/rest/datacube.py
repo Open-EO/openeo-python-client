@@ -161,6 +161,7 @@ class DataCube(ImageCollection):
             temporal_extent = cls._get_temporal_extent(extent=temporal_extent)
         arguments = {
             'id': collection_id,
+            # TODO: spatial_extent could also be a "geojson" subtype object, so we might want to allow (and convert) shapely shapes as well here.
             'spatial_extent': spatial_extent,
             'temporal_extent': temporal_extent,
         }
@@ -634,10 +635,45 @@ class DataCube(ImageCollection):
             }
         ))
 
+    def _get_geometry_argument(
+            self,
+            geometry: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter],
+            valid_geojson_types: List[str],
+            crs: str = None,
+    ) -> Union[dict, Parameter, PGNode]:
+        """
+        Convert input to a geometry as "geojson" subtype object.
+        """
+        if isinstance(geometry, (str, pathlib.Path)):
+            # Assumption: `geometry` is path to polygon is a path to vector file at backend.
+            # TODO #104: `read_vector` is non-standard process.
+            # TODO: If path exists client side: load it client side?
+            return PGNode(process_id="read_vector", arguments={"filename": str(geometry)})
+        elif isinstance(geometry, Parameter):
+            return geometry
+
+        if isinstance(geometry, shapely.geometry.base.BaseGeometry):
+            geometry = mapping(geometry)
+        if not isinstance(geometry, dict):
+            raise OpenEoClientException("Invalid geometry argument: {g!r}".format(g=geometry))
+
+        if geometry.get("type") not in valid_geojson_types:
+            raise OpenEoClientException("Invalid geometry type {t!r}, must be one of {s}".format(
+                t=geometry.get("type"), s=valid_geojson_types
+            ))
+        if crs:
+            # TODO: don't warn when the crs is Lon-Lat like EPSG:4326?
+            warnings.warn("Geometry with non-Lon-Lat CRS {c!r} is only supported by specific back-ends.".format(c=crs))
+            # TODO #204 alternative for non-standard CRS in GeoJSON object?
+            geometry["crs"] = {"type": "name", "properties": {"name": crs}}
+        return geometry
+
     def aggregate_spatial(
             self,
             geometries: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter],
-            reducer: Union[str, PGNode, typing.Callable]
+            reducer: Union[str, PGNode, typing.Callable],
+            crs: str = None,
+            # TODO arguments: target dimension, context
     ) -> 'DataCube':
         """
         Aggregates statistics for one or more geometries (e.g. zonal statistics for polygons)
@@ -645,24 +681,17 @@ class DataCube(ImageCollection):
 
         :param geometries: shapely geometry, GeoJSON dictionary or path to GeoJSON file
         :param reducer: a callback function that creates a process graph, see :ref:`callbackfunctions`
-        :return:
+        :param crs: The spatial reference system of the provided polygon.
+            By default longitude-latitude (EPSG:4326) is assumed.
+
+            .. note:: this ``crs`` argument is a non-standard/experimental feature, only supported by specific back-ends.
+                See https://github.com/Open-EO/openeo-processes/issues/235 for details.
         """
-        # TODO #125 arguments: target dimension, context
-        if isinstance(geometries, (str, pathlib.Path)):
-            # polygon is a path to vector file
-            # TODO this is non-standard process: check capabilities? #104 #40. Load polygon client side otherwise
-            geometries = PGNode(process_id="read_vector", arguments={"filename": str(geometries)})
-        elif isinstance(geometries, shapely.geometry.base.BaseGeometry):
-            geometries = mapping(geometries)
-        elif isinstance(geometries, dict) and geometries["type"] in (
-                # TODO: support more geometry types?
-                "Polygon", "MultiPolygon", "GeometryCollection", 'FeatureCollection'
-        ):
-            pass
-        elif isinstance(geometries, Parameter):
-            pass
-        else:
-            raise OpenEoClientException("Invalid `geometries`: {g!r}".format(g=geometries))
+        valid_geojson_types = [
+            "Point", "MultiPoint", "LineString", "MultiLineString",
+            "Polygon", "MultiPolygon", "GeometryCollection", "FeatureCollection"
+        ]
+        geometries = self._get_geometry_argument(geometries, valid_geojson_types=valid_geojson_types, crs=crs)
         reducer = self._get_callback(reducer, parent_parameters=["data"])
         return self.process(process_id="aggregate_spatial", data=THIS, geometries=geometries, reducer=reducer)
 
@@ -1111,8 +1140,10 @@ class DataCube(ImageCollection):
         )
 
     def mask_polygon(
-            self, mask: Union[Polygon, MultiPolygon, str, pathlib.Path] = None,
-            srs="EPSG:4326", replacement=None, inside: bool = None
+            self,
+            mask: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter],
+            srs: str = None,
+            replacement=None, inside: bool = None
     ) -> 'DataCube':
         """
         Applies a polygon mask to a raster data cube. To apply a raster mask use `mask`.
@@ -1125,31 +1156,15 @@ class DataCube(ImageCollection):
         which defaults to `no data`.
 
         :param mask: A polygon, provided as a :class:`shapely.geometry.Polygon` or :class:`shapely.geometry.MultiPolygon`, or a filename pointing to a valid vector file
-        :param srs: The reference system of the provided polygon, by default this is Lat Lon (EPSG:4326).
+        :param srs: The spatial reference system of the provided polygon.
+            By default longitude-latitude (EPSG:4326) is assumed.
+
+            .. note:: this ``srs`` argument is a non-standard/experimental feature, only supported by specific back-ends.
+                See https://github.com/Open-EO/openeo-processes/issues/235 for details.
         :param replacement: the value to replace the masked pixels with
         """
-        if isinstance(mask, (str, pathlib.Path)):
-            # TODO: default to loading file client side?
-            # TODO: change read_vector to load_uploaded_files https://github.com/Open-EO/openeo-processes/pull/106
-            read_vector = self.process(
-                process_id='read_vector',
-                arguments={'filename': str(mask)}
-            )
-            mask = {'from_node': read_vector._pg}
-        elif isinstance(mask, shapely.geometry.base.BaseGeometry):
-            if mask.area == 0:
-                raise ValueError("Mask {m!s} has an area of {a!r}".format(m=mask, a=mask.area))
-            mask = shapely.geometry.mapping(mask)
-            mask['crs'] = {
-                'type': 'name',
-                'properties': {'name': srs}
-            }
-        elif isinstance(mask, Parameter):
-            pass
-        else:
-            # Assume mask is already a valid GeoJSON object
-            assert "type" in mask
-
+        valid_geojson_types = ["Polygon", "MultiPolygon", "GeometryCollection", "Feature", "FeatureCollection"]
+        mask = self._get_geometry_argument(mask, valid_geojson_types=valid_geojson_types, crs=srs)
         return self.process(
             process_id="mask_polygon",
             arguments=dict_no_none(

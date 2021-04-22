@@ -763,7 +763,7 @@ class ImageCollectionClient(ImageCollection):
         }
         return self.graph_add_process(process_id, args)
 
-    def mask(self, polygon: Union[Polygon, MultiPolygon,str]=None, srs="EPSG:4326", rastermask: 'ImageCollection'=None,
+    def mask(self, polygon: Union[Polygon, MultiPolygon,str]=None, srs=None, rastermask: 'ImageCollection'=None,
              replacement=None) -> 'ImageCollection':
         """
         Mask the image collection using either a polygon or a raster mask.
@@ -805,12 +805,8 @@ class ImageCollectionClient(ImageCollection):
                     raise ValueError("Mask {m!s} has an area of {a!r}".format(m=polygon, a=polygon.area))
 
                 geojson = mapping(polygon)
-                geojson['crs'] = {
-                    'type': 'name',
-                    'properties': {
-                        'name': srs
-                    }
-                }
+                if srs:
+                    geojson['crs'] = {'type': 'name', 'properties': {'name': srs}}
                 mask = geojson
                 new_collection = self
         elif rastermask is not None:
