@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Allow, but raise warning when specifying a CRS for the geometry passed to `aggregate_spatial` and `mask_polygon`,
   which is non-standard/experimental feature, only supported by specific back-ends 
   ([#204](https://github.com/Open-EO/openeo-python-client/issues/204))
+- Add `optional` argument to `Parameter` and fix re-encoding parameters with default value. (EP-3846)
 
 ### Changed
 
