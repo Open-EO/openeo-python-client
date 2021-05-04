@@ -8,6 +8,7 @@ COMPONENT_MAP = {
     'file-format': 'format',
     'file-formats': 'formats',
     'item': 'data',
+    'job-estimate': 'estimate',
     'service-type': 'service',
     'service-types': 'services',
     'udf-runtime': 'runtime',

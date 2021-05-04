@@ -722,7 +722,8 @@ class Connection(RestApiConnection):
         """
         Lists all user-defined processes of the authenticated user.
         """
-        return self.get("/process_graphs").json()["processes"]
+        data = self.get("/process_graphs").json()["processes"]
+        return VisualList("processes", data = data)
 
     def user_defined_process(self, user_defined_process_id: str) -> RESTUserDefinedProcess:
         """

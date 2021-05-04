@@ -2,6 +2,7 @@ import datetime
 import logging
 import time
 import typing
+import json
 from pathlib import Path
 from typing import List, Union, Dict, Optional
 
@@ -10,7 +11,7 @@ from requests import ConnectionError, Response
 
 from openeo.rest import OpenEoClientException, JobFailedException, OpenEoApiError
 from openeo.util import ensure_dir
-from openeo.internal.jupyter import render_component, render_error
+from openeo.internal.jupyter import render_component, render_error, VisualList, VisualDict
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Only import this for type hinting purposes. Runtime import causes circular dependency issues.
@@ -25,10 +26,19 @@ class JobLogEntry:
     A Job log entry.
     """
 
-    def __init__(self, log_id: str, level: str, message: str):
-        self.log_id = log_id
-        self.level = level
-        self.message = message
+    def __init__(self, entry):
+        self.log_id = entry['id']
+        self.code = entry['code'] if 'code' in entry else 0
+        self.level = entry['level']
+        self.message = entry['message']
+        self.time =  entry['time'] if 'time' in entry else None # todo: native date/time object?
+        self.path = entry['path'] if 'path' in entry else []
+        self.links = entry['links'] if 'links' in entry else []
+        if 'data' in entry:
+            self.data = entry['data']
+
+    def toJson(self):
+        return json.dumps(self, default = lambda o: o.__dict__) # doesn't work
 
 
 class RESTJob:
@@ -46,10 +56,15 @@ class RESTJob:
     def __repr__(self):
         return '<{c} job_id={i!r}>'.format(c=self.__class__.__name__, i=self.job_id)
 
+    def _repr_html_(self):
+        return self.describe_job()._repr_html_()
+
     def describe_job(self):
         """ Get all job information."""
         # GET /jobs/{job_id}
-        return self.connection.get("/jobs/{}".format(self.job_id), expected_status=200).json()
+        data = self.connection.get("/jobs/{}".format(self.job_id), expected_status=200).json()
+        currency = self.connection.capabilities().currency()
+        return VisualDict('job', data = data, parameters = {'currency': currency})
 
     def update_job(self, process_graph=None, output_format=None,
                    output_parameters=None, title=None, description=None,
@@ -66,7 +81,9 @@ class RESTJob:
     def estimate_job(self):
         """ Calculate an time/cost estimate for a job."""
         # GET /jobs/{job_id}/estimate
-        return self.connection.get("/jobs/{}/estimate".format(self.job_id), expected_status=200).json()
+        data = self.connection.get("/jobs/{}/estimate".format(self.job_id), expected_status=200).json()
+        currency = self.connection.capabilities().currency()
+        return VisualDict('job-estimate', data = data, parameters = {'currency': currency})
 
     def start_job(self):
         """ Start / queue a job for processing."""
@@ -127,7 +144,8 @@ class RESTJob:
         """ Retrieve job logs."""
         url = "/jobs/{}/logs".format(self.job_id)
         logs = self.connection.get(url, params={'offset': offset}, expected_status=200).json()["logs"]
-        return [JobLogEntry(log['id'], log['level'], log['message']) for log in logs]
+        entries = [JobLogEntry(log) for log in logs]
+        return VisualList('logs', data = entries)
 
     def run_synchronous(self, outputfile: Union[str, Path, None] = None,
                         print=print, max_poll_interval=60, connection_retry_interval=30) -> 'RESTJob':

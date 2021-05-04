@@ -7,6 +7,7 @@ from openeo.api.process import Parameter
 from openeo.internal.graph_building import as_flat_graph
 from openeo.internal.processes.builder import ProcessBuilderBase
 from openeo.util import dict_no_none
+from openeo.internal.jupyter import VisualDict
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Only import this for type hinting purposes. Runtime import causes circular dependency issues.
@@ -53,6 +54,9 @@ class RESTUserDefinedProcess:
         self.user_defined_process_id = user_defined_process_id
         self._connection = connection
 
+    def _repr_html_(self):
+        return self.describe()._repr_html_()
+
     def store(
             self, process_graph: Union[dict, ProcessBuilderBase], parameters: List[Union[Parameter, dict]] = None,
             public: bool = False, summary: str = None, description: str = None
@@ -80,7 +84,8 @@ class RESTUserDefinedProcess:
 
     def describe(self) -> dict:
         # TODO: parse the "parameters" to Parameter objects?
-        return self._connection.get(path="/process_graphs/{}".format(self.user_defined_process_id)).json()
+        data = self._connection.get(path="/process_graphs/{}".format(self.user_defined_process_id)).json()
+        return VisualDict('process', data = data)
 
     def delete(self) -> None:
         self._connection.delete(path="/process_graphs/{}".format(self.user_defined_process_id), expected_status=204)
