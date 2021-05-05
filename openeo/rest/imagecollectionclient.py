@@ -7,6 +7,7 @@ from typing import List, Dict, Union, Tuple
 
 from shapely.geometry import Polygon, MultiPolygon, mapping
 
+from openeo.service import Service
 from openeo.imagecollection import ImageCollection
 from openeo.internal.graphbuilder_040 import GraphBuilder
 from openeo.metadata import CollectionMetadata
@@ -980,7 +981,7 @@ class ImageCollectionClient(ImageCollection):
         newcollection.graph[newcollection.node_id]["result"] = True
         return self.session.download(newcollection.graph, outputfile)
 
-    def tiled_viewing_service(self, type: str, **kwargs) -> Dict:
+    def tiled_viewing_service(self, type: str, **kwargs) -> Service:
         self.graph[self.node_id]['result'] = True
         return self.session.create_service(self.graph, type=type, **kwargs)
 

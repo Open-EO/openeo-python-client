@@ -25,6 +25,7 @@ from shapely.geometry import Polygon, MultiPolygon, mapping
 
 import openeo
 import openeo.processes
+from openeo.service import Service
 from openeo.api.process import Parameter
 from openeo.imagecollection import ImageCollection
 from openeo.internal.graph_building import PGNode, ReduceNode
@@ -1392,7 +1393,7 @@ class DataCube(ImageCollection):
         cube = self.save_result(format=format, options=options)
         return self._connection.download(cube.flat_graph(), outputfile)
 
-    def tiled_viewing_service(self, type: str, **kwargs) -> Dict:
+    def tiled_viewing_service(self, type: str, **kwargs) -> Service:
         return self._connection.create_service(self.flat_graph(), type=type, **kwargs)
 
     def execute_batch(

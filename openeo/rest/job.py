@@ -2,7 +2,6 @@ import datetime
 import logging
 import time
 import typing
-import json
 from pathlib import Path
 from typing import List, Union, Dict, Optional
 
@@ -12,6 +11,7 @@ from requests import ConnectionError, Response
 from openeo.rest import OpenEoClientException, JobFailedException, OpenEoApiError
 from openeo.util import ensure_dir
 from openeo.internal.jupyter import render_component, render_error, VisualList, VisualDict
+from openeo.api.logs import LogEntry
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Only import this for type hinting purposes. Runtime import causes circular dependency issues.
@@ -19,26 +19,6 @@ if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     from openeo.rest.connection import Connection
 
 logger = logging.getLogger(__name__)
-
-
-class JobLogEntry:
-    """
-    A Job log entry.
-    """
-
-    def __init__(self, entry):
-        self.log_id = entry['id']
-        self.code = entry.get("code", 0)
-        self.level = entry['level']
-        self.message = entry['message']
-        self.time =  entry.get("time", None) # todo: native date/time object?
-        self.path = entry.get("path", [])
-        self.links = entry.get("links", [])
-        if 'data' in entry:
-            self.data = entry['data']
-
-    def toJson(self):
-        return json.dumps(self, default = lambda o: o.__dict__) # doesn't work
 
 
 class RESTJob:
@@ -140,11 +120,11 @@ class RESTJob:
         """ Returns the status of the job."""
         return self.describe_job().get("status", "N/A")
 
-    def logs(self, offset=None) -> List[JobLogEntry]:
+    def logs(self, offset=None) -> List[LogEntry]:
         """ Retrieve job logs."""
         url = "/jobs/{}/logs".format(self.job_id)
         logs = self.connection.get(url, params={'offset': offset}, expected_status=200).json()["logs"]
-        entries = [JobLogEntry(log) for log in logs]
+        entries = [LogEntry(log) for log in logs]
         return VisualList('logs', data = entries)
 
     def run_synchronous(self, outputfile: Union[str, Path, None] = None,
