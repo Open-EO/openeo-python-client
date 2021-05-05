@@ -7,7 +7,7 @@ from deprecated import deprecated
 from shapely.geometry import Polygon, MultiPolygon
 
 from openeo.rest.job import RESTJob
-from openeo.service import Service
+from openeo.rest.service import Service
 from openeo.util import get_temporal_extent, first_not_none
 
 

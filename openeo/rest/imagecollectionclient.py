@@ -7,12 +7,12 @@ from typing import List, Dict, Union, Tuple
 
 from shapely.geometry import Polygon, MultiPolygon, mapping
 
-from openeo.service import Service
 from openeo.imagecollection import ImageCollection
 from openeo.internal.graphbuilder_040 import GraphBuilder
 from openeo.metadata import CollectionMetadata
 from openeo.rest import BandMathException
 from openeo.rest.job import RESTJob
+from openeo.rest.service import Service
 from openeo.util import get_temporal_extent, legacy_alias
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:

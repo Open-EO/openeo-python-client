@@ -6,7 +6,7 @@ class LogEntry:
     """
 
     def __init__(self, entry):
-        self.log_id = entry['id']
+        self.id = entry['id']
         self.code = entry.get("code", 0)
         self.level = entry['level']
         self.message = entry['message']
@@ -15,6 +15,3 @@ class LogEntry:
         self.links = entry.get("links", [])
         if 'data' in entry:
             self.data = entry['data']
-
-    def toJson(self):
-        return json.dumps(self, default = lambda o: o.__dict__) # doesn't work

@@ -1,9 +1,8 @@
-from abc import ABC
 from typing import List
 from openeo.internal.jupyter import VisualDict, VisualList
 from openeo.api.logs import LogEntry
 
-class Service(ABC):
+class Service:
     """Represents a secondary web service in openeo."""
 
     def __init__(self, service_id: str, connection: 'Connection'):
@@ -25,8 +24,7 @@ class Service(ABC):
         currency = self.connection.capabilities().currency()
         return VisualDict('service', data = data, parameters = {'currency': currency})
 
-    def update_service(self, process_graph=None, title=None, description=None,
-                       enabled=None, parameters=None, plan=None, budget=None):
+    def update_service(self, process_graph=None, title=None, description=None, enabled=None, configuration=None, plan=None, budget=None, additional=None):
         """ Update a secondary web service."""
         # PATCH /services/{service_id}
         raise NotImplementedError

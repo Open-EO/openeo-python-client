@@ -17,7 +17,7 @@ from openeo.capabilities import ComparableVersion
 from openeo.rest import BandMathException
 from openeo.rest.datacube import DataCube
 from openeo.rest.imagecollectionclient import ImageCollectionClient
-from openeo.service import Service
+from openeo.rest.service import Service
 from .. import get_download_graph
 from ..conftest import reset_graphbuilder
 from .conftest import API_URL

@@ -25,7 +25,6 @@ from shapely.geometry import Polygon, MultiPolygon, mapping
 
 import openeo
 import openeo.processes
-from openeo.service import Service
 from openeo.api.process import Parameter
 from openeo.imagecollection import ImageCollection
 from openeo.internal.graph_building import PGNode, ReduceNode
@@ -33,6 +32,7 @@ from openeo.metadata import CollectionMetadata, Band, BandDimension
 from openeo.processes import ProcessBuilder
 from openeo.rest import BandMathException, OperatorException, OpenEoClientException
 from openeo.rest.job import RESTJob
+from openeo.rest.service import Service
 from openeo.rest.udp import RESTUserDefinedProcess
 from openeo.rest.vectorcube import VectorCube
 from openeo.util import get_temporal_extent, dict_no_none, legacy_alias, rfc3339
