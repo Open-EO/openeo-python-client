@@ -28,12 +28,12 @@ class JobLogEntry:
 
     def __init__(self, entry):
         self.log_id = entry['id']
-        self.code = entry['code'] if 'code' in entry else 0
+        self.code = entry.get("code", 0)
         self.level = entry['level']
         self.message = entry['message']
-        self.time =  entry['time'] if 'time' in entry else None # todo: native date/time object?
-        self.path = entry['path'] if 'path' in entry else []
-        self.links = entry['links'] if 'links' in entry else []
+        self.time =  entry.get("time", None) # todo: native date/time object?
+        self.path = entry.get("path", [])
+        self.links = entry.get("links", [])
         if 'data' in entry:
             self.data = entry['data']
 
