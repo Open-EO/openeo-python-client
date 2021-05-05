@@ -17,6 +17,7 @@ from openeo.capabilities import ComparableVersion
 from openeo.rest import BandMathException
 from openeo.rest.datacube import DataCube
 from openeo.rest.imagecollectionclient import ImageCollectionClient
+from openeo.rest.service import Service
 from .. import get_download_graph
 from ..conftest import reset_graphbuilder
 from .conftest import API_URL
@@ -411,7 +412,7 @@ def test_tiled_viewing_service(s2cube, connection, requests_mock, api_version):
     )
 
     res = s2cube.tiled_viewing_service(type="WMTS", title="S2 Foo", description="Nice!", custom_param=45)
-    assert res == {"url": API_URL + "/services/sf00", 'service_id': 'sf00'}
+    assert res.service_id == Service('sf00', connection).service_id
 
 
 def test_apply_dimension(connection, requests_mock):

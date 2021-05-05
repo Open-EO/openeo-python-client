@@ -12,6 +12,7 @@ from openeo.internal.graphbuilder_040 import GraphBuilder
 from openeo.metadata import CollectionMetadata
 from openeo.rest import BandMathException
 from openeo.rest.job import RESTJob
+from openeo.rest.service import Service
 from openeo.util import get_temporal_extent, legacy_alias
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
@@ -980,7 +981,7 @@ class ImageCollectionClient(ImageCollection):
         newcollection.graph[newcollection.node_id]["result"] = True
         return self.session.download(newcollection.graph, outputfile)
 
-    def tiled_viewing_service(self, type: str, **kwargs) -> Dict:
+    def tiled_viewing_service(self, type: str, **kwargs) -> Service:
         self.graph[self.node_id]['result'] = True
         return self.session.create_service(self.graph, type=type, **kwargs)
 
