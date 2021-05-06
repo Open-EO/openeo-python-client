@@ -37,14 +37,14 @@ class RESTJob:
         return '<{c} job_id={i!r}>'.format(c=self.__class__.__name__, i=self.job_id)
 
     def _repr_html_(self):
-        return self.describe_job()._repr_html_()
+        data = self.describe_job()
+        currency = self.connection.capabilities().currency()
+        return render_component('job', data = data, parameters = {'currency': currency})
 
     def describe_job(self):
         """ Get all job information."""
         # GET /jobs/{job_id}
-        data = self.connection.get("/jobs/{}".format(self.job_id), expected_status=200).json()
-        currency = self.connection.capabilities().currency()
-        return VisualDict('job', data = data, parameters = {'currency': currency})
+        return self.connection.get("/jobs/{}".format(self.job_id), expected_status=200).json()
 
     def update_job(self, process_graph=None, output_format=None,
                    output_parameters=None, title=None, description=None,

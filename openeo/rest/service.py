@@ -15,14 +15,14 @@ class Service:
         return '<{c} service_id={i!r}>'.format(c=self.__class__.__name__, i=self.service_id)
 
     def _repr_html_(self):
-        return self.describe_service()._repr_html_()
+        data = self.describe_service()
+        currency = self.connection.capabilities().currency()
+        return VisualDict('service', data = data, parameters = {'currency': currency})
 
     def describe_service(self):
         """ Get all information about a secondary web service."""
         # GET /services/{service_id}
-        data = self.connection.get("/services/{}".format(self.service_id), expected_status=200).json()
-        currency = self.connection.capabilities().currency()
-        return VisualDict('service', data = data, parameters = {'currency': currency})
+        return self.connection.get("/services/{}".format(self.service_id), expected_status=200).json()
 
     def update_service(self, process_graph=None, title=None, description=None, enabled=None, configuration=None, plan=None, budget=None, additional=None):
         """ Update a secondary web service."""
