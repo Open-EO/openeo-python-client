@@ -229,6 +229,9 @@ class Connection(RestApiConnection):
         self._auth_config = auth_config
         self._refresh_token_store = refresh_token_store
 
+    def _repr_html_(self):
+        return self.capabilities()._repr_html_()
+
     @classmethod
     def version_discovery(cls, url: str, session: requests.Session = None) -> str:
         """
