@@ -68,11 +68,22 @@ class DataCube(ImageCollection):
 
     @property
     def graph(self) -> dict:
-        """Get the process graph in flat dict representation"""
+        """
+        Get the process graph in flat dict representation.
+
+        .. note:: This property is mainly for internal use, subject to change and not recommended for general usage.
+        """
+        # TODO: is it feasible to just remove this property?
         return self.flat_graph()
 
     def flat_graph(self) -> dict:
-        """Get the process graph in flat dict representation"""
+        """
+        Get the process graph in flat dict representation
+
+        .. note:: This method is mainly for internal use, subject to change and not recommended for general usage.
+            Instead, use :py:meth:`DataCube.to_json()` to get a JSON representation of the process graph.
+        """
+        # TODO: wrap in {"process_graph":...} by default/optionally?
         return self._pg.flat_graph()
 
     flatten = legacy_alias(flat_graph, name="flatten")
