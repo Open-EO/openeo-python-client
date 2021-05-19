@@ -9,21 +9,13 @@ bbox = {"west": 4.996033, "south": 51.258922, "east": 5.091603, "north": 51.2826
 connection.authenticate_basic()
 
 
-sentinel2_data_cube = connection.imagecollection(
-    "TERRASCOPE_S2_TOC_V2",
-    bands=[ "TOC-B04_10M", "TOC-B08_10M"]
-)
+sentinel2_data_cube = connection.load_collection("TERRASCOPE_S2_TOC_V2", bands=["B04", "B08"])
 sentinel2_data_cube = sentinel2_data_cube.filter_bbox(**bbox)
 
 ndvi = sentinel2_data_cube.ndvi()
 
-
-scl = connection.imagecollection(
-    "TERRASCOPE_S2_TOC_V2",
-    bands=["SCENECLASSIFICATION_20M"]
-).filter_bbox(**bbox)
-
-classification = scl.band("SCENECLASSIFICATION_20M")
+scl = connection.load_collection("TERRASCOPE_S2_TOC_V2", bands=["SCL"]).filter_bbox(**bbox)
+classification = scl.band("SCL")
 
 
 #in openEO, 1 means mask (remove pixel) 0 means keep pixel
@@ -104,7 +96,7 @@ def test_debug_udf_direct_invoke():
     https://open-eo.github.io/openeo-python-client/udf.html#example-downloading-a-datacube-and-executing-an-udf-locally
     depends on composite.nc file created in earlier function!
     """
-    from openeo.rest.conversions import datacube_from_file
-    udf_cube = datacube_from_file('masked.nc', fmt='netcdf')
+    from openeo.udf import XarrayDataCube
+    udf_cube = XarrayDataCube.from_file('masked.nc', fmt='netcdf')
 
     apply_datacube(udf_cube,context={})

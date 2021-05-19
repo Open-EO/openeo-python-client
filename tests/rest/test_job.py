@@ -401,3 +401,32 @@ def test_result_asset_load_bytes(con100, requests_mock):
     res = asset.load_bytes()
 
     assert res == TIFF_CONTENT
+
+
+def test_get_results_download_file_other_domain(con100, requests_mock, tmp_path):
+    """https://github.com/Open-EO/openeo-python-client/issues/201"""
+    secret = "!secret token!"
+    requests_mock.get(API_URL + '/credentials/basic', json={"access_token": secret})
+
+    def get_results(request, context):
+        assert "auth" in repr(request.headers).lower()
+        assert secret in repr(request.headers)
+        return {"assets": {
+            "1.tiff": {"href": "https://evilcorp.test/dl/jjr1.tiff", "type": "image/tiff; application=geotiff"},
+        }}
+
+    def download_tiff(request, context):
+        assert "auth" not in repr(request.headers).lower()
+        assert secret not in repr(request.headers)
+        return TIFF_CONTENT
+
+    requests_mock.get(API_URL + "/jobs/jj1/results", json=get_results)
+    requests_mock.get("https://evilcorp.test/dl/jjr1.tiff", content=download_tiff)
+
+    con100.authenticate_basic("john", "j0hn")
+    job = RESTJob("jj1", connection=con100)
+    target = as_path(tmp_path / "result.tiff")
+    res = job.get_results().download_file(target)
+    assert res == target
+    with target.open("rb") as f:
+        assert f.read() == TIFF_CONTENT

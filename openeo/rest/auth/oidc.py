@@ -4,6 +4,7 @@ OpenID Connect related functionality and helpers.
 """
 
 import base64
+import enum
 import functools
 import hashlib
 import http.server
@@ -216,15 +217,23 @@ def jwt_decode(token: str) -> Tuple[dict, dict]:
     return _decode(header), _decode(payload)
 
 
+class DefaultOidcClientGrant(enum.Enum):
+    """
+    Enum with possible values for "grant_types" field of default OIDC clients provided by backend.
+    """
+    IMPLICIT = "implicit"
+    AUTH_CODE_PKCE = "authorization_code+pkce"
+    DEVICE_CODE_PKCE = "urn:ietf:params:oauth:grant-type:device_code+pkce"
+    REFRESH_TOKEN = "refresh_token"
+
+
 class OidcProviderInfo:
     """OpenID Connect Provider information, as provided by an openEO back-end (endpoint `/credentials/oidc`)"""
-
-    # TODO: The "default_client" feature is still experimental in openEO API. See Open-EO/openeo-api#366
 
     def __init__(
             self, issuer: str = None, discovery_url: str = None, scopes: List[str] = None,
             provider_id: str = None, title: str = None,
-            default_client: Union[dict, None] = None,
+            default_clients: Union[List[dict], None] = None,
     ):
         # TODO: id and title are required in the openEO API spec.
         self.id = provider_id
@@ -239,7 +248,7 @@ class OidcProviderInfo:
         # Minimal set of scopes to request
         self._supported_scopes = self.config.get("scopes_supported", ["openid"])
         self._scopes = {"openid"}.union(scopes or []).intersection(self._supported_scopes)
-        self.default_client = default_client
+        self.default_clients = default_clients
 
     @classmethod
     def from_dict(cls, data: dict) -> "OidcProviderInfo":
@@ -247,7 +256,7 @@ class OidcProviderInfo:
             provider_id=data["id"], title=data["title"],
             issuer=data["issuer"],
             scopes=data.get("scopes"),
-            default_client=data.get("default_client"),
+            default_clients=data.get("default_clients"),
         )
 
     def get_scopes_string(self, request_refresh_token: bool = False):
@@ -263,8 +272,13 @@ class OidcProviderInfo:
             scopes = scopes | {"offline_access"}
         return " ".join(sorted(scopes))
 
-    def get_default_client_id(self) -> Union[str, None]:
-        return self.default_client and self.default_client.get("id")
+    def get_default_client_id(self, grant_types: List[DefaultOidcClientGrant]) -> Union[str, None]:
+        """Get first default client supporting the given grant types"""
+        for client in self.default_clients or []:
+            client_id = client.get("id")
+            supported_grants = client.get("grant_types")
+            if client_id and supported_grants and all(g.value in supported_grants for g in grant_types):
+                return client_id
 
 
 class OidcClientInfo:

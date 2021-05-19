@@ -91,6 +91,9 @@ class ComparableVersion:
     def to_string(self):
         return str(self)
 
+    def __eq__(self, other: Union[str, 'ComparableVersion']):
+        return self._version == ComparableVersion(other)._version
+
     def __ge__(self, other: Union[str, 'ComparableVersion']):
         return self._version >= ComparableVersion(other)._version
 
@@ -102,6 +105,9 @@ class ComparableVersion:
 
     def __lt__(self, other: Union[str, 'ComparableVersion']):
         return self._version < ComparableVersion(other)._version
+
+    def equals(self, other: Union[str, 'ComparableVersion']):
+        return self == other
 
     # Right hand side referencing expressions.
     def at_least(self, other: Union[str, 'ComparableVersion']):

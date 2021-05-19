@@ -17,7 +17,8 @@ import requests_mock.request
 import openeo.rest.auth.oidc
 from openeo.rest.auth.oidc import QueuingRequestHandler, drain_queue, HttpServerThread, OidcAuthCodePkceAuthenticator, \
     OidcClientCredentialsAuthenticator, OidcResourceOwnerPasswordAuthenticator, OidcClientInfo, OidcProviderInfo, \
-    OidcDeviceAuthenticator, random_string, OidcRefreshTokenAuthenticator, PkceCode, OidcException
+    OidcDeviceAuthenticator, random_string, OidcRefreshTokenAuthenticator, PkceCode, OidcException, \
+    DefaultOidcClientGrant
 from openeo.util import dict_no_none
 
 
@@ -125,13 +126,28 @@ def test_provider_info_scopes(requests_mock):
 def test_provider_info_default_client_none(requests_mock):
     requests_mock.get("https://authit.test/.well-known/openid-configuration", json={})
     info = OidcProviderInfo(issuer="https://authit.test")
-    assert info.get_default_client_id() is None
+    assert info.get_default_client_id(grant_types=[]) is None
+    assert info.get_default_client_id(grant_types=[DefaultOidcClientGrant.DEVICE_CODE_PKCE]) is None
 
 
 def test_provider_info_default_client_available(requests_mock):
     requests_mock.get("https://authit.test/.well-known/openid-configuration", json={})
-    info = OidcProviderInfo(issuer="https://authit.test", default_client={"id": "jak4l0v3-45lsdfe3d"})
-    assert info.get_default_client_id() == "jak4l0v3-45lsdfe3d"
+    default_client = {
+        "id": "jak4l0v3-45lsdfe3d",
+        "grant_types": ["urn:ietf:params:oauth:grant-type:device_code+pkce", "refresh_token"]
+    }
+    info = OidcProviderInfo(issuer="https://authit.test", default_clients=[default_client])
+
+    assert info.get_default_client_id(grant_types=[]) == "jak4l0v3-45lsdfe3d"
+    assert info.get_default_client_id(grant_types=[DefaultOidcClientGrant.DEVICE_CODE_PKCE]) == "jak4l0v3-45lsdfe3d"
+    assert info.get_default_client_id(grant_types=[DefaultOidcClientGrant.REFRESH_TOKEN]) == "jak4l0v3-45lsdfe3d"
+    assert info.get_default_client_id(grant_types=[
+        DefaultOidcClientGrant.DEVICE_CODE_PKCE, DefaultOidcClientGrant.REFRESH_TOKEN
+    ]) == "jak4l0v3-45lsdfe3d"
+    assert info.get_default_client_id(grant_types=[DefaultOidcClientGrant.IMPLICIT]) is None
+    assert info.get_default_client_id(grant_types=[
+        DefaultOidcClientGrant.IMPLICIT, DefaultOidcClientGrant.REFRESH_TOKEN
+    ]) is None
 
 
 @pytest.mark.parametrize(

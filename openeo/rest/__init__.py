@@ -1,4 +1,7 @@
-class OpenEoClientException(Exception):
+from openeo import BaseOpenEoException
+
+
+class OpenEoClientException(BaseOpenEoException):
     """Base class for OpenEO client exceptions"""
     pass
 

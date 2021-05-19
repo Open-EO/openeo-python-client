@@ -10,7 +10,10 @@ class Parameter:
 
     _DEFAULT_UNDEFINED = object()
 
-    def __init__(self, name: str, description: str = None, schema: Union[dict, str] = None, default=_DEFAULT_UNDEFINED):
+    def __init__(
+            self, name: str, description: str = None, schema: Union[dict, str] = None,
+            default=_DEFAULT_UNDEFINED, optional=None
+    ):
         self.name = name
         if description is None:
             # Description is required in openEO API, we are a bit more permissive here.
@@ -19,10 +22,13 @@ class Parameter:
         self.description = description
         self.schema = {"type": schema} if isinstance(schema, str) else (schema or {})
         self.default = default
+        self.optional = optional
 
     def to_dict(self) -> dict:
         """Convert to dictionary for JSON-serialization."""
         d = {"name": self.name, "description": self.description, "schema": self.schema}
+        if self.optional is not None:
+            d["optional"] = self.optional
         if self.default is not self._DEFAULT_UNDEFINED:
             d["default"] = self.default
             d["optional"] = True

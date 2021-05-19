@@ -17,11 +17,10 @@ import warnings
 from builtins import staticmethod
 from typing import List, Dict, Union, Tuple, Optional
 
-import numpy
 import numpy as np
 import shapely.geometry
 import shapely.geometry.base
-from deprecated import deprecated
+from deprecated.sphinx import deprecated
 from shapely.geometry import Polygon, MultiPolygon, mapping
 
 import openeo
@@ -69,11 +68,22 @@ class DataCube(ImageCollection):
 
     @property
     def graph(self) -> dict:
-        """Get the process graph in flat dict representation"""
+        """
+        Get the process graph in flat dict representation.
+
+        .. note:: This property is mainly for internal use, subject to change and not recommended for general usage.
+        """
+        # TODO: is it feasible to just remove this property?
         return self.flat_graph()
 
     def flat_graph(self) -> dict:
-        """Get the process graph in flat dict representation"""
+        """
+        Get the process graph in flat dict representation
+
+        .. note:: This method is mainly for internal use, subject to change and not recommended for general usage.
+            Instead, use :py:meth:`DataCube.to_json()` to get a JSON representation of the process graph.
+        """
+        # TODO: wrap in {"process_graph":...} by default/optionally?
         return self._pg.flat_graph()
 
     flatten = legacy_alias(flat_graph, name="flatten")
@@ -162,6 +172,7 @@ class DataCube(ImageCollection):
             temporal_extent = cls._get_temporal_extent(extent=temporal_extent)
         arguments = {
             'id': collection_id,
+            # TODO: spatial_extent could also be a "geojson" subtype object, so we might want to allow (and convert) shapely shapes as well here.
             'spatial_extent': spatial_extent,
             'temporal_extent': temporal_extent,
         }
@@ -635,10 +646,45 @@ class DataCube(ImageCollection):
             }
         ))
 
+    def _get_geometry_argument(
+            self,
+            geometry: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter],
+            valid_geojson_types: List[str],
+            crs: str = None,
+    ) -> Union[dict, Parameter, PGNode]:
+        """
+        Convert input to a geometry as "geojson" subtype object.
+        """
+        if isinstance(geometry, (str, pathlib.Path)):
+            # Assumption: `geometry` is path to polygon is a path to vector file at backend.
+            # TODO #104: `read_vector` is non-standard process.
+            # TODO: If path exists client side: load it client side?
+            return PGNode(process_id="read_vector", arguments={"filename": str(geometry)})
+        elif isinstance(geometry, Parameter):
+            return geometry
+
+        if isinstance(geometry, shapely.geometry.base.BaseGeometry):
+            geometry = mapping(geometry)
+        if not isinstance(geometry, dict):
+            raise OpenEoClientException("Invalid geometry argument: {g!r}".format(g=geometry))
+
+        if geometry.get("type") not in valid_geojson_types:
+            raise OpenEoClientException("Invalid geometry type {t!r}, must be one of {s}".format(
+                t=geometry.get("type"), s=valid_geojson_types
+            ))
+        if crs:
+            # TODO: don't warn when the crs is Lon-Lat like EPSG:4326?
+            warnings.warn("Geometry with non-Lon-Lat CRS {c!r} is only supported by specific back-ends.".format(c=crs))
+            # TODO #204 alternative for non-standard CRS in GeoJSON object?
+            geometry["crs"] = {"type": "name", "properties": {"name": crs}}
+        return geometry
+
     def aggregate_spatial(
             self,
             geometries: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter],
-            reducer: Union[str, PGNode, typing.Callable]
+            reducer: Union[str, PGNode, typing.Callable],
+            crs: str = None,
+            # TODO arguments: target dimension, context
     ) -> 'DataCube':
         """
         Aggregates statistics for one or more geometries (e.g. zonal statistics for polygons)
@@ -646,28 +692,21 @@ class DataCube(ImageCollection):
 
         :param geometries: shapely geometry, GeoJSON dictionary or path to GeoJSON file
         :param reducer: a callback function that creates a process graph, see :ref:`callbackfunctions`
-        :return:
+        :param crs: The spatial reference system of the provided polygon.
+            By default longitude-latitude (EPSG:4326) is assumed.
+
+            .. note:: this ``crs`` argument is a non-standard/experimental feature, only supported by specific back-ends.
+                See https://github.com/Open-EO/openeo-processes/issues/235 for details.
         """
-        # TODO #125 arguments: target dimension, context
-        if isinstance(geometries, (str, pathlib.Path)):
-            # polygon is a path to vector file
-            # TODO this is non-standard process: check capabilities? #104 #40. Load polygon client side otherwise
-            geometries = PGNode(process_id="read_vector", arguments={"filename": str(geometries)})
-        elif isinstance(geometries, shapely.geometry.base.BaseGeometry):
-            geometries = mapping(geometries)
-        elif isinstance(geometries, dict) and geometries["type"] in (
-                # TODO: support more geometry types?
-                "Polygon", "MultiPolygon", "GeometryCollection", 'FeatureCollection'
-        ):
-            pass
-        elif isinstance(geometries, Parameter):
-            pass
-        else:
-            raise OpenEoClientException("Invalid `geometries`: {g!r}".format(g=geometries))
+        valid_geojson_types = [
+            "Point", "MultiPoint", "LineString", "MultiLineString",
+            "Polygon", "MultiPolygon", "GeometryCollection", "FeatureCollection"
+        ]
+        geometries = self._get_geometry_argument(geometries, valid_geojson_types=valid_geojson_types, crs=crs)
         reducer = self._get_callback(reducer, parent_parameters=["data"])
         return self.process(process_id="aggregate_spatial", data=THIS, geometries=geometries, reducer=reducer)
 
-    @deprecated(reason="use aggregate_spatial instead")
+    @deprecated(reason="use aggregate_spatial instead", version="0.4.6")
     def zonal_statistics(self, regions, func, scale=1000, interval="day") -> 'DataCube':
         """
         Calculates statistics for each zone specified in a file.
@@ -1112,8 +1151,10 @@ class DataCube(ImageCollection):
         )
 
     def mask_polygon(
-            self, mask: Union[Polygon, MultiPolygon, str, pathlib.Path] = None,
-            srs="EPSG:4326", replacement=None, inside: bool = None
+            self,
+            mask: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter],
+            srs: str = None,
+            replacement=None, inside: bool = None
     ) -> 'DataCube':
         """
         Applies a polygon mask to a raster data cube. To apply a raster mask use `mask`.
@@ -1126,31 +1167,15 @@ class DataCube(ImageCollection):
         which defaults to `no data`.
 
         :param mask: A polygon, provided as a :class:`shapely.geometry.Polygon` or :class:`shapely.geometry.MultiPolygon`, or a filename pointing to a valid vector file
-        :param srs: The reference system of the provided polygon, by default this is Lat Lon (EPSG:4326).
+        :param srs: The spatial reference system of the provided polygon.
+            By default longitude-latitude (EPSG:4326) is assumed.
+
+            .. note:: this ``srs`` argument is a non-standard/experimental feature, only supported by specific back-ends.
+                See https://github.com/Open-EO/openeo-processes/issues/235 for details.
         :param replacement: the value to replace the masked pixels with
         """
-        if isinstance(mask, (str, pathlib.Path)):
-            # TODO: default to loading file client side?
-            # TODO: change read_vector to load_uploaded_files https://github.com/Open-EO/openeo-processes/pull/106
-            read_vector = self.process(
-                process_id='read_vector',
-                arguments={'filename': str(mask)}
-            )
-            mask = {'from_node': read_vector._pg}
-        elif isinstance(mask, shapely.geometry.base.BaseGeometry):
-            if mask.area == 0:
-                raise ValueError("Mask {m!s} has an area of {a!r}".format(m=mask, a=mask.area))
-            mask = shapely.geometry.mapping(mask)
-            mask['crs'] = {
-                'type': 'name',
-                'properties': {'name': srs}
-            }
-        elif isinstance(mask, Parameter):
-            pass
-        else:
-            # Assume mask is already a valid GeoJSON object
-            assert "type" in mask
-
+        valid_geojson_types = ["Polygon", "MultiPolygon", "GeometryCollection", "Feature", "FeatureCollection"]
+        mask = self._get_geometry_argument(mask, valid_geojson_types=valid_geojson_types, crs=srs)
         return self.process(
             process_id="mask_polygon",
             arguments=dict_no_none(
@@ -1417,6 +1442,7 @@ class DataCube(ImageCollection):
         :param format_options: String Parameters for the job result format
         :return: status: Job resulting job.
         """
+        # TODO: add option to also automatically start the job?
         img = self
         if out_format:
             # add `save_result` node
@@ -1445,51 +1471,10 @@ class DataCube(ImageCollection):
         return self._connection.execute(self.flat_graph())
 
     @staticmethod
-    def execute_local_udf(udf: str, datacube: Union[str, 'xarray.DataArray', 'openeo_udf.api.datacube.DataCube'] =None , fmt='netcdf'):
-        """
-        Locally executes an user defined function on a previously downloaded datacube.
-        
-        :param udf: the code of the user defined function
-        :param datacube: the path to the downloaded data in disk or a DataCube
-        :param fmt: format of the file if datacube is string
-        :return: the resulting DataCube
-        """
-        from openeo_udf.api.udf_data import UdfData
-        from openeo_udf.api.run_code import run_user_code
-        from openeo_udf.api.datacube import DataCube as udf_DataCube
-        from xarray import DataArray
-        
-        udf_data=None
-        # if it is a datacube
-        if datacube is not None:
-            # get input
-            if isinstance(datacube, str):
-                from openeo.rest.conversions import datacube_from_file
-                d=datacube_from_file(datacube, fmt)
-            elif isinstance(datacube, udf_DataCube):
-                d=datacube
-            elif isinstance(datacube, DataArray):
-                d=udf_DataCube(datacube)
-            else:
-                raise TypeError("Data should be either file name to the Data or a DataCube, got "+str(datacube.__class__ if datacube is not None else 'None'))
-            # datacube's data is to be float and x,y not provided
-            d=udf_DataCube(d.get_array()
-                .astype(numpy.float64)
-                .drop(labels='x')
-                .drop(labels='y')
-            )
-            # wrap to udf_data
-            udf_data=UdfData(datacube_list=[d])
-            
-        # TODO: enrich to other types like time series, vector data,... probalby by adding  named arguments
-        # signature: UdfData(proj, datacube_list, feature_collection_list, structured_data_list, ml_model_list, metadata)
-        
-        # run the udf through the same routine as it would have been parsed in the backend
-        if udf_data is not None:
-            result=run_user_code(udf, udf_data)
-            return result
-        
-        return None
+    @deprecated(reason="Use :py:func:`openeo.udf.run_code.execute_local_udf` instead", version="0.7.0")
+    def execute_local_udf(udf: str, datacube: Union[str, 'xarray.DataArray', 'XarrayDataCube'] = None, fmt='netcdf'):
+        import openeo.udf.run_code
+        return openeo.udf.run_code.execute_local_udf(udf=udf, datacube=datacube, fmt=fmt)
 
     def to_graphviz(self):
         """

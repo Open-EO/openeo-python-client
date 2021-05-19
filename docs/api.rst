@@ -21,8 +21,8 @@ openeo.rest.datacube
 .. automodule:: openeo.rest.datacube
    :members: DataCube
 
-.. _datacube-api:
 
+.. _datacube-api:
 
 openeo.api
 -----------
@@ -43,3 +43,26 @@ openeo.rest.job
 
 .. automodule:: openeo.rest.job
     :members: RESTJob, JobLogEntry, JobResults, ResultAsset
+
+
+openeo.rest.conversions
+-------------------------
+
+.. automodule:: openeo.rest.conversions
+    :members:
+
+
+openeo.udf
+-------------
+
+.. automodule:: openeo.udf.udf_data
+    :members: UdfData
+
+.. automodule:: openeo.udf.xarraydatacube
+    :members: XarrayDataCube
+
+.. automodule:: openeo.udf.structured_data
+    :members: StructuredData
+
+.. automodule:: openeo.udf.run_code
+    :members: execute_local_udf

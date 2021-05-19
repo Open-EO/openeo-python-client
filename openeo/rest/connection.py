@@ -5,6 +5,7 @@ import datetime
 import logging
 import sys
 import warnings
+from collections import OrderedDict
 from pathlib import Path
 from typing import Dict, List, Tuple, Union, Callable, Optional, Any, Iterator
 from urllib.parse import urljoin
@@ -25,7 +26,7 @@ from openeo.rest.auth.auth import NullAuth, BearerAuth
 from openeo.rest.auth.config import RefreshTokenStore, AuthConfig
 from openeo.rest.auth.oidc import OidcClientCredentialsAuthenticator, OidcAuthCodePkceAuthenticator, \
     OidcClientInfo, OidcAuthenticator, OidcRefreshTokenAuthenticator, OidcResourceOwnerPasswordAuthenticator, \
-    OidcDeviceAuthenticator, OidcProviderInfo, OidcException
+    OidcDeviceAuthenticator, OidcProviderInfo, OidcException, DefaultOidcClientGrant
 from openeo.rest.datacube import DataCube
 from openeo.rest.imagecollectionclient import ImageCollectionClient
 from openeo.rest.job import RESTJob
@@ -72,11 +73,17 @@ class RestApiConnection:
             result.update(headers)
         return result
 
+    def _is_external(self, url: str) -> bool:
+        """Check if given url is external (not under root url)"""
+        root = self.root_url.rstrip("/")
+        return not (url == root or url.startswith(root + '/'))
+
     def request(self, method: str, path: str, headers: dict = None, auth: AuthBase = None,
                 check_error=True, expected_status=None, **kwargs):
         """Generic request send"""
         url = self.build_url(path)
-        auth = auth or self.auth
+        # Don't send default auth headers to external domains.
+        auth = auth or (self.auth if not self._is_external(url) else None)
         if _log.isEnabledFor(logging.DEBUG):
             _log.debug("Request `{m} {u}` with headers {h}, auth {a}, kwargs {k}".format(
                 m=method.upper(), u=url, h=headers and headers.keys(), a=type(auth).__name__, k=list(kwargs.keys()))
@@ -287,7 +294,7 @@ class Connection(RestApiConnection):
         """
         if self._api_version.at_least("1.0.0"):
             oidc_info = self.get("/credentials/oidc", expected_status=200).json()
-            providers = {p["id"]: p for p in oidc_info["providers"]}
+            providers = OrderedDict((p["id"], p) for p in oidc_info["providers"])
             _log.info("Found OIDC providers: {p}".format(p=list(providers.keys())))
             if provider_id:
                 if provider_id not in providers:
@@ -299,7 +306,7 @@ class Connection(RestApiConnection):
                 provider = providers[provider_id]
             elif len(providers) == 1:
                 provider_id, provider = providers.popitem()
-                _log.info("No OIDC provider given, but only one available: {p!r}. Use that one.".format(
+                _log.info("No OIDC provider given, but only one available: {p!r}. Using that one.".format(
                     p=provider_id
                 ))
             else:
@@ -311,13 +318,14 @@ class Connection(RestApiConnection):
                     provider_id = intersection.pop()
                     provider = providers[provider_id]
                     _log.info(
-                        "No OIDC provider id given, but only one in config (backend {b!r}): {p!r}."
-                        " Use that one.".format(b=backend, p=provider_id)
+                        "No OIDC provider given, but only one in config (for backend {b!r}): {p!r}."
+                        " Using that one.".format(b=backend, p=provider_id)
                     )
                 else:
-                    raise OpenEoClientException("No OIDC provider id given. Pick one from: {p!r}.".format(
-                        p=list(providers.keys()))
-                    )
+                    provider_id, provider = providers.popitem(last=False)
+                    _log.info("No OIDC provider given. Using first provider {p!r} as advertised by backend.".format(
+                        p=provider_id
+                    ))
             provider = OidcProviderInfo.from_dict(provider)
         else:
             # Per spec: '/credentials/oidc' will redirect to  OpenID Connect discovery document
@@ -326,7 +334,8 @@ class Connection(RestApiConnection):
 
     def _get_oidc_provider_and_client_info(
             self, provider_id: str,
-            client_id: Union[str, None], client_secret: Union[str, None]
+            client_id: Union[str, None], client_secret: Union[str, None],
+            default_client_grant_types: Union[None, List[DefaultOidcClientGrant]] = None
     ) -> Tuple[str, OidcClientInfo]:
         """
         Resolve provider_id and client info (as given or from config)
@@ -339,21 +348,22 @@ class Connection(RestApiConnection):
         provider_id, provider = self._get_oidc_provider(provider_id)
 
         if client_id is None:
+            _log.debug("No client_id: checking config for prefered client_id")
             client_id, client_secret = self._get_auth_config().get_oidc_client_configs(
                 backend=self._orig_url, provider_id=provider_id
             )
             if client_id:
                 _log.info("Using client_id {c!r} from config (provider {p!r})".format(c=client_id, p=provider_id))
-        if client_id is None:
-            # TODO: This "default_client" feature is still experimental in openEO API. See Open-EO/openeo-api#366
+        if client_id is None and default_client_grant_types:
             # Try "default_client" from backend's provider info.
-            client_id = provider.get_default_client_id()
+            _log.debug("No client_id given: checking default client in backend's provider info")
+            client_id = provider.get_default_client_id(grant_types=default_client_grant_types)
             if client_id:
                 _log.info("Using default client_id {c!r} from OIDC provider {p!r} info.".format(
                     c=client_id, p=provider_id
                 ))
         if client_id is None:
-            raise OpenEoClientException("No client ID found.")
+            raise OpenEoClientException("No client_id found.")
 
         client_info = OidcClientInfo(client_id=client_id, client_secret=client_secret, provider=provider)
 
@@ -400,7 +410,8 @@ class Connection(RestApiConnection):
         OpenID Connect Authorization Code Flow (with PKCE).
         """
         provider_id, client_info = self._get_oidc_provider_and_client_info(
-            provider_id=provider_id, client_id=client_id, client_secret=client_secret
+            provider_id=provider_id, client_id=client_id, client_secret=client_secret,
+            default_client_grant_types=[DefaultOidcClientGrant.AUTH_CODE_PKCE],
         )
         authenticator = OidcAuthCodePkceAuthenticator(
             client_info=client_info,
@@ -451,7 +462,8 @@ class Connection(RestApiConnection):
         OpenId Connect Refresh Token
         """
         provider_id, client_info = self._get_oidc_provider_and_client_info(
-            provider_id=provider_id, client_id=client_id, client_secret=client_secret
+            provider_id=provider_id, client_id=client_id, client_secret=client_secret,
+            default_client_grant_types=[DefaultOidcClientGrant.REFRESH_TOKEN],
         )
 
         if refresh_token is None:
@@ -481,7 +493,8 @@ class Connection(RestApiConnection):
         .. versionchanged:: 0.5.1 Add :py:obj:`use_pkce` argument
         """
         provider_id, client_info = self._get_oidc_provider_and_client_info(
-            provider_id=provider_id, client_id=client_id, client_secret=client_secret
+            provider_id=provider_id, client_id=client_id, client_secret=client_secret,
+            default_client_grant_types=[DefaultOidcClientGrant.DEVICE_CODE_PKCE],
         )
         authenticator = OidcDeviceAuthenticator(client_info=client_info, use_pkce=use_pkce, **kwargs)
         return self._authenticate_oidc(authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token)
@@ -498,7 +511,8 @@ class Connection(RestApiConnection):
         .. versionadded:: 0.6.0
         """
         provider_id, client_info = self._get_oidc_provider_and_client_info(
-            provider_id=provider_id, client_id=client_id, client_secret=client_secret
+            provider_id=provider_id, client_id=client_id, client_secret=client_secret,
+            default_client_grant_types=[DefaultOidcClientGrant.DEVICE_CODE_PKCE, DefaultOidcClientGrant.REFRESH_TOKEN]
         )
 
         # Try refresh token first.
@@ -632,14 +646,16 @@ class Connection(RestApiConnection):
 
         :param name: String Id of the collection
         :param spatial_extent: Limits the items to the given bounding box in WGS84:
-        1. Lower left corner, coordinate axis 1
-        2. Lower left corner, coordinate axis 2
-        3. Upper right corner, coordinate axis 1
-        4. Upper right corner, coordinate axis 2
+            1. Lower left corner, coordinate axis 1
+            2. Lower left corner, coordinate axis 2
+            3. Upper right corner, coordinate axis 1
+            4. Upper right corner, coordinate axis 2
+
         :param temporal_extent: Limits the items to the specified temporal interval.
         :param limit: The amount of items per request/page. If None, the back-end decides.
-        The interval has to be specified as an array with exactly two elements (start, end).
-        Also supports open intervals by setting one of the boundaries to None, but never both.
+            The interval has to be specified as an array with exactly two elements (start, end).
+            Also supports open intervals by setting one of the boundaries to None, but never both.
+
         :return: data_list: List A list of items
         """
         url = '/collections/{}/items'.format(name)

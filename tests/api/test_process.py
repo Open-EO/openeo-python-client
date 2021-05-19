@@ -1,7 +1,9 @@
+import pytest
+
 from openeo.api.process import Parameter
 
 
-def test_parameter_default():
+def test_parameter_defaults():
     p = Parameter(name="x")
     assert p.to_dict() == {"name": "x", "description": "x", "schema": {}}
 
@@ -29,6 +31,14 @@ def test_parameter_schema_default_none():
     assert p.to_dict() == {
         "name": "x", "description": "the x value.", "schema": {"type": "number"},
         "optional": True, "default": None
+    }
+
+
+def test_parameter_schema_optional():
+    p = Parameter(name="x", description="the x value.", schema="number", optional=True)
+    assert p.to_dict() == {
+        "name": "x", "description": "the x value.", "schema": {"type": "number"},
+        "optional": True,
     }
 
 
@@ -87,3 +97,33 @@ def test_parameter_array():
         "name": "bands", "description": "bands", "schema": {"type": "array"}, "optional": True,
         "default": ["red", "green", "blue"]
     }
+
+
+@pytest.mark.parametrize(["kwargs", "expected"], [
+    ({"name": "x"}, {"name": "x", "description": "x", "schema": {}}),
+    (
+            {"name": "x", "schema": {"type": "number"}},
+            {"name": "x", "description": "x", "schema": {"type": "number"}}),
+    (
+            {"name": "x", "description": "X value.", "schema": "number"},
+            {"name": "x", "description": "X value.", "schema": {"type": "number"}}
+    ),
+    (
+            {"name": "x", "description": "X value.", "schema": "number", "default": 42},
+            {"name": "x", "description": "X value.", "schema": {"type": "number"}, "default": 42, "optional": True}
+    ),
+    (
+            {"name": "x", "description": "X value.", "schema": "number", "default": None},
+            {"name": "x", "description": "X value.", "schema": {"type": "number"}, "default": None, "optional": True}
+    ),
+    (
+            {"name": "x", "description": "X value.", "schema": "number", "optional": True},
+            {"name": "x", "description": "X value.", "schema": {"type": "number"}, "optional": True}
+    ),
+])
+def test_parameter_reencode(kwargs, expected):
+    p = Parameter(**kwargs)
+    d = p.to_dict()
+    assert d == expected
+    q = Parameter(**d)
+    assert q.to_dict() == expected

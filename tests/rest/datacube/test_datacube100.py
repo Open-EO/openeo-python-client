@@ -156,7 +156,111 @@ def test_filter_bbox_args_and_kwargs_conflict(con100: Connection, args, kwargs, 
         con100.load_collection("S2").filter_bbox(*args, **kwargs)
 
 
-def test_mask_polygon(con100: Connection):
+def test_aggregate_spatial_basic(con100: Connection):
+    img = con100.load_collection("S2")
+    polygon = shapely.geometry.box(0, 0, 1, 1)
+    masked = img.aggregate_spatial(geometries=polygon, reducer="mean")
+    assert sorted(masked.graph.keys()) == ["aggregatespatial1", "loadcollection1"]
+    assert masked.graph["aggregatespatial1"] == {
+        "process_id": "aggregate_spatial",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "geometries": {
+                "type": "Polygon",
+                "coordinates": (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),),
+            },
+            "reducer": {"process_graph": {
+                "mean1": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}
+            }}
+        },
+        "result": True
+    }
+
+
+@pytest.mark.parametrize(["polygon", "expected_geometries"], [
+    (
+            shapely.geometry.box(0, 0, 1, 1),
+            {"type": "Polygon", "coordinates": (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),)},
+    ),
+    (
+            {"type": "Polygon", "coordinates": (((1, 0), (1, 1), (0, 1), (0, 0), (1, 0)),)},
+            {"type": "Polygon", "coordinates": (((1, 0), (1, 1), (0, 1), (0, 0), (1, 0)),)},
+    ),
+    (
+            shapely.geometry.MultiPolygon([shapely.geometry.box(0, 0, 1, 1)]),
+            {"type": "MultiPolygon", "coordinates": [(((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),)]},
+    ),
+    (
+            shapely.geometry.GeometryCollection([shapely.geometry.box(0, 0, 1, 1)]),
+            {"type": "GeometryCollection", "geometries": [
+                {"type": "Polygon", "coordinates": (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),)}
+            ]},
+    ),
+    (
+            {
+                "type": "FeatureCollection",
+                "features": [
+                    {
+                        "type": "Feature", "properties": {},
+                        "geometry": {"type": "Polygon", "coordinates": (((1, 0), (1, 1), (0, 1), (0, 0), (1, 0)),)},
+                    },
+
+                ]
+            },
+            {
+                "type": "FeatureCollection",
+                "features": [
+                    {
+                        "type": "Feature", "properties": {},
+                        "geometry": {"type": "Polygon", "coordinates": (((1, 0), (1, 1), (0, 1), (0, 0), (1, 0)),)},
+                    },
+
+                ]
+            },
+    ),
+])
+def test_aggregate_spatial_types(con100: Connection, polygon, expected_geometries):
+    img = con100.load_collection("S2")
+    masked = img.aggregate_spatial(geometries=polygon, reducer="mean")
+    assert sorted(masked.graph.keys()) == ["aggregatespatial1", "loadcollection1"]
+    assert masked.graph["aggregatespatial1"] == {
+        "process_id": "aggregate_spatial",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "geometries": expected_geometries,
+            "reducer": {"process_graph": {
+                "mean1": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}
+            }}
+        },
+        "result": True
+    }
+
+
+def test_aggregate_spatial_with_crs(con100: Connection, recwarn):
+    img = con100.load_collection("S2")
+    polygon = shapely.geometry.box(0, 0, 1, 1)
+    masked = img.aggregate_spatial(geometries=polygon, reducer="mean", crs="EPSG:32631")
+    warnings = [str(w.message) for w in recwarn]
+    assert "Geometry with non-Lon-Lat CRS 'EPSG:32631' is only supported by specific back-ends." in warnings
+    assert sorted(masked.graph.keys()) == ["aggregatespatial1", "loadcollection1"]
+    assert masked.graph["aggregatespatial1"] == {
+        "process_id": "aggregate_spatial",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "geometries": {
+                "type": "Polygon",
+                "coordinates": (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),),
+                "crs": {"properties": {"name": "EPSG:32631"}, "type": "name"},
+            },
+            "reducer": {"process_graph": {
+                "mean1": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}
+            }}
+        },
+        "result": True
+    }
+
+
+def test_mask_polygon_basic(con100: Connection):
     img = con100.load_collection("S2")
     polygon = shapely.geometry.box(0, 0, 1, 1)
     masked = img.mask_polygon(mask=polygon)
@@ -165,10 +269,74 @@ def test_mask_polygon(con100: Connection):
         "process_id": "mask_polygon",
         "arguments": {
             "data": {"from_node": "loadcollection1"},
-            'mask': {
-                'coordinates': (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),),
-                'crs': {'properties': {'name': 'EPSG:4326'}, 'type': 'name'},
-                'type': 'Polygon'}
+            "mask": {
+                "type": "Polygon",
+                "coordinates": (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),),
+            }
+        },
+        "result": True
+    }
+
+
+@pytest.mark.parametrize(["polygon", "expected_mask"], [
+    (
+            shapely.geometry.box(0, 0, 1, 1),
+            {"type": "Polygon", "coordinates": (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),)},
+    ),
+    (
+            {"type": "Polygon", "coordinates": (((1, 0), (1, 1), (0, 1), (0, 0), (1, 0)),)},
+            {"type": "Polygon", "coordinates": (((1, 0), (1, 1), (0, 1), (0, 0), (1, 0)),)},
+    ),
+    (
+            shapely.geometry.MultiPolygon([shapely.geometry.box(0, 0, 1, 1)]),
+            {"type": "MultiPolygon", "coordinates": [(((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),)]},
+    ),
+    (
+            shapely.geometry.GeometryCollection([shapely.geometry.box(0, 0, 1, 1)]),
+            {"type": "GeometryCollection", "geometries": [
+                {"type": "Polygon", "coordinates": (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),)}
+            ]},
+    ),
+    (
+            {
+                "type": "Feature", "properties": {},
+                "geometry": {"type": "Polygon", "coordinates": (((1, 0), (1, 1), (0, 1), (0, 0), (1, 0)),)},
+            },
+            {
+                "type": "Feature", "properties": {},
+                "geometry": {"type": "Polygon", "coordinates": (((1, 0), (1, 1), (0, 1), (0, 0), (1, 0)),)},
+            },
+    ),
+])
+def test_mask_polygon_types(con100: Connection, polygon, expected_mask):
+    img = con100.load_collection("S2")
+    masked = img.mask_polygon(mask=polygon)
+    assert sorted(masked.graph.keys()) == ["loadcollection1", "maskpolygon1"]
+    assert masked.graph["maskpolygon1"] == {
+        "process_id": "mask_polygon",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "mask": expected_mask
+        },
+        "result": True
+    }
+
+
+def test_mask_polygon_with_crs(con100: Connection, recwarn):
+    img = con100.load_collection("S2")
+    polygon = shapely.geometry.box(0, 0, 1, 1)
+    masked = img.mask_polygon(mask=polygon, srs="EPSG:32631")
+    warnings = [str(w.message) for w in recwarn]
+    assert "Geometry with non-Lon-Lat CRS 'EPSG:32631' is only supported by specific back-ends." in warnings
+    assert sorted(masked.graph.keys()) == ["loadcollection1", "maskpolygon1"]
+    assert masked.graph["maskpolygon1"] == {
+        "process_id": "mask_polygon",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "mask": {
+                "type": "Polygon", "coordinates": (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),),
+                "crs": {"type": "name", "properties": {"name": "EPSG:32631"}},
+            },
         },
         "result": True
     }

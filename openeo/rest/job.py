@@ -161,6 +161,9 @@ class RESTJob:
         print_status("send 'start'")
         self.start_job()
 
+        # TODO: also add  `wait` method so you can track a job that already has started explicitly
+        #   or just rename this method to `wait` and automatically do start if not started yet?
+
         # Start with fast polling.
         poll_interval = min(5, max_poll_interval)
         status = None

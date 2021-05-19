@@ -4,15 +4,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
 ## [Unreleased]
 
 ### Added
+
+- Allow, but raise warning when specifying a CRS for the geometry passed to `aggregate_spatial` and `mask_polygon`,
+  which is non-standard/experimental feature, only supported by specific back-ends 
+  ([#204](https://github.com/Open-EO/openeo-python-client/issues/204))
+- Add `optional` argument to `Parameter` and fix re-encoding parameters with default value. (EP-3846)
+- Add support to test strict equality with `ComparableVersion`
 
 ### Changed
 
 ### Removed
 
 ### Fixed
+
+
+
+## [0.7.0] - 2021-04-21
+
+### Added
+
+- Add dependency on `xarray` package ([#159](https://github.com/Open-EO/openeo-python-client/issues/159), [#190](https://github.com/Open-EO/openeo-python-client/pull/190), EP-3578)
+- Add support for default OIDC clients advertised by backend ([#192](https://github.com/Open-EO/openeo-python-client/issues/192), [Open-EO/openeo-api#366](https://github.com/Open-EO/openeo-api/pull/366))
+- Add support for default OIDC provider (based on provider order advertised by backend) ([Open-EO/openeo-api#373](https://github.com/Open-EO/openeo-api/pull/373))
+
+### Changed
+
+- Eliminate development/optional dependency on `openeo_udf` project
+  ([#159](https://github.com/Open-EO/openeo-python-client/issues/159), [#190](https://github.com/Open-EO/openeo-python-client/pull/190), EP-3578). 
+  Now the openEO client library itself contains the necessary classes and implementation to run UDF code locally.
+
+### Fixed
+
+- `Connection`: don't send default auth headers to non-backend domains ([#201](https://github.com/Open-EO/openeo-python-client/issues/201))
 
 
 ## [0.6.1] - 2021-03-29

@@ -252,18 +252,18 @@ def main_add_oidc(args):
 
     # Get client_id and client_secret (if necessary)
     if use_default_client:
-        if not provider.default_client:
-            show_warning("No default client specified for provider {p!r}".format(p=provider_id))
+        if not provider.default_clients:
+            show_warning("No default clients declared for provider {p!r}".format(p=provider_id))
         client_id, client_secret = None, None
     else:
         if not client_id:
-            if provider.default_client:
+            if provider.default_clients:
                 client_prompt = "Enter client_id or leave empty to use default client, and press enter: "
             else:
                 client_prompt = "Enter client_id and press enter: "
             client_id = builtins.input(client_prompt).strip() or None
         print("Using client ID {u!r}".format(u=client_id))
-        if not client_id and not provider.default_client:
+        if not client_id and not provider.default_clients:
             show_warning("Given client ID was empty.")
 
         if client_id and ask_client_secret:

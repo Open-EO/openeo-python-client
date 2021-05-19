@@ -23,7 +23,7 @@ if __name__ == '__main__':
             ["west", "south", "east", "north"],
             [5.047760653506093, 51.21384099522948, 5.062440732032759, 51.22255852538937]
         )))\
-        .filter_bands(["TOC-B04_10M","TOC-B08_10M"])
+        .filter_bands(["B04", "B08"])
     data=data.apply_dimension(UDFString('udf/udf_profiling_ndvi.py').value, dimension='t',runtime="Python")
  
     # enable profiling and run the process

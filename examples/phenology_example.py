@@ -60,7 +60,7 @@ polygon = Polygon(shell= [
 minx,miny,maxx,maxy = polygon.bounds
 #compute EVI
 #https://en.wikipedia.org/wiki/Enhanced_vegetation_index
-s2_radiometry = session.imagecollection("CGS_SENTINEL2_RADIOMETRY_V102_001") \
+s2_radiometry = session.load_collection("CGS_SENTINEL2_RADIOMETRY_V102_001") \
                     .filter_temporal("2017-01-01","2017-10-01") #\
                    # .filter_bbox(west=minx,east=maxx,north=maxy,south=miny,crs="EPSG:4326")
 

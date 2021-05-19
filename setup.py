@@ -21,10 +21,9 @@ tests_require = [
     'pytest>=4.5.0',
     'mock',
     'requests-mock>=1.8.0',
-    'xarray==0.12.3',
     'h5netcdf',
-    'openeo-udf>=1.0.0rc2',
     'matplotlib',
+    'geopandas;python_version>="3.6"',
 ]
 
 name = 'openeo'
@@ -45,13 +44,13 @@ setup(name=name,
           'requests_mock',
           'shapely>=1.6.4',
           'numpy>=1.17.0',
+          'xarray>=0.12.3',
           'pandas>0.20.0;python_version>="3.5.3"',
           'pandas<0.25.0;python_version<"3.5.3"',
-          'deprecated'
+          'deprecated>=1.2.12'
       ],
       extras_require={
           "dev": tests_require + [
-              "pytest>=4.5.0",
               "sphinx",
               "sphinx-autodoc-annotation",
               "sphinx-autodoc-typehints",

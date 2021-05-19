@@ -7,7 +7,7 @@ python:
 - '3.8'
 install:
 - pip install travis-sphinx==2.2.1 sphinx
-- pip install .[dev] --extra-index-url https://artifactory.vgt.vito.be/api/pypi/python-openeo/simple
+- pip install .[dev]
 script:
 - pytest
 - travis-sphinx -v build -n --source docs
