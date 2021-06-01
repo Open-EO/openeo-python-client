@@ -1789,6 +1789,16 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return xor(x=self, y=y)
 
+    def array_interpolate_linear(self) -> 'ProcessBuilder':
+        """
+        EXPERIMENTAL
+        Performs a linear interpolation for each of the no-data values (`null`) in the array given, except for leading and trailing no-data values.\n\nThe linear interpolants are defined by the array indices or labels (x) and the values in the array (y).
+
+        @param data: An array of numbers and no-data values.\n\nIf the given array is a labeled array, the labels must have a natural/inherent label order and the process expects the labels to be sorted accordingly. This is the default behavior in openEO for spatial and temporal dimensions.
+        @return: An array with no-data values being replaced with interpolated values. If not at least 2 numerical values are available in the array, the array stays the same.
+        """
+        return array_interpolate_linear(data=self)
+
 
 # Shortcut
 process = ProcessBuilder.process
@@ -3632,3 +3642,12 @@ def xor(x, y) -> ProcessBuilder:
     return process('xor', x=x, y=y)
 
 
+def array_interpolate_linear(data) -> ProcessBuilder:
+    """
+    EXPERIMENTAL
+    Performs a linear interpolation for each of the no-data values (`null`) in the array given, except for leading and trailing no-data values.\n\nThe linear interpolants are defined by the array indices or labels (x) and the values in the array (y).
+
+    @param data: An array of numbers and no-data values.\n\nIf the given array is a labeled array, the labels must have a natural/inherent label order and the process expects the labels to be sorted accordingly. This is the default behavior in openEO for spatial and temporal dimensions.
+    @return: An array with no-data values being replaced with interpolated values. If not at least 2 numerical values are available in the array, the array stays the same.
+    """
+    return process('array_interpolate_linear', data=data)
