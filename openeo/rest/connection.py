@@ -295,6 +295,8 @@ class Connection(RestApiConnection):
         if self._api_version.at_least("1.0.0"):
             oidc_info = self.get("/credentials/oidc", expected_status=200).json()
             providers = OrderedDict((p["id"], p) for p in oidc_info["providers"])
+            if len(providers) < 1:
+                raise OpenEoClientException("Backend lists no OIDC providers.")
             _log.info("Found OIDC providers: {p}".format(p=list(providers.keys())))
             if provider_id:
                 if provider_id not in providers:
