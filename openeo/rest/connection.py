@@ -245,10 +245,20 @@ class Connection(RestApiConnection):
             production_versions = [v for v in supported_versions if v.get("production", True)]
             highest_version = max(production_versions or supported_versions, key=lambda v: v["api_version"])
             _log.debug("Highest supported version available in backend: %s" % highest_version)
-            return highest_version['url']
-        except Exception:
+            url = highest_version['url']
+            # Resolve any additional forwarding on this root url (if any).
+            # TODO: do this more generally at RestApiConnection level?
+            resp = RestApiConnection(url, session=session).request("HEAD", "/", allow_redirects=True)
+            if resp.history:
+                _log.warning("URL from version discovery {u!r} redirects ({c}) to {r!r}".format(
+                    u=url, c=resp.status_code, r=resp.url
+                ))
+                url = resp.url
+        except Exception as e:
             # Be very lenient about failing on the well-known URI strategy.
-            return url
+            _log.debug("Version discovery failed: {e}".format(e=e))
+
+        return url
 
     def _get_auth_config(self) -> AuthConfig:
         if self._auth_config is None:

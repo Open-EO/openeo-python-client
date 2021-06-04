@@ -285,13 +285,50 @@ def test_connect_with_session():
             "1.0.0",
     ),
 ])
-def test_connect_version_discovery(requests_mock, versions, expected_url, expected_version):
+def test_connect_version_discovery(requests_mock, versions, expected_url, expected_version, caplog):
     requests_mock.get("https://oeo.test/", status_code=404)
     requests_mock.get("https://oeo.test/.well-known/openeo", status_code=200, json={"versions": versions})
     requests_mock.get(expected_url, status_code=200, json={"foo": "bar", "api_version": expected_version})
 
     conn = connect("https://oeo.test/")
     assert conn.capabilities().capabilities["foo"] == "bar"
+    warnings = [t[2] for t in caplog.record_tuples if t[1] >= logging.WARNING]
+    assert warnings == []
+
+
+def test_connect_version_discovery_302_moved_root(requests_mock, caplog):
+    """
+    EP-3889: If urls in /.well-known/openeo cause additional redirection (e.g. 302 HTTP>HTTPS forwarding),
+    POST requests will fail because they are converted to GET after redirect.
+    Test that version discovery logic resolves this additional forwarding before storing root_url.
+    """
+    requests_mock.get("https://oeo.test/", status_code=404)
+    requests_mock.get("https://oeo.test/.well-known/openeo", status_code=200, json={"versions": [
+        # Note HTTPS version discovery doc has a HTTP URL (that forwards again to HTTPS)
+        {"api_version": "1.0.0", "url": "http://oeo.test/v1", "production": True},
+    ]})
+
+    def mock_and_forward(method, url, add_head=False, **kwargs):
+        """Mock given HTTPS url (including HEAD variant), and make HTTP variants forward to HTTPS."""
+        assert url.startswith("https://")
+        http_url = url.replace("https://", "http://")
+        requests_mock.request(method, url, **kwargs)
+        requests_mock.request(method, http_url, status_code=302, headers={"Location": url})
+        if add_head:
+            requests_mock.request("HEAD", url, **kwargs)
+            requests_mock.request("HEAD", http_url, status_code=302, headers={"Location": url})
+
+    mock_and_forward("GET", "https://oeo.test/v1/", status_code=200, json={"api_version": "1.0.0"}, add_head=True)
+    mock_and_forward("GET", "https://oeo.test/v1/credentials/basic", json={"access_token": "w3lc0m3"})
+    mock_and_forward("POST", "https://oeo.test/v1/result", json={"color": "green"})
+
+    con = connect("https://oeo.test/")
+    warnings = [t[2] for t in caplog.record_tuples if t[1] >= logging.WARNING]
+    assert warnings == ["URL from version discovery 'http://oeo.test/v1' redirects (200) to 'https://oeo.test/v1/'"]
+    assert con.root_url == "https://oeo.test/v1/"
+    con.authenticate_basic("_", "_")
+    res = con.execute(process_graph={})
+    assert res == {"color": "green"}
 
 
 def test_connection_repr(requests_mock):
