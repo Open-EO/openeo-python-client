@@ -168,6 +168,23 @@ def test_rest_api_other_domain_auth_headers(requests_mock, api_root, url):
     assert "auth" not in res.text.lower()
 
 
+def test_rest_api_get_redirect(requests_mock):
+    requests_mock.get("http://oeo.test/foo", status_code=302, headers={"Location": "https://oeo.test/bar"})
+    requests_mock.get("https://oeo.test/bar", status_code=200, json={"hello": "world"})
+    con = RestApiConnection("http://oeo.test")
+    res = con.get("/foo", expected_status=200)
+    assert res.json() == {"hello": "world"}
+
+
+def test_rest_api_post_redirect(requests_mock):
+    requests_mock.post("http://oeo.test/foo", status_code=302, headers={"Location": "https://oeo.test/foo"})
+    requests_mock.get("https://oeo.test/foo", status_code=200, json={"hello": "world"})
+    requests_mock.post("https://oeo.test/foo", status_code=200, json={"hello": "world"})
+    con = RestApiConnection("http://oeo.test")
+    with pytest.raises(OpenEoClientException, match=r"Got status code 302 for `POST /foo` \(expected \[200\]\)"):
+        con.post("/foo", expected_status=200)
+
+
 def test_connection_other_domain_auth_headers(requests_mock, api_version):
     """https://github.com/Open-EO/openeo-python-client/issues/201"""
     secret = "!secret token!"
@@ -1265,7 +1282,10 @@ def test_execute_042(requests_mock):
     with mock.patch.object(conn, "request") as request:
         conn.execute({"foo1": {"process_id": "foo"}})
     assert request.call_args_list == [
-        mock.call("post", path="/result", json={"process_graph": {"foo1": {"process_id": "foo"}}})
+        mock.call(
+            "post", path="/result", allow_redirects=False, expected_status=200,
+            json={"process_graph": {"foo1": {"process_id": "foo"}}}
+        )
     ]
 
 
@@ -1275,7 +1295,10 @@ def test_execute_100(requests_mock):
     with mock.patch.object(conn, "request") as request:
         conn.execute({"foo1": {"process_id": "foo"}})
     assert request.call_args_list == [
-        mock.call("post", path="/result", json={"process": {"process_graph": {"foo1": {"process_id": "foo"}}}})
+        mock.call(
+            "post", path="/result", allow_redirects=False, expected_status=200,
+            json={"process": {"process_graph": {"foo1": {"process_id": "foo"}}}}
+        )
     ]
 
 

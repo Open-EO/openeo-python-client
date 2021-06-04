@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Disallow redirects on POST/DELETE/... requests and require status code 200 on `POST /result` requests. 
+  This improves error information where `POST /result` would involve a redirect. (EP-3889)
+
 ### Removed
 
 ### Fixed
