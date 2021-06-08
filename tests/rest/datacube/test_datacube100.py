@@ -260,6 +260,23 @@ def test_aggregate_spatial_with_crs(con100: Connection, recwarn):
     }
 
 
+def test_aggregate_temporal(con100: Connection):
+    img = con100.load_collection("S2").aggregate_temporal_period(period="dekad",reducer=lambda d:d.median(),context={"bla":"bla"})
+
+    graph = img.graph
+    assert graph == {'aggregatetemporalperiod1': {'arguments': {'data': {'from_node': 'loadcollection1'},
+                                                                'period': 'dekad',
+                                                                'context': {'bla': 'bla'},
+                                                                'reducer': {'process_graph': {'median1': {'arguments': {'data': {'from_parameter': 'data'}},
+                                                                                                          'process_id': 'median',
+                                                                                                          'result': True}}}},
+                                                  'process_id': 'aggregate_temporal_period',
+                                                  'result': True},
+                     'loadcollection1': {'arguments': {'id': 'S2',
+                                                       'spatial_extent': None,
+                                                       'temporal_extent': None},
+                                         'process_id': 'load_collection'}}
+
 def test_mask_polygon_basic(con100: Connection):
     img = con100.load_collection("S2")
     polygon = shapely.geometry.box(0, 0, 1, 1)
