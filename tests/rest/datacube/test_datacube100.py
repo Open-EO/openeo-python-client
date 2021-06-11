@@ -156,6 +156,23 @@ def test_filter_bbox_args_and_kwargs_conflict(con100: Connection, args, kwargs, 
         con100.load_collection("S2").filter_bbox(*args, **kwargs)
 
 
+def test_filter_spatial(con100: Connection, recwarn):
+    img = con100.load_collection("S2")
+    polygon = shapely.geometry.box(0, 0, 1, 1)
+    masked = img.filter_spatial(geometries=polygon)
+    assert sorted(masked.graph.keys()) == ["filterspatial1", "loadcollection1"]
+    assert masked.graph["filterspatial1"] == {
+        "process_id": "filter_spatial",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "geometries": {
+                "type": "Polygon",
+                "coordinates": (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),),
+            }
+        },
+        "result": True
+    }
+
 def test_aggregate_spatial_basic(con100: Connection):
     img = con100.load_collection("S2")
     polygon = shapely.geometry.box(0, 0, 1, 1)

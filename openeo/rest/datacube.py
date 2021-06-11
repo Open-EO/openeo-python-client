@@ -371,6 +371,40 @@ class DataCube(ImageCollection):
             }
         )
 
+    def filter_spatial(
+            self,
+            geometries
+    ) -> 'DataCube':
+        """
+        Limits the data cube over the spatial dimensions to the specified geometries.
+
+            - For polygons, the filter retains a pixel in the data cube if the point at the pixel center intersects with
+             at least one of the polygons (as defined in the Simple Features standard by the OGC).
+            - For points, the process considers the closest pixel center.
+            - For lines (line strings), the process considers all the pixels whose centers are closest to at least one
+            point on the line.
+
+        More specifically, pixels outside of the bounding box of the given geometry will not be available after filtering.
+         All pixels inside the bounding box that are not retained will be set to null (no data).
+
+        :param geometries: One or more geometries used for filtering, specified as GeoJSON in EPSG:4326.
+        :return: A data cube restricted to the specified geometries. The dimensions and dimension properties (name,
+        type, labels, reference system and resolution) remain unchanged, except that the spatial dimensions have less
+         (or the same) dimension labels.
+        """
+        valid_geojson_types = [
+            "Point", "MultiPoint", "LineString", "MultiLineString",
+            "Polygon", "MultiPolygon", "GeometryCollection", "FeatureCollection"
+        ]
+        geometries = self._get_geometry_argument(geometries, valid_geojson_types=valid_geojson_types, crs=None)
+        return self.process(
+            process_id='filter_spatial',
+            arguments={
+                'data': THIS,
+                'geometries': geometries
+            }
+        )
+
     def filter_bands(self, bands: Union[List[Union[str, int]], str]) -> 'DataCube':
         """
         Filter the data cube by the given bands
