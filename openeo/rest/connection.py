@@ -684,7 +684,7 @@ class Connection(RestApiConnection):
         data = self.get('/processes').json()["processes"]
         return VisualList("processes", data = data)
 
-    def list_jobs(self) -> dict:
+    def list_jobs(self) -> List[dict]:
         """
         Lists all jobs of the authenticated user.
 
