@@ -937,7 +937,7 @@ class Connection(RestApiConnection):
         :param job_id: the service id of an existing secondary web service
         :return: A service object.
         """
-        return Service(service_id, self)
+        return Service(service_id, connection=self)
 
     def load_disk_collection(self, format: str, glob_pattern: str, options: dict = {}) -> ImageCollectionClient:
         """
@@ -1016,4 +1016,3 @@ def paginate(con: Connection, url: str, params: dict = None, callback: Callable 
         url = next_links[0]["href"]
         page += 1
         params = {}
-

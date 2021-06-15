@@ -412,7 +412,7 @@ def test_tiled_viewing_service(s2cube, connection, requests_mock, api_version):
     )
 
     res = s2cube.tiled_viewing_service(type="WMTS", title="S2 Foo", description="Nice!", custom_param=45)
-    assert res.service_id == Service('sf00', connection).service_id
+    assert res.service_id == 'sf00'
 
 
 def test_apply_dimension(connection, requests_mock):
