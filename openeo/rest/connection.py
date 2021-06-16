@@ -202,7 +202,7 @@ class Connection(RestApiConnection):
     oidc_auth_user_id_token_as_bearer = False
 
     def __init__(
-            self, url, auth: AuthBase = None, session: requests.Session = None, default_timeout: int = None,
+            self, url: str, auth: AuthBase = None, session: requests.Session = None, default_timeout: int = None,
             auth_config: AuthConfig = None, refresh_token_store: RefreshTokenStore = None
     ):
         """
@@ -547,7 +547,7 @@ class Connection(RestApiConnection):
         """
         Describes the currently authenticated user account.
         """
-        return self.get('/me').json()
+        return self.get('/me', expected_status=200).json()
 
     @deprecated("use :py:meth:`list_jobs` instead", version="0.4.10")
     def user_jobs(self) -> dict:
@@ -577,7 +577,10 @@ class Connection(RestApiConnection):
         :return: data_dict: Dict All available data types
         """
         if "capabilities" not in self._capabilities_cache:
-            self._capabilities_cache["capabilities"] = RESTCapabilities(self.get('/').json(), self._orig_url)
+            self._capabilities_cache["capabilities"] = RESTCapabilities(
+                self.get('/', expected_status=200).json(),
+                self._orig_url
+            )
         return self._capabilities_cache["capabilities"]
 
 
@@ -724,7 +727,8 @@ class Connection(RestApiConnection):
         """
         Lists all user-defined processes of the authenticated user.
         """
-        return self.get("/process_graphs").json()["processes"]
+        data = self.get("/process_graphs").json()["processes"]
+        return VisualList("processes", data=data)
 
     def user_defined_process(self, user_defined_process_id: str) -> RESTUserDefinedProcess:
         """
