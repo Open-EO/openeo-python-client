@@ -228,6 +228,9 @@ class Connection(RestApiConnection):
         self._auth_config = auth_config
         self._refresh_token_store = refresh_token_store
 
+    def _repr_html_(self):
+        return self.capabilities()._repr_html_()
+
     @classmethod
     def version_discovery(cls, url: str, session: requests.Session = None) -> str:
         """
@@ -727,7 +730,8 @@ class Connection(RestApiConnection):
         """
         Lists all user-defined processes of the authenticated user.
         """
-        return self.get("/process_graphs").json()["processes"]
+        data = self.get("/process_graphs").json()["processes"]
+        return VisualList("processes", data = data)
 
     def user_defined_process(self, user_defined_process_id: str) -> RESTUserDefinedProcess:
         """
