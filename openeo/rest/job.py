@@ -8,10 +8,10 @@ from typing import List, Union, Dict, Optional
 from deprecated.sphinx import deprecated
 from requests import ConnectionError, Response
 
+from openeo.api.logs import LogEntry
 from openeo.internal.jupyter import render_component, render_error, VisualDict, VisualList
 from openeo.rest import OpenEoClientException, JobFailedException, OpenEoApiError
 from openeo.util import ensure_dir
-from openeo.api.logs import LogEntry
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Only import this for type hinting purposes. Runtime import causes circular dependency issues.
@@ -125,7 +125,7 @@ class RESTJob:
         url = "/jobs/{}/logs".format(self.job_id)
         logs = self.connection.get(url, params={'offset': offset}, expected_status=200).json()["logs"]
         entries = [LogEntry(log) for log in logs]
-        return VisualList('logs', data = entries)
+        return VisualList('logs', data=entries)
 
     def run_synchronous(self, outputfile: Union[str, Path, None] = None,
                         print=print, max_poll_interval=60, connection_retry_interval=30) -> 'RESTJob':
