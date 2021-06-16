@@ -5,9 +5,9 @@ from deprecated import deprecated
 
 from openeo.api.process import Parameter
 from openeo.internal.graph_building import as_flat_graph
+from openeo.internal.jupyter import render_component
 from openeo.internal.processes.builder import ProcessBuilderBase
 from openeo.util import dict_no_none
-from openeo.internal.jupyter import render_component
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Only import this for type hinting purposes. Runtime import causes circular dependency issues.
@@ -56,7 +56,7 @@ class RESTUserDefinedProcess:
 
     def _repr_html_(self):
         process = self.describe()
-        return render_component('process', data = process)
+        return render_component('process', data=process)
 
     def store(
             self, process_graph: Union[dict, ProcessBuilderBase], parameters: List[Union[Parameter, dict]] = None,
