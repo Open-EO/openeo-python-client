@@ -32,6 +32,7 @@ from openeo.metadata import CollectionMetadata, Band, BandDimension
 from openeo.processes import ProcessBuilder
 from openeo.rest import BandMathException, OperatorException, OpenEoClientException
 from openeo.rest.job import RESTJob
+from openeo.rest.service import Service
 from openeo.rest.udp import RESTUserDefinedProcess
 from openeo.rest.vectorcube import VectorCube
 from openeo.util import get_temporal_extent, dict_no_none, legacy_alias, rfc3339
@@ -1475,7 +1476,7 @@ class DataCube(ImageCollection):
         cube = self.save_result(format=format, options=options)
         return self._connection.download(cube.flat_graph(), outputfile)
 
-    def tiled_viewing_service(self, type: str, **kwargs) -> Dict:
+    def tiled_viewing_service(self, type: str, **kwargs) -> Service:
         return self._connection.create_service(self.flat_graph(), type=type, **kwargs)
 
     def execute_batch(
