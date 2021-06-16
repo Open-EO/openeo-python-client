@@ -547,7 +547,7 @@ class Connection(RestApiConnection):
         """
         Describes the currently authenticated user account.
         """
-        return self.get('/me').json()
+        return self.get('/me', expected_status=200).json()
 
     @deprecated("use :py:meth:`list_jobs` instead", version="0.4.10")
     def user_jobs(self) -> dict:
