@@ -1,5 +1,6 @@
 import json
 
+from openeo.api.logs import LogEntry
 from openeo.rest import OpenEoApiError
 
 SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/@openeo/vue-components@2/assets/openeo.min.js'
@@ -80,6 +81,13 @@ TABLE_COLUMNS = {
 }
 
 
+class OpenEOJupyterJSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, LogEntry):
+            return o.__dict__
+        return super().default(o)
+
+
 def render_component(component: str, data=None, parameters: dict = None):
     parameters = parameters or {}
     # Special handling for batch job results, show either item or collection depending on the data
@@ -108,7 +116,7 @@ def render_component(component: str, data=None, parameters: dict = None):
     """.format(
         script=SCRIPT_URL,
         component=component,
-        props=json.dumps(parameters, default=lambda o: o.__dict__)  # default parameter added to serialize LogEntry
+        props=OpenEOJupyterJSONEncoder().encode(parameters)
     )
 
 
