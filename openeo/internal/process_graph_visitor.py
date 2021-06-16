@@ -1,5 +1,6 @@
 from abc import ABC
 from typing import Union
+import json
 
 from deprecated import deprecated
 
@@ -54,7 +55,7 @@ class ProcessGraphVisitor(ABC):
                             arg[i] = resolve_from_node(process_graph, node, element['from_node'])
 
         if result_node is None:
-            raise ValueError("The provided process graph does not contain a result node.")
+            raise ValueError("The provided process graph does not contain a result node. Received this graph: " + json.dumps(process_graph, indent=2))
         return result_node
 
     def accept_process_graph(self, graph: dict) -> 'ProcessGraphVisitor':

@@ -258,6 +258,12 @@ def test_apply_dimension_max_lambda(con100):
     assert res.graph == load_json_resource('data/1.0.0/apply_dimension_max.json')
 
 
+def test_apply_dimension_interpolate_lambda(con100):
+    im = con100.load_collection("S2")
+    res = im.apply_dimension(process=lambda data: data.array_interpolate_linear(), dimension="bands")
+    assert res.graph == load_json_resource('data/1.0.0/apply_dimension_interpolate.json')
+
+
 def test_apply_dimension_bandmath_lambda(con100):
     from openeo.processes import array_element
     im = con100.load_collection("S2")

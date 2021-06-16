@@ -155,7 +155,7 @@ class RestApiConnection:
         :param json: Data (as dictionary) to be posted with JSON encoding)
         :return: response: Response
         """
-        return self.request("post", path=path, json=json, **kwargs)
+        return self.request("post", path=path, json=json, allow_redirects=False, **kwargs)
 
     def delete(self, path, **kwargs) -> Response:
         """
@@ -164,16 +164,16 @@ class RestApiConnection:
         :param path: API path (without root url)
         :return: response: Response
         """
-        return self.request("delete", path=path, **kwargs)
+        return self.request("delete", path=path, allow_redirects=False, **kwargs)
 
-    def patch(self, path) -> Response:
+    def patch(self, path, **kwargs) -> Response:
         """
         Do PATCH request to REST API.
 
         :param path: API path (without root url)
         :return: response: Response
         """
-        return self.request("patch", path=path)
+        return self.request("patch", path=path, allow_redirects=False, **kwargs)
 
     def put(self, path, headers: dict = None, data=None, **kwargs) -> Response:
         """
@@ -184,7 +184,7 @@ class RestApiConnection:
         :param data: data that gets added to the request.
         :return: response: Response
         """
-        return self.request("put", path=path, data=data, headers=headers, **kwargs)
+        return self.request("put", path=path, data=data, headers=headers, allow_redirects=False, **kwargs)
 
     def __repr__(self):
         return "<{c} to {r!r} with {a}>".format(c=type(self).__name__, r=self._root_url, a=type(self.auth).__name__)
@@ -299,6 +299,8 @@ class Connection(RestApiConnection):
         if self._api_version.at_least("1.0.0"):
             oidc_info = self.get("/credentials/oidc", expected_status=200).json()
             providers = OrderedDict((p["id"], p) for p in oidc_info["providers"])
+            if len(providers) < 1:
+                raise OpenEoClientException("Backend lists no OIDC providers.")
             _log.info("Found OIDC providers: {p}".format(p=list(providers.keys())))
             if provider_id:
                 if provider_id not in providers:
@@ -686,7 +688,7 @@ class Connection(RestApiConnection):
         data = self.get('/processes').json()["processes"]
         return VisualList("processes", data = data)
 
-    def list_jobs(self) -> dict:
+    def list_jobs(self) -> List[dict]:
         """
         Lists all jobs of the authenticated user.
 
@@ -865,7 +867,7 @@ class Connection(RestApiConnection):
         :param outputfile: output file
         """
         request = self._build_request_with_process_graph(process_graph=graph)
-        response = self.post(path="/result", json=request, stream=True, timeout=timeout)
+        response = self.post(path="/result", json=request, expected_status=200, stream=True, timeout=timeout)
 
         if outputfile is not None:
             with Path(outputfile).open(mode="wb") as f:
@@ -881,7 +883,7 @@ class Connection(RestApiConnection):
         :param process_graph: (flat) dict representing a process graph
         """
         req = self._build_request_with_process_graph(process_graph=process_graph)
-        return self.post(path="/result", json=req).json()
+        return self.post(path="/result", json=req, expected_status=200).json()
 
     def create_job(self, process_graph: dict, title: str = None, description: str = None,
                    plan: str = None, budget=None,

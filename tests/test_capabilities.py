@@ -3,6 +3,21 @@ import pytest
 from openeo.capabilities import ComparableVersion
 
 
+@pytest.mark.parametrize(["a", "b", "c"], [
+    (ComparableVersion("1.2.3"), ComparableVersion("1.2.3"), ComparableVersion("2.3.4")),
+    (ComparableVersion("1.2.3"), "1.2.3", "2.3.4"),
+    ("1.2.3", ComparableVersion("1.2.3"), ComparableVersion("2.3.4")),
+])
+def test_comparable_version_equals(a, b,c):
+    assert (a == b) is True
+    assert (a == c) is False
+    assert (a != b) is False
+    assert (a != c) is True
+    if isinstance(a, ComparableVersion):
+        assert a.equals(b) is True
+        assert a.equals(c) is False
+
+
 @pytest.mark.parametrize("b", [
     "0.9", "1", "1.2.2",
     ComparableVersion("0.9"), ComparableVersion("1.1"),
@@ -23,6 +38,7 @@ def test_comparable_version_operators(b):
 
 def test_comparable_version_right_referencing():
     v = ComparableVersion('1.2.3')
+    assert v.equals('1.2.3')
     assert v.above('0')
     assert v.above('0.1')
     assert v.above('0.1.2')

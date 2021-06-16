@@ -240,6 +240,35 @@ class ImageCollection(ABC):
         """
         pass
 
+    def aggregate_temporal_period(self, period:str,reducer, dimension:str = None,context:Dict=None) -> 'ImageCollection' :
+        """ Computes a temporal aggregation based on calendar hierarchies such as years, months or seasons. For other calendar hierarchies aggregate_temporal can be used.
+
+            For each interval, all data along the dimension will be passed through the reducer.
+
+            If the dimension is not set or is set to null, the data cube is expected to only have one temporal dimension.
+
+            The period argument specifies the time intervals to aggregate. The following pre-defined values are available:
+
+            - hour: Hour of the day
+            - day: Day of the year
+            - week: Week of the year
+            - dekad: Ten day periods, counted per year with three periods per month (day 1 - 10, 11 - 20 and 21 - end of month). The third dekad of the month can range from 8 to 11 days. For example, the fourth dekad is Feb, 1 - Feb, 10 each year.
+            - month: Month of the year
+            - season: Three month periods of the calendar seasons (December - February, March - May, June - August, September - November).
+            - tropical-season: Six month periods of the tropical seasons (November - April, May - October).
+            - year: Proleptic years
+            - decade: Ten year periods (0-to-9 decade), from a year ending in a 0 to the next year ending in a 9.
+            - decade-ad: Ten year periods (1-to-0 decade) better aligned with the Anno Domini (AD) calendar era, from a year ending in a 1 to the next year ending in a 0.
+
+
+            :param period: The period of the time intervals to aggregate.
+            :param reducer: A reducer to be applied on all values along the specified dimension. The reducer must be a callable process (or a set processes) that accepts an array and computes a single return value of the same type as the input values, for example median.
+            :param dimension: The temporal dimension for aggregation. All data along the dimension will be passed through the specified reducer. If the dimension is not set, the data cube is expected to only have one temporal dimension.
+
+            :return: A data cube with the same dimensions. The dimension properties (name, type, labels, reference system and resolution) remain unchanged.
+        """
+        pass
+
     @deprecated("Use a more specific reduce method instead.")
     def reduce(self,reducer,dimension):
         """

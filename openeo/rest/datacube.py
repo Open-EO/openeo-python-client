@@ -69,11 +69,22 @@ class DataCube(ImageCollection):
 
     @property
     def graph(self) -> dict:
-        """Get the process graph in flat dict representation"""
+        """
+        Get the process graph in flat dict representation.
+
+        .. note:: This property is mainly for internal use, subject to change and not recommended for general usage.
+        """
+        # TODO: is it feasible to just remove this property?
         return self.flat_graph()
 
     def flat_graph(self) -> dict:
-        """Get the process graph in flat dict representation"""
+        """
+        Get the process graph in flat dict representation
+
+        .. note:: This method is mainly for internal use, subject to change and not recommended for general usage.
+            Instead, use :py:meth:`DataCube.to_json()` to get a JSON representation of the process graph.
+        """
+        # TODO: wrap in {"process_graph":...} by default/optionally?
         return self._pg.flat_graph()
 
     flatten = legacy_alias(flat_graph, name="flatten")
@@ -358,6 +369,40 @@ class DataCube(ImageCollection):
             arguments={
                 'data': THIS,
                 'extent': extent
+            }
+        )
+
+    def filter_spatial(
+            self,
+            geometries
+    ) -> 'DataCube':
+        """
+        Limits the data cube over the spatial dimensions to the specified geometries.
+
+            - For polygons, the filter retains a pixel in the data cube if the point at the pixel center intersects with
+             at least one of the polygons (as defined in the Simple Features standard by the OGC).
+            - For points, the process considers the closest pixel center.
+            - For lines (line strings), the process considers all the pixels whose centers are closest to at least one
+            point on the line.
+
+        More specifically, pixels outside of the bounding box of the given geometry will not be available after filtering.
+         All pixels inside the bounding box that are not retained will be set to null (no data).
+
+        :param geometries: One or more geometries used for filtering, specified as GeoJSON in EPSG:4326.
+        :return: A data cube restricted to the specified geometries. The dimensions and dimension properties (name,
+        type, labels, reference system and resolution) remain unchanged, except that the spatial dimensions have less
+         (or the same) dimension labels.
+        """
+        valid_geojson_types = [
+            "Point", "MultiPoint", "LineString", "MultiLineString",
+            "Polygon", "MultiPolygon", "GeometryCollection", "FeatureCollection"
+        ]
+        geometries = self._get_geometry_argument(geometries, valid_geojson_types=valid_geojson_types, crs=None)
+        return self.process(
+            process_id='filter_spatial',
+            arguments={
+                'data': THIS,
+                'geometries': geometries
             }
         )
 
@@ -1030,8 +1075,46 @@ class DataCube(ImageCollection):
                 intervals = intervals,
                 labels = labels,
                 dimension = dimension,
-                reducer = self._get_callback(reducer, parent_parameters=["data"])
+                reducer = self._get_callback(reducer, parent_parameters=["data"]),
+                context = context
+            )
+        )
 
+    def aggregate_temporal_period(self, period:str,reducer, dimension:str = None,context:Dict=None) -> 'ImageCollection' :
+        """ Computes a temporal aggregation based on calendar hierarchies such as years, months or seasons. For other calendar hierarchies aggregate_temporal can be used.
+
+            For each interval, all data along the dimension will be passed through the reducer.
+
+            If the dimension is not set or is set to null, the data cube is expected to only have one temporal dimension.
+
+            The period argument specifies the time intervals to aggregate. The following pre-defined values are available:
+
+            - hour: Hour of the day
+            - day: Day of the year
+            - week: Week of the year
+            - dekad: Ten day periods, counted per year with three periods per month (day 1 - 10, 11 - 20 and 21 - end of month). The third dekad of the month can range from 8 to 11 days. For example, the fourth dekad is Feb, 1 - Feb, 10 each year.
+            - month: Month of the year
+            - season: Three month periods of the calendar seasons (December - February, March - May, June - August, September - November).
+            - tropical-season: Six month periods of the tropical seasons (November - April, May - October).
+            - year: Proleptic years
+            - decade: Ten year periods (0-to-9 decade), from a year ending in a 0 to the next year ending in a 9.
+            - decade-ad: Ten year periods (1-to-0 decade) better aligned with the Anno Domini (AD) calendar era, from a year ending in a 1 to the next year ending in a 0.
+
+
+            :param period: The period of the time intervals to aggregate.
+            :param reducer: A reducer to be applied on all values along the specified dimension. The reducer must be a callable process (or a set processes) that accepts an array and computes a single return value of the same type as the input values, for example median.
+            :param dimension: The temporal dimension for aggregation. All data along the dimension will be passed through the specified reducer. If the dimension is not set, the data cube is expected to only have one temporal dimension.
+
+            :return: A data cube with the same dimensions. The dimension properties (name, type, labels, reference system and resolution) remain unchanged.
+        """
+        return self.process(
+            process_id="aggregate_temporal_period",
+            arguments=dict_no_none(
+                data=THIS,
+                period=period,
+                dimension=dimension,
+                reducer=self._get_callback(reducer, parent_parameters=["data"]),
+                context = context
             )
         )
 

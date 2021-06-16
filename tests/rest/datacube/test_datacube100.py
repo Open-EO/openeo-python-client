@@ -156,6 +156,23 @@ def test_filter_bbox_args_and_kwargs_conflict(con100: Connection, args, kwargs, 
         con100.load_collection("S2").filter_bbox(*args, **kwargs)
 
 
+def test_filter_spatial(con100: Connection, recwarn):
+    img = con100.load_collection("S2")
+    polygon = shapely.geometry.box(0, 0, 1, 1)
+    masked = img.filter_spatial(geometries=polygon)
+    assert sorted(masked.graph.keys()) == ["filterspatial1", "loadcollection1"]
+    assert masked.graph["filterspatial1"] == {
+        "process_id": "filter_spatial",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "geometries": {
+                "type": "Polygon",
+                "coordinates": (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),),
+            }
+        },
+        "result": True
+    }
+
 def test_aggregate_spatial_basic(con100: Connection):
     img = con100.load_collection("S2")
     polygon = shapely.geometry.box(0, 0, 1, 1)
@@ -259,6 +276,23 @@ def test_aggregate_spatial_with_crs(con100: Connection, recwarn):
         "result": True
     }
 
+
+def test_aggregate_temporal(con100: Connection):
+    img = con100.load_collection("S2").aggregate_temporal_period(period="dekad",reducer=lambda d:d.median(),context={"bla":"bla"})
+
+    graph = img.graph
+    assert graph == {'aggregatetemporalperiod1': {'arguments': {'data': {'from_node': 'loadcollection1'},
+                                                                'period': 'dekad',
+                                                                'context': {'bla': 'bla'},
+                                                                'reducer': {'process_graph': {'median1': {'arguments': {'data': {'from_parameter': 'data'}},
+                                                                                                          'process_id': 'median',
+                                                                                                          'result': True}}}},
+                                                  'process_id': 'aggregate_temporal_period',
+                                                  'result': True},
+                     'loadcollection1': {'arguments': {'id': 'S2',
+                                                       'spatial_extent': None,
+                                                       'temporal_extent': None},
+                                         'process_id': 'load_collection'}}
 
 def test_mask_polygon_basic(con100: Connection):
     img = con100.load_collection("S2")

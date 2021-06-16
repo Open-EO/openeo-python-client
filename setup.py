@@ -41,7 +41,6 @@ setup(name=name,
       test_suite='tests',
       install_requires=[
           'requests',
-          'requests_mock',
           'shapely>=1.6.4',
           'numpy>=1.17.0',
           'xarray>=0.12.3',

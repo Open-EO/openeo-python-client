@@ -76,6 +76,7 @@ def test_rfc3339_normalize():
     assert "2020-03-17T12:34:00Z" == rfc3339.normalize("2020/03/17/12/34")
     assert "2020-03-17T12:34:56Z" == rfc3339.normalize("2020_03_17_12_34_56")
     assert "2020-03-17T12:34:56Z" == rfc3339.normalize("2020-03-17T12:34:56Z")
+    assert "2020-03-17T12:34:56Z" == rfc3339.normalize("2020-03-17T12:34:56.44546546Z")
     assert "2020-03-17" == rfc3339.normalize(date(2020, 3, 17))
     assert "2020-03-17T12:34:56Z" == rfc3339.normalize(datetime(2020, 3, 17, 12, 34, 56))
     assert "2020-03-17" == rfc3339.normalize((2020, 3, 17))
