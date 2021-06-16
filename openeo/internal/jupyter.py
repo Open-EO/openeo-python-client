@@ -1,4 +1,5 @@
 import json
+
 from openeo.rest import OpenEoApiError
 
 SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/@openeo/vue-components@2/assets/openeo.min.js'
@@ -78,7 +79,9 @@ TABLE_COLUMNS = {
     }
 }
 
-def render_component(component: str, data = None, parameters: dict = {}):
+
+def render_component(component: str, data=None, parameters: dict = None):
+    parameters = parameters or {}
     # Special handling for batch job results, show either item or collection depending on the data
     if component == "batch-job-result":
         component = "item" if data["type"] == "Feature" else "collection"
@@ -87,7 +90,7 @@ def render_component(component: str, data = None, parameters: dict = {}):
 
     # Set the data as the corresponding parameter in the Vue components
     key = COMPONENT_MAP.get(component, component)
-    if data != None:
+    if data is not None:
         parameters[key] = data
 
     # Construct HTML, load Vue Components source files only if the openEO HTML tag is not yet defined
@@ -103,29 +106,30 @@ def render_component(component: str, data = None, parameters: dict = {}):
         <script type="application/json">{props}</script>
     </openeo-{component}>
     """.format(
-        script = SCRIPT_URL,
-        component = component,
-        props = json.dumps(parameters, default = lambda o: o.__dict__) # default parameter added to serialize LogEntry
+        script=SCRIPT_URL,
+        component=component,
+        props=json.dumps(parameters, default=lambda o: o.__dict__)  # default parameter added to serialize LogEntry
     )
+
 
 def render_error(error: OpenEoApiError):
     # ToDo: Once we have a dedicated log/error component, use that instead of description
     output = """## Error `{code}`\n\n{message}""".format(
-        code = error.code,
-        message = error.message
+        code=error.code,
+        message=error.message
     )
-    return render_component('description', data = output)
+    return render_component('description', data=output)
+
 
 # These classes are proxies to visualize openEO responses nicely in Jupyter
 # To show the actual list or dict in Jupyter, use repr() or print()
 
 class VisualDict(dict):
 
-    def __init__(self, component: str, data : dict, parameters: dict = {}):
+    def __init__(self, component: str, data: dict, parameters: dict = None):
         dict.__init__(self, data)
-
         self.component = component
-        self.parameters = parameters
+        self.parameters = parameters or {}
 
     def _repr_html_(self):
         return render_component(self.component, self, self.parameters)
@@ -133,11 +137,10 @@ class VisualDict(dict):
 
 class VisualList(list):
 
-    def __init__(self, component: str, data : list, parameters: dict = {}):
+    def __init__(self, component: str, data: list, parameters: dict = None):
         list.__init__(self, data)
-
         self.component = component
-        self.parameters = parameters
+        self.parameters = parameters or {}
 
     def _repr_html_(self):
         return render_component(self.component, self, self.parameters)
