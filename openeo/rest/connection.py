@@ -202,7 +202,7 @@ class Connection(RestApiConnection):
     oidc_auth_user_id_token_as_bearer = False
 
     def __init__(
-            self, url, auth: AuthBase = None, session: requests.Session = None, default_timeout: int = None,
+            self, url: str, auth: AuthBase = None, session: requests.Session = None, default_timeout: int = None,
             auth_config: AuthConfig = None, refresh_token_store: RefreshTokenStore = None
     ):
         """
