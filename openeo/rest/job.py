@@ -10,7 +10,8 @@ from requests import ConnectionError, Response
 
 from openeo.rest import OpenEoClientException, JobFailedException, OpenEoApiError
 from openeo.util import ensure_dir
-from openeo.internal.jupyter import render_component, render_error
+from openeo.internal.jupyter import render_component, render_error, VisualList
+from openeo.api.logs import LogEntry
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Only import this for type hinting purposes. Runtime import causes circular dependency issues.
@@ -18,17 +19,6 @@ if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     from openeo.rest.connection import Connection
 
 logger = logging.getLogger(__name__)
-
-
-class JobLogEntry:
-    """
-    A Job log entry.
-    """
-
-    def __init__(self, log_id: str, level: str, message: str):
-        self.log_id = log_id
-        self.level = level
-        self.message = message
 
 
 class RESTJob:
@@ -123,11 +113,12 @@ class RESTJob:
         """ Returns the status of the job."""
         return self.describe_job().get("status", "N/A")
 
-    def logs(self, offset=None) -> List[JobLogEntry]:
+    def logs(self, offset=None) -> List[LogEntry]:
         """ Retrieve job logs."""
         url = "/jobs/{}/logs".format(self.job_id)
         logs = self.connection.get(url, params={'offset': offset}, expected_status=200).json()["logs"]
-        return [JobLogEntry(log['id'], log['level'], log['message']) for log in logs]
+        entries = [LogEntry(log) for log in logs]
+        return VisualList('logs', data = entries)
 
     def run_synchronous(self, outputfile: Union[str, Path, None] = None,
                         print=print, max_poll_interval=60, connection_retry_interval=30) -> 'RESTJob':
