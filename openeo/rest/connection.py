@@ -31,6 +31,7 @@ from openeo.rest.datacube import DataCube
 from openeo.rest.imagecollectionclient import ImageCollectionClient
 from openeo.rest.job import RESTJob
 from openeo.rest.rest_capabilities import RESTCapabilities
+from openeo.rest.service import Service
 from openeo.rest.udp import RESTUserDefinedProcess, Parameter
 from openeo.util import ensure_list, legacy_alias, dict_no_none, rfc3339
 
@@ -796,17 +797,14 @@ class Connection(RestApiConnection):
 
     imagecollection = legacy_alias(load_collection, name="imagecollection")
 
-    def create_service(self, graph: dict, type: str, **kwargs) -> dict:
+    def create_service(self, graph: dict, type: str, **kwargs) -> Service:
         # TODO: type hint for graph: is it a nested or a flat one?
         req = self._build_request_with_process_graph(process_graph=graph, type=type, **kwargs)
         response = self.post(path="/services", json=req, expected_status=201)
-        # TODO: "location" is url of the service metadata, not (base) url of service (https://github.com/Open-EO/openeo-api/issues/269)
-        # TODO: fetch this metadata and return a full metadata object instead?
-        return {
-            'url': response.headers.get('Location'),
-            'service_id': response.headers.get("OpenEO-Identifier"),
-        }
+        service_id = response.headers.get("OpenEO-Identifier")
+        return Service(service_id, self)
 
+    @deprecated("Use :py:meth:`openeo.rest.service.Service.delete_service` instead.", version="0.7.1")
     def remove_service(self, service_id: str):
         """
         Stop and remove a secondary web service.
@@ -814,7 +812,7 @@ class Connection(RestApiConnection):
         :param service_id: service identifier
         :return:
         """
-        response = self.delete('/services/' + service_id)
+        Service(service_id, self).delete_service()
 
     @deprecated("Use :py:meth:`openeo.rest.job.RESTJob.get_results` instead.", version="0.4.10")
     def job_results(self, job_id) -> dict:
@@ -931,6 +929,17 @@ class Connection(RestApiConnection):
         :return: A job object.
         """
         return RESTJob(job_id, self)
+
+    def service(self, service_id: str) -> Service:
+        """
+        Get the secondary web service based on the id. The service with the given id should already exist.
+        
+        Use :py:meth:`openeo.rest.connection.Connection.create_service` to create new services
+
+        :param job_id: the service id of an existing secondary web service
+        :return: A service object.
+        """
+        return Service(service_id, connection=self)
 
     def load_disk_collection(self, format: str, glob_pattern: str, options: dict = {}) -> ImageCollectionClient:
         """
