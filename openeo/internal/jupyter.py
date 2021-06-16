@@ -108,7 +108,7 @@ def render_component(component: str, data=None, parameters: dict = None):
     """.format(
         script=SCRIPT_URL,
         component=component,
-        props=json.dumps(parameters)
+        props=json.dumps(parameters, default=lambda o: o.__dict__)  # default parameter added to serialize LogEntry
     )
 
 
