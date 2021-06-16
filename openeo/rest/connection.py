@@ -577,7 +577,10 @@ class Connection(RestApiConnection):
         :return: data_dict: Dict All available data types
         """
         if "capabilities" not in self._capabilities_cache:
-            self._capabilities_cache["capabilities"] = RESTCapabilities(self.get('/').json(), self._orig_url)
+            self._capabilities_cache["capabilities"] = RESTCapabilities(
+                self.get('/', expected_status=200).json(),
+                self._orig_url
+            )
         return self._capabilities_cache["capabilities"]
 
 
