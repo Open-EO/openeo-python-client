@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([#204](https://github.com/Open-EO/openeo-python-client/issues/204))
 - Add `optional` argument to `Parameter` and fix re-encoding parameters with default value. (EP-3846)
 - Add support to test strict equality with `ComparableVersion`
+- Jupyter integration: add rich HTML rendering for more backend metadata (Job, Job Estimate, User-Defined Processes)
 
 ### Changed
 

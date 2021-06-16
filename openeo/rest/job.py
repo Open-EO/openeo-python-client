@@ -8,9 +8,9 @@ from typing import List, Union, Dict, Optional
 from deprecated.sphinx import deprecated
 from requests import ConnectionError, Response
 
+from openeo.internal.jupyter import render_component, render_error, VisualDict
 from openeo.rest import OpenEoClientException, JobFailedException, OpenEoApiError
 from openeo.util import ensure_dir
-from openeo.internal.jupyter import render_component, render_error
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Only import this for type hinting purposes. Runtime import causes circular dependency issues.
@@ -46,6 +46,11 @@ class RESTJob:
     def __repr__(self):
         return '<{c} job_id={i!r}>'.format(c=self.__class__.__name__, i=self.job_id)
 
+    def _repr_html_(self):
+        data = self.describe_job()
+        currency = self.connection.capabilities().currency()
+        return render_component('job', data=data, parameters={'currency': currency})
+
     def describe_job(self) -> dict:
         """ Get all job information."""
         # GET /jobs/{job_id}
@@ -66,7 +71,9 @@ class RESTJob:
     def estimate_job(self):
         """ Calculate an time/cost estimate for a job."""
         # GET /jobs/{job_id}/estimate
-        return self.connection.get("/jobs/{}/estimate".format(self.job_id), expected_status=200).json()
+        data = self.connection.get("/jobs/{}/estimate".format(self.job_id), expected_status=200).json()
+        currency = self.connection.capabilities().currency()
+        return VisualDict('job-estimate', data=data, parameters={'currency': currency})
 
     def start_job(self):
         """ Start / queue a job for processing."""

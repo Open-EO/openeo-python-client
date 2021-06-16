@@ -5,6 +5,7 @@ from deprecated import deprecated
 
 from openeo.api.process import Parameter
 from openeo.internal.graph_building import as_flat_graph
+from openeo.internal.jupyter import render_component
 from openeo.internal.processes.builder import ProcessBuilderBase
 from openeo.util import dict_no_none
 
@@ -52,6 +53,10 @@ class RESTUserDefinedProcess:
     def __init__(self, user_defined_process_id: str, connection: 'Connection'):
         self.user_defined_process_id = user_defined_process_id
         self._connection = connection
+
+    def _repr_html_(self):
+        process = self.describe()
+        return render_component('process', data=process)
 
     def store(
             self, process_graph: Union[dict, ProcessBuilderBase], parameters: List[Union[Parameter, dict]] = None,
