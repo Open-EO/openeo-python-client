@@ -46,7 +46,7 @@ class RESTJob:
     def __repr__(self):
         return '<{c} job_id={i!r}>'.format(c=self.__class__.__name__, i=self.job_id)
 
-    def describe_job(self):
+    def describe_job(self) -> dict:
         """ Get all job information."""
         # GET /jobs/{job_id}
         return self.connection.get("/jobs/{}".format(self.job_id), expected_status=200).json()
