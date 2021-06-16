@@ -6,9 +6,8 @@ class Service:
     """Represents a secondary web service in openeo."""
 
     def __init__(self, service_id: str, connection: 'Connection'):
+        # Unique identifier of the secondary web service (string)
         self.service_id = service_id
-        """Unique identifier of the secondary web service (string)."""
-
         self.connection = connection
 
     def __repr__(self):
