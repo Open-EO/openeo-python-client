@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `optional` argument to `Parameter` and fix re-encoding parameters with default value. (EP-3846)
 - Add support to test strict equality with `ComparableVersion`
 - Jupyter integration: add rich HTML rendering for more backend metadata (Job, Job Estimate, User-Defined Processes)
+- Add support for [filter_spatial](https://processes.openeo.org/#filter_spatial)
+- Add support for [aggregate_temporal_period](https://processes.openeo.org/#aggregate_temporal_period)
 
 ### Changed
 
