@@ -30,10 +30,6 @@ class LogEntry(dict):
         if missing:
             raise ValueError("Missing required fields: {m}".format(m=sorted(missing)))
 
-        # todo: Use native date/time object?
-        self.setdefault("time", None)
-        self.setdefault("links", [])
-
     @property
     def id(self):
         return self["id"]
@@ -48,3 +44,5 @@ class LogEntry(dict):
     @property
     def level(self):
         return self["level"]
+
+    # TODO: add properties for "code", "time", "path", "links" and "data" with sensible defaults?
