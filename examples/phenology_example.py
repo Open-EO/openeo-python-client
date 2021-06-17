@@ -14,7 +14,7 @@ from openeo.rest.imagecollectionclient import ImageCollectionClient
 logging.basicConfig(level=logging.DEBUG)
 
 #connect with EURAC backend
-session = openeo.session("nobody", "http://openeo.vgt.vito.be/openeo/0.4.0")
+session = openeo.connect("openeo.vito.be").authenticate_oidc()
 #session = openeo.session("nobody", "http://localhost:5000/openeo/0.4.0")
 
 #retrieve the list of available collections
@@ -60,13 +60,13 @@ polygon = Polygon(shell= [
 minx,miny,maxx,maxy = polygon.bounds
 #compute EVI
 #https://en.wikipedia.org/wiki/Enhanced_vegetation_index
-s2_radiometry = session.load_collection("CGS_SENTINEL2_RADIOMETRY_V102_001") \
+s2_radiometry = session.load_collection("TERRASCOPE_S2_TOC_V2") \
                     .filter_temporal("2017-01-01","2017-10-01") #\
                    # .filter_bbox(west=minx,east=maxx,north=maxy,south=miny,crs="EPSG:4326")
 
-B02 = s2_radiometry.band('2')
-B04 = s2_radiometry.band('4')
-B08 = s2_radiometry.band('8')
+B02 = s2_radiometry.band('B04')
+B04 = s2_radiometry.band('B04')
+B08 = s2_radiometry.band('B08')
 
 evi_cube = (2.5 * (B08 - B04)) / ((B08 + 6.0 * B04 - 7.5 * B02) + 1.0)
 
@@ -86,5 +86,5 @@ timeseries_smooth = smoothed_evi.polygonal_mean_timeseries(polygon)
 timeseries_raw_dc = evi_cube.polygonal_mean_timeseries(polygon)
 
 timeseries_raw = pd.Series(timeseries_raw_dc.execute(),name="evi_raw")
-timeseries_raw.head(15)
+print(timeseries_raw.head(15))
 
