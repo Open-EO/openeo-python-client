@@ -30,6 +30,9 @@ openeo.api
 .. automodule:: openeo.api.process
     :members: Parameter
 
+.. automodule:: openeo.api.logs
+    :members: LogEntry
+
 
 openeo.rest.connection
 ----------------------
@@ -42,7 +45,7 @@ openeo.rest.job
 ----------------------
 
 .. automodule:: openeo.rest.job
-    :members: RESTJob, JobLogEntry, JobResults, ResultAsset
+    :members: RESTJob, JobResults, ResultAsset
 
 
 openeo.rest.conversions

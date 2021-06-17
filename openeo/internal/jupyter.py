@@ -80,7 +80,7 @@ TABLE_COLUMNS = {
 }
 
 
-def render_component(component: str, data=None, parameters: dict = None):
+def render_component(component: str, data = None, parameters: dict = None):
     parameters = parameters or {}
     # Special handling for batch job results, show either item or collection depending on the data
     if component == "batch-job-result":
