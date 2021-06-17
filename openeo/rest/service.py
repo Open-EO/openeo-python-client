@@ -1,6 +1,6 @@
 from typing import List
 from openeo.internal.jupyter import VisualDict, VisualList
-#from openeo.api.logs import LogEntry
+from openeo.api.logs import LogEntry
 
 class Service:
     """Represents a secondary web service in openeo."""
@@ -33,10 +33,9 @@ class Service:
         # DELETE /services/{service_id}
         self.connection.delete("/services/{}".format(self.service_id), expected_status=204)
 
-# ToDo: Uncomment once LogEntry has been merged, too
-#   def logs(self, offset=None) -> List[LogEntry]:
-#       """ Retrieve service logs."""
-#       url = "/service/{}/logs".format(self.service_id)
-#       logs = self.connection.get(url, params={'offset': offset}, expected_status=200).json()["logs"]
-#       entries = [LogEntry(log) for log in logs]
-#       return VisualList('logs', data = entries)
+    def logs(self, offset=None) -> List[LogEntry]:
+        """ Retrieve service logs."""
+        url = "/service/{}/logs".format(self.service_id)
+        logs = self.connection.get(url, params={'offset': offset}, expected_status=200).json()["logs"]
+        entries = [LogEntry(log) for log in logs]
+        return VisualList('logs', data = entries)
