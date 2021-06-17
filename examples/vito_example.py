@@ -5,17 +5,17 @@ import json
 logging.basicConfig(level=logging.INFO)
 
 
-VITO_DRIVER_URL = "http://openeo.vgt.vito.be/openeo/0.4.0"
+VITO_DRIVER_URL = "openeo.vito.be"
 
 OUTPUT_FILE = "/tmp/openeo_vito_output.png"
 
 
-con = openeo.connect(VITO_DRIVER_URL)
+con = openeo.connect(VITO_DRIVER_URL).authenticate_oidc()
 
 #Test Connection
 print(con.list_processes())
 print(con.list_collections())
-print(con.describe_collection("BIOPAR_FAPAR_V1_GLOBAL"))
+print(con.describe_collection("CGLS_LAI300_V1_GLOBAL"))
 
 
 # Test Capabilities
@@ -28,7 +28,7 @@ print(cap.list_plans())
 
 # Test Processes
 
-datacube = con.load_collection("BIOPAR_FAPAR_V1_GLOBAL")
+datacube = con.load_collection("CGLS_LAI300_V1_GLOBAL")
 datacube = datacube.filter_bbox(west=16.138916, south=48.138600, east=16.524124, north=48.320647, crs="EPSG:4326")
 datacube = datacube.filter_daterange(extent=["2016-01-01T00:00:00Z", "2016-03-10T23:59:59Z"])
 datacube = datacube.max_time()
@@ -41,8 +41,6 @@ datacube.download("/tmp/testfile.tiff")
 job = datacube.send_job()
 if job:
     print(job.job_id)
-    print(job.start_job())
-    print(job.describe_job())
-    job.download_results("/tmp/testfile")
+    print(job.run_synchronous("/tmp/testfile"))
 else:
     print("Job ID is None")

@@ -14,13 +14,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([#204](https://github.com/Open-EO/openeo-python-client/issues/204))
 - Add `optional` argument to `Parameter` and fix re-encoding parameters with default value. (EP-3846)
 - Add support to test strict equality with `ComparableVersion`
-- Jupyter integration: add rich HTML rendering for more backend metadata (Services)
+- Jupyter integration: add rich HTML rendering for more backend metadata ()
+- Jupyter integration: add rich HTML rendering for more backend metadata (Job, Job Estimate, Logs, Services, User-Defined Processes)
 - Added class `Service` for secondary web-services instead of returning a `dict` for them
+- Add support for [filter_spatial](https://processes.openeo.org/#filter_spatial)
+- Add support for [aggregate_temporal_period](https://processes.openeo.org/#aggregate_temporal_period)
 
 ### Changed
 
 - Disallow redirects on POST/DELETE/... requests and require status code 200 on `POST /result` requests. 
   This improves error information where `POST /result` would involve a redirect. (EP-3889)
+- Class `JobLogEntry` got replaced with a more complete and re-usable `LogEntry` dict
 
 ### Removed
 
