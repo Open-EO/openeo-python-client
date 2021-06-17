@@ -29,7 +29,22 @@ class LogEntry(dict):
         missing = self._required.difference(self.keys())
         if missing:
             raise ValueError("Missing required fields: {m}".format(m=sorted(missing)))
-        
+
         # todo: Use native date/time object?
         self.setdefault("time", None)
         self.setdefault("links", [])
+
+    @property
+    def id(self):
+        return self["id"]
+
+    # Legacy alias
+    log_id = id
+
+    @property
+    def message(self):
+        return self["message"]
+
+    @property
+    def level(self):
+        return self["level"]
