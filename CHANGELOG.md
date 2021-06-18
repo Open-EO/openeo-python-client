@@ -14,7 +14,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([#204](https://github.com/Open-EO/openeo-python-client/issues/204))
 - Add `optional` argument to `Parameter` and fix re-encoding parameters with default value. (EP-3846)
 - Add support to test strict equality with `ComparableVersion`
-- Jupyter integration: add rich HTML rendering for more backend metadata ()
 - Jupyter integration: add rich HTML rendering for more backend metadata (Job, Job Estimate, Logs, Services, User-Defined Processes)
 - Added class `Service` for secondary web-services instead of returning a `dict` for them
 - Add support for [filter_spatial](https://processes.openeo.org/#filter_spatial)
