@@ -15,7 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `optional` argument to `Parameter` and fix re-encoding parameters with default value. (EP-3846)
 - Add support to test strict equality with `ComparableVersion`
 - Jupyter integration: add rich HTML rendering for more backend metadata (Job, Job Estimate, Logs, Services, User-Defined Processes)
-- Added class `Service` for secondary web-services instead of returning a `dict` for them
+- Added class `Service` for secondary web-services
+- Added a method `service` to `Connection`
 - Add support for [filter_spatial](https://processes.openeo.org/#filter_spatial)
 - Add support for [aggregate_temporal_period](https://processes.openeo.org/#aggregate_temporal_period)
 
@@ -24,6 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Disallow redirects on POST/DELETE/... requests and require status code 200 on `POST /result` requests. 
   This improves error information where `POST /result` would involve a redirect. (EP-3889)
 - Class `JobLogEntry` got replaced with a more complete and re-usable `LogEntry` dict
+- The following methods return a `Service` class instead of a dict: `tiled_viewing_service` in `ImageCollection`, `ImageCollectionClient` and `DataCube`, `create_service` in `Connection`
+
+### Deprecated
+
+- The method `remove_service` in `Connection` has been deprecated in favor of `delete_service` in the `Service` class
 
 ### Removed
 
