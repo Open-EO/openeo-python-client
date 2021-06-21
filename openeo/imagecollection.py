@@ -7,6 +7,7 @@ from deprecated import deprecated
 from shapely.geometry import Polygon, MultiPolygon
 
 from openeo.rest.job import RESTJob
+from openeo.rest.service import Service
 from openeo.util import get_temporal_extent, first_not_none
 
 
@@ -512,14 +513,14 @@ class ImageCollection(ABC):
         """
         pass
 
-    def tiled_viewing_service(self, **kwargs) -> Dict:
+    def tiled_viewing_service(self, **kwargs) -> Service:
         """
         Returns metadata for a tiled viewing service that visualizes this layer.
 
         :param process_graph: process graph dict
         :param service_type: The type of viewing service to create, for instance: 'WMTS'
 
-        :return: A dictionary object containing the viewing service metadata, such as the connection 'url'.
+        :return: A service object.
         """
         pass
 
