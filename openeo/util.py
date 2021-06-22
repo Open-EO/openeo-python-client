@@ -117,9 +117,29 @@ class Rfc3339:
             return None
         raise ValueError(x)
 
-    def parse_datetime(self, x: Union[str, None]) -> dt.datetime:
+    def parse_date(self, x: Union[str, None]) -> Union[dt.date, None]:
+        """Parse given string as RFC3339 date."""
+        if isinstance(x, str):
+            return dt.datetime.strptime(x, '%Y-%m-%d').date()
+        elif x is None and self._propagate_none:
+            return None
+        raise ValueError(x)
+
+    def parse_datetime(self, x: Union[str, None]) -> Union[dt.datetime, None]:
+        """Parse given string as RFC3339 date-time."""
         if isinstance(x, str):
             return dt.datetime.strptime(x, '%Y-%m-%dT%H:%M:%SZ')
+        elif x is None and self._propagate_none:
+            return None
+        raise ValueError(x)
+
+    def parse_date_or_datetime(self, x: Union[str, None]) -> Union[dt.date, dt.datetime, None]:
+        """Parse given string as RFC3339 date or date-time."""
+        if isinstance(x, str):
+            if len(x) > 10:
+                return self.parse_datetime(x)
+            else:
+                return self.parse_date(x)
         elif x is None and self._propagate_none:
             return None
         raise ValueError(x)

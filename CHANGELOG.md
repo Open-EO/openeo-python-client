@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add support for [aggregate_temporal_period](https://processes.openeo.org/#aggregate_temporal_period)
 - Added class `Service` for secondary web-services
 - Added a method `service` to `Connection`
+- Add `Rfc3339.parse_date` and `Rfc3339.parse_date_or_datetime` 
+
 
 ### Changed
 

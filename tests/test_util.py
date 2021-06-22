@@ -110,8 +110,37 @@ def test_rfc3339_datetime_propagate_none():
     assert formatter.date(None) is None
 
 
+def test_rfc3339_parse_date():
+    assert rfc3339.parse_date("2011-12-13") == date(2011, 12, 13)
+    # `datetime.strptime` does not require leading zeros for month, day, hour, minutes, seconds
+    assert rfc3339.parse_date("0001-2-3") == date(1, 2, 3)
+
+
+def test_rfc3339_parse_date_none():
+    with pytest.raises(ValueError):
+        rfc3339.parse_date(None)
+
+    assert Rfc3339(propagate_none=True).parse_date(None) is None
+
+
+@pytest.mark.parametrize("date", [
+    "2011", "2011-12",
+    "20111213", "2011/12/13", "2011:12:13",
+    "11-12-14", "1-2-3",
+    "2011-12-13T", "2011-12-13T14:15:16Z",
+    "foobar",
+])
+def test_rfc3339_parse_date_invalid(date):
+    with pytest.raises(ValueError):
+        rfc3339.parse_date(date)
+
+
 def test_rfc3339_parse_datetime():
     assert rfc3339.parse_datetime("2011-12-13T14:15:16Z") == datetime(2011, 12, 13, 14, 15, 16)
+    # `datetime.strptime` is apparently case insensitive about non-placeholder bits
+    assert rfc3339.parse_datetime("2011-12-13t14:15:16z") == datetime(2011, 12, 13, 14, 15, 16)
+    # `datetime.strptime` does not require leading zeros for month, day, hour, minutes, seconds
+    assert rfc3339.parse_datetime("0001-2-3T4:5:6Z") == datetime(1, 2, 3, 4, 5, 6)
 
 
 def test_rfc3339_parse_datetime_none():
@@ -119,6 +148,33 @@ def test_rfc3339_parse_datetime_none():
         rfc3339.parse_datetime(None)
 
     assert Rfc3339(propagate_none=True).parse_datetime(None) is None
+
+
+@pytest.mark.parametrize("date", [
+    "2011", "2011-12", "2011-12-13", "2011-12-13T", "2011-12-13T14", "2011-12-13T14:15", "2011-12-13T14:15:16",
+    "20111213141516",
+    "2011/12/13T14:15:16Z", "2011-12-13T14-15-16Z", "2011:12:13T14:15:16Z",
+    "1-2-3T4:5:6Z",
+    "foobar",
+])
+def test_rfc3339_parse_datetime_invalid(date):
+    with pytest.raises(ValueError):
+        rfc3339.parse_datetime(date)
+
+
+def test_rfc3339_parse_date_or_datetime():
+    assert rfc3339.parse_date_or_datetime("2011-12-13") == date(2011, 12, 13)
+    assert rfc3339.parse_date_or_datetime("0001-2-3") == date(1, 2, 3)
+    assert rfc3339.parse_date_or_datetime("2011-12-13T14:15:16Z") == datetime(2011, 12, 13, 14, 15, 16)
+    assert rfc3339.parse_date_or_datetime("2011-12-13t14:15:16z") == datetime(2011, 12, 13, 14, 15, 16)
+    assert rfc3339.parse_date_or_datetime("0001-2-3T4:5:6Z") == datetime(1, 2, 3, 4, 5, 6)
+
+
+def test_rfc3339_parse_date_or_datetime_none():
+    with pytest.raises(ValueError):
+        rfc3339.parse_date_or_datetime(None)
+
+    assert Rfc3339(propagate_none=True).parse_date_or_datetime(None) is None
 
 
 def test_dict_no_none_kwargs():
