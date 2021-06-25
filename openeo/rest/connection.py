@@ -804,7 +804,7 @@ class Connection(RestApiConnection):
         service_id = response.headers.get("OpenEO-Identifier")
         return Service(service_id, self)
 
-    @deprecated("Use :py:meth:`openeo.rest.service.Service.delete_service` instead.", version="0.7.1")
+    @deprecated("Use :py:meth:`openeo.rest.service.Service.delete_service` instead.", version="0.8.0")
     def remove_service(self, service_id: str):
         """
         Stop and remove a secondary web service.
