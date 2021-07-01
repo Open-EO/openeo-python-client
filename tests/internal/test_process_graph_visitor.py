@@ -2,7 +2,8 @@ from unittest.mock import MagicMock, call, ANY
 
 import pytest
 
-from openeo.internal.process_graph_visitor import ProcessGraphVisitor
+from openeo.internal.process_graph_visitor import ProcessGraphVisitor, ProcessGraphUnflattener, \
+    ProcessGraphVisitException
 
 
 def test_visit_node():
@@ -339,3 +340,145 @@ def test_dereference_cycle():
     ProcessGraphVisitor.dereference_from_node_arguments(graph)
     assert graph["node1"]["arguments"]["data"]["node"] is graph["node2"]
     assert graph["node2"]["arguments"]["data"]["node"] is graph["node1"]
+
+
+class TestProcessGraphUnflattener:
+    def test_minimal(self):
+        graph = {
+            "add12": {"process_id": "add", "arguments": {"x": 1, "y": 2}, "result": True},
+        }
+        result = ProcessGraphUnflattener.unflatten(graph)
+        assert result == {"process_id": "add", "arguments": {"x": 1, "y": 2}, "result": True}
+
+    def test_empty(self):
+        with pytest.raises(ProcessGraphVisitException, match="Found no result node in flat process graph"):
+            _ = ProcessGraphUnflattener.unflatten({})
+
+    def test_basic(self):
+        graph = {
+            "add12": {"process_id": "add", "arguments": {"x": 1, "y": 2}},
+            "mul3": {"process_id": "multiply", "arguments": {"x": {"from_node": "add12"}, "y": 3}},
+            "div4": {"process_id": "divide", "arguments": {"x": {"from_node": "mul3"}, "y": 4}, "result": True},
+        }
+        result = ProcessGraphUnflattener.unflatten(graph)
+        assert result == {
+            "process_id": "divide",
+            "arguments": {
+                "x": {
+                    "from_node": "mul3",
+                    "node": {
+                        "process_id": "multiply",
+                        "arguments": {
+                            "x": {
+                                "from_node": "add12",
+                                "node": {
+                                    "process_id": "add",
+                                    "arguments": {"x": 1, "y": 2},
+                                }
+                            },
+                            "y": 3,
+                        }
+                    }},
+                "y": 4
+            },
+            "result": True,
+        }
+
+    def test_dereference_list_arg(self):
+        graph = {
+            "start": {"process_id": "constant", "arguments": {"x": "2020-02-02"}},
+            "end": {"process_id": "constant", "arguments": {"x": "2020-03-03"}},
+            "temporal": {
+                "process_id": "filter_temporal",
+                "arguments": {
+                    "extent": [{"from_node": "start"}, {"from_node": "end"}],
+                },
+                "result": True,
+            },
+        }
+        result = ProcessGraphUnflattener.unflatten(graph)
+        assert result == {
+            "process_id": "filter_temporal",
+            "arguments": {
+                "extent": [
+                    {"from_node": "start", "node": {"process_id": "constant", "arguments": {"x": "2020-02-02"}}},
+                    {"from_node": "end", "node": {"process_id": "constant", "arguments": {"x": "2020-03-03"}}},
+                ],
+            },
+            "result": True,
+        }
+
+    def test_dereference_dict_arg(self):
+        graph = {
+            "west": {"process_id": "add", "arguments": {"x": 1, "y": 1}},
+            "east": {"process_id": "add", "arguments": {"x": 2, "y": 3}},
+            "bbox": {
+                "process_id": "filter_bbox",
+                "arguments": {
+                    "extent": {
+                        "west": {"from_node": "west"},
+                        "east": {"from_node": "east"},
+                    }
+                },
+                "result": True,
+            }
+        }
+        result = ProcessGraphUnflattener.unflatten(graph)
+        assert result == {
+            "process_id": "filter_bbox",
+            "arguments": {
+                "extent": {
+                    "west": {
+                        "from_node": "west",
+                        "node": {"process_id": "add", "arguments": {"x": 1, "y": 1}},
+                    },
+                    "east": {
+                        "from_node": "east",
+                        "node": {"process_id": "add", "arguments": {"x": 2, "y": 3}},
+                    },
+                }
+            },
+            "result": True,
+        }
+
+    def test_dereference_no_result_node(self):
+        graph = {
+            "add12": {"process_id": "add", "arguments": {"x": 1, "y": 2}},
+            "mul3": {"process_id": "multiply", "arguments": {"x": {"from_node": "add12"}, "y": 3}},
+        }
+        with pytest.raises(ProcessGraphVisitException, match="Found no result node in flat process graph"):
+            _ = ProcessGraphUnflattener.unflatten(graph)
+
+    def test_dereference_multiple_result_node(self):
+        graph = {
+            "add12": {"process_id": "add", "arguments": {"x": 1, "y": 2}, "result": True},
+            "mul3": {"process_id": "multiply", "arguments": {"x": {"from_node": "add12"}, "y": 3}, "result": True},
+        }
+        with pytest.raises(ProcessGraphVisitException, match="Found multiple result nodes in flat process graph"):
+            _ = ProcessGraphUnflattener.unflatten(graph)
+
+    def test_dereference_invalid_node(self):
+        graph = {
+            "add12": {
+                "process_id": "add",
+                "arguments": {"x": {"from_node": "meh"}, "y": 2},
+                "result": True
+            },
+        }
+        with pytest.raises(ProcessGraphVisitException, match="not found in process graph"):
+            _ = ProcessGraphUnflattener.unflatten(graph)
+
+    def test_dereference_cycle(self):
+        graph = {
+            "node1": {
+                "process_id": "increment",
+                "arguments": {"data": {"from_node": "node2"}, },
+                "result": True
+            },
+            "node2": {
+                "process_id": "increment",
+                "arguments": {"data": {"from_node": "node1"}, }
+            }
+        }
+        with pytest.raises(ProcessGraphVisitException, match="Cycle in process graph"):
+            _ = ProcessGraphUnflattener.unflatten(graph)

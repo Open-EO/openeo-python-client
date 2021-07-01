@@ -3,15 +3,25 @@
 Process graph building functionality for 1.0.0-style process graphs and DataCube
 
 """
+import abc
 import collections
-from typing import Union, Dict, Any
+from typing import Union, Dict, Any, Optional
 
 from openeo.api.process import Parameter
-from openeo.internal.process_graph_visitor import ProcessGraphVisitor
+from openeo.internal.process_graph_visitor import ProcessGraphVisitor, ProcessGraphUnflattener, \
+    ProcessGraphVisitException
 from openeo.util import legacy_alias, dict_no_none
 
 
-class PGNode:
+class _FromNodeMixin(abc.ABC):
+    """Mixin for classes that want to hook into the generation of a "from_node" reference."""
+
+    @abc.abstractmethod
+    def from_node(self):
+        pass
+
+
+class PGNode(_FromNodeMixin):
     """
     Wrapper for process node in a process graph (has process_id and arguments).
 
@@ -30,15 +40,18 @@ class PGNode:
         arguments = dict(**(arguments or {}), **kwargs)
         # Make sure direct PGNode arguments are properly wrapped in a "from_node" dict
         for arg, value in arguments.items():
-            if isinstance(value, PGNode):
-                arguments[arg] = {"from_node": value}
-            elif isinstance(value,list):
-                for index,arrayelement in enumerate(value):
-                    if isinstance(arrayelement, PGNode):
-                        value[index] = {"from_node": arrayelement}
+            if isinstance(value, _FromNodeMixin):
+                arguments[arg] = {"from_node": value.from_node()}
+            elif isinstance(value, list):
+                for index, arrayelement in enumerate(value):
+                    if isinstance(arrayelement, _FromNodeMixin):
+                        value[index] = {"from_node": arrayelement.from_node()}
         # TODO: use a frozendict of some sort to ensure immutability?
         self._arguments = arguments
         self._namespace = namespace
+
+    def from_node(self):
+        return self
 
     def __repr__(self):
         return "<{c} {p!r} at 0x{m:x}>".format(c=self.__class__.__name__, p=self.process_id, m=id(self))
@@ -54,6 +67,12 @@ class PGNode:
     @property
     def namespace(self) -> Union[str, None]:
         return self._namespace
+
+    def _as_tuple(self):
+        return (self._process_id, self._arguments, self._namespace)
+
+    def __eq__(self, other):
+        return isinstance(other, type(self)) and self._as_tuple() == other._as_tuple()
 
     def to_dict(self) -> dict:
         """
@@ -101,6 +120,11 @@ class PGNode:
             return value
         else:
             raise ValueError(value)
+
+    @staticmethod
+    def from_flat_graph(flat_graph: dict, parameters: Optional[dict] = None) -> 'PGNode':
+        """Unflatten a given flat dict representation of a process graph and return result node"""
+        return PGNodeGraphUnflattener.unflatten(flat_graph=flat_graph, parameters=parameters)
 
 
 def as_flat_graph(x: Union[dict, Any]) -> dict:
@@ -267,3 +291,30 @@ class GraphFlattener(ProcessGraphVisitor):
 
     def constantArgument(self, argument_id: str, value):
         self._store_argument(argument_id, value)
+
+
+class PGNodeGraphUnflattener(ProcessGraphUnflattener):
+    """
+    Unflatten a flat process graph to a graph of :py:class:`PGNode` objects
+    """
+
+    def __init__(self, flat_graph: dict, parameters: Optional[dict] = None):
+        super().__init__(flat_graph=flat_graph)
+        self._parameters = parameters
+
+    def _process_node(self, node: dict) -> PGNode:
+        return PGNode(
+            process_id=node["process_id"],
+            arguments=self._process_value(value=node["arguments"]),
+            namespace=node.get("namespace")
+        )
+
+    def _process_from_node(self, key: str, node: dict) -> PGNode:
+        return self.get_node(key=key)
+
+    def _process_from_parameter(self, name: str) -> Any:
+        if self._parameters is None:
+            return super()._process_from_parameter(name=name)
+        if name not in self._parameters:
+            raise ProcessGraphVisitException("No substitution value for parameter {p!r}.".format(p=name))
+        return self._parameters[name]

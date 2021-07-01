@@ -2,7 +2,9 @@
 This module provides a Connection object to manage and persist settings when interacting with the OpenEO API.
 """
 import datetime
+import json
 import logging
+import re
 import sys
 import warnings
 from collections import OrderedDict
@@ -33,7 +35,7 @@ from openeo.rest.job import RESTJob
 from openeo.rest.rest_capabilities import RESTCapabilities
 from openeo.rest.service import Service
 from openeo.rest.udp import RESTUserDefinedProcess, Parameter
-from openeo.util import ensure_list, legacy_alias, dict_no_none, rfc3339
+from openeo.util import ensure_list, legacy_alias, dict_no_none, rfc3339, load_json_resource
 
 _log = logging.getLogger(__name__)
 
@@ -765,6 +767,40 @@ class Connection(RestApiConnection):
         else:
             raise OpenEoClientException(
                 "This method requires support for at least version 1.0.0 in the openEO backend.")
+
+    def datacube_from_flat_graph(self, flat_graph: dict, parameters: dict = None) -> DataCube:
+        """
+        Load a raster :py:class:`DataCube` from flat process graph representation
+
+        :param flat_graph: flat dictionary representation of a process graph
+            or a process dictionary with a flat process graph under "process_graph" field
+        :return:
+        """
+        if self._api_version.below("1.0.0"):
+            raise OpenEoClientException(
+                "This method requires support for at least version 1.0.0 in the openEO backend.")
+
+        parameters = parameters or {}
+
+        if "process_graph" in flat_graph:
+            # `flat_graph` is a "process" structure
+            # Extract defaults from declared parameters.
+            for param in flat_graph.get("parameters") or []:
+                if "default" in param:
+                    parameters.setdefault(param["name"], param["default"])
+
+            flat_graph = flat_graph["process_graph"]
+
+        pgnode = PGNode.from_flat_graph(flat_graph=flat_graph, parameters=parameters or {})
+        return DataCube(graph=pgnode, connection=self)
+
+    def datacube_from_json(self, src: Union[str, Path], parameters: dict = None) -> DataCube:
+        """
+        Load a :py:class:`DataCube` from JSON resource containing (flat) process graph representation
+        :param src: raw JSON string, URL to JSON resource or path to local JSON file
+        :return:
+        """
+        return self.datacube_from_flat_graph(load_json_resource(src), parameters=parameters)
 
     def load_collection(
             self,

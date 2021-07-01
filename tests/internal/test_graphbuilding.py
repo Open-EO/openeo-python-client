@@ -2,7 +2,8 @@ import pytest
 
 import openeo.processes
 from openeo.api.process import Parameter
-from openeo.internal.graph_building import FlatGraphNodeIdGenerator, PGNode, ReduceNode
+from openeo.internal.graph_building import FlatGraphNodeIdGenerator, PGNode, ReduceNode, PGNodeGraphUnflattener
+from openeo.internal.process_graph_visitor import ProcessGraphVisitException
 
 
 def test_pgnode_process_id():
@@ -22,6 +23,16 @@ def test_pgnode_arguments():
 def test_pgnode_namespace():
     assert PGNode("foo").namespace is None
     assert PGNode("foo", namespace="bar").namespace == "bar"
+
+
+def test_pgnode_equality():
+    assert PGNode("foo") == PGNode("foo")
+    assert PGNode("foo") != PGNode("bar")
+    assert PGNode("foo", {"x": 1}) == PGNode("foo", {"x": 1})
+    assert PGNode("foo", {"x": 1}) == PGNode("foo", x=1)
+    assert PGNode("foo", {"x": 1}) != PGNode("foo", {"y": 1})
+    assert PGNode("foo", namespace="n1") == PGNode("foo", namespace="n1")
+    assert PGNode("foo", namespace="n1") != PGNode("foo", namespace="b2")
 
 
 def test_pgnode_to_dict():
@@ -220,3 +231,68 @@ def test_pgnode_parameter_fahrenheit():
         "subtract1": {"process_id": "subtract", "arguments": {"x": {"from_parameter": "f"}, "y": 32}},
         "divide1": {"process_id": "divide", "arguments": {"x": {"from_node": "subtract1"}, "y": 1.8}, "result": True},
     }
+
+
+class TestPGNodeGraphUnflattener:
+
+    def test_minimal(self):
+        flat_graph = {
+            "add12": {"process_id": "add", "arguments": {"x": 1, "y": 2}, "result": True},
+        }
+        result: PGNode = PGNodeGraphUnflattener.unflatten(flat_graph)
+        assert result.process_id == "add"
+        assert result.arguments == {"x": 1, "y": 2}
+        assert result.namespace is None
+        assert result == PGNode("add", {"x": 1, "y": 2})
+
+        assert list(result.flat_graph().values()) == list(flat_graph.values())
+
+    def test_basic(self):
+        flat_graph = {
+            "add12": {"process_id": "add", "arguments": {"x": 1, "y": 2}},
+            "mul3": {"process_id": "multiply", "arguments": {"x": {"from_node": "add12"}, "y": 3}},
+            "div4": {"process_id": "divide", "arguments": {"x": {"from_node": "mul3"}, "y": 4}, "result": True},
+        }
+        result: PGNode = PGNodeGraphUnflattener.unflatten(flat_graph)
+        expected = PGNode("divide", x=PGNode("multiply", x=PGNode("add", x=1, y=2), y=3), y=4)
+        assert result == expected
+
+    def test_pgnode_reuse(self):
+        flat_graph = {
+            "value1": {"process_id": "constant", "arguments": {"x": 1}},
+            "add1": {
+                "process_id": "add",
+                "arguments": {"x": {"from_node": "value1"}, "y": {"from_node": "value1"}},
+                "result": True
+            },
+        }
+        result: PGNode = PGNodeGraphUnflattener.unflatten(flat_graph)
+        expected = PGNode("add", x=PGNode("constant", x=1), y=PGNode("constant", x=1))
+        assert result == expected
+        assert result.arguments["x"]["from_node"] is result.arguments["y"]["from_node"]
+
+    def test_parameter_substitution_none(self):
+        flat_graph = {
+            "add": {"process_id": "add", "arguments": {"x": 1, "y": {"from_parameter": "increment"}}},
+            "mul": {"process_id": "multiply", "arguments": {"x": {"from_node": "add"}, "y": 3}, "result": True},
+        }
+        result: PGNode = PGNodeGraphUnflattener.unflatten(flat_graph)
+        expected = x = PGNode("multiply", x=PGNode("add", x=1, y={"from_parameter": "increment"}), y=3)
+        assert result == expected
+
+    def test_parameter_substitution_defined(self):
+        flat_graph = {
+            "add": {"process_id": "add", "arguments": {"x": 1, "y": {"from_parameter": "increment"}}},
+            "mul": {"process_id": "multiply", "arguments": {"x": {"from_node": "add"}, "y": 3}, "result": True},
+        }
+        result: PGNode = PGNodeGraphUnflattener.unflatten(flat_graph, parameters={"increment": 100})
+        expected = x = PGNode("multiply", x=PGNode("add", x=1, y=100), y=3)
+        assert result == expected
+
+    def test_parameter_substitution_undefined(self):
+        flat_graph = {
+            "add": {"process_id": "add", "arguments": {"x": 1, "y": {"from_parameter": "increment"}}},
+            "mul": {"process_id": "multiply", "arguments": {"x": {"from_node": "add"}, "y": 3}, "result": True},
+        }
+        with pytest.raises(ProcessGraphVisitException, match="No substitution value for parameter 'increment'"):
+            _ = PGNodeGraphUnflattener.unflatten(flat_graph, parameters={"other": 100})
