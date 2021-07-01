@@ -1,13 +1,17 @@
-from abc import ABC
-from typing import Union
 import json
+from abc import ABC
+from typing import Union, Tuple, Any
 
 from deprecated import deprecated
 
 
+class ProcessGraphWalkException(ValueError):
+    pass
+
+
 class ProcessGraphVisitor(ABC):
     """
-    Hierarchical Visitor for process graphs, to allow different tools to traverse the graph.
+    Hierarchical Visitor for (nested) process graphs structures.
     """
 
     def __init__(self):
@@ -16,16 +20,17 @@ class ProcessGraphVisitor(ABC):
     @classmethod
     def dereference_from_node_arguments(cls, process_graph: dict) -> str:
         """
+
         Walk through the given (flat) process graph and replace (in-place) "from_node" references in
         process arguments (dictionaries or lists) with the corresponding resolved subgraphs
 
         :param process_graph: process graph dictionary to be manipulated in-place
         :return: name of the "result" node of the graph
 
+        .. deprecated:: Use :py:class:`ProcessGraphUnflattener` instead
         """
 
         # TODO avoid manipulating process graph in place? make it more explicit? work on a copy? Where is this functionality used anyway?
-        # TODO this is driver specific functionality, working on flattened graph structures. Make this more clear?
         # TODO call it more something like "unflatten"?. Split this off of ProcessGraphVisitor?
 
         def resolve_from_node(process_graph, node, from_node):
@@ -121,7 +126,7 @@ class ProcessGraphVisitor(ABC):
     def _accept_dict(self, value: dict):
         pass
 
-    def from_parameter(self,parameter_id:str):
+    def from_parameter(self, parameter_id: str):
         pass
 
     def enterProcess(self, process_id: str, arguments: dict, namespace: Union[str, None]):
@@ -150,3 +155,93 @@ class ProcessGraphVisitor(ABC):
 
     def arrayElementDone(self, value: dict):
         pass
+
+
+def find_result_node(flat_graph: dict) -> Tuple[str, dict]:
+    """
+    Find result node in flat graph
+
+    :return: tuple with node id (str) and node dictionary of the result node.
+    """
+    result_nodes = [(key, node) for (key, node) in flat_graph.items() if node.get("result")]
+
+    if len(result_nodes) == 1:
+        return result_nodes[0]
+    elif len(result_nodes) == 0:
+        raise ProcessGraphWalkException("Found no result node in flat process graph")
+    else:
+        keys = [k for (k, n) in result_nodes]
+        raise ProcessGraphWalkException("Found multiple result nodes in flat process graph: {keys!r}".format(keys=keys))
+
+
+class ProcessGraphUnflattener:
+    """
+    Base class to process a flat graph representation of a process graph
+    and unflatten it by resolving the "from_node" references.
+    Subclassing and overriding certain methods allows to build desired unflattened graph structure.
+    """
+
+    def process(self, flat_graph: dict):
+        _, result_node = find_result_node(flat_graph=flat_graph)
+        return self._process_node(node=result_node, flat_graph=flat_graph)
+
+    def _process_node(self, node: dict, flat_graph: dict) -> Any:
+        # Default implementation: basic validation/whitelisting, and only traverse arguments
+        return dict(
+            process_id=node["process_id"],
+            arguments=self._process_value(value=node["arguments"], flat_graph=flat_graph),
+            **{k: node[k] for k in ["namespace", "description", "result"] if k in node}
+        )
+
+    def _process_from_node(self, key: str, node: dict, flat_graph: dict) -> Any:
+        # Default/original implementation: keep "from_node" key and add resolved node under "node" key.
+        return {
+            "from_node": key,
+            "node": self._process_node(node=node, flat_graph=flat_graph)
+        }
+
+    def _resolve_from_node(self, key: str, flat_graph: dict) -> dict:
+        if key not in flat_graph:
+            raise ValueError("from_node reference {k!r} not found in process graph".format(k=key))
+        return flat_graph[key]
+
+    def _process_value(self, value, flat_graph: dict) -> Any:
+        if isinstance(value, dict):
+            if "from_node" in value:
+                key = value["from_node"]
+                node = self._resolve_from_node(key=key, flat_graph=flat_graph)
+                return self._process_from_node(key=key, node=node, flat_graph=flat_graph)
+            else:
+                return {k: self._process_value(v, flat_graph=flat_graph) for (k, v) in value.items()}
+        elif isinstance(value, (list, tuple)):
+            return [self._process_value(v, flat_graph=flat_graph) for v in value]
+        else:
+            return value
+
+
+class OriginalInplaceUnflattener(ProcessGraphUnflattener):
+
+    @classmethod
+    def dereference_from_node_arguments(cls, process_graph: dict) -> str:
+        result_node, _ = find_result_node(flat_graph=process_graph)
+        unflattener = cls()
+        unflattener.process(flat_graph=process_graph)
+        return result_node
+
+    def _process_node(self, node: dict, flat_graph: dict) -> Any:
+        return self._process_value(value=node, flat_graph=flat_graph)
+
+    def _process_value(self, value, flat_graph: dict) -> Any:
+        if isinstance(value, dict):
+            if "from_node" in value:
+                key = value["from_node"]
+                node = self._resolve_from_node(key=key, flat_graph=flat_graph)
+                value["node"] = self._process_node(node=node, flat_graph=flat_graph)
+            else:
+                for k, v in value.items():
+                    self._process_value(value=v, flat_graph=flat_graph)
+        elif isinstance(value, list):
+            for i, element in enumerate(value):
+                if isinstance(element, dict) and "from_node" in element:
+                    value[i] = self._resolve_from_node(key=element["from_node"], flat_graph=flat_graph)
+        return value
