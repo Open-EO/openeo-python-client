@@ -102,6 +102,11 @@ class PGNode:
         else:
             raise ValueError(value)
 
+    @classmethod
+    def from_flat_graph(cls, flat_graph: dict) -> 'PGNode':
+        raise NotImplementedError
+
+
 
 def as_flat_graph(x: Union[dict, Any]) -> dict:
     """

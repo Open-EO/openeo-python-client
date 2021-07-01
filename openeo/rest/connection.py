@@ -2,7 +2,9 @@
 This module provides a Connection object to manage and persist settings when interacting with the OpenEO API.
 """
 import datetime
+import json
 import logging
+import re
 import sys
 import warnings
 from collections import OrderedDict
@@ -765,6 +767,41 @@ class Connection(RestApiConnection):
         else:
             raise OpenEoClientException(
                 "This method requires support for at least version 1.0.0 in the openEO backend.")
+
+    def datacube_from_flat_process_graph(self, flat_graph: dict) -> DataCube:
+        """
+        Load a raster :py:class:`DataCube` from flat process graph representation
+
+        :param flat_graph: flat dictionary representation of a process graph
+        :return:
+        """
+        if self._api_version.below("1.0.0"):
+            raise OpenEoClientException(
+                "This method requires support for at least version 1.0.0 in the openEO backend.")
+
+        pgnode = PGNode.from_flat_graph(flat_graph=flat_graph)
+        return DataCube(graph=pgnode, connection=self)
+
+    def datacube_from_json(self, src: Union[str, Path]) -> DataCube:
+        """
+        Load a raster :py:class:`DataCube` from JSON resource containing (flat) process graph representation
+        :param src: raw JSON string, URL to JSON resource or path to local JSON file
+        :return:
+        """
+        if isinstance(src, str) and src.startswith("{"):
+            # Assume source is a raw JSON string
+            pg = json.loads(src)
+        elif isinstance(src, str) and re.match(r"^https?://", src, flags=re.I):
+            # URL to remote JSON resource
+            pg = requests.get(src).json()
+        elif isinstance(src, Path) or (isinstance(src, str) and src.endswith(".json")):
+            # Assume source is a local JSON file path
+            with Path(src).open() as f:
+                pg = json.load(f)
+        else:
+            raise OpenEoClientException("Unable to load datacube from JSON resource {s!r}".format(s=src))
+
+        return self.datacube_from_flat_process_graph(pg)
 
     def load_collection(
             self,
