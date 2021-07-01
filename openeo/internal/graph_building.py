@@ -7,7 +7,7 @@ import collections
 from typing import Union, Dict, Any
 
 from openeo.api.process import Parameter
-from openeo.internal.process_graph_visitor import ProcessGraphVisitor
+from openeo.internal.process_graph_visitor import ProcessGraphVisitor, ProcessGraphUnflattener
 from openeo.util import legacy_alias, dict_no_none
 
 
@@ -54,6 +54,12 @@ class PGNode:
     @property
     def namespace(self) -> Union[str, None]:
         return self._namespace
+
+    def _as_tuple(self):
+        return (self._process_id, self._arguments, self._namespace)
+
+    def __eq__(self, other):
+        return isinstance(other, type(self)) and self._as_tuple() == other._as_tuple()
 
     def to_dict(self) -> dict:
         """
@@ -105,7 +111,6 @@ class PGNode:
     @classmethod
     def from_flat_graph(cls, flat_graph: dict) -> 'PGNode':
         raise NotImplementedError
-
 
 
 def as_flat_graph(x: Union[dict, Any]) -> dict:
@@ -272,3 +277,19 @@ class GraphFlattener(ProcessGraphVisitor):
 
     def constantArgument(self, argument_id: str, value):
         self._store_argument(argument_id, value)
+
+
+class PGNodeGraphUnflattener(ProcessGraphUnflattener):
+    """
+    Unflatten a flat process graph to a graph of :py:class:`PGNode` objects
+    """
+
+    def _process_node(self, node: dict) -> Any:
+        return PGNode(
+            process_id=node["process_id"],
+            arguments=self._process_value(value=node["arguments"]),
+            namespace=node.get("namespace")
+        )
+
+    def _process_from_node(self, key: str, node: dict) -> Any:
+        return self.get_node(key=key)

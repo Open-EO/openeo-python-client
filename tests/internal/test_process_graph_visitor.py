@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, call, ANY
 import pytest
 
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor, ProcessGraphUnflattener, \
-    OriginalInplaceUnflattener
+    ProcessGraphVisitException
 
 
 def test_visit_node():
@@ -342,56 +342,46 @@ def test_dereference_cycle():
     assert graph["node2"]["arguments"]["data"]["node"] is graph["node1"]
 
 
-class TestOriginalInplaceUnflattener:
-    def test_dereference_basic(self):
+class TestProcessGraphUnflattener:
+    def test_minimal(self):
         graph = {
-            "node1": {},
-            "node2": {
-                "arguments": {
-                    "data1": {
-                        "from_node": "node1"
-                    },
-                    "data2": {
-                        "from_node": "node3"
-                    }
-                },
-                "result": True
-            },
-            "node3": {
-                "arguments": {
-                    "data": {
-                        "from_node": "node4"
-                    }
-                }
-            },
-            "node4": {}
+            "add12": {"process_id": "add", "arguments": {"x": 1, "y": 2}, "result": True},
         }
-        result = OriginalInplaceUnflattener.dereference_from_node_arguments(graph)
+        result = ProcessGraphUnflattener.unflatten(graph)
+        assert result == {"process_id": "add", "arguments": {"x": 1, "y": 2}, "result": True}
 
-        assert result == "node2"
-        assert graph["node1"] == graph["node2"]["arguments"]["data1"]["node"]
-        assert graph["node3"] == graph["node2"]["arguments"]["data2"]["node"]
-        assert graph["node4"] == graph["node3"]["arguments"]["data"]["node"]
-        assert graph == {
-            "node1": {},
-            "node2": {
-                "arguments": {
-                    "data1": {"from_node": "node1", "node": {}},
-                    "data2": {"from_node": "node3", "node": {
+    def test_empty(self):
+        with pytest.raises(ProcessGraphVisitException, match="Found no result node in flat process graph"):
+            _ = ProcessGraphUnflattener.unflatten({})
+
+    def test_basic(self):
+        graph = {
+            "add12": {"process_id": "add", "arguments": {"x": 1, "y": 2}},
+            "mul3": {"process_id": "multiply", "arguments": {"x": {"from_node": "add12"}, "y": 3}},
+            "div4": {"process_id": "divide", "arguments": {"x": {"from_node": "mul3"}, "y": 4}, "result": True},
+        }
+        result = ProcessGraphUnflattener.unflatten(graph)
+        assert result == {
+            "process_id": "divide",
+            "arguments": {
+                "x": {
+                    "from_node": "mul3",
+                    "node": {
+                        "process_id": "multiply",
                         "arguments": {
-                            "data": {"from_node": "node4", "node": {}},
+                            "x": {
+                                "from_node": "add12",
+                                "node": {
+                                    "process_id": "add",
+                                    "arguments": {"x": 1, "y": 2},
+                                }
+                            },
+                            "y": 3,
                         }
                     }},
-                },
-                "result": True
+                "y": 4
             },
-            "node3": {
-                "arguments": {
-                    "data": {"from_node": "node4", "node": {}},
-                }
-            },
-            "node4": {}
-
+            "result": True,
         }
 
     def test_dereference_list_arg(self):
@@ -406,21 +396,16 @@ class TestOriginalInplaceUnflattener:
                 "result": True,
             },
         }
-        result = OriginalInplaceUnflattener.dereference_from_node_arguments(graph)
-        assert result == "temporal"
-        assert graph == {
-            "start": {"process_id": "constant", "arguments": {"x": "2020-02-02"}},
-            "end": {"process_id": "constant", "arguments": {"x": "2020-03-03"}},
-            "temporal": {
-                "process_id": "filter_temporal",
-                "arguments": {
-                    "extent": [
-                        {"process_id": "constant", "arguments": {"x": "2020-02-02"}},
-                        {"process_id": "constant", "arguments": {"x": "2020-03-03"}},
-                    ],
-                },
-                "result": True,
+        result = ProcessGraphUnflattener.unflatten(graph)
+        assert result == {
+            "process_id": "filter_temporal",
+            "arguments": {
+                "extent": [
+                    {"from_node": "start", "node": {"process_id": "constant", "arguments": {"x": "2020-02-02"}}},
+                    {"from_node": "end", "node": {"process_id": "constant", "arguments": {"x": "2020-03-03"}}},
+                ],
             },
+            "result": True,
         }
 
     def test_dereference_dict_arg(self):
@@ -438,72 +423,228 @@ class TestOriginalInplaceUnflattener:
                 "result": True,
             }
         }
-        result = OriginalInplaceUnflattener.dereference_from_node_arguments(graph)
-        assert result == "bbox"
-        assert graph == {
-            "west": {"process_id": "add", "arguments": {"x": 1, "y": 1}},
-            "east": {"process_id": "add", "arguments": {"x": 2, "y": 3}},
-            "bbox": {
-                "process_id": "filter_bbox",
-                "arguments": {
-                    "extent": {
-                        "west": {
-                            "from_node": "west",
-                            "node": {"process_id": "add", "arguments": {"x": 1, "y": 1}},
-                        },
-                        "east": {
-                            "from_node": "east",
-                            "node": {"process_id": "add", "arguments": {"x": 2, "y": 3}},
-                        },
-                    }
-                },
-                "result": True,
-            }
+        result = ProcessGraphUnflattener.unflatten(graph)
+        assert result == {
+            "process_id": "filter_bbox",
+            "arguments": {
+                "extent": {
+                    "west": {
+                        "from_node": "west",
+                        "node": {"process_id": "add", "arguments": {"x": 1, "y": 1}},
+                    },
+                    "east": {
+                        "from_node": "east",
+                        "node": {"process_id": "add", "arguments": {"x": 2, "y": 3}},
+                    },
+                }
+            },
+            "result": True,
         }
 
     def test_dereference_no_result_node(self):
-        with pytest.raises(ValueError, match="Found no result node in flat process graph"):
-            OriginalInplaceUnflattener.dereference_from_node_arguments({
-                "node1": {},
-                "node2": {}
-            })
+        graph = {
+            "add12": {"process_id": "add", "arguments": {"x": 1, "y": 2}},
+            "mul3": {"process_id": "multiply", "arguments": {"x": {"from_node": "add12"}, "y": 3}},
+        }
+        with pytest.raises(ProcessGraphVisitException, match="Found no result node in flat process graph"):
+            _ = ProcessGraphUnflattener.unflatten(graph)
 
     def test_dereference_multiple_result_node(self):
-        with pytest.raises(ValueError, match="Found multiple result nodes in flat process graph"):
-            OriginalInplaceUnflattener.dereference_from_node_arguments({
-                "node1": {"result": True},
-                "node2": {"result": True}
-            })
+        graph = {
+            "add12": {"process_id": "add", "arguments": {"x": 1, "y": 2}, "result": True},
+            "mul3": {"process_id": "multiply", "arguments": {"x": {"from_node": "add12"}, "y": 3}, "result": True},
+        }
+        with pytest.raises(ProcessGraphVisitException, match="Found multiple result nodes in flat process graph"):
+            _ = ProcessGraphUnflattener.unflatten(graph)
 
     def test_dereference_invalid_node(self):
         graph = {
-            "node1": {},
-            "node2": {
-                "arguments": {
-                    "data": {
-                        "from_node": "node3"
-                    }
-                },
+            "add12": {
+                "process_id": "add",
+                "arguments": {"x": {"from_node": "meh"}, "y": 2},
                 "result": True
-            }
+            },
         }
-        with pytest.raises(ValueError, match="not found in process graph"):
-            OriginalInplaceUnflattener.dereference_from_node_arguments(graph)
+        with pytest.raises(ProcessGraphVisitException, match="not found in process graph"):
+            _ = ProcessGraphUnflattener.unflatten(graph)
 
     def test_dereference_cycle(self):
         graph = {
             "node1": {
-                "arguments": {
-                    "data": {"from_node": "node2"},
-                },
+                "process_id": "increment",
+                "arguments": {"data": {"from_node": "node2"}, },
                 "result": True
             },
             "node2": {
-                "arguments": {
-                    "data": {"from_node": "node1"},
-                }
+                "process_id": "increment",
+                "arguments": {"data": {"from_node": "node1"}, }
             }
         }
-        OriginalInplaceUnflattener.dereference_from_node_arguments(graph)
-        assert graph["node1"]["arguments"]["data"]["node"] is graph["node2"]
-        assert graph["node2"]["arguments"]["data"]["node"] is graph["node1"]
+        with pytest.raises(ProcessGraphVisitException, match="Cycle in process graph"):
+            _ = ProcessGraphUnflattener.unflatten(graph)
+
+# class TestOriginalInplaceUnflattener:
+#     def test_dereference_basic(self):
+#         graph = {
+#             "node1": {},
+#             "node2": {
+#                 "arguments": {
+#                     "data1": {
+#                         "from_node": "node1"
+#                     },
+#                     "data2": {
+#                         "from_node": "node3"
+#                     }
+#                 },
+#                 "result": True
+#             },
+#             "node3": {
+#                 "arguments": {
+#                     "data": {
+#                         "from_node": "node4"
+#                     }
+#                 }
+#             },
+#             "node4": {}
+#         }
+#         result = OriginalInplaceUnflattener.dereference_from_node_arguments(graph)
+#
+#         assert result == "node2"
+#         assert graph["node1"] == graph["node2"]["arguments"]["data1"]["node"]
+#         assert graph["node3"] == graph["node2"]["arguments"]["data2"]["node"]
+#         assert graph["node4"] == graph["node3"]["arguments"]["data"]["node"]
+#         assert graph == {
+#             "node1": {},
+#             "node2": {
+#                 "arguments": {
+#                     "data1": {"from_node": "node1", "node": {}},
+#                     "data2": {"from_node": "node3", "node": {
+#                         "arguments": {
+#                             "data": {"from_node": "node4", "node": {}},
+#                         }
+#                     }},
+#                 },
+#                 "result": True
+#             },
+#             "node3": {
+#                 "arguments": {
+#                     "data": {"from_node": "node4", "node": {}},
+#                 }
+#             },
+#             "node4": {}
+#
+#         }
+#
+#     def test_dereference_list_arg(self):
+#         graph = {
+#             "start": {"process_id": "constant", "arguments": {"x": "2020-02-02"}},
+#             "end": {"process_id": "constant", "arguments": {"x": "2020-03-03"}},
+#             "temporal": {
+#                 "process_id": "filter_temporal",
+#                 "arguments": {
+#                     "extent": [{"from_node": "start"}, {"from_node": "end"}],
+#                 },
+#                 "result": True,
+#             },
+#         }
+#         result = OriginalInplaceUnflattener.dereference_from_node_arguments(graph)
+#         assert result == "temporal"
+#         assert graph == {
+#             "start": {"process_id": "constant", "arguments": {"x": "2020-02-02"}},
+#             "end": {"process_id": "constant", "arguments": {"x": "2020-03-03"}},
+#             "temporal": {
+#                 "process_id": "filter_temporal",
+#                 "arguments": {
+#                     "extent": [
+#                         {"process_id": "constant", "arguments": {"x": "2020-02-02"}},
+#                         {"process_id": "constant", "arguments": {"x": "2020-03-03"}},
+#                     ],
+#                 },
+#                 "result": True,
+#             },
+#         }
+#
+#     def test_dereference_dict_arg(self):
+#         graph = {
+#             "west": {"process_id": "add", "arguments": {"x": 1, "y": 1}},
+#             "east": {"process_id": "add", "arguments": {"x": 2, "y": 3}},
+#             "bbox": {
+#                 "process_id": "filter_bbox",
+#                 "arguments": {
+#                     "extent": {
+#                         "west": {"from_node": "west"},
+#                         "east": {"from_node": "east"},
+#                     }
+#                 },
+#                 "result": True,
+#             }
+#         }
+#         result = OriginalInplaceUnflattener.dereference_from_node_arguments(graph)
+#         assert result == "bbox"
+#         assert graph == {
+#             "west": {"process_id": "add", "arguments": {"x": 1, "y": 1}},
+#             "east": {"process_id": "add", "arguments": {"x": 2, "y": 3}},
+#             "bbox": {
+#                 "process_id": "filter_bbox",
+#                 "arguments": {
+#                     "extent": {
+#                         "west": {
+#                             "from_node": "west",
+#                             "node": {"process_id": "add", "arguments": {"x": 1, "y": 1}},
+#                         },
+#                         "east": {
+#                             "from_node": "east",
+#                             "node": {"process_id": "add", "arguments": {"x": 2, "y": 3}},
+#                         },
+#                     }
+#                 },
+#                 "result": True,
+#             }
+#         }
+#
+#     def test_dereference_no_result_node(self):
+#         with pytest.raises(ValueError, match="Found no result node in flat process graph"):
+#             OriginalInplaceUnflattener.dereference_from_node_arguments({
+#                 "node1": {},
+#                 "node2": {}
+#             })
+#
+#     def test_dereference_multiple_result_node(self):
+#         with pytest.raises(ValueError, match="Found multiple result nodes in flat process graph"):
+#             OriginalInplaceUnflattener.dereference_from_node_arguments({
+#                 "node1": {"result": True},
+#                 "node2": {"result": True}
+#             })
+#
+#     def test_dereference_invalid_node(self):
+#         graph = {
+#             "node1": {},
+#             "node2": {
+#                 "arguments": {
+#                     "data": {
+#                         "from_node": "node3"
+#                     }
+#                 },
+#                 "result": True
+#             }
+#         }
+#         with pytest.raises(ValueError, match="not found in process graph"):
+#             OriginalInplaceUnflattener.dereference_from_node_arguments(graph)
+#
+#     def test_dereference_cycle(self):
+#         graph = {
+#             "node1": {
+#                 "arguments": {
+#                     "data": {"from_node": "node2"},
+#                 },
+#                 "result": True
+#             },
+#             "node2": {
+#                 "arguments": {
+#                     "data": {"from_node": "node1"},
+#                 }
+#             }
+#         }
+#         OriginalInplaceUnflattener.dereference_from_node_arguments(graph)
+#         assert graph["node1"]["arguments"]["data"]["node"] is graph["node2"]
+#         assert graph["node2"]["arguments"]["data"]["node"] is graph["node1"]
