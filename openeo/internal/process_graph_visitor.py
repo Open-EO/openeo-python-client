@@ -4,8 +4,10 @@ from typing import Union, Tuple, Any
 
 from deprecated import deprecated
 
+from openeo.rest import OpenEoClientException
 
-class ProcessGraphVisitException(ValueError):
+
+class ProcessGraphVisitException(OpenEoClientException):
     pass
 
 
@@ -182,6 +184,7 @@ class ProcessGraphUnflattener:
     Subclassing and overriding certain methods allows to build a desired unflattened graph structure.
     """
 
+    # Sentinel object for flagging a node "under construction" and detect graph cycles.
     _UNDER_CONSTRUCTION = object()
 
     def __init__(self, flat_graph: dict):
@@ -189,8 +192,8 @@ class ProcessGraphUnflattener:
         self._nodes = {}
 
     @classmethod
-    def unflatten(cls, flat_graph: dict):
-        return cls(flat_graph=flat_graph).process()
+    def unflatten(cls, flat_graph: dict, **kwargs):
+        return cls(flat_graph=flat_graph, **kwargs).process()
 
     def process(self):
         result_key, result_node = find_result_node(flat_graph=self._flat_graph)
@@ -227,6 +230,10 @@ class ProcessGraphUnflattener:
             "node": self.get_node(key=key)
         }
 
+    def _process_from_parameter(self, name: str) -> Any:
+        # Default implementation:
+        return {"from_parameter": name}
+
     def _resolve_from_node(self, key: str) -> dict:
         if key not in self._flat_graph:
             raise ProcessGraphVisitException("from_node reference {k!r} not found in process graph".format(k=key))
@@ -238,6 +245,9 @@ class ProcessGraphUnflattener:
                 key = value["from_node"]
                 node = self._resolve_from_node(key=key)
                 return self._process_from_node(key=key, node=node)
+            elif "from_parameter" in value:
+                name = value["from_parameter"]
+                return self._process_from_parameter(name=name)
             else:
                 return {k: self._process_value(v) for (k, v) in value.items()}
         elif isinstance(value, (list, tuple)):

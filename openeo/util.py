@@ -14,6 +14,7 @@ from collections import OrderedDict
 from pathlib import Path
 from typing import Any, Union, Tuple, Callable
 
+import requests
 from deprecated import deprecated
 
 logger = logging.getLogger(__name__)
@@ -376,6 +377,25 @@ def deep_set(data: dict, *keys, value):
 def load_json(path: Union[Path, str]) -> dict:
     with Path(path).open("r", encoding="utf-8") as f:
         return json.load(f)
+
+
+def load_json_resource(src: Union[str, Path]) -> dict:
+    """
+    Helper to load some kind of JSON resource:
+    - raw JSON string
+    - path to JSON file
+    - URL to JSON resource
+    """
+    if isinstance(src, str) and src.strip().startswith("{"):
+        # Assume source is a raw JSON string
+        return json.loads(src)
+    elif isinstance(src, str) and re.match(r"^https?://", src, flags=re.I):
+        # URL to remote JSON resource
+        return requests.get(src).json()
+    elif isinstance(src, Path) or (isinstance(src, str) and src.endswith(".json")):
+        # Assume source is a local JSON file path
+        return load_json(src)
+    raise ValueError(src)
 
 
 DEFAULT_APP_NAME = "openeo-python-client"

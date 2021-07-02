@@ -27,7 +27,7 @@ import openeo
 import openeo.processes
 from openeo.api.process import Parameter
 from openeo.imagecollection import ImageCollection
-from openeo.internal.graph_building import PGNode, ReduceNode
+from openeo.internal.graph_building import PGNode, ReduceNode, _FromNodeMixin
 from openeo.metadata import CollectionMetadata, Band, BandDimension
 from openeo.processes import ProcessBuilder
 from openeo.rest import BandMathException, OperatorException, OpenEoClientException
@@ -49,7 +49,7 @@ log = logging.getLogger(__name__)
 THIS = object()
 
 
-class DataCube(ImageCollection):
+class DataCube(ImageCollection, _FromNodeMixin):
     """
     Class representing a openEO Data Cube. Data loaded from the backend is returned as an object of this class.
     Various processing methods can be invoked to build a complete workflow.
@@ -104,6 +104,9 @@ class DataCube(ImageCollection):
     def connection(self) -> 'openeo.Connection':
         return self._connection
 
+    def from_node(self):
+        return self._pg
+
     def process(
             self,
             process_id: str,
@@ -123,10 +126,8 @@ class DataCube(ImageCollection):
         """
         arguments = {**(arguments or {}), **kwargs}
         for k, v in arguments.items():
-            if isinstance(v, DataCube):
-                arguments[k] = {"from_node": v._pg}
-            elif v is THIS:
-                arguments[k] = {"from_node": self._pg}
+            if v is THIS:
+                arguments[k] = self
         return self.process_with_node(PGNode(
             process_id=process_id,
             arguments=arguments,

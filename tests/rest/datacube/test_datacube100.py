@@ -3,6 +3,7 @@
 Unit tests specifically for 1.0.0-style DataCube
 
 """
+import pathlib
 import sys
 import textwrap
 
@@ -13,9 +14,10 @@ import openeo.metadata
 from openeo import UDF
 from openeo.api.process import Parameter
 from openeo.internal.graph_building import PGNode
+from openeo.internal.process_graph_visitor import ProcessGraphVisitException
 from openeo.rest import OpenEoClientException
 from openeo.rest.connection import Connection
-from openeo.rest.datacube import THIS, DataCube,ProcessBuilder
+from openeo.rest.datacube import THIS, DataCube, ProcessBuilder
 from .conftest import API_URL
 from ... import load_json_resource
 
@@ -976,3 +978,136 @@ def test_datacube_from_process_namespace(con100):
     assert cube.flat_graph() == {
         "colorize1": {"process_id": "colorize", "namespace": "foo", "arguments": {"color": "red"}, "result": True}
     }
+
+
+class TestDataCubeFromFlatGraph:
+
+    def test_datacube_from_flat_graph_minimal(self, con100):
+        flat_graph = {"1+2": {"process_id": "add", "arguments": {"x": 1, "y": 2}, "result": True}}
+        cube = con100.datacube_from_flat_graph(flat_graph)
+        assert cube.flat_graph() == {"add1": {"process_id": "add", "arguments": {"x": 1, "y": 2}, "result": True}}
+
+    def test_datacube_from_json_minimal_string(self, con100):
+        udp_json = '''{"1+2": {"process_id": "add", "arguments": {"x": 1, "y": 2}, "result": true}}'''
+        cube = con100.datacube_from_json(udp_json)
+        assert cube.flat_graph() == {"add1": {"process_id": "add", "arguments": {"x": 1, "y": 2}, "result": True}}
+
+    @pytest.mark.parametrize("path_factory", [str, pathlib.Path])
+    def test_datacube_from_json_minimal_file(self, con100, tmp_path, path_factory):
+        path = tmp_path / "pg.json"
+        with path.open("w") as f:
+            f.write('''{"1+2": {"process_id": "add", "arguments": {"x": 1, "y": 2}, "result": true}}''')
+        cube = con100.datacube_from_json(path_factory(path))
+        assert cube.flat_graph() == {"add1": {"process_id": "add", "arguments": {"x": 1, "y": 2}, "result": True}}
+
+    def test_datacube_from_json_minimal_http(self, con100, requests_mock):
+        url = "https://jzon.test/data/add.json"
+        requests_mock.get(url, json={"1+2": {"process_id": "add", "arguments": {"x": 1, "y": 2}, "result": True}})
+        cube = con100.datacube_from_json(url)
+        assert cube.flat_graph() == {"add1": {"process_id": "add", "arguments": {"x": 1, "y": 2}, "result": True}}
+
+    def test_process_dict_wrapper(self, con100):
+        flat_graph = {
+            "id": "one-plus-two",
+            "summary": "One plus two as a service",
+            "process_graph": {"1+2": {"process_id": "add", "arguments": {"x": 1, "y": 2}, "result": True}}
+        }
+        cube = con100.datacube_from_flat_graph(flat_graph)
+        assert cube.flat_graph() == {"add1": {"process_id": "add", "arguments": {"x": 1, "y": 2}, "result": True}}
+
+    def test_parameter_substitution_minimal(self, con100):
+        flat_graph = {
+            "sub1": {"process_id": "subtract", "arguments": {"x": {"from_parameter": "f"}, "y": 32}, "result": True},
+        }
+        cube = con100.datacube_from_flat_graph(flat_graph, parameters={"f": 86})
+        assert cube.flat_graph() == {
+            "subtract1": {"process_id": "subtract", "arguments": {"x": 86, "y": 32}, "result": True},
+        }
+
+    def test_parameter_substitution_cube(self, con100):
+        flat_graph = {
+            "kernel": {"process_id": "constant", "arguments": {"x": [[1, 2, 1], [2, 5, 2], [1, 2, 1]]}},
+            "blur": {
+                "process_id": "apply_kernel",
+                "arguments": {"data": {"from_parameter": "cube"}, "kernel": {"from_node": "kernel"}},
+                "result": True
+            },
+        }
+        input_cube = con100.load_collection("S2")
+        cube = con100.datacube_from_flat_graph(flat_graph, parameters={"cube": input_cube})
+        assert cube.flat_graph() == {
+            "loadcollection1": {
+                "process_id": "load_collection",
+                "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None}
+            },
+            "constant1": {"process_id": "constant", "arguments": {"x": [[1, 2, 1], [2, 5, 2], [1, 2, 1]]}},
+            "applykernel1": {
+                "process_id": "apply_kernel",
+                "arguments": {"data": {"from_node": "loadcollection1"}, "kernel": {"from_node": "constant1"}},
+                "result": True
+            },
+        }
+
+    def test_parameter_substitution_udp(self, con100):
+        flat_graph = {
+            "id": "fahrenheit_to_celsius",
+            "parameters": [{"description": "Degrees Fahrenheit.", "name": "f", "schema": {"type": "number"}}],
+            "process_graph": {
+                "sub1": {"process_id": "subtract", "arguments": {"x": {"from_parameter": "f"}, "y": 32}},
+                "div1": {"process_id": "divide", "arguments": {"x": {"from_node": "sub1"}, "y": 1.8}, "result": True},
+            },
+        }
+        cube = con100.datacube_from_flat_graph(flat_graph, parameters={"f": 86})
+        assert cube.flat_graph() == {
+            "subtract1": {"process_id": "subtract", "arguments": {"x": 86, "y": 32}},
+            "divide1": {
+                "process_id": "divide", "arguments": {"x": {"from_node": "subtract1"}, "y": 1.8}, "result": True
+            },
+        }
+
+    def test_parameter_substitution_parameter_again(self, con100):
+        flat_graph = {
+            "sub1": {"process_id": "subtract", "arguments": {"x": {"from_parameter": "f"}, "y": 32}, "result": True},
+        }
+        cube = con100.datacube_from_flat_graph(flat_graph, parameters={"f": Parameter("warmth")})
+        assert cube.flat_graph() == {
+            "subtract1": {"process_id": "subtract", "arguments": {
+                "x": {"from_parameter": "warmth"}, "y": 32
+            }, "result": True},
+        }
+
+    def test_parameter_substitution_no_params(self, con100):
+        flat_graph = {
+            "sub1": {"process_id": "subtract", "arguments": {"x": {"from_parameter": "f"}, "y": 32}, "result": True},
+        }
+        with pytest.raises(ProcessGraphVisitException, match="No value for substitution of parameter 'f'"):
+            _ = con100.datacube_from_flat_graph(flat_graph)
+
+    def test_parameter_substitution_missing_params(self, con100):
+        flat_graph = {
+            "sub1": {"process_id": "subtract", "arguments": {"x": {"from_parameter": "f"}, "y": 32}, "result": True},
+        }
+        with pytest.raises(ProcessGraphVisitException, match="No value for substitution of parameter 'f'"):
+            _ = con100.datacube_from_flat_graph(flat_graph, parameters={"something else": 42})
+
+    @pytest.mark.parametrize(["kwargs", "expected"], [
+        ({}, 100),
+        ({"parameters": {}}, 100),
+        ({"parameters": {"f": 86}}, 86),
+    ])
+    def test_parameter_substitution_default(self, con100, kwargs, expected):
+        flat_graph = {
+            "id": "fahrenheit_to_celsius",
+            "parameters": [{"name": "f", "schema": {"type": "number"}, "default": 100}],
+            "process_graph": {
+                "sub1": {"process_id": "subtract", "arguments": {"x": {"from_parameter": "f"}, "y": 32}},
+                "div1": {"process_id": "divide", "arguments": {"x": {"from_node": "sub1"}, "y": 1.8}, "result": True},
+            },
+        }
+        cube = con100.datacube_from_flat_graph(flat_graph, **kwargs)
+        assert cube.flat_graph() == {
+            "subtract1": {"process_id": "subtract", "arguments": {"x": expected, "y": 32}},
+            "divide1": {
+                "process_id": "divide", "arguments": {"x": {"from_node": "subtract1"}, "y": 1.8}, "result": True
+            },
+        }

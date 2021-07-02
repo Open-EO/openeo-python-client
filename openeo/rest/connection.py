@@ -35,7 +35,7 @@ from openeo.rest.job import RESTJob
 from openeo.rest.rest_capabilities import RESTCapabilities
 from openeo.rest.service import Service
 from openeo.rest.udp import RESTUserDefinedProcess, Parameter
-from openeo.util import ensure_list, legacy_alias, dict_no_none, rfc3339
+from openeo.util import ensure_list, legacy_alias, dict_no_none, rfc3339, load_json_resource
 
 _log = logging.getLogger(__name__)
 
@@ -768,40 +768,38 @@ class Connection(RestApiConnection):
             raise OpenEoClientException(
                 "This method requires support for at least version 1.0.0 in the openEO backend.")
 
-    def datacube_from_flat_process_graph(self, flat_graph: dict) -> DataCube:
+    def datacube_from_flat_graph(self, flat_graph: dict, parameters: dict = None) -> DataCube:
         """
         Load a raster :py:class:`DataCube` from flat process graph representation
 
         :param flat_graph: flat dictionary representation of a process graph
+            or a process dictionary with a flat process graph under "process_graph" field
         :return:
         """
         if self._api_version.below("1.0.0"):
             raise OpenEoClientException(
                 "This method requires support for at least version 1.0.0 in the openEO backend.")
 
-        pgnode = PGNode.from_flat_graph(flat_graph=flat_graph)
+        parameters = parameters or {}
+
+        if "process_graph" in flat_graph:
+            # Extract parameters defaults (if any
+            for param in flat_graph.get("parameters") or []:
+                if "default" in param:
+                    parameters.setdefault(param["name"], param["default"])
+
+            flat_graph = flat_graph["process_graph"]
+
+        pgnode = PGNode.from_flat_graph(flat_graph=flat_graph, parameters=parameters or {})
         return DataCube(graph=pgnode, connection=self)
 
-    def datacube_from_json(self, src: Union[str, Path]) -> DataCube:
+    def datacube_from_json(self, src: Union[str, Path], parameters: dict = None) -> DataCube:
         """
         Load a raster :py:class:`DataCube` from JSON resource containing (flat) process graph representation
         :param src: raw JSON string, URL to JSON resource or path to local JSON file
         :return:
         """
-        if isinstance(src, str) and src.startswith("{"):
-            # Assume source is a raw JSON string
-            pg = json.loads(src)
-        elif isinstance(src, str) and re.match(r"^https?://", src, flags=re.I):
-            # URL to remote JSON resource
-            pg = requests.get(src).json()
-        elif isinstance(src, Path) or (isinstance(src, str) and src.endswith(".json")):
-            # Assume source is a local JSON file path
-            with Path(src).open() as f:
-                pg = json.load(f)
-        else:
-            raise OpenEoClientException("Unable to load datacube from JSON resource {s!r}".format(s=src))
-
-        return self.datacube_from_flat_process_graph(pg)
+        return self.datacube_from_flat_graph(load_json_resource(src), parameters=parameters)
 
     def load_collection(
             self,
