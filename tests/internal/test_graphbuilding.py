@@ -256,5 +256,16 @@ class TestPGNodeGraphUnflattener:
         expected = PGNode("divide", x=PGNode("multiply", x=PGNode("add", x=1, y=2), y=3), y=4)
         assert result == expected
 
-
-    # TODO: test reuse of PGNode instances
+    def test_pgnode_reuse(self):
+        flat_graph = {
+            "value1": {"process_id": "constant", "arguments": {"x": 1}},
+            "add1": {
+                "process_id": "add",
+                "arguments": {"x": {"from_node": "value1"}, "y": {"from_node": "value1"}},
+                "result": True
+            },
+        }
+        result: PGNode = PGNodeGraphUnflattener.unflatten(flat_graph)
+        expected = PGNode("add", x=PGNode("constant", x=1), y=PGNode("constant", x=1))
+        assert result == expected
+        assert result.arguments["x"]["from_node"] is result.arguments["y"]["from_node"]
