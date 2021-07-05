@@ -7,27 +7,12 @@
       "dimension": "t",
       "process": {
         "process_graph": {
-          "arraymodify1": {
+          "arrayconcat1": {
             "arguments": {
-              "data": {
-                "from_parameter": "data"
+              "array1": {
+                "from_node": "quantiles1"
               },
-              "index": 0,
-              "values": [
-                {
-                  "from_node": "quantiles1"
-                }
-              ]
-            },
-            "process_id": "array_modify"
-          },
-          "arraymodify2": {
-            "arguments": {
-              "data": {
-                "from_node": "arraymodify1"
-              },
-              "index": 0,
-              "values": [
+              "array2": [
                 {
                   "from_node": "sd1"
                 },
@@ -36,7 +21,7 @@
                 }
               ]
             },
-            "process_id": "array_modify",
+            "process_id": "array_concat",
             "result": true
           },
           "mean1": {

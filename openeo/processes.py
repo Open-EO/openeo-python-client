@@ -504,6 +504,16 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return array_modify(data=self, values=values, index=index, length=length)
 
+    def array_concat(self, array2) -> 'ProcessBuilder':
+        """
+        Concatenates two arrays into a single array by appending the second array to this array. Array labels get discarded from both arrays before merging.
+
+        :param array2: The second array.
+
+        :return: The merged array.
+        """
+        return array_concat( array1=self, array2=array2)
+
     def arsinh(self) -> 'ProcessBuilder':
         """
         Inverse hyperbolic sine
@@ -2287,6 +2297,18 @@ def array_modify(data, values, index, length=UNSET) -> ProcessBuilder:
     :return: An array with values added, updated or removed.
     """
     return process('array_modify', data=data,values=values, index=index, length=length)
+
+def array_concat(array1, array2) -> ProcessBuilder:
+    """
+    Concatenates two arrays into a single array by appending the second array to the first array. Array labels get discarded from both arrays before merging.
+
+
+    :param array1: The first array.
+    :param array2: The second array.
+
+    :return: The merged array.
+    """
+    return process('array_concat', array1=array1, array2=array2)
 
 def arsinh(x) -> ProcessBuilder:
     """
