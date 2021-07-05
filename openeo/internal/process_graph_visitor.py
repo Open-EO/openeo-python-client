@@ -60,9 +60,7 @@ class ProcessGraphVisitor(ABC):
                             arg[i] = resolve_from_node(process_graph, node, element['from_node'])
 
         if result_node is None:
-            raise ValueError(
-                "The provided process graph does not contain a result node. Received this graph: " + json.dumps(
-                    process_graph, indent=2))
+            raise ValueError("The provided process graph does not contain a result node. Received this graph: " + json.dumps(process_graph, indent=2))
         return result_node
 
     def accept_process_graph(self, graph: dict) -> 'ProcessGraphVisitor':
@@ -128,7 +126,7 @@ class ProcessGraphVisitor(ABC):
     def _accept_dict(self, value: dict):
         pass
 
-    def from_parameter(self, parameter_id: str):
+    def from_parameter(self,parameter_id:str):
         pass
 
     def enterProcess(self, process_id: str, arguments: dict, namespace: Union[str, None]):

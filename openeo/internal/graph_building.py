@@ -123,7 +123,7 @@ class PGNode(_FromNodeMixin):
 
     @staticmethod
     def from_flat_graph(flat_graph: dict, parameters: Optional[dict] = None) -> 'PGNode':
-        """Unflatten a given flat dict representatio of a process graph and return result node"""
+        """Unflatten a given flat dict representation of a process graph and return result node"""
         return PGNodeGraphUnflattener.unflatten(flat_graph=flat_graph, parameters=parameters)
 
 

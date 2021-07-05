@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Support nested callbacks inside array arguments, for instance in array_modify, array_create
+- add `ProcessGraphUnflattener` and `PGNodeGraphUnflattener` to unflatten a flat dict representation of a process
+  graph to a `PGNode` graph
+- Add `Connection.datacube_from_flat_graph` and `Connection.datacube_from_json` to construct a `DataCube`
+  from flat process graph representation (e.g. JSON file or JSON URL)
 
 ### Changed
 
