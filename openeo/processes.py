@@ -2283,7 +2283,7 @@ class ProcessBuilder(ProcessBuilderBase):
 
 
 # Shortcut
-process = ProcessBuilder.process
+_process = ProcessBuilder.process
 
 
 def absolute(x) -> ProcessBuilder:
@@ -2294,7 +2294,7 @@ def absolute(x) -> ProcessBuilder:
 
     :return: The computed absolute value.
     """
-    return process('absolute', x=x)
+    return _process('absolute', x=x)
 
 
 def add(x, y) -> ProcessBuilder:
@@ -2306,7 +2306,7 @@ def add(x, y) -> ProcessBuilder:
 
     :return: The computed sum of the two numbers.
     """
-    return process('add', x=x, y=y)
+    return _process('add', x=x, y=y)
 
 
 def add_dimension(data, name, label, type=UNSET) -> ProcessBuilder:
@@ -2321,7 +2321,7 @@ def add_dimension(data, name, label, type=UNSET) -> ProcessBuilder:
     :return: The data cube with a newly added dimension. The new dimension has exactly one dimension label. All
         other dimensions remain unchanged.
     """
-    return process('add_dimension', data=data, name=name, label=label, type=type)
+    return _process('add_dimension', data=data, name=name, label=label, type=type)
 
 
 def aggregate_spatial(data, geometries, reducer, target_dimension=UNSET, context=UNSET) -> ProcessBuilder:
@@ -2357,7 +2357,7 @@ def aggregate_spatial(data, geometries, reducer, target_dimension=UNSET, context
         added as a new dimension with a dimension name derived from `target_dimension` by adding the suffix
         `_meta`. The new dimension has the dimension labels `total_count` and `valid_count`.
     """
-    return process('aggregate_spatial', data=data, geometries=geometries, reducer=reducer, target_dimension=target_dimension, context=context)
+    return _process('aggregate_spatial', data=data, geometries=geometries, reducer=reducer, target_dimension=target_dimension, context=context)
 
 
 def aggregate_spatial_binary(data, geometries, reducer, target_dimension=UNSET, context=UNSET) -> ProcessBuilder:
@@ -2382,7 +2382,7 @@ def aggregate_spatial_binary(data, geometries, reducer, target_dimension=UNSET, 
         with a dimension name derived from `target_dimension` by adding the suffix `_meta`. The new dimension has
         the dimension labels `total_count` and `valid_count`.
     """
-    return process('aggregate_spatial_binary', data=data, geometries=geometries, reducer=reducer, target_dimension=target_dimension, context=context)
+    return _process('aggregate_spatial_binary', data=data, geometries=geometries, reducer=reducer, target_dimension=target_dimension, context=context)
 
 
 def aggregate_spatial_window(data, reducer, size, boundary=UNSET, align=UNSET, context=UNSET) -> ProcessBuilder:
@@ -2411,7 +2411,7 @@ def aggregate_spatial_window(data, reducer, size, boundary=UNSET, align=UNSET, c
         labels will be set to the coordinate at the center of the window. The other dimension properties (name,
         type and reference system) remain unchanged.
     """
-    return process('aggregate_spatial_window', data=data, reducer=reducer, size=size, boundary=boundary, align=align, context=context)
+    return _process('aggregate_spatial_window', data=data, reducer=reducer, size=size, boundary=boundary, align=align, context=context)
 
 
 def aggregate_temporal(data, intervals, reducer, labels=UNSET, dimension=UNSET, context=UNSET) -> ProcessBuilder:
@@ -2444,7 +2444,7 @@ def aggregate_temporal(data, intervals, reducer, labels=UNSET, dimension=UNSET, 
         system and resolution) remain unchanged, except for the resolution and dimension labels of the given
         temporal dimension.
     """
-    return process('aggregate_temporal', data=data, intervals=intervals, reducer=reducer, labels=labels, dimension=dimension, context=context)
+    return _process('aggregate_temporal', data=data, intervals=intervals, reducer=reducer, labels=labels, dimension=dimension, context=context)
 
 
 def aggregate_temporal_period(data, period, reducer, dimension=UNSET, context=UNSET) -> ProcessBuilder:
@@ -2482,7 +2482,7 @@ def aggregate_temporal_period(data, period, reducer, dimension=UNSET, context=UN
         `YYYY-jja` (June - August), `YYYY-son` (September - November). * `tropical-season`: `YYYY-ndjfma` (November
         - April), `YYYY-mjjaso` (May - October). * `year`: `YYYY` * `decade`: `YYY0` * `decade-ad`: `YYY1`
     """
-    return process('aggregate_temporal_period', data=data, period=period, reducer=reducer, dimension=dimension, context=context)
+    return _process('aggregate_temporal_period', data=data, period=period, reducer=reducer, dimension=dimension, context=context)
 
 
 def all(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -2494,7 +2494,7 @@ def all(data, ignore_nodata=UNSET) -> ProcessBuilder:
 
     :return: Boolean result of the logical operation.
     """
-    return process('all', data=data, ignore_nodata=ignore_nodata)
+    return _process('all', data=data, ignore_nodata=ignore_nodata)
 
 
 def and_(x, y) -> ProcessBuilder:
@@ -2506,7 +2506,7 @@ def and_(x, y) -> ProcessBuilder:
 
     :return: Boolean result of the logical AND.
     """
-    return process('and', x=x, y=y)
+    return _process('and', x=x, y=y)
 
 
 def anomaly(data, normals, period) -> ProcessBuilder:
@@ -2545,7 +2545,7 @@ def anomaly(data, normals, period) -> ProcessBuilder:
     :return: A data cube with the same dimensions. The dimension properties (name, type, labels, reference
         system and resolution) remain unchanged.
     """
-    return process('anomaly', data=data, normals=normals, period=period)
+    return _process('anomaly', data=data, normals=normals, period=period)
 
 
 def any(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -2557,7 +2557,7 @@ def any(data, ignore_nodata=UNSET) -> ProcessBuilder:
 
     :return: Boolean result of the logical operation.
     """
-    return process('any', data=data, ignore_nodata=ignore_nodata)
+    return _process('any', data=data, ignore_nodata=ignore_nodata)
 
 
 def apply(data, process, context=UNSET) -> ProcessBuilder:
@@ -2573,7 +2573,7 @@ def apply(data, process, context=UNSET) -> ProcessBuilder:
     :return: A data cube with the newly computed values and the same dimensions. The dimension properties
         (name, type, labels, reference system and resolution) remain unchanged.
     """
-    return process('apply', data=data, process=process, context=context)
+    return _process('apply', data=data, process=process, context=context)
 
 
 def apply_dimension(data, process, dimension, target_dimension=UNSET, context=UNSET) -> ProcessBuilder:
@@ -2608,7 +2608,7 @@ def apply_dimension(data, process, dimension, target_dimension=UNSET, context=UN
         to the number of values computed by the process, - the dimension labels are incrementing integers starting
         from zero, - the resolution changes, and - the reference system is undefined.
     """
-    return process('apply_dimension', data=data, process=process, dimension=dimension, target_dimension=target_dimension, context=context)
+    return _process('apply_dimension', data=data, process=process, dimension=dimension, target_dimension=target_dimension, context=context)
 
 
 def apply_kernel(data, kernel, factor=UNSET, border=UNSET, replace_invalid=UNSET) -> ProcessBuilder:
@@ -2634,7 +2634,7 @@ def apply_kernel(data, kernel, factor=UNSET, border=UNSET, replace_invalid=UNSET
     :return: A data cube with the newly computed values and the same dimensions. The dimension properties
         (name, type, labels, reference system and resolution) remain unchanged.
     """
-    return process('apply_kernel', data=data, kernel=kernel, factor=factor, border=border, replace_invalid=replace_invalid)
+    return _process('apply_kernel', data=data, kernel=kernel, factor=factor, border=border, replace_invalid=replace_invalid)
 
 
 def apply_neighborhood(data, process, size, overlap=UNSET, context=UNSET) -> ProcessBuilder:
@@ -2657,7 +2657,7 @@ def apply_neighborhood(data, process, size, overlap=UNSET, context=UNSET) -> Pro
     :return: A data cube with the newly computed values and the same dimensions. The dimension properties
         (name, type, labels, reference system and resolution) remain unchanged.
     """
-    return process('apply_neighborhood', data=data, process=process, size=size, overlap=overlap, context=context)
+    return _process('apply_neighborhood', data=data, process=process, size=size, overlap=overlap, context=context)
 
 
 def arccos(x) -> ProcessBuilder:
@@ -2668,7 +2668,7 @@ def arccos(x) -> ProcessBuilder:
 
     :return: The computed angle in radians.
     """
-    return process('arccos', x=x)
+    return _process('arccos', x=x)
 
 
 def arcosh(x) -> ProcessBuilder:
@@ -2679,7 +2679,7 @@ def arcosh(x) -> ProcessBuilder:
 
     :return: The computed angle in radians.
     """
-    return process('arcosh', x=x)
+    return _process('arcosh', x=x)
 
 
 def arcsin(x) -> ProcessBuilder:
@@ -2690,7 +2690,7 @@ def arcsin(x) -> ProcessBuilder:
 
     :return: The computed angle in radians.
     """
-    return process('arcsin', x=x)
+    return _process('arcsin', x=x)
 
 
 def arctan(x) -> ProcessBuilder:
@@ -2701,7 +2701,7 @@ def arctan(x) -> ProcessBuilder:
 
     :return: The computed angle in radians.
     """
-    return process('arctan', x=x)
+    return _process('arctan', x=x)
 
 
 def arctan2(y, x) -> ProcessBuilder:
@@ -2713,7 +2713,7 @@ def arctan2(y, x) -> ProcessBuilder:
 
     :return: The computed angle in radians.
     """
-    return process('arctan2', y=y, x=x)
+    return _process('arctan2', y=y, x=x)
 
 
 def ard_normalized_radar_backscatter(data, elevation_model=UNSET, contributing_area=UNSET, ellipsoid_incidence_angle=UNSET, noise_removal=UNSET) -> ProcessBuilder:
@@ -2737,7 +2737,7 @@ def ard_normalized_radar_backscatter(data, elevation_model=UNSET, contributing_a
         DEM-based local incidence angles in degrees.  The data returned is CARD4L compliant with corresponding
         metadata.
     """
-    return process('ard_normalized_radar_backscatter', data=data, elevation_model=elevation_model, contributing_area=contributing_area, ellipsoid_incidence_angle=ellipsoid_incidence_angle, noise_removal=noise_removal)
+    return _process('ard_normalized_radar_backscatter', data=data, elevation_model=elevation_model, contributing_area=contributing_area, ellipsoid_incidence_angle=ellipsoid_incidence_angle, noise_removal=noise_removal)
 
 
 def ard_surface_reflectance(data, atmospheric_correction_method, cloud_detection_method, elevation_model=UNSET, atmospheric_correction_options=UNSET, cloud_detection_options=UNSET) -> ProcessBuilder:
@@ -2784,7 +2784,7 @@ def ard_surface_reflectance(data, atmospheric_correction_method, cloud_detection
         (optional): Contains coefficients used for terrain illumination correction are provided for each pixel.
         The data returned is CARD4L compliant with corresponding metadata.
     """
-    return process('ard_surface_reflectance', data=data, atmospheric_correction_method=atmospheric_correction_method, cloud_detection_method=cloud_detection_method, elevation_model=elevation_model, atmospheric_correction_options=atmospheric_correction_options, cloud_detection_options=cloud_detection_options)
+    return _process('ard_surface_reflectance', data=data, atmospheric_correction_method=atmospheric_correction_method, cloud_detection_method=cloud_detection_method, elevation_model=elevation_model, atmospheric_correction_options=atmospheric_correction_options, cloud_detection_options=cloud_detection_options)
 
 
 def array_append(data, value) -> ProcessBuilder:
@@ -2796,7 +2796,7 @@ def array_append(data, value) -> ProcessBuilder:
 
     :return: The new array with the value being appended.
     """
-    return process('array_append', data=data, value=value)
+    return _process('array_append', data=data, value=value)
 
 
 def array_apply(data, process, context=UNSET) -> ProcessBuilder:
@@ -2812,7 +2812,7 @@ def array_apply(data, process, context=UNSET) -> ProcessBuilder:
     :return: An array with the newly computed values. The number of elements are the same as for the original
         array.
     """
-    return process('array_apply', data=data, process=process, context=context)
+    return _process('array_apply', data=data, process=process, context=context)
 
 
 def array_concat(array1, array2) -> ProcessBuilder:
@@ -2824,7 +2824,7 @@ def array_concat(array1, array2) -> ProcessBuilder:
 
     :return: The merged array.
     """
-    return process('array_concat', array1=array1, array2=array2)
+    return _process('array_concat', array1=array1, array2=array2)
 
 
 def array_contains(data, value) -> ProcessBuilder:
@@ -2836,7 +2836,7 @@ def array_contains(data, value) -> ProcessBuilder:
 
     :return: `true` if the list contains the value, false` otherwise.
     """
-    return process('array_contains', data=data, value=value)
+    return _process('array_contains', data=data, value=value)
 
 
 def array_create(data=UNSET, repeat=UNSET) -> ProcessBuilder:
@@ -2849,7 +2849,7 @@ def array_create(data=UNSET, repeat=UNSET) -> ProcessBuilder:
 
     :return: The newly created array.
     """
-    return process('array_create', data=data, repeat=repeat)
+    return _process('array_create', data=data, repeat=repeat)
 
 
 def array_create_labeled(data, labels) -> ProcessBuilder:
@@ -2861,7 +2861,7 @@ def array_create_labeled(data, labels) -> ProcessBuilder:
 
     :return: The newly created labeled array.
     """
-    return process('array_create_labeled', data=data, labels=labels)
+    return _process('array_create_labeled', data=data, labels=labels)
 
 
 def array_element(data, index=UNSET, label=UNSET, return_nodata=UNSET) -> ProcessBuilder:
@@ -2877,7 +2877,7 @@ def array_element(data, index=UNSET, label=UNSET, return_nodata=UNSET) -> Proces
 
     :return: The value of the requested element.
     """
-    return process('array_element', data=data, index=index, label=label, return_nodata=return_nodata)
+    return _process('array_element', data=data, index=index, label=label, return_nodata=return_nodata)
 
 
 def array_filter(data, condition, context=UNSET) -> ProcessBuilder:
@@ -2892,7 +2892,7 @@ def array_filter(data, condition, context=UNSET) -> ProcessBuilder:
     :return: An array filtered by the specified condition. The number of elements are less than or equal
         compared to the original array.
     """
-    return process('array_filter', data=data, condition=condition, context=context)
+    return _process('array_filter', data=data, condition=condition, context=context)
 
 
 def array_find(data, value) -> ProcessBuilder:
@@ -2905,7 +2905,7 @@ def array_find(data, value) -> ProcessBuilder:
     :return: The index of the first element with the specified value. If no element was found, `null` is
         returned.
     """
-    return process('array_find', data=data, value=value)
+    return _process('array_find', data=data, value=value)
 
 
 def array_find_label(data, label) -> ProcessBuilder:
@@ -2918,7 +2918,7 @@ def array_find_label(data, label) -> ProcessBuilder:
     :return: The index of the element with the specified label assigned. If no such label was found, `null` is
         returned.
     """
-    return process('array_find_label', data=data, label=label)
+    return _process('array_find_label', data=data, label=label)
 
 
 def array_interpolate_linear(data) -> ProcessBuilder:
@@ -2932,7 +2932,7 @@ def array_interpolate_linear(data) -> ProcessBuilder:
     :return: An array with no-data values being replaced with interpolated values. If not at least 2 numerical
         values are available in the array, the array stays the same.
     """
-    return process('array_interpolate_linear', data=data)
+    return _process('array_interpolate_linear', data=data)
 
 
 def array_labels(data) -> ProcessBuilder:
@@ -2943,7 +2943,7 @@ def array_labels(data) -> ProcessBuilder:
 
     :return: The labels as an array.
     """
-    return process('array_labels', data=data)
+    return _process('array_labels', data=data)
 
 
 def array_modify(data, values, index, length=UNSET) -> ProcessBuilder:
@@ -2963,7 +2963,7 @@ def array_modify(data, values, index, length=UNSET) -> ProcessBuilder:
 
     :return: An array with values added, updated or removed.
     """
-    return process('array_modify', data=data, values=values, index=index, length=length)
+    return _process('array_modify', data=data, values=values, index=index, length=length)
 
 
 def arsinh(x) -> ProcessBuilder:
@@ -2974,7 +2974,7 @@ def arsinh(x) -> ProcessBuilder:
 
     :return: The computed angle in radians.
     """
-    return process('arsinh', x=x)
+    return _process('arsinh', x=x)
 
 
 def artanh(x) -> ProcessBuilder:
@@ -2985,7 +2985,7 @@ def artanh(x) -> ProcessBuilder:
 
     :return: The computed angle in radians.
     """
-    return process('artanh', x=x)
+    return _process('artanh', x=x)
 
 
 def atmospheric_correction(data, method, elevation_model=UNSET, options=UNSET) -> ProcessBuilder:
@@ -3003,7 +3003,7 @@ def atmospheric_correction(data, method, elevation_model=UNSET, options=UNSET) -
 
     :return: Data cube containing bottom of atmosphere reflectances.
     """
-    return process('atmospheric_correction', data=data, method=method, elevation_model=elevation_model, options=options)
+    return _process('atmospheric_correction', data=data, method=method, elevation_model=elevation_model, options=options)
 
 
 def between(x, min, max, exclude_max=UNSET) -> ProcessBuilder:
@@ -3017,7 +3017,7 @@ def between(x, min, max, exclude_max=UNSET) -> ProcessBuilder:
 
     :return: `true` if `x` is between the specified bounds, otherwise `false`.
     """
-    return process('between', x=x, min=min, max=max, exclude_max=exclude_max)
+    return _process('between', x=x, min=min, max=max, exclude_max=exclude_max)
 
 
 def ceil(x) -> ProcessBuilder:
@@ -3028,7 +3028,7 @@ def ceil(x) -> ProcessBuilder:
 
     :return: The number rounded up.
     """
-    return process('ceil', x=x)
+    return _process('ceil', x=x)
 
 
 def climatological_normal(data, period, climatology_period=UNSET) -> ProcessBuilder:
@@ -3057,7 +3057,7 @@ def climatological_normal(data, period, climatology_period=UNSET) -> ProcessBuil
         (March - May), `jja` (June - August), `son` (September - November) * `tropical-season`: `ndjfma` (November
         - April), `mjjaso` (May - October)
     """
-    return process('climatological_normal', data=data, period=period, climatology_period=climatology_period)
+    return _process('climatological_normal', data=data, period=period, climatology_period=climatology_period)
 
 
 def clip(x, min, max) -> ProcessBuilder:
@@ -3072,7 +3072,7 @@ def clip(x, min, max) -> ProcessBuilder:
 
     :return: The value clipped to the specified range.
     """
-    return process('clip', x=x, min=min, max=max)
+    return _process('clip', x=x, min=min, max=max)
 
 
 def cloud_detection(data, method, options=UNSET) -> ProcessBuilder:
@@ -3091,7 +3091,7 @@ def cloud_detection(data, method, options=UNSET) -> ProcessBuilder:
         0 and 1. The data cube has the same spatial and temporal dimensions as the source data cube and a dimension
         that contains a dimension label for each of the supported/considered atmospheric disturbance.
     """
-    return process('cloud_detection', data=data, method=method, options=options)
+    return _process('cloud_detection', data=data, method=method, options=options)
 
 
 def constant(x) -> ProcessBuilder:
@@ -3102,7 +3102,7 @@ def constant(x) -> ProcessBuilder:
 
     :return: The value of the constant.
     """
-    return process('constant', x=x)
+    return _process('constant', x=x)
 
 
 def cos(x) -> ProcessBuilder:
@@ -3113,7 +3113,7 @@ def cos(x) -> ProcessBuilder:
 
     :return: The computed cosine of `x`.
     """
-    return process('cos', x=x)
+    return _process('cos', x=x)
 
 
 def cosh(x) -> ProcessBuilder:
@@ -3124,7 +3124,7 @@ def cosh(x) -> ProcessBuilder:
 
     :return: The computed hyperbolic cosine of `x`.
     """
-    return process('cosh', x=x)
+    return _process('cosh', x=x)
 
 
 def count(data, condition=UNSET, context=UNSET) -> ProcessBuilder:
@@ -3140,7 +3140,7 @@ def count(data, condition=UNSET, context=UNSET) -> ProcessBuilder:
 
     :return: The counted number of elements.
     """
-    return process('count', data=data, condition=condition, context=context)
+    return _process('count', data=data, condition=condition, context=context)
 
 
 def create_raster_cube() -> ProcessBuilder:
@@ -3149,7 +3149,7 @@ def create_raster_cube() -> ProcessBuilder:
 
     :return: An empty raster data cube with zero dimensions.
     """
-    return process('create_raster_cube', )
+    return _process('create_raster_cube', )
 
 
 def cummax(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -3162,7 +3162,7 @@ def cummax(data, ignore_nodata=UNSET) -> ProcessBuilder:
 
     :return: An array with the computed cumulative maxima.
     """
-    return process('cummax', data=data, ignore_nodata=ignore_nodata)
+    return _process('cummax', data=data, ignore_nodata=ignore_nodata)
 
 
 def cummax(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -3175,7 +3175,7 @@ def cummax(data, ignore_nodata=UNSET) -> ProcessBuilder:
 
     :return: An array with the computed cumulative maxima.
     """
-    return process('cummax', data=data, ignore_nodata=ignore_nodata)
+    return _process('cummax', data=data, ignore_nodata=ignore_nodata)
 
 
 def cummin(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -3188,7 +3188,7 @@ def cummin(data, ignore_nodata=UNSET) -> ProcessBuilder:
 
     :return: An array with the computed cumulative minima.
     """
-    return process('cummin', data=data, ignore_nodata=ignore_nodata)
+    return _process('cummin', data=data, ignore_nodata=ignore_nodata)
 
 
 def cummin(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -3201,7 +3201,7 @@ def cummin(data, ignore_nodata=UNSET) -> ProcessBuilder:
 
     :return: An array with the computed cumulative minima.
     """
-    return process('cummin', data=data, ignore_nodata=ignore_nodata)
+    return _process('cummin', data=data, ignore_nodata=ignore_nodata)
 
 
 def cumproduct(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -3214,7 +3214,7 @@ def cumproduct(data, ignore_nodata=UNSET) -> ProcessBuilder:
 
     :return: An array with the computed cumulative products.
     """
-    return process('cumproduct', data=data, ignore_nodata=ignore_nodata)
+    return _process('cumproduct', data=data, ignore_nodata=ignore_nodata)
 
 
 def cumproduct(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -3227,7 +3227,7 @@ def cumproduct(data, ignore_nodata=UNSET) -> ProcessBuilder:
 
     :return: An array with the computed cumulative products.
     """
-    return process('cumproduct', data=data, ignore_nodata=ignore_nodata)
+    return _process('cumproduct', data=data, ignore_nodata=ignore_nodata)
 
 
 def cumsum(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -3240,7 +3240,7 @@ def cumsum(data, ignore_nodata=UNSET) -> ProcessBuilder:
 
     :return: An array with the computed cumulative sums.
     """
-    return process('cumsum', data=data, ignore_nodata=ignore_nodata)
+    return _process('cumsum', data=data, ignore_nodata=ignore_nodata)
 
 
 def cumsum(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -3253,7 +3253,7 @@ def cumsum(data, ignore_nodata=UNSET) -> ProcessBuilder:
 
     :return: An array with the computed cumulative sums.
     """
-    return process('cumsum', data=data, ignore_nodata=ignore_nodata)
+    return _process('cumsum', data=data, ignore_nodata=ignore_nodata)
 
 
 def date_shift(date, value, unit) -> ProcessBuilder:
@@ -3276,7 +3276,7 @@ def date_shift(date, value, unit) -> ProcessBuilder:
     :return: The manipulated date. If a time component was given in the parameter `date`, the time component is
         returned with the date.
     """
-    return process('date_shift', date=date, value=value, unit=unit)
+    return _process('date_shift', date=date, value=value, unit=unit)
 
 
 def debug(data, code=UNSET, level=UNSET, message=UNSET) -> ProcessBuilder:
@@ -3291,7 +3291,7 @@ def debug(data, code=UNSET, level=UNSET, message=UNSET) -> ProcessBuilder:
 
     :return: Returns the data as passed to the `data` parameter.
     """
-    return process('debug', data=data, code=code, level=level, message=message)
+    return _process('debug', data=data, code=code, level=level, message=message)
 
 
 def debug(data, code=UNSET, level=UNSET, message=UNSET) -> ProcessBuilder:
@@ -3306,7 +3306,7 @@ def debug(data, code=UNSET, level=UNSET, message=UNSET) -> ProcessBuilder:
 
     :return: The data as passed to the `data` parameter without any modification.
     """
-    return process('debug', data=data, code=code, level=level, message=message)
+    return _process('debug', data=data, code=code, level=level, message=message)
 
 
 def dimension_labels(data, dimension) -> ProcessBuilder:
@@ -3318,7 +3318,7 @@ def dimension_labels(data, dimension) -> ProcessBuilder:
 
     :return: The labels as an array.
     """
-    return process('dimension_labels', data=data, dimension=dimension)
+    return _process('dimension_labels', data=data, dimension=dimension)
 
 
 def divide(x, y) -> ProcessBuilder:
@@ -3330,7 +3330,7 @@ def divide(x, y) -> ProcessBuilder:
 
     :return: The computed result.
     """
-    return process('divide', x=x, y=y)
+    return _process('divide', x=x, y=y)
 
 
 def drop_dimension(data, name) -> ProcessBuilder:
@@ -3344,7 +3344,7 @@ def drop_dimension(data, name) -> ProcessBuilder:
         dimension properties (name, type, labels, reference system and resolution) for all other dimensions remain
         unchanged.
     """
-    return process('drop_dimension', data=data, name=name)
+    return _process('drop_dimension', data=data, name=name)
 
 
 def e() -> ProcessBuilder:
@@ -3353,7 +3353,7 @@ def e() -> ProcessBuilder:
 
     :return: The numerical value of Euler's number.
     """
-    return process('e', )
+    return _process('e', )
 
 
 def eq(x, y, delta=UNSET, case_sensitive=UNSET) -> ProcessBuilder:
@@ -3371,7 +3371,7 @@ def eq(x, y, delta=UNSET, case_sensitive=UNSET) -> ProcessBuilder:
 
     :return: `true` if `x` is equal to `y`, `null` if any operand is `null`, otherwise `false`.
     """
-    return process('eq', x=x, y=y, delta=delta, case_sensitive=case_sensitive)
+    return _process('eq', x=x, y=y, delta=delta, case_sensitive=case_sensitive)
 
 
 def exp(p) -> ProcessBuilder:
@@ -3382,7 +3382,7 @@ def exp(p) -> ProcessBuilder:
 
     :return: The computed value for *e* raised to the power of `p`.
     """
-    return process('exp', p=p)
+    return _process('exp', p=p)
 
 
 def extrema(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -3398,7 +3398,7 @@ def extrema(data, ignore_nodata=UNSET) -> ProcessBuilder:
         the minimum, the second element is the maximum. If the input array is empty both elements are set to
         `null`.
     """
-    return process('extrema', data=data, ignore_nodata=ignore_nodata)
+    return _process('extrema', data=data, ignore_nodata=ignore_nodata)
 
 
 def filter_bands(data, bands=UNSET, wavelengths=UNSET) -> ProcessBuilder:
@@ -3420,7 +3420,7 @@ def filter_bands(data, bands=UNSET, wavelengths=UNSET) -> ProcessBuilder:
         (name, type, labels, reference system and resolution) remain unchanged, except that the dimension of type
         `bands` has less (or the same) dimension labels.
     """
-    return process('filter_bands', data=data, bands=bands, wavelengths=wavelengths)
+    return _process('filter_bands', data=data, bands=bands, wavelengths=wavelengths)
 
 
 def filter_bbox(data, extent) -> ProcessBuilder:
@@ -3434,7 +3434,7 @@ def filter_bbox(data, extent) -> ProcessBuilder:
         labels, reference system and resolution) remain unchanged, except that the spatial dimensions have less (or
         the same) dimension labels.
     """
-    return process('filter_bbox', data=data, extent=extent)
+    return _process('filter_bbox', data=data, extent=extent)
 
 
 def filter_labels(data, condition, dimension, context=UNSET) -> ProcessBuilder:
@@ -3453,7 +3453,7 @@ def filter_labels(data, condition, dimension, context=UNSET) -> ProcessBuilder:
         system and resolution) remain unchanged, except that the given dimension has less (or the same) dimension
         labels.
     """
-    return process('filter_labels', data=data, condition=condition, dimension=dimension, context=context)
+    return _process('filter_labels', data=data, condition=condition, dimension=dimension, context=context)
 
 
 def filter_labels(data, condition, dimension, context=UNSET) -> ProcessBuilder:
@@ -3472,7 +3472,7 @@ def filter_labels(data, condition, dimension, context=UNSET) -> ProcessBuilder:
         system and resolution) remain unchanged, except that the given dimension has less (or the same) dimension
         labels.
     """
-    return process('filter_labels', data=data, condition=condition, dimension=dimension, context=context)
+    return _process('filter_labels', data=data, condition=condition, dimension=dimension, context=context)
 
 
 def filter_spatial(data, geometries) -> ProcessBuilder:
@@ -3486,7 +3486,7 @@ def filter_spatial(data, geometries) -> ProcessBuilder:
         type, labels, reference system and resolution) remain unchanged, except that the spatial dimensions have
         less (or the same) dimension labels.
     """
-    return process('filter_spatial', data=data, geometries=geometries)
+    return _process('filter_spatial', data=data, geometries=geometries)
 
 
 def filter_temporal(data, extent, dimension=UNSET) -> ProcessBuilder:
@@ -3508,7 +3508,7 @@ def filter_temporal(data, extent, dimension=UNSET) -> ProcessBuilder:
         (name, type, labels, reference system and resolution) remain unchanged, except that the temporal dimensions
         (determined by `dimensions` parameter) may have less dimension labels.
     """
-    return process('filter_temporal', data=data, extent=extent, dimension=dimension)
+    return _process('filter_temporal', data=data, extent=extent, dimension=dimension)
 
 
 def first(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -3522,7 +3522,7 @@ def first(data, ignore_nodata=UNSET) -> ProcessBuilder:
 
     :return: The first element of the input array.
     """
-    return process('first', data=data, ignore_nodata=ignore_nodata)
+    return _process('first', data=data, ignore_nodata=ignore_nodata)
 
 
 def floor(x) -> ProcessBuilder:
@@ -3533,7 +3533,7 @@ def floor(x) -> ProcessBuilder:
 
     :return: The number rounded down.
     """
-    return process('floor', x=x)
+    return _process('floor', x=x)
 
 
 def gt(x, y) -> ProcessBuilder:
@@ -3545,7 +3545,7 @@ def gt(x, y) -> ProcessBuilder:
 
     :return: `true` if `x` is strictly greater than `y` or `null` if any operand is `null`, otherwise `false`.
     """
-    return process('gt', x=x, y=y)
+    return _process('gt', x=x, y=y)
 
 
 def gte(x, y) -> ProcessBuilder:
@@ -3557,7 +3557,7 @@ def gte(x, y) -> ProcessBuilder:
 
     :return: `true` if `x` is greater than or equal to `y`, `null` if any operand is `null`, otherwise `false`.
     """
-    return process('gte', x=x, y=y)
+    return _process('gte', x=x, y=y)
 
 
 def if_(value, accept, reject=UNSET) -> ProcessBuilder:
@@ -3570,7 +3570,7 @@ def if_(value, accept, reject=UNSET) -> ProcessBuilder:
 
     :return: Either the `accept` or `reject` argument depending on the given boolean value.
     """
-    return process('if', value=value, accept=accept, reject=reject)
+    return _process('if', value=value, accept=accept, reject=reject)
 
 
 def int(x) -> ProcessBuilder:
@@ -3581,7 +3581,7 @@ def int(x) -> ProcessBuilder:
 
     :return: Integer part of the number.
     """
-    return process('int', x=x)
+    return _process('int', x=x)
 
 
 def is_infinite(x) -> ProcessBuilder:
@@ -3592,7 +3592,7 @@ def is_infinite(x) -> ProcessBuilder:
 
     :return: `true` if the data is an infinite number, otherwise `false`.
     """
-    return process('is_infinite', x=x)
+    return _process('is_infinite', x=x)
 
 
 def is_nan(x) -> ProcessBuilder:
@@ -3603,7 +3603,7 @@ def is_nan(x) -> ProcessBuilder:
 
     :return: `true` if the data is not a number, otherwise `false`.
     """
-    return process('is_nan', x=x)
+    return _process('is_nan', x=x)
 
 
 def is_nodata(x) -> ProcessBuilder:
@@ -3614,7 +3614,7 @@ def is_nodata(x) -> ProcessBuilder:
 
     :return: `true` if the data is a no-data value, otherwise `false`.
     """
-    return process('is_nodata', x=x)
+    return _process('is_nodata', x=x)
 
 
 def is_valid(x) -> ProcessBuilder:
@@ -3625,7 +3625,7 @@ def is_valid(x) -> ProcessBuilder:
 
     :return: `true` if the data is valid, otherwise `false`.
     """
-    return process('is_valid', x=x)
+    return _process('is_valid', x=x)
 
 
 def last(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -3638,7 +3638,7 @@ def last(data, ignore_nodata=UNSET) -> ProcessBuilder:
 
     :return: The last element of the input array.
     """
-    return process('last', data=data, ignore_nodata=ignore_nodata)
+    return _process('last', data=data, ignore_nodata=ignore_nodata)
 
 
 def linear_scale_range(x, inputMin, inputMax, outputMin=UNSET, outputMax=UNSET) -> ProcessBuilder:
@@ -3654,7 +3654,7 @@ def linear_scale_range(x, inputMin, inputMax, outputMin=UNSET, outputMax=UNSET) 
 
     :return: The transformed number.
     """
-    return process('linear_scale_range', x=x, inputMin=inputMin, inputMax=inputMax, outputMin=outputMin, outputMax=outputMax)
+    return _process('linear_scale_range', x=x, inputMin=inputMin, inputMax=inputMax, outputMin=outputMin, outputMax=outputMax)
 
 
 def ln(x) -> ProcessBuilder:
@@ -3665,7 +3665,7 @@ def ln(x) -> ProcessBuilder:
 
     :return: The computed natural logarithm.
     """
-    return process('ln', x=x)
+    return _process('ln', x=x)
 
 
 def load_collection(id, spatial_extent, temporal_extent, bands=UNSET, properties=UNSET) -> ProcessBuilder:
@@ -3708,7 +3708,7 @@ def load_collection(id, spatial_extent, temporal_extent, bands=UNSET, properties
         reference system and resolution) correspond to the collection's metadata, but the dimension labels are
         restricted as specified in the parameters.
     """
-    return process('load_collection', id=id, spatial_extent=spatial_extent, temporal_extent=temporal_extent, bands=bands, properties=properties)
+    return _process('load_collection', id=id, spatial_extent=spatial_extent, temporal_extent=temporal_extent, bands=bands, properties=properties)
 
 
 def load_result(id) -> ProcessBuilder:
@@ -3719,7 +3719,7 @@ def load_result(id) -> ProcessBuilder:
 
     :return: A data cube for further processing.
     """
-    return process('load_result', id=id)
+    return _process('load_result', id=id)
 
 
 def load_result(id) -> ProcessBuilder:
@@ -3730,7 +3730,7 @@ def load_result(id) -> ProcessBuilder:
 
     :return: A data cube for further processing.
     """
-    return process('load_result', id=id)
+    return _process('load_result', id=id)
 
 
 def load_uploaded_files(paths, format, options=UNSET) -> ProcessBuilder:
@@ -3749,7 +3749,7 @@ def load_uploaded_files(paths, format, options=UNSET) -> ProcessBuilder:
 
     :return: A data cube for further processing.
     """
-    return process('load_uploaded_files', paths=paths, format=format, options=options)
+    return _process('load_uploaded_files', paths=paths, format=format, options=options)
 
 
 def load_uploaded_files(paths, format, options=UNSET) -> ProcessBuilder:
@@ -3768,7 +3768,7 @@ def load_uploaded_files(paths, format, options=UNSET) -> ProcessBuilder:
 
     :return: A data cube for further processing.
     """
-    return process('load_uploaded_files', paths=paths, format=format, options=options)
+    return _process('load_uploaded_files', paths=paths, format=format, options=options)
 
 
 def log(x, base) -> ProcessBuilder:
@@ -3780,7 +3780,7 @@ def log(x, base) -> ProcessBuilder:
 
     :return: The computed logarithm.
     """
-    return process('log', x=x, base=base)
+    return _process('log', x=x, base=base)
 
 
 def lt(x, y) -> ProcessBuilder:
@@ -3792,7 +3792,7 @@ def lt(x, y) -> ProcessBuilder:
 
     :return: `true` if `x` is strictly less than `y`, `null` if any operand is `null`, otherwise `false`.
     """
-    return process('lt', x=x, y=y)
+    return _process('lt', x=x, y=y)
 
 
 def lte(x, y) -> ProcessBuilder:
@@ -3804,7 +3804,7 @@ def lte(x, y) -> ProcessBuilder:
 
     :return: `true` if `x` is less than or equal to `y`, `null` if any operand is `null`, otherwise `false`.
     """
-    return process('lte', x=x, y=y)
+    return _process('lte', x=x, y=y)
 
 
 def mask(data, mask, replacement=UNSET) -> ProcessBuilder:
@@ -3819,7 +3819,7 @@ def mask(data, mask, replacement=UNSET) -> ProcessBuilder:
     :return: A masked raster data cube with the same dimensions. The dimension properties (name, type, labels,
         reference system and resolution) remain unchanged.
     """
-    return process('mask', data=data, mask=mask, replacement=replacement)
+    return _process('mask', data=data, mask=mask, replacement=replacement)
 
 
 def mask_polygon(data, mask, replacement=UNSET, inside=UNSET) -> ProcessBuilder:
@@ -3839,7 +3839,7 @@ def mask_polygon(data, mask, replacement=UNSET, inside=UNSET) -> ProcessBuilder:
     :return: A masked raster data cube with the same dimensions. The dimension properties (name, type, labels,
         reference system and resolution) remain unchanged.
     """
-    return process('mask_polygon', data=data, mask=mask, replacement=replacement, inside=inside)
+    return _process('mask_polygon', data=data, mask=mask, replacement=replacement, inside=inside)
 
 
 def max(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -3852,7 +3852,7 @@ def max(data, ignore_nodata=UNSET) -> ProcessBuilder:
 
     :return: The maximum value.
     """
-    return process('max', data=data, ignore_nodata=ignore_nodata)
+    return _process('max', data=data, ignore_nodata=ignore_nodata)
 
 
 def mean(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -3865,7 +3865,7 @@ def mean(data, ignore_nodata=UNSET) -> ProcessBuilder:
 
     :return: The computed arithmetic mean.
     """
-    return process('mean', data=data, ignore_nodata=ignore_nodata)
+    return _process('mean', data=data, ignore_nodata=ignore_nodata)
 
 
 def median(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -3878,7 +3878,7 @@ def median(data, ignore_nodata=UNSET) -> ProcessBuilder:
 
     :return: The computed statistical median.
     """
-    return process('median', data=data, ignore_nodata=ignore_nodata)
+    return _process('median', data=data, ignore_nodata=ignore_nodata)
 
 
 def merge_cubes(cube1, cube2, overlap_resolver=UNSET, context=UNSET) -> ProcessBuilder:
@@ -3896,7 +3896,7 @@ def merge_cubes(cube1, cube2, overlap_resolver=UNSET, context=UNSET) -> ProcessB
     :return: The merged data cube. See the process description for details regarding the dimensions and
         dimension properties (name, type, labels, reference system and resolution).
     """
-    return process('merge_cubes', cube1=cube1, cube2=cube2, overlap_resolver=overlap_resolver, context=context)
+    return _process('merge_cubes', cube1=cube1, cube2=cube2, overlap_resolver=overlap_resolver, context=context)
 
 
 def min(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -3909,7 +3909,7 @@ def min(data, ignore_nodata=UNSET) -> ProcessBuilder:
 
     :return: The minimum value.
     """
-    return process('min', data=data, ignore_nodata=ignore_nodata)
+    return _process('min', data=data, ignore_nodata=ignore_nodata)
 
 
 def mod(x, y) -> ProcessBuilder:
@@ -3921,7 +3921,7 @@ def mod(x, y) -> ProcessBuilder:
 
     :return: The remainder after division.
     """
-    return process('mod', x=x, y=y)
+    return _process('mod', x=x, y=y)
 
 
 def multiply(x, y) -> ProcessBuilder:
@@ -3933,7 +3933,7 @@ def multiply(x, y) -> ProcessBuilder:
 
     :return: The computed product of the two numbers.
     """
-    return process('multiply', x=x, y=y)
+    return _process('multiply', x=x, y=y)
 
 
 def nan() -> ProcessBuilder:
@@ -3942,7 +3942,7 @@ def nan() -> ProcessBuilder:
 
     :return: Returns `NaN`.
     """
-    return process('nan', )
+    return _process('nan', )
 
 
 def ndvi(data, nir=UNSET, red=UNSET, target_band=UNSET) -> ProcessBuilder:
@@ -3970,7 +3970,7 @@ def ndvi(data, nir=UNSET, red=UNSET, target_band=UNSET) -> ProcessBuilder:
         number of dimension labels for the dimension of type `bands` increases by one. The additional label is
         named as specified in `target_band`.
     """
-    return process('ndvi', data=data, nir=nir, red=red, target_band=target_band)
+    return _process('ndvi', data=data, nir=nir, red=red, target_band=target_band)
 
 
 def neq(x, y, delta=UNSET, case_sensitive=UNSET) -> ProcessBuilder:
@@ -3988,7 +3988,7 @@ def neq(x, y, delta=UNSET, case_sensitive=UNSET) -> ProcessBuilder:
 
     :return: `true` if `x` is *not* equal to `y`, `null` if any operand is `null`, otherwise `false`.
     """
-    return process('neq', x=x, y=y, delta=delta, case_sensitive=case_sensitive)
+    return _process('neq', x=x, y=y, delta=delta, case_sensitive=case_sensitive)
 
 
 def normalized_difference(x, y) -> ProcessBuilder:
@@ -4000,7 +4000,7 @@ def normalized_difference(x, y) -> ProcessBuilder:
 
     :return: The computed normalized difference.
     """
-    return process('normalized_difference', x=x, y=y)
+    return _process('normalized_difference', x=x, y=y)
 
 
 def not_(x) -> ProcessBuilder:
@@ -4011,7 +4011,7 @@ def not_(x) -> ProcessBuilder:
 
     :return: Inverted boolean value.
     """
-    return process('not', x=x)
+    return _process('not', x=x)
 
 
 def or_(x, y) -> ProcessBuilder:
@@ -4023,7 +4023,7 @@ def or_(x, y) -> ProcessBuilder:
 
     :return: Boolean result of the logical OR.
     """
-    return process('or', x=x, y=y)
+    return _process('or', x=x, y=y)
 
 
 def order(data, asc=UNSET, nodata=UNSET) -> ProcessBuilder:
@@ -4038,7 +4038,7 @@ def order(data, asc=UNSET, nodata=UNSET) -> ProcessBuilder:
 
     :return: The computed permutation.
     """
-    return process('order', data=data, asc=asc, nodata=nodata)
+    return _process('order', data=data, asc=asc, nodata=nodata)
 
 
 def pi() -> ProcessBuilder:
@@ -4047,7 +4047,7 @@ def pi() -> ProcessBuilder:
 
     :return: The numerical value of Pi.
     """
-    return process('pi', )
+    return _process('pi', )
 
 
 def power(base, p) -> ProcessBuilder:
@@ -4059,7 +4059,7 @@ def power(base, p) -> ProcessBuilder:
 
     :return: The computed value for `base` raised to the power of `p`.
     """
-    return process('power', base=base, p=p)
+    return _process('power', base=base, p=p)
 
 
 def product(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -4072,7 +4072,7 @@ def product(data, ignore_nodata=UNSET) -> ProcessBuilder:
 
     :return: The computed product of the sequence of numbers.
     """
-    return process('product', data=data, ignore_nodata=ignore_nodata)
+    return _process('product', data=data, ignore_nodata=ignore_nodata)
 
 
 def quantiles(data, probabilities=UNSET, q=UNSET, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -4092,7 +4092,7 @@ def quantiles(data, probabilities=UNSET, q=UNSET, ignore_nodata=UNSET) -> Proces
         as many `null` values as required according to the list above. See the 'Empty array' example for an
         example.
     """
-    return process('quantiles', data=data, probabilities=probabilities, q=q, ignore_nodata=ignore_nodata)
+    return _process('quantiles', data=data, probabilities=probabilities, q=q, ignore_nodata=ignore_nodata)
 
 
 def rearrange(data, order) -> ProcessBuilder:
@@ -4104,7 +4104,7 @@ def rearrange(data, order) -> ProcessBuilder:
 
     :return: The rearranged array.
     """
-    return process('rearrange', data=data, order=order)
+    return _process('rearrange', data=data, order=order)
 
 
 def reduce_dimension(data, reducer, dimension, context=UNSET) -> ProcessBuilder:
@@ -4123,7 +4123,7 @@ def reduce_dimension(data, reducer, dimension, context=UNSET) -> ProcessBuilder:
         dimensions decreases by one. The dimension properties (name, type, labels, reference system and resolution)
         for all other dimensions remain unchanged.
     """
-    return process('reduce_dimension', data=data, reducer=reducer, dimension=dimension, context=context)
+    return _process('reduce_dimension', data=data, reducer=reducer, dimension=dimension, context=context)
 
 
 def reduce_dimension_binary(data, reducer, dimension, context=UNSET) -> ProcessBuilder:
@@ -4143,7 +4143,7 @@ def reduce_dimension_binary(data, reducer, dimension, context=UNSET) -> ProcessB
         dimensions decreases by one. The dimension properties (name, type, labels, reference system and resolution)
         for all other dimensions remain unchanged.
     """
-    return process('reduce_dimension_binary', data=data, reducer=reducer, dimension=dimension, context=context)
+    return _process('reduce_dimension_binary', data=data, reducer=reducer, dimension=dimension, context=context)
 
 
 def reduce_spatial(data, reducer, context=UNSET) -> ProcessBuilder:
@@ -4160,7 +4160,7 @@ def reduce_spatial(data, reducer, context=UNSET) -> ProcessBuilder:
         number of dimensions decreases by two. The dimension properties (name, type, labels, reference system and
         resolution) for all other dimensions remain unchanged.
     """
-    return process('reduce_spatial', data=data, reducer=reducer, context=context)
+    return _process('reduce_spatial', data=data, reducer=reducer, context=context)
 
 
 def rename_dimension(data, source, target) -> ProcessBuilder:
@@ -4177,7 +4177,7 @@ def rename_dimension(data, source, target) -> ProcessBuilder:
         can not be referred to any longer. The dimension properties (name, type, labels, reference system and
         resolution) remain unchanged.
     """
-    return process('rename_dimension', data=data, source=source, target=target)
+    return _process('rename_dimension', data=data, source=source, target=target)
 
 
 def rename_labels(data, dimension, target, source=UNSET) -> ProcessBuilder:
@@ -4199,7 +4199,7 @@ def rename_labels(data, dimension, target, source=UNSET) -> ProcessBuilder:
         system and resolution) remain unchanged, except that for the given dimension the labels change. The old
         labels can not be referred to any longer. The number of labels remains the same.
     """
-    return process('rename_labels', data=data, dimension=dimension, target=target, source=source)
+    return _process('rename_labels', data=data, dimension=dimension, target=target, source=source)
 
 
 def resample_cube_spatial(data, target, method=UNSET) -> ProcessBuilder:
@@ -4224,7 +4224,7 @@ def resample_cube_spatial(data, target, method=UNSET) -> ProcessBuilder:
         system and resolution) remain unchanged, except for the resolution and dimension labels of the spatial
         dimensions.
     """
-    return process('resample_cube_spatial', data=data, target=target, method=method)
+    return _process('resample_cube_spatial', data=data, target=target, method=method)
 
 
 def resample_cube_temporal(data, target, method, dimension=UNSET, context=UNSET) -> ProcessBuilder:
@@ -4246,7 +4246,7 @@ def resample_cube_temporal(data, target, method, dimension=UNSET, context=UNSET)
         reference system and resolution) for all non-temporal dimensions. For the temporal dimension the name and
         type remain unchanged, but the reference system changes and the labels and resolution may change.
     """
-    return process('resample_cube_temporal', data=data, target=target, method=method, dimension=dimension, context=context)
+    return _process('resample_cube_temporal', data=data, target=target, method=method, dimension=dimension, context=context)
 
 
 def resample_cube_temporal(data, target, dimension=UNSET, valid_within=UNSET) -> ProcessBuilder:
@@ -4271,7 +4271,7 @@ def resample_cube_temporal(data, target, dimension=UNSET, valid_within=UNSET) ->
         reference system and resolution) for all non-temporal dimensions. For the temporal dimension, the name and
         type remain unchanged, but the dimension labels, resolution and reference system may change.
     """
-    return process('resample_cube_temporal', data=data, target=target, dimension=dimension, valid_within=valid_within)
+    return _process('resample_cube_temporal', data=data, target=target, dimension=dimension, valid_within=valid_within)
 
 
 def resample_spatial(data, resolution=UNSET, projection=UNSET, method=UNSET, align=UNSET) -> ProcessBuilder:
@@ -4304,7 +4304,7 @@ def resample_spatial(data, resolution=UNSET, projection=UNSET, method=UNSET, ali
         vertical spatial dimensions. For the horizontal spatial dimensions the name and type remain unchanged, but
         reference system, labels and resolution may change depending on the given parameters.
     """
-    return process('resample_spatial', data=data, resolution=resolution, projection=projection, method=method, align=align)
+    return _process('resample_spatial', data=data, resolution=resolution, projection=projection, method=method, align=align)
 
 
 def round(x, p=UNSET) -> ProcessBuilder:
@@ -4318,7 +4318,7 @@ def round(x, p=UNSET) -> ProcessBuilder:
 
     :return: The rounded number.
     """
-    return process('round', x=x, p=p)
+    return _process('round', x=x, p=p)
 
 
 def run_udf(data, udf, runtime, version=UNSET, context=UNSET) -> ProcessBuilder:
@@ -4337,7 +4337,7 @@ def run_udf(data, udf, runtime, version=UNSET, context=UNSET) -> ProcessBuilder:
         resolution) depend on the UDF. * If an array is passed for `data`, the returned value can be of any data
         type, but is exactly what the UDF returns.
     """
-    return process('run_udf', data=data, udf=udf, runtime=runtime, version=version, context=context)
+    return _process('run_udf', data=data, udf=udf, runtime=runtime, version=version, context=context)
 
 
 def run_udf_externally(data, url, context=UNSET) -> ProcessBuilder:
@@ -4353,7 +4353,7 @@ def run_udf_externally(data, url, context=UNSET) -> ProcessBuilder:
         and resolution) depend on the UDF. * If an array is passed for `data`, the returned value can be of any
         data type, but is exactly what the UDF returns.
     """
-    return process('run_udf_externally', data=data, url=url, context=context)
+    return _process('run_udf_externally', data=data, url=url, context=context)
 
 
 def run_udf_externally(data, url, context=UNSET) -> ProcessBuilder:
@@ -4369,7 +4369,7 @@ def run_udf_externally(data, url, context=UNSET) -> ProcessBuilder:
         and resolution) depend on the UDF. * If an array is passed for `data`, the returned value can be of any
         data type, but is exactly what the UDF returns.
     """
-    return process('run_udf_externally', data=data, url=url, context=context)
+    return _process('run_udf_externally', data=data, url=url, context=context)
 
 
 def sar_backscatter(data, coefficient=UNSET, elevation_model=UNSET, mask=UNSET, contributing_area=UNSET, local_incidence_angle=UNSET, ellipsoid_incidence_angle=UNSET, noise_removal=UNSET) -> ProcessBuilder:
@@ -4398,7 +4398,7 @@ def sar_backscatter(data, coefficient=UNSET, elevation_model=UNSET, mask=UNSET, 
     :return: Backscatter values corresponding to the chosen parametrization. The values are given in linear
         scale.
     """
-    return process('sar_backscatter', data=data, coefficient=coefficient, elevation_model=elevation_model, mask=mask, contributing_area=contributing_area, local_incidence_angle=local_incidence_angle, ellipsoid_incidence_angle=ellipsoid_incidence_angle, noise_removal=noise_removal)
+    return _process('sar_backscatter', data=data, coefficient=coefficient, elevation_model=elevation_model, mask=mask, contributing_area=contributing_area, local_incidence_angle=local_incidence_angle, ellipsoid_incidence_angle=ellipsoid_incidence_angle, noise_removal=noise_removal)
 
 
 def save_result(data, format, options=UNSET) -> ProcessBuilder:
@@ -4416,7 +4416,7 @@ def save_result(data, format, options=UNSET) -> ProcessBuilder:
 
     :return: `false` if saving failed, `true` otherwise.
     """
-    return process('save_result', data=data, format=format, options=options)
+    return _process('save_result', data=data, format=format, options=options)
 
 
 def sd(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -4429,7 +4429,7 @@ def sd(data, ignore_nodata=UNSET) -> ProcessBuilder:
 
     :return: The computed sample standard deviation.
     """
-    return process('sd', data=data, ignore_nodata=ignore_nodata)
+    return _process('sd', data=data, ignore_nodata=ignore_nodata)
 
 
 def sgn(x) -> ProcessBuilder:
@@ -4440,7 +4440,7 @@ def sgn(x) -> ProcessBuilder:
 
     :return: The computed signum value of `x`.
     """
-    return process('sgn', x=x)
+    return _process('sgn', x=x)
 
 
 def sin(x) -> ProcessBuilder:
@@ -4451,7 +4451,7 @@ def sin(x) -> ProcessBuilder:
 
     :return: The computed sine of `x`.
     """
-    return process('sin', x=x)
+    return _process('sin', x=x)
 
 
 def sinh(x) -> ProcessBuilder:
@@ -4462,7 +4462,7 @@ def sinh(x) -> ProcessBuilder:
 
     :return: The computed hyperbolic sine of `x`.
     """
-    return process('sinh', x=x)
+    return _process('sinh', x=x)
 
 
 def sort(data, asc=UNSET, nodata=UNSET) -> ProcessBuilder:
@@ -4477,7 +4477,7 @@ def sort(data, asc=UNSET, nodata=UNSET) -> ProcessBuilder:
 
     :return: The sorted array.
     """
-    return process('sort', data=data, asc=asc, nodata=nodata)
+    return _process('sort', data=data, asc=asc, nodata=nodata)
 
 
 def sqrt(x) -> ProcessBuilder:
@@ -4488,7 +4488,7 @@ def sqrt(x) -> ProcessBuilder:
 
     :return: The computed square root.
     """
-    return process('sqrt', x=x)
+    return _process('sqrt', x=x)
 
 
 def subtract(x, y) -> ProcessBuilder:
@@ -4500,7 +4500,7 @@ def subtract(x, y) -> ProcessBuilder:
 
     :return: The computed result.
     """
-    return process('subtract', x=x, y=y)
+    return _process('subtract', x=x, y=y)
 
 
 def sum(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -4513,7 +4513,7 @@ def sum(data, ignore_nodata=UNSET) -> ProcessBuilder:
 
     :return: The computed sum of the sequence of numbers.
     """
-    return process('sum', data=data, ignore_nodata=ignore_nodata)
+    return _process('sum', data=data, ignore_nodata=ignore_nodata)
 
 
 def tan(x) -> ProcessBuilder:
@@ -4524,7 +4524,7 @@ def tan(x) -> ProcessBuilder:
 
     :return: The computed tangent of `x`.
     """
-    return process('tan', x=x)
+    return _process('tan', x=x)
 
 
 def tanh(x) -> ProcessBuilder:
@@ -4535,7 +4535,7 @@ def tanh(x) -> ProcessBuilder:
 
     :return: The computed hyperbolic tangent of `x`.
     """
-    return process('tanh', x=x)
+    return _process('tanh', x=x)
 
 
 def text_begins(data, pattern, case_sensitive=UNSET) -> ProcessBuilder:
@@ -4548,7 +4548,7 @@ def text_begins(data, pattern, case_sensitive=UNSET) -> ProcessBuilder:
 
     :return: `true` if `data` begins with `pattern`, false` otherwise.
     """
-    return process('text_begins', data=data, pattern=pattern, case_sensitive=case_sensitive)
+    return _process('text_begins', data=data, pattern=pattern, case_sensitive=case_sensitive)
 
 
 def text_contains(data, pattern, case_sensitive=UNSET) -> ProcessBuilder:
@@ -4561,7 +4561,7 @@ def text_contains(data, pattern, case_sensitive=UNSET) -> ProcessBuilder:
 
     :return: `true` if `data` contains the `pattern`, false` otherwise.
     """
-    return process('text_contains', data=data, pattern=pattern, case_sensitive=case_sensitive)
+    return _process('text_contains', data=data, pattern=pattern, case_sensitive=case_sensitive)
 
 
 def text_ends(data, pattern, case_sensitive=UNSET) -> ProcessBuilder:
@@ -4574,7 +4574,7 @@ def text_ends(data, pattern, case_sensitive=UNSET) -> ProcessBuilder:
 
     :return: `true` if `data` ends with `pattern`, false` otherwise.
     """
-    return process('text_ends', data=data, pattern=pattern, case_sensitive=case_sensitive)
+    return _process('text_ends', data=data, pattern=pattern, case_sensitive=case_sensitive)
 
 
 def text_merge(data, separator=UNSET) -> ProcessBuilder:
@@ -4588,7 +4588,7 @@ def text_merge(data, separator=UNSET) -> ProcessBuilder:
     :return: A string containing a string representation of all the array elements in the same order, with the
         separator between each element.
     """
-    return process('text_merge', data=data, separator=separator)
+    return _process('text_merge', data=data, separator=separator)
 
 
 def trim_cube(data) -> ProcessBuilder:
@@ -4600,7 +4600,7 @@ def trim_cube(data) -> ProcessBuilder:
     :return: A trimmed raster data cube with the same dimensions. The dimension properties name, type,
         reference system and resolution remain unchanged. The number of dimension labels may decrease.
     """
-    return process('trim_cube', data=data)
+    return _process('trim_cube', data=data)
 
 
 def variance(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -4613,7 +4613,7 @@ def variance(data, ignore_nodata=UNSET) -> ProcessBuilder:
 
     :return: The computed sample variance.
     """
-    return process('variance', data=data, ignore_nodata=ignore_nodata)
+    return _process('variance', data=data, ignore_nodata=ignore_nodata)
 
 
 def xor(x, y) -> ProcessBuilder:
@@ -4625,6 +4625,6 @@ def xor(x, y) -> ProcessBuilder:
 
     :return: Boolean result of the logical XOR.
     """
-    return process('xor', x=x, y=y)
+    return _process('xor', x=x, y=y)
 
 

@@ -26,7 +26,7 @@ def test_render_basic():
            
             :return: incremented value
             """
-            return process('incr', x=x)''')
+            return _process('incr', x=x)''')
 
 
 def test_render_no_params():
@@ -47,7 +47,7 @@ def test_render_no_params():
 
             :return: value of pi
             """
-            return process('pi', )''')
+            return _process('pi', )''')
 
 
 def test_render_with_default():
@@ -74,7 +74,7 @@ def test_render_with_default():
 
             :return: incremented value
             """
-            return process('incr', x=x, i=i)''')
+            return _process('incr', x=x, i=i)''')
 
 
 def test_render_with_optional():
@@ -101,7 +101,7 @@ def test_render_with_optional():
 
             :return: new value
             """
-            return process('foo', x=x, y=y)''')
+            return _process('foo', x=x, y=y)''')
 
 
 def test_render_return_type_hint():
@@ -124,7 +124,7 @@ def test_render_return_type_hint():
 
             :return: incremented value
             """
-            return process('incr', x=x)''')
+            return _process('incr', x=x)''')
 
 
 def test_render_oo_no_params():
@@ -146,7 +146,7 @@ def test_render_oo_no_params():
     
                 :return: value of pi
                 """
-                return process('pi', )''')
+                return _process('pi', )''')
 
 
 def test_render_keyword():
@@ -172,7 +172,7 @@ def test_render_keyword():
 
             :return: result
             """
-            return process('or', x=x, y=y)''')
+            return _process('or', x=x, y=y)''')
 
     oo_renderer = PythonRenderer(oo_mode=True, body_template="return {safe_name}({args})", )
     src = oo_renderer.render_process(process)

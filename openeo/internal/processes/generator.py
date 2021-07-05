@@ -13,7 +13,11 @@ class PythonRenderer:
     DEFAULT_WIDTH = 115
 
     def __init__(
-            self, oo_mode=False, indent="    ", body_template="return process({id!r}, {args})", optional_default="None",
+            self,
+            oo_mode=False,
+            indent="    ",
+            body_template="return _process({id!r}, {args})",
+            optional_default="None",
             return_type_hint: str = None
     ):
         self.oo_mode = oo_mode
@@ -141,12 +145,12 @@ def generate_process_py(processes: List[Process], output=sys.stdout, argv=None):
     """)
     fun_src = textwrap.dedent("""
         # Shortcut
-        process = ProcessBuilder.process
+        _process = ProcessBuilder.process
         
         
     """)
     fun_renderer = PythonRenderer(
-        body_template="return process({id!r}, {args})",
+        body_template="return _process({id!r}, {args})",
         optional_default="UNSET",
         return_type_hint="ProcessBuilder"
     )
