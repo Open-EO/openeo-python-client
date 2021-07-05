@@ -274,6 +274,17 @@ def test_apply_dimension_bandmath_lambda(con100):
     assert res.graph == load_json_resource('data/1.0.0/apply_dimension_bandmath.json')
 
 
+def test_apply_dimension_time_to_bands(con100):
+    from openeo.processes import array_element,array_modify,quantiles,sd,mean
+    im = con100.load_collection("S2")
+    res = im.apply_dimension(
+        process=lambda d: array_modify(array_modify(d,values=[quantiles(d,[0.25,0.5,0.75])],index=0), values=[sd(d),mean(d)],index=0),
+        dimension="t",
+        target_dimension="bands"
+    )
+    assert res.graph == load_json_resource('data/1.0.0/apply_dimension_time_to_bands.json')
+
+
 def test_reduce_dimension_max_str(con100):
     im = con100.load_collection("S2")
     res = im.reduce_dimension(reducer="max", dimension="bands")

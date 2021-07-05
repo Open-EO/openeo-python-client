@@ -30,6 +30,11 @@ class ProcessBuilderBase:
         for arg, value in arguments.items():
             if isinstance(value, ProcessBuilderBase):
                 arguments[arg] = value.pgnode
+            elif isinstance(value,list):
+                for index,arrayelement in enumerate(value):
+                    if(isinstance(arrayelement,ProcessBuilderBase)):
+                        value[index] = arrayelement.pgnode
+
         for arg in [a for a, v in arguments.items() if v is UNSET]:
             del arguments[arg]
         return cls(PGNode(process_id=process_id, arguments=arguments, namespace=namespace))

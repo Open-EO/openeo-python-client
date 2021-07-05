@@ -32,6 +32,10 @@ class PGNode:
         for arg, value in arguments.items():
             if isinstance(value, PGNode):
                 arguments[arg] = {"from_node": value}
+            elif isinstance(value,list):
+                for index,arrayelement in enumerate(value):
+                    if isinstance(arrayelement, PGNode):
+                        value[index] = {"from_node": arrayelement}
         # TODO: use a frozendict of some sort to ensure immutability?
         self._arguments = arguments
         self._namespace = namespace

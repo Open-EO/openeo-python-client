@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Support nested callbacks inside array arguments, for instance in array_modify, array_create
+
 ### Changed
 
 ### Removed
