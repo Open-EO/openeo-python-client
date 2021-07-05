@@ -783,7 +783,8 @@ class Connection(RestApiConnection):
         parameters = parameters or {}
 
         if "process_graph" in flat_graph:
-            # Extract parameters defaults (if any
+            # `flat_graph` is a "process" structure
+            # Extract defaults from declared parameters.
             for param in flat_graph.get("parameters") or []:
                 if "default" in param:
                     parameters.setdefault(param["name"], param["default"])
@@ -795,7 +796,7 @@ class Connection(RestApiConnection):
 
     def datacube_from_json(self, src: Union[str, Path], parameters: dict = None) -> DataCube:
         """
-        Load a raster :py:class:`DataCube` from JSON resource containing (flat) process graph representation
+        Load a :py:class:`DataCube` from JSON resource containing (flat) process graph representation
         :param src: raw JSON string, URL to JSON resource or path to local JSON file
         :return:
         """

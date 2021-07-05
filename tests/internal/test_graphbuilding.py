@@ -3,6 +3,7 @@ import pytest
 import openeo.processes
 from openeo.api.process import Parameter
 from openeo.internal.graph_building import FlatGraphNodeIdGenerator, PGNode, ReduceNode, PGNodeGraphUnflattener
+from openeo.internal.process_graph_visitor import ProcessGraphVisitException
 
 
 def test_pgnode_process_id():
@@ -269,3 +270,29 @@ class TestPGNodeGraphUnflattener:
         expected = PGNode("add", x=PGNode("constant", x=1), y=PGNode("constant", x=1))
         assert result == expected
         assert result.arguments["x"]["from_node"] is result.arguments["y"]["from_node"]
+
+    def test_parameter_substitution_none(self):
+        flat_graph = {
+            "add": {"process_id": "add", "arguments": {"x": 1, "y": {"from_parameter": "increment"}}},
+            "mul": {"process_id": "multiply", "arguments": {"x": {"from_node": "add"}, "y": 3}, "result": True},
+        }
+        result: PGNode = PGNodeGraphUnflattener.unflatten(flat_graph)
+        expected = x = PGNode("multiply", x=PGNode("add", x=1, y={"from_parameter": "increment"}), y=3)
+        assert result == expected
+
+    def test_parameter_substitution_defined(self):
+        flat_graph = {
+            "add": {"process_id": "add", "arguments": {"x": 1, "y": {"from_parameter": "increment"}}},
+            "mul": {"process_id": "multiply", "arguments": {"x": {"from_node": "add"}, "y": 3}, "result": True},
+        }
+        result: PGNode = PGNodeGraphUnflattener.unflatten(flat_graph, parameters={"increment": 100})
+        expected = x = PGNode("multiply", x=PGNode("add", x=1, y=100), y=3)
+        assert result == expected
+
+    def test_parameter_substitution_undefined(self):
+        flat_graph = {
+            "add": {"process_id": "add", "arguments": {"x": 1, "y": {"from_parameter": "increment"}}},
+            "mul": {"process_id": "multiply", "arguments": {"x": {"from_node": "add"}, "y": 3}, "result": True},
+        }
+        with pytest.raises(ProcessGraphVisitException, match="No substitution value for parameter 'increment'"):
+            _ = PGNodeGraphUnflattener.unflatten(flat_graph, parameters={"other": 100})

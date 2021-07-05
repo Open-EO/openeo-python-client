@@ -123,6 +123,7 @@ class PGNode(_FromNodeMixin):
 
     @staticmethod
     def from_flat_graph(flat_graph: dict, parameters: Optional[dict] = None) -> 'PGNode':
+        """Unflatten a given flat dict representatio of a process graph and return result node"""
         return PGNodeGraphUnflattener.unflatten(flat_graph=flat_graph, parameters=parameters)
 
 
@@ -315,5 +316,5 @@ class PGNodeGraphUnflattener(ProcessGraphUnflattener):
         if self._parameters is None:
             return super()._process_from_parameter(name=name)
         if name not in self._parameters:
-            raise ProcessGraphVisitException("No value for substitution of parameter {p!r}.".format(p=name))
+            raise ProcessGraphVisitException("No substitution value for parameter {p!r}.".format(p=name))
         return self._parameters[name]

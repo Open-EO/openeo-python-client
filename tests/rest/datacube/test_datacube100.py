@@ -1080,14 +1080,14 @@ class TestDataCubeFromFlatGraph:
         flat_graph = {
             "sub1": {"process_id": "subtract", "arguments": {"x": {"from_parameter": "f"}, "y": 32}, "result": True},
         }
-        with pytest.raises(ProcessGraphVisitException, match="No value for substitution of parameter 'f'"):
+        with pytest.raises(ProcessGraphVisitException, match="No substitution value for parameter 'f'"):
             _ = con100.datacube_from_flat_graph(flat_graph)
 
     def test_parameter_substitution_missing_params(self, con100):
         flat_graph = {
             "sub1": {"process_id": "subtract", "arguments": {"x": {"from_parameter": "f"}, "y": 32}, "result": True},
         }
-        with pytest.raises(ProcessGraphVisitException, match="No value for substitution of parameter 'f'"):
+        with pytest.raises(ProcessGraphVisitException, match="No substitution value for parameter 'f'"):
             _ = con100.datacube_from_flat_graph(flat_graph, parameters={"something else": 42})
 
     @pytest.mark.parametrize(["kwargs", "expected"], [

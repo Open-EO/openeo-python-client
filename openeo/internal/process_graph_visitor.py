@@ -22,18 +22,16 @@ class ProcessGraphVisitor(ABC):
     @classmethod
     def dereference_from_node_arguments(cls, process_graph: dict) -> str:
         """
-
         Walk through the given (flat) process graph and replace (in-place) "from_node" references in
         process arguments (dictionaries or lists) with the corresponding resolved subgraphs
 
         :param process_graph: process graph dictionary to be manipulated in-place
         :return: name of the "result" node of the graph
-
-        .. deprecated:: Use :py:class:`ProcessGraphUnflattener` instead
         """
 
         # TODO avoid manipulating process graph in place? make it more explicit? work on a copy? Where is this functionality used anyway?
         # TODO call it more something like "unflatten"?. Split this off of ProcessGraphVisitor?
+        # TODO implement this through `ProcessGraphUnflattener` ?
 
         def resolve_from_node(process_graph, node, from_node):
             if from_node not in process_graph:
@@ -62,7 +60,9 @@ class ProcessGraphVisitor(ABC):
                             arg[i] = resolve_from_node(process_graph, node, element['from_node'])
 
         if result_node is None:
-            raise ValueError("The provided process graph does not contain a result node. Received this graph: " + json.dumps(process_graph, indent=2))
+            raise ValueError(
+                "The provided process graph does not contain a result node. Received this graph: " + json.dumps(
+                    process_graph, indent=2))
         return result_node
 
     def accept_process_graph(self, graph: dict) -> 'ProcessGraphVisitor':
@@ -193,13 +193,16 @@ class ProcessGraphUnflattener:
 
     @classmethod
     def unflatten(cls, flat_graph: dict, **kwargs):
+        """Class method helper to unflatten given flat process graph"""
         return cls(flat_graph=flat_graph, **kwargs).process()
 
     def process(self):
+        """Process the flat process graph: unflatten it."""
         result_key, result_node = find_result_node(flat_graph=self._flat_graph)
         return self.get_node(result_key)
 
     def get_node(self, key: str) -> Any:
+        """Get processed node by node key."""
         if key not in self._nodes:
             self._nodes[key] = self._UNDER_CONSTRUCTION
             node = self._process_node(self._flat_graph[key])
@@ -231,6 +234,9 @@ class ProcessGraphUnflattener:
         }
 
     def _process_from_parameter(self, name: str) -> Any:
+        """
+        Overridable: generate a node from a flat_graph "from_parameter" reference
+        """
         # Default implementation:
         return {"from_parameter": name}
 
@@ -254,31 +260,3 @@ class ProcessGraphUnflattener:
             return [self._process_value(v) for v in value]
         else:
             return value
-
-#
-# class OriginalInplaceUnflattener(ProcessGraphUnflattener):
-#
-#     @classmethod
-#     def dereference_from_node_arguments(cls, process_graph: dict) -> str:
-#         result_node, _ = find_result_node(flat_graph=process_graph)
-#         unflattener = cls()
-#         unflattener.process(flat_graph=process_graph)
-#         return result_node
-#
-#     def _process_node(self, node: dict, flat_graph: dict) -> Any:
-#         return self._process_value(value=node, flat_graph=flat_graph)
-#
-#     def _process_value(self, value, flat_graph: dict) -> Any:
-#         if isinstance(value, dict):
-#             if "from_node" in value:
-#                 key = value["from_node"]
-#                 node = self._resolve_from_node(key=key, flat_graph=flat_graph)
-#                 value["node"] = self._process_node(node=node, flat_graph=flat_graph)
-#             else:
-#                 for k, v in value.items():
-#                     self._process_value(value=v, flat_graph=flat_graph)
-#         elif isinstance(value, list):
-#             for i, element in enumerate(value):
-#                 if isinstance(element, dict) and "from_node" in element:
-#                     value[i] = self._resolve_from_node(key=element["from_node"], flat_graph=flat_graph)
-#         return value
