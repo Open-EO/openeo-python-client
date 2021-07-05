@@ -21,7 +21,7 @@ OpenEO Python Client
    udp
    auth
    udf
-   cookbook
+   cookbook/index
    api
    development
 
