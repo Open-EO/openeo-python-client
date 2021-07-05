@@ -76,10 +76,23 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         Zonal statistics for geometries
 
-        :param self: A raster data cube. The data cube implicitly gets restricted to the bounds of the
-            geometries as if ``filter_spatial()`` would have been used with the same values for the corresponding
-            parameters immediately before this process.
-        :param geometries: Geometries as GeoJSON on which the aggregation will be based.
+        :param self: A raster data cube.  The data cube must have been reduced to only contain two spatial
+            dimensions and a third dimension the values are aggregated for, for example the temporal dimension to
+            get a time series. Otherwise, this process fails with the `TooManyDimensions` exception.  The data cube
+            implicitly gets restricted to the bounds of the geometries as if ``filter_spatial()`` would have been
+            used with the same values for the corresponding parameters immediately before this process.
+        :param geometries: Geometries as GeoJSON on which the aggregation will be based.  One value will be
+            computed per GeoJSON `Feature`, `Geometry` or `GeometryCollection`. For a `FeatureCollection` multiple
+            values will be computed, one value per contained `Feature`. For example, a single value will be
+            computed for a `MultiPolygon`, but two values will be computed for a `FeatureCollection` containing two
+            polygons.  - For **polygons**, the process considers all pixels for which the point at the pixel center
+            intersects with the corresponding polygon (as defined in the Simple Features standard by the OGC). -
+            For **points**, the process considers the closest pixel center. - For **lines** (line strings), the
+            process considers all the pixels whose centers are closest to at least one point on the line.  Thus,
+            pixels may be part of multiple geometries and be part of multiple aggregations.  To maximize
+            interoperability, a nested `GeometryCollection` should be avoided. Furthermore, a `GeometryCollection`
+            composed of a single type of geometries should be avoided in favour of the corresponding multi-part
+            type (e.g. `MultiPolygon`).
         :param reducer: A reducer to be applied on all values of each geometry. A reducer is a single process
             such as ``mean()`` or a set of processes, which computes a single value for a list of values, see the
             category 'reducer' for such processes.
@@ -88,10 +101,10 @@ class ProcessBuilder(ProcessBuilderBase):
         :param context: Additional data to be passed to the reducer.
 
         :return: A vector data cube with the computed results and restricted to the bounds of the geometries.
-            The computed value is stored in dimension with the name that was specified in the parameter
+            The computed value is used for the dimension with the name that was specified in the parameter
             `target_dimension`.  The computation also stores information about the total count of pixels (valid +
             invalid pixels) and the number of valid pixels (see ``is_valid()``) for each geometry. These values are
-            stored as new dimension with a dimension name derived from `target_dimension` by adding the suffix
+            added as a new dimension with a dimension name derived from `target_dimension` by adding the suffix
             `_meta`. The new dimension has the dimension labels `total_count` and `valid_count`.
         """
         return aggregate_spatial(data=self, geometries=geometries, reducer=reducer, target_dimension=target_dimension, context=context)
@@ -130,26 +143,27 @@ class ProcessBuilder(ProcessBuilderBase):
             in the array has exactly two elements:  1. The first element is the start of the temporal interval. The
             specified instance in time is **included** in the interval. 2. The second element is the end of the
             temporal interval. The specified instance in time is **excluded** from the interval.  The specified
-            temporal strings follow [RFC 3339](https://tools.ietf.org/html/rfc3339). Although [RFC 3339 prohibits
-            the hour to be '24'](https://tools.ietf.org/html/rfc3339#section-5.7), **this process allows the value
-            '24' for the hour** of an end time in order to make it possible that left-closed time intervals can
-            fully cover the day.
-        :param reducer: A reducer to be applied on all values along the specified dimension. A reducer is a
+            temporal strings follow [RFC 3339](https://www.rfc-editor.org/rfc/rfc3339.html). Although [RFC 3339
+            prohibits the hour to be '24'](https://www.rfc-editor.org/rfc/rfc3339.html#section-5.7), **this process
+            allows the value '24' for the hour** of an end time in order to make it possible that left-closed time
+            intervals can fully cover the day.
+        :param reducer: A reducer to be applied for the values contained in each interval. A reducer is a
             single process such as ``mean()`` or a set of processes, which computes a single value for a list of
-            values, see the category 'reducer' for such processes.
+            values, see the category 'reducer' for such processes. Intervals may not contain any values, which for
+            most reducers leads to no-data (`null`) values by default.
         :param labels: Distinct labels for the intervals, which can contain dates and/or times. Is only
             required to be specified if the values for the start of the temporal intervals are not distinct and
             thus the default labels would not be unique. The number of labels and the number of groups need to be
             equal.
         :param dimension: The name of the temporal dimension for aggregation. All data along the dimension is
             passed through the specified reducer. If the dimension is not set or set to `null`, the data cube is
-            expected to only have one temporal dimension. Fails with a `TooManyDimensions` error if it has more
-            dimensions. Fails with a `DimensionNotAvailable` error if the specified dimension does not exist.
+            expected to only have one temporal dimension. Fails with a `TooManyDimensions` exception if it has more
+            dimensions. Fails with a `DimensionNotAvailable` exception if the specified dimension does not exist.
         :param context: Additional data to be passed to the reducer.
 
-        :return: A data cube with the same dimensions. The dimension properties (name, type, labels, reference
-            system and resolution) remain unchanged, except for the resolution and dimension labels of the given
-            temporal dimension.
+        :return: A new data cube with the same dimensions. The dimension properties (name, type, labels,
+            reference system and resolution) remain unchanged, except for the resolution and dimension labels of
+            the given temporal dimension.
         """
         return aggregate_temporal(data=self, intervals=intervals, reducer=reducer, labels=labels, dimension=dimension, context=context)
 
@@ -167,26 +181,27 @@ class ProcessBuilder(ProcessBuilderBase):
             the tropical seasons (November - April, May - October). * `year`: Proleptic years * `decade`: Ten year
             periods ([0-to-9 decade](https://en.wikipedia.org/wiki/Decade#0-to-9_decade)), from a year ending in a
             0 to the next year ending in a 9. * `decade-ad`: Ten year periods ([1-to-0
-            decade](https://en.wikipedia.org/wiki/Decade#1-to-0_decade)) better aligned with the Anno Domini (AD)
+            decade](https://en.wikipedia.org/wiki/Decade#1-to-0_decade)) better aligned with the anno Domini (AD)
             calendar era, from a year ending in a 1 to the next year ending in a 0.
-        :param reducer: A reducer to be applied on all values along the specified dimension. A reducer is a
-            single process such as ``mean()`` or a set of processes, which computes a single value for a list of
-            values, see the category 'reducer' for such processes.
+        :param reducer: A reducer to be applied for the values contained in each period. A reducer is a single
+            process such as ``mean()`` or a set of processes, which computes a single value for a list of values,
+            see the category 'reducer' for such processes. Periods may not contain any values, which for most
+            reducers leads to no-data (`null`) values by default.
         :param dimension: The name of the temporal dimension for aggregation. All data along the dimension is
             passed through the specified reducer. If the dimension is not set or set to `null`, the data cube is
-            expected to only have one temporal dimension. Fails with a `TooManyDimensions` error if it has more
-            dimensions. Fails with a `DimensionNotAvailable` error if the specified dimension does not exist.
+            expected to only have one temporal dimension. Fails with a `TooManyDimensions` exception if it has more
+            dimensions. Fails with a `DimensionNotAvailable` exception if the specified dimension does not exist.
         :param context: Additional data to be passed to the reducer.
 
-        :return: A data cube with the same dimensions. The dimension properties (name, type, labels, reference
-            system and resolution) remain unchanged, except for the resolution and dimension labels of the given
-            temporal dimension. The specified temporal dimension has the following dimension labels (`YYYY` = four-
-            digit year, `MM` = two-digit month, `DD` two-digit day of month):  * `hour`: `YYYY-MM-DD-00` - `YYYY-
-            MM-DD-23` * `day`: `YYYY-001` - `YYYY-365` * `week`: `YYYY-01` - `YYYY-52` * `dekad`: `YYYY-00` -
-            `YYYY-36` * `month`: `YYYY-01` - `YYYY-12` * `season`: `YYYY-djf` (December - February), `YYYY-mam`
-            (March - May), `YYYY-jja` (June - August), `YYYY-son` (September - November). * `tropical-season`:
-            `YYYY-ndjfma` (November - April), `YYYY-mjjaso` (May - October). * `year`: `YYYY` * `decade`: `YYY0` *
-            `decade-ad`: `YYY1`
+        :return: A new data cube with the same dimensions. The dimension properties (name, type, labels,
+            reference system and resolution) remain unchanged, except for the resolution and dimension labels of
+            the given temporal dimension. The specified temporal dimension has the following dimension labels
+            (`YYYY` = four-digit year, `MM` = two-digit month, `DD` two-digit day of month):  * `hour`: `YYYY-MM-
+            DD-00` - `YYYY-MM-DD-23` * `day`: `YYYY-001` - `YYYY-365` * `week`: `YYYY-01` - `YYYY-52` * `dekad`:
+            `YYYY-00` - `YYYY-36` * `month`: `YYYY-01` - `YYYY-12` * `season`: `YYYY-djf` (December - February),
+            `YYYY-mam` (March - May), `YYYY-jja` (June - August), `YYYY-son` (September - November). * `tropical-
+            season`: `YYYY-ndjfma` (November - April), `YYYY-mjjaso` (May - October). * `year`: `YYYY` * `decade`:
+            `YYY0` * `decade-ad`: `YYY1`
         """
         return aggregate_temporal_period(data=self, period=period, reducer=reducer, dimension=dimension, context=context)
 
@@ -214,7 +229,7 @@ class ProcessBuilder(ProcessBuilderBase):
 
     def anomaly(self, normals, period) -> 'ProcessBuilder':
         """
-        Computes anomalies
+        Compute anomalies
 
         :param self: A data cube with exactly one temporal dimension and the following dimension labels for the
             given period (`YYYY` = four-digit year, `MM` = two-digit month, `DD` two-digit day of month):  *
@@ -242,7 +257,7 @@ class ProcessBuilder(ProcessBuilderBase):
             Proleptic years * `decade`: Ten year periods ([0-to-9
             decade](https://en.wikipedia.org/wiki/Decade#0-to-9_decade)), from a year ending in a 0 to the next
             year ending in a 9. * `decade-ad`: Ten year periods ([1-to-0
-            decade](https://en.wikipedia.org/wiki/Decade#1-to-0_decade)) better aligned with the Anno Domini (AD)
+            decade](https://en.wikipedia.org/wiki/Decade#1-to-0_decade)) better aligned with the anno Domini (AD)
             calendar era, from a year ending in a 1 to the next year ending in a 0. * `single-period` /
             `climatology-period`: A single period of arbitrary length
 
@@ -267,7 +282,9 @@ class ProcessBuilder(ProcessBuilderBase):
         Apply a process to each pixel
 
         :param self: A data cube.
-        :param process: A unary process to be applied on each value, may consist of multiple sub-processes.
+        :param process: A process that accepts and returns a single value and is applied on each individual
+            value in the data cube. The process may consist of multiple sub-processes and could, for example,
+            consist of processes such as ``abs()`` or ``linear_scale_range()``.
         :param context: Additional data to be passed to the process.
 
         :return: A data cube with the newly computed values and the same dimensions. The dimension properties
@@ -281,34 +298,33 @@ class ProcessBuilder(ProcessBuilderBase):
 
         :param self: A data cube.
         :param process: Process to be applied on all pixel values. The specified process needs to accept an
-            array as parameter and must return an array with least one element. A process may consist of multiple
-            sub-processes.
+            array and must return an array with at least one element. A process may consist of multiple sub-
+            processes.
         :param dimension: The name of the source dimension to apply the process on. Fails with a
-            `DimensionNotAvailable` error if the specified dimension does not exist.
+            `DimensionNotAvailable` exception if the specified dimension does not exist.
         :param target_dimension: The name of the target dimension or `null` (the default) to use the source
             dimension specified in the parameter `dimension`.  By specifying a target dimension, the source
             dimension is removed. The target dimension with the specified name and the type `other` (see
-            ``add_dimension()``) is created, if if doesn't exist yet.
+            ``add_dimension()``) is created, if it doesn't exist yet.
         :param context: Additional data to be passed to the process.
 
-        :return: A data cube with the newly computed values. All dimensions stay the same, except for the
-            dimensions specified in corresponding parameters. There are three cases how the data cube changes:  1.
-            The source dimension **is** the target dimension:    * The (number of) dimensions remain unchanged.
-            * The source dimension properties name, type and reference system remain unchanged.    * The dimension
-            labels and the resolution are preserved when the number of pixel values in the source dimension is
-            equal to the number of values computed by the process. The other case is described below. 2. The source
-            dimension **is not** the target dimension and the latter **exists**:    * The number of dimensions
-            decreases by one as the source dimension is dropped.    * The target dimension properties name, type
-            and reference system remain unchanged.    * The resolution changes, the number of dimension labels is
-            equal to the number of values computed by the process and the dimension labels are incrementing
-            integers starting from zero 3. The source dimension **is not** the target dimension and the latter
-            **does not exist**:    * The number of dimensions remain unchanged, but the source dimension is
-            replaced with the target dimension.    * The target dimension has the specified name and the type
-            other. The reference system is not changed.    * The resolution changes, the number of dimension labels
-            is equal to the number of values computed by the process and the dimension labels are incrementing
-            integers starting from zero  For all three cases except for the exception in the first case, the
-            resolution changes, the number of dimension labels is equal to the number of values computed by the
-            process and the dimension labels are incrementing integers starting from zero.
+        :return: A data cube with the newly computed values.  All dimensions stay the same, except for the
+            dimensions specified in corresponding parameters. There are three cases how the dimensions can change:
+            1. The source dimension is the target dimension:    - The (number of) dimensions remain unchanged as
+            the source dimension is the target dimension.    - The source dimension properties name and type remain
+            unchanged.    - The dimension labels, the reference system and the resolution are preserved only if the
+            number of pixel values in the source dimension is equal to the number of values computed by the
+            process. Otherwise, all other dimension properties change as defined in the list below. 2. The source
+            dimension is not the target dimension and the latter exists:    - The number of dimensions decreases by
+            one as the source dimension is dropped.    - The target dimension properties name and type remain
+            unchanged. All other dimension properties change as defined in the list below. 3. The source dimension
+            is not the target dimension and the latter does not exist:    - The number of dimensions remain
+            unchanged, but the source dimension is replaced with the target dimension.    - The target dimension
+            has the specified name and the type other. All other dimension properties are set as defined in the
+            list below.  Unless otherwise stated above, for the given (target) dimension the following applies:  -
+            the number of dimension labels is equal to the number of values computed by the process, - the
+            dimension labels are incrementing integers starting from zero, - the resolution changes, and - the
+            reference system is undefined.
         """
         return apply_dimension(data=self, process=process, dimension=dimension, target_dimension=target_dimension, context=context)
 
@@ -319,7 +335,7 @@ class ProcessBuilder(ProcessBuilderBase):
         :param self: A data cube.
         :param kernel: Kernel as a two-dimensional array of weights. The inner level of the nested array aligns
             with the `x` axis and the outer level aligns with the `y` axis. Each level of the kernel must have an
-            uneven number of elements, otherwise the process throws a `KernelDimensionsUneven` error.
+            uneven number of elements, otherwise the process throws a `KernelDimensionsUneven` exception.
         :param factor: A factor that is multiplied to each value after the kernel has been applied.  This is
             basically a shortcut for explicitly multiplying each value by a factor afterwards, which is often
             required for some kernel-based algorithms such as the Gaussian blur.
@@ -340,16 +356,16 @@ class ProcessBuilder(ProcessBuilderBase):
 
     def apply_neighborhood(self, process, size, overlap=UNSET, context=UNSET) -> 'ProcessBuilder':
         """
-        Apply a process to pixels in a n-dimensional neighbourhood
+        Apply a process to pixels in a n-dimensional neighborhood
 
         :param self: A data cube.
-        :param process: Process to be applied on all neighbourhoods.
-        :param size: Neighbourhood sizes along each dimension.  This object maps dimension names to either a
+        :param process: Process to be applied on all neighborhoods.
+        :param size: Neighborhood sizes along each dimension.  This object maps dimension names to either a
             physical measure (e.g. 100 m, 10 days) or pixels (e.g. 32 pixels). For dimensions not specified, the
             default is to provide all values. Be aware that including all values from overly large dimensions may
             not be processed at once.
-        :param overlap: Overlap of neighbourhoods along each dimension to avoid border effects.  For instance a
-            temporal dimension can add 1 month before and after a neighbourhood. In the spatial dimensions, this is
+        :param overlap: Overlap of neighborhoods along each dimension to avoid border effects.  For instance a
+            temporal dimension can add 1 month before and after a neighborhood. In the spatial dimensions, this is
             often a number of pixels. The overlap specified is added before and after, so an overlap of 8 pixels
             will add 8 pixels on both sides of the window, so 16 in total.  Be aware that large overlaps increase
             the need for computational resources and modifying overlapping data in subsequent operations have no
@@ -405,8 +421,8 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         Inverse tangent of two numbers
 
-        :param self: A number to be used as dividend.
-        :param x: A number to be used as divisor.
+        :param self: A number to be used as the dividend.
+        :param x: A number to be used as the divisor.
 
         :return: The computed angle in radians.
         """
@@ -414,11 +430,12 @@ class ProcessBuilder(ProcessBuilderBase):
 
     def array_apply(self, process, context=UNSET) -> 'ProcessBuilder':
         """
-        Applies a unary process to each array element
+        Apply a process to each array element
 
         :param self: An array.
-        :param process: A process to be applied on each value, may consist of multiple sub-processes. The
-            specified process must be unary meaning that it must work on a single value.
+        :param process: A process that accepts and returns a single value and is applied on each individual
+            value in the array. The process may consist of multiple sub-processes and could, for example, consist
+            of processes such as ``abs()`` or ``linear_scale_range()``.
         :param context: Additional data to be passed to the process.
 
         :return: An array with the newly computed values. The number of elements are the same as for the
@@ -433,7 +450,7 @@ class ProcessBuilder(ProcessBuilderBase):
         :param self: List to find the value in.
         :param value: Value to find in `data`.
 
-        :return: Returns `true` if the list contains the value, false` otherwise.
+        :return: `true` if the list contains the value, false` otherwise.
         """
         return array_contains(data=self, value=value)
 
@@ -443,7 +460,8 @@ class ProcessBuilder(ProcessBuilderBase):
 
         :param self: An array.
         :param index: The zero-based index of the element to retrieve.
-        :param label: The label of the element to retrieve.
+        :param label: The label of the element to retrieve. Throws an `ArrayNotLabeled` exception, if the given
+            array is not a labeled array and this parameter is set.
         :param return_nodata: By default this process throws an `ArrayElementNotAvailable` exception if the
             index or label is invalid. If you want to return `null` instead, set this flag to `true`.
 
@@ -456,8 +474,8 @@ class ProcessBuilder(ProcessBuilderBase):
         Filter an array based on a condition
 
         :param self: An array.
-        :param condition: A condition that is evaluated against each value in the array. Only the array
-            elements where the condition returns `true` are preserved.
+        :param condition: A condition that is evaluated against each value, index and/or label in the array.
+            Only the array elements for which the condition returns `true` are preserved.
         :param context: Additional data to be passed to the condition.
 
         :return: An array filtered by the specified condition. The number of elements are less than or equal
@@ -472,8 +490,8 @@ class ProcessBuilder(ProcessBuilderBase):
         :param self: List to find the value in.
         :param value: Value to find in `data`.
 
-        :return: Returns the index of the first element with the specified value. If no element was found,
-            `null` is returned.
+        :return: The index of the first element with the specified value. If no element was found, `null` is
+            returned.
         """
         return array_find(data=self, value=value)
 
@@ -483,7 +501,7 @@ class ProcessBuilder(ProcessBuilderBase):
 
         :param self: An array with labels.
 
-        :return: The labels as array.
+        :return: The labels as an array.
         """
         return array_labels(data=self)
 
@@ -549,7 +567,7 @@ class ProcessBuilder(ProcessBuilderBase):
 
     def climatological_normal(self, period, climatology_period=UNSET) -> 'ProcessBuilder':
         """
-        Computes climatology normals
+        Compute climatology normals
 
         :param self: A data cube with exactly one temporal dimension. The data cube must span at least the
             temporal interval specified in the parameter `climatology-period`.  Seasonal periods may span two
@@ -563,10 +581,10 @@ class ProcessBuilder(ProcessBuilderBase):
             period`: The period specified in the `climatology-period`. * `season`: Three month periods of the
             calendar seasons (December - February, March - May, June - August, September - November). * `tropical-
             season`: Six month periods of the tropical seasons (November - April, May - October).
-        :param climatology_period: The climatology period as closed temporal interval. The first element of the
-            array is the first year to be fully included in the temporal interval. The second element is the last
-            year to be fully included in the temporal interval. The default period is from 1981 until 2010 (both
-            inclusive).
+        :param climatology_period: The climatology period as a closed temporal interval. The first element of
+            the array is the first year to be fully included in the temporal interval. The second element is the
+            last year to be fully included in the temporal interval. The default period is from 1981 until 2010
+            (both inclusive).
 
         :return: A data cube with the same dimensions. The dimension properties (name, type, labels, reference
             system and resolution) remain unchanged, except for the resolution and dimension labels of the temporal
@@ -626,7 +644,7 @@ class ProcessBuilder(ProcessBuilderBase):
         Count the number of elements
 
         :param self: An array with elements of any data type.
-        :param condition: A condition consists of one ore more processes, which in the end return a boolean
+        :param condition: A condition consists of one or more processes, which in the end return a boolean
             value. It is evaluated against each element in the array. An element is counted only if the condition
             returns `true`. Defaults to count valid elements in a list (see ``is_valid()``). Setting this parameter
             to boolean `true` counts all elements in the list.
@@ -717,7 +735,7 @@ class ProcessBuilder(ProcessBuilderBase):
         :param self: The data cube.
         :param dimension: The name of the dimension to get the labels for.
 
-        :return: The labels as array.
+        :return: The labels as an array.
         """
         return dimension_labels(data=self, dimension=dimension)
 
@@ -761,12 +779,12 @@ class ProcessBuilder(ProcessBuilderBase):
         :param y: Second operand.
         :param delta: Only applicable for comparing two numbers. If this optional parameter is set to a
             positive non-zero number the equality of two numbers is checked against a delta value. This is
-            especially useful to circumvent problems with floating point inaccuracy in machine-based computation.
+            especially useful to circumvent problems with floating-point inaccuracy in machine-based computation.
             This option is basically an alias for the following computation: `lte(abs(minus([x, y]), delta)`
         :param case_sensitive: Only applicable for comparing two strings. Case sensitive comparison can be
             disabled by setting this parameter to `false`.
 
-        :return: Returns `true` if `x` is equal to `y`, `null` if any operand is `null`, otherwise `false`.
+        :return: `true` if `x` is equal to `y`, `null` if any operand is `null`, otherwise `false`.
         """
         return eq(x=self, y=y, delta=delta, case_sensitive=case_sensitive)
 
@@ -797,17 +815,17 @@ class ProcessBuilder(ProcessBuilderBase):
 
     def filter_bands(self, bands=UNSET, wavelengths=UNSET) -> 'ProcessBuilder':
         """
-        Filter the bands by name
+        Filter the bands by names
 
         :param self: A data cube with bands.
         :param bands: A list of band names. Either the unique band name (metadata field `name` in bands) or one
-            of the common band names (metadata field `common_name` in bands). If unique band name and common name
-            conflict, the unique band name has higher priority.  The order of the specified array defines the order
-            of the bands in the data cube. If multiple bands match a common name, all matched bands are included in
-            the original order.
+            of the common band names (metadata field `common_name` in bands). If the unique band name and the
+            common name conflict, the unique band name has a higher priority.  The order of the specified array
+            defines the order of the bands in the data cube. If multiple bands match a common name, all matched
+            bands are included in the original order.
         :param wavelengths: A list of sub-lists with each sub-list consisting of two elements. The first
             element is the minimum wavelength and the second element is the maximum wavelength. Wavelengths are
-            specified in micrometres (μm).  The order of the specified array defines the order of the bands in the
+            specified in micrometers (Î¼m).  The order of the specified array defines the order of the bands in the
             data cube. If multiple bands match the wavelengths, all matched bands are included in the original
             order.
 
@@ -869,16 +887,16 @@ class ProcessBuilder(ProcessBuilderBase):
         :param extent: Left-closed temporal interval, i.e. an array with exactly two elements:  1. The first
             element is the start of the temporal interval. The specified instance in time is **included** in the
             interval. 2. The second element is the end of the temporal interval. The specified instance in time is
-            **excluded** from the interval.  The specified temporal strings follow [RFC
-            3339](https://tools.ietf.org/html/rfc3339). Also supports open intervals by setting one of the
-            boundaries to `null`, but never both.
-        :param dimension: The name of the temporal dimension to filter on. If the dimension is not set or is
-            set to `null`, the filter applies to all temporal dimensions. Fails with a `DimensionNotAvailable`
-            error if the specified dimension does not exist.
+            **excluded** from the interval.  The specified temporal strings follow [RFC 3339](https://www.rfc-
+            editor.org/rfc/rfc3339.html). Also supports open intervals by setting one of the boundaries to `null`,
+            but never both.
+        :param dimension: The name of the temporal dimension to filter on. If no specific dimension is
+            specified or it is set to `null`, the filter applies to all temporal dimensions. Fails with a
+            `DimensionNotAvailable` exception if the specified dimension does not exist.
 
         :return: A data cube restricted to the specified temporal extent. The dimensions and dimension
             properties (name, type, labels, reference system and resolution) remain unchanged, except that the
-            given temporal dimension(s) have less (or the same) dimension labels.
+            temporal dimensions (determined by `dimensions` parameter) may have less dimension labels.
         """
         return filter_temporal(data=self, extent=extent, dimension=dimension)
 
@@ -957,7 +975,7 @@ class ProcessBuilder(ProcessBuilderBase):
 
         :param self: The data to check.
 
-        :return: `true` if the data is not a number, otherwise `false`
+        :return: `true` if the data is not a number, otherwise `false`.
         """
         return is_nan(x=self)
 
@@ -967,7 +985,7 @@ class ProcessBuilder(ProcessBuilderBase):
 
         :param self: The data to check.
 
-        :return: `true` if the data is a no-data value, otherwise `false`
+        :return: `true` if the data is a no-data value, otherwise `false`.
         """
         return is_nodata(x=self)
 
@@ -1027,24 +1045,30 @@ class ProcessBuilder(ProcessBuilderBase):
         :param spatial_extent: Limits the data to load from the collection to the specified bounding box or
             polygons.  The process puts a pixel into the data cube if the point at the pixel center intersects with
             the bounding box or any of the polygons (as defined in the Simple Features standard by the OGC).  The
-            GeoJSON can be one of the following GeoJSON types:  * A `Polygon` geometry, * a `GeometryCollection`
-            containing Polygons, * a `Feature` with a `Polygon` geometry or * a `FeatureCollection` containing
-            `Feature`s with a `Polygon` geometry.  Set this parameter to `null` to set no limit for the spatial
-            extent. Be careful with this when loading large datasets!
+            GeoJSON can be one of the following feature types:  * A `Polygon` or `MultiPolygon` geometry, * a
+            `Feature` with a `Polygon` or `MultiPolygon` geometry, * a `FeatureCollection` containing at least one
+            `Feature` with `Polygon` or `MultiPolygon` geometries, or * a `GeometryCollection` containing `Polygon`
+            or `MultiPolygon` geometries. To maximize interoperability, `GeometryCollection` should be avoided in
+            favour of one of the alternatives above.  Set this parameter to `null` to set no limit for the spatial
+            extent. Be careful with this when loading large datasets! It is recommended to use this parameter
+            instead of using ``filter_bbox()`` or ``filter_spatial()`` directly after loading unbounded data.
         :param temporal_extent: Limits the data to load from the collection to the specified left-closed
             temporal interval. Applies to all temporal dimensions. The interval has to be specified as an array
             with exactly two elements:  1. The first element is the start of the temporal interval. The specified
             instance in time is **included** in the interval. 2. The second element is the end of the temporal
             interval. The specified instance in time is **excluded** from the interval.  The specified temporal
-            strings follow [RFC 3339](https://tools.ietf.org/html/rfc3339). Also supports open intervals by setting
-            one of the boundaries to `null`, but never both.  Set this parameter to `null` to set no limit for the
-            spatial extent. Be careful with this when loading large datasets!
+            strings follow [RFC 3339](https://www.rfc-editor.org/rfc/rfc3339.html). Also supports open intervals by
+            setting one of the boundaries to `null`, but never both.  Set this parameter to `null` to set no limit
+            for the temporal extent. Be careful with this when loading large datasets! It is recommended to use
+            this parameter instead of using ``filter_temporal()`` directly after loading unbounded data.
         :param bands: Only adds the specified bands into the data cube so that bands that don't match the list
             of band names are not available. Applies to all dimensions of type `bands`.  Either the unique band
             name (metadata field `name` in bands) or one of the common band names (metadata field `common_name` in
-            bands) can be specified. If unique band name and common name conflict, the unique band name has higher
-            priority.  The order of the specified array defines the order of the bands in the data cube. f multiple
-            bands match a common name, all matched bands are included in the original order.
+            bands) can be specified. If the unique band name and the common name conflict, the unique band name has
+            a higher priority.  The order of the specified array defines the order of the bands in the data cube.
+            If multiple bands match a common name, all matched bands are included in the original order.  It is
+            recommended to use this parameter instead of using ``filter_bands()`` directly after loading unbounded
+            data.
         :param properties: Limits the data by metadata properties to include only data in the data cube which
             all given conditions return `true` for (AND operation).  Specify key-value-pairs with the key being the
             name of the metadata property, which can be retrieved with the openEO Data Discovery for Collections.
@@ -1124,7 +1148,7 @@ class ProcessBuilder(ProcessBuilderBase):
         Apply a raster mask
 
         :param self: A raster data cube.
-        :param mask: A mask as raster data cube. Every pixel in `data` must have a corresponding element in
+        :param mask: A mask as a raster data cube. Every pixel in `data` must have a corresponding element in
             `mask`.
         :param replacement: The value used to replace masked values with.
 
@@ -1138,9 +1162,12 @@ class ProcessBuilder(ProcessBuilderBase):
         Apply a polygon mask
 
         :param self: A raster data cube.
-        :param mask: A GeoJSON object containing a polygon. The provided feature types can be one of the
-            following:  * A `Polygon` geometry, * a `GeometryCollection` containing Polygons, * a `Feature` with a
-            `Polygon` geometry or * a `FeatureCollection` containing `Feature`s with a `Polygon` geometry.
+        :param mask: A GeoJSON object containing at least one polygon. The provided feature types can be one of
+            the following:  * A `Polygon` or `MultiPolygon` geometry, * a `Feature` with a `Polygon` or
+            `MultiPolygon` geometry, * a `FeatureCollection` containing at least one `Feature` with `Polygon` or
+            `MultiPolygon` geometries, or * a `GeometryCollection` containing `Polygon` or `MultiPolygon`
+            geometries. To maximize interoperability, `GeometryCollection` should be avoided in favour of one of
+            the alternatives above.
         :param replacement: The value used to replace masked values with.
         :param inside: If set to `true` all pixels for which the point at the pixel center **does** intersect
             with any polygon are replaced.
@@ -1191,7 +1218,7 @@ class ProcessBuilder(ProcessBuilderBase):
 
     def merge_cubes(self, cube2, overlap_resolver=UNSET, context=UNSET) -> 'ProcessBuilder':
         """
-        Merging two data cubes
+        Merge two data cubes
 
         :param self: The first data cube.
         :param cube2: The second data cube.
@@ -1223,8 +1250,8 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         Modulo
 
-        :param self: A number to be used as dividend.
-        :param y: A number to be used as divisor.
+        :param self: A number to be used as the dividend.
+        :param y: A number to be used as the divisor.
 
         :return: The remainder after division.
         """
@@ -1248,21 +1275,21 @@ class ProcessBuilder(ProcessBuilderBase):
         :param self: A raster data cube with two bands that have the common names `red` and `nir` assigned.
         :param nir: The name of the NIR band. Defaults to the band that has the common name `nir` assigned.
             Either the unique band name (metadata field `name` in bands) or one of the common band names (metadata
-            field `common_name` in bands) can be specified. If unique band name and common name conflict, the
-            unique band name has higher priority.
+            field `common_name` in bands) can be specified. If the unique band name and the common name conflict,
+            the unique band name has a higher priority.
         :param red: The name of the red band. Defaults to the band that has the common name `red` assigned.
             Either the unique band name (metadata field `name` in bands) or one of the common band names (metadata
-            field `common_name` in bands) can be specified. If unique band name and common name conflict, the
-            unique band name has higher priority.
+            field `common_name` in bands) can be specified. If the unique band name and the common name conflict,
+            the unique band name has a higher priority.
         :param target_band: By default, the dimension of type `bands` is dropped. To keep the dimension specify
             a new band name in this parameter so that a new dimension label with the specified name will be added
             for the computed values.
 
         :return: A raster data cube containing the computed NDVI values. The structure of the data cube differs
             depending on the value passed to `target_band`:  * `target_band` is `null`: The data cube does not
-            contain the dimension of type `bands` any more, the number of dimensions decreases by one. The
-            dimension properties (name, type, labels, reference system and resolution) for all other dimensions
-            remain unchanged. * `target_band` is a string: The data cube keeps the same dimensions. The dimension
+            contain the dimension of type `bands`, the number of dimensions decreases by one. The dimension
+            properties (name, type, labels, reference system and resolution) for all other dimensions remain
+            unchanged. * `target_band` is a string: The data cube keeps the same dimensions. The dimension
             properties remain unchanged, but the number of dimension labels for the dimension of type `bands`
             increases by one. The additional label is named as specified in `target_band`.
         """
@@ -1276,13 +1303,12 @@ class ProcessBuilder(ProcessBuilderBase):
         :param y: Second operand.
         :param delta: Only applicable for comparing two numbers. If this optional parameter is set to a
             positive non-zero number the non-equality of two numbers is checked against a delta value. This is
-            especially useful to circumvent problems with floating point inaccuracy in machine-based computation.
+            especially useful to circumvent problems with floating-point inaccuracy in machine-based computation.
             This option is basically an alias for the following computation: `gt(abs(minus([x, y]), delta)`
         :param case_sensitive: Only applicable for comparing two strings. Case sensitive comparison can be
             disabled by setting this parameter to `false`.
 
-        :return: Returns `true` if `x` is *not* equal to `y`, `null` if any operand is `null`, otherwise
-            `false`.
+        :return: `true` if `x` is *not* equal to `y`, `null` if any operand is `null`, otherwise `false`.
         """
         return neq(x=self, y=y, delta=delta, case_sensitive=case_sensitive)
 
@@ -1325,8 +1351,8 @@ class ProcessBuilder(ProcessBuilderBase):
         :param self: An array to compute the order for.
         :param asc: The default sort order is ascending, with smallest values first. To sort in reverse
             (descending) order, set this parameter to `false`.
-        :param nodata: Controls the handling of no-data values (`null`). By default they are removed. If
-            `true`, missing values in the data are put last; if `false`, they are put first.
+        :param nodata: Controls the handling of no-data values (`null`). By default, they are removed. If set
+            to `true`, missing values in the data are put last; if set to `false`, they are put first.
 
         :return: The computed permutation.
         """
@@ -1334,7 +1360,7 @@ class ProcessBuilder(ProcessBuilderBase):
 
     def pi(self) -> 'ProcessBuilder':
         """
-        Pi (π)
+        Pi (Ï€)
 
         :return: The numerical value of Pi.
         """
@@ -1371,16 +1397,16 @@ class ProcessBuilder(ProcessBuilderBase):
         :param self: An array of numbers.
         :param probabilities: A list of probabilities to calculate quantiles for. The probabilities must be
             between 0 and 1.
-        :param q: A number of intervals to calculate quantiles for. Calculates q-quantiles with (nearly) equal-
-            sized intervals.
+        :param q: Intervals to calculate quantiles for. Calculates q-quantiles with (nearly) equal-sized
+            intervals.
         :param ignore_nodata: Indicates whether no-data values are ignored or not. Ignores them by default.
             Setting this flag to `false` considers no-data values so that an array with `null` values is returned
             if any element is such a value.
 
         :return: An array with the computed quantiles. The list has either  * as many elements as the given
             list of `probabilities` had or * *`q`-1* elements.  If the input array is empty the resulting array is
-            filled with as many `null` values as required according to the list above. For an example, see the
-            'Empty array example'.
+            filled with as many `null` values as required according to the list above. See the 'Empty array'
+            example for an example.
         """
         return quantiles(data=self, probabilities=probabilities, q=q, ignore_nodata=ignore_nodata)
 
@@ -1404,7 +1430,7 @@ class ProcessBuilder(ProcessBuilderBase):
             ``mean()`` or a set of processes, which computes a single value for a list of values, see the category
             'reducer' for such processes.
         :param dimension: The name of the dimension over which to reduce. Fails with a `DimensionNotAvailable`
-            error if the specified dimension does not exist.
+            exception if the specified dimension does not exist.
         :param context: Additional data to be passed to the reducer.
 
         :return: A data cube with the newly computed values. It is missing the given dimension, the number of
@@ -1437,10 +1463,10 @@ class ProcessBuilder(ProcessBuilderBase):
         Rename a dimension
 
         :param self: The data cube.
-        :param source: The current name of the dimension. Fails with a `DimensionNotAvailable` error if the
+        :param source: The current name of the dimension. Fails with a `DimensionNotAvailable` exception if the
             specified dimension does not exist.
-        :param target: A new Name for the dimension. Fails with a `DimensionExists` error if a dimension with
-            the specified name exists.
+        :param target: A new Name for the dimension. Fails with a `DimensionExists` exception if a dimension
+            with the specified name exists.
 
         :return: A data cube with the same dimensions, but the name of one of the dimensions changes. The old
             name can not be referred to any longer. The dimension properties (name, type, labels, reference system
@@ -1455,13 +1481,13 @@ class ProcessBuilder(ProcessBuilderBase):
         :param self: The data cube.
         :param dimension: The name of the dimension to rename the labels for.
         :param target: The new names for the labels. The dimension labels in the data cube are expected to be
-            enumerated, if the parameter `target` is not specified. If a target dimension label already exists in
-            the data cube, a `LabelExists` error is thrown.
+            enumerated if the parameter `target` is not specified. If a target dimension label already exists in
+            the data cube, a `LabelExists` exception is thrown.
         :param source: The names of the labels as they are currently in the data cube. The array defines an
             unsorted and potentially incomplete list of labels that should be renamed to the names available in the
             corresponding array elements in the parameter `target`. If one of the source dimension labels doesn't
-            exist, a `LabelNotAvailable` error is thrown. By default, the array is empty so that the dimension
-            labels in the data cube are expected to be enumerated.
+            exist, the `LabelNotAvailable` exception is thrown. By default, the array is empty so that the
+            dimension labels in the data cube are expected to be enumerated.
 
         :return: The data cube with the same dimensions. The dimension properties (name, type, labels,
             reference system and resolution) remain unchanged, except that for the given dimension the labels
@@ -1475,8 +1501,18 @@ class ProcessBuilder(ProcessBuilderBase):
 
         :param self: A data cube.
         :param target: A data cube that describes the spatial target resolution.
-        :param method: Resampling method. Methods are inspired by GDAL, see
-            [gdalwarp](https://www.gdal.org/gdalwarp.html) for more information.
+        :param method: Resampling method to use. The following options are available and are meant to align
+            with [`gdalwarp`](https://gdal.org/programs/gdalwarp.html#cmdoption-gdalwarp-r):  * `average`: average
+            (mean) resampling, computes the weighted average of all valid pixels * `bilinear`: bilinear resampling
+            * `cubic`: cubic resampling * `cubicspline`: cubic spline resampling * `lanczos`: Lanczos windowed sinc
+            resampling * `max`: maximum resampling, selects the maximum value from all valid pixels * `med`: median
+            resampling, selects the median value of all valid pixels * `min`: minimum resampling, selects the
+            minimum value from all valid pixels * `mode`: mode resampling, selects the value which appears most
+            often of all the sampled points * `near`: nearest neighbour resampling (default) * `q1`: first quartile
+            resampling, selects the first quartile value of all valid pixels * `q3`: third quartile resampling,
+            selects the third quartile value of all valid pixels * `rms` root mean square (quadratic mean) of all
+            valid pixels * `sum`: compute the weighted sum of all valid pixels  Valid pixels are determined based
+            on the function ``is_valid()``.
 
         :return: A data cube with the same dimensions. The dimension properties (name, type, labels, reference
             system and resolution) remain unchanged, except for the resolution and dimension labels of the spatial
@@ -1519,8 +1555,18 @@ class ProcessBuilder(ProcessBuilderBase):
             string](http://docs.opengeospatial.org/is/18-010r7/18-010r7.html), [PROJ definition
             (deprecated)](https://proj.org/usage/quickstart.html). By default (`null`), the projection is not
             changed.
-        :param method: Resampling method. Methods are inspired by GDAL, see
-            [gdalwarp](https://www.gdal.org/gdalwarp.html) for more information.
+        :param method: Resampling method to use. The following options are available and are meant to align
+            with [`gdalwarp`](https://gdal.org/programs/gdalwarp.html#cmdoption-gdalwarp-r):  * `average`: average
+            (mean) resampling, computes the weighted average of all valid pixels * `bilinear`: bilinear resampling
+            * `cubic`: cubic resampling * `cubicspline`: cubic spline resampling * `lanczos`: Lanczos windowed sinc
+            resampling * `max`: maximum resampling, selects the maximum value from all valid pixels * `med`: median
+            resampling, selects the median value of all valid pixels * `min`: minimum resampling, selects the
+            minimum value from all valid pixels * `mode`: mode resampling, selects the value which appears most
+            often of all the sampled points * `near`: nearest neighbour resampling (default) * `q1`: first quartile
+            resampling, selects the first quartile value of all valid pixels * `q3`: third quartile resampling,
+            selects the third quartile value of all valid pixels * `rms` root mean square (quadratic mean) of all
+            valid pixels * `sum`: compute the weighted sum of all valid pixels  Valid pixels are determined based
+            on the function ``is_valid()``.
         :param align: Specifies to which corner of the spatial extent the new resampled data is aligned to.
 
         :return: A raster data cube with values warped onto the new projection. It has the same dimensions and
@@ -1545,14 +1591,14 @@ class ProcessBuilder(ProcessBuilderBase):
 
     def run_udf(self, udf, runtime, version=UNSET, context=UNSET) -> 'ProcessBuilder':
         """
-        Run an UDF
+        Run a UDF
 
-        :param self: The data to be passed to the UDF as array or raster data cube.
-        :param udf: Either source code, an absolute URL or a path to an UDF script.
-        :param runtime: An UDF runtime identifier available at the back-end.
+        :param self: The data to be passed to the UDF as an array or raster data cube.
+        :param udf: Either source code, an absolute URL or a path to a UDF script.
+        :param runtime: A UDF runtime identifier available at the back-end.
         :param version: An UDF runtime version. If set to `null`, the default runtime version specified for
             each runtime is used.
-        :param context: Additional data such as configuration options that should be passed to the UDF.
+        :param context: Additional data such as configuration options to be passed to the UDF.
 
         :return: The data processed by the UDF.  * Returns a raster data cube, if a raster data cube is passed
             for `data`. Details on the dimensions and dimension properties (name, type, labels, reference system
@@ -1643,8 +1689,8 @@ class ProcessBuilder(ProcessBuilderBase):
         :param self: An array with data to sort.
         :param asc: The default sort order is ascending, with smallest values first. To sort in reverse
             (descending) order, set this parameter to `false`.
-        :param nodata: Controls the handling of no-data values (`null`). By default they are removed. If
-            `true`, missing values in the data are put last; if `false`, they are put first.
+        :param nodata: Controls the handling of no-data values (`null`). By default, they are removed. If set
+            to `true`, missing values in the data are put last; if set to `false`, they are put first.
 
         :return: The sorted array.
         """
@@ -1742,15 +1788,15 @@ class ProcessBuilder(ProcessBuilderBase):
 
     def text_merge(self, separator=UNSET) -> 'ProcessBuilder':
         """
-        Concatenate elements to a string
+        Concatenate elements to a single text
 
         :param self: A set of elements. Numbers, boolean values and null values get converted to their (lower
             case) string representation. For example: `1` (integer), `-1.5` (number), `true` / `false` (boolean
             values)
         :param separator: A separator to put between each of the individual texts. Defaults to an empty string.
 
-        :return: Returns a string containing a string representation of all the array elements in the same
-            order, with the separator between each element.
+        :return: A string containing a string representation of all the array elements in the same order, with
+            the separator between each element.
         """
         return text_merge(data=self, separator=separator)
 
@@ -1801,7 +1847,7 @@ class ProcessBuilder(ProcessBuilderBase):
 
 
 # Shortcut
-process = ProcessBuilder.process
+_process = ProcessBuilder.process
 
 
 def absolute(x) -> ProcessBuilder:
@@ -1812,7 +1858,7 @@ def absolute(x) -> ProcessBuilder:
 
     :return: The computed absolute value.
     """
-    return process('absolute', x=x)
+    return _process('absolute', x=x)
 
 
 def add(x, y) -> ProcessBuilder:
@@ -1824,7 +1870,7 @@ def add(x, y) -> ProcessBuilder:
 
     :return: The computed sum of the two numbers.
     """
-    return process('add', x=x, y=y)
+    return _process('add', x=x, y=y)
 
 
 def add_dimension(data, name, label, type=UNSET) -> ProcessBuilder:
@@ -1839,17 +1885,29 @@ def add_dimension(data, name, label, type=UNSET) -> ProcessBuilder:
     :return: The data cube with a newly added dimension. The new dimension has exactly one dimension label. All
         other dimensions remain unchanged.
     """
-    return process('add_dimension', data=data, name=name, label=label, type=type)
+    return _process('add_dimension', data=data, name=name, label=label, type=type)
 
 
 def aggregate_spatial(data, geometries, reducer, target_dimension=UNSET, context=UNSET) -> ProcessBuilder:
     """
     Zonal statistics for geometries
 
-    :param data: A raster data cube. The data cube implicitly gets restricted to the bounds of the geometries
-        as if ``filter_spatial()`` would have been used with the same values for the corresponding parameters
-        immediately before this process.
-    :param geometries: Geometries as GeoJSON on which the aggregation will be based.
+    :param data: A raster data cube.  The data cube must have been reduced to only contain two spatial
+        dimensions and a third dimension the values are aggregated for, for example the temporal dimension to get a
+        time series. Otherwise, this process fails with the `TooManyDimensions` exception.  The data cube
+        implicitly gets restricted to the bounds of the geometries as if ``filter_spatial()`` would have been used
+        with the same values for the corresponding parameters immediately before this process.
+    :param geometries: Geometries as GeoJSON on which the aggregation will be based.  One value will be
+        computed per GeoJSON `Feature`, `Geometry` or `GeometryCollection`. For a `FeatureCollection` multiple
+        values will be computed, one value per contained `Feature`. For example, a single value will be computed
+        for a `MultiPolygon`, but two values will be computed for a `FeatureCollection` containing two polygons.  -
+        For **polygons**, the process considers all pixels for which the point at the pixel center intersects with
+        the corresponding polygon (as defined in the Simple Features standard by the OGC). - For **points**, the
+        process considers the closest pixel center. - For **lines** (line strings), the process considers all the
+        pixels whose centers are closest to at least one point on the line.  Thus, pixels may be part of multiple
+        geometries and be part of multiple aggregations.  To maximize interoperability, a nested
+        `GeometryCollection` should be avoided. Furthermore, a `GeometryCollection` composed of a single type of
+        geometries should be avoided in favour of the corresponding multi-part type (e.g. `MultiPolygon`).
     :param reducer: A reducer to be applied on all values of each geometry. A reducer is a single process such
         as ``mean()`` or a set of processes, which computes a single value for a list of values, see the category
         'reducer' for such processes.
@@ -1863,7 +1921,7 @@ def aggregate_spatial(data, geometries, reducer, target_dimension=UNSET, context
         with a dimension name derived from `target_dimension` by adding the suffix `_meta`. The new dimension has
         the dimension labels `total_count` and `valid_count`.
     """
-    return process('aggregate_spatial', data=data, geometries=geometries, reducer=reducer, target_dimension=target_dimension, context=context)
+    return _process('aggregate_spatial', data=data, geometries=geometries, reducer=reducer, target_dimension=target_dimension, context=context)
 
 
 def aggregate_spatial_binary(data, geometries, reducer, target_dimension=UNSET, context=UNSET) -> ProcessBuilder:
@@ -1888,7 +1946,7 @@ def aggregate_spatial_binary(data, geometries, reducer, target_dimension=UNSET, 
         with a dimension name derived from `target_dimension` by adding the suffix `_meta`. The new dimension has
         the dimension labels `total_count` and `valid_count`.
     """
-    return process('aggregate_spatial_binary', data=data, geometries=geometries, reducer=reducer, target_dimension=target_dimension, context=context)
+    return _process('aggregate_spatial', data=data, geometries=geometries, reducer=reducer, target_dimension=target_dimension, context=context)
 
 
 def aggregate_temporal(data, intervals, reducer, labels=UNSET, dimension=UNSET, context=UNSET) -> ProcessBuilder:
@@ -1900,27 +1958,28 @@ def aggregate_temporal(data, intervals, reducer, labels=UNSET, dimension=UNSET, 
         the array has exactly two elements:  1. The first element is the start of the temporal interval. The
         specified instance in time is **included** in the interval. 2. The second element is the end of the
         temporal interval. The specified instance in time is **excluded** from the interval.  The specified
-        temporal strings follow [RFC 3339](https://tools.ietf.org/html/rfc3339). Although [RFC 3339 prohibits the
-        hour to be '24'](https://tools.ietf.org/html/rfc3339#section-5.7), **this process allows the value '24' for
-        the hour** of an end time in order to make it possible that left-closed time intervals can fully cover the
-        day.
-    :param reducer: A reducer to be applied on all values along the specified dimension. A reducer is a single
+        temporal strings follow [RFC 3339](https://www.rfc-editor.org/rfc/rfc3339.html). Although [RFC 3339
+        prohibits the hour to be '24'](https://www.rfc-editor.org/rfc/rfc3339.html#section-5.7), **this process
+        allows the value '24' for the hour** of an end time in order to make it possible that left-closed time
+        intervals can fully cover the day.
+    :param reducer: A reducer to be applied for the values contained in each interval. A reducer is a single
         process such as ``mean()`` or a set of processes, which computes a single value for a list of values, see
-        the category 'reducer' for such processes.
+        the category 'reducer' for such processes. Intervals may not contain any values, which for most reducers
+        leads to no-data (`null`) values by default.
     :param labels: Distinct labels for the intervals, which can contain dates and/or times. Is only required to
         be specified if the values for the start of the temporal intervals are not distinct and thus the default
         labels would not be unique. The number of labels and the number of groups need to be equal.
     :param dimension: The name of the temporal dimension for aggregation. All data along the dimension is
         passed through the specified reducer. If the dimension is not set or set to `null`, the data cube is
-        expected to only have one temporal dimension. Fails with a `TooManyDimensions` error if it has more
-        dimensions. Fails with a `DimensionNotAvailable` error if the specified dimension does not exist.
+        expected to only have one temporal dimension. Fails with a `TooManyDimensions` exception if it has more
+        dimensions. Fails with a `DimensionNotAvailable` exception if the specified dimension does not exist.
     :param context: Additional data to be passed to the reducer.
 
-    :return: A data cube with the same dimensions. The dimension properties (name, type, labels, reference
+    :return: A new data cube with the same dimensions. The dimension properties (name, type, labels, reference
         system and resolution) remain unchanged, except for the resolution and dimension labels of the given
         temporal dimension.
     """
-    return process('aggregate_temporal', data=data, intervals=intervals, reducer=reducer, labels=labels, dimension=dimension, context=context)
+    return _process('aggregate_temporal', data=data, intervals=intervals, reducer=reducer, labels=labels, dimension=dimension, context=context)
 
 
 def aggregate_temporal_period(data, period, reducer, dimension=UNSET, context=UNSET) -> ProcessBuilder:
@@ -1937,18 +1996,19 @@ def aggregate_temporal_period(data, period, reducer, dimension=UNSET, context=UN
         April, May - October). * `year`: Proleptic years * `decade`: Ten year periods ([0-to-9
         decade](https://en.wikipedia.org/wiki/Decade#0-to-9_decade)), from a year ending in a 0 to the next year
         ending in a 9. * `decade-ad`: Ten year periods ([1-to-0
-        decade](https://en.wikipedia.org/wiki/Decade#1-to-0_decade)) better aligned with the Anno Domini (AD)
+        decade](https://en.wikipedia.org/wiki/Decade#1-to-0_decade)) better aligned with the anno Domini (AD)
         calendar era, from a year ending in a 1 to the next year ending in a 0.
-    :param reducer: A reducer to be applied on all values along the specified dimension. A reducer is a single
+    :param reducer: A reducer to be applied for the values contained in each period. A reducer is a single
         process such as ``mean()`` or a set of processes, which computes a single value for a list of values, see
-        the category 'reducer' for such processes.
+        the category 'reducer' for such processes. Periods may not contain any values, which for most reducers
+        leads to no-data (`null`) values by default.
     :param dimension: The name of the temporal dimension for aggregation. All data along the dimension is
         passed through the specified reducer. If the dimension is not set or set to `null`, the data cube is
-        expected to only have one temporal dimension. Fails with a `TooManyDimensions` error if it has more
-        dimensions. Fails with a `DimensionNotAvailable` error if the specified dimension does not exist.
+        expected to only have one temporal dimension. Fails with a `TooManyDimensions` exception if it has more
+        dimensions. Fails with a `DimensionNotAvailable` exception if the specified dimension does not exist.
     :param context: Additional data to be passed to the reducer.
 
-    :return: A data cube with the same dimensions. The dimension properties (name, type, labels, reference
+    :return: A new data cube with the same dimensions. The dimension properties (name, type, labels, reference
         system and resolution) remain unchanged, except for the resolution and dimension labels of the given
         temporal dimension. The specified temporal dimension has the following dimension labels (`YYYY` = four-
         digit year, `MM` = two-digit month, `DD` two-digit day of month):  * `hour`: `YYYY-MM-DD-00` - `YYYY-MM-
@@ -1957,7 +2017,7 @@ def aggregate_temporal_period(data, period, reducer, dimension=UNSET, context=UN
         `YYYY-jja` (June - August), `YYYY-son` (September - November). * `tropical-season`: `YYYY-ndjfma` (November
         - April), `YYYY-mjjaso` (May - October). * `year`: `YYYY` * `decade`: `YYY0` * `decade-ad`: `YYY1`
     """
-    return process('aggregate_temporal_period', data=data, period=period, reducer=reducer, dimension=dimension, context=context)
+    return _process('aggregate_temporal_period', data=data, period=period, reducer=reducer, dimension=dimension, context=context)
 
 
 def all(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -1969,7 +2029,7 @@ def all(data, ignore_nodata=UNSET) -> ProcessBuilder:
 
     :return: Boolean result of the logical operation.
     """
-    return process('all', data=data, ignore_nodata=ignore_nodata)
+    return _process('all', data=data, ignore_nodata=ignore_nodata)
 
 
 def and_(x, y) -> ProcessBuilder:
@@ -1981,12 +2041,12 @@ def and_(x, y) -> ProcessBuilder:
 
     :return: Boolean result of the logical AND.
     """
-    return process('and', x=x, y=y)
+    return _process('and', x=x, y=y)
 
 
 def anomaly(data, normals, period) -> ProcessBuilder:
     """
-    Computes anomalies
+    Compute anomalies
 
     :param data: A data cube with exactly one temporal dimension and the following dimension labels for the
         given period (`YYYY` = four-digit year, `MM` = two-digit month, `DD` two-digit day of month):  * `hour`:
@@ -2013,14 +2073,14 @@ def anomaly(data, normals, period) -> ProcessBuilder:
         tropical seasons (November - April, May - October). * `year`: Proleptic years * `decade`: Ten year periods
         ([0-to-9 decade](https://en.wikipedia.org/wiki/Decade#0-to-9_decade)), from a year ending in a 0 to the
         next year ending in a 9. * `decade-ad`: Ten year periods ([1-to-0
-        decade](https://en.wikipedia.org/wiki/Decade#1-to-0_decade)) better aligned with the Anno Domini (AD)
+        decade](https://en.wikipedia.org/wiki/Decade#1-to-0_decade)) better aligned with the anno Domini (AD)
         calendar era, from a year ending in a 1 to the next year ending in a 0. * `single-period` / `climatology-
         period`: A single period of arbitrary length
 
     :return: A data cube with the same dimensions. The dimension properties (name, type, labels, reference
         system and resolution) remain unchanged.
     """
-    return process('anomaly', data=data, normals=normals, period=period)
+    return _process('anomaly', data=data, normals=normals, period=period)
 
 
 def any(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -2032,7 +2092,7 @@ def any(data, ignore_nodata=UNSET) -> ProcessBuilder:
 
     :return: Boolean result of the logical operation.
     """
-    return process('any', data=data, ignore_nodata=ignore_nodata)
+    return _process('any', data=data, ignore_nodata=ignore_nodata)
 
 
 def apply(data, process, context=UNSET) -> ProcessBuilder:
@@ -2040,13 +2100,15 @@ def apply(data, process, context=UNSET) -> ProcessBuilder:
     Apply a process to each pixel
 
     :param data: A data cube.
-    :param process: A unary process to be applied on each value, may consist of multiple sub-processes.
+    :param process: A process that accepts and returns a single value and is applied on each individual value
+        in the data cube. The process may consist of multiple sub-processes and could, for example, consist of
+        processes such as ``abs()`` or ``linear_scale_range()``.
     :param context: Additional data to be passed to the process.
 
     :return: A data cube with the newly computed values and the same dimensions. The dimension properties
         (name, type, labels, reference system and resolution) remain unchanged.
     """
-    return process('apply', data=data, process=process, context=context)
+    return _process('apply', data=data, process=process, context=context)
 
 
 def apply_dimension(data, process, dimension, target_dimension=UNSET, context=UNSET) -> ProcessBuilder:
@@ -2055,35 +2117,33 @@ def apply_dimension(data, process, dimension, target_dimension=UNSET, context=UN
 
     :param data: A data cube.
     :param process: Process to be applied on all pixel values. The specified process needs to accept an array
-        as parameter and must return an array with least one element. A process may consist of multiple sub-
-        processes.
+        and must return an array with at least one element. A process may consist of multiple sub-processes.
     :param dimension: The name of the source dimension to apply the process on. Fails with a
-        `DimensionNotAvailable` error if the specified dimension does not exist.
+        `DimensionNotAvailable` exception if the specified dimension does not exist.
     :param target_dimension: The name of the target dimension or `null` (the default) to use the source
         dimension specified in the parameter `dimension`.  By specifying a target dimension, the source dimension
         is removed. The target dimension with the specified name and the type `other` (see ``add_dimension()``) is
-        created, if if doesn't exist yet.
+        created, if it doesn't exist yet.
     :param context: Additional data to be passed to the process.
 
-    :return: A data cube with the newly computed values. All dimensions stay the same, except for the
-        dimensions specified in corresponding parameters. There are three cases how the data cube changes:  1. The
-        source dimension **is** the target dimension:    * The (number of) dimensions remain unchanged.    * The
-        source dimension properties name, type and reference system remain unchanged.    * The dimension labels and
-        the resolution are preserved when the number of pixel values in the source dimension is equal to the number
-        of values computed by the process. The other case is described below. 2. The source dimension **is not**
-        the target dimension and the latter **exists**:    * The number of dimensions decreases by one as the
-        source dimension is dropped.    * The target dimension properties name, type and reference system remain
-        unchanged.    * The resolution changes, the number of dimension labels is equal to the number of values
-        computed by the process and the dimension labels are incrementing integers starting from zero 3. The source
-        dimension **is not** the target dimension and the latter **does not exist**:    * The number of dimensions
-        remain unchanged, but the source dimension is replaced with the target dimension.    * The target dimension
-        has the specified name and the type other. The reference system is not changed.    * The resolution
-        changes, the number of dimension labels is equal to the number of values computed by the process and the
-        dimension labels are incrementing integers starting from zero  For all three cases except for the exception
-        in the first case, the resolution changes, the number of dimension labels is equal to the number of values
-        computed by the process and the dimension labels are incrementing integers starting from zero.
+    :return: A data cube with the newly computed values.  All dimensions stay the same, except for the
+        dimensions specified in corresponding parameters. There are three cases how the dimensions can change:  1.
+        The source dimension is the target dimension:    - The (number of) dimensions remain unchanged as the
+        source dimension is the target dimension.    - The source dimension properties name and type remain
+        unchanged.    - The dimension labels, the reference system and the resolution are preserved only if the
+        number of pixel values in the source dimension is equal to the number of values computed by the process.
+        Otherwise, all other dimension properties change as defined in the list below. 2. The source dimension is
+        not the target dimension and the latter exists:    - The number of dimensions decreases by one as the
+        source dimension is dropped.    - The target dimension properties name and type remain unchanged. All other
+        dimension properties change as defined in the list below. 3. The source dimension is not the target
+        dimension and the latter does not exist:    - The number of dimensions remain unchanged, but the source
+        dimension is replaced with the target dimension.    - The target dimension has the specified name and the
+        type other. All other dimension properties are set as defined in the list below.  Unless otherwise stated
+        above, for the given (target) dimension the following applies:  - the number of dimension labels is equal
+        to the number of values computed by the process, - the dimension labels are incrementing integers starting
+        from zero, - the resolution changes, and - the reference system is undefined.
     """
-    return process('apply_dimension', data=data, process=process, dimension=dimension, target_dimension=target_dimension, context=context)
+    return _process('apply_dimension', data=data, process=process, dimension=dimension, target_dimension=target_dimension, context=context)
 
 
 def apply_kernel(data, kernel, factor=UNSET, border=UNSET, replace_invalid=UNSET) -> ProcessBuilder:
@@ -2093,7 +2153,7 @@ def apply_kernel(data, kernel, factor=UNSET, border=UNSET, replace_invalid=UNSET
     :param data: A data cube.
     :param kernel: Kernel as a two-dimensional array of weights. The inner level of the nested array aligns
         with the `x` axis and the outer level aligns with the `y` axis. Each level of the kernel must have an
-        uneven number of elements, otherwise the process throws a `KernelDimensionsUneven` error.
+        uneven number of elements, otherwise the process throws a `KernelDimensionsUneven` exception.
     :param factor: A factor that is multiplied to each value after the kernel has been applied.  This is
         basically a shortcut for explicitly multiplying each value by a factor afterwards, which is often required
         for some kernel-based algorithms such as the Gaussian blur.
@@ -2109,21 +2169,21 @@ def apply_kernel(data, kernel, factor=UNSET, border=UNSET, replace_invalid=UNSET
     :return: A data cube with the newly computed values and the same dimensions. The dimension properties
         (name, type, labels, reference system and resolution) remain unchanged.
     """
-    return process('apply_kernel', data=data, kernel=kernel, factor=factor, border=border, replace_invalid=replace_invalid)
+    return _process('apply_kernel', data=data, kernel=kernel, factor=factor, border=border, replace_invalid=replace_invalid)
 
 
 def apply_neighborhood(data, process, size, overlap=UNSET, context=UNSET) -> ProcessBuilder:
     """
-    Apply a process to pixels in a n-dimensional neighbourhood
+    Apply a process to pixels in a n-dimensional neighborhood
 
     :param data: A data cube.
-    :param process: Process to be applied on all neighbourhoods.
-    :param size: Neighbourhood sizes along each dimension.  This object maps dimension names to either a
+    :param process: Process to be applied on all neighborhoods.
+    :param size: Neighborhood sizes along each dimension.  This object maps dimension names to either a
         physical measure (e.g. 100 m, 10 days) or pixels (e.g. 32 pixels). For dimensions not specified, the
         default is to provide all values. Be aware that including all values from overly large dimensions may not
         be processed at once.
-    :param overlap: Overlap of neighbourhoods along each dimension to avoid border effects.  For instance a
-        temporal dimension can add 1 month before and after a neighbourhood. In the spatial dimensions, this is
+    :param overlap: Overlap of neighborhoods along each dimension to avoid border effects.  For instance a
+        temporal dimension can add 1 month before and after a neighborhood. In the spatial dimensions, this is
         often a number of pixels. The overlap specified is added before and after, so an overlap of 8 pixels will
         add 8 pixels on both sides of the window, so 16 in total.  Be aware that large overlaps increase the need
         for computational resources and modifying overlapping data in subsequent operations have no effect.
@@ -2132,7 +2192,7 @@ def apply_neighborhood(data, process, size, overlap=UNSET, context=UNSET) -> Pro
     :return: A data cube with the newly computed values and the same dimensions. The dimension properties
         (name, type, labels, reference system and resolution) remain unchanged.
     """
-    return process('apply_neighborhood', data=data, process=process, size=size, overlap=overlap, context=context)
+    return _process('apply_neighborhood', data=data, process=process, size=size, overlap=overlap, context=context)
 
 
 def arccos(x) -> ProcessBuilder:
@@ -2143,7 +2203,7 @@ def arccos(x) -> ProcessBuilder:
 
     :return: The computed angle in radians.
     """
-    return process('arccos', x=x)
+    return _process('arccos', x=x)
 
 
 def arcosh(x) -> ProcessBuilder:
@@ -2154,7 +2214,7 @@ def arcosh(x) -> ProcessBuilder:
 
     :return: The computed angle in radians.
     """
-    return process('arcosh', x=x)
+    return _process('arcosh', x=x)
 
 
 def arcsin(x) -> ProcessBuilder:
@@ -2165,7 +2225,7 @@ def arcsin(x) -> ProcessBuilder:
 
     :return: The computed angle in radians.
     """
-    return process('arcsin', x=x)
+    return _process('arcsin', x=x)
 
 
 def arctan(x) -> ProcessBuilder:
@@ -2176,34 +2236,35 @@ def arctan(x) -> ProcessBuilder:
 
     :return: The computed angle in radians.
     """
-    return process('arctan', x=x)
+    return _process('arctan', x=x)
 
 
 def arctan2(y, x) -> ProcessBuilder:
     """
     Inverse tangent of two numbers
 
-    :param y: A number to be used as dividend.
-    :param x: A number to be used as divisor.
+    :param y: A number to be used as the dividend.
+    :param x: A number to be used as the divisor.
 
     :return: The computed angle in radians.
     """
-    return process('arctan2', y=y, x=x)
+    return _process('arctan2', y=y, x=x)
 
 
 def array_apply(data, process, context=UNSET) -> ProcessBuilder:
     """
-    Applies a unary process to each array element
+    Apply a process to each array element
 
     :param data: An array.
-    :param process: A process to be applied on each value, may consist of multiple sub-processes. The specified
-        process must be unary meaning that it must work on a single value.
+    :param process: A process that accepts and returns a single value and is applied on each individual value
+        in the array. The process may consist of multiple sub-processes and could, for example, consist of
+        processes such as ``abs()`` or ``linear_scale_range()``.
     :param context: Additional data to be passed to the process.
 
     :return: An array with the newly computed values. The number of elements are the same as for the original
         array.
     """
-    return process('array_apply', data=data, process=process, context=context)
+    return _process('array_apply', data=data, process=process, context=context)
 
 
 def array_contains(data, value) -> ProcessBuilder:
@@ -2213,9 +2274,9 @@ def array_contains(data, value) -> ProcessBuilder:
     :param data: List to find the value in.
     :param value: Value to find in `data`.
 
-    :return: Returns `true` if the list contains the value, false` otherwise.
+    :return: `true` if the list contains the value, false` otherwise.
     """
-    return process('array_contains', data=data, value=value)
+    return _process('array_contains', data=data, value=value)
 
 
 def array_element(data, index=UNSET, label=UNSET, return_nodata=UNSET) -> ProcessBuilder:
@@ -2224,13 +2285,14 @@ def array_element(data, index=UNSET, label=UNSET, return_nodata=UNSET) -> Proces
 
     :param data: An array.
     :param index: The zero-based index of the element to retrieve.
-    :param label: The label of the element to retrieve.
+    :param label: The label of the element to retrieve. Throws an `ArrayNotLabeled` exception, if the given
+        array is not a labeled array and this parameter is set.
     :param return_nodata: By default this process throws an `ArrayElementNotAvailable` exception if the index
         or label is invalid. If you want to return `null` instead, set this flag to `true`.
 
     :return: The value of the requested element.
     """
-    return process('array_element', data=data, index=index, label=label, return_nodata=return_nodata)
+    return _process('array_element', data=data, index=index, label=label, return_nodata=return_nodata)
 
 
 def array_filter(data, condition, context=UNSET) -> ProcessBuilder:
@@ -2238,14 +2300,14 @@ def array_filter(data, condition, context=UNSET) -> ProcessBuilder:
     Filter an array based on a condition
 
     :param data: An array.
-    :param condition: A condition that is evaluated against each value in the array. Only the array elements
-        where the condition returns `true` are preserved.
+    :param condition: A condition that is evaluated against each value, index and/or label in the array. Only
+        the array elements for which the condition returns `true` are preserved.
     :param context: Additional data to be passed to the condition.
 
     :return: An array filtered by the specified condition. The number of elements are less than or equal
         compared to the original array.
     """
-    return process('array_filter', data=data, condition=condition, context=context)
+    return _process('array_filter', data=data, condition=condition, context=context)
 
 
 def array_find(data, value) -> ProcessBuilder:
@@ -2255,10 +2317,10 @@ def array_find(data, value) -> ProcessBuilder:
     :param data: List to find the value in.
     :param value: Value to find in `data`.
 
-    :return: Returns the index of the first element with the specified value. If no element was found, `null`
-        is returned.
+    :return: The index of the first element with the specified value. If no element was found, `null` is
+        returned.
     """
-    return process('array_find', data=data, value=value)
+    return _process('array_find', data=data, value=value)
 
 
 def array_labels(data) -> ProcessBuilder:
@@ -2267,9 +2329,9 @@ def array_labels(data) -> ProcessBuilder:
 
     :param data: An array with labels.
 
-    :return: The labels as array.
+    :return: The labels as an array.
     """
-    return process('array_labels', data=data)
+    return _process('array_labels', data=data)
 
 def array_modify(data, values, index, length=UNSET) -> ProcessBuilder:
     """
@@ -2286,7 +2348,8 @@ def array_modify(data, values, index, length=UNSET) -> ProcessBuilder:
 
     :return: An array with values added, updated or removed.
     """
-    return process('array_modify', data=data,values=values, index=index, length=length)
+    return _process('array_modify', data=data,values=values, index=index, length=length)
+
 
 def arsinh(x) -> ProcessBuilder:
     """
@@ -2296,7 +2359,7 @@ def arsinh(x) -> ProcessBuilder:
 
     :return: The computed angle in radians.
     """
-    return process('arsinh', x=x)
+    return _process('arsinh', x=x)
 
 
 def artanh(x) -> ProcessBuilder:
@@ -2307,7 +2370,7 @@ def artanh(x) -> ProcessBuilder:
 
     :return: The computed angle in radians.
     """
-    return process('artanh', x=x)
+    return _process('artanh', x=x)
 
 
 def between(x, min, max, exclude_max=UNSET) -> ProcessBuilder:
@@ -2321,7 +2384,7 @@ def between(x, min, max, exclude_max=UNSET) -> ProcessBuilder:
 
     :return: `true` if `x` is between the specified bounds, otherwise `false`.
     """
-    return process('between', x=x, min=min, max=max, exclude_max=exclude_max)
+    return _process('between', x=x, min=min, max=max, exclude_max=exclude_max)
 
 
 def ceil(x) -> ProcessBuilder:
@@ -2332,12 +2395,12 @@ def ceil(x) -> ProcessBuilder:
 
     :return: The number rounded up.
     """
-    return process('ceil', x=x)
+    return _process('ceil', x=x)
 
 
 def climatological_normal(data, period, climatology_period=UNSET) -> ProcessBuilder:
     """
-    Computes climatology normals
+    Compute climatology normals
 
     :param data: A data cube with exactly one temporal dimension. The data cube must span at least the temporal
         interval specified in the parameter `climatology-period`.  Seasonal periods may span two consecutive years,
@@ -2350,7 +2413,7 @@ def climatological_normal(data, period, climatology_period=UNSET) -> ProcessBuil
         specified in the `climatology-period`. * `season`: Three month periods of the calendar seasons (December -
         February, March - May, June - August, September - November). * `tropical-season`: Six month periods of the
         tropical seasons (November - April, May - October).
-    :param climatology_period: The climatology period as closed temporal interval. The first element of the
+    :param climatology_period: The climatology period as a closed temporal interval. The first element of the
         array is the first year to be fully included in the temporal interval. The second element is the last year
         to be fully included in the temporal interval. The default period is from 1981 until 2010 (both inclusive).
 
@@ -2361,7 +2424,7 @@ def climatological_normal(data, period, climatology_period=UNSET) -> ProcessBuil
         (March - May), `jja` (June - August), `son` (September - November) * `tropical-season`: `ndjfma` (November
         - April), `mjjaso` (May - October)
     """
-    return process('climatological_normal', data=data, period=period, climatology_period=climatology_period)
+    return _process('climatological_normal', data=data, period=period, climatology_period=climatology_period)
 
 
 def clip(x, min, max) -> ProcessBuilder:
@@ -2376,7 +2439,7 @@ def clip(x, min, max) -> ProcessBuilder:
 
     :return: The value clipped to the specified range.
     """
-    return process('clip', x=x, min=min, max=max)
+    return _process('clip', x=x, min=min, max=max)
 
 
 def constant(x) -> ProcessBuilder:
@@ -2387,7 +2450,7 @@ def constant(x) -> ProcessBuilder:
 
     :return: The value of the constant.
     """
-    return process('constant', x=x)
+    return _process('constant', x=x)
 
 
 def cos(x) -> ProcessBuilder:
@@ -2398,7 +2461,7 @@ def cos(x) -> ProcessBuilder:
 
     :return: The computed cosine of `x`.
     """
-    return process('cos', x=x)
+    return _process('cos', x=x)
 
 
 def cosh(x) -> ProcessBuilder:
@@ -2409,7 +2472,7 @@ def cosh(x) -> ProcessBuilder:
 
     :return: The computed hyperbolic cosine of `x`.
     """
-    return process('cosh', x=x)
+    return _process('cosh', x=x)
 
 
 def count(data, condition=UNSET, context=UNSET) -> ProcessBuilder:
@@ -2417,7 +2480,7 @@ def count(data, condition=UNSET, context=UNSET) -> ProcessBuilder:
     Count the number of elements
 
     :param data: An array with elements of any data type.
-    :param condition: A condition consists of one ore more processes, which in the end return a boolean value.
+    :param condition: A condition consists of one or more processes, which in the end return a boolean value.
         It is evaluated against each element in the array. An element is counted only if the condition returns
         `true`. Defaults to count valid elements in a list (see ``is_valid()``). Setting this parameter to boolean
         `true` counts all elements in the list.
@@ -2425,7 +2488,7 @@ def count(data, condition=UNSET, context=UNSET) -> ProcessBuilder:
 
     :return: The counted number of elements.
     """
-    return process('count', data=data, condition=condition, context=context)
+    return _process('count', data=data, condition=condition, context=context)
 
 
 def create_raster_cube() -> ProcessBuilder:
@@ -2434,7 +2497,7 @@ def create_raster_cube() -> ProcessBuilder:
 
     :return: An empty raster data cube with zero dimensions.
     """
-    return process('create_raster_cube', )
+    return _process('create_raster_cube', )
 
 
 def cummax(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -2447,7 +2510,7 @@ def cummax(data, ignore_nodata=UNSET) -> ProcessBuilder:
 
     :return: An array with the computed cumulative maxima.
     """
-    return process('cummax', data=data, ignore_nodata=ignore_nodata)
+    return _process('cummax', data=data, ignore_nodata=ignore_nodata)
 
 
 def cummin(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -2460,7 +2523,7 @@ def cummin(data, ignore_nodata=UNSET) -> ProcessBuilder:
 
     :return: An array with the computed cumulative minima.
     """
-    return process('cummin', data=data, ignore_nodata=ignore_nodata)
+    return _process('cummin', data=data, ignore_nodata=ignore_nodata)
 
 
 def cumproduct(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -2473,7 +2536,7 @@ def cumproduct(data, ignore_nodata=UNSET) -> ProcessBuilder:
 
     :return: An array with the computed cumulative products.
     """
-    return process('cumproduct', data=data, ignore_nodata=ignore_nodata)
+    return _process('cumproduct', data=data, ignore_nodata=ignore_nodata)
 
 
 def cumsum(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -2486,7 +2549,7 @@ def cumsum(data, ignore_nodata=UNSET) -> ProcessBuilder:
 
     :return: An array with the computed cumulative sums.
     """
-    return process('cumsum', data=data, ignore_nodata=ignore_nodata)
+    return _process('cumsum', data=data, ignore_nodata=ignore_nodata)
 
 
 def debug(data, code=UNSET, level=UNSET, message=UNSET) -> ProcessBuilder:
@@ -2501,7 +2564,7 @@ def debug(data, code=UNSET, level=UNSET, message=UNSET) -> ProcessBuilder:
 
     :return: Returns the data as passed to the `data` parameter.
     """
-    return process('debug', data=data, code=code, level=level, message=message)
+    return _process('debug', data=data, code=code, level=level, message=message)
 
 
 def dimension_labels(data, dimension) -> ProcessBuilder:
@@ -2511,9 +2574,9 @@ def dimension_labels(data, dimension) -> ProcessBuilder:
     :param data: The data cube.
     :param dimension: The name of the dimension to get the labels for.
 
-    :return: The labels as array.
+    :return: The labels as an array.
     """
-    return process('dimension_labels', data=data, dimension=dimension)
+    return _process('dimension_labels', data=data, dimension=dimension)
 
 
 def divide(x, y) -> ProcessBuilder:
@@ -2525,7 +2588,7 @@ def divide(x, y) -> ProcessBuilder:
 
     :return: The computed result.
     """
-    return process('divide', x=x, y=y)
+    return _process('divide', x=x, y=y)
 
 
 def drop_dimension(data, name) -> ProcessBuilder:
@@ -2539,7 +2602,7 @@ def drop_dimension(data, name) -> ProcessBuilder:
         dimension properties (name, type, labels, reference system and resolution) for all other dimensions remain
         unchanged.
     """
-    return process('drop_dimension', data=data, name=name)
+    return _process('drop_dimension', data=data, name=name)
 
 
 def e() -> ProcessBuilder:
@@ -2548,7 +2611,7 @@ def e() -> ProcessBuilder:
 
     :return: The numerical value of Euler's number.
     """
-    return process('e', )
+    return _process('e', )
 
 
 def eq(x, y, delta=UNSET, case_sensitive=UNSET) -> ProcessBuilder:
@@ -2559,14 +2622,14 @@ def eq(x, y, delta=UNSET, case_sensitive=UNSET) -> ProcessBuilder:
     :param y: Second operand.
     :param delta: Only applicable for comparing two numbers. If this optional parameter is set to a positive
         non-zero number the equality of two numbers is checked against a delta value. This is especially useful to
-        circumvent problems with floating point inaccuracy in machine-based computation.  This option is basically
+        circumvent problems with floating-point inaccuracy in machine-based computation.  This option is basically
         an alias for the following computation: `lte(abs(minus([x, y]), delta)`
     :param case_sensitive: Only applicable for comparing two strings. Case sensitive comparison can be disabled
         by setting this parameter to `false`.
 
-    :return: Returns `true` if `x` is equal to `y`, `null` if any operand is `null`, otherwise `false`.
+    :return: `true` if `x` is equal to `y`, `null` if any operand is `null`, otherwise `false`.
     """
-    return process('eq', x=x, y=y, delta=delta, case_sensitive=case_sensitive)
+    return _process('eq', x=x, y=y, delta=delta, case_sensitive=case_sensitive)
 
 
 def exp(p) -> ProcessBuilder:
@@ -2577,7 +2640,7 @@ def exp(p) -> ProcessBuilder:
 
     :return: The computed value for *e* raised to the power of `p`.
     """
-    return process('exp', p=p)
+    return _process('exp', p=p)
 
 
 def extrema(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -2593,29 +2656,29 @@ def extrema(data, ignore_nodata=UNSET) -> ProcessBuilder:
         the minimum, the second element is the maximum. If the input array is empty both elements are set to
         `null`.
     """
-    return process('extrema', data=data, ignore_nodata=ignore_nodata)
+    return _process('extrema', data=data, ignore_nodata=ignore_nodata)
 
 
 def filter_bands(data, bands=UNSET, wavelengths=UNSET) -> ProcessBuilder:
     """
-    Filter the bands by name
+    Filter the bands by names
 
     :param data: A data cube with bands.
     :param bands: A list of band names. Either the unique band name (metadata field `name` in bands) or one of
-        the common band names (metadata field `common_name` in bands). If unique band name and common name
-        conflict, the unique band name has higher priority.  The order of the specified array defines the order of
-        the bands in the data cube. If multiple bands match a common name, all matched bands are included in the
+        the common band names (metadata field `common_name` in bands). If the unique band name and the common name
+        conflict, the unique band name has a higher priority.  The order of the specified array defines the order
+        of the bands in the data cube. If multiple bands match a common name, all matched bands are included in the
         original order.
     :param wavelengths: A list of sub-lists with each sub-list consisting of two elements. The first element is
         the minimum wavelength and the second element is the maximum wavelength. Wavelengths are specified in
-        micrometres (μm).  The order of the specified array defines the order of the bands in the data cube. If
+        micrometers (Î¼m).  The order of the specified array defines the order of the bands in the data cube. If
         multiple bands match the wavelengths, all matched bands are included in the original order.
 
     :return: A data cube limited to a subset of its original bands. The dimensions and dimension properties
         (name, type, labels, reference system and resolution) remain unchanged, except that the dimension of type
         `bands` has less (or the same) dimension labels.
     """
-    return process('filter_bands', data=data, bands=bands, wavelengths=wavelengths)
+    return _process('filter_bands', data=data, bands=bands, wavelengths=wavelengths)
 
 
 def filter_bbox(data, extent) -> ProcessBuilder:
@@ -2629,7 +2692,7 @@ def filter_bbox(data, extent) -> ProcessBuilder:
         labels, reference system and resolution) remain unchanged, except that the spatial dimensions have less (or
         the same) dimension labels.
     """
-    return process('filter_bbox', data=data, extent=extent)
+    return _process('filter_bbox', data=data, extent=extent)
 
 
 def filter_labels(data, condition, dimension, context=UNSET) -> ProcessBuilder:
@@ -2648,7 +2711,7 @@ def filter_labels(data, condition, dimension, context=UNSET) -> ProcessBuilder:
         system and resolution) remain unchanged, except that the given dimension has less (or the same) dimension
         labels.
     """
-    return process('filter_labels', data=data, condition=condition, dimension=dimension, context=context)
+    return _process('filter_labels', data=data, condition=condition, dimension=dimension, context=context)
 
 
 def filter_spatial(data, geometries) -> ProcessBuilder:
@@ -2662,7 +2725,7 @@ def filter_spatial(data, geometries) -> ProcessBuilder:
         type, labels, reference system and resolution) remain unchanged, except that the spatial dimensions have
         less (or the same) dimension labels.
     """
-    return process('filter_spatial', data=data, geometries=geometries)
+    return _process('filter_spatial', data=data, geometries=geometries)
 
 
 def filter_temporal(data, extent, dimension=UNSET) -> ProcessBuilder:
@@ -2673,18 +2736,18 @@ def filter_temporal(data, extent, dimension=UNSET) -> ProcessBuilder:
     :param extent: Left-closed temporal interval, i.e. an array with exactly two elements:  1. The first
         element is the start of the temporal interval. The specified instance in time is **included** in the
         interval. 2. The second element is the end of the temporal interval. The specified instance in time is
-        **excluded** from the interval.  The specified temporal strings follow [RFC
-        3339](https://tools.ietf.org/html/rfc3339). Also supports open intervals by setting one of the boundaries
-        to `null`, but never both.
-    :param dimension: The name of the temporal dimension to filter on. If the dimension is not set or is set to
-        `null`, the filter applies to all temporal dimensions. Fails with a `DimensionNotAvailable` error if the
-        specified dimension does not exist.
+        **excluded** from the interval.  The specified temporal strings follow [RFC 3339](https://www.rfc-
+        editor.org/rfc/rfc3339.html). Also supports open intervals by setting one of the boundaries to `null`, but
+        never both.
+    :param dimension: The name of the temporal dimension to filter on. If no specific dimension is specified or
+        it is set to `null`, the filter applies to all temporal dimensions. Fails with a `DimensionNotAvailable`
+        exception if the specified dimension does not exist.
 
     :return: A data cube restricted to the specified temporal extent. The dimensions and dimension properties
-        (name, type, labels, reference system and resolution) remain unchanged, except that the given temporal
-        dimension(s) have less (or the same) dimension labels.
+        (name, type, labels, reference system and resolution) remain unchanged, except that the temporal dimensions
+        (determined by `dimensions` parameter) may have less dimension labels.
     """
-    return process('filter_temporal', data=data, extent=extent, dimension=dimension)
+    return _process('filter_temporal', data=data, extent=extent, dimension=dimension)
 
 
 def first(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -2698,7 +2761,7 @@ def first(data, ignore_nodata=UNSET) -> ProcessBuilder:
 
     :return: The first element of the input array.
     """
-    return process('first', data=data, ignore_nodata=ignore_nodata)
+    return _process('first', data=data, ignore_nodata=ignore_nodata)
 
 
 def floor(x) -> ProcessBuilder:
@@ -2709,7 +2772,7 @@ def floor(x) -> ProcessBuilder:
 
     :return: The number rounded down.
     """
-    return process('floor', x=x)
+    return _process('floor', x=x)
 
 
 def gt(x, y) -> ProcessBuilder:
@@ -2721,7 +2784,7 @@ def gt(x, y) -> ProcessBuilder:
 
     :return: `true` if `x` is strictly greater than `y` or `null` if any operand is `null`, otherwise `false`.
     """
-    return process('gt', x=x, y=y)
+    return _process('gt', x=x, y=y)
 
 
 def gte(x, y) -> ProcessBuilder:
@@ -2733,7 +2796,7 @@ def gte(x, y) -> ProcessBuilder:
 
     :return: `true` if `x` is greater than or equal to `y`, `null` if any operand is `null`, otherwise `false`.
     """
-    return process('gte', x=x, y=y)
+    return _process('gte', x=x, y=y)
 
 
 def if_(value, accept, reject=UNSET) -> ProcessBuilder:
@@ -2746,7 +2809,7 @@ def if_(value, accept, reject=UNSET) -> ProcessBuilder:
 
     :return: Either the `accept` or `reject` argument depending on the given boolean value.
     """
-    return process('if', value=value, accept=accept, reject=reject)
+    return _process('if', value=value, accept=accept, reject=reject)
 
 
 def int(x) -> ProcessBuilder:
@@ -2757,7 +2820,7 @@ def int(x) -> ProcessBuilder:
 
     :return: Integer part of the number.
     """
-    return process('int', x=x)
+    return _process('int', x=x)
 
 
 def is_nan(x) -> ProcessBuilder:
@@ -2766,9 +2829,9 @@ def is_nan(x) -> ProcessBuilder:
 
     :param x: The data to check.
 
-    :return: `true` if the data is not a number, otherwise `false`
+    :return: `true` if the data is not a number, otherwise `false`.
     """
-    return process('is_nan', x=x)
+    return _process('is_nan', x=x)
 
 
 def is_nodata(x) -> ProcessBuilder:
@@ -2777,9 +2840,9 @@ def is_nodata(x) -> ProcessBuilder:
 
     :param x: The data to check.
 
-    :return: `true` if the data is a no-data value, otherwise `false`
+    :return: `true` if the data is a no-data value, otherwise `false`.
     """
-    return process('is_nodata', x=x)
+    return _process('is_nodata', x=x)
 
 
 def is_valid(x) -> ProcessBuilder:
@@ -2790,7 +2853,7 @@ def is_valid(x) -> ProcessBuilder:
 
     :return: `true` if the data is valid, otherwise `false`.
     """
-    return process('is_valid', x=x)
+    return _process('is_valid', x=x)
 
 
 def last(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -2803,7 +2866,7 @@ def last(data, ignore_nodata=UNSET) -> ProcessBuilder:
 
     :return: The last element of the input array.
     """
-    return process('last', data=data, ignore_nodata=ignore_nodata)
+    return _process('last', data=data, ignore_nodata=ignore_nodata)
 
 
 def linear_scale_range(x, inputMin, inputMax, outputMin=UNSET, outputMax=UNSET) -> ProcessBuilder:
@@ -2819,7 +2882,7 @@ def linear_scale_range(x, inputMin, inputMax, outputMin=UNSET, outputMax=UNSET) 
 
     :return: The transformed number.
     """
-    return process('linear_scale_range', x=x, inputMin=inputMin, inputMax=inputMax, outputMin=outputMin, outputMax=outputMax)
+    return _process('linear_scale_range', x=x, inputMin=inputMin, inputMax=inputMax, outputMin=outputMin, outputMax=outputMax)
 
 
 def ln(x) -> ProcessBuilder:
@@ -2830,7 +2893,7 @@ def ln(x) -> ProcessBuilder:
 
     :return: The computed natural logarithm.
     """
-    return process('ln', x=x)
+    return _process('ln', x=x)
 
 
 def load_collection(id, spatial_extent, temporal_extent, bands=UNSET, properties=UNSET) -> ProcessBuilder:
@@ -2841,24 +2904,29 @@ def load_collection(id, spatial_extent, temporal_extent, bands=UNSET, properties
     :param spatial_extent: Limits the data to load from the collection to the specified bounding box or
         polygons.  The process puts a pixel into the data cube if the point at the pixel center intersects with the
         bounding box or any of the polygons (as defined in the Simple Features standard by the OGC).  The GeoJSON
-        can be one of the following GeoJSON types:  * A `Polygon` geometry, * a `GeometryCollection` containing
-        Polygons, * a `Feature` with a `Polygon` geometry or * a `FeatureCollection` containing `Feature`s with a
-        `Polygon` geometry.  Set this parameter to `null` to set no limit for the spatial extent. Be careful with
-        this when loading large datasets!
+        can be one of the following feature types:  * A `Polygon` or `MultiPolygon` geometry, * a `Feature` with a
+        `Polygon` or `MultiPolygon` geometry, * a `FeatureCollection` containing at least one `Feature` with
+        `Polygon` or `MultiPolygon` geometries, or * a `GeometryCollection` containing `Polygon` or `MultiPolygon`
+        geometries. To maximize interoperability, `GeometryCollection` should be avoided in favour of one of the
+        alternatives above.  Set this parameter to `null` to set no limit for the spatial extent. Be careful with
+        this when loading large datasets! It is recommended to use this parameter instead of using
+        ``filter_bbox()`` or ``filter_spatial()`` directly after loading unbounded data.
     :param temporal_extent: Limits the data to load from the collection to the specified left-closed temporal
         interval. Applies to all temporal dimensions. The interval has to be specified as an array with exactly two
         elements:  1. The first element is the start of the temporal interval. The specified instance in time is
         **included** in the interval. 2. The second element is the end of the temporal interval. The specified
         instance in time is **excluded** from the interval.  The specified temporal strings follow [RFC
-        3339](https://tools.ietf.org/html/rfc3339). Also supports open intervals by setting one of the boundaries
-        to `null`, but never both.  Set this parameter to `null` to set no limit for the spatial extent. Be careful
-        with this when loading large datasets!
+        3339](https://www.rfc-editor.org/rfc/rfc3339.html). Also supports open intervals by setting one of the
+        boundaries to `null`, but never both.  Set this parameter to `null` to set no limit for the temporal
+        extent. Be careful with this when loading large datasets! It is recommended to use this parameter instead
+        of using ``filter_temporal()`` directly after loading unbounded data.
     :param bands: Only adds the specified bands into the data cube so that bands that don't match the list of
         band names are not available. Applies to all dimensions of type `bands`.  Either the unique band name
         (metadata field `name` in bands) or one of the common band names (metadata field `common_name` in bands)
-        can be specified. If unique band name and common name conflict, the unique band name has higher priority.
-        The order of the specified array defines the order of the bands in the data cube. f multiple bands match a
-        common name, all matched bands are included in the original order.
+        can be specified. If the unique band name and the common name conflict, the unique band name has a higher
+        priority.  The order of the specified array defines the order of the bands in the data cube. If multiple
+        bands match a common name, all matched bands are included in the original order.  It is recommended to use
+        this parameter instead of using ``filter_bands()`` directly after loading unbounded data.
     :param properties: Limits the data by metadata properties to include only data in the data cube which all
         given conditions return `true` for (AND operation).  Specify key-value-pairs with the key being the name of
         the metadata property, which can be retrieved with the openEO Data Discovery for Collections. The value
@@ -2868,7 +2936,7 @@ def load_collection(id, spatial_extent, temporal_extent, bands=UNSET, properties
         reference system and resolution) correspond to the collection's metadata, but the dimension labels are
         restricted as specified in the parameters.
     """
-    return process('load_collection', id=id, spatial_extent=spatial_extent, temporal_extent=temporal_extent, bands=bands, properties=properties)
+    return _process('load_collection', id=id, spatial_extent=spatial_extent, temporal_extent=temporal_extent, bands=bands, properties=properties)
 
 
 def load_result(id) -> ProcessBuilder:
@@ -2879,7 +2947,7 @@ def load_result(id) -> ProcessBuilder:
 
     :return: A data cube for further processing.
     """
-    return process('load_result', id=id)
+    return _process('load_result', id=id)
 
 
 def load_uploaded_files(paths, format, options=UNSET) -> ProcessBuilder:
@@ -2898,7 +2966,7 @@ def load_uploaded_files(paths, format, options=UNSET) -> ProcessBuilder:
 
     :return: A data cube for further processing.
     """
-    return process('load_uploaded_files', paths=paths, format=format, options=options)
+    return _process('load_uploaded_files', paths=paths, format=format, options=options)
 
 
 def log(x, base) -> ProcessBuilder:
@@ -2910,7 +2978,7 @@ def log(x, base) -> ProcessBuilder:
 
     :return: The computed logarithm.
     """
-    return process('log', x=x, base=base)
+    return _process('log', x=x, base=base)
 
 
 def lt(x, y) -> ProcessBuilder:
@@ -2922,7 +2990,7 @@ def lt(x, y) -> ProcessBuilder:
 
     :return: `true` if `x` is strictly less than `y`, `null` if any operand is `null`, otherwise `false`.
     """
-    return process('lt', x=x, y=y)
+    return _process('lt', x=x, y=y)
 
 
 def lte(x, y) -> ProcessBuilder:
@@ -2934,7 +3002,7 @@ def lte(x, y) -> ProcessBuilder:
 
     :return: `true` if `x` is less than or equal to `y`, `null` if any operand is `null`, otherwise `false`.
     """
-    return process('lte', x=x, y=y)
+    return _process('lte', x=x, y=y)
 
 
 def mask(data, mask, replacement=UNSET) -> ProcessBuilder:
@@ -2942,13 +3010,14 @@ def mask(data, mask, replacement=UNSET) -> ProcessBuilder:
     Apply a raster mask
 
     :param data: A raster data cube.
-    :param mask: A mask as raster data cube. Every pixel in `data` must have a corresponding element in `mask`.
+    :param mask: A mask as a raster data cube. Every pixel in `data` must have a corresponding element in
+        `mask`.
     :param replacement: The value used to replace masked values with.
 
     :return: A masked raster data cube with the same dimensions. The dimension properties (name, type, labels,
         reference system and resolution) remain unchanged.
     """
-    return process('mask', data=data, mask=mask, replacement=replacement)
+    return _process('mask', data=data, mask=mask, replacement=replacement)
 
 
 def mask_polygon(data, mask, replacement=UNSET, inside=UNSET) -> ProcessBuilder:
@@ -2956,9 +3025,11 @@ def mask_polygon(data, mask, replacement=UNSET, inside=UNSET) -> ProcessBuilder:
     Apply a polygon mask
 
     :param data: A raster data cube.
-    :param mask: A GeoJSON object containing a polygon. The provided feature types can be one of the following:
-        * A `Polygon` geometry, * a `GeometryCollection` containing Polygons, * a `Feature` with a `Polygon`
-        geometry or * a `FeatureCollection` containing `Feature`s with a `Polygon` geometry.
+    :param mask: A GeoJSON object containing at least one polygon. The provided feature types can be one of the
+        following:  * A `Polygon` or `MultiPolygon` geometry, * a `Feature` with a `Polygon` or `MultiPolygon`
+        geometry, * a `FeatureCollection` containing at least one `Feature` with `Polygon` or `MultiPolygon`
+        geometries, or * a `GeometryCollection` containing `Polygon` or `MultiPolygon` geometries. To maximize
+        interoperability, `GeometryCollection` should be avoided in favour of one of the alternatives above.
     :param replacement: The value used to replace masked values with.
     :param inside: If set to `true` all pixels for which the point at the pixel center **does** intersect with
         any polygon are replaced.
@@ -2966,7 +3037,7 @@ def mask_polygon(data, mask, replacement=UNSET, inside=UNSET) -> ProcessBuilder:
     :return: A masked raster data cube with the same dimensions. The dimension properties (name, type, labels,
         reference system and resolution) remain unchanged.
     """
-    return process('mask_polygon', data=data, mask=mask, replacement=replacement, inside=inside)
+    return _process('mask_polygon', data=data, mask=mask, replacement=replacement, inside=inside)
 
 
 def max(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -2979,7 +3050,7 @@ def max(data, ignore_nodata=UNSET) -> ProcessBuilder:
 
     :return: The maximum value.
     """
-    return process('max', data=data, ignore_nodata=ignore_nodata)
+    return _process('max', data=data, ignore_nodata=ignore_nodata)
 
 
 def mean(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -2992,7 +3063,7 @@ def mean(data, ignore_nodata=UNSET) -> ProcessBuilder:
 
     :return: The computed arithmetic mean.
     """
-    return process('mean', data=data, ignore_nodata=ignore_nodata)
+    return _process('mean', data=data, ignore_nodata=ignore_nodata)
 
 
 def median(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -3005,12 +3076,12 @@ def median(data, ignore_nodata=UNSET) -> ProcessBuilder:
 
     :return: The computed statistical median.
     """
-    return process('median', data=data, ignore_nodata=ignore_nodata)
+    return _process('median', data=data, ignore_nodata=ignore_nodata)
 
 
 def merge_cubes(cube1, cube2, overlap_resolver=UNSET, context=UNSET) -> ProcessBuilder:
     """
-    Merging two data cubes
+    Merge two data cubes
 
     :param cube1: The first data cube.
     :param cube2: The second data cube.
@@ -3023,7 +3094,7 @@ def merge_cubes(cube1, cube2, overlap_resolver=UNSET, context=UNSET) -> ProcessB
     :return: The merged data cube. See the process description for details regarding the dimensions and
         dimension properties (name, type, labels, reference system and resolution).
     """
-    return process('merge_cubes', cube1=cube1, cube2=cube2, overlap_resolver=overlap_resolver, context=context)
+    return _process('merge_cubes', cube1=cube1, cube2=cube2, overlap_resolver=overlap_resolver, context=context)
 
 
 def min(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -3036,19 +3107,19 @@ def min(data, ignore_nodata=UNSET) -> ProcessBuilder:
 
     :return: The minimum value.
     """
-    return process('min', data=data, ignore_nodata=ignore_nodata)
+    return _process('min', data=data, ignore_nodata=ignore_nodata)
 
 
 def mod(x, y) -> ProcessBuilder:
     """
     Modulo
 
-    :param x: A number to be used as dividend.
-    :param y: A number to be used as divisor.
+    :param x: A number to be used as the dividend.
+    :param y: A number to be used as the divisor.
 
     :return: The remainder after division.
     """
-    return process('mod', x=x, y=y)
+    return _process('mod', x=x, y=y)
 
 
 def multiply(x, y) -> ProcessBuilder:
@@ -3060,7 +3131,7 @@ def multiply(x, y) -> ProcessBuilder:
 
     :return: The computed product of the two numbers.
     """
-    return process('multiply', x=x, y=y)
+    return _process('multiply', x=x, y=y)
 
 
 def ndvi(data, nir=UNSET, red=UNSET, target_band=UNSET) -> ProcessBuilder:
@@ -3070,25 +3141,25 @@ def ndvi(data, nir=UNSET, red=UNSET, target_band=UNSET) -> ProcessBuilder:
     :param data: A raster data cube with two bands that have the common names `red` and `nir` assigned.
     :param nir: The name of the NIR band. Defaults to the band that has the common name `nir` assigned.  Either
         the unique band name (metadata field `name` in bands) or one of the common band names (metadata field
-        `common_name` in bands) can be specified. If unique band name and common name conflict, the unique band
-        name has higher priority.
+        `common_name` in bands) can be specified. If the unique band name and the common name conflict, the unique
+        band name has a higher priority.
     :param red: The name of the red band. Defaults to the band that has the common name `red` assigned.  Either
         the unique band name (metadata field `name` in bands) or one of the common band names (metadata field
-        `common_name` in bands) can be specified. If unique band name and common name conflict, the unique band
-        name has higher priority.
+        `common_name` in bands) can be specified. If the unique band name and the common name conflict, the unique
+        band name has a higher priority.
     :param target_band: By default, the dimension of type `bands` is dropped. To keep the dimension specify a
         new band name in this parameter so that a new dimension label with the specified name will be added for the
         computed values.
 
     :return: A raster data cube containing the computed NDVI values. The structure of the data cube differs
         depending on the value passed to `target_band`:  * `target_band` is `null`: The data cube does not contain
-        the dimension of type `bands` any more, the number of dimensions decreases by one. The dimension properties
-        (name, type, labels, reference system and resolution) for all other dimensions remain unchanged. *
-        `target_band` is a string: The data cube keeps the same dimensions. The dimension properties remain
-        unchanged, but the number of dimension labels for the dimension of type `bands` increases by one. The
-        additional label is named as specified in `target_band`.
+        the dimension of type `bands`, the number of dimensions decreases by one. The dimension properties (name,
+        type, labels, reference system and resolution) for all other dimensions remain unchanged. * `target_band`
+        is a string: The data cube keeps the same dimensions. The dimension properties remain unchanged, but the
+        number of dimension labels for the dimension of type `bands` increases by one. The additional label is
+        named as specified in `target_band`.
     """
-    return process('ndvi', data=data, nir=nir, red=red, target_band=target_band)
+    return _process('ndvi', data=data, nir=nir, red=red, target_band=target_band)
 
 
 def neq(x, y, delta=UNSET, case_sensitive=UNSET) -> ProcessBuilder:
@@ -3099,14 +3170,14 @@ def neq(x, y, delta=UNSET, case_sensitive=UNSET) -> ProcessBuilder:
     :param y: Second operand.
     :param delta: Only applicable for comparing two numbers. If this optional parameter is set to a positive
         non-zero number the non-equality of two numbers is checked against a delta value. This is especially useful
-        to circumvent problems with floating point inaccuracy in machine-based computation.  This option is
+        to circumvent problems with floating-point inaccuracy in machine-based computation.  This option is
         basically an alias for the following computation: `gt(abs(minus([x, y]), delta)`
     :param case_sensitive: Only applicable for comparing two strings. Case sensitive comparison can be disabled
         by setting this parameter to `false`.
 
-    :return: Returns `true` if `x` is *not* equal to `y`, `null` if any operand is `null`, otherwise `false`.
+    :return: `true` if `x` is *not* equal to `y`, `null` if any operand is `null`, otherwise `false`.
     """
-    return process('neq', x=x, y=y, delta=delta, case_sensitive=case_sensitive)
+    return _process('neq', x=x, y=y, delta=delta, case_sensitive=case_sensitive)
 
 
 def normalized_difference(x, y) -> ProcessBuilder:
@@ -3118,7 +3189,7 @@ def normalized_difference(x, y) -> ProcessBuilder:
 
     :return: The computed normalized difference.
     """
-    return process('normalized_difference', x=x, y=y)
+    return _process('normalized_difference', x=x, y=y)
 
 
 def not_(x) -> ProcessBuilder:
@@ -3129,7 +3200,7 @@ def not_(x) -> ProcessBuilder:
 
     :return: Inverted boolean value.
     """
-    return process('not', x=x)
+    return _process('not', x=x)
 
 
 def or_(x, y) -> ProcessBuilder:
@@ -3141,7 +3212,7 @@ def or_(x, y) -> ProcessBuilder:
 
     :return: Boolean result of the logical OR.
     """
-    return process('or', x=x, y=y)
+    return _process('or', x=x, y=y)
 
 
 def order(data, asc=UNSET, nodata=UNSET) -> ProcessBuilder:
@@ -3151,21 +3222,21 @@ def order(data, asc=UNSET, nodata=UNSET) -> ProcessBuilder:
     :param data: An array to compute the order for.
     :param asc: The default sort order is ascending, with smallest values first. To sort in reverse
         (descending) order, set this parameter to `false`.
-    :param nodata: Controls the handling of no-data values (`null`). By default they are removed. If `true`,
-        missing values in the data are put last; if `false`, they are put first.
+    :param nodata: Controls the handling of no-data values (`null`). By default, they are removed. If set to
+        `true`, missing values in the data are put last; if set to `false`, they are put first.
 
     :return: The computed permutation.
     """
-    return process('order', data=data, asc=asc, nodata=nodata)
+    return _process('order', data=data, asc=asc, nodata=nodata)
 
 
 def pi() -> ProcessBuilder:
     """
-    Pi (π)
+    Pi (Ï€)
 
     :return: The numerical value of Pi.
     """
-    return process('pi', )
+    return _process('pi', )
 
 
 def power(base, p) -> ProcessBuilder:
@@ -3177,7 +3248,7 @@ def power(base, p) -> ProcessBuilder:
 
     :return: The computed value for `base` raised to the power of `p`.
     """
-    return process('power', base=base, p=p)
+    return _process('power', base=base, p=p)
 
 
 def product(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -3190,7 +3261,7 @@ def product(data, ignore_nodata=UNSET) -> ProcessBuilder:
 
     :return: The computed product of the sequence of numbers.
     """
-    return process('product', data=data, ignore_nodata=ignore_nodata)
+    return _process('product', data=data, ignore_nodata=ignore_nodata)
 
 
 def quantiles(data, probabilities=UNSET, q=UNSET, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -3200,18 +3271,17 @@ def quantiles(data, probabilities=UNSET, q=UNSET, ignore_nodata=UNSET) -> Proces
     :param data: An array of numbers.
     :param probabilities: A list of probabilities to calculate quantiles for. The probabilities must be between
         0 and 1.
-    :param q: A number of intervals to calculate quantiles for. Calculates q-quantiles with (nearly) equal-
-        sized intervals.
+    :param q: Intervals to calculate quantiles for. Calculates q-quantiles with (nearly) equal-sized intervals.
     :param ignore_nodata: Indicates whether no-data values are ignored or not. Ignores them by default. Setting
         this flag to `false` considers no-data values so that an array with `null` values is returned if any
         element is such a value.
 
     :return: An array with the computed quantiles. The list has either  * as many elements as the given list of
         `probabilities` had or * *`q`-1* elements.  If the input array is empty the resulting array is filled with
-        as many `null` values as required according to the list above. For an example, see the 'Empty array
-        example'.
+        as many `null` values as required according to the list above. See the 'Empty array' example for an
+        example.
     """
-    return process('quantiles', data=data, probabilities=probabilities, q=q, ignore_nodata=ignore_nodata)
+    return _process('quantiles', data=data, probabilities=probabilities, q=q, ignore_nodata=ignore_nodata)
 
 
 def rearrange(data, order) -> ProcessBuilder:
@@ -3223,7 +3293,7 @@ def rearrange(data, order) -> ProcessBuilder:
 
     :return: The rearranged array.
     """
-    return process('rearrange', data=data, order=order)
+    return _process('rearrange', data=data, order=order)
 
 
 def reduce_dimension(data, reducer, dimension, context=UNSET) -> ProcessBuilder:
@@ -3235,14 +3305,14 @@ def reduce_dimension(data, reducer, dimension, context=UNSET) -> ProcessBuilder:
         ``mean()`` or a set of processes, which computes a single value for a list of values, see the category
         'reducer' for such processes.
     :param dimension: The name of the dimension over which to reduce. Fails with a `DimensionNotAvailable`
-        error if the specified dimension does not exist.
+        exception if the specified dimension does not exist.
     :param context: Additional data to be passed to the reducer.
 
     :return: A data cube with the newly computed values. It is missing the given dimension, the number of
         dimensions decreases by one. The dimension properties (name, type, labels, reference system and resolution)
         for all other dimensions remain unchanged.
     """
-    return process('reduce_dimension', data=data, reducer=reducer, dimension=dimension, context=context)
+    return _process('reduce_dimension', data=data, reducer=reducer, dimension=dimension, context=context)
 
 
 def reduce_dimension_binary(data, reducer, dimension, context=UNSET) -> ProcessBuilder:
@@ -3262,7 +3332,7 @@ def reduce_dimension_binary(data, reducer, dimension, context=UNSET) -> ProcessB
         dimensions decreases by one. The dimension properties (name, type, labels, reference system and resolution)
         for all other dimensions remain unchanged.
     """
-    return process('reduce_dimension_binary', data=data, reducer=reducer, dimension=dimension, context=context)
+    return _process('reduce_dimension_binary', data=data, reducer=reducer, dimension=dimension, context=context)
 
 
 def rename_dimension(data, source, target) -> ProcessBuilder:
@@ -3270,16 +3340,16 @@ def rename_dimension(data, source, target) -> ProcessBuilder:
     Rename a dimension
 
     :param data: The data cube.
-    :param source: The current name of the dimension. Fails with a `DimensionNotAvailable` error if the
+    :param source: The current name of the dimension. Fails with a `DimensionNotAvailable` exception if the
         specified dimension does not exist.
-    :param target: A new Name for the dimension. Fails with a `DimensionExists` error if a dimension with the
-        specified name exists.
+    :param target: A new Name for the dimension. Fails with a `DimensionExists` exception if a dimension with
+        the specified name exists.
 
     :return: A data cube with the same dimensions, but the name of one of the dimensions changes. The old name
         can not be referred to any longer. The dimension properties (name, type, labels, reference system and
         resolution) remain unchanged.
     """
-    return process('rename_dimension', data=data, source=source, target=target)
+    return _process('rename_dimension', data=data, source=source, target=target)
 
 
 def rename_labels(data, dimension, target, source=UNSET) -> ProcessBuilder:
@@ -3289,19 +3359,19 @@ def rename_labels(data, dimension, target, source=UNSET) -> ProcessBuilder:
     :param data: The data cube.
     :param dimension: The name of the dimension to rename the labels for.
     :param target: The new names for the labels. The dimension labels in the data cube are expected to be
-        enumerated, if the parameter `target` is not specified. If a target dimension label already exists in the
-        data cube, a `LabelExists` error is thrown.
+        enumerated if the parameter `target` is not specified. If a target dimension label already exists in the
+        data cube, a `LabelExists` exception is thrown.
     :param source: The names of the labels as they are currently in the data cube. The array defines an
         unsorted and potentially incomplete list of labels that should be renamed to the names available in the
         corresponding array elements in the parameter `target`. If one of the source dimension labels doesn't
-        exist, a `LabelNotAvailable` error is thrown. By default, the array is empty so that the dimension labels
-        in the data cube are expected to be enumerated.
+        exist, the `LabelNotAvailable` exception is thrown. By default, the array is empty so that the dimension
+        labels in the data cube are expected to be enumerated.
 
     :return: The data cube with the same dimensions. The dimension properties (name, type, labels, reference
         system and resolution) remain unchanged, except that for the given dimension the labels change. The old
         labels can not be referred to any longer. The number of labels remains the same.
     """
-    return process('rename_labels', data=data, dimension=dimension, target=target, source=source)
+    return _process('rename_labels', data=data, dimension=dimension, target=target, source=source)
 
 
 def resample_cube_spatial(data, target, method=UNSET) -> ProcessBuilder:
@@ -3310,14 +3380,23 @@ def resample_cube_spatial(data, target, method=UNSET) -> ProcessBuilder:
 
     :param data: A data cube.
     :param target: A data cube that describes the spatial target resolution.
-    :param method: Resampling method. Methods are inspired by GDAL, see
-        [gdalwarp](https://www.gdal.org/gdalwarp.html) for more information.
+    :param method: Resampling method to use. The following options are available and are meant to align with
+        [`gdalwarp`](https://gdal.org/programs/gdalwarp.html#cmdoption-gdalwarp-r):  * `average`: average (mean)
+        resampling, computes the weighted average of all valid pixels * `bilinear`: bilinear resampling * `cubic`:
+        cubic resampling * `cubicspline`: cubic spline resampling * `lanczos`: Lanczos windowed sinc resampling *
+        `max`: maximum resampling, selects the maximum value from all valid pixels * `med`: median resampling,
+        selects the median value of all valid pixels * `min`: minimum resampling, selects the minimum value from
+        all valid pixels * `mode`: mode resampling, selects the value which appears most often of all the sampled
+        points * `near`: nearest neighbour resampling (default) * `q1`: first quartile resampling, selects the
+        first quartile value of all valid pixels * `q3`: third quartile resampling, selects the third quartile
+        value of all valid pixels * `rms` root mean square (quadratic mean) of all valid pixels * `sum`: compute
+        the weighted sum of all valid pixels  Valid pixels are determined based on the function ``is_valid()``.
 
     :return: A data cube with the same dimensions. The dimension properties (name, type, labels, reference
         system and resolution) remain unchanged, except for the resolution and dimension labels of the spatial
         dimensions.
     """
-    return process('resample_cube_spatial', data=data, target=target, method=method)
+    return _process('resample_cube_spatial', data=data, target=target, method=method)
 
 
 def resample_cube_temporal(data, target, method, dimension=UNSET, context=UNSET) -> ProcessBuilder:
@@ -3339,7 +3418,7 @@ def resample_cube_temporal(data, target, method, dimension=UNSET, context=UNSET)
         reference system and resolution) for all non-temporal dimensions. For the temporal dimension the name and
         type remain unchanged, but the reference system changes and the labels and resolution may change.
     """
-    return process('resample_cube_temporal', data=data, target=target, method=method, dimension=dimension, context=context)
+    return _process('resample_cube_temporal', data=data, target=target, method=method, dimension=dimension, context=context)
 
 
 def resample_spatial(data, resolution=UNSET, projection=UNSET, method=UNSET, align=UNSET) -> ProcessBuilder:
@@ -3354,8 +3433,17 @@ def resample_spatial(data, resolution=UNSET, projection=UNSET, method=UNSET, ali
         code](http://www.epsg-registry.org/), [WKT2 (ISO 19162)
         string](http://docs.opengeospatial.org/is/18-010r7/18-010r7.html), [PROJ definition
         (deprecated)](https://proj.org/usage/quickstart.html). By default (`null`), the projection is not changed.
-    :param method: Resampling method. Methods are inspired by GDAL, see
-        [gdalwarp](https://www.gdal.org/gdalwarp.html) for more information.
+    :param method: Resampling method to use. The following options are available and are meant to align with
+        [`gdalwarp`](https://gdal.org/programs/gdalwarp.html#cmdoption-gdalwarp-r):  * `average`: average (mean)
+        resampling, computes the weighted average of all valid pixels * `bilinear`: bilinear resampling * `cubic`:
+        cubic resampling * `cubicspline`: cubic spline resampling * `lanczos`: Lanczos windowed sinc resampling *
+        `max`: maximum resampling, selects the maximum value from all valid pixels * `med`: median resampling,
+        selects the median value of all valid pixels * `min`: minimum resampling, selects the minimum value from
+        all valid pixels * `mode`: mode resampling, selects the value which appears most often of all the sampled
+        points * `near`: nearest neighbour resampling (default) * `q1`: first quartile resampling, selects the
+        first quartile value of all valid pixels * `q3`: third quartile resampling, selects the third quartile
+        value of all valid pixels * `rms` root mean square (quadratic mean) of all valid pixels * `sum`: compute
+        the weighted sum of all valid pixels  Valid pixels are determined based on the function ``is_valid()``.
     :param align: Specifies to which corner of the spatial extent the new resampled data is aligned to.
 
     :return: A raster data cube with values warped onto the new projection. It has the same dimensions and the
@@ -3363,7 +3451,7 @@ def resample_spatial(data, resolution=UNSET, projection=UNSET, method=UNSET, ali
         vertical spatial dimensions. For the horizontal spatial dimensions the name and type remain unchanged, but
         reference system, labels and resolution may change depending on the given parameters.
     """
-    return process('resample_spatial', data=data, resolution=resolution, projection=projection, method=method, align=align)
+    return _process('resample_spatial', data=data, resolution=resolution, projection=projection, method=method, align=align)
 
 
 def round(x, p=UNSET) -> ProcessBuilder:
@@ -3377,26 +3465,26 @@ def round(x, p=UNSET) -> ProcessBuilder:
 
     :return: The rounded number.
     """
-    return process('round', x=x, p=p)
+    return _process('round', x=x, p=p)
 
 
 def run_udf(data, udf, runtime, version=UNSET, context=UNSET) -> ProcessBuilder:
     """
-    Run an UDF
+    Run a UDF
 
-    :param data: The data to be passed to the UDF as array or raster data cube.
-    :param udf: Either source code, an absolute URL or a path to an UDF script.
-    :param runtime: An UDF runtime identifier available at the back-end.
+    :param data: The data to be passed to the UDF as an array or raster data cube.
+    :param udf: Either source code, an absolute URL or a path to a UDF script.
+    :param runtime: A UDF runtime identifier available at the back-end.
     :param version: An UDF runtime version. If set to `null`, the default runtime version specified for each
         runtime is used.
-    :param context: Additional data such as configuration options that should be passed to the UDF.
+    :param context: Additional data such as configuration options to be passed to the UDF.
 
     :return: The data processed by the UDF.  * Returns a raster data cube, if a raster data cube is passed for
         `data`. Details on the dimensions and dimension properties (name, type, labels, reference system and
         resolution) depend on the UDF. * If an array is passed for `data`, the returned value can be of any data
         type, but is exactly what the UDF returns.
     """
-    return process('run_udf', data=data, udf=udf, runtime=runtime, version=version, context=context)
+    return _process('run_udf', data=data, udf=udf, runtime=runtime, version=version, context=context)
 
 
 def run_udf_externally(data, url, context=UNSET) -> ProcessBuilder:
@@ -3412,7 +3500,7 @@ def run_udf_externally(data, url, context=UNSET) -> ProcessBuilder:
         and resolution) depend on the UDF. * If an array is passed for `data`, the returned value can be of any
         data type, but is exactly what the UDF returns.
     """
-    return process('run_udf_externally', data=data, url=url, context=context)
+    return _process('run_udf_externally', data=data, url=url, context=context)
 
 
 def save_result(data, format, options=UNSET) -> ProcessBuilder:
@@ -3430,7 +3518,7 @@ def save_result(data, format, options=UNSET) -> ProcessBuilder:
 
     :return: `false` if saving failed, `true` otherwise.
     """
-    return process('save_result', data=data, format=format, options=options)
+    return _process('save_result', data=data, format=format, options=options)
 
 
 def sd(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -3443,7 +3531,7 @@ def sd(data, ignore_nodata=UNSET) -> ProcessBuilder:
 
     :return: The computed sample standard deviation.
     """
-    return process('sd', data=data, ignore_nodata=ignore_nodata)
+    return _process('sd', data=data, ignore_nodata=ignore_nodata)
 
 
 def sgn(x) -> ProcessBuilder:
@@ -3454,7 +3542,7 @@ def sgn(x) -> ProcessBuilder:
 
     :return: The computed signum value of `x`.
     """
-    return process('sgn', x=x)
+    return _process('sgn', x=x)
 
 
 def sin(x) -> ProcessBuilder:
@@ -3465,7 +3553,7 @@ def sin(x) -> ProcessBuilder:
 
     :return: The computed sine of `x`.
     """
-    return process('sin', x=x)
+    return _process('sin', x=x)
 
 
 def sinh(x) -> ProcessBuilder:
@@ -3476,7 +3564,7 @@ def sinh(x) -> ProcessBuilder:
 
     :return: The computed hyperbolic sine of `x`.
     """
-    return process('sinh', x=x)
+    return _process('sinh', x=x)
 
 
 def sort(data, asc=UNSET, nodata=UNSET) -> ProcessBuilder:
@@ -3486,12 +3574,12 @@ def sort(data, asc=UNSET, nodata=UNSET) -> ProcessBuilder:
     :param data: An array with data to sort.
     :param asc: The default sort order is ascending, with smallest values first. To sort in reverse
         (descending) order, set this parameter to `false`.
-    :param nodata: Controls the handling of no-data values (`null`). By default they are removed. If `true`,
-        missing values in the data are put last; if `false`, they are put first.
+    :param nodata: Controls the handling of no-data values (`null`). By default, they are removed. If set to
+        `true`, missing values in the data are put last; if set to `false`, they are put first.
 
     :return: The sorted array.
     """
-    return process('sort', data=data, asc=asc, nodata=nodata)
+    return _process('sort', data=data, asc=asc, nodata=nodata)
 
 
 def sqrt(x) -> ProcessBuilder:
@@ -3502,7 +3590,7 @@ def sqrt(x) -> ProcessBuilder:
 
     :return: The computed square root.
     """
-    return process('sqrt', x=x)
+    return _process('sqrt', x=x)
 
 
 def subtract(x, y) -> ProcessBuilder:
@@ -3514,7 +3602,7 @@ def subtract(x, y) -> ProcessBuilder:
 
     :return: The computed result.
     """
-    return process('subtract', x=x, y=y)
+    return _process('subtract', x=x, y=y)
 
 
 def sum(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -3527,7 +3615,7 @@ def sum(data, ignore_nodata=UNSET) -> ProcessBuilder:
 
     :return: The computed sum of the sequence of numbers.
     """
-    return process('sum', data=data, ignore_nodata=ignore_nodata)
+    return _process('sum', data=data, ignore_nodata=ignore_nodata)
 
 
 def tan(x) -> ProcessBuilder:
@@ -3538,7 +3626,7 @@ def tan(x) -> ProcessBuilder:
 
     :return: The computed tangent of `x`.
     """
-    return process('tan', x=x)
+    return _process('tan', x=x)
 
 
 def tanh(x) -> ProcessBuilder:
@@ -3549,7 +3637,7 @@ def tanh(x) -> ProcessBuilder:
 
     :return: The computed hyperbolic tangent of `x`.
     """
-    return process('tanh', x=x)
+    return _process('tanh', x=x)
 
 
 def text_begins(data, pattern, case_sensitive=UNSET) -> ProcessBuilder:
@@ -3562,7 +3650,7 @@ def text_begins(data, pattern, case_sensitive=UNSET) -> ProcessBuilder:
 
     :return: `true` if `data` begins with `pattern`, false` otherwise.
     """
-    return process('text_begins', data=data, pattern=pattern, case_sensitive=case_sensitive)
+    return _process('text_begins', data=data, pattern=pattern, case_sensitive=case_sensitive)
 
 
 def text_contains(data, pattern, case_sensitive=UNSET) -> ProcessBuilder:
@@ -3575,7 +3663,7 @@ def text_contains(data, pattern, case_sensitive=UNSET) -> ProcessBuilder:
 
     :return: `true` if `data` contains the `pattern`, false` otherwise.
     """
-    return process('text_contains', data=data, pattern=pattern, case_sensitive=case_sensitive)
+    return _process('text_contains', data=data, pattern=pattern, case_sensitive=case_sensitive)
 
 
 def text_ends(data, pattern, case_sensitive=UNSET) -> ProcessBuilder:
@@ -3588,21 +3676,21 @@ def text_ends(data, pattern, case_sensitive=UNSET) -> ProcessBuilder:
 
     :return: `true` if `data` ends with `pattern`, false` otherwise.
     """
-    return process('text_ends', data=data, pattern=pattern, case_sensitive=case_sensitive)
+    return _process('text_ends', data=data, pattern=pattern, case_sensitive=case_sensitive)
 
 
 def text_merge(data, separator=UNSET) -> ProcessBuilder:
     """
-    Concatenate elements to a string
+    Concatenate elements to a single text
 
     :param data: A set of elements. Numbers, boolean values and null values get converted to their (lower case)
         string representation. For example: `1` (integer), `-1.5` (number), `true` / `false` (boolean values)
     :param separator: A separator to put between each of the individual texts. Defaults to an empty string.
 
-    :return: Returns a string containing a string representation of all the array elements in the same order,
-        with the separator between each element.
+    :return: A string containing a string representation of all the array elements in the same order, with the
+        separator between each element.
     """
-    return process('text_merge', data=data, separator=separator)
+    return _process('text_merge', data=data, separator=separator)
 
 
 def trim_cube(data) -> ProcessBuilder:
@@ -3614,7 +3702,7 @@ def trim_cube(data) -> ProcessBuilder:
     :return: A trimmed raster data cube with the same dimensions. The dimension properties name, type,
         reference system and resolution remain unchanged. The number of dimension labels may decrease.
     """
-    return process('trim_cube', data=data)
+    return _process('trim_cube', data=data)
 
 
 def variance(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -3627,7 +3715,7 @@ def variance(data, ignore_nodata=UNSET) -> ProcessBuilder:
 
     :return: The computed sample variance.
     """
-    return process('variance', data=data, ignore_nodata=ignore_nodata)
+    return _process('variance', data=data, ignore_nodata=ignore_nodata)
 
 
 def xor(x, y) -> ProcessBuilder:
@@ -3639,7 +3727,7 @@ def xor(x, y) -> ProcessBuilder:
 
     :return: Boolean result of the logical XOR.
     """
-    return process('xor', x=x, y=y)
+    return _process('xor', x=x, y=y)
 
 
 def array_interpolate_linear(data) -> ProcessBuilder:
@@ -3650,4 +3738,4 @@ def array_interpolate_linear(data) -> ProcessBuilder:
     @param data: An array of numbers and no-data values.\n\nIf the given array is a labeled array, the labels must have a natural/inherent label order and the process expects the labels to be sorted accordingly. This is the default behavior in openEO for spatial and temporal dimensions.
     @return: An array with no-data values being replaced with interpolated values. If not at least 2 numerical values are available in the array, the array stays the same.
     """
-    return process('array_interpolate_linear', data=data)
+    return _process('array_interpolate_linear', data=data)
