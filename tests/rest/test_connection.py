@@ -15,7 +15,7 @@ from openeo.rest.auth.auth import NullAuth, BearerAuth
 from openeo.rest.auth.oidc import OidcException
 from openeo.rest.connection import Connection, RestApiConnection, connect, paginate
 from .auth.test_cli import auth_config, refresh_token_store
-from .auth.test_oidc import OidcMock
+from .auth.test_oidc import OidcMock, assert_device_code_poll_sleep
 from .. import load_json_resource
 
 API_URL = "https://oeo.test/"
