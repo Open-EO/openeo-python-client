@@ -21,6 +21,7 @@ OpenEO Python Client
    udp
    auth
    udf
+   datacube_construction
    cookbook/index
    api
    development

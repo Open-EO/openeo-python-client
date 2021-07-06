@@ -384,7 +384,7 @@ which we can process further and download::
     cube = cube.filter_temporal("2020-09-01", "2020-09-10")
     cube.download("fancy.tiff", format="GTiff")
 
-
+See :ref:`datacube_from_process` for more information on :func:`~openeo.rest.connection.Connection.datacube_from_process`.
 
 
 Public user-defined processes

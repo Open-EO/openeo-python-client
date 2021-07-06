@@ -2,9 +2,7 @@
 This module provides a Connection object to manage and persist settings when interacting with the OpenEO API.
 """
 import datetime
-import json
 import logging
-import re
 import sys
 import warnings
 from collections import OrderedDict
@@ -758,7 +756,7 @@ class Connection(RestApiConnection):
         :param process_id: The process id of the custom process.
         :param namespace: optional: process namespace
         :param kwargs: The arguments of the custom process
-        :return: A DataCube, without valid metadata, as the client is not aware of this custom process.
+        :return: A :py:class:`DataCube`, without valid metadata, as the client is not aware of this custom process.
         """
 
         if self._api_version.at_least("1.0.0"):
@@ -770,11 +768,12 @@ class Connection(RestApiConnection):
 
     def datacube_from_flat_graph(self, flat_graph: dict, parameters: dict = None) -> DataCube:
         """
-        Load a raster :py:class:`DataCube` from flat process graph representation
+        Construct a :py:class:`DataCube` from a flat dictionaty representation of a process graph.
 
         :param flat_graph: flat dictionary representation of a process graph
-            or a process dictionary with a flat process graph under "process_graph" field
-        :return:
+            or a process dictionary with such a flat process graph under a "process_graph" field
+            (and optionally parameter metadata under a "parameters" field).
+        :return: A :py:class:`DataCube` corresponding with the operations encoded in the process graph
         """
         if self._api_version.below("1.0.0"):
             raise OpenEoClientException(
@@ -796,9 +795,10 @@ class Connection(RestApiConnection):
 
     def datacube_from_json(self, src: Union[str, Path], parameters: dict = None) -> DataCube:
         """
-        Load a :py:class:`DataCube` from JSON resource containing (flat) process graph representation
+        Construct a :py:class:`DataCube` from JSON resource containing (flat) process graph representation.
+
         :param src: raw JSON string, URL to JSON resource or path to local JSON file
-        :return:
+        :return: A :py:class:`DataCube` corresponding with the operations encoded in the process graph
         """
         return self.datacube_from_flat_graph(load_json_resource(src), parameters=parameters)
 

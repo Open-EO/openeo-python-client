@@ -159,19 +159,6 @@ constant as symbolic reference to the "current" cube::
     )
 
 
-Data cube from process
------------------------
-
-.. # TODO needs more explanation
-
-There is a convenience function
-:func:`~openeo.rest.connection.Connection.datacube_from_process`
-to directly create a DataCube from a single process using the Connection::
-
-    cube = connection.datacube_from_process("mean", data=[1, 3, -1])
-
-
-
 
 .. _callbackfunctions:
 

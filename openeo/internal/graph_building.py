@@ -296,6 +296,11 @@ class GraphFlattener(ProcessGraphVisitor):
 class PGNodeGraphUnflattener(ProcessGraphUnflattener):
     """
     Unflatten a flat process graph to a graph of :py:class:`PGNode` objects
+
+    Parameter substitution can also be performed, but is optional:
+    if the ``parameters=None`` is given, no parameter substitution is done,
+    if it is a dictionary (even an empty one) is given, every parameter encountered in the process
+    graph must have an entry for substitution.
     """
 
     def __init__(self, flat_graph: dict, parameters: Optional[dict] = None):
