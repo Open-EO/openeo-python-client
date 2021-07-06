@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Update `processes.py` based on 1.1.0 release op openeo-processes project
+
 ### Removed
 
 ### Fixed
