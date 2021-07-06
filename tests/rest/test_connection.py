@@ -516,6 +516,7 @@ def test_authenticate_oidc_authorization_code_100_single_wrong_id(requests_mock)
         )
 
 
+@pytest.mark.slow
 def test_authenticate_oidc_authorization_code_100_multiple_no_given_id(requests_mock, caplog):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"

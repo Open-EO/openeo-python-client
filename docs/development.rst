@@ -31,6 +31,11 @@ There are a ton of command line options for fine-tuning
 Run ``pytest -h`` for a quick overview
 or check the `pytest <https://docs.pytest.org/en/stable/>`_ documentation for more information.
 
+For example::
+
+    # Skip tests that are marked as slow
+    pytest -m "not slow"
+
 
 Building the documentation
 ==========================

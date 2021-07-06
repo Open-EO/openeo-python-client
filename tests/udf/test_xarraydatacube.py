@@ -261,6 +261,7 @@ def test_save_load_dtype_float64(format, tmp_path):
     assert result.array.dtype == numpy.float64
 
 
+@pytest.mark.slow
 def test_datacube_plot(tmp_path):
     import matplotlib.pyplot as plt  # TODO: mandatory dev dependency or optional?
 
