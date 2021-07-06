@@ -50,6 +50,9 @@ def build_process_dict(
 
 
 class RESTUserDefinedProcess:
+    """
+    Wrapper for a user-defined process stored (or to be stored) on an openEO back-end
+    """
     def __init__(self, user_defined_process_id: str, connection: 'Connection'):
         self.user_defined_process_id = user_defined_process_id
         self._connection = connection
@@ -84,6 +87,7 @@ class RESTUserDefinedProcess:
                    description=description)
 
     def describe(self) -> dict:
+        """Get metadata of this user-defined process."""
         # TODO: parse the "parameters" to Parameter objects?
         return self._connection.get(path="/process_graphs/{}".format(self.user_defined_process_id)).json()
 

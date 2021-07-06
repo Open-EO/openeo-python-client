@@ -174,6 +174,8 @@ Another example of an integer parameter with a default value::
 
 How you have to use these parameter instances will be explained below.
 
+.. _build_and_store_udp:
+
 Building and storing user-defined process
 =============================================
 
@@ -353,6 +355,7 @@ This results in a JSON file like this::
           ...
 
 
+.. _evaluate_udp:
 
 Evaluate user-defined processes
 ================================
@@ -386,16 +389,4 @@ which we can process further and download::
 
 See :ref:`datacube_from_process` for more information on :func:`~openeo.rest.connection.Connection.datacube_from_process`.
 
-
-Public user-defined processes
-================================
-
-To make your process usable by other users, you can set the 'public' flag
-in :py:meth:`~openeo.rest.connection.Connection.save_user_defined_process` to ``True``.
-
-.. warning::
-    Beta feature - while the support for storing processes is defined in the API, there is
-    still some work ongoing concerning how to publicly share those processes, so this is subject
-    to small changes in the future. Nevertheless, we foresee that this support will be further improved.
-    Related `issue <https://github.com/Open-EO/openeo-api/issues/310>`_.
 

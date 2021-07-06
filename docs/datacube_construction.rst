@@ -9,7 +9,7 @@ The ``load_collection`` process
 
 The most straightforward way to start building your openEO data cube is through the ``load_collection`` process.
 As mentioned earlier, this is provided by the
-:func:`~openeo.rest.connection.Connection.load_collection` method
+:meth:`~openeo.rest.connection.Connection.load_collection` method
 on a :class:`~openeo.rest.connection.Connection` object,
 which produces a :class:`~openeo.rest.datacube.DataCube` instance.
 For example::
@@ -38,7 +38,7 @@ but let's assume there is a parameter "dilation" to fine-tune the cloud mask.
 Also note that the collection id "SENTINEL2_TOC" is hardcoded in the user-defined process.
 
 We can now construct a data cube from this user-defined process
-with :func:`~openeo.rest.connection.Connection.datacube_from_process`
+with :meth:`~openeo.rest.connection.Connection.datacube_from_process`
 as follows::
 
     cube = connection.datacube_from_process("masked_s2", dilation=10)
@@ -47,7 +47,7 @@ as follows::
     cube = cube.filter_temporal("2020-09-01", "2020-09-10")
 
 
-Note that :func:`~openeo.rest.connection.Connection.datacube_from_process` can be
+Note that :meth:`~openeo.rest.connection.Connection.datacube_from_process` can be
 used with all kind of processes, not only user-defined processes.
 For example, while this is not exactly a real EO data use case,
 it will produce a valid openEO process graph that can be executed::
@@ -82,7 +82,7 @@ and backend in a JSON structure roughly like in this example::
 
 
 It is possible to construct a :class:`~openeo.rest.datacube.DataCube` object that corresponds with this
-process graph with the :func:`~openeo.rest.connection.Connection.datacube_from_json` function.
+process graph with the :meth:`Connection.datacube_from_json <openeo.rest.connection.Connection.datacube_from_json>` method.
 It can be given one of:
 
     - a raw JSON string,
@@ -132,7 +132,7 @@ Parameterization
 -----------------
 
 When the process graph uses parameters, you must specify the desired parameter values
-at the time of calling :func:`~openeo.rest.connection.Connection.datacube_from_json`.
+at the time of calling :meth:`Connection.datacube_from_json <openeo.rest.connection.Connection.datacube_from_json>`.
 
 For example, take this simple toy example of a process graph that takes the sum of 5 and a parameter "increment"::
 
@@ -156,7 +156,7 @@ Instead, specify the parameter value::
 
 
 Parameters can also be defined with default values, which will be used when they are not specified
-in the :func:`~openeo.rest.connection.Connection.datacube_from_json` call::
+in the :meth:`Connection.datacube_from_json <openeo.rest.connection.Connection.datacube_from_json>` call::
 
     raw_json = '''{
         "parameters": [
@@ -170,3 +170,9 @@ in the :func:`~openeo.rest.connection.Connection.datacube_from_json` call::
     cube = connection.datacube_from_json(raw_json)
     result = cube.execute())
     # result will be 105
+
+
+Re-parameterization
+```````````````````
+
+TODO

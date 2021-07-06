@@ -55,6 +55,13 @@ openeo.rest.conversions
     :members:
 
 
+openeo.rest.udp
+-----------------
+
+.. automodule:: openeo.rest.udp
+    :members: RESTUserDefinedProcess
+
+
 openeo.udf
 -------------
 
