@@ -1,4 +1,5 @@
 import base64
+import contextlib
 import json
 import logging
 import re
@@ -12,7 +13,6 @@ from unittest import mock
 import pytest
 import requests
 import requests_mock.request
-import requests_mock.request
 
 import openeo.rest.auth.oidc
 from openeo.rest.auth.oidc import QueuingRequestHandler, drain_queue, HttpServerThread, OidcAuthCodePkceAuthenticator, \
@@ -20,6 +20,8 @@ from openeo.rest.auth.oidc import QueuingRequestHandler, drain_queue, HttpServer
     OidcDeviceAuthenticator, random_string, OidcRefreshTokenAuthenticator, PkceCode, OidcException, \
     DefaultOidcClientGrant
 from openeo.util import dict_no_none
+
+DEVICE_CODE_POLL_INTERVAL = 2
 
 
 def handle_request(handler_class, path: str):
@@ -284,7 +286,7 @@ class OidcMock:
             "verification_uri": self.provider_root_url + "/dc",
             "device_code": self.state["device_code"],
             "user_code": self.state["user_code"],
-            "interval": 2,
+            "interval": DEVICE_CODE_POLL_INTERVAL,
         })
 
     def token_callback_device_code(self, params: dict, context):
@@ -362,6 +364,13 @@ class OidcMock:
             res["id_token"] = access_token
         self.state.update(res)
         return json.dumps(res)
+
+
+@contextlib.contextmanager
+def assert_device_code_poll_sleep():
+    with mock.patch("time.sleep") as sleep:
+        yield
+    sleep.assert_called_with(DEVICE_CODE_POLL_INTERVAL)
 
 
 @pytest.mark.slow

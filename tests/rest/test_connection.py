@@ -808,7 +808,6 @@ def test_authenticate_oidc_resource_owner_password_credentials_client_from_confi
     assert refresh_token_store.mock_calls == []
 
 
-@pytest.mark.slow
 @pytest.mark.parametrize(
     ["store_refresh_token", "scopes_supported", "expected_scopes"],
     [
@@ -844,9 +843,10 @@ def test_authenticate_oidc_device_flow(requests_mock, store_refresh_token, scope
     conn = Connection(API_URL, refresh_token_store=refresh_token_store)
     assert isinstance(conn.auth, NullAuth)
     oidc_mock.state["device_code_callback_timeline"] = ["great success"]
-    conn.authenticate_oidc_device(
-        client_id=client_id, client_secret=client_secret, store_refresh_token=store_refresh_token
-    )
+    with assert_device_code_poll_sleep():
+        conn.authenticate_oidc_device(
+            client_id=client_id, client_secret=client_secret, store_refresh_token=store_refresh_token
+        )
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
     if store_refresh_token:
@@ -858,7 +858,6 @@ def test_authenticate_oidc_device_flow(requests_mock, store_refresh_token, scope
         assert refresh_token_store.mock_calls == []
 
 
-@pytest.mark.slow
 def test_authenticate_oidc_device_flow_client_from_config(requests_mock, auth_config, caplog):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
@@ -888,7 +887,8 @@ def test_authenticate_oidc_device_flow_client_from_config(requests_mock, auth_co
     conn = Connection(API_URL, refresh_token_store=refresh_token_store)
     assert isinstance(conn.auth, NullAuth)
     oidc_mock.state["device_code_callback_timeline"] = ["great success"]
-    conn.authenticate_oidc_device()
+    with assert_device_code_poll_sleep():
+        conn.authenticate_oidc_device()
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
     assert refresh_token_store.mock_calls == []
@@ -926,7 +926,7 @@ def test_authenticate_oidc_device_flow_no_support(requests_mock, auth_config):
     with pytest.raises(OidcException, match="No support for device code flow"):
         conn.authenticate_oidc_device()
 
-@pytest.mark.slow
+
 def test_authenticate_oidc_device_flow_multiple_providers_no_given(requests_mock, auth_config, caplog):
     """OIDC device flow + PKCE with multiple OIDC providers and none specified to use."""
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
@@ -955,14 +955,14 @@ def test_authenticate_oidc_device_flow_multiple_providers_no_given(requests_mock
     conn = Connection(API_URL, refresh_token_store=refresh_token_store)
     assert isinstance(conn.auth, NullAuth)
     oidc_mock.state["device_code_callback_timeline"] = ["great success"]
-    conn.authenticate_oidc_device(client_id=client_id)
+    with assert_device_code_poll_sleep():
+        conn.authenticate_oidc_device(client_id=client_id)
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/fauth/' + oidc_mock.state["access_token"]
     assert refresh_token_store.mock_calls == []
     assert "No OIDC provider given. Using first provider 'fauth' as advertised by backend." in caplog.text
 
 
-@pytest.mark.slow
 def test_authenticate_oidc_device_flow_multiple_provider_one_config_no_given(requests_mock, auth_config, caplog):
     """OIDC device flow + PKCE with multiple OIDC providers, one in config and none specified to use."""
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
@@ -992,7 +992,8 @@ def test_authenticate_oidc_device_flow_multiple_provider_one_config_no_given(req
     conn = Connection(API_URL, refresh_token_store=refresh_token_store)
     assert isinstance(conn.auth, NullAuth)
     oidc_mock.state["device_code_callback_timeline"] = ["great success"]
-    conn.authenticate_oidc_device()
+    with assert_device_code_poll_sleep():
+        conn.authenticate_oidc_device()
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/fauth/' + oidc_mock.state["access_token"]
     assert refresh_token_store.mock_calls == []
@@ -1000,7 +1001,6 @@ def test_authenticate_oidc_device_flow_multiple_provider_one_config_no_given(req
     assert "Using client_id 'myclient' from config (provider 'fauth')" in caplog.text
 
 
-@pytest.mark.slow
 def test_authenticate_oidc_device_flow_multiple_provider_one_config_no_given_default_client(requests_mock, auth_config):
     """
     OIDC device flow + default_client + PKCE with multiple OIDC providers, one in config and none specified to use.
@@ -1037,7 +1037,8 @@ def test_authenticate_oidc_device_flow_multiple_provider_one_config_no_given_def
     conn = Connection(API_URL, refresh_token_store=refresh_token_store)
     assert isinstance(conn.auth, NullAuth)
     oidc_mock.state["device_code_callback_timeline"] = ["great success"]
-    conn.authenticate_oidc_device()
+    with assert_device_code_poll_sleep():
+        conn.authenticate_oidc_device()
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/bauth/' + oidc_mock.state["access_token"]
     assert refresh_token_store.mock_calls == []
@@ -1129,7 +1130,6 @@ def test_authenticate_oidc_auto_with_existing_refresh_token(requests_mock, refre
     assert [r["grant_type"] for r in oidc_mock.grant_request_history] == ["refresh_token"]
 
 
-@pytest.mark.slow
 def test_authenticate_oidc_auto_no_existing_refresh_token(requests_mock, refresh_token_store):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
@@ -1155,7 +1155,8 @@ def test_authenticate_oidc_auto_no_existing_refresh_token(requests_mock, refresh
     conn = Connection(API_URL, refresh_token_store=refresh_token_store)
     assert isinstance(conn.auth, NullAuth)
     oidc_mock.state["device_code_callback_timeline"] = ["great success"]
-    conn.authenticate_oidc(client_id=client_id)
+    with assert_device_code_poll_sleep():
+        conn.authenticate_oidc(client_id=client_id)
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
     assert [r["grant_type"] for r in oidc_mock.grant_request_history] == [
@@ -1163,7 +1164,6 @@ def test_authenticate_oidc_auto_no_existing_refresh_token(requests_mock, refresh
     ]
 
 
-@pytest.mark.slow
 def test_authenticate_oidc_auto_expired_refresh_token(requests_mock, refresh_token_store):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
@@ -1190,7 +1190,8 @@ def test_authenticate_oidc_auto_expired_refresh_token(requests_mock, refresh_tok
     conn = Connection(API_URL, refresh_token_store=refresh_token_store)
     assert isinstance(conn.auth, NullAuth)
     oidc_mock.state["device_code_callback_timeline"] = ["great success"]
-    conn.authenticate_oidc(client_id=client_id)
+    with assert_device_code_poll_sleep():
+        conn.authenticate_oidc(client_id=client_id)
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
     assert [r["grant_type"] for r in oidc_mock.grant_request_history] == [

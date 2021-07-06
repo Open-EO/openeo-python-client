@@ -1,5 +1,4 @@
 import logging
-from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -7,8 +6,7 @@ import pytest
 from openeo.rest.auth import cli
 from openeo.rest.auth.cli import CliToolException
 from openeo.rest.auth.config import AuthConfig, RefreshTokenStore
-from openeo.util import ensure_dir
-from .test_oidc import OidcMock
+from .test_oidc import OidcMock, assert_device_code_poll_sleep
 
 
 def mock_input(*args: str):
@@ -248,7 +246,6 @@ def test_add_oidc_interactive(auth_config, requests_mock, capsys):
         assert e in out
 
 
-@pytest.mark.slow
 def test_oidc_auth_device_flow(auth_config, refresh_token_store, requests_mock, capsys):
     requests_mock.get("https://oeo.test/", json={"api_version": "1.0.0"})
     requests_mock.get("https://oeo.test/credentials/oidc", json={"providers": [
@@ -270,7 +267,8 @@ def test_oidc_auth_device_flow(auth_config, refresh_token_store, requests_mock, 
         scopes_supported=["openid"]
     )
 
-    cli.main(["oidc-auth", "https://oeo.test", "--flow", "device"])
+    with assert_device_code_poll_sleep():
+        cli.main(["oidc-auth", "https://oeo.test", "--flow", "device"])
 
     assert refresh_token_store.get_refresh_token("https://authit.test", client_id) == oidc_mock.state["refresh_token"]
 
@@ -288,7 +286,6 @@ def test_oidc_auth_device_flow(auth_config, refresh_token_store, requests_mock, 
         assert e in out
 
 
-@pytest.mark.slow
 def test_oidc_auth_device_flow_default_client(auth_config, refresh_token_store, requests_mock, capsys):
     """Test device flow with default client (which uses PKCE instead of secret)."""
     default_client_id = "d3f6u17cl13n7"
@@ -317,7 +314,8 @@ def test_oidc_auth_device_flow_default_client(auth_config, refresh_token_store, 
         scopes_supported=["openid"]
     )
 
-    cli.main(["oidc-auth", "https://oeo.test", "--flow", "device"])
+    with assert_device_code_poll_sleep():
+        cli.main(["oidc-auth", "https://oeo.test", "--flow", "device"])
 
     stored_refresh_token = refresh_token_store.get_refresh_token("https://authit.test", default_client_id)
     assert stored_refresh_token == oidc_mock.state["refresh_token"]
