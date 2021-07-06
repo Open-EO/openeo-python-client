@@ -90,9 +90,18 @@ class PythonRenderer:
         return textwrap.indent(textwrap.fill(paragraph, width=width - len(indent)), prefix=indent).lstrip()
 
 
-def generate_process_py(processes_dir: Union[Path, str], output=sys.stdout):
-    processes = list(parse_all_from_dir(processes_dir))
+def collect_processes(sources: List[Union[Path, str]]) -> List[Process]:
+    processes = []
+    for src in [Path(s) for s in sources]:
+        if src.is_dir():
+            processes.extend(parse_all_from_dir(src))
+        else:
+            processes.append(Process.from_json_file(src))
+    processes.sort(key=lambda p: p.id)
+    return processes
 
+
+def generate_process_py(processes: List[Process], output=sys.stdout):
     oo_src = textwrap.dedent("""
         from openeo.internal.processes.builder import ProcessBuilderBase, UNSET
         
@@ -162,13 +171,18 @@ def main():
     # Usage example (from project root, assuming the `openeo-process` repo is checked out as well):
     #     python openeo/internal/processes/generator.py  ../openeo-processes  --output openeo/processes.py
     arg_parser = argparse.ArgumentParser()
-    arg_parser.add_argument("dir", help="""Directory that holds openEO process definitions in JSON format""")
+    arg_parser.add_argument(
+        "source", nargs="+",
+        help="""Source directories or files containing openEO process definitions in JSON format""")
     arg_parser.add_argument("--output", help="Path to output 'processes.py' file")
 
     arguments = arg_parser.parse_args()
+    sources = arguments.source
+    output = arguments.output
 
-    with (open(arguments.output, "w", encoding="utf-8") if arguments.output else sys.stdout) as f:
-        generate_process_py(arguments.dir, output=f)
+    processes = collect_processes(sources)
+    with (open(output, "w", encoding="utf-8") if output else sys.stdout) as f:
+        generate_process_py(processes, output=f)
 
 
 if __name__ == '__main__':

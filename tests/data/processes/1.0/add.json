@@ -1,0 +1,91 @@
+{
+    "id": "add",
+    "summary": "Addition of two numbers",
+    "description": "Sums up the two numbers `x` and `y` (*`x + y`*) and returns the computed sum.\n\nNo-data values are taken into account so that `null` is returned if any element is such a value.\n\nThe computations follow [IEEE Standard 754](https://ieeexplore.ieee.org/document/8766229) whenever the processing environment supports it.",
+    "categories": [
+        "math"
+    ],
+    "parameters": [
+        {
+            "name": "x",
+            "description": "The first summand.",
+            "schema": {
+                "type": [
+                    "number",
+                    "null"
+                ]
+            }
+        },
+        {
+            "name": "y",
+            "description": "The second summand.",
+            "schema": {
+                "type": [
+                    "number",
+                    "null"
+                ]
+            }
+        }
+    ],
+    "returns": {
+        "description": "The computed sum of the two numbers.",
+        "schema": {
+            "type": [
+                "number",
+                "null"
+            ]
+        }
+    },
+    "examples": [
+        {
+            "arguments": {
+                "x": 5,
+                "y": 2.5
+            },
+            "returns": 7.5
+        },
+        {
+            "arguments": {
+                "x": -2,
+                "y": -4
+            },
+            "returns": -6
+        },
+        {
+            "arguments": {
+                "x": 1,
+                "y": null
+            },
+            "returns": null
+        }
+    ],
+    "links": [
+        {
+            "rel": "about",
+            "href": "http://mathworld.wolfram.com/Sum.html",
+            "title": "Sum explained by Wolfram MathWorld"
+        },
+        {
+            "rel": "about",
+            "href": "https://ieeexplore.ieee.org/document/8766229",
+            "title": "IEEE Standard 754-2019 for Floating-Point Arithmetic"
+        }
+    ],
+    "process_graph": {
+        "sum": {
+            "process_id": "sum",
+            "arguments": {
+                "data": [
+                    {
+                        "from_parameter": "x"
+                    },
+                    {
+                        "from_parameter": "y"
+                    }
+                ],
+                "ignore_nodata": false
+            },
+            "result": true
+        }
+    }
+}

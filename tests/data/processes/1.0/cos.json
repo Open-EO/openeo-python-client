@@ -1,0 +1,44 @@
+{
+    "id": "cos",
+    "summary": "Cosine",
+    "description": "Computes the cosine of `x`.\n\nWorks on radians only.\nThe no-data value `null` is passed through and therefore gets propagated.",
+    "categories": [
+        "math > trigonometric"
+    ],
+    "parameters": [
+        {
+            "name": "x",
+            "description": "An angle in radians.",
+            "schema": {
+                "type": [
+                    "number",
+                    "null"
+                ]
+            }
+        }
+    ],
+    "returns": {
+        "description": "The computed cosine of `x`.",
+        "schema": {
+            "type": [
+                "number",
+                "null"
+            ]
+        }
+    },
+    "examples": [
+        {
+            "arguments": {
+                "x": 0
+            },
+            "returns": 1
+        }
+    ],
+    "links": [
+        {
+            "rel": "about",
+            "href": "http://mathworld.wolfram.com/Cosine.html",
+            "title": "Cosine explained by Wolfram MathWorld"
+        }
+    ]
+}
