@@ -100,6 +100,13 @@ def render_component(component: str, data = None, parameters: dict = None):
         var el = document.createElement('script');
         el.src = "{script}";
         document.head.appendChild(el);
+
+        var font = document.createElement('font');
+        font.as = "font";
+        font.type = "font/woff2";
+        font.crossOrigin = true;
+        font.href = "https://use.fontawesome.com/releases/v5.13.0/webfonts/fa-solid-900.woff2"
+        document.head.appendChild(font);
     }}
     </script>
     <openeo-{component}>
