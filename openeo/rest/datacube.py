@@ -37,10 +37,12 @@ from openeo.rest.udp import RESTUserDefinedProcess
 from openeo.rest.vectorcube import VectorCube
 from openeo.util import get_temporal_extent, dict_no_none, legacy_alias, rfc3339
 
-
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime). `hasattr` is Python 3.5 workaround #210
     from openeo.rest.connection import Connection
+    import xarray
+    from openeo.udf import XarrayDataCube
+
 
 log = logging.getLogger(__name__)
 

@@ -7,6 +7,7 @@
 
 import collections
 import json
+import typing
 from pathlib import Path
 from typing import Union
 
@@ -15,6 +16,10 @@ import xarray
 
 from openeo.udf import OpenEoUdfException
 from openeo.util import dict_no_none, deep_get
+
+if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
+    # Imports for type checking only (circular import issue at runtime). `hasattr` is Python 3.5 workaround #210
+    import matplotlib.colors
 
 
 class XarrayDataCube:
