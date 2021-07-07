@@ -1,11 +1,17 @@
 import json
 import pathlib
 from typing import Union
+import typing
 
 from openeo.internal.graph_building import PGNode
 from openeo.metadata import CollectionMetadata
 from openeo.rest.job import RESTJob
 from openeo.util import legacy_alias
+
+
+if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
+    # Imports for type checking only (circular import issue at runtime). `hasattr` is Python 3.5 workaround #210
+    from openeo import Connection
 
 
 class VectorCube:

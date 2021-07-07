@@ -16,8 +16,7 @@ from openeo.rest.service import Service
 from openeo.util import get_temporal_extent, legacy_alias
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
-    # Only import this for type hinting purposes. Runtime import causes circular dependency issues.
-    # Note: the `hasattr` check is necessary for Python versions before 3.5.2.
+    # Imports for type checking only (circular import issue at runtime). `hasattr` is Python 3.5 workaround #210
     from openeo.rest.connection import Connection
 
 

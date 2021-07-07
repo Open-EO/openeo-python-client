@@ -1,6 +1,7 @@
 import pathlib
 from abc import ABC
 from datetime import datetime, date
+import typing
 from typing import List, Dict, Union, Tuple, Callable
 
 from deprecated import deprecated
@@ -9,6 +10,11 @@ from shapely.geometry import Polygon, MultiPolygon
 from openeo.rest.job import RESTJob
 from openeo.rest.service import Service
 from openeo.util import get_temporal_extent, first_not_none
+
+
+if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
+    # Imports for type checking only (circular import issue at runtime). `hasattr` is Python 3.5 workaround #210
+    from openeo.rest.vectorcube import VectorCube
 
 
 class ImageCollection(ABC):

@@ -2,9 +2,17 @@
 Helpers for data conversions between Python ecosystem data types and openEO data structures.
 """
 
+import typing
+
 import numpy as np
 import pandas
 from deprecated.sphinx import deprecated
+
+
+if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
+    # Imports for type checking only (circular import issue at runtime). `hasattr` is Python 3.5 workaround #210
+    from openeo.udf import XarrayDataCube
+    import xarray
 
 
 class InvalidTimeSeriesException(ValueError):
