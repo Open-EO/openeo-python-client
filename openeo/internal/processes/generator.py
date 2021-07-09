@@ -144,7 +144,9 @@ def generate_process_py(processes: List[Process], output=sys.stdout, argv=None):
 
     """)
     fun_src = textwrap.dedent("""
-        # Shortcut
+        # Public shortcut
+        process = ProcessBuilder.process
+        # Private shortcut that has lower chance to collide with a process argument named `process`
         _process = ProcessBuilder.process
         
         
