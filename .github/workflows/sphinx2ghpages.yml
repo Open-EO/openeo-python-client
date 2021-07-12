@@ -1,0 +1,44 @@
+# Based on https://github.com/soxofaan/github-actions-sphinx2ghpages
+
+name: Sphinx Documentation to GitHub Pages
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.8
+
+    - name: Install dependencies (including Sphinx)
+      run: |
+        python -m pip install --upgrade pip
+        pip install .[dev] sphinx
+
+    - name: Sphinx build
+      run: python -m sphinx -b html docs build
+
+    - name: Commit documentation in gh-pages branch
+      run: |
+        cd build
+        git init -b gh-pages
+        touch .nojekyll
+        git config --local user.name "GitHub Actions Bot"
+        git config --local user.email "actions@github.com"
+        git add .
+        git commit -m "Update documentation"
+
+    - name: Push gh-pages branch
+      run: |
+        cd build
+        git push --force "https://${GITHUB_ACTOR}:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}" gh-pages
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
