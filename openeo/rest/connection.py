@@ -686,7 +686,7 @@ class Connection(RestApiConnection):
         :return: processes_dict: Dict All available processes of the back end.
         """
         data = self.get('/processes').json()["processes"]
-        return VisualList("processes", data = data, parameters = {'show-graph': True})
+        return VisualList("processes", data = data, parameters = {'show-graph': True, 'provide-download': False})
 
     def list_jobs(self) -> List[dict]:
         """
@@ -729,7 +729,7 @@ class Connection(RestApiConnection):
         Lists all user-defined processes of the authenticated user.
         """
         data = self.get("/process_graphs").json()["processes"]
-        return VisualList("processes", data=data, parameters = {'show-graph': True})
+        return VisualList("processes", data=data, parameters = {'show-graph': True, 'provide-download': False})
 
     def user_defined_process(self, user_defined_process_id: str) -> RESTUserDefinedProcess:
         """
