@@ -176,8 +176,6 @@ def run_udf_code(code: str, data: UdfData) -> UdfData:
                 ))
             # TODO: also support calls without user context?
             result_cube = func(data.get_datacube_list()[0], data.user_context)
-            if not isinstance(result_cube, XarrayDataCube):
-                raise ValueError("The provided UDF did not return a DataCube, but got: %s" % result_cube)
             data.set_datacube_list([result_cube])
             return data
         elif len(params) == 1 and _annotation_is_udf_data(first_param.annotation):
