@@ -1672,3 +1672,42 @@ class DataCube(ImageCollection, _FromNodeMixin):
         if options:
             arguments["options"] = options
         return self.process(process_id="sar_backscatter", arguments=arguments)
+
+
+    def fit_curve(self, parameters, function, dimension ):
+        """
+        EXPERIMENTAL: https://github.com/Open-EO/openeo-processes/pull/240
+        Use non-linear least squares to fit a model function `y = f(x, parameters)` to data.
+
+        The process throws an `InvalidValues` exception if invalid values are encountered.
+        Invalid values are finite numbers (see also ``is_valid()``).
+
+        @param parameters:
+        @param function:
+        @param dimension:
+        @return:
+        """
+        return self.process(process_id="fit_curve", arguments={
+            "data": THIS,
+            "parameters": parameters,
+            "function": function,
+            "dimension": dimension
+        })
+
+    def predict_curve(self, parameters, function, dimension, labels = None ):
+        """
+        EXPERIMENTAL: https://github.com/Open-EO/openeo-processes/pull/240
+        Predict values using a model function and pre-computed parameters.
+
+        @param parameters:
+        @param function:
+        @param dimension:
+        @return:
+        """
+        return self.process(process_id="predict_curve", arguments={
+            "data": THIS,
+            "parameters": parameters,
+            "function": function,
+            "dimension": dimension,
+            "labels": labels
+        })

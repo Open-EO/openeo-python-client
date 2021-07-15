@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   graph to a `PGNode` graph (EP-3609)
 - Add `Connection.datacube_from_flat_graph` and `Connection.datacube_from_json` to construct a `DataCube`
   from flat process graph representation (e.g. JSON file or JSON URL) (EP-3609)
+- Add fit_curve and predict_curve, two methods used in change detection
 
 ### Changed
 
