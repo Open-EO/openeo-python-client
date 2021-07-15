@@ -46,9 +46,13 @@ class Parameter:
         return cls(name=name, description=description, schema={"type": "object", "subtype": "raster-cube"})
 
     @classmethod
-    def string(cls, name: str, description: str = None, default=_DEFAULT_UNDEFINED) -> 'Parameter':
+    def string(cls, name: str, description: str = None, default=_DEFAULT_UNDEFINED, values=None) -> 'Parameter':
         """Helper to create a 'string' type parameter."""
-        return cls(name=name, description=description, schema={"type": "string"}, default=default)
+        schema = {"type": "string"}
+        if values is not None:
+            schema["enum"] = values
+        return cls(name=name, description=description, schema=schema, default=default)
+
 
     @classmethod
     def integer(cls, name: str, description: str = None, default=_DEFAULT_UNDEFINED) -> 'Parameter':
