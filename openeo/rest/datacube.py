@@ -245,7 +245,7 @@ class DataCube(ImageCollection, _FromNodeMixin):
         else:
             return list(get_temporal_extent(
                 *args, start_date=start_date, end_date=end_date, extent=extent,
-                convertor=lambda d: d if isinstance(d, Parameter) or isinstance(d, PGNode) else rfc3339.normalize(d)
+                convertor=lambda d: d if isinstance(d, Parameter) or isinstance(d, PGNode) else d.pgnode if isinstance(d,ProcessBuilder) else rfc3339.normalize(d)
             ))
 
 
