@@ -655,6 +655,27 @@ def test_load_collection_properties_process_builder_function(con100):
     assert im.graph == expected
 
 
+def test_load_collection_temporalextent_process_builder_function(con100):
+    from openeo.processes import date_shift
+
+    im = con100.load_collection(
+        "S2",
+        temporal_extent=[date_shift(Parameter("start_date"), -2, unit="days").pgnode, "2019-01-01"],
+
+    )
+
+    assert im.graph == {'dateshift1': {'arguments': {'date': {'from_parameter': 'start_date'},
+                                                     'unit': 'days',
+                                                     'value': -2},
+                                       'process_id': 'date_shift'},
+                        'loadcollection1': {'arguments': {'id': 'S2',
+                                                          'spatial_extent': None,
+                                                          'temporal_extent': [{'from_node': 'dateshift1'},
+                                                                              '2019-01-01']},
+                                            'process_id': 'load_collection',
+                                            'result': True}}
+
+
 def test_apply_dimension_temporal_cumsum_with_target(con100):
     cumsum = con100.load_collection("S2").apply_dimension('cumsum', dimension="t", target_dimension="MyNewTime")
     actual_graph = cumsum.graph

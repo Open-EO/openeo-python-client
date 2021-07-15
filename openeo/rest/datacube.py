@@ -155,7 +155,7 @@ class DataCube(ImageCollection, _FromNodeMixin):
             collection_id: str,
             connection: 'openeo.Connection' = None,
             spatial_extent: Optional[Dict[str, float]] = None,
-            temporal_extent: Optional[List[Union[str, datetime.datetime, datetime.date]]] = None,
+            temporal_extent: Optional[List[Union[str, datetime.datetime, datetime.date,PGNode]]] = None,
             bands: Optional[List[str]] = None,
             fetch_metadata = True,
             properties: Optional[Dict[str, Union[str, PGNode, typing.Callable]]] = None
@@ -245,7 +245,7 @@ class DataCube(ImageCollection, _FromNodeMixin):
         else:
             return list(get_temporal_extent(
                 *args, start_date=start_date, end_date=end_date, extent=extent,
-                convertor=lambda d: d if isinstance(d, Parameter) else rfc3339.normalize(d)
+                convertor=lambda d: d if isinstance(d, Parameter) or isinstance(d, PGNode) else rfc3339.normalize(d)
             ))
 
 
@@ -817,7 +817,10 @@ class DataCube(ImageCollection, _FromNodeMixin):
             else:
                 arguments = [ProcessBuilder({"from_parameter": p}) for p in parent_parameters]
 
-            pg = process(*arguments).pgnode
+            callback_result = process(*arguments)
+            if(callback_result is None):
+                raise ValueError("Your callback did not return a result, make sure that your callbacks have a return statement, and return a ProcessBuilder: " + str(process))
+            pg = callback_result.pgnode
         else:
             raise ValueError(process)
 
