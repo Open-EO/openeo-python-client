@@ -678,14 +678,17 @@ class Connection(RestApiConnection):
     def collection_metadata(self, name) -> CollectionMetadata:
         return CollectionMetadata(metadata=self.describe_collection(name))
 
-    def list_processes(self) -> List[dict]:
+    def list_processes(self, namespace:str=None) -> List[dict]:
         # TODO: Maybe format the result dictionary so that the process_id is the key of the dictionary.
         """
         Loads all available processes of the back end.
 
+        :param namespace: The namespace for which to list processes.
+
         :return: processes_dict: Dict All available processes of the back end.
         """
-        data = self.get('/processes').json()["processes"]
+        namespace = "/" + namespace if namespace is not None else ""
+        data = self.get('/processes' + namespace).json()["processes"]
         return VisualList("processes", data = data)
 
     def list_jobs(self) -> List[dict]:
