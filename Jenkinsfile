@@ -14,4 +14,6 @@ pythonPipeline {
   python_version = ["3.6"]
   extras_require = 'dev'
   upload_dev_wheels = false
+  wheel_repo = 'python-openeo'
+  wheel_repo_dev = 'python-openeo'
 }
