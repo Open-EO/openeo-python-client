@@ -155,7 +155,7 @@ class DataCube(ImageCollection, _FromNodeMixin):
             collection_id: str,
             connection: 'openeo.Connection' = None,
             spatial_extent: Optional[Dict[str, float]] = None,
-            temporal_extent: Optional[List[Union[str, datetime.datetime, datetime.date]]] = None,
+            temporal_extent: Optional[List[Union[str, datetime.datetime, datetime.date,PGNode]]] = None,
             bands: Optional[List[str]] = None,
             fetch_metadata = True,
             properties: Optional[Dict[str, Union[str, PGNode, typing.Callable]]] = None
@@ -245,7 +245,7 @@ class DataCube(ImageCollection, _FromNodeMixin):
         else:
             return list(get_temporal_extent(
                 *args, start_date=start_date, end_date=end_date, extent=extent,
-                convertor=lambda d: d if isinstance(d, Parameter) else rfc3339.normalize(d)
+                convertor=lambda d: d if isinstance(d, Parameter) or isinstance(d, PGNode) else d.pgnode if isinstance(d,ProcessBuilder) else rfc3339.normalize(d)
             ))
 
 
@@ -817,7 +817,10 @@ class DataCube(ImageCollection, _FromNodeMixin):
             else:
                 arguments = [ProcessBuilder({"from_parameter": p}) for p in parent_parameters]
 
-            pg = process(*arguments).pgnode
+            callback_result = process(*arguments)
+            if(callback_result is None):
+                raise ValueError("Your callback did not return a result, make sure that your callbacks have a return statement, and return a ProcessBuilder: " + str(process))
+            pg = callback_result.pgnode
         else:
             raise ValueError(process)
 
@@ -1672,3 +1675,42 @@ class DataCube(ImageCollection, _FromNodeMixin):
         if options:
             arguments["options"] = options
         return self.process(process_id="sar_backscatter", arguments=arguments)
+
+
+    def fit_curve(self, parameters, function, dimension ):
+        """
+        EXPERIMENTAL: https://github.com/Open-EO/openeo-processes/pull/240
+        Use non-linear least squares to fit a model function `y = f(x, parameters)` to data.
+
+        The process throws an `InvalidValues` exception if invalid values are encountered.
+        Invalid values are finite numbers (see also ``is_valid()``).
+
+        @param parameters:
+        @param function:
+        @param dimension:
+        @return:
+        """
+        return self.process(process_id="fit_curve", arguments={
+            "data": THIS,
+            "parameters": parameters,
+            "function": function,
+            "dimension": dimension
+        })
+
+    def predict_curve(self, parameters, function, dimension, labels = None ):
+        """
+        EXPERIMENTAL: https://github.com/Open-EO/openeo-processes/pull/240
+        Predict values using a model function and pre-computed parameters.
+
+        @param parameters:
+        @param function:
+        @param dimension:
+        @return:
+        """
+        return self.process(process_id="predict_curve", arguments={
+            "data": THIS,
+            "parameters": parameters,
+            "function": function,
+            "dimension": dimension,
+            "labels": labels
+        })

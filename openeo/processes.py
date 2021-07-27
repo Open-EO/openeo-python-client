@@ -2282,7 +2282,9 @@ class ProcessBuilder(ProcessBuilderBase):
         return xor(x=self, y=y)
 
 
-# Shortcut
+# Public shortcut
+process = ProcessBuilder.process
+# Private shortcut that has lower chance to collide with a process argument named `process`
 _process = ProcessBuilder.process
 
 

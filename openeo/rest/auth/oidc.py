@@ -270,6 +270,7 @@ class OidcProviderInfo:
         scopes = self._scopes
         if request_refresh_token and "offline_access" in self._supported_scopes:
             scopes = scopes | {"offline_access"}
+        log.debug("Using scopes: {s}".format(s=scopes))
         return " ".join(sorted(scopes))
 
     def get_default_client_id(self, grant_types: List[DefaultOidcClientGrant]) -> Union[str, None]:
