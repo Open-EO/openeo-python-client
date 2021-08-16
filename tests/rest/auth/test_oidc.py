@@ -61,7 +61,7 @@ def test_http_server_thread():
     server_thread = HttpServerThread(RequestHandlerClass=QueuingRequestHandler.with_queue(queue))
     server_thread.start()
     port, host, fqdn = server_thread.server_address_info()
-    url = 'http://{f}:{p}/foo/bar'.format(f=fqdn, p=port)
+    url = 'http://{h}:{p}/foo/bar'.format(h=host, p=port)
     response = requests.get(url)
     response.raise_for_status()
     assert list(drain_queue(queue)) == ['/foo/bar']
@@ -77,7 +77,7 @@ def test_http_server_thread_port():
     server_thread.start()
     port, host, fqdn = server_thread.server_address_info()
     assert port == 12345
-    url = 'http://{f}:{p}/foo/bar'.format(f=fqdn, p=port)
+    url = 'http://{h}:{p}/foo/bar'.format(h=host, p=port)
     response = requests.get(url)
     response.raise_for_status()
     assert list(drain_queue(queue)) == ['/foo/bar']
