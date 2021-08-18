@@ -58,7 +58,7 @@ class RESTUserDefinedProcess:
 
     def _repr_html_(self):
         process = self.describe()
-        return render_component('process', data=process)
+        return render_component('process', data=process, parameters = {'show-graph': True, 'provide-download': False})
 
     def store(
             self, process_graph: Union[dict, ProcessBuilderBase], parameters: List[Union[Parameter, dict]] = None,

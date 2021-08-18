@@ -689,7 +689,7 @@ class Connection(RestApiConnection):
         """
         namespace = "/" + namespace if namespace is not None else ""
         data = self.get('/processes' + namespace).json()["processes"]
-        return VisualList("processes", data = data)
+        return VisualList("processes", data = data, parameters = {'show-graph': True, 'provide-download': False})
 
     def list_jobs(self) -> List[dict]:
         """
@@ -732,7 +732,7 @@ class Connection(RestApiConnection):
         Lists all user-defined processes of the authenticated user.
         """
         data = self.get("/process_graphs").json()["processes"]
-        return VisualList("processes", data=data)
+        return VisualList("processes", data=data, parameters = {'show-graph': True, 'provide-download': False})
 
     def user_defined_process(self, user_defined_process_id: str) -> RESTUserDefinedProcess:
         """
