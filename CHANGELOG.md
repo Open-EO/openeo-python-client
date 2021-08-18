@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Update `processes.py` based on 1.1.0 release op openeo-processes project
 - `processes.py`: include all processes from "proposals" folder of openeo-processes project
+- Jupyter integration: Visual rendering for process graphs shown instead of a plain JSON representation.
 
 ### Removed
 
