@@ -65,7 +65,7 @@ Construct DataCube from JSON
 
 openEO process graphs are typically stored and published in JSON format.
 Most notably, user-defined processes are transferred between openEO client
-and backend in a JSON structure roughly like in this example::
+and back-end in a JSON structure roughly like in this example::
 
     {
       "id": "evi",

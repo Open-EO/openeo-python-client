@@ -5,10 +5,10 @@ User-Defined Functions (UDF) explained
 ========================================
 
 User defined functions are a very important feature of OpenEO. They allow you as a user to
-reuse existing code, by submitting it to the backend.
+reuse existing code, by submitting it to the back-end.
 
-As datacubes can be very large, the backend will only be able to run your code on a smaller chunk
-of the whole cube. So you need to help the backend a bit, by designing your code to work on as small
+As datacubes can be very large, the back-end will only be able to run your code on a smaller chunk
+of the whole cube. So you need to help the back-end a bit, by designing your code to work on as small
 a piece of data as possible.
 
 There are a few different types of operations where UDF's can be used:
@@ -54,7 +54,7 @@ This is an example that follows those rules:
     :caption: Example UDF code ``smooth_savitzky_golay.py``
     :name: savgol_udf
 
-The method signature of the UDF is very important, because the backend will use it to detect
+The method signature of the UDF is very important, because the back-end will use it to detect
 the type of UDF.
 This particular example accepts a :py:class:`~openeo.rest.datacube.DataCube` object as input and also returns a :py:class:`~openeo.rest.datacube.DataCube` object.
 The type annotations and method name are actually used to detect how to invoke the UDF, so make sure they remain unchanged.
@@ -113,11 +113,11 @@ Profile a process server-side
 -----------------------------
 
 .. warning::
-    Experimental feature - This feature only works on backends running the Geotrellis implementation, and has not yet been
+    Experimental feature - This feature only works on back-ends running the Geotrellis implementation, and has not yet been
     adopted in the openEO API.
 
-Sometimes users want to 'profile' their UDF on the backend. While it's recommended to first profile it offline, in the
-same manner as you can debug UDF's, backends may support profiling directly.
+Sometimes users want to 'profile' their UDF on the back-end. While it's recommended to first profile it offline, in the
+same manner as you can debug UDF's, back-ends may support profiling directly.
 Note that this will only generate statistics over the python part of the execution, therefore it is only suitable for profiling UDFs.
 
 Usage

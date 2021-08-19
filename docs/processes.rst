@@ -19,18 +19,18 @@ into new, more complex operations.
 A bit of terminology
 ====================
 
-A **pre-defined process** is a process provided out of the box by a given *backend*.
+A **pre-defined process** is a process provided out of the box by a given *back-end*.
 These are often the `centrally defined openEO processes <https://openeo.org/documentation/1.0/processes.html>`_,
 such as common mathematical (``sum``, ``divide``, ``sqrt``, ...),
 statistical (``mean``, ``max``, ...) and
 image processing (``mask``, ``apply_kernel``, ...)
 operations.
-Backends are expected to support most of these standard ones,
+Back-ends are expected to support most of these standard ones,
 but are free to pre-define additional ones too.
 
 
 Processes can be combined into a larger pipeline, parameterized
-and stored on the backend as a so called **user-defined process**.
+and stored on the back-end as a so called **user-defined process**.
 This allows you to build a library of reusable building blocks
 that can be be inserted easily in multiple other places.
 See :ref:`user-defined-processes` for more information.
@@ -49,7 +49,7 @@ are hidden behind regular Python functions, classes and methods.
 Using common pre-defined processes
 ===================================
 
-The listing of pre-defined processes provided by a backend
+The listing of pre-defined processes provided by a back-end
 can be inspected with :func:`~openeo.rest.connection.Connection.list_processes`.
 For example, to get a list of the process names (process ids)::
 
@@ -96,7 +96,7 @@ but you can call the corresponding client method in multiple equivalent ways::
 Generic API for adding processes
 =================================
 
-An openEO backend may offer processes that are not part of the core API,
+An openEO back-end may offer processes that are not part of the core API,
 or the client may not (yet) have a corresponding method
 for a process that you wish to use.
 In that case, you can fall back to a more generic API

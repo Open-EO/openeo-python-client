@@ -9,7 +9,7 @@ advanced data loading use cases.
 Data discovery
 --------------
 
-To explore data in a given backend, it is recommended to use a more visual tool like the openEO Hub
+To explore data in a given back-end, it is recommended to use a more visual tool like the openEO Hub
 (http://hub.openeo.org/). This shows available collections, and metadata in a user-friendly manner.
 
 Next to that, the client also offers various methods:
@@ -52,7 +52,7 @@ A common question from users is about very specific details of a collection, we'
 Data reduction
 ##############
 
-The purpose of the filters in load_collection is to reduce the amount of data that is loaded by the backend. We
+The purpose of the filters in load_collection is to reduce the amount of data that is loaded by the back-end. We
 recommend doing this, especially when experimenting with a script, as this can dramatically increase the response time for
 your calls. Gradually increasing the amount of data processed is recommended when tests on smaller areas are successfull.
 
@@ -61,7 +61,7 @@ This can be very convenient, as you can avoid passing in all filtering parameter
 datacube.
 
 Another nice feature, is that processes that work on a vector feature, like aggregated statistics for a polygon, or masking
-by polygon can also be used by a backend to apply a spatial filter. This way, you do not need to explicitly set these
+by polygon can also be used by a back-end to apply a spatial filter. This way, you do not need to explicitly set these
 filters yourself.
 
 Filtering on properties

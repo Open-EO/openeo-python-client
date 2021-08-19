@@ -14,7 +14,7 @@ Often, you have certain (sub)chains that reoccur in the same process graph
 of even in different process graphs or algorithms.
 
 The openEO API enables you to store such (sub)chains
-on the backend as a so called **user-defined process**.
+on the back-end as a so called **user-defined process**.
 This allows you to build your own *library of reusable building blocks*.
 
 .. note::
@@ -25,7 +25,7 @@ This allows you to build your own *library of reusable building blocks*.
     see :ref:`user-defined-functions` for more information.
 
 A user-defined process can not only be constructed from
-pre-defined processes provided by the backend,
+pre-defined processes provided by the back-end,
 but also other user-defined processes.
 
 Ultimately, the openEO API allows you to publicly expose your user-defined process,
@@ -205,7 +205,7 @@ which can be used to build a process graph as follows::
     # Do the calculations, using the parameter and other values
     fahrenheit_to_celsius = divide(x=subtract(x=f, y=32), y=1.8)
 
-    # Store user-defined process in openEO backend.
+    # Store user-defined process in openEO back-end.
     connection.save_user_defined_process(
         "fahrenheit_to_celsius",
         fahrenheit_to_celsius,
@@ -259,7 +259,7 @@ while building a :class:`~openeo.rest.datacube.DataCube`.
     :class:`~openeo.api.process.Parameter` arguments.
     Please submit a bug report when you encounter missing or wrong parameterization support.
 
-We can now store this as a user-defined process called "fancy_load_collection" on the backend::
+We can now store this as a user-defined process called "fancy_load_collection" on the back-end::
 
     connection.save_user_defined_process(
         "fancy_load_collection",
@@ -319,7 +319,7 @@ Store to a file
 ---------------
 
 Some use cases might require storing the user-defined process in,
-for example, a JSON file instead of storing it directly on a backend.
+for example, a JSON file instead of storing it directly on a back-end.
 Use :py:func:`~openeo.rest.udp.build_process_dict` to build a dictionary
 compatible with the "process graph with metadata" format of the openEO API
 and dump it in JSON format to a file::

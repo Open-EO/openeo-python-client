@@ -14,7 +14,7 @@ as a user:
 *   Basic HTTP Authentication (not recommended, but practically easier in some situations)
 
 To illustrate how to authenticate with the openEO Python Client Library,
-we start form a backend connection::
+we start form a back-end connection::
 
     import openeo
 
@@ -27,7 +27,7 @@ Let's start with the easiest authentication method,
 based on the Basic HTTP authentication scheme.
 It is however *not recommended* for various reasons,
 such as its limited *security* measures.
-For example, if you are connecting to a backend with a ``http://`` URL
+For example, if you are connecting to a back-end with a ``http://`` URL
 instead of a ``https://`` one, you should certainly not use basic HTTP auth.
 
 With these security related caveats out of the way, you authenticate
@@ -57,18 +57,18 @@ these OpenID Connect concepts are useful to understand:
 
     *   the *OpenID Connect identity provider* (the platform
         that handles the authentication of the user)
-    *   the *openEO backend*, which manages earth observation collections
+    *   the *openEO back-end*, which manages earth observation collections
         and executes your algorithms
 
     Instead of managing the authentication procedure itself,
-    a backend first forwards a user to the log-in page of
+    a back-end first forwards a user to the log-in page of
     a OpenID Connect provider, such as an (external) organisation like Google or Microsoft.
     The user can log in there with an existing account (or create a new one)
     and then generally has to explicitly grant access
     to basic profile information (e.g. email address)
-    that the backend will use to identify the user.
+    that the back-end will use to identify the user.
 
-    Note that with this approach, the backend does not have to
+    Note that with this approach, the back-end does not have to
     take care of all the security and privacy challenges
     of properly handling user registration, authentication, etc.
     Also, it allows the user to securely reuse an existing account
@@ -82,10 +82,10 @@ these OpenID Connect concepts are useful to understand:
     when authenticating.
 
     The details of how to obtain the client ID and secret largely
-    depend on the backend and OpenID Connect provider:
+    depend on the back-end and OpenID Connect provider:
     you might have to register a client yourself,
     or you might have to use an existing client ID.
-    Consult the openEO backend (documentation)
+    Consult the openEO back-end (documentation)
     about how to obtain client ID (and secret).
 
 *   There are several possible "**flows**" (also called "grants")
@@ -112,7 +112,7 @@ In the sections below we will discuss the practical details of each flow.
 General options
 ---------------
 
-*   A backend might support **multiple OpenID Connect providers**.
+*   A back-end might support **multiple OpenID Connect providers**.
     If there is only one, the openEO Python Client Library will pick it automatically,
     but if there are multiple you might get an exception like this::
 
@@ -189,11 +189,11 @@ What happens when running that ``authenticate_oidc_authorization_code`` call:
     you are forwarded in your browser to this redirect URL.
 *   Through the data provided in the request to the redirect URL,
     the openEO Python Client Library can obtain the desired
-    tokens to set up authenticated communication with the backend.
+    tokens to set up authenticated communication with the back-end.
 
 When the above procedure completed successfully, your connection
 is authenticated, and you should be able
-to inspect the "user" as seen by the backend, e.g.::
+to inspect the "user" as seen by the back-end, e.g.::
 
     >>> con.describe_account()
     {'user_id': 'nIrHtS4rhk4ru7531RhtLHXd6Ou0AW3vHfg'}
@@ -295,7 +295,7 @@ Meanwhile, the openEO Python Client Library is actively polling the OpenID Conne
 provider and when you successfully complete the authentication
 and entering of the user code,
 it will receive the necessary tokens for authenticated communication
-with the backend and print::
+with the back-end and print::
 
     Authorized successfully.
 
@@ -339,7 +339,7 @@ which makes it useful for **non-interactive use cases**.
 The downside is of the Client Credentials flow is that it can
 be challenging or even impossible with a given OpenID Connect provider,
 to set up a client that supports this.
-Also, your openEO backend might not allow it, because technically
+Also, your openEO back-end might not allow it, because technically
 you are authenticating a *client*, and not a *user*.
 
 
@@ -371,7 +371,7 @@ Refresh Token Flow
 
 When OpenID Connect authentication completes successfully,
 the openID Python library receives an access token
-to be used when doing authenticated calls to the backend.
+to be used when doing authenticated calls to the back-end.
 The access token usually has a short lifetime to reduce
 the security risk when it would be stolen or intercepted.
 The openID Python library also receives a *refresh token*
@@ -484,7 +484,7 @@ Basic HTTP Auth config
 -----------------------
 
 With the ``add-basic`` subcommand you can add Basic HTTP Auth credentials
-for a given backend to the config.
+for a given back-end to the config.
 It will interactively ask for username and password and
 try if these credentials work::
 

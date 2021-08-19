@@ -17,17 +17,17 @@ Begin by importing the openeo module::
 
     import openeo
 
-Now we need to connect to a backend::
+Now we need to connect to a back-end::
 
     connection = openeo.connect('https://openeo.vito.be')
 
 Now, we have a :class:`Connection <openeo.Connection>` object called ``connection``.
-This is our entry point to the backend and allows us to discover its capabilities and collections programmatically.
-Use the openEO Hub (http://hub.openeo.org/) to explore a backend
+This is our entry point to the back-end and allows us to discover its capabilities and collections programmatically.
+Use the openEO Hub (http://hub.openeo.org/) to explore a back-end
 in a more graphical interactive way.
 
 Band math usually starts from a raster data cube, with multiple spectral bands available.
-The backend used here has a Sentinel-2 collection: TERRASCOPE_S2_TOC_V2::
+The back-end used here has a Sentinel-2 collection: TERRASCOPE_S2_TOC_V2::
 
     sentinel2_data_cube = connection.load_collection(
         "TERRASCOPE_S2_TOC_V2",
@@ -38,7 +38,7 @@ The backend used here has a Sentinel-2 collection: TERRASCOPE_S2_TOC_V2::
 
 .. note::
    Note how we specify a time range and set of bands to load. By filtering as early as possible, we avoid
-   incurring unneeded costs, and make it easier for the backend to load the right data.
+   incurring unneeded costs, and make it easier for the back-end to load the right data.
 
 Now we have a :class:`ImageCollection <openeo.ImageCollection>` object called ``sentinel2_data_cube``.
 Creating this object does not yet load any data, but virtually it can contain a lot of data depending on the filters you
@@ -176,4 +176,4 @@ It can easily be converted into a pandas dataframe::
   :alt: plotted timeseries
 
 The same method also works for multiple polygons, or GeoJSON or SHP files that are
-accessible by the backend. This allows computing aggregated values over very large areas.
+accessible by the back-end. This allows computing aggregated values over very large areas.
