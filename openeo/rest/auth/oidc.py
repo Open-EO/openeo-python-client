@@ -668,6 +668,7 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
         else:
             post_data["client_secret"] = self.client_secret
         poll_interval = verification_info.interval
+        log.debug("Start polling token endpoint (interval {i}s)".format(i=poll_interval))
         while elapsed() <= self._max_poll_time:
             time.sleep(poll_interval)
 
