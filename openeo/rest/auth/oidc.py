@@ -638,7 +638,7 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
             ))
         try:
             data = resp.json()
-            return VerificationInfo(
+            verification_info = VerificationInfo(
                 # Google OAuth/OIDC implementation uses non standard "verification_url" instead of "verification_uri"
                 verification_uri=data["verification_uri"] if "verification_uri" in data else data["verification_url"],
                 device_code=data["device_code"],
@@ -647,6 +647,8 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
             )
         except Exception as e:
             raise OidcException("Failed to parse device authorization request: {e!r}".format(e=e))
+        log.debug("Verification info: %r", verification_info)
+        return verification_info
 
     def get_tokens(self, request_refresh_token: bool = False) -> AccessTokenResult:
         # Get verification url and user code

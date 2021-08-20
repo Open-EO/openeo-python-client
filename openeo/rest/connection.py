@@ -351,7 +351,7 @@ class Connection(RestApiConnection):
         provider_id, provider = self._get_oidc_provider(provider_id)
 
         if client_id is None:
-            _log.debug("No client_id: checking config for prefered client_id")
+            _log.debug("No client_id: checking config for preferred client_id")
             client_id, client_secret = self._get_auth_config().get_oidc_client_configs(
                 backend=self._orig_url, provider_id=provider_id
             )
