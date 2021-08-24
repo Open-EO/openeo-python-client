@@ -1,8 +1,11 @@
 
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/openeo)
 ![Status](https://img.shields.io/pypi/status/openeo)
-[![Build Status](https://travis-ci.org/Open-EO/openeo-python-client.svg?branch=master)](https://travis-ci.org/Open-EO/openeo-python-client)
+[![Lint and Test](https://github.com/Open-EO/openeo-python-client/actions/workflows/lint-and-test.yml/badge.svg?branch=master)](https://github.com/Open-EO/openeo-python-client/actions/workflows/lint-and-test.yml)
 [![PyPI](https://img.shields.io/pypi/v/openeo)](https://pypi.org/project/openeo/)
+
+
+
 
 # openEO Python Client
 

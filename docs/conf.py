@@ -103,7 +103,6 @@ html_theme_options = {
     'github_user': 'Open-EO',
     'github_repo': 'openeo-python-client',
     'github_banner': True,
-    'travis_button': True,
     'fixed_sidebar': True,
     'page_width':'600px',
     'font_family': 'Cantarell, Georgia, serif',
