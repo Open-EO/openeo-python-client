@@ -11,9 +11,6 @@ like this::
 
     pip install -e .[dev]
 
-The ``--extra-index-url`` is necessary to be able to find certain
-(development) versions of packages that are not available in the standard channels.
-
 
 Running the unit tests
 ======================

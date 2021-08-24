@@ -15,6 +15,7 @@ OpenEO Python Client
    :caption: Contents:
 
    basics
+   installation
    data_access
    processes
    batch_jobs
