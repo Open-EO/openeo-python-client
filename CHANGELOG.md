@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 
+## [0.8.2] - 2021-08-24
+
+Minor release to address version packaging issue. 
+
 ## [0.8.1] - 2021-08-24
 
 ### Added
