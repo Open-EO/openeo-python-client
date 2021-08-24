@@ -8,21 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Support nested callbacks inside array arguments, for instance in array_modify, array_create
-- Support array_concat
+- Support nested callbacks inside array arguments, for instance in `array_modify`, `array_create`
+- Support `array_concat`
 - add `ProcessGraphUnflattener` and `PGNodeGraphUnflattener` to unflatten a flat dict representation of a process
   graph to a `PGNode` graph (EP-3609)
 - Add `Connection.datacube_from_flat_graph` and `Connection.datacube_from_json` to construct a `DataCube`
   from flat process graph representation (e.g. JSON file or JSON URL) (EP-3609)
-- Add fit_curve and predict_curve, two methods used in change detection
+- Add documentation about UDP unflattening and sharing (EP-3609)
+- Add `fit_curve` and `predict_curve`, two methods used in change detection
 
 ### Changed
 
 - Update `processes.py` based on 1.1.0 release op openeo-processes project
 - `processes.py`: include all processes from "proposals" folder of openeo-processes project
 - Jupyter integration: Visual rendering for process graphs shown instead of a plain JSON representation.
+- Migrate from Travis CI to GitHub Actions for documentation building and unit tests ([#178](https://github.com/Open-EO/openeo-python-client/issues/178), EP-3645)
 
 ### Removed
+
+- Removed unit test runs for Python 3.5 ([#210](https://github.com/Open-EO/openeo-python-client/issues/210))
 
 ### Fixed
 
