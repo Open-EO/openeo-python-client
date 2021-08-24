@@ -145,15 +145,10 @@ To be as concrete as possible, we will assume that we are about to release versi
 
 #.  Obtain a wheel archive of the package:
 
-    -   Path of least surprise:
-        wait for `Travis CI <https://travis-ci.org/github/Open-EO/openeo-python-client/builds>`_
-        to build a wheel and push it to Artifactory
-        where it can be downloaded, e.g.::
-
-            curl --fail -O https://artifactory.vgt.vito.be/python-openeo/openeo/0.4.7/openeo-0.4.7-py3-none-any.whl
-
-        This downloads ``openeo-0.4.7-py3-none-any.whl``.
-        To obtain download URL: browse from `here <https://artifactory.vgt.vito.be/python-openeo/openeo/>`_
+    -   Path of least surprise: build wheel through GitHub Actions.
+        Go to workflow `"Build wheel" <https://github.com/Open-EO/openeo-python-client/actions/workflows/build-wheel.yml>`_,
+        manually trigger a build with "Run workflow" button, wait for it to finish successfully,
+        download generated ``artifact.zip``, and finally: unzip it to obtain ``openeo-0.4.7-py3-none-any.whl``
 
     -   Or, if you know what you are doing and you're sure your
         local checkout is clean without temporary source files
