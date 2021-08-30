@@ -39,7 +39,7 @@ setup(name=name,
       tests_require=tests_require,
       test_suite='tests',
       install_requires=[
-          'requests',
+          'requests>=2.26.0',
           'shapely>=1.6.4',
           'numpy>=1.17.0',
           'xarray>=0.12.3',

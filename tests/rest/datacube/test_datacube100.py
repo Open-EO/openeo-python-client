@@ -8,6 +8,7 @@ import sys
 import textwrap
 
 import pytest
+import requests
 import shapely.geometry
 
 import openeo.metadata
@@ -1140,3 +1141,11 @@ class TestDataCubeFromFlatGraph:
                 "process_id": "divide", "arguments": {"x": {"from_node": "subtract1"}, "y": 1.8}, "result": True
             },
         }
+
+
+def test_send_nan_json(con100, requests_mock):
+    """https://github.com/Open-EO/openeo-python-client/issues/185"""
+    cube = con100.load_collection("S2")
+    cube = cube.mask(cube > 100, replacement=float("nan"))
+    with pytest.raises(requests.exceptions.InvalidJSONError, match="not JSON compliant"):
+        cube.execute()
