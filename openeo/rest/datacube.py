@@ -785,7 +785,7 @@ class DataCube(ImageCollection, _FromNodeMixin):
         as `apply`, `apply_dimension`, `reduce`, ....)
 
         :param process: process id string, PGNode or callable that uses the ProcessBuilder mechanism to build a process
-        :parameter parameter_mapping: mapping of child (callback) parameters names to parent process parameter names
+        :param parent_parameters: list of parameter names defined for child process
         :return:
         """
 
@@ -895,7 +895,7 @@ class DataCube(ImageCollection, _FromNodeMixin):
         Add a reduce process with given reducer callback along given dimension
 
         :param dimension: the label of the dimension to reduce
-        :param reducer: a callback function that creates a process graph, see :ref:`callbackfunctions`
+        :param reducer: "child callback" function, see :ref:`callbackfunctions`
         """
         # TODO: check if dimension is valid according to metadata? #116
         # TODO: #125 use/test case for `reduce_dimension_binary`?
@@ -1680,8 +1680,7 @@ class DataCube(ImageCollection, _FromNodeMixin):
             arguments["options"] = options
         return self.process(process_id="sar_backscatter", arguments=arguments)
 
-
-    def fit_curve(self, parameters, function, dimension ):
+    def fit_curve(self, parameters: list, function: Union[str, PGNode, typing.Callable], dimension: str):
         """
         EXPERIMENTAL: https://github.com/Open-EO/openeo-processes/pull/240
         Use non-linear least squares to fit a model function `y = f(x, parameters)` to data.
@@ -1689,32 +1688,34 @@ class DataCube(ImageCollection, _FromNodeMixin):
         The process throws an `InvalidValues` exception if invalid values are encountered.
         Invalid values are finite numbers (see also ``is_valid()``).
 
-        @param parameters:
-        @param function:
-        @param dimension:
-        @return:
+        :param parameters:
+        :param function: "child callback" function, see :ref:`callbackfunctions`
+        :dimension:
         """
         return self.process(process_id="fit_curve", arguments={
             "data": THIS,
             "parameters": parameters,
-            "function": function,
+            "function": self._get_callback(function, parent_parameters=["x", "parameters"]),
             "dimension": dimension
         })
 
-    def predict_curve(self, parameters, function, dimension, labels = None ):
+    def predict_curve(
+            self, parameters: list, function: Union[str, PGNode, typing.Callable], dimension: str,
+            labels=None
+    ):
         """
         EXPERIMENTAL: https://github.com/Open-EO/openeo-processes/pull/240
         Predict values using a model function and pre-computed parameters.
 
-        @param parameters:
-        @param function:
-        @param dimension:
+        :param parameters:
+        :param function: "child callback" function, see :ref:`callbackfunctions`
+        :dimension:
         @return:
         """
         return self.process(process_id="predict_curve", arguments={
             "data": THIS,
             "parameters": parameters,
-            "function": function,
+            "function": self._get_callback(function, parent_parameters=["x", "parameters"]),
             "dimension": dimension,
             "labels": labels
         })
