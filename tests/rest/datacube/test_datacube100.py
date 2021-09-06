@@ -1174,3 +1174,100 @@ def test_dimension_labels_invalid(con100):
     # Don't validate when no metadata
     cube = con100.load_collection("S2", fetch_metadata=False).dimension_labels("unv6lidd")
     assert cube.flat_graph()["dimensionlabels1"]["arguments"]["dimension"] == "unv6lidd"
+
+
+def test_fit_curve_callback(con100: Connection):
+    from openeo.processes import array_element
+    def model(x, parameters):
+        return array_element(parameters, 0) + array_element(parameters, 1) * x
+
+    img = con100.load_collection("S2")
+    res = img.fit_curve(parameters=[0, 0], function=model, dimension="t")
+    expected = {
+        'loadcollection1': {
+            'process_id': 'load_collection',
+            'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
+        },
+        'fitcurve1': {
+            'process_id': 'fit_curve',
+            'arguments': {
+                'data': {'from_node': 'loadcollection1'},
+                'parameters': [0, 0],
+                'function': {
+                    'process_graph': {
+                        'arrayelement1': {
+                            'process_id': 'array_element',
+                            'arguments': {'data': {'from_parameter': 'parameters'}, 'index': 0},
+                        },
+                        'arrayelement2': {
+                            'process_id': 'array_element',
+                            'arguments': {'data': {'from_parameter': 'parameters'}, 'index': 1},
+                        },
+                        'multiply1': {
+                            'process_id': 'multiply',
+                            'arguments': {'x': {'from_node': 'arrayelement2'}, 'y': {'from_parameter': 'x'}},
+                        },
+                        'add1': {
+                            'process_id': 'add',
+                            'arguments': {'x': {'from_node': 'arrayelement1'}, 'y': {'from_node': 'multiply1'}},
+                            'result': True
+                        },
+                    }
+                },
+                'dimension': 't',
+            },
+            'result': True
+        },
+    }
+    assert res.graph == expected
+
+
+def test_predict_curve_callback(con100: Connection):
+    from openeo.processes import array_element, cos
+    def model(x, parameters):
+        return array_element(parameters, 0) * cos(array_element(parameters, 1) * x)
+
+    img = con100.load_collection("S2")
+    res = img.predict_curve(parameters=[0, 0], function=model, dimension="t")
+    expected = {
+        'loadcollection1': {
+            'process_id': 'load_collection',
+            'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
+        },
+        'predictcurve1': {
+            'process_id': 'predict_curve',
+            'arguments': {
+                'data': {'from_node': 'loadcollection1'},
+                'parameters': [0, 0],
+                'function': {
+                    'process_graph': {
+                        'arrayelement1': {
+                            'process_id': 'array_element',
+                            'arguments': {'data': {'from_parameter': 'parameters'}, 'index': 0},
+                        },
+                        'arrayelement2': {
+                            'process_id': 'array_element',
+                            'arguments': {'data': {'from_parameter': 'parameters'}, 'index': 1},
+                        },
+                        'multiply1': {
+                            'process_id': 'multiply',
+                            'arguments': {'x': {'from_node': 'arrayelement2'}, 'y': {'from_parameter': 'x'}},
+                        },
+                        'cos1': {
+                            'process_id': 'cos',
+                            'arguments': {'x': {'from_node': "multiply1"}},
+                        },
+                        'multiply2': {
+                            'process_id': 'multiply',
+                            'arguments': {'x': {'from_node': 'arrayelement1'}, 'y': {'from_node': 'cos1'}},
+                            'result': True
+                        },
+                    }
+                },
+                'dimension': 't',
+                'labels': None,
+            },
+            'result': True
+        },
+    }
+    assert res.graph == expected
