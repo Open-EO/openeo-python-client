@@ -12,7 +12,7 @@ For example, with the ``add`` process you can add two numbers, in openEO's JSON 
     }
 
 
-A process is similar to a *function* in common programming languages.
+A process is similar to a *function* in common programming languages,
 and likewise, multiple processes can be combined or chained together
 into new, more complex operations.
 
