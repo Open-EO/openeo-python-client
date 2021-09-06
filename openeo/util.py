@@ -298,6 +298,7 @@ class TimingLogger:
     def __enter__(self):
         self.start_time = self._now()
         self._log("{t}: start {s}".format(t=self.title, s=self.start_time))
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.end_time = self._now()

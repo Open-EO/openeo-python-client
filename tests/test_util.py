@@ -312,6 +312,21 @@ def test_timing_logger_custom():
     ]
 
 
+def test_timing_logger_context_return():
+    logger = _Logger()
+    timing_logger = TimingLogger("Testing", logger=logger)
+    timing_logger._now = _fake_clock([
+        datetime(2019, 12, 12, 10, 10, 10, 0),
+        datetime(2019, 12, 12, 11, 12, 13, 0)
+    ])
+
+    with timing_logger as timer:
+        logger("Hello world")
+
+    assert timing_logger.elapsed.total_seconds() == 3723
+    assert timer.elapsed.total_seconds() == 3723
+
+
 def test_timing_logger_fail():
     logger = _Logger()
     timing_logger = TimingLogger("Testing", logger=logger)
