@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `DataCube.dimension_labels()` (EP-4008)
 - Add `Connection.load_result()` (EP-4008)
 - Add proper support for child callbacks in `fit_curve` and `predict_curve` ([#229](https://github.com/Open-EO/openeo-python-client/issues/229))
+- `ProcessBuilder`: Add support for `array_element(data, n)` through `data[n]` syntax ([#228](https://github.com/Open-EO/openeo-python-client/issues/228))
 
 
 ### Changed

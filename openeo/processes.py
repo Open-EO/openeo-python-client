@@ -4,6 +4,7 @@
 # Used command line arguments:
 #    openeo/internal/processes/generator.py ../openeo-processes/ ../openeo-processes/proposals/ --output openeo/processes.py
 
+import builtins
 from openeo.internal.processes.builder import ProcessBuilderBase, UNSET
 
 
@@ -38,6 +39,12 @@ class ProcessBuilder(ProcessBuilderBase):
 
     def __pow__(self, other) -> 'ProcessBuilder':
         return self.power(other)
+
+    def __getitem__(self, key) -> 'ProcessBuilder':
+        if isinstance(key, builtins.int):
+            return self.array_element(index=key)
+        else:
+            return self.array_element(label=key)
 
     def absolute(self) -> 'ProcessBuilder':
         """

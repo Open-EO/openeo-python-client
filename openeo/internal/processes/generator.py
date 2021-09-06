@@ -107,6 +107,7 @@ def collect_processes(sources: List[Union[Path, str]]) -> List[Process]:
 
 def generate_process_py(processes: List[Process], output=sys.stdout, argv=None):
     oo_src = textwrap.dedent("""
+        import builtins
         from openeo.internal.processes.builder import ProcessBuilderBase, UNSET
         
         
@@ -141,6 +142,12 @@ def generate_process_py(processes: List[Process], output=sys.stdout, argv=None):
 
             def __pow__(self, other) -> 'ProcessBuilder':
                 return self.power(other)
+
+            def __getitem__(self, key) -> 'ProcessBuilder':
+                if isinstance(key, builtins.int):
+                    return self.array_element(index=key)
+                else:
+                    return self.array_element(label=key)
 
     """)
     fun_src = textwrap.dedent("""

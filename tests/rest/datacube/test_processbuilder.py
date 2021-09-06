@@ -275,10 +275,10 @@ def test_apply_dimension_bandmath_lambda(con100):
 
 
 def test_apply_dimension_time_to_bands(con100):
-    from openeo.processes import array_concat,quantiles,sd,mean
+    from openeo.processes import array_concat, quantiles, sd, mean
     im = con100.load_collection("S2")
     res = im.apply_dimension(
-        process=lambda d: array_concat(quantiles(d,[0.25,0.5,0.75]), [sd(d),mean(d)]),
+        process=lambda d: array_concat(quantiles(d, [0.25, 0.5, 0.75]), [sd(d), mean(d)]),
         dimension="t",
         target_dimension="bands"
     )
@@ -382,3 +382,81 @@ def test_merge_cubes_max_lambda(con100):
     im2 = con100.load_collection("MASK")
     res = im1.merge_cubes(other=im2, overlap_resolver=lambda data: data.max())
     assert res.graph == load_json_resource('data/1.0.0/merge_cubes_max.json')
+
+
+def test_getitem_array_element_index(con100):
+    im = con100.load_collection("S2")
+
+    def callback(data: ProcessBuilder):
+        return data[1] + data[2]
+
+    res = im.reduce_dimension(reducer=callback, dimension="bands")
+
+    assert res.flat_graph() == {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
+        },
+        "reducedimension1": {
+            "process_id": "reduce_dimension",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "dimension": "bands",
+                "reducer": {"process_graph": {
+                    "arrayelement1": {
+                        "process_id": "array_element",
+                        "arguments": {"data": {"from_parameter": "data"}, "index": 1},
+                    },
+                    "arrayelement2": {
+                        "process_id": "array_element",
+                        "arguments": {"data": {"from_parameter": "data"}, "index": 2},
+                    },
+                    "add1": {
+                        "process_id": "add",
+                        "arguments": {"x": {"from_node": "arrayelement1"}, "y": {"from_node": "arrayelement2"}},
+                        "result": True
+                    },
+                }}
+            },
+            "result": True
+        }
+    }
+
+
+def test_getitem_array_element_label(con100):
+    im = con100.load_collection("S2")
+
+    def callback(data: ProcessBuilder):
+        return data["red"] + data["green"]
+
+    res = im.reduce_dimension(reducer=callback, dimension="bands")
+
+    assert res.flat_graph() == {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
+        },
+        "reducedimension1": {
+            "process_id": "reduce_dimension",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "dimension": "bands",
+                "reducer": {"process_graph": {
+                    "arrayelement1": {
+                        "process_id": "array_element",
+                        "arguments": {"data": {"from_parameter": "data"}, "label": "red"},
+                    },
+                    "arrayelement2": {
+                        "process_id": "array_element",
+                        "arguments": {"data": {"from_parameter": "data"}, "label": "green"},
+                    },
+                    "add1": {
+                        "process_id": "add",
+                        "arguments": {"x": {"from_node": "arrayelement1"}, "y": {"from_node": "arrayelement2"}},
+                        "result": True
+                    },
+                }}
+            },
+            "result": True
+        }
+    }
