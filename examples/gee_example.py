@@ -26,7 +26,7 @@ print(cap.currency())
 print(cap.list_plans())
 
 datacube = con.load_collection("COPERNICUS/S2",
-                               spatial_extent={"west": 16.138916, "south": 48.138600, "east": 16.524124, "north": 48.320647, "crs": "EPSG:4326"},
+                               spatial_extent={"west": 16.138916, "south": 48.138600, "east": 16.524124, "north": 48.320647},
                                temporal_extent=["2017-01-01T00:00:00Z", "2017-01-31T23:59:59Z"],
                                bands=["B4", "B8"])
 

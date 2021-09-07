@@ -6,7 +6,7 @@ import openeo
 connection = openeo.connect("https://openeo-dev.vito.be").authenticate_basic()
 
 l1c = connection.load_collection("SENTINEL2_L1C_SENTINELHUB",
-            spatial_extent={'west':3.758216409030558,'east':4.087806252,'south':51.291835566,'north':51.3927399,'crs':'EPSG:4326'},
+            spatial_extent={'west':3.758216409030558,'east':4.087806252,'south':51.291835566,'north':51.3927399},
             temporal_extent=["2017-03-07","2017-03-07"],bands=['B09','B8A','B11','sunAzimuthAngles','sunZenithAngles','viewAzimuthMean','viewZenithMean'] )
 
 def test_l1c():
@@ -28,7 +28,7 @@ def test_sentinel2_icor_creo():
 
     l1c = connection.load_collection("SENTINEL2_L1C",
                                      spatial_extent={'west': 3.758216409030558, 'east': 4.087806252,
-                                                     'south': 51.291835566, 'north': 51.3927399, 'crs': 'EPSG:4326'},
+                                                     'south': 51.291835566, 'north': 51.3927399},
                                      temporal_extent=["2017-03-07","2017-03-07"],
                                      bands=[ 'B02','B09','B8A','B11', 'SAA', 'SZA', 'VAA', 'VZA'])
 
@@ -42,7 +42,7 @@ def test_sentinel2_icor_creo():
 def test_sentinel2_sen2cor():
     #create image collection
     rgb = connection.load_collection("SENTINEL2_L2A_SENTINELHUB",
-            spatial_extent={'west':3.758216409030558,'east':4.087806252,'south':51.291835566,'north':51.3927399,'crs':'EPSG:4326'},
+            spatial_extent={'west':3.758216409030558,'east':4.087806252,'south':51.291835566,'north':51.3927399},
             temporal_extent=["2017-03-07","2017-03-07"],bands=['B04','B03','B02'] )
 
     #specify process graph

@@ -75,8 +75,7 @@ you're accustomed to: default values, keyword arguments, ``kwargs`` usage, ...
 For example, to use a bounding box dictionary with ``kwargs``-expansion::
 
     bbox = {
-        "west": 5.05, "south": 51.20, "east": 5.10, "north": 51.23,
-        "crs": "EPSG:4326"
+        "west": 5.05, "south": 51.20, "east": 5.10, "north": 51.23
     }
     cube = cube.filter_bbox(**bbox)
 

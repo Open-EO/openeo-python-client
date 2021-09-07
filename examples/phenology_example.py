@@ -30,7 +30,7 @@ print(collections)
 """
 cloud_mask = session.image("S2_SCENECLASSIFICATION") \
     .filter_temporal("2017-03-01","2017-02-20") \
-    .filter_bbox(west=652000,east=672000,north=5161000,south=5181000,crs="EPSG:32632") \
+    .filter_bbox(west=652000,east=672000,north=5161000,south=5181000,crs=32632) \
     .apply_pixel(map_classification_to_binary)
 """
 
@@ -62,7 +62,7 @@ minx,miny,maxx,maxy = polygon.bounds
 #https://en.wikipedia.org/wiki/Enhanced_vegetation_index
 s2_radiometry = session.load_collection("TERRASCOPE_S2_TOC_V2") \
                     .filter_temporal("2017-01-01","2017-10-01") #\
-                   # .filter_bbox(west=minx,east=maxx,north=maxy,south=miny,crs="EPSG:4326")
+                   # .filter_bbox(west=minx,east=maxx,north=maxy,south=miny,crs=4326)
 
 B02 = s2_radiometry.band('B04')
 B04 = s2_radiometry.band('B04')

@@ -23,7 +23,7 @@ s2a_prd_msil1c = session.image("s2a_prd_msil1c")
 logging.debug(s2a_prd_msil1c.to_json(indent=None))
 
 timeseries = s2a_prd_msil1c.filter_bbox(west=652000, east=672000, north=5161000,
-                                              south=5181000, crs="EPSG:32632")
+                                              south=5181000, crs=32632)
 logging.debug(timeseries.to_json(indent=None))
 
 timeseries = timeseries.filter_temporal("2017-01-01", "2017-01-08")

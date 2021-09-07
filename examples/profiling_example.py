@@ -19,7 +19,7 @@ if __name__ == '__main__':
     # creating a simple process that computes NDVI using python UDF 
     data=eoconn.load_collection("TERRASCOPE_S2_TOC_V2")\
         .filter_temporal('2020-09-09','2020-09-10')\
-        .filter_bbox(crs="EPSG:4326", **dict(zip(
+        .filter_bbox(**dict(zip(
             ["west", "south", "east", "north"],
             [5.047760653506093, 51.21384099522948, 5.062440732032759, 51.22255852538937]
         )))\

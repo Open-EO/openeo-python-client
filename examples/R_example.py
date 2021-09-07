@@ -39,7 +39,7 @@ con = openeo.connect(GEE_DRIVER_URL, auth_type=BearerAuth, auth_options={"userna
 processes = con.get_processes()
 pg = processes.get_collection(name="sentinel2_subset")
 print(pg.to_json())
-pg = processes.filter_bbox(pg, west=16.138916, south=-19, east=16.524124, north=-18.9825) #crs="EPSG:4326")
+pg = processes.filter_bbox(pg, west=16.138916, south=-19, east=16.524124, north=-18.9825)
 print(pg.to_json())
 pg = processes.filter_daterange(pg, extent=["2017-01-01T00:00:00Z", "2017-01-31T23:59:59Z"])
 print(pg.to_json())

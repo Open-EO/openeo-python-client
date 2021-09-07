@@ -5,7 +5,7 @@ import openeo
 from skimage.morphology import selem
 
 connection = openeo.connect("https://openeo-dev.vito.be")
-bbox = {"west": 4.996033, "south": 51.258922, "east": 5.091603, "north": 51.282696, "crs": "EPSG:4326"}
+bbox = {"west": 4.996033, "south": 51.258922, "east": 5.091603, "north": 51.282696}
 connection.authenticate_basic()
 
 

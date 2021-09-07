@@ -6,8 +6,7 @@ con = openeo.connect("https://earthengine.openeo.org/v1.0")
 con.authenticate_basic()
 
 datacube = con.load_collection("COPERNICUS/S1_GRD",
-                               spatial_extent={"west": 16.06, "south": 48.1, "east": 16.65,
-                                               "north": 48.31, "crs": "EPSG:4326"},
+                               spatial_extent={"west": 16.06, "south": 48.1, "east": 16.65, "north": 48.31},
                                temporal_extent=["2017-03-01", "2017-04-01"],
                                bands=["VV", "VH"])
 
