@@ -57,7 +57,7 @@ available for the algorithm.
 This is an example of applying iCor::
 
     l1c = connection.load_collection("SENTINEL2_L1C_SENTINELHUB",
-            spatial_extent={'west':3.758216409030558,'east':4.087806252,'south':51.291835566,'north':51.3927399,'crs':'EPSG:4326'},
+            spatial_extent={'west':3.758216409030558,'east':4.087806252,'south':51.291835566,'north':51.3927399},
             temporal_extent=["2017-03-07","2017-03-07"],bands=['B04','B03','B02','B09','B8A','B11','sunAzimuthAngles','sunZenithAngles','viewAzimuthMean','viewZenithMean'] )
     l1c.atmospheric_correction(method="iCor").download("rgb-icor.geotiff",format="GTiff")
 
@@ -97,7 +97,7 @@ CARD4L compliant processing options.
 This is an example of :func:`~openeo.rest.datacube.DataCube.ard_normalized_radar_backscatter`::
 
     s1grd = (connection.load_collection('SENTINEL1_GRD', bands=['VH', 'VV'])
-     .filter_bbox(west=2.59003, east=2.8949, north=51.2206, south=51.069, crs="EPSG:4326")
+     .filter_bbox(west=2.59003, east=2.8949, north=51.2206, south=51.069)
      .filter_temporal(extent=["2019-10-10","2019-10-10"]))
 
     job = s1grd.ard_normalized_radar_backscatter().execute_batch()

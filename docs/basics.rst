@@ -31,7 +31,7 @@ The back-end used here has a Sentinel-2 collection: TERRASCOPE_S2_TOC_V2::
 
     sentinel2_data_cube = connection.load_collection(
         "TERRASCOPE_S2_TOC_V2",
-        spatial_extent={"west": 5.1518, "east": 5.1533, "south": 51.1819, "north": 51.1846, "crs": 4326},
+        spatial_extent={"west": 5.1518, "east": 5.1533, "south": 51.1819, "north": 51.1846},
         temporal_extent=["2016-01-01", "2016-03-10"],
         bands=["TOC-B02_10M", "TOC-B04_10M", "TOC-B08_10M"]
     )
@@ -131,7 +131,7 @@ pixels to 0 and all other pixels to 1 using a simple comparison::
     s2_sceneclassification = (
         connection.load_collection("TERRASCOPE_S2_TOC_V2", bands=["SCENECLASSIFICATION_20M"])
         .filter_temporal(extent=["2016-01-01", "2016-03-10"])
-        .filter_bbox(west=5.1518, east=5.1533,south=51.1819,north=51.1846, crs=4326)
+        .filter_bbox(west=5.1518, east=5.1533,south=51.1819,north=51.1846)
         .band("SCENECLASSIFICATION_20M")
     )
 

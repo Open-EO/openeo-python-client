@@ -17,8 +17,7 @@
         "west": 3,
         "east": 6,
         "north": 52,
-        "south": 50,
-        "crs": "EPSG:4326"
+        "south": 50
       }
     }
   },

@@ -13,8 +13,7 @@ minx = 10.44662475585937
 maxx = 10.62927246093749
 maxy = 46.84516443029275
 miny = 46.72574176193996
-epsg = "EPSG:4326"
-spatial_extent = {'west':minx,'east':maxx,'north':maxy,'south':miny,'crs':epsg}
+spatial_extent = {'west':minx,'east':maxx,'north':maxy,'south':miny}
 temporal_extent=["2018-05-01T00:00:00.000Z","2018-10-01T00:00:00.000Z"]
 
 # To find the band names in GRASS GIS: `g.bands pattern="S2"`

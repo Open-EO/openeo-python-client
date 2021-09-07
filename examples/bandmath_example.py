@@ -13,8 +13,7 @@ sentinel2_data_cube = sentinel2_data_cube.filter_bbox(
     west=5.15183687210083,
     east=5.153381824493408,
     south=51.18192559252128,
-    north=51.18469636040683,
-    crs="EPSG:4326"
+    north=51.18469636040683
 )
 
 B02 = sentinel2_data_cube.band('B02')

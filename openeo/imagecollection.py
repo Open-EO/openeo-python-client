@@ -92,8 +92,10 @@ class ImageCollection(ABC):
         # Subclasses are expected to implement this method, but for bit of backwards compatibility
         # with old style subclasses we forward to `bbox_filter`
         # TODO: replace this with raise NotImplementedError() or decorate with @abstractmethod
-        kwargs = dict(west=west, east=east, north=north, south=south, crs=crs)
-        if base or height:
+        kwargs = dict(west=west, east=east, north=north, south=south)
+        if crs is not None:
+            kwargs.update(crs=crs)
+        if base is not None or height is not None:
             kwargs.update(base=base, height=height)
         return self.bbox_filter(**kwargs)
 

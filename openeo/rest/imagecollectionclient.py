@@ -122,9 +122,10 @@ class ImageCollectionClient(ImageCollection):
 
     def filter_bbox(self, west, east, north, south, crs=None, base=None, height=None) -> 'ImageCollection':
         extent = {
-            'west': west, 'east': east, 'north': north, 'south': south,
-            'crs': crs,
+            'west': west, 'east': east, 'north': north, 'south': south
         }
+        if crs is not None:
+            extent.update(crs=crs)
         if base is not None or height is not None:
             extent.update(base=base, height=height)
         return self.graph_add_process(

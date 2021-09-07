@@ -62,7 +62,7 @@ def execute(
     bands = bands.split()
     temporal_extent = temporal_extent.split("/")
     west, south, east, north = list(map(lambda value: value.strip(), bbox_string.split(",")))
-    bbox = {"west": west, "east": east, "south": south, "north": north, "crs": "EPSG:4326"}
+    bbox = {"west": west, "east": east, "south": south, "north": north}
     logger.info("Demo user: %s", user)
     logger.info("Provider: %s with driver URL %s", provider, driver_url)
     logger.info("Image Collection: %s", image_collection)

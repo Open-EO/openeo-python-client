@@ -221,58 +221,58 @@ def test_pipe_with_args(s2cube):
 
 def test_filter_bbox(s2cube):
     im = s2cube.filter_bbox(
-        west=652000, east=672000, north=5161000, south=5181000, crs="EPSG:32632"
+        west=652000, east=672000, north=5161000, south=5181000, crs=32632
     )
     graph = _get_leaf_node(im)
     assert graph["process_id"] == "filter_bbox"
     assert graph["arguments"]["extent"] == {
-        "west": 652000, "east": 672000, "north": 5161000, "south": 5181000, "crs": "EPSG:32632"
+        "west": 652000, "east": 672000, "north": 5161000, "south": 5181000, "crs": 32632
     }
 
 
 def test_filter_bbox_base_height(s2cube):
     im = s2cube.filter_bbox(
-        west=652000, east=672000, north=5161000, south=5181000, crs="EPSG:32632",
+        west=652000, east=672000, north=5161000, south=5181000, crs=32632,
         base=100, height=200,
     )
     graph = _get_leaf_node(im)
     assert graph["process_id"] == "filter_bbox"
     assert graph["arguments"]["extent"] == {
-        "west": 652000, "east": 672000, "north": 5161000, "south": 5181000, "crs": "EPSG:32632",
+        "west": 652000, "east": 672000, "north": 5161000, "south": 5181000, "crs": 32632,
         "base": 100, "height": 200,
     }
 
 
 def test_bbox_filter_nsew(s2cube):
     im = s2cube.bbox_filter(
-        west=652000, east=672000, north=5161000, south=5181000, crs="EPSG:32632"
+        west=652000, east=672000, north=5161000, south=5181000, crs=32632
     )
     graph = _get_leaf_node(im)
     assert graph["process_id"] == "filter_bbox"
     assert graph["arguments"]["extent"] == {
-        "west": 652000, "east": 672000, "north": 5161000, "south": 5181000, "crs": "EPSG:32632"
+        "west": 652000, "east": 672000, "north": 5161000, "south": 5181000, "crs": 32632
     }
 
 
 def test_bbox_filter_tblr(s2cube):
     im = s2cube.bbox_filter(
-        left=652000, right=672000, top=5161000, bottom=5181000, srs="EPSG:32632"
+        left=652000, right=672000, top=5161000, bottom=5181000, srs=32632
     )
     graph = _get_leaf_node(im)
     assert graph["process_id"] == "filter_bbox"
     assert graph["arguments"]["extent"] == {
-        "west": 652000, "east": 672000, "north": 5161000, "south": 5181000, "crs": "EPSG:32632"
+        "west": 652000, "east": 672000, "north": 5161000, "south": 5181000, "crs": 32632
     }
 
 
 def test_bbox_filter_nsew_zero(s2cube):
     im = s2cube.bbox_filter(
-        west=0, east=0, north=0, south=0, crs="EPSG:32632"
+        west=0, east=0, north=0, south=0, crs=32632
     )
     graph = _get_leaf_node(im)
     assert graph["process_id"] == "filter_bbox"
     assert graph["arguments"]["extent"] == {
-        "west": 0, "east": 0, "north": 0, "south": 0, "crs": "EPSG:32632"
+        "west": 0, "east": 0, "north": 0, "south": 0, "crs": 32632
     }
 
 
@@ -386,7 +386,7 @@ def test_apply_absolute_str(s2cube, api_version):
 
 def test_subtract_dates_ep3129(s2cube, api_version):
     """EP-3129: band math between cubes of different time stamps is not supported (yet?)"""
-    bbox = {"west": 5.16, "south": 51.23, "east": 5.18, "north": 51.25, "crs": "EPSG:4326"}
+    bbox = {"west": 5.16, "south": 51.23, "east": 5.18, "north": 51.25}
     date1 = "2018-08-01"
     date2 = "2019-10-28"
     im1 = s2cube.filter_temporal(date1, date1).filter_bbox(**bbox).band('B04')

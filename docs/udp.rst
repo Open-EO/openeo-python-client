@@ -241,7 +241,7 @@ and a parameterized spatial extent (with default)::
     spatial_extent = Parameter(
         name="bbox",
         schema="object",
-        default={"west": 3.7, "south": 51.03, "east": 3.75, "north": 51.05, "crs": "EPSG:4326"}
+        default={"west": 3.7, "south": 51.03, "east": 3.75, "north": 51.05}
     )
 
     cube = connection.load_collection(

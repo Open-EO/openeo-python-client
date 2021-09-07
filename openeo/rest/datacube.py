@@ -293,7 +293,7 @@ class DataCube(ImageCollection, _FromNodeMixin):
 
             - With keyword arguments::
 
-                >>> cube.filter_bbox(west=3, south=51, east=4, north=52, crs=4326)
+                >>> cube.filter_bbox(west=3, south=51, east=4, north=52)
 
             - With a (west, south, east, north) list or tuple::
 
@@ -302,7 +302,7 @@ class DataCube(ImageCollection, _FromNodeMixin):
 
             - With a bbox dictionary::
 
-                >>> bbox = {"west": 3, "south": 51, "east": 4, "north": 52, "crs": 4326}
+                >>> bbox = {"west": 3, "south": 51, "east": 4, "north": 52}
                 >>> cube.filter_bbox(bbox)
                 >>> cube.filter_bbox(bbox=bbox)
                 >>> cube.filter_bbox(**bbox)
@@ -317,6 +317,10 @@ class DataCube(ImageCollection, _FromNodeMixin):
                 >>> bbox_param = Parameter(name="my_bbox", schema="object")
                 >>> cube.filter_bbox(bbox_param)
                 >>> cube.filter_bbox(bbox=bbox_param)
+            
+            - With a CRS other than EPSG 4326::
+
+                >>> cube.filter_bbox(west=652000, east=672000, north=5161000, south=5181000, crs=32632)
 
             - Deprecated: positional arguments are also supported,
               but follow a non-standard order for legacy reasons::
@@ -361,7 +365,7 @@ class DataCube(ImageCollection, _FromNodeMixin):
                     raise ValueError(bbox)
 
             extent = {'west': west, 'east': east, 'north': north, 'south': south}
-            if crs:
+            if crs is not None:
                 extent["crs"] = crs
             if base is not None or height is not None:
                 extent.update(base=base, height=height)
