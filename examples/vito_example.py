@@ -30,6 +30,7 @@ print(cap.list_plans())
 
 datacube = con.load_collection("CGLS_LAI300_V1_GLOBAL")
 datacube = datacube.filter_bbox(west=16.138916, south=48.138600, east=16.524124, north=48.320647)
+datacube = datacube.filter_bbox(west=16.138916, south=48.138600, east=16.524124, north=48.320647, crs=4326)
 datacube = datacube.filter_daterange(extent=["2016-01-01T00:00:00Z", "2016-03-10T23:59:59Z"])
 datacube = datacube.max_time()
 print(datacube.to_json())

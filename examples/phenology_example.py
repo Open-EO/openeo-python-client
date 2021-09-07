@@ -62,7 +62,7 @@ minx,miny,maxx,maxy = polygon.bounds
 #https://en.wikipedia.org/wiki/Enhanced_vegetation_index
 s2_radiometry = session.load_collection("TERRASCOPE_S2_TOC_V2") \
                     .filter_temporal("2017-01-01","2017-10-01") #\
-                   # .filter_bbox(west=minx,east=maxx,north=maxy,south=miny)
+                   # .filter_bbox(west=minx,east=maxx,north=maxy,south=miny,crs=4326)
 
 B02 = s2_radiometry.band('B04')
 B04 = s2_radiometry.band('B04')
