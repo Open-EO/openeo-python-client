@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add command line tool `openeo-auth token-clear` to remove OIDC refresh token cache
+
 ### Changed
 
 ### Removed

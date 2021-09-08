@@ -476,7 +476,7 @@ the current configuration and stored refresh tokens, e.g.::
             "date": "2020-07-24T13:40:50Z"
     ...
 
-The sensible information (like passwords) are redacted by default.
+The sensitive information (like passwords) are redacted by default.
 
 
 

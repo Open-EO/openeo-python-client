@@ -102,6 +102,11 @@ class PrivateJsonFile:
         deep_set(data, *keys, value=value)
         self._write(data)
 
+    def remove(self):
+        if self._path.exists():
+            log.debug(f"Removing {self._path}")
+            self._path.unlink()
+
 
 class AuthConfig(PrivateJsonFile):
     DEFAULT_FILENAME = "auth-config.json"

@@ -59,6 +59,42 @@ def test_config_dump_show_secrets(capsys, auth_config):
     assert "<redacted>" not in out
 
 
+def test_token_clear_no_file(capsys, refresh_token_store):
+    assert not refresh_token_store.path.exists()
+    cli.main(["token-clear"])
+    out = capsys.readouterr().out
+    assert "No refresh token file at" in out
+
+
+def test_token_clear_no(capsys, refresh_token_store):
+    refresh_token_store.set_refresh_token(issuer="i", client_id="c", refresh_token="r")
+    assert refresh_token_store.path.exists()
+    with mock_input("no"):
+        cli.main(["token-clear"])
+    out = capsys.readouterr().out
+    assert "Keeping refresh token file" in out
+    assert refresh_token_store.path.exists()
+
+
+def test_token_clear_yes(capsys, refresh_token_store):
+    refresh_token_store.set_refresh_token(issuer="i", client_id="c", refresh_token="r")
+    assert refresh_token_store.path.exists()
+    with mock_input("yes"):
+        cli.main(["token-clear"])
+    out = capsys.readouterr().out
+    assert "Removed refresh token file" in out
+    assert not refresh_token_store.path.exists()
+
+
+def test_token_clear_force(capsys, refresh_token_store):
+    refresh_token_store.set_refresh_token(issuer="i", client_id="c", refresh_token="r")
+    assert refresh_token_store.path.exists()
+    cli.main(["token-clear", "--force"])
+    out = capsys.readouterr().out
+    assert "Removed refresh token file" in out
+    assert not refresh_token_store.path.exists()
+
+
 def test_add_basic_auth(auth_config):
     with mock_secret_input("p455w0r6"):
         cli.main(["add-basic", "https://oeo.test", "--username", "user49", "--no-try"])

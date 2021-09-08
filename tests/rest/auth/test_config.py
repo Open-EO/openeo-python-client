@@ -52,6 +52,19 @@ class TestPrivateJsonFile:
             data = json.load(f)
         assert data == {"foo": {"bar": 42}}
 
+    def test_remove_no_file(self, tmp_path):
+        private = PrivateJsonFile(tmp_path)
+        assert not private.path.exists()
+        # Don't complain/fail if it doesn't exist
+        private.remove()
+
+    def test_remove(self, tmp_path):
+        private = PrivateJsonFile(tmp_path)
+        private.set("foo", "bar", value=42)
+        assert private.path.exists()
+        private.remove()
+        assert not private.path.exists()
+
 
 class TestAuthConfig:
 

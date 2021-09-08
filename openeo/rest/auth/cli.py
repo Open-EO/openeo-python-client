@@ -56,6 +56,13 @@ def main(argv=None):
     token_dump_parser.set_defaults(func=main_token_dump)
     token_dump_parser.add_argument("--show-secrets", action="store_true", help="Don't redact secrets in the dump.")
 
+    # Command: token-clear
+    token_clear_parser = root_subparsers.add_parser(
+        "token-clear", help="Remove OpenID Connect refresh tokens file."
+    )
+    token_clear_parser.set_defaults(func=main_token_clear)
+    token_clear_parser.add_argument("--force", "-f", action="store_true", help="Remove without asking confirmation.")
+
     # Command: add-basic
     add_basic_parser = root_subparsers.add_parser(
         "add-basic", help="Add or update config entry for basic auth."
@@ -161,6 +168,24 @@ def main_token_dump(args):
         _redact(data, keys_to_redact=["client_secret", "password", "refresh_token"])
     json.dump(data, fp=sys.stdout, indent=2)
     print()
+
+
+def main_token_clear(args):
+    """
+    Remove refresh token file
+    """
+    tokens = RefreshTokenStore()
+    path = tokens.path
+    if path.exists():
+        if not args.force:
+            answer = builtins.input(f"Remove refresh token file {path}? 'y' or 'n': ")
+            if answer.lower()[:1] != "y":
+                print("Keeping refresh token file.")
+                return
+        tokens.remove()
+        print(f"Removed refresh token file {path}.")
+    else:
+        print(f"No refresh token file at {path}.")
 
 
 def main_add_basic(args):
