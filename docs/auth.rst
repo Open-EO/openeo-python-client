@@ -550,3 +550,32 @@ For example::
     The OpenID Connect authorization code flow was successful.
     Stored refresh token in '/home/john/.local/share/openeo-python-client/refresh-tokens.json'
 
+
+Troubleshooting tips
+====================
+
+Clear the refresh token file
+----------------------------
+
+When you have authentication or permission issues and you suspect
+that your (locally cached) refresh tokens are the culprit:
+remove your refresh token file in one of the following ways:
+
+-   Locate the file with the ``openeo-auth`` command line tool::
+
+        $ openeo-auth paths
+        ...
+        openEO OpenID Connect refresh token store: /home/john/.local/share/openeo-python-client/refresh-tokens.json (perms: 0o600, size: 846B)
+
+    and remove it.
+    Or, if you know what you are doing: remove the desired section from this JSON file.
+
+-   Remove it directly with the ``token-clear`` subcommand of the ``openeo-auth`` command line tool::
+
+        $ openeo-auth token-clear
+
+-   Remove it with this Python snippet::
+
+        from openeo.rest.auth.config import RefreshTokenStore
+        RefreshTokenStore().remove()
+
