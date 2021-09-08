@@ -248,6 +248,7 @@ class OidcProviderInfo:
         # Minimal set of scopes to request
         self._supported_scopes = self.config.get("scopes_supported", ["openid"])
         self._scopes = {"openid"}.union(scopes or []).intersection(self._supported_scopes)
+        log.debug(f"Scopes: provider supported {self._supported_scopes} & backend desired {scopes} -> {self._scopes}")
         self.default_clients = default_clients
 
     @classmethod
