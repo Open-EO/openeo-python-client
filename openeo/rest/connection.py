@@ -26,7 +26,7 @@ from openeo.rest.auth.auth import NullAuth, BearerAuth
 from openeo.rest.auth.config import RefreshTokenStore, AuthConfig
 from openeo.rest.auth.oidc import OidcClientCredentialsAuthenticator, OidcAuthCodePkceAuthenticator, \
     OidcClientInfo, OidcAuthenticator, OidcRefreshTokenAuthenticator, OidcResourceOwnerPasswordAuthenticator, \
-    OidcDeviceAuthenticator, OidcProviderInfo, OidcException, DefaultOidcClientGrant
+    OidcDeviceAuthenticator, OidcProviderInfo, OidcException, DefaultOidcClientGrant, GrantsChecker
 from openeo.rest.datacube import DataCube
 from openeo.rest.imagecollectionclient import ImageCollectionClient
 from openeo.rest.job import RESTJob
@@ -338,7 +338,7 @@ class Connection(RestApiConnection):
     def _get_oidc_provider_and_client_info(
             self, provider_id: str,
             client_id: Union[str, None], client_secret: Union[str, None],
-            default_client_grant_types: Union[None, List[DefaultOidcClientGrant]] = None
+            default_client_grant_check: Union[None, GrantsChecker] = None
     ) -> Tuple[str, OidcClientInfo]:
         """
         Resolve provider_id and client info (as given or from config)
@@ -357,10 +357,10 @@ class Connection(RestApiConnection):
             )
             if client_id:
                 _log.info("Using client_id {c!r} from config (provider {p!r})".format(c=client_id, p=provider_id))
-        if client_id is None and default_client_grant_types:
+        if client_id is None and default_client_grant_check:
             # Try "default_client" from backend's provider info.
             _log.debug("No client_id given: checking default client in backend's provider info")
-            client_id = provider.get_default_client_id(grant_types=default_client_grant_types)
+            client_id = provider.get_default_client_id(grant_check=default_client_grant_check)
             if client_id:
                 _log.info("Using default client_id {c!r} from OIDC provider {p!r} info.".format(
                     c=client_id, p=provider_id
@@ -414,7 +414,7 @@ class Connection(RestApiConnection):
         """
         provider_id, client_info = self._get_oidc_provider_and_client_info(
             provider_id=provider_id, client_id=client_id, client_secret=client_secret,
-            default_client_grant_types=[DefaultOidcClientGrant.AUTH_CODE_PKCE],
+            default_client_grant_check=[DefaultOidcClientGrant.AUTH_CODE_PKCE],
         )
         authenticator = OidcAuthCodePkceAuthenticator(
             client_info=client_info,
@@ -466,7 +466,7 @@ class Connection(RestApiConnection):
         """
         provider_id, client_info = self._get_oidc_provider_and_client_info(
             provider_id=provider_id, client_id=client_id, client_secret=client_secret,
-            default_client_grant_types=[DefaultOidcClientGrant.REFRESH_TOKEN],
+            default_client_grant_check=[DefaultOidcClientGrant.REFRESH_TOKEN],
         )
 
         if refresh_token is None:
@@ -495,9 +495,10 @@ class Connection(RestApiConnection):
 
         .. versionchanged:: 0.5.1 Add :py:obj:`use_pkce` argument
         """
+        _g = DefaultOidcClientGrant  # alias for compactness
         provider_id, client_info = self._get_oidc_provider_and_client_info(
             provider_id=provider_id, client_id=client_id, client_secret=client_secret,
-            default_client_grant_types=[DefaultOidcClientGrant.DEVICE_CODE_PKCE],
+            default_client_grant_check=(lambda grants: _g.DEVICE_CODE in grants or _g.DEVICE_CODE_PKCE in grants),
         )
         authenticator = OidcDeviceAuthenticator(client_info=client_info, use_pkce=use_pkce, **kwargs)
         return self._authenticate_oidc(authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token)
@@ -506,16 +507,20 @@ class Connection(RestApiConnection):
             self,
             provider_id: str = None,
             client_id: Union[str, None] = None, client_secret: Union[str, None] = None,
-            store_refresh_token: bool = True
+            store_refresh_token: bool = True,
+            use_pkce: Union[bool, None] = None,
     ):
         """
         Do OpenID Connect authentication, first trying refresh tokens and falling back on device code flow.
 
         .. versionadded:: 0.6.0
         """
+        _g = DefaultOidcClientGrant  # alias for compactness
         provider_id, client_info = self._get_oidc_provider_and_client_info(
             provider_id=provider_id, client_id=client_id, client_secret=client_secret,
-            default_client_grant_types=[DefaultOidcClientGrant.DEVICE_CODE_PKCE, DefaultOidcClientGrant.REFRESH_TOKEN]
+            default_client_grant_check=lambda grants: (
+                    _g.REFRESH_TOKEN in grants and (_g.DEVICE_CODE in grants or _g.DEVICE_CODE_PKCE in grants)
+            )
         )
 
         # Try refresh token first.
@@ -539,7 +544,7 @@ class Connection(RestApiConnection):
         # Fall back on device code flow
         # TODO: make it possible to do other fallback flows too?
         _log.info("Trying device code flow.")
-        authenticator = OidcDeviceAuthenticator(client_info=client_info)
+        authenticator = OidcDeviceAuthenticator(client_info=client_info, use_pkce=use_pkce)
         con = self._authenticate_oidc(authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token)
         print("Authenticated using device code flow.")
         return con
