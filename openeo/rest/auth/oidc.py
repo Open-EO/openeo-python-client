@@ -222,9 +222,16 @@ class DefaultOidcClientGrant(enum.Enum):
     Enum with possible values for "grant_types" field of default OIDC clients provided by backend.
     """
     IMPLICIT = "implicit"
+    AUTH_CODE = "authorization_code"
     AUTH_CODE_PKCE = "authorization_code+pkce"
+    DEVICE_CODE = "urn:ietf:params:oauth:grant-type:device_code"
     DEVICE_CODE_PKCE = "urn:ietf:params:oauth:grant-type:device_code+pkce"
     REFRESH_TOKEN = "refresh_token"
+
+
+# Type hint for function that checks if given list of OIDC grant types (DefaultOidcClientGrant enum values)
+# fulfills a criterion.
+GrantsChecker = Union[List[DefaultOidcClientGrant], Callable[[List[DefaultOidcClientGrant]], bool]]
 
 
 class OidcProviderInfo:
@@ -274,12 +281,28 @@ class OidcProviderInfo:
         log.debug("Using scopes: {s}".format(s=scopes))
         return " ".join(sorted(scopes))
 
-    def get_default_client_id(self, grant_types: List[DefaultOidcClientGrant]) -> Union[str, None]:
-        """Get first default client supporting the given grant types"""
+    def get_default_client_id(self, grant_check: GrantsChecker) -> Union[str, None]:
+        """
+        Get first default client that supports (as stated by provider's `grant_types`)
+        the desired grant types (as implemented by `grant_check`)
+        """
+        if isinstance(grant_check, list):
+            # Simple `grant_check` mode: just provide list of grants that all must be supported.
+            desired_grants = grant_check
+            grant_check = lambda grants: all(g in grants for g in desired_grants)
+
+        def normalize_grants(grants: List[str]):
+            for grant in grants:
+                try:
+                    yield DefaultOidcClientGrant(grant)
+                except ValueError:
+                    log.warning(f"Invalid OIDC grant type {grant!r}.")
+
         for client in self.default_clients or []:
             client_id = client.get("id")
             supported_grants = client.get("grant_types")
-            if client_id and supported_grants and all(g.value in supported_grants for g in grant_types):
+            supported_grants = list(normalize_grants(supported_grants))
+            if client_id and supported_grants and grant_check(supported_grants):
                 return client_id
 
 
@@ -295,6 +318,13 @@ class OidcClientInfo:
         # TODO: also info client type (desktop app, web app, SPA, ...)?
 
     # TODO: load from config file
+
+    def guess_device_flow_pkce_support(self):
+        """Best effort guess if PKCE should be used for device auth grant"""
+        # Check if this client is also defined as default client with device_code+pkce
+        default_clients = [c for c in self.provider.default_clients or [] if c["id"] == self.client_id]
+        grant_types = set(g for c in default_clients for g in c.get("grant_types", []))
+        return any("device_code+pkce" in g for g in grant_types)
 
 
 class OidcAuthenticator:
@@ -614,13 +644,10 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
         # Allow to specify/override device code URL for cases when it is not available in OIDC discovery doc.
         self._device_code_url = device_code_url or self._provider_config.get("device_authorization_endpoint")
         if not self._device_code_url:
-            raise OidcException("No support for device code flow")
+            raise OidcException("No support for device authorization grant")
         self._max_poll_time = max_poll_time
         if use_pkce is None:
-            # TODO: better auto-detection if PKCE should/can be used, e.g.:
-            #       does OIDC provider supports device flow + PKCE? Get this from `OidcProviderInfo`?
-            #       (also see https://github.com/Open-EO/openeo-api/pull/366)
-            use_pkce = client_info.client_secret is None
+            use_pkce = client_info.client_secret is None and client_info.guess_device_flow_pkce_support()
         self._pkce = PkceCode() if use_pkce else None
 
     def _get_verification_info(self, request_refresh_token: bool = False) -> VerificationInfo:
