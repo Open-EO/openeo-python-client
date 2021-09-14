@@ -843,6 +843,20 @@ class Connection(RestApiConnection):
 
     imagecollection = legacy_alias(load_collection, name="imagecollection")
 
+    def load_result(self, id: str) -> DataCube:
+        """
+        Loads batch job results by job id from the server-side user workspace.
+        The job must have been stored by the authenticated user on the back-end currently connected to.
+
+        :param id: The id of a batch job with results.
+        :return: a :py:class:`DataCube`
+        """
+        # TODO: add check that back-end supports `load_result` process?
+        if self._api_version.below("1.0.0"):
+            raise OpenEoClientException(
+                "This method requires support for at least version 1.0.0 in the openEO backend.")
+        return self.datacube_from_process(process_id="load_result", id=id)
+
     def create_service(self, graph: dict, type: str, **kwargs) -> Service:
         # TODO: type hint for graph: is it a nested or a flat one?
         req = self._build_request_with_process_graph(process_graph=graph, type=type, **kwargs)

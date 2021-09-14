@@ -12,7 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add command line tool `openeo-auth token-clear` to remove OIDC refresh token cache
 - Add support for OIDC device authorization grant without PKCE nor client secret,
   ([#225](https://github.com/Open-EO/openeo-python-client/issues/225), [openeo-api#410](https://github.com/Open-EO/openeo-api/issues/410))
-- Add `DataCube.dimension_labels` (EP-4008)
+- Add `DataCube.dimension_labels()` (EP-4008)
+- Add `Connection.load_result()` (EP-4008)
 
 
 ### Changed

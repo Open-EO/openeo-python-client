@@ -1324,6 +1324,15 @@ def test_load_collection_arguments_100(requests_mock):
     }
 
 
+def test_load_result(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    con = Connection(API_URL)
+    cube = con.load_result("j0bi6")
+    assert cube.flat_graph() == {
+        "loadresult1": {"process_id": "load_result", "arguments": {"id": "j0bi6"}, "result": True}
+    }
+
+
 def test_list_file_formats(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     conn = Connection(API_URL)
