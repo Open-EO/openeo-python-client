@@ -1149,3 +1149,28 @@ def test_send_nan_json(con100, requests_mock):
     cube = cube.mask(cube > 100, replacement=float("nan"))
     with pytest.raises(requests.exceptions.InvalidJSONError, match="not JSON compliant"):
         cube.execute()
+
+
+def test_dimension_labels(con100):
+    cube = con100.load_collection("S2").dimension_labels("bands")
+    assert cube.flat_graph() == {
+        'loadcollection1': {
+            'process_id': 'load_collection',
+            'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
+        },
+        'dimensionlabels1': {
+            'process_id': 'dimension_labels',
+            'arguments': {'data': {'from_node': 'loadcollection1'}, 'dimension': 'bands'},
+            'result': True
+        },
+    }
+
+
+def test_dimension_labels_invalid(con100):
+    # Validate dimension name by default
+    with pytest.raises(ValueError, match="Invalid dimension name 'unv6lidd'"):
+        con100.load_collection("S2").dimension_labels("unv6lidd")
+
+    # Don't validate when no metadata
+    cube = con100.load_collection("S2", fetch_metadata=False).dimension_labels("unv6lidd")
+    assert cube.flat_graph()["dimensionlabels1"]["arguments"]["dimension"] == "unv6lidd"

@@ -1718,3 +1718,14 @@ class DataCube(ImageCollection, _FromNodeMixin):
             "dimension": dimension,
             "labels": labels
         })
+
+    def dimension_labels(self, dimension: str) -> "DataCube":
+        """
+        Gives all labels for a dimension in the data cube. The labels have the same order as in the data cube.
+
+        :param dimension:The name of the dimension to get the labels for.
+        """
+        dimension_names = self.metadata.dimension_names()
+        if dimension_names and dimension not in dimension_names:
+            raise ValueError(f"Invalid dimension name {dimension!r}, should be one of {dimension_names}")
+        return self.process(process_id="dimension_labels", arguments={"data": THIS, "dimension": dimension})

@@ -816,7 +816,8 @@ class Connection(RestApiConnection):
             spatial_extent: Optional[Dict[str, float]] = None,
             temporal_extent: Optional[List[Union[str, datetime.datetime, datetime.date]]] = None,
             bands: Optional[List[str]] = None,
-            properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None
+            properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
+            fetch_metadata=True,
     ) -> DataCube:
         """
         Load a DataCube by collection id.
@@ -831,7 +832,8 @@ class Connection(RestApiConnection):
         if self._api_version.at_least("1.0.0"):
             return DataCube.load_collection(
                 collection_id=collection_id, connection=self,
-                spatial_extent=spatial_extent, temporal_extent=temporal_extent, bands=bands, properties=properties
+                spatial_extent=spatial_extent, temporal_extent=temporal_extent, bands=bands, properties=properties,
+                fetch_metadata=fetch_metadata,
             )
         else:
             return ImageCollectionClient.load_collection(
