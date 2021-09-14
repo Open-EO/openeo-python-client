@@ -683,7 +683,7 @@ class Connection(RestApiConnection):
     def collection_metadata(self, name) -> CollectionMetadata:
         return CollectionMetadata(metadata=self.describe_collection(name))
 
-    def list_processes(self, namespace:str=None) -> List[dict]:
+    def list_processes(self, namespace: str = None) -> List[dict]:
         # TODO: Maybe format the result dictionary so that the process_id is the key of the dictionary.
         """
         Loads all available processes of the back end.
@@ -692,9 +692,14 @@ class Connection(RestApiConnection):
 
         :return: processes_dict: Dict All available processes of the back end.
         """
-        namespace = "/" + namespace if namespace is not None else ""
-        data = self.get('/processes' + namespace).json()["processes"]
-        return VisualList("processes", data = data, parameters = {'show-graph': True, 'provide-download': False})
+        if namespace is None:
+            processes = self._capabilities_cache.get(
+                key=("processes", "backend"),
+                load=lambda: self.get('/processes', expected_status=200).json()["processes"]
+            )
+        else:
+            processes = self.get('/processes/' + namespace, expected_status=200).json()["processes"]
+        return VisualList("processes", data=processes, parameters={'show-graph': True, 'provide-download': False})
 
     def list_jobs(self) -> List[dict]:
         """

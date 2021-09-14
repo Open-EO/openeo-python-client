@@ -1411,6 +1411,40 @@ def test_list_udf_runtimes_error(requests_mock):
     assert m.call_count == 2
 
 
+def test_list_processes(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    processes = [{"id": "add"}, {"id": "mask"}]
+    m = requests_mock.get(API_URL + "processes", json={"processes": processes})
+    conn = Connection(API_URL)
+    assert conn.list_processes() == processes
+    assert m.call_count == 1
+    # Check caching
+    assert conn.list_processes() == processes
+    assert m.call_count == 1
+
+
+def test_list_processes_error(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    conn = Connection(API_URL)
+    m = requests_mock.get(API_URL + "processes", status_code=204, json={"message": "No content."})
+    with pytest.raises(OpenEoRestError):
+        conn.list_processes()
+    assert m.call_count == 1
+    # Error is not cached
+    with pytest.raises(OpenEoRestError):
+        conn.list_processes()
+    assert m.call_count == 2
+
+
+def test_list_processes_namespace(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    processes = [{"id": "add"}, {"id": "mask"}]
+    m = requests_mock.get(API_URL + "processes/foo", json={"processes": processes})
+    conn = Connection(API_URL)
+    assert conn.list_processes(namespace="foo") == processes
+    assert m.call_count == 1
+
+
 def test_get_job(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     conn = Connection(API_URL)
