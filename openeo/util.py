@@ -515,3 +515,15 @@ def legacy_alias(orig: Callable, name: str, action="always", category=Deprecatio
     if post_process:
         wrapper = post_process(wrapper)
     return wrapper
+
+
+class LazyLoadCache:
+    """Simple cache that allows to (lazy) load on cache miss."""
+
+    def __init__(self):
+        self._cache = {}
+
+    def get(self, key: Union[str, tuple], load: Callable[[], Any]):
+        if key not in self._cache:
+            self._cache[key] = load()
+        return self._cache[key]

@@ -26,7 +26,11 @@ class BandMathException(OperatorException):
     pass
 
 
-class OpenEoApiError(OpenEoClientException):
+class OpenEoRestError(OpenEoClientException):
+    pass
+
+
+class OpenEoApiError(OpenEoRestError):
     """
     Error returned by OpenEO API according to https://open-eo.github.io/openeo-api/errors/
     """

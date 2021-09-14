@@ -10,7 +10,7 @@ import requests.auth
 import requests_mock
 
 from openeo.capabilities import ComparableVersion
-from openeo.rest import OpenEoClientException, OpenEoApiError
+from openeo.rest import OpenEoClientException, OpenEoApiError, OpenEoRestError
 from openeo.rest.auth.auth import NullAuth, BearerAuth
 from openeo.rest.auth.oidc import OidcException
 from openeo.rest.connection import Connection, RestApiConnection, connect, paginate
@@ -1340,8 +1340,75 @@ def test_list_file_formats(requests_mock):
         "input": {"GeoJSON": {"gis_data_type": ["vector"]}},
         "output": {"GTiff": {"gis_data_types": ["raster"]}},
     }
-    requests_mock.get(API_URL + "file_formats", json=file_formats)
+    m = requests_mock.get(API_URL + "file_formats", json=file_formats)
     assert conn.list_file_formats() == file_formats
+    assert m.call_count == 1
+    # Check caching of file formats
+    assert conn.list_file_formats() == file_formats
+    assert m.call_count == 1
+
+
+def test_list_file_formats_error(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    conn = Connection(API_URL)
+    m = requests_mock.get(API_URL + "file_formats", status_code=204, json={"message": "No content."})
+    with pytest.raises(OpenEoRestError):
+        conn.list_file_formats()
+    assert m.call_count == 1
+    # Error is not cached
+    with pytest.raises(OpenEoRestError):
+        conn.list_file_formats()
+    assert m.call_count == 2
+
+
+def test_list_service_types(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    conn = Connection(API_URL)
+    service_types = {"WMS": {"configuration": {}, "process_parameters": []}}
+    m = requests_mock.get(API_URL + "service_types", json=service_types)
+    assert conn.list_service_types() == service_types
+    assert m.call_count == 1
+    # Check caching
+    assert conn.list_service_types() == service_types
+    assert m.call_count == 1
+
+
+def test_list_service_types_error(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    conn = Connection(API_URL)
+    m = requests_mock.get(API_URL + "service_types", status_code=204, json={"message": "No content."})
+    with pytest.raises(OpenEoRestError):
+        conn.list_service_types()
+    assert m.call_count == 1
+    # Error is not cached
+    with pytest.raises(OpenEoRestError):
+        conn.list_service_types()
+    assert m.call_count == 2
+
+
+def test_list_udf_runtimes(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    conn = Connection(API_URL)
+    runtimes = {"Python": {"type": "language", "versions": {"3.7": {}}, "default": "3.7"}}
+    m = requests_mock.get(API_URL + "udf_runtimes", json=runtimes)
+    assert conn.list_udf_runtimes() == runtimes
+    assert m.call_count == 1
+    # Check caching
+    assert conn.list_udf_runtimes() == runtimes
+    assert m.call_count == 1
+
+
+def test_list_udf_runtimes_error(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    conn = Connection(API_URL)
+    m = requests_mock.get(API_URL + "udf_runtimes", status_code=204, json={"message": "No content."})
+    with pytest.raises(OpenEoRestError):
+        conn.list_udf_runtimes()
+    assert m.call_count == 1
+    # Error is not cached
+    with pytest.raises(OpenEoRestError):
+        conn.list_udf_runtimes()
+    assert m.call_count == 2
 
 
 def test_get_job(requests_mock):

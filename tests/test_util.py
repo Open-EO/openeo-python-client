@@ -9,7 +9,8 @@ from typing import List
 import pytest
 
 from openeo.util import first_not_none, get_temporal_extent, TimingLogger, ensure_list, ensure_dir, dict_no_none, \
-    deep_get, DeepKeyError, get_user_config_dir, get_user_data_dir, Rfc3339, rfc3339, deep_set, legacy_alias
+    deep_get, DeepKeyError, get_user_config_dir, get_user_data_dir, Rfc3339, rfc3339, deep_set, legacy_alias, \
+    LazyLoadCache
 
 
 def test_rfc3339_date():
@@ -538,3 +539,19 @@ def test_legacy_alias_staticmethod(recwarn):
     with pytest.warns(DeprecationWarning, match="Call to deprecated static method `do_plus`, use `add` instead."):
         res = Foo().do_plus(2, 3)
     assert res == 5
+
+
+class TestLazyLoadCache:
+    def test_basic(self):
+        cache = LazyLoadCache()
+        assert cache.get("foo", load=lambda: 4) == 4
+
+    def test_load_once(self):
+        # Trick to create a function that returns different results on each call
+        load = iter([2, 3, 5, 8, 13]).__next__
+
+        assert load() == 2
+        assert load() == 3
+        cache = LazyLoadCache()
+        assert cache.get("foo", load) == 5
+        assert cache.get("foo", load) == 5

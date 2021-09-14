@@ -21,7 +21,7 @@ from openeo.internal.graph_building import PGNode, as_flat_graph
 from openeo.internal.jupyter import VisualDict, VisualList
 from openeo.internal.processes.builder import ProcessBuilderBase
 from openeo.metadata import CollectionMetadata
-from openeo.rest import OpenEoClientException, OpenEoApiError
+from openeo.rest import OpenEoClientException, OpenEoApiError, OpenEoRestError
 from openeo.rest.auth.auth import NullAuth, BearerAuth
 from openeo.rest.auth.config import RefreshTokenStore, AuthConfig
 from openeo.rest.auth.oidc import OidcClientCredentialsAuthenticator, OidcAuthCodePkceAuthenticator, \
@@ -33,7 +33,7 @@ from openeo.rest.job import RESTJob
 from openeo.rest.rest_capabilities import RESTCapabilities
 from openeo.rest.service import Service
 from openeo.rest.udp import RESTUserDefinedProcess, Parameter
-from openeo.util import ensure_list, legacy_alias, dict_no_none, rfc3339, load_json_resource
+from openeo.util import ensure_list, legacy_alias, dict_no_none, rfc3339, load_json_resource, LazyLoadCache
 
 _log = logging.getLogger(__name__)
 
@@ -105,7 +105,7 @@ class RestApiConnection:
         if check_error and status >= 400 and status not in expected_status:
             self._raise_api_error(resp)
         if expected_status and status not in expected_status:
-            raise OpenEoClientException("Got status code {s!r} for `{m} {p}` (expected {e!r})".format(
+            raise OpenEoRestError("Got status code {s!r} for `{m} {p}` (expected {e!r})".format(
                 m=method.upper(), p=path, s=status, e=expected_status)
             )
         return resp
@@ -218,7 +218,7 @@ class Connection(RestApiConnection):
             root_url=self.version_discovery(url, session=session),
             auth=auth, session=session, default_timeout=default_timeout
         )
-        self._capabilities_cache = {}
+        self._capabilities_cache = LazyLoadCache()
 
         # Initial API version check.
         if self._api_version.below(self._MINIMUM_API_VERSION):
@@ -579,17 +579,11 @@ class Connection(RestApiConnection):
     def capabilities(self) -> RESTCapabilities:
         """
         Loads all available capabilities.
-
-        :return: data_dict: Dict All available data types
         """
-        if "capabilities" not in self._capabilities_cache:
-            self._capabilities_cache["capabilities"] = RESTCapabilities(
-                self.get('/', expected_status=200).json(),
-                self._orig_url
-            )
-        return self._capabilities_cache["capabilities"]
-
-
+        return self._capabilities_cache.get(
+            "capabilities",
+            load=lambda: RESTCapabilities(data=self.get('/', expected_status=200).json(), url=self._orig_url)
+        )
 
     def list_output_formats(self) -> dict:
         if self._api_version.at_least("1.0.0"):
@@ -603,9 +597,11 @@ class Connection(RestApiConnection):
         """
         Get available input and output formats
         """
-        if "file_formats" not in self._capabilities_cache:
-            self._capabilities_cache["file_formats"] = self.get('/file_formats').json()
-        return VisualDict("file-formats", data = self._capabilities_cache["file_formats"])
+        formats = self._capabilities_cache.get(
+            key="file_formats",
+            load=lambda: self.get('/file_formats', expected_status=200).json()
+        )
+        return VisualDict("file-formats", data=formats)
 
     def list_service_types(self) -> dict:
         """
@@ -613,9 +609,11 @@ class Connection(RestApiConnection):
 
         :return: data_dict: Dict All available service types
         """
-        if "service_types" not in self._capabilities_cache:
-            self._capabilities_cache["service_types"] = self.get('/service_types').json()
-        return VisualDict("service-types", data = self._capabilities_cache["service_types"])
+        types = self._capabilities_cache.get(
+            key="service_types",
+            load=lambda: self.get('/service_types', expected_status=200).json()
+        )
+        return VisualDict("service-types", data=types)
 
     def list_udf_runtimes(self) -> dict:
         """
@@ -623,9 +621,11 @@ class Connection(RestApiConnection):
 
         :return: data_dict: Dict All available UDF runtimes
         """
-        if "udf_runtimes" not in self._capabilities_cache:
-            self._capabilities_cache["udf_runtimes"] = self.get('/udf_runtimes').json()
-        return VisualDict("udf-runtimes", data = self._capabilities_cache["udf_runtimes"])
+        runtimes = self._capabilities_cache.get(
+            key="udf_runtimes",
+            load=lambda: self.get('/udf_runtimes', expected_status=200).json()
+        )
+        return VisualDict("udf-runtimes", data=runtimes)
 
     def list_services(self) -> dict:
         """
