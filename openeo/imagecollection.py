@@ -9,7 +9,7 @@ from shapely.geometry import Polygon, MultiPolygon
 
 from openeo.rest.job import RESTJob
 from openeo.rest.service import Service
-from openeo.util import get_temporal_extent, first_not_none
+from openeo.util import get_temporal_extent, first_not_none, dict_no_none
 
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
@@ -92,9 +92,8 @@ class ImageCollection(ABC):
         # Subclasses are expected to implement this method, but for bit of backwards compatibility
         # with old style subclasses we forward to `bbox_filter`
         # TODO: replace this with raise NotImplementedError() or decorate with @abstractmethod
-        kwargs = dict(west=west, east=east, north=north, south=south, crs=crs)
-        if base or height:
-            kwargs.update(base=base, height=height)
+        kwargs = dict(west=west, east=east, north=north, south=south)
+        kwargs.update(dict_no_none(crs=crs, base=base, height=height))
         return self.bbox_filter(**kwargs)
 
     @deprecated(reason="Use `filter_bbox()` instead.")

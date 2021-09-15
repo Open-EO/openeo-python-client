@@ -179,7 +179,7 @@ def date_to_rfc3339(d: Any) -> str:
     return rfc3339.normalize(d)
 
 
-def dict_no_none(*args, **kwargs):
+def dict_no_none(*args, **kwargs) -> dict:
     """
     Helper to build a dict containing given key-value pairs where the value is not None.
     """

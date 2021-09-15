@@ -20,6 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Improve default handling of `crs` (and `base`/`height`) in `filter_bbox`: avoid explicitly sending `null` unnecessarily
+  ([#233](https://github.com/Open-EO/openeo-python-client/pull/233)).
+- Update documentation/examples/tests: EPSG CRS in `filter_bbox` should be integer code, not string
+  ([#233](https://github.com/Open-EO/openeo-python-client/pull/233)).
+
+
 ### Removed
 
 ### Fixed

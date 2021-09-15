@@ -13,7 +13,7 @@ from openeo.metadata import CollectionMetadata
 from openeo.rest import BandMathException
 from openeo.rest.job import RESTJob
 from openeo.rest.service import Service
-from openeo.util import get_temporal_extent, legacy_alias
+from openeo.util import get_temporal_extent, legacy_alias, dict_no_none
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime). `hasattr` is Python 3.5 workaround #210
@@ -121,12 +121,8 @@ class ImageCollectionClient(ImageCollection):
         )
 
     def filter_bbox(self, west, east, north, south, crs=None, base=None, height=None) -> 'ImageCollection':
-        extent = {
-            'west': west, 'east': east, 'north': north, 'south': south,
-            'crs': crs,
-        }
-        if base is not None or height is not None:
-            extent.update(base=base, height=height)
+        extent = {'west': west, 'east': east, 'north': north, 'south': south}
+        extent.update(dict_no_none(crs=crs, base=base, height=height))
         return self.graph_add_process(
             process_id='filter_bbox',
             args={

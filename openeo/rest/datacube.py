@@ -295,7 +295,8 @@ class DataCube(ImageCollection, _FromNodeMixin):
 
                 >>> cube.filter_bbox(west=3, south=51, east=4, north=52, crs=4326)
 
-            - With a (west, south, east, north) list or tuple::
+            - With a (west, south, east, north) list or tuple
+              (note that EPSG:4326 is the default CRS, so it's not nececarry to specify it explicitly)::
 
                 >>> cube.filter_bbox([3, 51, 4, 52])
                 >>> cube.filter_bbox(bbox=[3, 51, 4, 52])
@@ -365,10 +366,7 @@ class DataCube(ImageCollection, _FromNodeMixin):
                     raise ValueError(bbox)
 
             extent = {'west': west, 'east': east, 'north': north, 'south': south}
-            if crs is not None:
-                extent["crs"] = crs
-            if base is not None or height is not None:
-                extent.update(base=base, height=height)
+            extent.update(dict_no_none(crs=crs, base=base, height=height))
 
         return self.process(
             process_id='filter_bbox',
