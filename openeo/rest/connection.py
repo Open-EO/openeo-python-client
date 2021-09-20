@@ -753,9 +753,14 @@ class Connection(RestApiConnection):
         """
         return RESTUserDefinedProcess(user_defined_process_id=user_defined_process_id, connection=self)
 
-    def validate_processgraph(self, process_graph):
-        # Endpoint: POST /validate
-        raise NotImplementedError()
+    def validate_processgraph(self, process_graph: dict):
+        """Validates a process graph without executing it.
+
+        :param process_graph: (flat) dict representing process graph
+        :return:
+        """
+        request = self._build_request_with_process_graph(process_graph=graph)
+        return self.post(path="/validate", json=request, expected_status=200).json()
 
     @property
     def _api_version(self) -> ComparableVersion:

@@ -1483,6 +1483,9 @@ class DataCube(ImageCollection, _FromNodeMixin):
         cube = self.save_result(format=format, options=options)
         return self._connection.download(cube.flat_graph(), outputfile)
 
+    def validate(self):
+        return self._connection.validate_processgraph(self.flat_graph())
+
     def tiled_viewing_service(self, type: str, **kwargs) -> Service:
         return self._connection.create_service(self.flat_graph(), type=type, **kwargs)
 
