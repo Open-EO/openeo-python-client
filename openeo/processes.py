@@ -46,6 +46,12 @@ class ProcessBuilder(ProcessBuilderBase):
         else:
             return self.array_element(label=key)
 
+    def __eq__(self, other) -> 'ProcessBuilder':
+        return eq(self, other)
+
+    def __ne__(self, other) -> 'ProcessBuilder':
+        return neq(self, other)
+
     def absolute(self) -> 'ProcessBuilder':
         """
         Absolute value
