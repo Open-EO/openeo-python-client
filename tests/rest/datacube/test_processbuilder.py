@@ -460,3 +460,53 @@ def test_getitem_array_element_label(con100):
             "result": True
         }
     }
+
+
+def test_load_collection_properties_eq_process(con100):
+    from openeo.processes import eq
+    cube = con100.load_collection("S2", properties={"provider": lambda v: eq(v, "ESA")})
+    expected = load_json_resource('data/1.0.0/load_collection_properties_eq.json')
+    assert cube.flat_graph() == expected
+
+    # Hack to swap x and y args in expected result
+    args = expected["loadcollection1"]["arguments"]["properties"]["provider"]["process_graph"]["eq1"]["arguments"]
+    args["x"], args["y"] = args["y"], args["x"]
+    cube = con100.load_collection("S2", properties={"provider": lambda v: eq("ESA", v)})
+    assert cube.flat_graph() == expected
+
+
+def test_load_collection_properties_eq_operator(con100):
+    cube = con100.load_collection("S2", properties={"provider": lambda v: v == "ESA"})
+    expected = load_json_resource('data/1.0.0/load_collection_properties_eq.json')
+    assert cube.flat_graph() == expected
+
+    cube = con100.load_collection("S2", properties={"provider": lambda v: "ESA" == v})
+    assert cube.flat_graph() == expected
+
+
+def test_load_collection_properties_neq_process(con100):
+    from openeo.processes import neq
+    cube = con100.load_collection("S2", properties={"provider": lambda v: neq(v, "ESA")})
+    expected = load_json_resource(
+        'data/1.0.0/load_collection_properties_eq.json',
+        preprocess=lambda s: s.replace('"eq', '"neq')
+    )
+    assert cube.flat_graph() == expected
+
+    # Hack to swap x and y args in expected result
+    args = expected["loadcollection1"]["arguments"]["properties"]["provider"]["process_graph"]["neq1"]["arguments"]
+    args["x"], args["y"] = args["y"], args["x"]
+    cube = con100.load_collection("S2", properties={"provider": lambda v: neq("ESA", v)})
+    assert cube.flat_graph() == expected
+
+
+def test_load_collection_properties_neq_operator(con100):
+    cube = con100.load_collection("S2", properties={"provider": lambda v: v != "ESA"})
+    expected = load_json_resource(
+        'data/1.0.0/load_collection_properties_eq.json',
+        preprocess=lambda s: s.replace('"eq', '"neq')
+    )
+    assert cube.flat_graph() == expected
+
+    cube = con100.load_collection("S2", properties={"provider": lambda v: "ESA" != v})
+    assert cube.flat_graph() == expected

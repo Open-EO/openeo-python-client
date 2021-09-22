@@ -149,6 +149,12 @@ def generate_process_py(processes: List[Process], output=sys.stdout, argv=None):
                 else:
                     return self.array_element(label=key)
 
+            def __eq__(self, other) -> 'ProcessBuilder':
+                return eq(self, other)
+
+            def __ne__(self, other) -> 'ProcessBuilder':
+                return neq(self, other)
+
     """)
     fun_src = textwrap.dedent("""
         # Public shortcut
