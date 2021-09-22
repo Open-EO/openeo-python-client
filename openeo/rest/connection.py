@@ -759,7 +759,7 @@ class Connection(RestApiConnection):
         :param process_graph: (flat) dict representing process graph
         :return:
         """
-        request = self._build_request_with_process_graph(process_graph=graph)
+        request = self._build_request_with_process_graph(process_graph=process_graph)
         return self.post(path="/validation", json=request, expected_status=200).json()
 
     @property
