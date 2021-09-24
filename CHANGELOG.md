@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([#233](https://github.com/Open-EO/openeo-python-client/pull/233)).
 - Update documentation/examples/tests: EPSG CRS in `filter_bbox` should be integer code, not string
   ([#233](https://github.com/Open-EO/openeo-python-client/pull/233)).
+- Raise `ProcessGraphVisitException` from `ProcessGraphVisitor.resolve_from_node()` (instead of generic `ValueError`)
 
 
 ### Removed

@@ -29,13 +29,13 @@ class ProcessGraphVisitor(ABC):
         :return: name of the "result" node of the graph
         """
 
-        # TODO avoid manipulating process graph in place? make it more explicit? work on a copy? Where is this functionality used anyway?
+        # TODO avoid manipulating process graph in place? make it more explicit? work on a copy?
         # TODO call it more something like "unflatten"?. Split this off of ProcessGraphVisitor?
         # TODO implement this through `ProcessGraphUnflattener` ?
 
         def resolve_from_node(process_graph, node, from_node):
             if from_node not in process_graph:
-                raise ValueError('from_node {f!r} (referenced by {n!r}) not in process graph.'.format(
+                raise ProcessGraphVisitException('from_node {f!r} (referenced by {n!r}) not in process graph.'.format(
                     f=from_node, n=node))
             return process_graph[from_node]
 
@@ -43,7 +43,7 @@ class ProcessGraphVisitor(ABC):
         for node, node_dict in process_graph.items():
             if node_dict.get("result", False):
                 if result_node:
-                    raise ValueError("Multiple result nodes: {a}, {b}".format(a=result_node, b=node))
+                    raise ProcessGraphVisitException("Multiple result nodes: {a}, {b}".format(a=result_node, b=node))
                 result_node = node
             arguments = node_dict.get("arguments", {})
             for arg in arguments.values():
@@ -60,7 +60,8 @@ class ProcessGraphVisitor(ABC):
                             arg[i] = resolve_from_node(process_graph, node, element['from_node'])
 
         if result_node is None:
-            raise ValueError("The provided process graph does not contain a result node. Received this graph: " + json.dumps(process_graph, indent=2))
+            dump = json.dumps(process_graph, indent=2)
+            raise ProcessGraphVisitException("No result node in process graph: " + dump[:1000])
         return result_node
 
     def accept_process_graph(self, graph: dict) -> 'ProcessGraphVisitor':

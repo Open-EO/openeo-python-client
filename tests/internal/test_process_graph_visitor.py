@@ -292,7 +292,7 @@ def test_dereference_dict_arg():
 
 
 def test_dereference_no_result_node():
-    with pytest.raises(ValueError, match="does not contain a result node"):
+    with pytest.raises(ProcessGraphVisitException, match="No result node in process graph"):
         ProcessGraphVisitor.dereference_from_node_arguments({
             "node1": {},
             "node2": {}
@@ -300,7 +300,7 @@ def test_dereference_no_result_node():
 
 
 def test_dereference_multiple_result_node():
-    with pytest.raises(ValueError, match="Multiple result nodes"):
+    with pytest.raises(ProcessGraphVisitException, match="Multiple result nodes"):
         ProcessGraphVisitor.dereference_from_node_arguments({
             "node1": {"result": True},
             "node2": {"result": True}
@@ -319,7 +319,7 @@ def test_dereference_invalid_node():
             "result": True
         }
     }
-    with pytest.raises(ValueError, match="not in process graph"):
+    with pytest.raises(ProcessGraphVisitException, match="not in process graph"):
         ProcessGraphVisitor.dereference_from_node_arguments(graph)
 
 
