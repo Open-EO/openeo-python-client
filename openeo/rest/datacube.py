@@ -1483,6 +1483,14 @@ class DataCube(ImageCollection, _FromNodeMixin):
         cube = self.save_result(format=format, options=options)
         return self._connection.download(cube.flat_graph(), outputfile)
 
+    def validate(self) -> List[dict]:
+        """
+        Validate a process graph without executing it.
+
+        :return: list of errors (dictionaries with "code" and "message" fields)
+        """
+        return self._connection.validate_process_graph(self.flat_graph())
+
     def tiled_viewing_service(self, type: str, **kwargs) -> Service:
         return self._connection.create_service(self.flat_graph(), type=type, **kwargs)
 

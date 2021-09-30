@@ -1271,3 +1271,22 @@ def test_predict_curve_callback(con100: Connection):
         },
     }
     assert res.graph == expected
+
+
+def test_validation(con100, requests_mock):
+    def validation(request, context):
+        assert request.json() == {"process_graph": {
+            'loadcollection1': {
+                'process_id': 'load_collection',
+                'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
+                'result': True,
+            }
+        }}
+        return {"errors": [{"code": "Invalid", "message": "Invalid process graph"}]}
+
+    m = requests_mock.post(API_URL + "/validation", json=validation)
+
+    cube = con100.load_collection("S2")
+    errors = cube.validate()
+    assert errors == [{"code": "Invalid", "message": "Invalid process graph"}]
+    assert m.call_count == 1
