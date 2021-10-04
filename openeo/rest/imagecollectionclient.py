@@ -988,6 +988,8 @@ class ImageCollectionClient(ImageCollection):
                 format = "CSV"
             elif format_string == "PNG":
                 format = "PNG"
+            elif format_string == "COVJSON":
+                format = "COVJSON"
             else:
                 raise AttributeError("A correct format string should be provided, as the format couldn't be detected from the outputfile.")
 
