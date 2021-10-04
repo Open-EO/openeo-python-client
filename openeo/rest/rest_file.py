@@ -2,11 +2,13 @@
 import os
 import shutil
 
-from openeo.file import File
 
-
-class RESTFile(File):
+class RESTFile:
     """Represents a file of openeo."""
+
+    def __init__(self, connection, path):
+        self.connection = connection
+        self.path = path
 
     def download_file(self, target):
         """
