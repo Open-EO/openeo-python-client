@@ -13,7 +13,7 @@ from openeo.metadata import CollectionMetadata
 from openeo.rest import BandMathException
 from openeo.rest.job import RESTJob
 from openeo.rest.service import Service
-from openeo.util import get_temporal_extent, legacy_alias, dict_no_none
+from openeo.util import get_temporal_extent, legacy_alias, dict_no_none, guess_format
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime). `hasattr` is Python 3.5 workaround #210
@@ -970,8 +970,11 @@ class ImageCollectionClient(ImageCollection):
             }
         )
 
-    def download(self, outputfile: str = None, format: str = "GTIFF", options: dict = None):
+    def download(self, outputfile: str = None, format: str = None, options: dict = None):
         """Download image collection, e.g. as GeoTIFF."""
+        if not format:
+            format = guess_format(outputfile) if outputfile else "GTiff"
+ 
         newcollection = self.save_result(format=format, options=options)
         newcollection.graph[newcollection.node_id]["result"] = True
         return self.session.download(newcollection.graph, outputfile)

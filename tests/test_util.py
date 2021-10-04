@@ -10,7 +10,7 @@ import pytest
 
 from openeo.util import first_not_none, get_temporal_extent, TimingLogger, ensure_list, ensure_dir, dict_no_none, \
     deep_get, DeepKeyError, get_user_config_dir, get_user_data_dir, Rfc3339, rfc3339, deep_set, legacy_alias, \
-    LazyLoadCache
+    LazyLoadCache, guess_format
 
 
 def test_rfc3339_date():
@@ -461,6 +461,13 @@ def test_get_user_config_dir():
 
 def test_get_user_data_dir():
     assert get_user_data_dir() == pathlib.Path(__file__).parent / "data/user_dirs/data/openeo-python-client"
+
+
+def test_guess_format():
+    assert guess_format("./folder/file.nc") == "netCDF"
+    assert guess_format("./folder/file.tiff") == "GTiff"
+    assert guess_format("/folder/file.png") == "png"
+    assert guess_format("../folder/file.notaformat") == "notaformat"
 
 
 def test_legacy_alias_function(recwarn):

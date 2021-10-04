@@ -375,6 +375,21 @@ def deep_set(data: dict, *keys, value):
         raise ValueError("No keys given")
 
 
+def guess_format(filename: str):
+    """
+    Guess the output format from a given filename and return the corrected format.
+    Any names not in the dict get passed through.
+    """
+    extension = str(filename).rsplit(".", 1)[-1].lower()
+
+    format_map = {
+        "gtiff": "GTiff", "geotiff": "GTiff", "geotif": "GTiff", "tiff": "GTiff", "tif": "GTiff",
+        "nc": "netCDF", "netcdf": "netCDF",
+    }
+    
+    return format_map.get(extension, extension)
+
+
 def load_json(path: Union[Path, str]) -> dict:
     with Path(path).open("r", encoding="utf-8") as f:
         return json.load(f)
