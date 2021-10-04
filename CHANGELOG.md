@@ -31,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- Remove unused and outdated (0.4-style) `File`/`RESTFile` classes ([#115](https://github.com/Open-EO/openeo-python-client/issues/115))
+
 ### Fixed
 
 
