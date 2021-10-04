@@ -970,8 +970,27 @@ class ImageCollectionClient(ImageCollection):
             }
         )
 
-    def download(self, outputfile: str = None, format: str = "GTIFF", options: dict = None):
+    def download(self, outputfile: str = None, format: str = None, options: dict = None):
         """Download image collection, e.g. as GeoTIFF."""
+        if format == None:
+            dots = [i for i, ltr in enumerate(outputfile) if ltr == "."]
+            format_string = outputfile[dots[len(dots)-1]+1:len(outputfile)].upper()
+
+            if format_string == "TIFF":
+                format = "GTIFF"
+            elif format_string == "TIF":
+                format = "GTIFF"
+            elif format_string == "JSON":
+                format = "JSON"
+            elif format_string == "NC":
+                format = "NetCDF"
+            elif format_string == "CSV":
+                format = "CSV"
+            elif format_string == "PNG":
+                format = "PNG"
+            else:
+                raise ValueError("A correct format string should be provided, as the format couldn't be detected from the outputfile.")
+
         newcollection = self.save_result(format=format, options=options)
         newcollection.graph[newcollection.node_id]["result"] = True
         return self.session.download(newcollection.graph, outputfile)
