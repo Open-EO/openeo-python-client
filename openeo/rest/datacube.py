@@ -1469,7 +1469,7 @@ class DataCube(ImageCollection, _FromNodeMixin):
             }
         )
 
-    def download(self, outputfile: Union[str, pathlib.Path, None] = None, format: str = "GTIFF", options: dict = None):
+    def download(self, outputfile: Union[str, pathlib.Path, None] = None, format: str = None, options: dict = None):
         """
         Download image collection, e.g. as GeoTIFF.
         If outputfile is provided, the result is stored on disk locally, otherwise, a bytes object is returned.
