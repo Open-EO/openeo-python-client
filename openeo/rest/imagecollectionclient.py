@@ -989,7 +989,7 @@ class ImageCollectionClient(ImageCollection):
             elif format_string == "PNG":
                 format = "PNG"
             else:
-                raise ValueError("A correct format string should be provided, as the format couldn't be detected from the outputfile.")
+                raise AttributeError("A correct format string should be provided, as the format couldn't be detected from the outputfile.")
 
         newcollection = self.save_result(format=format, options=options)
         newcollection.graph[newcollection.node_id]["result"] = True
