@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ProcessBuilder`: Add support for `array_element(data, n)` through `data[n]` syntax ([#228](https://github.com/Open-EO/openeo-python-client/issues/228))
 - `ProcessBuilder`: Add support for `eq` and `neq` through `==` and `!=` operators (EP-4011)
 - Add `DataCube.validate()` for process graph validation (EP-4012 related)
+- Add support in `DataCube.download()` to guess format from extension of a given filename
 
 
 ### Changed
