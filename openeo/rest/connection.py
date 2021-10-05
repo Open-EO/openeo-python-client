@@ -2,7 +2,9 @@
 This module provides a Connection object to manage and persist settings when interacting with the OpenEO API.
 """
 import datetime
+import json
 import logging
+import shlex
 import sys
 import warnings
 from collections import OrderedDict
@@ -1026,6 +1028,18 @@ class Connection(RestApiConnection):
             return DataCube.load_disk_collection(self, format, glob_pattern, **options)
         else:
             return ImageCollectionClient.load_disk_collection(self, format, glob_pattern, **options)
+
+    def as_curl(self, data: Union[dict, DataCube], path="/result", method="POST"):
+        """Build curl command to evaluate given process graph or data cube"""
+        cmd = ["curl", "-i", "-X", method]
+        cmd += ["-H", "Content-Type: application/json"]
+        if isinstance(self.auth, BearerAuth):
+            cmd += ["-H", f"Authorization: Bearer {self.auth.bearer}"]
+        post_data = self._build_request_with_process_graph(data)
+        post_json = json.dumps(post_data, separators=(',', ':'))
+        cmd += ["--data", post_json]
+        cmd += [self.build_url(path)]
+        return " ".join(shlex.quote(c) for c in cmd)
 
 
 def connect(url, auth_type: str = None, auth_options: dict = {}, session: requests.Session = None,

@@ -10,6 +10,7 @@ import requests.auth
 import requests_mock
 
 from openeo.capabilities import ComparableVersion
+from openeo.internal.graph_building import PGNode
 from openeo.rest import OpenEoClientException, OpenEoApiError, OpenEoRestError
 from openeo.rest.auth.auth import NullAuth, BearerAuth
 from openeo.rest.auth.oidc import OidcException
@@ -1683,3 +1684,22 @@ def test_paginate_callback(requests_mock):
     res = paginate(con, API_URL + "result/1", callback=lambda resp, page: (page, resp["data"]))
     assert isinstance(res, typing.Iterator)
     assert list(res) == [(1, "first"), (2, "second"), (3, "third")]
+
+
+@pytest.mark.parametrize("data_factory", [
+    lambda con: {"add1": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}},
+    lambda con: con.datacube_from_process("add", x=3, y=5),
+    lambda con: PGNode("add", x=3, y=5)
+])
+def test_as_curl(requests_mock, data_factory):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    requests_mock.get(API_URL + 'credentials/basic', json={"access_token": "s3cr6t"})
+    con = Connection(API_URL).authenticate_basic("john", "j0hn")
+
+    data = data_factory(con)
+    cmd = con.as_curl(data)
+    assert cmd == (
+        "curl -i -X POST -H 'Content-Type: application/json' -H 'Authorization: Bearer basic//s3cr6t' "
+        '--data \'{"process":{"process_graph":{"add1":{"process_id":"add","arguments":{"x":3,"y":5},"result":true}}}}\' '
+        "https://oeo.test/result"
+    )
