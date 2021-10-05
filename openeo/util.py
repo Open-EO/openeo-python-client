@@ -378,9 +378,9 @@ def deep_set(data: dict, *keys, value):
 def guess_format(filename: str):
     """
     Guess the output format from a given filename and return the corrected format.
-    Any names not in the dict get passed through in upper case.
+    Any names not in the dict get passed through.
     """
-    extension = filename.rsplit(".", 1)[-1].lower()
+    extension = str(filename).rsplit(".", 1)[-1].lower()
 
     format_map = {
         "gtiff": "GTiff", "geotiff": "GTiff", "geotif": "GTiff", "tiff": "GTiff", "tif": "GTiff",
