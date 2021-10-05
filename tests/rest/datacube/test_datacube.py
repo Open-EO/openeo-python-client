@@ -486,8 +486,23 @@ def test_download_pathlib(connection, requests_mock, tmp_path):
     assert path.read_bytes() == b"tiffdata"
 
 
+def test_download_pathlib_no_format(connection, requests_mock, tmp_path):
+    requests_mock.get(API_URL + "/collections/S2", json={})
+    requests_mock.post(API_URL + '/result', content=b"tiffdata")
+    path = tmp_path / "tmp.tiff"
+    connection.load_collection("S2").download(pathlib.Path(str(path)))
+    assert path.read_bytes() == b"tiffdata"
+
+
 def test_download_bytes(connection, requests_mock):
     requests_mock.get(API_URL + "/collections/S2", json={})
     requests_mock.post(API_URL + '/result', content=b"tiffdata")
     result = connection.load_collection("S2").download(None, format="GTIFF")
+    assert result == b"tiffdata"
+    
+
+def test_download_bytes_no_format(connection, requests_mock):
+    requests_mock.get(API_URL + "/collections/S2", json={})
+    requests_mock.post(API_URL + '/result', content=b"tiffdata")
+    result = connection.load_collection("S2").download(None)
     assert result == b"tiffdata"
