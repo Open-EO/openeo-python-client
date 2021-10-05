@@ -823,7 +823,7 @@ class Connection(RestApiConnection):
 
     def load_collection(
             self,
-            collection_id: str,
+            id: str,
             spatial_extent: Optional[Dict[str, float]] = None,
             temporal_extent: Optional[List[Union[str, datetime.datetime, datetime.date]]] = None,
             bands: Optional[List[str]] = None,
@@ -833,7 +833,7 @@ class Connection(RestApiConnection):
         """
         Load a DataCube by collection id.
 
-        :param collection_id: image collection identifier
+        :param id: image collection identifier
         :param spatial_extent: limit data to specified bounding box or polygons
         :param temporal_extent: limit data to specified temporal interval
         :param bands: only add the specified bands
@@ -842,13 +842,13 @@ class Connection(RestApiConnection):
         """
         if self._api_version.at_least("1.0.0"):
             return DataCube.load_collection(
-                collection_id=collection_id, connection=self,
+                collection_id=id, connection=self,
                 spatial_extent=spatial_extent, temporal_extent=temporal_extent, bands=bands, properties=properties,
                 fetch_metadata=fetch_metadata,
             )
         else:
             return ImageCollectionClient.load_collection(
-                collection_id=collection_id, session=self,
+                collection_id=id, session=self,
                 spatial_extent=spatial_extent, temporal_extent=temporal_extent, bands=bands
             )
 
