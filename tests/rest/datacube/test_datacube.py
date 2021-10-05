@@ -508,10 +508,39 @@ def test_download_pathlib_no_format(connection, requests_mock, tmp_path, api_ver
     assert path.read_bytes() == b"tiffdata"
 
 
+def test_download_pathlib_no_format_nc(connection, requests_mock, tmp_path, api_version):
+    requests_mock.get(API_URL + "/collections/S2", json={})
+
+    def result_callback(request, context):
+        post_data = request.json()
+        pg = (post_data["process"] if api_version >= ComparableVersion("1.0.0") else post_data)["process_graph"]
+        assert pg["saveresult1"]["arguments"]["format"] == "netCDF"
+        return b"tiffdata"
+
+    requests_mock.post(API_URL + '/result', content=result_callback)
+    path = tmp_path / "tmp.nc"
+    connection.load_collection("S2").download(pathlib.Path(str(path)))
+    assert path.read_bytes() == b"tiffdata"
+
+def test_download_pathlib_no_format_csv(connection, requests_mock, tmp_path, api_version):
+    requests_mock.get(API_URL + "/collections/S2", json={})
+
+    def result_callback(request, context):
+        post_data = request.json()
+        pg = (post_data["process"] if api_version >= ComparableVersion("1.0.0") else post_data)["process_graph"]
+        assert pg["saveresult1"]["arguments"]["format"] == "csv"
+        return b"tiffdata"
+
+    requests_mock.post(API_URL + '/result', content=result_callback)
+    path = tmp_path / "tmp.csv"
+    connection.load_collection("S2").download(pathlib.Path(str(path)))
+    assert path.read_bytes() == b"tiffdata"
+
+
 def test_download_bytes(connection, requests_mock):
     requests_mock.get(API_URL + "/collections/S2", json={})
     requests_mock.post(API_URL + '/result', content=b"tiffdata")
-    result = connection.load_collection("S2").download(None, format="GTIFF")
+    result = connection.load_collection("S2").download(None, format="netCDF")
     assert result == b"tiffdata"
     
 
