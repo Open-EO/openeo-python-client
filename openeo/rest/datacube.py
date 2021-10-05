@@ -1482,8 +1482,8 @@ class DataCube(ImageCollection, _FromNodeMixin):
         """
         if outputfile is None and format is None:
             format = "GTiff"
-        else:
-            format = format or format = guess_format(outputfile)
+        elif format is None:
+            format = guess_format(outputfile)
 
         cube = self.save_result(format=format, options=options)
         return self._connection.download(cube.flat_graph(), outputfile)
