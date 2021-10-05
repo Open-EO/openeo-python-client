@@ -7,6 +7,7 @@ General cube method tests against both
 """
 
 from datetime import date, datetime
+import pathlib
 
 import numpy as np
 import pytest
@@ -467,3 +468,26 @@ def test_apply_dimension(connection, requests_mock):
         assert cube.graph["applydimension1"]["arguments"]["dimension"] == dim
     with pytest.raises(ValueError, match="Invalid dimension 'wut'"):
         s22.apply_dimension(dimension='wut', code="subtract_mean")
+
+
+def test_download_path_str(connection, requests_mock, tmp_path):
+    requests_mock.get(API_URL + "/collections/S2", json={})
+    requests_mock.post(API_URL + '/result', content=b"tiffdata")
+    path = tmp_path / "tmp.tiff"
+    connection.load_collection("S2").download(str(path), format="GTiff")
+    assert path.read_bytes() == b"tiffdata"
+
+
+def test_download_pathlib(connection, requests_mock, tmp_path):
+    requests_mock.get(API_URL + "/collections/S2", json={})
+    requests_mock.post(API_URL + '/result', content=b"tiffdata")
+    path = tmp_path / "tmp.tiff"
+    connection.load_collection("S2").download(pathlib.Path(str(path)), format="GTIFF")
+    assert path.read_bytes() == b"tiffdata"
+
+
+def test_download_bytes(connection, requests_mock):
+    requests_mock.get(API_URL + "/collections/S2", json={})
+    requests_mock.post(API_URL + '/result', content=b"tiffdata")
+    result = connection.load_collection("S2").download(None, format="GTIFF")
+    assert result == b"tiffdata"
