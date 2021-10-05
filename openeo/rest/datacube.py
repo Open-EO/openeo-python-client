@@ -1480,10 +1480,8 @@ class DataCube(ImageCollection, _FromNodeMixin):
         :param options: Optional, file format options
         :return: None if the result is stored to disk, or a bytes object returned by the backend.
         """
-        if outputfile is None and format is None:
-            format = "GTiff"
-        elif format is None:
-            format = guess_format(outputfile)
+        if not format:
+            format = guess_format(outputfile) if outputfile else "GTiff"
 
         cube = self.save_result(format=format, options=options)
         return self._connection.download(cube.flat_graph(), outputfile)

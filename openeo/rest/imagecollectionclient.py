@@ -972,8 +972,8 @@ class ImageCollectionClient(ImageCollection):
 
     def download(self, outputfile: str = None, format: str = None, options: dict = None):
         """Download image collection, e.g. as GeoTIFF."""
-        if format is None:
-            format = guess_format(outputfile)
+        if not format:
+            format = guess_format(outputfile) if outputfile else "GTiff"
  
         newcollection = self.save_result(format=format, options=options)
         newcollection.graph[newcollection.node_id]["result"] = True
