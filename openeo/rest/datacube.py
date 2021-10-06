@@ -35,7 +35,7 @@ from openeo.rest.job import RESTJob
 from openeo.rest.service import Service
 from openeo.rest.udp import RESTUserDefinedProcess
 from openeo.rest.vectorcube import VectorCube
-from openeo.util import get_temporal_extent, dict_no_none, legacy_alias, rfc3339
+from openeo.util import get_temporal_extent, dict_no_none, legacy_alias, rfc3339, guess_format
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime). `hasattr` is Python 3.5 workaround #210
@@ -1469,17 +1469,20 @@ class DataCube(ImageCollection, _FromNodeMixin):
             }
         )
 
-    def download(self, outputfile: Union[str, pathlib.Path, None] = None, format: str = "GTIFF", options: dict = None):
+    def download(self, outputfile: Union[str, pathlib.Path, None] = None, format: str = None, options: dict = None):
         """
         Download image collection, e.g. as GeoTIFF.
         If outputfile is provided, the result is stored on disk locally, otherwise, a bytes object is returned.
         The bytes object can be passed on to a suitable decoder for decoding.
 
         :param outputfile: Optional, an output file if the result needs to be stored on disk.
-        :param format: Optional, defaults to "GTIFF", an output format supported by the backend.
+        :param format: Optional, an output format supported by the backend.
         :param options: Optional, file format options
         :return: None if the result is stored to disk, or a bytes object returned by the backend.
         """
+        if not format:
+            format = guess_format(outputfile) if outputfile else "GTiff"
+
         cube = self.save_result(format=format, options=options)
         return self._connection.download(cube.flat_graph(), outputfile)
 

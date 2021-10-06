@@ -486,8 +486,47 @@ def test_download_pathlib(connection, requests_mock, tmp_path):
     assert path.read_bytes() == b"tiffdata"
 
 
-def test_download_bytes(connection, requests_mock):
+@pytest.mark.parametrize(["filename", "expected_format"], [
+    ("result.tiff", "GTiff"),
+    ("result.tif", "GTiff"),
+    ("result.gtiff", "GTiff"),
+    ("result.geotiff", "GTiff"),
+    ("result.nc", "netCDF"),
+    ("result.netcdf", "netCDF"),
+    ("result.csv", "CSV"),
+])
+@pytest.mark.parametrize("path_type", [str, pathlib.Path])
+def test_download_format_guessing(
+        connection, requests_mock, tmp_path, api_version, filename, path_type, expected_format
+):
     requests_mock.get(API_URL + "/collections/S2", json={})
-    requests_mock.post(API_URL + '/result', content=b"tiffdata")
-    result = connection.load_collection("S2").download(None, format="GTIFF")
-    assert result == b"tiffdata"
+
+    def result_callback(request, context):
+        post_data = request.json()
+        pg = (post_data["process"] if api_version >= ComparableVersion("1.0.0") else post_data)["process_graph"]
+        assert pg["saveresult1"]["arguments"]["format"] == expected_format
+        return b"data"
+
+    requests_mock.post(API_URL + '/result', content=result_callback)
+    path = tmp_path / filename
+    connection.load_collection("S2").download(path_type(path))
+    assert path.read_bytes() == b"data"
+
+
+@pytest.mark.parametrize(["format", "expected_format"], [
+    ("GTiff", "GTiff"),
+    ("netCDF", "netCDF"),
+    (None, "GTiff"),
+])
+def test_download_bytes(connection, requests_mock, api_version, format, expected_format):
+    requests_mock.get(API_URL + "/collections/S2", json={})
+
+    def result_callback(request, context):
+        post_data = request.json()
+        pg = (post_data["process"] if api_version >= ComparableVersion("1.0.0") else post_data)["process_graph"]
+        assert pg["saveresult1"]["arguments"]["format"] == expected_format
+        return b"data"
+
+    requests_mock.post(API_URL + '/result', content=result_callback)
+    result = connection.load_collection("S2").download(format=format)
+    assert result == b"data"

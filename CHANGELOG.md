@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ProcessBuilder`: Add support for `eq` and `neq` through `==` and `!=` operators (EP-4011)
 - Add `DataCube.validate()` for process graph validation (EP-4012 related)
 - Add `Connection.as_curl()` for generating curl command to evaluate a process graph or `DataCube` from the command line
+- Add support in `DataCube.download()` to guess output format from extension of a given filename
 
 
 ### Changed
