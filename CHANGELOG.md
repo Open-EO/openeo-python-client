@@ -90,6 +90,7 @@ Minor release to address version packaging issue.
 
 ### Deprecated
 
+- The parameter `collection_id` in `connection.load_collection()`, `datacube.load_collection()` and `imagecollectionclient.load_collection()` in favor of parameter `id`.
 - The method `remove_service` in `Connection` has been deprecated in favor of `delete_service` in the `Service` class
 
 

@@ -1324,6 +1324,16 @@ def test_load_collection_arguments_100(requests_mock):
     }
 
 
+def test_load_collection_param(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    conn = Connection(API_URL)
+    requests_mock.get(API_URL + "collections/FOO", json={})
+    im1 = conn.load_collection(collection_id = "FOO")
+    im2 = conn.load_collection(id = "FOO")
+    assert im1._pg.arguments["id"] == "FOO"
+    assert im2._pg.arguments["id"] == "FOO"
+
+
 def test_load_result(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     con = Connection(API_URL)

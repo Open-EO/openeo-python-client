@@ -152,18 +152,19 @@ class DataCube(ImageCollection, _FromNodeMixin):
     @classmethod
     def load_collection(
             cls,
-            collection_id: str,
+            id: str = None,
             connection: 'openeo.Connection' = None,
             spatial_extent: Optional[Dict[str, float]] = None,
             temporal_extent: Optional[List[Union[str, datetime.datetime, datetime.date,PGNode]]] = None,
             bands: Optional[List[str]] = None,
             fetch_metadata = True,
-            properties: Optional[Dict[str, Union[str, PGNode, typing.Callable]]] = None
+            properties: Optional[Dict[str, Union[str, PGNode, typing.Callable]]] = None,
+            **kwargs
     ) -> 'DataCube':
         """
         Create a new Raster Data cube.
 
-        :param collection_id: image collection identifier
+        :param id: image collection identifier
         :param connection: The connection to use to connect with the backend.
         :param spatial_extent: limit data to specified bounding box or polygons
         :param temporal_extent: limit data to specified temporal interval
@@ -171,17 +172,22 @@ class DataCube(ImageCollection, _FromNodeMixin):
         :param properties: limit data by metadata property predicates
         :return: new DataCube containing the collection
         """
+
+        if "collection_id" in kwargs:
+            id = kwargs["collection_id"]
+            warnings.warn("The use of `collection_id` is deprecated, use `id` instead.", DeprecationWarning)
+
         if temporal_extent:
             temporal_extent = cls._get_temporal_extent(extent=temporal_extent)
         arguments = {
-            'id': collection_id,
+            'id': id,
             # TODO: spatial_extent could also be a "geojson" subtype object, so we might want to allow (and convert) shapely shapes as well here.
             'spatial_extent': spatial_extent,
             'temporal_extent': temporal_extent,
         }
-        if isinstance(collection_id, Parameter):
+        if isinstance(id, Parameter):
             fetch_metadata = False
-        metadata = connection.collection_metadata(collection_id) if fetch_metadata else None
+        metadata = connection.collection_metadata(id) if fetch_metadata else None
         if bands:
             if isinstance(bands, str):
                 bands = [bands]

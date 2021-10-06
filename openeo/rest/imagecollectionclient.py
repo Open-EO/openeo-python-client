@@ -48,32 +48,37 @@ class ImageCollectionClient(ImageCollection):
 
     @classmethod
     def load_collection(
-            cls, collection_id: str, session: 'Connection' = None,
+            cls, id: str = None, session: 'Connection' = None,
             spatial_extent: Union[Dict[str, float], None] = None,
             temporal_extent: Union[List[Union[str,datetime.datetime,datetime.date]], None] = None,
             bands: Union[List[str], None] = None,
-            fetch_metadata=True
+            fetch_metadata=True,
+            **kwargs
     ):
         """
         Create a new Image Collection/Raster Data cube.
 
-        :param collection_id: A collection id, should exist in the backend.
+        :param id: A collection id, should exist in the backend.
         :param session: The session to use to connect with the backend.
         :param spatial_extent: limit data to specified bounding box or polygons
         :param temporal_extent: limit data to specified temporal interval
         :param bands: only add the specified bands
         :return:
         """
+
+        if "collection_id" in kwargs:
+            id = kwargs["collection_id"]
+
         # TODO: rename function to load_collection for better similarity with corresponding process id?
         builder = GraphBuilder()
         process_id = 'load_collection'
         normalized_temporal_extent = list(get_temporal_extent(extent=temporal_extent)) if temporal_extent is not None else None
         arguments = {
-            'id': collection_id,
+            'id': id,
             'spatial_extent': spatial_extent,
             'temporal_extent': normalized_temporal_extent,
         }
-        metadata = session.collection_metadata(collection_id) if fetch_metadata else None
+        metadata = session.collection_metadata(id) if fetch_metadata else None
         if bands:
             if isinstance(bands, str):
                 bands = [bands]

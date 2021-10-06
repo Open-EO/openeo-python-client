@@ -823,12 +823,13 @@ class Connection(RestApiConnection):
 
     def load_collection(
             self,
-            id: str,
+            id: str = None,
             spatial_extent: Optional[Dict[str, float]] = None,
             temporal_extent: Optional[List[Union[str, datetime.datetime, datetime.date]]] = None,
             bands: Optional[List[str]] = None,
             properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
             fetch_metadata=True,
+            **kwargs
     ) -> DataCube:
         """
         Load a DataCube by collection id.
@@ -840,6 +841,11 @@ class Connection(RestApiConnection):
         :param properties: limit data by metadata property predicates
         :return: a datacube containing the requested data
         """
+
+        if "collection_id" in kwargs:
+            id = kwargs["collection_id"]
+            warnings.warn("The use of `collection_id` is deprecated, use `id` instead.", DeprecationWarning)
+
         if self._api_version.at_least("1.0.0"):
             return DataCube.load_collection(
                 collection_id=id, connection=self,
