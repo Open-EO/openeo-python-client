@@ -470,22 +470,15 @@ def test_apply_dimension(connection, requests_mock):
         s22.apply_dimension(dimension='wut', code="subtract_mean")
 
 
-def test_download_path_str(connection, requests_mock, tmp_path, api_version):
+def test_download_path_str(connection, requests_mock, tmp_path):
     requests_mock.get(API_URL + "/collections/S2", json={})
-
-    def result_callback(request, context):
-        post_data = request.json()
-        pg = (post_data["process"] if api_version >= ComparableVersion("1.0.0") else post_data)["process_graph"]
-        assert pg["saveresult1"]["arguments"]["format"] == "GTiff"
-        return b"tiffdata"
-
-    requests_mock.post(API_URL + '/result', content=result_callback)
+    requests_mock.post(API_URL + '/result', content=b"tiffdata")
     path = tmp_path / "tmp.tiff"
     connection.load_collection("S2").download(str(path), format="GTiff")
     assert path.read_bytes() == b"tiffdata"
 
 
-def test_download_pathlib(connection, requests_mock, tmp_path, api_version):
+def test_download_pathlib(connection, requests_mock, tmp_path):
     requests_mock.get(API_URL + "/collections/S2", json={})
     requests_mock.post(API_URL + '/result', content=b"tiffdata")
     path = tmp_path / "tmp.tiff"
@@ -493,66 +486,47 @@ def test_download_pathlib(connection, requests_mock, tmp_path, api_version):
     assert path.read_bytes() == b"tiffdata"
 
 
-def test_download_pathlib_no_format(connection, requests_mock, tmp_path, api_version):
+@pytest.mark.parametrize(["filename", "expected_format"], [
+    ("result.tiff", "GTiff"),
+    ("result.tif", "GTiff"),
+    ("result.gtiff", "GTiff"),
+    ("result.geotiff", "GTiff"),
+    ("result.nc", "netCDF"),
+    ("result.netcdf", "netCDF"),
+    ("result.csv", "CSV"),
+])
+@pytest.mark.parametrize("path_type", [str, pathlib.Path])
+def test_download_format_guessing(
+        connection, requests_mock, tmp_path, api_version, filename, path_type, expected_format
+):
     requests_mock.get(API_URL + "/collections/S2", json={})
 
     def result_callback(request, context):
         post_data = request.json()
         pg = (post_data["process"] if api_version >= ComparableVersion("1.0.0") else post_data)["process_graph"]
-        assert pg["saveresult1"]["arguments"]["format"] == "GTiff"
-        return b"tiffdata"
+        assert pg["saveresult1"]["arguments"]["format"] == expected_format
+        return b"data"
 
     requests_mock.post(API_URL + '/result', content=result_callback)
-    path = tmp_path / "tmp.tiff"
-    connection.load_collection("S2").download(pathlib.Path(str(path)))
-    assert path.read_bytes() == b"tiffdata"
+    path = tmp_path / filename
+    connection.load_collection("S2").download(path_type(path))
+    assert path.read_bytes() == b"data"
 
 
-def test_download_pathlib_no_format_nc(connection, requests_mock, tmp_path, api_version):
+@pytest.mark.parametrize(["format", "expected_format"], [
+    ("GTiff", "GTiff"),
+    ("netCDF", "netCDF"),
+    (None, "GTiff"),
+])
+def test_download_bytes(connection, requests_mock, api_version, format, expected_format):
     requests_mock.get(API_URL + "/collections/S2", json={})
 
     def result_callback(request, context):
         post_data = request.json()
         pg = (post_data["process"] if api_version >= ComparableVersion("1.0.0") else post_data)["process_graph"]
-        assert pg["saveresult1"]["arguments"]["format"] == "netCDF"
-        return b"tiffdata"
+        assert pg["saveresult1"]["arguments"]["format"] == expected_format
+        return b"data"
 
     requests_mock.post(API_URL + '/result', content=result_callback)
-    path = tmp_path / "tmp.nc"
-    connection.load_collection("S2").download(pathlib.Path(str(path)))
-    assert path.read_bytes() == b"tiffdata"
-
-def test_download_pathlib_no_format_csv(connection, requests_mock, tmp_path, api_version):
-    requests_mock.get(API_URL + "/collections/S2", json={})
-
-    def result_callback(request, context):
-        post_data = request.json()
-        pg = (post_data["process"] if api_version >= ComparableVersion("1.0.0") else post_data)["process_graph"]
-        assert pg["saveresult1"]["arguments"]["format"] == "csv"
-        return b"tiffdata"
-
-    requests_mock.post(API_URL + '/result', content=result_callback)
-    path = tmp_path / "tmp.csv"
-    connection.load_collection("S2").download(pathlib.Path(str(path)))
-    assert path.read_bytes() == b"tiffdata"
-
-
-def test_download_bytes(connection, requests_mock):
-    requests_mock.get(API_URL + "/collections/S2", json={})
-    requests_mock.post(API_URL + '/result', content=b"tiffdata")
-    result = connection.load_collection("S2").download(None, format="netCDF")
-    assert result == b"tiffdata"
-    
-
-def test_download_bytes_no_format(connection, requests_mock, api_version):
-    requests_mock.get(API_URL + "/collections/S2", json={})
-
-    def result_callback(request, context):
-        post_data = request.json()
-        pg = (post_data["process"] if api_version >= ComparableVersion("1.0.0") else post_data)["process_graph"]
-        assert pg["saveresult1"]["arguments"]["format"] == "GTiff"
-        return b"tiffdata"
-
-    requests_mock.post(API_URL + '/result', content=result_callback)
-    result = connection.load_collection("S2").download(None)
-    assert result == b"tiffdata"
+    result = connection.load_collection("S2").download(format=format)
+    assert result == b"data"

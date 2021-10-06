@@ -465,9 +465,12 @@ def test_get_user_data_dir():
 
 def test_guess_format():
     assert guess_format("./folder/file.nc") == "netCDF"
+    assert guess_format("./folder/file.netcdf") == "netCDF"
     assert guess_format("./folder/file.tiff") == "GTiff"
-    assert guess_format("/folder/file.png") == "png"
-    assert guess_format("../folder/file.notaformat") == "notaformat"
+    assert guess_format("./folder/file.gtiff") == "GTiff"
+    assert guess_format("./folder/file.geotiff") == "GTiff"
+    assert guess_format("/folder/file.png") == "PNG"
+    assert guess_format("../folder/file.notaformat") == "NOTAFORMAT"
 
 
 def test_legacy_alias_function(recwarn):

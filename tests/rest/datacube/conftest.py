@@ -49,7 +49,7 @@ def _setup_connection(api_version, requests_mock) -> Connection:
         "output": {
             "GTiff": {"gis_data_types": ["raster"]},
             "netCDF": {"gis_data_types": ["raster"]},
-            "csv": {}
+            "csv": {"gis_data_types": ["table"]},
         }
     })
 
