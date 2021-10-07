@@ -720,7 +720,7 @@ class Connection(RestApiConnection):
             public: bool = False, summary: str = None, description: str = None
     ) -> RESTUserDefinedProcess:
         """
-        Saves a process graph and its metadata in the backend as a user-defined process for the authenticated user.
+        Store a process graph and its metadata on the backend as a user-defined process for the authenticated user.
 
         :param user_defined_process_id: unique identifier for the user-defined process
         :param process_graph: a process graph

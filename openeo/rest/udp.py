@@ -64,6 +64,7 @@ class RESTUserDefinedProcess:
             self, process_graph: Union[dict, ProcessBuilderBase], parameters: List[Union[Parameter, dict]] = None,
             public: bool = False, summary: str = None, description: str = None
     ):
+        """Store a process graph and its metadata on the backend as a user-defined process"""
         process = build_process_dict(
             process_graph=process_graph, parameters=parameters,
             summary=summary, description=description
@@ -91,6 +92,7 @@ class RESTUserDefinedProcess:
         return self._connection.get(path="/process_graphs/{}".format(self.user_defined_process_id)).json()
 
     def delete(self) -> None:
+        """Remove user-defined process from back-end"""
         self._connection.delete(path="/process_graphs/{}".format(self.user_defined_process_id), expected_status=204)
 
     def validate(self) -> None:
