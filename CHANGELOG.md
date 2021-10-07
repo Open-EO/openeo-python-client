@@ -29,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update documentation/examples/tests: EPSG CRS in `filter_bbox` should be integer code, not string
   ([#233](https://github.com/Open-EO/openeo-python-client/pull/233)).
 - Raise `ProcessGraphVisitException` from `ProcessGraphVisitor.resolve_from_node()` (instead of generic `ValueError`)
+- `DataCube.linear_scale_range` is now a shortcut for `DataCube.apply(lambda  x:x.x.linear_scale_range( input_min, input_max, output_min, output_max))`.  
+   Instead of creating an invalid process graph that tries to invoke linear_scale_range on a datacube directly.
 
 
 ### Removed

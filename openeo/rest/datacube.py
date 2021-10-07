@@ -1190,23 +1190,27 @@ class DataCube(ImageCollection, _FromNodeMixin):
 
     def linear_scale_range(self, input_min, input_max, output_min, output_max) -> 'DataCube':
         """
-        Color stretching
+        Performs a linear transformation between the input and output range.
+
+        The given number in x is clipped to the bounds specified in inputMin and inputMax so that the underlying formula
+
+         ((x - inputMin) / (inputMax - inputMin)) * (outputMax - outputMin) + outputMin
+
+         never returns any value lower than outputMin or greater than outputMax.
+
+        Potential use case include scaling values to the 8-bit range (0 - 255) often used for numeric representation of
+        values in one of the channels of the RGB colour model or calculating percentages (0 - 100).
+
+        The no-data value null is passed through and therefore gets propagated.
 
         :param input_min: Minimum input value
         :param input_max: Maximum input value
-        :param output_min: Minimum output value
-        :param output_max: Maximum output value
+        :param output_min: Minimum value of the desired output range.
+        :param output_max: Maximum value of the desired output range.
         :return: a DataCube instance
         """
-        process_id = 'linear_scale_range'
-        args = {
-            'x': THIS,
-            'inputMin': input_min,
-            'inputMax': input_max,
-            'outputMin': output_min,
-            'outputMax': output_max
-        }
-        return self.process(process_id, args)
+
+        return self.apply(lambda  x:x.x.linear_scale_range( input_min, input_max, output_min, output_max))
 
     def mask(self, mask: 'DataCube' = None, replacement=None) -> 'DataCube':
         """
