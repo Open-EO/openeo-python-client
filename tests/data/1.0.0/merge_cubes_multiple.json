@@ -30,26 +30,39 @@
       }
     }
   },
-  "linearscalerange1": {
-    "process_id": "linear_scale_range",
+  "apply1": {
+    "process_id": "apply",
     "arguments": {
-      "x": {
+      "data": {
         "from_node": "reducedimension1"
       },
-      "inputMin": 0,
-      "inputMax": 1,
-      "outputMin": 0,
-      "outputMax": 2
+      "process": {
+        "process_graph": {
+          "linearscalerange1": {
+            "process_id": "linear_scale_range",
+            "arguments": {
+              "inputMax": 1,
+              "inputMin": 0,
+              "outputMax": 2,
+              "outputMin": 0,
+              "x": {
+                "from_parameter": "x"
+              }
+            },
+            "result": true
+          }
+        }
+      }
     }
   },
   "mergecubes1": {
     "process_id": "merge_cubes",
     "arguments": {
       "cube1": {
-        "from_node": "linearscalerange1"
+        "from_node": "apply1"
       },
       "cube2": {
-        "from_node": "linearscalerange1"
+        "from_node": "apply1"
       },
       "overlap_resolver": {
         "process_graph": {
@@ -76,7 +89,7 @@
         "from_node": "mergecubes1"
       },
       "cube2": {
-        "from_node": "linearscalerange1"
+        "from_node": "apply1"
       },
       "overlap_resolver": {
         "process_graph": {

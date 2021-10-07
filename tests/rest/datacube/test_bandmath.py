@@ -285,7 +285,7 @@ def test_merge_cubes_multiple(connection, api_version):
     combined = b1 + b1 + b1
     actual = get_download_graph(combined)
     assert sorted(n["process_id"] for n in actual.values()) == [
-        "linear_scale_range", "load_collection",
+        "apply", "load_collection",
         "merge_cubes", "merge_cubes", "reduce_dimension", "save_result"]
     assert actual == load_json_resource('data/%s/merge_cubes_multiple.json' % api_version)
 

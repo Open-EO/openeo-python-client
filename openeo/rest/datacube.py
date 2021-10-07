@@ -1210,7 +1210,7 @@ class DataCube(ImageCollection, _FromNodeMixin):
         :return: a DataCube instance
         """
 
-        return self.apply(lambda  x:x.x.linear_scale_range( input_min, input_max, output_min, output_max))
+        return self.apply(lambda x: x.linear_scale_range(input_min, input_max, output_min, output_max))
 
     def mask(self, mask: 'DataCube' = None, replacement=None) -> 'DataCube':
         """

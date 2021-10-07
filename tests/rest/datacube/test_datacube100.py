@@ -1290,3 +1290,22 @@ def test_validation(con100, requests_mock):
     errors = cube.validate()
     assert errors == [{"code": "Invalid", "message": "Invalid process graph"}]
     assert m.call_count == 1
+
+
+def test_pipe_with_args(con100):
+    def ndvi_scaled(cube, in_max=2, out_max=3):
+        return cube.ndvi().linear_scale_range(0, in_max, 0, out_max)
+
+    s2cube = con100.load_collection("S2")
+    im = s2cube.pipe(ndvi_scaled)
+    assert im.graph["apply1"]["arguments"]["process"]["process_graph"]["linearscalerange1"]["arguments"] == {
+        'inputMax': 2, 'inputMin': 0, 'outputMax': 3, 'outputMin': 0, 'x': {'from_parameter': 'x'}
+    }
+    im = s2cube.pipe(ndvi_scaled, 4, 5)
+    assert im.graph["apply1"]["arguments"]["process"]["process_graph"]["linearscalerange1"]["arguments"] == {
+        'inputMax': 4, 'inputMin': 0, 'outputMax': 5, 'outputMin': 0, 'x': {'from_parameter': 'x'}
+    }
+    im = s2cube.pipe(ndvi_scaled, out_max=7)
+    assert im.graph["apply1"]["arguments"]["process"]["process_graph"]["linearscalerange1"]["arguments"] == {
+        'inputMax': 2, 'inputMin': 0, 'outputMax': 7, 'outputMin': 0, 'x': {'from_parameter': 'x'}
+    }

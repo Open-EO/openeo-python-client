@@ -198,27 +198,6 @@ def test_pipe(s2cube, api_version):
     assert im.graph == load_json_resource('data/{v}/pipe.json'.format(v=api_version))
 
 
-def test_pipe_with_args(s2cube):
-    def ndvi_scaled(cube, in_max=2, out_max=3):
-        return cube.ndvi().linear_scale_range(0, in_max, 0, out_max)
-
-    reset_graphbuilder()
-    im = s2cube.pipe(ndvi_scaled)
-    assert im.graph["linearscalerange1"]["arguments"] == {
-        'inputMax': 2, 'inputMin': 0, 'outputMax': 3, 'outputMin': 0, 'x': {'from_node': 'ndvi1'}
-    }
-    reset_graphbuilder()
-    im = s2cube.pipe(ndvi_scaled, 4, 5)
-    assert im.graph["linearscalerange1"]["arguments"] == {
-        'inputMax': 4, 'inputMin': 0, 'outputMax': 5, 'outputMin': 0, 'x': {'from_node': 'ndvi1'}
-    }
-    reset_graphbuilder()
-    im = s2cube.pipe(ndvi_scaled, out_max=7)
-    assert im.graph["linearscalerange1"]["arguments"] == {
-        'inputMax': 2, 'inputMin': 0, 'outputMax': 7, 'outputMin': 0, 'x': {'from_node': 'ndvi1'}
-    }
-
-
 def test_filter_bbox_minimal(s2cube):
     im = s2cube.filter_bbox(west=3.0, east=3.1, north=51.1, south=51.0)
     graph = _get_leaf_node(im)

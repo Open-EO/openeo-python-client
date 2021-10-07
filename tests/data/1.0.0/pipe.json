@@ -15,16 +15,29 @@
       }
     }
   },
-  "linearscalerange1": {
-    "process_id": "linear_scale_range",
+  "apply1": {
+    "process_id": "apply",
     "arguments": {
-      "x": {
+      "data": {
         "from_node": "ndvi1"
       },
-      "inputMin": 0,
-      "inputMax": 1,
-      "outputMin": 0,
-      "outputMax": 100
+      "process": {
+        "process_graph": {
+          "linearscalerange1": {
+            "arguments": {
+              "inputMax": 1,
+              "inputMin": 0,
+              "outputMax": 100,
+              "outputMin": 0,
+              "x": {
+                "from_parameter": "x"
+              }
+            },
+            "process_id": "linear_scale_range",
+            "result": true
+          }
+        }
+      }
     },
     "result": true
   }
