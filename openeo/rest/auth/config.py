@@ -31,7 +31,7 @@ def assert_private_file(path: Path):
             p=path, a=mode & (stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO), e=_PRIVATE_PERMS
         )
         if platform.system() == 'Windows':
-            warnings.warn(message)
+            log.info(message)
         else:
             raise PermissionError(message)
 
