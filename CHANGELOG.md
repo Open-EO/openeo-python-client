@@ -51,9 +51,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deprecate usage of `DataCube.graph` property ([#209](https://github.com/Open-EO/openeo-python-client/issues/209))
 
 
-### Fixed
-
-
 ## [0.8.2] - 2021-08-24
 
 Minor release to address version packaging issue. 
