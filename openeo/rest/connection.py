@@ -717,7 +717,9 @@ class Connection(RestApiConnection):
             self, user_defined_process_id: str,
             process_graph: Union[dict, ProcessBuilderBase],
             parameters: List[Union[dict, Parameter]] = None,
-            public: bool = False, summary: str = None, description: str = None
+            public: bool = False, summary: str = None, description: str = None,
+            returns: Optional[dict] = None, categories: Optional[List[str]] = None, 
+            examples: Optional[List[dict]] = None, links: Optional[List[dict]] = None
     ) -> RESTUserDefinedProcess:
         """
         Store a process graph and its metadata on the backend as a user-defined process for the authenticated user.
@@ -736,7 +738,8 @@ class Connection(RestApiConnection):
         if not parameters:
             warnings.warn("Defining user-defined process {u!r} without parameters".format(u=user_defined_process_id))
         udp = RESTUserDefinedProcess(user_defined_process_id=user_defined_process_id, connection=self)
-        udp.store(process_graph=process_graph, parameters=parameters, public=public,summary=summary,description=description)
+        udp.store(process_graph=process_graph, parameters=parameters, public=public,summary=summary,description=description,
+        returns=returns, categories=categories, examples=examples, links=links)
         return udp
 
     def list_user_defined_processes(self) -> List[dict]:

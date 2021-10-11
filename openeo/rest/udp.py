@@ -21,6 +21,9 @@ def build_process_dict(
         description: Optional[str] = None,
         parameters: Optional[List[Union[Parameter, dict]]] = None,
         returns: Optional[dict] = None,
+        categories: Optional[List[str]] = None,
+        examples: Optional[List[dict]] = None,
+        links: Optional[List[dict]] = None
 ) -> dict:
     """
     Build a dictionary describing a process with metadaa (`process_graph`, `parameters`, `description`, ...)
@@ -31,6 +34,9 @@ def build_process_dict(
     :param description: detailed description
     :param parameters: list of process parameters (which have name, schema, default value, ...)
     :param returns: description and schema of what process returns
+    :param categories: list of categories
+    :param examples: list of examples, may be used for unit tests
+    :param links: list of links related to the process
     :return: dictionary in openEO "process graph with metadata" format
     """
     process = dict_no_none(
@@ -38,12 +44,27 @@ def build_process_dict(
         id=process_id,
         summary=summary,
         description=description,
-        returns=returns
+        returns=returns,
     )
     if parameters is not None:
         process["parameters"] = [
             (p if isinstance(p, Parameter) else Parameter(**p)).to_dict()
             for p in parameters
+        ]
+    if categories is not None:
+        process["categories"] = [
+            (c if isinstance(c, str) else str(c))
+            for c in categories
+        ]
+    if examples is not None:
+        process["examples"] = [
+            (e if isinstance(e, dict) else e.to_dict())
+            for e in examples
+        ]
+    if links is not None:
+        process["links"] = [
+            (l if isinstance(l, str) else l.to_dict())
+            for l in links
         ]
     return process
 
@@ -62,12 +83,14 @@ class RESTUserDefinedProcess:
 
     def store(
             self, process_graph: Union[dict, ProcessBuilderBase], parameters: List[Union[Parameter, dict]] = None,
-            public: bool = False, summary: str = None, description: str = None
+            public: bool = False, summary: str = None, description: str = None, returns: Optional[dict] = None,
+            categories: Optional[List[str]] = None, examples: Optional[List[dict]] = None, links: Optional[List[dict]] = None
     ):
         """Store a process graph and its metadata on the backend as a user-defined process"""
         process = build_process_dict(
             process_graph=process_graph, parameters=parameters,
-            summary=summary, description=description
+            summary=summary, description=description, returns=returns,
+            categories=categories, examples=examples, links=links
         )
 
         # TODO: this "public" flag is not standardized yet EP-3609, https://github.com/Open-EO/openeo-api/issues/310
