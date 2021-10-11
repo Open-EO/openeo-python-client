@@ -4,6 +4,7 @@ Unit tests specifically for 1.0.0-style DataCube
 
 """
 import pathlib
+import re
 import sys
 import textwrap
 
@@ -32,7 +33,9 @@ def _get_leaf_node(cube: DataCube) -> dict:
 
 def test_datacube_graph(con100):
     s2cube = con100.load_collection("S2")
-    assert s2cube.flat_graph() == {'loadcollection1': {
+    with pytest.warns(DeprecationWarning, match=re.escape("Use `.flat_graph()` method instead of `.graph` property.")):
+        actual = s2cube.graph
+    assert actual == {'loadcollection1': {
         'process_id': 'load_collection',
         'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
         'result': True
