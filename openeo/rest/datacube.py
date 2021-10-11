@@ -69,7 +69,7 @@ class DataCube(ImageCollection, _FromNodeMixin):
         return "DataCube({pg})".format(pg=self._pg)
 
     @property
-    @deprecated(reason="Use :py:meth:`DataCube.flat_graph()` instead.", version="0.8.3")
+    @deprecated(reason="Use :py:meth:`DataCube.flat_graph()` instead.", version="0.9.0")
     def graph(self) -> dict:
         """
         Get the process graph in flat dict representation.
