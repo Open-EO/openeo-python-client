@@ -2,6 +2,8 @@ from abc import ABC
 from distutils.version import LooseVersion
 from typing import Union
 
+# Is this base class (still) useful?
+
 
 class Capabilities(ABC):
     """Represents capabilities of a connection / back end."""

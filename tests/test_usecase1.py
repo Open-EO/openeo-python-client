@@ -9,6 +9,7 @@ from openeo.rest.auth.auth import BearerAuth
 
 @requests_mock.mock()
 class TestUsecase1(TestCase):
+    _capabilities = {"api_version": "0.4.0", "endpoints": [{"path": "/credentials/basic", "methods": ["GET"]}]}
 
     def setUp(self):
         # configuration phase: define username, endpoint, parameters?
@@ -22,13 +23,13 @@ class TestUsecase1(TestCase):
         self.output_file = "/tmp/test.gtiff"
 
     def test_user_login(self, m):
-        m.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})
+        m.get("http://localhost:8000/api/", json=self._capabilities)
         m.get("http://localhost:8000/api/credentials/basic", json={"access_token": "blabla"})
         con = openeo.connect(self.endpoint).authenticate_basic(username=self.auth_id, password=self.auth_pwd)
         assert isinstance(con.auth, BearerAuth)
 
     def test_viewing_list_jobs(self, m):
-        m.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})
+        m.get("http://localhost:8000/api/", json=self._capabilities)
         m.get("http://localhost:8000/api/credentials/basic", json={"access_token": "blabla"})
         job_info = {"job_id": "748df7caa8c84a7ff6e", "status": "running", "created": "2021-02-22T09:00:00Z"}
         m.get("http://localhost:8000/api/jobs", json={"jobs": [job_info]})
@@ -59,7 +60,7 @@ class TestUsecase1(TestCase):
         assert self.process_id in set(p["process_id"] for p in processes)
 
     def test_job_creation(self, m):
-        m.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})
+        m.get("http://localhost:8000/api/", json=self._capabilities)
         m.get("http://localhost:8000/api/credentials/basic", json={"access_token": "blabla"})
         m.post("http://localhost:8000/api/jobs", status_code=201,headers={"OpenEO-Identifier": "748df7caa8c84a7ff6e"})
 

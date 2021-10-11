@@ -19,7 +19,10 @@ from .auth.test_cli import auth_config, refresh_token_store
 from .auth.test_oidc import OidcMock, assert_device_code_poll_sleep, ABSENT
 from .. import load_json_resource
 
+
 API_URL = "https://oeo.test/"
+
+BASIC_ENDPOINTS = [{"path": "/credentials/basic", "methods": ["GET"]}]
 
 # Trick to avoid linting/auto-formatting tools to complain about or fix unused imports of these pytest fixtures
 auth_config = auth_config
@@ -193,7 +196,7 @@ def test_connection_other_domain_auth_headers(requests_mock, api_version):
     def debug(request: requests.Request, context):
         return repr(("hello world", request.headers))
 
-    requests_mock.get(API_URL, json={"api_version": api_version})
+    requests_mock.get(API_URL, json={"api_version": api_version, "endpoints": BASIC_ENDPOINTS})
     requests_mock.get(API_URL + 'credentials/basic', json={"access_token": secret})
     requests_mock.get("https://evilcorp.test/download/hello.txt", text=debug)
 
@@ -300,7 +303,8 @@ def test_connection_repr(requests_mock):
     requests_mock.get("https://oeo.test/.well-known/openeo", status_code=200, json={
         "versions": [{"api_version": "1.0.0", "url": "https://oeo.test/openeo/1.x/", "production": True}],
     })
-    requests_mock.get("https://oeo.test/openeo/1.x/", status_code=200, json={"api_version": "1.0.0"})
+    requests_mock.get("https://oeo.test/openeo/1.x/", status_code=200,
+                      json={"api_version": "1.0.0", "endpoints": BASIC_ENDPOINTS})
     requests_mock.get("https://oeo.test/openeo/1.x/credentials/basic", json={"access_token": "w3lc0m3"})
 
     conn = connect("https://oeo.test/")
@@ -360,7 +364,7 @@ def test_api_error_non_json(requests_mock):
 
 def test_create_connection_lazy_auth_config(requests_mock, api_version):
     user, pwd = "john262", "J0hndo3"
-    requests_mock.get(API_URL, json={"api_version": api_version})
+    requests_mock.get(API_URL, json={"api_version": api_version, "endpoints": BASIC_ENDPOINTS})
 
     def text_callback(request, context):
         assert request.headers["Authorization"] == requests.auth._basic_auth_str(username=user, password=pwd)
@@ -413,9 +417,19 @@ def test_create_connection_lazy_refresh_token_store(requests_mock):
         )
 
 
+def test_authenticate_basic_no_support(requests_mock, api_version):
+    requests_mock.get(API_URL, json={"api_version": api_version, "endpoints": []})
+
+    conn = Connection(API_URL)
+    assert isinstance(conn.auth, NullAuth)
+    with pytest.raises(OpenEoClientException, match="does not support basic auth"):
+        conn.authenticate_basic(username="john", password="j0hn")
+    assert isinstance(conn.auth, NullAuth)
+
+
 def test_authenticate_basic(requests_mock, api_version):
     user, pwd = "john262", "J0hndo3"
-    requests_mock.get(API_URL, json={"api_version": api_version})
+    requests_mock.get(API_URL, json={"api_version": api_version, "endpoints": BASIC_ENDPOINTS})
 
     def text_callback(request, context):
         assert request.headers["Authorization"] == requests.auth._basic_auth_str(username=user, password=pwd)
@@ -435,7 +449,7 @@ def test_authenticate_basic(requests_mock, api_version):
 
 def test_authenticate_basic_from_config(requests_mock, api_version, auth_config):
     user, pwd = "john281", "J0hndo3"
-    requests_mock.get(API_URL, json={"api_version": api_version})
+    requests_mock.get(API_URL, json={"api_version": api_version, "endpoints": BASIC_ENDPOINTS})
 
     def text_callback(request, context):
         assert request.headers["Authorization"] == requests.auth._basic_auth_str(username=user, password=pwd)
@@ -1692,7 +1706,7 @@ def test_paginate_callback(requests_mock):
     lambda con: PGNode("add", x=3, y=5)
 ])
 def test_as_curl(requests_mock, data_factory):
-    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    requests_mock.get(API_URL, json={"api_version": "1.0.0", "endpoints": BASIC_ENDPOINTS})
     requests_mock.get(API_URL + 'credentials/basic', json={"access_token": "s3cr6t"})
     con = Connection(API_URL).authenticate_basic("john", "j0hn")
 

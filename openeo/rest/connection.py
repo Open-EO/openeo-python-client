@@ -270,6 +270,8 @@ class Connection(RestApiConnection):
         :param username: User name
         :param password: User passphrase
         """
+        if not self.capabilities().supports_endpoint("/credentials/basic", method="GET"):
+            raise OpenEoClientException("This openEO back-end does not support basic authentication.")
         if username is None:
             username, password = self._get_auth_config().get_basic_auth(backend=self._orig_url)
             if username is None:

@@ -27,6 +27,12 @@ class RESTCapabilities(Capabilities):
         # Field: endpoints > ... TODO
         pass
 
+    def supports_endpoint(self, path: str, method="GET"):
+        return any(
+            endpoint.get("path") == path and method.upper() in endpoint.get("methods", [])
+            for endpoint in self.capabilities.get("endpoints", [])
+        )
+
     def currency(self):
         """ Get default billing currency."""
         return self.capabilities.get('billing', {}).get('currency')

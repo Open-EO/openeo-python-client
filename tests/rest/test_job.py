@@ -17,14 +17,20 @@ TIFF_CONTENT = b'T1f7D6t6l0l' * 1000
 
 @pytest.fixture
 def session040(requests_mock):
-    requests_mock.get(API_URL + "/", json={"api_version": "0.4.0"})
+    requests_mock.get(API_URL + "/", json={
+        "api_version": "0.4.0",
+        "endpoints": [{"path": "/credentials/basic", "methods": ["GET"]}]
+    })
     session = openeo.connect(API_URL)
     return session
 
 
 @pytest.fixture
 def con100(requests_mock):
-    requests_mock.get(API_URL + "/", json={"api_version": "1.0.0"})
+    requests_mock.get(API_URL + "/", json={
+        "api_version": "1.0.0",
+        "endpoints": [{"path": "/credentials/basic", "methods": ["GET"]}]
+    })
     con = openeo.connect(API_URL)
     return con
 
