@@ -63,7 +63,7 @@ def build_process_dict(
         ]
     if links is not None:
         process["links"] = [
-            (l if isinstance(l, str) else l.to_dict())
+            (l if isinstance(l, dict) else l.to_dict())
             for l in links
         ]
     return process
