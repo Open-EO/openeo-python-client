@@ -46,7 +46,7 @@ def test_min_time(s2cube, api_version):
 def _get_leaf_node(cube, force_flat=True) -> dict:
     """Get leaf node (node with result=True), supporting old and new style of graph building."""
     if isinstance(cube, ImageCollectionClient):
-        return cube.graph[cube.node_id]
+        return cube.flat_graph()[cube.node_id]
     elif isinstance(cube, DataCube):
         if force_flat:
             flat_graph = cube.flat_graph()
@@ -123,14 +123,14 @@ def test_filter_temporal_generic(s2cube, args, kwargs, extent):
 def test_load_collection_bands_name(connection, api_version):
     im = connection.load_collection("S2", bands=["B08", "B04"])
     expected = load_json_resource('data/{v}/load_collection_bands.json'.format(v=api_version))
-    assert im.graph == expected
+    assert im.flat_graph() == expected
 
 
 def test_load_collection_bands_single_band(connection, api_version):
     im = connection.load_collection("S2", bands="B08")
     expected = load_json_resource('data/{v}/load_collection_bands.json'.format(v=api_version))
     expected["loadcollection1"]["arguments"]["bands"] = ["B08"]
-    assert im.graph == expected
+    assert im.flat_graph() == expected
 
 
 def test_load_collection_bands_common_name(connection, api_version):
@@ -140,13 +140,13 @@ def test_load_collection_bands_common_name(connection, api_version):
         expected["loadcollection1"]["arguments"]["bands"] = ["B08", "B04"]
     else:
         expected["loadcollection1"]["arguments"]["bands"] = ["nir", "red"]
-    assert im.graph == expected
+    assert im.flat_graph() == expected
 
 
 def test_load_collection_bands_band_index(connection, api_version):
     im = connection.load_collection("S2", bands=[3, 2])
     expected = load_json_resource('data/{v}/load_collection_bands.json'.format(v=api_version))
-    assert im.graph == expected
+    assert im.flat_graph() == expected
 
 
 def test_load_collection_bands_and_band_math(connection, api_version):
@@ -155,21 +155,21 @@ def test_load_collection_bands_and_band_math(connection, api_version):
     b3 = cube.band("B03")
     x = b4 - b3
     expected = load_json_resource('data/{v}/load_collection_bands_and_band_math.json'.format(v=api_version))
-    assert x.graph == expected
+    assert x.flat_graph() == expected
 
 
 def test_filter_bands_name(s2cube, api_version):
     im = s2cube.filter_bands(["B08", "B04"])
     expected = load_json_resource('data/{v}/filter_bands.json'.format(v=api_version))
     expected["filterbands1"]["arguments"]["bands"] = ["B08", "B04"]
-    assert im.graph == expected
+    assert im.flat_graph() == expected
 
 
 def test_filter_bands_single_band(s2cube, api_version):
     im = s2cube.filter_bands("B08")
     expected = load_json_resource('data/{v}/filter_bands.json'.format(v=api_version))
     expected["filterbands1"]["arguments"]["bands"] = ["B08"]
-    assert im.graph == expected
+    assert im.flat_graph() == expected
 
 
 def test_filter_bands_common_name(s2cube, api_version):
@@ -180,14 +180,14 @@ def test_filter_bands_common_name(s2cube, api_version):
         expected["filterbands1"]["arguments"]["common_names"] = ["nir", "red"]
     else:
         expected["filterbands1"]["arguments"]["bands"] = ["nir", "red"]
-    assert im.graph == expected
+    assert im.flat_graph() == expected
 
 
 def test_filter_bands_index(s2cube, api_version):
     im = s2cube.filter_bands([3, 2])
     expected = load_json_resource('data/{v}/filter_bands.json'.format(v=api_version))
     expected["filterbands1"]["arguments"]["bands"] = ["B08", "B04"]
-    assert im.graph == expected
+    assert im.flat_graph() == expected
 
 
 def test_pipe(s2cube, api_version):
@@ -195,7 +195,7 @@ def test_pipe(s2cube, api_version):
         return cube.ndvi().linear_scale_range(0, 1, 0, 100)
 
     im = s2cube.pipe(ndvi_percent)
-    assert im.graph == load_json_resource('data/{v}/pipe.json'.format(v=api_version))
+    assert im.flat_graph() == load_json_resource('data/{v}/pipe.json'.format(v=api_version))
 
 
 def test_filter_bbox_minimal(s2cube):
@@ -390,13 +390,13 @@ def test_resample_spatial(s2cube):
 def test_merge(s2cube, api_version):
     merged = s2cube.ndvi().merge(s2cube)
     expected_graph = load_json_resource('data/{v}/merge_ndvi_self.json'.format(v=api_version))
-    assert merged.graph == expected_graph
+    assert merged.flat_graph() == expected_graph
 
 
 def test_apply_absolute_str(s2cube, api_version):
     result = s2cube.apply("absolute")
     expected_graph = load_json_resource('data/{v}/apply_absolute.json'.format(v=api_version))
-    assert result.graph == expected_graph
+    assert result.flat_graph() == expected_graph
 
 
 def test_subtract_dates_ep3129(s2cube, api_version):
@@ -443,8 +443,8 @@ def test_apply_dimension(connection, requests_mock):
     for dim in ["color", "alpha", "date"]:
         reset_graphbuilder()
         cube = s22.apply_dimension(dimension=dim, code="subtract_mean")
-        assert cube.graph["applydimension1"]["process_id"] == "apply_dimension"
-        assert cube.graph["applydimension1"]["arguments"]["dimension"] == dim
+        assert cube.flat_graph()["applydimension1"]["process_id"] == "apply_dimension"
+        assert cube.flat_graph()["applydimension1"]["arguments"]["dimension"] == dim
     with pytest.raises(ValueError, match="Invalid dimension 'wut'"):
         s22.apply_dimension(dimension='wut', code="subtract_mean")
 

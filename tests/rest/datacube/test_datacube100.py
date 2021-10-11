@@ -32,7 +32,7 @@ def _get_leaf_node(cube: DataCube) -> dict:
 
 def test_datacube_graph(con100):
     s2cube = con100.load_collection("S2")
-    assert s2cube.graph == {'loadcollection1': {
+    assert s2cube.flat_graph() == {'loadcollection1': {
         'process_id': 'load_collection',
         'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
         'result': True
@@ -163,8 +163,8 @@ def test_filter_spatial(con100: Connection, recwarn):
     img = con100.load_collection("S2")
     polygon = shapely.geometry.box(0, 0, 1, 1)
     masked = img.filter_spatial(geometries=polygon)
-    assert sorted(masked.graph.keys()) == ["filterspatial1", "loadcollection1"]
-    assert masked.graph["filterspatial1"] == {
+    assert sorted(masked.flat_graph().keys()) == ["filterspatial1", "loadcollection1"]
+    assert masked.flat_graph()["filterspatial1"] == {
         "process_id": "filter_spatial",
         "arguments": {
             "data": {"from_node": "loadcollection1"},
@@ -180,8 +180,8 @@ def test_aggregate_spatial_basic(con100: Connection):
     img = con100.load_collection("S2")
     polygon = shapely.geometry.box(0, 0, 1, 1)
     masked = img.aggregate_spatial(geometries=polygon, reducer="mean")
-    assert sorted(masked.graph.keys()) == ["aggregatespatial1", "loadcollection1"]
-    assert masked.graph["aggregatespatial1"] == {
+    assert sorted(masked.flat_graph().keys()) == ["aggregatespatial1", "loadcollection1"]
+    assert masked.flat_graph()["aggregatespatial1"] == {
         "process_id": "aggregate_spatial",
         "arguments": {
             "data": {"from_node": "loadcollection1"},
@@ -242,8 +242,8 @@ def test_aggregate_spatial_basic(con100: Connection):
 def test_aggregate_spatial_types(con100: Connection, polygon, expected_geometries):
     img = con100.load_collection("S2")
     masked = img.aggregate_spatial(geometries=polygon, reducer="mean")
-    assert sorted(masked.graph.keys()) == ["aggregatespatial1", "loadcollection1"]
-    assert masked.graph["aggregatespatial1"] == {
+    assert sorted(masked.flat_graph().keys()) == ["aggregatespatial1", "loadcollection1"]
+    assert masked.flat_graph()["aggregatespatial1"] == {
         "process_id": "aggregate_spatial",
         "arguments": {
             "data": {"from_node": "loadcollection1"},
@@ -262,8 +262,8 @@ def test_aggregate_spatial_with_crs(con100: Connection, recwarn):
     masked = img.aggregate_spatial(geometries=polygon, reducer="mean", crs="EPSG:32631")
     warnings = [str(w.message) for w in recwarn]
     assert "Geometry with non-Lon-Lat CRS 'EPSG:32631' is only supported by specific back-ends." in warnings
-    assert sorted(masked.graph.keys()) == ["aggregatespatial1", "loadcollection1"]
-    assert masked.graph["aggregatespatial1"] == {
+    assert sorted(masked.flat_graph().keys()) == ["aggregatespatial1", "loadcollection1"]
+    assert masked.flat_graph()["aggregatespatial1"] == {
         "process_id": "aggregate_spatial",
         "arguments": {
             "data": {"from_node": "loadcollection1"},
@@ -283,7 +283,7 @@ def test_aggregate_spatial_with_crs(con100: Connection, recwarn):
 def test_aggregate_temporal(con100: Connection):
     img = con100.load_collection("S2").aggregate_temporal_period(period="dekad",reducer=lambda d:d.median(),context={"bla":"bla"})
 
-    graph = img.graph
+    graph = img.flat_graph()
     assert graph == {'aggregatetemporalperiod1': {'arguments': {'data': {'from_node': 'loadcollection1'},
                                                                 'period': 'dekad',
                                                                 'context': {'bla': 'bla'},
@@ -301,8 +301,8 @@ def test_mask_polygon_basic(con100: Connection):
     img = con100.load_collection("S2")
     polygon = shapely.geometry.box(0, 0, 1, 1)
     masked = img.mask_polygon(mask=polygon)
-    assert sorted(masked.graph.keys()) == ["loadcollection1", "maskpolygon1"]
-    assert masked.graph["maskpolygon1"] == {
+    assert sorted(masked.flat_graph().keys()) == ["loadcollection1", "maskpolygon1"]
+    assert masked.flat_graph()["maskpolygon1"] == {
         "process_id": "mask_polygon",
         "arguments": {
             "data": {"from_node": "loadcollection1"},
@@ -348,8 +348,8 @@ def test_mask_polygon_basic(con100: Connection):
 def test_mask_polygon_types(con100: Connection, polygon, expected_mask):
     img = con100.load_collection("S2")
     masked = img.mask_polygon(mask=polygon)
-    assert sorted(masked.graph.keys()) == ["loadcollection1", "maskpolygon1"]
-    assert masked.graph["maskpolygon1"] == {
+    assert sorted(masked.flat_graph().keys()) == ["loadcollection1", "maskpolygon1"]
+    assert masked.flat_graph()["maskpolygon1"] == {
         "process_id": "mask_polygon",
         "arguments": {
             "data": {"from_node": "loadcollection1"},
@@ -365,8 +365,8 @@ def test_mask_polygon_with_crs(con100: Connection, recwarn):
     masked = img.mask_polygon(mask=polygon, srs="EPSG:32631")
     warnings = [str(w.message) for w in recwarn]
     assert "Geometry with non-Lon-Lat CRS 'EPSG:32631' is only supported by specific back-ends." in warnings
-    assert sorted(masked.graph.keys()) == ["loadcollection1", "maskpolygon1"]
-    assert masked.graph["maskpolygon1"] == {
+    assert sorted(masked.flat_graph().keys()) == ["loadcollection1", "maskpolygon1"]
+    assert masked.flat_graph()["maskpolygon1"] == {
         "process_id": "mask_polygon",
         "arguments": {
             "data": {"from_node": "loadcollection1"},
@@ -383,8 +383,8 @@ def test_mask_polygon_parameter(con100: Connection):
     img = con100.load_collection("S2")
     polygon = Parameter(name="shape", schema="object")
     masked = img.mask_polygon(mask=polygon)
-    assert sorted(masked.graph.keys()) == ["loadcollection1", "maskpolygon1"]
-    assert masked.graph["maskpolygon1"] == {
+    assert sorted(masked.flat_graph().keys()) == ["loadcollection1", "maskpolygon1"]
+    assert masked.flat_graph()["maskpolygon1"] == {
         "process_id": "mask_polygon",
         "arguments": {
             "data": {"from_node": "loadcollection1"},
@@ -397,8 +397,8 @@ def test_mask_polygon_parameter(con100: Connection):
 def test_mask_polygon_path(con100: Connection):
     img = con100.load_collection("S2")
     masked = img.mask_polygon(mask="path/to/polygon.json")
-    assert sorted(masked.graph.keys()) == ["loadcollection1", "maskpolygon1", "readvector1"]
-    assert masked.graph["maskpolygon1"] == {
+    assert sorted(masked.flat_graph().keys()) == ["loadcollection1", "maskpolygon1", "readvector1"]
+    assert masked.flat_graph()["maskpolygon1"] == {
         "process_id": "mask_polygon",
         "arguments": {
             "data": {"from_node": "loadcollection1"},
@@ -406,7 +406,7 @@ def test_mask_polygon_path(con100: Connection):
         },
         "result": True
     }
-    assert masked.graph["readvector1"] == {
+    assert masked.flat_graph()["readvector1"] == {
         "process_id": "read_vector",
         "arguments": {"filename": "path/to/polygon.json"},
     }
@@ -416,7 +416,7 @@ def test_mask_raster(con100: Connection):
     img = con100.load_collection("S2")
     mask = con100.load_collection("MASK")
     masked = img.mask(mask=mask, replacement=102)
-    assert masked.graph["mask1"] == {
+    assert masked.flat_graph()["mask1"] == {
         "process_id": "mask",
         "arguments": {
             "data": {"from_node": "loadcollection1"},
@@ -431,7 +431,7 @@ def test_merge_cubes(con100: Connection):
     a = con100.load_collection("S2")
     b = con100.load_collection("MASK")
     c = a.merge(b)
-    assert c.graph["mergecubes1"] == {
+    assert c.flat_graph()["mergecubes1"] == {
         "process_id": "merge_cubes",
         "arguments": {
             "cube1": {"from_node": "loadcollection1"},
@@ -445,8 +445,8 @@ def test_resample_spatial(con100: Connection):
     data = con100.load_collection("S2")
     target = con100.load_collection("MASK")
     im = data.resample_cube_spatial(target,method='spline')
-    print(im.graph)
-    assert im.graph["resamplecubespatial1"] == {
+    print(im.flat_graph())
+    assert im.flat_graph()["resamplecubespatial1"] == {
         'arguments': {
            'data': {'from_node': 'loadcollection1'},
            'method': 'spline',
@@ -458,8 +458,8 @@ def test_resample_spatial(con100: Connection):
 
 def test_ndvi_simple(con100: Connection):
     ndvi = con100.load_collection("S2").ndvi()
-    assert sorted(ndvi.graph.keys()) == ["loadcollection1", "ndvi1"]
-    assert ndvi.graph["ndvi1"] == {
+    assert sorted(ndvi.flat_graph().keys()) == ["loadcollection1", "ndvi1"]
+    assert ndvi.flat_graph()["ndvi1"] == {
         "process_id": "ndvi",
         "arguments": {"data": {"from_node": "loadcollection1"}},
         "result": True,
@@ -469,8 +469,8 @@ def test_ndvi_simple(con100: Connection):
 
 def test_ndvi_args(con100: Connection):
     ndvi = con100.load_collection("S2").ndvi(nir="nirr", red="rred", target_band="ndvii")
-    assert sorted(ndvi.graph.keys()) == ["loadcollection1", "ndvi1"]
-    assert ndvi.graph["ndvi1"] == {
+    assert sorted(ndvi.flat_graph().keys()) == ["loadcollection1", "ndvi1"]
+    assert ndvi.flat_graph()["ndvi1"] == {
         "process_id": "ndvi",
         "arguments": {"data": {"from_node": "loadcollection1"}, "nir": "nirr", "red": "rred", "target_band": "ndvii"},
         "result": True,
@@ -482,7 +482,7 @@ def test_ndvi_args(con100: Connection):
 def test_rename_dimension(con100):
     s2 = con100.load_collection("S2")
     x = s2.rename_dimension(source="bands", target="ThisIsNotTheBandsDimension")
-    assert x.graph == {
+    assert x.flat_graph() == {
         'loadcollection1': {
             'arguments': {
                 'id': 'S2',
@@ -506,7 +506,7 @@ def test_rename_dimension(con100):
 def test_reduce_dimension(con100):
     s2 = con100.load_collection("S2")
     x = s2.reduce_dimension(dimension="bands", reducer="mean")
-    assert x.graph == {
+    assert x.flat_graph() == {
         'loadcollection1': {
             'process_id': 'load_collection',
             'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
@@ -535,7 +535,7 @@ def test_reduce_dimension_binary(con100):
         arguments={"x": {"from_parameter": "x"}, "y": {"from_parameter": "y"}},
     )
     x = s2.reduce_dimension(dimension="bands", reducer=reducer, process_id="reduce_dimension_binary")
-    assert x.graph == {
+    assert x.flat_graph() == {
         'loadcollection1': {
             'process_id': 'load_collection',
             'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
@@ -569,7 +569,7 @@ def test_reduce_dimension_name(con100, requests_mock):
 
     for dim in ["color", "alpha", "date"]:
         cube = s22.reduce_dimension(dimension=dim, reducer="sum")
-        assert cube.graph["reducedimension1"] == {
+        assert cube.flat_graph()["reducedimension1"] == {
             "process_id": "reduce_dimension",
             "arguments": {
                 'data': {'from_node': 'loadcollection1'},
@@ -612,7 +612,7 @@ def test_apply_absolute_pgnode(con100):
     im = con100.load_collection("S2")
     result = im.apply(PGNode(process_id="absolute", arguments={"x": {"from_parameter": "x"}}))
     expected_graph = load_json_resource('data/1.0.0/apply_absolute.json')
-    assert result.graph == expected_graph
+    assert result.flat_graph() == expected_graph
 
 
 def test_load_collection_properties(con100):
@@ -637,7 +637,7 @@ def test_load_collection_properties(con100):
     )
 
     expected = load_json_resource('data/1.0.0/load_collection_properties.json')
-    assert im.graph == expected
+    assert im.flat_graph() == expected
 
 
 def test_load_collection_properties_process_builder_function(con100):
@@ -653,7 +653,7 @@ def test_load_collection_properties_process_builder_function(con100):
     )
 
     expected = load_json_resource('data/1.0.0/load_collection_properties.json')
-    assert im.graph == expected
+    assert im.flat_graph() == expected
 
 
 def test_load_collection_temporalextent_process_builder_function(con100):
@@ -675,19 +675,19 @@ def test_load_collection_temporalextent_process_builder_function(con100):
                                                                               '2019-01-01']},
                                             'process_id': 'load_collection',
                                             'result': True}}
-    assert im.graph == expected
+    assert im.flat_graph() == expected
 
     assert con100.load_collection(
         "S2",
         temporal_extent=[date_shift(Parameter("start_date"), -2, unit="days"), "2019-01-01"],
 
-    ).graph == expected
+    ).flat_graph() == expected
 
 
 
 def test_apply_dimension_temporal_cumsum_with_target(con100):
     cumsum = con100.load_collection("S2").apply_dimension('cumsum', dimension="t", target_dimension="MyNewTime")
-    actual_graph = cumsum.graph
+    actual_graph = cumsum.flat_graph()
     expected_graph = load_json_resource('data/1.0.0/apply_dimension_temporal_cumsum.json')
     expected_graph['applydimension1']['arguments']['target_dimension'] = 'MyNewTime'
     expected_graph['applydimension1']['result'] = True
@@ -701,7 +701,7 @@ def test_apply_dimension_modify_bands(con100):
         diff = b01-b02
         return x.array_modify(values=diff, index=0)
     cumsum = con100.load_collection("S2").apply_dimension(process=update_bands, dimension="bands")
-    actual_graph = cumsum.graph
+    actual_graph = cumsum.flat_graph()
 
     assert actual_graph ==  {'applydimension1': {'arguments': {'data': {'from_node': 'loadcollection1'},
                                                                'dimension': 'bands',
@@ -735,7 +735,7 @@ def test_apply_neighborhood_udf(con100):
     ], overlap=[
         {'dimension': 't', 'value': 'P10d'},
     ],process= lambda data:data.run_udf(udf="myfancycode", runtime="Python"))
-    actual_graph = neighbors.graph['applyneighborhood1']
+    actual_graph = neighbors.flat_graph()['applyneighborhood1']
     assert actual_graph == {'arguments': {'data': {'from_node': 'loadcollection1'},
                                           'overlap': [{'dimension': 't', 'value': 'P10d'}],
                                           'process': {'process_graph': {'runudf1': {'arguments': {'udf': 'myfancycode',
@@ -776,7 +776,7 @@ def test_filter_spatial_callback(con100):
         "geometries": udf_process
     })
 
-    assert filtered_collection.graph == {
+    assert filtered_collection.flat_graph() == {
         'filterspatial1': {
             'arguments': {
                 'data': {'from_node': 'loadcollection1'},
@@ -810,52 +810,52 @@ def test_custom_process_kwargs_datacube(con100: Connection):
     img = con100.load_collection("S2")
     res = img.process(process_id="foo", data=img, bar=123)
     expected = load_json_resource('data/1.0.0/process_foo.json')
-    assert res.graph == expected
+    assert res.flat_graph() == expected
 
 
 def test_custom_process_kwargs_datacube_pg(con100: Connection):
     img = con100.load_collection("S2")
     res = img.process(process_id="foo", data=img._pg, bar=123)
     expected = load_json_resource('data/1.0.0/process_foo.json')
-    assert res.graph == expected
+    assert res.flat_graph() == expected
 
 
 def test_custom_process_kwargs_this(con100: Connection):
     res = con100.load_collection("S2").process(process_id="foo", data=THIS, bar=123)
     expected = load_json_resource('data/1.0.0/process_foo.json')
-    assert res.graph == expected
+    assert res.flat_graph() == expected
 
 
 def test_custom_process_kwargs_namespaced(con100: Connection):
     res = con100.load_collection("S2").process(process_id="foo", data=THIS, bar=123, namespace="bar")
     expected = load_json_resource('data/1.0.0/process_foo_namespaced.json')
-    assert res.graph == expected
+    assert res.flat_graph() == expected
 
 
 def test_custom_process_arguments_datacube(con100: Connection):
     img = con100.load_collection("S2")
     res = img.process(process_id="foo", arguments={"data": img, "bar": 123})
     expected = load_json_resource('data/1.0.0/process_foo.json')
-    assert res.graph == expected
+    assert res.flat_graph() == expected
 
 
 def test_custom_process_arguments_datacube_pg(con100: Connection):
     img = con100.load_collection("S2")
     res = img.process(process_id="foo", arguments={"data": img._pg, "bar": 123})
     expected = load_json_resource('data/1.0.0/process_foo.json')
-    assert res.graph == expected
+    assert res.flat_graph() == expected
 
 
 def test_custom_process_arguments_this(con100: Connection):
     res = con100.load_collection("S2").process(process_id="foo", arguments={"data": THIS, "bar": 123})
     expected = load_json_resource('data/1.0.0/process_foo.json')
-    assert res.graph == expected
+    assert res.flat_graph() == expected
 
 
 def test_custom_process_arguments_namespacd(con100: Connection):
     res = con100.load_collection("S2").process(process_id="foo", arguments={"data": THIS, "bar": 123}, namespace="bar")
     expected = load_json_resource('data/1.0.0/process_foo_namespaced.json')
-    assert res.graph == expected
+    assert res.flat_graph() == expected
 
 
 def test_save_user_defined_process(con100, requests_mock):
@@ -1219,7 +1219,7 @@ def test_fit_curve_callback(con100: Connection):
             'result': True
         },
     }
-    assert res.graph == expected
+    assert res.flat_graph() == expected
 
 
 def test_predict_curve_callback(con100: Connection):
@@ -1270,7 +1270,7 @@ def test_predict_curve_callback(con100: Connection):
             'result': True
         },
     }
-    assert res.graph == expected
+    assert res.flat_graph() == expected
 
 
 def test_validation(con100, requests_mock):
@@ -1298,14 +1298,14 @@ def test_pipe_with_args(con100):
 
     s2cube = con100.load_collection("S2")
     im = s2cube.pipe(ndvi_scaled)
-    assert im.graph["apply1"]["arguments"]["process"]["process_graph"]["linearscalerange1"]["arguments"] == {
+    assert im.flat_graph()["apply1"]["arguments"]["process"]["process_graph"]["linearscalerange1"]["arguments"] == {
         'inputMax': 2, 'inputMin': 0, 'outputMax': 3, 'outputMin': 0, 'x': {'from_parameter': 'x'}
     }
     im = s2cube.pipe(ndvi_scaled, 4, 5)
-    assert im.graph["apply1"]["arguments"]["process"]["process_graph"]["linearscalerange1"]["arguments"] == {
+    assert im.flat_graph()["apply1"]["arguments"]["process"]["process_graph"]["linearscalerange1"]["arguments"] == {
         'inputMax': 4, 'inputMin': 0, 'outputMax': 5, 'outputMin': 0, 'x': {'from_parameter': 'x'}
     }
     im = s2cube.pipe(ndvi_scaled, out_max=7)
-    assert im.graph["apply1"]["arguments"]["process"]["process_graph"]["linearscalerange1"]["arguments"] == {
+    assert im.flat_graph()["apply1"]["arguments"]["process"]["process_graph"]["linearscalerange1"]["arguments"] == {
         'inputMax': 2, 'inputMin': 0, 'outputMax': 7, 'outputMin': 0, 'x': {'from_parameter': 'x'}
     }

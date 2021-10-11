@@ -46,6 +46,9 @@ class ImageCollectionClient(ImageCollection):
     def connection(self):
         return self.session
 
+    def flat_graph(self):
+        return self.graph
+
     @classmethod
     def load_collection(
             cls, collection_id: str, session: 'Connection' = None,

@@ -18,43 +18,43 @@ from ... import load_json_resource
 def test_band_basic(connection, api_version):
     cube = connection.load_collection("SENTINEL2_RADIOMETRY_10M")
     expected_graph = load_json_resource('data/%s/band0.json' % api_version)
-    assert cube.band(0).graph == expected_graph
+    assert cube.band(0).flat_graph() == expected_graph
     reset_graphbuilder()
-    assert cube.band("B02").graph == expected_graph
+    assert cube.band("B02").flat_graph() == expected_graph
 
 
 def test_indexing_040(con040):
     cube = con040.load_collection("SENTINEL2_RADIOMETRY_10M")
     expected_graph = load_json_resource('data/0.4.0/band_red.json')
     reset_graphbuilder()
-    assert cube.band("B04").graph == expected_graph
+    assert cube.band("B04").flat_graph() == expected_graph
     reset_graphbuilder()
-    assert cube.band("red").graph == expected_graph
+    assert cube.band("red").flat_graph() == expected_graph
     reset_graphbuilder()
-    assert cube.band(2).graph == expected_graph
+    assert cube.band(2).flat_graph() == expected_graph
 
     cube2 = cube.filter_bands(['B04', 'B03'])
     expected_graph = load_json_resource('data/0.4.0/band_red_filtered.json')
     reset_graphbuilder()
-    assert cube2.band("B04").graph == expected_graph
+    assert cube2.band("B04").flat_graph() == expected_graph
     reset_graphbuilder()
-    assert cube2.band("red").graph == expected_graph
+    assert cube2.band("red").flat_graph() == expected_graph
     reset_graphbuilder()
-    assert cube2.band(0).graph == expected_graph
+    assert cube2.band(0).flat_graph() == expected_graph
 
 
 def test_indexing_100(con100):
     cube = con100.load_collection("SENTINEL2_RADIOMETRY_10M")
     expected_graph = load_json_resource('data/1.0.0/band_red.json')
-    assert cube.band("B04").graph == expected_graph
-    assert cube.band("red").graph == expected_graph
-    assert cube.band(2).graph == expected_graph
+    assert cube.band("B04").flat_graph() == expected_graph
+    assert cube.band("red").flat_graph() == expected_graph
+    assert cube.band(2).flat_graph() == expected_graph
 
     cube2 = cube.filter_bands(['red', 'green'])
     expected_graph = load_json_resource('data/1.0.0/band_red_filtered.json')
-    assert cube2.band("B04").graph == expected_graph
-    assert cube2.band("red").graph == expected_graph
-    assert cube2.band(0).graph == expected_graph
+    assert cube2.band("B04").flat_graph() == expected_graph
+    assert cube2.band("red").flat_graph() == expected_graph
+    assert cube2.band(0).flat_graph() == expected_graph
 
 
 def test_evi(connection, api_version):
@@ -72,7 +72,7 @@ def test_db_to_natural(con100):
     B02 = cube.band('B02')
     natural = 10 ** ((B02 * 0.001 - 45) / 10)
     expected_graph = load_json_resource('data/1.0.0/db_to_natural.json')
-    assert natural.graph == expected_graph
+    assert natural.flat_graph() == expected_graph
 
 def test_ndvi_udf(connection, api_version):
     s2_radio = connection.load_collection("SENTINEL2_RADIOMETRY_10M")
@@ -139,7 +139,7 @@ def test_band_operation(con100, process, expected):
         "process_id": "array_element", "arguments": {"data": {"from_parameter": "data"}, "index": 2}
     }}
     callback.update(expected)
-    assert c.graph == {
+    assert c.flat_graph() == {
         "loadcollection1": {
             "process_id": "load_collection",
             "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None}
@@ -163,7 +163,7 @@ def test_merge_issue107(con100):
     b = s2.filter_bands(['B04'])
     c = a.merge(b)
 
-    flat = c.graph
+    flat = c.flat_graph()
     # There should be only one `load_collection` node (but two `filter_band` ones)
     processes = sorted(n["process_id"] for n in flat.values())
     assert processes == ["filter_bands", "filter_bands", "load_collection", "merge_cubes"]
@@ -173,21 +173,21 @@ def test_invert_band(connection, api_version):
     cube = connection.load_collection("S2")
     band = cube.band('B04')
     result = (~band)
-    assert result.graph == load_json_resource('data/%s/bm_invert_band.json' % api_version)
+    assert result.flat_graph() == load_json_resource('data/%s/bm_invert_band.json' % api_version)
 
 
 def test_eq_scalar(connection, api_version):
     cube = connection.load_collection("S2")
     band = cube.band('B04')
     result = (band == 42)
-    assert result.graph == load_json_resource('data/%s/bm_eq_scalar.json' % api_version)
+    assert result.flat_graph() == load_json_resource('data/%s/bm_eq_scalar.json' % api_version)
 
 
 def test_gt_scalar(connection, api_version):
     cube = connection.load_collection("S2")
     band = cube.band('B04')
     result = (band > 42)
-    assert result.graph == load_json_resource('data/%s/bm_gt_scalar.json' % api_version)
+    assert result.flat_graph() == load_json_resource('data/%s/bm_gt_scalar.json' % api_version)
 
 
 @pytest.mark.parametrize(["operation", "expected"], (
@@ -202,7 +202,7 @@ def test_comparison(connection, api_version, operation, expected):
     cube = connection.load_collection("S2")
     band = cube.band('B04')
     result = operation(band)
-    assert result.graph == load_json_resource(
+    assert result.flat_graph() == load_json_resource(
         'data/%s/bm_comparison.json' % api_version,
         preprocess=lambda data: data.replace("OPERATOR", expected)
     )
@@ -212,14 +212,14 @@ def test_add_sub_mul_div_scalar(connection, api_version):
     cube = connection.load_collection("S2")
     band = cube.band('B04')
     result = (((band + 42) - 10) * 3) / 2
-    assert result.graph == load_json_resource('data/%s/bm_add_sub_mul_div_scalar.json' % api_version)
+    assert result.flat_graph() == load_json_resource('data/%s/bm_add_sub_mul_div_scalar.json' % api_version)
 
 
 def test_negative(connection, api_version):
     cube = connection.load_collection("S2")
     band = cube.band('B04')
     result = -band
-    assert result.graph == load_json_resource('data/%s/bm_negative.json' % api_version)
+    assert result.flat_graph() == load_json_resource('data/%s/bm_negative.json' % api_version)
 
 
 def test_add_bands(connection, api_version):
@@ -227,7 +227,7 @@ def test_add_bands(connection, api_version):
     b4 = cube.band("B04")
     b3 = cube.band("B03")
     result = b4 + b3
-    assert result.graph == load_json_resource('data/%s/bm_add_bands.json' % api_version)
+    assert result.flat_graph() == load_json_resource('data/%s/bm_add_bands.json' % api_version)
 
 
 def test_add_bands_different_collection(connection, api_version):
@@ -294,14 +294,14 @@ def test_merge_cubes_no_resolver(connection, api_version):
     s2 = connection.load_collection("S2")
     mask = connection.load_collection("MASK")
     merged = s2.merge(mask)
-    assert merged.graph == load_json_resource('data/%s/merge_cubes_no_resolver.json' % api_version)
+    assert merged.flat_graph() == load_json_resource('data/%s/merge_cubes_no_resolver.json' % api_version)
 
 
 def test_merge_cubes_max_resolver(connection, api_version):
     s2 = connection.load_collection("S2")
     mask = connection.load_collection("MASK")
     merged = s2.merge(mask, overlap_resolver="max")
-    assert merged.graph == load_json_resource('data/%s/merge_cubes_max.json' % api_version)
+    assert merged.flat_graph() == load_json_resource('data/%s/merge_cubes_max.json' % api_version)
 
 
 def test_fuzzy_mask(connection, api_version):
@@ -310,7 +310,7 @@ def test_fuzzy_mask(connection, api_version):
     clouds = scf_band == 4
     fuzzy = clouds.apply_kernel(kernel=0.1 * np.ones((3, 3)))
     mask = fuzzy > 0.3
-    assert mask.graph == load_json_resource('data/%s/fuzzy_mask.json' % api_version)
+    assert mask.flat_graph() == load_json_resource('data/%s/fuzzy_mask.json' % api_version)
 
 
 def test_fuzzy_mask_band_math(connection, api_version):
@@ -319,7 +319,7 @@ def test_fuzzy_mask_band_math(connection, api_version):
     clouds = scf_band == 4
     fuzzy = clouds.apply_kernel(kernel=0.1 * np.ones((3, 3)))
     mask = fuzzy.add_dimension("bands", "mask", "bands").band("mask") > 0.3
-    assert mask.graph == load_json_resource('data/%s/fuzzy_mask_add_dim.json' % api_version)
+    assert mask.flat_graph() == load_json_resource('data/%s/fuzzy_mask_add_dim.json' % api_version)
 
 
 def test_normalized_difference(connection, api_version):
@@ -329,29 +329,29 @@ def test_normalized_difference(connection, api_version):
 
     result = nir.normalized_difference(red)
 
-    assert result.graph == load_json_resource('data/%s/bm_nd_bands.json' % api_version)
+    assert result.flat_graph() == load_json_resource('data/%s/bm_nd_bands.json' % api_version)
 
 
 def test_ln(con100):
     result = con100.load_collection("S2").band('B04').ln()
-    assert result.graph == load_json_resource('data/1.0.0/bm_ln.json' )
+    assert result.flat_graph() == load_json_resource('data/1.0.0/bm_ln.json' )
 
 
 def test_log10(con100):
     result = con100.load_collection("S2").band('B04').log10()
-    assert result.graph == load_json_resource('data/1.0.0/bm_log.json')
+    assert result.flat_graph() == load_json_resource('data/1.0.0/bm_log.json')
 
 
 def test_log2(con100):
     result = con100.load_collection("S2").band('B04').log2()
-    assert result.graph == load_json_resource(
+    assert result.flat_graph() == load_json_resource(
         'data/1.0.0/bm_log.json',
         preprocess=lambda s: s.replace('"base": 10', '"base": 2')
     )
 
 def test_log3(con100):
     result = con100.load_collection("S2").band('B04').logarithm(base=3)
-    assert result.graph == load_json_resource(
+    assert result.flat_graph() == load_json_resource(
         'data/1.0.0/bm_log.json',
         preprocess=lambda s: s.replace('"base": 10', '"base": 3')
     )
