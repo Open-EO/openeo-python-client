@@ -45,26 +45,14 @@ def build_process_dict(
         summary=summary,
         description=description,
         returns=returns,
+        categories=categories,
+        examples=examples,
+        links=links
     )
     if parameters is not None:
         process["parameters"] = [
             (p if isinstance(p, Parameter) else Parameter(**p)).to_dict()
             for p in parameters
-        ]
-    if categories is not None:
-        process["categories"] = [
-            (c if isinstance(c, str) else str(c))
-            for c in categories
-        ]
-    if examples is not None:
-        process["examples"] = [
-            (e if isinstance(e, dict) else e.to_dict())
-            for e in examples
-        ]
-    if links is not None:
-        process["links"] = [
-            (l if isinstance(l, dict) else l.to_dict())
-            for l in links
         ]
     return process
 
