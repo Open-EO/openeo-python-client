@@ -47,67 +47,11 @@ For example, show information about the authenticated user::
 OpenID Connect Based Authentication
 ===================================
 
-OpenID Connect is an identity layer on top of the OAuth 2.0 protocol.
-It is a quite an extensive stack of interacting actors and protocols,
-and an in-depth discussion of its architecture would lead us too far here.
-However, in the context of working with openEO,
-these OpenID Connect concepts are useful to understand:
+For an introduction to the OpenID connect methods, visit the 
+`openEO documentation on authorization <https://openeo.org/documentation/1.0/authentication.html#openid-connect>`_.
 
-*   There is **decoupling** between:
-
-    *   the *OpenID Connect identity provider* (the platform
-        that handles the authentication of the user)
-    *   the *openEO back-end*, which manages earth observation collections
-        and executes your algorithms
-
-    Instead of managing the authentication procedure itself,
-    a back-end first forwards a user to the log-in page of
-    a OpenID Connect provider, such as an (external) organisation like Google or Microsoft.
-    The user can log in there with an existing account (or create a new one)
-    and then generally has to explicitly grant access
-    to basic profile information (e.g. email address)
-    that the back-end will use to identify the user.
-
-    Note that with this approach, the back-end does not have to
-    take care of all the security and privacy challenges
-    of properly handling user registration, authentication, etc.
-    Also, it allows the user to securely reuse an existing account
-    registered with an established organisation, instead of having
-    to register yet another account with some web service.
-
-*   Your openEO script or application acts as
-    a so called **OpenID Connect client**, with an associated **client ID**.
-    This practically means that, apart from a user account,
-    you need a client ID as well (and often a client secret too)
-    when authenticating.
-
-    The details of how to obtain the client ID and secret largely
-    depend on the back-end and OpenID Connect provider:
-    you might have to register a client yourself,
-    or you might have to use an existing client ID.
-    Consult the openEO back-end (documentation)
-    about how to obtain client ID (and secret).
-
-*   There are several possible "**flows**" (also called "grants")
-    to complete the whole OpenID Connect authentication dance:
-
-    * Authorization Code Flow
-    * Device Flow
-    * Client Credentials Flow
-    * Resource Owner Password flow
-    * Refresh Token Flow
-
-    Picking the right flow highly depends on your use case and context:
-    are you working interactively,
-    are you working in a browser based environment,
-    should your application be able to work
-    without user interaction in the background,
-    what does the OpenID Connect provider support,
-    ...?
-
-
-OpenID Connect is clearly more complex than Basic HTTP Auth.
-In the sections below we will discuss the practical details of each flow.
+In the following chapter, we will go through the technical details of 
+the "flows" presented in the above mentioned documentation.
 
 General options
 ---------------
