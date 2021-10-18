@@ -51,7 +51,7 @@ For an introduction to the OpenID connect methods, visit the
 `openEO documentation on authorization <https://openeo.org/documentation/1.0/authentication.html#openid-connect>`_.
 
 In the following chapter, we will go through the technical details of 
-the "flows" presented in the above mentioned documentation.
+the "flows" presented in the above-mentioned documentation.
 
 General options
 ---------------
@@ -72,32 +72,8 @@ General options
 Authorization Code Flow
 ------------------------
 
-This is the most popular and widely supported OpenID Connect flow
-in the general web development world.
-However, it requires an environment that can be hard to get
-right when using the openEO Python Client Library in your application:
-
-*   You are working interactively (e.g. in a Jupyter notebook,
-    in a Python/IPython shell or running a Python script
-    manually)
-*   You have access to a web browser
-    (preferably on the same machine as your application),
-    to authenticate with the OpenID Connect provider
-*   That web browser has (network) access
-    to a temporary web server that will be spawn
-    by the openEO Python Client Library in your application.
-*   The URL of the temporary web server is properly whitelisted
-    in the OpenID client's "redirect URL" configuration
-    at the OpenID Connect provider's side.
-
-The hardest part are the two last items.
-If you just run your application locally on your machine,
-the whole procedure is doable (using a ``localhost`` based web server).
-But if you are working remotely
-(e.g. on a hosted Jupyter platform),
-it can be challenging or even impossible
-to get the network access part right.
-
+For an overview over the authorization code flow, please refer to
+the documentation at `openeo.org <https://openeo.org/documentation/1.0/authentication.html#authorization-code-flow>`_.
 
 Basic usage
 ```````````
