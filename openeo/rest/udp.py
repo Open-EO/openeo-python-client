@@ -33,7 +33,7 @@ def build_process_dict(
     :param summary: short summary of what the process does
     :param description: detailed description
     :param parameters: list of process parameters (which have name, schema, default value, ...)
-    :param returns: description and schema of what process returns
+    :param returns: description and schema of what the process returns
     :param categories: list of categories
     :param examples: list of examples, may be used for unit tests
     :param links: list of links related to the process

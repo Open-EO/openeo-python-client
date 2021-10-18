@@ -21,7 +21,7 @@ def test_describe(con100, requests_mock):
 
     udp = con100.user_defined_process(user_defined_process_id='evi')
     details = udp.describe()
-    
+
     assert details == expected_details
 
 
@@ -47,6 +47,42 @@ def test_store_simple(con100, requests_mock):
     adapter = requests_mock.put(API_URL + "/process_graphs/two", additional_matcher=check_body)
 
     udp = con100.save_user_defined_process("two", two)
+    assert isinstance(udp, RESTUserDefinedProcess)
+    assert adapter.called
+
+
+def test_store_full(con100, requests_mock):
+    requests_mock.get(API_URL + "/processes", json={"processes": [{"id": "add"}]})
+
+    two = {
+        "add": {
+            "process_id": "add",
+            "arguments": {"x": 1, "y": 1, },
+            "result": True,
+        }
+    }
+
+    def check_body(request):
+        body = request.json()
+        assert body == {
+            "process_graph": two,
+            "public": False,
+            "summary": "A summary",
+            "description": "A description",
+            "categories": ["math", "simple"],
+            "links": [{"link1": "openeo.cloud", "link2": "openeo.vito.be"}],
+            "examples": [{"arguments":{"x": 5,"y": 2.5},"returns": 7.5},],
+            "returns": {"schema":{"type": ["number","null"]}}
+        }
+        return True
+
+    adapter = requests_mock.put(API_URL + "/process_graphs/two", additional_matcher=check_body)
+
+    udp = con100.save_user_defined_process(
+        "two", two, summary = "A summary", categories = ["math", "simple"], 
+        links = [{"link1": "openeo.cloud", "link2": "openeo.vito.be"}],
+        examples = [{"arguments":{"x": 5,"y": 2.5},"returns": 7.5},],
+        description = "A description", returns = {"schema":{"type": ["number","null"]}})
     assert isinstance(udp, RESTUserDefinedProcess)
     assert adapter.called
 
