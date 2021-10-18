@@ -1547,7 +1547,10 @@ class DataCube(ImageCollection, _FromNodeMixin):
             title=title, description=description, plan=plan, budget=budget, additional=job_options
         )
 
-    def save_user_defined_process(self, user_defined_process_id: str, public: bool = False, summary:str=None, description:str=None) -> RESTUserDefinedProcess:
+    def save_user_defined_process(
+        self, user_defined_process_id: str, public: bool = False, summary: str=None, description: str=None,
+        returns: Optional[dict] = None, categories: Optional[List[str]] = None, examples: Optional[List[dict]] = None,
+        links: Optional[List[dict]] = None) -> RESTUserDefinedProcess:
         """
         Saves this process graph in the backend as a user-defined process for the authenticated user.
 
@@ -1555,11 +1558,16 @@ class DataCube(ImageCollection, _FromNodeMixin):
         :param public: visible to other users?
         :param summary: A short summary of what the process does.
         :param description: Detailed description to explain the entity. CommonMark 0.29 syntax MAY be used for rich text representation.
+        :param returns: Description and schema of the return value.
+        :param categories: A list of categories.
+        :param examples: A list of examples.
+        :param links: A list of links.
         :return: a RESTUserDefinedProcess instance
         """
         return self._connection.save_user_defined_process(
             user_defined_process_id=user_defined_process_id,
-            process_graph=self.flat_graph(), public=public, summary=summary, description=description)
+            process_graph=self.flat_graph(), public=public, summary=summary, description=description,
+            returns=returns, categories=categories, examples=examples, links=links)
 
     def execute(self) -> Dict:
         """Executes the process graph of the imagery. """
