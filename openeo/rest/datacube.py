@@ -1444,7 +1444,12 @@ class DataCube(ImageCollection, _FromNodeMixin):
             'elevation_model':elevation_model
         })
 
-    def atmospheric_correction(self,method:str=None,elevation_model:str=None) -> 'DataCube':
+    def atmospheric_correction(
+            self,
+            method: str = None,
+            elevation_model: str = None,
+            options: dict = None
+    ) -> 'DataCube':
         """
         Applies an atmospheric correction that converts top of atmosphere reflectance values into bottom of atmosphere/top of canopy reflectance values.
 
@@ -1453,12 +1458,14 @@ class DataCube(ImageCollection, _FromNodeMixin):
 
         :param method: The atmospheric correction method to use. To get reproducible results, you have to set a specific method. Set to `null` to allow the back-end to choose, which will improve portability, but reduce reproducibility as you *may* get different results if you run the processes multiple times.
         :param elevation_model: The digital elevation model to use, leave empty to allow the back-end to make a suitable choice.
+        :param options: Proprietary options for the atmospheric correction method.
         :return: datacube with bottom of atmosphere reflectances
         """
         return self.process('atmospheric_correction', {
             'data': THIS,
             'method': method,
-            'elevation_model': elevation_model
+            'elevation_model': elevation_model,
+            'options': options or {},
         })
 
     def save_result(self, format: str = "GTiff", options: dict = None) -> 'DataCube':
