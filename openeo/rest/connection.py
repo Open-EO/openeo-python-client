@@ -569,8 +569,8 @@ class Connection(RestApiConnection):
 
         :return: list of collection meta data dictionaries
         """
-        data  = self.get('/collections').json()["collections"]
-        return VisualList("collections", data = data)
+        data = self.get('/collections', expected_status=200).json()["collections"]
+        return VisualList("collections", data=data)
 
     def list_collection_ids(self) -> List[str]:
         """
@@ -593,7 +593,7 @@ class Connection(RestApiConnection):
         if self._api_version.at_least("1.0.0"):
             return self.list_file_formats()["output"]
         else:
-            return self.get('/output_formats').json()
+            return self.get('/output_formats', expected_status=200).json()
 
     list_file_types = legacy_alias(list_output_formats, "list_file_types")
 
@@ -638,8 +638,8 @@ class Connection(RestApiConnection):
         :return: data_dict: Dict All available services
         """
         # TODO return parsed service objects
-        services = self.get('/services').json()["services"]
-        return VisualList("data-table", data = services, parameters = {'columns': 'services'})
+        services = self.get('/services', expected_status=200).json()["services"]
+        return VisualList("data-table", data=services, parameters={'columns': 'services'})
 
     def describe_collection(self, name) -> dict:
         # TODO: Maybe create some kind of Data class.
@@ -649,8 +649,8 @@ class Connection(RestApiConnection):
         :param name: String Id of the collection
         :return: data_dict: Dict Detailed information about the collection
         """
-        data = self.get('/collections/{}'.format(name)).json()
-        return VisualDict("collection", data = data)
+        data = self.get('/collections/{}'.format(name), expected_status=200).json()
+        return VisualDict("collection", data=data)
 
     def collection_items(self, name, spatial_extent: Optional[List[float]] = None, temporal_extent: Optional[List[Union[str, datetime.datetime]]] = None, limit: int = None) -> Iterator[dict]:
         """
@@ -712,8 +712,8 @@ class Connection(RestApiConnection):
         :return: job_list: Dict of all jobs of the user.
         """
         # TODO: Parse the result so that there get Job classes returned?
-        jobs = self.get('/jobs').json()["jobs"]
-        return VisualList("data-table", data = jobs, parameters = {'columns': 'jobs'})
+        jobs = self.get('/jobs', expected_status=200).json()["jobs"]
+        return VisualList("data-table", data=jobs, parameters={'columns': 'jobs'})
 
     def save_user_defined_process(
             self, user_defined_process_id: str,
@@ -745,8 +745,8 @@ class Connection(RestApiConnection):
         """
         Lists all user-defined processes of the authenticated user.
         """
-        data = self.get("/process_graphs").json()["processes"]
-        return VisualList("processes", data=data, parameters = {'show-graph': True, 'provide-download': False})
+        data = self.get("/process_graphs", expected_status=200).json()["processes"]
+        return VisualList("processes", data=data, parameters={'show-graph': True, 'provide-download': False})
 
     def user_defined_process(self, user_defined_process_id: str) -> RESTUserDefinedProcess:
         """
@@ -906,8 +906,8 @@ class Connection(RestApiConnection):
         :return: file_list: List of the user uploaded files.
         """
 
-        files = self.get('/files').json()['files']
-        return VisualList("data-table", data = files, parameters = {'columns': 'files'})
+        files = self.get('/files', expected_status=200).json()['files']
+        return VisualList("data-table", data=files, parameters={'columns': 'files'})
 
     def create_file(self, path):
         """
