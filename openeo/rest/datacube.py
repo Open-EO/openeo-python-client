@@ -1428,20 +1428,27 @@ class DataCube(ImageCollection, _FromNodeMixin):
     ) -> 'DataCube':
         return self.aggregate_spatial(geometries=polygon, reducer=func)
 
-    def ard_surface_reflectance(self,atmospheric_correction_method:str,cloud_detection_method:str,elevation_model:str=None) -> 'DataCube':
+    def ard_surface_reflectance(
+            self, atmospheric_correction_method: str, cloud_detection_method: str, elevation_model: str = None,
+            atmospheric_correction_options: dict = None, cloud_detection_options: dict = None,
+    ) -> 'DataCube':
         """
         Computes CARD4L compliant surface reflectance values from optical input.
 
         :param atmospheric_correction_method: The atmospheric correction method to use.
         :param cloud_detection_method: The cloud detection method to use.
         :param elevation_model: The digital elevation model to use, leave empty to allow the back-end to make a suitable choice.
+        :param atmospheric_correction_options: Proprietary options for the atmospheric correction method.
+        :param cloud_detection_options: Proprietary options for the cloud detection method.
         :return: Data cube containing bottom of atmosphere reflectances with atmospheric disturbances like clouds and cloud shadows removed. The data returned is CARD4L compliant and contains metadata.
         """
         return self.process('atmospheric_correction', {
             'data': THIS,
             'atmospheric_correction_method': atmospheric_correction_method,
-            'cloud_detection_method':cloud_detection_method,
-            'elevation_model':elevation_model
+            'cloud_detection_method': cloud_detection_method,
+            'elevation_model': elevation_model,
+            'atmospheric_correction_options': atmospheric_correction_options or {},
+            'cloud_detection_options': cloud_detection_options or {},
         })
 
     def atmospheric_correction(
