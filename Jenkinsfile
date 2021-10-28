@@ -17,4 +17,5 @@ pythonPipeline {
   upload_dev_wheels = false
   wheel_repo = 'python-openeo'
   wheel_repo_dev = 'python-openeo'
+  pep440 = true
 }
