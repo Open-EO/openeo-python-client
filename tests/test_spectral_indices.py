@@ -1,5 +1,5 @@
 from unittest.mock import Mock
-from extra.spectral_indices.spectral_indices import _callback, _get_expression_map
+from openeo.extra.spectral_indices.spectral_indices import _callback, _get_expression_map
 from processes import array_create
 
 x = array_create([9,4,6,1,3,8,2,5,7,11,7,2])
