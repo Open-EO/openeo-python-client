@@ -1563,9 +1563,16 @@ class DataCube(ImageCollection, _FromNodeMixin):
         )
 
     def save_user_defined_process(
-        self, user_defined_process_id: str, public: bool = False, summary: str=None, description: str=None,
-        returns: Optional[dict] = None, categories: Optional[List[str]] = None, examples: Optional[List[dict]] = None,
-        links: Optional[List[dict]] = None) -> RESTUserDefinedProcess:
+            self,
+            user_defined_process_id: str,
+            public: bool = False,
+            summary: Optional[str] = None,
+            description: Optional[str] = None,
+            returns: Optional[dict] = None,
+            categories: Optional[List[str]] = None,
+            examples: Optional[List[dict]] = None,
+            links: Optional[List[dict]] = None,
+    ) -> RESTUserDefinedProcess:
         """
         Saves this process graph in the backend as a user-defined process for the authenticated user.
 
@@ -1582,7 +1589,8 @@ class DataCube(ImageCollection, _FromNodeMixin):
         return self._connection.save_user_defined_process(
             user_defined_process_id=user_defined_process_id,
             process_graph=self.flat_graph(), public=public, summary=summary, description=description,
-            returns=returns, categories=categories, examples=examples, links=links)
+            returns=returns, categories=categories, examples=examples, links=links,
+        )
 
     def execute(self) -> Dict:
         """Executes the process graph of the imagery. """

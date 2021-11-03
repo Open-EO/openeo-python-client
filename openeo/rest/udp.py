@@ -23,7 +23,7 @@ def build_process_dict(
         returns: Optional[dict] = None,
         categories: Optional[List[str]] = None,
         examples: Optional[List[dict]] = None,
-        links: Optional[List[dict]] = None
+        links: Optional[List[dict]] = None,
 ) -> dict:
     """
     Build a dictionary describing a process with metadaa (`process_graph`, `parameters`, `description`, ...)
@@ -70,15 +70,22 @@ class RESTUserDefinedProcess:
         return render_component('process', data=process, parameters = {'show-graph': True, 'provide-download': False})
 
     def store(
-            self, process_graph: Union[dict, ProcessBuilderBase], parameters: List[Union[Parameter, dict]] = None,
-            public: bool = False, summary: str = None, description: str = None, returns: Optional[dict] = None,
-            categories: Optional[List[str]] = None, examples: Optional[List[dict]] = None, links: Optional[List[dict]] = None
+            self,
+            process_graph: Union[dict, ProcessBuilderBase],
+            parameters: List[Union[Parameter, dict]] = None,
+            public: bool = False,
+            summary: Optional[str] = None,
+            description: Optional[str] = None,
+            returns: Optional[dict] = None,
+            categories: Optional[List[str]] = None,
+            examples: Optional[List[dict]] = None,
+            links: Optional[List[dict]] = None,
     ):
         """Store a process graph and its metadata on the backend as a user-defined process"""
         process = build_process_dict(
             process_graph=process_graph, parameters=parameters,
             summary=summary, description=description, returns=returns,
-            categories=categories, examples=examples, links=links
+            categories=categories, examples=examples, links=links,
         )
 
         # TODO: this "public" flag is not standardized yet EP-3609, https://github.com/Open-EO/openeo-api/issues/310

@@ -69,20 +69,24 @@ def test_store_full(con100, requests_mock):
             "public": False,
             "summary": "A summary",
             "description": "A description",
+            "returns": {"schema": {"type": ["number", "null"]}},
             "categories": ["math", "simple"],
+            "examples": [{"arguments": {"x": 5, "y": 2.5}, "returns": 7.5}, ],
             "links": [{"link1": "openeo.cloud", "link2": "openeo.vito.be"}],
-            "examples": [{"arguments":{"x": 5,"y": 2.5},"returns": 7.5},],
-            "returns": {"schema":{"type": ["number","null"]}}
         }
         return True
 
     adapter = requests_mock.put(API_URL + "/process_graphs/two", additional_matcher=check_body)
 
     udp = con100.save_user_defined_process(
-        "two", two, summary = "A summary", categories = ["math", "simple"], 
-        links = [{"link1": "openeo.cloud", "link2": "openeo.vito.be"}],
-        examples = [{"arguments":{"x": 5,"y": 2.5},"returns": 7.5},],
-        description = "A description", returns = {"schema":{"type": ["number","null"]}})
+        "two", two,
+        summary="A summary",
+        description="A description",
+        returns={"schema": {"type": ["number", "null"]}},
+        categories=["math", "simple"],
+        examples=[{"arguments": {"x": 5, "y": 2.5}, "returns": 7.5}, ],
+        links=[{"link1": "openeo.cloud", "link2": "openeo.vito.be"}],
+    )
     assert isinstance(udp, RESTUserDefinedProcess)
     assert adapter.called
 
