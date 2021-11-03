@@ -51,6 +51,46 @@ def test_store_simple(con100, requests_mock):
     assert adapter.called
 
 
+def test_store_full(con100, requests_mock):
+    requests_mock.get(API_URL + "/processes", json={"processes": [{"id": "add"}]})
+
+    two = {
+        "add": {
+            "process_id": "add",
+            "arguments": {"x": 1, "y": 1, },
+            "result": True,
+        }
+    }
+
+    def check_body(request):
+        body = request.json()
+        assert body == {
+            "process_graph": two,
+            "public": False,
+            "summary": "A summary",
+            "description": "A description",
+            "returns": {"schema": {"type": ["number", "null"]}},
+            "categories": ["math", "simple"],
+            "examples": [{"arguments": {"x": 5, "y": 2.5}, "returns": 7.5}, ],
+            "links": [{"link1": "openeo.cloud", "link2": "openeo.vito.be"}],
+        }
+        return True
+
+    adapter = requests_mock.put(API_URL + "/process_graphs/two", additional_matcher=check_body)
+
+    udp = con100.save_user_defined_process(
+        "two", two,
+        summary="A summary",
+        description="A description",
+        returns={"schema": {"type": ["number", "null"]}},
+        categories=["math", "simple"],
+        examples=[{"arguments": {"x": 5, "y": 2.5}, "returns": 7.5}, ],
+        links=[{"link1": "openeo.cloud", "link2": "openeo.vito.be"}],
+    )
+    assert isinstance(udp, RESTUserDefinedProcess)
+    assert adapter.called
+
+
 def test_store_collision(con100, requests_mock):
     subtract = {
         "minusy": {

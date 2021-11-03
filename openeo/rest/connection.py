@@ -719,7 +719,13 @@ class Connection(RestApiConnection):
             self, user_defined_process_id: str,
             process_graph: Union[dict, ProcessBuilderBase],
             parameters: List[Union[dict, Parameter]] = None,
-            public: bool = False, summary: str = None, description: str = None
+            public: bool = False,
+            summary: Optional[str] = None,
+            description: Optional[str] = None,
+            returns: Optional[dict] = None,
+            categories: Optional[List[str]] = None,
+            examples: Optional[List[dict]] = None,
+            links: Optional[List[dict]] = None,
     ) -> RESTUserDefinedProcess:
         """
         Store a process graph and its metadata on the backend as a user-defined process for the authenticated user.
@@ -730,6 +736,10 @@ class Connection(RestApiConnection):
         :param public: visible to other users?
         :param summary: A short summary of what the process does.
         :param description: Detailed description to explain the entity. CommonMark 0.29 syntax MAY be used for rich text representation.
+        :param returns: Description and schema of the return value.
+        :param categories: A list of categories.
+        :param examples: A list of examples.
+        :param links: A list of links.
         :return: a RESTUserDefinedProcess instance
         """
         if user_defined_process_id in set(p["id"] for p in self.list_processes()):
@@ -738,7 +748,11 @@ class Connection(RestApiConnection):
         if not parameters:
             warnings.warn("Defining user-defined process {u!r} without parameters".format(u=user_defined_process_id))
         udp = RESTUserDefinedProcess(user_defined_process_id=user_defined_process_id, connection=self)
-        udp.store(process_graph=process_graph, parameters=parameters, public=public,summary=summary,description=description)
+        udp.store(
+            process_graph=process_graph, parameters=parameters, public=public,
+            summary=summary, description=description,
+            returns=returns, categories=categories, examples=examples, links=links
+        )
         return udp
 
     def list_user_defined_processes(self) -> List[dict]:
