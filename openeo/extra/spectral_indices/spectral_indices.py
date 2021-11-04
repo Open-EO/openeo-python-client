@@ -1,6 +1,11 @@
+from pathlib import Path
+import json
+
+import numpy as np
+
 from openeo.processes import ProcessBuilder, array_modify
 from openeo.rest.datacube import DataCube
-import numpy as np
+
 
 def _get_expression_map(cube: DataCube, x: ProcessBuilder):
     collection_id = cube.metadata.get("id")
@@ -68,8 +73,9 @@ def compute_indices(datacube: DataCube, index_list: list, uplim_rescale: int = N
     return: the datacube with the indices attached as bands
 
     """
-    with open("resources/spectral-indices-dict.json") as f:
-        index_specs = eval(f.read())["SpectralIndices"]
+    # TODO: use pkg_resources here instead of direct file reading
+    with (Path(__file__).parent / "resources/spectral-indices-dict.json").open() as f:
+        index_specs = json.load(f)["SpectralIndices"]
     return datacube.apply_dimension(dimension="bands",
                                     process=lambda x: _callback(x, index_list, datacube, uplim_rescale,
                                                                 index_specs)).rename_labels('bands',
