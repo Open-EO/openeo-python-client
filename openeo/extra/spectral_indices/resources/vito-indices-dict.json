@@ -1,0 +1,84 @@
+{
+    "SpectralIndices": {
+        "ANIR": {
+            "bands":
+            [
+                "R",
+                "N",
+                "S1"
+             ],
+            "contributor": "vito",
+            "date_of_addition": "2021-10-27",
+            "formula": "exec('import numpy as np') or exec('from openeo.processes import clip') or np.arccos(clip((( np.sqrt( (0.8328 - 0.6646)**2 + (N - R)**2 )**2 + np.sqrt( (1.610 - 0.8328)**2 + (S1 - N)**2 )**2 - np.sqrt( (1.610 - 0.6646)**2 + (S1 - R)**2 )**2 ) / (2 * np.sqrt( (0.8328 - 0.6646)**2 + (N - R)**2 ) * np.sqrt( (1.610 - 0.8328)**2 + (S1 - N)**2 ))), -1,1)) * (1. / np.pi)",
+            "long_name": "Angle at Near InfraRed",
+            "reference": "",
+            "short_name": "ANIR",
+            "type": "vegetation"
+        },
+        "NDGI": {
+            "bands": [
+                "G",
+                "R"
+            ],
+            "contributor": "vito",
+            "date_of_addition": "2021-10-27",
+            "formula": "(G - R) / (G + R)",
+            "long_name": "Normalized Difference Glacier Index",
+            "reference": "https://www.researchgate.net/publication/248978081_ASTER_ratio_indices_for_supraglacial_terrain_mapping",
+            "short_name": "NDGI",
+            "type": "glacier"
+        },
+        "NDMI": {
+            "bands": [
+                "N",
+                "S1"
+            ],
+            "contributor": "vito",
+            "date_of_addition": "2021-10-27",
+            "formula": "(N - S1) / (N + S1)",
+            "long_name": "Normalized Difference Moisture Index",
+            "reference": "https://rdrr.io/cran/LSRS/man/NDMI.html",
+            "short_name": "NDMI",
+            "type": "moisture"
+        },
+        "NDRE1": {
+            "bands": [
+                "N",
+                "RE1"
+            ],
+            "contributor": "vito",
+            "date_of_addition": "2021-10-27",
+            "formula": "(N - RE1) / (N + RE1)",
+            "long_name": "Normalized Difference Red Edge 1",
+            "reference": "",
+            "short_name": "NDRE1",
+            "type": "vegetation"
+        },
+        "NDRE2": {
+            "bands": [
+                "N",
+                "RE2"
+            ],
+            "contributor": "vito",
+            "date_of_addition": "2021-10-27",
+            "formula": "(N - RE2) / (N + RE2)",
+            "long_name": "Normalized Difference Red Edge 2",
+            "reference": "",
+            "short_name": "NDRE2",
+            "type": "vegetation"
+        },
+        "NDRE5": {
+            "bands": [
+                "RE1",
+                "RE3"
+            ],
+            "contributor": "vito",
+            "date_of_addition": "2021-10-27",
+            "formula": "(RE3 - RE1) / (RE3 + RE1)",
+            "long_name": "Normalized Difference Red Edge 5",
+            "reference": "",
+            "short_name": "NDRE5",
+            "type": "vegetation"
+        }
+    }
+}
