@@ -1,44 +1,53 @@
-from pathlib import Path
 import json
+from pathlib import Path
+from typing import Dict
 
 import numpy as np
 
 from openeo.processes import ProcessBuilder, array_modify, array_create
 from openeo.rest.datacube import DataCube
 
+BAND_MAPPING_LANDSAT457 = {
+    "B1": "B", "B2": "G", "B3": "R", "B4": "N", "B5": "S1", "B6": "T1", "B7": "S2"
+}
+BAND_MAPPING_LANDSAT8 = {
+    "B1": "A", "B2": "B", "B3": "G", "B4": "R", "B5": "N", "B6": "S1", "B7": "S2", "B10": "T1", "B11": "T2"
+}
+BAND_MAPPING_MODIS = {
+    "B3": "B", "B4": "G", "B1": "R", "B2": "N", "B5": np.nan, "B6": "S1", "B7": "S2"
+}
+BAND_MAPPING_PROBAV = {
+    "BLUE": "B", "RED": "R", "NIR": "N", "SWIR": "S1"
+}
+BAND_MAPPING_SENTINEL2 = {
+    "B1": "A", "B2": "B", "B3": "G", "B4": "R", "B5": "RE1", "B6": "RE2", "B7": "RE3", "B8": "N",
+    "B8A": "RE4", "B9": "WV", "B11": "S1", "B12": "S2"
+}
 
-def _get_expression_map(cube: DataCube, x: ProcessBuilder):
+
+def _get_expression_map(cube: DataCube, x: ProcessBuilder) -> Dict[str, ProcessBuilder]:
+    """Build mapping of formula variable names to `array_element` nodes."""
+    # TODO: more robust way of figuring out the satellite platform?
     collection_id = cube.metadata.get("id").upper()
-    bands = [band.replace("0", "").upper() for band in cube.metadata.band_names]
-
-    def get_params():
-        return {band_mapping[key]: x.array_element(i) for i, key in enumerate(bands)}
-
-    landsat457_mapping = {"B1":"B", "B2":"G", "B3":"R", "B4":"N", "B5":"S1", "B6":"T1", "B7":"S2"}
-    landsat8_mapping = {"B1":"A", "B2":"B", "B3":"G", "B4":"R", "B5":"N", "B6":"S1", "B7":"S2", "B10":"T1", "B11":"T2"}
-    modis_mapping = {"B3":"B", "B4":"G", "B1":"R", "B2":"N", "B5":np.nan, "B6":"S1", "B7":"S2"}
-    probav_mapping = {"BLUE":"B", "RED":"R", "NIR":"N", "SWIR":"S1"}
-    sentinel2_mapping = {"B1":"A", "B2":"B", "B3":"G", "B4":"R", "B5":"RE1", "B6":"RE2", "B7":"RE3", "B8":"N", "B8A":"RE4", "B9":"WV", "B11":"S1", "B12":"S2"}
-
     # TODO: See if we can use common band names from collections instead of hardcoded mapping
     if "LANDSAT8" in collection_id:
-        band_mapping = landsat8_mapping
+        band_mapping = BAND_MAPPING_LANDSAT8
     elif "LANDSAT" in collection_id:
-        band_mapping = landsat457_mapping
+        band_mapping = BAND_MAPPING_LANDSAT457
     elif "MODIS" in collection_id:
-        band_mapping = modis_mapping
+        band_mapping = BAND_MAPPING_MODIS
     elif "PROBAV" in collection_id:
-        band_mapping = probav_mapping
+        band_mapping = BAND_MAPPING_PROBAV
     elif "TERRASCOPE_S2" in collection_id or "SENTINEL2" in collection_id:
-        band_mapping = sentinel2_mapping
+        band_mapping = BAND_MAPPING_SENTINEL2
     else:
-        raise Exception("Sorry, satellite platform "+collection_id+" is not supported for index computation!")
+        raise ValueError("Could not detect supported satellite platform from {cid!r} for index computation!".format(
+            cid=collection_id
+        ))
 
-    if not all(band in band_mapping.keys() for band in bands):
-        raise ValueError(
-            "The bands in your cube {} are not all {} bands (the following are: {})".format(bands, collection_id,
-                                                                                            list(band_mapping.keys())))
-    return get_params()
+    cube_bands = [band.replace("0", "").upper() for band in cube.metadata.band_names]
+    # TODO: use `label` parameter from `array_element` to avoid index based band references.
+    return {band_mapping[b]: x.array_element(i) for i, b in enumerate(cube_bands) if b in band_mapping}
 
 def _check_params(item,params):
     range_vals = ["input_range","output_range"]
