@@ -95,7 +95,7 @@ def _check_validity_index_dict(index_dict: dict, index_specs: dict):
         _check_params(index, params)
 
 
-def _callback(x: ProcessBuilder, index_dict: list, datacube: DataCube, index_specs, append) -> ProcessBuilder:
+def _callback(x: ProcessBuilder, index_dict: dict, datacube: DataCube, index_specs, append) -> ProcessBuilder:
     index_values = []
     x_res = x
 
@@ -171,9 +171,10 @@ def append_and_rescale_indices(datacube: DataCube, index_dict: dict) -> DataCube
 
     :return: data cube with appended indices
     """
-    return compute_and_rescale_indices(datacube, index_dict, True)
+    return compute_and_rescale_indices(datacube=datacube, index_dict=index_dict, append=True)
 
-def compute_indices(datacube: DataCube, indices: list, append=False):
+
+def compute_indices(datacube: DataCube, indices: List[str], append: bool = False) -> DataCube:
     """
     Compute multiple spectral indices from the given data cube.
 
@@ -190,9 +191,10 @@ def compute_indices(datacube: DataCube, indices: list, append=False):
             index: { "input_range": None, "output_range": None } for index in indices
         }
     }
-    return compute_and_rescale_indices(datacube, index_dict, append)
+    return compute_and_rescale_indices(datacube=datacube, index_dict=index_dict, append=append)
 
-def append_indices(datacube: DataCube, indices: list):
+
+def append_indices(datacube: DataCube, indices: List[str]) -> DataCube:
     """
     Compute multiple spectral indices and append them to the given data cube.
 
@@ -201,9 +203,10 @@ def append_indices(datacube: DataCube, indices: list):
     :return: data cube with appended indices
     """
 
-    return compute_indices(datacube, indices, True)
+    return compute_indices(datacube=datacube, indices=indices, append=True)
 
-def compute_index(datacube: DataCube, index: str, append=False):
+
+def compute_index(datacube: DataCube, index: str) -> DataCube:
     """
     Compute a single spectral index from a data cube.
 
@@ -211,9 +214,10 @@ def compute_index(datacube: DataCube, index: str, append=False):
     :param index: name of the index to compute. See `list_indices()` for supported indices.
     :return: data cube containing the index as band
     """
-    return compute_indices(datacube, [index], append)
+    return compute_indices(datacube=datacube, indices=[index], append=False)
 
-def append_index(datacube: DataCube, index: str):
+
+def append_index(datacube: DataCube, index: str) -> DataCube:
     """
     Compute a single spectral index and append it to the given data cube.
 
@@ -221,4 +225,4 @@ def append_index(datacube: DataCube, index: str):
     :param index: name of the index to compute and append. See `list_indices()` for supported indices.
     :return: data cube with appended index
     """
-    return compute_index(datacube, index, True)
+    return compute_indices(datacube=datacube, indices=[index], append=True)
