@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List
 
 import numpy as np
 
@@ -49,6 +49,27 @@ def _get_expression_map(cube: DataCube, x: ProcessBuilder) -> Dict[str, ProcessB
     # TODO: use `label` parameter from `array_element` to avoid index based band references.
     return {band_mapping[b]: x.array_element(i) for i, b in enumerate(cube_bands) if b in band_mapping}
 
+
+def load_indices() -> Dict[str, dict]:
+    """Load set of supported spectral indices."""
+    # TODO: use pkg_resources here instead of direct file reading
+    resource_dir = Path(__file__).parent / "resources"
+    specs = {}
+    for path in [
+        resource_dir / "spectral-indices-dict.json",
+        resource_dir / "vito-indices-dict.json"
+    ]:
+        with path.open("r") as f:
+            specs.update(json.load(f)["SpectralIndices"])
+    return specs
+
+
+def list_indices() -> List[str]:
+    """List names of supported spectral indices"""
+    specs = load_indices()
+    return list(specs.keys())
+
+
 def _check_params(item,params):
     range_vals = ["input_range","output_range"]
     if set(params) != set(range_vals):
@@ -94,10 +115,10 @@ def _callback(x: ProcessBuilder, index_dict: list, datacube: DataCube, index_spe
 
 def compute_and_rescale_indices(datacube: DataCube, index_dict: dict, append=False) -> DataCube:
     """
-    Computes a list of indices from a datacube
+    Computes a list of indices from a data cube
 
-    param datacube: an instance of openeo.rest.DataCube
-    param index_dict: a dictionary that contains the input- and output range of the collection on which you calculate the indices
+    :param datacube: input data cube
+    :param index_dict: a dictionary that contains the input- and output range of the collection on which you calculate the indices
      as well as the indices that you want to calculate with their responding input- and output ranges
     It follows the following format:
     {
@@ -112,17 +133,12 @@ def compute_and_rescale_indices(datacube: DataCube, index_dict: dict, append=Fal
             },
         }
     }
-    The indices that are implemented are derived from the eemont package created by davemlz:
-    https://github.com/davemlz/eemont/blob/master/eemont/data/spectral-indices-dict.json and have been further supplemented by
-    Vito with the indices ANIR, NDGI, NDMI, NDRE1, NDRE2 and NDRE5.
+    See `list_indices()` for supported indices.
+
     If you don't want to rescale your data, you can fill the input-, index- and output range with None.
-    return: the datacube with the indices attached as bands
+    :return: the datacube with the indices attached as bands
     """
-    # TODO: use pkg_resources here instead of direct file reading
-    with (Path(__file__).parent / "resources/spectral-indices-dict.json").open() as f:
-        index_specs = json.load(f)["SpectralIndices"]
-    with (Path(__file__).parent / "resources/vito-indices-dict.json").open() as f:
-        index_specs.update(json.load(f)["SpectralIndices"])
+    index_specs = load_indices()
 
     _check_validity_index_dict(index_dict, index_specs)
     res = datacube.apply_dimension(dimension="bands",process=lambda x: _callback(x, index_dict, datacube, index_specs, append))
@@ -135,8 +151,8 @@ def append_and_rescale_indices(datacube: DataCube, index_dict: dict) -> DataCube
     """
     Computes a list of indices from a datacube and appends them to the existing datacube
 
-    param datacube: an instance of openeo.rest.DataCube
-    param index_dict: a dictionary that contains the input- and output range of the collection on which you calculate the indices
+    :param datacube: input data cube
+    :param index_dict: a dictionary that contains the input- and output range of the collection on which you calculate the indices
      as well as the indices that you want to calculate with their responding input- and output ranges
     It follows the following format:
     {
@@ -151,24 +167,19 @@ def append_and_rescale_indices(datacube: DataCube, index_dict: dict) -> DataCube
             },
         }
     }
-    The indices that are implemented are derived from the eemont package created by davemlz:
-    https://github.com/davemlz/eemont/blob/master/eemont/data/spectral-indices-dict.json and have been further supplemented by
-    Vito with the indices ANIR, NDGI, NDMI, NDRE1, NDRE2 and NDRE5.
-    If you don't want to rescale your data, you can fill the input-, index- and output range with None.
-    return: the datacube with the indices attached as bands
+    See `list_indices()` for supported indices.
+
+    :return: data cube with appended indices
     """
     return compute_and_rescale_indices(datacube, index_dict, True)
 
 def compute_indices(datacube: DataCube, indices: list, append=False):
     """
-    Computes an indefinite number of indices specified by the user from a datacube
+    Compute multiple spectral indices from the given data cube.
 
-    param datacube: an instance of openeo.rest.DataCube
-    param index: the index you want to calculate
-    The indices that are implemented are derived from the eemont package created by davemlz:
-    https://github.com/davemlz/eemont/blob/master/eemont/data/spectral-indices-dict.json and have been further supplemented by
-    Vito with the indices ANIR, NDGI, NDMI, NDRE1, NDRE2 and NDRE5.
-    return: a new datacube with the index as band
+    :param datacube: input data cube
+    :param indices: list of names of the indices to compute and append. See `list_indices()` for supported indices.
+    :return: data cube containing the indices as bands
     """
     index_dict = {
         "collection": {
@@ -183,40 +194,31 @@ def compute_indices(datacube: DataCube, indices: list, append=False):
 
 def append_indices(datacube: DataCube, indices: list):
     """
-    Calculate an indefinite number of indices specified by the user and appends them to a datacube
+    Compute multiple spectral indices and append them to the given data cube.
 
-    param datacube: an instance of openeo.rest.DataCube
-    param indices: the indices you want to calculate and append to the cube
-    The indices that are implemented are derived from the eemont package created by davemlz:
-    https://github.com/davemlz/eemont/blob/master/eemont/data/spectral-indices-dict.json and have been further supplemented by
-    Vito with the indices ANIR, NDGI, NDMI, NDRE1, NDRE2 and NDRE5.
-    return: the old datacube with the indices as bands attached at the last index
+    :param datacube: input data cube
+    :param indices: list of names of the indices to compute and append. See `list_indices()` for supported indices.
+    :return: data cube with appended indices
     """
 
     return compute_indices(datacube, indices, True)
 
 def compute_index(datacube: DataCube, index: str, append=False):
     """
-    Computes a single index from a datacube
+    Compute a single spectral index from a data cube.
 
-    param datacube: an instance of openeo.rest.DataCube
-    param index: the index you want to calculate
-    The indices that are implemented are derived from the eemont package created by davemlz:
-    https://github.com/davemlz/eemont/blob/master/eemont/data/spectral-indices-dict.json and have been further supplemented by
-    Vito with the indices ANIR, NDGI, NDMI, NDRE1, NDRE2 and NDRE5.
-    return: a new datacube with the index as band
+    :param datacube: input data cube
+    :param index: name of the index to compute. See `list_indices()` for supported indices.
+    :return: data cube containing the index as band
     """
     return compute_indices(datacube, [index], append)
 
 def append_index(datacube: DataCube, index: str):
     """
-    Calculate a single index and appends it to a datacube
+    Compute a single spectral index and append it to the given data cube.
 
-    param datacube: an instance of openeo.rest.DataCube
-    param index: the index you want to calculate and append to the cube
-    The indices that are implemented are derived from the eemont package created by davemlz:
-    https://github.com/davemlz/eemont/blob/master/eemont/data/spectral-indices-dict.json and have been further supplemented by
-    Vito with the indices ANIR, NDGI, NDMI, NDRE1, NDRE2 and NDRE5.
-    return: the old datacube with the index as a band attached at the last index
+    :param cube: input data cube
+    :param index: name of the index to compute and append. See `list_indices()` for supported indices.
+    :return: data cube with appended index
     """
     return compute_index(datacube, index, True)

@@ -1,7 +1,7 @@
 from typing import List, Union
 
 from openeo.extra.spectral_indices.spectral_indices import append_and_rescale_indices, compute_and_rescale_indices, \
-    compute_indices, append_indices, compute_index, append_index
+    compute_indices, append_indices, compute_index, append_index, list_indices, load_indices
 from openeo.rest.datacube import DataCube
 
 
@@ -10,6 +10,21 @@ def _extract_process_nodes(cube: Union[dict, DataCube], process_id: str) -> List
     if isinstance(cube, DataCube):
         cube = cube.flat_graph()
     return [d for d in cube.values() if d["process_id"] == process_id]
+
+
+def test_load_indices():
+    indices = load_indices()
+    assert "NDVI" in indices
+    assert indices["NDVI"]["formula"] == "(N - R)/(N + R)"
+    assert indices["NDVI"]["type"] == "vegetation"
+    assert indices["NDVI"]["long_name"] == "Normalized Difference Vegetation Index"
+
+
+def test_list_indices():
+    indices = list_indices()
+    assert "NDVI" in indices
+    assert "NDWI" in indices
+    assert "ANIR" in indices
 
 
 def test_compute_and_rescale_indices(con):
