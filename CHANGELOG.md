@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Batch job status poll loop: ignore (temporary) "service unavailable" errors ([Open-EO/openeo-python-driver#96](https://github.com/Open-EO/openeo-python-driver/issues/96))
+- Batch job status poll loop: fail when there are too many soft errors (temporary connection/availability issues)
+
+
 ### Removed
 
 ### Fixed

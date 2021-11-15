@@ -3,6 +3,7 @@ from pathlib import Path
 from unittest import mock
 
 import pytest
+import requests
 
 import openeo
 import openeo.rest.job
@@ -72,13 +73,10 @@ def test_execute_batch(con100, requests_mock, tmpdir):
     path = tmpdir.join("tmp.tiff")
     log = []
 
-    def print(msg):
-        log.append(msg)
-
     with fake_time():
         job = con100.load_collection("SENTINEL2").execute_batch(
             outputfile=as_path(path), out_format="GTIFF",
-            max_poll_interval=.1, print=print
+            max_poll_interval=.1, print=log.append
         )
     assert job.status() == "finished"
 
@@ -116,14 +114,11 @@ def test_execute_batch_with_error(con100, requests_mock, tmpdir):
     path = tmpdir.join("tmp.tiff")
     log = []
 
-    def print(msg):
-        log.append(msg)
-
     try:
         with fake_time():
             con100.load_collection("SENTINEL2").execute_batch(
                 outputfile=as_path(path), out_format="GTIFF",
-                max_poll_interval=.1, print=print
+                max_poll_interval=.1, print=log.append
             )
         pytest.fail("execute_batch should fail")
     except JobFailedException as e:
@@ -138,6 +133,113 @@ def test_execute_batch_with_error(con100, requests_mock, tmpdir):
     assert re.match(r"0:00:07 Job 'f00ba5': running \(progress 15%\)", log[3])
     assert re.match(r"0:00:12 Job 'f00ba5': running \(progress 80%\)", log[4])
     assert re.match(r"0:00:20 Job 'f00ba5': error \(progress 100%\)", log[5])
+
+
+@pytest.mark.parametrize(["error_response", "expected"], [
+    (
+            {"exc": requests.ConnectionError("time out")},
+            "Connection error while polling job status: time out",
+    ),
+    (
+            {"status_code": 503, "text": "service unavailable"},
+            "Service availability error while polling job status: [503] unknown: service unavailable",
+    ),
+    (
+            {
+                "status_code": 503,
+                "json": {"code": "OidcProviderUnavailable", "message": "OIDC Provider is unavailable"}
+            },
+            "Service availability error while polling job status: [503] OidcProviderUnavailable: OIDC Provider is unavailable",
+    ),
+])
+def test_execute_batch_with_soft_errors(con100, requests_mock, tmpdir, error_response, expected):
+    requests_mock.get(API_URL + "/file_formats", json={"output": {"GTiff": {"gis_data_types": ["raster"]}}})
+    requests_mock.get(API_URL + "/collections/SENTINEL2", json={"foo": "bar"})
+    requests_mock.post(API_URL + "/jobs", status_code=201, headers={"OpenEO-Identifier": "f00ba5"})
+    requests_mock.post(API_URL + "/jobs/f00ba5/results", status_code=202)
+    requests_mock.get(API_URL + "/jobs/f00ba5", [
+        {'json': {"status": "queued"}},
+        {'json': {"status": "running", "progress": 15}},
+        error_response,
+        {'json': {"status": "running", "progress": 80}},
+        {'json': {"status": "finished", "progress": 100}},
+    ])
+    requests_mock.get(API_URL + "/jobs/f00ba5/results", json={
+        "links": [{"href": API_URL + "/jobs/f00ba5/files/output.tiff"}]
+    })
+    requests_mock.get(API_URL + "/jobs/f00ba5/files/output.tiff", text="tiffdata")
+    requests_mock.get(API_URL + "/jobs/f00ba5/logs", json={'logs': []})
+
+    path = tmpdir.join("tmp.tiff")
+    log = []
+
+    with fake_time():
+        job = con100.load_collection("SENTINEL2").execute_batch(
+            outputfile=as_path(path), out_format="GTIFF",
+            max_poll_interval=.1, print=log.append
+        )
+    assert job.status() == "finished"
+
+    assert log == [
+        "0:00:01 Job 'f00ba5': send 'start'",
+        "0:00:02 Job 'f00ba5': queued (progress N/A)",
+        "0:00:04 Job 'f00ba5': running (progress 15%)",
+        "0:00:07 Job 'f00ba5': " + expected,
+        "0:00:12 Job 'f00ba5': running (progress 80%)",
+        "0:00:20 Job 'f00ba5': finished (progress 100%)",
+    ]
+
+    assert path.read() == "tiffdata"
+    assert job.logs() == []
+
+
+@pytest.mark.parametrize(["error_response", "expected"], [
+    (
+            {"exc": requests.ConnectionError("time out")},
+            "Connection error while polling job status: time out",
+    ),
+    (
+            {"status_code": 503, "text": "service unavailable"},
+            "Service availability error while polling job status: [503] unknown: service unavailable",
+    ),
+    (
+            {
+                "status_code": 503,
+                "json": {"code": "OidcProviderUnavailable", "message": "OIDC Provider is unavailable"}
+            },
+            "Service availability error while polling job status: [503] OidcProviderUnavailable: OIDC Provider is unavailable",
+    ),
+])
+def test_execute_batch_with_excessive_soft_errors(con100, requests_mock, tmpdir, error_response, expected):
+    requests_mock.get(API_URL + "/file_formats", json={"output": {"GTiff": {"gis_data_types": ["raster"]}}})
+    requests_mock.get(API_URL + "/collections/SENTINEL2", json={"foo": "bar"})
+    requests_mock.post(API_URL + "/jobs", status_code=201, headers={"OpenEO-Identifier": "f00ba5"})
+    requests_mock.post(API_URL + "/jobs/f00ba5/results", status_code=202)
+    responses = [
+        {'json': {"status": "queued"}},
+        {'json': {"status": "running", "progress": 15}},
+    ]
+    responses.extend([error_response] * 20)
+    requests_mock.get(API_URL + "/jobs/f00ba5", responses)
+
+    path = tmpdir.join("tmp.tiff")
+    log = []
+
+    with fake_time(), pytest.raises(OpenEoClientException, match="Excessive soft errors"):
+        con100.load_collection("SENTINEL2").execute_batch(
+            outputfile=as_path(path), out_format="GTIFF",
+            max_poll_interval=.1, print=log.append
+        )
+
+    assert log[:7] == [
+        "0:00:01 Job 'f00ba5': send 'start'",
+        "0:00:02 Job 'f00ba5': queued (progress N/A)",
+        "0:00:04 Job 'f00ba5': running (progress 15%)",
+        "0:00:07 Job 'f00ba5': " + expected,
+        "0:00:12 Job 'f00ba5': " + expected,
+        "0:00:20 Job 'f00ba5': " + expected,
+        "0:00:33 Job 'f00ba5': " + expected,
+    ]
 
 
 def test_get_job_logs(session040, requests_mock):

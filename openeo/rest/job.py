@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import List, Union, Dict, Optional
 
 from deprecated.sphinx import deprecated
-from requests import ConnectionError, Response
+import requests
 
 from openeo.api.logs import LogEntry
 from openeo.internal.jupyter import render_component, render_error, VisualDict, VisualList
@@ -137,15 +137,19 @@ class RESTJob:
             self.download_result(outputfile)
         return self
 
-    def start_and_wait(self, print=print, max_poll_interval: int = 60, connection_retry_interval: int = 30) -> "RESTJob":
+    def start_and_wait(
+            self, print=print, max_poll_interval: int = 60, connection_retry_interval: int = 30, soft_error_max=10
+    ) -> "RESTJob":
         """
         Start the batch job, poll its status and wait till it finishes (or fails)
 
         :param print: print/logging function to show progress/status
         :param max_poll_interval: maximum number of seconds to sleep between status polls
         :param connection_retry_interval: how long to wait when status poll failed due to connection issue
+        :param soft_error_max: maximum number of soft errors (e.g. temporary connection glitches) to allow
         :return:
         """
+        # TODO rename `connection_retry_interval` to something more generic?
         start_time = time.time()
 
         def elapsed() -> str:
@@ -164,14 +168,30 @@ class RESTJob:
         # Start with fast polling.
         poll_interval = min(5, max_poll_interval)
         status = None
+        _soft_error_count = 0
+
+        def soft_error(message: str):
+            """Non breaking error (unless we had too much of them)"""
+            nonlocal _soft_error_count
+            _soft_error_count += 1
+            if _soft_error_count > soft_error_max:
+                raise OpenEoClientException("Excessive soft errors")
+            print_status(message)
+            time.sleep(connection_retry_interval)
+
         while True:
             # TODO: also allow a hard time limit on this infinite poll loop?
             try:
                 job_info = self.describe_job()
-            except ConnectionError as e:
-                print_status("Connection error while querying status: {e}".format(e=e))
-                time.sleep(connection_retry_interval)
+            except requests.ConnectionError as e:
+                soft_error("Connection error while polling job status: {e}".format(e=e))
                 continue
+            except OpenEoApiError as e:
+                if e.http_status_code == 503:
+                    soft_error("Service availability error while polling job status: {e}".format(e=e))
+                    continue
+                else:
+                    raise
 
             status = job_info.get("status", "N/A")
             progress = '{p}%'.format(p=job_info["progress"]) if "progress" in job_info else "N/A"
@@ -234,7 +254,7 @@ class ResultAsset:
                 f.write(block)
         return target
 
-    def _get_response(self, stream=True) -> Response:
+    def _get_response(self, stream=True) -> requests.Response:
         return self.job.connection.get(self.href, stream=stream)
 
     def load_json(self) -> dict:
