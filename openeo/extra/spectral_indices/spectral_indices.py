@@ -1,5 +1,5 @@
 import json
-from pathlib import Path
+import pkg_resources
 from typing import Dict, List
 
 import numpy as np
@@ -52,15 +52,15 @@ def _get_expression_map(cube: DataCube, x: ProcessBuilder) -> Dict[str, ProcessB
 
 def load_indices() -> Dict[str, dict]:
     """Load set of supported spectral indices."""
-    # TODO: use pkg_resources here instead of direct file reading
-    resource_dir = Path(__file__).parent / "resources"
     specs = {}
+
     for path in [
-        resource_dir / "awesome-spectral-indices/spectral-indices-dict.json",
-        resource_dir / "extra-indices-dict.json"
+        "resources/awesome-spectral-indices/spectral-indices-dict.json",
+        "resources/extra-indices-dict.json"
     ]:
-        with path.open("r") as f:
-            specs.update(json.load(f)["SpectralIndices"])
+        with pkg_resources.resource_stream("openeo.extra.spectral_indices", path) as stream:
+            specs.update(json.load(stream)["SpectralIndices"])
+
     return specs
 
 
