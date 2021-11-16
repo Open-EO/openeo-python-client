@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Removed
+
+### Fixed
+
+
+## [0.9.1] - 2021-11-16
+
+### Added
+
 - Add `options` argument to `DataCube.atmospheric_correction` ([Open-EO/openeo-python-driver#91](https://github.com/Open-EO/openeo-python-driver/issues/91))
 - Add `atmospheric_correction_options` and `cloud_detection_options` arguments to `DataCube.ard_surface_reflectance` ([Open-EO/openeo-python-driver#91](https://github.com/Open-EO/openeo-python-driver/issues/91))
 - UDP storing: add support for "returns", "categories", "examples" and "links" properties ([#242](https://github.com/Open-EO/openeo-python-client/issues/242))
@@ -21,8 +32,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Batch job status poll loop: ignore (temporary) "service unavailable" errors ([Open-EO/openeo-python-driver#96](https://github.com/Open-EO/openeo-python-driver/issues/96))
 - Batch job status poll loop: fail when there are too many soft errors (temporary connection/availability issues)
 
-
-### Removed
 
 ### Fixed
 
