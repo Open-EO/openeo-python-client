@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `options` argument to `DataCube.atmospheric_correction` ([Open-EO/openeo-python-driver#91](https://github.com/Open-EO/openeo-python-driver/issues/91))
 - Add `atmospheric_correction_options` and `cloud_detection_options` arguments to `DataCube.ard_surface_reflectance` ([Open-EO/openeo-python-driver#91](https://github.com/Open-EO/openeo-python-driver/issues/91))
 - UDP storing: add support for "returns", "categories", "examples" and "links" properties ([#242](https://github.com/Open-EO/openeo-python-client/issues/242))
+- Add `openeo.extra.spectral_indices`: experimental API to easily compute spectral indices (vegetation, water, urban, ...)
+  on a `DataCube`, using the index definitions from [Awesome Spectral Indices](https://awesome-ee-spectral-indices.readthedocs.io/en/latest/)
 
 
 ### Changed

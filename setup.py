@@ -36,6 +36,7 @@ setup(name=name,
       long_description_content_type="text/markdown",
       url="https://github.com/Open-EO/openeo-python-client",
       packages=find_packages(include=['openeo*']),
+      include_package_data=True,
       tests_require=tests_require,
       test_suite='tests',
       install_requires=[
