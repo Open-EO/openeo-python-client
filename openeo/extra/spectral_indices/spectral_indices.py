@@ -79,19 +79,27 @@ def _check_params(item,params):
             continue
         if len(params[rng]) != 2:
             raise ValueError("The list of values you have supplied {} for parameter {} for {} is not of length 2".format(params[rng], rng, item))
+        # TODO: allow float too?
         if not all(isinstance(val, int) for val in params[rng]):
             raise ValueError("The ranges you supplied are not all of type int")
     if (params["input_range"] == None) != (params["output_range"] == None):
         raise ValueError("The index_range and output_range of {} should either be both supplied, or both None".format(item))
 
+
 def _check_validity_index_dict(index_dict: dict, index_specs: dict):
+    # TODO: this `index_dict` API needs some more rethinking:
+    #   - the dictionary has no explicit order of indices, which can be important for end user
+    #   - allow "collection" to be missing (e.g. if no rescaling is desired, or input data is not kept)?
+    #   - option to define default output range, instead of having it to specify it for each index?
+    #   - keep "rescaling" feature separate/orthogonal from "spectral indices" feature. It could be useful as
+    #       a more generic machine learning data preparation feature
     input_vals = ["collection", "indices"]
     if set(index_dict.keys()) != set(input_vals):
         raise ValueError("The first level of the dictionary should contain the keys 'collection' and 'indices', but they contain {}".format(index_dict.keys()))
     _check_params("collection",index_dict["collection"])
     for index,params in index_dict["indices"].items():
         if index not in index_specs.keys():
-            raise NotImplementedError("Index " + index + " has not been implemented.")
+            raise NotImplementedError("Index " + index + " is not supported.")
         _check_params(index, params)
 
 
@@ -100,6 +108,7 @@ def _callback(x: ProcessBuilder, index_dict: dict, datacube: DataCube, index_spe
     x_res = x
 
     idx_data = _get_expression_map(datacube, x)
+    # TODO: user might want to control order of indices, which is tricky through a dictionary.
     for index, params in index_dict["indices"].items():
         index_result = eval(index_specs[index]["formula"], idx_data)
         if params["input_range"] is not None:
@@ -119,21 +128,25 @@ def compute_and_rescale_indices(datacube: DataCube, index_dict: dict, append=Fal
 
     :param datacube: input data cube
     :param index_dict: a dictionary that contains the input- and output range of the collection on which you calculate the indices
-     as well as the indices that you want to calculate with their responding input- and output ranges
-    It follows the following format:
-    {
-        "collection": {
-            "input_range": [0,8000],
-            "output_range": [0,250]
-        },
-        "indices": {
-            "NDVI": {
-                "input_range": [-1,1],
-                "output_range": [0,250]
-            },
-        }
-    }
-    See `list_indices()` for supported indices.
+        as well as the indices that you want to calculate with their responding input- and output ranges
+        It follows the following format::
+
+            {
+                "collection": {
+                    "input_range": [0,8000],
+                    "output_range": [0,250]
+                },
+                "indices": {
+                    "NDVI": {
+                        "input_range": [-1,1],
+                        "output_range": [0,250]
+                    },
+                }
+            }
+
+        See `list_indices()` for supported indices.
+
+    .. note:: this "rescaled" index version uses an experimental API (e.g. `index_dict` argument) that is subject to change.
 
     If you don't want to rescale your data, you can fill the input-, index- and output range with None.
     :return: the datacube with the indices attached as bands
@@ -147,27 +160,32 @@ def compute_and_rescale_indices(datacube: DataCube, index_dict: dict, append=Fal
     else:
         return res.rename_labels('bands',target=list(index_dict["indices"].keys()))
 
+
 def append_and_rescale_indices(datacube: DataCube, index_dict: dict) -> DataCube:
     """
     Computes a list of indices from a datacube and appends them to the existing datacube
 
     :param datacube: input data cube
     :param index_dict: a dictionary that contains the input- and output range of the collection on which you calculate the indices
-     as well as the indices that you want to calculate with their responding input- and output ranges
-    It follows the following format:
-    {
-        "collection": {
-            "input_range": [0,8000],
-            "output_range": [0,250]
-        },
-        "indices": {
-            "NDVI": {
-                "input_range": [-1,1],
-                "output_range": [0,250]
-            },
-        }
-    }
-    See `list_indices()` for supported indices.
+        as well as the indices that you want to calculate with their responding input- and output ranges
+        It follows the following format::
+
+            {
+                "collection": {
+                    "input_range": [0,8000],
+                    "output_range": [0,250]
+                },
+                "indices": {
+                    "NDVI": {
+                        "input_range": [-1,1],
+                        "output_range": [0,250]
+                    },
+                }
+            }
+
+        See `list_indices()` for supported indices.
+
+    .. note:: this "rescaled" index version uses an experimental API (e.g. `index_dict` argument) that is subject to change.
 
     :return: data cube with appended indices
     """
@@ -182,13 +200,14 @@ def compute_indices(datacube: DataCube, indices: List[str], append: bool = False
     :param indices: list of names of the indices to compute and append. See `list_indices()` for supported indices.
     :return: data cube containing the indices as bands
     """
+    # TODO: it's bit weird to have to specify all these None's in this structure
     index_dict = {
         "collection": {
             "input_range": None,
             "output_range": None
         },
         "indices": {
-            index: { "input_range": None, "output_range": None } for index in indices
+            index: {"input_range": None, "output_range": None} for index in indices
         }
     }
     return compute_and_rescale_indices(datacube=datacube, index_dict=index_dict, append=append)
