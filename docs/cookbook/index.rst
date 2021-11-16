@@ -8,3 +8,4 @@ OpenEO CookBook
    ard
    sampling
    udp_sharing
+   spectral_indices

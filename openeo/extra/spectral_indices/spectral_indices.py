@@ -144,12 +144,13 @@ def compute_and_rescale_indices(datacube: DataCube, index_dict: dict, append=Fal
                 }
             }
 
+        If you don't want to rescale your data, you can fill the input-, index- and output-range with ``None``.
+
         See `list_indices()` for supported indices.
 
-    .. note:: this "rescaled" index version uses an experimental API (e.g. `index_dict` argument) that is subject to change.
-
-    If you don't want to rescale your data, you can fill the input-, index- and output range with None.
     :return: the datacube with the indices attached as bands
+
+    .. warning:: this "rescaled" index helper uses an experimental API (e.g. `index_dict` argument) that is subject to change.
     """
     index_specs = load_indices()
 
@@ -185,9 +186,9 @@ def append_and_rescale_indices(datacube: DataCube, index_dict: dict) -> DataCube
 
         See `list_indices()` for supported indices.
 
-    .. note:: this "rescaled" index version uses an experimental API (e.g. `index_dict` argument) that is subject to change.
-
     :return: data cube with appended indices
+
+    .. warning:: this "rescaled" index helper uses an experimental API (e.g. `index_dict` argument) that is subject to change.
     """
     return compute_and_rescale_indices(datacube=datacube, index_dict=index_dict, append=True)
 
@@ -233,6 +234,7 @@ def compute_index(datacube: DataCube, index: str) -> DataCube:
     :param index: name of the index to compute. See `list_indices()` for supported indices.
     :return: data cube containing the index as band
     """
+    # TODO: option to compute the index with `reduce_dimension` instead of `apply_dimension`?
     return compute_indices(datacube=datacube, indices=[index], append=False)
 
 
