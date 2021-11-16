@@ -56,8 +56,8 @@ def load_indices() -> Dict[str, dict]:
     resource_dir = Path(__file__).parent / "resources"
     specs = {}
     for path in [
-        resource_dir / "spectral-indices-dict.json",
-        resource_dir / "vito-indices-dict.json"
+        resource_dir / "awesome-spectral-indices/spectral-indices-dict.json",
+        resource_dir / "extra-indices-dict.json"
     ]:
         with path.open("r") as f:
             specs.update(json.load(f)["SpectralIndices"])
