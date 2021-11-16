@@ -110,57 +110,64 @@ Procedure
 These are the steps to create and publish a new release of the ``openeo`` package.
 To be as concrete as possible, we will assume that we are about to release version ``0.4.7``.
 
-#.  Make sure you are working on **latest master branch**,
+0.  Make sure you are working on **latest master branch**,
     without uncommitted changes and all tests are properly passing.
 
-#.  **Drop the pre-release suffix** from the version string in ``openeo/_version.py``
-    so that it just a "final" semantic versioning string, e.g. ``0.4.7``
+#.  Create release commit:
 
-#.  **Update CHANGELOG.md**: rename the "Unreleased" section title
-    to contain version and date, e.g.::
+    A.  **Drop the pre-release suffix** from the version string in ``openeo/_version.py``
+        so that it just a "final" semantic versioning string, e.g. ``0.4.7``
 
-        ## [0.4.7] - 2020-12-15
+    B.  **Update CHANGELOG.md**: rename the "Unreleased" section title
+        to contain version and date, e.g.::
 
-    remove empty subsections
-    and start a new "Unreleased" section above it, like::
+            ## [0.4.7] - 2020-12-15
 
-        ## [Unreleased]
+        remove empty subsections
+        and start a new "Unreleased" section above it, like::
 
-        ### Added
+            ## [Unreleased]
 
-        ### Changed
+            ### Added
 
-        ### Removed
+            ### Changed
 
-        ### Fixed
+            ### Removed
+
+            ### Fixed
 
 
-#.  **Commit** these changes in git with a commit message like ``Release 0.4.7``
-    and **push** to GitHub
+    C.  **Commit** these changes in git with a commit message like ``Release 0.4.7``
+        and **push** to GitHub::
 
-#.  Preferably: wait for **Jenkins** to build this updated master
+            git add openeo/_version.py CHANGELOG.md
+            git commit -m 'Release 0.4.7'
+            git push origin master
+
+#.  Optional, but recommended: wait for **VITO Jenkins** to build this updated master
     (trigger it manually if necessary),
-    so that a build of final release ``0.4.7``
+    so that a build of a final, non-alpha release ``0.4.7``
     is properly uploaded to **VITO artifactory**.
 
-#.  Obtain a wheel archive of the package:
+#.  Create release on `PyPI <https://pypi.org/>`_:
 
-    -   Path of least surprise: build wheel through GitHub Actions.
-        Go to workflow `"Build wheel" <https://github.com/Open-EO/openeo-python-client/actions/workflows/build-wheel.yml>`_,
-        manually trigger a build with "Run workflow" button, wait for it to finish successfully,
-        download generated ``artifact.zip``, and finally: unzip it to obtain ``openeo-0.4.7-py3-none-any.whl``
+    A.  **Obtain a wheel archive** of the package, with one of these approaches:
 
-    -   Or, if you know what you are doing and you're sure your
-        local checkout is clean without temporary source files
-        all over the place, you can also build it locally::
+        -   Path of least surprise: build wheel through GitHub Actions.
+            Go to workflow `"Build wheel" <https://github.com/Open-EO/openeo-python-client/actions/workflows/build-wheel.yml>`_,
+            manually trigger a build with "Run workflow" button, wait for it to finish successfully,
+            download generated ``artifact.zip``, and finally: unzip it to obtain ``openeo-0.4.7-py3-none-any.whl``
 
-            python setup.py sdist bdist_wheel
+        -   If you know what you are doing and you're sure you have a clean
+            local checkout, you can also build it locally::
 
-        This should create ``dist/openeo-0.4.7-py3-none-any.whl``
+                python setup.py bdist_wheel
 
-#.  **Upload** this wheel archive to PyPI::
+            This should create ``dist/openeo-0.4.7-py3-none-any.whl``
 
-        python -m twine upload openeo-0.4.7-py3-none-any.whl
+    B.  **Upload** this wheel to `PyPI <https://pypi.org/project/openeo/>`_::
+
+            python -m twine upload openeo-0.4.7-py3-none-any.whl
 
 
 #.  Create a **git version tag** and push it to GitHub::
