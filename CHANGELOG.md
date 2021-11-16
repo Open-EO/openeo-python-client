@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix `DataCube.ard_surface_reflectance()` to use process `ard_surface_reflectance` instead of `atmospheric_correction`
+
 
 ## [0.9.0] - 2021-10-11
 

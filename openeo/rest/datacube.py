@@ -1442,7 +1442,7 @@ class DataCube(ImageCollection, _FromNodeMixin):
         :param cloud_detection_options: Proprietary options for the cloud detection method.
         :return: Data cube containing bottom of atmosphere reflectances with atmospheric disturbances like clouds and cloud shadows removed. The data returned is CARD4L compliant and contains metadata.
         """
-        return self.process('atmospheric_correction', {
+        return self.process('ard_surface_reflectance', {
             'data': THIS,
             'atmospheric_correction_method': atmospheric_correction_method,
             'cloud_detection_method': cloud_detection_method,
