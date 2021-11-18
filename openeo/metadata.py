@@ -413,6 +413,15 @@ class CollectionMetadata:
         else:
             dim = Dimension(type=type or "other", name=name)
         return self._clone_and_update(dimensions=self._dimensions + [dim])
+
+    def drop_dimension(self, type: str = None) -> 'CollectionMetadata':
+        """Drop dimension of a certain type"""
+        if type == "bands":
+            return self._clone_and_update(dimensions=[d for d in self._dimensions if not isinstance(d, BandDimension)])
+        elif type == "temporal":
+            return self._clone_and_update(dimensions=[d for d in self._dimensions if not isinstance(d, TemporalDimension)])
+        else:
+            return self
     
     def _repr_html_(self):
         return render_component('collection', data = self._orig_metadata)
