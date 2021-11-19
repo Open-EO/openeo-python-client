@@ -943,6 +943,23 @@ class DataCube(ImageCollection, _FromNodeMixin):
             metadata=self.metadata.add_dimension(name=name, label=label, type=type)
         )
 
+    def drop_dimension(self, name: str, label: str, type: str = None):
+        """
+        Drops a dimension from the data cube.
+        Dropping a dimension only works on dimensions with a single dimension label left, otherwise the process fails
+        with a DimensionLabelCountMismatch exception. Dimension values can be reduced to a single value with a filter
+        such as filter_bands or the reduce_dimension process. If a dimension with the specified name does not exist,
+        the process fails with a DimensionNotAvailable exception.
+
+        :param name: The name of the dimension to drop
+        :return: The data cube with the given dimension dropped.
+        """
+        return self.process(
+            process_id="drop_dimension",
+            arguments={"data": self._pg, "name": name},
+            metadata=self.metadata.drop_dimension(name=name)
+        )
+
     def _create_run_udf(self, code, runtime, version) -> PGNode:
         # TODO EP-3555: unify better with UDF(PGNode) class
         return PGNode(
