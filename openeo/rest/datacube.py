@@ -943,7 +943,7 @@ class DataCube(ImageCollection, _FromNodeMixin):
             metadata=self.metadata.add_dimension(name=name, label=label, type=type)
         )
 
-    def drop_dimension(self, name: str, label: str, type: str = None):
+    def drop_dimension(self, name: str):
         """
         Drops a dimension from the data cube.
         Dropping a dimension only works on dimensions with a single dimension label left, otherwise the process fails
