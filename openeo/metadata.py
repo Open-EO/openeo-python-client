@@ -44,7 +44,8 @@ class Dimension:
 class SpatialDimension(Dimension):
     DEFAULT_CRS = 4326
 
-    def __init__(self, name: str, extent: Union[Tuple[float, float], List[float]], crs: Union[str, int] = DEFAULT_CRS,step = None):
+    def __init__(self, name: str, extent: Union[Tuple[float, float], List[float]],
+                 crs: Union[str, int, dict] = DEFAULT_CRS, step = None):
         """
 
         @param name:
@@ -71,8 +72,8 @@ class TemporalDimension(Dimension):
 
 
 # Simple container class for band metadata (name, common name, wavelength in micrometer)
-Band = namedtuple("Band", ["name", "common_name", "wavelength_um", "aliases"])
-Band.__new__.__defaults__ = (None,)
+Band = namedtuple("Band", ["name", "common_name", "wavelength_um", "aliases", "gsd"])
+Band.__new__.__defaults__ = (None, None,)
 
 
 class BandDimension(Dimension):
@@ -162,12 +163,13 @@ class BandDimension(Dimension):
             for old_name,new_name in zip(source,target):
                 band_index = self.band_index(old_name)
                 the_band = new_bands[band_index]
-                new_bands[band_index] = Band(new_name,the_band.common_name,the_band.wavelength_um, the_band.aliases)
+                new_bands[band_index] = Band(new_name, the_band.common_name, the_band.wavelength_um, the_band.aliases,
+                                             the_band.gsd)
         else:
             new_bands = []
             for new_name in target:
-                new_bands.append(Band(name=new_name,common_name=None,wavelength_um=None))
-        return BandDimension(self.name,new_bands)
+                new_bands.append(Band(name=new_name,common_name=None, wavelength_um=None))
+        return BandDimension(self.name, new_bands)
 
 
 class CollectionMetadata:
@@ -241,7 +243,8 @@ class CollectionMetadata:
             dim_type = info.get("type")
             if dim_type == "spatial":
                 dimensions.append(SpatialDimension(
-                    name=name, extent=info.get("extent"), crs=info.get("reference_system", SpatialDimension.DEFAULT_CRS), step=info.get("step",None)
+                    name=name, extent=info.get("extent"),
+                    crs=info.get("reference_system", SpatialDimension.DEFAULT_CRS), step=info.get("step", None)
                 ))
             elif dim_type == "temporal":
                 dimensions.append(TemporalDimension(name=name, extent=info.get("extent")))
@@ -261,8 +264,8 @@ class CollectionMetadata:
         )
         if eo_bands:
             # center_wavelength is in micrometer according to spec
-            bands_detailed = [Band(b['name'], b.get('common_name'), b.get('center_wavelength'), b.get('aliases'))
-                              for b in eo_bands]
+            bands_detailed = [Band(b['name'], b.get('common_name'), b.get('center_wavelength'), b.get('aliases'),
+                                   b.get('openeo:gsd')) for b in eo_bands]
             # Update band dimension with more detailed info
             band_dimensions = [d for d in dimensions if d.type == "bands"]
             if len(band_dimensions) == 1:
