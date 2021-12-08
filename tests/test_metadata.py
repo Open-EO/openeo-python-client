@@ -486,6 +486,28 @@ def test_metadata_add_temporal_dimension():
     assert new.temporal_dimension.extent == ["2020-05-15", "2020-05-15"]
 
 
+def test_metadata_drop_dimension():
+    metadata = CollectionMetadata({
+        "cube:dimensions": {
+            "t": {"type": "temporal"},
+            "b": {"type": "bands", "values": ["red", "green"]},
+        }
+    })
+
+    new = metadata.drop_dimension("t")
+    assert metadata.dimension_names() == ["t", "b"]
+    assert new.dimension_names() == ["b"]
+    assert new.band_dimension.band_names == ["red", "green"]
+
+    new = metadata.drop_dimension("b")
+    assert metadata.dimension_names() == ["t", "b"]
+    assert new.dimension_names() == ["t"]
+    assert new.temporal_dimension.name == "t"
+
+    with pytest.raises(ValueError):
+        metadata.drop_dimension("x")
+
+
 def test_metadata_subclass():
     class MyCollectionMetadata(CollectionMetadata):
         def __init__(self, metadata: dict, dimensions: List[Dimension] = None, bbox=None):

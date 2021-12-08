@@ -419,6 +419,9 @@ class CollectionMetadata:
 
     def drop_dimension(self, name: str = None) -> 'CollectionMetadata':
         """Drop dimension with given name"""
+        dimension_names = self.dimension_names()
+        if name not in dimension_names:
+            raise ValueError("No dimension named {n!r} (valid names: {ns!r})".format(n=name, ns=dimension_names))
         return self._clone_and_update(dimensions=[d for d in self._dimensions if not d.name == name])
 
     def _repr_html_(self):
