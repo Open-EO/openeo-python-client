@@ -974,9 +974,11 @@ class Connection(RestApiConnection):
         req = self._build_request_with_process_graph(process_graph=process_graph)
         return self.post(path="/result", json=req, expected_status=200).json()
 
-    def create_job(self, process_graph: dict, title: str = None, description: str = None,
-                   plan: str = None, budget=None,
-                   additional: Dict = None) -> RESTJob:
+    def create_job(
+            self, process_graph: dict, title: Optional[str] = None, description: Optional[str] = None,
+            plan: Optional[str] = None, budget: Optional[float] = None,
+            additional: Optional[dict] = None
+    ) -> RESTJob:
         """
         Posts a job to the back end.
 
@@ -984,7 +986,7 @@ class Connection(RestApiConnection):
         :param title: String title of the job
         :param description: String description of the job
         :param plan: billing plan
-        :param budget: Budget
+        :param budget: maximum cost the request is allowed to produce
         :param additional: additional job options to pass to the backend
         :return: job_id: String Job id of the new created job
         """
