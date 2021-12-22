@@ -23,6 +23,37 @@ from openeo.rest.datacube import THIS, DataCube, ProcessBuilder
 from .conftest import API_URL
 from ... import load_json_resource
 
+basic_geometry_types = [
+    (
+        shapely.geometry.box(0, 0, 1, 1),
+        {"type": "Polygon", "coordinates": (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),)},
+    ),
+    (
+        {"type": "Polygon", "coordinates": (((1, 0), (1, 1), (0, 1), (0, 0), (1, 0)),)},
+        {"type": "Polygon", "coordinates": (((1, 0), (1, 1), (0, 1), (0, 0), (1, 0)),)},
+    ),
+    (
+        shapely.geometry.MultiPolygon([shapely.geometry.box(0, 0, 1, 1)]),
+        {"type": "MultiPolygon", "coordinates": [(((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),)]},
+    ),
+    (
+        shapely.geometry.GeometryCollection([shapely.geometry.box(0, 0, 1, 1)]),
+        {"type": "GeometryCollection", "geometries": [
+            {"type": "Polygon", "coordinates": (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),)}
+        ]},
+    ),
+    (
+        {
+            "type": "Feature", "properties": {},
+            "geometry": {"type": "Polygon", "coordinates": (((1, 0), (1, 1), (0, 1), (0, 0), (1, 0)),)},
+        },
+        {
+            "type": "Feature", "properties": {},
+            "geometry": {"type": "Polygon", "coordinates": (((1, 0), (1, 1), (0, 1), (0, 0), (1, 0)),)},
+        },
+    ),
+]
+
 
 def _get_leaf_node(cube: DataCube) -> dict:
     """Get leaf node (node with result=True), supporting old and new style of graph building."""
@@ -318,36 +349,7 @@ def test_mask_polygon_basic(con100: Connection):
     }
 
 
-@pytest.mark.parametrize(["polygon", "expected_mask"], [
-    (
-            shapely.geometry.box(0, 0, 1, 1),
-            {"type": "Polygon", "coordinates": (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),)},
-    ),
-    (
-            {"type": "Polygon", "coordinates": (((1, 0), (1, 1), (0, 1), (0, 0), (1, 0)),)},
-            {"type": "Polygon", "coordinates": (((1, 0), (1, 1), (0, 1), (0, 0), (1, 0)),)},
-    ),
-    (
-            shapely.geometry.MultiPolygon([shapely.geometry.box(0, 0, 1, 1)]),
-            {"type": "MultiPolygon", "coordinates": [(((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),)]},
-    ),
-    (
-            shapely.geometry.GeometryCollection([shapely.geometry.box(0, 0, 1, 1)]),
-            {"type": "GeometryCollection", "geometries": [
-                {"type": "Polygon", "coordinates": (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),)}
-            ]},
-    ),
-    (
-            {
-                "type": "Feature", "properties": {},
-                "geometry": {"type": "Polygon", "coordinates": (((1, 0), (1, 1), (0, 1), (0, 0), (1, 0)),)},
-            },
-            {
-                "type": "Feature", "properties": {},
-                "geometry": {"type": "Polygon", "coordinates": (((1, 0), (1, 1), (0, 1), (0, 0), (1, 0)),)},
-            },
-    ),
-])
+@pytest.mark.parametrize(["polygon", "expected_mask"], basic_geometry_types)
 def test_mask_polygon_types(con100: Connection, polygon, expected_mask):
     img = con100.load_collection("S2")
     masked = img.mask_polygon(mask=polygon)
@@ -590,6 +592,93 @@ def test_reduce_dimension_name(con100, requests_mock):
 
     with pytest.raises(ValueError, match="Invalid dimension 'wut'"):
         s22.reduce_dimension(dimension="wut", reducer="sum")
+
+
+def test_chunk_polygon_basic(con100: Connection):
+    img = con100.load_collection("S2")
+    polygon: shapely.geometry.Polygon = shapely.geometry.box(0, 0, 1, 1)
+    process = lambda data: data.run_udf(udf="myfancycode", runtime="Python")
+    result = img.chunk_polygon(chunks=polygon, process=process)
+    assert sorted(result.flat_graph().keys()) == ['chunkpolygon1', 'loadcollection1']
+    assert result.flat_graph()["chunkpolygon1"] == {
+        'process_id': 'chunk_polygon',
+        'arguments': {
+            'chunks': {
+                'type': 'Polygon',
+                'coordinates': (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),)
+            },
+            'data': {'from_node': 'loadcollection1'},
+            'process': {
+                'process_graph': {
+                    'runudf1': {
+                        'process_id': 'run_udf',
+                        'arguments': {'data': {'from_parameter': 'data'}, 'runtime': 'Python', 'udf': 'myfancycode'},
+                        'result': True
+                    }
+                }
+            }
+        },
+        'result': True}
+
+
+@pytest.mark.parametrize(["polygon", "expected_chunks"], basic_geometry_types)
+def test_chunk_polygon_types(con100: Connection, polygon, expected_chunks):
+    img = con100.load_collection("S2")
+    process = lambda data: data.run_udf(udf="myfancycode", runtime="Python")
+    result = img.chunk_polygon(chunks=polygon, process=process)
+    assert sorted(result.flat_graph().keys()) == ['chunkpolygon1', 'loadcollection1']
+    assert result.flat_graph()["chunkpolygon1"] == {
+        'process_id': 'chunk_polygon',
+        'arguments': {
+            'chunks': expected_chunks,
+            'data': {'from_node': 'loadcollection1'},
+            'process': {
+                'process_graph': {
+                    'runudf1': {
+                        'process_id': 'run_udf',
+                        'arguments': {'data': {'from_parameter': 'data'}, 'runtime': 'Python', 'udf': 'myfancycode'},
+                        'result': True
+                    }
+                }
+            }
+        },
+        'result': True}
+
+
+def test_chunk_polygon_parameter(con100: Connection):
+    img = con100.load_collection("S2")
+    polygon = Parameter(name="shape", schema="object")
+    process = lambda data: data.run_udf(udf="myfancycode", runtime="Python")
+    result = img.chunk_polygon(chunks=polygon, process=process)
+    assert sorted(result.flat_graph().keys()) == ['chunkpolygon1', 'loadcollection1']
+    assert result.flat_graph()["chunkpolygon1"] == {
+        'process_id': 'chunk_polygon',
+        'arguments': {
+            'chunks': {"from_parameter": "shape"},
+            'data': {'from_node': 'loadcollection1'},
+            'process': {
+                'process_graph': {
+                    'runudf1': {
+                        'process_id': 'run_udf',
+                        'arguments': {'data': {'from_parameter': 'data'}, 'runtime': 'Python', 'udf': 'myfancycode'},
+                        'result': True
+                    }
+                }
+            }
+        },
+        'result': True}
+
+
+def test_chunk_polygon_path(con100: Connection):
+    img = con100.load_collection("S2")
+    process = lambda data: data.run_udf(udf="myfancycode", runtime="Python")
+    result = img.chunk_polygon(chunks="path/to/polygon.json", process=process)
+    assert sorted(result.flat_graph().keys()) == ['chunkpolygon1', 'loadcollection1', 'readvector1']
+    assert result.flat_graph()["chunkpolygon1"]['arguments']['chunks'] == {"from_node": "readvector1"}
+    assert result.flat_graph()["readvector1"] == {
+        "process_id": "read_vector",
+        "arguments": {"filename": "path/to/polygon.json"},
+    }
 
 
 def test_metadata_load_collection_100(con100, requests_mock):
