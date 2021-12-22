@@ -910,6 +910,30 @@ class DataCube(ImageCollection, _FromNodeMixin):
             # TODO: add `context` argument #125
         ), metadata=self.metadata.reduce_dimension(dimension_name=dimension))
 
+    def chunk_polygon(
+            self,
+            chunks: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter],
+            process: Union[str, PGNode, typing.Callable]
+    ) -> 'DataCube':
+        """
+        Apply a process to spatial chunks of a data cube.
+
+        :param chunks: A polygon, provided as a :class:`shapely.geometry.Polygon`
+            or :class:`shapely.geometry.MultiPolygon`, or a filename pointing to a valid vector file
+        :param process: "child callback" function, see :ref:`callbackfunctions`
+        """
+        process = self._get_callback(process, parent_parameters=["data"])
+        valid_geojson_types = ["Polygon", "MultiPolygon", "GeometryCollection", "Feature", "FeatureCollection"]
+        chunks = self._get_geometry_argument(chunks, valid_geojson_types=valid_geojson_types)
+        return self.process(
+            process_id="chunk_polygon",
+            arguments=dict_no_none(
+                data=THIS,
+                chunks=chunks,
+                process=process
+            )
+        )
+
     def _reduce_bands(self, reducer: PGNode) -> 'DataCube':
         # TODO #123 is it (still) necessary to make "band" math a special case?
         return self.reduce_dimension(dimension=self.metadata.band_dimension.name, reducer=reducer, band_math_mode=True)
