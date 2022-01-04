@@ -916,6 +916,7 @@ class DataCube(ImageCollection, _FromNodeMixin):
             process: Union[str, PGNode, typing.Callable]
     ) -> 'DataCube':
         """
+        EXPERIMENTAL: not generally supported, API subject to change.
         Apply a process to spatial chunks of a data cube.
 
         :param chunks: A polygon, provided as a :class:`shapely.geometry.Polygon`
