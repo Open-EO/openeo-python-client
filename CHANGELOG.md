@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Add experimental support for `chunk_polygon` process ([Open-EO/openeo-processes#287](https://github.com/Open-EO/openeo-processes/issues/287))
 
 ### Changed
 
