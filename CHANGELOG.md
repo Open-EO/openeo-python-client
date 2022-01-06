@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Add experimental support for `chunk_polygon` process ([Open-EO/openeo-processes#287](https://github.com/Open-EO/openeo-processes/issues/287))
+- Add support for `spatial_extent`, `temporal_extent` and `bands` to `Connection.load_result()`
 
 ### Changed
 

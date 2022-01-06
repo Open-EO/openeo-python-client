@@ -872,19 +872,37 @@ class Connection(RestApiConnection):
 
     imagecollection = legacy_alias(load_collection, name="imagecollection")
 
-    def load_result(self, id: str) -> DataCube:
+    def load_result(
+            self,
+            id: str,
+            spatial_extent: Optional[Dict[str, float]] = None,
+            temporal_extent: Optional[List[Union[str, datetime.datetime, datetime.date]]] = None,
+            bands: Optional[List[str]] = None,
+    ) -> DataCube:
         """
         Loads batch job results by job id from the server-side user workspace.
         The job must have been stored by the authenticated user on the back-end currently connected to.
 
         :param id: The id of a batch job with results.
+        :param spatial_extent: limit data to specified bounding box or polygons
+        :param temporal_extent: limit data to specified temporal interval
+        :param bands: only add the specified bands
+
         :return: a :py:class:`DataCube`
         """
         # TODO: add check that back-end supports `load_result` process?
         if self._api_version.below("1.0.0"):
             raise OpenEoClientException(
                 "This method requires support for at least version 1.0.0 in the openEO backend.")
-        return self.datacube_from_process(process_id="load_result", id=id)
+        return self.datacube_from_process(
+            process_id="load_result",
+            id=id,
+            **dict_no_none(
+                spatial_extent=spatial_extent,
+                temporal_extent=temporal_extent and DataCube._get_temporal_extent(temporal_extent),
+                bands=bands
+            )
+        )
 
     def create_service(self, graph: dict, type: str, **kwargs) -> Service:
         # TODO: type hint for graph: is it a nested or a flat one?

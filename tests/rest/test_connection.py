@@ -1348,6 +1348,29 @@ def test_load_result(requests_mock):
     }
 
 
+def test_load_result_filters(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    con = Connection(API_URL)
+    cube = con.load_result(
+        "j0bi6",
+        spatial_extent={"west": 3, "south": 4, "east": 5, "north": 6},
+        temporal_extent=["2021-10-01", "2021-12-12"],
+        bands=["red"],
+    )
+    assert cube.flat_graph() == {
+        "loadresult1": {
+            "process_id": "load_result",
+            "arguments": {
+                "id": "j0bi6",
+                "spatial_extent": {"west": 3, "south": 4, "east": 5, "north": 6},
+                "temporal_extent": ["2021-10-01", "2021-12-12"],
+                "bands": ["red"],
+            },
+            "result": True,
+        }
+    }
+
+
 def test_list_file_formats(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     conn = Connection(API_URL)
