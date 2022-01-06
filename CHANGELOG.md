@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Setting the environment variable `OPENEO_JUPYTER_BASEMAP_URL` allows to set a new templated URL to a XYZ basemap for the Vue Components library,  `OPENEO_JUPYTER_BASEMAP_ATTRIBUTION` allows to set the attribution for the basemap ([#260](https://github.com/Open-EO/openeo-python-client/issues/260))
+- Setting the environment variable `OPENEO_BASEMAP_URL` allows to set a new templated URL to a XYZ basemap for the Vue Components library,  `OPENEO_BASEMAP_ATTRIBUTION` allows to set the attribution for the basemap ([#260](https://github.com/Open-EO/openeo-python-client/issues/260))
 
 ### Changed
 
