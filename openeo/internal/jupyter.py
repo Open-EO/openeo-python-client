@@ -86,10 +86,10 @@ def render_component(component: str, data = None, parameters: dict = None):
     # Special handling for batch job results, show either item or collection depending on the data
     if component == "batch-job-result":
         component = "item" if data["type"] == "Feature" else "collection"
-    
+
     if component == "data-table":
         parameters['columns'] = TABLE_COLUMNS[parameters['columns']]
-    elif (component in ['collection', 'collections', 'item', 'items']):
+    elif component in ['collection', 'collections', 'item', 'items']:
         url = os.environ.get("OPENEO_BASEMAP_URL")
         attribution = os.environ.get("OPENEO_BASEMAP_ATTRIBUTION")
         parameters['mapOptions'] = {}
@@ -97,7 +97,6 @@ def render_component(component: str, data = None, parameters: dict = None):
             parameters['mapOptions']['basemap'] = url
         if attribution:
             parameters['mapOptions']['attribution'] = attribution
-
 
     # Set the data as the corresponding parameter in the Vue components
     key = COMPONENT_MAP.get(component, component)
