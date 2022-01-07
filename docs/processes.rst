@@ -335,6 +335,22 @@ were called to assemble the corresponding process graph.
 If you use control flow statements or use numpy functions for example,
 this procedure will incorrectly detect what you want to do in the callback.
 
+For example, if you mistakenly use the Python builtin :py:func:`sum` function
+in a callback instead of :py:func:`openeo.processes.sum`, you will run into trouble.
+Luckily the openEO Python client Library should raise an error if it detects that::
+
+    >>> # Wrongly using builtin `sum` function
+    >>> cube.reduce_dimension(dimension="t", reducer=sum)
+    RuntimeError: Exceeded ProcessBuilder iteration limit.
+    Are you mistakenly using a builtin like `sum()` or `all()` in a callback
+    instead of the appropriate helpers from `openeo.processes`?
+
+    >>> # Explicit usage of `openeo.processes.sum`
+    >>> import openeo.processes
+    >>> cube.reduce_dimension(dimension="t", reducer=openeo.processes.sum)
+    <openeo.rest.datacube.DataCube at 0x7f6505a40d00>
+
+
 
 Callback as ``PGNode``
 -----------------------

@@ -10,6 +10,8 @@ from openeo.internal.processes.builder import ProcessBuilderBase, UNSET
 
 class ProcessBuilder(ProcessBuilderBase):
 
+    _ITERATION_LIMIT = 100
+
     def __add__(self, other) -> 'ProcessBuilder':
         return self.add(other)
 
@@ -42,6 +44,12 @@ class ProcessBuilder(ProcessBuilderBase):
 
     def __getitem__(self, key) -> 'ProcessBuilder':
         if isinstance(key, builtins.int):
+            if key > self._ITERATION_LIMIT:
+                raise RuntimeError(
+                    "Exceeded ProcessBuilder iteration limit. "
+                    "Are you mistakenly using a Python builtin like `sum()` or `all()` in a callback "
+                    "instead of the appropriate helpers from the `openeo.processes` module?"
+                )
             return self.array_element(index=key)
         else:
             return self.array_element(label=key)

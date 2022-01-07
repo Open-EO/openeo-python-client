@@ -1,3 +1,7 @@
+import builtins
+
+import pytest
+
 from openeo.internal.graph_building import PGNode
 from openeo.processes import ProcessBuilder
 
@@ -510,3 +514,24 @@ def test_load_collection_properties_neq_operator(con100):
 
     cube = con100.load_collection("S2", properties={"provider": lambda v: "ESA" != v})
     assert cube.flat_graph() == expected
+
+
+@pytest.mark.parametrize("reducer", [
+    builtins.sum,
+    lambda data: builtins.sum(data),
+    lambda data: builtins.sum(data) * 3 + 5,
+    builtins.all,
+    lambda data: not builtins.all(data),
+    # TODO also test for `builtin.min`, `builtin.max` (when comparison is supported)
+    # TODO also test for `builtins.any` (which, at the moment, doesn't work anyway due to another error)
+])
+def test_aggregate_temporal_builtin_sum(con100, reducer):
+    """
+    Using builtin `sum` in callback causes unintended infinite loop
+    https://discuss.eodc.eu/t/reducing-masks-in-openeo/113
+    """
+    cube = con100.load_collection("S2")
+
+    intervals = [["2019-01-01", "2020-01-01"], ["2020-01-02", "2021-01-01"]]
+    with pytest.raises(RuntimeError, match="iteration limit"):
+        cube.aggregate_temporal(intervals, reducer=reducer)
