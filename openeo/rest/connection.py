@@ -712,7 +712,12 @@ class Connection(RestApiConnection):
         :return: job_list: Dict of all jobs of the user.
         """
         # TODO: Parse the result so that there get Job classes returned?
-        jobs = self.get('/jobs', expected_status=200).json()["jobs"]
+        resp = self.get('/jobs', expected_status=200).json()
+        if resp.get("federation:missing"):
+            _log.warning("Partial user job listing due to missing federation components: {c}".format(
+                c=",".join(resp["federation:missing"])
+            ))
+        jobs = resp["jobs"]
         return VisualList("data-table", data=jobs, parameters={'columns': 'jobs'})
 
     def save_user_defined_process(
