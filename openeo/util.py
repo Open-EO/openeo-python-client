@@ -429,7 +429,7 @@ def guess_format(filename: Union[str, Path]):
         "gtiff": "GTiff", "geotiff": "GTiff", "geotif": "GTiff", "tiff": "GTiff", "tif": "GTiff",
         "nc": "netCDF", "netcdf": "netCDF",
     }
-    
+
     return format_map.get(extension, extension.upper())
 
 
@@ -585,3 +585,13 @@ class LazyLoadCache:
         if key not in self._cache:
             self._cache[key] = load()
         return self._cache[key]
+
+
+def str_truncate(text: str, width: int = 64, ellipsis: str = "...") -> str:
+    """Shorten a string (with an ellipsis) if it is longer than certain length."""
+    assert width >= 0
+    if len(text) <= width:
+        return text
+    if len(ellipsis) > width:
+        ellipsis = ellipsis[:width]
+    return text[:max(0, (width - len(ellipsis)))] + ellipsis

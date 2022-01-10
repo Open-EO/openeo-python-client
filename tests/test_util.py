@@ -10,7 +10,7 @@ import pytest
 
 from openeo.util import first_not_none, get_temporal_extent, TimingLogger, ensure_list, ensure_dir, dict_no_none, \
     deep_get, DeepKeyError, get_user_config_dir, get_user_data_dir, Rfc3339, rfc3339, deep_set, legacy_alias, \
-    LazyLoadCache, guess_format, ContextTimer
+    LazyLoadCache, guess_format, ContextTimer, str_truncate
 
 
 def test_rfc3339_date():
@@ -592,3 +592,12 @@ class TestLazyLoadCache:
         cache = LazyLoadCache()
         assert cache.get("foo", load) == 5
         assert cache.get("foo", load) == 5
+
+
+def test_str_truncate():
+    assert str_truncate("hello world") == "hello world"
+    assert str_truncate("hello world", width=10) == "hello w..."
+    assert str_truncate("hello world", width=5) == "he..."
+    assert str_truncate("hello world", width=3) == "..."
+    assert str_truncate("hello world", width=1) == "."
+    assert str_truncate("hello world", width=10, ellipsis="<..>") == "hello <..>"

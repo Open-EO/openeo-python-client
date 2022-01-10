@@ -20,7 +20,6 @@ from .auth.test_cli import auth_config, refresh_token_store
 from .auth.test_oidc import OidcMock, assert_device_code_poll_sleep, ABSENT
 from .. import load_json_resource
 
-
 API_URL = "https://oeo.test/"
 
 BASIC_ENDPOINTS = [{"path": "/credentials/basic", "methods": ["GET"]}]
@@ -212,6 +211,19 @@ def test_slow_response_threshold(requests_mock, caplog):
         caplog.clear()
         assert con.get("/foo", slow_response_threshold=10).text == "hello world"
     assert caplog.text == ""
+
+
+def test_slow_response_threshold_truncate_url(requests_mock, caplog):
+    caplog.set_level(logging.WARNING)
+    requests_mock.get("https://oeo.test/foo", status_code=200, text="hello world")
+    con = RestApiConnection("https://oeo.test", slow_response_threshold=3)
+
+    # Long URL
+    with mock.patch.object(ContextTimer, "_clock", new=iter([10, 15]).__next__):
+        caplog.clear()
+        assert con.get("/foo?bar=" + ("0123456789" * 10)).text == "hello world"
+    expected = "Slow response: `GET https://oeo.test/foo?bar=012345678901234567890123456789012345...` took 5.00s (>3.00s)"
+    assert expected in caplog.text
 
 
 def test_connection_other_domain_auth_headers(requests_mock, api_version):

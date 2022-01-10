@@ -37,7 +37,7 @@ from openeo.rest.rest_capabilities import RESTCapabilities
 from openeo.rest.service import Service
 from openeo.rest.udp import RESTUserDefinedProcess, Parameter
 from openeo.util import ensure_list, legacy_alias, dict_no_none, rfc3339, load_json_resource, LazyLoadCache, \
-    ContextTimer
+    ContextTimer, str_truncate
 
 _log = logging.getLogger(__name__)
 
@@ -108,7 +108,7 @@ class RestApiConnection:
             )
         if slow_response_threshold and timer.elapsed() > slow_response_threshold:
             _log.warning("Slow response: `{m} {u}` took {e:.2f}s (>{t:.2f}s)".format(
-                m=method.upper(), u=textwrap.shorten(url, 64, placeholder="..."),
+                m=method.upper(), u=str_truncate(url, width=64),
                 e=timer.elapsed(), t=slow_response_threshold
             ))
         if _log.isEnabledFor(logging.DEBUG):
