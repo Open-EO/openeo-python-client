@@ -285,8 +285,8 @@ def test_context_timer_internals():
             assert timer is ct
             assert timer.start == 3
             assert timer.end is None
-            assert timer.elapsed() is 2
-            assert timer.elapsed() is 5
+            assert timer.elapsed() == 2
+            assert timer.elapsed() == 5
         assert timer.end == 13
         assert timer.elapsed() == 10
         assert timer.elapsed() == 10

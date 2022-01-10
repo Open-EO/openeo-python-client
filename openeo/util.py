@@ -288,7 +288,7 @@ class ContextTimer:
             # Currently elapsed inside context.
             return self._clock() - self.start
 
-    def __enter__(self) -> 'Timer':
+    def __enter__(self) -> 'ContextTimer':
         self.start = self._clock()
         return self
 
