@@ -9,6 +9,7 @@ import logging
 import os
 import platform
 import re
+import time
 import warnings
 from collections import OrderedDict
 from pathlib import Path
@@ -251,6 +252,48 @@ def get_temporal_extent(*args,
         assert start_date is None and end_date is None
         start_date, end_date = extent
     return convertor(start_date) if start_date else None, convertor(end_date) if end_date else None
+
+
+class ContextTimer:
+    """
+    Context manager to measure the "wall clock" time (in seconds) inside/for a block of code.
+
+    Usage example:
+
+        with Timer() as timer:
+            # Inside code block: currently elapsed time
+            print(timer.elapsed())
+
+        # Outside code block: elapsed time when block ended
+        print(timer.elapsed())
+
+    """
+    __slots__ = ["start", "end"]
+
+    # Function that returns current time in seconds (overridable for unit tests)
+    _clock = time.time
+
+    def __init__(self):
+        self.start = None
+        self.end = None
+
+    def elapsed(self) -> float:
+        """Elapsed time (in seconds) inside or at the end of wrapped context."""
+        if self.start is None:
+            raise RuntimeError("Timer not started.")
+        if self.end is not None:
+            # Elapsed time when exiting context.
+            return self.end - self.start
+        else:
+            # Currently elapsed inside context.
+            return self._clock() - self.start
+
+    def __enter__(self) -> 'Timer':
+        self.start = self._clock()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.end = self._clock()
 
 
 class TimingLogger:

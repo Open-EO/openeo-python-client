@@ -4,13 +4,13 @@ import pathlib
 import re
 import unittest.mock as mock
 from datetime import datetime, date
-from typing import List
+from typing import List, Union
 
 import pytest
 
 from openeo.util import first_not_none, get_temporal_extent, TimingLogger, ensure_list, ensure_dir, dict_no_none, \
     deep_get, DeepKeyError, get_user_config_dir, get_user_data_dir, Rfc3339, rfc3339, deep_set, legacy_alias, \
-    LazyLoadCache, guess_format
+    LazyLoadCache, guess_format, ContextTimer
 
 
 def test_rfc3339_date():
@@ -265,6 +265,33 @@ def test_get_temporal_extent():
     assert get_temporal_extent(end_date="2019-10-11") == (None, "2019-10-11")
 
 
+def test_context_timer_basic():
+    with mock.patch.object(ContextTimer, "_clock", new=_fake_clock([3, 5, 8, 13])):
+        with ContextTimer() as timer:
+            assert timer.elapsed() == 2
+            assert timer.elapsed() == 5
+        assert timer.elapsed() == 10
+        assert timer.elapsed() == 10
+
+
+def test_context_timer_internals():
+    with mock.patch.object(ContextTimer, "_clock", new=_fake_clock([3, 5, 8, 13])):
+        ct = ContextTimer()
+        assert ct.start is None
+        assert ct.end is None
+        with pytest.raises(RuntimeError):
+            ct.elapsed()
+        with ct as timer:
+            assert timer is ct
+            assert timer.start == 3
+            assert timer.end is None
+            assert timer.elapsed() is 2
+            assert timer.elapsed() is 5
+        assert timer.end == 13
+        assert timer.elapsed() == 10
+        assert timer.elapsed() == 10
+
+
 def test_timing_logger_basic(caplog):
     caplog.set_level(logging.INFO)
     with TimingLogger("Testing"):
@@ -289,7 +316,7 @@ class _Logger:
         self.logs.append(msg)
 
 
-def _fake_clock(times: List[datetime] = None):
+def _fake_clock(times: List[Union[int, datetime]] = None):
     # Trick to have a "time" function that returns different times in subsequent calls
     times = times or [datetime(2020, 3, 4, 5 + x, 2 * x, 1 + 3 * x, 1000) for x in range(0, 12)]
     return iter(times).__next__
