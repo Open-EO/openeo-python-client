@@ -15,6 +15,7 @@ from openeo.rest import OpenEoClientException, OpenEoApiError, OpenEoRestError
 from openeo.rest.auth.auth import NullAuth, BearerAuth
 from openeo.rest.auth.oidc import OidcException
 from openeo.rest.connection import Connection, RestApiConnection, connect, paginate
+from openeo.util import ContextTimer
 from .auth.test_cli import auth_config, refresh_token_store
 from .auth.test_oidc import OidcMock, assert_device_code_poll_sleep, ABSENT
 from .. import load_json_resource
@@ -187,6 +188,30 @@ def test_rest_api_post_redirect(requests_mock):
     con = RestApiConnection("http://oeo.test")
     with pytest.raises(OpenEoClientException, match=r"Got status code 302 for `POST /foo` \(expected \[200\]\)"):
         con.post("/foo", expected_status=200)
+
+
+def test_slow_response_threshold(requests_mock, caplog):
+    caplog.set_level(logging.WARNING)
+    requests_mock.get("https://oeo.test/foo", status_code=200, text="hello world")
+    con = RestApiConnection("https://oeo.test", slow_response_threshold=3)
+
+    # Fast enough
+    with mock.patch.object(ContextTimer, "_clock", new=iter([10, 11]).__next__):
+        caplog.clear()
+        assert con.get("/foo").text == "hello world"
+    assert caplog.text == ""
+
+    # Too slow
+    with mock.patch.object(ContextTimer, "_clock", new=iter([10, 15]).__next__):
+        caplog.clear()
+        assert con.get("/foo").text == "hello world"
+    assert "Slow response: `GET https://oeo.test/foo` took 5.00s (>3.00s)" in caplog.text
+
+    # Custom threshold
+    with mock.patch.object(ContextTimer, "_clock", new=iter([10, 15]).__next__):
+        caplog.clear()
+        assert con.get("/foo", slow_response_threshold=10).text == "hello world"
+    assert caplog.text == ""
 
 
 def test_connection_other_domain_auth_headers(requests_mock, api_version):

@@ -6,6 +6,7 @@ import json
 import logging
 import shlex
 import sys
+import textwrap
 import warnings
 from collections import OrderedDict
 from pathlib import Path
@@ -35,7 +36,8 @@ from openeo.rest.job import RESTJob
 from openeo.rest.rest_capabilities import RESTCapabilities
 from openeo.rest.service import Service
 from openeo.rest.udp import RESTUserDefinedProcess, Parameter
-from openeo.util import ensure_list, legacy_alias, dict_no_none, rfc3339, load_json_resource, LazyLoadCache
+from openeo.util import ensure_list, legacy_alias, dict_no_none, rfc3339, load_json_resource, LazyLoadCache, \
+    ContextTimer
 
 _log = logging.getLogger(__name__)
 
@@ -48,8 +50,10 @@ def url_join(root_url: str, path: str):
 class RestApiConnection:
     """Base connection class implementing generic REST API request functionality"""
 
-    def __init__(self, root_url: str, auth: AuthBase = None, session: requests.Session = None,
-                 default_timeout: int = None):
+    def __init__(
+            self, root_url: str, auth: AuthBase = None, session: requests.Session = None,
+            default_timeout: Optional[int] = None, slow_response_threshold: Optional[float] = None,
+    ):
         self._root_url = root_url
         self.auth = auth or NullAuth()
         self.session = session or requests.Session()
@@ -61,6 +65,7 @@ class RestApiConnection:
                 pl=sys.platform
             )
         }
+        self.slow_response_threshold = slow_response_threshold
 
     @property
     def root_url(self):
@@ -87,18 +92,25 @@ class RestApiConnection:
         url = self.build_url(path)
         # Don't send default auth headers to external domains.
         auth = auth or (self.auth if not self._is_external(url) else None)
+        slow_response_threshold = kwargs.pop("slow_response_threshold", self.slow_response_threshold)
         if _log.isEnabledFor(logging.DEBUG):
             _log.debug("Request `{m} {u}` with headers {h}, auth {a}, kwargs {k}".format(
                 m=method.upper(), u=url, h=headers and headers.keys(), a=type(auth).__name__, k=list(kwargs.keys()))
             )
-        resp = self.session.request(
-            method=method,
-            url=url,
-            headers=self._merged_headers(headers),
-            auth=auth,
-            timeout=kwargs.pop("timeout", self.default_timeout),
-            **kwargs
-        )
+        with ContextTimer() as timer:
+            resp = self.session.request(
+                method=method,
+                url=url,
+                headers=self._merged_headers(headers),
+                auth=auth,
+                timeout=kwargs.pop("timeout", self.default_timeout),
+                **kwargs
+            )
+        if slow_response_threshold and timer.elapsed() > slow_response_threshold:
+            _log.warning("Slow response: `{m} {u}` took {e:.2f}s (>{t:.2f}s)".format(
+                m=method.upper(), u=textwrap.shorten(url, 64, placeholder="..."),
+                e=timer.elapsed(), t=slow_response_threshold
+            ))
         if _log.isEnabledFor(logging.DEBUG):
             _log.debug("Got {r} headers {h!r}".format(r=resp, h=resp.headers))
         # Check for API errors and unexpected HTTP status codes as desired.
@@ -206,7 +218,8 @@ class Connection(RestApiConnection):
 
     def __init__(
             self, url: str, auth: AuthBase = None, session: requests.Session = None, default_timeout: int = None,
-            auth_config: AuthConfig = None, refresh_token_store: RefreshTokenStore = None
+            auth_config: AuthConfig = None, refresh_token_store: RefreshTokenStore = None,
+            slow_response_threshold: Optional[float] = None,
     ):
         """
         Constructor of Connection, authenticates user.
@@ -218,7 +231,8 @@ class Connection(RestApiConnection):
         self._orig_url = url
         super().__init__(
             root_url=self.version_discovery(url, session=session),
-            auth=auth, session=session, default_timeout=default_timeout
+            auth=auth, session=session, default_timeout=default_timeout,
+            slow_response_threshold=slow_response_threshold,
         )
         self._capabilities_cache = LazyLoadCache()
 
