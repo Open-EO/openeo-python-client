@@ -204,6 +204,8 @@ class RESTJob:
             poll_interval = min(1.25 * poll_interval, max_poll_interval)
 
         if status != "finished":
+            print("Logs for failed job:")
+            print(self.logs())
             raise JobFailedException("Batch job {i} didn't finish properly. Status: {s} (after {t}).".format(
                 i=self.job_id, s=status, t=elapsed()
             ), job=self)
