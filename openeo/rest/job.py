@@ -1,5 +1,6 @@
 import datetime
 import logging
+import textwrap
 import time
 import typing
 from pathlib import Path
@@ -204,10 +205,15 @@ class RESTJob:
             poll_interval = min(1.25 * poll_interval, max_poll_interval)
 
         if status != "finished":
-            print("Your batch job failed. Logs can be found online in an openEO editor, or you can get them with 'connection.job('my_job_id_123').logs()'")
+            print(textwrap.dedent("""
+                Your batch job {i!r} failed.
+                Logs can be inspected in an openEO (web) editor or with `connection.job({i!r}).logs()`.
+            """.format(i=self.job_id)))
+            # TODO: make it possible to disable printing logs automatically?
+            # TODO: render logs jupyter-aware in a notebook context?
             print("Printing logs:")
             print(self.logs())
-            raise JobFailedException("Batch job {i} didn't finish properly. Status: {s} (after {t}).".format(
+            raise JobFailedException("Batch job {i!r} didn't finish successfully. Status: {s} (after {t}).".format(
                 i=self.job_id, s=status, t=elapsed()
             ), job=self)
 

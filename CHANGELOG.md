@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Setting the environment variable `OPENEO_BASEMAP_URL` allows to set a new templated URL to a XYZ basemap for the Vue Components library,  `OPENEO_BASEMAP_ATTRIBUTION` allows to set the attribution for the basemap ([#260](https://github.com/Open-EO/openeo-python-client/issues/260))
 - Initial support for experimental "federation:missing" flag on partial openEO Platform user job listings ([Open-EO/openeo-api#419](https://github.com/Open-EO/openeo-api/pull/419))
 - Best effort detection of mistakenly using Python builtin `sum` or `all` functions in callbacks ([Forum #113](https://discuss.eodc.eu/t/reducing-masks-in-openeo/113))
+- Automatically print batch job logs when job doesn't finish successfully (using `execute_batch/run_synchronous/start_and_wait`).
 
 
 ### Changed
