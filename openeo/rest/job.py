@@ -204,7 +204,8 @@ class RESTJob:
             poll_interval = min(1.25 * poll_interval, max_poll_interval)
 
         if status != "finished":
-            print("Logs for failed job:")
+            print("Your batch job failed. Logs can be found online in an openEO editor, or you can get them with 'connection.job('my_job_id_123').logs()'")
+            print("Printing logs:")
             print(self.logs())
             raise JobFailedException("Batch job {i} didn't finish properly. Status: {s} (after {t}).".format(
                 i=self.job_id, s=status, t=elapsed()
