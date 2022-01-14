@@ -191,6 +191,9 @@ To be as concrete as possible, we will assume that we are about to release versi
     Commit this (e.g. with message ``_version.py: next alpha version 0.4.8a1``)
     and push to GitHub.
 
+#.  Optionally: send a tweet about the release or announce it in the `openEO Platform Forum <https://discuss.eodc.eu/c/openeo-platform/clients/18>`_ .
+
+
 Verification
 ~~~~~~~~~~~~
 
