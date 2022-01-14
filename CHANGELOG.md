@@ -9,19 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Removed
+
+### Fixed
+
+
+## [0.9.2] - 2022-01-14
+
+### Added
+
 - Add experimental support for `chunk_polygon` process ([Open-EO/openeo-processes#287](https://github.com/Open-EO/openeo-processes/issues/287))
 - Add support for `spatial_extent`, `temporal_extent` and `bands` to `Connection.load_result()`
 - Setting the environment variable `OPENEO_BASEMAP_URL` allows to set a new templated URL to a XYZ basemap for the Vue Components library,  `OPENEO_BASEMAP_ATTRIBUTION` allows to set the attribution for the basemap ([#260](https://github.com/Open-EO/openeo-python-client/issues/260))
 - Initial support for experimental "federation:missing" flag on partial openEO Platform user job listings ([Open-EO/openeo-api#419](https://github.com/Open-EO/openeo-api/pull/419))
 - Best effort detection of mistakenly using Python builtin `sum` or `all` functions in callbacks ([Forum #113](https://discuss.eodc.eu/t/reducing-masks-in-openeo/113))
 - Automatically print batch job logs when job doesn't finish successfully (using `execute_batch/run_synchronous/start_and_wait`).
-
-
-### Changed
-
-### Removed
-
-### Fixed
 
 
 ## [0.9.1] - 2021-11-16
