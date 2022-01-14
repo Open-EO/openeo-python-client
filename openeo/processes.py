@@ -57,6 +57,18 @@ class ProcessBuilder(ProcessBuilderBase):
     def __eq__(self, other) -> 'ProcessBuilder':
         return eq(self, other)
 
+    def __lt__(self, other) -> 'ProcessBuilder':
+        return lt(self, other)
+
+    def __le__(self, other) -> 'ProcessBuilder':
+        return lte(self, other)
+
+    def __ge__(self, other) -> 'ProcessBuilder':
+        return gte(self, other)
+
+    def __gt__(self, other) -> 'ProcessBuilder':
+        return gt(self, other)
+
     def __ne__(self, other) -> 'ProcessBuilder':
         return neq(self, other)
 
