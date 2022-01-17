@@ -913,7 +913,8 @@ class DataCube(ImageCollection, _FromNodeMixin):
     def chunk_polygon(
             self,
             chunks: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter],
-            process: Union[str, PGNode, typing.Callable]
+            process: Union[str, PGNode, typing.Callable],
+            mask_value: float = None
     ) -> 'DataCube':
         """
         EXPERIMENTAL: not generally supported, API subject to change.
@@ -922,6 +923,9 @@ class DataCube(ImageCollection, _FromNodeMixin):
         :param chunks: A polygon, provided as a :class:`shapely.geometry.Polygon`
             or :class:`shapely.geometry.MultiPolygon`, or a filename pointing to a valid vector file
         :param process: "child callback" function, see :ref:`callbackfunctions`
+        :param mask_value: The value used for cells outside the polygon.
+            This provides a distinction between NoData cells within the polygon (due to e.g. clouds)
+            and masked cells outside it. If no value is provided, NoData cells are used outside the polygon.
         """
         process = self._get_callback(process, parent_parameters=["data"])
         valid_geojson_types = ["Polygon", "MultiPolygon", "GeometryCollection", "Feature", "FeatureCollection"]
@@ -931,7 +935,8 @@ class DataCube(ImageCollection, _FromNodeMixin):
             arguments=dict_no_none(
                 data=THIS,
                 chunks=chunks,
-                process=process
+                process=process,
+                mask_value=mask_value
             )
         )
 
