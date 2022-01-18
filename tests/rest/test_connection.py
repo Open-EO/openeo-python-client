@@ -371,18 +371,34 @@ def test_file_formats(requests_mock):
 
 def test_api_error(requests_mock):
     requests_mock.get('https://oeo.test/', json={"api_version": "0.4.0"})
-    conn = Connection(API_URL)
     requests_mock.get('https://oeo.test/collections/foobar', status_code=404, json={
-        "code": "CollectionNotFound", "message": "No such things as a collection 'foobar'", "id": "54321"
+        "code": "CollectionNotFound", "message": "No such thing as a collection 'foobar'", "id": "54321",
     })
     with pytest.raises(OpenEoApiError) as exc_info:
-        conn.describe_collection("foobar")
+        Connection(API_URL).describe_collection("foobar")
     exc = exc_info.value
     assert exc.http_status_code == 404
     assert exc.code == "CollectionNotFound"
-    assert exc.message == "No such things as a collection 'foobar'"
+    assert exc.message == "No such thing as a collection 'foobar'"
     assert exc.id == "54321"
     assert exc.url is None
+    assert str(exc) == "[404] CollectionNotFound: No such thing as a collection 'foobar' (ref: 54321)"
+
+
+def test_api_error_no_id(requests_mock):
+    requests_mock.get('https://oeo.test/', json={"api_version": "0.4.0"})
+    requests_mock.get('https://oeo.test/collections/foobar', status_code=404, json={
+        "code": "CollectionNotFound", "message": "No such thing as a collection 'foobar'",
+    })
+    with pytest.raises(OpenEoApiError) as exc_info:
+        Connection(API_URL).describe_collection("foobar")
+    exc = exc_info.value
+    assert exc.http_status_code == 404
+    assert exc.code == "CollectionNotFound"
+    assert exc.message == "No such thing as a collection 'foobar'"
+    assert exc.id is None
+    assert exc.url is None
+    assert str(exc) == "[404] CollectionNotFound: No such thing as a collection 'foobar'"
 
 
 def test_api_error_non_json(requests_mock):

@@ -135,6 +135,29 @@ def test_apply_callback_math_custom_function_reflected(con100):
     assert result.flat_graph() == load_json_resource('data/1.0.0/apply_math_reflected.json')
 
 
+@pytest.mark.parametrize(["function", "expected"], [
+    ((lambda data: data < 5), "lt"),
+    ((lambda data: data > 5), "gt"),
+    ((lambda data: data <= 5), "lte"),
+    ((lambda data: data >= 5), "gte"),
+])
+def test_apply_callback_comparison_lambda(con100, function, expected):
+    im = con100.load_collection("S2")
+    result = im.apply(function)
+    assert result.flat_graph()["apply1"]["arguments"] == {
+        "data": {"from_node": "loadcollection1"},
+        "process": {
+            "process_graph": {
+                expected + "1": {
+                    "process_id": expected,
+                    "arguments": {"x": {"from_parameter": "x"}, "y": 5},
+                    "result": True,
+                }
+            }
+        }
+    }
+
+
 def test_apply_neighborhood_trim_str(con100):
     im = con100.load_collection("S2")
     result = im.apply_neighborhood(

@@ -42,4 +42,7 @@ class OpenEoApiError(OpenEoRestError):
         self.message = message
         self.id = id
         self.url = url
-        super().__init__("[{s}] {c}: {m}".format(s=self.http_status_code, c=self.code, m=self.message))
+        msg = "[{s}] {c}: {m}".format(s=self.http_status_code, c=self.code, m=self.message)
+        if self.id:
+            msg += " (ref: {i})".format(i=self.id)
+        super().__init__(msg)

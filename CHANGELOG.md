@@ -9,7 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add support for comparison operators (`<`, `>`, `<=` and `>=`) in callback process building
+
+
 ### Changed
+
+- Include openEO API error id automatically in exception message to simplify user support and post-mortem analysis.
+
 
 ### Removed
 
