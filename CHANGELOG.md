@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- Removed deprecated 'zonal_statistics' method from the 1.x version of the API.
+
 ### Fixed
 
 

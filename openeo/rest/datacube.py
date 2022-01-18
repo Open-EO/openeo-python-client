@@ -746,36 +746,6 @@ class DataCube(ImageCollection, _FromNodeMixin):
         reducer = self._get_callback(reducer, parent_parameters=["data"])
         return self.process(process_id="aggregate_spatial", data=THIS, geometries=geometries, reducer=reducer)
 
-    @deprecated(reason="use aggregate_spatial instead", version="0.4.6")
-    def zonal_statistics(self, regions, func, scale=1000, interval="day") -> 'DataCube':
-        """
-        Calculates statistics for each zone specified in a file.
-
-        :param regions: GeoJSON or a path to a GeoJSON file containing the
-                        regions. For paths you must specify the path to a
-                        user-uploaded file without the user id in the path.
-        :param func: Statistical function to calculate for the specified
-                     zones. example values: min, max, mean, median, mode
-        :param scale: A nominal scale in meters of the projection to work
-                      in. Defaults to 1000.
-        :param interval: Interval to group the time series. Allowed values:
-                        day, wee, month, year. Defaults to day.
-
-        :return: a DataCube instance
-        """
-        regions_geojson = regions
-        if isinstance(regions, Polygon) or isinstance(regions, MultiPolygon):
-            regions_geojson = mapping(regions)
-        process_id = 'zonal_statistics'
-        args = {
-            'data': THIS,
-            'regions': regions_geojson,
-            'func': func,
-            'scale': scale,
-            'interval': interval
-        }
-
-        return self.process(process_id, args)
 
     @staticmethod
     def _get_callback(process: Union[str, PGNode, typing.Callable], parent_parameters: List[str]) -> dict:
