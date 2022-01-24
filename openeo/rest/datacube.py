@@ -900,6 +900,7 @@ class DataCube(ImageCollection, _FromNodeMixin):
         process = self._get_callback(process, parent_parameters=["data"])
         valid_geojson_types = ["Polygon", "MultiPolygon", "GeometryCollection", "Feature", "FeatureCollection"]
         chunks = self._get_geometry_argument(chunks, valid_geojson_types=valid_geojson_types)
+        mask_value = float(mask_value) if mask_value is not None else None
         return self.process(
             process_id="chunk_polygon",
             arguments=dict_no_none(
