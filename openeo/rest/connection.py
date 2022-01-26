@@ -721,12 +721,12 @@ class Connection(RestApiConnection):
 
     def describe_process(self, id: str, namespace: str = None) -> dict:
         """
-        Retuens a single process from the back end.
+        Returns a single process from the back end.
 
         :param id: The id of the process.
         :param namespace: The namespace of the process.
 
-        :return: process: Dict The process definition.
+        :return: The process definition.
         """
 
         processes = self.list_processes(namespace)
