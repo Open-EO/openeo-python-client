@@ -719,6 +719,24 @@ class Connection(RestApiConnection):
             processes = self.get('/processes/' + namespace, expected_status=200).json()["processes"]
         return VisualList("processes", data=processes, parameters={'show-graph': True, 'provide-download': False})
 
+    def describe_process(self, id: str, namespace: str = None) -> dict:
+        """
+        Retuens a single process from the back end.
+
+        :param id: The id of the process.
+        :param namespace: The namespace of the process.
+
+        :return: process: Dict The process definition.
+        """
+
+        processes = self.list_processes(namespace)
+        for process in processes:
+            if process["id"] == id:
+                return VisualDict("process", data=process, parameters={'show-graph': True, 'provide-download': False})
+
+        raise OpenEoClientException("Process does not exist.")
+
+
     def list_jobs(self) -> List[dict]:
         """
         Lists all jobs of the authenticated user.
