@@ -79,6 +79,60 @@
             "reference": "",
             "short_name": "NDRE5",
             "type": "vegetation"
+        },
+        "BI2": {
+            "bands": [
+                "G",
+                "R",
+                "N"
+            ],
+            "contributor": "vito",
+            "date_of_addition": "2022-01-27",
+            "formula": "((R**2+N**2+G**2)**0.5)/3",
+            "long_name": "Brightness index 2",
+            "reference": "",
+            "short_name": "BI2",
+            "type": "soil"
+        },
+        "BI_B08": {
+            "bands": [
+                "R",
+                "N"
+            ],
+            "contributor": "vito",
+            "date_of_addition": "2022-01-27",
+            "formula": "(R**2+N**2)**0.5",
+            "long_name": "Brightness index B08",
+            "reference": "",
+            "short_name": "BI_B08",
+            "type": "soil"
+        },
+        "S2WI": {
+            "bands": [
+                "RE4",
+                "S1",
+                "S2"
+            ],
+            "contributor": "vito",
+            "date_of_addition": "2022-01-27",
+            "formula": "(RE4-S1-S2)/(RE4+S1+S2)",
+            "long_name": "Sentinel-2 soil moisture index",
+            "reference": "",
+            "short_name": "S2WI",
+            "type": "soil"
+        },
+        "LSWI_B12": {
+            "bands": [
+                "N",
+                "S2"
+            ],
+            "contributor": "vito",
+            "date_of_addition": "2022-01-27",
+            "formula": "(N-S2)/(N+S2)",
+            "long_name": "Sentinel-2 land surface water index",
+            "reference": "",
+            "short_name": "LSWI_B12",
+            "type": "water"
         }
     }
 }
