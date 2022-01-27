@@ -63,6 +63,8 @@ or expected parameters, can be queried like that,
 but it is often easier to look them up on the
 `official openEO process documentation <https://openeo.org/documentation/1.0/processes.html>`_
 
+A single pre-defined process can be retrieved with
+:func:`~openeo.rest.connection.Connection.describe_process`.
 
 Most of the important pre-defined processes are covered directly by methods
 of the :class:`~openeo.rest.datacube.DataCube` class.

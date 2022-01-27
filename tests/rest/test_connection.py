@@ -1527,6 +1527,19 @@ def test_list_processes_error(requests_mock):
     assert m.call_count == 2
 
 
+def test_describe_processes(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    add = {"id": "add"}
+    mask = {"id": "mask"}
+    m = requests_mock.get(API_URL + "processes", json={"processes": [add, mask]})
+    conn = Connection(API_URL)
+    assert conn.describe_process("add") == add
+    assert conn.describe_process("mask") == mask
+    assert m.call_count == 1
+    with pytest.raises(OpenEoClientException):
+        conn.describe_process("invalid")
+
+
 def test_list_processes_namespace(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     processes = [{"id": "add"}, {"id": "mask"}]
