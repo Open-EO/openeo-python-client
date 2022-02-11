@@ -656,13 +656,13 @@ class Connection(RestApiConnection):
         return VisualList("data-table", data=services, parameters={'columns': 'services'})
 
     def describe_collection(self, name) -> dict:
-        # TODO: Maybe create some kind of Data class.
         """
         Loads detailed information of a specific image collection.
 
         :param name: String Id of the collection
         :return: data_dict: Dict Detailed information about the collection
         """
+        # TODO: duplication with `Connection.collection_metadata`: deprecate one or the other?
         data = self.get('/collections/{}'.format(name), expected_status=200).json()
         return VisualDict("collection", data=data)
 
@@ -699,6 +699,7 @@ class Connection(RestApiConnection):
         return paginate(self, url, params, lambda response, page: VisualDict("items", data = response, parameters = {'show-map': True, 'heading': 'Page {} - Items'.format(page)}))
 
     def collection_metadata(self, name) -> CollectionMetadata:
+        # TODO: duplication with `Connection.describe_collection`: deprecate one or the other?
         return CollectionMetadata(metadata=self.describe_collection(name))
 
     def list_processes(self, namespace: str = None) -> List[dict]:
@@ -1046,6 +1047,7 @@ class Connection(RestApiConnection):
         :return: job_id: String Job id of the new created job
         """
         # TODO move all this (RESTJob factory) logic to RESTJob?
+        # TODO: unify Connection.create_job vs DataCube.send_job. #276
         req = self._build_request_with_process_graph(
             process_graph=process_graph,
             **dict_no_none(title=title, description=description, plan=plan, budget=budget)

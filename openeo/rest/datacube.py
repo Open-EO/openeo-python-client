@@ -1572,6 +1572,7 @@ class DataCube(ImageCollection, _FromNodeMixin):
         :return: status: Job resulting job.
         """
         # TODO: add option to also automatically start the job?
+        # TODO: unify Connection.create_job vs DataCube.send_job. #276
         img = self
         if out_format:
             # add `save_result` node
