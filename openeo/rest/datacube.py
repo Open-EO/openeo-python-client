@@ -890,8 +890,9 @@ class DataCube(ImageCollection, _FromNodeMixin):
         EXPERIMENTAL: not generally supported, API subject to change.
         Apply a process to spatial chunks of a data cube.
 
-        :param chunks: A polygon, provided as a :class:`shapely.geometry.Polygon`
-            or :class:`shapely.geometry.MultiPolygon`, or a filename pointing to a valid vector file
+        :param chunks: Polygon(s), provided as a :class:`shapely.geometry.GeometryCollection`
+            , a :class:`shapely.geometry.MultiPolygon`, a filename pointing to a valid vector file
+            or a :class:`shapely.geometry.Polygon`.
         :param process: "child callback" function, see :ref:`callbackfunctions`
         :param mask_value: The value used for cells outside the polygon.
             This provides a distinction between NoData cells within the polygon (due to e.g. clouds)
