@@ -740,7 +740,7 @@ class DataCube(ImageCollection, _FromNodeMixin):
         """
         valid_geojson_types = [
             "Point", "MultiPoint", "LineString", "MultiLineString",
-            "Polygon", "MultiPolygon", "GeometryCollection", "FeatureCollection"
+            "Polygon", "MultiPolygon", "GeometryCollection", "Feature", "FeatureCollection"
         ]
         geometries = self._get_geometry_argument(geometries, valid_geojson_types=valid_geojson_types, crs=crs)
         reducer = self._get_callback(reducer, parent_parameters=["data"])
