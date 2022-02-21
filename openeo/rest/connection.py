@@ -230,7 +230,7 @@ class Connection(RestApiConnection):
             url = "https://" + url
         self._orig_url = url
         super().__init__(
-            root_url=self.version_discovery(url, session=session),
+            root_url=self.version_discovery(url, session=session, timeout=default_timeout),
             auth=auth, session=session, default_timeout=default_timeout,
             slow_response_threshold=slow_response_threshold,
         )
@@ -246,7 +246,7 @@ class Connection(RestApiConnection):
         self._refresh_token_store = refresh_token_store
 
     @classmethod
-    def version_discovery(cls, url: str, session: requests.Session = None) -> str:
+    def version_discovery(cls, url: str, session: requests.Session = None, timeout: Optional[int] = None) -> str:
         """
         Do automatic openEO API version discovery from given url, using a "well-known URI" strategy.
 
@@ -254,7 +254,8 @@ class Connection(RestApiConnection):
         :return: root url of highest supported backend version
         """
         try:
-            well_known_url_response = RestApiConnection(url, session=session).get("/.well-known/openeo")
+            connection = RestApiConnection(url, session=session)
+            well_known_url_response = connection.get("/.well-known/openeo", timeout=timeout)
             assert well_known_url_response.status_code == 200
             versions = well_known_url_response.json()["versions"]
             supported_versions = [v for v in versions if cls._MINIMUM_API_VERSION <= v["api_version"]]

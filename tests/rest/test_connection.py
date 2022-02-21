@@ -335,6 +335,21 @@ def test_connect_version_discovery(requests_mock, versions, expected_url, expect
     assert conn.capabilities().capabilities["foo"] == "bar"
 
 
+def test_connect_version_discovery_timeout(requests_mock):
+    well_known = requests_mock.get("https://oeo.test/.well-known/openeo", status_code=200, json={
+        "versions": [{"api_version": "1.0.0", "url": "https://oeo.test/v1/"}, ],
+    })
+    requests_mock.get("https://oeo.test/v1/", status_code=200, json={"api_version": "1.0.0"})
+
+    _ = connect("https://oeo.test/")
+    assert well_known.call_count == 1
+    assert well_known.request_history[-1].timeout is None
+
+    _ = connect("https://oeo.test/", default_timeout=4)
+    assert well_known.call_count == 2
+    assert well_known.request_history[-1].timeout == 4
+
+
 def test_connection_repr(requests_mock):
     requests_mock.get("https://oeo.test/", status_code=404)
     requests_mock.get("https://oeo.test/.well-known/openeo", status_code=200, json={
