@@ -32,6 +32,7 @@ from openeo.metadata import CollectionMetadata, Band, BandDimension
 from openeo.processes import ProcessBuilder
 from openeo.rest import BandMathException, OperatorException, OpenEoClientException
 from openeo.rest.job import RESTJob
+from openeo.rest.mlmodel import MlModel
 from openeo.rest.service import Service
 from openeo.rest.udp import RESTUserDefinedProcess
 from openeo.rest.vectorcube import VectorCube
@@ -1794,3 +1795,42 @@ class DataCube(ImageCollection, _FromNodeMixin):
         if dimension_names and dimension not in dimension_names:
             raise ValueError(f"Invalid dimension name {dimension!r}, should be one of {dimension_names}")
         return self.process(process_id="dimension_labels", arguments={"data": THIS, "dimension": dimension})
+
+    def fit_class_random_forest(
+            self,
+            predictors: PGNode, target: PGNode,
+            training: int, num_trees: int = 100, mtry: int = None
+    ) -> 'MlModel':
+        """
+        EXPERIMENTAL: not generally supported, API subject to change.
+        Executes the fit of a random forest classification based on the user input of target and predictors.
+        The Random Forest classification model is based on the approach by Breiman (2001).
+
+        :param predictors:
+        The predictors for the classification model as a vector data cube. Aggregated to the features (vectors) of the
+        target input variable.
+        :param target:
+        The training sites for the classification model as a vector data cube. This is associated with the target
+        variable for the Random Forest model. The geometry has to be associated with a value to predict (e.g. fractional
+         forest canopy cover).
+        :param training:
+        The amount of training data to be used in the classification. The sampling will be chosen randomly through the
+        data object. The remaining data will be used as test data for the validation
+        :param num_trees:
+        The number of trees build within the Random Forest classification.
+        :param mtry:
+        Specifies how many split variables will be used at a node. Default value is `null`, which corresponds to the
+        number of predictors divided by 3.
+        """
+        pgnode = PGNode(
+            process_id="fit_class_random_forest",
+            arguments=dict_no_none(
+                predictors={'from_node': predictors},
+                target={'from_node': target},
+                training=training,
+                num_trees=num_trees,
+                mtry=mtry
+            )
+        )
+        model = MlModel(graph=pgnode, connection=self._connection, metadata=None)
+        return model
