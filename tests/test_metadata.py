@@ -292,7 +292,7 @@ def test_get_dimensions_no_band_dimension_with_eo_bands():
     assert_same_dimensions(dims, [
         SpatialDimension(name="x", extent=[-10, 10]),
     ])
-    assert logs == ["No 'bands' dimension in 'cube:dimensions' while having 'eo:bands'"]
+    assert logs == ["No 'bands' dimension in 'cube:dimensions' while having 'eo:bands' or 'raster:bands'"]
 
 
 def test_get_dimensions_multiple_band_dimensions_with_eo_bands():

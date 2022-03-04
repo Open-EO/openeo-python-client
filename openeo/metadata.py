@@ -257,9 +257,10 @@ class CollectionMetadata:
                 complain("Unknown dimension type {t!r}".format(t=dim_type))
                 dimensions.append(Dimension(name=name, type=dim_type))
 
-        # Detailed band information: `summaries/eo:bands` (and 0.4 style `properties/eo:bands`)
+        # Detailed band information: `summaries/[eo|raster]:bands` (and 0.4 style `properties/eo:bands`)
         eo_bands = (
                 deep_get(spec, "summaries", "eo:bands", default=None)
+                or deep_get(spec, "summaries", "raster:bands", default=None)
                 or deep_get(spec, "properties", "eo:bands", default=None)
         )
         if eo_bands:
@@ -282,7 +283,7 @@ class CollectionMetadata:
                     complain("Assuming name 'bands' for anonymous band dimension.")
                     dimensions.append(BandDimension(name="bands", bands=bands_detailed))
                 else:
-                    complain("No 'bands' dimension in 'cube:dimensions' while having 'eo:bands'")
+                    complain("No 'bands' dimension in 'cube:dimensions' while having 'eo:bands' or 'raster:bands'")
             else:
                 complain("Multiple dimensions of type 'bands'")
 
