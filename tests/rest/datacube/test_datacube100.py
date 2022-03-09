@@ -1441,3 +1441,45 @@ def test_pipe_with_args(con100):
     assert im.flat_graph()["apply1"]["arguments"]["process"]["process_graph"]["linearscalerange1"]["arguments"] == {
         'inputMax': 2, 'inputMin': 0, 'outputMax': 7, 'outputMin': 0, 'x': {'from_parameter': 'x'}
     }
+
+
+def test_flatten_dimensions(con100):
+    s2 = con100.load_collection("S2")
+    cube = s2.flatten_dimensions(dimensions=["t", "bands"], target_dimension="features")
+    assert _get_leaf_node(cube) == {
+        "process_id": "flatten_dimensions",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"}, "dimensions": ["t", "bands"], "target_dimension": "features"
+        },
+        "result": True
+    }
+    cube = s2.flatten_dimensions(dimensions=["t", "bands"], target_dimension="features", label_separator="+")
+    assert _get_leaf_node(cube) == {
+        "process_id": "flatten_dimensions",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"}, "dimensions": ["t", "bands"], "target_dimension": "features",
+            "label_separator": "+",
+        },
+        "result": True
+    }
+
+
+def test_unflatten_dimension(con100):
+    s2 = con100.load_collection("S2")
+    cube = s2.unflatten_dimension(dimension="features", target_dimensions=["t", "bands"])
+    assert _get_leaf_node(cube) == {
+        "process_id": "unflatten_dimension",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"}, "dimension": "features", "target_dimensions": ["t", "bands"],
+        },
+        "result": True
+    }
+    cube = s2.unflatten_dimension(dimension="features", target_dimensions=["t", "bands"], label_separator="+")
+    assert _get_leaf_node(cube) == {
+        "process_id": "unflatten_dimension",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"}, "dimension": "features", "target_dimensions": ["t", "bands"],
+            "label_separator": "+",
+        },
+        "result": True
+    }

@@ -1834,3 +1834,52 @@ class DataCube(ImageCollection, _FromNodeMixin):
         )
         model = MlModel(graph=pgnode, connection=self._connection, metadata=None)
         return model
+
+    def flatten_dimensions(self, dimensions: List[str], target_dimension: str, label_separator: Optional[str] = None):
+        """
+        Combines multiple given dimensions into a single dimension by flattening the values
+        and merging the dimension labels with the given `label_separator`. Non-string dimension labels will
+        be converted to strings. This process is the opposite of the process :py:meth:`unflatten_dimension()`
+        but executing both processes subsequently doesn't necessarily create a data cube that
+        is equal to the original data cube.
+
+        .. warning:: experimental process: not generally supported, API subject to change.
+
+        :param dimensions: The names of the dimension to combine.
+        :param target_dimension: The name of a target dimension with a single dimension label to replace.
+        :param label_separator: The string that will be used as a separator for the concatenated dimension labels.
+        :return: A data cube with the new shape.
+        """
+        return self.process(
+            process_id="flatten_dimensions",
+            arguments=dict_no_none(
+                data=THIS,
+                dimensions=dimensions,
+                target_dimension=target_dimension,
+                label_separator=label_separator,
+            ),
+        )
+
+    def unflatten_dimension(self, dimension: str, target_dimensions: List[str], label_separator: Optional[str] = None):
+        """
+        Splits a single dimension into multiple dimensions by systematically extracting values and splitting
+        the dimension labels by the given `label_separator`.
+        This process is the opposite of the process :py:meth:`flatten_dimensions()` but executing both processes
+        subsequently doesn't necessarily create a data cube that is equal to the original data cube.
+
+        .. warning:: experimental process: not generally supported, API subject to change.
+
+        :param dimension: The name of the dimension to split.
+        :param target_dimensions: The names of the target dimensions.
+        :param label_separator: The string that will be used as a separator to split the dimension labels.
+        :return: A data cube with the new shape.
+        """
+        return self.process(
+            process_id="unflatten_dimension",
+            arguments=dict_no_none(
+                data=THIS,
+                dimension=dimension,
+                target_dimensions=target_dimensions,
+                label_separator=label_separator,
+            )
+        )

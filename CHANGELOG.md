@@ -11,13 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add support for comparison operators (`<`, `>`, `<=` and `>=`) in callback process building
 - Added `Connection.describe_process()` to retrieve and show a single process
-
+- Added `DataCube.flatten_dimensions()` and `DataCube.unflatten_dimension` 
+  ([Open-EO/openeo-processes#308](https://github.com/Open-EO/openeo-processes/issues/308), [Open-EO/openeo-processes#316](https://github.com/Open-EO/openeo-processes/pull/316))
 
 ### Changed
 
 - Include openEO API error id automatically in exception message to simplify user support and post-mortem analysis.
 - Use `Connection.default_timeout` (when set) also on version discovery request
-
 
 ### Removed
 
