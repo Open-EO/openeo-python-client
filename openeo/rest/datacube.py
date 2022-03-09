@@ -1206,7 +1206,7 @@ class DataCube(ImageCollection, _FromNodeMixin):
                 target=target,
                 source=source
             ),
-            metadata=self.metadata.rename_labels(dimension,target,source)
+            metadata=self.metadata.rename_labels(dimension, target, source)
         )
 
     def linear_scale_range(self, input_min, input_max, output_min, output_max) -> 'DataCube':

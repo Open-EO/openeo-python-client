@@ -1268,6 +1268,46 @@ def test_dimension_labels_invalid(con100):
     assert cube.flat_graph()["dimensionlabels1"]["arguments"]["dimension"] == "unv6lidd"
 
 
+def test_rename_labels_bands(con100):
+    cube = con100.load_collection("S2").rename_labels("bands", target=["blue", "green"], source=["B02", "B03"])
+    assert cube.flat_graph() == {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
+        },
+        "renamelabels1": {
+            "process_id": "rename_labels",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "dimension": "bands",
+                "target": ["blue", "green"],
+                "source": ["B02", "B03"],
+            },
+            "result": True
+        },
+    }
+
+
+def test_rename_labels_temporal(con100):
+    """https://github.com/Open-EO/openeo-python-client/issues/274"""
+    cube = con100.load_collection("S2").rename_labels("t", target=["2019", "2020", "2021"])
+    assert cube.flat_graph() == {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
+        },
+        "renamelabels1": {
+            "process_id": "rename_labels",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "dimension": "t",
+                "target": ["2019", "2020", "2021"],
+            },
+            "result": True
+        },
+    }
+
+
 def test_fit_curve_callback(con100: Connection):
     from openeo.processes import array_element
     def model(x, parameters):

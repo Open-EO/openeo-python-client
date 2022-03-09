@@ -126,6 +126,15 @@ def test_band_dimension_rename_labels_with_source():
     assert newdim.band_names == ['B02','2','B04']
 
 
+def test_band_dimension_rename_labels_with_source_mismatch():
+    b02 = Band("B02", "blue", 0.490)
+    b03 = Band("B03", "green", 0.560)
+    bdim = BandDimension(name="bs", bands=[b02, b03])
+    metadata = CollectionMetadata({}, dimensions=[bdim])
+    with pytest.raises(ValueError, match="should have same number of labels, but got"):
+        _ = metadata.rename_labels("bs", target=['2', "3"], source=['B03'])
+
+
 def assert_same_dimensions(dims1: List[Dimension], dims2: List[Dimension]):
     assert sorted(dims1, key=lambda d: d.name) == sorted(dims2, key=lambda d: d.name)
 

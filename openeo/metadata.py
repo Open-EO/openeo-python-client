@@ -38,7 +38,8 @@ class Dimension:
         @param source: Source labels, or empty list
         @return: A new dimension with modified labels, or the same if no change is applied.
         """
-        raise MetadataException("Trying to rename labels of dimension %s of type %s, which is not supported." % (self.name,self.type))
+        # In general, we don't have/manage label info here, so do nothing.
+        return Dimension(type=self.type, name=self.name)
 
 
 class SpatialDimension(Dimension):
@@ -153,23 +154,21 @@ class BandDimension(Dimension):
         )
 
     def rename_labels(self, target, source) -> 'Dimension':
-        if not source or len(source) == 0:
-            source = None
-        elif len(target) != len(source):
-            raise ValueError('In rename_labels, the number of labels in target should equal length of source, or the number of original labels in the dimension. Received target labels: %s and source: %s' % (str(target),str(source)))
-
         if source:
+            if len(target) != len(source):
+                raise ValueError(
+                    'In rename_labels, `target` and `source` should have same number of labels, '
+                    'but got: `target` {t} and `source` {s}'.format(t=target, s=source)
+                )
             new_bands = self.bands.copy()
-            for old_name,new_name in zip(source,target):
+            for old_name, new_name in zip(source, target):
                 band_index = self.band_index(old_name)
                 the_band = new_bands[band_index]
                 new_bands[band_index] = Band(new_name, the_band.common_name, the_band.wavelength_um, the_band.aliases,
                                              the_band.gsd)
         else:
-            new_bands = []
-            for new_name in target:
-                new_bands.append(Band(name=new_name,common_name=None, wavelength_um=None))
-        return BandDimension(self.name, new_bands)
+            new_bands = [Band(name=n, common_name=None, wavelength_um=None) for n in target]
+        return BandDimension(name=self.name, bands=new_bands)
 
 
 class CollectionMetadata:
