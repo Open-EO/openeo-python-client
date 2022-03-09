@@ -888,8 +888,9 @@ class DataCube(ImageCollection, _FromNodeMixin):
             mask_value: float = None
     ) -> 'DataCube':
         """
-        EXPERIMENTAL: not generally supported, API subject to change.
         Apply a process to spatial chunks of a data cube.
+
+        .. warning:: experimental process: not generally supported, API subject to change.
 
         :param chunks: Polygon(s), provided as a :class:`shapely.geometry.GeometryCollection`
             , a :class:`shapely.geometry.MultiPolygon`, a filename pointing to a valid vector file
@@ -1356,7 +1357,6 @@ class DataCube(ImageCollection, _FromNodeMixin):
     def resolution_merge(self, high_resolution_bands: List[str], low_resolution_bands: List[str]
                          , method: str=None) -> 'DataCube':
         """
-        EXPERIMENTAL
         Resolution merging algorithms try to improve the spatial resolution of lower resolution bands
         (e.g. Sentinel-2 20M) based on higher resolution bands. (e.g. Sentinel-2 10M).
 
@@ -1366,6 +1366,8 @@ class DataCube(ImageCollection, _FromNodeMixin):
 
         `Example publication: 'Improving the Spatial Resolution of Land Surface Phenology by Fusing Medium- and
         Coarse-Resolution Inputs' <https://doi.org/10.1109/TGRS.2016.2537929>`_
+
+        .. warning:: experimental process: not generally supported, API subject to change.
 
         :param high_resolution_bands: A list of band names to use as 'high-resolution' band. Either the unique band name (metadata field `name` in bands) or one of the common band names (metadata field `common_name` in bands). If unique band name and common name conflict, the unique band name has higher priority. The order of the specified array defines the order of the bands in the data cube. If multiple bands match a common name, all matched bands are included in the original order. These bands will remain unmodified.
         :param low_resolution_bands: A list of band names for which the spatial resolution should be increased. Either the unique band name (metadata field `name` in bands) or one of the common band names (metadata field `common_name` in bands). If unique band name and common name conflict, the unique band name has higher priority. The order of the specified array defines the order of the bands in the data cube. If multiple bands match a common name, all matched bands are included in the original order. These bands will be modified by the process.
@@ -1382,8 +1384,9 @@ class DataCube(ImageCollection, _FromNodeMixin):
 
     def raster_to_vector(self) -> VectorCube:
         """
-        EXPERIMENTAL: not generally supported, API subject to change
         Converts this raster data cube into a vector data cube. The bounding polygon of homogenous areas of pixels is constructed.
+
+        .. warning:: experimental process: not generally supported, API subject to change.
 
         :return: A vectorcube
         """
@@ -1747,11 +1750,13 @@ class DataCube(ImageCollection, _FromNodeMixin):
 
     def fit_curve(self, parameters: list, function: Union[str, PGNode, typing.Callable], dimension: str):
         """
-        EXPERIMENTAL: https://github.com/Open-EO/openeo-processes/pull/240
         Use non-linear least squares to fit a model function `y = f(x, parameters)` to data.
 
         The process throws an `InvalidValues` exception if invalid values are encountered.
         Invalid values are finite numbers (see also ``is_valid()``).
+
+        .. warning:: experimental process: not generally supported, API subject to change.
+            https://github.com/Open-EO/openeo-processes/pull/240
 
         :param parameters:
         :param function: "child callback" function, see :ref:`callbackfunctions`
@@ -1769,8 +1774,10 @@ class DataCube(ImageCollection, _FromNodeMixin):
             labels=None
     ):
         """
-        EXPERIMENTAL: https://github.com/Open-EO/openeo-processes/pull/240
         Predict values using a model function and pre-computed parameters.
+
+        .. warning:: experimental process: not generally supported, API subject to change.
+            https://github.com/Open-EO/openeo-processes/pull/240
 
         :param parameters:
         :param function: "child callback" function, see :ref:`callbackfunctions`
@@ -1802,25 +1809,21 @@ class DataCube(ImageCollection, _FromNodeMixin):
             training: int, num_trees: int = 100, mtry: int = None
     ) -> 'MlModel':
         """
-        EXPERIMENTAL: not generally supported, API subject to change.
         Executes the fit of a random forest classification based on the user input of target and predictors.
         The Random Forest classification model is based on the approach by Breiman (2001).
 
-        :param predictors:
-        The predictors for the classification model as a vector data cube. Aggregated to the features (vectors) of the
-        target input variable.
-        :param target:
-        The training sites for the classification model as a vector data cube. This is associated with the target
-        variable for the Random Forest model. The geometry has to be associated with a value to predict (e.g. fractional
-         forest canopy cover).
-        :param training:
-        The amount of training data to be used in the classification. The sampling will be chosen randomly through the
-        data object. The remaining data will be used as test data for the validation
-        :param num_trees:
-        The number of trees build within the Random Forest classification.
-        :param mtry:
-        Specifies how many split variables will be used at a node. Default value is `null`, which corresponds to the
-        number of predictors divided by 3.
+        .. warning:: EXPERIMENTAL: not generally supported, API subject to change.
+
+        :param predictors: The predictors for the classification model as a vector data cube. Aggregated to the features (vectors) of the
+            target input variable.
+        :param target: The training sites for the classification model as a vector data cube. This is associated with the target
+            variable for the Random Forest model. The geometry has to be associated with a value to predict (e.g. fractional
+            forest canopy cover).
+        :param training: The amount of training data to be used in the classification. The sampling will be chosen randomly through the
+            data object. The remaining data will be used as test data for the validation
+        :param num_trees: The number of trees build within the Random Forest classification.
+        :param mtry: Specifies how many split variables will be used at a node. Default value is `null`, which corresponds to the
+            number of predictors divided by 3.
         """
         pgnode = PGNode(
             process_id="fit_class_random_forest",
