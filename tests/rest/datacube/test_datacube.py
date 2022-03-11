@@ -192,13 +192,13 @@ def test_filter_bands_index(s2cube, api_version):
     assert im.flat_graph() == expected
 
 
-def test_pipe(con040, api_version):
+def test_pipe(con040):
     def ndvi_percent(cube):
         return cube.ndvi().linear_scale_range(0, 1, 0, 100)
 
     s2cube = con040.load_collection("S2")
     im = s2cube.pipe(ndvi_percent)
-    assert im.flat_graph() == load_json_resource('data/{v}/pipe.json'.format(v=api_version))
+    assert im.flat_graph() == load_json_resource('data/0.4.0/pipe.json')
 
 
 def test_filter_bbox_minimal(s2cube):
