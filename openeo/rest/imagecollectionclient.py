@@ -1068,35 +1068,3 @@ class ImageCollectionClient(ImageCollection):
             node_id=id, builder=newbuilder, session=self.session, metadata=metadata or copy.copy(self.metadata)
         )
         return newCollection
-
-    def to_graphviz(self):
-        """
-        Build a graphviz DiGraph from the process graph
-        :return:
-        """
-        # pylint: disable=import-error, import-outside-toplevel
-        import graphviz
-        import pprint
-
-        graph = graphviz.Digraph(node_attr={"shape": "none", "fontname": "sans", "fontsize": "11"})
-        for name, process in self.graph.items():
-            args = process.get("arguments", {})
-            # Build label
-            label = '<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">'
-            label += '<TR><TD COLSPAN="2" BGCOLOR="#eeeeee">{pid}</TD></TR>'.format(pid=process["process_id"])
-            label += "".join(
-                '''<TR><TD ALIGN="RIGHT">{arg}</TD>
-                       <TD ALIGN="LEFT"><FONT FACE="monospace">{value}</FONT></TD></TR>'''.format(
-                    arg=k, value=pprint.pformat(v)[:1000].replace('\n', '<BR/>')
-                ) for k, v in sorted(args.items())
-            )
-            label += '</TABLE>>'
-            # Add node and edges to graph
-            graph.node(name, label=label)
-            for arg in args.values():
-                if isinstance(arg, dict) and "from_node" in arg:
-                    graph.edge(arg["from_node"], name)
-
-            # TODO: add subgraph for "callback" arguments?
-
-        return graph
