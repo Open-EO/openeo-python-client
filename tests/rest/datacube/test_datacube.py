@@ -58,14 +58,16 @@ def _get_leaf_node(cube, force_flat=True) -> dict:
         raise ValueError(repr(cube))
 
 
-def test_date_range_filter(s2cube):
+def test_date_range_filter(con040):
+    s2cube = con040.load_collection("S2")
     im = s2cube.date_range_filter("2016-01-01", "2016-03-10")
     graph = _get_leaf_node(im)
     assert graph['process_id'] == 'filter_temporal'
     assert graph['arguments']['extent'] == ["2016-01-01", "2016-03-10"]
 
 
-def test_filter_daterange(s2cube):
+def test_filter_daterange(con040):
+    s2cube = con040.load_collection("S2")
     im = s2cube.filter_daterange(extent=("2016-01-01", "2016-03-10"))
     graph = _get_leaf_node(im)
     assert graph['process_id'] == 'filter_temporal'
@@ -190,10 +192,11 @@ def test_filter_bands_index(s2cube, api_version):
     assert im.flat_graph() == expected
 
 
-def test_pipe(s2cube, api_version):
+def test_pipe(con040, api_version):
     def ndvi_percent(cube):
         return cube.ndvi().linear_scale_range(0, 1, 0, 100)
 
+    s2cube = con040.load_collection("S2")
     im = s2cube.pipe(ndvi_percent)
     assert im.flat_graph() == load_json_resource('data/{v}/pipe.json'.format(v=api_version))
 
@@ -255,8 +258,9 @@ def test_filter_bbox_default_handling(s2cube, kwargs, expected):
     assert graph["arguments"]["extent"] == dict(west=3, east=4, south=8, north=9, **expected)
 
 
-def test_bbox_filter_nsew(s2cube):
+def test_bbox_filter_nsew(con040):
     # TODO: remove this test for deprecated `bbox_filter`
+    s2cube = con040.load_collection("S2")
     im = s2cube.bbox_filter(
         west=652000, east=672000, north=5161000, south=5181000, crs=32632
     )
@@ -267,8 +271,9 @@ def test_bbox_filter_nsew(s2cube):
     }
 
 
-def test_bbox_filter_tblr(s2cube):
+def test_bbox_filter_tblr(con040):
     # TODO: remove this test for deprecated `bbox_filter`
+    s2cube = con040.load_collection("S2")
     im = s2cube.bbox_filter(
         left=652000, right=672000, top=5161000, bottom=5181000, srs=32632
     )
@@ -279,8 +284,9 @@ def test_bbox_filter_tblr(s2cube):
     }
 
 
-def test_bbox_filter_nsew_zero(s2cube):
+def test_bbox_filter_nsew_zero(con040):
     # TODO: remove this test for deprecated `bbox_filter`
+    s2cube = con040.load_collection("S2")
     im = s2cube.bbox_filter(
         west=0, east=0, north=0, south=0, crs=32632
     )

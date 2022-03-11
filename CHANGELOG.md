@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Include openEO API error id automatically in exception message to simplify user support and post-mortem analysis.
 - Use `Connection.default_timeout` (when set) also on version discovery request
+- Drop `ImageCollection` from `DataCube`'s class hierarchy. 
+- This practically removes very old (pre-0.4.0) methods like `date_range_filter` and `bbox_filter` from `DataCube`.
+  ([#100](https://github.com/Open-EO/openeo-python-client/issues/100), [#278](https://github.com/Open-EO/openeo-python-client/issues/278))
 
 ### Removed
 

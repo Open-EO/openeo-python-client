@@ -51,7 +51,7 @@ log = logging.getLogger(__name__)
 THIS = object()
 
 
-class DataCube(ImageCollection, _FromNodeMixin):
+class DataCube(_FromNodeMixin):
     """
     Class representing a openEO Data Cube. Data loaded from the backend is returned as an object of this class.
     Various processing methods can be invoked to build a complete workflow.
