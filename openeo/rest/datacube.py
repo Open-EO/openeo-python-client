@@ -37,13 +37,13 @@ from openeo.rest.service import Service
 from openeo.rest.udp import RESTUserDefinedProcess
 from openeo.rest.vectorcube import VectorCube
 from openeo.util import get_temporal_extent, dict_no_none, legacy_alias, rfc3339, guess_format
+from openeo.udf import FeatureCollection
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime). `hasattr` is Python 3.5 workaround #210
     from openeo.rest.connection import Connection
     import xarray
     from openeo.udf import XarrayDataCube
-
 
 log = logging.getLogger(__name__)
 
@@ -1771,8 +1771,7 @@ class DataCube(_FromNodeMixin):
         return self.process(process_id="dimension_labels", arguments={"data": THIS, "dimension": dimension})
 
     def fit_class_random_forest(
-            self,
-            predictors: PGNode, target: PGNode,
+            self, target: FeatureCollection,
             training: int, num_trees: int = 100, mtry: int = None
     ) -> 'MlModel':
         """
@@ -1795,8 +1794,8 @@ class DataCube(_FromNodeMixin):
         pgnode = PGNode(
             process_id="fit_class_random_forest",
             arguments=dict_no_none(
-                predictors={'from_node': predictors},
-                target={'from_node': target},
+                predictors=self,
+                target=target.to_dict(),
                 training=training,
                 num_trees=num_trees,
                 mtry=mtry
