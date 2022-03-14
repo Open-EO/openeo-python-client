@@ -63,9 +63,10 @@ class MlModel:
 
     def execute_batch(
             self,
-            outputfile: Union[str, pathlib.Path], out_format: str = None,
+            outputfile: Union[str, pathlib.Path],
             print=print, max_poll_interval=60, connection_retry_interval=30,
-            job_options=None, **format_options) -> RESTJob:
+            job_options=None,
+    ) -> RESTJob:
         """
         Evaluate the process graph by creating a batch job, and retrieving the results when it is finished.
         This method is mostly recommended if the batch job is expected to run in a reasonable amount of time.
@@ -78,7 +79,8 @@ class MlModel:
         :param format_options: String Parameters for the job result format
 
         """
-        job = self.send_job(out_format, job_options=job_options, **format_options)
+        # TODO: check/warn about final `save_ml_model` node?
+        job = self.send_job(additional=job_options)
         return job.run_synchronous(
             # TODO #135 support multi file result sets too
             outputfile=outputfile,
