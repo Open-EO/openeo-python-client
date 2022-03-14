@@ -1,6 +1,6 @@
 import json
 import pathlib
-from typing import Union
+from typing import Union, Optional
 import typing
 
 from openeo.internal.graph_building import PGNode
@@ -51,12 +51,11 @@ class MlModel:
     def connection(self):
         return self._connection
 
-    def save_ml_model(self, format: str = "default", options: dict = None):
+    def save_ml_model(self, options: Optional[dict] = None):
         pgnode = PGNode(
             process_id="save_ml_model",
             arguments={
                 "data": {'from_node': self._pg},
-                "format": format,
                 "options": options or {}
             }
         )
@@ -86,17 +85,12 @@ class MlModel:
             print=print, max_poll_interval=max_poll_interval, connection_retry_interval=connection_retry_interval
         )
 
-    def send_job(self, out_format=None, job_options=None, **format_options) -> RESTJob:
+    def send_job(self, **kwargs) -> RESTJob:
         """
         Sends a job to the backend and returns a ClientJob instance.
 
-        :param out_format: String Format of the job result.
-        :param job_options:
-        :param format_options: String Parameters for the job result format
-        :return: status: ClientJob resulting job.
+        See :py:meth:`Connection.create_job` for additional arguments (e.g. to set job title, description, ...)
+
+        :return: resulting job.
         """
-        shp = self
-        if out_format:
-            # add `save_result` node
-            shp = shp.save_ml_model(format=out_format, options=format_options)
-        return self._connection.create_job(process_graph=shp.flat_graph(), additional=job_options)
+        return self._connection.create_job(process_graph=self.flat_graph(), **kwargs)
