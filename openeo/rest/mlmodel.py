@@ -55,7 +55,7 @@ class MlModel:
 
     def save_ml_model(self, format: str = "default", options: dict = None):
         pgnode = PGNode(
-            process_id="save_result",
+            process_id="save_ml_model",
             arguments={
                 "data": {'from_node': self._pg},
                 "format": format,
