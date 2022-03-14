@@ -50,7 +50,7 @@ print(datacube.to_json())
 
 
 # Send Job to backend
-job = datacube.send_job()
+job = datacube.create_job()
 print(job.describe_job())
 
 # Wait for job to finish and download

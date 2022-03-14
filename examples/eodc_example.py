@@ -35,7 +35,7 @@ logging.debug(timeseries.to_json(indent=None))
 composite = timeseries.min_time()
 logging.debug(timeseries.to_json(indent=None))
 
-job = timeseries.send_job()
+job = timeseries.create_job()
 logging.debug("{}".format(job.job_id))
 
 status = job.queue()

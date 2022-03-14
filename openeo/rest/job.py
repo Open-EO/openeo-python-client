@@ -44,6 +44,7 @@ class RESTJob:
     def describe_job(self) -> dict:
         """ Get all job information."""
         # GET /jobs/{job_id}
+        # TODO: rename to just `describe`? #280
         return self.connection.get("/jobs/{}".format(self.job_id), expected_status=200).json()
 
     def update_job(self, process_graph=None, output_format=None,
@@ -51,11 +52,13 @@ class RESTJob:
                    plan=None, budget=None, additional=None):
         """ Update a job."""
         # PATCH /jobs/{job_id}
+        # TODO: rename to just `update`? #280
         raise NotImplementedError
 
     def delete_job(self):
         """ Delete a job."""
         # DELETE /jobs/{job_id}
+        # TODO: rename to just `delete`? #280
         self.connection.delete("/jobs/{}".format(self.job_id), expected_status=204)
 
     def estimate_job(self):
@@ -68,11 +71,14 @@ class RESTJob:
     def start_job(self):
         """ Start / queue a job for processing."""
         # POST /jobs/{job_id}/results
+        # TODO: rename to just `start`? #280
+        # TODO: return self, to allow chained calls
         self.connection.post("/jobs/{}/results".format(self.job_id), expected_status=202)
 
     def stop_job(self):
         """ Stop / cancel job processing."""
         # DELETE /jobs/{job_id}/results
+        # TODO: rename to just `stop`? #280
         self.connection.delete("/jobs/{}/results".format(self.job_id), expected_status=204)
 
     @deprecated("Use :py:meth:`~RESTJOB.get_results` instead.", version="0.4.10")

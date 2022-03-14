@@ -44,7 +44,7 @@ print(datacube.to_json())
 
 # datacube.download("/tmp/testfile.tiff", format="GeoTIFF")
 
-job = datacube.send_job()
+job = datacube.create_job()
 if job:
     print(job.job_id)
     print(job.start_job())

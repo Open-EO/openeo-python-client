@@ -1543,13 +1543,13 @@ class DataCube(_FromNodeMixin):
         :param format_options: String Parameters for the job result format
 
         """
-        job = self.send_job(out_format, job_options=job_options, **format_options)
+        job = self.create_job(out_format, job_options=job_options, **format_options)
         return job.run_synchronous(
             outputfile=outputfile,
             print=print, max_poll_interval=max_poll_interval, connection_retry_interval=connection_retry_interval
         )
 
-    def send_job(
+    def create_job(
             self, out_format=None, title: str = None, description: str = None, plan: str = None, budget=None,
             job_options=None, **format_options
     ) -> RESTJob:
@@ -1563,7 +1563,6 @@ class DataCube(_FromNodeMixin):
         :return: status: Job resulting job.
         """
         # TODO: add option to also automatically start the job?
-        # TODO: unify Connection.create_job vs DataCube.send_job. #276
         img = self
         if out_format:
             # add `save_result` node
@@ -1572,6 +1571,8 @@ class DataCube(_FromNodeMixin):
             process_graph=img.flat_graph(),
             title=title, description=description, plan=plan, budget=budget, additional=job_options
         )
+
+    send_job = legacy_alias(create_job, name="send_job")
 
     def save_user_defined_process(
             self,

@@ -7,6 +7,7 @@ import pathlib
 import re
 import sys
 import textwrap
+from typing import Optional
 
 import pytest
 import requests
@@ -1535,3 +1536,42 @@ def test_merge_if(con100):
             "result": True
         }
     }
+
+
+class TestBatchJob:
+    _EXPECTED_SIMPLE_S2_JOB = {"process": {"process_graph": {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None}
+        },
+        "saveresult1": {
+            "process_id": "save_result",
+            "arguments": {"data": {"from_node": "loadcollection1"}, "format": "GTiff", "options": {}},
+            "result": True,
+        }
+    }}}
+
+    def _get_handler_post_jobs(self, expected_post_data: Optional[dict] = None, job_id: str = "myj0b1"):
+        """Create `POST /jobs` handler"""
+        expected_post_data = expected_post_data or self._EXPECTED_SIMPLE_S2_JOB
+
+        def post_jobs(request, context):
+            assert request.json() == expected_post_data
+            context.status_code = 201
+            context.headers["OpenEO-Identifier"] = job_id
+
+        return post_jobs
+
+    def test_create_job_basic(self, con100, requests_mock):
+        requests_mock.post(API_URL + "/jobs", json=self._get_handler_post_jobs())
+        cube = con100.load_collection("S2")
+        job = cube.create_job(out_format="GTiff")
+        assert job.job_id == "myj0b1"
+
+    def test_legacy_send_job(self, con100, requests_mock):
+        """Legacy `DataCube.send_job` alis for `create_job"""
+        requests_mock.post(API_URL + "/jobs", json=self._get_handler_post_jobs())
+        cube = con100.load_collection("S2")
+        with pytest.warns(DeprecationWarning, match="Call to deprecated method `send_job`, use `create_job` instead."):
+            job = cube.send_job(out_format="GTiff")
+        assert job.job_id == "myj0b1"

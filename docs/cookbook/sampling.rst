@@ -31,7 +31,7 @@ Combining all of this, results in the following sample code::
                                                temporal_extent=["2020-05-01","2020-06-01"]
                                                )
     s2_bands = s2_bands.filter_spatial("https://artifactory.vgt.vito.be/testdata-public/parcels/test_10.geojson")
-    job = s2_bands.send_job(title="Sentinel2", description="Sentinel-2 L2A bands",out_format="netCDF",sample_by_feature=True)
+    job = s2_bands.create_job(title="Sentinel2", description="Sentinel-2 L2A bands",out_format="netCDF",sample_by_feature=True)
 
 Sampling only works for batch jobs, because it results in multiple output files, which can not be conveniently transferred
 in a synchronous call.

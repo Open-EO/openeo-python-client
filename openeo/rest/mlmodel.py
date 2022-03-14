@@ -77,17 +77,16 @@ class MlModel:
         :param outputfile: The path of a file to which a result can be written
         :param out_format: (optional) Format of the job result.
         :param format_options: String Parameters for the job result format
-
         """
         # TODO: check/warn about final `save_ml_model` node?
-        job = self.send_job(additional=job_options)
+        job = self.create_job(additional=job_options)
         return job.run_synchronous(
             # TODO #135 support multi file result sets too
             outputfile=outputfile,
             print=print, max_poll_interval=max_poll_interval, connection_retry_interval=connection_retry_interval
         )
 
-    def send_job(self, **kwargs) -> RESTJob:
+    def create_job(self, **kwargs) -> RESTJob:
         """
         Sends a job to the backend and returns a ClientJob instance.
 

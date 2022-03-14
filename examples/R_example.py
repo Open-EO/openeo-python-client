@@ -50,7 +50,7 @@ print(pg.to_json())
 
 # Test Job
 
-job = pg.send_job()
+job = pg.create_job()
 print(job.job_id)
 print(job.start_job())
 print (job.describe_job())
