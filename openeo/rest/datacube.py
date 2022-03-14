@@ -1802,7 +1802,7 @@ class DataCube(_FromNodeMixin):
                 mtry=mtry
             )
         )
-        model = MlModel(graph=pgnode, connection=self._connection, metadata=None)
+        model = MlModel(graph=pgnode, connection=self._connection)
         return model
 
     def flatten_dimensions(self, dimensions: List[str], target_dimension: str, label_separator: Optional[str] = None):

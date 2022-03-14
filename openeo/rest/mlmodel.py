@@ -4,7 +4,6 @@ from typing import Union
 import typing
 
 from openeo.internal.graph_building import PGNode
-from openeo.metadata import CollectionMetadata
 from openeo.rest.job import RESTJob
 from openeo.util import legacy_alias
 
@@ -18,11 +17,10 @@ class MlModel:
     """
     A machine learning model accompanied with STAC metadata, including the ml-model extension.
     """
-    def __init__(self, graph: PGNode, connection: 'Connection', metadata: CollectionMetadata = None):
+    def __init__(self, graph: PGNode, connection: 'Connection'):
         super().__init__()
         self._pg = graph
         self._connection = connection
-        self.metadata = metadata
 
     def __str__(self):
         return "MlModel({pg})".format(pg=self._pg)
@@ -62,7 +60,7 @@ class MlModel:
                 "options": options or {}
             }
         )
-        return MlModel(graph=pgnode, connection=self._connection, metadata=None or self.metadata)
+        return MlModel(graph=pgnode, connection=self._connection)
 
     def execute_batch(
             self,
