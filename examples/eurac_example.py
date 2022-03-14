@@ -42,7 +42,7 @@ datacube = datacube.save_result(format="gtiff")
 print(datacube.to_json())
 
 # Submit your process graph as new batch job to back-end
-job = datacube.send_job()
+job = datacube.create_job()
 
 # Launch processing of submitted batch job
 if job.job_id:

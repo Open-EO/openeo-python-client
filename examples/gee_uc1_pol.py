@@ -52,7 +52,7 @@ datacube = datacube.save_result(format="PNG", options={"red": "R", "green": "G",
 print(datacube.to_json())
 
 # Send Job to backend
-job = datacube.send_job()
+job = datacube.create_job()
 
 res = job.start_and_wait().download_results()
 for key, val in res.items():

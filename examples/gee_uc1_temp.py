@@ -37,7 +37,7 @@ datacube = RGB.save_result(format="GTIFF-THUMB")
 print(datacube.to_json())
 
 # Send Job to backend
-job = datacube.send_job()
+job = datacube.create_job()
 job.start_and_wait().download_results()
 #print(job.job_id)
 #print(job.start_job())

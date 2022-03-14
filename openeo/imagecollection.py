@@ -9,8 +9,7 @@ from shapely.geometry import Polygon, MultiPolygon
 
 from openeo.rest.job import RESTJob
 from openeo.rest.service import Service
-from openeo.util import get_temporal_extent, first_not_none, dict_no_none
-
+from openeo.util import get_temporal_extent, first_not_none, dict_no_none, legacy_alias
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime). `hasattr` is Python 3.5 workaround #210
@@ -539,7 +538,7 @@ class ImageCollection(ABC):
         This method is mostly recommended if the batch job is expected to run in a reasonable amount of time.
 
         For very long running jobs, you probably do not want to keep the client running. In that case, using
-        :func:`~openeo.imagecollection.ImageCollection.send_job` might be more appropriate.
+        :func:`~openeo.imagecollection.ImageCollection.create_job` might be more appropriate.
 
         :param job_options: A dictionary containing (custom) job options
         :param outputfile: The path of a file to which a result can be written
@@ -549,7 +548,7 @@ class ImageCollection(ABC):
         """
         pass
 
-    def send_job(self, out_format:str=None, job_options:Dict=None, **format_options) -> RESTJob:
+    def create_job(self, out_format:str=None, job_options:Dict=None, **format_options) -> RESTJob:
         """
         Sends a job to the backend and returns a RESTJob instance. The job will still need to be started and managed explicitly.
         The :func:`~openeo.imagecollection.ImageCollection.execute_batch` method allows you to run batch jobs without managing it.
@@ -560,6 +559,8 @@ class ImageCollection(ABC):
         :return: status: RESTJob resulting job.
         """
         pass
+
+    send_job = legacy_alias(create_job, name="send_job")
 
     def pipe(self, func: Callable, *args, **kwargs):
         """

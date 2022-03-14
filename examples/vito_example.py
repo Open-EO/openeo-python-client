@@ -38,7 +38,7 @@ print(datacube.to_json())
 
 datacube.download("/tmp/testfile.tiff")
 
-job = datacube.send_job()
+job = datacube.create_job()
 if job:
     print(job.job_id)
     print(job.run_synchronous("/tmp/testfile"))

@@ -1048,7 +1048,6 @@ class Connection(RestApiConnection):
         :return: job_id: String Job id of the new created job
         """
         # TODO move all this (RESTJob factory) logic to RESTJob?
-        # TODO: unify Connection.create_job vs DataCube.send_job. #276
         req = self._build_request_with_process_graph(
             process_graph=process_graph,
             **dict_no_none(title=title, description=description, plan=plan, budget=budget)

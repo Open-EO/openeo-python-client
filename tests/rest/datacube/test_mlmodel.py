@@ -73,5 +73,5 @@ def test_fit_class_random_forest_basic_create_job(con100, requests_mock):
 
     requests_mock.post(API_URL + "/jobs", json=post_jobs)
 
-    job = ml_model.send_job(title="Random forest")
+    job = ml_model.create_job(title="Random forest")
     assert job.job_id == "job-rf"

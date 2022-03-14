@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Drop `ImageCollection` from `DataCube`'s class hierarchy. 
 - This practically removes very old (pre-0.4.0) methods like `date_range_filter` and `bbox_filter` from `DataCube`.
   ([#100](https://github.com/Open-EO/openeo-python-client/issues/100), [#278](https://github.com/Open-EO/openeo-python-client/issues/278))
+- Deprecate `DataCube.send_job` in favor of `DataCube.create_job` for better consistency (internally and with other libraries) ([#276](https://github.com/Open-EO/openeo-python-client/issues/276))
 
 ### Removed
 

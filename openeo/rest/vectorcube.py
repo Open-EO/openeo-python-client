@@ -122,14 +122,14 @@ class VectorCube:
         :param format_options: String Parameters for the job result format
 
         """
-        job = self.send_job(out_format, job_options=job_options, **format_options)
+        job = self.create_job(out_format, job_options=job_options, **format_options)
         return job.run_synchronous(
             # TODO #135 support multi file result sets too
             outputfile=outputfile,
             print=print, max_poll_interval=max_poll_interval, connection_retry_interval=connection_retry_interval
         )
 
-    def send_job(self, out_format=None, job_options=None, **format_options) -> RESTJob:
+    def create_job(self, out_format=None, job_options=None, **format_options) -> RESTJob:
         """
         Sends a job to the backend and returns a ClientJob instance.
 
@@ -143,3 +143,5 @@ class VectorCube:
             # add `save_result` node
             shp = shp.save_result(format=out_format, options=format_options)
         return self._connection.create_job(process_graph=shp.flat_graph(), additional=job_options)
+
+    send_job = legacy_alias(create_job, name="send_job")
