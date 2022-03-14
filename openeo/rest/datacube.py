@@ -1772,8 +1772,12 @@ class DataCube(_FromNodeMixin):
 
     def fit_class_random_forest(
             self,
-            predictors: PGNode, target: PGNode,
-            training: int, num_trees: int = 100, mtry: int = None
+            # TODO #279: target type should be `VectorCube` (with adapters for GeoJSON FeatureCollection, GeoPandas, ...)
+            target: dict,
+            training: float,
+            num_trees: int = 100,
+            # TODO: better parameter name? see https://github.com/Open-EO/openeo-processes/issues/339
+            mtry: Optional[int] = None,
     ) -> 'MlModel':
         """
         Executes the fit of a random forest classification based on the user input of target and predictors.
@@ -1792,11 +1796,13 @@ class DataCube(_FromNodeMixin):
         :param mtry: Specifies how many split variables will be used at a node. Default value is `null`, which corresponds to the
             number of predictors divided by 3.
         """
+        # TODO #279: `fit_class_random_forest` should be defined on VectorCube instead of DataCube
         pgnode = PGNode(
             process_id="fit_class_random_forest",
             arguments=dict_no_none(
-                predictors={'from_node': predictors},
-                target={'from_node': target},
+                predictors=self,
+                # TODO #279 strictly per-spec, target should be a `vector-cube`, but due to lack of proper support we are limited to inline GeoJSON for now
+                target=target,
                 training=training,
                 num_trees=num_trees,
                 mtry=mtry
