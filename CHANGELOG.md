@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Support `rename_labels` on temporal dimension ([#274](https://github.com/Open-EO/openeo-python-client/issues/274))
+- Basic support for mixing `DataCube` and `ProcessBuilder` objects/processing ([#275](https://github.com/Open-EO/openeo-python-client/issues/275))
 
 
 ## [0.9.2] - 2022-01-14

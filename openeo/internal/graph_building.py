@@ -17,7 +17,7 @@ class _FromNodeMixin(abc.ABC):
     """Mixin for classes that want to hook into the generation of a "from_node" reference."""
 
     @abc.abstractmethod
-    def from_node(self):
+    def from_node(self) -> "PGNode":
         pass
 
 

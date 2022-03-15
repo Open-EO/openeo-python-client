@@ -107,7 +107,8 @@ class DataCube(_FromNodeMixin):
     def connection(self) -> 'openeo.Connection':
         return self._connection
 
-    def from_node(self):
+    def from_node(self) -> PGNode:
+        # _FromNodeMixin API
         return self._pg
 
     def process(
@@ -1314,10 +1315,7 @@ class DataCube(_FromNodeMixin):
         :param overlap_resolver: A reduction operator that resolves the conflict if the data overlaps. The reducer must return a value of the same data type as the input values are. The reduction operator may be a single process such as multiply or consist of multiple sub-processes. null (the default) can be specified if no overlap resolver is required.
         :return: The merged data cube.
         """
-        arguments = {
-            'cube1': {'from_node': self._pg},
-            'cube2': {'from_node': other._pg},
-        }
+        arguments = {'cube1': self, 'cube2': other}
         if overlap_resolver:
             arguments["overlap_resolver"] = self._get_callback(overlap_resolver, parent_parameters=["x", "y"])
         # TODO #125 context

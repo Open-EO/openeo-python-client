@@ -1464,3 +1464,39 @@ def test_unflatten_dimension(con100):
         },
         "result": True
     }
+
+
+def test_merge_if(con100):
+    """https://github.com/Open-EO/openeo-python-client/issues/275"""
+    from openeo.processes import if_, eq
+
+    s1 = con100.load_collection("S2")
+    s2 = con100.load_collection("SENTINEL2_RADIOMETRY_10M")
+    s3 = if_(eq("foo", "bar"), s1, s2)
+    cube = s1.merge_cubes(s3)
+
+    assert cube.flat_graph() == {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
+        },
+        "loadcollection2": {
+            "process_id": "load_collection",
+            "arguments": {"id": "SENTINEL2_RADIOMETRY_10M", "spatial_extent": None, "temporal_extent": None},
+        },
+        "eq1": {"process_id": "eq", "arguments": {"x": "foo", "y": "bar"}},
+        "if1": {
+            "process_id": "if",
+            "arguments": {
+                "value": {"from_node": "eq1"},
+                "accept": {"from_node": "loadcollection1"}, "reject": {"from_node": "loadcollection2"}},
+        },
+        "mergecubes1": {
+            "process_id": "merge_cubes",
+            "arguments": {
+                "cube1": {"from_node": "loadcollection1"},
+                "cube2": {"from_node": "if1"},
+            },
+            "result": True
+        }
+    }

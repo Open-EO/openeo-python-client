@@ -1,11 +1,11 @@
 from typing import Union
 
-from openeo.internal.graph_building import PGNode
+from openeo.internal.graph_building import PGNode, _FromNodeMixin
 
 UNSET = object()
 
 
-class ProcessBuilderBase:
+class ProcessBuilderBase(_FromNodeMixin):
     """
     Base implementation of a builder pattern that allows constructing process graphs
     by calling functions.
@@ -42,3 +42,7 @@ class ProcessBuilderBase:
     def flat_graph(self) -> dict:
         """Get the process graph in flat dict representation"""
         return self.pgnode.flat_graph()
+
+    def from_node(self) -> PGNode:
+        # _FromNodeMixin API
+        return self.pgnode
