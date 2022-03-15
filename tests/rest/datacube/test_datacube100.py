@@ -488,22 +488,57 @@ def test_rename_dimension(con100):
     s2 = con100.load_collection("S2")
     x = s2.rename_dimension(source="bands", target="ThisIsNotTheBandsDimension")
     assert x.flat_graph() == {
-        'loadcollection1': {
-            'arguments': {
-                'id': 'S2',
-                'spatial_extent': None,
-                'temporal_extent': None
-            },
-            'process_id': 'load_collection'
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
         },
-        'renamedimension1': {
-            'arguments': {
-                'data': {'from_node': 'loadcollection1'},
-                'source': 'bands',
-                'target': 'ThisIsNotTheBandsDimension'
+        "renamedimension1": {
+            "process_id": "rename_dimension",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "source": "bands",
+                "target": "ThisIsNotTheBandsDimension"
             },
-            'process_id': 'rename_dimension',
-            'result': True
+            "result": True
+        }
+    }
+
+
+def test_add_dimension(con100):
+    s2 = con100.load_collection("S2")
+    x = s2.add_dimension(name="james_band", label="alpha")
+    assert x.flat_graph() == {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
+        },
+        "adddimension1": {
+            "process_id": "add_dimension",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "name": "james_band",
+                "label": "alpha"
+            },
+            "result": True
+        }
+    }
+
+
+def test_drop_dimension(con100):
+    s2 = con100.load_collection("S2")
+    x = s2.drop_dimension(name="bands")
+    assert x.flat_graph() == {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
+        },
+        "dropdimension1": {
+            "process_id": "drop_dimension",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "name": "bands",
+            },
+            "result": True
         }
     }
 

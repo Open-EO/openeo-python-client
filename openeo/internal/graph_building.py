@@ -167,11 +167,11 @@ class ReduceNode(PGNode):
     A process graph node for "reduce" processes (has a reducer sub-process-graph)
     """
 
-    def __init__(self, data: PGNode, reducer: Union[PGNode, str, dict], dimension: str, process_id="reduce_dimension",
+    def __init__(self, data: _FromNodeMixin, reducer: Union[PGNode, str, dict], dimension: str, process_id="reduce_dimension",
                  band_math_mode: bool = False):
         assert process_id in ("reduce_dimension", "reduce_dimension_binary")
         arguments = {
-            "data": {"from_node": data},
+            "data": data,
             "reducer": self.to_process_graph_argument(reducer),
             "dimension": dimension,
             # TODO #125 context

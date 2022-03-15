@@ -461,12 +461,8 @@ class DataCube(_FromNodeMixin):
             'align': align
         })
 
-    def resample_cube_spatial(self, target: 'DataCube' , method: str = 'near'):
-        return self.process('resample_cube_spatial', {
-            'data': THIS,
-            'target': {'from_node': target._pg},
-            'method': method
-        })
+    def resample_cube_spatial(self, target: "DataCube", method: str = "near"):
+        return self.process("resample_cube_spatial", {"data": self, "target": target, "method": method})
 
     def _operator_binary(self, operator: str, other: Union['DataCube', int, float], reverse=False) -> 'DataCube':
         """Generic handling of (mathematical) binary operator"""
@@ -874,7 +870,7 @@ class DataCube(_FromNodeMixin):
 
         return self.process_with_node(ReduceNode(
             process_id=process_id,
-            data=self._pg,
+            data=self,
             reducer=reducer,
             dimension=self.metadata.assert_valid_dimension(dimension),
             # TODO #123 is it (still) necessary to make "band" math a special case?
@@ -929,7 +925,7 @@ class DataCube(_FromNodeMixin):
         # TODO EP-3555: unify better with UDF(PGNode) class and avoid doing same UDF code-runtime-version argument stuff in each method
         return self._reduce_bands(reducer=self._create_run_udf(code, runtime, version))
 
-    def add_dimension(self, name: str, label: str, type: str = None):
+    def add_dimension(self, name: str, label: str, type: Optional[str] = None):
         """
         Adds a new named dimension to the data cube.
         Afterwards, the dimension can be referenced with the specified name. If a dimension with the specified name exists,
@@ -944,7 +940,7 @@ class DataCube(_FromNodeMixin):
         """
         return self.process(
             process_id="add_dimension",
-            arguments={"data": self._pg, "name": name, "label": label, "type": type},
+            arguments=dict_no_none({"data": self, "name": name, "label": label, "type": type}),
             metadata=self.metadata.add_dimension(name=name, label=label, type=type)
         )
 
@@ -961,7 +957,7 @@ class DataCube(_FromNodeMixin):
         """
         return self.process(
             process_id="drop_dimension",
-            arguments={"data": self._pg, "name": name},
+            arguments={"data": self, "name": name},
             metadata=self.metadata.drop_dimension(name=name)
         )
 
@@ -1250,11 +1246,7 @@ class DataCube(_FromNodeMixin):
         """
         return self.process(
             process_id="mask",
-            arguments=dict_no_none(
-                data=THIS,
-                mask={'from_node': mask._pg},
-                replacement=replacement
-            )
+            arguments=dict_no_none(data=self, mask=mask, replacement=replacement),
         )
 
     def mask_polygon(
@@ -1388,11 +1380,8 @@ class DataCube(_FromNodeMixin):
 
         :return: A vectorcube
         """
-        return VectorCube(PGNode(
-            process_id='raster_to_vector',
-            arguments={
-                'data': self._pg
-            }),connection=self._connection, metadata=self.metadata)
+        pg_node = PGNode(process_id="raster_to_vector", arguments={"data": self})
+        return VectorCube(pg_node, connection=self._connection, metadata=self.metadata)
 
     ####VIEW methods #######
 
