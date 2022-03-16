@@ -14,7 +14,6 @@ import requests
 import shapely.geometry
 
 import openeo.metadata
-from openeo import UDF
 from openeo.api.process import Parameter
 from openeo.internal.graph_building import PGNode
 from openeo.internal.process_graph_visitor import ProcessGraphVisitException
@@ -896,12 +895,13 @@ def test_filter_spatial_callback(con100):
                 }
             }]
         }
-    udf_process = UDF("def transform_point_into_bbox(data:UdfData): blabla","Python",data=feature_collection)
-
+    from openeo.processes import run_udf
+    udf_code = "def transform_point_into_bbox(data:UdfData): blabla"
+    feature_collection_processed = run_udf(data=feature_collection, udf=udf_code, runtime="Python")
 
     filtered_collection = collection.process("filter_spatial", {
         "data": THIS,
-        "geometries": udf_process
+        "geometries": feature_collection_processed
     })
 
     assert filtered_collection.flat_graph() == {
