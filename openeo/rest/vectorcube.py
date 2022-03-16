@@ -1,13 +1,12 @@
-import json
 import pathlib
-from typing import Union, Optional
 import typing
+from typing import Union, Optional
 
-from openeo.internal.graph_building import PGNode, _FromNodeMixin
+from openeo.internal.graph_building import PGNode
 from openeo.metadata import CollectionMetadata
-from openeo.rest._datacube import _ProcessGraphAbstraction, THIS
+from openeo.rest._datacube import _ProcessGraphAbstraction
 from openeo.rest.job import RESTJob
-from openeo.util import legacy_alias
+from openeo.util import legacy_alias, dict_no_none
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime). `hasattr` is Python 3.5 workaround #210
@@ -45,23 +44,14 @@ class VectorCube(_ProcessGraphAbstraction):
         pg = self._build_pgnode(process_id=process_id, arguments=arguments, namespace=namespace, **kwargs)
         return VectorCube(graph=pg, connection=self._connection, metadata=metadata or self.metadata)
 
-    def process_with_node(self, pg: PGNode, metadata: CollectionMetadata = None) -> 'VectorCube':
-        """
-        Generic helper to create a new DataCube by applying a process (given as process graph node)
-
-        :param pg: process graph node (containing process id and arguments)
-        :param metadata: (optional) metadata to override original cube metadata (e.g. when reducing dimensions)
-        :return: new DataCube instance
-        """
-        arguments = pg.arguments
-        for k, v in arguments.items():
-            # TODO: it's against intended flow to resolve THIS and _FromNodeMixin at this point (should be done before building PGNode)
-            if v is THIS:
-                v = self
-            if isinstance(v, _FromNodeMixin):
-                arguments[k] = {"from_node": v.from_node()}
-        # TODO: deep copy `self.metadata` instead of using same instance?
-        return VectorCube(graph=pg, connection=self._connection, metadata=metadata or self.metadata)
+    def run_udf(
+            self, udf: str, runtime: str, version: Optional[str] = None, context: Optional[dict] = None
+    ) -> "VectorCube":
+        return self.process(
+            process_id="run_udf",
+            data=self, udf=udf, runtime=runtime,
+            arguments=dict_no_none({"version": version, "context": context}),
+        )
 
     def save_result(self, format: str = "GeoJson", options: dict = None):
         return self.process(
