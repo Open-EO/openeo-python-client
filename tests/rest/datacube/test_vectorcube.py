@@ -9,7 +9,7 @@ def test_raster_to_vector(con100):
     vector_cube = img.raster_to_vector()
     vector_cube_tranformed = vector_cube.process_with_node(openeo.UDF("python source code", "Python"))
 
-    assert vector_cube_tranformed.graph == {
+    assert vector_cube_tranformed.flat_graph() == {
         'loadcollection1': {
             'arguments': {
                 'id': 'S2',

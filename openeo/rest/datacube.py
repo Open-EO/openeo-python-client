@@ -27,10 +27,11 @@ import openeo
 import openeo.processes
 from openeo.api.process import Parameter
 from openeo.imagecollection import ImageCollection
-from openeo.internal.graph_building import PGNode, ReduceNode, _FromNodeMixin
+from openeo.internal.graph_building import PGNode, ReduceNode
 from openeo.metadata import CollectionMetadata, Band, BandDimension
 from openeo.processes import ProcessBuilder
 from openeo.rest import BandMathException, OperatorException, OpenEoClientException
+from openeo.rest._datacube import _ProcessGraphAbstraction, THIS
 from openeo.rest.job import RESTJob
 from openeo.rest.mlmodel import MlModel
 from openeo.rest.service import Service
@@ -47,11 +48,8 @@ if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-# Sentinel object to refer to "current" cube in chained cube processing expressions.
-THIS = object()
 
-
-class DataCube(_FromNodeMixin):
+class DataCube(_ProcessGraphAbstraction):
     """
     Class representing a openEO Data Cube. Data loaded from the backend is returned as an object of this class.
     Various processing methods can be invoked to build a complete workflow.
@@ -61,13 +59,8 @@ class DataCube(_FromNodeMixin):
     """
 
     def __init__(self, graph: PGNode, connection: 'openeo.Connection', metadata: CollectionMetadata = None):
-        # Process graph
-        self._pg = graph
-        self._connection = connection
+        super().__init__(pgnode=graph,  connection=connection)
         self.metadata = CollectionMetadata.get_or_create(metadata)
-
-    def __str__(self):
-        return "DataCube({pg})".format(pg=self._pg)
 
     @property
     @deprecated(reason="Use :py:meth:`DataCube.flat_graph()` instead.", version="0.9.0")
@@ -79,37 +72,6 @@ class DataCube(_FromNodeMixin):
         """
         # TODO: is it feasible to just remove this property?
         return self.flat_graph()
-
-    def flat_graph(self) -> dict:
-        """
-        Get the process graph in flat dict representation
-
-        .. note:: This method is mainly for internal use, subject to change and not recommended for general usage.
-            Instead, use :py:meth:`DataCube.to_json()` to get a JSON representation of the process graph.
-        """
-        # TODO: wrap in {"process_graph":...} by default/optionally?
-        return self._pg.flat_graph()
-
-    flatten = legacy_alias(flat_graph, name="flatten")
-
-    def to_json(self, indent=2, separators=None) -> str:
-        """
-        Get JSON representation of (flat dict) process graph.
-        """
-        pg = {"process_graph": self.flat_graph()}
-        return json.dumps(pg, indent=indent, separators=separators)
-
-    @property
-    def _api_version(self):
-        return self._connection.capabilities().api_version_check
-
-    @property
-    def connection(self) -> 'openeo.Connection':
-        return self._connection
-
-    def from_node(self) -> PGNode:
-        # _FromNodeMixin API
-        return self._pg
 
     def process(
             self,
@@ -128,15 +90,8 @@ class DataCube(_FromNodeMixin):
         :param namespace: optional: process namespace
         :return: new DataCube instance
         """
-        arguments = {**(arguments or {}), **kwargs}
-        for k, v in arguments.items():
-            if v is THIS:
-                arguments[k] = self
-        return self.process_with_node(PGNode(
-            process_id=process_id,
-            arguments=arguments,
-            namespace=namespace,
-        ), metadata=metadata)
+        pg = self._build_pgnode(process_id=process_id, arguments=arguments, namespace=namespace, **kwargs)
+        return DataCube(graph=pg, connection=self._connection, metadata=metadata or self.metadata)
 
     graph_add_node = legacy_alias(process, "graph_add_node")
 
@@ -150,6 +105,7 @@ class DataCube(_FromNodeMixin):
         """
         # TODO: deep copy `self.metadata` instead of using same instance?
         # TODO: cover more cases where metadata has to be altered
+        # TODO: deprecate `process_with_node``: little added value over just calling DataCube() directly
         return DataCube(graph=pg, connection=self._connection, metadata=metadata or self.metadata)
 
     @classmethod
