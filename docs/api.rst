@@ -12,23 +12,46 @@ of using a web service, so the user can produce concise and readable code.
 Users that want to interact with OpenEO on a lower level, and have more control, can
 use the lower level classes.
 
+
+openeo
+--------
+
 .. autofunction:: openeo.connect
 
 
 openeo.rest.datacube
-----------------------------------
+-----------------------
 
 .. automodule:: openeo.rest.datacube
    :members: DataCube
+   :inherited-members:
 
 
-.. _datacube-api:
+openeo.rest.vectorcube
+------------------------
 
-openeo.api
------------
+.. automodule:: openeo.rest.vectorcube
+   :members: VectorCube
+   :inherited-members:
+
+
+openeo.rest.mlmodel
+---------------------
+
+.. automodule:: openeo.rest.mlmodel
+   :members: MlModel
+   :inherited-members:
+
+
+openeo.api.process
+--------------------
 
 .. automodule:: openeo.api.process
     :members: Parameter
+
+
+openeo.api.logs
+-----------------
 
 .. automodule:: openeo.api.logs
     :members: LogEntry
@@ -42,7 +65,7 @@ openeo.rest.connection
 
 
 openeo.rest.job
-----------------------
+------------------
 
 .. automodule:: openeo.rest.job
     :members: RESTJob, JobResults, ResultAsset

@@ -14,7 +14,10 @@ if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
 
 class MlModel(_ProcessGraphAbstraction):
     """
-    A machine learning model accompanied with STAC metadata, including the ml-model extension.
+    A machine learning model.
+
+    It is the result of a training procedure, e.g. output of a ``fit_...`` process,
+    and can be used for prediction (classification or regression) with the corresponding ``predict_...`` process.
     """
     def __init__(self, graph: PGNode, connection: 'Connection'):
         super().__init__(pgnode=graph, connection=connection)
