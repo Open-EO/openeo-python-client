@@ -1,20 +1,19 @@
-import json
 import pathlib
-from typing import Union
 import typing
+from typing import Union, Optional
 
 from openeo.internal.graph_building import PGNode
 from openeo.metadata import CollectionMetadata
+from openeo.rest._datacube import _ProcessGraphAbstraction
 from openeo.rest.job import RESTJob
-from openeo.util import legacy_alias
-
+from openeo.util import legacy_alias, dict_no_none
 
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime). `hasattr` is Python 3.5 workaround #210
     from openeo import Connection
 
 
-class VectorCube:
+class VectorCube(_ProcessGraphAbstraction):
     """
     A Vector Cube, or 'Vector Collection' is a data structure containing 'Features':
     https://www.w3.org/TR/sdw-bp/#dfn-feature
@@ -24,42 +23,17 @@ class VectorCube:
     """
 
     def __init__(self, graph: PGNode, connection: 'Connection', metadata: CollectionMetadata = None):
-        super().__init__()
-        # Process graph
-        self._pg = graph
-        self._connection = connection
+        super().__init__(pgnode=graph, connection=connection)
+        # TODO: does VectorCube need CollectionMetadata?
         self.metadata = metadata
 
-    def __str__(self):
-        return "DataCube({pg})".format(pg=self._pg)
-
-    @property
-    def graph(self) -> dict:
-        """Get the process graph in flat dict representation"""
-        return self.flat_graph()
-
-    def flat_graph(self) -> dict:
-        """Get the process graph in flat dict representation"""
-        return self._pg.flat_graph()
-
-    flatten = legacy_alias(flat_graph, name="flatten")
-
-    def to_json(self, indent=2, separators=None) -> str:
-        """
-        Get JSON representation of (flat dict) process graph.
-        """
-        pg = {"process_graph": self.flat_graph()}
-        return json.dumps(pg, indent=indent, separators=separators)
-
-    @property
-    def _api_version(self):
-        return self._connection.capabilities().api_version_check
-
-    @property
-    def connection(self):
-        return self._connection
-
-    def process(self, process_id: str, args: dict = None, metadata: CollectionMetadata = None, **kwargs) -> 'VectorCube':
+    def process(
+            self,
+            process_id: str,
+            arguments: dict = None,
+            metadata: Optional[CollectionMetadata] = None,
+            namespace: Optional[str] = None,
+            **kwargs) -> 'VectorCube':
         """
         Generic helper to create a new DataCube by applying a process.
 
@@ -67,41 +41,29 @@ class VectorCube:
         :param args: argument dictionary for the process.
         :return: new DataCube instance
         """
-        return self.process_with_node(PGNode(
-            process_id=process_id,
-            arguments=args, **kwargs
-        ), metadata=metadata)
-
-    def process_with_node(self, pg: PGNode, metadata: CollectionMetadata = None) -> 'VectorCube':
-        """
-        Generic helper to create a new DataCube by applying a process (given as process graph node)
-
-        :param pg: process graph node (containing process id and arguments)
-        :param metadata: (optional) metadata to override original cube metadata (e.g. when reducing dimensions)
-        :return: new DataCube instance
-        """
-        from openeo.rest.datacube import DataCube, THIS
-        arguments = pg.arguments
-        for k, v in arguments.items():
-            if isinstance(v, DataCube) or isinstance(v, VectorCube):
-                arguments[k] = {"from_node": v._pg}
-            elif v is THIS:
-                arguments[k] = {"from_node": self._pg}
-        # TODO: deep copy `self.metadata` instead of using same instance?
-        # TODO: cover more cases where metadata has to be altered
+        pg = self._build_pgnode(process_id=process_id, arguments=arguments, namespace=namespace, **kwargs)
         return VectorCube(graph=pg, connection=self._connection, metadata=metadata or self.metadata)
+
+    def run_udf(
+            self, udf: str, runtime: str, version: Optional[str] = None, context: Optional[dict] = None
+    ) -> "VectorCube":
+        return self.process(
+            process_id="run_udf",
+            data=self, udf=udf, runtime=runtime,
+            arguments=dict_no_none({"version": version, "context": context}),
+        )
 
     def save_result(self, format: str = "GeoJson", options: dict = None):
         return self.process(
             process_id="save_result",
-            args={
-                "data": {"from_node": self._pg},
+            arguments={
+                "data": self,
                 "format": format,
                 "options": options or {}
             }
         )
 
-    def download(self, outputfile: str, format: str = "GeoJson", options: dict = None):
+    def download(self, outputfile: str, format: str = "GeoJSON", options: dict = None):
         cube = self.save_result(format=format, options=options)
         return self._connection.download(cube.flat_graph(), outputfile)
 

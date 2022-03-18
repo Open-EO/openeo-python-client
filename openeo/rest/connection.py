@@ -1024,7 +1024,7 @@ class Connection(RestApiConnection):
 
     def execute(self, process_graph: dict):
         """
-        Execute a process graph synchronously.
+        Execute a process graph synchronously and return the result (assumed to be JSON).
 
         :param process_graph: (flat) dict representing a process graph
         """
