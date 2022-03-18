@@ -1766,6 +1766,7 @@ class DataCube(_FromNodeMixin):
             num_trees: int = 100,
             # TODO: better parameter name? see https://github.com/Open-EO/openeo-processes/issues/339
             mtry: Optional[int] = None,
+            seed: Optional[int] = None,
     ) -> 'MlModel':
         """
         Executes the fit of a random forest classification based on the user input of target and predictors.
@@ -1783,6 +1784,7 @@ class DataCube(_FromNodeMixin):
         :param num_trees: The number of trees build within the Random Forest classification.
         :param mtry: Specifies how many split variables will be used at a node. Default value is `null`, which corresponds to the
             number of predictors divided by 3.
+        :param seed: A randomization seed to use for the random sampling in training.
         """
         # TODO #279: `fit_class_random_forest` should be defined on VectorCube instead of DataCube
         pgnode = PGNode(
@@ -1793,7 +1795,8 @@ class DataCube(_FromNodeMixin):
                 target=target,
                 training=training,
                 num_trees=num_trees,
-                mtry=mtry
+                mtry=mtry,
+                seed=seed,
             )
         )
         model = MlModel(graph=pgnode, connection=self._connection)
