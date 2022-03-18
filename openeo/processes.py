@@ -116,23 +116,26 @@ class ProcessBuilder(ProcessBuilderBase):
             get a time series. Otherwise, this process fails with the `TooManyDimensions` exception.  The data cube
             implicitly gets restricted to the bounds of the geometries as if ``filter_spatial()`` would have been
             used with the same values for the corresponding parameters immediately before this process.
-        :param geometries: Geometries as GeoJSON on which the aggregation will be based.  One value will be
-            computed per GeoJSON `Feature`, `Geometry` or `GeometryCollection`. For a `FeatureCollection` multiple
-            values will be computed, one value per contained `Feature`. For example, a single value will be
-            computed for a `MultiPolygon`, but two values will be computed for a `FeatureCollection` containing two
-            polygons.  - For **polygons**, the process considers all pixels for which the point at the pixel center
-            intersects with the corresponding polygon (as defined in the Simple Features standard by the OGC). -
-            For **points**, the process considers the closest pixel center. - For **lines** (line strings), the
-            process considers all the pixels whose centers are closest to at least one point on the line.  Thus,
-            pixels may be part of multiple geometries and be part of multiple aggregations.  To maximize
-            interoperability, a nested `GeometryCollection` should be avoided. Furthermore, a `GeometryCollection`
-            composed of a single type of geometries should be avoided in favour of the corresponding multi-part
-            type (e.g. `MultiPolygon`).
+        :param geometries: Geometries as GeoJSON on which the aggregation will be based. Vector properties are
+            preserved for vector data cubes and all GeoJSON Features.  One value will be computed per GeoJSON
+            `Feature`, `Geometry` or `GeometryCollection`. For a `FeatureCollection` multiple values will be
+            computed, one value per contained `Feature`. For example, a single value will be computed for a
+            `MultiPolygon`, but two values will be computed for a `FeatureCollection` containing two polygons.  -
+            For **polygons**, the process considers all pixels for which the point at the pixel center intersects
+            with the corresponding polygon (as defined in the Simple Features standard by the OGC). - For
+            **points**, the process considers the closest pixel center. - For **lines** (line strings), the process
+            considers all the pixels whose centers are closest to at least one point on the line.  Thus, pixels may
+            be part of multiple geometries and be part of multiple aggregations.  To maximize interoperability, a
+            nested `GeometryCollection` should be avoided. Furthermore, a `GeometryCollection` composed of a single
+            type of geometries should be avoided in favour of the corresponding multi-part type (e.g.
+            `MultiPolygon`).
         :param reducer: A reducer to be applied on all values of each geometry. A reducer is a single process
             such as ``mean()`` or a set of processes, which computes a single value for a list of values, see the
             category 'reducer' for such processes.
-        :param target_dimension: The new dimension name to be used for storing the results. Defaults to
-            `result`.
+        :param target_dimension: The name of a new dimensions that is used to store the results. A new
+            dimension will be created with the given name and type `other` (see ``add_dimension()``). Defaults to
+            the dimension name `result`. Fails with a `TargetDimensionExists` exception if a dimension with the
+            specified name exists.
         :param context: Additional data to be passed to the reducer.
 
         :return: A vector data cube with the computed results and restricted to the bounds of the geometries.
@@ -328,7 +331,7 @@ class ProcessBuilder(ProcessBuilderBase):
         :param self: A data cube.
         :param process: A process that accepts and returns a single value and is applied on each individual
             value in the data cube. The process may consist of multiple sub-processes and could, for example,
-            consist of processes such as ``abs()`` or ``linear_scale_range()``.
+            consist of processes such as ``absolute()`` or ``linear_scale_range()``.
         :param context: Additional data to be passed to the process.
 
         :return: A data cube with the newly computed values and the same dimensions. The dimension properties
@@ -408,12 +411,12 @@ class ProcessBuilder(ProcessBuilderBase):
             physical measure (e.g. 100 m, 10 days) or pixels (e.g. 32 pixels). For dimensions not specified, the
             default is to provide all values. Be aware that including all values from overly large dimensions may
             not be processed at once.
-        :param overlap: Overlap of neighborhoods along each dimension to avoid border effects.  For instance a
-            temporal dimension can add 1 month before and after a neighborhood. In the spatial dimensions, this is
-            often a number of pixels. The overlap specified is added before and after, so an overlap of 8 pixels
-            will add 8 pixels on both sides of the window, so 16 in total.  Be aware that large overlaps increase
-            the need for computational resources and modifying overlapping data in subsequent operations have no
-            effect.
+        :param overlap: Overlap of neighborhoods along each dimension to avoid border effects. By default no
+            overlap is provided.  For instance a temporal dimension can add 1 month before and after a
+            neighborhood. In the spatial dimensions, this is often a number of pixels. The overlap specified is
+            added before and after, so an overlap of 8 pixels will add 8 pixels on both sides of the window, so 16
+            in total.  Be aware that large overlaps increase the need for computational resources and modifying
+            overlapping data in subsequent operations have no effect.
         :param context: Additional data to be passed to the process.
 
         :return: A data cube with the newly computed values and the same dimensions. The dimension properties
@@ -544,16 +547,19 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return ard_surface_reflectance(data=self, atmospheric_correction_method=atmospheric_correction_method, cloud_detection_method=cloud_detection_method, elevation_model=elevation_model, atmospheric_correction_options=atmospheric_correction_options, cloud_detection_options=cloud_detection_options)
 
-    def array_append(self, value) -> 'ProcessBuilder':
+    def array_append(self, value, label=UNSET) -> 'ProcessBuilder':
         """
         Append a value to an array
 
         :param self: An array.
         :param value: Value to append to the array.
+        :param label: If the given array is a labeled array, a new label for the new value should be given. If
+            not given or `null`, the array index as string is used as the label. If in any case the label exists, a
+            `LabelExists` exception is thrown.
 
         :return: The new array with the value being appended.
         """
-        return array_append(data=self, value=value)
+        return array_append(data=self, value=value, label=label)
 
     def array_apply(self, process, context=UNSET) -> 'ProcessBuilder':
         """
@@ -562,7 +568,7 @@ class ProcessBuilder(ProcessBuilderBase):
         :param self: An array.
         :param process: A process that accepts and returns a single value and is applied on each individual
             value in the array. The process may consist of multiple sub-processes and could, for example, consist
-            of processes such as ``abs()`` or ``linear_scale_range()``.
+            of processes such as ``absolute()`` or ``linear_scale_range()``.
         :param context: Additional data to be passed to the process.
 
         :return: An array with the newly computed values. The number of elements are the same as for the
@@ -586,7 +592,7 @@ class ProcessBuilder(ProcessBuilderBase):
         Check whether the array contains a given value
 
         :param self: List to find the value in.
-        :param value: Value to find in `data`.
+        :param value: Value to find in `data`. If the value is `null`, this process returns always `false`.
 
         :return: `true` if the list contains the value, false` otherwise.
         """
@@ -649,7 +655,7 @@ class ProcessBuilder(ProcessBuilderBase):
         Get the index for a value in an array
 
         :param self: List to find the value in.
-        :param value: Value to find in `data`.
+        :param value: Value to find in `data`. If the value is `null`, this process returns always `null`.
         :param reverse: By default, this process finds the index of the first match. To return the index of the
             last match instead, set this flag to `true`.
 
@@ -1149,6 +1155,29 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return first(data=self, ignore_nodata=ignore_nodata)
 
+    def fit_class_random_forest(self, target, training, num_trees=UNSET, mtry=UNSET, seed=UNSET) -> 'ProcessBuilder':
+        """
+        Train a random forest classification model
+
+        :param self: The predictors for the classification model as a vector data cube. Aggregated to the
+            features (vectors) of the target input variable.
+        :param target: The training sites for the classification model as a vector data cube. This is
+            associated with the target variable for the Random Forest model. The geometry has to associated with a
+            value to predict (e.g. fractional forest canopy cover).
+        :param training: The amount of training data to be used in the classification, given as a fraction. The
+            sampling will be chosen randomly through the data object. The remaining data will be used as test data
+            for the validation.
+        :param num_trees: The number of trees build within the Random Forest classification.
+        :param mtry: Specifies how many split variables will be used at a node. Default value is `null`, which
+            corresponds to the number of predictors divided by 3.
+        :param seed: A randomization seed to use for the random sampling in training. If not given or `null`,
+            no seed is used and results may differ on subsequent use.
+
+        :return: A model object that can be saved with ``save_ml_model()`` and restored with
+            ``load_ml_model()``.
+        """
+        return fit_class_random_forest(predictors=self, target=target, training=training, num_trees=num_trees, mtry=mtry, seed=seed)
+
     def fit_curve(self, parameters, function, dimension) -> 'ProcessBuilder':
         """
         Curve fitting
@@ -1167,6 +1196,49 @@ class ProcessBuilder(ProcessBuilderBase):
         :return: A data cube with the optimal values for the parameters.
         """
         return fit_curve(data=self, parameters=parameters, function=function, dimension=dimension)
+
+    def fit_regr_random_forest(self, target, training, num_trees=UNSET, mtry=UNSET, seed=UNSET) -> 'ProcessBuilder':
+        """
+        Train a random forest regression model
+
+        :param self: The predictors for the regression model as a vector data cube. Aggregated to the features
+            (vectors) of the target input variable.
+        :param target: The training sites for the regression model as a vector data cube. This is associated
+            with the target variable for the Random Forest model. The geometry has to associated with a value to
+            predict (e.g. fractional forest canopy cover).
+        :param training: The amount of training data to be used in the regression, given as a fraction. The
+            sampling will be randomly through the data object. The remaining data will be used as test data for the
+            validation.
+        :param num_trees: The number of trees build within the Random Forest regression.
+        :param mtry: Specifies how many split variables will be used at a node. Default value is `null`, which
+            corresponds to the number of predictors divided by 3.
+        :param seed: A randomization seed to use for the random sampling in training. If not given or `null`,
+            no seed is used and results may differ on subsequent use.
+
+        :return: A model object that can be saved with ``save_ml_model()`` and restored with
+            ``load_ml_model()``.
+        """
+        return fit_regr_random_forest(predictors=self, target=target, training=training, num_trees=num_trees, mtry=mtry, seed=seed)
+
+    def flatten_dimensions(self, dimensions, target_dimension, label_separator=UNSET) -> 'ProcessBuilder':
+        """
+        Combine multiple dimensions into a single dimension
+
+        :param self: A data cube.
+        :param dimensions: The names of the dimension to combine. The order of the array defines the order in
+            which the dimension labels and values are combined (see the example in the process description). Fails
+            with a `DimensionNotAvailable` exception if at least one of the specified dimensions does not exist.
+        :param target_dimension: The name of the new target dimension. A new dimensions will be created with
+            the given names and type `other` (see ``add_dimension()``). Fails with a `TargetDimensionExists`
+            exception if a dimension with the specified name exists.
+        :param label_separator: The string that will be used as a separator for the concatenated dimension
+            labels.  To unambiguously revert the dimension labels with the process ``unflatten_dimension()``, the
+            given string must not be contained in any of the dimension labels.
+
+        :return: A data cube with the new shape. The dimension properties (name, type, labels, reference system
+            and resolution) for all other dimensions remain unchanged.
+        """
+        return flatten_dimensions(data=self, dimensions=dimensions, target_dimension=target_dimension, label_separator=label_separator)
 
     def floor(self) -> 'ProcessBuilder':
         """
@@ -1359,6 +1431,18 @@ class ProcessBuilder(ProcessBuilderBase):
             labels are restricted as specified in the parameters.
         """
         return load_collection(id=self, spatial_extent=spatial_extent, temporal_extent=temporal_extent, bands=bands, properties=properties)
+
+    def load_ml_model(self) -> 'ProcessBuilder':
+        """
+        Load a ML model
+
+        :param self: The STAC Item to load the machine learning model from. The STAC Item must implement the
+            `ml-model` extension.
+
+        :return: A machine learning model to be used with machine learning processes such as
+            ``predict_random_forest()``.
+        """
+        return load_ml_model(id=self)
 
     def load_result(self, spatial_extent=UNSET, temporal_extent=UNSET, bands=UNSET) -> 'ProcessBuilder':
         """
@@ -1709,6 +1793,19 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return predict_curve(data=self, parameters=parameters, function=function, dimension=dimension, labels=labels)
 
+    def predict_random_forest(self, model) -> 'ProcessBuilder':
+        """
+        Predict values from a Random Forest model
+
+        :param self: An array of numbers.
+        :param model: A model object that can be trained with the processes ``fit_regr_random_forest()``
+            (regression) and ``fit_class_random_forest()`` (classification).
+
+        :return: The predicted value. Returns `null` if any of the given values in the array is a no-data
+            value.
+        """
+        return predict_random_forest(data=self, model=model)
+
     def product(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
         Compute the product by multiplying numbers
@@ -1809,14 +1906,15 @@ class ProcessBuilder(ProcessBuilderBase):
 
         :param self: The data cube.
         :param dimension: The name of the dimension to rename the labels for.
-        :param target: The new names for the labels. The dimension labels in the data cube are expected to be
-            enumerated if the parameter `target` is not specified. If a target dimension label already exists in
-            the data cube, a `LabelExists` exception is thrown.
-        :param source: The names of the labels as they are currently in the data cube. The array defines an
-            unsorted and potentially incomplete list of labels that should be renamed to the names available in the
-            corresponding array elements in the parameter `target`. If one of the source dimension labels doesn't
-            exist, the `LabelNotAvailable` exception is thrown. By default, the array is empty so that the
-            dimension labels in the data cube are expected to be enumerated.
+        :param target: The new names for the labels.  If a target dimension label already exists in the data
+            cube, a `LabelExists` exception is thrown.
+        :param source: The original names of the labels to be renamed to corresponding array elements in the
+            parameter `target`. It is allowed to only specify a subset of labels to rename, as long as the `target`
+            and `source` parameter have the same length. The order of the labels doesn't need to match the order of
+            the dimension labels in the data cube. By default, the array is empty so that the dimension labels in
+            the data cube are expected to be enumerated.  If the dimension labels are not enumerated and the given
+            array is empty, the `LabelsNotEnumerated` exception is thrown. If one of the source dimension labels
+            doesn't exist, the `LabelNotAvailable` exception is thrown.
 
         :return: The data cube with the same dimensions. The dimension properties (name, type, labels,
             reference system and resolution) remain unchanged, except that for the given dimension the labels
@@ -1981,6 +2079,17 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return sar_backscatter(data=self, coefficient=coefficient, elevation_model=elevation_model, mask=mask, contributing_area=contributing_area, local_incidence_angle=local_incidence_angle, ellipsoid_incidence_angle=ellipsoid_incidence_angle, noise_removal=noise_removal, options=options)
 
+    def save_ml_model(self, options=UNSET) -> 'ProcessBuilder':
+        """
+        Save a ML model
+
+        :param self: The data to store as a machine learning model.
+        :param options: Additional parameters to create the file(s).
+
+        :return: Returns `false` if the process failed to store the model, `true` otherwise.
+        """
+        return save_ml_model(data=self, options=options)
+
     def save_result(self, format, options=UNSET) -> 'ProcessBuilder':
         """
         Save processed data
@@ -2121,6 +2230,20 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return text_begins(data=self, pattern=pattern, case_sensitive=case_sensitive)
 
+    def text_concat(self, separator=UNSET) -> 'ProcessBuilder':
+        """
+        Concatenate elements to a single text
+
+        :param self: A set of elements. Numbers, boolean values and null values get converted to their (lower
+            case) string representation. For example: `1` (integer), `-1.5` (number), `true` / `false` (boolean
+            values)
+        :param separator: A separator to put between each of the individual texts. Defaults to an empty string.
+
+        :return: A string containing a string representation of all the array elements in the same order, with
+            the separator between each element.
+        """
+        return text_concat(data=self, separator=separator)
+
     def text_contains(self, pattern, case_sensitive=UNSET) -> 'ProcessBuilder':
         """
         Text contains another text
@@ -2145,20 +2268,6 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return text_ends(data=self, pattern=pattern, case_sensitive=case_sensitive)
 
-    def text_merge(self, separator=UNSET) -> 'ProcessBuilder':
-        """
-        Concatenate elements to a single text
-
-        :param self: A set of elements. Numbers, boolean values and null values get converted to their (lower
-            case) string representation. For example: `1` (integer), `-1.5` (number), `true` / `false` (boolean
-            values)
-        :param separator: A separator to put between each of the individual texts. Defaults to an empty string.
-
-        :return: A string containing a string representation of all the array elements in the same order, with
-            the separator between each element.
-        """
-        return text_merge(data=self, separator=separator)
-
     def trim_cube(self) -> 'ProcessBuilder':
         """
         Remove dimension labels with no-data values
@@ -2169,6 +2278,26 @@ class ProcessBuilder(ProcessBuilderBase):
             reference system and resolution remain unchanged. The number of dimension labels may decrease.
         """
         return trim_cube(data=self)
+
+    def unflatten_dimension(self, dimension, target_dimensions, label_separator=UNSET) -> 'ProcessBuilder':
+        """
+        Split a single dimensions into multiple dimensions
+
+        :param self: A data cube that is consistently structured so that operation can execute flawlessly (e.g.
+            the dimension labels need to contain the `label_separator` exactly 1 time for two target dimensions, 2
+            times for three target dimensions etc.).
+        :param dimension: The name of the dimension to split.
+        :param target_dimensions: The names of the new target dimensions. New dimensions will be created with
+            the given names and type `other` (see ``add_dimension()``). Fails with a `TargetDimensionExists`
+            exception if any of the dimensions exists.  The order of the array defines the order in which the
+            dimensions and dimension labels are added to the data cube (see the example in the process
+            description).
+        :param label_separator: The string that will be used as a separator to split the dimension labels.
+
+        :return: A data cube with the new shape. The dimension properties (name, type, labels, reference system
+            and resolution) for all other dimensions remain unchanged.
+        """
+        return unflatten_dimension(data=self, dimension=dimension, target_dimensions=target_dimensions, label_separator=label_separator)
 
     def variance(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
@@ -2182,6 +2311,68 @@ class ProcessBuilder(ProcessBuilderBase):
         :return: The computed sample variance.
         """
         return variance(data=self, ignore_nodata=ignore_nodata)
+
+    def vector_buffer(self, distance) -> 'ProcessBuilder':
+        """
+        Buffer geometries by distance
+
+        :param self: Geometries to apply the buffer on. Vector properties are preserved for vector data cubes
+            and all GeoJSON Features.  To maximize interoperability, a nested `GeometryCollection` should be
+            avoided. Furthermore, a `GeometryCollection` composed of a single type of geometries should be avoided
+            in favour of the corresponding multi-part type (e.g. `MultiPolygon`).
+        :param distance: The distance of the buffer in the unit of the spatial reference system. A positive
+            distance expands the geometries and results in outward buffering (dilation) while a negative distance
+            shrinks the geometries and results in inward buffering (erosion).
+
+        :return: Returns a vector data cube with the computed new geometries.
+        """
+        return vector_buffer(geometries=self, distance=distance)
+
+    def vector_to_random_points(self, geometry_count=UNSET, total_count=UNSET, group=UNSET, seed=UNSET) -> 'ProcessBuilder':
+        """
+        Sample random points from geometries
+
+        :param self: Input geometries for sample extraction.  To maximize interoperability, a nested
+            `GeometryCollection` should be avoided. Furthermore, a `GeometryCollection` composed of a single type
+            of geometries should be avoided in favour of the corresponding multi-part type (e.g. `MultiPolygon`).
+        :param geometry_count: The maximum number of points to compute per geometry. Defaults to a maximum of
+            one point per geometry.  Points in the input geometries can be selected only once by the sampling.
+        :param total_count: The maximum number of points to compute overall.  Throws a `CountMismatch`
+            exception if the specified value is less than the provided number of geometries.
+        :param group: Specifies whether the sampled points should be grouped by input geometry (default) or be
+            generated as independent points.  * If the sampled points are grouped, the process generates a
+            `MultiPoint` per geometry given. Vector properties are preserved. * Otherwise, each sampled point is
+            generated as a distinct `Point` geometry. Vector properties are *not* preserved.
+        :param seed: A randomization seed to use for random sampling. If not given or `null`, no seed is used
+            and results may differ on subsequent use.
+
+        :return: Returns a vector data cube with the sampled points.
+        """
+        return vector_to_random_points(data=self, geometry_count=geometry_count, total_count=total_count, group=group, seed=seed)
+
+    def vector_to_regular_points(self, distance, group=UNSET) -> 'ProcessBuilder':
+        """
+        Sample regular points from geometries
+
+        :param self: Input geometries for sample extraction.  To maximize interoperability, a nested
+            `GeometryCollection` should be avoided. Furthermore, a `GeometryCollection` composed of a single type
+            of geometries should be avoided in favour of the corresponding multi-part type (e.g. `MultiPolygon`).
+        :param distance: Defines the minimum distance in the unit of the reference system that is required
+            between two samples generated *inside* a single geometry.  - For **polygons**, the distance defines the
+            cell sizes of a regular grid that starts at the upper-left bound of each polygon. The centroid of each
+            cell is then a sample point. If the centroid is not enclosed in the polygon, no point is sampled. If no
+            point can be sampled for the geometry at all, the first coordinate of the geometry is returned as
+            point. - For **lines** (line strings), the sampling starts with a point at the first coordinate of the
+            line and then walks along the line and samples a new point each time the distance to the previous point
+            has been reached again. - For **points**, the point is returned as given.
+        :param group: Specifies whether the sampled points should be grouped by input geometry (default) or be
+            generated as independent points.  * If the sampled points are grouped, the process generates a
+            `MultiPoint` per geometry given. Vector properties are preserved. * Otherwise, each sampled point is
+            generated as a distinct `Point` geometry. Vector properties are *not* preserved.
+
+        :return: Returns a vector data cube with the sampled points.
+        """
+        return vector_to_regular_points(data=self, distance=distance, group=group)
 
     def xor(self, y) -> 'ProcessBuilder':
         """
@@ -2248,21 +2439,25 @@ def aggregate_spatial(data, geometries, reducer, target_dimension=UNSET, context
         time series. Otherwise, this process fails with the `TooManyDimensions` exception.  The data cube
         implicitly gets restricted to the bounds of the geometries as if ``filter_spatial()`` would have been used
         with the same values for the corresponding parameters immediately before this process.
-    :param geometries: Geometries as GeoJSON on which the aggregation will be based.  One value will be
-        computed per GeoJSON `Feature`, `Geometry` or `GeometryCollection`. For a `FeatureCollection` multiple
-        values will be computed, one value per contained `Feature`. For example, a single value will be computed
-        for a `MultiPolygon`, but two values will be computed for a `FeatureCollection` containing two polygons.  -
-        For **polygons**, the process considers all pixels for which the point at the pixel center intersects with
-        the corresponding polygon (as defined in the Simple Features standard by the OGC). - For **points**, the
-        process considers the closest pixel center. - For **lines** (line strings), the process considers all the
-        pixels whose centers are closest to at least one point on the line.  Thus, pixels may be part of multiple
-        geometries and be part of multiple aggregations.  To maximize interoperability, a nested
-        `GeometryCollection` should be avoided. Furthermore, a `GeometryCollection` composed of a single type of
-        geometries should be avoided in favour of the corresponding multi-part type (e.g. `MultiPolygon`).
+    :param geometries: Geometries as GeoJSON on which the aggregation will be based. Vector properties are
+        preserved for vector data cubes and all GeoJSON Features.  One value will be computed per GeoJSON
+        `Feature`, `Geometry` or `GeometryCollection`. For a `FeatureCollection` multiple values will be computed,
+        one value per contained `Feature`. For example, a single value will be computed for a `MultiPolygon`, but
+        two values will be computed for a `FeatureCollection` containing two polygons.  - For **polygons**, the
+        process considers all pixels for which the point at the pixel center intersects with the corresponding
+        polygon (as defined in the Simple Features standard by the OGC). - For **points**, the process considers
+        the closest pixel center. - For **lines** (line strings), the process considers all the pixels whose
+        centers are closest to at least one point on the line.  Thus, pixels may be part of multiple geometries and
+        be part of multiple aggregations.  To maximize interoperability, a nested `GeometryCollection` should be
+        avoided. Furthermore, a `GeometryCollection` composed of a single type of geometries should be avoided in
+        favour of the corresponding multi-part type (e.g. `MultiPolygon`).
     :param reducer: A reducer to be applied on all values of each geometry. A reducer is a single process such
         as ``mean()`` or a set of processes, which computes a single value for a list of values, see the category
         'reducer' for such processes.
-    :param target_dimension: The new dimension name to be used for storing the results. Defaults to `result`.
+    :param target_dimension: The name of a new dimensions that is used to store the results. A new dimension
+        will be created with the given name and type `other` (see ``add_dimension()``). Defaults to the dimension
+        name `result`. Fails with a `TargetDimensionExists` exception if a dimension with the specified name
+        exists.
     :param context: Additional data to be passed to the reducer.
 
     :return: A vector data cube with the computed results and restricted to the bounds of the geometries.  The
@@ -2463,7 +2658,7 @@ def apply(data, process, context=UNSET) -> ProcessBuilder:
     :param data: A data cube.
     :param process: A process that accepts and returns a single value and is applied on each individual value
         in the data cube. The process may consist of multiple sub-processes and could, for example, consist of
-        processes such as ``abs()`` or ``linear_scale_range()``.
+        processes such as ``absolute()`` or ``linear_scale_range()``.
     :param context: Additional data to be passed to the process.
 
     :return: A data cube with the newly computed values and the same dimensions. The dimension properties
@@ -2543,11 +2738,12 @@ def apply_neighborhood(data, process, size, overlap=UNSET, context=UNSET) -> Pro
         physical measure (e.g. 100 m, 10 days) or pixels (e.g. 32 pixels). For dimensions not specified, the
         default is to provide all values. Be aware that including all values from overly large dimensions may not
         be processed at once.
-    :param overlap: Overlap of neighborhoods along each dimension to avoid border effects.  For instance a
-        temporal dimension can add 1 month before and after a neighborhood. In the spatial dimensions, this is
-        often a number of pixels. The overlap specified is added before and after, so an overlap of 8 pixels will
-        add 8 pixels on both sides of the window, so 16 in total.  Be aware that large overlaps increase the need
-        for computational resources and modifying overlapping data in subsequent operations have no effect.
+    :param overlap: Overlap of neighborhoods along each dimension to avoid border effects. By default no
+        overlap is provided.  For instance a temporal dimension can add 1 month before and after a neighborhood. In
+        the spatial dimensions, this is often a number of pixels. The overlap specified is added before and after,
+        so an overlap of 8 pixels will add 8 pixels on both sides of the window, so 16 in total.  Be aware that
+        large overlaps increase the need for computational resources and modifying overlapping data in subsequent
+        operations have no effect.
     :param context: Additional data to be passed to the process.
 
     :return: A data cube with the newly computed values and the same dimensions. The dimension properties
@@ -2685,16 +2881,19 @@ def ard_surface_reflectance(data, atmospheric_correction_method, cloud_detection
     return _process('ard_surface_reflectance', data=data, atmospheric_correction_method=atmospheric_correction_method, cloud_detection_method=cloud_detection_method, elevation_model=elevation_model, atmospheric_correction_options=atmospheric_correction_options, cloud_detection_options=cloud_detection_options)
 
 
-def array_append(data, value) -> ProcessBuilder:
+def array_append(data, value, label=UNSET) -> ProcessBuilder:
     """
     Append a value to an array
 
     :param data: An array.
     :param value: Value to append to the array.
+    :param label: If the given array is a labeled array, a new label for the new value should be given. If not
+        given or `null`, the array index as string is used as the label. If in any case the label exists, a
+        `LabelExists` exception is thrown.
 
     :return: The new array with the value being appended.
     """
-    return _process('array_append', data=data, value=value)
+    return _process('array_append', data=data, value=value, label=label)
 
 
 def array_apply(data, process, context=UNSET) -> ProcessBuilder:
@@ -2704,7 +2903,7 @@ def array_apply(data, process, context=UNSET) -> ProcessBuilder:
     :param data: An array.
     :param process: A process that accepts and returns a single value and is applied on each individual value
         in the array. The process may consist of multiple sub-processes and could, for example, consist of
-        processes such as ``abs()`` or ``linear_scale_range()``.
+        processes such as ``absolute()`` or ``linear_scale_range()``.
     :param context: Additional data to be passed to the process.
 
     :return: An array with the newly computed values. The number of elements are the same as for the original
@@ -2730,7 +2929,7 @@ def array_contains(data, value) -> ProcessBuilder:
     Check whether the array contains a given value
 
     :param data: List to find the value in.
-    :param value: Value to find in `data`.
+    :param value: Value to find in `data`. If the value is `null`, this process returns always `false`.
 
     :return: `true` if the list contains the value, false` otherwise.
     """
@@ -2798,7 +2997,7 @@ def array_find(data, value, reverse=UNSET) -> ProcessBuilder:
     Get the index for a value in an array
 
     :param data: List to find the value in.
-    :param value: Value to find in `data`.
+    :param value: Value to find in `data`. If the value is `null`, this process returns always `null`.
     :param reverse: By default, this process finds the index of the first match. To return the index of the
         last match instead, set this flag to `true`.
 
@@ -3324,6 +3523,29 @@ def first(data, ignore_nodata=UNSET) -> ProcessBuilder:
     return _process('first', data=data, ignore_nodata=ignore_nodata)
 
 
+def fit_class_random_forest(predictors, target, training, num_trees=UNSET, mtry=UNSET, seed=UNSET) -> ProcessBuilder:
+    """
+    Train a random forest classification model
+
+    :param predictors: The predictors for the classification model as a vector data cube. Aggregated to the
+        features (vectors) of the target input variable.
+    :param target: The training sites for the classification model as a vector data cube. This is associated
+        with the target variable for the Random Forest model. The geometry has to associated with a value to
+        predict (e.g. fractional forest canopy cover).
+    :param training: The amount of training data to be used in the classification, given as a fraction. The
+        sampling will be chosen randomly through the data object. The remaining data will be used as test data for
+        the validation.
+    :param num_trees: The number of trees build within the Random Forest classification.
+    :param mtry: Specifies how many split variables will be used at a node. Default value is `null`, which
+        corresponds to the number of predictors divided by 3.
+    :param seed: A randomization seed to use for the random sampling in training. If not given or `null`, no
+        seed is used and results may differ on subsequent use.
+
+    :return: A model object that can be saved with ``save_ml_model()`` and restored with ``load_ml_model()``.
+    """
+    return _process('fit_class_random_forest', predictors=predictors, target=target, training=training, num_trees=num_trees, mtry=mtry, seed=seed)
+
+
 def fit_curve(data, parameters, function, dimension) -> ProcessBuilder:
     """
     Curve fitting
@@ -3342,6 +3564,50 @@ def fit_curve(data, parameters, function, dimension) -> ProcessBuilder:
     :return: A data cube with the optimal values for the parameters.
     """
     return _process('fit_curve', data=data, parameters=parameters, function=function, dimension=dimension)
+
+
+def fit_regr_random_forest(predictors, target, training, num_trees=UNSET, mtry=UNSET, seed=UNSET) -> ProcessBuilder:
+    """
+    Train a random forest regression model
+
+    :param predictors: The predictors for the regression model as a vector data cube. Aggregated to the
+        features (vectors) of the target input variable.
+    :param target: The training sites for the regression model as a vector data cube. This is associated with
+        the target variable for the Random Forest model. The geometry has to associated with a value to predict
+        (e.g. fractional forest canopy cover).
+    :param training: The amount of training data to be used in the regression, given as a fraction. The
+        sampling will be randomly through the data object. The remaining data will be used as test data for the
+        validation.
+    :param num_trees: The number of trees build within the Random Forest regression.
+    :param mtry: Specifies how many split variables will be used at a node. Default value is `null`, which
+        corresponds to the number of predictors divided by 3.
+    :param seed: A randomization seed to use for the random sampling in training. If not given or `null`, no
+        seed is used and results may differ on subsequent use.
+
+    :return: A model object that can be saved with ``save_ml_model()`` and restored with ``load_ml_model()``.
+    """
+    return _process('fit_regr_random_forest', predictors=predictors, target=target, training=training, num_trees=num_trees, mtry=mtry, seed=seed)
+
+
+def flatten_dimensions(data, dimensions, target_dimension, label_separator=UNSET) -> ProcessBuilder:
+    """
+    Combine multiple dimensions into a single dimension
+
+    :param data: A data cube.
+    :param dimensions: The names of the dimension to combine. The order of the array defines the order in which
+        the dimension labels and values are combined (see the example in the process description). Fails with a
+        `DimensionNotAvailable` exception if at least one of the specified dimensions does not exist.
+    :param target_dimension: The name of the new target dimension. A new dimensions will be created with the
+        given names and type `other` (see ``add_dimension()``). Fails with a `TargetDimensionExists` exception if a
+        dimension with the specified name exists.
+    :param label_separator: The string that will be used as a separator for the concatenated dimension labels.
+        To unambiguously revert the dimension labels with the process ``unflatten_dimension()``, the given string
+        must not be contained in any of the dimension labels.
+
+    :return: A data cube with the new shape. The dimension properties (name, type, labels, reference system and
+        resolution) for all other dimensions remain unchanged.
+    """
+    return _process('flatten_dimensions', data=data, dimensions=dimensions, target_dimension=target_dimension, label_separator=label_separator)
 
 
 def floor(x) -> ProcessBuilder:
@@ -3544,6 +3810,19 @@ def load_collection(id, spatial_extent, temporal_extent, bands=UNSET, properties
         restricted as specified in the parameters.
     """
     return _process('load_collection', id=id, spatial_extent=spatial_extent, temporal_extent=temporal_extent, bands=bands, properties=properties)
+
+
+def load_ml_model(id) -> ProcessBuilder:
+    """
+    Load a ML model
+
+    :param id: The STAC Item to load the machine learning model from. The STAC Item must implement the `ml-
+        model` extension.
+
+    :return: A machine learning model to be used with machine learning processes such as
+        ``predict_random_forest()``.
+    """
+    return _process('load_ml_model', id=id)
 
 
 def load_result(id, spatial_extent=UNSET, temporal_extent=UNSET, bands=UNSET) -> ProcessBuilder:
@@ -3912,6 +4191,19 @@ def predict_curve(data, parameters, function, dimension, labels=UNSET) -> Proces
     return _process('predict_curve', data=data, parameters=parameters, function=function, dimension=dimension, labels=labels)
 
 
+def predict_random_forest(data, model) -> ProcessBuilder:
+    """
+    Predict values from a Random Forest model
+
+    :param data: An array of numbers.
+    :param model: A model object that can be trained with the processes ``fit_regr_random_forest()``
+        (regression) and ``fit_class_random_forest()`` (classification).
+
+    :return: The predicted value. Returns `null` if any of the given values in the array is a no-data value.
+    """
+    return _process('predict_random_forest', data=data, model=model)
+
+
 def product(data, ignore_nodata=UNSET) -> ProcessBuilder:
     """
     Compute the product by multiplying numbers
@@ -4017,14 +4309,15 @@ def rename_labels(data, dimension, target, source=UNSET) -> ProcessBuilder:
 
     :param data: The data cube.
     :param dimension: The name of the dimension to rename the labels for.
-    :param target: The new names for the labels. The dimension labels in the data cube are expected to be
-        enumerated if the parameter `target` is not specified. If a target dimension label already exists in the
-        data cube, a `LabelExists` exception is thrown.
-    :param source: The names of the labels as they are currently in the data cube. The array defines an
-        unsorted and potentially incomplete list of labels that should be renamed to the names available in the
-        corresponding array elements in the parameter `target`. If one of the source dimension labels doesn't
-        exist, the `LabelNotAvailable` exception is thrown. By default, the array is empty so that the dimension
-        labels in the data cube are expected to be enumerated.
+    :param target: The new names for the labels.  If a target dimension label already exists in the data cube,
+        a `LabelExists` exception is thrown.
+    :param source: The original names of the labels to be renamed to corresponding array elements in the
+        parameter `target`. It is allowed to only specify a subset of labels to rename, as long as the `target` and
+        `source` parameter have the same length. The order of the labels doesn't need to match the order of the
+        dimension labels in the data cube. By default, the array is empty so that the dimension labels in the data
+        cube are expected to be enumerated.  If the dimension labels are not enumerated and the given array is
+        empty, the `LabelsNotEnumerated` exception is thrown. If one of the source dimension labels doesn't exist,
+        the `LabelNotAvailable` exception is thrown.
 
     :return: The data cube with the same dimensions. The dimension properties (name, type, labels, reference
         system and resolution) remain unchanged, except that for the given dimension the labels change. The old
@@ -4192,6 +4485,18 @@ def sar_backscatter(data, coefficient=UNSET, elevation_model=UNSET, mask=UNSET, 
     return _process('sar_backscatter', data=data, coefficient=coefficient, elevation_model=elevation_model, mask=mask, contributing_area=contributing_area, local_incidence_angle=local_incidence_angle, ellipsoid_incidence_angle=ellipsoid_incidence_angle, noise_removal=noise_removal, options=options)
 
 
+def save_ml_model(data, options=UNSET) -> ProcessBuilder:
+    """
+    Save a ML model
+
+    :param data: The data to store as a machine learning model.
+    :param options: Additional parameters to create the file(s).
+
+    :return: Returns `false` if the process failed to store the model, `true` otherwise.
+    """
+    return _process('save_ml_model', data=data, options=options)
+
+
 def save_result(data, format, options=UNSET) -> ProcessBuilder:
     """
     Save processed data
@@ -4342,6 +4647,20 @@ def text_begins(data, pattern, case_sensitive=UNSET) -> ProcessBuilder:
     return _process('text_begins', data=data, pattern=pattern, case_sensitive=case_sensitive)
 
 
+def text_concat(data, separator=UNSET) -> ProcessBuilder:
+    """
+    Concatenate elements to a single text
+
+    :param data: A set of elements. Numbers, boolean values and null values get converted to their (lower case)
+        string representation. For example: `1` (integer), `-1.5` (number), `true` / `false` (boolean values)
+    :param separator: A separator to put between each of the individual texts. Defaults to an empty string.
+
+    :return: A string containing a string representation of all the array elements in the same order, with the
+        separator between each element.
+    """
+    return _process('text_concat', data=data, separator=separator)
+
+
 def text_contains(data, pattern, case_sensitive=UNSET) -> ProcessBuilder:
     """
     Text contains another text
@@ -4368,20 +4687,6 @@ def text_ends(data, pattern, case_sensitive=UNSET) -> ProcessBuilder:
     return _process('text_ends', data=data, pattern=pattern, case_sensitive=case_sensitive)
 
 
-def text_merge(data, separator=UNSET) -> ProcessBuilder:
-    """
-    Concatenate elements to a single text
-
-    :param data: A set of elements. Numbers, boolean values and null values get converted to their (lower case)
-        string representation. For example: `1` (integer), `-1.5` (number), `true` / `false` (boolean values)
-    :param separator: A separator to put between each of the individual texts. Defaults to an empty string.
-
-    :return: A string containing a string representation of all the array elements in the same order, with the
-        separator between each element.
-    """
-    return _process('text_merge', data=data, separator=separator)
-
-
 def trim_cube(data) -> ProcessBuilder:
     """
     Remove dimension labels with no-data values
@@ -4392,6 +4697,26 @@ def trim_cube(data) -> ProcessBuilder:
         reference system and resolution remain unchanged. The number of dimension labels may decrease.
     """
     return _process('trim_cube', data=data)
+
+
+def unflatten_dimension(data, dimension, target_dimensions, label_separator=UNSET) -> ProcessBuilder:
+    """
+    Split a single dimensions into multiple dimensions
+
+    :param data: A data cube that is consistently structured so that operation can execute flawlessly (e.g. the
+        dimension labels need to contain the `label_separator` exactly 1 time for two target dimensions, 2 times
+        for three target dimensions etc.).
+    :param dimension: The name of the dimension to split.
+    :param target_dimensions: The names of the new target dimensions. New dimensions will be created with the
+        given names and type `other` (see ``add_dimension()``). Fails with a `TargetDimensionExists` exception if
+        any of the dimensions exists.  The order of the array defines the order in which the dimensions and
+        dimension labels are added to the data cube (see the example in the process description).
+    :param label_separator: The string that will be used as a separator to split the dimension labels.
+
+    :return: A data cube with the new shape. The dimension properties (name, type, labels, reference system and
+        resolution) for all other dimensions remain unchanged.
+    """
+    return _process('unflatten_dimension', data=data, dimension=dimension, target_dimensions=target_dimensions, label_separator=label_separator)
 
 
 def variance(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -4405,6 +4730,71 @@ def variance(data, ignore_nodata=UNSET) -> ProcessBuilder:
     :return: The computed sample variance.
     """
     return _process('variance', data=data, ignore_nodata=ignore_nodata)
+
+
+def vector_buffer(geometries, distance) -> ProcessBuilder:
+    """
+    Buffer geometries by distance
+
+    :param geometries: Geometries to apply the buffer on. Vector properties are preserved for vector data cubes
+        and all GeoJSON Features.  To maximize interoperability, a nested `GeometryCollection` should be avoided.
+        Furthermore, a `GeometryCollection` composed of a single type of geometries should be avoided in favour of
+        the corresponding multi-part type (e.g. `MultiPolygon`).
+    :param distance: The distance of the buffer in the unit of the spatial reference system. A positive
+        distance expands the geometries and results in outward buffering (dilation) while a negative distance
+        shrinks the geometries and results in inward buffering (erosion).
+
+    :return: Returns a vector data cube with the computed new geometries.
+    """
+    return _process('vector_buffer', geometries=geometries, distance=distance)
+
+
+def vector_to_random_points(data, geometry_count=UNSET, total_count=UNSET, group=UNSET, seed=UNSET) -> ProcessBuilder:
+    """
+    Sample random points from geometries
+
+    :param data: Input geometries for sample extraction.  To maximize interoperability, a nested
+        `GeometryCollection` should be avoided. Furthermore, a `GeometryCollection` composed of a single type of
+        geometries should be avoided in favour of the corresponding multi-part type (e.g. `MultiPolygon`).
+    :param geometry_count: The maximum number of points to compute per geometry. Defaults to a maximum of one
+        point per geometry.  Points in the input geometries can be selected only once by the sampling.
+    :param total_count: The maximum number of points to compute overall.  Throws a `CountMismatch` exception if
+        the specified value is less than the provided number of geometries.
+    :param group: Specifies whether the sampled points should be grouped by input geometry (default) or be
+        generated as independent points.  * If the sampled points are grouped, the process generates a `MultiPoint`
+        per geometry given. Vector properties are preserved. * Otherwise, each sampled point is generated as a
+        distinct `Point` geometry. Vector properties are *not* preserved.
+    :param seed: A randomization seed to use for random sampling. If not given or `null`, no seed is used and
+        results may differ on subsequent use.
+
+    :return: Returns a vector data cube with the sampled points.
+    """
+    return _process('vector_to_random_points', data=data, geometry_count=geometry_count, total_count=total_count, group=group, seed=seed)
+
+
+def vector_to_regular_points(data, distance, group=UNSET) -> ProcessBuilder:
+    """
+    Sample regular points from geometries
+
+    :param data: Input geometries for sample extraction.  To maximize interoperability, a nested
+        `GeometryCollection` should be avoided. Furthermore, a `GeometryCollection` composed of a single type of
+        geometries should be avoided in favour of the corresponding multi-part type (e.g. `MultiPolygon`).
+    :param distance: Defines the minimum distance in the unit of the reference system that is required between
+        two samples generated *inside* a single geometry.  - For **polygons**, the distance defines the cell sizes
+        of a regular grid that starts at the upper-left bound of each polygon. The centroid of each cell is then a
+        sample point. If the centroid is not enclosed in the polygon, no point is sampled. If no point can be
+        sampled for the geometry at all, the first coordinate of the geometry is returned as point. - For **lines**
+        (line strings), the sampling starts with a point at the first coordinate of the line and then walks along
+        the line and samples a new point each time the distance to the previous point has been reached again. - For
+        **points**, the point is returned as given.
+    :param group: Specifies whether the sampled points should be grouped by input geometry (default) or be
+        generated as independent points.  * If the sampled points are grouped, the process generates a `MultiPoint`
+        per geometry given. Vector properties are preserved. * Otherwise, each sampled point is generated as a
+        distinct `Point` geometry. Vector properties are *not* preserved.
+
+    :return: Returns a vector data cube with the sampled points.
+    """
+    return _process('vector_to_regular_points', data=data, distance=distance, group=group)
 
 
 def xor(x, y) -> ProcessBuilder:
