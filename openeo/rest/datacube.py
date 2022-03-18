@@ -4,7 +4,7 @@ be evaluated by an openEO backend.
 
 .. data:: THIS
 
-    Symbolic reference to the current data cube, to be used as argument in DataCube.process() calls
+    Symbolic reference to the current data cube, to be used as argument in :py:meth:`DataCube.process()` calls
 
 """
 import datetime
@@ -51,11 +51,10 @@ log = logging.getLogger(__name__)
 
 class DataCube(_ProcessGraphAbstraction):
     """
-    Class representing a openEO Data Cube. Data loaded from the backend is returned as an object of this class.
-    Various processing methods can be invoked to build a complete workflow.
+    Class representing a openEO (raster) data cube.
 
-    Supports openEO API 1.0.
-    In earlier versions this was called `ImageCollectionClient`
+    The data cube is represented by its corresponding openeo "process graph"
+    and this process graph can be "grown" to a desired workflow by calling the appropriate methods.
     """
 
     def __init__(self, graph: PGNode, connection: 'openeo.Connection', metadata: CollectionMetadata = None):
@@ -692,6 +691,7 @@ class DataCube(_ProcessGraphAbstraction):
             .. note:: this ``crs`` argument is a non-standard/experimental feature, only supported by specific back-ends.
                 See https://github.com/Open-EO/openeo-processes/issues/235 for details.
         """
+        # TODO #279 aggregate_spatial should return a VectorCube, not a DataCube
         valid_geojson_types = [
             "Point", "MultiPoint", "LineString", "MultiLineString",
             "Polygon", "MultiPolygon", "GeometryCollection", "Feature", "FeatureCollection"
@@ -1330,11 +1330,12 @@ class DataCube(_ProcessGraphAbstraction):
 
     def raster_to_vector(self) -> VectorCube:
         """
-        Converts this raster data cube into a vector data cube. The bounding polygon of homogenous areas of pixels is constructed.
+        Converts this raster data cube into a :py:class:`~openeo.rest.vectorcube.VectorCube`.
+        The bounding polygon of homogenous areas of pixels is constructed.
 
         .. warning:: experimental process: not generally supported, API subject to change.
 
-        :return: A vectorcube
+        :return: a :py:class:`~openeo.rest.vectorcube.VectorCube`
         """
         pg_node = PGNode(process_id="raster_to_vector", arguments={"data": self})
         return VectorCube(pg_node, connection=self._connection, metadata=self.metadata)
@@ -1454,7 +1455,10 @@ class DataCube(_ProcessGraphAbstraction):
             }
         )
 
-    def download(self, outputfile: Union[str, pathlib.Path, None] = None, format: str = None, options: dict = None):
+    def download(
+            self, outputfile: Union[str, pathlib.Path, None] = None, format: Optional[str] = None,
+            options: Optional[dict] = None
+    ):
         """
         Download image collection, e.g. as GeoTIFF.
         If outputfile is provided, the result is stored on disk locally, otherwise, a bytes object is returned.
@@ -1467,7 +1471,7 @@ class DataCube(_ProcessGraphAbstraction):
         """
         if not format:
             format = guess_format(outputfile) if outputfile else "GTiff"
-
+        # TODO: only add `save_result` node when there is none yet?
         cube = self.save_result(format=format, options=options)
         return self._connection.download(cube.flat_graph(), outputfile)
 

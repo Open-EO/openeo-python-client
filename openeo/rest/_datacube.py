@@ -1,11 +1,3 @@
-"""
-
-.. data:: THIS
-
-    Symbolic reference to the current data cube, to be used as argument in
-    :py:meth:`DataCube.process()` and related calls
-
-"""
 import json
 import logging
 import typing
@@ -79,3 +71,5 @@ class _ProcessGraphAbstraction(_FromNodeMixin):
                 arguments[k] = self
             # TODO: also necessary to traverse lists/dictionaries?
         return PGNode(process_id=process_id, arguments=arguments, namespace=namespace)
+
+    # TODO #278 also move process graph "execution" methods here: `download`, `execute`, `execute_batch`, `create_job`, `save_udf`,  ...

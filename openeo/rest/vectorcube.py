@@ -63,7 +63,7 @@ class VectorCube(_ProcessGraphAbstraction):
             }
         )
 
-    def download(self, outputfile: str, format: str = "GeoJson", options: dict = None):
+    def download(self, outputfile: str, format: str = "GeoJSON", options: dict = None):
         cube = self.save_result(format=format, options=options)
         return self._connection.download(cube.flat_graph(), outputfile)
 
