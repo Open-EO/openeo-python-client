@@ -190,8 +190,25 @@ def test_reduce_node():
     }
 
 
+def test_reduce_node_context():
+    a = PGNode("load_collection", collection_id="S2")
+    graph = ReduceNode(a, reducer="mean", dimension="time", context=123)
+    assert graph.to_dict() == {
+        'process_id': 'reduce_dimension',
+        'arguments': {
+            'data': {'from_node': {
+                'process_id': 'load_collection',
+                'arguments': {'collection_id': 'S2'},
+            }},
+            'reducer': 'mean',
+            'dimension': 'time',
+            "context": 123,
+        },
+    }
+
+
 def test_reduce_node_process_graph():
-    reduce_pg = PGNode("array_element", data={"from_argument": "data"}, index=3)
+    reduce_pg = PGNode("array_element", data={"from_parameter": "data"}, index=3)
     a = PGNode("load_collection", collection_id="S2")
     graph = ReduceNode(a, reducer=reduce_pg, dimension="time")
     assert graph.to_dict() == {
@@ -204,7 +221,7 @@ def test_reduce_node_process_graph():
             'reducer': {"process_graph": {
                 "process_id": "array_element",
                 "arguments": {
-                    "data": {"from_argument": "data"},
+                    "data": {"from_parameter": "data"},
                     "index": 3
                 }
             }},

@@ -629,6 +629,32 @@ def test_reduce_dimension_name(con100, requests_mock):
         s22.reduce_dimension(dimension="wut", reducer="sum")
 
 
+def test_reduce_dimension_context(con100):
+    s2 = con100.load_collection("S2")
+    x = s2.reduce_dimension(dimension="bands", reducer="mean", context=123)
+    assert x.flat_graph() == {
+        'loadcollection1': {
+            'process_id': 'load_collection',
+            'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
+        },
+        'reducedimension1': {
+            'process_id': 'reduce_dimension',
+            'arguments': {
+                'data': {'from_node': 'loadcollection1'},
+                'dimension': 'bands',
+                'reducer': {'process_graph': {
+                    'mean1': {
+                        'process_id': 'mean',
+                        'arguments': {'data': {'from_parameter': 'data'}},
+                        'result': True
+                    }
+                }},
+                "context": 123,
+            },
+            'result': True
+        }}
+
+
 def test_chunk_polygon_basic(con100: Connection):
     img = con100.load_collection("S2")
     polygon: shapely.geometry.Polygon = shapely.geometry.box(0, 0, 1, 1)

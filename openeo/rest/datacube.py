@@ -811,7 +811,7 @@ class DataCube(_ProcessGraphAbstraction):
         return result_cube
 
     def reduce_dimension(
-            self, dimension: str, reducer: Union[str, PGNode, typing.Callable],
+            self, dimension: str, reducer: Union[str, PGNode, typing.Callable], context=None,
             process_id="reduce_dimension", band_math_mode: bool = False
     ) -> 'DataCube':
         """
@@ -829,9 +829,9 @@ class DataCube(_ProcessGraphAbstraction):
             data=self,
             reducer=reducer,
             dimension=self.metadata.assert_valid_dimension(dimension),
+            context=context,
             # TODO #123 is it (still) necessary to make "band" math a special case?
             band_math_mode=band_math_mode
-            # TODO: add `context` argument #125
         ), metadata=self.metadata.reduce_dimension(dimension_name=dimension))
 
     def chunk_polygon(
