@@ -163,6 +163,18 @@ def generate_process_py(processes: List[Process], output=sys.stdout, argv=None):
             def __ne__(self, other) -> 'ProcessBuilder':
                 return neq(self, other)
 
+            def __lt__(self, other) -> 'ProcessBuilder':
+                return lt(self, other)
+
+            def __le__(self, other) -> 'ProcessBuilder':
+                return lte(self, other)
+
+            def __ge__(self, other) -> 'ProcessBuilder':
+                return gte(self, other)
+
+            def __gt__(self, other) -> 'ProcessBuilder':
+                return gt(self, other)
+
     """)
     fun_src = textwrap.dedent("""
         # Public shortcut
