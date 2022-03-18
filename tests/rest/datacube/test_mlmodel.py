@@ -1,3 +1,7 @@
+import pytest
+
+from openeo import RESTJob
+from openeo.rest.mlmodel import MlModel
 from .conftest import API_URL
 
 FEATURE_COLLECTION_1 = {
@@ -75,3 +79,33 @@ def test_fit_class_random_forest_basic_create_job(con100, requests_mock):
 
     job = ml_model.create_job(title="Random forest")
     assert job.job_id == "job-rf"
+
+
+@pytest.mark.parametrize("id", [
+    "https://oeo.test/my/model",
+    "bAtch-j08-2dfe34-sfsd",
+    "models/ni.model",
+])
+def test_load_ml_model_basic(con100, id):
+    ml_model = con100.load_ml_model(id)
+    assert isinstance(ml_model, MlModel)
+    assert ml_model.flat_graph() == {
+        "loadmlmodel1": {
+            "process_id": "load_ml_model",
+            "arguments": {"id": id},
+            "result": True
+        }
+    }
+
+
+def test_load_ml_model_from_job(con100):
+    job = RESTJob(job_id="my-j08", connection=con100)
+    ml_model = con100.load_ml_model(id=job)
+    assert isinstance(ml_model, MlModel)
+    assert ml_model.flat_graph() == {
+        "loadmlmodel1": {
+            "process_id": "load_ml_model",
+            "arguments": {"id": "my-j08"},
+            "result": True
+        }
+    }

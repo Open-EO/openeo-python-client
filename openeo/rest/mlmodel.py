@@ -29,6 +29,19 @@ class MlModel(_ProcessGraphAbstraction):
         )
         return MlModel(graph=pgnode, connection=self._connection)
 
+    @staticmethod
+    def load_ml_model(connection: "Connection", id: Union[str, RESTJob]) -> "MlModel":
+        """
+        Loads a machine learning model from a STAC Item.
+
+        :param connection: connection object
+        :param id: STAC item reference, as URL, batch job (id) or user-uploaded file
+        :return:
+        """
+        if isinstance(id, RESTJob):
+            id = id.job_id
+        return MlModel(graph=PGNode(process_id="load_ml_model", id=id), connection=connection)
+
     def execute_batch(
             self,
             outputfile: Union[str, pathlib.Path],

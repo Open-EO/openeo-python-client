@@ -32,6 +32,7 @@ from openeo.rest.auth.oidc import OidcClientCredentialsAuthenticator, OidcAuthCo
     OidcDeviceAuthenticator, OidcProviderInfo, OidcException, DefaultOidcClientGrant, GrantsChecker
 from openeo.rest.datacube import DataCube
 from openeo.rest.imagecollectionclient import ImageCollectionClient
+from openeo.rest.mlmodel import MlModel
 from openeo.rest.job import RESTJob
 from openeo.rest.rest_capabilities import RESTCapabilities
 from openeo.rest.service import Service
@@ -942,6 +943,15 @@ class Connection(RestApiConnection):
                 bands=bands
             )
         )
+
+    def load_ml_model(self, id: Union[str, RESTJob]) -> "MlModel":
+        """
+        Loads a machine learning model from a STAC Item.
+
+        :param id: STAC item reference, as URL, batch job (id) or user-uploaded file
+        :return:
+        """
+        return MlModel.load_ml_model(connection=self, id=id)
 
     def create_service(self, graph: dict, type: str, **kwargs) -> Service:
         # TODO: type hint for graph: is it a nested or a flat one?

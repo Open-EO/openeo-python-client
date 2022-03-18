@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `DataCube.flatten_dimensions()` and `DataCube.unflatten_dimension` 
   ([Open-EO/openeo-processes#308](https://github.com/Open-EO/openeo-processes/issues/308), [Open-EO/openeo-processes#316](https://github.com/Open-EO/openeo-processes/pull/316))
 - Added `VectorCube.run_udf` (to avoid non-standard `process_with_node(UDF(...))` usage)
+- Added `DataCube.fit_class_random_forest` and `Connection.load_ml_model()` to train and load Machine Learning models ([#279](https://github.com/Open-EO/openeo-python-client/issues/279))
 
 ### Changed
 
