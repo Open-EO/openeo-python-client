@@ -347,6 +347,52 @@ def test_reduce_dimension_bandmath_lambda(con100):
     assert res.flat_graph() == load_json_resource('data/1.0.0/reduce_dimension_bandmath.json')
 
 
+@pytest.mark.parametrize(["reducer", "expected"], [
+    (
+            (lambda data: data.mean()),
+            {"mean1": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}},
+    ),
+    (
+            (lambda x: x.mean()),
+            {"mean1": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}},
+    ),
+    (
+            (lambda valyuez: valyuez.mean()),
+            {"mean1": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}},
+    ),
+    (
+            (lambda data, context: data.mean() + context),
+            {
+                "mean1": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, },
+                "add1": {
+                    "process_id": "add",
+                    "arguments": {"x": {"from_node": "mean1"}, "y": {"from_parameter": "context"}},
+                    "result": True,
+                },
+            },
+    ),
+    (
+            (lambda data, ignore_nan=False: data.mean()),
+            {"mean1": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}},
+    ),
+    (
+            (lambda foo, bar=456: foo.mean() + bar),
+            {
+                "mean1": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, },
+                "add1": {
+                    "process_id": "add",
+                    "arguments": {"x": {"from_node": "mean1"}, "y": 456},
+                    "result": True,
+                },
+            },
+    ),
+])
+def test_reduce_dimension_lambda_and_context(con100, reducer, expected):
+    im = con100.load_collection("S2")
+    res = im.reduce_dimension(reducer=reducer, dimension="bands")
+    assert res.flat_graph()["reducedimension1"]["arguments"]["reducer"]["process_graph"] == expected
+
+
 def test_merge_cubes_add_str(con100):
     im1 = con100.load_collection("S2")
     im2 = con100.load_collection("MASK")

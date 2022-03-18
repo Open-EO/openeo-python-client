@@ -700,7 +700,6 @@ class DataCube(_ProcessGraphAbstraction):
         reducer = self._get_callback(reducer, parent_parameters=["data"])
         return self.process(process_id="aggregate_spatial", data=THIS, geometries=geometries, reducer=reducer)
 
-
     @staticmethod
     def _get_callback(process: Union[str, PGNode, typing.Callable], parent_parameters: List[str]) -> dict:
         """
@@ -733,6 +732,8 @@ class DataCube(_ProcessGraphAbstraction):
             if parent_parameters == ["x", "y"] and (len(process_params) == 1 or process_params[:1] == ["data"]):
                 # Special case: wrap all parent parameters in an array
                 arguments = {process_params[0]: [{"from_parameter": p} for p in parent_parameters]}
+            elif parent_parameters == ["data", "context"] and "context" not in process_params:
+                arguments = {process_params[0]: {"from_parameter": "data"}}
             else:
                 arguments = {a: {"from_parameter": b} for a, b in zip(process_params, parent_parameters)}
             pg = PGNode(process_id=process, arguments=arguments)
@@ -741,11 +742,13 @@ class DataCube(_ProcessGraphAbstraction):
             if parent_parameters == ["x", "y"] and (len(process_params) == 1 or process_params[:1] == ["data"]):
                 # Special case: wrap all parent parameters in an array
                 arguments = [ProcessBuilder([{"from_parameter": p} for p in parent_parameters])]
+            elif parent_parameters == ["data", "context"] and "context" not in process_params:
+                arguments = [ProcessBuilder({"from_parameter": "data"})]
             else:
                 arguments = [ProcessBuilder({"from_parameter": p}) for p in parent_parameters]
 
             callback_result = process(*arguments)
-            if(callback_result is None):
+            if callback_result is None:
                 raise ValueError("Your callback did not return a result, make sure that your callbacks have a return statement, and return a ProcessBuilder: " + str(process))
             pg = callback_result.pgnode
         else:
@@ -822,7 +825,7 @@ class DataCube(_ProcessGraphAbstraction):
         """
         # TODO: check if dimension is valid according to metadata? #116
         # TODO: #125 use/test case for `reduce_dimension_binary`?
-        reducer = self._get_callback(reducer, parent_parameters=["data"])
+        reducer = self._get_callback(reducer, parent_parameters=["data", "context"])
 
         return self.process_with_node(ReduceNode(
             process_id=process_id,
@@ -1706,6 +1709,21 @@ class DataCube(_ProcessGraphAbstraction):
             "dimension": dimension,
             "labels": labels
         })
+
+    def predict_random_forest(self, model: Union[str, RESTJob, MlModel], dimension: str = "bands"):
+        """
+        Apply ``reduce_dimension`` process with a `predict_random_forest` reducer.
+
+        :param model: a :py:class:`MlModel` (e.g. loaded from :py:meth:`Connection.load_ml_model`)
+            or a reference to such a model: a URL (``str``) to a STAC Item (implementing the `ml-model` extension)
+            a job id (``str``) or a :py:class:`RESTJob` instance of a batch job that saved a single model.
+        :param dimension: dimension along which to apply the ``reduce_dimension`` process.
+        """
+        if not isinstance(model, MlModel):
+            model = MlModel.load_ml_model(connection=self.connection, id=model)
+        from openeo.processes import predict_random_forest
+        reducer = lambda data, context: predict_random_forest(data=data, model=context)
+        return self.reduce_dimension(dimension=dimension, reducer=reducer, context=model)
 
     def dimension_labels(self, dimension: str) -> "DataCube":
         """
