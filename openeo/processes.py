@@ -909,19 +909,6 @@ class ProcessBuilder(ProcessBuilderBase):
         Cumulative maxima
 
         :param self: An array of numbers.
-        :param ignore_nodata: Indicates whether no-data values are ignored or not. Ignores them by default.
-            Setting this flag to `false` considers no-data values so that `null` is set for all the following
-            elements.
-
-        :return: An array with the computed cumulative maxima.
-        """
-        return cummax(data=self, ignore_nodata=ignore_nodata)
-
-    def cummax(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
-        """
-        Cumulative maxima
-
-        :param self: An array of numbers.
         :param ignore_nodata: Indicates whether no-data values are ignored or not and ignores them by default.
             Setting this flag to `false` considers no-data values so that `null` is set for all the following
             elements.
@@ -929,19 +916,6 @@ class ProcessBuilder(ProcessBuilderBase):
         :return: An array with the computed cumulative maxima.
         """
         return cummax(data=self, ignore_nodata=ignore_nodata)
-
-    def cummin(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
-        """
-        Cumulative minima
-
-        :param self: An array of numbers.
-        :param ignore_nodata: Indicates whether no-data values are ignored or not. Ignores them by default.
-            Setting this flag to `false` considers no-data values so that `null` is set for all the following
-            elements.
-
-        :return: An array with the computed cumulative minima.
-        """
-        return cummin(data=self, ignore_nodata=ignore_nodata)
 
     def cummin(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
@@ -961,19 +935,6 @@ class ProcessBuilder(ProcessBuilderBase):
         Cumulative products
 
         :param self: An array of numbers.
-        :param ignore_nodata: Indicates whether no-data values are ignored or not. Ignores them by default.
-            Setting this flag to `false` considers no-data values so that `null` is set for all the following
-            elements.
-
-        :return: An array with the computed cumulative products.
-        """
-        return cumproduct(data=self, ignore_nodata=ignore_nodata)
-
-    def cumproduct(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
-        """
-        Cumulative products
-
-        :param self: An array of numbers.
         :param ignore_nodata: Indicates whether no-data values are ignored or not and ignores them by default.
             Setting this flag to `false` considers no-data values so that `null` is set for all the following
             elements.
@@ -981,19 +942,6 @@ class ProcessBuilder(ProcessBuilderBase):
         :return: An array with the computed cumulative products.
         """
         return cumproduct(data=self, ignore_nodata=ignore_nodata)
-
-    def cumsum(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
-        """
-        Cumulative sums
-
-        :param self: An array of numbers.
-        :param ignore_nodata: Indicates whether no-data values are ignored or not. Ignores them by default.
-            Setting this flag to `false` considers no-data values so that `null` is set for all the following
-            elements.
-
-        :return: An array with the computed cumulative sums.
-        """
-        return cumsum(data=self, ignore_nodata=ignore_nodata)
 
     def cumsum(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
@@ -1029,20 +977,6 @@ class ProcessBuilder(ProcessBuilderBase):
             component is returned with the date.
         """
         return date_shift(date=self, value=value, unit=unit)
-
-    def debug(self, code=UNSET, level=UNSET, message=UNSET) -> 'ProcessBuilder':
-        """
-        Publish debugging information
-
-        :param self: Data to publish.
-        :param code: An identifier to help identify the log entry in a bunch of other log entries.
-        :param level: The severity level of this message, defaults to `info`. Note that the level `error`
-            forces the computation to be stopped!
-        :param message: A message to send in addition to the data.
-
-        :return: Returns the data as passed to the `data` parameter.
-        """
-        return debug(data=self, code=code, level=level, message=message)
 
     def debug(self, code=UNSET, level=UNSET, message=UNSET) -> 'ProcessBuilder':
         """
@@ -1177,24 +1111,6 @@ class ProcessBuilder(ProcessBuilderBase):
             have less (or the same) dimension labels.
         """
         return filter_bbox(data=self, extent=extent)
-
-    def filter_labels(self, condition, dimension, context=UNSET) -> 'ProcessBuilder':
-        """
-        Filter dimension labels based on a condition
-
-        :param self: A data cube.
-        :param condition: A condition that is evaluated against each dimension label in the specified
-            dimension. A dimension label and the corresponding data is preserved for the given dimension, if the
-            condition returns `true`.
-        :param dimension: The name of the dimension to filter on. Fails with a `DimensionNotAvailable` error if
-            the specified dimension does not exist.
-        :param context: Additional data to be passed to the condition.
-
-        :return: A data cube with the same dimensions. The dimension properties (name, type, labels, reference
-            system and resolution) remain unchanged, except that the given dimension has less (or the same)
-            dimension labels.
-        """
-        return filter_labels(data=self, condition=condition, dimension=dimension, context=context)
 
     def filter_labels(self, condition, dimension, context=UNSET) -> 'ProcessBuilder':
         """
@@ -1448,34 +1364,6 @@ class ProcessBuilder(ProcessBuilderBase):
         :return: A data cube for further processing.
         """
         return load_result(id=self)
-
-    def load_result(self) -> 'ProcessBuilder':
-        """
-        Load batch job results
-
-        :param self: The id of a batch job with results.
-
-        :return: A data cube for further processing.
-        """
-        return load_result(id=self)
-
-    def load_uploaded_files(self, format, options=UNSET) -> 'ProcessBuilder':
-        """
-        Load files from the user workspace
-
-        :param self: The files to read. Folders can't be specified, instead specify all files. An error is
-            thrown if a file can't be read.
-        :param format: The file format to read from. It must be one of the values that the server reports as
-            supported input file formats, which usually correspond to the short GDAL/OGR codes. If the format is
-            not suitable for loading the data, a `FormatUnsuitable` exception will be thrown. This parameter is
-            *case insensitive*.
-        :param options: The file format parameters to be used to read the files. Must correspond to the
-            parameters that the server reports as supported parameters for the chosen `format`. The parameter names
-            and valid values usually correspond to the GDAL/OGR format options.
-
-        :return: A data cube for further processing.
-        """
-        return load_uploaded_files(paths=self, format=format, options=options)
 
     def load_uploaded_files(self, format, options=UNSET) -> 'ProcessBuilder':
         """
@@ -1930,28 +1818,6 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return resample_cube_spatial(data=self, target=target, method=method)
 
-    def resample_cube_temporal(self, target, method, dimension=UNSET, context=UNSET) -> 'ProcessBuilder':
-        """
-        Resample a temporal dimension to match a target data cube
-
-        :param self: A data cube.
-        :param target: A data cube that describes the temporal target resolution.
-        :param method: A resampling method to be applied, could be a reducer for downsampling or other methods
-            for upsampling. A reducer is a single process such as ``mean()`` or a set of processes, which computes
-            a single value for a list of values, see the category 'reducer' for such processes.
-        :param dimension: The name of the temporal dimension to resample, which must exist with this name in
-            both data cubes. If the dimension is not set or is set to `null`, the data cube is expected to only
-            have one temporal dimension. Fails with a `TooManyDimensions` error if it has more dimensions. Fails
-            with a `DimensionNotAvailable` error if the specified dimension does not exist.
-        :param context: Additional data to be passed to the process specified for the parameter `method`.
-
-        :return: A raster data cube with the same dimensions and the same dimension properties (name, type,
-            labels, reference system and resolution) for all non-temporal dimensions. For the temporal dimension
-            the name and type remain unchanged, but the reference system changes and the labels and resolution may
-            change.
-        """
-        return resample_cube_temporal(data=self, target=target, method=method, dimension=dimension, context=context)
-
     def resample_cube_temporal(self, target, dimension=UNSET, valid_within=UNSET) -> 'ProcessBuilder':
         """
         Resample temporal dimensions to match a target data cube
@@ -2042,21 +1908,6 @@ class ProcessBuilder(ProcessBuilderBase):
             data type, but is exactly what the UDF returns.
         """
         return run_udf(data=self, udf=udf, runtime=runtime, version=version, context=context)
-
-    def run_udf_externally(self, url, context=UNSET) -> 'ProcessBuilder':
-        """
-        Run an externally hosted UDF container
-
-        :param self: The data to be passed to the UDF as array or raster data cube.
-        :param url: URL to a remote UDF service.
-        :param context: Additional data such as configuration options that should be passed to the UDF.
-
-        :return: The data processed by the UDF service.  * Returns a raster data cube, if a raster data cube is
-            passed for `data`. Details on the dimensions and dimension properties (name, type, labels, reference
-            system and resolution) depend on the UDF. * If an array is passed for `data`, the returned value can be
-            of any data type, but is exactly what the UDF returns.
-        """
-        return run_udf_externally(data=self, url=url, context=context)
 
     def run_udf_externally(self, url, context=UNSET) -> 'ProcessBuilder':
         """
@@ -3192,38 +3043,12 @@ def cummax(data, ignore_nodata=UNSET) -> ProcessBuilder:
     Cumulative maxima
 
     :param data: An array of numbers.
-    :param ignore_nodata: Indicates whether no-data values are ignored or not. Ignores them by default. Setting
-        this flag to `false` considers no-data values so that `null` is set for all the following elements.
-
-    :return: An array with the computed cumulative maxima.
-    """
-    return _process('cummax', data=data, ignore_nodata=ignore_nodata)
-
-
-def cummax(data, ignore_nodata=UNSET) -> ProcessBuilder:
-    """
-    Cumulative maxima
-
-    :param data: An array of numbers.
     :param ignore_nodata: Indicates whether no-data values are ignored or not and ignores them by default.
         Setting this flag to `false` considers no-data values so that `null` is set for all the following elements.
 
     :return: An array with the computed cumulative maxima.
     """
     return _process('cummax', data=data, ignore_nodata=ignore_nodata)
-
-
-def cummin(data, ignore_nodata=UNSET) -> ProcessBuilder:
-    """
-    Cumulative minima
-
-    :param data: An array of numbers.
-    :param ignore_nodata: Indicates whether no-data values are ignored or not. Ignores them by default. Setting
-        this flag to `false` considers no-data values so that `null` is set for all the following elements.
-
-    :return: An array with the computed cumulative minima.
-    """
-    return _process('cummin', data=data, ignore_nodata=ignore_nodata)
 
 
 def cummin(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -3244,38 +3069,12 @@ def cumproduct(data, ignore_nodata=UNSET) -> ProcessBuilder:
     Cumulative products
 
     :param data: An array of numbers.
-    :param ignore_nodata: Indicates whether no-data values are ignored or not. Ignores them by default. Setting
-        this flag to `false` considers no-data values so that `null` is set for all the following elements.
-
-    :return: An array with the computed cumulative products.
-    """
-    return _process('cumproduct', data=data, ignore_nodata=ignore_nodata)
-
-
-def cumproduct(data, ignore_nodata=UNSET) -> ProcessBuilder:
-    """
-    Cumulative products
-
-    :param data: An array of numbers.
     :param ignore_nodata: Indicates whether no-data values are ignored or not and ignores them by default.
         Setting this flag to `false` considers no-data values so that `null` is set for all the following elements.
 
     :return: An array with the computed cumulative products.
     """
     return _process('cumproduct', data=data, ignore_nodata=ignore_nodata)
-
-
-def cumsum(data, ignore_nodata=UNSET) -> ProcessBuilder:
-    """
-    Cumulative sums
-
-    :param data: An array of numbers.
-    :param ignore_nodata: Indicates whether no-data values are ignored or not. Ignores them by default. Setting
-        this flag to `false` considers no-data values so that `null` is set for all the following elements.
-
-    :return: An array with the computed cumulative sums.
-    """
-    return _process('cumsum', data=data, ignore_nodata=ignore_nodata)
 
 
 def cumsum(data, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -3312,21 +3111,6 @@ def date_shift(date, value, unit) -> ProcessBuilder:
         returned with the date.
     """
     return _process('date_shift', date=date, value=value, unit=unit)
-
-
-def debug(data, code=UNSET, level=UNSET, message=UNSET) -> ProcessBuilder:
-    """
-    Publish debugging information
-
-    :param data: Data to publish.
-    :param code: An identifier to help identify the log entry in a bunch of other log entries.
-    :param level: The severity level of this message, defaults to `info`. Note that the level `error` forces
-        the computation to be stopped!
-    :param message: A message to send in addition to the data.
-
-    :return: Returns the data as passed to the `data` parameter.
-    """
-    return _process('debug', data=data, code=code, level=level, message=message)
 
 
 def debug(data, code=UNSET, level=UNSET, message=UNSET) -> ProcessBuilder:
@@ -3470,25 +3254,6 @@ def filter_bbox(data, extent) -> ProcessBuilder:
         the same) dimension labels.
     """
     return _process('filter_bbox', data=data, extent=extent)
-
-
-def filter_labels(data, condition, dimension, context=UNSET) -> ProcessBuilder:
-    """
-    Filter dimension labels based on a condition
-
-    :param data: A data cube.
-    :param condition: A condition that is evaluated against each dimension label in the specified dimension. A
-        dimension label and the corresponding data is preserved for the given dimension, if the condition returns
-        `true`.
-    :param dimension: The name of the dimension to filter on. Fails with a `DimensionNotAvailable` error if the
-        specified dimension does not exist.
-    :param context: Additional data to be passed to the condition.
-
-    :return: A data cube with the same dimensions. The dimension properties (name, type, labels, reference
-        system and resolution) remain unchanged, except that the given dimension has less (or the same) dimension
-        labels.
-    """
-    return _process('filter_labels', data=data, condition=condition, dimension=dimension, context=context)
 
 
 def filter_labels(data, condition, dimension, context=UNSET) -> ProcessBuilder:
@@ -3755,36 +3520,6 @@ def load_result(id) -> ProcessBuilder:
     :return: A data cube for further processing.
     """
     return _process('load_result', id=id)
-
-
-def load_result(id) -> ProcessBuilder:
-    """
-    Load batch job results
-
-    :param id: The id of a batch job with results.
-
-    :return: A data cube for further processing.
-    """
-    return _process('load_result', id=id)
-
-
-def load_uploaded_files(paths, format, options=UNSET) -> ProcessBuilder:
-    """
-    Load files from the user workspace
-
-    :param paths: The files to read. Folders can't be specified, instead specify all files. An error is thrown
-        if a file can't be read.
-    :param format: The file format to read from. It must be one of the values that the server reports as
-        supported input file formats, which usually correspond to the short GDAL/OGR codes. If the format is not
-        suitable for loading the data, a `FormatUnsuitable` exception will be thrown. This parameter is *case
-        insensitive*.
-    :param options: The file format parameters to be used to read the files. Must correspond to the parameters
-        that the server reports as supported parameters for the chosen `format`. The parameter names and valid
-        values usually correspond to the GDAL/OGR format options.
-
-    :return: A data cube for further processing.
-    """
-    return _process('load_uploaded_files', paths=paths, format=format, options=options)
 
 
 def load_uploaded_files(paths, format, options=UNSET) -> ProcessBuilder:
@@ -4262,28 +3997,6 @@ def resample_cube_spatial(data, target, method=UNSET) -> ProcessBuilder:
     return _process('resample_cube_spatial', data=data, target=target, method=method)
 
 
-def resample_cube_temporal(data, target, method, dimension=UNSET, context=UNSET) -> ProcessBuilder:
-    """
-    Resample a temporal dimension to match a target data cube
-
-    :param data: A data cube.
-    :param target: A data cube that describes the temporal target resolution.
-    :param method: A resampling method to be applied, could be a reducer for downsampling or other methods for
-        upsampling. A reducer is a single process such as ``mean()`` or a set of processes, which computes a single
-        value for a list of values, see the category 'reducer' for such processes.
-    :param dimension: The name of the temporal dimension to resample, which must exist with this name in both
-        data cubes. If the dimension is not set or is set to `null`, the data cube is expected to only have one
-        temporal dimension. Fails with a `TooManyDimensions` error if it has more dimensions. Fails with a
-        `DimensionNotAvailable` error if the specified dimension does not exist.
-    :param context: Additional data to be passed to the process specified for the parameter `method`.
-
-    :return: A raster data cube with the same dimensions and the same dimension properties (name, type, labels,
-        reference system and resolution) for all non-temporal dimensions. For the temporal dimension the name and
-        type remain unchanged, but the reference system changes and the labels and resolution may change.
-    """
-    return _process('resample_cube_temporal', data=data, target=target, method=method, dimension=dimension, context=context)
-
-
 def resample_cube_temporal(data, target, dimension=UNSET, valid_within=UNSET) -> ProcessBuilder:
     """
     Resample temporal dimensions to match a target data cube
@@ -4373,22 +4086,6 @@ def run_udf(data, udf, runtime, version=UNSET, context=UNSET) -> ProcessBuilder:
         type, but is exactly what the UDF returns.
     """
     return _process('run_udf', data=data, udf=udf, runtime=runtime, version=version, context=context)
-
-
-def run_udf_externally(data, url, context=UNSET) -> ProcessBuilder:
-    """
-    Run an externally hosted UDF container
-
-    :param data: The data to be passed to the UDF as array or raster data cube.
-    :param url: URL to a remote UDF service.
-    :param context: Additional data such as configuration options that should be passed to the UDF.
-
-    :return: The data processed by the UDF service.  * Returns a raster data cube, if a raster data cube is
-        passed for `data`. Details on the dimensions and dimension properties (name, type, labels, reference system
-        and resolution) depend on the UDF. * If an array is passed for `data`, the returned value can be of any
-        data type, but is exactly what the UDF returns.
-    """
-    return _process('run_udf_externally', data=data, url=url, context=context)
 
 
 def run_udf_externally(data, url, context=UNSET) -> ProcessBuilder:
