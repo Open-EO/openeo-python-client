@@ -113,6 +113,8 @@ def generate_process_py(processes: List[Process], output=sys.stdout, argv=None):
         
         class ProcessBuilder(ProcessBuilderBase):
         
+            _ITERATION_LIMIT = 100
+
             def __add__(self, other) -> 'ProcessBuilder':
                 return self.add(other)
 
@@ -145,6 +147,12 @@ def generate_process_py(processes: List[Process], output=sys.stdout, argv=None):
 
             def __getitem__(self, key) -> 'ProcessBuilder':
                 if isinstance(key, builtins.int):
+                    if key > self._ITERATION_LIMIT:
+                        raise RuntimeError(
+                            "Exceeded ProcessBuilder iteration limit. "
+                            "Are you mistakenly using a Python builtin like `sum()` or `all()` in a callback "
+                            "instead of the appropriate helpers from the `openeo.processes` module?"
+                        )
                     return self.array_element(index=key)
                 else:
                     return self.array_element(label=key)
@@ -154,6 +162,18 @@ def generate_process_py(processes: List[Process], output=sys.stdout, argv=None):
 
             def __ne__(self, other) -> 'ProcessBuilder':
                 return neq(self, other)
+
+            def __lt__(self, other) -> 'ProcessBuilder':
+                return lt(self, other)
+
+            def __le__(self, other) -> 'ProcessBuilder':
+                return lte(self, other)
+
+            def __ge__(self, other) -> 'ProcessBuilder':
+                return gte(self, other)
+
+            def __gt__(self, other) -> 'ProcessBuilder':
+                return gt(self, other)
 
     """)
     fun_src = textwrap.dedent("""

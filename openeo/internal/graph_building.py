@@ -165,15 +165,23 @@ class ReduceNode(PGNode):
     A process graph node for "reduce" processes (has a reducer sub-process-graph)
     """
 
-    def __init__(self, data: _FromNodeMixin, reducer: Union[PGNode, str, dict], dimension: str, process_id="reduce_dimension",
-                 band_math_mode: bool = False):
+    def __init__(
+            self,
+            data: _FromNodeMixin,
+            reducer: Union[PGNode, str, dict],
+            dimension: str,
+            context=None,
+            process_id="reduce_dimension",
+            band_math_mode: bool = False,
+    ):
         assert process_id in ("reduce_dimension", "reduce_dimension_binary")
         arguments = {
             "data": data,
             "reducer": self.to_process_graph_argument(reducer),
             "dimension": dimension,
-            # TODO #125 context
         }
+        if context is not None:
+            arguments["context"] = context
         super().__init__(process_id=process_id, arguments=arguments)
         # TODO #123 is it (still) necessary to make "band" math a special case?
         self.band_math_mode = band_math_mode
@@ -191,8 +199,8 @@ class ReduceNode(PGNode):
             data=self.arguments["data"]["from_node"],
             reducer=reducer,
             dimension=self.arguments["dimension"],
-            band_math_mode=self.band_math_mode
-            # TODO: context?
+            band_math_mode=self.band_math_mode,
+            context=self.arguments.get("context"),
         )
 
 
