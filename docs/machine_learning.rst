@@ -7,6 +7,8 @@ Machine Learning
     under heavy development and subject to change.
 
 
+.. versionadded:: 0.10.0
+
 
 Random Forest based Classification and Regression
 ===================================================
@@ -25,7 +27,7 @@ Training
 ---------
 
 Let's focus on training a classification model, where we try to predict
-something like a land cover type or crop type based on predictors
+a class like a land cover type or crop type based on predictors
 we derive from EO data.
 For example, assume we have a GeoJSON FeatureCollection
 of sample points and a corresponding classification target value as follows::
@@ -33,12 +35,12 @@ of sample points and a corresponding classification target value as follows::
     feature_collection = {"type": "FeatureCollection", "features": [
         {
             "type": "Feature",
-            "properties": {"id": "#54345", "target": 3},
+            "properties": {"id": "b3dw-wd23", "target": 3},
             "geometry": {"type": "Point", "coordinates": [3.4, 51.1]}
         },
         {
             "type": "Feature",
-            "properties": {"id": "#8776", "target": 5},
+            "properties": {"id": "r8dh-3jkd", "target": 5},
             "geometry": {"type": "Point", "coordinates": [3.6, 51.2]}
         },
         ...
@@ -54,7 +56,9 @@ of sample points and a corresponding classification target value as follows::
     and instead use "sample point" for the former and "predictor" for the latter.
 
 
-We first build a datacube of "predictor" bands::
+We first build a datacube of "predictor" bands.
+For simplicity, we will just use the raw B02/B03/B04 band values here
+and use the temporal mean to eliminate the time dimension::
 
     cube = connection.load_collection(
         "SENTINEL2",
@@ -64,21 +68,24 @@ We first build a datacube of "predictor" bands::
     )
     cube = cube.reduce_dimension(dimension="t", reducer="mean")
 
-After reducing the temporal dimension, we use ``aggregate_spatial``
-to sample the cube at the sample points and get a vector cube
-where we have the temporal mean of the B02/B03/B04 bands as predictor values::
+We now use ``aggregate_spatial`` to sample this *raster data cube* at the sample points
+and get a *vector cube* where we have the temporal mean of the B02/B03/B04 bands as predictor values::
 
     predictors = cube.aggregate_spatial(feature_collection, reducer="mean")
 
-We can now train a model, by providing the ::
+We can now train a *Random Forest* model by calling the
+:py:meth:`~openeo.rest.vectorcube.VectorCube.fit_class_random_forest` method on the predictor vector cube
+and passing the original target class data::
 
     model = predictors.fit_class_random_forest(
         target=feature_collection,
         training=0.8
     )
+    # Save the model as a batch job result asset
+    # so that we can load it in another job.
     model = model.save_ml_model()
 
-And execute it as a batch job::
+Finally execute this whole training flow as a batch job::
 
     training_job = model.create_job()
     training_job.start_and_wait()
@@ -89,9 +96,12 @@ Inference
 
 When the batch job finishes successfully, the trained model can then be used
 with the ``predict_random_forest`` process on the raster data cube
-(or another with the same structure) to classify all the pixels.
-The model can be specified in :py:meth:`~openeo.rest.datacube.DataCube.predict_random_forest`
-in several ways, such as the job id of the training job::
+(or another cube with the same band structure) to classify all the pixels.
+
+Technically, the openEO ``predict_random_forest`` process has to be used as a reducer function
+inside a ``reduce_dimension`` call, but the openEO Python client library makes it
+a bit easier by providing a :py:meth:`~openeo.rest.datacube.DataCube.predict_random_forest` method
+directly on the :py:class:`~openeo.rest.datacube.DataCube` class, so that you can just do::
 
     predicted = cube.predict_random_forest(
         model=training_job.job_id,
@@ -100,4 +110,11 @@ in several ways, such as the job id of the training job::
 
     predicted.download("predicted.GTiff")
 
+
+We specified the model here by batch job id (string),
+but it can also be specified in other ways:
+as :py:class:`~openeo.rest.job.RESTJob` instance,
+as URL to the corresponding STAC Item that implements the `ml-model` extension,
+or as :py:class:`~openeo.rest.mlmodel.MlModel` instance (e.g. loaded through
+:py:meth:`~openeo.rest.mlmodel.MlModel.load_ml_model`).
 
