@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `DataCube.predict_random_forest()` to easily use `reduce_dimension` with a `predict_random_forest` reducer
   using a `MlModel` (trained with `fit_class_random_forest`)  
   ([#279](https://github.com/Open-EO/openeo-python-client/issues/279))
+- Added `DataCube.resample_cube_temporal` ([#284](https://github.com/Open-EO/openeo-python-client/issues/284))
 
 ### Changed
 

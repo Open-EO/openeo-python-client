@@ -407,7 +407,7 @@ class DataCube(_ProcessGraphAbstraction):
     def resample_spatial(
             self, resolution: Union[float, Tuple[float, float]], projection: Union[int, str] = None,
             method: str = 'near', align: str = 'upper-left'
-    ):
+    ) -> 'DataCube':
         return self.process('resample_spatial', {
             'data': THIS,
             'resolution': resolution,
@@ -416,8 +416,44 @@ class DataCube(_ProcessGraphAbstraction):
             'align': align
         })
 
-    def resample_cube_spatial(self, target: "DataCube", method: str = "near"):
+    def resample_cube_spatial(self, target: "DataCube", method: str = "near") -> 'DataCube':
+        """
+        Resamples the spatial dimensions (x,y) from a source data cube to align with the corresponding
+        dimensions of the given target data cube.
+        Returns a new data cube with the resampled dimensions.
+
+        To resample a data cube to a specific resolution or projection regardless of an existing target
+        data cube, refer to :py:meth:`resample_spatial`.
+
+        :param target: A data cube that describes the spatial target resolution.
+        :param method: Resampling method to use.
+        :return:
+        """
         return self.process("resample_cube_spatial", {"data": self, "target": target, "method": method})
+
+    def resample_cube_temporal(
+            self, target: "DataCube", dimension: Optional[str] = None, valid_within: Optional[int] = None
+    ) -> 'DataCube':
+        """
+        Resamples one or more given temporal dimensions from a source data cube to align with the corresponding
+        dimensions of the given target data cube using the nearest neighbor method.
+        Returns a new data cube with the resampled dimensions.
+
+        By default, this process simply takes the nearest neighbor independent of the value (including values such as
+        no-data / ``null``). Depending on the data cubes this may lead to values being assigned to two target timestamps.
+        To only consider valid values in a specific range around the target timestamps, use the parameter ``valid_within``.
+
+        The rare case of ties is resolved by choosing the earlier timestamps.
+
+        :param target: A data cube that describes the temporal target resolution.
+        :param dimension: The name of the temporal dimension to resample.
+        :param valid_within:
+        :return:
+        """
+        return self.process(
+            "resample_cube_temporal",
+            dict_no_none({"data": self, "target": target, "dimension": dimension, "valid_within": valid_within})
+        )
 
     def _operator_binary(self, operator: str, other: Union['DataCube', int, float], reverse=False) -> 'DataCube':
         """Generic handling of (mathematical) binary operator"""

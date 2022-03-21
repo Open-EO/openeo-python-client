@@ -446,19 +446,45 @@ def test_merge_cubes(con100: Connection):
     }
 
 
-def test_resample_spatial(con100: Connection):
+def test_resample_cube_spatial(con100: Connection):
     data = con100.load_collection("S2")
     target = con100.load_collection("MASK")
-    im = data.resample_cube_spatial(target,method='spline')
-    print(im.flat_graph())
-    assert im.flat_graph()["resamplecubespatial1"] == {
-        'arguments': {
-           'data': {'from_node': 'loadcollection1'},
-           'method': 'spline',
-           'target': {'from_node': 'loadcollection2'}
+    cube = data.resample_cube_spatial(target, method="spline")
+    assert _get_leaf_node(cube) == {
+        "process_id": "resample_cube_spatial",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "target": {"from_node": "loadcollection2"},
+            "method": "spline",
         },
-        'process_id': 'resample_cube_spatial',
-        'result': True}
+        "result": True
+    }
+
+
+def test_resample_cube_temporal(con100: Connection):
+    data = con100.load_collection("S2")
+    target = con100.load_collection("MASK")
+    cube = data.resample_cube_temporal(target)
+    assert _get_leaf_node(cube) == {
+        "process_id": "resample_cube_temporal",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "target": {"from_node": "loadcollection2"},
+        },
+        "result": True
+    }
+
+    cube = data.resample_cube_temporal(target, dimension="t", valid_within=30)
+    assert _get_leaf_node(cube) == {
+        "process_id": "resample_cube_temporal",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "target": {"from_node": "loadcollection2"},
+            "dimension": "t",
+            "valid_within": 30,
+        },
+        "result": True
+    }
 
 
 def test_ndvi_simple(con100: Connection):
