@@ -35,6 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - Removed deprecated 'zonal_statistics' method from the 1.x version of the API.
+- Deprecate old-style `DataCube.polygonal_mean_timeseries()`, `DataCube.polygonal_histogram_timeseries()`,
+  `DataCube.polygonal_median_timeseries()` and `DataCube.polygonal_standarddeviation_timeseries()`
 
 ### Fixed
 

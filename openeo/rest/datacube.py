@@ -1449,6 +1449,7 @@ class DataCube(_ProcessGraphAbstraction):
 
     ####VIEW methods #######
 
+    @deprecated("Use :py:meth:`aggregate_spatial` with reducer ``'mean'``.", version="0.10.0")
     def polygonal_mean_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> 'DataCube':
         """
         Extract a mean time series for the given (multi)polygon. Its points are
@@ -1458,9 +1459,9 @@ class DataCube(_ProcessGraphAbstraction):
         :param polygon: The (multi)polygon; or a file path or HTTP URL to a GeoJSON file or shape file
         :return: DataCube
         """
+        return self.aggregate_spatial(geometries=polygon, reducer="mean")
 
-        return self._polygonal_timeseries(polygon, "mean")
-
+    @deprecated("Use :py:meth:`aggregate_spatial` with reducer ``'histogram'``.", version="0.10.0")
     def polygonal_histogram_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> 'DataCube':
         """
         Extract a histogram time series for the given (multi)polygon. Its points are
@@ -1470,9 +1471,9 @@ class DataCube(_ProcessGraphAbstraction):
         :param polygon: The (multi)polygon; or a file path or HTTP URL to a GeoJSON file or shape file
         :return: DataCube
         """
+        return self.aggregate_spatial(geometries=polygon, reducer="histogram")
 
-        return self._polygonal_timeseries(polygon, "histogram")
-
+    @deprecated("Use :py:meth:`aggregate_spatial` with reducer ``'median'``.", version="0.10.0")
     def polygonal_median_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> 'DataCube':
         """
         Extract a median time series for the given (multi)polygon. Its points are
@@ -1482,9 +1483,9 @@ class DataCube(_ProcessGraphAbstraction):
         :param polygon: The (multi)polygon; or a file path or HTTP URL to a GeoJSON file or shape file
         :return: DataCube
         """
+        return self.aggregate_spatial(geometries=polygon, reducer="median")
 
-        return self._polygonal_timeseries(polygon, "median")
-
+    @deprecated("Use :py:meth:`aggregate_spatial` with reducer ``'sd'``.", version="0.10.0")
     def polygonal_standarddeviation_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> 'DataCube':
         """
         Extract a time series of standard deviations for the given (multi)polygon. Its points are
@@ -1494,13 +1495,7 @@ class DataCube(_ProcessGraphAbstraction):
         :param polygon: The (multi)polygon; or a file path or HTTP URL to a GeoJSON file or shape file
         :return: DataCube
         """
-
-        return self._polygonal_timeseries(polygon, "sd")
-
-    def _polygonal_timeseries(
-            self, polygon: Union[Polygon, MultiPolygon, str], func: Union[str, PGNode, typing.Callable]
-    ) -> 'DataCube':
-        return self.aggregate_spatial(geometries=polygon, reducer=func)
+        return self.aggregate_spatial(geometries=polygon, reducer="sd")
 
     @openeo_process
     def ard_surface_reflectance(
