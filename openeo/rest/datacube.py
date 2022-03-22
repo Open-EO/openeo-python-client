@@ -613,23 +613,25 @@ class DataCube(_ProcessGraphAbstraction):
 
     @openeo_process(process_id="power", mode="operator")
     def __rpow__(self, other) -> 'DataCube':
-        return self.power(other, reverse=True)
+        return self._power(other, reverse=True)
 
     @openeo_process(process_id="power", mode="operator")
     def __pow__(self, other) -> 'DataCube':
-        return self.power(other, reverse=False)
+        return self._power(other, reverse=False)
 
-    @openeo_process(process_id="power", mode="operator")
-    def power(self, other, reverse):
-        operator = "power"
+    def _power(self, other, reverse=False):
         node = self._get_bandmath_node()
-        x = {'from_node': node.reducer_process_graph()}
+        x = node.reducer_process_graph()
         y = other
         if reverse:
             x, y = y, x
         return self.process_with_node(node.clone_with_new_reducer(
-            PGNode(operator, base=x, p=y)
+            PGNode(process_id="power", base=x, p=y)
         ))
+
+    @openeo_process(process_id="power", mode="operator")
+    def power(self, p: float):
+        return self._power(other=p, reverse=False)
 
     @openeo_process(process_id="ln", mode="operator")
     def ln(self) -> 'DataCube':

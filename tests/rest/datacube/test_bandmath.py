@@ -13,6 +13,8 @@ from openeo.rest import BandMathException
 from .. import get_download_graph
 from ..conftest import reset_graphbuilder
 from ... import load_json_resource
+from .test_datacube import _get_leaf_node
+
 
 
 def test_band_basic(connection, api_version):
@@ -67,12 +69,66 @@ def test_evi(connection, api_version):
     expected_graph = load_json_resource('data/%s/evi_graph.json' % api_version)
     assert actual_graph == expected_graph
 
+
+@pytest.mark.parametrize("process", [
+    (lambda b2: b2 ** 3.14),
+    (lambda b2: b2.power(3.14)),
+])
+def test_power(con100, process):
+    b2 = con100.load_collection("SENTINEL2_RADIOMETRY_10M").band("B02")
+    res = process(b2)
+    assert _get_leaf_node(res) == {
+        "process_id": "reduce_dimension",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "dimension": "bands",
+            "reducer": {"process_graph": {
+                "arrayelement1": {
+                    "process_id": "array_element",
+                    "arguments": {"data": {"from_parameter": "data"}, "index": 0},
+                },
+                "power1": {
+                    "process_id": "power",
+                    "arguments": {"base": {"from_node": "arrayelement1"}, "p": 3.14},
+                    "result": True}
+            }}
+        },
+        "result": True}
+
+
+@pytest.mark.parametrize("process", [
+    (lambda b2: 2 ** b2),
+    # TODO: non-operator way to express `2 ** b2` band math?
+])
+def test_power_reverse(con100, process):
+    b2 = con100.load_collection("SENTINEL2_RADIOMETRY_10M").band("B02")
+    res = process(b2)
+    assert _get_leaf_node(res) == {
+        "process_id": "reduce_dimension",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "dimension": "bands",
+            "reducer": {"process_graph": {
+                "arrayelement1": {
+                    "process_id": "array_element",
+                    "arguments": {"data": {"from_parameter": "data"}, "index": 0},
+                },
+                "power1": {
+                    "process_id": "power",
+                    "arguments": {"base": 2, "p": {"from_node": "arrayelement1"}},
+                    "result": True}
+            }}
+        },
+        "result": True}
+
+
 def test_db_to_natural(con100):
     cube = con100.load_collection("SENTINEL2_RADIOMETRY_10M")
     B02 = cube.band('B02')
     natural = 10 ** ((B02 * 0.001 - 45) / 10)
     expected_graph = load_json_resource('data/1.0.0/db_to_natural.json')
     assert natural.flat_graph() == expected_graph
+
 
 def test_ndvi_udf(connection, api_version):
     s2_radio = connection.load_collection("SENTINEL2_RADIOMETRY_10M")
