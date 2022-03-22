@@ -3,6 +3,7 @@ import pathlib
 import typing
 from typing import Union, Optional
 
+from openeo.internal.documentation import openeo_process
 from openeo.internal.graph_building import PGNode
 from openeo.rest._datacube import _ProcessGraphAbstraction
 from openeo.rest.job import RESTJob
@@ -30,6 +31,7 @@ class MlModel(_ProcessGraphAbstraction):
         return MlModel(graph=pgnode, connection=self._connection)
 
     @staticmethod
+    @openeo_process
     def load_ml_model(connection: "Connection", id: Union[str, RESTJob]) -> "MlModel":
         """
         Loads a machine learning model from a STAC Item.

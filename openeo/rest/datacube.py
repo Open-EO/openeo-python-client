@@ -27,6 +27,7 @@ import openeo
 import openeo.processes
 from openeo.api.process import Parameter
 from openeo.imagecollection import ImageCollection
+from openeo.internal.documentation import openeo_process
 from openeo.internal.graph_building import PGNode, ReduceNode
 from openeo.metadata import CollectionMetadata, Band, BandDimension
 from openeo.processes import ProcessBuilder
@@ -108,6 +109,7 @@ class DataCube(_ProcessGraphAbstraction):
         return DataCube(graph=pg, connection=self._connection, metadata=metadata or self.metadata)
 
     @classmethod
+    @openeo_process
     def load_collection(
             cls,
             collection_id: str,
@@ -206,7 +208,7 @@ class DataCube(_ProcessGraphAbstraction):
                 convertor=lambda d: d if isinstance(d, Parameter) or isinstance(d, PGNode) else d.pgnode if isinstance(d,ProcessBuilder) else rfc3339.normalize(d)
             ))
 
-
+    @openeo_process
     def filter_temporal(
             self, *args,
             start_date: Union[str, datetime.datetime, datetime.date] = None,
@@ -236,6 +238,7 @@ class DataCube(_ProcessGraphAbstraction):
             }
         )
 
+    @openeo_process
     def filter_bbox(
             self,
             *args,
@@ -334,6 +337,7 @@ class DataCube(_ProcessGraphAbstraction):
             }
         )
 
+    @openeo_process
     def filter_spatial(
             self,
             geometries
@@ -368,6 +372,7 @@ class DataCube(_ProcessGraphAbstraction):
             }
         )
 
+    @openeo_process
     def filter_bands(self, bands: Union[List[Union[str, int]], str]) -> 'DataCube':
         """
         Filter the data cube by the given bands
@@ -404,6 +409,7 @@ class DataCube(_ProcessGraphAbstraction):
             },
         ))
 
+    @openeo_process
     def resample_spatial(
             self, resolution: Union[float, Tuple[float, float]], projection: Union[int, str] = None,
             method: str = 'near', align: str = 'upper-left'
@@ -431,6 +437,7 @@ class DataCube(_ProcessGraphAbstraction):
         """
         return self.process("resample_cube_spatial", {"data": self, "target": target, "method": method})
 
+    @openeo_process
     def resample_cube_temporal(
             self, target: "DataCube", dimension: Optional[str] = None, valid_within: Optional[int] = None
     ) -> 'DataCube':
@@ -482,24 +489,30 @@ class DataCube(_ProcessGraphAbstraction):
         raise OperatorException("Unsupported unary operator {op!r} (band math mode={b})".format(
             op=operator, b=band_math_mode))
 
+    @openeo_process(mode="operator")
     def add(self, other: Union['DataCube', int, float], reverse=False) -> 'DataCube':
         return self._operator_binary("add", other, reverse=reverse)
 
+    @openeo_process(mode="operator")
     def subtract(self, other: Union['DataCube', int, float], reverse=False) -> 'DataCube':
         return self._operator_binary("subtract", other, reverse=reverse)
 
+    @openeo_process(mode="operator")
     def divide(self, other: Union['DataCube', int, float]) -> 'DataCube':
         return self._operator_binary("divide", other)
 
+    @openeo_process(mode="operator")
     def multiply(self, other: Union['DataCube', int, float], reverse=False) -> 'DataCube':
         return self._operator_binary("multiply", other, reverse=reverse)
 
+    @openeo_process
     def normalized_difference(self, other: 'DataCube') -> 'DataCube':
         # This DataCube method is only a convenience function when in band math mode
         assert self._in_bandmath_mode()
         assert other._in_bandmath_mode()
         return self._operator_binary("normalized_difference", other)
 
+    @openeo_process(process_id="or", mode="operator")
     def logical_or(self, other: 'DataCube') -> 'DataCube':
         """
         Apply element-wise logical `or` operation
@@ -509,6 +522,7 @@ class DataCube(_ProcessGraphAbstraction):
         """
         return self._operator_binary("or", other)
 
+    @openeo_process(process_id="and", mode="operator")
     def logical_and(self, other: 'DataCube') -> 'DataCube':
         """
         Apply element-wise logical `and` operation
@@ -518,12 +532,15 @@ class DataCube(_ProcessGraphAbstraction):
         """
         return self._operator_binary("and", other)
 
+    @openeo_process(process_id="not", mode="operator")
     def __invert__(self) -> 'DataCube':
         return self._operator_unary("not")
 
+    @openeo_process(process_id="neq", mode="operator")
     def __ne__(self, other: Union['DataCube', int, float]) -> 'DataCube':
         return self._operator_binary("neq", other)
 
+    @openeo_process(process_id="eq", mode="operator")
     def __eq__(self, other: Union['DataCube', int, float]) -> 'DataCube':
         """
         Pixelwise comparison of this data cube with another cube or constant.
@@ -533,6 +550,7 @@ class DataCube(_ProcessGraphAbstraction):
         """
         return self._operator_binary("eq", other)
 
+    @openeo_process(process_id="gt", mode="operator")
     def __gt__(self, other: Union['DataCube', int, float]) -> 'DataCube':
         """
         Pairwise comparison of the bands in this data cube with the bands in the 'other' data cube.
@@ -542,9 +560,11 @@ class DataCube(_ProcessGraphAbstraction):
         """
         return self._operator_binary("gt", other)
 
+    @openeo_process(process_id="ge", mode="operator")
     def __ge__(self, other: Union['DataCube', int, float]) -> 'DataCube':
         return self._operator_binary("gte", other)
 
+    @openeo_process(process_id="lt", mode="operator")
     def __lt__(self, other: Union['DataCube', int, float]) -> 'DataCube':
         """
         Pairwise comparison of the bands in this data cube with the bands in the 'other' data cube.
@@ -555,40 +575,52 @@ class DataCube(_ProcessGraphAbstraction):
         """
         return self._operator_binary("lt", other)
 
+    @openeo_process(process_id="le", mode="operator")
     def __le__(self, other: Union['DataCube', int, float]) -> 'DataCube':
         return self._operator_binary("lte", other)
 
+    @openeo_process(process_id="add", mode="operator")
     def __add__(self, other) -> 'DataCube':
         return self.add(other)
 
+    @openeo_process(process_id="add", mode="operator")
     def __radd__(self, other) -> 'DataCube':
         return self.add(other, reverse=True)
 
+    @openeo_process(process_id="subtract", mode="operator")
     def __sub__(self, other) -> 'DataCube':
         return self.subtract(other)
 
+    @openeo_process(process_id="subtract", mode="operator")
     def __rsub__(self, other) -> 'DataCube':
         return self.subtract(other, reverse=True)
 
+    @openeo_process(process_id="multiply", mode="operator")
     def __neg__(self) -> 'DataCube':
         return self.multiply(-1)
 
+    @openeo_process(process_id="multiply", mode="operator")
     def __mul__(self, other) -> 'DataCube':
         return self.multiply(other)
 
+    @openeo_process(process_id="multiply", mode="operator")
     def __rmul__(self, other) -> 'DataCube':
         return self.multiply(other, reverse=True)
 
+    @openeo_process(process_id="divide", mode="operator")
     def __truediv__(self, other) -> 'DataCube':
         return self.divide(other)
 
+    @openeo_process(process_id="power", mode="operator")
     def __rpow__(self, other) -> 'DataCube':
-        return self.power(other,reverse=True)
+        return self.power(other, reverse=True)
 
+    @openeo_process(process_id="power", mode="operator")
     def __pow__(self, other) -> 'DataCube':
-        return self.power(other,reverse=False)
+        return self.power(other, reverse=False)
 
-    def power(self,other,reverse):
+    @openeo_process(process_id="power", mode="operator")
+    def power(self, other, reverse):
         operator = "power"
         node = self._get_bandmath_node()
         x = {'from_node': node.reducer_process_graph()}
@@ -599,21 +631,27 @@ class DataCube(_ProcessGraphAbstraction):
             PGNode(operator, base=x, p=y)
         ))
 
+    @openeo_process(process_id="ln", mode="operator")
     def ln(self) -> 'DataCube':
         return self._operator_unary("ln")
 
+    @openeo_process(process_id="log", mode="operator")
     def logarithm(self, base: float) -> 'DataCube':
         return self._operator_unary("log", base=base)
 
+    @openeo_process(process_id="log", mode="operator")
     def log2(self) -> 'DataCube':
         return self.logarithm(base=2)
 
+    @openeo_process(process_id="log", mode="operator")
     def log10(self) -> 'DataCube':
         return self.logarithm(base=10)
 
+    @openeo_process(process_id="or", mode="operator")
     def __or__(self, other) -> 'DataCube':
         return self.logical_or(other)
 
+    @openeo_process(process_id="and", mode="operator")
     def __and__(self, other):
         return self.logical_and(other)
 
@@ -708,6 +746,7 @@ class DataCube(_ProcessGraphAbstraction):
             geometry["crs"] = {"type": "name", "properties": {"name": crs}}
         return geometry
 
+    @openeo_process
     def aggregate_spatial(
             self,
             geometries: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter],
@@ -792,6 +831,7 @@ class DataCube(_ProcessGraphAbstraction):
 
         return PGNode.to_process_graph_argument(pg)
 
+    @openeo_process
     def apply_dimension(
             self, code: str = None, runtime=None,
             process: [str, PGNode, typing.Callable] = None,
@@ -849,6 +889,7 @@ class DataCube(_ProcessGraphAbstraction):
 
         return result_cube
 
+    @openeo_process
     def reduce_dimension(
             self, dimension: str, reducer: Union[str, PGNode, typing.Callable], context=None,
             process_id="reduce_dimension", band_math_mode: bool = False
@@ -873,6 +914,7 @@ class DataCube(_ProcessGraphAbstraction):
             band_math_mode=band_math_mode
         ), metadata=self.metadata.reduce_dimension(dimension_name=dimension))
 
+    # @openeo_process
     def chunk_polygon(
             self,
             chunks: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter],
@@ -920,6 +962,7 @@ class DataCube(_ProcessGraphAbstraction):
         # TODO EP-3555: unify better with UDF(PGNode) class and avoid doing same UDF code-runtime-version argument stuff in each method
         return self._reduce_bands(reducer=self._create_run_udf(code, runtime, version))
 
+    @openeo_process
     def add_dimension(self, name: str, label: str, type: Optional[str] = None):
         """
         Adds a new named dimension to the data cube.
@@ -939,6 +982,7 @@ class DataCube(_ProcessGraphAbstraction):
             metadata=self.metadata.add_dimension(name=name, label=label, type=type)
         )
 
+    @openeo_process
     def drop_dimension(self, name: str):
         """
         Drops a dimension from the data cube.
@@ -969,6 +1013,7 @@ class DataCube(_ProcessGraphAbstraction):
                 "udf": code
             })
 
+    @openeo_process(process_id="reduce_dimension")
     def reduce_temporal_udf(self, code: str, runtime="Python", version="latest"):
         """
         Apply reduce (`reduce_dimension`) process with given UDF along temporal dimension.
@@ -982,6 +1027,7 @@ class DataCube(_ProcessGraphAbstraction):
 
     reduce_tiles_over_time = legacy_alias(reduce_temporal_udf, name="reduce_tiles_over_time")
 
+    @openeo_process
     def apply_neighborhood(
             self, process: [str, PGNode, typing.Callable],
             size: List[Dict], overlap: List[dict] = None
@@ -1014,6 +1060,7 @@ class DataCube(_ProcessGraphAbstraction):
             )
         )
 
+    @openeo_process
     def apply(self, process: Union[str, PGNode, typing.Callable] = None) -> 'DataCube':
         """
         Applies a unary process (a local operation) to each value of the specified or all dimensions in the data cube.
@@ -1031,6 +1078,7 @@ class DataCube(_ProcessGraphAbstraction):
             }
         )
 
+    @openeo_process(process_id="reduce_dimension")
     def reduce_temporal_simple(self, process_id="max") -> 'DataCube':
         """Do temporal reduce with a simple given process as callback."""
         return self._reduce_temporal(reducer=PGNode(
@@ -1038,6 +1086,7 @@ class DataCube(_ProcessGraphAbstraction):
             arguments={"data": {"from_parameter": "data"}}
         ))
 
+    @openeo_process(process_id="min", mode="reduce_dimension")
     def min_time(self) -> 'DataCube':
         """Finds the minimum value of a time series for all bands of the input dataset.
 
@@ -1045,6 +1094,7 @@ class DataCube(_ProcessGraphAbstraction):
         """
         return self.reduce_temporal_simple("min")
 
+    @openeo_process(process_id="max", mode="reduce_dimension")
     def max_time(self) -> 'DataCube':
         """
         Finds the maximum value of a time series for all bands of the input dataset.
@@ -1053,6 +1103,7 @@ class DataCube(_ProcessGraphAbstraction):
         """
         return self.reduce_temporal_simple("max")
 
+    @openeo_process(process_id="mean", mode="reduce_dimension")
     def mean_time(self) -> 'DataCube':
         """Finds the mean value of a time series for all bands of the input dataset.
 
@@ -1060,6 +1111,7 @@ class DataCube(_ProcessGraphAbstraction):
         """
         return self.reduce_temporal_simple("mean")
 
+    @openeo_process(process_id="median", mode="reduce_dimension")
     def median_time(self) -> 'DataCube':
         """Finds the median value of a time series for all bands of the input dataset.
 
@@ -1067,6 +1119,7 @@ class DataCube(_ProcessGraphAbstraction):
         """
         return self.reduce_temporal_simple("median")
 
+    @openeo_process(process_id="count", mode="reduce_dimension")
     def count_time(self) -> 'DataCube':
         """Counts the number of images with a valid mask in a time series for all bands of the input dataset.
 
@@ -1074,6 +1127,7 @@ class DataCube(_ProcessGraphAbstraction):
         """
         return self.reduce_temporal_simple("count")
 
+    @openeo_process
     def aggregate_temporal(self, intervals:List[List],reducer: Union[str, PGNode, typing.Callable],labels:List = None, dimension:str = None, context:Dict=None) -> 'DataCube' :
         """ Computes a temporal aggregation based on an array of date and/or time intervals.
 
@@ -1101,7 +1155,8 @@ class DataCube(_ProcessGraphAbstraction):
             )
         )
 
-    def aggregate_temporal_period(self, period:str,reducer, dimension:str = None,context:Dict=None) -> 'ImageCollection' :
+    @openeo_process
+    def aggregate_temporal_period(self, period:str,reducer, dimension:str = None,context:Dict=None) -> 'DataCube' :
         """ Computes a temporal aggregation based on calendar hierarchies such as years, months or seasons. For other calendar hierarchies aggregate_temporal can be used.
 
             For each interval, all data along the dimension will be passed through the reducer.
@@ -1139,6 +1194,7 @@ class DataCube(_ProcessGraphAbstraction):
             )
         )
 
+    @openeo_process
     def ndvi(self, nir: str = None, red: str = None, target_band: str = None) -> 'DataCube':
         """ Normalized Difference Vegetation Index (NDVI)
 
@@ -1161,6 +1217,7 @@ class DataCube(_ProcessGraphAbstraction):
             metadata=metadata
         )
 
+    @openeo_process
     def rename_dimension(self, source: str, target: str):
         """
         Renames a dimension in the data cube while preserving all other properties.
@@ -1182,6 +1239,7 @@ class DataCube(_ProcessGraphAbstraction):
             metadata=self.metadata.rename_dimension(source,target)
         )
 
+    @openeo_process
     def rename_labels(self, dimension: str, target: list, source: list = None) -> 'DataCube':
         """ Renames the labels of the specified dimension in the data cube from source to target.
 
@@ -1202,6 +1260,7 @@ class DataCube(_ProcessGraphAbstraction):
             metadata=self.metadata.rename_labels(dimension, target, source)
         )
 
+    @openeo_process(mode="apply")
     def linear_scale_range(self, input_min, input_max, output_min, output_max) -> 'DataCube':
         """
         Performs a linear transformation between the input and output range.
@@ -1226,6 +1285,7 @@ class DataCube(_ProcessGraphAbstraction):
 
         return self.apply(lambda x: x.linear_scale_range(input_min, input_max, output_min, output_max))
 
+    @openeo_process
     def mask(self, mask: 'DataCube' = None, replacement=None) -> 'DataCube':
         """
         Applies a mask to a raster data cube. To apply a vector mask use `mask_polygon`.
@@ -1244,6 +1304,7 @@ class DataCube(_ProcessGraphAbstraction):
             arguments=dict_no_none(data=self, mask=mask, replacement=replacement),
         )
 
+    @openeo_process
     def mask_polygon(
             self,
             mask: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter],
@@ -1280,6 +1341,7 @@ class DataCube(_ProcessGraphAbstraction):
             )
         )
 
+    @openeo_process
     def merge_cubes(
             self, other: 'DataCube', overlap_resolver: Union[str, PGNode, typing.Callable] = None
     ) -> 'DataCube':
@@ -1311,6 +1373,7 @@ class DataCube(_ProcessGraphAbstraction):
 
     merge = legacy_alias(merge_cubes, name="merge")
 
+    @openeo_process
     def apply_kernel(self, kernel: Union[np.ndarray, List[List[float]]], factor=1.0, border = 0, replace_invalid=0) -> 'DataCube':
         """
         Applies a focal operation based on a weighted kernel to each value of the specified dimensions in the data cube.
@@ -1339,6 +1402,7 @@ class DataCube(_ProcessGraphAbstraction):
             'replace_invalid': replace_invalid
         })
 
+    @openeo_process
     def resolution_merge(self, high_resolution_bands: List[str], low_resolution_bands: List[str]
                          , method: str=None) -> 'DataCube':
         """
@@ -1434,6 +1498,7 @@ class DataCube(_ProcessGraphAbstraction):
     ) -> 'DataCube':
         return self.aggregate_spatial(geometries=polygon, reducer=func)
 
+    @openeo_process
     def ard_surface_reflectance(
             self, atmospheric_correction_method: str, cloud_detection_method: str, elevation_model: str = None,
             atmospheric_correction_options: dict = None, cloud_detection_options: dict = None,
@@ -1457,6 +1522,7 @@ class DataCube(_ProcessGraphAbstraction):
             'cloud_detection_options': cloud_detection_options or {},
         })
 
+    @openeo_process
     def atmospheric_correction(
             self,
             method: str = None,
@@ -1481,6 +1547,7 @@ class DataCube(_ProcessGraphAbstraction):
             'options': options or {},
         })
 
+    @openeo_process
     def save_result(self, format: str = "GTiff", options: dict = None) -> 'DataCube':
         formats = set(self._connection.list_output_formats().keys())
         if format.lower() not in {f.lower() for f in formats}:
@@ -1613,6 +1680,7 @@ class DataCube(_ProcessGraphAbstraction):
         import openeo.udf.run_code
         return openeo.udf.run_code.execute_local_udf(udf=udf, datacube=datacube, fmt=fmt)
 
+    @openeo_process
     def ard_normalized_radar_backscatter(self, elevation_model:str = None, contributing_area = False, ellipsoid_incidence_angle:bool = False, noise_removal:bool = True):
         """
         Computes CARD4L compliant backscatter (gamma0) from SAR input. This method is a variant of :meth:`openeo.rest.datacube.DataCube.sar_backscatter`,
@@ -1637,6 +1705,7 @@ class DataCube(_ProcessGraphAbstraction):
             "noise_removal": noise_removal
         })
 
+    @openeo_process
     def sar_backscatter(
             self,
             coefficient: Union[str, None] = "gamma0-terrain",
@@ -1702,6 +1771,7 @@ class DataCube(_ProcessGraphAbstraction):
             arguments["options"] = options
         return self.process(process_id="sar_backscatter", arguments=arguments)
 
+    @openeo_process
     def fit_curve(self, parameters: list, function: Union[str, PGNode, typing.Callable], dimension: str):
         """
         Use non-linear least squares to fit a model function `y = f(x, parameters)` to data.
@@ -1723,6 +1793,7 @@ class DataCube(_ProcessGraphAbstraction):
             "dimension": dimension
         })
 
+    @openeo_process
     def predict_curve(
             self, parameters: list, function: Union[str, PGNode, typing.Callable], dimension: str,
             labels=None
@@ -1746,6 +1817,7 @@ class DataCube(_ProcessGraphAbstraction):
             "labels": labels
         })
 
+    @openeo_process(mode="reduce_dimension")
     def predict_random_forest(self, model: Union[str, RESTJob, MlModel], dimension: str = "bands"):
         """
         Apply ``reduce_dimension`` process with a `predict_random_forest` reducer.
@@ -1761,17 +1833,19 @@ class DataCube(_ProcessGraphAbstraction):
         reducer = lambda data, context: predict_random_forest(data=data, model=context)
         return self.reduce_dimension(dimension=dimension, reducer=reducer, context=model)
 
+    @openeo_process
     def dimension_labels(self, dimension: str) -> "DataCube":
         """
         Gives all labels for a dimension in the data cube. The labels have the same order as in the data cube.
 
-        :param dimension:The name of the dimension to get the labels for.
+        :param dimension: The name of the dimension to get the labels for.
         """
         dimension_names = self.metadata.dimension_names()
         if dimension_names and dimension not in dimension_names:
             raise ValueError(f"Invalid dimension name {dimension!r}, should be one of {dimension_names}")
         return self.process(process_id="dimension_labels", arguments={"data": THIS, "dimension": dimension})
 
+    @openeo_process
     def fit_class_random_forest(
             self,
             # TODO #279: target type should be `VectorCube` (with adapters for GeoJSON FeatureCollection, GeoPandas, ...)
@@ -1816,6 +1890,7 @@ class DataCube(_ProcessGraphAbstraction):
         model = MlModel(graph=pgnode, connection=self._connection)
         return model
 
+    @openeo_process
     def flatten_dimensions(self, dimensions: List[str], target_dimension: str, label_separator: Optional[str] = None):
         """
         Combines multiple given dimensions into a single dimension by flattening the values
@@ -1841,6 +1916,7 @@ class DataCube(_ProcessGraphAbstraction):
             ),
         )
 
+    @openeo_process
     def unflatten_dimension(self, dimension: str, target_dimensions: List[str], label_separator: Optional[str] = None):
         """
         Splits a single dimension into multiple dimensions by systematically extracting values and splitting

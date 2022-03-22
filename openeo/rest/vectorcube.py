@@ -2,6 +2,7 @@ import pathlib
 import typing
 from typing import Union, Optional
 
+from openeo.internal.documentation import openeo_process
 from openeo.internal.graph_building import PGNode
 from openeo.metadata import CollectionMetadata
 from openeo.rest._datacube import _ProcessGraphAbstraction
@@ -44,6 +45,7 @@ class VectorCube(_ProcessGraphAbstraction):
         pg = self._build_pgnode(process_id=process_id, arguments=arguments, namespace=namespace, **kwargs)
         return VectorCube(graph=pg, connection=self._connection, metadata=metadata or self.metadata)
 
+    @openeo_process
     def run_udf(
             self, udf: str, runtime: str, version: Optional[str] = None, context: Optional[dict] = None
     ) -> "VectorCube":
@@ -53,6 +55,7 @@ class VectorCube(_ProcessGraphAbstraction):
             arguments=dict_no_none({"version": version, "context": context}),
         )
 
+    @openeo_process
     def save_result(self, format: str = "GeoJson", options: dict = None):
         return self.process(
             process_id="save_result",
