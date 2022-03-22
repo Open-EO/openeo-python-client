@@ -49,6 +49,9 @@ class VectorCube(_ProcessGraphAbstraction):
     def run_udf(
             self, udf: str, runtime: str, version: Optional[str] = None, context: Optional[dict] = None
     ) -> "VectorCube":
+        """
+        .. versionadded:: 0.10.0
+        """
         return self.process(
             process_id="run_udf",
             data=self, udf=udf, runtime=runtime,

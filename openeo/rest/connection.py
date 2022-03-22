@@ -950,6 +950,8 @@ class Connection(RestApiConnection):
 
         :param id: STAC item reference, as URL, batch job (id) or user-uploaded file
         :return:
+
+        .. versionadded:: 0.10.0
         """
         return MlModel.load_ml_model(connection=self, id=id)
 

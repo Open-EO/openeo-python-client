@@ -19,6 +19,8 @@ class MlModel(_ProcessGraphAbstraction):
 
     It is the result of a training procedure, e.g. output of a ``fit_...`` process,
     and can be used for prediction (classification or regression) with the corresponding ``predict_...`` process.
+
+    .. versionadded:: 0.10.0
     """
     def __init__(self, graph: PGNode, connection: 'Connection'):
         super().__init__(pgnode=graph, connection=connection)
@@ -39,6 +41,8 @@ class MlModel(_ProcessGraphAbstraction):
         :param connection: connection object
         :param id: STAC item reference, as URL, batch job (id) or user-uploaded file
         :return:
+
+        .. versionadded:: 0.10.0
         """
         if isinstance(id, RESTJob):
             id = id.job_id

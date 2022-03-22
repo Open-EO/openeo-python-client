@@ -456,6 +456,8 @@ class DataCube(_ProcessGraphAbstraction):
         :param dimension: The name of the temporal dimension to resample.
         :param valid_within:
         :return:
+
+        .. versionadded:: 0.10.0
         """
         return self.process(
             "resample_cube_temporal",
@@ -1749,8 +1751,8 @@ class DataCube(_ProcessGraphAbstraction):
         :param options: dictionary with additional (backend-specific) options.
         :return:
 
-        .. versionadded :: 0.4.9
-        .. versionchanged :: 0.4.10 replace `orthorectify` and `rtc` arguments with `coefficient`.
+        .. versionadded:: 0.4.9
+        .. versionchanged:: 0.4.10 replace `orthorectify` and `rtc` arguments with `coefficient`.
         """
         coefficient_options = [
             "beta0", "sigma0-ellipsoid", "sigma0-terrain", "gamma0-ellipsoid", "gamma0-terrain", None
@@ -1828,6 +1830,8 @@ class DataCube(_ProcessGraphAbstraction):
             or a reference to such a model: a URL (``str``) to a STAC Item (implementing the `ml-model` extension)
             a job id (``str``) or a :py:class:`RESTJob` instance of a batch job that saved a single model.
         :param dimension: dimension along which to apply the ``reduce_dimension`` process.
+
+        .. versionadded:: 0.10.0
         """
         if not isinstance(model, MlModel):
             model = MlModel.load_ml_model(connection=self.connection, id=model)
@@ -1875,6 +1879,8 @@ class DataCube(_ProcessGraphAbstraction):
         :param mtry: Specifies how many split variables will be used at a node. Default value is `null`, which corresponds to the
             number of predictors divided by 3.
         :param seed: A randomization seed to use for the random sampling in training.
+
+        .. versionadded:: 0.10.0
         """
         # TODO #279: `fit_class_random_forest` should be defined on VectorCube instead of DataCube
         pgnode = PGNode(
@@ -1901,12 +1907,13 @@ class DataCube(_ProcessGraphAbstraction):
         but executing both processes subsequently doesn't necessarily create a data cube that
         is equal to the original data cube.
 
-        .. warning:: experimental process: not generally supported, API subject to change.
-
         :param dimensions: The names of the dimension to combine.
         :param target_dimension: The name of a target dimension with a single dimension label to replace.
         :param label_separator: The string that will be used as a separator for the concatenated dimension labels.
         :return: A data cube with the new shape.
+
+        .. warning:: experimental process: not generally supported, API subject to change.
+        .. versionadded:: 0.10.0
         """
         return self.process(
             process_id="flatten_dimensions",
@@ -1926,12 +1933,13 @@ class DataCube(_ProcessGraphAbstraction):
         This process is the opposite of the process :py:meth:`flatten_dimensions()` but executing both processes
         subsequently doesn't necessarily create a data cube that is equal to the original data cube.
 
-        .. warning:: experimental process: not generally supported, API subject to change.
-
         :param dimension: The name of the dimension to split.
         :param target_dimensions: The names of the target dimensions.
         :param label_separator: The string that will be used as a separator to split the dimension labels.
         :return: A data cube with the new shape.
+
+        .. warning:: experimental process: not generally supported, API subject to change.
+        .. versionadded:: 0.10.0
         """
         return self.process(
             process_id="unflatten_dimension",
