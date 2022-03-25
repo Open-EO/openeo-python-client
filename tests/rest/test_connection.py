@@ -1,4 +1,6 @@
 import logging
+import os
+import random
 import re
 import typing
 import unittest.mock as mock
@@ -1821,3 +1823,24 @@ def test_as_curl(requests_mock, data_factory):
         '--data \'{"process":{"process_graph":{"add1":{"process_id":"add","arguments":{"x":3,"y":5},"result":true}}}}\' '
         "https://oeo.test/result"
     )
+
+
+@pytest.fixture
+def custom_client_config(tmp_path):
+    """Fixture to create a fresh client config that will be loaded before test (and unloaded after test)."""
+    config_path = tmp_path / "openeo-client-config.ini"
+    config_path.write_text("")
+    with mock.patch.dict(os.environ, {"OPENEO_CLIENT_CONFIG": str(config_path)}):
+        # Force reloading of global (lazy loaded) config
+        import openeo.config
+        openeo.config._global_config = None
+        yield config_path
+        openeo.config._global_config = None
+
+
+def test_connect_default_backend_from_config(requests_mock, custom_client_config):
+    url = f"openeo{random.randint(0, 1000)}.test"
+    custom_client_config.write_text(f"[Connection]\ndefault_backend = {url}\n")
+    requests_mock.get(f"https://{url}", json={"api_version": "1.0.0"})
+    con = connect()
+    assert con.root_url == f"https://{url}"
