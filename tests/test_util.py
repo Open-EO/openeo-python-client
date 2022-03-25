@@ -9,7 +9,7 @@ from typing import List, Union
 import pytest
 
 from openeo.util import first_not_none, get_temporal_extent, TimingLogger, ensure_list, ensure_dir, dict_no_none, \
-    deep_get, DeepKeyError, get_user_config_dir, get_user_data_dir, Rfc3339, rfc3339, deep_set, legacy_alias, \
+    deep_get, DeepKeyError, Rfc3339, rfc3339, deep_set, legacy_alias, \
     LazyLoadCache, guess_format, ContextTimer, str_truncate
 
 
@@ -480,14 +480,6 @@ def test_deep_set_dict(init, keys, expected):
     d = init
     deep_set(d, *keys, value=42)
     assert d == expected
-
-
-def test_get_user_config_dir():
-    assert get_user_config_dir() == pathlib.Path(__file__).parent / "data/user_dirs/config/openeo-python-client"
-
-
-def test_get_user_data_dir():
-    assert get_user_data_dir() == pathlib.Path(__file__).parent / "data/user_dirs/data/openeo-python-client"
 
 
 def test_guess_format():
