@@ -1156,10 +1156,12 @@ def connect(
     """
     if url is None:
         # TODO: print info about which connection is used (and based on which config)
-        url = get_config().get("connection.default_backend")
+        url = get_config("connection.default_backend")
         if not url:
             raise OpenEoClientException("No back-end URL given or known to connect to.")
     connection = Connection(url, session=session, default_timeout=default_timeout)
+
+    auth_type = auth_type or get_config("connection.auto_authenticate")
     auth_type = auth_type.lower() if isinstance(auth_type, str) else auth_type
     if auth_type in {None, 'null', 'none'}:
         pass

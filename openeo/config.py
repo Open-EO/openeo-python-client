@@ -10,7 +10,7 @@ import platform
 from configparser import ConfigParser
 from copy import deepcopy
 from pathlib import Path
-from typing import Union, Any, Sequence, Iterator
+from typing import Union, Any, Sequence, Iterator, Optional
 
 _log = logging.getLogger(__name__)
 
@@ -164,9 +164,12 @@ class ConfigLoader:
 _global_config = None
 
 
-def get_config() -> ClientConfig:
-    """Get global :py:class:`ClientConfig` (lazily loaded)."""
+def get_config(key: Optional[str] = None, default=None) -> Union[ClientConfig, str]:
+    """Get a value from (or the whole) global :py:class:`ClientConfig` (lazily loaded)."""
     global _global_config
     if _global_config is None:
         _global_config = ConfigLoader.load()
-    return _global_config
+    if key:
+        return _global_config.get(key, default=default)
+    else:
+        return _global_config
