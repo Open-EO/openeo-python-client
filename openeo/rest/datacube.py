@@ -755,6 +755,7 @@ class DataCube(_ProcessGraphAbstraction):
             self,
             geometries: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter],
             reducer: Union[str, PGNode, typing.Callable],
+            target_dimension: Optional[str] = None,
             crs: str = None,
             # TODO arguments: target dimension, context
     ) -> 'DataCube':
@@ -764,6 +765,7 @@ class DataCube(_ProcessGraphAbstraction):
 
         :param geometries: shapely geometry, GeoJSON dictionary or path to GeoJSON file
         :param reducer: a callback function that creates a process graph, see :ref:`callbackfunctions`
+        :param target_dimension: The new dimension name to be used for storing the results.
         :param crs: The spatial reference system of the provided polygon.
             By default longitude-latitude (EPSG:4326) is assumed.
 
@@ -777,7 +779,10 @@ class DataCube(_ProcessGraphAbstraction):
         ]
         geometries = self._get_geometry_argument(geometries, valid_geojson_types=valid_geojson_types, crs=crs)
         reducer = self._get_callback(reducer, parent_parameters=["data"])
-        return self.process(process_id="aggregate_spatial", data=THIS, geometries=geometries, reducer=reducer)
+        return self.process(
+            process_id="aggregate_spatial", data=THIS, geometries=geometries, reducer=reducer,
+            **dict_no_none(target_dimension=target_dimension)
+        )
 
     @staticmethod
     def _get_callback(process: Union[str, PGNode, typing.Callable], parent_parameters: List[str]) -> dict:

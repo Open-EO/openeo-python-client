@@ -314,6 +314,28 @@ def test_aggregate_spatial_with_crs(con100: Connection, recwarn):
     }
 
 
+def test_aggregate_spatial_target_dimension(con100: Connection):
+    img = con100.load_collection("S2")
+    polygon = shapely.geometry.box(0, 0, 1, 1)
+    masked = img.aggregate_spatial(geometries=polygon, reducer="mean", target_dimension="agg")
+    assert sorted(masked.flat_graph().keys()) == ["aggregatespatial1", "loadcollection1"]
+    assert masked.flat_graph()["aggregatespatial1"] == {
+        "process_id": "aggregate_spatial",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "geometries": {
+                "type": "Polygon",
+                "coordinates": (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),),
+            },
+            "reducer": {"process_graph": {
+                "mean1": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}
+            }},
+            "target_dimension": "agg",
+        },
+        "result": True
+    }
+
+
 def test_aggregate_temporal(con100: Connection):
     img = con100.load_collection("S2").aggregate_temporal_period(period="dekad",reducer=lambda d:d.median(),context={"bla":"bla"})
 

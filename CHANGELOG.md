@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   using a `MlModel` (trained with `fit_class_random_forest`)  
   ([#279](https://github.com/Open-EO/openeo-python-client/issues/279))
 - Added `DataCube.resample_cube_temporal` ([#284](https://github.com/Open-EO/openeo-python-client/issues/284))
+- Add `target_dimension` argument to `DataCube.aggregate_spatial` ([#288](https://github.com/Open-EO/openeo-python-client/issues/288))
 
 ### Changed
 
