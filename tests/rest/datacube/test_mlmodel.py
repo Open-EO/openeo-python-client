@@ -59,12 +59,14 @@ def test_fit_class_random_forest_basic(con100):
     }
 
 
-def test_fit_class_random_forest_basic_create_job(con100, requests_mock):
+@pytest.mark.parametrize("explicit_save", [True, False])
+def test_fit_class_random_forest_basic_create_job(con100, requests_mock, explicit_save, caplog):
     geometries = FEATURE_COLLECTION_1
     s2 = con100.load_collection("S2")
     predictors = s2.aggregate_spatial(geometries, reducer="mean")
     ml_model = predictors.fit_class_random_forest(target=geometries, training=0.5)
-    ml_model = ml_model.save_ml_model()
+    if explicit_save:
+        ml_model = ml_model.save_ml_model()
 
     def post_jobs(request, context):
         pg = request.json()["process"]["process_graph"]
@@ -79,6 +81,7 @@ def test_fit_class_random_forest_basic_create_job(con100, requests_mock):
 
     job = ml_model.create_job(title="Random forest")
     assert job.job_id == "job-rf"
+    assert ("no final `save_ml_model`. Adding it" in caplog.text) == (not explicit_save)
 
 
 @pytest.mark.parametrize("id", [

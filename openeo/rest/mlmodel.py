@@ -1,4 +1,4 @@
-
+import logging
 import pathlib
 import typing
 from typing import Union, Optional
@@ -11,6 +11,8 @@ from openeo.rest.job import RESTJob
 if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime). `hasattr` is Python 3.5 workaround #210
     from openeo import Connection
+
+_log = logging.getLogger(__name__)
 
 
 class MlModel(_ProcessGraphAbstraction):
@@ -65,7 +67,6 @@ class MlModel(_ProcessGraphAbstraction):
         :param out_format: (optional) Format of the job result.
         :param format_options: String Parameters for the job result format
         """
-        # TODO: check/warn about final `save_ml_model` node?
         job = self.create_job(additional=job_options)
         return job.run_synchronous(
             # TODO #135 support multi file result sets too
@@ -81,4 +82,8 @@ class MlModel(_ProcessGraphAbstraction):
 
         :return: resulting job.
         """
-        return self._connection.create_job(process_graph=self.flat_graph(), **kwargs)
+        pg = self
+        if pg.result_node().process_id not in {"save_ml_model"}:
+            _log.warning("Process graph has no final `save_ml_model`. Adding it automatically.")
+            pg = pg.save_ml_model()
+        return self._connection.create_job(process_graph=pg.flat_graph(), **kwargs)
