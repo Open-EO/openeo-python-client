@@ -1857,8 +1857,7 @@ class DataCube(_ProcessGraphAbstraction):
             # TODO #279: target type should be `VectorCube` (with adapters for GeoJSON FeatureCollection, GeoPandas, ...)
             target: dict,
             num_trees: int = 100,
-            # TODO: better parameter name? see https://github.com/Open-EO/openeo-processes/issues/339
-            mtry: Optional[int] = None,
+            max_variables: Optional[int] = None,
             seed: Optional[int] = None,
     ) -> 'MlModel':
         """
@@ -1873,7 +1872,7 @@ class DataCube(_ProcessGraphAbstraction):
             variable for the Random Forest model. The geometry has to be associated with a value to predict (e.g. fractional
             forest canopy cover).
         :param num_trees: The number of trees build within the Random Forest classification.
-        :param mtry: Specifies how many split variables will be used at a node. Default value is `null`, which corresponds to the
+        :param max_variables: Specifies how many split variables will be used at a node. Default value is `null`, which corresponds to the
             number of predictors divided by 3.
         :param seed: A randomization seed to use for the random sampling in training.
 
@@ -1887,7 +1886,7 @@ class DataCube(_ProcessGraphAbstraction):
                 # TODO #279 strictly per-spec, target should be a `vector-cube`, but due to lack of proper support we are limited to inline GeoJSON for now
                 target=target,
                 num_trees=num_trees,
-                mtry=mtry,
+                max_variables=max_variables,
                 seed=seed,
             )
         )
