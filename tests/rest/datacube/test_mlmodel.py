@@ -26,7 +26,7 @@ def test_fit_class_random_forest_basic(con100):
     geometries = FEATURE_COLLECTION_1
     s2 = con100.load_collection("S2")
     predictors = s2.aggregate_spatial(geometries, reducer="mean")
-    ml_model = predictors.fit_class_random_forest(target=geometries, training=0.5)
+    ml_model = predictors.fit_class_random_forest(target=geometries)
     assert ml_model.flat_graph() == {
         "loadcollection1": {
             "process_id": "load_collection",
@@ -51,7 +51,6 @@ def test_fit_class_random_forest_basic(con100):
             "arguments": {
                 "predictors": {"from_node": "aggregatespatial1"},
                 "target": geometries,
-                "training": 0.5,
                 "num_trees": 100,
             },
             "result": True,
@@ -64,7 +63,7 @@ def test_fit_class_random_forest_basic_create_job(con100, requests_mock, explici
     geometries = FEATURE_COLLECTION_1
     s2 = con100.load_collection("S2")
     predictors = s2.aggregate_spatial(geometries, reducer="mean")
-    ml_model = predictors.fit_class_random_forest(target=geometries, training=0.5)
+    ml_model = predictors.fit_class_random_forest(target=geometries)
     if explicit_save:
         ml_model = ml_model.save_ml_model()
 
