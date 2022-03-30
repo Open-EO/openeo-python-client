@@ -7,6 +7,7 @@ import inspect
 import json
 import logging
 import re
+import sys
 import time
 import warnings
 from collections import OrderedDict
@@ -520,3 +521,9 @@ def str_truncate(text: str, width: int = 64, ellipsis: str = "...") -> str:
     if len(ellipsis) > width:
         ellipsis = ellipsis[:width]
     return text[:max(0, (width - len(ellipsis)))] + ellipsis
+
+
+def in_interactive_mode() -> bool:
+    """Detect if we are running in interactive mode (Jupyter/IPython/repl)"""
+    # Based on https://stackoverflow.com/a/64523765
+    return hasattr(sys, "ps1")

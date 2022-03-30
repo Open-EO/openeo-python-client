@@ -1,6 +1,8 @@
 import contextlib
+import logging
 import os
 import random
+import re
 import textwrap
 from configparser import ConfigParser
 from pathlib import Path
@@ -8,7 +10,8 @@ from unittest import mock
 
 import pytest
 
-from openeo.config import get_user_config_dir, get_user_data_dir, ClientConfig, get_config, ConfigLoader
+from openeo.config import get_user_config_dir, get_user_data_dir, ClientConfig, ConfigLoader, get_config, \
+    get_config_option
 
 
 def test_get_user_config_dir():
@@ -70,14 +73,18 @@ def working_dir(path):
         os.chdir(orig)
 
 
+def _create_config(path: Path, content: str = ""):
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(textwrap.dedent(content))
+
+
 class TestConfigLoader:
 
     def _create_config(self, path: Path, default_backend="openeo.test"):
-        path.parent.mkdir(exist_ok=True)
-        path.write_text(textwrap.dedent(f"""
+        return _create_config(path=path, content=f"""
             [Connection]
             default_backend = {default_backend}
-        """))
+        """)
 
     def test_load_from_OPENEO_CLIENT_CONFIGg(self, tmp_path):
         path = tmp_path / "my-openeo-conf.ini"
@@ -109,3 +116,49 @@ class TestConfigLoader:
         with mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": str(tmp_path)}):
             config = ConfigLoader.load()
         assert config.get("connection.default_backend") == default_backend
+
+
+@contextlib.contextmanager
+def reset_global_config():
+    with mock.patch("openeo.config._global_config", new=None):
+        yield
+
+
+def test_get_config_caching(tmp_path):
+    with working_dir(tmp_path):
+        for i in [10, 20]:
+            with reset_global_config():
+                for default_backend in [f"oeo{i + j}.test" for j in [1, 2]]:
+                    _create_config(path=tmp_path / "openeo-client-config.ini", content=f"""
+                        [Connection]
+                        default_backend = {default_backend}
+                    """)
+                    config = get_config()
+                    assert config.get("connection.default_backend") == f"oeo{i + 1}.test"
+                    assert get_config_option("connection.default_backend") == f"oeo{i + 1}.test"
+
+
+@pytest.mark.parametrize(["verbose", "force_interactive", "on_stdout"], [
+    ("print", False, True),
+    ("print", True, True),
+    ("auto", False, False),
+    ("auto", True, True),
+    ("off", False, False),
+    ("off", True, False),
+])
+def test_get_config_verbose(tmp_path, caplog, capsys, verbose, force_interactive, on_stdout):
+    caplog.set_level(logging.INFO)
+    config_path = tmp_path / "openeo-client-config.ini"
+    _create_config(path=config_path, content=f"""
+        [General]
+        verbose = {verbose}
+    """)
+    with reset_global_config(), working_dir(tmp_path), contextlib.ExitStack() as exit_stack:
+        if force_interactive:
+            exit_stack.enter_context(mock.patch("openeo.config.in_interactive_mode", new=lambda: True))
+        config = get_config()
+        assert config.get("general.verbose") == verbose
+
+    regex = re.compile(f"Loaded.*config from.*{config_path}")
+    assert regex.search(caplog.text)
+    assert bool(regex.search(capsys.readouterr().out)) == on_stdout

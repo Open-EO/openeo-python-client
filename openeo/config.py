@@ -10,7 +10,9 @@ import platform
 from configparser import ConfigParser
 from copy import deepcopy
 from pathlib import Path
-from typing import Union, Any, Sequence, Iterator, Optional
+from typing import Union, Any, Sequence, Iterator, Optional, List
+
+from openeo.util import in_interactive_mode
 
 _log = logging.getLogger(__name__)
 
@@ -96,6 +98,7 @@ class ClientConfig:
 
     def __init__(self):
         self._config = {}
+        self._sources = []
 
     @classmethod
     def _key(cls, key: Union[str, Sequence[str]]):
@@ -114,7 +117,8 @@ class ClientConfig:
 
     def load_ini_file(self, path: Union[str, Path]) -> "ClientConfig":
         cp = ConfigParser()
-        cp.read(path)
+        read_ok = cp.read(path)
+        self._sources.extend(read_ok)
         return self.load_config_parser(cp)
 
     def load_config_parser(self, parser: ConfigParser) -> "ClientConfig":
@@ -125,6 +129,13 @@ class ClientConfig:
 
     def dump(self) -> dict:
         return deepcopy(self._config)
+
+    @property
+    def sources(self) -> List[str]:
+        return [str(s) for s in self._sources]
+
+    def __repr__(self):
+        return f"<{type(self).__name__} from {self.sources}>"
 
 
 class ConfigLoader:
@@ -145,13 +156,12 @@ class ConfigLoader:
     @classmethod
     def load(cls) -> ClientConfig:
         # TODO: (option to) merge layered configs instead of returning on first hit?
-        _log.info("Loading global config")
         config = ClientConfig()
         for path in cls.config_locations():
-            _log.debug(f"Trying {path}")
+            _log.debug(f"Config file candidate: {path}")
             if path.exists():
                 if path.suffix.lower() == ".ini":
-                    _log.info(f"Loading config from {path}")
+                    _log.debug(f"Loading config from {path}")
                     try:
                         config.load_ini_file(path)
                         break
@@ -164,12 +174,26 @@ class ConfigLoader:
 _global_config = None
 
 
-def get_config(key: Optional[str] = None, default=None) -> Union[ClientConfig, str]:
-    """Get a value from (or the whole) global :py:class:`ClientConfig` (lazily loaded)."""
+def get_config() -> ClientConfig:
+    """Get global openEO client config (:py:class:`ClientConfig`) (lazy loaded)."""
     global _global_config
     if _global_config is None:
         _global_config = ConfigLoader.load()
-    if key:
-        return _global_config.get(key, default=default)
-    else:
-        return _global_config
+        message = f"Loaded openEO client config from {', '.join(_global_config.sources)}"
+        _log.info(message)
+        if _global_config.sources:
+            config_log(message)
+
+    return _global_config
+
+
+def get_config_option(key: Optional[str] = None, default=None) -> str:
+    """Get config value for given key from global config (lazy loaded)."""
+    return get_config().get(key=key, default=default)
+
+
+def config_log(message: str):
+    """Print a message if verbosity is configured for that."""
+    verbose = get_config_option("general.verbose", default="auto")
+    if verbose == "print" or (verbose == "auto" and in_interactive_mode()):
+        print(message)

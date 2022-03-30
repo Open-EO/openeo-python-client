@@ -19,7 +19,7 @@ from requests.auth import HTTPBasicAuth, AuthBase
 
 import openeo
 from openeo.capabilities import ApiVersionException, ComparableVersion
-from openeo.config import get_config
+from openeo.config import get_config_option, config_log
 from openeo.internal.graph_building import PGNode, as_flat_graph
 from openeo.internal.jupyter import VisualDict, VisualList
 from openeo.internal.processes.builder import ProcessBuilderBase
@@ -1140,7 +1140,7 @@ def connect(
     You typically create one connection object in your script or application
     and re-use it for all calls to that backend.
 
-    If the backend requires authentication, you should can pass authentication data directly to this function
+    If the backend requires authentication, you can pass authentication data directly to this function
     but it could be easier to authenticate as follows:
 
         >>> # For basic authentication
@@ -1148,22 +1148,34 @@ def connect(
         >>> # For OpenID Connect authentication
         >>> conn = connect(url).authenticate_oidc(client_id="myclient")
 
-    :param url: The http url of an OpenEO endpoint.
+    :param url: The http url of the OpenEO back-end.
     :param auth_type: Which authentication to use: None, "basic" or "oidc" (for OpenID Connect)
     :param auth_options: Options/arguments specific to the authentication type
     :param default_timeout: default timeout (in seconds) for requests
     :rtype: openeo.connections.Connection
     """
+
+    def _config_log(message):
+        _log.info(message)
+        config_log(message)
+
     if url is None:
-        # TODO: print info about which connection is used (and based on which config)
-        url = get_config("connection.default_backend")
-        if not url:
-            raise OpenEoClientException("No back-end URL given or known to connect to.")
+        default_backend = get_config_option("connection.default_backend")
+        if default_backend:
+            url = default_backend
+            _config_log(f"Using default back-end URL {url!r} (from config)")
+    if auth_type is None:
+        auto_authenticate = get_config_option("connection.auto_authenticate")
+        if auto_authenticate and auto_authenticate.lower() in {"basic", "oidc"}:
+            auth_type = auto_authenticate.lower()
+            _config_log(f"Doing auto-authentication {auth_type!r} (from config)")
+
+    if not url:
+        raise OpenEoClientException("No openEO back-end URL given or known to connect to.")
     connection = Connection(url, session=session, default_timeout=default_timeout)
 
-    auth_type = auth_type or get_config("connection.auto_authenticate")
     auth_type = auth_type.lower() if isinstance(auth_type, str) else auth_type
-    if auth_type in {None, 'null', 'none'}:
+    if auth_type in {None, False, 'null', 'none'}:
         pass
     elif auth_type == "basic":
         connection.authenticate_basic(**(auth_options or {}))
