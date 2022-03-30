@@ -113,6 +113,7 @@ class ClientConfig:
 
     def get(self, key: Union[str, Sequence[str]], default=None) -> Any:
         """Get setting at given key"""
+        # TODO: option to cast/convert to certain type?
         return self._config.get(self._key(key), default)
 
     def load_ini_file(self, path: Union[str, Path]) -> "ClientConfig":
@@ -193,7 +194,7 @@ def get_config_option(key: Optional[str] = None, default=None) -> str:
 
 
 def config_log(message: str):
-    """Print a message if verbosity is configured for that."""
+    """Print a config related message if verbosity is configured for that."""
     verbose = get_config_option("general.verbose", default="auto")
     if verbose == "print" or (verbose == "auto" and in_interactive_mode()):
         print(message)
