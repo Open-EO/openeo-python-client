@@ -408,8 +408,11 @@ when authenticating with the Refresh Token Flow like this::
 You can also bootstrap the refresh token file
 as described in :ref:`oidc_auth_get_refresh_token`
 
-Config files and ``openeo-auth`` helper tool
-=============================================
+
+.. _auth_configuration_files:
+
+Auth config files and ``openeo-auth`` helper tool
+====================================================
 
 The openEO Python Client Library provides some features and tools
 that ease the usability and security challenges
@@ -422,7 +425,7 @@ in your scripts and source code because that makes it quite hard
 to responsibly share or reuse your code.
 Even worse is storing these secrets in your version control system,
 where it might be near impossible to remove them again.
-A better solution is to keep **secrets in separate config files**,
+A better solution is to keep **secrets in separate configuration or cache files**,
 outside of your normal source code tree
 (to avoid committing them accidentally).
 
@@ -549,6 +552,42 @@ For example::
     and grant access to the client 'openeo-dev' (timeout: 60s).
     The OpenID Connect authorization code flow was successful.
     Stored refresh token in '/home/john/.local/share/openeo-python-client/refresh-tokens.json'
+
+
+
+.. _default_url_and_auto_auth:
+
+Default openEO back-end URL and auto-authentication
+=====================================================
+
+.. versionadded:: 0.10.0
+
+
+If you often use the same openEO back-end URL and authentication scheme,
+it can be handy to put these in a configuration file as discussed at :ref:`configuration_files`.
+
+.. note::
+    Note that :ref:`these general configuration files <configuration_files>` are different
+    from the auth config files discussed earlier under :ref:`auth_configuration_files`.
+    The latter are for storing authentication related secrets
+    and are mostly managed automatically (e.g. by the ``oidc-auth`` helper tool).
+    The former are not for storing secrets and are usually edited manually.
+
+For example, to define a default back-end and automatically use OpenID Connect authentication
+add these configuration options to the :ref:`desired configuration file <configuration_file_locations>`::
+
+    [Connection]
+    default_backend = openeo.cloud
+    auto_authenticate = oidc
+
+Getting an authenticated connection is now as simple as::
+
+    >>> import openeo
+    >>> con = openeo.connect()
+    Loaded openEO client config from openeo-client-config.ini
+    Using default back-end URL 'openeo.cloud' (from config)
+    Doing auto-authentication 'oidc' (from config)
+    Authenticated using refresh token.
 
 
 Troubleshooting tips

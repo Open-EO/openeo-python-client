@@ -24,6 +24,7 @@ OpenEO Python Client
    udf
    datacube_construction
    machine_learning
+   configuration
    cookbook/index
    api
    development

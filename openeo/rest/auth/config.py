@@ -10,13 +10,13 @@ import json
 import logging
 import platform
 import stat
-import warnings
 from datetime import datetime
 from pathlib import Path
 from typing import Union, Tuple, Dict
 
 from openeo import __version__
-from openeo.util import get_user_data_dir, rfc3339, get_user_config_dir, deep_get, deep_set
+from openeo.config import get_user_config_dir, get_user_data_dir
+from openeo.util import rfc3339, deep_get, deep_set
 
 _PRIVATE_PERMS = stat.S_IRUSR | stat.S_IWUSR
 
