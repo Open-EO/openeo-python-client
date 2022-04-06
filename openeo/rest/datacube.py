@@ -928,7 +928,8 @@ class DataCube(_ProcessGraphAbstraction):
             self,
             chunks: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter],
             process: Union[str, PGNode, typing.Callable],
-            mask_value: float = None
+            mask_value: float = None,
+            context: Optional[dict] = None,
     ) -> 'DataCube':
         """
         Apply a process to spatial chunks of a data cube.
@@ -942,6 +943,7 @@ class DataCube(_ProcessGraphAbstraction):
         :param mask_value: The value used for cells outside the polygon.
             This provides a distinction between NoData cells within the polygon (due to e.g. clouds)
             and masked cells outside it. If no value is provided, NoData cells are used outside the polygon.
+        :param context: Additional data to be passed to the process.
         """
         process = self._get_callback(process, parent_parameters=["data"])
         valid_geojson_types = ["Polygon", "MultiPolygon", "GeometryCollection", "Feature", "FeatureCollection"]
@@ -949,11 +951,12 @@ class DataCube(_ProcessGraphAbstraction):
         mask_value = float(mask_value) if mask_value is not None else None
         return self.process(
             process_id="chunk_polygon",
+            data=THIS,
+            chunks=chunks,
+            process=process,
             arguments=dict_no_none(
-                data=THIS,
-                chunks=chunks,
-                process=process,
-                mask_value=mask_value
+                mask_value=mask_value,
+                context=context,
             )
         )
 

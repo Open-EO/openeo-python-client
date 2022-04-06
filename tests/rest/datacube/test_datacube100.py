@@ -790,6 +790,29 @@ def test_chunk_polygon_path(con100: Connection):
     }
 
 
+def test_chunk_polygon_context(con100: Connection):
+    img = con100.load_collection("S2")
+    polygon = shapely.geometry.Polygon([(0, 0), (1, 0), (0, 1), (0, 0)])
+    process = lambda data: data.run_udf(udf="myfancycode", runtime="Python")
+    result = img.chunk_polygon(chunks=polygon, process=process, context={"foo": 4})
+    assert result.flat_graph()["chunkpolygon1"] == {
+        'process_id': 'chunk_polygon',
+        'arguments': {
+            'data': {'from_node': 'loadcollection1'},
+            'chunks': {'type': 'Polygon', 'coordinates': (((0, 0), (1, 0), (0, 1), (0, 0)),)},
+            'process': {'process_graph': {
+                'runudf1': {
+                    'process_id': 'run_udf',
+                    'arguments': {'data': {'from_parameter': 'data'}, 'runtime': 'Python', 'udf': 'myfancycode'},
+                    'result': True
+                }
+            }},
+            "context": {"foo": 4},
+        },
+        'result': True,
+    }
+
+
 def test_metadata_load_collection_100(con100, requests_mock):
     requests_mock.get(API_URL + "/collections/SENTINEL2", json={
         "cube:dimensions": {
