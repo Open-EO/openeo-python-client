@@ -1155,7 +1155,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return first(data=self, ignore_nodata=ignore_nodata)
 
-    def fit_class_random_forest(self, target, training, num_trees=UNSET, mtry=UNSET, seed=UNSET) -> 'ProcessBuilder':
+    def fit_class_random_forest(self, target, max_variables, num_trees=UNSET, seed=UNSET) -> 'ProcessBuilder':
         """
         Train a random forest classification model
 
@@ -1164,19 +1164,20 @@ class ProcessBuilder(ProcessBuilderBase):
         :param target: The training sites for the classification model as a vector data cube. This is
             associated with the target variable for the Random Forest model. The geometry has to associated with a
             value to predict (e.g. fractional forest canopy cover).
-        :param training: The amount of training data to be used in the classification, given as a fraction. The
-            sampling will be chosen randomly through the data object. The remaining data will be used as test data
-            for the validation.
+        :param max_variables: Specifies how many split variables will be used at a node.  The following options
+            are available:  - *integer*: The given number of variables are considered for each split. - `all`: All
+            variables are considered for each split. - `log2`: The logarithm with base 2 of the number of variables
+            are considered for each split. - `onethird`: A third of the number of variables are considered for each
+            split. - `sqrt`: The square root of the number of variables are considered for each split. This is
+            often the default for classification.
         :param num_trees: The number of trees build within the Random Forest classification.
-        :param mtry: Specifies how many split variables will be used at a node. Default value is `null`, which
-            corresponds to the number of predictors divided by 3.
         :param seed: A randomization seed to use for the random sampling in training. If not given or `null`,
             no seed is used and results may differ on subsequent use.
 
         :return: A model object that can be saved with ``save_ml_model()`` and restored with
             ``load_ml_model()``.
         """
-        return fit_class_random_forest(predictors=self, target=target, training=training, num_trees=num_trees, mtry=mtry, seed=seed)
+        return fit_class_random_forest(predictors=self, target=target, max_variables=max_variables, num_trees=num_trees, seed=seed)
 
     def fit_curve(self, parameters, function, dimension) -> 'ProcessBuilder':
         """
@@ -1197,7 +1198,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return fit_curve(data=self, parameters=parameters, function=function, dimension=dimension)
 
-    def fit_regr_random_forest(self, target, training, num_trees=UNSET, mtry=UNSET, seed=UNSET) -> 'ProcessBuilder':
+    def fit_regr_random_forest(self, target, max_variables, num_trees=UNSET, seed=UNSET) -> 'ProcessBuilder':
         """
         Train a random forest regression model
 
@@ -1206,19 +1207,20 @@ class ProcessBuilder(ProcessBuilderBase):
         :param target: The training sites for the regression model as a vector data cube. This is associated
             with the target variable for the Random Forest model. The geometry has to associated with a value to
             predict (e.g. fractional forest canopy cover).
-        :param training: The amount of training data to be used in the regression, given as a fraction. The
-            sampling will be randomly through the data object. The remaining data will be used as test data for the
-            validation.
+        :param max_variables: Specifies how many split variables will be used at a node.  The following options
+            are available:  - *integer*: The given number of variables are considered for each split. - `all`: All
+            variables are considered for each split. - `log2`: The logarithm with base 2 of the number of variables
+            are considered for each split. - `onethird`: A third of the number of variables are considered for each
+            split. This is often the default for regression. - `sqrt`: The square root of the number of variables
+            are considered for each split.
         :param num_trees: The number of trees build within the Random Forest regression.
-        :param mtry: Specifies how many split variables will be used at a node. Default value is `null`, which
-            corresponds to the number of predictors divided by 3.
         :param seed: A randomization seed to use for the random sampling in training. If not given or `null`,
             no seed is used and results may differ on subsequent use.
 
         :return: A model object that can be saved with ``save_ml_model()`` and restored with
             ``load_ml_model()``.
         """
-        return fit_regr_random_forest(predictors=self, target=target, training=training, num_trees=num_trees, mtry=mtry, seed=seed)
+        return fit_regr_random_forest(predictors=self, target=target, max_variables=max_variables, num_trees=num_trees, seed=seed)
 
     def flatten_dimensions(self, dimensions, target_dimension, label_separator=UNSET) -> 'ProcessBuilder':
         """
@@ -2335,14 +2337,14 @@ class ProcessBuilder(ProcessBuilderBase):
         :param self: Input geometries for sample extraction.  To maximize interoperability, a nested
             `GeometryCollection` should be avoided. Furthermore, a `GeometryCollection` composed of a single type
             of geometries should be avoided in favour of the corresponding multi-part type (e.g. `MultiPolygon`).
-        :param geometry_count: The maximum number of points to compute per geometry. Defaults to a maximum of
-            one point per geometry.  Points in the input geometries can be selected only once by the sampling.
+        :param geometry_count: The maximum number of points to compute per geometry.  Points in the input
+            geometries can be selected only once by the sampling.
         :param total_count: The maximum number of points to compute overall.  Throws a `CountMismatch`
             exception if the specified value is less than the provided number of geometries.
         :param group: Specifies whether the sampled points should be grouped by input geometry (default) or be
             generated as independent points.  * If the sampled points are grouped, the process generates a
-            `MultiPoint` per geometry given. Vector properties are preserved. * Otherwise, each sampled point is
-            generated as a distinct `Point` geometry. Vector properties are *not* preserved.
+            `MultiPoint` per geometry given which keeps the original identifier if present. * Otherwise, each
+            sampled point is generated as a distinct `Point` geometry without identifier.
         :param seed: A randomization seed to use for random sampling. If not given or `null`, no seed is used
             and results may differ on subsequent use.
 
@@ -2367,8 +2369,8 @@ class ProcessBuilder(ProcessBuilderBase):
             has been reached again. - For **points**, the point is returned as given.
         :param group: Specifies whether the sampled points should be grouped by input geometry (default) or be
             generated as independent points.  * If the sampled points are grouped, the process generates a
-            `MultiPoint` per geometry given. Vector properties are preserved. * Otherwise, each sampled point is
-            generated as a distinct `Point` geometry. Vector properties are *not* preserved.
+            `MultiPoint` per geometry given which keeps the original identifier if present. * Otherwise, each
+            sampled point is generated as a distinct `Point` geometry without identifier.
 
         :return: Returns a vector data cube with the sampled points.
         """
@@ -3523,7 +3525,7 @@ def first(data, ignore_nodata=UNSET) -> ProcessBuilder:
     return _process('first', data=data, ignore_nodata=ignore_nodata)
 
 
-def fit_class_random_forest(predictors, target, training, num_trees=UNSET, mtry=UNSET, seed=UNSET) -> ProcessBuilder:
+def fit_class_random_forest(predictors, target, max_variables, num_trees=UNSET, seed=UNSET) -> ProcessBuilder:
     """
     Train a random forest classification model
 
@@ -3532,18 +3534,19 @@ def fit_class_random_forest(predictors, target, training, num_trees=UNSET, mtry=
     :param target: The training sites for the classification model as a vector data cube. This is associated
         with the target variable for the Random Forest model. The geometry has to associated with a value to
         predict (e.g. fractional forest canopy cover).
-    :param training: The amount of training data to be used in the classification, given as a fraction. The
-        sampling will be chosen randomly through the data object. The remaining data will be used as test data for
-        the validation.
+    :param max_variables: Specifies how many split variables will be used at a node.  The following options are
+        available:  - *integer*: The given number of variables are considered for each split. - `all`: All
+        variables are considered for each split. - `log2`: The logarithm with base 2 of the number of variables are
+        considered for each split. - `onethird`: A third of the number of variables are considered for each split.
+        - `sqrt`: The square root of the number of variables are considered for each split. This is often the
+        default for classification.
     :param num_trees: The number of trees build within the Random Forest classification.
-    :param mtry: Specifies how many split variables will be used at a node. Default value is `null`, which
-        corresponds to the number of predictors divided by 3.
     :param seed: A randomization seed to use for the random sampling in training. If not given or `null`, no
         seed is used and results may differ on subsequent use.
 
     :return: A model object that can be saved with ``save_ml_model()`` and restored with ``load_ml_model()``.
     """
-    return _process('fit_class_random_forest', predictors=predictors, target=target, training=training, num_trees=num_trees, mtry=mtry, seed=seed)
+    return _process('fit_class_random_forest', predictors=predictors, target=target, max_variables=max_variables, num_trees=num_trees, seed=seed)
 
 
 def fit_curve(data, parameters, function, dimension) -> ProcessBuilder:
@@ -3566,7 +3569,7 @@ def fit_curve(data, parameters, function, dimension) -> ProcessBuilder:
     return _process('fit_curve', data=data, parameters=parameters, function=function, dimension=dimension)
 
 
-def fit_regr_random_forest(predictors, target, training, num_trees=UNSET, mtry=UNSET, seed=UNSET) -> ProcessBuilder:
+def fit_regr_random_forest(predictors, target, max_variables, num_trees=UNSET, seed=UNSET) -> ProcessBuilder:
     """
     Train a random forest regression model
 
@@ -3575,18 +3578,19 @@ def fit_regr_random_forest(predictors, target, training, num_trees=UNSET, mtry=U
     :param target: The training sites for the regression model as a vector data cube. This is associated with
         the target variable for the Random Forest model. The geometry has to associated with a value to predict
         (e.g. fractional forest canopy cover).
-    :param training: The amount of training data to be used in the regression, given as a fraction. The
-        sampling will be randomly through the data object. The remaining data will be used as test data for the
-        validation.
+    :param max_variables: Specifies how many split variables will be used at a node.  The following options are
+        available:  - *integer*: The given number of variables are considered for each split. - `all`: All
+        variables are considered for each split. - `log2`: The logarithm with base 2 of the number of variables are
+        considered for each split. - `onethird`: A third of the number of variables are considered for each split.
+        This is often the default for regression. - `sqrt`: The square root of the number of variables are
+        considered for each split.
     :param num_trees: The number of trees build within the Random Forest regression.
-    :param mtry: Specifies how many split variables will be used at a node. Default value is `null`, which
-        corresponds to the number of predictors divided by 3.
     :param seed: A randomization seed to use for the random sampling in training. If not given or `null`, no
         seed is used and results may differ on subsequent use.
 
     :return: A model object that can be saved with ``save_ml_model()`` and restored with ``load_ml_model()``.
     """
-    return _process('fit_regr_random_forest', predictors=predictors, target=target, training=training, num_trees=num_trees, mtry=mtry, seed=seed)
+    return _process('fit_regr_random_forest', predictors=predictors, target=target, max_variables=max_variables, num_trees=num_trees, seed=seed)
 
 
 def flatten_dimensions(data, dimensions, target_dimension, label_separator=UNSET) -> ProcessBuilder:
@@ -4756,14 +4760,14 @@ def vector_to_random_points(data, geometry_count=UNSET, total_count=UNSET, group
     :param data: Input geometries for sample extraction.  To maximize interoperability, a nested
         `GeometryCollection` should be avoided. Furthermore, a `GeometryCollection` composed of a single type of
         geometries should be avoided in favour of the corresponding multi-part type (e.g. `MultiPolygon`).
-    :param geometry_count: The maximum number of points to compute per geometry. Defaults to a maximum of one
-        point per geometry.  Points in the input geometries can be selected only once by the sampling.
+    :param geometry_count: The maximum number of points to compute per geometry.  Points in the input
+        geometries can be selected only once by the sampling.
     :param total_count: The maximum number of points to compute overall.  Throws a `CountMismatch` exception if
         the specified value is less than the provided number of geometries.
     :param group: Specifies whether the sampled points should be grouped by input geometry (default) or be
         generated as independent points.  * If the sampled points are grouped, the process generates a `MultiPoint`
-        per geometry given. Vector properties are preserved. * Otherwise, each sampled point is generated as a
-        distinct `Point` geometry. Vector properties are *not* preserved.
+        per geometry given which keeps the original identifier if present. * Otherwise, each sampled point is
+        generated as a distinct `Point` geometry without identifier.
     :param seed: A randomization seed to use for random sampling. If not given or `null`, no seed is used and
         results may differ on subsequent use.
 
@@ -4789,8 +4793,8 @@ def vector_to_regular_points(data, distance, group=UNSET) -> ProcessBuilder:
         **points**, the point is returned as given.
     :param group: Specifies whether the sampled points should be grouped by input geometry (default) or be
         generated as independent points.  * If the sampled points are grouped, the process generates a `MultiPoint`
-        per geometry given. Vector properties are preserved. * Otherwise, each sampled point is generated as a
-        distinct `Point` geometry. Vector properties are *not* preserved.
+        per geometry given which keeps the original identifier if present. * Otherwise, each sampled point is
+        generated as a distinct `Point` geometry without identifier.
 
     :return: Returns a vector data cube with the sampled points.
     """
