@@ -34,4 +34,8 @@ from openeo.internal.graph_building import UDF
 
 
 def client_version() -> str:
-    return __version__
+    try:
+        import importlib.metadata
+        return importlib.metadata.version("openeo")
+    except Exception:
+        return __version__
