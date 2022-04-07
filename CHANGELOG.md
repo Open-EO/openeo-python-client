@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `target_dimension` argument to `DataCube.aggregate_spatial` ([#288](https://github.com/Open-EO/openeo-python-client/issues/288))
 - Add basic configuration file system to define a default back-end URL and enable auto-authentication ([#264](https://github.com/Open-EO/openeo-python-client/issues/264), [#187](https://github.com/Open-EO/openeo-python-client/issues/187))
 - Add `context` argument to `DataCube.chunk_polygon()`
+- Add `Connection.version_info()` to list version information about the client, the API and the back-end
 
 ### Changed
 

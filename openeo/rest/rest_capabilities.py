@@ -10,6 +10,9 @@ class RESTCapabilities(Capabilities):
         self.capabilities = data
         self.url = url
 
+    def get(self, key: str, default=None):
+        return self.capabilities.get(key, default)
+
     def api_version(self) -> str:
         """ Get openEO version."""
         if 'api_version' in self.capabilities:

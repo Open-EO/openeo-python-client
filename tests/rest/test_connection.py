@@ -13,6 +13,7 @@ import pytest
 import requests.auth
 import requests_mock
 
+import openeo
 from openeo.capabilities import ComparableVersion
 from openeo.internal.graph_building import PGNode
 from openeo.rest import OpenEoClientException, OpenEoApiError, OpenEoRestError
@@ -1983,3 +1984,29 @@ def test_connect_auto_auth_from_config_oidc_device_code(
     assert con.root_url == api_url
     assert isinstance(con.auth, BearerAuth)
     assert con.auth.bearer == "oidc/auth/" + oidc_mock.state["access_token"]
+
+
+@pytest.mark.parametrize(["capabilities", "expected"], [
+    (
+            {"api_version": "1.0.0"},
+            {"api": "1.0.0", "backend": {"root_url": "https://oeo.test/"}, "client": openeo.client_version()}
+    ),
+    (
+            {"api_version": "1.1.0"},
+            {"api": "1.1.0", "backend": {"root_url": "https://oeo.test/"}, "client": openeo.client_version()}
+    ),
+    (
+            {"api_version": "1.1.0", "backend_version": "1.2.3", "processing:software": {"foolib": "4.5.6"}},
+            {
+                "api": "1.1.0",
+                "backend": {
+                    "root_url": "https://oeo.test/", "version": "1.2.3", "processing:software": {"foolib": "4.5.6"}
+                },
+                "client": openeo.client_version(),
+            }
+    ),
+])
+def test_version_info(requests_mock, capabilities, expected):
+    requests_mock.get("https://oeo.test/", json=capabilities)
+    con = Connection(API_URL)
+    assert con.version_info() == expected

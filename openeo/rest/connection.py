@@ -1128,6 +1128,19 @@ class Connection(RestApiConnection):
         cmd += [self.build_url(path)]
         return " ".join(shlex.quote(c) for c in cmd)
 
+    def version_info(self):
+        """List version of the openEO client, API, back-end, etc."""
+        capabilities = self.capabilities()
+        return {
+            "client": openeo.client_version(),
+            "api": capabilities.api_version(),
+            "backend": dict_no_none({
+                "root_url": self.root_url,
+                "version": capabilities.get("backend_version"),
+                "processing:software": capabilities.get("processing:software"),
+            }),
+        }
+
 
 def connect(
         url: Optional[str] = None,
