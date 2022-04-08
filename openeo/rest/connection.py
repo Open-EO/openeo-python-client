@@ -1177,6 +1177,11 @@ def connect(
         if default_backend:
             url = default_backend
             _config_log(f"Using default back-end URL {url!r} (from config)")
+            default_backend_auto_auth = get_config_option("connection.default_backend.auto_authenticate")
+            if default_backend_auto_auth and default_backend_auto_auth.lower() in {"basic", "oidc"}:
+                auth_type = default_backend_auto_auth.lower()
+                _config_log(f"Doing auto-authentication {auth_type!r} (from config)")
+
     if auth_type is None:
         auto_authenticate = get_config_option("connection.auto_authenticate")
         if auto_authenticate and auto_authenticate.lower() in {"basic", "oidc"}:

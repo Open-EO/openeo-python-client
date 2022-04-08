@@ -578,7 +578,7 @@ add these configuration options to the :ref:`desired configuration file <configu
 
     [Connection]
     default_backend = openeo.cloud
-    auto_authenticate = oidc
+    default_backend.auto_authenticate = oidc
 
 Getting an authenticated connection is now as simple as::
 

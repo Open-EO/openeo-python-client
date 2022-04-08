@@ -1840,66 +1840,107 @@ def custom_client_config(tmp_path):
     ("print", True),
     ("off", False),
 ])
-def test_connect_default_backend_from_config(requests_mock, custom_client_config, caplog, capsys, verbose, on_stdout):
-    caplog.set_level(logging.INFO)
-    url = f"openeo{random.randint(0, 1000)}.test"
-    custom_client_config.write_text(textwrap.dedent(f"""
-        [General]
-        verbose = {verbose}
-        [Connection]
-        default_backend = {url}
-    """))
-    requests_mock.get(f"https://{url}", json={"api_version": "1.0.0"})
-    con = connect()
-    assert con.root_url == f"https://{url}"
-
-    expected_log = f"Using default back-end URL {url!r} (from config)"
-    assert expected_log in caplog.text
-    assert (expected_log in capsys.readouterr().out) == on_stdout
-
-
-@pytest.mark.parametrize(["verbose", "on_stdout"], [
-    ("print", True),
-    ("off", False),
-])
-def test_connect_auto_auth_from_config_basic(
-        requests_mock, custom_client_config, auth_config, caplog, capsys, verbose, on_stdout
+@pytest.mark.parametrize("use_default", [False, True])
+def test_connect_default_backend_from_config(
+        requests_mock, custom_client_config, caplog, capsys,
+        verbose, on_stdout, use_default
 ):
     caplog.set_level(logging.INFO)
-    url = f"https://openeo{random.randint(0, 1000)}.test"
+    default = f"https://openeo{random.randint(0, 1000)}.test"
+    other = f"https://other{random.randint(0, 1000)}.test"
     custom_client_config.write_text(textwrap.dedent(f"""
         [General]
         verbose = {verbose}
         [Connection]
-        default_backend = {url}
-        auto_authenticate = basic
+        default_backend = {default}
     """))
-    user, pwd = "john", "j0hn"
-    auth_config.set_basic_auth(backend=url, username=user, password=pwd)
+    requests_mock.get(default, json={"api_version": "1.0.0"})
+    requests_mock.get(other, json={"api_version": "1.0.0"})
 
-    requests_mock.get(url, json={"api_version": "1.0.0", "endpoints": BASIC_ENDPOINTS})
-    requests_mock.get(f"{url}/credentials/basic", text=_credentials_basic_handler(user, pwd, access_token="Hell0!"))
-
-    con = connect()
-    assert con.root_url == url
-    assert isinstance(con.auth, BearerAuth)
-    assert con.auth.bearer == "basic//Hell0!"
-
-    expected_log = f"Doing auto-authentication 'basic' (from config)"
-    assert expected_log in caplog.text
-    assert (expected_log in capsys.readouterr().out) == on_stdout
+    expected_log = f"Using default back-end URL {default!r} (from config)"
+    if use_default:
+        # Without arguments: use default
+        con = connect()
+        assert con.root_url == default
+        assert expected_log in caplog.text
+        assert (expected_log in capsys.readouterr().out) == on_stdout
+    else:
+        # With url argument: still works, and no config related output
+        con = connect(other)
+        assert con.root_url == other
+        assert expected_log not in caplog.text
+        assert expected_log not in capsys.readouterr().out
 
 
 @pytest.mark.parametrize(["verbose", "on_stdout"], [
     ("print", True),
     ("off", False),
 ])
+@pytest.mark.parametrize(["auto_auth_config", "use_default", "authenticated"], [
+    ("auto_authenticate", True, True),
+    ("auto_authenticate", False, True),
+    ("default_backend.auto_authenticate", True, True),
+    ("default_backend.auto_authenticate", False, False),
+])
+def test_connect_auto_auth_from_config_basic(
+        requests_mock, custom_client_config, auth_config, caplog, capsys,
+        verbose, on_stdout, auto_auth_config, use_default, authenticated,
+):
+    caplog.set_level(logging.INFO)
+    default = f"https://openeo{random.randint(0, 1000)}.test"
+    other = f"https://other{random.randint(0, 1000)}.test"
+    custom_client_config.write_text(textwrap.dedent(f"""
+        [General]
+        verbose = {verbose}
+        [Connection]
+        default_backend = {default}
+        {auto_auth_config} = basic
+    """))
+    user, pwd = "john", "j0hn"
+    for u, a in [(default, "Hell0!"), (other, "Wazz6!")]:
+        auth_config.set_basic_auth(backend=u, username=user, password=pwd)
+        requests_mock.get(u, json={"api_version": "1.0.0", "endpoints": BASIC_ENDPOINTS})
+        requests_mock.get(f"{u}/credentials/basic", text=_credentials_basic_handler(user, pwd, access_token=a))
+
+    if use_default:
+        # Without arguments: use default
+        con = connect()
+        assert con.root_url == default
+    else:
+        # With url argument: still works (possibly with auto_auth too)
+        con = connect(other)
+        assert con.root_url == other
+
+    expected_log = f"Doing auto-authentication 'basic' (from config)"
+    if authenticated:
+        assert isinstance(con.auth, BearerAuth)
+        assert con.auth.bearer == "basic//Hell0!" if use_default else "basic//Wazz6!"
+        assert expected_log in caplog.text
+        assert (expected_log in capsys.readouterr().out) == on_stdout
+    else:
+        assert isinstance(con.auth, NullAuth)
+        assert expected_log not in caplog.text
+        assert expected_log not in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(["verbose", "on_stdout"], [
+    ("print", True),
+    ("off", False),
+])
+@pytest.mark.parametrize(["auto_auth_config", "use_default", "authenticated"], [
+    ("auto_authenticate", True, True),
+    ("auto_authenticate", False, True),
+    ("default_backend.auto_authenticate", True, True),
+    ("default_backend.auto_authenticate", False, False),
+])
 def test_connect_auto_auth_from_config_oidc_refresh_token(
-        requests_mock, custom_client_config, auth_config, refresh_token_store, caplog, capsys, verbose, on_stdout
+        requests_mock, custom_client_config, auth_config, refresh_token_store, caplog, capsys,
+        verbose, on_stdout, auto_auth_config, use_default, authenticated,
 ):
     """Auto-authorize with client config, auth config and refresh tokens"""
     caplog.set_level(logging.INFO)
-    api_url = f"https://openeo{random.randint(0, 1000)}.test"
+    default = f"https://openeo{random.randint(0, 1000)}.test"
+    other = f"https://other{random.randint(0, 1000)}.test"
     client_id = "myclient"
     refresh_token = "r3fr35h!"
     issuer = "https://oidc.test"
@@ -1908,14 +1949,15 @@ def test_connect_auto_auth_from_config_oidc_refresh_token(
         [General]
         verbose = {verbose}
         [Connection]
-        default_backend = {api_url}
-        auto_authenticate = oidc
+        default_backend = {default}
+        {auto_auth_config} = oidc
     """))
 
-    requests_mock.get(api_url, json={"api_version": "1.0.0"})
-    requests_mock.get(f"{api_url}/credentials/oidc", json={
-        "providers": [{"id": "oi", "issuer": issuer, "title": "example", "scopes": ["openid"]}]
-    })
+    for u in [default, other]:
+        requests_mock.get(u, json={"api_version": "1.0.0"})
+        requests_mock.get(f"{u}/credentials/oidc", json={
+            "providers": [{"id": "oi", "issuer": issuer, "title": "example", "scopes": ["openid"]}]
+        })
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
         expected_grant_type="refresh_token",
@@ -1924,43 +1966,63 @@ def test_connect_auto_auth_from_config_oidc_refresh_token(
         expected_fields={"refresh_token": refresh_token}
     )
     refresh_token_store.set_refresh_token(issuer=issuer, client_id=client_id, refresh_token=refresh_token)
-    auth_config.set_oidc_client_config(backend=api_url, provider_id="oi", client_id=client_id)
+    auth_config.set_oidc_client_config(backend=default, provider_id="oi", client_id=client_id)
+    auth_config.set_oidc_client_config(backend=other, provider_id="oi", client_id=client_id)
 
     # With all this set up, now the real work:
-    con = connect()
-    assert con.root_url == api_url
-    assert isinstance(con.auth, BearerAuth)
-    assert con.auth.bearer == "oidc/oi/" + oidc_mock.state["access_token"]
+    if use_default:
+        con = connect()
+        assert con.root_url == default
+    else:
+        con = connect(other)
+        assert con.root_url == other
 
     expected_log = f"Doing auto-authentication 'oidc' (from config)"
-    assert expected_log in caplog.text
-    assert (expected_log in capsys.readouterr().out) == on_stdout
+    if authenticated:
+        assert isinstance(con.auth, BearerAuth)
+        assert con.auth.bearer == "oidc/oi/" + oidc_mock.state["access_token"]
+        assert expected_log in caplog.text
+        assert (expected_log in capsys.readouterr().out) == on_stdout
+    else:
+        assert isinstance(con.auth, NullAuth)
+        assert expected_log not in caplog.text
+        assert expected_log not in capsys.readouterr().out
 
 
+@pytest.mark.parametrize(["auto_auth_config", "use_default", "authenticated"], [
+    ("auto_authenticate", True, True),
+    ("auto_authenticate", False, True),
+    ("default_backend.auto_authenticate", True, True),
+    ("default_backend.auto_authenticate", False, False),
+])
 def test_connect_auto_auth_from_config_oidc_device_code(
-        requests_mock, custom_client_config, auth_config
+        requests_mock, custom_client_config, auth_config, caplog,
+        auto_auth_config, use_default, authenticated,
 ):
     """Auto-authorize without auth config or refresh tokens"""
-    api_url = f"https://openeo{random.randint(0, 1000)}.test"
+    caplog.set_level(logging.INFO)
+    default = f"https://openeo{random.randint(0, 1000)}.test"
+    other = f"https://other{random.randint(0, 1000)}.test"
     default_client_id = "dadefaultklient"
     grant_types = ["urn:ietf:params:oauth:grant-type:device_code+pkce", "refresh_token"]
     issuer = "https://auth.test"
 
     custom_client_config.write_text(textwrap.dedent(f"""
         [Connection]
-        default_backend = {api_url}
-        auto_authenticate = oidc
+        default_backend = {default}
+        {auto_auth_config} = oidc
     """))
 
-    requests_mock.get(api_url, json={"api_version": "1.0.0"})
-    requests_mock.get(f"{api_url}/credentials/oidc", json={
-        "providers": [
-            {
-                "id": "auth", "issuer": issuer, "title": "Auth", "scopes": ["openid"],
-                "default_clients": [{"id": default_client_id, "grant_types": grant_types}]
-            },
-        ]
-    })
+    for u in [default, other]:
+        requests_mock.get(u, json={"api_version": "1.0.0"})
+        requests_mock.get(f"{u}/credentials/oidc", json={
+            "providers": [
+                {
+                    "id": "auth", "issuer": issuer, "title": "Auth", "scopes": ["openid"],
+                    "default_clients": [{"id": default_client_id, "grant_types": grant_types}]
+                },
+            ]
+        })
 
     expected_fields = {
         "scope": "openid",
@@ -1979,11 +2041,22 @@ def test_connect_auto_auth_from_config_oidc_device_code(
 
     # With all this set up, now the real work:
     oidc_mock.state["device_code_callback_timeline"] = ["great success"]
-    with assert_device_code_poll_sleep():
-        con = connect()
-    assert con.root_url == api_url
-    assert isinstance(con.auth, BearerAuth)
-    assert con.auth.bearer == "oidc/auth/" + oidc_mock.state["access_token"]
+    with assert_device_code_poll_sleep(expect_called=authenticated):
+        if use_default:
+            con = connect()
+            assert con.root_url == default
+        else:
+            con = connect(other)
+            assert con.root_url == other
+
+    expected_log = f"Doing auto-authentication 'oidc' (from config)"
+    if authenticated:
+        assert isinstance(con.auth, BearerAuth)
+        assert con.auth.bearer == "oidc/auth/" + oidc_mock.state["access_token"]
+        assert expected_log in caplog.text
+    else:
+        assert isinstance(con.auth, NullAuth)
+        assert expected_log not in caplog.text
 
 
 @pytest.mark.parametrize(["capabilities", "expected"], [

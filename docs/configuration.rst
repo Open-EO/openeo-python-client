@@ -63,4 +63,33 @@ The following configuration locations are probed (in this order) for an existing
 Configuration options
 ----------------------
 
-TODO
+.. list-table::
+   :widths: 10 10 40
+   :header-rows: 1
+
+   * - Config Section
+     - Config
+     - Description and possible values
+   * - ``General``
+     - ``verbose``
+     - Verbosity mode when important config values are used:
+        + ``print``: always ``print()`` info
+        + ``auto`` (default): only ``print()`` when in an interactive context
+        + ``off``: don't print info
+   * - ``Connection``
+     - ``default_backend``
+     - Default back-end to connect to when :py:func:`openeo.connect()`
+       is used without explicit back-end URL.
+       Also see :ref:`default_url_and_auto_auth`
+   * - ``Connection``
+     - ``default_backend.auto_authenticate``
+     - Automatically authenticate in :py:func:`openeo.connect()` when  using the ``default_backend`` config. Allowed values:
+        + ``basic`` for basic authentication
+        + ``oidc`` for OpenID Connect authentication
+        + ``off`` (default) for no authentication
+       Also see :ref:`default_url_and_auto_auth`
+   * - ``Connection``
+     - ``auto_authenticate``
+     - Automatically authenticate in :py:func:`openeo.connect()`.
+       Allowed values: see ``default_backend.auto_authenticate``.
+       Also see :ref:`default_url_and_auto_auth`
