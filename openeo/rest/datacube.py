@@ -757,6 +757,7 @@ class DataCube(_ProcessGraphAbstraction):
             reducer: Union[str, PGNode, typing.Callable],
             target_dimension: Optional[str] = None,
             crs: str = None,
+            context: Optional[dict] = None,
             # TODO arguments: target dimension, context
     ) -> 'DataCube':
         """
@@ -768,6 +769,7 @@ class DataCube(_ProcessGraphAbstraction):
         :param target_dimension: The new dimension name to be used for storing the results.
         :param crs: The spatial reference system of the provided polygon.
             By default longitude-latitude (EPSG:4326) is assumed.
+        :param context: Additional data to be passed to the reducer process.
 
             .. note:: this ``crs`` argument is a non-standard/experimental feature, only supported by specific back-ends.
                 See https://github.com/Open-EO/openeo-processes/issues/235 for details.
@@ -781,7 +783,7 @@ class DataCube(_ProcessGraphAbstraction):
         reducer = self._get_callback(reducer, parent_parameters=["data"])
         return self.process(
             process_id="aggregate_spatial", data=THIS, geometries=geometries, reducer=reducer,
-            **dict_no_none(target_dimension=target_dimension)
+            **dict_no_none(target_dimension=target_dimension, context=context)
         )
 
     @staticmethod
@@ -844,7 +846,11 @@ class DataCube(_ProcessGraphAbstraction):
     def apply_dimension(
             self, code: str = None, runtime=None,
             process: [str, PGNode, typing.Callable] = None,
-            version="latest", dimension='t', target_dimension=None
+            version="latest",
+            # TODO: dimension has no default (per spec)?
+            dimension="t",
+            target_dimension=None,
+            context: Optional[dict] = None,
     ) -> 'DataCube':
         """
         Applies a process to all pixel values along a dimension of a raster data cube. For example,
@@ -873,6 +879,7 @@ class DataCube(_ProcessGraphAbstraction):
         :param target_dimension: The name of the target dimension or null (the default) to use the source dimension
             specified in the parameter dimension. By specifying a target dimension, the source dimension is removed.
             The target dimension with the specified name and the type other (see add_dimension) is created, if it doesn't exist yet.
+        :param context: Additional data to be passed to the process.
 
         :return: A datacube with the UDF applied to the given dimension.
         :raises: DimensionNotAvailable
@@ -890,24 +897,28 @@ class DataCube(_ProcessGraphAbstraction):
             "data": THIS,
             "process": process,
             "dimension": self.metadata.assert_valid_dimension(dimension),
-            # TODO #125 arguments: context
         }
         if target_dimension is not None:
             arguments["target_dimension"] = target_dimension
+        if context is not None:
+            arguments["context"] = context
         result_cube = self.process(process_id="apply_dimension", arguments=arguments)
 
         return result_cube
 
     @openeo_process
     def reduce_dimension(
-            self, dimension: str, reducer: Union[str, PGNode, typing.Callable], context=None,
+            self,
+            dimension: str, reducer: Union[str, PGNode, typing.Callable],
+            context: Optional[dict] = None,
             process_id="reduce_dimension", band_math_mode: bool = False
-    ) -> 'DataCube':
+    ) -> "DataCube":
         """
         Add a reduce process with given reducer callback along given dimension
 
         :param dimension: the label of the dimension to reduce
         :param reducer: "child callback" function, see :ref:`callbackfunctions`
+        :param context: Additional data to be passed to the process.
         """
         # TODO: check if dimension is valid according to metadata? #116
         # TODO: #125 use/test case for `reduce_dimension_binary`?
@@ -1041,9 +1052,12 @@ class DataCube(_ProcessGraphAbstraction):
 
     @openeo_process
     def apply_neighborhood(
-            self, process: [str, PGNode, typing.Callable],
-            size: List[Dict], overlap: List[dict] = None
-    ) -> 'DataCube':
+            self,
+            process: [str, PGNode, typing.Callable],
+            size: List[Dict],
+            overlap: List[dict] = None,
+            context: Optional[dict] = None,
+    ) -> "DataCube":
         """
         Applies a focal process to a data cube.
 
@@ -1060,6 +1074,8 @@ class DataCube(_ProcessGraphAbstraction):
         :param size:
         :param overlap:
         :param process: a callback function that creates a process graph, see :ref:`callbackfunctions`
+        :param context: Additional data to be passed to the process.
+
         :return:
         """
         return self.process(
@@ -1068,26 +1084,29 @@ class DataCube(_ProcessGraphAbstraction):
                 data=THIS,
                 process=self._get_callback(process, parent_parameters=["data"]),
                 size=size,
-                overlap=overlap
+                overlap=overlap,
+                context=context,
             )
         )
 
     @openeo_process
-    def apply(self, process: Union[str, PGNode, typing.Callable] = None) -> 'DataCube':
+    def apply(self, process: Union[str, PGNode, typing.Callable] = None, context: Optional[dict] = None) -> 'DataCube':
         """
         Applies a unary process (a local operation) to each value of the specified or all dimensions in the data cube.
 
         :param process: the name of a process, or a callback function that creates a process graph, see :ref:`callbackfunctions`
         :param dimensions: The names of the dimensions to apply the process on. Defaults to an empty array so that all dimensions are used.
+        :param context: Additional data to be passed to the process.
+
         :return: A data cube with the newly computed values. The resolution, cardinality and the number of dimensions are the same as for the original data cube.
         """
         return self.process(
             process_id="apply",
-            arguments={
+            arguments=dict_no_none({
                 "data": THIS,
                 "process": self._get_callback(process, parent_parameters=["x"]),
-                # TODO #125 context
-            }
+                "context": context,
+            })
         )
 
     @openeo_process(process_id="reduce_dimension")
@@ -1140,7 +1159,14 @@ class DataCube(_ProcessGraphAbstraction):
         return self.reduce_temporal_simple("count")
 
     @openeo_process
-    def aggregate_temporal(self, intervals:List[List],reducer: Union[str, PGNode, typing.Callable],labels:List = None, dimension:str = None, context:Dict=None) -> 'DataCube' :
+    def aggregate_temporal(
+            self,
+            intervals: List[list],
+            reducer: Union[str, PGNode, typing.Callable],
+            labels: Optional[List[str]] = None,
+            dimension: Optional[str] = None,
+            context: Optional[dict] = None,
+    ) -> "DataCube":
         """ Computes a temporal aggregation based on an array of date and/or time intervals.
 
             Calendar hierarchies such as year, month, week etc. must be transformed into specific intervals by the clients. For each interval, all data along the dimension will be passed through the reducer. The computed values will be projected to the labels, so the number of labels and the number of intervals need to be equal.
@@ -1158,17 +1184,23 @@ class DataCube(_ProcessGraphAbstraction):
         return self.process(
             process_id="aggregate_temporal",
             arguments=dict_no_none(
-                data= THIS,
-                intervals = intervals,
-                labels = labels,
-                dimension = dimension,
-                reducer = self._get_callback(reducer, parent_parameters=["data"]),
-                context = context
+                data=THIS,
+                intervals=intervals,
+                labels=labels,
+                dimension=dimension,
+                reducer=self._get_callback(reducer, parent_parameters=["data"]),
+                context=context
             )
         )
 
     @openeo_process
-    def aggregate_temporal_period(self, period:str,reducer, dimension:str = None,context:Dict=None) -> 'DataCube' :
+    def aggregate_temporal_period(
+            self,
+            period: str,
+            reducer: Union[str, PGNode, typing.Callable],
+            dimension: Optional[str] = None,
+            context: Optional[Dict] = None,
+    ) -> "DataCube":
         """ Computes a temporal aggregation based on calendar hierarchies such as years, months or seasons. For other calendar hierarchies aggregate_temporal can be used.
 
             For each interval, all data along the dimension will be passed through the reducer.
@@ -1192,6 +1224,7 @@ class DataCube(_ProcessGraphAbstraction):
             :param period: The period of the time intervals to aggregate.
             :param reducer: A reducer to be applied on all values along the specified dimension. The reducer must be a callable process (or a set processes) that accepts an array and computes a single return value of the same type as the input values, for example median.
             :param dimension: The temporal dimension for aggregation. All data along the dimension will be passed through the specified reducer. If the dimension is not set, the data cube is expected to only have one temporal dimension.
+            :param context: Additional data to be passed to the reducer.
 
             :return: A data cube with the same dimensions. The dimension properties (name, type, labels, reference system and resolution) remain unchanged.
         """
@@ -1202,7 +1235,7 @@ class DataCube(_ProcessGraphAbstraction):
                 period=period,
                 dimension=dimension,
                 reducer=self._get_callback(reducer, parent_parameters=["data"]),
-                context = context
+                context=context
             )
         )
 
@@ -1355,7 +1388,10 @@ class DataCube(_ProcessGraphAbstraction):
 
     @openeo_process
     def merge_cubes(
-            self, other: 'DataCube', overlap_resolver: Union[str, PGNode, typing.Callable] = None
+            self,
+            other: 'DataCube',
+            overlap_resolver: Union[str, PGNode, typing.Callable] = None,
+            context: Optional[dict] = None,
     ) -> 'DataCube':
         """
         Merging two data cubes
@@ -1374,12 +1410,15 @@ class DataCube(_ProcessGraphAbstraction):
 
         :param other: The data cube to merge with.
         :param overlap_resolver: A reduction operator that resolves the conflict if the data overlaps. The reducer must return a value of the same data type as the input values are. The reduction operator may be a single process such as multiply or consist of multiple sub-processes. null (the default) can be specified if no overlap resolver is required.
+        :param context: Additional data to be passed to the process.
+
         :return: The merged data cube.
         """
         arguments = {'cube1': self, 'cube2': other}
         if overlap_resolver:
             arguments["overlap_resolver"] = self._get_callback(overlap_resolver, parent_parameters=["x", "y"])
-        # TODO #125 context
+        if context:
+            arguments["context"] = context
         # TODO: set metadata of reduced cube?
         return self.process(process_id="merge_cubes", arguments=arguments)
 

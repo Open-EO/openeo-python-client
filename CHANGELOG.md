@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `context` parameter to `DataCube.aggregate_spatial()`, `DataCube.apply_dimension()`, 
+  `DataCube.apply_neighborhood()`, `DataCube.apply()`, `DataCube.merge_cubes()`.
+  ([291](https://github.com/Open-EO/openeo-python-client/issues/291))
+
 ### Changed
 
 ### Removed
