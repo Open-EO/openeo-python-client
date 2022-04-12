@@ -4,8 +4,8 @@ from typing import List
 from openeo.api.logs import LogEntry
 from openeo.internal.jupyter import VisualDict, VisualList
 
-if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
-    # Imports for type checking only (circular import issue at runtime). `hasattr` is Python 3.5 workaround #210
+if typing.TYPE_CHECKING:
+    # Imports for type checking only (circular import issue at runtime).
     from openeo.rest.connection import Connection
 
 

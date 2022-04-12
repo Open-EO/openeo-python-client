@@ -17,8 +17,8 @@ import xarray
 from openeo.udf import OpenEoUdfException
 from openeo.util import dict_no_none, deep_get
 
-if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
-    # Imports for type checking only (circular import issue at runtime). `hasattr` is Python 3.5 workaround #210
+if typing.TYPE_CHECKING:
+    # Imports for type checking only (circular import issue at runtime).
     import matplotlib.colors
 
 

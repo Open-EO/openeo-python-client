@@ -9,8 +9,8 @@ from openeo.rest._datacube import _ProcessGraphAbstraction
 from openeo.rest.job import RESTJob
 from openeo.util import legacy_alias, dict_no_none
 
-if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
-    # Imports for type checking only (circular import issue at runtime). `hasattr` is Python 3.5 workaround #210
+if typing.TYPE_CHECKING:
+    # Imports for type checking only (circular import issue at runtime).
     from openeo import Connection
 
 
