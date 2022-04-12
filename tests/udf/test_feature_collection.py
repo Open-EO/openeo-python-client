@@ -1,15 +1,9 @@
 import pytest
+from geopandas import GeoDataFrame
 from pandas import DatetimeIndex
 from shapely.geometry import Point
 
 from openeo.udf import FeatureCollection
-
-try:
-    # TODO: get rid of this conditional import for Python 3.5
-    from geopandas import GeoDataFrame
-except ImportError:
-    GeoDataFrame = None
-    pytestmark = pytest.mark.skipif(GeoDataFrame is None, reason="Requires geopandas")
 
 
 def test_feature_collection_basic():

@@ -1707,8 +1707,6 @@ def _deflate_compress(data: bytes) -> bytes:
 
 ])
 def test_download_content_encoding(requests_mock, tmp_path, content_encoding, compress):
-    tmp_path = Path(str(tmp_path))  # Python 3.5 workaround
-
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
 
     tiff_data = b"hello world, I'm a tiff file."

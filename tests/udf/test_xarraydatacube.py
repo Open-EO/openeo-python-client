@@ -6,7 +6,6 @@ import xarray
 import xarray.testing
 
 from openeo.udf import XarrayDataCube
-from .. import as_path
 
 
 def test_xarraydatacube_to_dict_minimal():
@@ -140,7 +139,7 @@ def test_build_xdc():
 
 
 def _assert_equal_after_save_and_load(xdc, tmp_path, format) -> XarrayDataCube:
-    path = as_path(tmp_path / ("cube." + format))
+    path = tmp_path / ("cube." + format)
     xdc.save_to_file(path=path, fmt=format)
     result = XarrayDataCube.from_file(path=path, fmt=format)
     xarray.testing.assert_equal(xdc.array, result.array)
@@ -168,7 +167,7 @@ def test_save_load_full(format, tmp_path):
 def test_save_load_guess_format(filename, save_format, load_format, tmp_path):
     xdc = _build_xdc(ts=[2019, 2020, 2021], bands=["a", "b"], xs=[2, 3, 4, 5], ys=[5, 6, 7, 8, 9])
     assert xdc.array.shape == (3, 2, 4, 5)
-    path = as_path(tmp_path / filename)
+    path = tmp_path / filename
     xdc.save_to_file(path, fmt=save_format)
     result = XarrayDataCube.from_file(path, fmt=load_format)
     xarray.testing.assert_equal(xdc.array, result.array)
@@ -177,7 +176,7 @@ def test_save_load_guess_format(filename, save_format, load_format, tmp_path):
 def test_save_load_guess_format_invalid(tmp_path):
     xdc = _build_xdc(ts=[2019, 2020, 2021], bands=["a", "b"], xs=[2, 3, 4, 5], ys=[5, 6, 7, 8, 9])
     assert xdc.array.shape == (3, 2, 4, 5)
-    path = as_path(tmp_path / "cube.foobar")
+    path = tmp_path / "cube.foobar"
     with pytest.raises(ValueError, match="Can not guess format"):
         xdc.save_to_file(path)
     xdc.save_to_file(path, fmt="netcdf")
@@ -267,7 +266,7 @@ def test_datacube_plot(tmp_path):
 
     ts = [numpy.datetime64('2020-08-01'), numpy.datetime64('2020-08-11'), numpy.datetime64('2020-08-21')]
     xdc = _build_xdc(ts=ts, bands=["a", "b"], xs=100, ys=100)
-    path = as_path(tmp_path / "test.png")
+    path = tmp_path / "test.png"
     xdc.plot("title", oversample=1.2, cbartext="some\nvalue", to_file=path, to_show=False)
 
     png_data = plt.imread(str(path))

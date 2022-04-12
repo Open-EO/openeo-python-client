@@ -15,8 +15,3 @@ def load_json_resource(relative_path, preprocess: Callable = None):
         if preprocess:
             data = preprocess(data)
         return json.loads(data)
-
-
-def as_path(path) -> Path:
-    """Workaround for Python 3.5 where pytest `tmp_path` fixture objects are not compatible with `pathlib.Path()`"""
-    return Path(str(path))
