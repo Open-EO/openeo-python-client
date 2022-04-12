@@ -23,7 +23,7 @@ tests_require = [
     'requests-mock>=1.8.0',
     'h5netcdf',
     'matplotlib',
-    'geopandas;python_version>="3.6"',
+    'geopandas',
 ]
 
 name = 'openeo'
@@ -35,6 +35,7 @@ setup(name=name,
       long_description=long_description,
       long_description_content_type="text/markdown",
       url="https://github.com/Open-EO/openeo-python-client",
+      python_requires=">=3.6",
       packages=find_packages(include=['openeo*']),
       include_package_data=True,
       tests_require=tests_require,
@@ -44,8 +45,7 @@ setup(name=name,
           'shapely>=1.6.4',
           'numpy>=1.17.0',
           'xarray>=0.12.3',
-          'pandas>0.20.0;python_version>="3.5.3"',
-          'pandas<0.25.0;python_version<"3.5.3"',
+          'pandas>0.20.0',
           'deprecated>=1.2.12'
       ],
       extras_require={
