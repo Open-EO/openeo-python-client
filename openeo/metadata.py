@@ -188,7 +188,10 @@ class CollectionMetadata:
         # Original collection metadata (actual cube metadata might be altered through processes)
         self._orig_metadata = metadata
 
-        self._dimensions = dimensions or self._parse_dimensions(self._orig_metadata)
+        if dimensions == None:
+            self._dimensions = self._parse_dimensions(self._orig_metadata)
+        else:
+            self._dimensions = dimensions
         self._band_dimension = None
         self._temporal_dimension = None
         for dim in self._dimensions:
@@ -209,7 +212,9 @@ class CollectionMetadata:
     def _clone_and_update(self, metadata: dict = None, dimensions: List[Dimension] = None, **kwargs) -> 'CollectionMetadata':
         """Create a new instance (of same class) with copied/updated fields."""
         cls = type(self)
-        return cls(metadata=metadata or self._orig_metadata, dimensions=dimensions or self._dimensions, **kwargs)
+        if dimensions == None:
+            dimensions = self._dimensions
+        return cls(metadata=metadata or self._orig_metadata, dimensions=dimensions, **kwargs)
 
     @classmethod
     def _parse_dimensions(cls, spec: dict, complain: Callable[[str], None] = warnings.warn) -> List[Dimension]:
