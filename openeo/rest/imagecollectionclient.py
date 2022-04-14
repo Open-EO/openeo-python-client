@@ -15,8 +15,8 @@ from openeo.rest.job import RESTJob
 from openeo.rest.service import Service
 from openeo.util import get_temporal_extent, legacy_alias, dict_no_none, guess_format
 
-if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
-    # Imports for type checking only (circular import issue at runtime). `hasattr` is Python 3.5 workaround #210
+if typing.TYPE_CHECKING:
+    # Imports for type checking only (circular import issue at runtime).
     from openeo.rest.connection import Connection
 
 

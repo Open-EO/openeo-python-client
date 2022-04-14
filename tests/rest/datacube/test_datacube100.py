@@ -210,6 +210,7 @@ def test_filter_spatial(con100: Connection, recwarn):
         "result": True
     }
 
+
 def test_aggregate_spatial_basic(con100: Connection):
     img = con100.load_collection("S2")
     polygon = shapely.geometry.box(0, 0, 1, 1)
@@ -336,22 +337,66 @@ def test_aggregate_spatial_target_dimension(con100: Connection):
     }
 
 
-def test_aggregate_temporal(con100: Connection):
-    img = con100.load_collection("S2").aggregate_temporal_period(period="dekad",reducer=lambda d:d.median(),context={"bla":"bla"})
+def test_aggregate_spatial_context(con100: Connection):
+    img = con100.load_collection("S2")
+    polygon = shapely.geometry.box(0, 0, 1, 1)
+    masked = img.aggregate_spatial(geometries=polygon, reducer="mean", context={"foo":"bar"})
+    assert masked.flat_graph()["aggregatespatial1"]["arguments"] == {
+        "data": {"from_node": "loadcollection1"},
+        "geometries": {
+            "type": "Polygon",
+            "coordinates": (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),),
+        },
+        "reducer": {"process_graph": {
+            "mean1": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}
+        }},
+        "context": {"foo": "bar"},
+    }
 
-    graph = img.flat_graph()
-    assert graph == {'aggregatetemporalperiod1': {'arguments': {'data': {'from_node': 'loadcollection1'},
-                                                                'period': 'dekad',
-                                                                'context': {'bla': 'bla'},
-                                                                'reducer': {'process_graph': {'median1': {'arguments': {'data': {'from_parameter': 'data'}},
-                                                                                                          'process_id': 'median',
-                                                                                                          'result': True}}}},
-                                                  'process_id': 'aggregate_temporal_period',
-                                                  'result': True},
-                     'loadcollection1': {'arguments': {'id': 'S2',
-                                                       'spatial_extent': None,
-                                                       'temporal_extent': None},
-                                         'process_id': 'load_collection'}}
+
+def test_aggregate_temporal(con100: Connection):
+    cube = con100.load_collection("S2")
+    cube = cube.aggregate_temporal(
+        intervals=[["2015-01-01", "2016-01-01"], ["2016-01-01", "2017-01-01"]],
+        reducer=lambda d: d.median(),
+        context={"bla": "bla"}
+    )
+
+    assert cube.flat_graph()["aggregatetemporal1"] == {
+        "process_id": "aggregate_temporal",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "intervals": [["2015-01-01", "2016-01-01"], ["2016-01-01", "2017-01-01"]],
+            "reducer": {"process_graph": {"median1": {
+                "arguments": {"data": {"from_parameter": "data"}},
+                "process_id": "median",
+                "result": True,
+            }}},
+            "context": {"bla": "bla"},
+        },
+        "result": True
+    }
+
+
+def test_aggregate_temporal_period(con100: Connection):
+    cube = con100.load_collection("S2")
+    cube = cube.aggregate_temporal_period(period="dekad", reducer=lambda d: d.median(), context={"bla": "bla"})
+
+    assert cube.flat_graph()["aggregatetemporalperiod1"] == {
+        "process_id": "aggregate_temporal_period",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "period": "dekad",
+            "reducer": {"process_graph": {"median1": {
+                "arguments": {"data": {"from_parameter": "data"}},
+                "process_id": "median",
+                "result": True,
+            }}},
+            "context": {"bla": "bla"},
+        },
+        "result": True
+    }
+
 
 def test_mask_polygon_basic(con100: Connection):
     img = con100.load_collection("S2")
@@ -463,6 +508,21 @@ def test_merge_cubes(con100: Connection):
         "arguments": {
             "cube1": {"from_node": "loadcollection1"},
             "cube2": {"from_node": "loadcollection2"},
+        },
+        "result": True
+    }
+
+
+def test_merge_cubes_context(con100: Connection):
+    a = con100.load_collection("S2")
+    b = con100.load_collection("MASK")
+    c = a.merge(b, context={"foo": 867})
+    assert c.flat_graph()["mergecubes1"] == {
+        "process_id": "merge_cubes",
+        "arguments": {
+            "cube1": {"from_node": "loadcollection1"},
+            "cube2": {"from_node": "loadcollection2"},
+            "context": {"foo": 867},
         },
         "result": True
     }
@@ -839,6 +899,45 @@ def test_apply_absolute_pgnode(con100):
     assert result.flat_graph() == expected_graph
 
 
+def test_apply_absolute(con100):
+    cube = con100.load_collection("S2")
+    result = cube.apply("absolute")
+    assert result.flat_graph()["apply1"] == {
+        "process_id": "apply",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "process": {"process_graph": {
+                "absolute1": {
+                    "process_id": "absolute",
+                    "arguments": {"x": {"from_parameter": "x"}},
+                    "result": True
+                },
+            }},
+        },
+        "result": True,
+    }
+
+
+def test_apply_absolute_context(con100):
+    cube = con100.load_collection("S2")
+    result = cube.apply("absolute", context={"foo": 867})
+    assert result.flat_graph()["apply1"] == {
+        "process_id": "apply",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "process": {"process_graph": {
+                "absolute1": {
+                    "process_id": "absolute",
+                    "arguments": {"x": {"from_parameter": "x"}},
+                    "result": True
+                },
+            }},
+            "context": {"foo": 867},
+        },
+        "result": True,
+    }
+
+
 def test_load_collection_properties(con100):
     # TODO: put this somewhere and expose it to the user?
     def eq(value, case_sensitive=True) -> PGNode:
@@ -908,7 +1007,6 @@ def test_load_collection_temporalextent_process_builder_function(con100):
     ).flat_graph() == expected
 
 
-
 def test_apply_dimension_temporal_cumsum_with_target(con100):
     cumsum = con100.load_collection("S2").apply_dimension('cumsum', dimension="t", target_dimension="MyNewTime")
     actual_graph = cumsum.flat_graph()
@@ -918,59 +1016,112 @@ def test_apply_dimension_temporal_cumsum_with_target(con100):
     del expected_graph['saveresult1']
     assert actual_graph == expected_graph
 
+
+def test_apply_dimension_temporal_cumsum_context(con100):
+    cumsum = con100.load_collection("S2").apply_dimension('cumsum', dimension="t", context={"foo": 867})
+    actual_graph = cumsum.flat_graph()
+    assert actual_graph["applydimension1"]["arguments"] == {
+        'data': {'from_node': 'loadcollection1'},
+        'process': {'process_graph': {
+            'cumsum1': {'process_id': 'cumsum', 'arguments': {'data': {'from_parameter': 'data'}}, 'result': True}
+        }},
+        'dimension': 't',
+        'context': {'foo': 867},
+    }
+
+
 def test_apply_dimension_modify_bands(con100):
-    def update_bands(x:ProcessBuilder):
-        b01 =  x.array_element(0)
+    def update_bands(x: ProcessBuilder):
+        b01 = x.array_element(0)
         b02 = x.array_element(1)
-        diff = b01-b02
+        diff = b01 - b02
         return x.array_modify(values=diff, index=0)
+
     cumsum = con100.load_collection("S2").apply_dimension(process=update_bands, dimension="bands")
     actual_graph = cumsum.flat_graph()
 
-    assert actual_graph ==  {'applydimension1': {'arguments': {'data': {'from_node': 'loadcollection1'},
-                                                               'dimension': 'bands',
-                                                               'process': {'process_graph': {'arrayelement1': {'arguments': {'data': {'from_parameter': 'data'},
-                                                                                                                             'index': 0},
-                                                                                                               'process_id': 'array_element'},
-                                                                                             'arrayelement2': {'arguments': {'data': {'from_parameter': 'data'},
-                                                                                                                             'index': 1},
-                                                                                                               'process_id': 'array_element'},
-                                                                                             'arraymodify1': {'arguments': {'data': {'from_parameter': 'data'},
-                                                                                                                            'index': 0,
-                                                                                                                            'values': {'from_node': 'subtract1'}},
-                                                                                                              'process_id': 'array_modify',
-                                                                                                              'result': True},
-                                                                                             'subtract1': {'arguments': {'x': {'from_node': 'arrayelement1'},
-                                                                                                                         'y': {'from_node': 'arrayelement2'}},
-                                                                                                           'process_id': 'subtract'}}}},
-                                                 'process_id': 'apply_dimension',
-                                                 'result': True},
-                             'loadcollection1': {'arguments': {'id': 'S2',
-                                                               'spatial_extent': None,
-                                                               'temporal_extent': None},
-                                                 'process_id': 'load_collection'}}
+    assert actual_graph == {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None}
+        },
+        "applydimension1": {
+            "process_id": "apply_dimension",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "dimension": "bands",
+                "process": {"process_graph": {
+                    "arrayelement1": {
+                        "process_id": "array_element",
+                        "arguments": {"data": {"from_parameter": "data"}, "index": 0},
+                    },
+                    "arrayelement2": {
+                        "process_id": "array_element",
+                        "arguments": {"data": {"from_parameter": "data"}, "index": 1},
+                    },
+                    "subtract1": {
+                        "process_id": "subtract",
+                        "arguments": {"x": {"from_node": "arrayelement1"}, "y": {"from_node": "arrayelement2"}},
+                    },
+                    "arraymodify1": {
+                        "process_id": "array_modify",
+                        "arguments": {
+                            "data": {"from_parameter": "data"}, "index": 0,
+                            "values": {"from_node": "subtract1"}
+                        },
+                        "result": True
+                    },
+                }}
+            },
+            "result": True
+        },
+    }
+
+
+def test_apply_neighborhood_context(con100):
+    collection = con100.load_collection("S2")
+    neighbors = collection.apply_neighborhood(
+        process="mean",
+        size=[{"dimension": "x", "value": 128, "unit": "px"}, {"dimension": "y", "value": 128, "unit": "px"}],
+        overlap=[{"dimension": "t", "value": "P10d"}],
+        context={"foo": 867},
+    )
+    assert neighbors.flat_graph()["applyneighborhood1"] == {
+        "process_id": "apply_neighborhood",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "process": {"process_graph": {"mean1": {
+                "process_id": "mean",
+                "arguments": {"data": {"from_parameter": "data"}},
+                "result": True,
+            }}},
+            "size": [{"dimension": "x", "unit": "px", "value": 128}, {"dimension": "y", "unit": "px", "value": 128}],
+            "overlap": [{"dimension": "t", "value": "P10d"}],
+            "context": {"foo": 867},
+        },
+        "result": True}
 
 
 def test_apply_neighborhood_udf(con100):
     collection = con100.load_collection("S2")
-    neighbors = collection.apply_neighborhood(size=[
-        {'dimension': 'x', 'value': 128, 'unit': 'px'},
-        {'dimension': 'y', 'value': 128, 'unit': 'px'}
-    ], overlap=[
-        {'dimension': 't', 'value': 'P10d'},
-    ],process= lambda data:data.run_udf(udf="myfancycode", runtime="Python"))
-    actual_graph = neighbors.flat_graph()['applyneighborhood1']
-    assert actual_graph == {'arguments': {'data': {'from_node': 'loadcollection1'},
-                                          'overlap': [{'dimension': 't', 'value': 'P10d'}],
-                                          'process': {'process_graph': {'runudf1': {'arguments': {'udf': 'myfancycode',
-                                                                                                  'data': {'from_parameter': 'data'},
-                                                                                                  'runtime': 'Python'},
-                                                                                    'process_id': 'run_udf',
-                                                                                    'result': True}}},
-                                          'size': [{'dimension': 'x', 'unit': 'px', 'value': 128},
-                                                   {'dimension': 'y', 'unit': 'px', 'value': 128}]},
-                            'process_id': 'apply_neighborhood',
-                            'result': True}
+    neighbors = collection.apply_neighborhood(
+        process=lambda data: data.run_udf(udf="myfancycode", runtime="Python"),
+        size=[{"dimension": "x", "value": 128, "unit": "px"}, {"dimension": "y", "value": 128, "unit": "px"}],
+        overlap=[{"dimension": "t", "value": "P10d"}],
+    )
+    assert neighbors.flat_graph()["applyneighborhood1"] == {
+        "process_id": "apply_neighborhood",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "process": {"process_graph": {"runudf1": {
+                "process_id": "run_udf",
+                "arguments": {"udf": "myfancycode", "data": {"from_parameter": "data"}, "runtime": "Python"},
+                "result": True,
+            }}},
+            "size": [{"dimension": "x", "unit": "px", "value": 128}, {"dimension": "y", "unit": "px", "value": 128}],
+            "overlap": [{"dimension": "t", "value": "P10d"}],
+        },
+        "result": True}
 
 
 def test_filter_spatial_callback(con100):

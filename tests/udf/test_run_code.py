@@ -10,7 +10,6 @@ from openeo.udf import UdfData, XarrayDataCube
 from openeo.udf.run_code import run_udf_code, _get_annotation_str, _annotation_is_pandas_series, \
     _annotation_is_udf_datacube, _annotation_is_udf_data, execute_local_udf
 from .test_xarraydatacube import _build_xdc
-from .. import as_path
 
 UDF_CODE_PATH = Path(__file__).parent / "udf_code"
 
@@ -252,7 +251,7 @@ def test_run_local_udf_from_file_json(tmp_path):
         ts=[numpy.datetime64('2020-08-01'), numpy.datetime64('2020-08-11'), numpy.datetime64('2020-08-21')],
         bands=['bandzero', 'bandone'], xs=[10., 11., 12., 13., 14.], ys=[20., 21., 22., 23., 24., 25.]
     )
-    data_path = as_path(tmp_path / "data.json")
+    data_path = tmp_path / "data.json"
     xdc.save_to_file(path=data_path, fmt="json")
 
     res = execute_local_udf(udf_code, data_path, fmt="json")
@@ -280,7 +279,7 @@ def test_run_local_udf_from_file_netcdf(tmp_path):
         ts=[numpy.datetime64('2020-08-01'), numpy.datetime64('2020-08-11'), numpy.datetime64('2020-08-21')],
         bands=['bandzero', 'bandone'], xs=[10., 11., 12., 13., 14.], ys=[20., 21., 22., 23., 24., 25.]
     )
-    data_path = as_path(tmp_path / "data.nc")
+    data_path = tmp_path / "data.nc"
     xdc.save_to_file(path=data_path, fmt="netcdf")
 
     res = execute_local_udf(udf_code, data_path, fmt="netcdf")

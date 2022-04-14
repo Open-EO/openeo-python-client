@@ -1,15 +1,10 @@
 import numpy
 import pytest
 import xarray
+from geopandas import GeoDataFrame
 from shapely.geometry import Point
 
 from openeo.udf import StructuredData, UdfData, XarrayDataCube, FeatureCollection
-
-try:
-    # TODO: get rid of this conditional import for Python 3.5
-    from geopandas import GeoDataFrame
-except ImportError:
-    GeoDataFrame = None
 
 
 def test_structured_data_list():

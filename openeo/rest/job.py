@@ -14,8 +14,8 @@ from openeo.internal.jupyter import render_component, render_error, VisualDict, 
 from openeo.rest import OpenEoClientException, JobFailedException, OpenEoApiError
 from openeo.util import ensure_dir
 
-if hasattr(typing, 'TYPE_CHECKING') and typing.TYPE_CHECKING:
-    # Imports for type checking only (circular import issue at runtime). `hasattr` is Python 3.5 workaround #210
+if typing.TYPE_CHECKING:
+    # Imports for type checking only (circular import issue at runtime).
     from openeo.rest.connection import Connection
 
 logger = logging.getLogger(__name__)
