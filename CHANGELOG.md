@@ -11,11 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `context` parameter to `DataCube.aggregate_spatial()`, `DataCube.apply_dimension()`, 
   `DataCube.apply_neighborhood()`, `DataCube.apply()`, `DataCube.merge_cubes()`.
-  ([291](https://github.com/Open-EO/openeo-python-client/issues/291))
+  ([#291](https://github.com/Open-EO/openeo-python-client/issues/291))
 
 ### Changed
 
 ### Removed
+
+- Removed deprecated (and non-functional) `zonal_statistics` method from old `ImageCollectionClient` API. ([#144](https://github.com/Open-EO/openeo-python-client/issues/144))
 
 ### Fixed
 
@@ -54,7 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- Removed deprecated `zonal_statistics` method from the 1.x version of the API.
+- Removed deprecated `zonal_statistics` method from `DataCube`. ([#144](https://github.com/Open-EO/openeo-python-client/issues/144))
 - Deprecate old-style `DataCube.polygonal_mean_timeseries()`, `DataCube.polygonal_histogram_timeseries()`,
   `DataCube.polygonal_median_timeseries()` and `DataCube.polygonal_standarddeviation_timeseries()`
 

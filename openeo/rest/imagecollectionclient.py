@@ -514,33 +514,6 @@ class ImageCollectionClient(ImageCollection):
             metadata=self.metadata.add_dimension(name, label, type)
         )
 
-    def zonal_statistics(self, regions, func, scale=1000, interval="day") -> 'ImageCollection':
-        """Calculates statistics for each zone specified in a file.
-            :param regions: GeoJSON or a path to a GeoJSON file containing the
-                            regions. For paths you must specify the path to a
-                            user-uploaded file without the user id in the path.
-            :param func: Statistical function to calculate for the specified
-                         zones. example values: min, max, mean, median, mode
-            :param scale: A nominal scale in meters of the projection to work
-                          in. Defaults to 1000.
-            :param interval: Interval to group the time series. Allowed values:
-                            day, wee, month, year. Defaults to day.
-            :return: An ImageCollection instance
-        """
-        regions_geojson = regions
-        if isinstance(regions,Polygon) or isinstance(regions,MultiPolygon):
-            regions_geojson = mapping(regions)
-        process_id = 'zonal_statistics'
-        args = {
-                'data': {'from_node': self.node_id},
-                'regions': regions_geojson,
-                'func': func,
-                'scale': scale,
-                'interval': interval
-            }
-
-        return self.graph_add_process(process_id, args)
-
     def apply_dimension(self, code: str, runtime=None, version="latest", dimension='t', target_dimension=None) -> 'ImageCollection':
         """
         Applies an n-ary process (i.e. takes an array of pixel values instead of a single pixel value) to a raster data cube.

@@ -437,25 +437,6 @@ class ImageCollection(ABC):
 
     ####VIEW methods #######
 
-    @deprecated(reason="use aggregate_spatial instead")
-    def zonal_statistics(self, regions, func, scale=1000, interval="day") -> 'ImageCollection':
-        """
-        Calculates statistics for each zone specified in a file.
-
-        :param regions: GeoJSON or a path to a GeoJSON file containing the
-                        regions. For paths you must specify the path to a
-                        user-uploaded file without the user id in the path.
-        :param func: Statistical function to calculate for the specified
-                     zones. example values: min, max, mean, median, mode
-        :param scale: A nominal scale in meters of the projection to work
-                      in. Defaults to 1000.
-        :param interval: Interval to group the time series. Allowed values:
-                        day, wee, month, year. Defaults to day.
-
-        :return: A timeseries
-        """
-        pass
-
     def polygonal_mean_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> 'ImageCollection':
         """
         Extract a mean time series for the given (multi)polygon. Its points are expected to be in the EPSG:4326 coordinate
