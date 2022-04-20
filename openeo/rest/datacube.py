@@ -1868,7 +1868,7 @@ class DataCube(_ProcessGraphAbstraction):
         """
         Apply ``reduce_dimension`` process with a `predict_random_forest` reducer.
 
-        :param model: a :py:class:`MlModel` (e.g. loaded from :py:meth:`Connection.load_ml_model`)
+        :param model: a :py:class:`MlModel` (e.g. loaded from :py:meth:`~openeo.Connection.load_ml_model`)
             or a reference to such a model: a URL (``str``) to a STAC Item (implementing the `ml-model` extension)
             a job id (``str``) or a :py:class:`RESTJob` instance of a batch job that saved a single model.
         :param dimension: dimension along which to apply the ``reduce_dimension`` process.
