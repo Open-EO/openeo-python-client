@@ -83,6 +83,67 @@ def test_fit_class_random_forest_basic_create_job(con100, requests_mock, explici
     assert ("no final `save_ml_model`. Adding it" in caplog.text) == (not explicit_save)
 
 
+def test_fit_regr_random_forest_basic(con100):
+    geometries = FEATURE_COLLECTION_1
+    s2 = con100.load_collection("S2")
+    predictors = s2.aggregate_spatial(geometries, reducer="mean")
+    ml_model = predictors.fit_regr_random_forest(target=geometries)
+    assert ml_model.flat_graph() == {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
+        },
+        "aggregatespatial1": {
+            "process_id": "aggregate_spatial",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "geometries": geometries,
+                "reducer": {"process_graph": {
+                    "mean1": {
+                        "process_id": "mean",
+                        "arguments": {"data": {"from_parameter": "data"}},
+                        "result": True
+                    }
+                }}
+            },
+        },
+        "fitregrrandomforest1": {
+            "process_id": "fit_regr_random_forest",
+            "arguments": {
+                "predictors": {"from_node": "aggregatespatial1"},
+                "target": geometries,
+                "num_trees": 100,
+            },
+            "result": True,
+        }
+    }
+
+
+@pytest.mark.parametrize("explicit_save", [True, False])
+def test_fit_regr_random_forest_basic_create_job(con100, requests_mock, explicit_save, caplog):
+    geometries = FEATURE_COLLECTION_1
+    s2 = con100.load_collection("S2")
+    predictors = s2.aggregate_spatial(geometries, reducer="mean")
+    ml_model = predictors.fit_regr_random_forest(target=geometries)
+    if explicit_save:
+        ml_model = ml_model.save_ml_model()
+
+    def post_jobs(request, context):
+        pg = request.json()["process"]["process_graph"]
+        assert set(p["process_id"] for p in pg.values()) == {
+            "load_collection", "aggregate_spatial",
+            "fit_regr_random_forest", "save_ml_model",
+        }
+        context.status_code = 201
+        context.headers["OpenEO-Identifier"] = "job-rf"
+
+    requests_mock.post(API_URL + "/jobs", json=post_jobs)
+
+    job = ml_model.create_job(title="Random forest")
+    assert job.job_id == "job-rf"
+    assert ("no final `save_ml_model`. Adding it" in caplog.text) == (not explicit_save)
+
+
 @pytest.mark.parametrize("id", [
     "https://oeo.test/my/model",
     "bAtch-j08-2dfe34-sfsd",

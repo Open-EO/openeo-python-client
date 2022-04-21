@@ -1896,10 +1896,11 @@ class DataCube(_ProcessGraphAbstraction):
     @openeo_process
     def fit_class_random_forest(
             self,
-            # TODO #279: target type should be `VectorCube` (with adapters for GeoJSON FeatureCollection, GeoPandas, ...)
+            # TODO #279 #293: target type should be `VectorCube` (with adapters for GeoJSON FeatureCollection, GeoPandas, ...)
             target: dict,
-            num_trees: int = 100,
+            # TODO #293 max_variables officially has no default
             max_variables: Optional[int] = None,
+            num_trees: int = 100,
             seed: Optional[int] = None,
     ) -> 'MlModel':
         """
@@ -1908,14 +1909,12 @@ class DataCube(_ProcessGraphAbstraction):
 
         .. warning:: EXPERIMENTAL: not generally supported, API subject to change.
 
-        :param predictors: The predictors for the classification model as a vector data cube. Aggregated to the features (vectors) of the
-            target input variable.
         :param target: The training sites for the classification model as a vector data cube. This is associated with the target
             variable for the Random Forest model. The geometry has to be associated with a value to predict (e.g. fractional
             forest canopy cover).
-        :param num_trees: The number of trees build within the Random Forest classification.
         :param max_variables: Specifies how many split variables will be used at a node. Default value is `null`, which corresponds to the
             number of predictors divided by 3.
+        :param num_trees: The number of trees build within the Random Forest classification.
         :param seed: A randomization seed to use for the random sampling in training.
 
         .. versionadded:: 0.10.0
@@ -1927,8 +1926,49 @@ class DataCube(_ProcessGraphAbstraction):
                 predictors=self,
                 # TODO #279 strictly per-spec, target should be a `vector-cube`, but due to lack of proper support we are limited to inline GeoJSON for now
                 target=target,
-                num_trees=num_trees,
                 max_variables=max_variables,
+                num_trees=num_trees,
+                seed=seed,
+            )
+        )
+        model = MlModel(graph=pgnode, connection=self._connection)
+        return model
+
+    @openeo_process
+    def fit_regr_random_forest(
+            self,
+            # TODO #279 #293: target type should be `VectorCube` (with adapters for GeoJSON FeatureCollection, GeoPandas, ...)
+            target: dict,
+            # TODO #293 max_variables officially has no default
+            max_variables: Optional[int] = None,
+            num_trees: int = 100,
+            seed: Optional[int] = None,
+    ) -> 'MlModel':
+        """
+        Executes the fit of a random forest regression based on training data.
+        The Random Forest regression model is based on the approach by Breiman (2001).
+
+        .. warning:: EXPERIMENTAL: not generally supported, API subject to change.
+
+        :param target: The training sites for the regression model as a vector data cube.
+            This is associated with the target variable for the Random Forest model.
+            The geometry has to associated with a value to predict (e.g. fractional forest canopy cover).
+        :param max_variables: Specifies how many split variables will be used at a node. Default value is `null`, which corresponds to the
+            number of predictors divided by 3.
+        :param num_trees: The number of trees build within the Random Forest classification.
+        :param seed: A randomization seed to use for the random sampling in training.
+
+        .. versionadded:: 0.10.1
+        """
+        # TODO #279 #293: `fit_class_random_forest` should be defined on VectorCube instead of DataCube
+        pgnode = PGNode(
+            process_id="fit_regr_random_forest",
+            arguments=dict_no_none(
+                predictors=self,
+                # TODO #279 strictly per-spec, target should be a `vector-cube`, but due to lack of proper support we are limited to inline GeoJSON for now
+                target=target,
+                max_variables=max_variables,
+                num_trees=num_trees,
                 seed=seed,
             )
         )
