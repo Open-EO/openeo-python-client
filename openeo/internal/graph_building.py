@@ -68,6 +68,10 @@ class PGNode(_FromNodeMixin):
     def namespace(self) -> Union[str, None]:
         return self._namespace
 
+    def update_arguments(self, **kwargs):
+        """Change/Add/Update arguments of the process node"""
+        self._arguments = {**self._arguments, **kwargs}
+
     def _as_tuple(self):
         return (self._process_id, self._arguments, self._namespace)
 

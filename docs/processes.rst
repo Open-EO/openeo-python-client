@@ -66,9 +66,13 @@ but it is often easier to look them up on the
 A single pre-defined process can be retrieved with
 :func:`~openeo.rest.connection.Connection.describe_process`.
 
+Convenience methods
+--------------------
+
 Most of the important pre-defined processes are covered directly by methods
-of the :class:`~openeo.rest.datacube.DataCube` class.
-For example, to apply the ``filter_temporal`` process to a data cube::
+on classes like :class:`~openeo.rest.datacube.DataCube` or
+:class:`~openeo.rest.vectorcube.VectorCube`
+For example, to apply the ``filter_temporal`` process to a raster data cube::
 
     cube = cube.filter_temporal("2020-02-20", "2020-06-06")
 
@@ -92,6 +96,30 @@ but you can call the corresponding client method in multiple equivalent ways::
     cube.filter_temporal(extent=["2019-07-01", "2019-08-01"])
     cube.filter_temporal(start_date="2019-07-01", end_date="2019-08-01"])
 
+
+Advanced argument tweaking
+---------------------------
+
+In some situations, you may want to finetune what the (convenience) methods generate.
+For example, you want to play with non-standard, experimental arguments,
+or there is a problem with a automatic argument handling/conversion feature.
+
+You can tweak the arguments of your current result node as follows.
+Say, we want to add some non-standard ``feature_flags`` argument to the ``load_collection`` process node.
+We first get the current result node with :py:meth:`~openeo.rest.datacube.DataCube.result_node` and use :py:meth:`~openeo.internal.graph_building.PGNode.update_arguments` to add an additional argument to it::
+
+    # `Connection.load_collection` does not support `feature_flags` argument
+    cube = connection.load_collection(...)
+
+    # Add `feature_flag` argument `load_collection` process graph node
+    cube.result_node().update_arguments(feature_flags="rXPk")
+
+    # The resulting process graph will now contain this non-standard argument:
+    #     {
+    #         "process_id": "load_collection",
+    #         "arguments": {
+    #             ...
+    #             "feature_flags": "rXPk",
 
 
 Generic API for adding processes

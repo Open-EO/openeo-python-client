@@ -1786,6 +1786,33 @@ def test_merge_if(con100):
     }
 
 
+def test_update_arguments_basic(con100):
+    s2 = con100.load_collection("S2")
+    s2.result_node().update_arguments(feature_flags="fluzbaxing")
+    assert s2.flat_graph() == {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {
+                "id": "S2", "spatial_extent": None, "temporal_extent": None,
+                "feature_flags": "fluzbaxing",
+            },
+            "result": True,
+        }
+    }
+
+
+def test_update_arguments_priority(con100):
+    s2 = con100.load_collection("S2")
+    s2.result_node().update_arguments(id="T3")
+    assert s2.flat_graph() == {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "T3", "spatial_extent": None, "temporal_extent": None},
+            "result": True,
+        }
+    }
+
+
 class TestBatchJob:
     _EXPECTED_SIMPLE_S2_JOB = {"process": {"process_graph": {
         "loadcollection1": {

@@ -57,7 +57,7 @@ class _ProcessGraphAbstraction(_FromNodeMixin):
     def connection(self) -> "Connection":
         return self._connection
 
-    def result_node(self):
+    def result_node(self) -> PGNode:
         """Get the result node (:py:class:`PGNode`) of the process graph."""
         return self._pg
 
