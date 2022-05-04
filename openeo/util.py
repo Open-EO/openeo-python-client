@@ -527,3 +527,15 @@ def in_interactive_mode() -> bool:
     """Detect if we are running in interactive mode (Jupyter/IPython/repl)"""
     # Based on https://stackoverflow.com/a/64523765
     return hasattr(sys, "ps1")
+
+
+# class Clock:
+#     """
+#     Time/date helper, allowing overrides of "current" time/date for test purposes.
+#     """
+#
+#     # TODO: start using a dedicated time mocking tool like freezegun (https://github.com/spulec/freezegun)
+#     #       or time-machine (https://github.com/adamchainz/time-machine)?
+#     _time = time
+#     time = _time.time
+#     sleep = _time.sleep

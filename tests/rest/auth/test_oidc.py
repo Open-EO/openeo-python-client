@@ -18,7 +18,7 @@ import openeo.rest.auth.oidc
 from openeo.rest.auth.oidc import QueuingRequestHandler, drain_queue, HttpServerThread, OidcAuthCodePkceAuthenticator, \
     OidcClientCredentialsAuthenticator, OidcResourceOwnerPasswordAuthenticator, OidcClientInfo, OidcProviderInfo, \
     OidcDeviceAuthenticator, random_string, OidcRefreshTokenAuthenticator, PkceCode, OidcException, \
-    DefaultOidcClientGrant
+    DefaultOidcClientGrant, _PollingTimer, _PollingProgressTimer
 from openeo.util import dict_no_none
 
 DEVICE_CODE_POLL_INTERVAL = 2
@@ -717,6 +717,11 @@ def test_oidc_device_flow_auto_detect(
         caplog.text,
         flags=re.DOTALL
     )
+
+
+# def test_polling_timer():
+#     timer = _PollingTimer(poll_interval=1, max_elapse=5)
+#     ... WIP
 
 
 def test_oidc_refresh_token_flow(requests_mock, caplog):
