@@ -1808,6 +1808,18 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return predict_random_forest(data=self, model=model)
 
+    def predict_catboost(self, model) -> 'ProcessBuilder':
+        """
+        Predict values from a Catboost model
+
+        :param self: An array of numbers.
+        :param model: A model object that can be trained with the processes ``fit_regr_catboost()``
+            (regression) and ``fit_class_catboost()`` (classification).
+
+        :return: The predicted value.
+        """
+        return predict_catboost(data=self, model=model)
+
     def product(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
         Compute the product by multiplying numbers
@@ -4206,6 +4218,19 @@ def predict_random_forest(data, model) -> ProcessBuilder:
     :return: The predicted value. Returns `null` if any of the given values in the array is a no-data value.
     """
     return _process('predict_random_forest', data=data, model=model)
+
+
+def predict_catboost(data, model) -> ProcessBuilder:
+    """
+    Predict values from a Catboost model
+
+    :param data: An array of numbers.
+    :param model: A model object that can be trained with the processes ``fit_regr_catboost()``
+        (regression) and ``fit_class_catboost()`` (classification).
+
+    :return: The predicted value.
+    """
+    return _process('predict_catboost', data=data, model=model)
 
 
 def product(data, ignore_nodata=UNSET) -> ProcessBuilder:
