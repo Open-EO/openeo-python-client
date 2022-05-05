@@ -1881,6 +1881,24 @@ class DataCube(_ProcessGraphAbstraction):
         reducer = lambda data, context: predict_random_forest(data=data, model=context)
         return self.reduce_dimension(dimension=dimension, reducer=reducer, context=model)
 
+    @openeo_process(mode="reduce_dimension")
+    def predict_catboost(self, model: Union[str, RESTJob, MlModel], dimension: str = "bands"):
+        """
+        Apply ``reduce_dimension`` process with a `predict_catboost` reducer.
+
+        :param model: a :py:class:`MlModel` (e.g. loaded from :py:meth:`~openeo.Connection.load_ml_model`)
+            or a reference to such a model: a URL (``str``) to a STAC Item (implementing the `ml-model` extension)
+            a job id (``str``) or a :py:class:`RESTJob` instance of a batch job that saved a single model.
+        :param dimension: dimension along which to apply the ``reduce_dimension`` process.
+
+        .. versionadded:: 0.10.0
+        """
+        if not isinstance(model, MlModel):
+            model = MlModel.load_ml_model(connection=self.connection, id=model)
+        from openeo.processes import predict_catboost
+        reducer = lambda data, context: predict_catboost(data=data, model=context)
+        return self.reduce_dimension(dimension=dimension, reducer=reducer, context=model)
+
     @openeo_process
     def dimension_labels(self, dimension: str) -> "DataCube":
         """
