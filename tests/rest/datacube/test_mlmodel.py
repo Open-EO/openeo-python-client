@@ -212,3 +212,42 @@ def test_predict_random_forest(con100, model_factory):
             "result": True,
         }
     }
+
+@pytest.mark.parametrize("model_factory", [
+    (lambda con100: con100.load_ml_model("my-j08")),
+    (lambda con100: "my-j08"),
+    (lambda con100: RESTJob("my-j08", con100)),
+])
+def test_predict_catboost(con100, model_factory):
+    ml_model = model_factory(con100)
+    cube = con100.load_collection("S2")
+    cube = cube.predict_catboost(model=ml_model, dimension="bands")
+    assert cube.flat_graph() == {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
+        },
+        "loadmlmodel1": {
+            "process_id": "load_ml_model",
+            "arguments": {"id": "my-j08"},
+        },
+        "reducedimension1": {
+            "process_id": "reduce_dimension",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "reducer": {"process_graph": {
+                    "predictcatboost1": {
+                        "process_id": "predict_catboost",
+                        "arguments": {
+                            "data": {"from_parameter": "data"},
+                            "model": {"from_parameter": "context"}
+                        },
+                        "result": True,
+                    }
+                }},
+                "dimension": "bands",
+                "context": {"from_node": "loadmlmodel1"},
+            },
+            "result": True,
+        }
+    }
