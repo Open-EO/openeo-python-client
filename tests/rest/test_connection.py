@@ -367,7 +367,7 @@ def test_connection_repr(requests_mock):
     conn = connect("https://oeo.test/")
     assert repr(conn) == "<Connection to 'https://oeo.test/openeo/1.x/' with NullAuth>"
     conn.authenticate_basic("foo", "bar")
-    assert repr(conn) == "<Connection to 'https://oeo.test/openeo/1.x/' with BearerAuth>"
+    assert repr(conn) == "<Connection to 'https://oeo.test/openeo/1.x/' with BasicBearerAuth>"
 
 
 def test_capabilities_caching(requests_mock):
