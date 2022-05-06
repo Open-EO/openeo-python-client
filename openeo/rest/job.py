@@ -1,4 +1,5 @@
 import datetime
+import json
 import logging
 import textwrap
 import time
@@ -377,18 +378,29 @@ class JobResults:
             raise OpenEoClientException(
                 "Can not use `download_file` with multiple assets. Use `download_files` instead.")
 
-    def download_files(self, target: Union[Path, str] = None) -> List[Path]:
+    def download_files(self, target: Union[Path, str] = None, include_stac_metadata: bool = True) -> List[Path]:
         """
         Download all assets to given folder.
 
         :param target: path to folder to download to (must be a folder if it already exists)
+        :param include_stac_metadata: whether to download the job result metadata as a STAC (JSON) file.
         :return: list of paths to the downloaded assets.
         """
         target = Path(target or Path.cwd())
         if target.exists() and not target.is_dir():
             raise OpenEoClientException("The target argument must be a folder. Got {t!r}".format(t=str(target)))
         ensure_dir(target)
-        return [a.download(target) for a in self.get_assets()]
+
+        downloaded = [a.download(target) for a in self.get_assets()]
+
+        if include_stac_metadata:
+            # TODO #184: convention for metadata file name?
+            metadata_file = target / "job-results.json"
+            # TODO #184: rewrite references to locally downloaded assets?
+            metadata_file.write_text(json.dumps(self.get_metadata()))
+            downloaded.append(metadata_file)
+
+        return downloaded
 
 
 @deprecated(reason="Use :py:class:`JobResults` instead", version="0.4.10")

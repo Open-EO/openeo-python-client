@@ -1,3 +1,4 @@
+import json
 import re
 from pathlib import Path
 from unittest import mock
@@ -296,10 +297,14 @@ def job_with_1_asset(con100, requests_mock, tmp_path) -> RESTJob:
 
 @pytest.fixture
 def job_with_2_assets(con100, requests_mock, tmp_path) -> RESTJob:
-    requests_mock.get(API_URL + "/jobs/jj2/results", json={"assets": {
-        "1.tiff": {"href": API_URL + "/dl/jjr1.tiff", "type": "image/tiff; application=geotiff"},
-        "2.tiff": {"href": API_URL + "/dl/jjr2.tiff", "type": "image/tiff; application=geotiff"},
-    }})
+    requests_mock.get(API_URL + "/jobs/jj2/results", json={
+        # This is a STAC Item
+        "type": "Feature",
+        "assets": {
+            "1.tiff": {"href": API_URL + "/dl/jjr1.tiff", "type": "image/tiff; application=geotiff"},
+            "2.tiff": {"href": API_URL + "/dl/jjr2.tiff", "type": "image/tiff; application=geotiff"},
+        }
+    })
     requests_mock.get(API_URL + "/dl/jjr1.tiff", content=TIFF_CONTENT)
     requests_mock.get(API_URL + "/dl/jjr2.tiff", content=TIFF_CONTENT)
     job = RESTJob("jj2", connection=con100)
@@ -416,45 +421,69 @@ def test_download_results(job_with_2_assets: RESTJob, tmp_path):
 
 def test_list_results(job_with_2_assets: RESTJob, tmp_path):
     job = job_with_2_assets
-    assert job.list_results() == {'assets': {
+    assert job.list_results() == {"type": "Feature", 'assets': {
         '1.tiff': {'href': 'https://oeo.test/dl/jjr1.tiff', 'type': 'image/tiff; application=geotiff'},
         '2.tiff': {'href': 'https://oeo.test/dl/jjr2.tiff', 'type': 'image/tiff; application=geotiff'}
     }}
 
 
 def test_get_results_download_files(job_with_2_assets: RESTJob, tmp_path):
-    job = job_with_2_assets
-
     target = tmp_path / "folder"
     target.mkdir()
+
+    job = job_with_2_assets
     results = job.get_results()
 
     assets = job.get_results().get_assets()
     assert {a.name: a.metadata for a in assets} == {
         '1.tiff': {'href': 'https://oeo.test/dl/jjr1.tiff', 'type': 'image/tiff; application=geotiff'},
-        '2.tiff': {'href': 'https://oeo.test/dl/jjr2.tiff', 'type': 'image/tiff; application=geotiff'}
+        '2.tiff': {'href': 'https://oeo.test/dl/jjr2.tiff', 'type': 'image/tiff; application=geotiff'},
     }
 
     downloads = results.download_files(target)
-    assert set(downloads) == {target / "1.tiff", target / "2.tiff"}
-    assert set(p.name for p in target.iterdir()) == {"1.tiff", "2.tiff"}
-    with (target / "1.tiff").open("rb") as f:
-        assert f.read() == TIFF_CONTENT
+    assert set(downloads) == {target / "1.tiff", target / "2.tiff", target / "job-results.json"}
+    assert set(p.name for p in target.iterdir()) == {"1.tiff", "2.tiff", "job-results.json"}
+    assert (target / "1.tiff").read_bytes() == TIFF_CONTENT
+    job_results_metadata = json.loads((target / "job-results.json").read_text())
+    assert job_results_metadata["type"] == "Feature"
+    assert job_results_metadata["assets"] == {
+        '1.tiff': {'href': 'https://oeo.test/dl/jjr1.tiff', 'type': 'image/tiff; application=geotiff'},
+        '2.tiff': {'href': 'https://oeo.test/dl/jjr2.tiff', 'type': 'image/tiff; application=geotiff'},
+    }
 
 
 def test_get_results_download_files_new_folder(job_with_2_assets: RESTJob, tmp_path):
     job = job_with_2_assets
-
-    target = tmp_path / "folder"
     results = job.get_results()
+    target = tmp_path / "folder"
     assert not target.exists()
     downloads = results.download_files(target)
     assert target.exists()
     assert target.is_dir()
-    assert set(downloads) == {target / "1.tiff", target / "2.tiff"}
-    assert set(p.name for p in target.iterdir()) == {"1.tiff", "2.tiff"}
-    with (target / "1.tiff").open("rb") as f:
-        assert f.read() == TIFF_CONTENT
+    assert set(downloads) == {target / "1.tiff", target / "2.tiff", target / "job-results.json"}
+    assert set(p.name for p in target.iterdir()) == {"1.tiff", "2.tiff", "job-results.json"}
+    assert (target / "1.tiff").read_bytes() == TIFF_CONTENT
+    job_results_metadata = json.loads((target / "job-results.json").read_text())
+    assert job_results_metadata["type"] == "Feature"
+    assert job_results_metadata["assets"] == {
+        '1.tiff': {'href': 'https://oeo.test/dl/jjr1.tiff', 'type': 'image/tiff; application=geotiff'},
+        '2.tiff': {'href': 'https://oeo.test/dl/jjr2.tiff', 'type': 'image/tiff; application=geotiff'},
+    }
+
+
+@pytest.mark.parametrize(["include_stac_metadata", "expected"], [
+    (True, {"1.tiff", "2.tiff", "job-results.json"}),
+    (False, {"1.tiff", "2.tiff"})
+])
+def test_get_results_download_files_include_stac_metadata(
+        job_with_2_assets: RESTJob, tmp_path, include_stac_metadata, expected
+):
+    results = job_with_2_assets.get_results()
+    target = tmp_path / "folder"
+    downloads = results.download_files(target, include_stac_metadata=include_stac_metadata)
+    assert target.is_dir()
+    assert set(downloads) == set(target / p for p in expected)
+    assert set(p.name for p in target.iterdir()) == expected
 
 
 def test_result_asset_download_file(con100, requests_mock, tmp_path):

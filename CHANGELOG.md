@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([#291](https://github.com/Open-EO/openeo-python-client/issues/291))
 - Add `DataCube.fit_regr_random_forest()` ([#293](https://github.com/Open-EO/openeo-python-client/issues/293))
 - Add `PGNode.update_arguments()`, which combined with `DataCube.result_node()` allows to do advanced process graph argument tweaking/updating without using `._pg` hacks.
+- `JobResults.download_files()`: also download (by default) the job result metadata as STAC JSON file ([#184](https://github.com/Open-EO/openeo-python-client/issues/184))
 
 ### Changed
 
