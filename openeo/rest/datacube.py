@@ -890,7 +890,7 @@ class DataCube(_ProcessGraphAbstraction):
             process = PGNode.to_process_graph_argument(callback_process_node)
         elif code or process:
             # TODO EP-3555 unify `code` and `process`
-            process = self._get_callback(code or process, parent_parameters=["data"])
+            process = self._get_callback(code or process, parent_parameters=["data", "context"])
         else:
             raise OpenEoClientException("No UDF code or process given")
         arguments = {

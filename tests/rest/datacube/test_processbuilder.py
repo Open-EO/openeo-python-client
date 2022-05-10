@@ -393,6 +393,50 @@ def test_reduce_dimension_lambda_and_context(con100, reducer, expected):
     assert res.flat_graph()["reducedimension1"]["arguments"]["reducer"]["process_graph"] == expected
 
 
+@pytest.mark.parametrize(["process", "expected"], [
+    (
+            (lambda data: data.order()),
+            {"order1": {"process_id": "order", "arguments": {"data": {"from_parameter": "data"}}, "result": True}},
+    ),
+    (
+            (lambda x: x.order()),
+            {"order1": {"process_id": "order", "arguments": {"data": {"from_parameter": "data"}}, "result": True}},
+    ),
+    (
+            (lambda valyuez: valyuez.order()),
+            {"order1": {"process_id": "order", "arguments": {"data": {"from_parameter": "data"}}, "result": True}},
+    ),
+    (
+            (lambda data, context: data.order(asc=context)),
+            {
+                "order1": {
+                    "process_id": "order",
+                    "arguments": {"data": {"from_parameter": "data"}, "asc": {"from_parameter": "context"}},
+                    "result": True,
+                },
+            },
+    ),
+    (
+            (lambda data, ignore_nan=False: data.order()),
+            {"order1": {"process_id": "order", "arguments": {"data": {"from_parameter": "data"}}, "result": True}},
+    ),
+    (
+            (lambda foo, bar=True: foo.order(asc=bar)),
+            {
+                "order1": {
+                    "process_id": "order",
+                    "arguments": {"data": {"from_parameter": "data"}, "asc": True},
+                    "result": True,
+                },
+            },
+    ),
+])
+def test_apply_dimension_lambda_and_context(con100, process, expected):
+    im = con100.load_collection("S2")
+    res = im.apply_dimension(process=process, dimension="bands")
+    assert res.flat_graph()["applydimension1"]["arguments"]["process"]["process_graph"] == expected
+
+
 def test_merge_cubes_add_str(con100):
     im1 = con100.load_collection("S2")
     im2 = con100.load_collection("MASK")
