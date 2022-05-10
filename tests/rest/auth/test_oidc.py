@@ -9,6 +9,7 @@ from io import BytesIO
 from queue import Queue
 from typing import List, Union
 from unittest import mock
+import uuid
 
 import pytest
 import requests
@@ -321,7 +322,11 @@ class OidcMock:
             "refresh_token": self.token_callback_refresh_token,
         }[grant_type]
         result = callback(params=params, context=context)
-        self.grant_request_history[-1]["response"] = result
+        try:
+            result_decoded = json.loads(result)
+            self.grant_request_history[-1]["response"] = result_decoded
+        except json.JSONDecodeError:
+            self.grant_request_history[-1]["response"] = result
         return result
 
     def token_callback_authorization_code(self, params: dict, context):
@@ -434,7 +439,10 @@ class OidcMock:
 
     def _build_token_response(self, sub="123", name="john", include_id_token=True) -> str:
         """Build JSON serialized access/id/refresh token response (and store tokens for use in assertions)"""
-        access_token = self._jwt_encode({}, dict_no_none(sub=sub, name=name, nonce=self.state.get("nonce")))
+        access_token = self._jwt_encode(
+            header={},
+            payload=dict_no_none(sub=sub, name=name, nonce=self.state.get("nonce"), _uuid=uuid.uuid4().hex),
+        )
         res = {"access_token": access_token}
 
         # Attempt to simulate real world refresh token support.
@@ -447,11 +455,22 @@ class OidcMock:
             # Google OAuth style: no support for "offline_access", return refresh token automatically?
             include_refresh_token = True
         if include_refresh_token:
-            res["refresh_token"] = self._jwt_encode({}, {"foo": "refresh"})
+            res["refresh_token"] = self._jwt_encode(header={}, payload={"foo": "refresh", "_uuid": uuid.uuid4().hex})
         if include_id_token:
             res["id_token"] = access_token
         self.state.update(res)
+        self.state.update(name=name, sub=sub)
         return json.dumps(res)
+
+    def validate_access_token(self, access_token: str):
+        if access_token == self.state["access_token"]:
+            return {"user_id": self.state["name"], "sub": self.state["sub"]}
+        raise LookupError("Invalid access token")
+
+    def invalidate_access_token(self):
+        self.state["access_token"] = "***invalidated***"
+
+
 
 
 @contextlib.contextmanager

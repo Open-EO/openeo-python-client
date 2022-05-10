@@ -1,3 +1,6 @@
+import collections
+from typing import Optional
+
 from requests import Request
 from requests.auth import AuthBase
 
@@ -43,9 +46,12 @@ class BasicBearerAuth(BearerAuth):
         super().__init__(bearer='basic//{t}'.format(t=access_token))
 
 
+OidcRefreshInfo = collections.namedtuple("_OidcRefreshData", ["provider_id", "client_id", "store_refresh_token"])
+
+
 class OidcBearerAuth(BearerAuth):
     """Bearer token for OIDC Auth (openEO API 1.0.0 style)"""
 
-    def __init__(self, provider_id: str, access_token: str, refreshable: bool = False):
+    def __init__(self, provider_id: str, access_token: str, refresh_data: Optional[OidcRefreshInfo] = None):
         super().__init__(bearer='oidc/{p}/{t}'.format(p=provider_id, t=access_token))
-        self.refreshable = refreshable
+        self.refresh_data = refresh_data

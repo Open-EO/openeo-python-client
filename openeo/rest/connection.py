@@ -25,7 +25,7 @@ from openeo.internal.jupyter import VisualDict, VisualList
 from openeo.internal.processes.builder import ProcessBuilderBase
 from openeo.metadata import CollectionMetadata
 from openeo.rest import OpenEoClientException, OpenEoApiError, OpenEoRestError
-from openeo.rest.auth.auth import NullAuth, BearerAuth, BasicBearerAuth, OidcBearerAuth
+from openeo.rest.auth.auth import NullAuth, BearerAuth, BasicBearerAuth, OidcBearerAuth, OidcRefreshInfo
 from openeo.rest.auth.config import RefreshTokenStore, AuthConfig
 from openeo.rest.auth.oidc import OidcClientCredentialsAuthenticator, OidcAuthCodePkceAuthenticator, \
     OidcClientInfo, OidcAuthenticator, OidcRefreshTokenAuthenticator, OidcResourceOwnerPasswordAuthenticator, \
@@ -396,13 +396,13 @@ class Connection(RestApiConnection):
             self,
             authenticator: OidcAuthenticator,
             provider_id: str,
-            store_refresh_token: bool = False
+            store_refresh_token: bool = False,
+            refreshable: bool = False,
     ) -> 'Connection':
         """
         Authenticate through OIDC and set up bearer token (based on OIDC access_token) for further requests.
         """
         tokens = authenticator.get_tokens(request_refresh_token=store_refresh_token)
-        refreshable = False
         _log.info("Obtained tokens: {t}".format(t=[k for k, v in tokens._asdict().items() if v]))
         if store_refresh_token:
             if tokens.refresh_token:
@@ -416,7 +416,15 @@ class Connection(RestApiConnection):
                 _log.warning("OIDC token response did not contain refresh token.")
         token = tokens.access_token if not self.oidc_auth_user_id_token_as_bearer else tokens.id_token
         if self._api_version.at_least("1.0.0"):
-            self.auth = OidcBearerAuth(provider_id=provider_id, access_token=token, refreshable=refreshable)
+            if refreshable:
+                refresh_data = OidcRefreshInfo(
+                    provider_id=provider_id,
+                    client_id=authenticator.client_id,
+                    store_refresh_token=store_refresh_token,
+                )
+            else:
+                refresh_data = None
+            self.auth = OidcBearerAuth(provider_id=provider_id, access_token=token, refresh_data=refresh_data)
         else:
             self.auth = BearerAuth(bearer=token)
         return self
@@ -501,7 +509,9 @@ class Connection(RestApiConnection):
                 raise OpenEoClientException("No refresh token given or found")
 
         authenticator = OidcRefreshTokenAuthenticator(client_info=client_info, refresh_token=refresh_token)
-        return self._authenticate_oidc(authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token)
+        return self._authenticate_oidc(
+            authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token, refreshable=True,
+        )
 
     def authenticate_oidc_device(
             self, client_id: str = None, client_secret: str = None, provider_id: str = None,
@@ -589,18 +599,18 @@ class Connection(RestApiConnection):
         except OpenEoApiError as api_exc:
             if api_exc.http_status_code == 403 and api_exc.code == "TokenInvalid":
                 # Auth token expired: can we refresh?
-                if isinstance(self.auth, OidcBearerAuth) and self.auth.refreshable:
-                    _log.warning(
-                        "Initial request failed with `[403] TokenInvalid`."
-                        " Trying to automatically re-authenticate with refresh token."
-                    )
+                if isinstance(self.auth, OidcBearerAuth) and self.auth.refresh_data:
+                    base_msg = f"Back-end request failed with {str(api_exc)!r}"
+                    _log.debug(f"{base_msg}. Trying to re-authenticate with the refresh token.")
                     try:
-                        self.authenticate_oidc_refresh_token(store_refresh_token=self.auth.refreshable)
-                    except OpenEoClientException as auth_exc:
-                        _log.error(
-                            "Initial request failed with `[403] TokenInvalid`"
-                            f" and could not re-authenticate with refresh token: {auth_exc!r}."
+                        self.authenticate_oidc_refresh_token(
+                            client_id=self.auth.refresh_data.client_id,
+                            provider_id=self.auth.refresh_data.provider_id,
+                            store_refresh_token=self.auth.refresh_data.store_refresh_token,
                         )
+                        _log.warning(f"{base_msg} but successfully re-authenticated with the refresh token.")
+                    except OpenEoClientException as auth_exc:
+                        _log.error(f"{base_msg} and could not re-authenticate with the refresh token: {auth_exc!r}.")
                     else:
                         # Retry request.
                         return _request()
