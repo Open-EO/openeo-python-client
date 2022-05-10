@@ -1585,6 +1585,105 @@ def test_authenticate_oidc_auto_refresh_expired_access_token_initial_device_code
         "_used_access_token": access_token2,
     }
 
+def test_authenticate_oidc_auto_refresh_expired_access_token_invalid_refresh_token(
+        requests_mock, refresh_token_store, caplog
+):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    client_id = "myclient"
+    oidc_discovery_url = "https://oidc.test/.well-known/openid-configuration"
+    requests_mock.get(API_URL + 'credentials/oidc', json={
+        "providers": [{"id": "oi", "issuer": "https://oidc.test", "title": "example", "scopes": ["openid"]}]
+    })
+    oidc_mock = OidcMock(
+        requests_mock=requests_mock,
+        expected_grant_type="urn:ietf:params:oauth:grant-type:device_code",
+        expected_client_id=client_id,
+        oidc_discovery_url=oidc_discovery_url,
+        expected_fields={
+            "scope": "openid",
+            "code_verifier": True,
+            "code_challenge": True,
+        },
+        scopes_supported=["openid"],
+    )
+    _setup_get_me_handler(requests_mock=requests_mock, oidc_mock=oidc_mock)
+    caplog.set_level(logging.INFO)
+
+    # Explicit authentication with `authenticate_oidc_device`
+    conn = Connection(API_URL, refresh_token_store=refresh_token_store)
+    assert isinstance(conn.auth, NullAuth)
+    oidc_mock.state["device_code_callback_timeline"] = ["great success"]
+    with assert_device_code_poll_sleep():
+        conn.authenticate_oidc_device(client_id=client_id, use_pkce=True, store_refresh_token=True)
+    assert isinstance(conn.auth, BearerAuth)
+    assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
+    # Just one "refresh_token" auth request so far
+    assert [h["grant_type"] for h in oidc_mock.grant_request_history] == [
+        "urn:ietf:params:oauth:grant-type:device_code"
+    ]
+    access_token1 = oidc_mock.state["access_token"]
+    refresh_token1 = oidc_mock.state["refresh_token"]
+    assert refresh_token1 is not None
+    # Do request that requires auth headers
+    assert conn.describe_account() == {
+        "user_id": "john",
+        "_used_oidc_provider": "oi",
+        "_used_access_token": access_token1,
+    }
+
+    # Expire access token and refresh token too
+    oidc_mock.invalidate_access_token()
+    oidc_mock.expected_fields["refresh_token"] = "sorry-not-accepting-refresh-tokens-now"
+    oidc_mock.expected_grant_type = "refresh_token"
+    # Do request that requires auth headers triggers attempt to re-authenticate (which will fail)
+    assert "[403] TokenInvalid" not in caplog.text
+    with pytest.raises(OpenEoApiError):
+        conn.describe_account()
+
+    assert "Back-end request failed with '[403] TokenInvalid" in caplog.text
+    assert "and could not re-authenticate with the refresh token" in caplog.text
+
+
+def test_authenticate_oidc_auto_refresh_expired_access_token_other_errors(
+        requests_mock, caplog
+):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    client_id = "myclient"
+    initial_refresh_token = "r3fr35h!"
+    oidc_discovery_url = "https://oidc.test/.well-known/openid-configuration"
+    requests_mock.get(API_URL + 'credentials/oidc', json={
+        "providers": [{"id": "oi", "issuer": "https://oidc.test", "title": "example", "scopes": ["openid"]}]
+    })
+    oidc_mock = OidcMock(
+        requests_mock=requests_mock,
+        expected_grant_type="refresh_token",
+        expected_client_id=client_id,
+        oidc_discovery_url=oidc_discovery_url,
+        expected_fields={"refresh_token": initial_refresh_token}
+    )
+
+    def get_me(request: requests.Request, context):
+        """handler for `GET /me` (with access_token checking)"""
+        context.status_code = 500
+        return {"code": "Internal"}
+
+    requests_mock.get(API_URL + "me", json=get_me)
+
+    caplog.set_level(logging.DEBUG)
+
+    # Explicit authentication with `authenticate_oidc_refresh_token`
+    refresh_token_store = mock.Mock()
+    conn = Connection(API_URL, refresh_token_store=refresh_token_store)
+    assert isinstance(conn.auth, NullAuth)
+    conn.authenticate_oidc_refresh_token(refresh_token=initial_refresh_token, client_id=client_id)
+    assert isinstance(conn.auth, BearerAuth)
+    assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
+
+    # Do request that will fail with "Internal" error
+    with pytest.raises(OpenEoApiError):
+        conn.describe_account()
+    # The re-authentication retry logic should not be triggered
+    assert "re-auth" not in caplog.text
 
 
 def test_load_collection_arguments_040(requests_mock):
