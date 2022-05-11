@@ -283,7 +283,7 @@ To illustrate the flow, this is how to initiate the authentication::
 
 This will print a message like this::
 
-    To authenticate: visit https://provider.example.com/device
+    To authenticate: visit https://oidc.example.net/device
     and enter the user code 'DTNY-KLNX'.
 
 You should now visit this URL.
@@ -543,14 +543,10 @@ For example::
 
     $ openeo-auth oidc-auth https://openeo.example.com
     Using config '/home/john/.config/openeo-python-client/auth-config.json'.
-    Which OpenID Connect flow should be used? (Note: some options might not be supported by the provider.)
-    [1] Authorization code flow
-    [2] Device flow
-    Choose one (enter index): 1
-    Starting OpenID Connect authorization code flow:
-    a browser window should open allowing you to log in with the identity provider
-    and grant access to the client 'openeo-dev' (timeout: 60s).
-    The OpenID Connect authorization code flow was successful.
+    Starting OpenID Connect device flow.
+    To authenticate: visit https://oidc.example.net/device and enter the user code 'Q7ZNsy'.
+    Authorized successfully.
+    The OpenID Connect device flow was successful.
     Stored refresh token in '/home/john/.local/share/openeo-python-client/refresh-tokens.json'
 
 

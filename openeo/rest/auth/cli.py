@@ -100,9 +100,8 @@ def main(argv=None):
     oidc_auth_parser.add_argument("backend", help="OpenEO Backend URL.")
     oidc_auth_parser.add_argument("--provider-id", help="Provider ID to use.")
     oidc_auth_parser.add_argument(
-        # TODO: use device flow by default? drop interactive choice?
-        "--flow", choices=_OIDC_FLOW_CHOICES, default=None,
-        help="OpenID Connect flow to use."
+        "--flow", choices=_OIDC_FLOW_CHOICES, default="device",
+        help="OpenID Connect flow to use (default: device)."
     )
     oidc_auth_parser.add_argument(
         "--timeout", type=int, default=60, help="Timeout in seconds to wait for (user) response."
@@ -350,11 +349,6 @@ def main_oidc_auth(args):
     else:
         print("Will try to use default client.")
 
-    if oidc_flow is None:
-        oidc_flow = _interactive_choice(
-            "Which OpenID Connect flow should be used? (Note: some options might not be supported by the provider.)",
-            options=[("auth-code", "Authorization code flow"), ("device", "Device flow")]
-        )
     refresh_token_store = RefreshTokenStore()
     con = Connection(backend, refresh_token_store=refresh_token_store)
     if oidc_flow == "auth-code":
