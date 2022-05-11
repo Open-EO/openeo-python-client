@@ -47,7 +47,7 @@ For example, show information about the authenticated user::
 OpenID Connect Based Authentication
 ===================================
 
-OpenID Connect is an identity layer on top of the OAuth 2.0 protocol.
+OpenID Connect (often abbreviated "OIDC") is an identity layer on top of the OAuth 2.0 protocol.
 It is a quite an extensive stack of interacting actors and protocols,
 and an in-depth discussion of its architecture would lead us too far here.
 However, in the context of working with openEO,
@@ -584,6 +584,80 @@ Getting an authenticated connection is now as simple as::
     Using default back-end URL 'openeo.cloud' (from config)
     Doing auto-authentication 'oidc' (from config)
     Authenticated using refresh token.
+
+
+Authentication for long-running applications and non-interactive contexts
+===========================================================================
+
+With OpenID Connect authentication, the *access token*
+(which is used in the authentication headers)
+is typically short-lived (e.g. couple of minutes or hours).
+This practically means that an authenticated connection could expire and become unusable
+before a **long-running script or application** finishes its whole workflow.
+Luckily, OpenID Connect also includes usage of *refresh tokens*,
+which have a much longer expiry and allow request a new access token
+to re-authenticate the connection.
+Since version 0.10.1, te openEO Python Client Library will automatically
+attempt to re-authenticate a connection when access token expiry is detected
+and valid refresh tokens are available.
+
+Likewise, refresh tokens can also be used for authentication in cases
+where a script or application is **run automatically in the background on regular basis** (daily, weekly, ...).
+If there is a non-expired refresh token available, the script can authenticate
+without user interaction.
+
+Guidelines and tips
+--------------------
+
+Some guidelines get long-term and non-interactive authentication working for your use case:
+
+-   If you run a workflow periodically, but the interval between runs
+    is larger than the expiry time of the refresh token
+    (e.g. a monthly job, while the refresh token expires after, say, 10 days),
+    you could consider setting up a *custom OIDC client* with better suited
+    refresh token timeout.
+    The practical details of this heavily depend on the OIDC Identity Provider
+    in play and are out of scope of this discussion.
+-   Obtaining the initial refresh token requires manual/interactive authentication,
+    but once it is stored on the necessary machine(s)
+    in the refresh token store as discussed in :ref:`auth_configuration_files`,
+    no further manual interaction should be necessary.
+    To do so, use one of the following methods:
+
+    -   Use the ``openeo-auth oidc-auth`` cli tool, for example to authenticate
+        for openeo back-end openo.example.com::
+
+            $ openeo-auth oidc-auth openeo.example.com
+            ...
+            Stored refresh token in '/home/john/.local/share/openeo-python-client/refresh-tokens.json'
+
+
+    -   Use a Python snippet to authenticate and store the refresh token::
+
+            import openeo
+            con = openeo.connect("openeo.example.com")
+            con.authenticate_oidc_device(store_refresh_token=True)
+
+
+    To verify that (and where) the refresh token is stored, use ``openeo-auth token-dump``::
+
+            $ openeo-auth token-dump
+            ### /home/john/.local/share/openeo-python-client/refresh-tokens.json #######
+            {
+              "https://oidc.example.net": {
+                "default-client": {
+                  "date": "2022-05-11T13:13:20Z",
+                  "refresh_token": "<redacted>"
+                },
+            ...
+
+-   Authenticate in your script or application with the refresh token
+    and make sure newer refresh tokens are stored as well::
+
+        import openeo
+        con = openeo.connect("openeo.example.com")
+        con.authenticate_oidc_refresh_token(store_refresh_token=True)
+
 
 
 Troubleshooting tips
