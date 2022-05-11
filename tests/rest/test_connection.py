@@ -1489,8 +1489,8 @@ def test_authenticate_oidc_auto_refresh_expired_access_token_initial_refresh_tok
         # Two "refresh_token" auth requests should have happened now
         assert [h["grant_type"] for h in oidc_mock.grant_request_history] == ["refresh_token", "refresh_token"]
         assert (access_token2, refresh_token2) != (access_token1, refresh_token1)
-        assert "Back-end request failed with '[403] TokenInvalid" in caplog.text
-        assert "but successfully re-authenticated with the refresh token" in caplog.text
+        assert "expired access token ([403] TokenInvalid)" in caplog.text
+        assert "automatically re-authenticated with refresh token" in caplog.text
     else:
         assert [h["grant_type"] for h in oidc_mock.grant_request_history] == ["refresh_token"]
         assert (access_token2, refresh_token2) == (access_token1, refresh_token1)
@@ -1570,8 +1570,8 @@ def test_authenticate_oidc_auto_refresh_expired_access_token_initial_device_code
             "refresh_token",
         ]
         assert (access_token2, refresh_token2) != (access_token1, refresh_token1)
-        assert "Back-end request failed with '[403] TokenInvalid" in caplog.text
-        assert "but successfully re-authenticated with the refresh token" in caplog.text
+        assert "expired access token ([403] TokenInvalid)" in caplog.text
+        assert "automatically re-authenticated with refresh token" in caplog.text
     else:
         assert [h["grant_type"] for h in oidc_mock.grant_request_history] == [
             "urn:ietf:params:oauth:grant-type:device_code"
@@ -1640,8 +1640,8 @@ def test_authenticate_oidc_auto_refresh_expired_access_token_invalid_refresh_tok
     with pytest.raises(OpenEoApiError):
         conn.describe_account()
 
-    assert "Back-end request failed with '[403] TokenInvalid" in caplog.text
-    assert "and could not re-authenticate with the refresh token" in caplog.text
+    assert "expired access token ([403] TokenInvalid)" in caplog.text
+    assert "failed to automatically re-authenticate with refresh token" in caplog.text
 
 
 def test_authenticate_oidc_auto_refresh_expired_access_token_other_errors(

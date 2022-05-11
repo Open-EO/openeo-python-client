@@ -600,17 +600,24 @@ class Connection(RestApiConnection):
             if api_exc.http_status_code == 403 and api_exc.code == "TokenInvalid":
                 # Auth token expired: can we refresh?
                 if isinstance(self.auth, OidcBearerAuth) and self.auth.refresh_data:
-                    base_msg = f"Back-end request failed with {str(api_exc)!r}"
-                    _log.debug(f"{base_msg}. Trying to re-authenticate with the refresh token.")
+                    _log.debug(
+                        f"Back-end request failed with {str(api_exc)!r}."
+                        f" Trying to re-authenticate with the refresh token."
+                    )
                     try:
                         self.authenticate_oidc_refresh_token(
                             client_id=self.auth.refresh_data.client_id,
                             provider_id=self.auth.refresh_data.provider_id,
                             store_refresh_token=self.auth.refresh_data.store_refresh_token,
                         )
-                        _log.warning(f"{base_msg} but successfully re-authenticated with the refresh token.")
+                        _log.warning(
+                            f"Connection with expired access token ([{api_exc.http_status_code}] {api_exc.code})"
+                            f" automatically re-authenticated with refresh token."
+                        )
                     except OpenEoClientException as auth_exc:
-                        _log.error(f"{base_msg} and could not re-authenticate with the refresh token: {auth_exc!r}.")
+                        _log.error(
+                            f"Connection with expired access token ([{api_exc.http_status_code}] {api_exc.code})"
+                            f" failed to automatically re-authenticate with refresh token: {auth_exc!r}.")
                     else:
                         # Retry request.
                         return _request()
