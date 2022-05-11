@@ -1903,7 +1903,7 @@ class DataCube(_ProcessGraphAbstraction):
         return self.reduce_dimension(dimension=dimension, reducer=reducer, context=model)
 
     @openeo_process(mode="apply_dimension")
-    def predict_catboost_probabilities(self, model: Union[str, RESTJob, MlModel], dimension: str = "bands"):
+    def predict_probabilities(self, model: Union[str, RESTJob, MlModel], dimension: str = "bands"):
         """
         Apply ``apply_dimension`` with `predict_catboost` as process.
 
@@ -1920,7 +1920,7 @@ class DataCube(_ProcessGraphAbstraction):
         if not isinstance(model, MlModel):
             model = MlModel.load_ml_model(connection=self.connection, id=model)
         from openeo.processes import process
-        p = lambda data, context: process('predict_catboost_probabilities', data=data, model=context)
+        p = lambda data, context: process('predict_probabilities', data=data, model=context)
         return self.apply_dimension(dimension=dimension, process=p, context=model)
 
     @openeo_process
