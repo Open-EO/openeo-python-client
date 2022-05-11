@@ -322,12 +322,12 @@ def main_oidc_auth(args):
 
     # Determine provider
     provider_configs = config.get_oidc_provider_configs(backend=backend)
-    if not provider_configs:
-        # TODO: automatically do add config flow here?
-        raise CliToolException("No OpenID Connect provider configs found for backend {b!r}".format(b=backend))
     _log.debug("Provider configs: {c!r}".format(c=provider_configs))
     if not provider_id:
-        if len(provider_configs) == 1:
+        if len(provider_configs) == 0:
+            print("Will try to use default provider_id.")
+            provider_id = None
+        elif len(provider_configs) == 1:
             provider_id = list(provider_configs.keys())[0]
         else:
             provider_id = _interactive_choice(
@@ -337,8 +337,8 @@ def main_oidc_auth(args):
                     for k, v in provider_configs.items()
                 )
             )
-    if provider_id not in provider_configs:
-        raise CliToolException("Invalid provider ID {p!r}. Should be one of {o}.".format(
+    if not (provider_id is None or provider_id in provider_configs):
+        raise CliToolException("Invalid provider ID {p!r}. Should be `None` or one of {o}.".format(
             p=provider_id, o=list(provider_configs.keys())
         ))
     print("Using provider ID {p!r}.".format(p=provider_id))
