@@ -259,7 +259,7 @@ class ContextTimer:
 
     Usage example:
 
-        with Timer() as timer:
+        with ContextTimer() as timer:
             # Inside code block: currently elapsed time
             print(timer.elapsed())
 

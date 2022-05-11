@@ -1,3 +1,6 @@
+import collections
+from typing import Optional
+
 from requests import Request
 from requests.auth import AuthBase
 
@@ -34,3 +37,21 @@ class BearerAuth(OpenEoApiAuthBase):
         # Add bearer authorization header.
         req.headers['Authorization'] = "Bearer {b}".format(b=self.bearer)
         return req
+
+
+class BasicBearerAuth(BearerAuth):
+    """Bearer token for Basic Auth (openEO API 1.0.0 style)"""
+
+    def __init__(self, access_token: str):
+        super().__init__(bearer='basic//{t}'.format(t=access_token))
+
+
+OidcRefreshInfo = collections.namedtuple("_OidcRefreshData", ["provider_id", "client_id", "store_refresh_token"])
+
+
+class OidcBearerAuth(BearerAuth):
+    """Bearer token for OIDC Auth (openEO API 1.0.0 style)"""
+
+    def __init__(self, provider_id: str, access_token: str, refresh_data: Optional[OidcRefreshInfo] = None):
+        super().__init__(bearer='oidc/{p}/{t}'.format(p=provider_id, t=access_token))
+        self.refresh_data = refresh_data
