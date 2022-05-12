@@ -1124,13 +1124,14 @@ class Connection(RestApiConnection):
 
         response = self.post("/jobs", json=req, expected_status=201)
 
+        job_id = None
         if "openeo-identifier" in response.headers:
-            job_id = response.headers['openeo-identifier']
+            job_id = response.headers['openeo-identifier'].strip()
         elif "location" in response.headers:
             _log.warning("Backend did not explicitly respond with job id, will guess it from redirect URL.")
             job_id = response.headers['location'].split("/")[-1]
-        else:
-            raise OpenEoClientException("Failed fo extract job id")
+        if not job_id:
+            raise OpenEoClientException("Job creation response did not contain a valid job id")
         return RESTJob(job_id, self)
 
     def job(self, job_id: str):
