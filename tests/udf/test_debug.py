@@ -1,5 +1,8 @@
 import logging
+import sys
 from pathlib import Path
+
+import pytest
 
 from openeo.udf.debug import inspect
 
@@ -13,6 +16,13 @@ def test_inspect_basic(caplog):
     assert record.levelno == logging.INFO
     assert "hello" in record.message
     assert "[1, 2, 3]" in record.message
+
+
+@pytest.mark.skipif(sys.version_info < (3, 8), reason="Requires python 3.8 or higher (logging `stacklevel`)")
+def test_inspect_filename(caplog):
+    caplog.set_level("INFO")
+    inspect(data=[1, 2, 3], message="hello")
+    record: logging.LogRecord = caplog.records[0]
     assert record.filename == Path(__file__).name
 
 

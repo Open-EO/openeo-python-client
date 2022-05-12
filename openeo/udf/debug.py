@@ -4,6 +4,7 @@ Debug utilities for UDFs
 import json
 import logging
 import os
+import sys
 
 _log = logging.getLogger(__name__)
 _user_log = logging.getLogger(os.environ.get("OPENEO_UDF_USER_LOGGER", f"{__name__}.user"))
@@ -27,4 +28,5 @@ def inspect(data=None, message: str = "", code: str = "User", level: str = "info
     # but with the python logging API we can just have a single string,
     # so we JSON-encode our data to a single payload.
     msg = json.dumps({"data": data, "message": message, "code": code})
-    _user_log.log(level=logging.getLevelName(level.upper()), msg=msg, stacklevel=2)
+    kwargs = {"stacklevel": 2} if sys.version_info >= (3, 8) else {}
+    _user_log.log(level=logging.getLevelName(level.upper()), msg=msg, **kwargs)
