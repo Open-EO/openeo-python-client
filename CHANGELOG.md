@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `JobResults.download_files()`: also download (by default) the job result metadata as STAC JSON file ([#184](https://github.com/Open-EO/openeo-python-client/issues/184))
 - OIDC handling in `Connection`: try to automatically refresh access token when expired ([#298](https://github.com/Open-EO/openeo-python-client/issues/298))
 - `Connection.create_job` raises exception if response does not contain a valid job_id
+- Add `openeo.udf.debug.inspect` for using the openEO `inspect` process in a UDF ([#302](https://github.com/Open-EO/openeo-python-client/issues/302))
 
 ### Changed
 
