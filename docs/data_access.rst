@@ -73,13 +73,23 @@ allows filtering on properties of that catalog.
 One example is filtering on the relative orbit number of SAR data. This example shows how that can be achieved::
 
     connection.load_collection(
-        "S1_GRD",
+        "SENTINEL1_GRD",
         spatial_extent={"west": 16.1, "east": 16.6, "north": 48.6, "south": 47.2},
         temporal_extent=["2018-01-01", "2019-01-01"],
         properties={
-            "relativeOrbitNumber": lambda x: eq(x=x, y=116)
+            "relativeOrbitNumber": lambda x: x==116
         }
     )
+
+A similar and very useful example is to pre-filter Sentinel-2 products on cloud cover. This avoids loading clouded data,
+and increases performance::
+
+    connection.load_collection("SENTINEL2_L2A",
+        spatial_extent={'west':3.7582164,'east':4.087806,'south':51.291,'north':51.39},
+        temporal_extent=["2021-05-07","2021-05-14"],bands=['B04','B03','B02'],
+        properties={"eo:cloud_cover": lambda v: v == 80} )
+
+Note that property names follow STAC metadata conventions, but some collections can have different names.
 
 Property filters in openEO are also specified by small process graphs, that allow the use of the same generic processes
 defined by openEO. This is the 'lambda' process that you see in the property dictionary. Do note that not all processes
