@@ -102,3 +102,10 @@ openeo.udf
 
 .. automodule:: openeo.udf.debug
     :members: inspect
+
+
+openeo.util
+-------------
+
+.. automodule:: openeo.util
+    :members: to_bbox_dict, BBoxDict

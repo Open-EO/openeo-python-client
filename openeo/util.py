@@ -12,9 +12,10 @@ import time
 import warnings
 from collections import OrderedDict
 from pathlib import Path
-from typing import Any, Union, Tuple, Callable
+from typing import Any, Union, Tuple, Callable, Optional
 
 import requests
+import shapely.geometry.base
 from deprecated import deprecated
 
 logger = logging.getLogger(__name__)
@@ -527,3 +528,84 @@ def in_interactive_mode() -> bool:
     """Detect if we are running in interactive mode (Jupyter/IPython/repl)"""
     # Based on https://stackoverflow.com/a/64523765
     return hasattr(sys, "ps1")
+
+
+class BBoxDict(dict):
+    """
+    Dictionary based helper to easily create/work with bounding box dictionaries
+    (having keys "west", "south", "east", "north", and optionally "crs").
+
+    .. versionadded:: 0.10.1
+    """
+
+    def __init__(self, *, west: float, south: float, east: float, north: float, crs: Optional[str] = None):
+        super().__init__(west=west, south=south, east=east, north=north)
+        if crs is not None:
+            self.update(crs=crs)
+
+    # TODO: provide west, south, east, north, crs as @properties? Read-only or read-write?
+
+    @classmethod
+    def from_any(cls, x: Any, *, crs: Optional[str] = None) -> 'BBoxDict':
+        if isinstance(x, dict):
+            return cls.from_dict({"crs": crs, **x})
+        elif isinstance(x, (list, tuple)):
+            return cls.from_sequence(x, crs=crs)
+        elif isinstance(x, shapely.geometry.base.BaseGeometry):
+            return cls.from_sequence(x.bounds, crs=crs)
+        # TODO: support other input? E.g.: WKT string, GeoJson-style dictionary (Polygon, FeatureCollection, ...)
+        else:
+            raise ValueError(f"Can not construct BBoxDict from {x!r}")
+
+    @classmethod
+    def from_dict(cls, data: dict) -> 'BBoxDict':
+        """Build from dictionary with at least keys "west", "south", "east", and "north"."""
+        expected_fields = {"west", "south", "east", "north"}
+        # TODO: also support converting support case fields?
+        if not all(k in data for k in expected_fields):
+            raise ValueError(
+                f"Expecting fields {expected_fields}, but only found {expected_fields.intersection(data.keys())}."
+            )
+        return cls(
+            west=data["west"], south=data["south"], east=data["east"], north=data["north"],
+            crs=data.get("crs")
+        )
+
+    @classmethod
+    def from_sequence(cls, seq: Union[list, tuple], crs: Optional[str] = None) -> 'BBoxDict':
+        """Build from sequence of 4 bounds (west, south, east and north)."""
+        if len(seq) != 4:
+            raise ValueError(f"Expected sequence with 4 items, but got {len(seq)}.")
+        return cls(west=seq[0], south=seq[1], east=seq[2], north=seq[3], crs=crs)
+
+
+def to_bbox_dict(x: Any, *, crs: Optional[str] = None) -> BBoxDict:
+    """
+    Convert given data or object to a bounding box dictionary
+    (having keys "west", "south", "east", "north", and optionally "crs").
+
+    Supports various input types/formats:
+
+    - list/tuple (assumed to be in west-south-east-north order)
+
+        >>> to_bbox_dict([3, 50, 4, 51])
+        {'west': 3, 'south': 50, 'east': 4, 'north': 51}
+
+    - dictionary (unnecessary items will be stripped)
+
+        >>> to_bbox_dict({
+        ...     "color": "red", "shape": "triangle",
+        ...     "west": 1, "south": 2, "east": 3, "north": 4, "crs": "EPSG:4326",
+        ... })
+        {'west': 1, 'south': 2, 'east': 3, 'north': 4, 'crs': 'EPSG:4326'}
+
+    - a shapely geometry
+
+    .. versionadded:: 0.10.1
+
+    :param x: input data that describes west-south-east-north bounds in some way, e.g. as a dictionary,
+        a list, a tuple, ashapely geometry, ...
+    :param crs: (optional) CRS field
+    :return: dictionary (subclass) with keys "west", "south", "east", "north", and optionally "crs".
+    """
+    return BBoxDict.from_any(x=x, crs=crs)

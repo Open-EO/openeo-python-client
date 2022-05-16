@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import pathlib
@@ -5,12 +6,12 @@ import re
 import unittest.mock as mock
 from datetime import datetime, date
 from typing import List, Union
-
+import shapely.geometry
 import pytest
 
 from openeo.util import first_not_none, get_temporal_extent, TimingLogger, ensure_list, ensure_dir, dict_no_none, \
     deep_get, DeepKeyError, Rfc3339, rfc3339, deep_set, legacy_alias, \
-    LazyLoadCache, guess_format, ContextTimer, str_truncate
+    LazyLoadCache, guess_format, ContextTimer, str_truncate, to_bbox_dict, BBoxDict
 
 
 def test_rfc3339_date():
@@ -593,3 +594,57 @@ def test_str_truncate():
     assert str_truncate("hello world", width=3) == "..."
     assert str_truncate("hello world", width=1) == "."
     assert str_truncate("hello world", width=10, ellipsis="<..>") == "hello <..>"
+
+
+class TestBBoxDict:
+
+    def test_init(self):
+        assert BBoxDict(west=1, south=2, east=3, north=4) == {"west": 1, "south": 2, "east": 3, "north": 4}
+        assert BBoxDict(west=1, south=2, east=3, north=4, crs="EPSG:4326") == {
+            "west": 1, "south": 2, "east": 3, "north": 4, "crs": "EPSG:4326",
+        }
+
+    def test_repr(self):
+        d = BBoxDict(west=1, south=2, east=3, north=4)
+        assert repr(d) == "{'west': 1, 'south': 2, 'east': 3, 'north': 4}"
+
+    def test_to_json(self):
+        d = BBoxDict(west=1, south=2, east=3, north=4)
+        assert json.dumps(d) == '{"west": 1, "south": 2, "east": 3, "north": 4}'
+
+    def test_to_bbox_dict_from_sequence(self):
+        assert to_bbox_dict([1, 2, 3, 4]) == {"west": 1, "south": 2, "east": 3, "north": 4}
+        assert to_bbox_dict((1, 2, 3, 4)) == {"west": 1, "south": 2, "east": 3, "north": 4}
+        assert to_bbox_dict([1, 2, 3, 4], crs="EPSG:4326") == {
+            "west": 1, "south": 2, "east": 3, "north": 4, "crs": "EPSG:4326",
+        }
+
+    def test_to_bbox_dict_from_sequence_mismatch(self):
+        with pytest.raises(ValueError, match="Expected sequence with 4 items, but got 3."):
+            to_bbox_dict([1, 2, 3])
+        with pytest.raises(ValueError, match="Expected sequence with 4 items, but got 5."):
+            to_bbox_dict([1, 2, 3, 4, 5])
+
+    def test_to_bbox_dict_from_dict(self):
+        assert to_bbox_dict({"west": 1, "south": 2, "east": 3, "north": 4}) == {
+            "west": 1, "south": 2, "east": 3, "north": 4
+        }
+        assert to_bbox_dict({"west": 1, "south": 2, "east": 3, "north": 4, "crs": "EPSG:4326"}) == {
+            "west": 1, "south": 2, "east": 3, "north": 4, "crs": "EPSG:4326"
+        }
+        assert to_bbox_dict({"west": 1, "south": 2, "east": 3, "north": 4}, crs="EPSG:4326") == {
+            "west": 1, "south": 2, "east": 3, "north": 4, "crs": "EPSG:4326",
+        }
+        assert to_bbox_dict({
+            "west": 1, "south": 2, "east": 3, "north": 4, "crs": "EPSG:4326", "color": "red", "other": "garbage",
+        }) == {
+                   "west": 1, "south": 2, "east": 3, "north": 4, "crs": "EPSG:4326"
+               }
+
+    def test_to_bbox_dict_from_dict_missing_field(self):
+        with pytest.raises(ValueError, match="but only found {'east'}"):
+            to_bbox_dict({"east": 3})
+
+    def test_to_bbox_dict_from_geometry(self):
+        geometry = shapely.geometry.Polygon([(4, 2), (7, 4), (5, 8), (3, 3), (4, 2)])
+        assert to_bbox_dict(geometry) == {"west": 3, "south": 2, "east": 7, "north": 8}
