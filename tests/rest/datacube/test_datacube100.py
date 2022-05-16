@@ -1826,14 +1826,17 @@ class TestBatchJob:
         }
     }}}
 
-    def _get_handler_post_jobs(self, expected_post_data: Optional[dict] = None, job_id: str = "myj0b1"):
+    def _get_handler_post_jobs(
+            self, expected_post_data: Optional[dict] = None, job_id: str = "myj0b1", add_header=True,
+    ):
         """Create `POST /jobs` handler"""
         expected_post_data = expected_post_data or self._EXPECTED_SIMPLE_S2_JOB
 
         def post_jobs(request, context):
             assert request.json() == expected_post_data
             context.status_code = 201
-            context.headers["OpenEO-Identifier"] = job_id
+            if add_header:
+                context.headers["OpenEO-Identifier"] = job_id
 
         return post_jobs
 
@@ -1842,6 +1845,16 @@ class TestBatchJob:
         cube = con100.load_collection("S2")
         job = cube.create_job(out_format="GTiff")
         assert job.job_id == "myj0b1"
+
+    @pytest.mark.parametrize(["add_header", "job_id"], [
+        (True, "  "),
+        (False, None),
+    ])
+    def test_create_job_invalid_header(self, con100, requests_mock, add_header, job_id):
+        requests_mock.post(API_URL + "/jobs", json=self._get_handler_post_jobs(job_id=job_id, add_header=add_header))
+        cube = con100.load_collection("S2")
+        with pytest.raises(OpenEoClientException, match="response did not contain a valid job id"):
+            _ = cube.create_job(out_format="GTiff")
 
     def test_legacy_send_job(self, con100, requests_mock):
         """Legacy `DataCube.send_job` alis for `create_job"""

@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `DataCube.fit_regr_random_forest()` ([#293](https://github.com/Open-EO/openeo-python-client/issues/293))
 - Add `PGNode.update_arguments()`, which combined with `DataCube.result_node()` allows to do advanced process graph argument tweaking/updating without using `._pg` hacks.
 - `JobResults.download_files()`: also download (by default) the job result metadata as STAC JSON file ([#184](https://github.com/Open-EO/openeo-python-client/issues/184))
+- OIDC handling in `Connection`: try to automatically refresh access token when expired ([#298](https://github.com/Open-EO/openeo-python-client/issues/298))
+- `Connection.create_job` raises exception if response does not contain a valid job_id
+- Add `openeo.udf.debug.inspect` for using the openEO `inspect` process in a UDF ([#302](https://github.com/Open-EO/openeo-python-client/issues/302))
+- Add `openeo.util.to_bbox_dict()` to simplify building a openEO style bbox dictionary, e.g. from a list or shapely geometry ([#304](https://github.com/Open-EO/openeo-python-client/issues/304))
 
 ### Changed
 

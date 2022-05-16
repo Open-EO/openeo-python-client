@@ -370,6 +370,55 @@ def test_oidc_auth_device_flow_default_client(auth_config, refresh_token_store, 
         assert e in out
 
 
+def test_oidc_auth_device_flow_no_config_all_defaults(auth_config, refresh_token_store, requests_mock, capsys):
+    """Test device flow with default client (which uses PKCE instead of secret)."""
+    default_client_id = "d3f6u17cl13n7"
+    requests_mock.get("https://oeo.test/", json={"api_version": "1.0.0"})
+    requests_mock.get("https://oeo.test/credentials/oidc", json={"providers": [
+        {
+            "id": "authit", "issuer": "https://authit.test", "title": "Auth It", "scopes": ["openid"],
+            "default_clients": [{
+                "id": default_client_id,
+                "grant_types": ["urn:ietf:params:oauth:grant-type:device_code+pkce", "refresh_token"],
+            }]
+        },
+        {"id": "youauth", "issuer": "https://youauth.test", "title": "YouAuth", "scopes": ["openid"]}
+    ]})
+
+    oidc_mock = OidcMock(
+        requests_mock=requests_mock,
+        expected_grant_type="urn:ietf:params:oauth:grant-type:device_code",
+        expected_client_id=default_client_id,
+        provider_root_url="https://authit.test",
+        oidc_discovery_url="https://authit.test/.well-known/openid-configuration",
+        expected_fields={"scope": "openid", "code_verifier": True, "code_challenge": True},
+        state={"device_code_callback_timeline": ["great success"]},
+        scopes_supported=["openid"]
+    )
+
+    with assert_device_code_poll_sleep():
+        cli.main(["oidc-auth", "https://oeo.test", "--flow", "device"])
+
+    stored_refresh_token = refresh_token_store.get_refresh_token("https://authit.test", default_client_id)
+    assert stored_refresh_token == oidc_mock.state["refresh_token"]
+
+    out = capsys.readouterr().out
+    expected = [
+        "Will try to use default provider_id.",
+        "Using provider ID None",
+        "Will try to use default client.",
+        "To authenticate: visit https://authit.test/dc",
+        "enter the user code {c!r}".format(c=oidc_mock.state["user_code"]),
+        "Authorized successfully.",
+        "The OpenID Connect device flow was successful.",
+        "Stored refresh token in {p!r}".format(p=str(refresh_token_store.path)),
+    ]
+    for e in expected:
+        assert e in out
+
+    assert auth_config.load() == {}
+
+
 @pytest.mark.slow
 def test_oidc_auth_auth_code_flow(auth_config, refresh_token_store, requests_mock, capsys):
     requests_mock.get("https://oeo.test/", json={"api_version": "1.0.0"})
@@ -408,14 +457,3 @@ def test_oidc_auth_auth_code_flow(auth_config, refresh_token_store, requests_moc
     ]
     for e in expected:
         assert e in out
-
-
-def test_oidc_auth_auth_code_flow_no_provider_configs(auth_config, refresh_token_store, requests_mock, capsys):
-    requests_mock.get("https://oeo.test/", json={"api_version": "1.0.0"})
-    requests_mock.get("https://oeo.test/credentials/oidc", json={"providers": [
-        {"id": "authit", "issuer": "https://authit.test", "title": "Auth It", "scopes": ["openid"]},
-        {"id": "youauth", "issuer": "https://youauth.test", "title": "YouAuth", "scopes": ["openid"]}
-    ]})
-
-    with pytest.raises(CliToolException, match="No OpenID Connect provider configs found"):
-        cli.main(["oidc-auth", "https://oeo.test", "--flow", "auth-code", "--timeout", "10"])

@@ -100,9 +100,8 @@ def main(argv=None):
     oidc_auth_parser.add_argument("backend", help="OpenEO Backend URL.")
     oidc_auth_parser.add_argument("--provider-id", help="Provider ID to use.")
     oidc_auth_parser.add_argument(
-        # TODO: use device flow by default? drop interactive choice?
-        "--flow", choices=_OIDC_FLOW_CHOICES, default=None,
-        help="OpenID Connect flow to use."
+        "--flow", choices=_OIDC_FLOW_CHOICES, default="device",
+        help="OpenID Connect flow to use (default: device)."
     )
     oidc_auth_parser.add_argument(
         "--timeout", type=int, default=60, help="Timeout in seconds to wait for (user) response."
@@ -322,12 +321,12 @@ def main_oidc_auth(args):
 
     # Determine provider
     provider_configs = config.get_oidc_provider_configs(backend=backend)
-    if not provider_configs:
-        # TODO: automatically do add config flow here?
-        raise CliToolException("No OpenID Connect provider configs found for backend {b!r}".format(b=backend))
     _log.debug("Provider configs: {c!r}".format(c=provider_configs))
     if not provider_id:
-        if len(provider_configs) == 1:
+        if len(provider_configs) == 0:
+            print("Will try to use default provider_id.")
+            provider_id = None
+        elif len(provider_configs) == 1:
             provider_id = list(provider_configs.keys())[0]
         else:
             provider_id = _interactive_choice(
@@ -337,8 +336,8 @@ def main_oidc_auth(args):
                     for k, v in provider_configs.items()
                 )
             )
-    if provider_id not in provider_configs:
-        raise CliToolException("Invalid provider ID {p!r}. Should be one of {o}.".format(
+    if not (provider_id is None or provider_id in provider_configs):
+        raise CliToolException("Invalid provider ID {p!r}. Should be `None` or one of {o}.".format(
             p=provider_id, o=list(provider_configs.keys())
         ))
     print("Using provider ID {p!r}.".format(p=provider_id))
@@ -350,11 +349,6 @@ def main_oidc_auth(args):
     else:
         print("Will try to use default client.")
 
-    if oidc_flow is None:
-        oidc_flow = _interactive_choice(
-            "Which OpenID Connect flow should be used? (Note: some options might not be supported by the provider.)",
-            options=[("auth-code", "Authorization code flow"), ("device", "Device flow")]
-        )
     refresh_token_store = RefreshTokenStore()
     con = Connection(backend, refresh_token_store=refresh_token_store)
     if oidc_flow == "auth-code":

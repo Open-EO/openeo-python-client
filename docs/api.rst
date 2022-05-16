@@ -99,3 +99,13 @@ openeo.udf
 
 .. automodule:: openeo.udf.run_code
     :members: execute_local_udf
+
+.. automodule:: openeo.udf.debug
+    :members: inspect
+
+
+openeo.util
+-------------
+
+.. automodule:: openeo.util
+    :members: to_bbox_dict, BBoxDict
