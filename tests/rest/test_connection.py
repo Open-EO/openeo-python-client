@@ -1921,11 +1921,16 @@ def test_execute_042(requests_mock):
     ]
 
 
-def test_execute_100(requests_mock):
+@pytest.mark.parametrize("pg", [
+    {"foo1": {"process_id": "foo"}},
+    {"process_graph": {"foo1": {"process_id": "foo"}}},
+    type("", (object,), {"flat_graph": (lambda: {"foo1": {"process_id": "foo"}})})
+])
+def test_execute_100(requests_mock, pg):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     conn = Connection(API_URL)
     with mock.patch.object(conn, "request") as request:
-        conn.execute({"foo1": {"process_id": "foo"}})
+        conn.execute(pg)
     assert request.call_args_list == [
         mock.call(
             "post", path="/result", allow_redirects=False, expected_status=200,
