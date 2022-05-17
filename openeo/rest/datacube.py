@@ -845,7 +845,7 @@ class DataCube(_ProcessGraphAbstraction):
     @openeo_process
     def apply_dimension(
             self, code: str = None, runtime=None,
-            process: [str, PGNode, typing.Callable] = None,
+            process: Union[str, PGNode, typing.Callable] = None,
             version="latest",
             # TODO: dimension has no default (per spec)?
             dimension="t",
@@ -1053,7 +1053,7 @@ class DataCube(_ProcessGraphAbstraction):
     @openeo_process
     def apply_neighborhood(
             self,
-            process: [str, PGNode, typing.Callable],
+            process: Union[str, PGNode, typing.Callable],
             size: List[Dict],
             overlap: List[dict] = None,
             context: Optional[dict] = None,
