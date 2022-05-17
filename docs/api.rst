@@ -109,3 +109,11 @@ openeo.util
 
 .. automodule:: openeo.util
     :members: to_bbox_dict, BBoxDict
+
+
+openeo.internal
+----------------
+
+.. automodule:: openeo.internal.graph_building
+    :members: PGNode
+

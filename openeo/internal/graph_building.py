@@ -1,7 +1,6 @@
 """
 
-Process graph building functionality for 1.0.0-style process graphs and DataCube
-
+Functionality for abstracting, building, manipulating and processing openEO process graphs.
 """
 import abc
 import collections
@@ -23,15 +22,11 @@ class _FromNodeMixin(abc.ABC):
 
 class PGNode(_FromNodeMixin):
     """
-    Wrapper for process node in a process graph (has process_id and arguments).
+    A process node in a process graph: has at least a process_id and arguments.
 
-    While this is a simple, thin container, it allows a bit more abstraction, basic encapsulation,
-    type hinting and code intelligence in your IDE than something generic like a dict.
-
-    Also note that a full openEO "process graph" is essentially a directed acyclic graph of nodes
-    pointing to each other. A process graph is practically equivalent with its "result" node,
-    as it points (directly or recursively) to all the other nodes it depends on.
-
+    Note that a full openEO "process graph" is essentially a directed acyclic graph of nodes
+    pointing to each other. A full process graph is practically equivalent with its "result" node,
+    as it points (directly or indirectly) to all the other nodes it depends on.
     """
 
     def __init__(self, process_id: str, arguments: dict = None, namespace: Union[str, None] = None, **kwargs):
@@ -69,7 +64,11 @@ class PGNode(_FromNodeMixin):
         return self._namespace
 
     def update_arguments(self, **kwargs):
-        """Change/Add/Update arguments of the process node"""
+        """
+        Add/Update arguments of the process node.
+
+        .. versionadded:: 0.10.1
+        """
         self._arguments = {**self._arguments, **kwargs}
 
     def _as_tuple(self):
@@ -102,7 +101,7 @@ class PGNode(_FromNodeMixin):
         return _deep_copy(self)
 
     def flat_graph(self) -> dict:
-        """Get the process graph in flat dict representation"""
+        """Get the process graph in flat dict representation."""
         return GraphFlattener().flatten(node=self)
 
     flatten = legacy_alias(flat_graph, name="flatten")
@@ -112,7 +111,7 @@ class PGNode(_FromNodeMixin):
         """
         Normalize given argument properly to a "process_graph" argument
         to be used as reducer/subprocess for processes like
-        'reduce_dimension', 'aggregate_spatial', 'apply', 'merge_cubes', 'resample_cube_temporal'
+        ``reduce_dimension``, ``aggregate_spatial``, ``apply``, ``merge_cubes``, ``resample_cube_temporal``
         """
         if isinstance(value, str):
             # assume string with predefined reduce/apply process ("mean", "sum", ...)
@@ -127,7 +126,7 @@ class PGNode(_FromNodeMixin):
 
     @staticmethod
     def from_flat_graph(flat_graph: dict, parameters: Optional[dict] = None) -> 'PGNode':
-        """Unflatten a given flat dict representation of a process graph and return result node"""
+        """Unflatten a given flat dict representation of a process graph and return result node."""
         return PGNodeGraphUnflattener.unflatten(flat_graph=flat_graph, parameters=parameters)
 
 
