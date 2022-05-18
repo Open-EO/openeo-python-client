@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Removed
+
+### Fixed
+
+## [0.10.1] - 2022-05-18 - "LPS22" release
+
+### Added
+
 - Add `context` parameter to `DataCube.aggregate_spatial()`, `DataCube.apply_dimension()`, 
   `DataCube.apply_neighborhood()`, `DataCube.apply()`, `DataCube.merge_cubes()`.
   ([#291](https://github.com/Open-EO/openeo-python-client/issues/291))
@@ -20,16 +30,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `openeo.udf.debug.inspect` for using the openEO `inspect` process in a UDF ([#302](https://github.com/Open-EO/openeo-python-client/issues/302))
 - Add `openeo.util.to_bbox_dict()` to simplify building a openEO style bbox dictionary, e.g. from a list or shapely geometry ([#304](https://github.com/Open-EO/openeo-python-client/issues/304))
 
-### Changed
-
 ### Removed
 
 - Removed deprecated (and non-functional) `zonal_statistics` method from old `ImageCollectionClient` API. ([#144](https://github.com/Open-EO/openeo-python-client/issues/144))
 
-### Fixed
 
-
-## [0.10.0] - 2022-04-08
+## [0.10.0] - 2022-04-08 - "SRR3" release
 
 ### Added
 
