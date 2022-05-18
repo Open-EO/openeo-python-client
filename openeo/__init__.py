@@ -8,7 +8,7 @@ This client allows users to communicate with OpenEO backends, in a way that feel
     :caption: Basic example
     :name: basic_example
 
-.. image:: ../docs/images/basic_example.png
+.. image:: ../docs/_static/images/basic_example.png
   :width: 500
   :alt: script result
 

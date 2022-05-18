@@ -171,7 +171,7 @@ It can easily be converted into a pandas dataframe::
     dataframe.index = pd.to_datetime(dataframe.index)
     dataframe.dropna().plot(title='openEO NDVI with clouds')
 
-.. image:: images/timeseries.png
+.. image:: _static/images/timeseries.png
   :width: 400
   :alt: plotted timeseries
 
