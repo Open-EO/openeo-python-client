@@ -5,11 +5,19 @@ Installation
 
 It is an explicit goal of the openEO Python client library to be as easy to install as possible,
 unlocking the openEO ecosystem to a broad audience.
-The package is a pure Python implementation and its dependencies are carefully considered .
+The package is a pure Python implementation and its dependencies are carefully considered (in number and complexity).
 
 
 Basic install
 =============
+
+At least *Python 3.6* is recommended.
+Also, it is recommended to work in a some kind of *virtual environment* (``venv``, ``conda``, ...)
+to avoid polluting the base install of Python on your operating system
+or introducing conflicts with other applications.
+How you organize your virtual environments heavily depends on your use case and workflow,
+and is out of scope of this documentation.
+
 
 ``pip`` install
 ---------------
@@ -19,13 +27,9 @@ and can be easily installed with a tool like ``pip``, for example::
 
     pip install openeo
 
+To upgrade the package to the latest release::
 
-At least *Python 3.6* is recommended.
-Also, it is recommended to work in a *virtual environment* of some kind (``venv``, ``conda``, ...)
-to avoid polluting the base install of Python on your operating system
-or introducing conflicts with other applications.
-How you organize your virtual environments heavily depends on your use case and workflow,
-and is out of scope of this documentation.
+    pip install --upgrade openeo
 
 Conda install
 -------------
