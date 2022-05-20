@@ -46,7 +46,7 @@ def test_datacube_list():
         "user_context": {"kernel": 3}
     }
     assert repr(udf_data) \
-           == '<UdfData datacube_list:[<XarrayDataCube>] feature_collection_list:None structured_data_list:None>'
+           == '<UdfData datacube_list:[<XarrayDataCube shape:(2, 3)>] feature_collection_list:None structured_data_list:None>'
 
 
 @pytest.mark.skipif(GeoDataFrame is None, reason="Requires geopandas")
@@ -114,4 +114,4 @@ def test_udf_data_from_dict_datacube():
         'proj': None, 'user_context': {},
     }
     assert repr(udf_data) \
-           == "<UdfData datacube_list:[<XarrayDataCube>] feature_collection_list:[] structured_data_list:[]>"
+           == "<UdfData datacube_list:[<XarrayDataCube shape:(3,)>] feature_collection_list:[] structured_data_list:[]>"

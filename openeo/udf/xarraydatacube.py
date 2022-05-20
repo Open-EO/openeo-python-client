@@ -34,7 +34,7 @@ class XarrayDataCube:
         self._array = array
 
     def __repr__(self):
-        return f"<{type(self).__name__}>"
+        return f"<{type(self).__name__} shape:{self._array.shape}>"
 
     def get_array(self) -> xarray.DataArray:
         """
