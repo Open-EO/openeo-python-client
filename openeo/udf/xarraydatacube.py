@@ -33,6 +33,9 @@ class XarrayDataCube:
             raise OpenEoUdfException("Argument data must be of type xarray.DataArray")
         self._array = array
 
+    def __repr__(self):
+        return f"<{type(self).__name__}>"
+
     def get_array(self) -> xarray.DataArray:
         """
         Get the :py:class:`xarray.DataArray` that contains the data and dimension definition

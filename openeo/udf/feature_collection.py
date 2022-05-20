@@ -45,6 +45,9 @@ class FeatureCollection:
         self._start_times = self._as_datetimeindex(start_times, expected_length=len(self.data))
         self._end_times = self._as_datetimeindex(end_times, expected_length=len(self.data))
 
+    def __repr__(self):
+        return f"<{type(self).__name__} with {type(self._data).__name__}>"
+
     @staticmethod
     def _as_datetimeindex(dates: Any, expected_length: int = None) -> Union[pandas.DatetimeIndex, None]:
         if dates is None:

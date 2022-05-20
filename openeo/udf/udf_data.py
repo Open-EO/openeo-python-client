@@ -43,6 +43,13 @@ class UdfData:
         self.proj = proj
         self._user_context = user_context or {}
 
+    def __repr__(self) -> str:
+        fields = " ".join(
+            f"{f}:{getattr(self, f)!r}" for f in
+            ["datacube_list", "feature_collection_list", "structured_data_list"]
+        )
+        return f"<{type(self).__name__} {fields}>"
+
     @property
     def user_context(self) -> dict:
         """Return the user context that was passed to the run_udf function"""

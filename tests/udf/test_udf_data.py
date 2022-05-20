@@ -22,6 +22,8 @@ def test_structured_data_list():
         "proj": None,
         "user_context": {}
     }
+    assert repr(udf_data) \
+           == '<UdfData datacube_list:None feature_collection_list:None structured_data_list:[<StructuredData with list>, <StructuredData with dict>]>'
 
 
 def test_datacube_list():
@@ -43,6 +45,8 @@ def test_datacube_list():
         "proj": None,
         "user_context": {"kernel": 3}
     }
+    assert repr(udf_data) \
+           == '<UdfData datacube_list:[<XarrayDataCube>] feature_collection_list:None structured_data_list:None>'
 
 
 @pytest.mark.skipif(GeoDataFrame is None, reason="Requires geopandas")
@@ -69,6 +73,8 @@ def test_feature_collection_list():
         'proj': None,
         'user_context': {}
     }
+    assert repr(udf_data) \
+           == '<UdfData datacube_list:None feature_collection_list:[<FeatureCollection with GeoDataFrame>] structured_data_list:None>'
 
 
 def test_udf_data_from_dict_empty():
@@ -79,6 +85,8 @@ def test_udf_data_from_dict_empty():
         'structured_data_list': None,
         'proj': None, 'user_context': {},
     }
+    assert repr(udf_data) \
+           == "<UdfData datacube_list:[] feature_collection_list:[] structured_data_list:[]>"
 
 
 def test_udf_data_from_dict_structured_data():
@@ -89,6 +97,8 @@ def test_udf_data_from_dict_structured_data():
         'structured_data_list': [{"data": [1, 2, 3], "type": "list", "description": "list"}],
         'proj': None, 'user_context': {},
     }
+    assert repr(udf_data) \
+           == "<UdfData datacube_list:[] feature_collection_list:[] structured_data_list:[<StructuredData with list>]>"
 
 
 def test_udf_data_from_dict_datacube():
@@ -103,3 +113,5 @@ def test_udf_data_from_dict_datacube():
         'structured_data_list': None,
         'proj': None, 'user_context': {},
     }
+    assert repr(udf_data) \
+           == "<UdfData datacube_list:[<XarrayDataCube>] feature_collection_list:[] structured_data_list:[]>"

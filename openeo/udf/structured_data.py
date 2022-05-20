@@ -27,6 +27,9 @@ class StructuredData:
         self.type = type or builtins.type(data).__name__
         self.description = description or self.type
 
+    def __repr__(self):
+        return f"<{type(self).__name__} with {self.type}>"
+
     def to_dict(self) -> dict:
         return dict(
             data=self.data,
