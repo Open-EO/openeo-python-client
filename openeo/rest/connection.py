@@ -899,7 +899,7 @@ class Connection(RestApiConnection):
 
     def datacube_from_flat_graph(self, flat_graph: dict, parameters: dict = None) -> DataCube:
         """
-        Construct a :py:class:`DataCube` from a flat dictionaty representation of a process graph.
+        Construct a :py:class:`DataCube` from a flat dictionary representation of a process graph.
 
         :param flat_graph: flat dictionary representation of a process graph
             or a process dictionary with such a flat process graph under a "process_graph" field
@@ -1173,8 +1173,16 @@ class Connection(RestApiConnection):
         else:
             return ImageCollectionClient.load_disk_collection(self, format, glob_pattern, **options)
 
-    def as_curl(self, data: Union[dict, DataCube], path="/result", method="POST"):
-        """Build curl command to evaluate given process graph or data cube"""
+    def as_curl(self, data: Union[dict, DataCube], path="/result", method="POST") -> str:
+        """
+        Build curl command to evaluate given process graph or data cube
+        (including authorization and content-type headers).
+
+        :param data: process graph dictionary or :py:class:`~openeo.rest.datacube.DataCube` object
+        :param path: endpoint to send request to
+        :param method: HTTP method to use
+        :return: curl command as a string
+        """
         cmd = ["curl", "-i", "-X", method]
         cmd += ["-H", "Content-Type: application/json"]
         if isinstance(self.auth, BearerAuth):
