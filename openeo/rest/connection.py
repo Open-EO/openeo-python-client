@@ -33,7 +33,7 @@ from openeo.rest.auth.oidc import OidcClientCredentialsAuthenticator, OidcAuthCo
 from openeo.rest.datacube import DataCube
 from openeo.rest.imagecollectionclient import ImageCollectionClient
 from openeo.rest.mlmodel import MlModel
-from openeo.rest.job import RESTJob
+from openeo.rest.job import BatchJob, RESTJob
 from openeo.rest.rest_capabilities import RESTCapabilities
 from openeo.rest.service import Service
 from openeo.rest.udp import RESTUserDefinedProcess, Parameter
@@ -998,7 +998,7 @@ class Connection(RestApiConnection):
             )
         )
 
-    def load_ml_model(self, id: Union[str, RESTJob]) -> "MlModel":
+    def load_ml_model(self, id: Union[str, BatchJob]) -> "MlModel":
         """
         Loads a machine learning model from a STAC Item.
 
@@ -1026,15 +1026,15 @@ class Connection(RestApiConnection):
         """
         Service(service_id, self).delete_service()
 
-    @deprecated("Use :py:meth:`openeo.rest.job.RESTJob.get_results` instead.", version="0.4.10")
+    @deprecated("Use :py:meth:`openeo.rest.job.BatchJob.get_results` instead.", version="0.4.10")
     def job_results(self, job_id) -> dict:
         """Get batch job results metadata."""
-        return RESTJob(job_id, connection=self).list_results()
+        return BatchJob(job_id=job_id, connection=self).list_results()
 
-    @deprecated("Use :py:meth:`openeo.rest.job.RESTJob.logs` instead.", version="0.4.10")
+    @deprecated("Use :py:meth:`openeo.rest.job.BatchJob.logs` instead.", version="0.4.10")
     def job_logs(self, job_id, offset) -> list:
         """Get batch job logs."""
-        return RESTJob(job_id, connection=self).logs(offset=offset)
+        return BatchJob(job_id=job_id, connection=self).logs(offset=offset)
 
     def list_files(self):
         """
@@ -1103,7 +1103,7 @@ class Connection(RestApiConnection):
             self, process_graph: dict, title: Optional[str] = None, description: Optional[str] = None,
             plan: Optional[str] = None, budget: Optional[float] = None,
             additional: Optional[dict] = None
-    ) -> RESTJob:
+    ) -> BatchJob:
         """
         Posts a job to the back end.
 
@@ -1115,7 +1115,7 @@ class Connection(RestApiConnection):
         :param additional: additional job options to pass to the backend
         :return: job_id: String Job id of the new created job
         """
-        # TODO move all this (RESTJob factory) logic to RESTJob?
+        # TODO move all this (BatchJob factory) logic to BatchJob?
         req = self._build_request_with_process_graph(
             process_graph=process_graph,
             **dict_no_none(title=title, description=description, plan=plan, budget=budget)
@@ -1134,9 +1134,9 @@ class Connection(RestApiConnection):
             job_id = response.headers['location'].split("/")[-1]
         if not job_id:
             raise OpenEoClientException("Job creation response did not contain a valid job id")
-        return RESTJob(job_id, self)
+        return BatchJob(job_id=job_id, connection=self)
 
-    def job(self, job_id: str):
+    def job(self, job_id: str) -> BatchJob:
         """
         Get the job based on the id. The job with the given id should already exist.
         
@@ -1145,7 +1145,7 @@ class Connection(RestApiConnection):
         :param job_id: the job id of an existing job
         :return: A job object.
         """
-        return RESTJob(job_id, self)
+        return BatchJob(job_id=job_id, connection=self)
 
     def service(self, service_id: str) -> Service:
         """

@@ -33,7 +33,7 @@ from openeo.metadata import CollectionMetadata, Band, BandDimension
 from openeo.processes import ProcessBuilder
 from openeo.rest import BandMathException, OperatorException, OpenEoClientException
 from openeo.rest._datacube import _ProcessGraphAbstraction, THIS
-from openeo.rest.job import RESTJob
+from openeo.rest.job import BatchJob, RESTJob
 from openeo.rest.mlmodel import MlModel
 from openeo.rest.service import Service
 from openeo.rest.udp import RESTUserDefinedProcess
@@ -1642,7 +1642,7 @@ class DataCube(_ProcessGraphAbstraction):
             self,
             outputfile: Union[str, pathlib.Path] = None, out_format: str = None,
             print=print, max_poll_interval=60, connection_retry_interval=30,
-            job_options=None, **format_options) -> RESTJob:
+            job_options=None, **format_options) -> BatchJob:
         """
         Evaluate the process graph by creating a batch job, and retrieving the results when it is finished.
         This method is mostly recommended if the batch job is expected to run in a reasonable amount of time.
@@ -1664,7 +1664,7 @@ class DataCube(_ProcessGraphAbstraction):
     def create_job(
             self, out_format=None, title: str = None, description: str = None, plan: str = None, budget=None,
             job_options=None, **format_options
-    ) -> RESTJob:
+    ) -> BatchJob:
         """
         Sends a job to the backend and returns a Job instance. The job will still need to be started and managed explicitly.
         The :func:`~openeo.imagecollection.ImageCollection.execute_batch` method allows you to run batch jobs without managing it.
@@ -1863,14 +1863,14 @@ class DataCube(_ProcessGraphAbstraction):
         })
 
     @openeo_process(mode="reduce_dimension")
-    def predict_random_forest(self, model: Union[str, RESTJob, MlModel], dimension: str = "bands"):
+    def predict_random_forest(self, model: Union[str, BatchJob, MlModel], dimension: str = "bands"):
         """
         Apply ``reduce_dimension`` process with a ``predict_random_forest`` reducer.
 
         :param model: a reference to a trained model, one of
 
                 - a :py:class:`MlModel` instance (e.g. loaded from :py:meth:`Connection.load_ml_model`)
-                - a :py:class:`RESTJob` instance of a batch job that saved a single random forest model
+                - a :py:class:`BatchJob` instance of a batch job that saved a single random forest model
                 - a job id (``str``) of a batch job that saved a single random forest model
                 - a STAC item URL (``str``) to load the random forest from.
                   (The STAC Item must implement the `ml-model` extension.)

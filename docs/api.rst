@@ -68,7 +68,7 @@ openeo.rest.job
 ------------------
 
 .. automodule:: openeo.rest.job
-    :members: RESTJob, JobResults, ResultAsset
+    :members: BatchJob, RESTJob, JobResults, ResultAsset
 
 
 openeo.rest.conversions

@@ -29,7 +29,7 @@ from openeo._version import __version__
 from openeo.imagecollection import ImageCollection
 from openeo.rest.datacube import DataCube
 from openeo.rest.connection import connect, session, Connection
-from openeo.rest.job import RESTJob
+from openeo.rest.job import BatchJob, RESTJob
 from openeo.internal.graph_building import UDF
 
 

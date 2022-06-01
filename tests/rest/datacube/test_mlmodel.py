@@ -1,6 +1,6 @@
 import pytest
 
-from openeo import RESTJob
+from openeo import BatchJob
 from openeo.rest.mlmodel import MlModel
 from .conftest import API_URL
 
@@ -162,7 +162,7 @@ def test_load_ml_model_basic(con100, id):
 
 
 def test_load_ml_model_from_job(con100):
-    job = RESTJob(job_id="my-j08", connection=con100)
+    job = BatchJob(job_id="my-j08", connection=con100)
     ml_model = con100.load_ml_model(id=job)
     assert isinstance(ml_model, MlModel)
     assert ml_model.flat_graph() == {
@@ -177,7 +177,7 @@ def test_load_ml_model_from_job(con100):
 @pytest.mark.parametrize("model_factory", [
     (lambda con100: con100.load_ml_model("my-j08")),
     (lambda con100: "my-j08"),
-    (lambda con100: RESTJob("my-j08", con100)),
+    (lambda con100: BatchJob("my-j08", con100)),
 ])
 def test_predict_random_forest(con100, model_factory):
     ml_model = model_factory(con100)

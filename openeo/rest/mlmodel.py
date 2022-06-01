@@ -6,7 +6,7 @@ from typing import Union, Optional
 from openeo.internal.documentation import openeo_process
 from openeo.internal.graph_building import PGNode
 from openeo.rest._datacube import _ProcessGraphAbstraction
-from openeo.rest.job import RESTJob
+from openeo.rest.job import BatchJob
 
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).
@@ -36,7 +36,7 @@ class MlModel(_ProcessGraphAbstraction):
 
     @staticmethod
     @openeo_process
-    def load_ml_model(connection: "Connection", id: Union[str, RESTJob]) -> "MlModel":
+    def load_ml_model(connection: "Connection", id: Union[str, BatchJob]) -> "MlModel":
         """
         Loads a machine learning model from a STAC Item.
 
@@ -46,7 +46,7 @@ class MlModel(_ProcessGraphAbstraction):
 
         .. versionadded:: 0.10.0
         """
-        if isinstance(id, RESTJob):
+        if isinstance(id, BatchJob):
             id = id.job_id
         return MlModel(graph=PGNode(process_id="load_ml_model", id=id), connection=connection)
 
@@ -55,7 +55,7 @@ class MlModel(_ProcessGraphAbstraction):
             outputfile: Union[str, pathlib.Path],
             print=print, max_poll_interval=60, connection_retry_interval=30,
             job_options=None,
-    ) -> RESTJob:
+    ) -> BatchJob:
         """
         Evaluate the process graph by creating a batch job, and retrieving the results when it is finished.
         This method is mostly recommended if the batch job is expected to run in a reasonable amount of time.
@@ -74,7 +74,7 @@ class MlModel(_ProcessGraphAbstraction):
             print=print, max_poll_interval=max_poll_interval, connection_retry_interval=connection_retry_interval
         )
 
-    def create_job(self, **kwargs) -> RESTJob:
+    def create_job(self, **kwargs) -> BatchJob:
         """
         Sends a job to the backend and returns a ClientJob instance.
 

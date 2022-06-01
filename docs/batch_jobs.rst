@@ -48,9 +48,15 @@ Batch job object
 -----------------
 
 The ``job`` object returned by :py:meth:`~openeo.rest.datacube.DataCube.create_job`
-is a :py:class:`~openeo.rest.job.RESTJob` object.
+is a :py:class:`~openeo.rest.job.BatchJob` object.
 It's basically a client-side reference to a batch job that exists on the back-end
 and allows to interact with that batch job.
+
+.. note::
+    The :py:class:`~openeo.rest.job.BatchJob` class originally had
+    the more cryptic name :py:class:`~openeo.rest.job.RESTJob`,
+    which is still available as legacy alias,
+    but :py:class:`~openeo.rest.job.BatchJob` is recommended since version 0.11.0.
 
 
 Start a batch job
@@ -73,7 +79,7 @@ Download batch job results
 
 Once a batch job is finished you can get a handle to the results
 (which can be a single file or multiple files) and metadata
-with :py:meth:`~openeo.rest.job.RESTJob.get_results` ::
+with :py:meth:`~openeo.rest.job.BatchJob.get_results` ::
 
     >>> results = job.get_results()
     >>> results

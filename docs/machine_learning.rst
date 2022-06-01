@@ -113,7 +113,7 @@ directly on the :py:class:`~openeo.rest.datacube.DataCube` class, so that you ca
 
 We specified the model here by batch job id (string),
 but it can also be specified in other ways:
-as :py:class:`~openeo.rest.job.RESTJob` instance,
+as :py:class:`~openeo.rest.job.BatchJob` instance,
 as URL to the corresponding STAC Item that implements the `ml-model` extension,
 or as :py:class:`~openeo.rest.mlmodel.MlModel` instance (e.g. loaded through
 :py:meth:`~openeo.rest.connection.Connection.load_ml_model`).

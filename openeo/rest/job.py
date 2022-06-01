@@ -22,11 +22,16 @@ if typing.TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class RESTJob:
+class BatchJob:
     """
     Handle for an openEO batch job, allowing it to describe, start, cancel, inspect results, etc.
+
+    .. versionadded:: 0.11.0
+        This class originally had the more cryptic name :py:class:`RESTJob`,
+        which is still available as legacy alias,
+        but :py:class:`BatchJob` is recommended since version 0.11.0.
+
     """
-    # TODO: rename this to BatchJob? #280
 
     def __init__(self, job_id: str, connection: 'Connection'):
         self.job_id = job_id
@@ -82,7 +87,7 @@ class RESTJob:
         # TODO: rename to just `stop`? #280
         self.connection.delete("/jobs/{}/results".format(self.job_id), expected_status=204)
 
-    @deprecated("Use :py:meth:`~RESTJOB.get_results` instead.", version="0.4.10")
+    @deprecated("Use :py:meth:`~BatchJob.get_results` instead.", version="0.4.10")
     def list_results(self) -> dict:
         """Get batch job results metadata."""
         return self.get_results().get_metadata()
@@ -98,7 +103,7 @@ class RESTJob:
         return self.get_results().download_file(target=target)
 
     @deprecated(
-        "Instead use :py:meth:`RESTJob.get_results` and the more flexible download functionality of :py:class:`JobResults`",
+        "Instead use :py:meth:`BatchJob.get_results` and the more flexible download functionality of :py:class:`JobResults`",
         version="0.4.10")
     def download_results(self, target: Union[str, Path] = None) -> Dict[Path, dict]:
         """
@@ -111,7 +116,7 @@ class RESTJob:
         """
         return self.get_result().download_files(target)
 
-    @deprecated("Use :py:meth:`RESTJob.get_results` instead.", version="0.4.10")
+    @deprecated("Use :py:meth:`BatchJob.get_results` instead.", version="0.4.10")
     def get_result(self):
         return _Result(self)
 
@@ -134,8 +139,10 @@ class RESTJob:
         entries = [LogEntry(log) for log in logs]
         return VisualList('logs', data=entries)
 
-    def run_synchronous(self, outputfile: Union[str, Path, None] = None,
-                        print=print, max_poll_interval=60, connection_retry_interval=30) -> 'RESTJob':
+    def run_synchronous(
+            self, outputfile: Union[str, Path, None] = None,
+            print=print, max_poll_interval=60, connection_retry_interval=30
+    ) -> 'BatchJob':
         """Start the job, wait for it to finish and download result"""
         self.start_and_wait(
             print=print, max_poll_interval=max_poll_interval, connection_retry_interval=connection_retry_interval
@@ -147,7 +154,7 @@ class RESTJob:
 
     def start_and_wait(
             self, print=print, max_poll_interval: int = 60, connection_retry_interval: int = 30, soft_error_max=10
-    ) -> "RESTJob":
+    ) -> "BatchJob":
         """
         Start the batch job, poll its status and wait till it finishes (or fails)
 
@@ -227,6 +234,13 @@ class RESTJob:
         return self
 
 
+@deprecated(reason="Use :py:class:`BatchJob` instead", version="0.11.0")
+class RESTJob(BatchJob):
+    """
+    Legacy alias for :py:class:`BatchJob`.
+    """
+
+
 class ResultAsset:
     """
     Result asset of a batch job (e.g. a GeoTIFF or JSON file)
@@ -234,7 +248,7 @@ class ResultAsset:
     .. versionadded:: 0.4.10
     """
 
-    def __init__(self, job: RESTJob, name: str, href: str, metadata: dict):
+    def __init__(self, job: BatchJob, name: str, href: str, metadata: dict):
         self.job = job
 
         self.name = name
@@ -298,7 +312,7 @@ class JobResults:
     .. versionadded:: 0.4.10
     """
 
-    def __init__(self, job: RESTJob):
+    def __init__(self, job: BatchJob):
         self._job = job
         self._results_url = "/jobs/{j}/results".format(j=self._job.job_id)
         self._results = None

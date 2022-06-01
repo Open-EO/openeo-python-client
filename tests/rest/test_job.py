@@ -9,7 +9,7 @@ import requests
 import openeo
 import openeo.rest.job
 from openeo.rest import JobFailedException, OpenEoClientException
-from openeo.rest.job import RESTJob, ResultAsset
+from openeo.rest.job import BatchJob, ResultAsset
 
 API_URL = "https://oeo.test"
 
@@ -276,7 +276,7 @@ def test_download_result_040(session040, requests_mock, tmp_path):
         {"href": API_URL + "/dl/jjr1.tiff"},
     ]})
     requests_mock.get(API_URL + "/dl/jjr1.tiff", content=TIFF_CONTENT)
-    job = RESTJob("jj", connection=session040)
+    job = BatchJob("jj", connection=session040)
     assert job.list_results() == {'links': [{'href': 'https://oeo.test/dl/jjr1.tiff'}]}
     target = tmp_path / "result.tiff"
     res = job.download_result(target)
@@ -286,17 +286,17 @@ def test_download_result_040(session040, requests_mock, tmp_path):
 
 
 @pytest.fixture
-def job_with_1_asset(con100, requests_mock, tmp_path) -> RESTJob:
+def job_with_1_asset(con100, requests_mock, tmp_path) -> BatchJob:
     requests_mock.get(API_URL + "/jobs/jj1/results", json={"assets": {
         "1.tiff": {"href": API_URL + "/dl/jjr1.tiff", "type": "image/tiff; application=geotiff"},
     }})
     requests_mock.get(API_URL + "/dl/jjr1.tiff", content=TIFF_CONTENT)
-    job = RESTJob("jj1", connection=con100)
+    job = BatchJob("jj1", connection=con100)
     return job
 
 
 @pytest.fixture
-def job_with_2_assets(con100, requests_mock, tmp_path) -> RESTJob:
+def job_with_2_assets(con100, requests_mock, tmp_path) -> BatchJob:
     requests_mock.get(API_URL + "/jobs/jj2/results", json={
         # This is a STAC Item
         "type": "Feature",
@@ -307,11 +307,11 @@ def job_with_2_assets(con100, requests_mock, tmp_path) -> RESTJob:
     })
     requests_mock.get(API_URL + "/dl/jjr1.tiff", content=TIFF_CONTENT)
     requests_mock.get(API_URL + "/dl/jjr2.tiff", content=TIFF_CONTENT)
-    job = RESTJob("jj2", connection=con100)
+    job = BatchJob("jj2", connection=con100)
     return job
 
 
-def test_download_result(job_with_1_asset: RESTJob, tmp_path):
+def test_download_result(job_with_1_asset: BatchJob, tmp_path):
     job = job_with_1_asset
     target = tmp_path / "result.tiff"
     res = job.download_result(target)
@@ -320,7 +320,7 @@ def test_download_result(job_with_1_asset: RESTJob, tmp_path):
         assert f.read() == TIFF_CONTENT
 
 
-def test_get_results_download_file(job_with_1_asset: RESTJob, tmp_path):
+def test_get_results_download_file(job_with_1_asset: BatchJob, tmp_path):
     job = job_with_1_asset
     target = tmp_path / "result.tiff"
     res = job.get_results().download_file(target)
@@ -329,7 +329,7 @@ def test_get_results_download_file(job_with_1_asset: RESTJob, tmp_path):
         assert f.read() == TIFF_CONTENT
 
 
-def test_download_result_folder(job_with_1_asset: RESTJob, tmp_path):
+def test_download_result_folder(job_with_1_asset: BatchJob, tmp_path):
     job = job_with_1_asset
     target = tmp_path / "folder"
     target.mkdir()
@@ -340,7 +340,7 @@ def test_download_result_folder(job_with_1_asset: RESTJob, tmp_path):
         assert f.read() == TIFF_CONTENT
 
 
-def test_get_results_download_file_to_folder(job_with_1_asset: RESTJob, tmp_path):
+def test_get_results_download_file_to_folder(job_with_1_asset: BatchJob, tmp_path):
     job = job_with_1_asset
     target = tmp_path / "folder"
     target.mkdir()
@@ -351,21 +351,21 @@ def test_get_results_download_file_to_folder(job_with_1_asset: RESTJob, tmp_path
         assert f.read() == TIFF_CONTENT
 
 
-def test_download_result_multiple(job_with_2_assets: RESTJob, tmp_path):
+def test_download_result_multiple(job_with_2_assets: BatchJob, tmp_path):
     job = job_with_2_assets
     expected = re.escape("Can not use `download_file` with multiple assets. Use `download_files` instead")
     with pytest.raises(OpenEoClientException, match=expected):
         job.download_result(tmp_path / "res.tiff")
 
 
-def test_get_results_multiple_download_single(job_with_2_assets: RESTJob, tmp_path):
+def test_get_results_multiple_download_single(job_with_2_assets: BatchJob, tmp_path):
     job = job_with_2_assets
     expected = re.escape("Can not use `download_file` with multiple assets. Use `download_files` instead")
     with pytest.raises(OpenEoClientException, match=expected):
         job.get_results().download_file(tmp_path / "res.tiff")
 
 
-def test_get_results_multiple_download_single_by_name(job_with_2_assets: RESTJob, tmp_path):
+def test_get_results_multiple_download_single_by_name(job_with_2_assets: BatchJob, tmp_path):
     job = job_with_2_assets
     target = tmp_path / "res.tiff"
     path = job.get_results().download_file(target, name="1.tiff")
@@ -375,7 +375,7 @@ def test_get_results_multiple_download_single_by_name(job_with_2_assets: RESTJob
         assert f.read() == TIFF_CONTENT
 
 
-def test_get_results_multiple_download_single_by_wrong_name(job_with_2_assets: RESTJob, tmp_path):
+def test_get_results_multiple_download_single_by_wrong_name(job_with_2_assets: BatchJob, tmp_path):
     job = job_with_2_assets
     target = tmp_path / "res.tiff"
     expected = r"No asset 'foobar\.tiff' in: \['.\.tiff', '.\.tiff'\]"
@@ -390,7 +390,7 @@ def test_download_results_040(session040, requests_mock, tmp_path):
     ]})
     requests_mock.get(API_URL + "/dl/jjr1.tiff", content=TIFF_CONTENT)
     requests_mock.get(API_URL + "/dl/jjr2.tiff", content=TIFF_CONTENT)
-    job = RESTJob("jj", connection=session040)
+    job = BatchJob("jj", connection=session040)
     target = tmp_path / "folder"
     target.mkdir()
     downloads = job.download_results(target)
@@ -405,7 +405,7 @@ def test_download_results_040(session040, requests_mock, tmp_path):
         assert f.read() == TIFF_CONTENT
 
 
-def test_download_results(job_with_2_assets: RESTJob, tmp_path):
+def test_download_results(job_with_2_assets: BatchJob, tmp_path):
     job = job_with_2_assets
     target = tmp_path / "folder"
     target.mkdir()
@@ -419,7 +419,7 @@ def test_download_results(job_with_2_assets: RESTJob, tmp_path):
         assert f.read() == TIFF_CONTENT
 
 
-def test_list_results(job_with_2_assets: RESTJob, tmp_path):
+def test_list_results(job_with_2_assets: BatchJob, tmp_path):
     job = job_with_2_assets
     assert job.list_results() == {"type": "Feature", 'assets': {
         '1.tiff': {'href': 'https://oeo.test/dl/jjr1.tiff', 'type': 'image/tiff; application=geotiff'},
@@ -427,7 +427,7 @@ def test_list_results(job_with_2_assets: RESTJob, tmp_path):
     }}
 
 
-def test_get_results_download_files(job_with_2_assets: RESTJob, tmp_path):
+def test_get_results_download_files(job_with_2_assets: BatchJob, tmp_path):
     target = tmp_path / "folder"
     target.mkdir()
 
@@ -452,7 +452,7 @@ def test_get_results_download_files(job_with_2_assets: RESTJob, tmp_path):
     }
 
 
-def test_get_results_download_files_new_folder(job_with_2_assets: RESTJob, tmp_path):
+def test_get_results_download_files_new_folder(job_with_2_assets: BatchJob, tmp_path):
     job = job_with_2_assets
     results = job.get_results()
     target = tmp_path / "folder"
@@ -476,7 +476,7 @@ def test_get_results_download_files_new_folder(job_with_2_assets: RESTJob, tmp_p
     (False, {"1.tiff", "2.tiff"})
 ])
 def test_get_results_download_files_include_stac_metadata(
-        job_with_2_assets: RESTJob, tmp_path, include_stac_metadata, expected
+        job_with_2_assets: BatchJob, tmp_path, include_stac_metadata, expected
 ):
     results = job_with_2_assets.get_results()
     target = tmp_path / "folder"
@@ -490,7 +490,7 @@ def test_result_asset_download_file(con100, requests_mock, tmp_path):
     href = API_URL + "/dl/jjr1.tiff"
     requests_mock.get(href, content=TIFF_CONTENT)
 
-    job = RESTJob("jj", connection=con100)
+    job = BatchJob("jj", connection=con100)
     asset = ResultAsset(job, name="1.tiff", href=href, metadata={'type': 'image/tiff; application=geotiff'})
     target = tmp_path / "res.tiff"
     path = asset.download(target)
@@ -505,7 +505,7 @@ def test_result_asset_download_folder(con100, requests_mock, tmp_path):
     href = API_URL + "/dl/jjr1.tiff"
     requests_mock.get(href, content=TIFF_CONTENT)
 
-    job = RESTJob("jj", connection=con100)
+    job = BatchJob("jj", connection=con100)
     asset = ResultAsset(job, name="1.tiff", href=href, metadata={"type": "image/tiff; application=geotiff"})
     target = tmp_path / "folder"
     target.mkdir()
@@ -521,7 +521,7 @@ def test_result_asset_load_json(con100, requests_mock):
     href = API_URL + "/dl/jjr1.json"
     requests_mock.get(href, json={"bands": [1, 2, 3]})
 
-    job = RESTJob("jj", connection=con100)
+    job = BatchJob("jj", connection=con100)
     asset = ResultAsset(job, name="out.json", href=href, metadata={"type": "application/json"})
     res = asset.load_json()
 
@@ -532,7 +532,7 @@ def test_result_asset_load_bytes(con100, requests_mock):
     href = API_URL + "/dl/jjr1.tiff"
     requests_mock.get(href, content=TIFF_CONTENT)
 
-    job = RESTJob("jj", connection=con100)
+    job = BatchJob("jj", connection=con100)
     asset = ResultAsset(job, name="out.tiff", href=href, metadata={"type": "image/tiff; application=geotiff"})
     res = asset.load_bytes()
 
@@ -560,7 +560,7 @@ def test_get_results_download_file_other_domain(con100, requests_mock, tmp_path)
     requests_mock.get("https://evilcorp.test/dl/jjr1.tiff", content=download_tiff)
 
     con100.authenticate_basic("john", "j0hn")
-    job = RESTJob("jj1", connection=con100)
+    job = BatchJob("jj1", connection=con100)
     target = tmp_path / "result.tiff"
     res = job.get_results().download_file(target)
     assert res == target

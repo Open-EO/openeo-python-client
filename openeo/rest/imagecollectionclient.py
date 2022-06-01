@@ -11,7 +11,7 @@ from openeo.imagecollection import ImageCollection
 from openeo.internal.graphbuilder_040 import GraphBuilder
 from openeo.metadata import CollectionMetadata
 from openeo.rest import BandMathException
-from openeo.rest.job import RESTJob
+from openeo.rest.job import BatchJob, RESTJob
 from openeo.rest.service import Service
 from openeo.util import get_temporal_extent, legacy_alias, dict_no_none, guess_format
 
@@ -986,7 +986,7 @@ class ImageCollectionClient(ImageCollection):
     def create_job(
             self, out_format=None, title: str = None, description: str = None, plan: str = None, budget=None,
             job_options=None, **format_options
-    ) -> RESTJob:
+    ) -> BatchJob:
         """
         Sends a job to the backend and returns a Job instance. The job will still need to be started and managed explicitly.
         The :func:`~openeo.imagecollection.ImageCollection.execute_batch` method allows you to run batch jobs without managing it.
