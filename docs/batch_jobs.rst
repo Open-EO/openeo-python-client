@@ -4,8 +4,69 @@
 Batch Jobs
 ============
 
+Most of the simple, basic openEO usage examples show **synchronous** downloading of results:
+you submit a process graph with a (HTTP POST) request and receive the result
+as direct response of that same request.
+This only works properly if the processing doesn't take too long (order of seconds, or a couple of minutes at most).
+
+For the heavier work (larger regions of interest, larger time series, more intensive processing, ...)
+you have to use **batch jobs**, which are supported in the openEO API through separate HTTP requests, corresponding to these steps:
+
+- you create a job (providing a process graph and some other metadata like title, description, ...)
+- you start the job
+- you wait for the job to finish, periodically polling its status
+- when the job finished successfully: get the listing of result assets
+- you download the result assets (or use them in an other way)
+
+
+Create a batch job
+===================
+
+In the openEO Python Client Library, if you have a (raster) data cube, you can easily
+create a batch job with the :py:meth:`~openeo.rest.datacube.DataCube.create_job` method.
+It's important to specify in what format the result should be stored,
+which can be done with an explicit :py:meth:`~openeo.rest.datacube.DataCube.save_result` call before creating the job::
+
+    cube = connection.load_collection(...)
+    ...
+    cube = cube.save_result(format="GTiff")
+    job = cube.create_job()
+
+or directly in :py:meth:`~openeo.rest.datacube.DataCube.create_job`::
+
+    cube = connection.load_collection(...)
+    ...
+    job = cube.create_job(out_format="GTiff)
+
+While not necessary, it is also recommended to give your batch job a descriptive title
+so it's easier to identify in your job listing, e.g.::
+
+    job = cube.create_job(title="NDVI timeseries 2022")
+
+
+Batch job object
+-----------------
+
+The ``job`` object returned by :py:meth:`~openeo.rest.datacube.DataCube.create_job`
+is a :py:class:`~openeo.rest.job.RESTJob` object.
+It's basically a client-side reference to a batch job that exists on the back-end
+and allows to interact with that batch job.
+
+
+Start a batch job
+=================
+
 TODO
 
+Wait for a batch job to finish
+==============================
+
+TODO
+
+Create, start and wait in one go
+=================================
+
+TODO
 
 Download batch job results
 ==========================

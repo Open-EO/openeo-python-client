@@ -26,7 +26,7 @@ class RESTJob:
     """
     Handle for an openEO batch job, allowing it to describe, start, cancel, inspect results, etc.
     """
-    # TODO: rename this to BatchJob?
+    # TODO: rename this to BatchJob? #280
 
     def __init__(self, job_id: str, connection: 'Connection'):
         self.job_id = job_id
