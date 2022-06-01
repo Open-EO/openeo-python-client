@@ -290,7 +290,13 @@ class GraphFlattener(ProcessGraphVisitor):
                 value = {"from_node": self._last_node_id}
             elif "process_graph" in value:
                 pg = value["process_graph"]
-                value = {"process_graph": GraphFlattener(node_id_generator=self._node_id_generator).flatten(pg)}
+                if isinstance(pg, PGNode):
+                    value = {"process_graph": GraphFlattener(node_id_generator=self._node_id_generator).flatten(pg)}
+                elif isinstance(pg, dict):
+                    # Assume it is already a valid flat graph representation of a subprocess
+                    value = {"process_graph": pg}
+                else:
+                    raise ValueError(pg)
             else:
                 value = {k: self._flatten_argument(v) for k, v in value.items()}
         return value

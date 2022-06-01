@@ -1518,6 +1518,52 @@ class TestDataCubeFromFlatGraph:
             },
         }
 
+    def test_load_collection_properties(self, con100):
+        flat_graph = {
+            "loadcollection1": {
+                "process_id": "load_collection",
+                "arguments": {
+                    "id": "SENTINEL2_L1C_SENTINELHUB",
+                    "properties": {"eo:cloud_cover": {"process_graph": {
+                        "lte1": {
+                            "process_id": "lte",
+                            "arguments": {"x": {"from_parameter": "value"}, "y": 70},
+                            "result": True},
+                    }}},
+                },
+                "result": True,
+            },
+        }
+        cube = con100.datacube_from_flat_graph(flat_graph)
+        assert isinstance(cube, DataCube)
+        assert cube.flat_graph() == flat_graph
+
+    def test_reduce_callback(self, con100):
+        flat_graph = {
+            "loadcollection1": {
+                "process_id": "load_collection",
+                "arguments": {"id": "SENTINEL2_L1C_SENTINELHUB"},
+            },
+            "reducedimension1": {
+                "process_id": "reduce_dimension",
+                "arguments": {
+                    "data": {"from_node": "loadcollection1"},
+                    "dimension": "t",
+                    "reducer": {"process_graph": {
+                        "mean1": {
+                            "process_id": "mean",
+                            "arguments": {"data": {"from_parameter": "data"}},
+                            "result": True,
+                        },
+                    }}
+                },
+                "result": True,
+            }
+        }
+        cube = con100.datacube_from_flat_graph(flat_graph)
+        assert isinstance(cube, DataCube)
+        assert cube.flat_graph() == flat_graph
+
 
 def test_send_nan_json(con100, requests_mock):
     """https://github.com/Open-EO/openeo-python-client/issues/185"""

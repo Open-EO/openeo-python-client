@@ -253,6 +253,10 @@ class ProcessGraphUnflattener:
             elif "from_parameter" in value:
                 name = value["from_parameter"]
                 return self._process_from_parameter(name=name)
+            elif "process_graph" in value:
+                # Don't traverse child process graphs
+                # TODO: should/can we? Can we know available parameters for validation, or do we skip validation?
+                return value
             else:
                 return {k: self._process_value(v) for (k, v) in value.items()}
         elif isinstance(value, (list, tuple)):
