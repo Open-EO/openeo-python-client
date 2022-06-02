@@ -1830,7 +1830,7 @@ class DataCube(_ProcessGraphAbstraction):
 
         :param parameters:
         :param function: "child callback" function, see :ref:`callbackfunctions`
-        :dimension:
+        :param dimension:
         """
         return self.process(process_id="fit_curve", arguments={
             "data": THIS,
