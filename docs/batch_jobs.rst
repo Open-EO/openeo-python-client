@@ -23,23 +23,29 @@ Create a batch job
 ===================
 
 In the openEO Python Client Library, if you have a (raster) data cube, you can easily
-create a batch job with the :py:meth:`~openeo.rest.datacube.DataCube.create_job` method.
+create a batch job with the :py:meth:`DataCube.create_job() <openeo.rest.datacube.DataCube.create_job>` method.
 It's important to specify in what format the result should be stored,
-which can be done with an explicit :py:meth:`~openeo.rest.datacube.DataCube.save_result` call before creating the job::
+which can be done with an explicit :py:meth:`DataCube.save_result() <openeo.rest.datacube.DataCube.save_result>` call before creating the job:
+
+.. code-block:: python
 
     cube = connection.load_collection(...)
     ...
     cube = cube.save_result(format="GTiff")
     job = cube.create_job()
 
-or directly in :py:meth:`~openeo.rest.datacube.DataCube.create_job`::
+or directly in :py:meth:`~openeo.rest.datacube.DataCube.create_job()`:
+
+.. code-block:: python
 
     cube = connection.load_collection(...)
     ...
     job = cube.create_job(out_format="GTiff)
 
 While not necessary, it is also recommended to give your batch job a descriptive title
-so it's easier to identify in your job listing, e.g.::
+so it's easier to identify in your job listing, e.g.:
+
+.. code-block:: python
 
     job = cube.create_job(title="NDVI timeseries 2022")
 
@@ -47,10 +53,17 @@ so it's easier to identify in your job listing, e.g.::
 Batch job object
 -----------------
 
-The ``job`` object returned by :py:meth:`~openeo.rest.datacube.DataCube.create_job`
+The ``job`` object returned by :py:meth:`~openeo.rest.datacube.DataCube.create_job()`
 is a :py:class:`~openeo.rest.job.BatchJob` object.
-It's basically a client-side reference to a batch job that exists on the back-end
+It is basically a client-side reference to a batch job that exists on the back-end
 and allows to interact with that batch job.
+A batch job on a back-end is fully identified by its
+:py:data:`~openeo.rest.job.BatchJob.job_id`:
+
+.. code-block:: pycon
+
+    >>> job.job_id
+    '3461f51b-c12b-481d-9a0a-d50526933183'
 
 .. note::
     The :py:class:`~openeo.rest.job.BatchJob` class originally had
@@ -59,18 +72,91 @@ and allows to interact with that batch job.
     but :py:class:`~openeo.rest.job.BatchJob` is recommended since version 0.11.0.
 
 
+Reconnecting to a batch job
+----------------------------
+
+Say you already have a batch job on the back-end, for example created at another
+time, in another script/notebook or even with another openEO client.
+If you have the batch job id, you can "reconnect" to that batch job
+by creating a :py:class:`~openeo.rest.job.BatchJob` object
+using :py:meth:`Connection.job() <openeo.rest.connection.Connection.job>`:
+
+.. code-block:: python
+
+    job_id = "5d806224-fe79-4a54-be04-90757893795b"
+    job = connection.job(job_id)
+
+
+
 Start a batch job
 =================
 
-TODO
+Starting a batch job is pretty straightforward with the
+:py:meth:`~openeo.rest.job.BatchJob.start_job()` method:
+
+.. code-block:: python
+
+    job.start_job()
+
+If this didn't raise any errors or exceptions your job
+should now have started (status "running")
+or at least be queued for processing (status "queued").
+
 
 Wait for a batch job to finish
 ==============================
 
-TODO
+A batch job typically takes some time to finish,
+and you can check its status with the :py:meth:`~openeo.rest.job.BatchJob.status()` method:
+
+.. code-block:: pycon
+
+    >>> job.status()
+    "running"
+
+The possible batch job status values, defined by the openEO API, are
+"created", "queued", "running", "canceled", "finished" and "error".
+
+Usually, you can only reliably get results from your job
+when it reaches status "finished".
 
 Create, start and wait in one go
 =================================
+
+You could, depending on your situation, manually check your job's status periodically
+or set up a polling loop system to keep an eye on your job.
+The openEO Python client library also provides helpers to do that for you.
+
+If you have a batch job that is already created as shown above, you can use
+the :py:meth:`~openeo.rest.job.BatchJob.start_and_wait()` method
+to start it and periodically poll its status until it reaches status "finished" (or fails with status "error").
+Along the way it will print some progress messages.
+
+.. code-block:: pycon
+
+    >>> job.start_and_wait()
+    0:00:00 Job 'b0e8adcf-087f-41de-afe6-b3c0ea88ff38': send 'start'
+    0:00:36 Job 'b0e8adcf-087f-41de-afe6-b3c0ea88ff38': queued (progress N/A)
+    0:01:35 Job 'b0e8adcf-087f-41de-afe6-b3c0ea88ff38': queued (progress N/A)
+    0:02:19 Job 'b0e8adcf-087f-41de-afe6-b3c0ea88ff38': running (progress N/A)
+    0:02:50 Job 'b0e8adcf-087f-41de-afe6-b3c0ea88ff38': running (progress N/A)
+    0:03:28 Job 'b0e8adcf-087f-41de-afe6-b3c0ea88ff38': finished (progress N/A)
+
+
+If you didn't create the batch job yet from a given :py:class:`~openeo.rest.datacube.DataCube`
+you can do the job creation, starting and waiting on one go
+with :py:meth:`~openeo.rest.datacube.DataCube.execute_batch()`:
+
+.. code-block:: pycon
+
+    >>> job = cube.execute_batch()
+    0:00:00 Job 'f9f4e3d3-bc13-441b-b76a-b7bfd3b59669': send 'start'
+    0:00:23 Job 'f9f4e3d3-bc13-441b-b76a-b7bfd3b59669': queued (progress N/A)
+    ...
+
+
+Monitoring and debugging
+=========================
 
 TODO
 

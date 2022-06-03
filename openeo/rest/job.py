@@ -53,6 +53,14 @@ class BatchJob:
         # TODO: rename to just `describe`? #280
         return self.connection.get("/jobs/{}".format(self.job_id), expected_status=200).json()
 
+    def status(self) -> str:
+        """
+        Get the status of the batch job
+
+        :return: batch job status, one of "created", "queued", "running", "canceled", "finished" or "error".
+        """
+        return self.describe_job().get("status", "N/A")
+
     def update_job(self, process_graph=None, output_format=None,
                    output_parameters=None, title=None, description=None,
                    plan=None, budget=None, additional=None):
@@ -127,10 +135,6 @@ class BatchJob:
         .. versionadded:: 0.4.10
         """
         return JobResults(self)
-
-    def status(self):
-        """ Returns the status of the job."""
-        return self.describe_job().get("status", "N/A")
 
     def logs(self, offset=None) -> List[LogEntry]:
         """ Retrieve job logs."""
