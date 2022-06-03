@@ -1,3 +1,5 @@
+.. _authentication_chapter:
+
 *************************************
 Authentication and Account Management
 *************************************

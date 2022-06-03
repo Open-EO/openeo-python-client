@@ -1,6 +1,92 @@
-===========
-Basic Usage
-===========
+================
+Getting Started
+================
+
+
+Connect to an openEO back-end
+-------------------------------
+
+First, establish a connection to an openEO back-end, using its connection URL.
+For example the VITO/Terrascope backend:
+
+.. code-block:: python
+
+    import openeo
+
+    connection = openeo.connect("openeo.vito.be")
+
+The resulting :py:class:`~openeo.rest.connection.Connection` object is your central gateway to
+
+- list data collections, available processes, file formats and other capabilities of the back-end
+- start building your openEO algorithm from the desired data on the back-end
+- execute and monitor (batch) jobs on the back-end
+- etc.
+
+.. seealso::
+
+    Use the `openEO Hub <http://hub.openeo.org/>`_ to explore different back-end options
+    and their capabilities in a web-based way.
+
+
+Collection discovery
+---------------------
+
+The Earth observation data (the input of your openEO jobs) is organised in
+`so-called collections <https://openeo.org/documentation/1.0/glossary.html#eo-data-collections>`_,
+e.g. fundamental satellite collections like "Sentinel 1" or "Sentinel 2",
+or preprocessed collections like "NDVI".
+
+You can programmatically list the collections that are available on a back-end
+and their metadata using methods on the `connection` object we just created
+(like :py:meth:`~openeo.rest.connection.Connection.list_collection_ids`
+or :py:meth:`~openeo.rest.connection.Connection.describe_collection`
+
+.. code-block:: pycon
+
+    >>> # Get all collection ids
+    >>> connection.list_collection_ids()
+    ['SENTINEL1_GRD', 'SENTINEL2_L2A', ...
+
+    >>> # Get metadata of a single collection
+    >>> connection.describe_collection("SENTINEL2_L2A")
+    {'id': 'SENTINEL2_L2A', 'title': 'Sentinel-2 top of canopy ...', 'stac_version': '0.9.0', ...
+
+Congrats, you now just did your first real openEO queries to the openEO back-end
+using the openEO Python client library.
+
+.. seealso::
+
+    Find out more about data discovery, loading and filtering at :ref:`data_access_chapter`.
+
+
+Authentication
+---------------
+
+In the code snippets above we did not need to log in as a user
+since we just queried publicly available back-end information.
+However, to run non-trivial processing queries one has to authenticate
+so that permissions, resource usage, etc. can be managed properly.
+
+To handle authentication, openEO leverages `OpenID Connect (OIDC) <https://openid.net/connect/>`_.
+It offers some interesting features (e.g. a user can securely reuse an existing account),
+but is a fairly complex topic, discussed in more depth at :ref:`authentication_chapter`.
+
+The openEO Python client library tries to make authentication as streamlined as possible.
+In most cases for example, the following snippet is enough to obtain an authenticated connection:
+
+.. code-block:: python
+
+    import openeo
+
+    connection = openeo.connect("openeo.vito.be").authenticate_oidc()
+
+This statement will automatically reuse a previously authenticated session, when available.
+Otherwise, e.g. the first time you do this, some user interaction is required
+and it will print a web link and a short *user code*.
+Visit this web page in a browser, log in there with an existing account and enter the user code.
+If everything goes well, the ``connection`` object in the script will be authenticated
+and the back-end will be able to identify you in subsequent requests.
+
 
 
 
@@ -9,18 +95,6 @@ Example: Simple band math
 A common task in earth observation, is to apply a formula to a number of bands
 in order to compute an 'index', such as NDVI, NDWI, EVI, ...
 
-Begin by importing the openeo module::
-
-    import openeo
-
-Now we need to connect to a back-end::
-
-    connection = openeo.connect('https://openeo.vito.be')
-
-Now, we have a :class:`Connection <openeo.Connection>` object called ``connection``.
-This is our entry point to the back-end and allows us to discover its capabilities and collections programmatically.
-Use the openEO Hub (http://hub.openeo.org/) to explore a back-end
-in a more graphical interactive way.
 
 Band math usually starts from a raster data cube, with multiple spectral bands available.
 The back-end used here has a Sentinel-2 collection: TERRASCOPE_S2_TOC_V2::
@@ -36,7 +110,7 @@ The back-end used here has a Sentinel-2 collection: TERRASCOPE_S2_TOC_V2::
    Note how we specify a time range and set of bands to load. By filtering as early as possible, we avoid
    incurring unneeded costs, and make it easier for the back-end to load the right data.
 
-Now we have a :class:`ImageCollection <openeo.ImageCollection>` object called ``sentinel2_data_cube``.
+Now we have a :py:class:`~openeo.rest.datacube.DataCube` object called ``sentinel2_data_cube``.
 Creating this object does not yet load any data, but virtually it can contain a lot of data depending on the filters you
 specified.
 
@@ -143,7 +217,7 @@ A common type of analysis is aggregating pixel values over one or more regions o
 This is also referred to as 'zonal statistics'. This library has a number of predefined methods
 for various types of aggregations.
 In this example, we'll show how to compute an aggregated NDVI value,
-using :func:`~openeo.rest.connection.DataCube.polygonal_mean_timeseries`
+using :py:func:`~openeo.rest.connection.DataCube.polygonal_mean_timeseries`
 with the region of interest given as Shapely (multi)polygon object ::
 
     timeseries_dict = (
