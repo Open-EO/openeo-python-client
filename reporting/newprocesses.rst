@@ -1,8 +1,8 @@
 openEO Python client library: new processes
 =============================================
 
-Listed below is the API documentation of the functions, classes
-and methods in the openEO Python client library
+Listed below is the API documentation of the functions and methods
+in the openEO Python client library
 related to new processes that were added for each SRR.
 
 SRR1
