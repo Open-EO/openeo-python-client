@@ -114,3 +114,7 @@ Temp/
 
 # Locally built/downloaded wheels
 openeo-*.whl
+
+# Sphinx output folders
+_build
+

@@ -1729,8 +1729,9 @@ class DataCube(_ProcessGraphAbstraction):
     @openeo_process
     def ard_normalized_radar_backscatter(self, elevation_model:str = None, contributing_area = False, ellipsoid_incidence_angle:bool = False, noise_removal:bool = True):
         """
-        Computes CARD4L compliant backscatter (gamma0) from SAR input. This method is a variant of :meth:`openeo.rest.datacube.DataCube.sar_backscatter`,
-         with restricted parameters to generate backscatter according to CARD4L specifications.
+        Computes CARD4L compliant backscatter (gamma0) from SAR input.
+        This method is a variant of :py:meth:`~openeo.rest.datacube.DataCube.sar_backscatter`,
+        with restricted parameters to generate backscatter according to CARD4L specifications.
 
         Note that backscatter computation may require instrument specific metadata that is tightly coupled to the original SAR products.
         As a result, this process may only work in combination with loading data from specific collections, not with general data cubes.

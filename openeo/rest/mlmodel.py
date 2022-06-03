@@ -28,6 +28,11 @@ class MlModel(_ProcessGraphAbstraction):
         super().__init__(pgnode=graph, connection=connection)
 
     def save_ml_model(self, options: Optional[dict] = None):
+        """
+        Saves a machine learning model as part of a batch job.
+
+        :param options: Additional parameters to create the file(s).
+        """
         pgnode = PGNode(
             process_id="save_ml_model",
             arguments={"data": self, "options": options or {}}
