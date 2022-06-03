@@ -46,6 +46,7 @@ Table of contents
 .. toctree::
    :maxdepth: 2
 
+   self
    basics
    installation
    data_access
