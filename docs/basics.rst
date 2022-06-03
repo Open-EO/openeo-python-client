@@ -2,11 +2,7 @@
 Basic Usage
 ===========
 
-.. automodule:: openeo
 
-.. toctree::
-   :maxdepth: 3
-   :caption: Contents:
 
 Example: Simple band math
 -------------------------
