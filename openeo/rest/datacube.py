@@ -1110,7 +1110,7 @@ class DataCube(_ProcessGraphAbstraction):
         )
 
     @openeo_process(process_id="reduce_dimension")
-    def reduce_temporal_simple(self, process_id="max") -> 'DataCube':
+    def reduce_temporal_simple(self, process_id: str) -> 'DataCube':
         """Do temporal reduce with a simple given process as callback."""
         return self._reduce_temporal(reducer=PGNode(
             process_id=process_id,

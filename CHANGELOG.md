@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rename `RESTJob` class name to less cryptic and more user-friendly `BatchJob`. 
   Original `RESTJob` is still available as deprecated alias.
   ([#280](https://github.com/Open-EO/openeo-python-client/issues/280))
+- Dropped default reducer ("max") from `DataCube.reduce_temporal_simple()`
 
 
 ### Removed
