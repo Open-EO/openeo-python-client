@@ -1167,19 +1167,20 @@ class DataCube(_ProcessGraphAbstraction):
             dimension: Optional[str] = None,
             context: Optional[dict] = None,
     ) -> "DataCube":
-        """ Computes a temporal aggregation based on an array of date and/or time intervals.
+        """
+        Computes a temporal aggregation based on an array of date and/or time intervals.
 
-            Calendar hierarchies such as year, month, week etc. must be transformed into specific intervals by the clients. For each interval, all data along the dimension will be passed through the reducer. The computed values will be projected to the labels, so the number of labels and the number of intervals need to be equal.
+        Calendar hierarchies such as year, month, week etc. must be transformed into specific intervals by the clients. For each interval, all data along the dimension will be passed through the reducer. The computed values will be projected to the labels, so the number of labels and the number of intervals need to be equal.
 
-            If the dimension is not set, the data cube is expected to only have one temporal dimension.
+        If the dimension is not set, the data cube is expected to only have one temporal dimension.
 
-            :param intervals: Temporal left-closed intervals so that the start time is contained, but not the end time.
-            :param reducer: A reducer to be applied on all values along the specified dimension. The reducer must be a callable process (or a set processes) that accepts an array and computes a single return value of the same type as the input values, for example median.
-            :param labels: Labels for the intervals. The number of labels and the number of groups need to be equal.
-            :param dimension: The temporal dimension for aggregation. All data along the dimension will be passed through the specified reducer. If the dimension is not set, the data cube is expected to only have one temporal dimension.
-            :param context: Additional data to be passed to the reducer. Not set by default.
+        :param intervals: Temporal left-closed intervals so that the start time is contained, but not the end time.
+        :param reducer: A reducer to be applied on all values along the specified dimension. The reducer must be a callable process (or a set processes) that accepts an array and computes a single return value of the same type as the input values, for example median.
+        :param labels: Labels for the intervals. The number of labels and the number of groups need to be equal.
+        :param dimension: The temporal dimension for aggregation. All data along the dimension will be passed through the specified reducer. If the dimension is not set, the data cube is expected to only have one temporal dimension.
+        :param context: Additional data to be passed to the reducer. Not set by default.
 
-            :return: An ImageCollection containing  a result for each time window
+        :return: An ImageCollection containing  a result for each time window
         """
         return self.process(
             process_id="aggregate_temporal",
@@ -1201,32 +1202,33 @@ class DataCube(_ProcessGraphAbstraction):
             dimension: Optional[str] = None,
             context: Optional[Dict] = None,
     ) -> "DataCube":
-        """ Computes a temporal aggregation based on calendar hierarchies such as years, months or seasons. For other calendar hierarchies aggregate_temporal can be used.
+        """
+        Computes a temporal aggregation based on calendar hierarchies such as years, months or seasons. For other calendar hierarchies aggregate_temporal can be used.
 
-            For each interval, all data along the dimension will be passed through the reducer.
+        For each interval, all data along the dimension will be passed through the reducer.
 
-            If the dimension is not set or is set to null, the data cube is expected to only have one temporal dimension.
+        If the dimension is not set or is set to null, the data cube is expected to only have one temporal dimension.
 
-            The period argument specifies the time intervals to aggregate. The following pre-defined values are available:
+        The period argument specifies the time intervals to aggregate. The following pre-defined values are available:
 
-            - hour: Hour of the day
-            - day: Day of the year
-            - week: Week of the year
-            - dekad: Ten day periods, counted per year with three periods per month (day 1 - 10, 11 - 20 and 21 - end of month). The third dekad of the month can range from 8 to 11 days. For example, the fourth dekad is Feb, 1 - Feb, 10 each year.
-            - month: Month of the year
-            - season: Three month periods of the calendar seasons (December - February, March - May, June - August, September - November).
-            - tropical-season: Six month periods of the tropical seasons (November - April, May - October).
-            - year: Proleptic years
-            - decade: Ten year periods (0-to-9 decade), from a year ending in a 0 to the next year ending in a 9.
-            - decade-ad: Ten year periods (1-to-0 decade) better aligned with the Anno Domini (AD) calendar era, from a year ending in a 1 to the next year ending in a 0.
+        - hour: Hour of the day
+        - day: Day of the year
+        - week: Week of the year
+        - dekad: Ten day periods, counted per year with three periods per month (day 1 - 10, 11 - 20 and 21 - end of month). The third dekad of the month can range from 8 to 11 days. For example, the fourth dekad is Feb, 1 - Feb, 10 each year.
+        - month: Month of the year
+        - season: Three month periods of the calendar seasons (December - February, March - May, June - August, September - November).
+        - tropical-season: Six month periods of the tropical seasons (November - April, May - October).
+        - year: Proleptic years
+        - decade: Ten year periods (0-to-9 decade), from a year ending in a 0 to the next year ending in a 9.
+        - decade-ad: Ten year periods (1-to-0 decade) better aligned with the Anno Domini (AD) calendar era, from a year ending in a 1 to the next year ending in a 0.
 
 
-            :param period: The period of the time intervals to aggregate.
-            :param reducer: A reducer to be applied on all values along the specified dimension. The reducer must be a callable process (or a set processes) that accepts an array and computes a single return value of the same type as the input values, for example median.
-            :param dimension: The temporal dimension for aggregation. All data along the dimension will be passed through the specified reducer. If the dimension is not set, the data cube is expected to only have one temporal dimension.
-            :param context: Additional data to be passed to the reducer.
+        :param period: The period of the time intervals to aggregate.
+        :param reducer: A reducer to be applied on all values along the specified dimension. The reducer must be a callable process (or a set processes) that accepts an array and computes a single return value of the same type as the input values, for example median.
+        :param dimension: The temporal dimension for aggregation. All data along the dimension will be passed through the specified reducer. If the dimension is not set, the data cube is expected to only have one temporal dimension.
+        :param context: Additional data to be passed to the reducer.
 
-            :return: A data cube with the same dimensions. The dimension properties (name, type, labels, reference system and resolution) remain unchanged.
+        :return: A data cube with the same dimensions. The dimension properties (name, type, labels, reference system and resolution) remain unchanged.
         """
         return self.process(
             process_id="aggregate_temporal_period",
@@ -1241,13 +1243,14 @@ class DataCube(_ProcessGraphAbstraction):
 
     @openeo_process
     def ndvi(self, nir: str = None, red: str = None, target_band: str = None) -> 'DataCube':
-        """ Normalized Difference Vegetation Index (NDVI)
+        """
+        Normalized Difference Vegetation Index (NDVI)
 
-            :param nir: (optional) name of NIR band
-            :param red: (optional) name of red band
-            :param target_band: (optional) name of the newly created band
+        :param nir: (optional) name of NIR band
+        :param red: (optional) name of red band
+        :param target_band: (optional) name of the newly created band
 
-            :return: a DataCube instance
+        :return: a DataCube instance
         """
         if target_band is None:
             metadata = self.metadata.reduce_dimension(self.metadata.band_dimension.name)
@@ -1286,13 +1289,14 @@ class DataCube(_ProcessGraphAbstraction):
 
     @openeo_process
     def rename_labels(self, dimension: str, target: list, source: list = None) -> 'DataCube':
-        """ Renames the labels of the specified dimension in the data cube from source to target.
+        """
+        Renames the labels of the specified dimension in the data cube from source to target.
 
-            :param dimension: Dimension name
-            :param target: The new names for the labels.
-            :param source: The names of the labels as they are currently in the data cube.
+        :param dimension: Dimension name
+        :param target: The new names for the labels.
+        :param source: The names of the labels as they are currently in the data cube.
 
-            :return: An DataCube instance
+        :return: An DataCube instance
         """
         return self.process(
             process_id='rename_labels',
