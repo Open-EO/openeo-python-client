@@ -138,6 +138,7 @@ class BatchJob:
 
     def logs(self, offset=None) -> List[LogEntry]:
         """ Retrieve job logs."""
+        # TODO: option to filter on level? Or move filtering functionality to a separate batch job logs class?
         url = "/jobs/{}/logs".format(self.job_id)
         logs = self.connection.get(url, params={'offset': offset}, expected_status=200).json()["logs"]
         entries = [LogEntry(log) for log in logs]
@@ -229,6 +230,7 @@ class BatchJob:
             """.format(i=self.job_id)))
             # TODO: make it possible to disable printing logs automatically?
             # TODO: render logs jupyter-aware in a notebook context?
+            # TODO: only print the error level logs? Or the tail of the logs?
             print("Printing logs:")
             print(self.logs())
             raise JobFailedException("Batch job {i!r} didn't finish successfully. Status: {s} (after {t}).".format(
