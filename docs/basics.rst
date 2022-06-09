@@ -92,45 +92,76 @@ and the back-end will be able to identify you in subsequent requests.
 
 Example: Simple band math
 -------------------------
-A common task in earth observation, is to apply a formula to a number of bands
+
+A common task in earth observation is to apply a formula to a number of bands
 in order to compute an 'index', such as NDVI, NDWI, EVI, ...
 
 
 Band math usually starts from a raster data cube, with multiple spectral bands available.
-The back-end used here has a Sentinel-2 collection: TERRASCOPE_S2_TOC_V2::
+The back-end used here has a Sentinel-2 collection: SENTINEL2_L2A:
+
+.. code-block:: python
 
     sentinel2_data_cube = connection.load_collection(
-        "TERRASCOPE_S2_TOC_V2",
-        spatial_extent={"west": 5.1518, "east": 5.1533, "south": 51.1819, "north": 51.1846, "crs": 4326},
+        "SENTINEL2_L2A",
+        spatial_extent={"west": 5.15, "south": 51.181, "east": 5.155, "north": 51.184},
         temporal_extent=["2016-01-01", "2016-03-10"],
-        bands=["TOC-B02_10M", "TOC-B04_10M", "TOC-B08_10M"]
+        bands=["B02", "B04", "B08"]
     )
 
 .. note::
-   Note how we specify a time range and set of bands to load. By filtering as early as possible, we avoid
-   incurring unneeded costs, and make it easier for the back-end to load the right data.
+    Note how we specify a the region of interest, a time range and a set of bands to load.
+    By filtering as early as possible, we make sure the back-end only loads the
+    data we are interested in and avoid incurring unneeded costs.
 
 Now we have a :py:class:`~openeo.rest.datacube.DataCube` object called ``sentinel2_data_cube``.
-Creating this object does not yet load any data, but virtually it can contain a lot of data depending on the filters you
-specified.
+We just created a client-side reference here and did not actually load any real data.
+This will only happen at the back-end once we explicitly execute the data processing
+pipeline we are building.
 
-On this data cube, we can now select the individual bands::
+On this data cube, we can now select the individual bands
+(and rescale the digital number values to physical reflectances):
 
-    B02 = sentinel2_data_cube.band("TOC-B02_10M")
-    B04 = sentinel2_data_cube.band("TOC-B04_10M")
-    B08 = sentinel2_data_cube.band("TOC-B08_10M")
+.. code-block:: python
 
-In this example, we'll compute the enhanced vegetation index (EVI)::
+    blue = sentinel2_data_cube.band("B02") * 0.0001
+    red = sentinel2_data_cube.band("B04") * 0.0001
+    nir = sentinel2_data_cube.band("B08") * 0.0001
 
-    evi_cube = (2.5 * (B08 - B04)) / ((B08 + 6.0 * B04 - 7.5 * B02) + 1.0)
-    evi_cube.download("out.geotiff", format="GTiff")
+In this example, we'll compute the enhanced vegetation index (EVI):
+
+.. code-block:: python
+
+    evi_cube = 2.5 * (nir - red) / (nir + 6.0 * red - 7.5 * blue + 1.0)
+
+It's important to note that, while this looks like an actual calculation,
+there is no real data processing going on here.
+The ``evi_cube`` object at this point is just an abstract representation
+of the algorithm we want to execute.
+
+Let's download this as a GeoTIFF file,
+Because GeoTIFF does not support a temporal dimension,
+we first eliminate it by taking the temporal maximum value for each pixel:
 
 
-Some results take a longer time to compute, in that case, the 'download' method used above may result in a timeout.
+    evi_composite = evi_cube.max_time()
+
+Now we can download this to a local file:
+
+.. code-block:: python
+
+    evi_composite.download("evi_composite.tiff", format="GTiff")
+
+It's this synchronous download that triggers actual processing on the back-end,
+which normally should take a couple of seconds to return.
+
+
+Some results take a longer time to compute and in that case,
+the 'download' method used above may result in a timeout.
 To prevent that, it is also possible to use a 'batch' job.
 An easy way to run a batch job and downloading the result is::
 
-    evi_cube.execute_batch("out.geotiff", out_format="GTiff")
+    evi_composite.execute_batch("evi_composite.tiff", out_format="GTiff")
 
 This method will wait until the result is generated, which may take quite a long time. Use the batch job API if you want to
 manage your jobs directly.
@@ -168,25 +199,6 @@ If the job has finished, you can download results::
     my_job.download_results("my_results.tiff")
 
 
-Stopping your job
-*****************
-Use this simple call to stop your job::
-
-    my_job.stop_job()
-
-Logs can also be retrieved, this is mostly relevant in case your job failed::
-
-    log_list = my_job.logs()
-    log_list[0].message
-
-Restarting a job
-****************
-A job can also be restarted, for instance if an earlier run was aborted::
-
-    import openeo
-    connection = openeo.connect("https://openeo.vito.be").authenticate_basic("your_user","your_password")
-    my_job = connection.job("da34492c-4f9d-402b-a5e9-11b528eaa152")
-    my_job.start_job()
 
 
 Example: Applying a mask
