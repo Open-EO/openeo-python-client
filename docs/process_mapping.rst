@@ -4,6 +4,8 @@
     Do not edit directly.
     Generated from: ['process_mapping.py']
 
+.. _openeo_process_mapping:
+
 openEO Process Mapping
 #######################
 

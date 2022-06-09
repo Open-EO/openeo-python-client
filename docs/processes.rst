@@ -71,7 +71,12 @@ Convenience methods
 
 Most of the important pre-defined processes are covered directly by methods
 on classes like :class:`~openeo.rest.datacube.DataCube` or
-:class:`~openeo.rest.vectorcube.VectorCube`
+:class:`~openeo.rest.vectorcube.VectorCube`.
+
+.. seealso::
+    See :ref:`openeo_process_mapping` for a mapping of openEO processes
+    the corresponding methods in the openEO Python Client library.
+
 For example, to apply the ``filter_temporal`` process to a raster data cube::
 
     cube = cube.filter_temporal("2020-02-20", "2020-06-06")

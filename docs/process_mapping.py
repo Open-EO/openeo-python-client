@@ -23,6 +23,8 @@ def main():
             !Warning! This is an auto-generated file.
             Do not edit directly.
             Generated from: {sys.argv}
+            
+        .. _openeo_process_mapping:
     
         openEO Process Mapping
         #######################
