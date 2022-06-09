@@ -74,12 +74,8 @@ def get_test_resource(relative_path):
     dir = Path(os.path.dirname(os.path.realpath(__file__)))
     return str(dir / relative_path)
 
-def load_udf(relative_path):
-    import json
-    with open(get_test_resource(relative_path), 'r+') as f:
-        return f.read()
 
-smoothing_udf = load_udf('udf/smooth_savitzky_golay.py')
+smoothing_udf = Path('udf/smooth_savitzky_golay.py').read_text()
 #S2 radiometry at VITO already has a default mask otherwise we need a masking function
 smoothed_evi = evi_cube.apply_dimension(smoothing_udf,runtime='Python')
 timeseries_smooth = smoothed_evi.polygonal_mean_timeseries(polygon)

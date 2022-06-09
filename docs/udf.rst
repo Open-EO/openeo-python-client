@@ -60,13 +60,13 @@ This particular example accepts a :py:class:`~openeo.rest.datacube.DataCube` obj
 The type annotations and method name are actually used to detect how to invoke the UDF, so make sure they remain unchanged.
 
 
-Once the UDF is defined in a separate file, we need to load it::
+Once the UDF is defined in a separate file, we need to load it:
 
-    def load_udf(relative_path):
-        with open(relative_path, 'r+') as f:
-            return f.read()
+.. code-block:: python
 
-    smoothing_udf = load_udf('smooth_savitzky_golay.py')
+    from pathlib import Path
+
+    smoothing_udf = Path('smooth_savitzky_golay.py').read_text()
     print(smoothing_udf)
 
 after that, we can simply apply it along a dimension::
@@ -88,13 +88,14 @@ The steps to run a UDF (like the code from ``smooth_savitzky_golay.py`` above) a
 
 For example::
 
+    from pathlib import Path
+    from openeo.udf import execute_local_udf
+
     my_process = connection.load_collection(...
 
     my_process.download('test_input.nc', format='NetCDF')
 
-    smoothing_udf = load_udf('smooth_savitzky_golay.py')
-
-    from openeo.udf import execute_local_udf
+    smoothing_udf = Path('smooth_savitzky_golay.py').read_text()
     execute_local_udf(smoothing_udf, 'test_input.nc', fmt='netcdf')
 
 Note: this algorithm's primary purpose is to aid client side development of UDFs using small datasets. It is not designed for large jobs.

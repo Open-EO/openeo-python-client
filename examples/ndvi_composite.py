@@ -68,11 +68,9 @@ def get_test_resource(relative_path):
     dir = Path(os.path.dirname(os.path.realpath(__file__)))
     return str(dir / relative_path)
 
-def load_udf(relative_path):
-    with open(get_test_resource(relative_path), 'r+') as f:
-        return f.read()
 
-compositing_udf = load_udf('udf/median_composite.py')
+compositing_udf = Path('udf/median_composite.py').read_text()
+
 
 def test_composite_by_udf():
     masked.apply_dimension(code=compositing_udf,runtime="Python",dimension='t').filter_temporal(start_date,end_date).download("composite_udf.nc",format="NetCDF")
