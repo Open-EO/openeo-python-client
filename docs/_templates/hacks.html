@@ -6,36 +6,3 @@
 <div>Version: <code>{{ release }}</code></div>
 <div>Last updated: {{ last_updated }}</div>
 </div>
-
-<!-- CSS Adjustments from requests: https://github.com/kennethreitz/requests/blob/master/docs/_templates/hacks.html -->
-<style type="text/css">
-  /* Rezzy requires precise alignment. */
-  img.logo {margin-left: -20px!important;}
-  /* "Quick Search" should be capitalized. */
-  div#searchbox h3 {text-transform: capitalize;}
-  /* Much-improved spacing around code blocks. */
-  div.highlight pre {padding: 11px 14px;}
-
-  /* Reduce space between paragraphs for better visual structure */
-  p { margin: 1ex 0; }
-
-  /* Hide "view source code" links by default, only show on hover */
-  dt .viewcode-link { visibility: hidden; font-size: 70%; }
-  dt:hover .viewcode-link { visibility: visible; }
-
-  /* More breathing space between successive methods */
-  dl { margin-bottom: 1.5em; }
-
-  dl.field-list > dt {
-      /* Cleaner aligning of Parameters/Returns/Raises listing with method description paragraphs */
-      padding-left: 0;
-      /* Make Parameters/Returns/Raises labels less dominant */
-      text-transform: uppercase;
-      font-size: 70%;
-  }
-
-  .sidebar-meta {
-      font-size: 80%;
-  }
-
-</style>
