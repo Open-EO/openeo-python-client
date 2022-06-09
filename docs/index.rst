@@ -60,7 +60,7 @@ Table of contents
    configuration
    cookbook/index
    api
-   process_listing
+   process_mapping
    development
 
 

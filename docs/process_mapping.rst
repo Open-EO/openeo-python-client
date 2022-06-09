@@ -2,7 +2,7 @@
 .. 
     !Warning! This is an auto-generated file.
     Do not edit directly.
-    Generated from: ['process_listing.py']
+    Generated from: ['process_mapping.py']
 
 openEO Process Mapping
 #######################

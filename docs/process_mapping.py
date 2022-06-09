@@ -3,7 +3,7 @@ Simple script to generate process-to-method mapping page.
 
 Usage: run this script and redirect to rst file:
 
-    python process_listing.py > process_listing.rst
+    python process_mapping.py > process_mapping.rst
 
 """
 import datetime
