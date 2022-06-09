@@ -47,8 +47,8 @@ Table of contents
    :maxdepth: 2
 
    self
-   basics
    installation
+   basics
    data_access
    processes
    batch_jobs

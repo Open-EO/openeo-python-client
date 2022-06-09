@@ -19,20 +19,25 @@ How you organize your virtual environments heavily depends on your use case and 
 and is out of scope of this documentation.
 
 
-``pip`` install
----------------
+Installation with ``pip``
+-------------------------
 
 The openEO Python client library is available from `PyPI <https://pypi.org/project/openeo/>`_
-and can be easily installed with a tool like ``pip``, for example::
+and can be easily installed with a tool like ``pip``, for example:
 
-    pip install openeo
+.. code-block:: console
 
-To upgrade the package to the latest release::
+    $ pip install openeo
 
-    pip install --upgrade openeo
+To upgrade the package to the latest release:
 
-Conda install
--------------
+.. code-block:: console
+
+    $ pip install --upgrade openeo
+
+
+Installation with Conda
+------------------------
 
 This is work in progress. See `openeo-python-client#176 <https://github.com/Open-EO/openeo-python-client/issues/176>`_ for more information.
 
@@ -41,7 +46,9 @@ Verifying and troubleshooting
 -----------------------------
 
 You can check if the installation worked properly
-by trying to import the ``openeo`` package in a Python script, interactive shell or notebook::
+by trying to import the ``openeo`` package in a Python script, interactive shell or notebook:
+
+.. code-block:: python
 
     import openeo
 
@@ -72,9 +79,11 @@ Source or development install
 If you closely track the development of the ``openeo`` package at
 `github.com/Open-EO/openeo-python-client <https://github.com/Open-EO/openeo-python-client>`_
 and want to work with unreleased features or contribute to the development of the package,
-you can install it as follows from the root of a git source checkout::
+you can install it as follows from the root of a git source checkout:
 
-    pip install -e .[dev]
+.. code-block:: console
+
+    $ pip install -e .[dev]
 
 The ``-e`` option enables "development mode", which makes sure that changes you make to the source code
 happen directly on the installed package, so that you don't have to re-install the package each time
