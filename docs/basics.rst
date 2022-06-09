@@ -143,6 +143,7 @@ Let's download this as a GeoTIFF file,
 Because GeoTIFF does not support a temporal dimension,
 we first eliminate it by taking the temporal maximum value for each pixel:
 
+.. code-block:: python
 
     evi_composite = evi_cube.max_time()
 
