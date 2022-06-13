@@ -17,9 +17,9 @@ The openEO API enables you to store such (sub)chains
 on the back-end as a so called **user-defined process**.
 This allows you to build your own *library of reusable building blocks*.
 
-.. note::
+.. warning::
 
-    Don not confuse user-defined processes (sometimes abbreviated as UDP) with
+    Don not confuse **user-defined processes** (sometimes abbreviated as UDP) with
     **user-defined functions** (UDF) in openEO, which is a mechanism to
     inject Python or R scripts as process nodes in a process graph.
     see :ref:`user-defined-functions` for more information.
