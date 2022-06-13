@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add support for passing a PGNode/VectorCube as geometry to `aggregate_spatial`, `mask_polygon`, ...
+
 ### Changed
 
 - Rename `RESTJob` class name to less cryptic and more user-friendly `BatchJob`. 

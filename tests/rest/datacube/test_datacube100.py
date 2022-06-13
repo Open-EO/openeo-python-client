@@ -14,6 +14,7 @@ import requests
 import shapely.geometry
 
 import openeo.metadata
+import openeo.processes
 from openeo.api.process import Parameter
 from openeo.internal.graph_building import PGNode
 from openeo.internal.process_graph_visitor import ProcessGraphVisitException
@@ -354,6 +355,37 @@ def test_aggregate_spatial_context(con100: Connection):
     }
 
 
+@pytest.mark.parametrize("get_geometries", [
+    lambda c: PGNode("load_vector", url="https://geo.test/features.json"),
+    lambda c: openeo.processes.process("load_vector", url="https://geo.test/features.json"),
+    lambda c: c.datacube_from_process("load_vector", url="https://geo.test/features.json"),
+])
+def test_aggregate_spatial_from_node(con100: Connection, get_geometries):
+    cube = con100.load_collection("S2")
+    geometries = get_geometries(con100)
+    result = cube.aggregate_spatial(geometries=geometries, reducer="mean")
+    assert result.flat_graph() == {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None}
+        },
+        "loadvector1": {
+            "process_id": "load_vector",
+            "arguments": {"url": "https://geo.test/features.json"}},
+        "aggregatespatial1": {
+            "process_id": "aggregate_spatial",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "geometries": {"from_node": "loadvector1"},
+                "reducer": {"process_graph": {
+                    "mean1": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}
+                }},
+            },
+            "result": True,
+        },
+    }
+
+
 def test_aggregate_temporal(con100: Connection):
     cube = con100.load_collection("S2")
     cube = cube.aggregate_temporal(
@@ -481,6 +513,34 @@ def test_mask_polygon_path(con100: Connection):
     assert masked.flat_graph()["readvector1"] == {
         "process_id": "read_vector",
         "arguments": {"filename": "path/to/polygon.json"},
+    }
+
+
+@pytest.mark.parametrize("get_geometries", [
+    lambda c: PGNode("load_vector", url="https://geo.test/features.json"),
+    lambda c: openeo.processes.process("load_vector", url="https://geo.test/features.json"),
+    lambda c: c.datacube_from_process("load_vector", url="https://geo.test/features.json"),
+])
+def test_mask_polygon_from_node(con100: Connection, get_geometries):
+    cube = con100.load_collection("S2")
+    geometries = get_geometries(con100)
+    result = cube.mask_polygon(mask=geometries)
+    assert result.flat_graph() == {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None}
+        },
+        "loadvector1": {
+            "process_id": "load_vector",
+            "arguments": {"url": "https://geo.test/features.json"}},
+        "maskpolygon1": {
+            "process_id": "mask_polygon",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "mask": {"from_node": "loadvector1"},
+            },
+            "result": True,
+        },
     }
 
 

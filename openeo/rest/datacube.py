@@ -28,7 +28,7 @@ import openeo.processes
 from openeo.api.process import Parameter
 from openeo.imagecollection import ImageCollection
 from openeo.internal.documentation import openeo_process
-from openeo.internal.graph_building import PGNode, ReduceNode
+from openeo.internal.graph_building import PGNode, ReduceNode, _FromNodeMixin
 from openeo.metadata import CollectionMetadata, Band, BandDimension
 from openeo.processes import ProcessBuilder
 from openeo.rest import BandMathException, OperatorException, OpenEoClientException
@@ -719,7 +719,7 @@ class DataCube(_ProcessGraphAbstraction):
 
     def _get_geometry_argument(
             self,
-            geometry: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter],
+            geometry: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter, _FromNodeMixin],
             valid_geojson_types: List[str],
             crs: str = None,
     ) -> Union[dict, Parameter, PGNode]:
@@ -733,6 +733,8 @@ class DataCube(_ProcessGraphAbstraction):
             return PGNode(process_id="read_vector", arguments={"filename": str(geometry)})
         elif isinstance(geometry, Parameter):
             return geometry
+        elif isinstance(geometry, _FromNodeMixin):
+            return geometry.from_node()
 
         if isinstance(geometry, shapely.geometry.base.BaseGeometry):
             geometry = mapping(geometry)
@@ -753,7 +755,7 @@ class DataCube(_ProcessGraphAbstraction):
     @openeo_process
     def aggregate_spatial(
             self,
-            geometries: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter],
+            geometries: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter, "VectorCube"],
             reducer: Union[str, PGNode, typing.Callable],
             target_dimension: Optional[str] = None,
             crs: str = None,
@@ -937,7 +939,7 @@ class DataCube(_ProcessGraphAbstraction):
     # @openeo_process
     def chunk_polygon(
             self,
-            chunks: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter],
+            chunks: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter, "VectorCube"],
             process: Union[str, PGNode, typing.Callable],
             mask_value: float = None,
             context: Optional[dict] = None,
@@ -1356,7 +1358,7 @@ class DataCube(_ProcessGraphAbstraction):
     @openeo_process
     def mask_polygon(
             self,
-            mask: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter],
+            mask: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter, "VectorCube"],
             srs: str = None,
             replacement=None, inside: bool = None
     ) -> 'DataCube':
