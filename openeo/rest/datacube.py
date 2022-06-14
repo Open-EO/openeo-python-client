@@ -10,6 +10,7 @@ be evaluated by an openEO backend.
 import datetime
 import logging
 import pathlib
+import re
 import typing
 import warnings
 from builtins import staticmethod
@@ -46,6 +47,95 @@ if typing.TYPE_CHECKING:
 
 
 log = logging.getLogger(__name__)
+
+
+class UDF:
+    """
+    Helper class to load UDF code (e.g. from file) and embed them as "callback" or child process in a process graph.
+
+    .. versionadded:: 0.13.0
+    """
+    __slots__ = ["code", "runtime", "version", "context", "_source"]
+
+    def __init__(
+            self, code: str, runtime: Optional[str] = None, data=None,
+            version: Optional[str] = None, context: Optional[dict] = None, _source=None,
+    ):
+        """
+        Construct a UDF object from given code string and other ``run_udf`` related arguments
+        :param code: UDF source code string (Python, R, ...)
+        :param runtime: optional UDF runtime identifier, will be autodetected from source code if omitted.
+        :param data: unused leftover of old API. Don't use this argument, it will be removed in a future release.
+        :param version: optional UDF runtime version string
+        :param context: optional additional UDF context data
+        :param _source: (for internal use) source identifier
+        """
+        # TODO: automatically dedent code (when literal string) ?
+        self.code = code
+        self.runtime = runtime
+        self.version = version
+        self.context = context
+        self._source = _source
+        if data is not None:
+            # TODO #181 remove `data` argument
+            warnings.warn(
+                f"The `data` argument of `{self.__class__.__name__}` is deprecated, unused and will be removed in a future release.",
+                category=UserDeprecationWarning, stacklevel=2
+            )
+
+    @classmethod
+    def from_file(
+            cls, path: Union[str, pathlib.Path], runtime: Optional[str] = None, version: Optional[str] = None,
+            context: Optional[dict] = None
+    ):
+        """
+        Load a UDF from a local file.
+
+        :param path: path to the local file with UDF source code
+        :param runtime: optional UDF runtime identifier, will be autodetected from source code if omitted.
+        :param version: optional UDF runtime version string
+        :param context: optional additional UDF context data
+        :return:
+        """
+        path = pathlib.Path(path)
+        code = path.read_text(encoding="utf-8")
+        return cls(code=code, runtime=runtime, version=version, context=context, _source=path)
+
+    def _guess_runtime(self, connection: "openeo.Connection") -> str:
+        """Guess UDF runtime from UDF source (path) or source code."""
+        # First, guess UDF language
+        language = None
+        if isinstance(self._source, pathlib.Path):
+            language = {
+                ".py": "Python",
+                ".r": "R",
+            }.get(self._source.suffix.lower())
+        if not language:
+            # Guess language from UDF code
+            if re.search("^def [\w0-9_]+\(", self.code, flags=re.MULTILINE):
+                language = "Python"
+            # TODO: detection heuristics for R and other languages?
+        if not language:
+            raise OpenEoClientException("Failed to detect language of UDF code.")
+        # Find runtime for language
+        runtimes = {k.lower(): k for k in connection.list_udf_runtimes().keys()}
+        if language.lower() in runtimes:
+            return runtimes[language.lower()]
+        else:
+            raise OpenEoClientException(f"Failed to match UDF language {language!r} with a runtime ({runtimes})")
+
+    def get_run_udf_callback(self, connection: "openeo.Connection", data_parameter: str = "data") -> PGNode:
+        """
+        For internal use: construct `run_udf` node to be used as callback in `apply`, `reduce_dimension`, ...
+        """
+        arguments = dict_no_none(
+            data={"from_parameter": data_parameter},
+            udf=self.code,
+            runtime=self.runtime or self._guess_runtime(connection=connection),
+            version=self.version,
+            context=self.context,
+        )
+        return PGNode(process_id="run_udf", arguments=arguments)
 
 
 class DataCube(_ProcessGraphAbstraction):
@@ -789,7 +879,11 @@ class DataCube(_ProcessGraphAbstraction):
         )
 
     @staticmethod
-    def _get_callback(process: Union[str, PGNode, typing.Callable], parent_parameters: List[str]) -> dict:
+    def _get_callback(
+            process: Union[str, PGNode, typing.Callable, UDF],
+            parent_parameters: List[str],
+            connection: Optional["openeo.Connection"] = None,
+    ) -> dict:
         """
         Build a "callback" process: a user defined process that is used by another process (such
         as `apply`, `apply_dimension`, `reduce`, ....)
@@ -820,6 +914,8 @@ class DataCube(_ProcessGraphAbstraction):
             pg = PGNode(process_id=process, arguments=arguments)
         elif isinstance(process, typing.Callable):
             pg = convert_callable_to_pgnode(process, parent_parameters=parent_parameters)
+        elif isinstance(process, UDF):
+            pg = process.get_run_udf_callback(connection=connection, data_parameter=parent_parameters[0])
         else:
             raise ValueError(process)
 
@@ -828,7 +924,7 @@ class DataCube(_ProcessGraphAbstraction):
     @openeo_process
     def apply_dimension(
             self, code: str = None, runtime=None,
-            process: Union[str, PGNode, typing.Callable] = None,
+            process: Union[str, PGNode, typing.Callable, UDF] = None,
             version="latest",
             # TODO: dimension has no default (per spec)?
             dimension="t",
@@ -873,7 +969,9 @@ class DataCube(_ProcessGraphAbstraction):
             process = PGNode.to_process_graph_argument(callback_process_node)
         elif code or process:
             # TODO EP-3555 unify `code` and `process`
-            process = self._get_callback(code or process, parent_parameters=["data", "context"])
+            process = self._get_callback(
+                process=code or process, parent_parameters=["data", "context"], connection=self.connection
+            )
         else:
             raise OpenEoClientException("No UDF code or process given")
         arguments = {
@@ -892,7 +990,8 @@ class DataCube(_ProcessGraphAbstraction):
     @openeo_process
     def reduce_dimension(
             self,
-            dimension: str, reducer: Union[str, PGNode, typing.Callable],
+            dimension: str,
+            reducer: Union[str, PGNode, typing.Callable, UDF],
             context: Optional[dict] = None,
             process_id="reduce_dimension", band_math_mode: bool = False
     ) -> "DataCube":
@@ -905,7 +1004,9 @@ class DataCube(_ProcessGraphAbstraction):
         """
         # TODO: check if dimension is valid according to metadata? #116
         # TODO: #125 use/test case for `reduce_dimension_binary`?
-        reducer = self._get_callback(reducer, parent_parameters=["data", "context"])
+        reducer = self._get_callback(
+            process=reducer, parent_parameters=["data", "context"], connection=self.connection
+        )
 
         return self.process_with_node(ReduceNode(
             process_id=process_id,
@@ -1035,7 +1136,7 @@ class DataCube(_ProcessGraphAbstraction):
     @openeo_process
     def apply_neighborhood(
             self,
-            process: Union[str, PGNode, typing.Callable],
+            process: Union[str, PGNode, typing.Callable, UDF],
             size: List[Dict],
             overlap: List[dict] = None,
             context: Optional[dict] = None,
@@ -1064,7 +1165,7 @@ class DataCube(_ProcessGraphAbstraction):
             process_id='apply_neighborhood',
             arguments=dict_no_none(
                 data=THIS,
-                process=self._get_callback(process, parent_parameters=["data"]),
+                process=self._get_callback(process=process, parent_parameters=["data"], connection=self.connection),
                 size=size,
                 overlap=overlap,
                 context=context,
@@ -1072,7 +1173,7 @@ class DataCube(_ProcessGraphAbstraction):
         )
 
     @openeo_process
-    def apply(self, process: Union[str, PGNode, typing.Callable] = None, context: Optional[dict] = None) -> 'DataCube':
+    def apply(self, process: Union[str, PGNode, typing.Callable, UDF] = None, context: Optional[dict] = None) -> 'DataCube':
         """
         Applies a unary process (a local operation) to each value of the specified or all dimensions in the data cube.
 
@@ -1086,7 +1187,7 @@ class DataCube(_ProcessGraphAbstraction):
             process_id="apply",
             arguments=dict_no_none({
                 "data": THIS,
-                "process": self._get_callback(process, parent_parameters=["x"]),
+                "process": self._get_callback(process, parent_parameters=["x"], connection=self.connection),
                 "context": context,
             })
         )
