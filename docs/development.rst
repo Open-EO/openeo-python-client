@@ -41,14 +41,49 @@ Building the documentation requires `Sphinx <https://www.sphinx-doc.org/en/maste
 and some plugins
 (which are installed automatically as part of the ``[dev]`` install).
 
-To building the documentation locally as HTML::
+Quick and easy
+---------------
 
-    python setup.py build_sphinx -c docs
+The easiest way to build the documentation is working from the ``docs`` folder
+and using the ``Makefile``:
 
-or as LaTeX documents::
+.. code-block:: shell
 
-    python setup.py build_sphinx -c docs -b latex
+    # From `docs` folder
+    make html
 
+(assumes you have ``make`` available, if not: use ``python -msphinx -M html .  _build``.)
+
+This will generate the docs in HTML format under ``docs/_build/html/``.
+Open the HTML files manually,
+or use Python's built-in web server to host them locally, e.g.:
+
+.. code-block:: shell
+
+    # From `docs` folder
+    python -m http.server 8000
+
+Then, visit  http://127.0.0.1:8000/_build/html/ in your browser
+
+
+Like a Pro
+------------
+
+When doing larger documentation work, it can be tedious to manually rebuild the docs
+and refresh your browser to check the result.
+Instead, use `sphinx-autobuild <https://github.com/executablebooks/sphinx-autobuild>`_
+to automatically rebuild on documentation changes and live-reload it in your browser.
+After installation (``pip install sphinx-autobuild`` in your development environment),
+just run
+
+.. code-block:: shell
+
+    # From project root
+    sphinx-autobuild docs/ docs/_build/html/
+
+and then visit http://127.0.0.1:8000 .
+When you change (and save) documentation source files, your browser should now
+automatically refresh and show the newly build docs. Just like magic.
 
 
 Creating a release

@@ -95,6 +95,6 @@ pre {
     background-color: #e2f0f4;
 }
 
-.highlight-default, .highlight-python, .highlight-pycon {
+.highlight-default, .highlight-python, .highlight-pycon, .highlight-shell {
     border-right: 0.5rem solid #a2cedb;
 }
