@@ -68,6 +68,7 @@ and can be chunked:
     The back-end has all freedom to choose chunking
     (e.g. chunk spatially and temporally).
     Dimensions and their labels are fully preserved.
+    See :ref:`udf_example_apply`
 
 `apply_dimension <https://processes.openeo.org/#apply_dimension>`_
     Applies a process to all pixels *along a given dimension*
@@ -101,8 +102,8 @@ and can be chunked:
 
 
 
-UDF function names
-===================
+UDF function names and signatures
+==================================
 
 The UDF code you pass to the back-end is basically a Python script
 that contains one or more functions.
@@ -122,6 +123,105 @@ Module ``openeo.udf.udf_signatures``
 
 Examples
 =========
+
+In most of the examples we will, unless noted otherwise,
+start from an initial Sentinel2 data cube,
+with a couple of bands in a small spatio-temporal extent:
+
+.. code-block:: python
+
+    s2_cube = connection.load_collection(
+        "SENTINEL2_L2A",
+        spatial_extent={"west": 4.00, "south": 51.04, "east": 4.10, "north": 51.1},
+        temporal_extent=["2022-03-01", "2022-03-31"],
+        bands=["B02", "B03", "B04"]
+    )
+
+
+.. _udf_example_apply:
+
+Example: ``apply`` with an UDF to rescale pixel values
+--------------------------------------------------------
+
+The raw values in the initial ``s2_cube`` data cube are digital numbers
+and to get physical reflectance values we have to rescale them.
+This is a simple local transformation, without any interaction between pixels,
+which is the modus operandi of the ``apply`` processes.
+
+.. note::
+
+    In practice it will be a lot easier and more efficient to do this kind of rescaling
+    with pre-defined openEO math processes, for example: ``s2_cube.apply(lambda x: 0.0001 * x)``.
+    This is just a very simple illustration to get started with UDFs.
+
+The UDF code is this short script:
+
+.. code-block:: python
+    :linenos:
+    :caption: ``udf-code.py``
+
+    from openeo.udf import XarrayDataCube
+
+    def apply_datacube(cube: XarrayDataCube, context: dict) -> XarrayDataCube:
+        array = cube.get_array()
+        array.values = 0.0001 * array.values
+        return cube
+
+Some details about this UDF script:
+
+- line 1: We import :py:class:`~openeo.udf.xarraydatacube.XarrayDataCube` to use as type annotation of the UDF function.
+- line 3: We define a function named ``apply_datacube``,
+  which receives and returns a :py:class:`~openeo.udf.xarraydatacube.XarrayDataCube` instance.
+  We follow here the :py:meth:`~openeo.udf.udf_signatures.apply_datacube()` UDF function signature.
+- line 4: ``cube`` (a :py:class:`~openeo.udf.xarraydatacube.XarrayDataCube` object) is a thin wrapper
+  around the data of the chunk we are currently processing.
+  We use :py:meth:`~openeo.udf.xarraydatacube.XarrayDataCube.get_array()` to get this data,
+  which is an ``xarray.DataArray`` object.
+- line 5: Because our scaling operation is so simple, we can transform the ``xarray.DataArray`` values in-place.
+- line 6: Consequently, because the values were updated in-place,
+  we don't have to build a new :py:class:`~openeo.udf.xarraydatacube.XarrayDataCube` object
+  and can just return the (in-place updated) ``cube`` object again.
+
+We can now call :py:meth:`DataCube.apply() <openeo.rest.datacube.DataCube.apply>`
+using the UDF code as follows:
+
+.. code-block:: python
+    :linenos:
+    :caption: UDF usage example snippet
+
+    from pathlib import Path
+    from openeo import UDF
+
+    # Load UDF code from file
+    udf_code = Path("udf-code.py").read_text()
+
+    # Create UDF helper object encapsulating the UDF code.
+    process = UDF(code=udf_code, runtime="Python", data={"from_parameter": "x"})
+
+    # Pass UDF object as child process to `apply`.
+    rescaled = s2_cube.apply(process=process)
+
+    rescaled.download("apply-udf-scaling.nc")
+
+Discussion:
+
+- Line 1 and 5: We use ``pathlib.Path.read_text()`` as a compact way to read
+  the UDF code from the ``udf-code.py`` file as a string.
+  There are a lot of other ways to achieve the same.
+  For example, it is not uncommon to just embed the UDF script as a triple-quoted string
+  in your process graph building script.
+- Line 8: ``UDF`` is a helper class to build a ``run_udf`` node,
+  to be used as child process in the ``apply`` process.
+- Line 11: we pass this ``UDF`` object in the ``process`` argument
+  to :py:meth:`DataCube.apply() <openeo.rest.datacube.DataCube.apply>`
+
+
+If we now inspect the band values of the downloaded result,
+we see that they fall mainly in a range from 0 to 1 (in most cases even below 0.2),
+instead of the original digital number range (thousands):
+
+.. image:: _static/images/udf/apply-rescaled-histogram.png
+
 
 
 Example: Smoothing timeseries with a user defined function (UDF)
