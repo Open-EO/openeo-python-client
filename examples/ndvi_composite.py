@@ -68,7 +68,7 @@ def get_test_resource(relative_path):
     dir = Path(os.path.dirname(os.path.realpath(__file__)))
     return str(dir / relative_path)
 
-
+# TODO #309 #312 Update UDF usage example
 compositing_udf = Path('udf/median_composite.py').read_text()
 
 

@@ -963,17 +963,15 @@ class DataCube(_ProcessGraphAbstraction):
         :return: A datacube with the UDF applied to the given dimension.
         :raises: DimensionNotAvailable
         """
-        if runtime:
-            # TODO EP-3555: unify better with UDF(PGNode) class and avoid doing same UDF code-runtime-version argument stuff in each method
-            callback_process_node = self._create_run_udf(code, runtime, version)
-            process = PGNode.to_process_graph_argument(callback_process_node)
-        elif code or process:
-            # TODO EP-3555 unify `code` and `process`
-            process = self._get_callback(
-                process=code or process, parent_parameters=["data", "context"], connection=self.connection
-            )
+        if runtime or (isinstance(code, str) and "\n" in code):
+            # TODO #312 deprecate this outdated usage pattern of code/runtime/version
+            process = UDF(code=code, runtime=runtime, version=version, context=context)
         else:
-            raise OpenEoClientException("No UDF code or process given")
+            # TODO #312 unify `code` and `process`
+            process = process or code
+        process = self._get_callback(
+            process=process, parent_parameters=["data", "context"], connection=self.connection
+        )
         arguments = {
             "data": THIS,
             "process": process,
@@ -1054,19 +1052,21 @@ class DataCube(_ProcessGraphAbstraction):
             )
         )
 
-    def _reduce_bands(self, reducer: PGNode) -> 'DataCube':
+    def _reduce_bands(self, reducer: Union[PGNode, UDF]) -> 'DataCube':
         # TODO #123 is it (still) necessary to make "band" math a special case?
+        # TODO: make this public (and synchronize/crossref with `reduce_dimension` and `reduce_bands_udf`?
         return self.reduce_dimension(dimension=self.metadata.band_dimension.name, reducer=reducer, band_math_mode=True)
 
-    def _reduce_temporal(self, reducer: PGNode) -> 'DataCube':
+    def _reduce_temporal(self, reducer: Union[PGNode, UDF]) -> 'DataCube':
+        # TODO: make this public (and synchronize/crossref with `reduce_dimension` and `reduce_temporal_simple` and `reduce_temporal_udf`)?
         return self.reduce_dimension(dimension=self.metadata.temporal_dimension.name, reducer=reducer)
 
-    def reduce_bands_udf(self, code: str, runtime="Python", version="latest") -> 'DataCube':
+    def reduce_bands_udf(self, code: str, runtime: Optional[str] = None, version: Optional[str] = None) -> 'DataCube':
         """
-        Apply reduce (`reduce_dimension`) process with given UDF along band/spectral dimension.
+        Use `reduce_dimension` process with given UDF along band/spectral dimension.
         """
-        # TODO EP-3555: unify better with UDF(PGNode) class and avoid doing same UDF code-runtime-version argument stuff in each method
-        return self._reduce_bands(reducer=self._create_run_udf(code, runtime, version))
+        # TODO #312 add support for context
+        return self._reduce_bands(reducer=UDF(code=code, runtime=runtime, version=version))
 
     @openeo_process
     def add_dimension(self, name: str, label: str, type: Optional[str] = None):
@@ -1106,19 +1106,6 @@ class DataCube(_ProcessGraphAbstraction):
             metadata=self.metadata.drop_dimension(name=name)
         )
 
-    def _create_run_udf(self, code, runtime, version) -> PGNode:
-        # TODO EP-3555: unify better with UDF(PGNode) class
-        return PGNode(
-            process_id="run_udf",
-            arguments={
-                "data": {
-                    "from_parameter": "data"
-                },
-                "runtime": runtime,
-                "version": version,
-                "udf": code
-            })
-
     @openeo_process(process_id="reduce_dimension")
     def reduce_temporal_udf(self, code: str, runtime="Python", version="latest"):
         """
@@ -1128,8 +1115,8 @@ class DataCube(_ProcessGraphAbstraction):
         :param runtime: The UDF runtime
         :param version: The UDF runtime version
         """
-        # TODO EP-3555: unify better with UDF(PGNode) class and avoid doing same UDF code-runtime-version argument stuff in each method
-        return self._reduce_temporal(reducer=self._create_run_udf(code, runtime, version))
+        # TODO #312 add support for context
+        return self._reduce_temporal(reducer=UDF(code=code, runtime=runtime, version=version))
 
     reduce_tiles_over_time = legacy_alias(reduce_temporal_udf, name="reduce_tiles_over_time")
 

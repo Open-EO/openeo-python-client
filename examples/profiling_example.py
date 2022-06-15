@@ -6,6 +6,7 @@ import tempfile
 import pstats
 
 # reading NDVI compute UDF from file
+# TODO #309 #312 Update UDF usage example
 class UDFString():
     def __init__(self, filename):
         with open(str(Path(filename)), 'r+') as f:

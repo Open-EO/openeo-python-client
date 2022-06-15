@@ -74,7 +74,7 @@ def get_test_resource(relative_path):
     dir = Path(os.path.dirname(os.path.realpath(__file__)))
     return str(dir / relative_path)
 
-
+# TODO #309 #312 Update UDF usage example
 smoothing_udf = Path('udf/smooth_savitzky_golay.py').read_text()
 #S2 radiometry at VITO already has a default mask otherwise we need a masking function
 smoothed_evi = evi_cube.apply_dimension(smoothing_udf,runtime='Python')
