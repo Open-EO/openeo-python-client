@@ -317,14 +317,17 @@ class XarrayIO:
     def from_netcdf_file(cls, path: Union[str, Path]) -> xarray.DataArray:
         # load the dataset and convert to data array
         ds = xarray.open_dataset(path, engine='h5netcdf')
+
+        # Skip non-numerical variables (like "crs")
+        band_vars = [k for k, v in ds.data_vars.items() if v.dtype.kind in {"b", "i", "u", "f"} and len(v.dims) > 0]
+        ds = ds[band_vars]
+
         r = ds.to_array(dim='bands')
-        # build dimension list in proper order
-        dims = list(filter(lambda i: i != 't' and i != 'bands' and i != 'x' and i != 'y', r.dims))
-        if 't' in r.dims: dims += ['t']
-        if 'bands' in r.dims: dims += ['bands']
-        if 'x' in r.dims: dims += ['x']
-        if 'y' in r.dims: dims += ['y']
-        # return the resulting data array
+
+        # Reorder dims to proper order (t-bands-x-y at the end)
+        expected_order = ("t", "bands", "x", "y")
+        dims = [d for d in r.dims if d not in expected_order] + [d for d in expected_order if d in r.dims]
+
         return r.transpose(*dims)
 
     @classmethod

@@ -6,6 +6,7 @@ import xarray
 import xarray.testing
 
 from openeo.udf import XarrayDataCube
+from openeo.udf.xarraydatacube import XarrayIO
 
 
 def test_xarraydatacube_to_dict_minimal():
@@ -275,3 +276,75 @@ def test_datacube_plot(tmp_path):
     assert png_data.shape[0] > 100
     assert png_data.shape[1] > 100
     assert png_data.shape[2] == 4
+
+
+class TestXarrayIO:
+
+    def test_from_netcdf_file_simple(self, tmp_path):
+        ds = xarray.Dataset(
+            {
+                "B02": xarray.Variable(dims=["t", "x", "y"], data=2 * numpy.ones((3, 4, 5))),
+                "B03": xarray.Variable(dims=["t", "x", "y"], data=3 * numpy.ones((3, 4, 5))),
+            },
+            coords={
+                "t": ["2020", "2021", "2022"],
+                "x": range(4, 8),
+                "y": range(5, 10),
+            }
+        )
+        path = tmp_path / "dataset.nc"
+        ds.to_netcdf(path)
+
+        res = XarrayIO.from_netcdf_file(path)
+        assert res.dims == ("t", "bands", "x", "y")
+        assert res.shape == (3, 2, 4, 5)
+        assert res.coords["t"].values.tolist() == ["2020", "2021", "2022"]
+        assert res.coords["bands"].values.tolist() == ["B02", "B03"]
+        assert res.coords["x"].values.tolist() == [4, 5, 6, 7]
+        assert res.coords["y"].values.tolist() == [5, 6, 7, 8, 9]
+
+    def test_from_netcdf_file_simple_extra_dim(self, tmp_path):
+        ds = xarray.Dataset(
+            {
+                "B02": xarray.Variable(dims=["t", "version", "x"], data=2 * numpy.ones((3, 2, 4))),
+            },
+            coords={
+                "t": ["2020", "2021", "2022"],
+                "version": ["v1", "v2"],
+                "x": range(4, 8),
+            }
+        )
+        path = tmp_path / "dataset.nc"
+        ds.to_netcdf(path)
+
+        res = XarrayIO.from_netcdf_file(path)
+        assert res.dims == ("version", "t", "bands", "x")
+        assert res.shape == (2, 3, 1, 4)
+        assert res.coords["version"].values.tolist() == ["v1", "v2"]
+        assert res.coords["t"].values.tolist() == ["2020", "2021", "2022"]
+        assert res.coords["bands"].values.tolist() == ["B02"]
+        assert res.coords["x"].values.tolist() == [4, 5, 6, 7]
+
+    def test_from_netcdf_file_with_non_band_variables(self, tmp_path):
+        ds = xarray.Dataset(
+            {
+                "crs": xarray.Variable(dims=[], data="foo"),
+                "B02": xarray.Variable(dims=["t", "x", "y"], data=2 * numpy.ones((3, 4, 5))),
+                "B03": xarray.Variable(dims=["t", "x", "y"], data=3 * numpy.ones((3, 4, 5))),
+            },
+            coords={
+                "t": ["2020", "2021", "2022"],
+                "x": range(4, 8),
+                "y": range(5, 10),
+            }
+        )
+        path = tmp_path / "dataset.nc"
+        ds.to_netcdf(path)
+
+        res = XarrayIO.from_netcdf_file(path)
+        assert res.dims == ("t", "bands", "x", "y")
+        assert res.shape == (3, 2, 4, 5)
+        assert res.coords["t"].values.tolist() == ["2020", "2021", "2022"]
+        assert res.coords["bands"].values.tolist() == ["B02", "B03"]
+        assert res.coords["x"].values.tolist() == [4, 5, 6, 7]
+        assert res.coords["y"].values.tolist() == [5, 6, 7, 8, 9]
