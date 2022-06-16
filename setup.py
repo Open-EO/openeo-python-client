@@ -22,6 +22,7 @@ tests_require = [
     'mock',
     'requests-mock>=1.8.0',
     'h5netcdf',
+    'netCDF4',
     'matplotlib',
     'geopandas',
 ]
