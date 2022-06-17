@@ -21,8 +21,7 @@ tests_require = [
     'pytest>=4.5.0',
     'mock',
     'requests-mock>=1.8.0',
-    'h5netcdf',
-    'netCDF4',
+    'netCDF4',  # e.g. for writing/loading NetCDF data with xarray
     'matplotlib',
     'geopandas',
 ]
@@ -45,7 +44,7 @@ setup(name=name,
           'requests>=2.26.0',
           'shapely>=1.6.4',
           'numpy>=1.17.0',
-          'xarray>=0.12.3',
+          'xarray>=0.17.0',
           'pandas>0.20.0',
           'deprecated>=1.2.12'
       ],

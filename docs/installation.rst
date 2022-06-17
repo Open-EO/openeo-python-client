@@ -72,6 +72,17 @@ which virtual environment system you use,
 the installation tool (``pip``, ``conda`` or something else), ...
 
 
+Optional dependencies
+======================
+
+Depending on your use case, you might also want to install some additional libraries.
+For example:
+
+- ``netCDF4`` or ``h5netcdf`` for loading and writing NetCDF files (e.g. integrated in ``xarray.load_dataset()``)
+- ``matplotlib`` for visualisation (e.g. integrated plot functionality in ``xarray`` )
+
+
+
 
 Source or development install
 ==============================
