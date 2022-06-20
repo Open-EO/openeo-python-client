@@ -98,3 +98,9 @@ pre {
 .highlight-default, .highlight-python, .highlight-pycon, .highlight-shell {
     border-right: 0.5rem solid #a2cedb;
 }
+
+.highlight span.linenos {
+    color: #888;
+    font-size: 75%;
+    padding: 0 1ex;
+}

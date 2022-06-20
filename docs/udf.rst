@@ -121,12 +121,13 @@ Module ``openeo.udf.udf_signatures``
  :members:
 
 
-Examples
-=========
 
-In most of the examples we will, unless noted otherwise,
-start from an initial Sentinel2 data cube,
-with a couple of bands in a small spatio-temporal extent:
+.. _udf_example_apply:
+
+A first example: ``apply`` with an UDF to rescale pixel values
+================================================================
+
+In most of the examples here, we will start from an initial Sentinel2 data cube like this:
 
 .. code-block:: python
 
@@ -138,13 +139,10 @@ with a couple of bands in a small spatio-temporal extent:
     )
 
 
-.. _udf_example_apply:
-
-Example: ``apply`` with an UDF to rescale pixel values
---------------------------------------------------------
-
-The raw values in the initial ``s2_cube`` data cube are digital numbers
-and to get physical reflectance values we have to rescale them.
+The raw values in this initial ``s2_cube`` data cube are **digital numbers**
+(integer values ranging from 0 to several thousands)
+and to get **physical reflectance** values (float values, typically in the range between 0 and 0.5),
+we have to rescale them.
 This is a simple local transformation, without any interaction between pixels,
 which is the modus operandi of the ``apply`` processes.
 
@@ -154,11 +152,15 @@ which is the modus operandi of the ``apply`` processes.
     with pre-defined openEO math processes, for example: ``s2_cube.apply(lambda x: 0.0001 * x)``.
     This is just a very simple illustration to get started with UDFs.
 
-The UDF code is this short script:
+UDF script
+----------
+
+The UDF code is this short script (the part that does the actual value rescaling is highlighted):
 
 .. code-block:: python
     :linenos:
     :caption: ``udf-code.py``
+    :emphasize-lines: 5
 
     from openeo.udf import XarrayDataCube
 
@@ -182,51 +184,99 @@ Some details about this UDF script:
   we don't have to build a new :py:class:`~openeo.udf.xarraydatacube.XarrayDataCube` object
   and can just return the (in-place updated) ``cube`` object again.
 
-We can now call :py:meth:`DataCube.apply() <openeo.rest.datacube.DataCube.apply>`
-using the UDF code as follows:
+Workflow script
+----------------
+
+In this first example, we'll cite a full, standalone openEO workflow script,
+including creating the back-end connection, loading the initial data cube and downloading the result.
+The UDF-specific part is highlighted:
 
 .. code-block:: python
     :linenos:
     :caption: UDF usage example snippet
+    :emphasize-lines: 14-28
 
-    from pathlib import Path
-    from openeo import UDF
+    import openeo
 
-    # Load UDF code from file
-    udf_code = Path("udf-code.py").read_text()
+    # Create connection to openEO back-end
+    connection = openeo.connect("...").authenticate_oidc()
+
+    # Load initial data cube.
+    s2_cube = connection.load_collection(
+        "SENTINEL2_L2A",
+        spatial_extent={"west": 4.00, "south": 51.04, "east": 4.10, "north": 51.1},
+        temporal_extent=["2022-03-01", "2022-03-31"],
+        bands=["B02", "B03", "B04"]
+    )
+
+    # UDF code (as inline string)
+    udf_code = """
+    from openeo.udf import XarrayDataCube
+
+    def apply_datacube(cube: XarrayDataCube, context: dict) -> XarrayDataCube:
+        array = cube.get_array()
+        array.values = 0.0001 * array.values
+        return cube
+    """
 
     # Create UDF helper object encapsulating the UDF code.
-    process = UDF(code=udf_code, runtime="Python", data={"from_parameter": "x"})
+    udf = openeo.UDF(code=udf_code, runtime="Python", data={"from_parameter": "x"})
 
     # Pass UDF object as child process to `apply`.
-    rescaled = s2_cube.apply(process=process)
+    rescaled = s2_cube.apply(process=udf)
 
     rescaled.download("apply-udf-scaling.nc")
 
 Discussion:
 
-- Line 1 and 5: We use ``pathlib.Path.read_text()`` as a compact way to read
-  the UDF code from the ``udf-code.py`` file as a string.
-  There are a lot of other ways to achieve the same.
-  For example, it is not uncommon to just embed the UDF script as a triple-quoted string
-  in your process graph building script.
-- Line 8: ``UDF`` is a helper class to build a ``run_udf`` node,
+- Line 15: We define the UDF code as an inline string.
+- Line 25: :py:class:`openeo.UDF <openeo.internal.graph_building.UDF>` is a helper class to build a ``run_udf`` node,
   to be used as child process in the ``apply`` process.
-- Line 11: we pass this ``UDF`` object in the ``process`` argument
+- Line 28: we pass this UDF object as the ``process`` argument
   to :py:meth:`DataCube.apply() <openeo.rest.datacube.DataCube.apply>`
 
+.. tip::
 
-If we now inspect the band values of the downloaded result,
-we see that they fall mainly in a range from 0 to 1 (in most cases even below 0.2),
+    Instead of putting your UDF code in an inline string like in the example,
+    it's usually recommended to **load the UDF code from a separate file**,
+    which is easier to maintain in your preferred editor or IDE.
+    For example, using the handy ``pathlib`` module from Python's standard library:
+
+    .. code-block:: python
+
+        from pathlib import Path
+
+        udf_code = Path("udf-code.py").read_text(encoding="utf8")
+
+After downloading the result, we can inspect the band values locally.
+Note see that they fall mainly in a range from 0 to 1 (in most cases even below 0.2),
 instead of the original digital number range (thousands):
 
 .. image:: _static/images/udf/apply-rescaled-histogram.png
 
 
+Illustration of data chunking in ``apply`` with a  UDF
+========================================================
+
+TODO
+
+Example: ``apply_dimension`` with a UDF
+======================================
+
+TODO
+
+Example: ``reduce_dimension`` with a UDF
+======================================
+
+TODO
+
+Example: ``apply_neighborhood`` with a UDF
+=========================================
+
+TODO
 
 Example: Smoothing timeseries with a user defined function (UDF)
-------------------------------------------------------------------
-
+==================================================================
 
 In this example, we start from the ``evi_cube`` that was created in the previous example, and want to
 apply a temporal smoothing on it. More specifically, we want to use the "Savitzky Golay" smoother
