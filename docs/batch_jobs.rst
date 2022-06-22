@@ -1,8 +1,9 @@
-.. _batch_jobs:
 
 .. index::
     single: batch job
     see: job; batch job
+
+.. _batch-jobs-chapter:
 
 ============
 Batch Jobs

@@ -4,7 +4,7 @@ Getting Started
 
 
 Connect to an openEO back-end
--------------------------------
+==============================
 
 First, establish a connection to an openEO back-end, using its connection URL.
 For example the VITO/Terrascope backend:
@@ -29,7 +29,7 @@ The resulting :py:class:`~openeo.rest.connection.Connection` object is your cent
 
 
 Collection discovery
----------------------
+=====================
 
 The Earth observation data (the input of your openEO jobs) is organised in
 `so-called collections <https://openeo.org/documentation/1.0/glossary.html#eo-data-collections>`_,
@@ -54,13 +54,19 @@ or :py:meth:`~openeo.rest.connection.Connection.describe_collection`
 Congrats, you now just did your first real openEO queries to the openEO back-end
 using the openEO Python client library.
 
+.. tip::
+    The openEO Python client library comes with **Jupyter (notebook) integration** in a couple of places.
+    For example, put ``connection.describe_collection("SENTINEL2_L2A")`` (without ``print()``)
+    as last statement in a notebook cell
+    and you'll get a nice graphical rendering of the collection metadata.
+
 .. seealso::
 
     Find out more about data discovery, loading and filtering at :ref:`data_access_chapter`.
 
 
 Authentication
----------------
+==============
 
 In the code snippets above we did not need to log in as a user
 since we just queried publicly available back-end information.
@@ -82,64 +88,115 @@ In most cases for example, the following snippet is enough to obtain an authenti
 
 This statement will automatically reuse a previously authenticated session, when available.
 Otherwise, e.g. the first time you do this, some user interaction is required
-and it will print a web link and a short *user code*.
+and it will print a web link and a short *user code*, for example:
+
+.. code-block::
+
+    To authenticate: visit https://aai.egi.eu/oidc/device and enter the user code 'Ka4rJ4L'.
+
 Visit this web page in a browser, log in there with an existing account and enter the user code.
 If everything goes well, the ``connection`` object in the script will be authenticated
 and the back-end will be able to identify you in subsequent requests.
 
 
 
+Example use case: EVI timeseries
+==================================
 
-Example: Simple band math
--------------------------
-
-A common task in earth observation is to apply a formula to a number of bands
+A common task in earth observation is to apply a formula to a number of spectral bands
 in order to compute an 'index', such as NDVI, NDWI, EVI, ...
+In this tutorial we'll go through a couple of steps to extract a timeseries
+of EVI values (enhanced vegetation index) for a certain region
+and discuss some openEO concepts along the way.
 
 
-Band math usually starts from a raster data cube, with multiple spectral bands available.
-The back-end used here has a Sentinel-2 collection: SENTINEL2_L2A:
+Loading an initial data cube
+=============================
+
+For calculating the EVI, we need the reflectance of the
+red, blue and (near) infrared spectral components.
+These spectral bands are part of the well-known Sentinel-2 data set
+and is available on the current back-end under collection id ``SENTINEL2_L2A``.
+We load an initial small spatio-temporal slice (a data cube) as follows:
 
 .. code-block:: python
 
-    sentinel2_data_cube = connection.load_collection(
+    sentinel2_cube = connection.load_collection(
         "SENTINEL2_L2A",
         spatial_extent={"west": 5.15, "south": 51.181, "east": 5.155, "north": 51.184},
         temporal_extent=["2016-01-01", "2016-03-10"],
         bands=["B02", "B04", "B08"]
     )
 
+Note how we specify a the region of interest, a time range and a set of bands to load.
+
 .. note::
-    Note how we specify a the region of interest, a time range and a set of bands to load.
-    By filtering as early as possible, we make sure the back-end only loads the
-    data we are interested in and avoid incurring unneeded costs.
+    By filtering as early as possible (directly in :py:meth:`~openeo.rest.connection.Connection.load_collection` in this case),
+    we make sure the back-end only loads the data we are interested in
+    and avoid incurring unneeded costs.
 
-Now we have a :py:class:`~openeo.rest.datacube.DataCube` object called ``sentinel2_data_cube``.
-We just created a client-side reference here and did not actually load any real data.
-This will only happen at the back-end once we explicitly execute the data processing
-pipeline we are building.
+The :py:meth:`~openeo.rest.connection.Connection.load_collection` method on the connection
+object created a :py:class:`~openeo.rest.datacube.DataCube` object (variable ``sentinel2_cube``).
 
-On this data cube, we can now select the individual bands
-(and rescale the digital number values to physical reflectances):
+.. important::
+    It is important to highlight that we *did not load any real data* yet,
+    instead we just created an abstract *client-side reference*,
+    encapsulating the collection id, the spatial extent, the temporal extent, etc.
+    The actual data loading will only happen at the back-end
+    once we explicitly trigger the execution of the data processing pipeline we are building.
+
+
+Band math
+=========
+
+From this data cube, we can now select the individual bands
+(with the :py:meth:`DataCube.band() <openeo.rest.datacube.DataCube>` method)
+and rescale the digital number values to physical reflectances:
 
 .. code-block:: python
 
-    blue = sentinel2_data_cube.band("B02") * 0.0001
-    red = sentinel2_data_cube.band("B04") * 0.0001
-    nir = sentinel2_data_cube.band("B08") * 0.0001
+    blue = sentinel2_cube.band("B02") * 0.0001
+    red = sentinel2_cube.band("B04") * 0.0001
+    nir = sentinel2_cube.band("B08") * 0.0001
 
-In this example, we'll compute the enhanced vegetation index (EVI):
+We now want to compute the enhanced vegetation index
+and can do that directly with these band variables:
 
 .. code-block:: python
 
     evi_cube = 2.5 * (nir - red) / (nir + 6.0 * red - 7.5 * blue + 1.0)
 
-It's important to note that, while this looks like an actual calculation,
-there is no real data processing going on here.
-The ``evi_cube`` object at this point is just an abstract representation
-of the algorithm we want to execute.
+.. important::
+    As noted before: while this looks like an actual calculation,
+    there is *no real data processing going on here*.
+    The ``evi_cube`` object at this point is just an abstract representation
+    of our algorithm under construction.
+    The mathematical operators we used here are *syntactic sugar*
+    for expressing this part of the algorithm in a very compact way.
 
-Let's download this as a GeoTIFF file,
+    As an illustration of this, let's have peek at the *JSON representation*
+    of our algorithm so far, the so-called *openEO process graph*:
+
+    .. code-block:: text
+
+        >>> print(evi_cube.to_json(indent=None))
+        {"process_graph": {"loadcollection1": {"process_id": "load_collection", ...
+        ... "id": "SENTINEL2_L2A", "spatial_extent": {"west": 5.15, "south": ...
+        ... "multiply1": { ... "y": 0.0001}}, ...
+        ... "multiply3": { ... {"x": 2.5, "y": {"from_node": "subtract1"}}} ...
+        ...
+
+    Note how the ``load_collection`` arguments, rescaling and EVI calculation aspects
+    can be deciphered from this.
+    Rest assured, as user you normally you don't have to worry too much
+    about these process graph details,
+    the openEO Python Client library handles this behind the scenes for you.
+
+
+Download (synchornously)
+========================
+
+Let's download this as a GeoTIFF file.
 Because GeoTIFF does not support a temporal dimension,
 we first eliminate it by taking the temporal maximum value for each pixel:
 
@@ -147,66 +204,51 @@ we first eliminate it by taking the temporal maximum value for each pixel:
 
     evi_composite = evi_cube.max_time()
 
+.. note::
+
+    This :py:meth:`~openeo.rest.datacube.DataCube.max_time()` is not an official openEO process
+    but one of the many *convenience methods* in the openEO Python Client Library
+    to simplify common processing patterns.
+    It provides a ``reduce`` operation along the temporal dimension with a ``max`` reducer/aggregator.
+
 Now we can download this to a local file:
 
 .. code-block:: python
 
-    evi_composite.download("evi_composite.tiff", format="GTiff")
+    evi_composite.download("evi_composite.tiff")
 
-It's this synchronous download that triggers actual processing on the back-end,
-which normally should take a couple of seconds to return.
-
-
-Some results take a longer time to compute and in that case,
-the 'download' method used above may result in a timeout.
-To prevent that, it is also possible to use a 'batch' job.
-An easy way to run a batch job and downloading the result is::
-
-    evi_composite.execute_batch("evi_composite.tiff", out_format="GTiff")
-
-This method will wait until the result is generated, which may take quite a long time. Use the batch job API if you want to
-manage your jobs directly.
-
-Managing jobs in openEO
-#######################
-There are 2 ways to get a result in openEO: either by retrieving it directly, which only works if the result
-is computed relatively fast, usually this means in a few minutes max.
-In other cases, you will need a 'batch job'.
-Once submitted, the client can check the status of the batch job on a regular basis, and the results can be retrieved when it's ready.
-
-For basic usage, the recommended approach to batch jobs is to use this all-in-one call::
-
-    evi_cube.execute_batch("out.geotiff", out_format="GTiff")
-
-This will start your job, wait for it to finish, and download the result. One very important thing to note,
-is that your application may stop unexpectedly before your job finishes (for instance if you machine decides to reboot).
-In that case, your job will not be lost, and can be managed with the commands below.
-
-When running a batch job, it is sometimes necessary to cancel it, or to manually retrieve status information.
-
-Usually, you first need to get hold of your job, this can be done through a job id
-(an opaque string like for example ``0915ed2c-44a0-4519-8949-c58176ed2859``)
-which is displayed when launching the job through a call like ``execute_batch`` above.
-In a separate/new Python session, you can then inspect this job::
-
-    import openeo
-    connection = openeo.connect("https://openeo.vito.be").authenticate_basic("your_user", "your_password")
-    my_job = connection.job("0915ed2c-44a0-4519-8949-c58176ed2859")
-    my_job.describe_job()
+This download command **triggers the actual processing** on the back-end:
+it sends the process graph to the back-end and waits for the result.
+It is a *synchronous operation* (the :py:meth:`~openeo.rest.datacube.DataCube.download()` call
+blocks until the result is fully downloaded) and because we work on a small spatio-temporal extent,
+this should only take a couple of seconds.
 
 
-If the job has finished, you can download results::
+Batch Jobs (asynchronous execution)
+===================================
 
-    my_job.download_results("my_results.tiff")
+Synchronous downloads are handy for quick experimentation on small data cubes,
+but if you start processing larger data cubes, you can easily
+hit *computation time limits* or other constraints.
+For these larger tasks, it is recommended to work with **batch jobs**,
+which allow you to work asynchronously:
+after you start your job, you can disconnect (stop your script or even close your computer)
+and then minutes/hours later you can reconnect to check the batch job status and download results.
+The openEO Python Client Library also provides helpers to keep track of a running batch job
+and show a progress report.
+
+.. seealso::
+
+    See :ref:`batch-jobs-chapter` for more details.
 
 
+Applying a cloud mask
+=========================
 
-
-Example: Applying a mask
-------------------------
 It is very common for earth observation data to have separate masking layers that for instance indicate
 whether a pixel is covered by a (type of) cloud or not. For Sentinel-2, one such layer is the 'scene classification'
-layer that is generated by the Sen2Cor algorithm. In this example, we will use this layer to mask clouds out of our data.
+layer generated by the Sen2Cor algorithm.
+In this example, we will use this layer to mask clouds out of our data.
 
 First we load data, and create a binary mask. Vegetation pixels have a value of '4' in the scene classification, so we set these
 pixels to 0 and all other pixels to 1 using a simple comparison::
