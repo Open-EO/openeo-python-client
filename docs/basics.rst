@@ -100,13 +100,13 @@ and the back-end will be able to identify you in subsequent requests.
 
 
 
-Example use case: EVI timeseries
-==================================
+Example use case: EVI map and timeseries
+=========================================
 
 A common task in earth observation is to apply a formula to a number of spectral bands
 in order to compute an 'index', such as NDVI, NDWI, EVI, ...
-In this tutorial we'll go through a couple of steps to extract a timeseries
-of EVI values (enhanced vegetation index) for a certain region
+In this tutorial we'll go through a couple of steps to extract
+EVI (enhanced vegetation index) values and timeseries,
 and discuss some openEO concepts along the way.
 
 
@@ -215,7 +215,8 @@ we first eliminate it by taking the temporal maximum value for each pixel:
     This :py:meth:`~openeo.rest.datacube.DataCube.max_time()` is not an official openEO process
     but one of the many *convenience methods* in the openEO Python Client Library
     to simplify common processing patterns.
-    It provides a ``reduce`` operation along the temporal dimension with a ``max`` reducer/aggregator.
+    It implements a ``reduce`` operation along the temporal dimension
+    with a ``max`` reducer/aggregator.
 
 Now we can download this to a local file:
 
@@ -308,39 +309,120 @@ and observations are filtered out:
 
 .. image:: _static/images/basics/evi-masked-composite.png
 
-Example: Retrieving aggregated timeseries
------------------------------------------
-A common type of analysis is aggregating pixel values over one or more regions of interest.
-This is also referred to as 'zonal statistics'. This library has a number of predefined methods
-for various types of aggregations.
-In this example, we'll show how to compute an aggregated NDVI value,
-using :py:func:`~openeo.rest.connection.DataCube.polygonal_mean_timeseries`
-with the region of interest given as Shapely (multi)polygon object ::
 
-    timeseries_dict = (
-        connection.load_collection(
-            "TERRASCOPE_S2_TOC_V2",
-            temporal_extent = ["2020-01-01", "2020-03-10"],
-            spatial_extent=dict(zip(["west", "south", "east", "north"], bbox)),
-            bands=["TOC-B04_10M","TOC-B08_10M"]
-        )
-        .ndvi()
-        .polygonal_mean_timeseries(polygon)
-        .execute()
+Aggregated EVI timeseries
+===========================
+
+A common type of analysis is aggregating pixel values over one or more regions of interest
+(also known as "zonal statistics) and tracking this aggregation over a period of time as a timeseries.
+Let's extract the EVI timeseries for these two regions:
+
+.. code-block:: python
+
+    features = {"type": "FeatureCollection", "features": [
+        {
+            "type": "Feature", "properties": {},
+            "geometry": {"type": "Polygon", "coordinates": [[
+                [5.1417, 51.1785], [5.1414, 51.1772], [5.1444, 51.1768], [5.1443, 51.179], [5.1417, 51.1785]
+            ]]}
+        },
+        {
+            "type": "Feature", "properties": {},
+            "geometry": {"type": "Polygon", "coordinates": [[
+                [5.156, 51.1892], [5.155, 51.1855], [5.163, 51.1855], [5.163, 51.1891], [5.156, 51.1892]
+            ]]}
+        }
+    ]}
+
+
+.. note::
+
+    To have a self-containing example we define the geometries here as an inline GeoJSON-style dictionary.
+    In a real use case, your geometry will probably come from a local file or remote URL.
+    The openEO Python Client Library supports alternative ways of specifying the geometry
+    in methods like :py:meth:`~openeo.rest.datacube.DataCube.aggregate_spatial()`, e.g.
+    as Shapely geometry objects.
+
+
+Building on the experience from previous sections, we first build a masked EVI cube
+(covering a longer time window than before):
+
+.. code-block:: python
+
+    # Load raw collection data
+    sentinel2_cube = connection.load_collection(
+        "SENTINEL2_L2A",
+        spatial_extent={"west": 5.14, "south": 51.17, "east": 5.17, "north": 51.19},
+        temporal_extent = ["2020-01-01", "2021-12-31"],
+        bands=["B02", "B04", "B08", "SCL"],
     )
 
-The result is a dictionary object containing values for each polygon and band.
-It can easily be converted into a pandas dataframe::
+    # Extract spectral bands and calculate EVI with the "band math" feature
+    blue = sentinel2_cube.band("B02") * 0.0001
+    red = sentinel2_cube.band("B04") * 0.0001
+    nir = sentinel2_cube.band("B08") * 0.0001
+    evi = 2.5 * (nir - red) / (nir + 6.0 * red - 7.5 * blue + 1.0)
 
+    # Use the scene classification layer to mask out non-vegetation pixels
+    scl = sentinel2_cube.band("SCL")
+    evi_masked = evi.mask(scl != 4)
+
+Now we use the :py:meth:`~openeo.rest.datacube.DataCube.aggregate_spatial()` method
+to do spatial aggregation over the geometries we defined earlier.
+Note how we can specify the aggregation function ``"mean"`` as a simple string for the ``reducer`` argument.
+
+.. code-block:: python
+
+    evi_aggregation = evi_masked.aggregate_spatial(
+        geometries=features,
+        reducer="mean",
+    )
+
+If we download this, we get the timeseries encoded as a JSON structure.
+
+.. code-block:: python
+
+    evi_aggregation.download("evi-aggregation.json")
+
+.. warning::
+
+    Technically, the output of the openEO process ``aggregate_spatial``
+    is a so-called "vector cube".
+    At the time of this writing, the specification of this openEO concept
+    is not fully fleshed out yet in the openEO API.
+    openEO back-ends and clients to provide best-effort support for it,
+    but bear in mind that some details are subject to change.
+
+The openEO Python Client Library provides helper functions
+to convert the downloaded JSON data to a pandas dataframe,
+which we massage a bit more:
+
+.. code-block:: python
+
+    import json
     import pandas as pd
     from openeo.rest.conversions import timeseries_json_to_pandas
-    dataframe = timeseries_json_to_pandas(timeseries_dict)
-    dataframe.index = pd.to_datetime(dataframe.index)
-    dataframe.dropna().plot(title='openEO NDVI with clouds')
 
-.. image:: _static/images/timeseries.png
-  :width: 400
-  :alt: plotted timeseries
+    import json
+    with open("evi-aggregation.json") as f:
+        data = json.load(f)
 
-The same method also works for multiple polygons, or GeoJSON or SHP files that are
-accessible by the back-end. This allows computing aggregated values over very large areas.
+    df = timeseries_json_to_pandas(data)
+    df.index = pd.to_datetime(df.index)
+    df = df.dropna()
+    df.columns = ("Field A", "Field B")
+
+This gives us finally out EVI timeseries dataframe:
+
+.. code-block:: pycon
+
+    >>> df
+                               Field A   Field B
+    date
+    2020-01-06 00:00:00+00:00  0.522499  0.300250
+    2020-01-16 00:00:00+00:00  0.529591  0.288079
+    2020-01-18 00:00:00+00:00  0.633011  0.327598
+    ...                             ...       ...
+
+
+.. image:: _static/images/basics/evi-timeseries.png
