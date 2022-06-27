@@ -15,11 +15,15 @@ Data discovery
 To explore data in a given back-end, it is recommended to use a more visual tool like the openEO Hub
 (http://hub.openeo.org/). This shows available collections, and metadata in a user-friendly manner.
 
-Next to that, the client also offers various methods:
+Next to that, the client also offers various :py:class:`~openeo.rest.connection.Connection` methods
+to explore collections and their metadata:
 
-- :func:`~openeo.rest.connection.Connection.list_collection_ids` to list all collection ids
-- :func:`~openeo.rest.connection.Connection.list_collections` to list all collection metadata
-- :func:`~openeo.rest.connection.Connection.describe_collection` to show metadata for a particular collection
+- :py:meth:`~openeo.rest.connection.Connection.list_collection_ids`
+  to list all collection ids provided by the back-end
+- :py:meth:`~openeo.rest.connection.Connection.list_collections`
+  to list the basic metadata of all collections
+- :py:meth:`~openeo.rest.connection.Connection.describe_collection`
+  to get the complete metadata of a particular collection
 
 When using these methods inside a Jupyter notebook, you should notice that the output is rendered in a user friendly way.
 

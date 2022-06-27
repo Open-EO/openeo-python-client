@@ -635,16 +635,27 @@ class Connection(RestApiConnection):
 
     def list_collections(self) -> List[dict]:
         """
-        Loads all available imagecollections types.
+        List basic metadata of all collections provided by the back-end.
 
-        :return: list of collection meta data dictionaries
+        .. caution::
+
+            Only the basic collection metadata will be returned.
+            To obtain full metadata of a particular collection,
+            it is recommended to use :py:meth:`~openeo.rest.connection.Connection.describe_collection` instead.
+
+        :return: list of dictionaries with basic collection metadata.
         """
         data = self.get('/collections', expected_status=200).json()["collections"]
         return VisualList("collections", data=data)
 
     def list_collection_ids(self) -> List[str]:
         """
-        Get list of all collection ids
+        List all collection ids provided by the back-end.
+
+        .. seealso::
+
+            :py:meth:`~openeo.rest.connection.Connection.describe_collection()`
+            to get the metadata of a particular collection.
 
         :return: list of collection ids
         """
@@ -711,15 +722,20 @@ class Connection(RestApiConnection):
         services = self.get('/services', expected_status=200).json()["services"]
         return VisualList("data-table", data=services, parameters={'columns': 'services'})
 
-    def describe_collection(self, name) -> dict:
+    def describe_collection(self, collection_id: str) -> dict:
         """
-        Loads detailed information of a specific image collection.
+        Get full collection metadata for given collection id.
+        
+        .. seealso::
+        
+            :py:meth:`~openeo.rest.connection.Connection.list_collections`
+            to list all collection ids provided by the back-end.
 
-        :param name: String Id of the collection
-        :return: data_dict: Dict Detailed information about the collection
+        :param collection_id: collection id
+        :return: collection metadata.
         """
         # TODO: duplication with `Connection.collection_metadata`: deprecate one or the other?
-        data = self.get('/collections/{}'.format(name), expected_status=200).json()
+        data = self.get(f"/collections/{collection_id}", expected_status=200).json()
         return VisualDict("collection", data=data)
 
     def collection_items(self, name, spatial_extent: Optional[List[float]] = None, temporal_extent: Optional[List[Union[str, datetime.datetime]]] = None, limit: int = None) -> Iterator[dict]:

@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Various documentation improvements ([#285](https://github.com/Open-EO/openeo-python-client/issues/285), [#286](https://github.com/Open-EO/openeo-python-client/issues/286))
 - Drop hardcoded `h5netcdf` engine from `XarrayIO.from_netcdf_file()`
   and `XarrayIO.to_netcdf_file()` ([#314](https://github.com/Open-EO/openeo-python-client/issues/314))
+- Changed argument name of `Connection.describe_collection()` from `name` to `collection_id` 
+  to be more in line with other methods/functions.
 
 
 ### Removed
