@@ -105,7 +105,7 @@ but you can call the corresponding client method in multiple equivalent ways::
 Advanced argument tweaking
 ---------------------------
 
-.. versionadded:: 0.10.0
+.. versionadded:: 0.10.1
 
 In some situations, you may want to finetune what the (convenience) methods generate.
 For example, you want to play with non-standard, experimental arguments,
