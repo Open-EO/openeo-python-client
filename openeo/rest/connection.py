@@ -654,7 +654,7 @@ class Connection(RestApiConnection):
 
         .. seealso::
 
-            :py:meth:`~openeo.rest.connection.Connection.describe_collection()`
+            :py:meth:`~openeo.rest.connection.Connection.describe_collection`
             to get the metadata of a particular collection.
 
         :return: list of collection ids
@@ -728,7 +728,7 @@ class Connection(RestApiConnection):
         
         .. seealso::
         
-            :py:meth:`~openeo.rest.connection.Connection.list_collections`
+            :py:meth:`~openeo.rest.connection.Connection.list_collection_ids`
             to list all collection ids provided by the back-end.
 
         :param collection_id: collection id
