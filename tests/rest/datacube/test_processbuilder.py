@@ -2,9 +2,9 @@ import builtins
 
 import pytest
 
+import openeo.processes
 from openeo.internal.graph_building import PGNode
 from openeo.processes import ProcessBuilder
-
 from ... import load_json_resource
 
 
@@ -375,22 +375,46 @@ def test_reduce_dimension_bandmath_lambda(con100):
             (lambda data, ignore_nan=False: data.mean()),
             {"mean1": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}},
     ),
-    (
-            (lambda foo, bar=456: foo.mean() + bar),
-            {
-                "mean1": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, },
-                "add1": {
-                    "process_id": "add",
-                    "arguments": {"x": {"from_node": "mean1"}, "y": 456},
-                    "result": True,
-                },
-            },
-    ),
 ])
 def test_reduce_dimension_lambda_and_context(con100, reducer, expected):
     im = con100.load_collection("S2")
     res = im.reduce_dimension(reducer=reducer, dimension="bands")
     assert res.flat_graph()["reducedimension1"]["arguments"]["reducer"]["process_graph"] == expected
+
+
+@pytest.mark.parametrize(["reducer", "expected_arguments"], [
+    (
+            "count",
+            {"data": {"from_parameter": "data"}, "context": {"from_parameter": "context"}}
+    ),
+    (
+            openeo.processes.count,
+            {"data": {"from_parameter": "data"}}
+    ),
+    (
+            lambda data: data.count(),
+            {"data": {"from_parameter": "data"}}
+    ),
+    (
+            lambda data: data.count(context={"foo": "bar"}),
+            {"data": {"from_parameter": "data"}, "context": {"foo": "bar"}}
+    ),
+    (
+            lambda data: openeo.processes.count(data),
+            {"data": {"from_parameter": "data"}}
+    ),
+    (
+            lambda data: openeo.processes.count(data, context={"foo": "bar"}),
+            {"data": {"from_parameter": "data"}, "context": {"foo": "bar"}}
+    ),
+])
+def test_reduce_dimension_count(con100, reducer, expected_arguments):
+    """https://github.com/Open-EO/openeo-python-client/issues/317"""
+    im = con100.load_collection("S2")
+    res = im.reduce_dimension(reducer=reducer, dimension="t")
+    assert res.flat_graph()["reducedimension1"]["arguments"]["reducer"]["process_graph"] == {
+        "count1": {"process_id": "count", "arguments": expected_arguments, "result": True}
+    }
 
 
 @pytest.mark.parametrize(["process", "expected"], [
@@ -419,16 +443,6 @@ def test_reduce_dimension_lambda_and_context(con100, reducer, expected):
     (
             (lambda data, ignore_nan=False: data.order()),
             {"order1": {"process_id": "order", "arguments": {"data": {"from_parameter": "data"}}, "result": True}},
-    ),
-    (
-            (lambda foo, bar=True: foo.order(asc=bar)),
-            {
-                "order1": {
-                    "process_id": "order",
-                    "arguments": {"data": {"from_parameter": "data"}, "asc": True},
-                    "result": True,
-                },
-            },
     ),
 ])
 def test_apply_dimension_lambda_and_context(con100, process, expected):

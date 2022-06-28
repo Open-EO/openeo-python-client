@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix `context`/`condition` confusion bug with `count` callback in `DataCube.reduce_dimension()` ([#317](https://github.com/Open-EO/openeo-python-client/issues/317))
+
 ## [0.10.1] - 2022-05-18 - "LPS22" release
 
 ### Added

@@ -9,6 +9,7 @@ be evaluated by an openEO backend.
 """
 import datetime
 import inspect
+import itertools
 import json
 import logging
 import pathlib
@@ -820,20 +821,32 @@ class DataCube(_ProcessGraphAbstraction):
             if parent_parameters == ["x", "y"] and (len(process_params) == 1 or process_params[:1] == ["data"]):
                 # Special case: wrap all parent parameters in an array
                 arguments = {process_params[0]: [{"from_parameter": p} for p in parent_parameters]}
-            elif parent_parameters == ["data", "context"] and "context" not in process_params:
-                arguments = {process_params[0]: {"from_parameter": "data"}}
             else:
-                arguments = {a: {"from_parameter": b} for a, b in zip(process_params, parent_parameters)}
+                # Only pass parameters that correspond with an arg name
+                common = set(process_params).intersection(parent_parameters)
+                arguments = {p: {"from_parameter": p} for p in common}
             pg = PGNode(process_id=process, arguments=arguments)
         elif isinstance(process, typing.Callable):
             process_params = get_parameter_names(process)
             if parent_parameters == ["x", "y"] and (len(process_params) == 1 or process_params[:1] == ["data"]):
                 # Special case: wrap all parent parameters in an array
                 arguments = [ProcessBuilder([{"from_parameter": p} for p in parent_parameters])]
-            elif parent_parameters == ["data", "context"] and "context" not in process_params:
-                arguments = [ProcessBuilder({"from_parameter": "data"})]
             else:
-                arguments = [ProcessBuilder({"from_parameter": p}) for p in parent_parameters]
+                # Generic argument-parameter mapping: with positional args we should only pass parameters as long names correspond.
+                common = list(itertools.takewhile(lambda z: z[0] == z[1], zip(parent_parameters, process_params)))
+                params = [z[0] for z in common]
+                if len(params) == 0:
+                    # Naming mismatch between available parameters and callback's arguments:
+                    # can we still cook up something reasonable?
+                    if len(process_params) == 1 or len(parent_parameters) == 1:
+                        # Fallback for common case of just one callback argument (pass the main parameter),
+                        # or one parent parameter (just pass that one)
+                        params = parent_parameters[:1]
+                    else:
+                        raise OpenEoClientException(
+                            f"Callback argument mismatch: expected (prefix of) {parent_parameters}, but found found {process_params!r}"
+                        )
+                arguments = [ProcessBuilder({"from_parameter": p}) for p in params]
 
             callback_result = process(*arguments)
             if callback_result is None:
