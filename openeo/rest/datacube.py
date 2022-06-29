@@ -8,8 +8,6 @@ be evaluated by an openEO backend.
 
 """
 import datetime
-import inspect
-import json
 import logging
 import pathlib
 import typing
@@ -26,9 +24,9 @@ from shapely.geometry import Polygon, MultiPolygon, mapping
 import openeo
 import openeo.processes
 from openeo.api.process import Parameter
-from openeo.imagecollection import ImageCollection
 from openeo.internal.documentation import openeo_process
 from openeo.internal.graph_building import PGNode, ReduceNode, _FromNodeMixin
+from openeo.internal.processes.builder import get_parameter_names, convert_callable_to_pgnode
 from openeo.metadata import CollectionMetadata, Band, BandDimension
 from openeo.processes import ProcessBuilder
 from openeo.rest import BandMathException, OperatorException, OpenEoClientException
@@ -798,15 +796,7 @@ class DataCube(_ProcessGraphAbstraction):
         :param parent_parameters: list of parameter names defined for child process
         :return:
         """
-
-        def get_parameter_names(process: typing.Callable) -> List[str]:
-            signature = inspect.signature(process)
-            return [
-                p.name for p in signature.parameters.values()
-                if p.kind in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
-            ]
-
-        # TODO: autodetect the parameters defined by process?
+        # TODO: autodetect the parameters defined by parent process?
         if isinstance(process, PGNode):
             # Assume this is already a valid callback process
             pg = process
@@ -814,31 +804,20 @@ class DataCube(_ProcessGraphAbstraction):
             # Assume given reducer is a simple predefined reduce process_id
             if process in openeo.processes.__dict__:
                 process_params = get_parameter_names(openeo.processes.__dict__[process])
+                # TODO: switch to "Callable" handling here
             else:
                 # Best effort guess
                 process_params = parent_parameters
             if parent_parameters == ["x", "y"] and (len(process_params) == 1 or process_params[:1] == ["data"]):
                 # Special case: wrap all parent parameters in an array
                 arguments = {process_params[0]: [{"from_parameter": p} for p in parent_parameters]}
-            elif parent_parameters == ["data", "context"] and "context" not in process_params:
-                arguments = {process_params[0]: {"from_parameter": "data"}}
             else:
-                arguments = {a: {"from_parameter": b} for a, b in zip(process_params, parent_parameters)}
+                # Only pass parameters that correspond with an arg name
+                common = set(process_params).intersection(parent_parameters)
+                arguments = {p: {"from_parameter": p} for p in common}
             pg = PGNode(process_id=process, arguments=arguments)
         elif isinstance(process, typing.Callable):
-            process_params = get_parameter_names(process)
-            if parent_parameters == ["x", "y"] and (len(process_params) == 1 or process_params[:1] == ["data"]):
-                # Special case: wrap all parent parameters in an array
-                arguments = [ProcessBuilder([{"from_parameter": p} for p in parent_parameters])]
-            elif parent_parameters == ["data", "context"] and "context" not in process_params:
-                arguments = [ProcessBuilder({"from_parameter": "data"})]
-            else:
-                arguments = [ProcessBuilder({"from_parameter": p}) for p in parent_parameters]
-
-            callback_result = process(*arguments)
-            if callback_result is None:
-                raise ValueError("Your callback did not return a result, make sure that your callbacks have a return statement, and return a ProcessBuilder: " + str(process))
-            pg = callback_result.pgnode
+            pg = convert_callable_to_pgnode(process, parent_parameters=parent_parameters)
         else:
             raise ValueError(process)
 

@@ -22,11 +22,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `XarrayIO.to_netcdf_file()` ([#314](https://github.com/Open-EO/openeo-python-client/issues/314))
 - Changed argument name of `Connection.describe_collection()` from `name` to `collection_id` 
   to be more in line with other methods/functions.
+- Add support for second order callbacks e.g. `is_valid` in `count` in `reduce_dimension` ([#317](https://github.com/Open-EO/openeo-python-client/issues/317))
 
 
 ### Removed
 
 ### Fixed
+
+- Fix `context`/`condition` confusion bug with `count` callback in `DataCube.reduce_dimension()` ([#317](https://github.com/Open-EO/openeo-python-client/issues/317))
 
 ## [0.10.1] - 2022-05-18 - "LPS22" release
 

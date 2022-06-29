@@ -1,8 +1,26 @@
-from typing import Union
+import inspect
+import logging
+from typing import Union, Callable, List, Optional, Any
 
 from openeo.internal.graph_building import PGNode, _FromNodeMixin
+from openeo.rest import OpenEoClientException
 
 UNSET = object()
+_log = logging.getLogger(__name__)
+
+
+def _to_pgnode_data(value: Any) -> Union[PGNode, dict, Any]:
+    """Convert given value to valid process graph material"""
+    if isinstance(value, ProcessBuilderBase):
+        return value.pgnode
+    elif isinstance(value, list):
+        return [_to_pgnode_data(item) for item in value]
+    elif isinstance(value, Callable):
+        pg = convert_callable_to_pgnode(value)
+        return PGNode.to_process_graph_argument(pg)
+    else:
+        # Fallback: assume value is valid process graph material already.
+        return value
 
 
 class ProcessBuilderBase(_FromNodeMixin):
@@ -27,16 +45,11 @@ class ProcessBuilderBase(_FromNodeMixin):
         :return: new ProcessBuilder instance
         """
         arguments = {**(arguments or {}), **kwargs}
-        for arg, value in arguments.items():
-            if isinstance(value, ProcessBuilderBase):
-                arguments[arg] = value.pgnode
-            elif isinstance(value,list):
-                for index,arrayelement in enumerate(value):
-                    if(isinstance(arrayelement,ProcessBuilderBase)):
-                        value[index] = arrayelement.pgnode
-
-        for arg in [a for a, v in arguments.items() if v is UNSET]:
-            del arguments[arg]
+        arguments = {
+            k: _to_pgnode_data(v)
+            for k, v in arguments.items()
+            if v is not UNSET
+        }
         return cls(PGNode(process_id=process_id, arguments=arguments, namespace=namespace))
 
     def flat_graph(self) -> dict:
@@ -46,3 +59,60 @@ class ProcessBuilderBase(_FromNodeMixin):
     def from_node(self) -> PGNode:
         # _FromNodeMixin API
         return self.pgnode
+
+
+def get_parameter_names(process: Callable) -> List[str]:
+    """Get argument (aka parameter) names of given function/callable."""
+    signature = inspect.signature(process)
+    return [
+        p.name for p in signature.parameters.values()
+        if p.kind in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+    ]
+
+
+def convert_callable_to_pgnode(callback: Callable, parent_parameters: Optional[List[str]] = None) -> PGNode:
+    """
+    Convert given process callback to a PGNode.
+
+        >>> result = convert_callable_to_pgnode(lambda x: x + 5)
+        >>> assert isinstance(result, PGNode)
+        >>> result.flat_graph()
+        {"add1": {"process_id": "add", "arguments": {"x": {"from_parameter": "x"}, "y": 5}, "result": True}}
+
+    """
+    # TODO: eliminate local import (due to circular dependency)?
+    from openeo.processes import ProcessBuilder
+
+    process_params = get_parameter_names(callback)
+    if parent_parameters is None:
+        # Due to lack of parent parameter information,
+        # we blindly use all callback's argument names as parameter names
+        if len(process_params) > 1:
+            _log.warning(f"Guessing callback parameters of {callback!r} from its arguments {process_params!r}")
+        kwargs = {p: ProcessBuilder({"from_parameter": p}) for p in process_params}
+    elif parent_parameters == ["x", "y"] and (len(process_params) == 1 or process_params[:1] == ["data"]):
+        # Special case: wrap all parent parameters in an array
+        kwargs = {process_params[0]: ProcessBuilder([{"from_parameter": p} for p in parent_parameters])}
+    else:
+        # Check for direct correspondence between callback arguments and parent parameters (or subset thereof).
+        common = set(parent_parameters).intersection(process_params)
+        if common:
+            kwargs = {p: ProcessBuilder({"from_parameter": p}) for p in common}
+        elif min(len(parent_parameters), len(process_params)) == 0:
+            kwargs = {}
+        elif min(len(parent_parameters), len(process_params)) == 1:
+            # Fallback for common case of just one callback argument (pass the main parameter),
+            # or one parent parameter (just pass that one)
+            kwargs = {process_params[0]: ProcessBuilder({"from_parameter": parent_parameters[0]})}
+        else:
+            raise OpenEoClientException(
+                f"Callback argument mismatch: expected (prefix of) {parent_parameters}, but found found {process_params!r}"
+            )
+
+    # "Evaluate" the callback, which should give a ProcessBuilder again to extract pgnode from
+    result = callback(**kwargs)
+    if not isinstance(result, ProcessBuilderBase):
+        raise OpenEoClientException(
+            f"Callback {callback} did not evaluate to ProcessBuilderBase. Got {result!r} instead"
+        )
+    return result.pgnode
