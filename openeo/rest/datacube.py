@@ -804,6 +804,7 @@ class DataCube(_ProcessGraphAbstraction):
             # Assume given reducer is a simple predefined reduce process_id
             if process in openeo.processes.__dict__:
                 process_params = get_parameter_names(openeo.processes.__dict__[process])
+                # TODO: switch to "Callable" handling here
             else:
                 # Best effort guess
                 process_params = parent_parameters

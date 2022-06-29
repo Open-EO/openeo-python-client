@@ -390,7 +390,7 @@ def test_reduce_dimension_lambda_and_context(con100, reducer, expected):
     ),
     (
             openeo.processes.count,
-            {"data": {"from_parameter": "data"}}
+            {"data": {"from_parameter": "data"}, "context": {"from_parameter": "context"}}
     ),
     (
             lambda data: data.count(),
@@ -645,10 +645,8 @@ def test_load_collection_properties_neq_operator(con100):
 
 
 @pytest.mark.parametrize("reducer", [
-    builtins.sum,
     lambda data: builtins.sum(data),
     lambda data: builtins.sum(data) * 3 + 5,
-    builtins.all,
     lambda data: not builtins.all(data),
     # TODO also test for `builtin.min`, `builtin.max` (when comparison is supported)
     # TODO also test for `builtins.any` (which, at the moment, doesn't work anyway due to another error)
@@ -665,9 +663,25 @@ def test_aggregate_temporal_builtin_sum(con100, reducer):
         cube.aggregate_temporal(intervals, reducer=reducer)
 
 
+@pytest.mark.parametrize("reducer", [
+    builtins.sum,
+    builtins.all,
+])
+def test_aggregate_temporal_builtin_sum_direct(con100, reducer):
+    """
+    Using builtin `sum` in callback causes unintended infinite loop
+    https://discuss.eodc.eu/t/reducing-masks-in-openeo/113
+    """
+    cube = con100.load_collection("S2")
+
+    intervals = [["2019-01-01", "2020-01-01"], ["2020-01-02", "2021-01-01"]]
+    with pytest.raises(Exception, match="takes (no keyword arguments|at least 1 positional argument)"):
+        _ = cube.aggregate_temporal(intervals, reducer=reducer)
+
+
 @pytest.mark.parametrize(["reducer", "expected_arguments"], [
     ("count", {"data": {"from_parameter": "data"}, "context": {"from_parameter": "context"}}),
-    (openeo.processes.count, {"data": {"from_parameter": "data"}}),
+    (openeo.processes.count, {"data": {"from_parameter": "data"}, "context": {"from_parameter": "context"}}),
     (lambda data: data.count(), {"data": {"from_parameter": "data"}}),
     (lambda data: data.count(condition=None), {"data": {"from_parameter": "data"}, "condition": None}),
     (lambda data: data.count(condition=False), {"data": {"from_parameter": "data"}, "condition": False}),
@@ -773,4 +787,29 @@ def test_reduce_dimension_count_condition_callback(con100, reducer, expected_arg
     res = im.reduce_dimension(reducer=reducer, dimension="t")
     assert res.flat_graph()["reducedimension1"]["arguments"]["reducer"]["process_graph"] == {
         "count1": {"process_id": "count", "arguments": expected_arguments, "result": True}
+    }
+
+
+def test_reduce_dimension_count_is_valid(con100):
+    """https://github.com/Open-EO/openeo-python-client/issues/317"""
+    im = con100.load_collection("S2")
+    res = im.reduce_dimension(
+        reducer=lambda data: data.count(condition=openeo.processes.is_valid),
+        dimension="t"
+    )
+    assert res.flat_graph()["reducedimension1"]["arguments"]["reducer"]["process_graph"] == {
+        "count1": {
+            "process_id": "count",
+            "arguments": {
+                "data": {"from_parameter": "data"},
+                "condition": {"process_graph": {
+                    "isvalid1": {
+                        "process_id": "is_valid",
+                        "arguments": {"x": {"from_parameter": "x"}},
+                        "result": True,
+                    }
+                }}
+            },
+            "result": True,
+        }
     }
