@@ -62,6 +62,7 @@ Table of contents
    api
    process_mapping
    development
+   best_practices
 
 
 Indices and tables
