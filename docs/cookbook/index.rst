@@ -1,4 +1,4 @@
-OpenEO CookBook
+openEO CookBook
 ===============
 
 .. toctree::
