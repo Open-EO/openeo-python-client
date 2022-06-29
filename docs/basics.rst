@@ -412,7 +412,7 @@ which we massage a bit more:
     df = df.dropna()
     df.columns = ("Field A", "Field B")
 
-This gives us finally out EVI timeseries dataframe:
+This gives us finally our EVI timeseries dataframe:
 
 .. code-block:: pycon
 
