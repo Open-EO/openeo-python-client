@@ -1,4 +1,5 @@
 import builtins
+import functools
 
 import pytest
 
@@ -662,3 +663,114 @@ def test_aggregate_temporal_builtin_sum(con100, reducer):
     intervals = [["2019-01-01", "2020-01-01"], ["2020-01-02", "2021-01-01"]]
     with pytest.raises(RuntimeError, match="iteration limit"):
         cube.aggregate_temporal(intervals, reducer=reducer)
+
+
+@pytest.mark.parametrize(["reducer", "expected_arguments"], [
+    ("count", {"data": {"from_parameter": "data"}, "context": {"from_parameter": "context"}}),
+    (openeo.processes.count, {"data": {"from_parameter": "data"}}),
+    (lambda data: data.count(), {"data": {"from_parameter": "data"}}),
+    (lambda data: data.count(condition=None), {"data": {"from_parameter": "data"}, "condition": None}),
+    (lambda data: data.count(condition=False), {"data": {"from_parameter": "data"}, "condition": False}),
+    (lambda data: data.count(condition=True), {"data": {"from_parameter": "data"}, "condition": True}),
+    (
+            lambda data: openeo.processes.count(data),
+            {"data": {"from_parameter": "data"}}
+    ),
+    (
+            lambda data: openeo.processes.count(data, condition=None),
+            {"data": {"from_parameter": "data"}, "condition": None},
+    ),
+    (
+            lambda data: openeo.processes.count(data, condition=False),
+            {"data": {"from_parameter": "data"}, "condition": False},
+    ),
+    (
+            lambda data: openeo.processes.count(data, condition=True),
+            {"data": {"from_parameter": "data"}, "condition": True},
+    ),
+])
+def test_reduce_dimension_count_condition_simple(con100, reducer, expected_arguments):
+    """https://github.com/Open-EO/openeo-python-client/issues/317"""
+    im = con100.load_collection("S2")
+    res = im.reduce_dimension(reducer=reducer, dimension="t")
+    assert res.flat_graph()["reducedimension1"]["arguments"]["reducer"]["process_graph"] == {
+        "count1": {"process_id": "count", "arguments": expected_arguments, "result": True}
+    }
+
+
+@pytest.mark.parametrize(["reducer", "expected_arguments"], [
+    (
+            lambda data: data.count(condition=openeo.processes.is_valid),
+            {
+                "data": {"from_parameter": "data"},
+                "condition": {"process_graph": {
+                    "isvalid1": {
+                        "process_id": "is_valid",
+                        "arguments": {"x": {"from_parameter": "x"}},
+                        "result": True,
+                    }
+                }}
+            }
+    ),
+    (
+            lambda data: data.count(condition=lambda x: x > 5),
+            {
+                "data": {"from_parameter": "data"},
+                "condition": {"process_graph": {
+                    "gt1": {
+                        "process_id": "gt",
+                        "arguments": {"x": {"from_parameter": "x"}, "y": 5},
+                        "result": True,
+                    }
+                }}
+            }
+    ),
+    (
+            lambda data: data.count(condition=lambda x: openeo.processes.gt(x, 5)),
+            {
+                "data": {"from_parameter": "data"},
+                "condition": {"process_graph": {
+                    "gt1": {
+                        "process_id": "gt",
+                        "arguments": {"x": {"from_parameter": "x"}, "y": 5},
+                        "result": True,
+                    }
+                }}
+            }
+    ),
+    (
+            functools.partial(openeo.processes.count, condition=lambda x: (x + 1) > 5),
+            {
+                "data": {"from_parameter": "data"},
+                "condition": {"process_graph": {
+                    "add1": {"process_id": "add", "arguments": {"x": {"from_parameter": "x"}, "y": 1}},
+                    "gt1": {
+                        "process_id": "gt",
+                        "arguments": {"x": {"from_node": "add1"}, "y": 5},
+                        "result": True,
+                    }
+                }}
+            }
+    ),
+    (
+            lambda data: openeo.processes.count(data=data, condition=lambda x: x > 5, context={"foo": "bar"}),
+            {
+                "data": {"from_parameter": "data"},
+                "condition": {"process_graph": {
+                    "gt1": {
+                        "process_id": "gt",
+                        "arguments": {"x": {"from_parameter": "x"}, "y": 5},
+                        "result": True,
+                    }
+                }},
+                "context": {"foo": "bar"},
+            }
+    ),
+])
+def test_reduce_dimension_count_condition_callback(con100, reducer, expected_arguments):
+    """https://github.com/Open-EO/openeo-python-client/issues/317"""
+    im = con100.load_collection("S2")
+    res = im.reduce_dimension(reducer=reducer, dimension="t")
+    assert res.flat_graph()["reducedimension1"]["arguments"]["reducer"]["process_graph"] == {
+        "count1": {"process_id": "count", "arguments": expected_arguments, "result": True}
+    }
