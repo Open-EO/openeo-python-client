@@ -79,7 +79,7 @@ just run
 .. code-block:: shell
 
     # From project root
-    sphinx-autobuild docs/ docs/_build/html/
+    sphinx-autobuild docs/ --watch openeo/ docs/_build/html/
 
 and then visit http://127.0.0.1:8000 .
 When you change (and save) documentation source files, your browser should now
