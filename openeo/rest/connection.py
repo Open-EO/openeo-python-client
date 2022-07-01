@@ -1087,7 +1087,7 @@ class Connection(RestApiConnection):
         return result
 
     # TODO: unify `download` and `execute` better: e.g. `download` always writes to disk, `execute` returns result (raw or as JSON decoded dict)
-    def download(self, graph: dict, outputfile: Union[Path, str, None] = None, timeout:int=30*60):
+    def download(self, graph: dict, outputfile: Union[Path, str, None] = None, timeout: int = 30 * 60):
         """
         Downloads the result of a process graph synchronously,
         and save the result to the given file or return bytes object if no outputfile is specified.
@@ -1096,6 +1096,7 @@ class Connection(RestApiConnection):
         :param graph: (flat) dict representing a process graph
         :param outputfile: output file
         """
+        # TODO: use global timeout at connection level, instead of per download
         request = self._build_request_with_process_graph(process_graph=graph)
         response = self.post(path="/result", json=request, expected_status=200, stream=True, timeout=timeout)
 
