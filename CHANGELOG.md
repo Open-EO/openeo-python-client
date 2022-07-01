@@ -390,7 +390,7 @@ Minor release to address version packaging issue.
 - Moved datacube write/save/plot utilities from udf to client (EP-3456)
 - Add documentation on OpenID Connect authentication (EP-3485)
 
-## Fixed
+### Fixed
 - Fix `kwargs` handling in `TimingLogger` decorator
 
 

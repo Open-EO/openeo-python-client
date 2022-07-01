@@ -63,6 +63,7 @@ Table of contents
    process_mapping
    development
    best_practices
+   changelog
 
 
 Indices and tables

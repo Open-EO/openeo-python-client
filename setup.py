@@ -54,6 +54,7 @@ setup(name=name,
               "sphinx-autodoc-annotation",
               "sphinx-autodoc-typehints",
               "flake8",
+              "myst-parser",
           ]
       },
       entry_points={

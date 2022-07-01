@@ -261,17 +261,17 @@ Illustration of data chunking in ``apply`` with a  UDF
 TODO
 
 Example: ``apply_dimension`` with a UDF
-======================================
+========================================
 
 TODO
 
 Example: ``reduce_dimension`` with a UDF
-======================================
+========================================
 
 TODO
 
 Example: ``apply_neighborhood`` with a UDF
-=========================================
+===========================================
 
 TODO
 
