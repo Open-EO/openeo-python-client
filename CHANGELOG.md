@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add support for passing a PGNode/VectorCube as geometry to `aggregate_spatial`, `mask_polygon`, ...
+- Add support for second order callbacks e.g. `is_valid` in `count` in `reduce_dimension` ([#317](https://github.com/Open-EO/openeo-python-client/issues/317))
 
 ### Changed
 
@@ -17,19 +18,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Original `RESTJob` is still available as deprecated alias.
   ([#280](https://github.com/Open-EO/openeo-python-client/issues/280))
 - Dropped default reducer ("max") from `DataCube.reduce_temporal_simple()`
-- Various documentation improvements ([#285](https://github.com/Open-EO/openeo-python-client/issues/285), [#286](https://github.com/Open-EO/openeo-python-client/issues/286))
+- Various documentation improvements: 
+    - general styling, landing page and structure tweaks ([#285](https://github.com/Open-EO/openeo-python-client/issues/285))
+    - batch job docs ([#286](https://github.com/Open-EO/openeo-python-client/issues/286))
+    - getting started docs ([#308](https://github.com/Open-EO/openeo-python-client/issues/308))
+    - part of UDF docs ([#309](https://github.com/Open-EO/openeo-python-client/issues/309))
+    - added process-to-method mapping docs 
 - Drop hardcoded `h5netcdf` engine from `XarrayIO.from_netcdf_file()`
   and `XarrayIO.to_netcdf_file()` ([#314](https://github.com/Open-EO/openeo-python-client/issues/314))
 - Changed argument name of `Connection.describe_collection()` from `name` to `collection_id` 
   to be more in line with other methods/functions.
-- Add support for second order callbacks e.g. `is_valid` in `count` in `reduce_dimension` ([#317](https://github.com/Open-EO/openeo-python-client/issues/317))
-
 
 ### Removed
 
 ### Fixed
 
 - Fix `context`/`condition` confusion bug with `count` callback in `DataCube.reduce_dimension()` ([#317](https://github.com/Open-EO/openeo-python-client/issues/317))
+
+
 
 ## [0.10.1] - 2022-05-18 - "LPS22" release
 
