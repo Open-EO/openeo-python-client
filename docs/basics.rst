@@ -378,7 +378,7 @@ Note how we can specify the aggregation function ``"mean"`` as a simple string f
         reducer="mean",
     )
 
-If we download this, we get the timeseries encoded as a JSON structure.
+If we download this, we get the timeseries encoded as a JSON structure, other useful formats are CSV and netCDF.
 
 .. code-block:: python
 
@@ -426,3 +426,16 @@ This gives us finally our EVI timeseries dataframe:
 
 
 .. image:: _static/images/basics/evi-timeseries.png
+
+Computing multiple statistics
+=============================
+
+The same method also allows the computation of multiple statistics at once. This does rely
+on 'callbacks' to construct a result with multiple statistics.
+The use of such more complex processes is further explained in :ref:`_callbackfunctions`.
+
+.. code-block:: python
+    evi_aggregation = evi_masked.aggregate_spatial(
+        geometries=features,
+        reducer=lambda x:array_create(mean(x),count(x),count(x,condition=True)),
+    )
