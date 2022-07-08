@@ -1640,6 +1640,10 @@ class DataCube(_ProcessGraphAbstraction):
         :param format_options: String Parameters for the job result format
 
         """
+        if "format" in format_options and not out_format:
+            out_format = format_options["format"] #align with 'download' call arg name
+        if not out_format:
+            out_format = guess_format(outputfile) if outputfile else "GTiff"
         job = self.create_job(out_format, job_options=job_options, **format_options)
         return job.run_synchronous(
             outputfile=outputfile,
