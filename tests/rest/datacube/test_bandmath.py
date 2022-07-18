@@ -348,8 +348,9 @@ def test_merge_cubes_multiple(connection, api_version):
 
 def test_merge_cubes_no_resolver(connection, api_version):
     s2 = connection.load_collection("S2")
-    mask = connection.load_collection("MASK")
+    mask = connection.load_collection("SENTINEL2_SCF")
     merged = s2.merge(mask)
+    assert ['B02', 'B03', 'B04', 'B08', 'SCENECLASSIFICATION', 'MSK'] == merged.metadata.band_names
     assert merged.flat_graph() == load_json_resource('data/%s/merge_cubes_no_resolver.json' % api_version)
 
 

@@ -1400,12 +1400,17 @@ class DataCube(_ProcessGraphAbstraction):
         :return: The merged data cube.
         """
         arguments = {'cube1': self, 'cube2': other}
+        newmeta = self.metadata
         if overlap_resolver:
             arguments["overlap_resolver"] = self._get_callback(overlap_resolver, parent_parameters=["x", "y"])
+        elif other.metadata.has_band_dimension() and self.metadata.has_band_dimension():
+            bands = other.metadata.band_dimension.bands
+            for b in bands:
+                newmeta = newmeta.append_band(b)
         if context:
             arguments["context"] = context
         # TODO: set metadata of reduced cube?
-        return self.process(process_id="merge_cubes", arguments=arguments)
+        return self.process(process_id="merge_cubes", arguments=arguments, metadata=newmeta)
 
     merge = legacy_alias(merge_cubes, name="merge")
 

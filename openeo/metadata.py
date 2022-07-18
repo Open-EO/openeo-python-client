@@ -431,3 +431,8 @@ class CollectionMetadata:
 
     def _repr_html_(self):
         return render_component('collection', data = self._orig_metadata)
+
+    def __str__(self) -> str:
+        return f"CollectionMetadata({self.extent} - {self.band_names} - {self.dimension_names()})"
+
+

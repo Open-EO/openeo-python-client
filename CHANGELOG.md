@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - execute_batch now also guesses the output format from the filename, and allows using 'format' next to the current 'out_format' to align with the 'download' method.
+- merge_cubes now merges band names automatically if no overlap resolver is used
 
 ### Removed
 
