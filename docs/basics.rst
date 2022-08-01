@@ -427,15 +427,19 @@ This gives us finally our EVI timeseries dataframe:
 
 .. image:: _static/images/basics/evi-timeseries.png
 
+
 Computing multiple statistics
 =============================
 
 The same method also allows the computation of multiple statistics at once. This does rely
 on 'callbacks' to construct a result with multiple statistics.
-The use of such more complex processes is further explained in :ref:`_callbackfunctions`.
+The use of such more complex processes is further explained in :ref:`callbackfunctions`.
 
 .. code-block:: python
+
+    from openeo.processes import array_create, mean, sd, median, count
+
     evi_aggregation = evi_masked.aggregate_spatial(
         geometries=features,
-        reducer=lambda x:array_create(mean(x),count(x),count(x,condition=True)),
+        reducer=lambda x: array_create([mean(x), sd(x), median(x), count(x)]),
     )
