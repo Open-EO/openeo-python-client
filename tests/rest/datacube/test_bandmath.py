@@ -212,19 +212,6 @@ def test_band_operation(con100, process, expected):
     }
 
 
-def test_merge_issue107(con100):
-    """https://github.com/Open-EO/openeo-python-client/issues/107"""
-    s2 = con100.load_collection("S2")
-    a = s2.filter_bands(['B02'])
-    b = s2.filter_bands(['B04'])
-    c = a.merge(b)
-
-    flat = c.flat_graph()
-    # There should be only one `load_collection` node (but two `filter_band` ones)
-    processes = sorted(n["process_id"] for n in flat.values())
-    assert processes == ["filter_bands", "filter_bands", "load_collection", "merge_cubes"]
-
-
 def test_invert_band(connection, api_version):
     cube = connection.load_collection("S2")
     band = cube.band('B04')
@@ -344,21 +331,6 @@ def test_merge_cubes_multiple(connection, api_version):
         "apply", "load_collection",
         "merge_cubes", "merge_cubes", "reduce_dimension", "save_result"]
     assert actual == load_json_resource('data/%s/merge_cubes_multiple.json' % api_version)
-
-
-def test_merge_cubes_no_resolver(connection, api_version):
-    s2 = connection.load_collection("S2")
-    mask = connection.load_collection("SENTINEL2_SCF")
-    merged = s2.merge(mask)
-    assert ['B02', 'B03', 'B04', 'B08', 'SCENECLASSIFICATION', 'MSK'] == merged.metadata.band_names
-    assert merged.flat_graph() == load_json_resource('data/%s/merge_cubes_no_resolver.json' % api_version)
-
-
-def test_merge_cubes_max_resolver(connection, api_version):
-    s2 = connection.load_collection("S2")
-    mask = connection.load_collection("MASK")
-    merged = s2.merge(mask, overlap_resolver="max")
-    assert merged.flat_graph() == load_json_resource('data/%s/merge_cubes_max.json' % api_version)
 
 
 def test_fuzzy_mask(connection, api_version):

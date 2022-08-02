@@ -1,3 +1,5 @@
+from typing import List
+
 import pytest
 
 import openeo
@@ -32,18 +34,8 @@ def _setup_connection(api_version, requests_mock) -> Connection:
     # Alias for quick tests
     requests_mock.get(API_URL + "/collections/S2", json=s2_properties)
     # Some other collections
-    requests_mock.get(API_URL + "/collections/MASK", json={})
-    requests_mock.get(API_URL + "/collections/SENTINEL2_SCF", json={
-        "cube:dimensions": {
-            "bands": {"type": "bands", "values": ["SCENECLASSIFICATION", "MSK"]}
-        },
-        "summaries": {
-            "eo:bands": [
-                {"name": "SCENECLASSIFICATION"},
-                {"name": "MSK"},
-            ]
-        },
-    })
+    setup_collection_metadata(requests_mock=requests_mock, cid="MASK", bands=["CLOUDS", "WATER"])
+    setup_collection_metadata(requests_mock=requests_mock, cid="SENTINEL2_SCF", bands=["SCENECLASSIFICATION", "MSK"])
 
     requests_mock.get(API_URL + "/file_formats", json={
         "output": {
@@ -54,6 +46,18 @@ def _setup_connection(api_version, requests_mock) -> Connection:
     })
 
     return openeo.connect(API_URL)
+
+
+def setup_collection_metadata(requests_mock, cid: str, bands: List[str]):
+    """Set up mock collection metadata"""
+    requests_mock.get(API_URL + f"/collections/{cid}", json={
+        "cube:dimensions": {
+            "bands": {"type": "bands", "values": bands}
+        },
+        "summaries": {
+            "eo:bands": [{"name": b} for b in bands]
+        },
+    })
 
 
 @pytest.fixture

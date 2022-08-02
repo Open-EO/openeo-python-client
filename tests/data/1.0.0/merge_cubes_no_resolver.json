@@ -10,7 +10,7 @@
   "loadcollection2": {
     "process_id": "load_collection",
     "arguments": {
-      "id": "SENTINEL2_SCF",
+      "id": "MASK",
       "spatial_extent": null,
       "temporal_extent": null
     }

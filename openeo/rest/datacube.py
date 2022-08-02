@@ -1400,17 +1400,18 @@ class DataCube(_ProcessGraphAbstraction):
         :return: The merged data cube.
         """
         arguments = {'cube1': self, 'cube2': other}
-        newmeta = self.metadata
         if overlap_resolver:
             arguments["overlap_resolver"] = self._get_callback(overlap_resolver, parent_parameters=["x", "y"])
-        elif other.metadata.has_band_dimension() and self.metadata.has_band_dimension():
-            bands = other.metadata.band_dimension.bands
-            for b in bands:
-                newmeta = newmeta.append_band(b)
+        # Minimal client side metadata merging
+        merged_metadata = self.metadata
+        if self.metadata.has_band_dimension() and isinstance(other, DataCube) and other.metadata.has_band_dimension():
+            for b in other.metadata.band_dimension.bands:
+                if b not in merged_metadata.bands:
+                    merged_metadata = merged_metadata.append_band(b)
+        # TODO: warn about missing overlap_resolver if we can detect that one is required?
         if context:
             arguments["context"] = context
-        # TODO: set metadata of reduced cube?
-        return self.process(process_id="merge_cubes", arguments=arguments, metadata=newmeta)
+        return self.process(process_id="merge_cubes", arguments=arguments, metadata=merged_metadata)
 
     merge = legacy_alias(merge_cubes, name="merge")
 

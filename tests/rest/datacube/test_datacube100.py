@@ -3,6 +3,7 @@
 Unit tests specifically for 1.0.0-style DataCube
 
 """
+import collections
 import pathlib
 import re
 import sys
@@ -21,7 +22,7 @@ from openeo.internal.process_graph_visitor import ProcessGraphVisitException
 from openeo.rest import OpenEoClientException
 from openeo.rest.connection import Connection
 from openeo.rest.datacube import THIS, DataCube, ProcessBuilder
-from .conftest import API_URL
+from .conftest import API_URL, setup_collection_metadata
 from ... import load_json_resource
 
 basic_geometry_types = [
@@ -586,6 +587,90 @@ def test_merge_cubes_context(con100: Connection):
         },
         "result": True
     }
+
+
+def test_merge_cubes_issue107(con100):
+    """https://github.com/Open-EO/openeo-python-client/issues/107"""
+    s2 = con100.load_collection("S2")
+    a = s2.filter_bands(['B02'])
+    b = s2.filter_bands(['B04'])
+    c = a.merge_cubes(b)
+
+    flat = c.flat_graph()
+    # There should be only one `load_collection` node (but two `filter_band` ones)
+    assert collections.Counter(n["process_id"] for n in flat.values()) == {
+        "load_collection": 1,
+        "filter_bands": 2,
+        "merge_cubes": 1,
+    }
+
+
+def test_merge_cubes_no_resolver(con100):
+    s2 = con100.load_collection("S2")
+    mask = con100.load_collection("MASK")
+    merged = s2.merge_cubes(mask)
+    assert s2.metadata.band_names == ["B02", "B03", "B04", "B08"]
+    assert mask.metadata.band_names == ["CLOUDS", "WATER"]
+    assert merged.metadata.band_names == ["B02", "B03", "B04", "B08", "CLOUDS", "WATER"]
+    assert merged.flat_graph() == load_json_resource("data/1.0.0/merge_cubes_no_resolver.json")
+
+
+def test_merge_cubes_max_resolver(con100):
+    s2 = con100.load_collection("S2")
+    mask = con100.load_collection("MASK")
+    merged = s2.merge_cubes(mask, overlap_resolver="max")
+    assert s2.metadata.band_names == ["B02", "B03", "B04", "B08"]
+    assert mask.metadata.band_names == ["CLOUDS", "WATER"]
+    assert merged.metadata.band_names == ["B02", "B03", "B04", "B08", "CLOUDS", "WATER"]
+    assert merged.flat_graph() == load_json_resource("data/1.0.0/merge_cubes_max.json")
+
+
+@pytest.mark.parametrize("overlap_resolver", [None, "max"])
+def test_merge_cubes_band_merging_disjunct(con100, requests_mock, overlap_resolver):
+    setup_collection_metadata(requests_mock=requests_mock, cid="S3", bands=["B2", "B3"])
+    setup_collection_metadata(requests_mock=requests_mock, cid="S4", bands=["C4", "C6"])
+
+    s3 = con100.load_collection("S3")
+    s4 = con100.load_collection("S4")
+    s3_m_s4 = s3.merge_cubes(s4, overlap_resolver=overlap_resolver)
+    s4_m_s3 = s4.merge_cubes(s3, overlap_resolver=overlap_resolver)
+    assert s3.metadata.band_names == ["B2", "B3"]
+    assert s4.metadata.band_names == ["C4", "C6"]
+    assert s3_m_s4.metadata.band_names == ["B2", "B3", "C4", "C6"]
+    assert s4_m_s3.metadata.band_names == ["C4", "C6", "B2", "B3"]
+
+    s3_f = s3.filter_bands(["B2"])
+    s4_f = s4.filter_bands(["C6", "C4"])
+    s3_f_m_s4_f = s3_f.merge_cubes(s4_f, overlap_resolver=overlap_resolver)
+    s4_f_m_s3_f = s4_f.merge_cubes(s3_f, overlap_resolver=overlap_resolver)
+    assert s3_f.metadata.band_names == ["B2"]
+    assert s4_f.metadata.band_names == ["C6", "C4"]
+    assert s3_f_m_s4_f.metadata.band_names == ["B2", "C6", "C4"]
+    assert s4_f_m_s3_f.metadata.band_names == ["C6", "C4", "B2"]
+
+
+@pytest.mark.parametrize("overlap_resolver", [None, "max"])
+def test_merge_cubes_band_merging_with_overlap(con100, requests_mock, overlap_resolver):
+    setup_collection_metadata(requests_mock=requests_mock, cid="S3", bands=["B2", "B3", "B5", "B8"])
+    setup_collection_metadata(requests_mock=requests_mock, cid="S4", bands=["B4", "B5", "B6"])
+
+    s3 = con100.load_collection("S3")
+    s4 = con100.load_collection("S4")
+    s3_m_s4 = s3.merge_cubes(s4, overlap_resolver=overlap_resolver)
+    s4_m_s3 = s4.merge_cubes(s3, overlap_resolver=overlap_resolver)
+    assert s3.metadata.band_names == ["B2", "B3", "B5", "B8"]
+    assert s4.metadata.band_names == ["B4", "B5", "B6"]
+    assert s3_m_s4.metadata.band_names == ["B2", "B3", "B5", "B8", "B4", "B6"]
+    assert s4_m_s3.metadata.band_names == ["B4", "B5", "B6", "B2", "B3", "B8"]
+
+    s3_f = s3.filter_bands(["B5", "B8"])
+    s4_f = s4.filter_bands(["B6", "B5"])
+    s3_f_m_s4_f = s3_f.merge_cubes(s4_f, overlap_resolver=overlap_resolver)
+    s4_f_m_s3_f = s4_f.merge_cubes(s3_f, overlap_resolver=overlap_resolver)
+    assert s3_f.metadata.band_names == ["B5", "B8"]
+    assert s4_f.metadata.band_names == ["B6", "B5"]
+    assert s3_f_m_s4_f.metadata.band_names == ["B5", "B8", "B6"]
+    assert s4_f_m_s3_f.metadata.band_names == ["B6", "B5", "B8"]
 
 
 def test_resample_cube_spatial(con100: Connection):
