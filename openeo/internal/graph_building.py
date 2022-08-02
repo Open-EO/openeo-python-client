@@ -27,6 +27,18 @@ class PGNode(_FromNodeMixin):
     Note that a full openEO "process graph" is essentially a directed acyclic graph of nodes
     pointing to each other. A full process graph is practically equivalent with its "result" node,
     as it points (directly or indirectly) to all the other nodes it depends on.
+
+    .. warning::
+        This class is an implementation detail meant for internal use.
+        It is not recommended for general use in normal user code.
+        Instead, use process graph abstraction builders like
+        :py:meth:`Connection.load_collection() <openeo.rest.connection.Connection.load_collection>`,
+        :py:meth:`Connection.datacube_from_process() <openeo.rest.connection.Connection.datacube_from_process>`,
+        :py:meth:`Connection.datacube_from_flat_graph() <openeo.rest.connection.Connection.datacube_from_flat_graph>`,
+        :py:meth:`Connection.datacube_from_json() <openeo.rest.connection.Connection.datacube_from_json>`,
+        :py:meth:`Connection.load_ml_model() <openeo.rest.connection.Connection.load_ml_model>`,
+        :py:func:`openeo.processes.process()`,
+
     """
 
     def __init__(self, process_id: str, arguments: dict = None, namespace: Union[str, None] = None, **kwargs):

@@ -392,7 +392,7 @@ Luckily the openEO Python client Library should raise an error if it detects tha
 Callback as ``PGNode``
 -----------------------
 
-You can also pass a ``PGNode`` object as callback.
+You can also pass a :py:class:`~openeo.internal.graph_building.PGNode` object as callback.
 This method is used internally and could be useful for more
 advanced use cases, but it requires more in-depth knowledge of
 the openEO API and openEO Python Client Library to construct correctly.

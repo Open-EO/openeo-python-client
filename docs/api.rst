@@ -111,6 +111,13 @@ openeo.util
     :members: to_bbox_dict, BBoxDict
 
 
+openeo.processes
+----------------
+
+.. automodule:: openeo.processes
+    :members: process
+
+
 openeo.internal
 ----------------
 

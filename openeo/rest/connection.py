@@ -898,9 +898,9 @@ class Connection(RestApiConnection):
 
     def datacube_from_process(self, process_id: str, namespace: str = None, **kwargs) -> DataCube:
         """
-        Load a raster datacube, from a custom process.
+        Load a data cube from a (custom) process.
 
-        :param process_id: The process id of the custom process.
+        :param process_id: The process id.
         :param namespace: optional: process namespace
         :param kwargs: The arguments of the custom process
         :return: A :py:class:`DataCube`, without valid metadata, as the client is not aware of this custom process.
