@@ -440,10 +440,11 @@ def load_json(path: Union[Path, str]) -> dict:
 
 def load_json_resource(src: Union[str, Path]) -> dict:
     """
-    Helper to load some kind of JSON resource:
-    - raw JSON string
-    - path to JSON file
-    - URL to JSON resource
+    Helper to load some kind of JSON resource
+
+    :param src: a JSON resource: a raw JSON string,
+        a path to (local) JSON file, or a URL to a remote JSON resource
+    :return: data structured parsed from JSON
     """
     if isinstance(src, str) and src.strip().startswith("{"):
         # Assume source is a raw JSON string

@@ -9,3 +9,4 @@ openEO CookBook
    sampling
    udp_sharing
    spectral_indices
+   tricks

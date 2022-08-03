@@ -4,12 +4,13 @@ Functionality for abstracting, building, manipulating and processing openEO proc
 """
 import abc
 import collections
+from pathlib import Path
 from typing import Union, Dict, Any, Optional
 
 from openeo.api.process import Parameter
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor, ProcessGraphUnflattener, \
     ProcessGraphVisitException
-from openeo.util import legacy_alias, dict_no_none
+from openeo.util import legacy_alias, dict_no_none, load_json_resource
 
 
 class _FromNodeMixin(abc.ABC):
@@ -151,8 +152,10 @@ def as_flat_graph(x: Union[dict, Any]) -> dict:
     elif hasattr(x, 'flat_graph'):
         # The "flat_graph" API (supported by `PGNode`, `DataCube`, `ProcessBuilderBase`, ...)
         return x.flat_graph()
-    else:
-        raise ValueError(x)
+    elif isinstance(x, (str, Path)):
+        # Assume a JSON resource (raw JSON, path to local file, JSON url, ...)
+        return load_json_resource(x)
+    raise ValueError(x)
 
 
 class UDF(PGNode):

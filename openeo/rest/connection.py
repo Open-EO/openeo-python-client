@@ -1087,14 +1087,21 @@ class Connection(RestApiConnection):
         return result
 
     # TODO: unify `download` and `execute` better: e.g. `download` always writes to disk, `execute` returns result (raw or as JSON decoded dict)
-    def download(self, graph: dict, outputfile: Union[Path, str, None] = None, timeout:int=30*60):
+    def download(
+            self,
+            graph: Union[dict, str, Path],
+            outputfile: Union[Path, str, None] = None,
+            timeout: int = 30 * 60,
+    ):
         """
         Downloads the result of a process graph synchronously,
         and save the result to the given file or return bytes object if no outputfile is specified.
         This method is useful to export binary content such as images. For json content, the execute method is recommended.
 
-        :param graph: (flat) dict representing a process graph
+        :param graph: (flat) dict representing a process graph, or process graph as raw JSON string,
+            or as local file path or URL
         :param outputfile: output file
+        :param timeout: timeout to wait for response
         """
         request = self._build_request_with_process_graph(process_graph=graph)
         response = self.post(path="/result", json=request, expected_status=200, stream=True, timeout=timeout)
@@ -1106,24 +1113,28 @@ class Connection(RestApiConnection):
         else:
             return response.content
 
-    def execute(self, process_graph: dict):
+    def execute(self, process_graph: Union[dict, str, Path]):
         """
         Execute a process graph synchronously and return the result (assumed to be JSON).
 
-        :param process_graph: (flat) dict representing a process graph
+        :param process_graph: (flat) dict representing a process graph, or process graph as raw JSON string,
+            or as local file path or URL
+        :return: parsed JSON response
         """
         req = self._build_request_with_process_graph(process_graph=process_graph)
         return self.post(path="/result", json=req, expected_status=200).json()
 
     def create_job(
-            self, process_graph: dict, title: Optional[str] = None, description: Optional[str] = None,
+            self, process_graph: Union[dict, str, Path],
+            title: Optional[str] = None, description: Optional[str] = None,
             plan: Optional[str] = None, budget: Optional[float] = None,
             additional: Optional[dict] = None
     ) -> BatchJob:
         """
         Posts a job to the back end.
 
-        :param process_graph: (flat) dict representing process graph
+        :param process_graph: (flat) dict representing a process graph, or process graph as raw JSON string,
+            or as local file path or URL
         :param title: String title of the job
         :param description: String description of the job
         :param plan: billing plan

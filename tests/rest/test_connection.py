@@ -7,7 +7,7 @@ import textwrap
 import typing
 import unittest.mock as mock
 import zlib
-from typing import Optional
+from pathlib import Path
 
 import pytest
 import requests.auth
@@ -2406,3 +2406,128 @@ def test_version_info(requests_mock, capabilities, expected):
     requests_mock.get("https://oeo.test/", json=capabilities)
     con = Connection(API_URL)
     assert con.version_info() == expected
+
+
+class TestExecute:
+    # Dummy process graphs
+    PG_JSON_1 = '{"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": true}}'
+    PG_JSON_2 = '{"process_graph": {"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": true}}}'
+
+    # Dummy `POST /result` handlers
+    def _post_result_handler_tiff(self, response: requests.Request, context):
+        pg = response.json()["process"]["process_graph"]
+        assert pg == {"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}}
+        return b"TIFF data"
+
+    def _post_result_handler_json(self, response: requests.Request, context):
+        pg = response.json()["process"]["process_graph"]
+        assert pg == {"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}}
+        return {"answer": 8}
+
+    def _post_jobs_handler_json(self, response: requests.Request, context):
+        pg = response.json()["process"]["process_graph"]
+        assert pg == {"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}}
+        context.headers["OpenEO-Identifier"] = "j-123"
+        return b""
+
+    @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
+    def test_download_pg_json(self, requests_mock, tmp_path, pg_json: str):
+        requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+        requests_mock.post(API_URL + "result", content=self._post_result_handler_tiff)
+
+        conn = Connection(API_URL)
+        output = tmp_path / "result.tiff"
+        conn.download(pg_json, outputfile=output)
+        assert output.read_bytes() == b"TIFF data"
+
+    @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
+    def test_execute_pg_json(self, requests_mock, pg_json: str):
+        requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+        requests_mock.post(API_URL + "result", json=self._post_result_handler_json)
+
+        conn = Connection(API_URL)
+        result = conn.execute(pg_json)
+        assert result == {"answer": 8}
+
+    @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
+    def test_create_job_pg_json(self, requests_mock, pg_json: str):
+        requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+        requests_mock.post(API_URL + "jobs", status_code=201, content=self._post_jobs_handler_json)
+
+        conn = Connection(API_URL)
+        job = conn.create_job(pg_json)
+        assert job.job_id == "j-123"
+
+    @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
+    @pytest.mark.parametrize("path_factory", [str, Path])
+    def test_download_pg_json_file(self, requests_mock, tmp_path, pg_json: str, path_factory):
+        requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+        requests_mock.post(API_URL + "result", content=self._post_result_handler_tiff)
+        json_file = tmp_path / "input.json"
+        json_file.write_text(pg_json)
+        json_file = path_factory(json_file)
+
+        conn = Connection(API_URL)
+        output = tmp_path / "result.tiff"
+        conn.download(json_file, outputfile=output)
+        assert output.read_bytes() == b"TIFF data"
+
+    @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
+    @pytest.mark.parametrize("path_factory", [str, Path])
+    def test_execute_pg_json_file(self, requests_mock, pg_json: str, tmp_path, path_factory):
+        requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+        requests_mock.post(API_URL + "result", json=self._post_result_handler_json)
+        json_file = tmp_path / "input.json"
+        json_file.write_text(pg_json)
+        json_file = path_factory(json_file)
+
+        conn = Connection(API_URL)
+        result = conn.execute(json_file)
+        assert result == {"answer": 8}
+
+    @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
+    @pytest.mark.parametrize("path_factory", [str, Path])
+    def test_create_job_pg_json_file(self, requests_mock, pg_json: str, tmp_path, path_factory):
+        requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+        requests_mock.post(API_URL + "jobs", status_code=201, content=self._post_jobs_handler_json)
+        json_file = tmp_path / "input.json"
+        json_file.write_text(pg_json)
+        json_file = path_factory(json_file)
+
+        conn = Connection(API_URL)
+        job = conn.create_job(json_file)
+        assert job.job_id == "j-123"
+
+    @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
+    def test_download_pg_json_url(self, requests_mock, tmp_path, pg_json: str):
+        requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+        requests_mock.post(API_URL + "result", content=self._post_result_handler_tiff)
+        url = "https://jsonbin.test/pg.json"
+        requests_mock.get(url, text=pg_json)
+
+        conn = Connection(API_URL)
+        output = tmp_path / "result.tiff"
+        conn.download(url, outputfile=output)
+        assert output.read_bytes() == b"TIFF data"
+
+    @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
+    def test_execute_pg_json_url(self, requests_mock, pg_json: str):
+        requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+        requests_mock.post(API_URL + "result", json=self._post_result_handler_json)
+        url = "https://jsonbin.test/pg.json"
+        requests_mock.get(url, text=pg_json)
+
+        conn = Connection(API_URL)
+        result = conn.execute(url)
+        assert result == {"answer": 8}
+
+    @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
+    def test_create_job_pg_json_url(self, requests_mock, pg_json: str):
+        requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+        requests_mock.post(API_URL + "jobs", status_code=201, content=self._post_jobs_handler_json)
+        url = "https://jsonbin.test/pg.json"
+        requests_mock.get(url, text=pg_json)
+
+        conn = Connection(API_URL)
+        job = conn.create_job(url)
+        assert job.job_id == "j-123"
