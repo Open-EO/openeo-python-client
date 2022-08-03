@@ -195,6 +195,27 @@ constant as symbolic reference to the "current" cube::
     )
 
 
+Passing results from other process calls as arguments
+------------------------------------------------------
+
+Another use case of generically applying (custom) processes is
+passing a process result as argument to another process working on a cube.
+For example, assume we have a custom process ``load_my_vector_cube``
+to load a vector cube from an online resource.
+We can use this vector cube as geometry for
+:py:meth:`DataCube.aggregate_spatial() <openeo.rest.datacube.DataCube.aggregate_spatial>`
+using :py:func:`openeo.processes.process()` as follows:
+
+
+.. code-block:: python
+
+    from openeo.processes import process
+
+    res = cube.aggregate_spatial(
+        geometries=process("load_my_vector_cube", url="https://geo.example/features.db"),
+        reducer="mean"
+    )
+
 
 .. _callbackfunctions:
 

@@ -361,7 +361,7 @@ def test_aggregate_spatial_context(con100: Connection):
     lambda c: openeo.processes.process("load_vector", url="https://geo.test/features.json"),
     lambda c: c.datacube_from_process("load_vector", url="https://geo.test/features.json"),
 ])
-def test_aggregate_spatial_from_node(con100: Connection, get_geometries):
+def test_aggregate_spatial_geometry_from_node(con100: Connection, get_geometries):
     cube = con100.load_collection("S2")
     geometries = get_geometries(con100)
     result = cube.aggregate_spatial(geometries=geometries, reducer="mean")
