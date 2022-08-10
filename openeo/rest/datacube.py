@@ -473,12 +473,13 @@ class DataCube(_ProcessGraphAbstraction):
         else:
             if isinstance(other, DataCube):
                 return self._merge_operator_binary_cubes(operator, other)
-            elif isinstance(other, (int, float)) and not reverse:
+            elif isinstance(other, (int, float)):
+                if reverse:
+                    args = {"x": other, "y": {"from_parameter": "x"}}
+                else:
+                    args = {"x": {"from_parameter": "x"}, "y": other}
                 # TODO #123: support appending to pre-existing apply process instead of adding a whole new one
-                return self.apply(process=PGNode(
-                    process_id=operator,
-                    arguments={"x": {"from_parameter": "x"}, "y": other}
-                ))
+                return self.apply(process=PGNode(process_id=operator, arguments=args))
         raise OperatorException("Unsupported operator {op!r} with {other!r} (band math mode={b})".format(
             op=operator, other=other, b=band_math_mode))
 
@@ -498,8 +499,8 @@ class DataCube(_ProcessGraphAbstraction):
         return self._operator_binary("subtract", other, reverse=reverse)
 
     @openeo_process(mode="operator")
-    def divide(self, other: Union['DataCube', int, float]) -> 'DataCube':
-        return self._operator_binary("divide", other)
+    def divide(self, other: Union['DataCube', int, float], reverse=False) -> 'DataCube':
+        return self._operator_binary("divide", other, reverse=reverse)
 
     @openeo_process(mode="operator")
     def multiply(self, other: Union['DataCube', int, float], reverse=False) -> 'DataCube':
@@ -610,6 +611,10 @@ class DataCube(_ProcessGraphAbstraction):
     @openeo_process(process_id="divide", mode="operator")
     def __truediv__(self, other) -> 'DataCube':
         return self.divide(other)
+
+    @openeo_process(process_id="divide", mode="operator")
+    def __rtruediv__(self, other) -> 'DataCube':
+        return self.divide(other, reverse=True)
 
     @openeo_process(process_id="power", mode="operator")
     def __rpow__(self, other) -> 'DataCube':

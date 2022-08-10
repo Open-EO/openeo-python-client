@@ -2004,6 +2004,42 @@ def test_update_arguments_priority(con100):
     }
 
 
+@pytest.mark.parametrize(["math", "process", "args"], [
+    (lambda c: c + 1, "add", {"x": {"from_parameter": "x"}, "y": 1}),
+    (lambda c: 1 + c, "add", {"x": 1, "y": {"from_parameter": "x"}}),
+    (lambda c: c - 1.2, "subtract", {"x": {"from_parameter": "x"}, "y": 1.2}),
+    (lambda c: 1.2 - c, "subtract", {"x": 1.2, "y": {"from_parameter": "x"}}),
+    (lambda c: c * 2.5, "multiply", {"x": {"from_parameter": "x"}, "y": 2.5}),
+    (lambda c: 2.5 * c, "multiply", {"x": 2.5, "y": {"from_parameter": "x"}}),
+    (lambda c: c / 3, "divide", {"x": {"from_parameter": "x"}, "y": 3}),
+    (lambda c: 3 / c, "divide", {"x": 3, "y": {"from_parameter": "x"}}),
+    (lambda c: c > 4, "gt", {"x": {"from_parameter": "x"}, "y": 4}),
+    (lambda c: 4 > c, "lt", {"x": {"from_parameter": "x"}, "y": 4}),
+    (lambda c: c == 4, "eq", {"x": {"from_parameter": "x"}, "y": 4}),
+    (lambda c: 4 == c, "eq", {"x": {"from_parameter": "x"}, "y": 4}),
+])
+def test_apply_math_simple(con100, math, process, args):
+    """https://github.com/Open-EO/openeo-python-client/issues/323"""
+    cube = con100.load_collection("S2")
+    res = math(cube)
+    graph = res.flat_graph()
+    assert set(graph.keys()) == {"loadcollection1", "apply1"}
+    assert graph["apply1"] == {
+        "process_id": "apply",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "process": {"process_graph": {
+                f"{process}1": {
+                    "process_id": process,
+                    "arguments": args,
+                    "result": True,
+                }
+            }}
+        },
+        "result": True,
+    }
+
+
 class TestBatchJob:
     _EXPECTED_SIMPLE_S2_JOB = {"process": {"process_graph": {
         "loadcollection1": {

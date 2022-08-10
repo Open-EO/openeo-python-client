@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Allow passing raw JSON string, JSON file path or URL to `Connection.download()`,
   `Connection.execute()` and `Connection.create_job()`
+- Add support for reverse math operators on DataCube in `apply` mode ([#323](https://github.com/Open-EO/openeo-python-client/issues/323))
 
 
 ### Changed
