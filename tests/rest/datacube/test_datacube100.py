@@ -74,16 +74,6 @@ def test_datacube_flat_graph(con100):
     }}
 
 
-def test_datacube_legacy_flatten(con100):
-    s2cube = con100.load_collection("S2")
-    with pytest.warns(DeprecationWarning, match="Call to deprecated method `flatten`, use `flat_graph` instead."):
-        assert s2cube.flatten() == {'loadcollection1': {
-            'process_id': 'load_collection',
-            'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
-            'result': True
-        }}
-
-
 @pytest.mark.parametrize(["kwargs", "expected"], [
     ({"west": 3, "south": 51, "east": 4, "north": 52}, {"west": 3, "south": 51, "east": 4, "north": 52}),
     (

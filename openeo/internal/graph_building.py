@@ -117,8 +117,6 @@ class PGNode(_FromNodeMixin):
         """Get the process graph in internal flat dict representation."""
         return GraphFlattener().flatten(node=self)
 
-    flatten = legacy_alias(flat_graph, name="flatten")
-
     @staticmethod
     def to_process_graph_argument(value: Union['PGNode', str, dict]) -> dict:
         """

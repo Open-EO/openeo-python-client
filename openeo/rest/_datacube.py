@@ -45,8 +45,6 @@ class _ProcessGraphAbstraction(_FromNodeMixin):
         # TODO: wrap in {"process_graph":...} by default/optionally?
         return self._pg.flat_graph()
 
-    flatten = legacy_alias(flat_graph, name="flatten")
-
     def to_json(self, *, indent: Union[int, None] = 2, separators: Optional[Tuple[str, str]] = None) -> str:
         """
         Get interoperable JSON representation of the process graph.
