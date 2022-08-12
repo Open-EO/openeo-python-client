@@ -4,6 +4,7 @@ Unit tests specifically for 1.0.0-style DataCube
 
 """
 import collections
+import io
 import pathlib
 import re
 import sys
@@ -1428,32 +1429,34 @@ def test_save_result_format(con100, requests_mock):
     cube.save_result(format="pNg")
 
 
+EXPECTED_JSON_EXPORT_S2_NDVI = textwrap.dedent('''\
+  {
+    "process_graph": {
+      "loadcollection1": {
+        "process_id": "load_collection",
+        "arguments": {
+          "id": "S2",
+          "spatial_extent": null,
+          "temporal_extent": null
+        }
+      },
+      "ndvi1": {
+        "process_id": "ndvi",
+        "arguments": {
+          "data": {
+            "from_node": "loadcollection1"
+          }
+        },
+        "result": true
+      }
+    }
+  }''')
+
+
 @pytest.mark.skipif(sys.version_info < (3, 6), reason="requires 'insertion ordered' dicts from python3.6 or higher")
 def test_to_json(con100):
     ndvi = con100.load_collection("S2").ndvi()
-    expected = textwrap.dedent('''\
-      {
-        "process_graph": {
-          "loadcollection1": {
-            "process_id": "load_collection",
-            "arguments": {
-              "id": "S2",
-              "spatial_extent": null,
-              "temporal_extent": null
-            }
-          },
-          "ndvi1": {
-            "process_id": "ndvi",
-            "arguments": {
-              "data": {
-                "from_node": "loadcollection1"
-              }
-            },
-            "result": true
-          }
-        }
-      }''')
-    assert ndvi.to_json() == expected
+    assert ndvi.to_json() == EXPECTED_JSON_EXPORT_S2_NDVI
 
 
 @pytest.mark.skipif(sys.version_info < (3, 6), reason="requires 'insertion ordered' dicts from python3.6 or higher")
@@ -1463,6 +1466,22 @@ def test_to_json_compact(con100):
     assert ndvi.to_json(indent=None) == expected
     expected = '{"process_graph":{"loadcollection1":{"process_id":"load_collection","arguments":{"id":"S2","spatial_extent":null,"temporal_extent":null}},"ndvi1":{"process_id":"ndvi","arguments":{"data":{"from_node":"loadcollection1"}},"result":true}}}'
     assert ndvi.to_json(indent=None, separators=(',', ':')) == expected
+
+
+@pytest.mark.skipif(sys.version_info < (3, 6), reason="requires 'insertion ordered' dicts from python3.6 or higher")
+def test_print_json_default(con100, capsys):
+    ndvi = con100.load_collection("S2").ndvi()
+    ndvi.print_json()
+    stdout, stderr = capsys.readouterr()
+    assert stdout == EXPECTED_JSON_EXPORT_S2_NDVI + "\n"
+
+
+@pytest.mark.skipif(sys.version_info < (3, 6), reason="requires 'insertion ordered' dicts from python3.6 or higher")
+def test_print_json_file(con100):
+    ndvi = con100.load_collection("S2").ndvi()
+    f = io.StringIO()
+    ndvi.print_json(file=f)
+    assert f.getvalue() == EXPECTED_JSON_EXPORT_S2_NDVI + "\n"
 
 
 def test_sar_backscatter_defaults(con100):

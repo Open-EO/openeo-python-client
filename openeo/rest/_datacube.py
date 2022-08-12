@@ -1,7 +1,7 @@
 import json
 import logging
 import typing
-from typing import Optional
+from typing import Optional, Union, Tuple
 
 from openeo.internal.graph_building import PGNode, _FromNodeMixin
 from openeo.util import legacy_alias
@@ -32,22 +32,53 @@ class _ProcessGraphAbstraction(_FromNodeMixin):
 
     def flat_graph(self) -> dict:
         """
-        Get the process graph in flat dict representation
+        Get the process graph in internal flat dict representation.
 
-        .. note:: This method is mainly for internal use, subject to change and not recommended for general usage.
-            Instead, use :py:meth:`to_json()` to get a JSON representation of the process graph.
+        .. warning:: This method is mainly intended for internal use.
+            It is not recommended for general use and is *subject to change*.
+
+            Instead, it is recommended to use
+            :py:meth:`to_json()` or :py:meth:`print_json()`
+            to obtain a standardized, interoperable JSON representation of the process graph.
+            See :ref:`process_graph_export` for more information.
         """
         # TODO: wrap in {"process_graph":...} by default/optionally?
         return self._pg.flat_graph()
 
     flatten = legacy_alias(flat_graph, name="flatten")
 
-    def to_json(self, indent=2, separators=None) -> str:
+    def to_json(self, *, indent: Union[int, None] = 2, separators: Optional[Tuple[str, str]] = None) -> str:
         """
-        Get JSON representation of (flat dict) process graph.
+        Get interoperable JSON representation of the process graph.
+
+        See :py:meth:`DataCube.print_json` to directly print the JSON representation
+        and :ref:`process_graph_export` for more usage information.
+
+        Also see ``json.dumps`` docs for more information on the JSON formatting options.
+
+        :param indent: JSON indentation level.
+        :param separators: (optional) tuple of item/key separators.
+        :return: JSON string
         """
         pg = {"process_graph": self.flat_graph()}
         return json.dumps(pg, indent=indent, separators=separators)
+
+    def print_json(self, *, file=None, indent: Union[int, None] = 2, separators: Optional[Tuple[str, str]] = None):
+        """
+        Print interoperable JSON representation of the process graph.
+
+        See :py:meth:`DataCube.to_json` to get the JSON representation as a string
+        and :ref:`process_graph_export` for more usage information.
+
+        Also see ``json.dumps`` docs for more information on the JSON formatting options.
+
+        :param file: file-like object (stream) to print to (current ``sys.stdout`` by default).
+        :param indent: JSON indentation level.
+        :param separators: (optional) tuple of item/key separators.
+
+        .. versionadded:: 0.12.0
+        """
+        print(self.to_json(indent=indent, separators=separators), file=file)
 
     @property
     def _api_version(self):

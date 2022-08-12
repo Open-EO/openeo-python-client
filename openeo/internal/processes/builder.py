@@ -53,7 +53,7 @@ class ProcessBuilderBase(_FromNodeMixin):
         return cls(PGNode(process_id=process_id, arguments=arguments, namespace=namespace))
 
     def flat_graph(self) -> dict:
-        """Get the process graph in flat dict representation"""
+        """Get the process graph in internal flat dict representation."""
         return self.pgnode.flat_graph()
 
     def from_node(self) -> PGNode:

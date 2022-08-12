@@ -114,7 +114,7 @@ class PGNode(_FromNodeMixin):
         return _deep_copy(self)
 
     def flat_graph(self) -> dict:
-        """Get the process graph in flat dict representation."""
+        """Get the process graph in internal flat dict representation."""
         return GraphFlattener().flatten(node=self)
 
     flatten = legacy_alias(flat_graph, name="flatten")
@@ -145,7 +145,7 @@ class PGNode(_FromNodeMixin):
 
 def as_flat_graph(x: Union[dict, Any]) -> dict:
     """
-    Convert given object to a flat dict graph representation.
+    Convert given object to a internal flat dict graph representation.
     """
     if isinstance(x, dict):
         return x
