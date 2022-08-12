@@ -1697,7 +1697,7 @@ def test_load_collection_arguments_040(requests_mock):
     im = conn.load_collection(
         "FOO", spatial_extent=spatial_extent, temporal_extent=temporal_extent, bands=["red", "green"]
     )
-    node = im.graph[im.node_id]
+    node = im.flat_graph()[im.node_id]
     assert node["process_id"] == "load_collection"
     assert node["arguments"] == {
         "id": "FOO",

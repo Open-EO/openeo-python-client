@@ -60,17 +60,6 @@ class DataCube(_ProcessGraphAbstraction):
         super().__init__(pgnode=graph,  connection=connection)
         self.metadata = CollectionMetadata.get_or_create(metadata)
 
-    @property
-    @deprecated(reason="Use :py:meth:`DataCube.flat_graph()` instead.", version="0.9.0")
-    def graph(self) -> dict:
-        """
-        Get the process graph in flat dict representation.
-
-        .. note:: This property is mainly for internal use, subject to change and not recommended for general usage.
-        """
-        # TODO: is it feasible to just remove this property?
-        return self.flat_graph()
-
     def process(
             self,
             process_id: str,

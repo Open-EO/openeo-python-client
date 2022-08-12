@@ -64,17 +64,6 @@ def _get_leaf_node(cube: DataCube) -> dict:
     return node
 
 
-def test_datacube_graph(con100):
-    s2cube = con100.load_collection("S2")
-    with pytest.warns(DeprecationWarning, match=re.escape("Use `DataCube.flat_graph()` instead.")):
-        actual = s2cube.graph
-    assert actual == {'loadcollection1': {
-        'process_id': 'load_collection',
-        'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
-        'result': True
-    }}
-
-
 def test_datacube_flat_graph(con100):
     s2cube = con100.load_collection("S2")
     assert s2cube.flat_graph() == {'loadcollection1': {
