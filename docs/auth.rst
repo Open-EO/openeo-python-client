@@ -662,8 +662,15 @@ Some guidelines get long-term and non-interactive authentication working for you
 
 
 
-Troubleshooting tips
-====================
+Best Practices and Troubleshooting Tips
+========================================
+
+.. warning::
+
+    Handle (OIDC) access and refresh tokens like secret, personal passwords.
+    **Never share your access or refresh tokens** with other people,
+    publicly, or for user support reasons.
+
 
 Clear the refresh token file
 ----------------------------
