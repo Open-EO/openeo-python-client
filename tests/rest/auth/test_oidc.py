@@ -142,11 +142,11 @@ def test_provider_info_default_client_none(requests_mock):
 
 def test_provider_info_default_client_available_list(requests_mock):
     requests_mock.get("https://authit.test/.well-known/openid-configuration", json={})
-    default_client = {
+    default_clients = [{
         "id": "jak4l0v3-45lsdfe3d",
         "grant_types": ["urn:ietf:params:oauth:grant-type:device_code+pkce", "refresh_token"]
-    }
-    info = OidcProviderInfo(issuer="https://authit.test", default_clients=[default_client])
+    }]
+    info = OidcProviderInfo(issuer="https://authit.test", default_clients=default_clients)
 
     # Alias for compactness
     g = DefaultOidcClientGrant
@@ -162,11 +162,11 @@ def test_provider_info_default_client_available_list(requests_mock):
 
 def test_provider_info_default_client_available_lambda(requests_mock):
     requests_mock.get("https://authit.test/.well-known/openid-configuration", json={})
-    default_client = {
+    default_clients = [{
         "id": "jak4l0v3-45lsdfe3d",
         "grant_types": ["urn:ietf:params:oauth:grant-type:device_code+pkce", "refresh_token"]
-    }
-    info = OidcProviderInfo(issuer="https://authit.test", default_clients=[default_client])
+    }]
+    info = OidcProviderInfo(issuer="https://authit.test", default_clients=default_clients)
 
     # Alias for compactness
     g = DefaultOidcClientGrant
@@ -191,11 +191,11 @@ def test_provider_info_default_client_available_lambda(requests_mock):
 
 def test_provider_info_default_client_invalid_grants(requests_mock, caplog):
     requests_mock.get("https://authit.test/.well-known/openid-configuration", json={})
-    default_client = {
+    default_clients = [{
         "id": "jak4l0v3-45lsdfe3d",
         "grant_types": ["refresh_token", "nope dis invalid"]
-    }
-    info = OidcProviderInfo(issuer="https://authit.test", default_clients=[default_client])
+    }]
+    info = OidcProviderInfo(issuer="https://authit.test", default_clients=default_clients)
 
     # Alias for compactness
     g = DefaultOidcClientGrant

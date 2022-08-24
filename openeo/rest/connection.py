@@ -378,8 +378,8 @@ class Connection(RestApiConnection):
             if client_id:
                 _log.info("Using client_id {c!r} from config (provider {p!r})".format(c=client_id, p=provider_id))
         if client_id is None and default_client_grant_check:
-            # Try "default_client" from backend's provider info.
-            _log.debug("No client_id given: checking default client in backend's provider info")
+            # Try "default_clients" from backend's provider info.
+            _log.debug("No client_id given: checking default clients in backend's provider info")
             client_id = provider.get_default_client_id(grant_check=default_client_grant_check)
             if client_id:
                 _log.info("Using default client_id {c!r} from OIDC provider {p!r} info.".format(

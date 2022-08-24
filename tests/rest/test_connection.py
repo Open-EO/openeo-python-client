@@ -1107,7 +1107,7 @@ def test_authenticate_oidc_device_flow_pkce_multiple_provider_one_config_no_give
 
 def test_authenticate_oidc_device_flow_pkce_multiple_provider_one_config_no_given_default_client(requests_mock, auth_config):
     """
-    OIDC device flow + default_client + PKCE with multiple OIDC providers, one in config and none specified to use.
+    OIDC device flow + default_clients + PKCE with multiple OIDC providers, one in config and none specified to use.
     """
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     default_client_id = "dadefaultklient"
