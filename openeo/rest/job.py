@@ -408,7 +408,7 @@ class JobResults:
         """
         target = Path(target or Path.cwd())
         if target.exists() and not target.is_dir():
-            raise OpenEoClientException("The target argument must be a folder. Got {t!r}".format(t=str(target)))
+            raise OpenEoClientException(f"Target argument {target} exists but isn't a folder.")
         ensure_dir(target)
 
         downloaded = [a.download(target) for a in self.get_assets()]
@@ -442,7 +442,7 @@ class _Result:
     def download_files(self, target: Union[str, Path] = None) -> Dict[Path, dict]:
         target = Path(target or Path.cwd())
         if target.exists() and not target.is_dir():
-            raise OpenEoClientException("The target argument must be a folder. Got {t!r}".format(t=str(target)))
+            raise OpenEoClientException(f"Target argument {target} exists but isn't a folder.")
         return {a.download(target): a.metadata for a in self.results.get_assets()}
 
     def load_json(self) -> dict:
