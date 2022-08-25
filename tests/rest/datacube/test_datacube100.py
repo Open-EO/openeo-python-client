@@ -1443,13 +1443,11 @@ EXPECTED_JSON_EXPORT_S2_NDVI = textwrap.dedent('''\
   }''')
 
 
-@pytest.mark.skipif(sys.version_info < (3, 6), reason="requires 'insertion ordered' dicts from python3.6 or higher")
 def test_to_json(con100):
     ndvi = con100.load_collection("S2").ndvi()
     assert ndvi.to_json() == EXPECTED_JSON_EXPORT_S2_NDVI
 
 
-@pytest.mark.skipif(sys.version_info < (3, 6), reason="requires 'insertion ordered' dicts from python3.6 or higher")
 def test_to_json_compact(con100):
     ndvi = con100.load_collection("S2").ndvi()
     expected = '{"process_graph": {"loadcollection1": {"process_id": "load_collection", "arguments": {"id": "S2", "spatial_extent": null, "temporal_extent": null}}, "ndvi1": {"process_id": "ndvi", "arguments": {"data": {"from_node": "loadcollection1"}}, "result": true}}}'
@@ -1458,7 +1456,6 @@ def test_to_json_compact(con100):
     assert ndvi.to_json(indent=None, separators=(',', ':')) == expected
 
 
-@pytest.mark.skipif(sys.version_info < (3, 6), reason="requires 'insertion ordered' dicts from python3.6 or higher")
 def test_print_json_default(con100, capsys):
     ndvi = con100.load_collection("S2").ndvi()
     ndvi.print_json()
@@ -1466,7 +1463,6 @@ def test_print_json_default(con100, capsys):
     assert stdout == EXPECTED_JSON_EXPORT_S2_NDVI + "\n"
 
 
-@pytest.mark.skipif(sys.version_info < (3, 6), reason="requires 'insertion ordered' dicts from python3.6 or higher")
 def test_print_json_file(con100):
     ndvi = con100.load_collection("S2").ndvi()
     f = io.StringIO()
