@@ -1470,6 +1470,16 @@ def test_print_json_file(con100):
     assert f.getvalue() == EXPECTED_JSON_EXPORT_S2_NDVI + "\n"
 
 
+@pytest.mark.parametrize("path_factory", [str, pathlib.Path])
+def test_print_json_file_path(con100, tmp_path, path_factory):
+    ndvi = con100.load_collection("S2").ndvi()
+    path = tmp_path / "dump.json"
+    assert not path.exists()
+    ndvi.print_json(file=path_factory(path))
+    assert path.exists()
+    assert path.read_text() == EXPECTED_JSON_EXPORT_S2_NDVI + "\n"
+
+
 def test_sar_backscatter_defaults(con100):
     cube = con100.load_collection("S2").sar_backscatter()
     assert _get_leaf_node(cube) == {

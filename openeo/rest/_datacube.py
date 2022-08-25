@@ -1,8 +1,11 @@
 import json
 import logging
+import sys
 import typing
+from pathlib import Path
 from typing import Optional, Union, Tuple
 
+from openeo.internal.compat import nullcontext
 from openeo.internal.graph_building import PGNode, _FromNodeMixin
 from openeo.util import legacy_alias
 
@@ -71,12 +74,23 @@ class _ProcessGraphAbstraction(_FromNodeMixin):
         Also see ``json.dumps`` docs for more information on the JSON formatting options.
 
         :param file: file-like object (stream) to print to (current ``sys.stdout`` by default).
+            Or a path (string or pathlib.Path) to a file to write to.
         :param indent: JSON indentation level.
         :param separators: (optional) tuple of item/key separators.
 
         .. versionadded:: 0.12.0
         """
-        print(self.to_json(indent=indent, separators=separators), file=file)
+        pg = {"process_graph": self.flat_graph()}
+        if isinstance(file, (str, Path)):
+            # Create (new) file and automatically close it
+            file_ctx = Path(file).open("w", encoding="utf8")
+        else:
+            # Just use file as-is, but don't close it automatically.
+            file_ctx = nullcontext(enter_result=file or sys.stdout)
+        with file_ctx as f:
+            json.dump(pg, f, indent=indent, separators=separators)
+            if indent is not None:
+                f.write("\n")
 
     @property
     def _api_version(self):
