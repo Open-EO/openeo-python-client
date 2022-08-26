@@ -758,7 +758,8 @@ class DataCube(_ProcessGraphAbstraction):
         Aggregates statistics for one or more geometries (e.g. zonal statistics for polygons)
         over the spatial dimensions.
 
-        :param geometries: shapely geometry, GeoJSON dictionary or path to GeoJSON file
+        :param geometries: a shapely geometry, a GeoJSON-style dictionary,
+            a public GeoJSON URL, or a path (that is valid for the back-end) to a GeoJSON file.
         :param reducer: a callback function that creates a process graph, see :ref:`callbackfunctions`
         :param target_dimension: The new dimension name to be used for storing the results.
         :param crs: The spatial reference system of the provided polygon.
@@ -922,9 +923,8 @@ class DataCube(_ProcessGraphAbstraction):
 
         .. warning:: experimental process: not generally supported, API subject to change.
 
-        :param chunks: Polygon(s), provided as a :class:`shapely.geometry.GeometryCollection`
-            , a :class:`shapely.geometry.MultiPolygon`, a filename pointing to a valid vector file
-            or a :class:`shapely.geometry.Polygon`.
+        :param chunks: Polygons, provided as a shapely geometry, a GeoJSON-style dictionary,
+            a public GeoJSON URL, or a path (that is valid for the back-end) to a GeoJSON file.
         :param process: "child callback" function, see :ref:`callbackfunctions`
         :param mask_value: The value used for cells outside the polygon.
             This provides a distinction between NoData cells within the polygon (due to e.g. clouds)
@@ -1345,7 +1345,8 @@ class DataCube(_ProcessGraphAbstraction):
         The pixel values are replaced with the value specified for `replacement`,
         which defaults to `no data`.
 
-        :param mask: A polygon, provided as a :class:`shapely.geometry.Polygon` or :class:`shapely.geometry.MultiPolygon`, or a filename pointing to a valid vector file
+        :param mask: The geometry to mask with: a shapely geometry, a GeoJSON-style dictionary,
+            a public GeoJSON URL, or a path (that is valid for the back-end) to a GeoJSON file.
         :param srs: The spatial reference system of the provided polygon.
             By default longitude-latitude (EPSG:4326) is assumed.
 
