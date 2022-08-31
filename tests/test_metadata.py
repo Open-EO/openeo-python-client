@@ -97,21 +97,20 @@ def test_band_dimension_rename_labels():
     b03 = Band("B03", "green", 0.560)
     b04 = Band("B04", "red", 0.665)
     bdim = BandDimension(name="bs", bands=[b02, b03, b04])
-    metadata = CollectionMetadata({},dimensions=[bdim])
-    newdim = metadata.rename_labels("bs",target=['1','2','3']).band_dimension
+    metadata = CollectionMetadata({}, dimensions=[bdim])
+    newdim = metadata.rename_labels("bs", target=['1', '2', '3']).band_dimension
 
-    assert metadata.band_dimension.band_names == ['B02','B03','B04']
-    assert newdim.band_names == ['1','2','3']
+    assert metadata.band_dimension.band_names == ['B02', 'B03', 'B04']
+    assert newdim.band_names == ['1', '2', '3']
 
 
 def test_band_dimension_set_labels():
-
-    bdim = BandDimension(name="bs", bands=[Band('some_name',None,None)])
-    metadata = CollectionMetadata({},dimensions=[bdim])
-    newdim = metadata.rename_labels("bs",target=['1','2','3']).band_dimension
+    bdim = BandDimension(name="bs", bands=[Band('some_name', None, None)])
+    metadata = CollectionMetadata({}, dimensions=[bdim])
+    newdim = metadata.rename_labels("bs", target=['1', '2', '3']).band_dimension
 
     assert metadata.band_dimension.band_names == ['some_name']
-    assert newdim.band_names == ['1','2','3']
+    assert newdim.band_names == ['1', '2', '3']
 
 
 def test_band_dimension_rename_labels_with_source():
@@ -119,11 +118,11 @@ def test_band_dimension_rename_labels_with_source():
     b03 = Band("B03", "green", 0.560)
     b04 = Band("B04", "red", 0.665)
     bdim = BandDimension(name="bs", bands=[b02, b03, b04])
-    metadata = CollectionMetadata({},dimensions=[bdim])
-    newdim = metadata.rename_labels("bs",target=['2'],source=['B03']).band_dimension
+    metadata = CollectionMetadata({}, dimensions=[bdim])
+    newdim = metadata.rename_labels("bs", target=['2'], source=['B03']).band_dimension
 
-    assert metadata.band_dimension.band_names == ['B02','B03','B04']
-    assert newdim.band_names == ['B02','2','B04']
+    assert metadata.band_dimension.band_names == ['B02', 'B03', 'B04']
+    assert newdim.band_names == ['B02', '2', 'B04']
 
 
 def test_band_dimension_rename_labels_with_source_mismatch():
