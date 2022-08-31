@@ -342,13 +342,13 @@ def test_fuzzy_mask(connection, api_version):
     assert mask.flat_graph() == load_json_resource('data/%s/fuzzy_mask.json' % api_version)
 
 
-def test_fuzzy_mask_band_math(connection, api_version):
-    s2 = connection.load_collection("SENTINEL2_SCF")
+def test_fuzzy_mask_band_math(con100):
+    s2 = con100.load_collection("SENTINEL2_SCF")
     scf_band = s2.band("SCENECLASSIFICATION")
     clouds = scf_band == 4
     fuzzy = clouds.apply_kernel(kernel=0.1 * np.ones((3, 3)))
     mask = fuzzy.add_dimension("bands", "mask", "bands").band("mask") > 0.3
-    assert mask.flat_graph() == load_json_resource('data/%s/fuzzy_mask_add_dim.json' % api_version)
+    assert mask.flat_graph() == load_json_resource('data/1.0.0/fuzzy_mask_add_dim.json')
 
 
 def test_normalized_difference(connection, api_version):

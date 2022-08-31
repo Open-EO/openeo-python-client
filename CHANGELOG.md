@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Connection.execute()` and `Connection.create_job()`
 - Add support for reverse math operators on DataCube in `apply` mode ([#323](https://github.com/Open-EO/openeo-python-client/issues/323))
 - Add `DataCube.print_json()` to simplify exporting process graphs in Jupyter or other interactive environments ([#324](https://github.com/Open-EO/openeo-python-client/issues/324))
-
+- Raise `DimensionAlreadyExistsException` when trying to `add_dimension()` a dimension with existing name ([Open-EO/openeo-geopyspark-driver#205](https://github.com/Open-EO/openeo-geopyspark-driver/issues/205))
 
 ### Changed
 

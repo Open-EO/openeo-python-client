@@ -10,6 +10,10 @@ class MetadataException(Exception):
     pass
 
 
+class DimensionAlreadyExistsException(MetadataException):
+    pass
+
+
 class Dimension:
     """Base class for dimensions."""
 
@@ -412,6 +416,8 @@ class CollectionMetadata:
 
     def add_dimension(self, name: str, label: Union[str, float], type: str = None) -> 'CollectionMetadata':
         """Create new metadata object with added dimension"""
+        if any(d.name == name for d in self._dimensions):
+            raise DimensionAlreadyExistsException(f"Dimension with name {name!r} already exists")
         if type == "bands":
             dim = BandDimension(name=name, bands=[Band(label, None, None)])
         elif type == "spatial":
