@@ -3,89 +3,6 @@ from abc import ABC
 import re
 from typing import Union
 
-# Is this base class (still) useful?
-
-
-class LooseVersion:
-    """A version number consists of a series of numbers,
-    separated by either periods or strings of letters. When comparing
-    version numbers, the numeric components will be compared
-    numerically, and the alphabetic components lexically. The following
-    are all valid version numbers, in no particular order:
-        1.5.1
-        1.5.2b2
-        161
-        3.10a
-        8.02
-        3.4j
-        1996.07.12
-        3.2.pl0
-        3.1.1.6
-        2g6
-        11g
-        0.960923
-        2.2beta29
-        1.13++
-        5.5.kw
-        2.0b1pl0
-    In fact, there is no such thing as an invalid version number under
-    this scheme; the rules for comparison are simple and predictable.
-    """
-
-    component_re = re.compile(r'(\d+ | [a-z]+ | \.)', re.VERBOSE)
-
-    def __init__(self, version_string=None):
-        if isinstance(version_string, str):
-            self.parse(version_string)
-
-        if isinstance(version_string, LooseVersion):
-            self.version = version_string.version
-
-    def parse(self, version_string):
-        self.vstring = version_string
-        components = [x for x in self.component_re.split(version_string)
-                      if x and x != '.']
-        for i, obj in enumerate(components):
-            with contextlib.suppress(ValueError):
-                components[i] = int(obj)
-        self.version = tuple(components)
-
-    def __str__(self):
-        return str(self.vstring)
-
-    def __repr__(self):
-        return "LooseVersion ('%s')" % str(self)
-
-    def _cmp(self, other):
-        if isinstance(other, str):
-            other = LooseVersion(other)
-        elif not isinstance(other, LooseVersion):
-            return NotImplemented
-        if self.version == other.version:
-            return 0
-        if self.version < other.version:
-            return -1
-        if self.version > other.version:
-            return 1
-
-    def __eq__(self, other):
-        return self.version == LooseVersion(other).version
-
-    def __ge__(self, other):
-        return self.version >= LooseVersion(other).version
-
-    def __gt__(self, other):
-        return self.version > LooseVersion(other).version
-
-    def __le__(self, other):
-        return self.version <= LooseVersion(other).version
-
-    def __lt__(self, other):
-        return self.version < LooseVersion(other).version
-
-    def equals(self, other):
-        return self == other
-
 
 class Capabilities(ABC):
     """Represents capabilities of a connection / back end."""
@@ -134,7 +51,33 @@ class Capabilities(ABC):
 
 class ComparableVersion:
     """
-    Helper to compare a version (e.g. API version) against another (threshold) version
+    This code is copied from distutils.version.LooseVersion
+
+    A version number consists of a series of numbers,
+    separated by either periods or strings of letters. When comparing
+    version numbers, the numeric components will be compared
+    numerically, and the alphabetic components lexically. The following
+    are all valid version numbers, in no particular order:
+        1.5.1
+        1.5.2b2
+        161
+        3.10a
+        8.02
+        3.4j
+        1996.07.12
+        3.2.pl0
+        3.1.1.6
+        2g6
+        11g
+        0.960923
+        2.2beta29
+        1.13++
+        5.5.kw
+        2.0b1pl0
+    In fact, there is no such thing as an invalid version number under
+    this scheme; the rules for comparison are simple and predictable.
+
+    This class compares a version (e.g. API version) against another (threshold) version
 
         >>> v = ComparableVersion('1.2.3')
         >>> v.at_least('1.2.1')
@@ -160,11 +103,21 @@ class ComparableVersion:
         `a.accept_lower(b)`: b is lower than a
     """
 
+    component_re = re.compile(r'(\d+ | [a-z]+ | \.)', re.VERBOSE)
+
     def __init__(self, version: Union[str, 'ComparableVersion']):
         if isinstance(version, ComparableVersion):
             self._version = version._version
         else:
-            self._version = LooseVersion(version)
+            self.parse(version)
+
+    def parse(self, version_string):
+        components = [x for x in self.component_re.split(version_string)
+                      if x and x != '.']
+        for i, obj in enumerate(components):
+            with contextlib.suppress(ValueError):
+                components[i] = int(obj)
+        self._version = tuple(components)
 
     def __repr__(self):
         return '{c}({v!r})'.format(c=type(self).__name__, v=self._version)
