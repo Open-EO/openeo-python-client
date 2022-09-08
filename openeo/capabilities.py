@@ -3,6 +3,8 @@ from abc import ABC
 import re
 from typing import Union
 
+# Is this base class (still) useful?
+
 
 class Capabilities(ABC):
     """Represents capabilities of a connection / back end."""
@@ -51,7 +53,7 @@ class Capabilities(ABC):
 
 class ComparableVersion:
     """
-    This code is copied from distutils.version.LooseVersion
+    This class implementation is based on distutils.version.LooseVersion
 
     A version number consists of a series of numbers,
     separated by either periods or strings of letters. When comparing
@@ -103,21 +105,21 @@ class ComparableVersion:
         `a.accept_lower(b)`: b is lower than a
     """
 
-    component_re = re.compile(r'(\d+ | [a-z]+ | \.)', re.VERBOSE)
+    __component_re = re.compile(r'(\d+ | [a-z]+ | \.)', re.VERBOSE)
 
     def __init__(self, version: Union[str, 'ComparableVersion']):
         if isinstance(version, ComparableVersion):
             self._version = version._version
         else:
-            self.parse(version)
+            self._version = self.__parse(version)
 
-    def parse(self, version_string):
-        components = [x for x in self.component_re.split(version_string)
+    def __parse(self, version_string):
+        components = [x for x in self.__component_re.split(version_string)
                       if x and x != '.']
         for i, obj in enumerate(components):
             with contextlib.suppress(ValueError):
                 components[i] = int(obj)
-        self._version = tuple(components)
+        return tuple(components)
 
     def __repr__(self):
         return '{c}({v!r})'.format(c=type(self).__name__, v=self._version)
