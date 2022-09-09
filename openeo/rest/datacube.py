@@ -1610,7 +1610,11 @@ class DataCube(_ProcessGraphAbstraction):
         if not format:
             format = guess_format(outputfile) if outputfile else "GTiff"
         # TODO: only add `save_result` node when there is none yet?
-        cube = self.save_result(format=format, options=options)
+        for p in self.flat_graph().keys():
+            if "save_result" in self.flat_graph()[p]["process_id"] and self.flat_graph()[p]["result"]:
+                cube = self
+            else:
+                cube = self.save_result(format=format, options=options)
         return self._connection.download(cube.flat_graph(), outputfile)
 
     def validate(self) -> List[dict]:
