@@ -86,11 +86,15 @@ class ComparableVersion:
 
     _component_re = re.compile(r'(\d+ | [a-zA-Z]+ | \.)', re.VERBOSE)
 
-    def __init__(self, version: Union[str, 'ComparableVersion']):
+    def __init__(self, version: Union[str, 'ComparableVersion', tuple]):
         if isinstance(version, ComparableVersion):
             self._version = version._version
-        else:
+        elif isinstance(version, tuple):
+            self._version = version
+        elif isinstance(version, str):
             self._version = self._parse(version)
+        else:
+            raise ValueError(version)
 
     @classmethod
     def _parse(cls, version_string: str) -> Tuple[Union[int, str], ...]:
