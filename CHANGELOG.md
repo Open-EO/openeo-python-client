@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Eliminate dependency on `distutils.version.LooseVersion` which started to trigger deprecation warnings  ([#316](https://github.com/Open-EO/openeo-python-client/issues/316)).
+
 ### Removed
 
 ### Fixed

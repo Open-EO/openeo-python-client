@@ -1,6 +1,8 @@
+import contextlib
 from abc import ABC
-from distutils.version import LooseVersion
-from typing import Union
+import re
+from typing import Union, Tuple
+
 
 # Is this base class (still) useful?
 
@@ -76,13 +78,30 @@ class ComparableVersion:
 
         `a.or_higher(b)`: b is equal or higher than a
         `a.accept_lower(b)`: b is lower than a
+
+    Implementation is loosely based on (now deprecated) `distutils.version.LooseVersion`,
+    which pragmatically parses version strings as a sequence of numbers (compared numerically)
+    or alphabetic strings (compared lexically), e.g.: 1.5.1, 1.5.2b2, 161, 8.02, 2g6, 2.2beta29.
     """
+
+    _component_re = re.compile(r'(\d+ | [a-zA-Z]+ | \.)', re.VERBOSE)
 
     def __init__(self, version: Union[str, 'ComparableVersion']):
         if isinstance(version, ComparableVersion):
             self._version = version._version
         else:
-            self._version = LooseVersion(version)
+            self._version = self._parse(version)
+
+    @classmethod
+    def _parse(cls, version_string: str) -> Tuple[Union[int, str], ...]:
+        components = [
+            x for x in cls._component_re.split(version_string)
+            if x and x != '.'
+        ]
+        for i, obj in enumerate(components):
+            with contextlib.suppress(ValueError):
+                components[i] = int(obj)
+        return tuple(components)
 
     def __repr__(self):
         return '{c}({v!r})'.format(c=type(self).__name__, v=self._version)
