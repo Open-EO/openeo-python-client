@@ -1415,7 +1415,7 @@ def _setup_get_me_handler(requests_mock, oidc_mock: OidcMock):
     def get_me(request: requests.Request, context):
         """handler for `GET /me` (with access_token checking)"""
         auth_header = request.headers["Authorization"]
-        oidc_provider, access_token = re.match("Bearer oidc/(?P<p>\w+)/(?P<a>.*)", auth_header).group("p", "a")
+        oidc_provider, access_token = re.match(r"Bearer oidc/(?P<p>\w+)/(?P<a>.*)", auth_header).group("p", "a")
         try:
             user_id = oidc_mock.validate_access_token(access_token)["user_id"]
         except LookupError:
