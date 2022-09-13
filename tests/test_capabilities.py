@@ -18,18 +18,23 @@ def test_comparable_version_equals(a, b, c):
         assert a.equals(c) is False
 
 
-def test_int_parsing():
+def test_comparable_version_int_parsing():
     assert ComparableVersion("1.20") > "1.2"
     assert ComparableVersion("1.20") > "1.3"
     assert ComparableVersion("1.20") == "1.20"
     assert ComparableVersion("1.20") < "1.21"
 
 
-def test_string_parsing():
+def test_comparable_version_string_parsing():
     assert ComparableVersion("1b2") > "1"
     assert ComparableVersion("1b2") > "1.b1"
     assert ComparableVersion("1b2") == "1.b.2"
     assert ComparableVersion("1b2") < "1b3"
+
+
+def test_comparable_version_to_str():
+    assert str(ComparableVersion("1.2.3")) == "1.2.3"
+    assert str(ComparableVersion("1.b.3")) == "1.b.3"
 
 
 @pytest.mark.parametrize("b", [
