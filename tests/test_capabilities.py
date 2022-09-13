@@ -6,17 +6,17 @@ from openeo.capabilities import ComparableVersion
 class TestComparableVersion:
 
     def test_from_str(self):
-        assert ComparableVersion("1.2.3")._version == (1, 2, 3)
-        assert ComparableVersion("1.b.3")._version == (1, "b", 3)
+        assert ComparableVersion("1.2.3").parts == (1, 2, 3)
+        assert ComparableVersion("1.b.3").parts == (1, "b", 3)
 
     def test_from_tuple(self):
-        assert ComparableVersion((1, 2, 3))._version == (1, 2, 3)
-        assert ComparableVersion((1, "b", 3))._version == (1, "b", 3)
-        assert ComparableVersion((1, "b", "3"))._version == (1, "b", "3")
+        assert ComparableVersion((1, 2, 3)).parts == (1, 2, 3)
+        assert ComparableVersion((1, "b", 3)).parts == (1, "b", 3)
+        assert ComparableVersion((1, "b", "3")).parts == (1, "b", "3")
 
     def test_from_cv(self):
-        assert ComparableVersion(ComparableVersion("1.2.3"))._version == (1, 2, 3)
-        assert ComparableVersion(ComparableVersion("1.b.3"))._version == (1, "b", 3)
+        assert ComparableVersion(ComparableVersion("1.2.3")).parts == (1, 2, 3)
+        assert ComparableVersion(ComparableVersion("1.b.3")).parts == (1, "b", 3)
 
     @pytest.mark.parametrize(["a", "b", "c"], [
         (ComparableVersion("1.2.3"), ComparableVersion("1.2.3"), ComparableVersion("2.3.4")),
@@ -38,7 +38,7 @@ class TestComparableVersion:
         assert ComparableVersion("1.20") == "1.20"
         assert ComparableVersion("1.20") < "1.21"
 
-    def test__string_parsing(self):
+    def test_string_parsing(self):
         assert ComparableVersion("1b2") > "1"
         assert ComparableVersion("1b2") > "1.b1"
         assert ComparableVersion("1b2") == "1.b.2"
@@ -55,6 +55,10 @@ class TestComparableVersion:
     def test_repr(self):
         assert repr(ComparableVersion("1.2.3")) == "ComparableVersion((1, 2, 3))"
         assert repr(ComparableVersion("1.b.3")) == "ComparableVersion((1, 'b', 3))"
+
+    def test_str_parse_roundtrip(self):
+        assert ComparableVersion(str(ComparableVersion("1.2.3"))).parts == (1, 2, 3)
+        assert ComparableVersion(str(ComparableVersion("1.b.3"))).parts == (1, "b", 3)
 
     @pytest.mark.parametrize("b", [
         "0.9", "1", "1.2.2",

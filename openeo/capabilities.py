@@ -107,6 +107,11 @@ class ComparableVersion:
                 components[i] = int(obj)
         return tuple(components)
 
+    @property
+    def parts(self) -> Tuple[Union[int, str], ...]:
+        """Version components as a tuple"""
+        return self._version
+
     def __repr__(self):
         return '{c}({v!r})'.format(c=type(self).__name__, v=self._version)
 
