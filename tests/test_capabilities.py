@@ -8,7 +8,7 @@ from openeo.capabilities import ComparableVersion
     (ComparableVersion("1.2.3"), "1.2.3", "2.3.4"),
     ("1.2.3", ComparableVersion("1.2.3"), ComparableVersion("2.3.4")),
 ])
-def test_comparable_version_equals(a, b,c):
+def test_comparable_version_equals(a, b, c):
     assert (a == b) is True
     assert (a == c) is False
     assert (a != b) is False
@@ -16,6 +16,20 @@ def test_comparable_version_equals(a, b,c):
     if isinstance(a, ComparableVersion):
         assert a.equals(b) is True
         assert a.equals(c) is False
+
+
+def test_int_parsing():
+    assert ComparableVersion("1.20") > "1.2"
+    assert ComparableVersion("1.20") > "1.3"
+    assert ComparableVersion("1.20") == "1.20"
+    assert ComparableVersion("1.20") < "1.21"
+
+
+def test_string_parsing():
+    assert ComparableVersion("1b2") > "1"
+    assert ComparableVersion("1b2") > "1.b1"
+    assert ComparableVersion("1b2") == "1.b.2"
+    assert ComparableVersion("1b2") < "1b3"
 
 
 @pytest.mark.parametrize("b", [

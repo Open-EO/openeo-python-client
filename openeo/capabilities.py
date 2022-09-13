@@ -1,7 +1,8 @@
 import contextlib
 from abc import ABC
 import re
-from typing import Union
+from typing import Union, Tuple
+
 
 # Is this base class (still) useful?
 
@@ -53,33 +54,7 @@ class Capabilities(ABC):
 
 class ComparableVersion:
     """
-    This class implementation is based on distutils.version.LooseVersion
-
-    A version number consists of a series of numbers,
-    separated by either periods or strings of letters. When comparing
-    version numbers, the numeric components will be compared
-    numerically, and the alphabetic components lexically. The following
-    are all valid version numbers, in no particular order:
-        1.5.1
-        1.5.2b2
-        161
-        3.10a
-        8.02
-        3.4j
-        1996.07.12
-        3.2.pl0
-        3.1.1.6
-        2g6
-        11g
-        0.960923
-        2.2beta29
-        1.13++
-        5.5.kw
-        2.0b1pl0
-    In fact, there is no such thing as an invalid version number under
-    this scheme; the rules for comparison are simple and predictable.
-
-    This class compares a version (e.g. API version) against another (threshold) version
+    Helper to compare a version (e.g. API version) against another (threshold) version
 
         >>> v = ComparableVersion('1.2.3')
         >>> v.at_least('1.2.1')
@@ -103,19 +78,26 @@ class ComparableVersion:
 
         `a.or_higher(b)`: b is equal or higher than a
         `a.accept_lower(b)`: b is lower than a
+
+    Implementation is loosely based on (now deprecated) `distutils.version.LooseVersion`,
+    which pragmatically parses version strings as a sequence of numbers (compared numerically)
+    or alphabetic strings (compared lexically), e.g.: 1.5.1, 1.5.2b2, 161, 8.02, 2g6, 2.2beta29.
     """
 
-    __component_re = re.compile(r'(\d+ | [a-z]+ | \.)', re.VERBOSE)
+    _component_re = re.compile(r'(\d+ | [a-zA-Z]+ | \.)', re.VERBOSE)
 
     def __init__(self, version: Union[str, 'ComparableVersion']):
         if isinstance(version, ComparableVersion):
             self._version = version._version
         else:
-            self._version = self.__parse(version)
+            self._version = self._parse(version)
 
-    def __parse(self, version_string):
-        components = [x for x in self.__component_re.split(version_string)
-                      if x and x != '.']
+    @classmethod
+    def _parse(cls, version_string: str) -> Tuple[Union[int, str], ...]:
+        components = [
+            x for x in cls._component_re.split(version_string)
+            if x and x != '.'
+        ]
         for i, obj in enumerate(components):
             with contextlib.suppress(ValueError):
                 components[i] = int(obj)
