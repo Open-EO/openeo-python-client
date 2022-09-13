@@ -212,11 +212,6 @@ class Connection(RestApiConnection):
 
     _MINIMUM_API_VERSION = ComparableVersion("0.4.0")
 
-    # Temporary workaround flag to enable for backends (e.g. EURAC) that expect id_token to be sent as bearer token
-    # TODO #300 DEPRECATED To remove when all backends properly expect access_token
-    # see https://github.com/Open-EO/openeo-wcps-driver/issues/45
-    oidc_auth_user_id_token_as_bearer = False
-
     def __init__(
             self, url: str, auth: AuthBase = None, session: requests.Session = None, default_timeout: int = None,
             auth_config: AuthConfig = None, refresh_token_store: RefreshTokenStore = None,
@@ -414,7 +409,7 @@ class Connection(RestApiConnection):
                 refreshable = True
             else:
                 _log.warning("OIDC token response did not contain refresh token.")
-        token = tokens.access_token if not self.oidc_auth_user_id_token_as_bearer else tokens.id_token
+        token = tokens.access_token
         if self._api_version.at_least("1.0.0"):
             if refreshable:
                 refresh_data = OidcRefreshInfo(

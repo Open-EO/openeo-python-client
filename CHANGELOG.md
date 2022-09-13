@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- Remove old `Connection.oidc_auth_user_id_token_as_bearer` workaround flag ([#300](https://github.com/Open-EO/openeo-python-client/issues/300))
+
 ### Fixed
 
 
