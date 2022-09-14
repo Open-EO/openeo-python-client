@@ -37,7 +37,7 @@ def check_if_latest_version():
         return
     installed_version = client_version()
     if latest_version != client_version():
-        warnings.warn(f'WARNING: You are using {package} version {installed_version}; however, version {latest_version} is available. You should consider upgrading via the \'pip install --upgrade {package}\' command.', Warning)
+        warnings.warn(f'You are using {package} version {installed_version}; however, version {latest_version} is available. You should consider upgrading via the \'pip install --upgrade {package}\' command.', Warning)
     return
 
 check_if_latest_version()
