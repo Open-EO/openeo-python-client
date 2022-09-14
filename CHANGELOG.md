@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix refresh token handling in case of OIDC token request with refresh token grant ([#326](https://github.com/Open-EO/openeo-python-client/issues/326))
+
 
 ## [0.12.0] - 2022-09-09
 
