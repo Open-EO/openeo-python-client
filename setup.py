@@ -36,6 +36,12 @@ docs_require = [
     "myst-parser",
 ]
 
+localprocessing_require = [
+    "rioxarray",
+    "pyproj",
+]
+
+
 name = "openeo"
 setup(
     name=name,
@@ -66,6 +72,7 @@ setup(
         "oschmod": [  # install oschmod even when platform is not Windows, e.g. for testing in CI.
             "oschmod>=0.3.12"
         ],
+        "localprocessing": localprocessing_require,
     },
     entry_points={
         "console_scripts": ["openeo-auth=openeo.rest.auth.cli:main"],
