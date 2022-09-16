@@ -12,6 +12,10 @@ from pathlib import Path
 from typing import Dict, List, Tuple, Union, Callable, Optional, Any, Iterator
 from urllib.parse import urljoin
 
+import xarray as xr
+from glob import glob
+from pyproj import Transformer
+
 import requests
 from deprecated.sphinx import deprecated
 from requests import Response
@@ -203,6 +207,133 @@ class RestApiConnection:
 
     def __repr__(self):
         return "<{c} to {r!r} with {a}>".format(c=type(self).__name__, r=self._root_url, a=type(self.auth).__name__)
+
+    
+class LocalConnection():
+    """
+    Connection to no backend, for local processing.
+    """
+
+    def __init__(self,local_collections_path):
+        """
+        Constructor of LocalConnection.
+
+        :param local_collections_path: String path to the folder with the local collections in netCDF or geoTIFF
+        """
+        self.local_collections_path = local_collections_path.split('file://')[-1]
+        print(self.local_collections_path)
+        
+    def get_temporal_dimension(self,dims):
+        if 't' in dims:
+            return 't'
+        elif 'time' in dims:
+            return 'time'
+        elif 'temporal' in dims:
+            return 'temporal'
+        elif 'DATE' in dims:
+            return 'DATE'
+        else:
+            return None
+
+    def get_x_spatial_dimension(self,dims):
+        if 'x' in dims:
+            return 'x'
+        elif 'X' in dims:
+            return 'X'
+        elif 'lon' in dims:
+            return 'lon'
+        elif 'longitude' in dims:
+            return 'longitude'
+        else:
+            return None
+
+    def get_y_spatial_dimension(self,dims):
+        if 'y' in dims:
+            return 'y'
+        elif 'Y' in dims:
+            return 'Y'
+        elif 'lat' in dims:
+            return 'lat'
+        elif 'latitude' in dims:
+            return 'latitude'
+        else:
+            return None
+
+    def get_netcdf_metadata(self,file_path):
+        data = xr.open_dataset(file_path,chunks={})
+        t_dim = self.get_temporal_dimension(data.dims)
+        x_dim = self.get_x_spatial_dimension(data.dims)
+        y_dim = self.get_y_spatial_dimension(data.dims)
+
+        metadata = {}
+        metadata['stac_version'] = '1.0.0-rc.2'
+        metadata['type'] = 'Collection'
+        metadata['id'] = file_path
+        if 'title' in data.attrs:
+            metadata['title'] = data.attrs['title']
+        else:
+            metadata['title'] = file_path
+        if 'description' in data.attrs:
+            metadata['description'] = data.attrs['description']
+        else:
+            metadata['description'] = ''
+        if 'license' in data.attrs:
+            metadata['license'] = data.attrs['license']
+        else:
+            metadata['license'] = ''
+        providers = [{'name':'',
+                     'roles':['producer'],
+                     'url':''}]
+        if 'providers' in data.attrs:
+            providers[0]['name'] = data.attrs['providers']
+            metadata['providers'] = providers
+        elif 'institution' in data.attrs:
+            providers[0]['name'] = data.attrs['institution']
+            metadata['providers'] = providers
+        else:
+            metadata['providers'] = providers
+        if 'links' in data.attrs:
+            metadata['links'] = data.attrs['links']
+        else:
+            metadata['links'] = ''
+        if 'crs' in data:
+            if 'crs_wkt' in data.crs.attrs:
+                transformer = Transformer.from_crs(data.crs.attrs['crs_wkt'], "epsg:4326")
+                x_min = data[x_dim].min().item(0)
+                x_max = data[x_dim].max().item(0)
+                y_min = data[y_dim].min().item(0)
+                y_max = data[y_dim].max().item(0)
+                lat_min,lon_min = transformer.transform(x_min,y_min)
+                lat_max,lon_max = transformer.transform(x_max,y_max)
+
+                t_min = str(data[t_dim].min().values)
+                t_max = str(data[t_dim].max().values)
+
+                extent = {'spatial': {'bbox': [[lon_min, lat_min, lon_max, lat_max]]},
+                         'temporal': {'interval': [[t_min,t_max]]}
+                 }
+        metadata['extent'] = extent
+        return metadata
+        
+    def get_netcdf_collections(self):
+        local_collections_netcdfs = glob(self.local_collections_path + '/*.nc')
+        local_collections_list = []
+        if len(local_collections_netcdfs)>0:
+            for local_netcdf in local_collections_netcdfs: 
+                netcdf_metadata = self.get_netcdf_metadata(local_netcdf)
+                local_collections_list.append(netcdf_metadata)
+        local_collections_dict = {'collections':local_collections_list}
+        return local_collections_dict
+    
+    def list_collections(self) -> List[dict]:
+        """
+        List basic metadata of all collections provided in the local collections folder.
+
+        .. caution::
+        :return: list of dictionaries with basic collection metadata.
+        """
+        data = self.get_netcdf_collections()["collections"]
+        return VisualList("collections", data=data)
 
 
 class Connection(RestApiConnection):
@@ -1285,17 +1416,20 @@ def connect(
 
     if not url:
         raise OpenEoClientException("No openEO back-end URL given or known to connect to.")
-    connection = Connection(url, session=session, default_timeout=default_timeout)
-
-    auth_type = auth_type.lower() if isinstance(auth_type, str) else auth_type
-    if auth_type in {None, False, 'null', 'none'}:
-        pass
-    elif auth_type == "basic":
-        connection.authenticate_basic(**(auth_options or {}))
-    elif auth_type in {"oidc", "openid"}:
-        connection.authenticate_oidc(**(auth_options or {}))
+    
+    if "file://" in url:
+        connection = LocalConnection(url)
     else:
-        raise ValueError("Unknown auth type {a!r}".format(a=auth_type))
+        connection = Connection(url, session=session, default_timeout=default_timeout)
+        auth_type = auth_type.lower() if isinstance(auth_type, str) else auth_type
+        if auth_type in {None, False, 'null', 'none'}:
+            pass
+        elif auth_type == "basic":
+            connection.authenticate_basic(**(auth_options or {}))
+        elif auth_type in {"oidc", "openid"}:
+            connection.authenticate_oidc(**(auth_options or {}))
+        else:
+            raise ValueError("Unknown auth type {a!r}".format(a=auth_type))
     return connection
 
 
