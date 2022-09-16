@@ -1214,7 +1214,7 @@ def test_authenticate_oidc_device_flow_pkce_store_refresh_token(requests_mock):
     })
 
     expected_fields = {
-        "scope": "openid", "code_verifier":True, "code_challenge":True
+        "scope": "openid", "code_verifier": True, "code_challenge": True
     }
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
@@ -1320,11 +1320,7 @@ def test_authenticate_oidc_auto_with_existing_refresh_token(requests_mock, refre
     assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
 
     new_refresh_token = refresh_token_store.get_refresh_token(issuer=issuer, client_id=client_id)
-    if store_refresh_token:
-        assert new_refresh_token != orig_refresh_token
-        assert new_refresh_token == oidc_mock.state["refresh_token"]
-    else:
-        assert new_refresh_token == orig_refresh_token
+    assert new_refresh_token == orig_refresh_token
     assert [r["grant_type"] for r in oidc_mock.grant_request_history] == ["refresh_token"]
 
 
@@ -1415,7 +1411,7 @@ def _setup_get_me_handler(requests_mock, oidc_mock: OidcMock):
     def get_me(request: requests.Request, context):
         """handler for `GET /me` (with access_token checking)"""
         auth_header = request.headers["Authorization"]
-        oidc_provider, access_token = re.match("Bearer oidc/(?P<p>\w+)/(?P<a>.*)", auth_header).group("p", "a")
+        oidc_provider, access_token = re.match(r"Bearer oidc/(?P<p>\w+)/(?P<a>.*)", auth_header).group("p", "a")
         try:
             user_id = oidc_mock.validate_access_token(access_token)["user_id"]
         except LookupError:
@@ -1467,8 +1463,7 @@ def test_authenticate_oidc_auto_refresh_expired_access_token_initial_refresh_tok
     # Just one "refresh_token" auth request so far
     assert [h["grant_type"] for h in oidc_mock.grant_request_history] == ["refresh_token"]
     access_token1 = oidc_mock.state["access_token"]
-    refresh_token1 = oidc_mock.state["refresh_token"]
-    assert refresh_token1 != initial_refresh_token
+    assert "refresh_token" not in oidc_mock.state
     # Do request that requires auth headers
     assert conn.describe_account() == {
         "user_id": "john",
@@ -1479,21 +1474,20 @@ def test_authenticate_oidc_auto_refresh_expired_access_token_initial_refresh_tok
     # Expire access token and expect new refresh_token auth request with latest refresh token
     if invalidate:
         oidc_mock.invalidate_access_token()
-        oidc_mock.expected_fields["refresh_token"] = refresh_token1
     # Do request that requires auth headers and might trigger re-authentication
     assert "[403] TokenInvalid" not in caplog.text
     get_me_response = conn.describe_account()
     access_token2 = oidc_mock.state["access_token"]
-    refresh_token2 = oidc_mock.state["refresh_token"]
+    assert "refresh_token" not in oidc_mock.state
     if invalidate:
         # Two "refresh_token" auth requests should have happened now
         assert [h["grant_type"] for h in oidc_mock.grant_request_history] == ["refresh_token", "refresh_token"]
-        assert (access_token2, refresh_token2) != (access_token1, refresh_token1)
+        assert access_token2 != access_token1
         assert "expired access token ([403] TokenInvalid)" in caplog.text
         assert "automatically re-authenticated with refresh token" in caplog.text
     else:
         assert [h["grant_type"] for h in oidc_mock.grant_request_history] == ["refresh_token"]
-        assert (access_token2, refresh_token2) == (access_token1, refresh_token1)
+        assert access_token2 == access_token1
         assert "[403] TokenInvalid" not in caplog.text
 
     assert get_me_response == {
@@ -1585,6 +1579,7 @@ def test_authenticate_oidc_auto_refresh_expired_access_token_initial_device_code
         "_used_access_token": access_token2,
     }
 
+
 def test_authenticate_oidc_auto_refresh_expired_access_token_invalid_refresh_token(
         requests_mock, refresh_token_store, caplog
 ):
@@ -1641,7 +1636,7 @@ def test_authenticate_oidc_auto_refresh_expired_access_token_invalid_refresh_tok
         conn.describe_account()
 
     assert "expired access token ([403] TokenInvalid)" in caplog.text
-    assert "failed to automatically re-authenticate with refresh token" in caplog.text
+    assert "failed to automatically re-authenticate using refresh token" in caplog.text
 
 
 def test_authenticate_oidc_auto_refresh_expired_access_token_other_errors(

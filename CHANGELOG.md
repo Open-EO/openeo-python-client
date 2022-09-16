@@ -9,6 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Removed
+
+### Fixed
+
+
+## [0.12.1] - 2022-09-15
+
+### Changed
+
+- Eliminate dependency on `distutils.version.LooseVersion` which started to trigger deprecation warnings  ([#316](https://github.com/Open-EO/openeo-python-client/issues/316)).
+
+### Removed
+
+- Remove old `Connection.oidc_auth_user_id_token_as_bearer` workaround flag ([#300](https://github.com/Open-EO/openeo-python-client/issues/300))
+
+### Fixed
+
+- Fix refresh token handling in case of OIDC token request with refresh token grant ([#326](https://github.com/Open-EO/openeo-python-client/issues/326))
+
+
+## [0.12.0] - 2022-09-09
+
+### Added
+
 - Allow passing raw JSON string, JSON file path or URL to `Connection.download()`,
   `Connection.execute()` and `Connection.create_job()`
 - Add support for reverse math operators on DataCube in `apply` mode ([#323](https://github.com/Open-EO/openeo-python-client/issues/323))
@@ -22,14 +48,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to align with the `DataCube.download()` method. ([#240](https://github.com/Open-EO/openeo-python-client/issues/240))
 - Better client-side handling of merged band name metadata in `DataCube.merge_cubes()`
 
-
 ### Removed
 
 - Remove legacy `DataCube.graph` and `DataCube.flatten()` to prevent usage patterns that cause interoperability issues
   ([#155](https://github.com/Open-EO/openeo-python-client/issues/155), [#209](https://github.com/Open-EO/openeo-python-client/issues/209), [#324](https://github.com/Open-EO/openeo-python-client/issues/324))
-
-### Fixed
-
 
 
 ## [0.11.0] - 2022-07-02

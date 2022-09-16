@@ -1,7 +1,6 @@
 """
 Debug utilities for UDFs
 """
-import json
 import logging
 import os
 import sys
@@ -24,9 +23,6 @@ def inspect(data=None, message: str = "", code: str = "User", level: str = "info
     :param code: A label to help identify one or more log entries
     :param level: The severity level of this message. Allowed values: "error", "warning", "info", "debug"
     """
-    # The openEO logging API defines separate fields like `data` and `message` field,
-    # but with the python logging API we can just have a single string,
-    # so we JSON-encode our data to a single payload.
-    msg = json.dumps({"data": data, "message": message, "code": code})
+    extra = {"data": data, "code": code}
     kwargs = {"stacklevel": 2} if sys.version_info >= (3, 8) else {}
-    _user_log.log(level=logging.getLevelName(level.upper()), msg=msg, **kwargs)
+    _user_log.log(level=logging.getLevelName(level.upper()), msg=message, extra=extra, **kwargs)

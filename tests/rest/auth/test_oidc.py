@@ -7,7 +7,7 @@ import urllib.parse
 import urllib.parse
 from io import BytesIO
 from queue import Queue
-from typing import List, Union
+from typing import List, Union, Optional
 from unittest import mock
 import uuid
 
@@ -415,7 +415,7 @@ class OidcMock:
             context.status_code = 401
             return json.dumps({"error": "invalid refresh token"})
         assert params["refresh_token"] == self.expected_fields["refresh_token"]
-        return self._build_token_response(include_id_token=False)
+        return self._build_token_response(include_id_token=False, include_refresh_token=False)
 
     @staticmethod
     def _get_query_params(*, url=None, query=None):
@@ -437,7 +437,9 @@ class OidcMock:
 
         return ".".join([encode(header), encode(payload), signature])
 
-    def _build_token_response(self, sub="123", name="john", include_id_token=True) -> str:
+    def _build_token_response(
+            self, sub="123", name="john", include_id_token=True, include_refresh_token: Optional[bool] = None
+    ) -> str:
         """Build JSON serialized access/id/refresh token response (and store tokens for use in assertions)"""
         access_token = self._jwt_encode(
             header={},
@@ -446,14 +448,15 @@ class OidcMock:
         res = {"access_token": access_token}
 
         # Attempt to simulate real world refresh token support.
-        if "offline_access" in self.scopes_supported:
-            # "offline_access" scope as suggested in spec
-            # (https://openid.net/specs/openid-connect-core-1_0.html#OfflineAccess)
-            # Implemented by Microsoft, EGI Check-in
-            include_refresh_token = "offline_access" in self.state.get("scope", "").split(" ")
-        else:
-            # Google OAuth style: no support for "offline_access", return refresh token automatically?
-            include_refresh_token = True
+        if include_refresh_token is None:
+            if "offline_access" in self.scopes_supported:
+                # "offline_access" scope as suggested in spec
+                # (https://openid.net/specs/openid-connect-core-1_0.html#OfflineAccess)
+                # Implemented by Microsoft, EGI Check-in
+                include_refresh_token = "offline_access" in self.state.get("scope", "").split(" ")
+            else:
+                # Google OAuth style: no support for "offline_access", return refresh token automatically?
+                include_refresh_token = True
         if include_refresh_token:
             res["refresh_token"] = self._jwt_encode(header={}, payload={"foo": "refresh", "_uuid": uuid.uuid4().hex})
         if include_id_token:
@@ -469,8 +472,6 @@ class OidcMock:
 
     def invalidate_access_token(self):
         self.state["access_token"] = "***invalidated***"
-
-
 
 
 @contextlib.contextmanager
@@ -758,7 +759,6 @@ def test_oidc_refresh_token_flow(requests_mock, caplog):
     )
     tokens = authenticator.get_tokens()
     assert oidc_mock.state["access_token"] == tokens.access_token
-    assert oidc_mock.state["refresh_token"] == tokens.refresh_token
 
 
 def test_oidc_refresh_token_flow_no_secret(requests_mock, caplog):
@@ -780,7 +780,6 @@ def test_oidc_refresh_token_flow_no_secret(requests_mock, caplog):
     )
     tokens = authenticator.get_tokens()
     assert oidc_mock.state["access_token"] == tokens.access_token
-    assert oidc_mock.state["refresh_token"] == tokens.refresh_token
 
 
 def test_oidc_refresh_token_invalid_token(requests_mock, caplog):

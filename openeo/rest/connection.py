@@ -212,11 +212,6 @@ class Connection(RestApiConnection):
 
     _MINIMUM_API_VERSION = ComparableVersion("0.4.0")
 
-    # Temporary workaround flag to enable for backends (e.g. EURAC) that expect id_token to be sent as bearer token
-    # TODO #300 DEPRECATED To remove when all backends properly expect access_token
-    # see https://github.com/Open-EO/openeo-wcps-driver/issues/45
-    oidc_auth_user_id_token_as_bearer = False
-
     def __init__(
             self, url: str, auth: AuthBase = None, session: requests.Session = None, default_timeout: int = None,
             auth_config: AuthConfig = None, refresh_token_store: RefreshTokenStore = None,
@@ -395,8 +390,10 @@ class Connection(RestApiConnection):
     def _authenticate_oidc(
             self,
             authenticator: OidcAuthenticator,
+            *,
             provider_id: str,
             store_refresh_token: bool = False,
+            fallback_refresh_token_to_store: Optional[str] = None,
             refreshable: bool = False,
     ) -> 'Connection':
         """
@@ -405,22 +402,22 @@ class Connection(RestApiConnection):
         tokens = authenticator.get_tokens(request_refresh_token=store_refresh_token)
         _log.info("Obtained tokens: {t}".format(t=[k for k, v in tokens._asdict().items() if v]))
         if store_refresh_token:
-            if tokens.refresh_token:
+            refresh_token = tokens.refresh_token or fallback_refresh_token_to_store
+            if refresh_token:
                 self._get_refresh_token_store().set_refresh_token(
                     issuer=authenticator.provider_info.issuer,
                     client_id=authenticator.client_id,
-                    refresh_token=tokens.refresh_token
+                    refresh_token=refresh_token
                 )
                 refreshable = True
             else:
-                _log.warning("OIDC token response did not contain refresh token.")
-        token = tokens.access_token if not self.oidc_auth_user_id_token_as_bearer else tokens.id_token
+                _log.warning("No OIDC refresh token to store.")
+        token = tokens.access_token
         if self._api_version.at_least("1.0.0"):
             if refreshable:
                 refresh_data = OidcRefreshInfo(
                     provider_id=provider_id,
                     client_id=authenticator.client_id,
-                    store_refresh_token=store_refresh_token,
                 )
             else:
                 refresh_data = None
@@ -510,7 +507,11 @@ class Connection(RestApiConnection):
 
         authenticator = OidcRefreshTokenAuthenticator(client_info=client_info, refresh_token=refresh_token)
         return self._authenticate_oidc(
-            authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token, refreshable=True,
+            authenticator,
+            provider_id=provider_id,
+            store_refresh_token=store_refresh_token,
+            fallback_refresh_token_to_store=refresh_token,
+            refreshable=True,
         )
 
     def authenticate_oidc_device(
@@ -566,7 +567,10 @@ class Connection(RestApiConnection):
                 _log.info("Found refresh token: trying refresh token based authentication.")
                 authenticator = OidcRefreshTokenAuthenticator(client_info=client_info, refresh_token=refresh_token)
                 con = self._authenticate_oidc(
-                    authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token
+                    authenticator,
+                    provider_id=provider_id,
+                    store_refresh_token=store_refresh_token,
+                    fallback_refresh_token_to_store=refresh_token,
                 )
                 # TODO: pluggable/jupyter-aware display function?
                 print("Authenticated using refresh token.")
@@ -608,7 +612,6 @@ class Connection(RestApiConnection):
                         self.authenticate_oidc_refresh_token(
                             client_id=self.auth.refresh_data.client_id,
                             provider_id=self.auth.refresh_data.provider_id,
-                            store_refresh_token=self.auth.refresh_data.store_refresh_token,
                         )
                         _log.warning(
                             f"Connection with expired access token ([{api_exc.http_status_code}] {api_exc.code})"
@@ -617,7 +620,7 @@ class Connection(RestApiConnection):
                     except OpenEoClientException as auth_exc:
                         _log.error(
                             f"Connection with expired access token ([{api_exc.http_status_code}] {api_exc.code})"
-                            f" failed to automatically re-authenticate with refresh token: {auth_exc!r}.")
+                            f" failed to automatically re-authenticate using refresh token: {auth_exc!r}.")
                     else:
                         # Retry request.
                         return _request()
