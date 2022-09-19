@@ -296,13 +296,20 @@ class LocalConnection():
             metadata['links'] = data.attrs['links']
         else:
             metadata['links'] = ''
-        if 'crs' in data:
+        x_min = data[x_dim].min().item(0)
+        x_max = data[x_dim].max().item(0)
+        y_min = data[y_dim].min().item(0)
+        y_max = data[y_dim].max().item(0)
+        
+        crs_present = False
+        bands = list(data.data_vars)
+        if 'crs' in bands:
+            bands.remove('crs')
+            crs_present = True
+            
+        if crs_present:
             if 'crs_wkt' in data.crs.attrs:
                 transformer = Transformer.from_crs(data.crs.attrs['crs_wkt'], "epsg:4326")
-                x_min = data[x_dim].min().item(0)
-                x_max = data[x_dim].max().item(0)
-                y_min = data[y_dim].min().item(0)
-                y_max = data[y_dim].max().item(0)
                 lat_min,lon_min = transformer.transform(x_min,y_min)
                 lat_max,lon_max = transformer.transform(x_max,y_max)
 
@@ -313,6 +320,23 @@ class LocalConnection():
                          'temporal': {'interval': [[t_min,t_max]]}
                  }
         metadata['extent'] = extent
+        
+
+        
+        t_dimension = {t_dim: {'type': 'temporal', 'extent':[t_min,t_max]}}
+        x_dimension = {x_dim: {'type': 'spatial','axis':'x','extent':[x_min,x_max]}}
+        y_dimension = {y_dim: {'type': 'spatial','axis':'y','extent':[y_min,y_max]}}
+        if crs_present:
+            if 'crs_wkt' in data.crs.attrs:
+                x_dimension[x_dim]['reference_system'] = data.crs.attrs['crs_wkt']
+                y_dimension[y_dim]['reference_system'] = data.crs.attrs['crs_wkt']
+        
+        b_dimension = {}
+        if len(bands)>0:
+            b_dimension = {'bands': {'type': 'bands', 'values':bands}}
+        
+        metadata['cube:dimensions'] = {**t_dimension,**x_dimension,**y_dimension,**b_dimension}
+        
         return metadata
         
     def get_netcdf_collections(self):
@@ -324,7 +348,7 @@ class LocalConnection():
                 local_collections_list.append(netcdf_metadata)
         local_collections_dict = {'collections':local_collections_list}
         return local_collections_dict
-    
+        
     def list_collections(self) -> List[dict]:
         """
         List basic metadata of all collections provided in the local collections folder.
@@ -334,7 +358,21 @@ class LocalConnection():
         """
         data = self.get_netcdf_collections()["collections"]
         return VisualList("collections", data=data)
+    
+    def describe_collection(self, collection_id: str) -> dict:
+        """
+        Get full collection metadata for given collection id.
+        
+        .. seealso::
+        
+            :py:meth:`~openeo.rest.connection.Connection.list_collection_ids`
+            to list all collection ids provided by the back-end.
 
+        :param collection_id: collection id
+        :return: collection metadata.
+        """
+        data = self.get_netcdf_metadata(collection_id)
+        return VisualDict("collection", data=data)
 
 class Connection(RestApiConnection):
     """
