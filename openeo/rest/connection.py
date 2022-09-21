@@ -373,7 +373,37 @@ class LocalConnection():
         """
         data = self.get_netcdf_metadata(collection_id)
         return VisualDict("collection", data=data)
+    
+    def collection_metadata(self, name) -> CollectionMetadata:
+        # TODO: duplication with `Connection.describe_collection`: deprecate one or the other?
+        return CollectionMetadata(metadata=self.describe_collection(name))
+    
+    def load_collection(
+            self,
+            collection_id: str,
+            spatial_extent: Optional[Dict[str, float]] = None,
+            temporal_extent: Optional[List[Union[str, datetime.datetime, datetime.date]]] = None,
+            bands: Optional[List[str]] = None,
+            properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
+            fetch_metadata=True,
+    ) -> DataCube:
+        """
+        Load a DataCube by collection id.
 
+        :param collection_id: image collection identifier
+        :param spatial_extent: limit data to specified bounding box or polygons
+        :param temporal_extent: limit data to specified temporal interval
+        :param bands: only add the specified bands
+        :param properties: limit data by metadata property predicates
+        :return: a datacube containing the requested data
+        """
+        return DataCube.load_collection(
+            collection_id=collection_id, connection=self,
+            spatial_extent=spatial_extent, temporal_extent=temporal_extent, bands=bands, properties=properties,
+            fetch_metadata=fetch_metadata,
+        )
+
+    
 class Connection(RestApiConnection):
     """
     Connection to an openEO backend.
@@ -1455,9 +1485,7 @@ def connect(
     if not url:
         raise OpenEoClientException("No openEO back-end URL given or known to connect to.")
     
-    if "file://" in url:
-        connection = LocalConnection(url)
-    else:
+    try:
         connection = Connection(url, session=session, default_timeout=default_timeout)
         auth_type = auth_type.lower() if isinstance(auth_type, str) else auth_type
         if auth_type in {None, False, 'null', 'none'}:
@@ -1468,6 +1496,11 @@ def connect(
             connection.authenticate_oidc(**(auth_options or {}))
         else:
             raise ValueError("Unknown auth type {a!r}".format(a=auth_type))
+    except Exception as e:
+        if Path(url).exists():
+            connection = LocalConnection(url)
+        else:
+            raise e
     return connection
 
 
