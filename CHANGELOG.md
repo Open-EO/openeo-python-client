@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 ### Changed
+- Improve default dimension metadata of a datacube created with `openeo.rest.datacube.DataCube.load_disk_collection`
 
 ### Removed
 

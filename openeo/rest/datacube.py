@@ -27,7 +27,7 @@ from openeo.api.process import Parameter
 from openeo.internal.documentation import openeo_process
 from openeo.internal.graph_building import PGNode, ReduceNode, _FromNodeMixin
 from openeo.internal.processes.builder import get_parameter_names, convert_callable_to_pgnode
-from openeo.metadata import CollectionMetadata, Band, BandDimension
+from openeo.metadata import CollectionMetadata, Band, BandDimension, TemporalDimension, SpatialDimension
 from openeo.processes import ProcessBuilder
 from openeo.rest import BandMathException, OperatorException, OpenEoClientException
 from openeo.rest._datacube import _ProcessGraphAbstraction, THIS
@@ -158,6 +158,9 @@ class DataCube(_ProcessGraphAbstraction):
                              **options) -> 'DataCube':
         """
         Loads image data from disk as a DataCube.
+        This is backed by a non-standard process ('load_disk_data'). This will eventually be replaced by standard options such as
+        https://processes.openeo.org/#load_uploaded_files
+
 
         :param connection: The connection to use to connect with the backend.
         :param file_format: the file format, e.g. 'GTiff'
@@ -173,7 +176,11 @@ class DataCube(_ProcessGraphAbstraction):
                 'options': options
             }
         )
-        return cls(graph=pg, connection=connection, metadata=CollectionMetadata({}))
+
+        metadata = CollectionMetadata({}, dimensions=[SpatialDimension(name="x", extent=[]), SpatialDimension(name="y", extent=[]),
+            TemporalDimension(name='t', extent=[]),
+            BandDimension(name="bands", bands=[Band("unknown")])])
+        return cls(graph=pg, connection=connection, metadata=metadata)
 
     @classmethod
     def _get_temporal_extent(
