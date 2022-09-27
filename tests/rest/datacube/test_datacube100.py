@@ -2044,6 +2044,51 @@ def test_apply_math_simple(con100, math, process, args):
     }
 
 
+@pytest.mark.parametrize(["save_result_kwargs", "download_kwargs", "expected_fail"], [
+    ({}, {}, None),
+    ({"format": "GTiff"}, {}, None),
+    ({}, {"format": "GTiff"}, None),
+    ({"format": "GTiff"}, {"format": "GTiff"}, None),
+    ({"format": "netCDF"}, {"format": "NETCDF"}, None),
+    (
+            {"format": "netCDF"},
+            {"format": "JSON"},
+            "Existing `save_result` node with different format 'netCDF' != 'JSON'"
+    ),
+    ({"options": {}}, {}, None),
+    ({"options": {"quality": "low"}}, {"options": {"quality": "low"}}, None),
+    (
+            {"options": {"colormap": "jet"}},
+            {"options": {"quality": "low"}},
+            "Existing `save_result` node with different options {'colormap': 'jet'} != {'quality': 'low'}"
+    ),
+])
+def test_save_result_and_download(
+        con100, requests_mock, tmp_path, save_result_kwargs, download_kwargs, expected_fail
+):
+    def post_result(request, context):
+        pg = request.json()["process"]["process_graph"]
+        process_histogram = collections.Counter(p["process_id"] for p in pg.values())
+        assert process_histogram["save_result"] == 1
+        return b"tiffdata"
+
+    post_result_mock = requests_mock.post(API_URL + '/result', content=post_result)
+
+    cube = con100.load_collection("S2")
+    if save_result_kwargs:
+        cube = cube.save_result(**save_result_kwargs)
+
+    path = tmp_path / "tmp.tiff"
+    if expected_fail:
+        with pytest.raises(ValueError, match=expected_fail):
+            cube.download(str(path), **download_kwargs)
+        assert post_result_mock.call_count == 0
+    else:
+        cube.download(str(path), **download_kwargs)
+        assert path.read_bytes() == b"tiffdata"
+        assert post_result_mock.call_count == 1
+
+
 class TestBatchJob:
     _EXPECTED_SIMPLE_S2_JOB = {"process": {"process_graph": {
         "loadcollection1": {
