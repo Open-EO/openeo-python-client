@@ -97,7 +97,7 @@ class Rfc3339:
 
     def normalize(self, x: Any, *args) -> Union[str, None]:
         """
-        Format given date(time)-like object as RFC-333 date or date-time string depending on given resolution
+        Format given date(time)-like object as RFC-3339 date or date-time string depending on given resolution
 
             >>> rfc3339.normalize("2020/03/17")
             "2020-03-17"
