@@ -4,10 +4,11 @@ from typing import Union, Optional
 
 from openeo.internal.documentation import openeo_process
 from openeo.internal.graph_building import PGNode
+from openeo.internal.warnings import legacy_alias
 from openeo.metadata import CollectionMetadata
 from openeo.rest._datacube import _ProcessGraphAbstraction
 from openeo.rest.job import BatchJob
-from openeo.util import legacy_alias, dict_no_none
+from openeo.util import dict_no_none
 
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).

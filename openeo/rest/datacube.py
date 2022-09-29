@@ -18,7 +18,6 @@ from typing import List, Dict, Union, Tuple, Optional
 import numpy as np
 import shapely.geometry
 import shapely.geometry.base
-from deprecated.sphinx import deprecated
 from shapely.geometry import Polygon, MultiPolygon, mapping
 
 import openeo
@@ -27,6 +26,7 @@ from openeo.api.process import Parameter
 from openeo.internal.documentation import openeo_process
 from openeo.internal.graph_building import PGNode, ReduceNode, _FromNodeMixin
 from openeo.internal.processes.builder import get_parameter_names, convert_callable_to_pgnode
+from openeo.internal.warnings import legacy_alias, UserDeprecationWarning, deprecated
 from openeo.metadata import CollectionMetadata, Band, BandDimension, TemporalDimension, SpatialDimension
 from openeo.processes import ProcessBuilder
 from openeo.rest import BandMathException, OperatorException, OpenEoClientException
@@ -36,7 +36,7 @@ from openeo.rest.mlmodel import MlModel
 from openeo.rest.service import Service
 from openeo.rest.udp import RESTUserDefinedProcess
 from openeo.rest.vectorcube import VectorCube
-from openeo.util import get_temporal_extent, dict_no_none, legacy_alias, rfc3339, guess_format
+from openeo.util import get_temporal_extent, dict_no_none, rfc3339, guess_format
 
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).

@@ -20,6 +20,7 @@ import openeo.processes
 from openeo.api.process import Parameter
 from openeo.internal.graph_building import PGNode
 from openeo.internal.process_graph_visitor import ProcessGraphVisitException
+from openeo.internal.warnings import UserDeprecationWarning
 from openeo.rest import OpenEoClientException
 from openeo.rest.connection import Connection
 from openeo.rest.datacube import THIS, DataCube, ProcessBuilder
@@ -2136,6 +2137,6 @@ class TestBatchJob:
         """Legacy `DataCube.send_job` alis for `create_job"""
         requests_mock.post(API_URL + "/jobs", json=self._get_handler_post_jobs())
         cube = con100.load_collection("S2")
-        with pytest.warns(DeprecationWarning, match="Call to deprecated method `send_job`, use `create_job` instead."):
+        with pytest.warns(UserDeprecationWarning, match="Call to deprecated method `send_job`, use `create_job` instead."):
             job = cube.send_job(out_format="GTiff")
         assert job.job_id == "myj0b1"

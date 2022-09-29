@@ -3,13 +3,11 @@ Various utilities and helpers.
 """
 import datetime as dt
 import functools
-import inspect
 import json
 import logging
 import re
 import sys
 import time
-import warnings
 from collections import OrderedDict
 from pathlib import Path
 from typing import Any, Union, Tuple, Callable, Optional
@@ -456,51 +454,6 @@ def load_json_resource(src: Union[str, Path]) -> dict:
         # Assume source is a local JSON file path
         return load_json(src)
     raise ValueError(src)
-
-
-def legacy_alias(orig: Callable, name: str, action="always", category=DeprecationWarning):
-    """
-    Create legacy alias of given function/method/classmethod/staticmethod
-
-    :param orig: function/method to create legacy alias for
-    :param name: name of the alias
-    :return:
-    """
-    post_process = None
-    if isinstance(orig, classmethod):
-        post_process = classmethod
-        orig = orig.__func__
-        kind = "class method"
-    elif isinstance(orig, staticmethod):
-        post_process = staticmethod
-        orig = orig.__func__
-        kind = "static method"
-    elif inspect.ismethod(orig) or "self" in inspect.signature(orig).parameters:
-        kind = "method"
-    elif inspect.isfunction(orig):
-        kind = "function"
-    else:
-        raise ValueError(orig)
-
-    msg = "Call to deprecated {k} `{n}`, use `{o}` instead.".format(k=kind, n=name, o=orig.__name__)
-
-    @functools.wraps(orig)
-    def wrapper(*args, **kwargs):
-        # This is based on warning handling/throwing implemented in `deprecated` package
-        with warnings.catch_warnings():
-            warnings.simplefilter(action, category)
-            warnings.warn(msg, category=category, stacklevel=2)
-
-        return orig(*args, **kwargs)
-
-    # TODO: make this more Sphinx aware
-    wrapper.__doc__ = "Use of this legacy {k} is deprecated, use :py:{r}:`.{o}` instead.".format(
-        k=kind, r="meth" if "method" in kind else "func", o=orig.__name__
-    )
-
-    if post_process:
-        wrapper = post_process(wrapper)
-    return wrapper
 
 
 class LazyLoadCache:

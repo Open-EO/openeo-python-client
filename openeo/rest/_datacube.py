@@ -7,7 +7,6 @@ from typing import Optional, Union, Tuple
 
 from openeo.internal.compat import nullcontext
 from openeo.internal.graph_building import PGNode, _FromNodeMixin
-from openeo.util import legacy_alias
 
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).

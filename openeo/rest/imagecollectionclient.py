@@ -9,11 +9,12 @@ from shapely.geometry import Polygon, MultiPolygon, mapping
 
 from openeo.imagecollection import ImageCollection
 from openeo.internal.graphbuilder_040 import GraphBuilder
+from openeo.internal.warnings import legacy_alias
 from openeo.metadata import CollectionMetadata
 from openeo.rest import BandMathException
 from openeo.rest.job import BatchJob, RESTJob
 from openeo.rest.service import Service
-from openeo.util import get_temporal_extent, legacy_alias, dict_no_none, guess_format
+from openeo.util import get_temporal_extent, dict_no_none, guess_format
 
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).

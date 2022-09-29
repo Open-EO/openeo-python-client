@@ -13,7 +13,6 @@ from typing import Dict, List, Tuple, Union, Callable, Optional, Any, Iterator
 from urllib.parse import urljoin
 
 import requests
-from deprecated.sphinx import deprecated
 from requests import Response
 from requests.auth import HTTPBasicAuth, AuthBase
 
@@ -23,6 +22,7 @@ from openeo.config import get_config_option, config_log
 from openeo.internal.graph_building import PGNode, as_flat_graph
 from openeo.internal.jupyter import VisualDict, VisualList
 from openeo.internal.processes.builder import ProcessBuilderBase
+from openeo.internal.warnings import legacy_alias, deprecated
 from openeo.metadata import CollectionMetadata
 from openeo.rest import OpenEoClientException, OpenEoApiError, OpenEoRestError
 from openeo.rest.auth.auth import NullAuth, BearerAuth, BasicBearerAuth, OidcBearerAuth, OidcRefreshInfo
@@ -37,7 +37,7 @@ from openeo.rest.job import BatchJob, RESTJob
 from openeo.rest.rest_capabilities import RESTCapabilities
 from openeo.rest.service import Service
 from openeo.rest.udp import RESTUserDefinedProcess, Parameter
-from openeo.util import ensure_list, legacy_alias, dict_no_none, rfc3339, load_json_resource, LazyLoadCache, \
+from openeo.util import ensure_list, dict_no_none, rfc3339, load_json_resource, LazyLoadCache, \
     ContextTimer, str_truncate
 
 _log = logging.getLogger(__name__)

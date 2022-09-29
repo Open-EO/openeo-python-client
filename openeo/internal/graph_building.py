@@ -5,12 +5,12 @@ Functionality for abstracting, building, manipulating and processing openEO proc
 import abc
 import collections
 from pathlib import Path
-from typing import Union, Dict, Any, Optional
+from typing import Union, Any, Optional
 
 from openeo.api.process import Parameter
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor, ProcessGraphUnflattener, \
     ProcessGraphVisitException
-from openeo.util import legacy_alias, dict_no_none, load_json_resource
+from openeo.util import dict_no_none, load_json_resource
 
 
 class _FromNodeMixin(abc.ABC):
