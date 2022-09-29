@@ -25,6 +25,7 @@ openeo.rest.datacube
 .. automodule:: openeo.rest.datacube
    :members: DataCube
    :inherited-members:
+   :special-members: __init__
 
 
 openeo.rest.vectorcube
