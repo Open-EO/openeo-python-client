@@ -101,6 +101,8 @@ class UDF:
         code = path.read_text(encoding="utf-8")
         return cls(code=code, runtime=runtime, version=version, context=context, _source=path)
 
+    # TODO: also add a `from_url` factory
+
     def _guess_runtime(self, connection: "openeo.Connection") -> str:
         """Guess UDF runtime from UDF source (path) or source code."""
         # First, guess UDF language
