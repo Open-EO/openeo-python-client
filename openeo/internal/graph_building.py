@@ -5,7 +5,7 @@ Functionality for abstracting, building, manipulating and processing openEO proc
 import abc
 import collections
 from pathlib import Path
-from typing import Union, Any, Optional
+from typing import Union, Dict, Any, Optional
 
 from openeo.api.process import Parameter
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor, ProcessGraphUnflattener, \
