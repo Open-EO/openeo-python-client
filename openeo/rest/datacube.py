@@ -27,12 +27,14 @@ from openeo.dates import get_temporal_extent
 from openeo.internal.documentation import openeo_process
 from openeo.internal.graph_building import PGNode, ReduceNode, _FromNodeMixin
 from openeo.internal.jupyter import in_jupyter_context
-from openeo.internal.processes.builder import ProcessBuilderBase
+from openeo.internal.processes.builder import ProcessBuilderBase, convert_callable_to_pgnode, get_parameter_names
 from openeo.internal.warnings import UserDeprecationWarning, deprecated, legacy_alias
-from openeo.metadata import Band, CollectionMetadata
+from openeo.metadata import Band, BandDimension, CollectionMetadata, SpatialDimension, TemporalDimension
+from openeo.processes import ProcessBuilder
 from openeo.rest import BandMathException, OpenEoClientException, OperatorException
 from openeo.rest._datacube import THIS, UDF, _ProcessGraphAbstraction, build_child_callback
-from openeo.rest.job import BatchJob
+from openeo.rest.graph_building import CollectionProperty
+from openeo.rest.job import BatchJob, RESTJob
 from openeo.rest.mlmodel import MlModel
 from openeo.rest.service import Service
 from openeo.rest.udp import RESTUserDefinedProcess
@@ -173,6 +175,9 @@ class DataCube(_ProcessGraphAbstraction):
             properties = properties or {}
             properties["eo:cloud_cover"] = lambda v: v <= max_cloud_cover
         if properties:
+            if isinstance(properties, list):
+                # TODO: warn about list items that are not expected CollectionProperty
+                properties = {p.name: p.from_node() for p in properties if isinstance(p, CollectionProperty)}
             summaries = metadata and metadata.get("summaries") or {}
             undefined_properties = set(properties.keys()).difference(summaries.keys())
             if undefined_properties:

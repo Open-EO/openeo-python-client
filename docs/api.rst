@@ -136,8 +136,11 @@ openeo.processes
     :members: process
 
 
-openeo.internal
+Graph building
 ----------------
+
+.. automodule:: openeo.rest.graph_building
+    :members: collection_property
 
 .. automodule:: openeo.internal.graph_building
     :members: PGNode, FlatGraphableMixin
