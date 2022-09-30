@@ -44,6 +44,10 @@ def _setup_connection(api_version, requests_mock) -> Connection:
             "csv": {"gis_data_types": ["table"]},
         }
     })
+    requests_mock.get(API_URL + "/udf_runtimes", json={
+        "Python": {"type": "language", "default": "3", "versions": {"3": {"libraries": {}}}},
+        "R": {"type": "language", "default": "4", "versions": {"4": {"libraries": {}}}},
+    })
 
     return openeo.connect(API_URL)
 

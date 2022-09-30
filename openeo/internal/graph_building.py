@@ -156,26 +156,6 @@ def as_flat_graph(x: Union[dict, Any]) -> dict:
     raise ValueError(x)
 
 
-class UDF(PGNode):
-    """
-    A 'run_udf' process graph node. This is offered as a convenient way to construct run_udf processes.
-    """
-
-    def __init__(self, code: str, runtime: str, data, version: str = None, context: Dict = None):
-        arguments = {
-            "data": data,
-            "udf": code,
-            "runtime": runtime
-        }
-        if version is not None:
-            arguments["version"] = version
-
-        if context is not None:
-            arguments["context"] = context
-
-        super().__init__(process_id='run_udf', arguments=arguments)
-
-
 class ReduceNode(PGNode):
     """
     A process graph node for "reduce" processes (has a reducer sub-process-graph)

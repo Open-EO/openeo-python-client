@@ -68,12 +68,10 @@ def get_test_resource(relative_path):
     dir = Path(os.path.dirname(os.path.realpath(__file__)))
     return str(dir / relative_path)
 
-
-compositing_udf = Path('udf/median_composite.py').read_text()
-
+compositing_udf = openeo.UDF.from_file('udf/median_composite.py')
 
 def test_composite_by_udf():
-    masked.apply_dimension(code=compositing_udf,runtime="Python",dimension='t').filter_temporal(start_date,end_date).download("composite_udf.nc",format="NetCDF")
+    masked.apply_dimension(process=compositing_udf, dimension='t').filter_temporal(start_date,end_date).download("composite_udf.nc",format="NetCDF")
 
 from openeo.rest.datacube import DataCube
 

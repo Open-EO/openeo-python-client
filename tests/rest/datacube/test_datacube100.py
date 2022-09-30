@@ -6,8 +6,6 @@ Unit tests specifically for 1.0.0-style DataCube
 import collections
 import io
 import pathlib
-import re
-import sys
 import textwrap
 from typing import Optional
 
@@ -23,7 +21,7 @@ from openeo.internal.process_graph_visitor import ProcessGraphVisitException
 from openeo.internal.warnings import UserDeprecationWarning
 from openeo.rest import OpenEoClientException
 from openeo.rest.connection import Connection
-from openeo.rest.datacube import THIS, DataCube, ProcessBuilder
+from openeo.rest.datacube import THIS, DataCube, ProcessBuilder, UDF
 from .conftest import API_URL, setup_collection_metadata
 from ... import load_json_resource
 
@@ -884,6 +882,115 @@ def test_reduce_dimension_context(con100):
                     }
                 }},
                 "context": 123,
+            },
+            'result': True
+        }}
+
+
+def test_reduce_bands(con100):
+    s2 = con100.load_collection("S2")
+    x = s2.reduce_bands(reducer="mean")
+    assert x.flat_graph() == {
+        'loadcollection1': {
+            'process_id': 'load_collection',
+            'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
+        },
+        'reducedimension1': {
+            'process_id': 'reduce_dimension',
+            'arguments': {
+                'data': {'from_node': 'loadcollection1'},
+                'dimension': 'bands',
+                'reducer': {'process_graph': {
+                    'mean1': {
+                        'process_id': 'mean',
+                        'arguments': {'data': {'from_parameter': 'data'}},
+                        'result': True
+                    }
+                }}
+            },
+            'result': True
+        }}
+
+
+def test_reduce_bands_udf(con100):
+    s2 = con100.load_collection("S2")
+    x = s2.reduce_bands(reducer=openeo.UDF("def apply(x):\n    return x"))
+    assert x.flat_graph() == {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
+        },
+        "reducedimension1": {
+            "process_id": "reduce_dimension",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "dimension": "bands",
+                "reducer": {"process_graph": {
+                    "runudf1": {
+                        "process_id": "run_udf",
+                        "arguments": {
+                            "data": {"from_parameter": "data"},
+                            "udf": "def apply(x):\n    return x",
+                            "runtime": "Python",
+                        },
+                        "result": True
+                    }
+                }}
+            },
+            "result": True
+        }}
+
+
+def test_reduce_temporal(con100):
+    s2 = con100.load_collection("S2")
+    x = s2.reduce_temporal(reducer="mean")
+    assert x.flat_graph() == {
+        'loadcollection1': {
+            'process_id': 'load_collection',
+            'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
+        },
+        'reducedimension1': {
+            'process_id': 'reduce_dimension',
+            'arguments': {
+                'data': {'from_node': 'loadcollection1'},
+                'dimension': 't',
+                'reducer': {'process_graph': {
+                    'mean1': {
+                        'process_id': 'mean',
+                        'arguments': {'data': {'from_parameter': 'data'}},
+                        'result': True
+                    }
+                }}
+            },
+            'result': True
+        }}
+
+
+def test_reduce_temporal_udf(con100):
+    s2 = con100.load_collection("S2")
+    x = s2.reduce_temporal(reducer=openeo.UDF("def apply(x):\n    return x"))
+
+    assert x.flat_graph() == {
+        'loadcollection1': {
+            'process_id': 'load_collection',
+            'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
+        },
+        'reducedimension1': {
+            'process_id': 'reduce_dimension',
+            'arguments': {
+                'data': {'from_node': 'loadcollection1'},
+                'dimension': 't',
+                "reducer": {"process_graph": {
+                    "runudf1": {
+                        "process_id": "run_udf",
+                        "arguments": {
+                            "data": {"from_parameter": "data"},
+                            "udf": "def apply(x):\n    return x",
+                            "runtime": "Python",
+                        },
+                        "result": True
+                    }
+                }}
             },
             'result': True
         }}
@@ -2140,3 +2247,229 @@ class TestBatchJob:
         with pytest.warns(UserDeprecationWarning, match="Call to deprecated method `send_job`, use `create_job` instead."):
             job = cube.send_job(out_format="GTiff")
         assert job.job_id == "myj0b1"
+
+
+class TestUDF:
+
+    def test_apply_udf_basic(self, con100):
+        udf = UDF("print('hello world')", runtime="Python")
+        cube = con100.load_collection("S2")
+        res = cube.apply(udf)
+
+        assert res.flat_graph() == {
+            "loadcollection1": {
+                "process_id": "load_collection",
+                "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
+            },
+            "apply1": {
+                "process_id": "apply",
+                "arguments": {
+                    "data": {"from_node": "loadcollection1"},
+                    "process": {
+                        "process_graph": {"runudf1": {
+                            "process_id": "run_udf",
+                            "arguments": {
+                                "data": {"from_parameter": "x"},
+                                "runtime": "Python",
+                                "udf": "print('hello world')",
+                            },
+                            "result": True,
+                        }},
+                    },
+                },
+                "result": True,
+            },
+        }
+
+    def test_apply_udf_runtime_detection(self, con100, requests_mock):
+        udf = UDF("def foo(x):\n    return x\n")
+        cube = con100.load_collection("S2")
+        res = cube.apply(udf)
+
+        assert res.flat_graph()["apply1"]["arguments"]["process"] == {
+            "process_graph": {"runudf1": {
+                "process_id": "run_udf",
+                "arguments": {
+                    "data": {"from_parameter": "x"},
+                    "runtime": "Python",
+                    "udf": "def foo(x):\n    return x\n",
+                },
+                "result": True,
+            }},
+        }
+
+    @pytest.mark.parametrize(["filename", "udf_code", "expected_runtime"], [
+        ("udf-code.py", "def foo(x):\n    return x\n", "Python"),
+        ("udf-code.py", "# just empty, but at least with `.py` suffix\n", "Python"),
+        ("udf-code-py.txt", "def foo(x):\n    return x\n", "Python"),
+        ("udf-code.r", "# R code here\n", "R"),
+    ])
+    def test_apply_udf_load_from_file(self, con100, tmp_path, filename, udf_code, expected_runtime):
+        path = tmp_path / filename
+        path.write_text(udf_code)
+
+        udf = UDF.from_file(path)
+        cube = con100.load_collection("S2")
+        res = cube.apply(udf)
+
+        assert res.flat_graph()["apply1"]["arguments"]["process"] == {
+            "process_graph": {"runudf1": {
+                "process_id": "run_udf",
+                "arguments": {
+                    "data": {"from_parameter": "x"},
+                    "runtime": expected_runtime,
+                    "udf": udf_code,
+                },
+                "result": True,
+            }},
+        }
+
+    @pytest.mark.parametrize(["kwargs"], [
+        ({"version": "3.8"},),
+        ({"context": {"color": "red"}},),
+    ])
+    def test_apply_udf_version_and_context(self, con100, kwargs):
+        udf = UDF("def foo(x):\n    return x\n", **kwargs)
+        cube = con100.load_collection("S2")
+        res = cube.apply(udf)
+
+        expected_args = {
+            "data": {"from_parameter": "x"},
+            "runtime": "Python",
+            "udf": "def foo(x):\n    return x\n",
+        }
+        expected_args.update(kwargs)
+        assert res.flat_graph()["apply1"]["arguments"]["process"] == {
+            "process_graph": {"runudf1": {
+                "process_id": "run_udf",
+                "arguments": expected_args,
+                "result": True,
+            }},
+        }
+
+    def test_simple_apply_udf(self, con100):
+        udf = UDF("def foo(x):\n    return x\n")
+        cube = con100.load_collection("S2")
+        res = cube.apply(udf)
+
+        assert res.flat_graph()["apply1"] == {
+            "process_id": "apply",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "process": {
+                    "process_graph": {"runudf1": {
+                        "process_id": "run_udf",
+                        "arguments": {
+                            "data": {"from_parameter": "x"},
+                            "runtime": "Python",
+                            "udf": "def foo(x):\n    return x\n",
+                        },
+                        "result": True,
+                    }},
+                },
+            },
+            "result": True,
+        }
+
+    def test_simple_apply_dimension_udf(self, con100):
+        udf = UDF("def foo(x):\n    return x\n")
+        cube = con100.load_collection("S2")
+        res = cube.apply_dimension(process=udf, dimension="t")
+
+        assert res.flat_graph()["applydimension1"] == {
+            "process_id": "apply_dimension",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "dimension": "t",
+                "process": {
+                    "process_graph": {"runudf1": {
+                        "process_id": "run_udf",
+                        "arguments": {
+                            "data": {"from_parameter": "data"},
+                            "runtime": "Python",
+                            "udf": "def foo(x):\n    return x\n",
+                        },
+                        "result": True,
+                    }},
+                },
+            },
+            "result": True,
+        }
+
+    def test_simple_apply_dimension_udf_legacy(self, con100):
+        # TODO #137 #181 #312 remove support for code/runtime/version
+
+        udf_code = "def foo(x):\n    return x\n"
+        cube = con100.load_collection("S2")
+        res = cube.apply_dimension(code=udf_code, runtime="Python", dimension="t")
+
+        assert res.flat_graph()["applydimension1"] == {
+            "process_id": "apply_dimension",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "dimension": "t",
+                "process": {
+                    "process_graph": {"runudf1": {
+                        "process_id": "run_udf",
+                        "arguments": {
+                            "data": {"from_parameter": "data"},
+                            "runtime": "Python",
+                            "version": "latest",
+                            "udf": "def foo(x):\n    return x\n",
+                        },
+                        "result": True,
+                    }},
+                },
+            },
+            "result": True,
+        }
+
+    def test_simple_reduce_dimension_udf(self, con100):
+        udf = UDF("def foo(x):\n    return x\n")
+        cube = con100.load_collection("S2")
+        res = cube.reduce_dimension(reducer=udf, dimension="t")
+
+        assert res.flat_graph()["reducedimension1"] == {
+            "process_id": "reduce_dimension",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "dimension": "t",
+                "reducer": {
+                    "process_graph": {"runudf1": {
+                        "process_id": "run_udf",
+                        "arguments": {
+                            "data": {"from_parameter": "data"},
+                            "runtime": "Python",
+                            "udf": "def foo(x):\n    return x\n",
+                        },
+                        "result": True,
+                    }},
+                },
+            },
+            "result": True,
+        }
+
+    def test_simple_apply_neighborhood_udf(self, con100):
+        udf = UDF("def foo(x):\n    return x\n")
+        cube = con100.load_collection("S2")
+        res = cube.apply_neighborhood(process=udf, size=27)
+
+        assert res.flat_graph()["applyneighborhood1"] == {
+            "process_id": "apply_neighborhood",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "size": 27,
+                "process": {
+                    "process_graph": {"runudf1": {
+                        "process_id": "run_udf",
+                        "arguments": {
+                            "data": {"from_parameter": "data"},
+                            "runtime": "Python",
+                            "udf": "def foo(x):\n    return x\n",
+                        },
+                        "result": True,
+                    }},
+                },
+            },
+            "result": True,
+        }
