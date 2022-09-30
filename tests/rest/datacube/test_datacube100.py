@@ -887,6 +887,115 @@ def test_reduce_dimension_context(con100):
         }}
 
 
+def test_reduce_bands(con100):
+    s2 = con100.load_collection("S2")
+    x = s2.reduce_bands(reducer="mean")
+    assert x.flat_graph() == {
+        'loadcollection1': {
+            'process_id': 'load_collection',
+            'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
+        },
+        'reducedimension1': {
+            'process_id': 'reduce_dimension',
+            'arguments': {
+                'data': {'from_node': 'loadcollection1'},
+                'dimension': 'bands',
+                'reducer': {'process_graph': {
+                    'mean1': {
+                        'process_id': 'mean',
+                        'arguments': {'data': {'from_parameter': 'data'}},
+                        'result': True
+                    }
+                }}
+            },
+            'result': True
+        }}
+
+
+def test_reduce_bands_udf(con100):
+    s2 = con100.load_collection("S2")
+    x = s2.reduce_bands(reducer=openeo.UDF("def apply(x):\n    return x"))
+    assert x.flat_graph() == {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
+        },
+        "reducedimension1": {
+            "process_id": "reduce_dimension",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "dimension": "bands",
+                "reducer": {"process_graph": {
+                    "runudf1": {
+                        "process_id": "run_udf",
+                        "arguments": {
+                            "data": {"from_parameter": "data"},
+                            "udf": "def apply(x):\n    return x",
+                            "runtime": "Python",
+                        },
+                        "result": True
+                    }
+                }}
+            },
+            "result": True
+        }}
+
+
+def test_reduce_temporal(con100):
+    s2 = con100.load_collection("S2")
+    x = s2.reduce_temporal(reducer="mean")
+    assert x.flat_graph() == {
+        'loadcollection1': {
+            'process_id': 'load_collection',
+            'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
+        },
+        'reducedimension1': {
+            'process_id': 'reduce_dimension',
+            'arguments': {
+                'data': {'from_node': 'loadcollection1'},
+                'dimension': 't',
+                'reducer': {'process_graph': {
+                    'mean1': {
+                        'process_id': 'mean',
+                        'arguments': {'data': {'from_parameter': 'data'}},
+                        'result': True
+                    }
+                }}
+            },
+            'result': True
+        }}
+
+
+def test_reduce_temporal_udf(con100):
+    s2 = con100.load_collection("S2")
+    x = s2.reduce_temporal(reducer=openeo.UDF("def apply(x):\n    return x"))
+
+    assert x.flat_graph() == {
+        'loadcollection1': {
+            'process_id': 'load_collection',
+            'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
+        },
+        'reducedimension1': {
+            'process_id': 'reduce_dimension',
+            'arguments': {
+                'data': {'from_node': 'loadcollection1'},
+                'dimension': 't',
+                "reducer": {"process_graph": {
+                    "runudf1": {
+                        "process_id": "run_udf",
+                        "arguments": {
+                            "data": {"from_parameter": "data"},
+                            "udf": "def apply(x):\n    return x",
+                            "runtime": "Python",
+                        },
+                        "result": True
+                    }
+                }}
+            },
+            'result': True
+        }}
+
+
 def test_chunk_polygon_basic(con100: Connection):
     img = con100.load_collection("S2")
     polygon: shapely.geometry.Polygon = shapely.geometry.box(0, 0, 1, 1)
@@ -2278,6 +2387,34 @@ class TestUDF:
                         "arguments": {
                             "data": {"from_parameter": "data"},
                             "runtime": "Python",
+                            "udf": "def foo(x):\n    return x\n",
+                        },
+                        "result": True,
+                    }},
+                },
+            },
+            "result": True,
+        }
+
+    def test_simple_apply_dimension_udf_legacy(self, con100):
+        # TODO #137 #181 #312 remove support for code/runtime/version
+
+        udf_code = "def foo(x):\n    return x\n"
+        cube = con100.load_collection("S2")
+        res = cube.apply_dimension(code=udf_code, runtime="Python", dimension="t")
+
+        assert res.flat_graph()["applydimension1"] == {
+            "process_id": "apply_dimension",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "dimension": "t",
+                "process": {
+                    "process_graph": {"runudf1": {
+                        "process_id": "run_udf",
+                        "arguments": {
+                            "data": {"from_parameter": "data"},
+                            "runtime": "Python",
+                            "version": "latest",
                             "udf": "def foo(x):\n    return x\n",
                         },
                         "result": True,

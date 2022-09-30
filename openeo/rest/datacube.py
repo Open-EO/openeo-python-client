@@ -1098,6 +1098,7 @@ class DataCube(_ProcessGraphAbstraction):
         """
         Use `reduce_dimension` process with given UDF along band/spectral dimension.
         """
+        # TODO #181 #312 drop this deprecated pattern
         return self.reduce_bands(reducer=UDF(code=code, runtime=runtime, version=version))
 
     @openeo_process
@@ -1147,6 +1148,7 @@ class DataCube(_ProcessGraphAbstraction):
         :param runtime: The UDF runtime
         :param version: The UDF runtime version
         """
+        # TODO #181 #312 drop this deprecated pattern
         return self.reduce_temporal(reducer=UDF(code=code, runtime=runtime, version=version))
 
     reduce_tiles_over_time = legacy_alias(reduce_temporal_udf, name="reduce_tiles_over_time")
