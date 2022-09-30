@@ -136,8 +136,13 @@ openeo.processes
     :members: process
 
 
-openeo.internal
+Graph building
 ----------------
+
+Various utilities and helpers to simplify the construction of openEO process graphs.
+
+.. automodule:: openeo.rest.graph_building
+    :members: collection_property, CollectionProperty
 
 .. automodule:: openeo.internal.graph_building
     :members: PGNode, FlatGraphableMixin

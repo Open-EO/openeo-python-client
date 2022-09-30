@@ -1,6 +1,9 @@
 """
+Internal openEO process graph building utilities
+''''''''''''''''''''''''''''''''''''''''''''''''''
 
-Functionality for abstracting, building, manipulating and processing openEO process graphs.
+Internal functionality for abstracting, building, manipulating and processing openEO process graphs.
+
 """
 
 from __future__ import annotations

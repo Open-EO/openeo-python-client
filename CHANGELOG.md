@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Support new UDF signature: `def apply_datacube(cube: DataArray, context: dict) -> DataArray`
   ([#310](https://github.com/Open-EO/openeo-python-client/issues/310))
+- Add `collection_property()` helper to easily build collection metadata property filters for `Connection.load_collection()`
+  ([#331](https://github.com/Open-EO/openeo-python-client/pull/331))
 
 ### Changed
 

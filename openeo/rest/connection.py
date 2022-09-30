@@ -52,6 +52,7 @@ from openeo.rest.auth.oidc import (
     OidcResourceOwnerPasswordAuthenticator,
 )
 from openeo.rest.datacube import DataCube, InputDate
+from openeo.rest.graph_building import CollectionProperty
 from openeo.rest.job import BatchJob, RESTJob
 from openeo.rest.mlmodel import MlModel
 from openeo.rest.rest_capabilities import RESTCapabilities
@@ -1142,7 +1143,9 @@ class Connection(RestApiConnection):
         spatial_extent: Optional[Dict[str, float]] = None,
         temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
         bands: Union[None, List[str], Parameter] = None,
-        properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
+        properties: Union[
+            None, Dict[str, Union[str, PGNode, Callable]], List[CollectionProperty], CollectionProperty
+        ] = None,
         max_cloud_cover: Optional[float] = None,
         fetch_metadata=True,
     ) -> DataCube:
@@ -1154,8 +1157,9 @@ class Connection(RestApiConnection):
         :param temporal_extent: limit data to specified temporal interval.
             Typically, just a two-item list or tuple containing start and end date.
             See :ref:`filtering-on-temporal-extent-section` for more details on temporal extent handling and shorthand notation.
-        :param bands: only add the specified bands
-        :param properties: limit data by metadata property predicates
+        :param bands: only add the specified bands.
+        :param properties: limit data by collection metadata property predicates.
+            See :py:func:`~openeo.rest.graph_building.collection_property` for easy construction of such predicates.
         :param max_cloud_cover: shortcut to set maximum cloud cover ("eo:cloud_cover" collection property)
         :return: a datacube containing the requested data
 
@@ -1165,6 +1169,9 @@ class Connection(RestApiConnection):
         .. versionchanged:: 0.23.0
             Argument ``temporal_extent``: add support for year/month shorthand notation
             as discussed at :ref:`date-shorthand-handling`.
+
+        .. versionchanged:: 0.26.0
+            Add :py:func:`~openeo.rest.graph_building.collection_property` support to ``properties`` argument.
         """
         return DataCube.load_collection(
             collection_id=collection_id,

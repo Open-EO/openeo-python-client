@@ -27,12 +27,14 @@ from openeo.dates import get_temporal_extent
 from openeo.internal.documentation import openeo_process
 from openeo.internal.graph_building import PGNode, ReduceNode, _FromNodeMixin
 from openeo.internal.jupyter import in_jupyter_context
-from openeo.internal.processes.builder import ProcessBuilderBase
+from openeo.internal.processes.builder import ProcessBuilderBase, convert_callable_to_pgnode, get_parameter_names
 from openeo.internal.warnings import UserDeprecationWarning, deprecated, legacy_alias
-from openeo.metadata import Band, CollectionMetadata
+from openeo.metadata import Band, BandDimension, CollectionMetadata, SpatialDimension, TemporalDimension
+from openeo.processes import ProcessBuilder
 from openeo.rest import BandMathException, OpenEoClientException, OperatorException
 from openeo.rest._datacube import THIS, UDF, _ProcessGraphAbstraction, build_child_callback
-from openeo.rest.job import BatchJob
+from openeo.rest.graph_building import CollectionProperty
+from openeo.rest.job import BatchJob, RESTJob
 from openeo.rest.mlmodel import MlModel
 from openeo.rest.service import Service
 from openeo.rest.udp import RESTUserDefinedProcess
@@ -123,7 +125,9 @@ class DataCube(_ProcessGraphAbstraction):
         temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
         bands: Union[None, List[str], Parameter] = None,
         fetch_metadata: bool = True,
-        properties: Optional[Dict[str, Union[str, PGNode, typing.Callable]]] = None,
+        properties: Union[
+            None, Dict[str, Union[str, PGNode, typing.Callable]], List[CollectionProperty], CollectionProperty
+        ] = None,
         max_cloud_cover: Optional[float] = None,
     ) -> DataCube:
         """
@@ -135,8 +139,9 @@ class DataCube(_ProcessGraphAbstraction):
         :param temporal_extent: limit data to specified temporal interval.
             Typically, just a two-item list or tuple containing start and end date.
             See :ref:`filtering-on-temporal-extent-section` for more details on temporal extent handling and shorthand notation.
-        :param bands: only add the specified bands
-        :param properties: limit data by metadata property predicates
+        :param bands: only add the specified bands.
+        :param properties: limit data by metadata property predicates.
+            See :py:func:`~openeo.rest.graph_building.collection_property` for easy construction of such predicates.
         :param max_cloud_cover: shortcut to set maximum cloud cover ("eo:cloud_cover" collection property)
         :return: new DataCube containing the collection
 
@@ -146,6 +151,9 @@ class DataCube(_ProcessGraphAbstraction):
         .. versionchanged:: 0.23.0
             Argument ``temporal_extent``: add support for year/month shorthand notation
             as discussed at :ref:`date-shorthand-handling`.
+
+        .. versionchanged:: 0.26.0
+            Add :py:func:`~openeo.rest.graph_building.collection_property` support to ``properties`` argument.
         """
         if temporal_extent:
             temporal_extent = cls._get_temporal_extent(extent=temporal_extent)
@@ -169,8 +177,15 @@ class DataCube(_ProcessGraphAbstraction):
                 bands = [b if isinstance(b, str) else metadata.band_dimension.band_name(b) for b in bands]
                 metadata = metadata.filter_bands(bands)
             arguments['bands'] = bands
+
+        if isinstance(properties, list):
+            # TODO: warn about items that are not CollectionProperty objects instead of silently dropping them.
+            properties = {p.name: p.from_node() for p in properties if isinstance(p, CollectionProperty)}
+        if isinstance(properties, CollectionProperty):
+            properties = {properties.name: properties.from_node()}
+        elif properties is None:
+            properties = {}
         if max_cloud_cover:
-            properties = properties or {}
             properties["eo:cloud_cover"] = lambda v: v <= max_cloud_cover
         if properties:
             summaries = metadata and metadata.get("summaries") or {}
@@ -184,6 +199,7 @@ class DataCube(_ProcessGraphAbstraction):
             arguments["properties"] = {
                 prop: build_child_callback(pred, parent_parameters=["value"]) for prop, pred in properties.items()
             }
+
         pg = PGNode(
             process_id='load_collection',
             arguments=arguments

@@ -20,6 +20,7 @@ import shapely.geometry
 
 import openeo.metadata
 import openeo.processes
+from openeo import collection_property
 from openeo.api.process import Parameter
 from openeo.capabilities import ComparableVersion
 from openeo.internal.graph_building import PGNode
@@ -1643,6 +1644,112 @@ def test_load_collection_max_cloud_cover_summaries_warning(
         )
     else:
         assert len(recwarn.list) == 0
+
+
+def test_load_collection_with_collection_properties(con100):
+    cube = con100.load_collection(
+        "S2",
+        properties=[
+            collection_property("eo:cloud_cover") <= 75,
+            collection_property("platform") == "Sentinel-2B",
+        ],
+    )
+    assert cube.flat_graph()["loadcollection1"]["arguments"]["properties"] == {
+        "eo:cloud_cover": {
+            "process_graph": {
+                "lte1": {
+                    "process_id": "lte",
+                    "arguments": {"x": {"from_parameter": "value"}, "y": 75},
+                    "result": True,
+                }
+            }
+        },
+        "platform": {
+            "process_graph": {
+                "eq1": {
+                    "process_id": "eq",
+                    "arguments": {"x": {"from_parameter": "value"}, "y": "Sentinel-2B"},
+                    "result": True,
+                }
+            }
+        },
+    }
+
+
+def test_load_collection_with_collection_properties_and_cloud_cover(con100):
+    cube = con100.load_collection(
+        "S2",
+        properties=[
+            collection_property("platform") == "Sentinel-2B",
+        ],
+        max_cloud_cover=66,
+    )
+    assert cube.flat_graph()["loadcollection1"]["arguments"]["properties"] == {
+        "eo:cloud_cover": {
+            "process_graph": {
+                "lte1": {
+                    "process_id": "lte",
+                    "arguments": {"x": {"from_parameter": "value"}, "y": 66},
+                    "result": True,
+                }
+            }
+        },
+        "platform": {
+            "process_graph": {
+                "eq1": {
+                    "process_id": "eq",
+                    "arguments": {"x": {"from_parameter": "value"}, "y": "Sentinel-2B"},
+                    "result": True,
+                }
+            }
+        },
+    }
+
+
+def test_load_collection_with_single_collection_property(con100):
+    cube = con100.load_collection(
+        "S2",
+        properties=collection_property("platform") == "Sentinel-2B",
+    )
+    assert cube.flat_graph()["loadcollection1"]["arguments"]["properties"] == {
+        "platform": {
+            "process_graph": {
+                "eq1": {
+                    "process_id": "eq",
+                    "arguments": {"x": {"from_parameter": "value"}, "y": "Sentinel-2B"},
+                    "result": True,
+                }
+            }
+        },
+    }
+
+
+def test_load_collection_with_single_collection_property_and_cloud_cover(con100):
+    cube = con100.load_collection(
+        "S2",
+        properties=collection_property("platform") == "Sentinel-2B",
+        max_cloud_cover=66,
+    )
+    assert cube.flat_graph()["loadcollection1"]["arguments"]["properties"] == {
+        "eo:cloud_cover": {
+            "process_graph": {
+                "lte1": {
+                    "process_id": "lte",
+                    "arguments": {"x": {"from_parameter": "value"}, "y": 66},
+                    "result": True,
+                }
+            }
+        },
+        "platform": {
+            "process_graph": {
+                "eq1": {
+                    "process_id": "eq",
+                    "arguments": {"x": {"from_parameter": "value"}, "y": "Sentinel-2B"},
+                    "result": True,
+                }
+            }
+        },
+    }
 
 
 def test_load_collection_temporal_extent_process_builder_function(con100):
