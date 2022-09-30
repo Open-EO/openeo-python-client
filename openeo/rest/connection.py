@@ -959,6 +959,7 @@ class Connection(RestApiConnection):
             temporal_extent: Optional[List[Union[str, datetime.datetime, datetime.date]]] = None,
             bands: Optional[List[str]] = None,
             properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
+            max_cloud_cover: Optional[float] = None,
             fetch_metadata=True,
     ) -> DataCube:
         """
@@ -969,12 +970,17 @@ class Connection(RestApiConnection):
         :param temporal_extent: limit data to specified temporal interval
         :param bands: only add the specified bands
         :param properties: limit data by metadata property predicates
+        :param max_cloud_cover: shortcut to set maximum cloud cover ("eo:cloud_cover" collection property)
         :return: a datacube containing the requested data
+
+        .. versionadded:: 0.13.0
+            added the ``max_cloud_cover`` argument.
         """
         if self._api_version.at_least("1.0.0"):
             return DataCube.load_collection(
                 collection_id=collection_id, connection=self,
                 spatial_extent=spatial_extent, temporal_extent=temporal_extent, bands=bands, properties=properties,
+                max_cloud_cover=max_cloud_cover,
                 fetch_metadata=fetch_metadata,
             )
         else:

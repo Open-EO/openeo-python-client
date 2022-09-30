@@ -1173,31 +1173,6 @@ def test_apply_absolute_context(con100):
     }
 
 
-def test_load_collection_properties(con100):
-    # TODO: put this somewhere and expose it to the user?
-    def eq(value, case_sensitive=True) -> PGNode:
-        return PGNode(
-            process_id="eq",
-            arguments={"x": {"from_parameter": "value"}, "y": value, "case_sensitive": case_sensitive}
-        )
-
-    def between(min, max) -> PGNode:
-        return PGNode(process_id="between", arguments={"x": {"from_parameter": "value"}, "min": min, "max": max})
-
-    im = con100.load_collection(
-        "S2",
-        spatial_extent={"west": 16.1, "east": 16.6, "north": 48.6, "south": 47.2},
-        temporal_extent=["2018-01-01", "2019-01-01"],
-        properties={
-            "eo:cloud_cover": between(min=0, max=50),
-            "platform": eq("Sentinel-2B", case_sensitive=False),
-        },
-    )
-
-    expected = load_json_resource("data/1.0.0/load_collection_properties.json")
-    assert im.flat_graph() == expected
-
-
 def test_load_collection_properties_process_builder_function(con100):
     from openeo.processes import between, eq
 
@@ -1207,12 +1182,67 @@ def test_load_collection_properties_process_builder_function(con100):
         temporal_extent=["2018-01-01", "2019-01-01"],
         properties={
             "eo:cloud_cover": lambda x: between(x=x, min=0, max=50),
-            "platform": lambda x: eq(x=x, y="Sentinel-2B", case_sensitive=False),
+            "platform": lambda x: eq(x=x, y="Sentinel-2B"),
         },
     )
-
     expected = load_json_resource("data/1.0.0/load_collection_properties.json")
     assert im.flat_graph() == expected
+
+
+def test_load_collection_properties_process_builder_method_and_math(con100):
+    im = con100.load_collection(
+        "S2",
+        spatial_extent={"west": 16.1, "east": 16.6, "north": 48.6, "south": 47.2},
+        temporal_extent=["2018-01-01", "2019-01-01"],
+        properties={
+            "eo:cloud_cover": lambda x: x.between(min=0, max=50),
+            "platform": lambda x: x == "Sentinel-2B",
+        },
+    )
+    expected = load_json_resource("data/1.0.0/load_collection_properties.json")
+    assert im.flat_graph() == expected
+
+
+def test_load_collection_max_cloud_cover(con100):
+    im = con100.load_collection(
+        "S2",
+        max_cloud_cover=75,
+    )
+    assert im.flat_graph()["loadcollection1"]["arguments"]["properties"] == {
+        'eo:cloud_cover': {'process_graph': {
+            'lte1': {
+                'process_id': 'lte',
+                'arguments': {'x': {'from_parameter': 'value'}, 'y': 75},
+                'result': True,
+            }
+        }},
+    }
+
+
+def test_load_collection_max_cloud_cover_with_other_properties(con100):
+    im = con100.load_collection(
+        "S2",
+        properties={
+            "platform": lambda x: x == "Sentinel-2B",
+        },
+        max_cloud_cover=75,
+    )
+    assert im.flat_graph()["loadcollection1"]["arguments"]["properties"] == {
+        'eo:cloud_cover': {'process_graph': {
+            'lte1': {
+                'process_id': 'lte',
+                'arguments': {'x': {'from_parameter': 'value'}, 'y': 75},
+                'result': True,
+            }
+        }},
+        "platform": {"process_graph": {
+            "eq1": {
+                "process_id": "eq",
+                "arguments": {"x": {"from_parameter": "value"}, "y": "Sentinel-2B"},
+                "result": True
+            }
+        }}
+    }
 
 
 def test_load_collection_temporal_extent_process_builder_function(con100):

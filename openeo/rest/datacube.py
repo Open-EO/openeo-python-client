@@ -240,7 +240,8 @@ class DataCube(_ProcessGraphAbstraction):
             temporal_extent: Optional[List[Union[str, datetime.datetime, datetime.date, PGNode]]] = None,
             bands: Optional[List[str]] = None,
             fetch_metadata=True,
-            properties: Optional[Dict[str, Union[str, PGNode, typing.Callable]]] = None
+            properties: Optional[Dict[str, Union[str, PGNode, typing.Callable]]] = None,
+            max_cloud_cover: Optional[float] = None,
     ) -> 'DataCube':
         """
         Create a new Raster Data cube.
@@ -251,7 +252,12 @@ class DataCube(_ProcessGraphAbstraction):
         :param temporal_extent: limit data to specified temporal interval
         :param bands: only add the specified bands
         :param properties: limit data by metadata property predicates
+        :param max_cloud_cover: shortcut to set maximum cloud cover ("eo:cloud_cover" collection property)
         :return: new DataCube containing the collection
+
+        .. versionadded:: 0.13.0
+            added the ``max_cloud_cover`` argument.
+
         """
         if temporal_extent:
             temporal_extent = cls._get_temporal_extent(extent=temporal_extent)
@@ -275,6 +281,9 @@ class DataCube(_ProcessGraphAbstraction):
                 band_dimension = BandDimension("bands", bands=[Band(b, None, None) for b in bands])
                 metadata = CollectionMetadata({}, dimensions=[band_dimension])
             arguments['bands'] = bands
+        if max_cloud_cover:
+            properties = properties or {}
+            properties["eo:cloud_cover"] = lambda v: v <= max_cloud_cover
         if properties:
             arguments['properties'] = {
                 prop: cls._get_callback(pred, parent_parameters=["value"])

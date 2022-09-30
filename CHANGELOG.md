@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - autodetect `runtime` from file/URL suffix or source code
     - hide implementation details around `data` argument (e.g.`data={"from_parameter": "x"}`)
     - old usage patterns of `openeo.UDF` and `DataCube.apply_dimension()` still work but trigger deprecation warnings
+- Add `max_cloud_cover` argument to `load_collection()` to simplify setting maximum cloud cover (property `eo:cloud_cover`) ([#328](https://github.com/Open-EO/openeo-python-client/issues/328))
 
 ### Removed
 
