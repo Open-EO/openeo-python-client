@@ -345,6 +345,7 @@ class DataCube(_ProcessGraphAbstraction):
             return extent
         else:
             def convertor(d: Any) -> Any:
+                # TODO: can this be generalized through _FromNodeMixin?
                 if isinstance(d, Parameter) or isinstance(d, PGNode):
                     return d
                 elif isinstance(d, ProcessBuilder):

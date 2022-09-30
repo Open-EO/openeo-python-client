@@ -18,6 +18,10 @@ class _FromNodeMixin(abc.ABC):
 
     @abc.abstractmethod
     def from_node(self) -> "PGNode":
+        # TODO: "from_node" is a bit a confusing name:
+        #       it refers to the "from_node" node reference in openEO process graphs,
+        #       but as a method name here it read like "construct from PGNode",
+        #       while it is actually meant as "export as PGNode" (that can be used in a "from_node" reference).
         pass
 
 
