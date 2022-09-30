@@ -984,14 +984,15 @@ class DataCube(_ProcessGraphAbstraction):
         :return: A datacube with the UDF applied to the given dimension.
         :raises: DimensionNotAvailable
         """
+        # TODO #137 #181 #312 remove support for code/runtime/version
         if runtime or (isinstance(code, str) and "\n" in code):
-            # TODO #312 deprecate this outdated usage pattern of code/runtime/version
             warnings.warn(
-                "Specifying UDF code through `code`, `runtime` and `version` arguments is deprecated. Instead create an `openeo.UDF` object and pass that to the `process` argument.",
-                category=UserDeprecationWarning, stacklevel=2)
+                "Specifying UDF code through `code`, `runtime` and `version` arguments is deprecated. "
+                "Instead create an `openeo.UDF` object and pass that to the `process` argument.",
+                category=UserDeprecationWarning, stacklevel=2
+            )
             process = UDF(code=code, runtime=runtime, version=version, context=context)
         else:
-            # TODO #312 unify `code` and `process`
             process = process or code
         process = self._get_callback(
             process=process, parent_parameters=["data", "context"], connection=self.connection

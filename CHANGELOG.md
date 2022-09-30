@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `DataCube.download()`: only automatically add `save_result` node when there is none yet.
 - Deprecation warnings: make sure they are shown by default and can be hidden when necessary.
 - Rework and improve `openeo.UDF` helper class for UDF usage: allow loading from local file,
-  autodetect `runtime` from source code, ensure proper `from_parameter` value ([#312](https://github.com/Open-EO/openeo-python-client/issues/312))
+  autodetect `runtime` from source code, ensure proper `from_parameter` value ([#312](https://github.com/Open-EO/openeo-python-client/issues/312)). Old usage patterns trigger deprecation warnings now.
 
 ### Removed
 

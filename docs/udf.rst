@@ -191,9 +191,11 @@ In this first example, we'll cite a full, standalone openEO workflow script,
 including creating the back-end connection, loading the initial data cube and downloading the result.
 The UDF-specific part is highlighted.
 
-.. warning:: This implementation depends on some :py:class:`openeo.UDF <openeo.rest.datacube.UDF>` improvements
+.. warning::
+    This implementation depends on :py:class:`openeo.UDF <openeo.rest.datacube.UDF>` improvements
     that were introduced in version 0.13.0 of the openeo Python Client Library.
-    If you are stuck with working with an older version, check :ref:`old_udf_api` for more information on the old API.
+    If you are currently stuck with working with an older version,
+    check :ref:`old_udf_api` for more information on the difference with the old API.
 
 .. code-block:: python
     :linenos:
@@ -228,12 +230,12 @@ The UDF-specific part is highlighted.
 
     rescaled.download("apply-udf-scaling.nc")
 
-In line 15, we build a :py:class:`openeo.UDF <openeo.rest.datacube.UDF>` object
+In line 15, we build an :py:class:`openeo.UDF <openeo.rest.datacube.UDF>` object
 from an inline string with the UDF source code.
 This :py:class:`openeo.UDF <openeo.rest.datacube.UDF>` object encapsulates various aspects
 that are necessary to create a ``run_udf`` node in the process graph,
 and we can pass it directly in line 25 as the ``process`` argument
-to :py:meth:`DataCube.apply() <openeo.rest.datacube.DataCube.apply>`
+to :py:meth:`DataCube.apply() <openeo.rest.datacube.DataCube.apply>`.
 
 .. tip::
 
@@ -409,6 +411,7 @@ loading and working with UDFs was a bit inconsistent and cumbersome.
   For now, the ``code``, ``runtime`` and ``version`` arguments are still present
   in :py:meth:`DataCube.apply_dimension() <openeo.rest.datacube.DataCube.apply_dimension>`
   as before, but usage is deprecated.
+
   Simple example to sum it up:
 
   .. code-block:: python
@@ -418,10 +421,15 @@ loading and working with UDFs was a bit inconsistent and cumbersome.
         def apply_datacube(cube, ...
         """
 
-        # Legacy approach: still works, but will trigger a deprecation warning.
+        # Legacy `apply_dimension` usage: still works for now,
+        # but it will trigger a deprecation warning.
         cube.apply_dimension(code=udf_code, runtime="Python", dimension="t")
 
-        # New, preferred approach with standard `process` argument.
+        # New, preferred approach with a standard `process` argument.
         udf = openeo.UDF(udf_code)
         cube.apply_dimension(process=udf, dimension="t")
+
+        # Unchanged: usage of other apply/reduce/... methods
+        cube.apply(process=udf)
+        cube.reduce_dimension(reducer=udf, dimension="t")
 
