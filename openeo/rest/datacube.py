@@ -17,6 +17,7 @@ from builtins import staticmethod
 from typing import List, Dict, Union, Tuple, Optional
 
 import numpy as np
+import requests
 import shapely.geometry
 import shapely.geometry.base
 from shapely.geometry import Polygon, MultiPolygon, mapping
@@ -105,7 +106,7 @@ class UDF:
         Load a UDF from a local file.
 
         :param path: path to the local file with UDF source code
-        :param runtime: optional UDF runtime identifier, will be autodetected from source code if omitted.
+        :param runtime: optional UDF runtime identifier, will be auto-detected from source code if omitted.
         :param version: optional UDF runtime version string
         :param context: optional additional UDF context data
         :return:
@@ -114,17 +115,35 @@ class UDF:
         code = path.read_text(encoding="utf-8")
         return cls(code=code, runtime=runtime, version=version, context=context, _source=path)
 
-    # TODO: also add a `from_url` factory
+    @classmethod
+    def from_url(
+            cls, url: str, runtime: Optional[str] = None, version: Optional[str] = None,
+            context: Optional[dict] = None
+    ):
+        """
+        Load a UDF from an URL
+
+        :param url: URL path to load the UDF source code from
+        :param runtime: optional UDF runtime identifier, will be auto-detected from source code if omitted.
+        :param version: optional UDF runtime version string
+        :param context: optional additional UDF context data
+        :return:
+        """
+        resp = requests.get(url)
+        resp.raise_for_status()
+        code = resp.text
+        return cls(code=code, runtime=runtime, version=version, context=context, _source=url)
 
     def _guess_runtime(self, connection: "openeo.Connection") -> str:
         """Guess UDF runtime from UDF source (path) or source code."""
         # First, guess UDF language
         language = None
         if isinstance(self._source, pathlib.Path):
-            language = {
-                ".py": "Python",
-                ".r": "R",
-            }.get(self._source.suffix.lower())
+            language = self._guess_runtime_from_suffix(self._source.suffix)
+        elif isinstance(self._source, str):
+            url_match = re.match(r"https?://.*?(?P<suffix>\.\w+)([&#].*)?$", self._source)
+            if url_match:
+                language = self._guess_runtime_from_suffix(url_match.group("suffix"))
         if not language:
             # Guess language from UDF code
             if re.search("^def [\w0-9_]+\(", self.code, flags=re.MULTILINE):
@@ -138,6 +157,12 @@ class UDF:
             return runtimes[language.lower()]
         else:
             raise OpenEoClientException(f"Failed to match UDF language {language!r} with a runtime ({runtimes})")
+
+    def _guess_runtime_from_suffix(self, suffix: str) -> Union[str]:
+        return {
+            ".py": "Python",
+            ".r": "R",
+        }.get(suffix.lower())
 
     def get_run_udf_callback(self, connection: "openeo.Connection", data_parameter: str = "data") -> PGNode:
         """

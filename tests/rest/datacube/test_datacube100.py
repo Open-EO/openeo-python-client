@@ -2324,6 +2324,32 @@ class TestUDF:
             }},
         }
 
+    @pytest.mark.parametrize(["url", "udf_code", "expected_runtime"], [
+        ("http://example.com/udf-code.py", "def foo(x):\n    return x\n", "Python"),
+        ("http://example.com/udf-code.py", "# just empty, but at least with `.py` suffix\n", "Python"),
+        ("http://example.com/udf-code.py&ref=test", "# just empty, but at least with `.py` suffix\n", "Python"),
+        ("http://example.com/udf-code.py#test", "# just empty, but at least with `.py` suffix\n", "Python"),
+        ("http://example.com/udf-code-py.txt", "def foo(x):\n    return x\n", "Python"),
+        ("http://example.com/udf-code.r", "# R code here\n", "R"),
+    ])
+    def test_apply_udf_load_from_url(self, con100, requests_mock, url, udf_code, expected_runtime):
+        requests_mock.get(url, text=udf_code)
+
+        udf = UDF.from_url(url)
+        cube = con100.load_collection("S2")
+        res = cube.apply(udf)
+        assert res.flat_graph()["apply1"]["arguments"]["process"] == {
+            "process_graph": {"runudf1": {
+                "process_id": "run_udf",
+                "arguments": {
+                    "data": {"from_parameter": "x"},
+                    "runtime": expected_runtime,
+                    "udf": udf_code,
+                },
+                "result": True,
+            }},
+        }
+
     @pytest.mark.parametrize(["kwargs"], [
         ({"version": "3.8"},),
         ({"context": {"color": "red"}},),

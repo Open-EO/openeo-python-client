@@ -13,8 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improve default dimension metadata of a datacube created with `openeo.rest.datacube.DataCube.load_disk_collection`
 - `DataCube.download()`: only automatically add `save_result` node when there is none yet.
 - Deprecation warnings: make sure they are shown by default and can be hidden when necessary.
-- Rework and improve `openeo.UDF` helper class for UDF usage: allow loading from local file,
-  autodetect `runtime` from source code, ensure proper `from_parameter` value ([#312](https://github.com/Open-EO/openeo-python-client/issues/312)). Old usage patterns trigger deprecation warnings now.
+- Rework and improve `openeo.UDF` helper class for UDF usage
+  ([#312](https://github.com/Open-EO/openeo-python-client/issues/312)).
+    - allow loading directly from local file or URL
+    - autodetect `runtime` from file/URL suffix or source code
+    - hide implementation details around `data` argument (e.g.`data={"from_parameter": "x"}`)
+    - old usage patterns of `openeo.UDF` and `DataCube.apply_dimension()` still work but trigger deprecation warnings
 
 ### Removed
 
