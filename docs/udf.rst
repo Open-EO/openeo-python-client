@@ -17,6 +17,27 @@ not (yet) available or standardized as openEO process.
 that aims to fill that gap by allowing a user to express (a part of)
 an **algorithm as a Python/R/... script to be run back-end side**.
 
+There are a lot of details to cover,
+but here is a rudimentary example snippet
+to give you a quick impression of how to work with UDFs
+using the openEO Python Client library:
+
+.. code-block:: python
+    :caption: Basic UDF usage example snippet to rescale pixel values
+
+    # Build a UDF object from an inline string with Python source code.
+    udf = openeo.UDF("""
+    from openeo.udf import XarrayDataCube
+
+    def apply_datacube(cube: XarrayDataCube, context: dict) -> XarrayDataCube:
+        array = cube.get_array()
+        array.values = 0.0001 * array.values
+        return cube
+    """)
+
+    # Apply the UDF to a cube.
+    rescaled_cube = cube.apply(process=udf)
+
 
 Ideally, it allows you to embed existing Python/R/... implementations
 in an openEO workflow (with some necessary "glue code").
