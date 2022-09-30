@@ -4,8 +4,10 @@ Unit tests specifically for 1.0.0-style DataCube
 
 """
 import collections
+import copy
 import io
 import pathlib
+import re
 import textwrap
 from typing import Optional
 
@@ -22,7 +24,7 @@ from openeo.internal.warnings import UserDeprecationWarning
 from openeo.rest import OpenEoClientException
 from openeo.rest.connection import Connection
 from openeo.rest.datacube import THIS, DataCube, ProcessBuilder, UDF
-from .conftest import API_URL, setup_collection_metadata
+from .conftest import API_URL, setup_collection_metadata, DEFAULT_S2_METADATA
 from ... import load_json_resource
 
 basic_geometry_types = [
@@ -1243,6 +1245,31 @@ def test_load_collection_max_cloud_cover_with_other_properties(con100):
             }
         }}
     }
+
+
+@pytest.mark.parametrize(["extra_summaries", "max_cloud_cover", "expect_warning"], [
+    ({}, None, False),
+    ({}, 75, True),
+    ({"eo:cloud_cover": {"min": 0, "max": 100}}, None, False),
+    ({"eo:cloud_cover": {"min": 0, "max": 100}}, 75, False),
+])
+def test_load_collection_max_cloud_cover_summaries_warning(
+        con100, requests_mock, recwarn, extra_summaries, max_cloud_cover, expect_warning,
+):
+    s2_metadata = copy.deepcopy(DEFAULT_S2_METADATA)
+    s2_metadata["summaries"].update(extra_summaries)
+    requests_mock.get(API_URL + "/collections/S2", json=s2_metadata)
+
+    _ = con100.load_collection("S2", max_cloud_cover=max_cloud_cover)
+
+    if expect_warning:
+        assert len(recwarn.list) == 1
+        assert re.search(
+            "property filtering.*undefined.*collection metadata.*eo:cloud_cover",
+            str(recwarn.pop(UserWarning).message),
+        )
+    else:
+        assert len(recwarn.list) == 0
 
 
 def test_load_collection_temporal_extent_process_builder_function(con100):

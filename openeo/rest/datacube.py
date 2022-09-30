@@ -285,6 +285,14 @@ class DataCube(_ProcessGraphAbstraction):
             properties = properties or {}
             properties["eo:cloud_cover"] = lambda v: v <= max_cloud_cover
         if properties:
+            summaries = metadata and metadata.get("summaries") or {}
+            undefined_properties = set(properties.keys()).difference(summaries.keys())
+            if undefined_properties:
+                warnings.warn(
+                    f"{collection_id} property filtering with properties that are undefined "
+                    f"in the collection metadata (summaries): {', '.join(undefined_properties)}.",
+                    stacklevel=2,
+                )
             arguments['properties'] = {
                 prop: cls._get_callback(pred, parent_parameters=["value"])
                 for prop, pred in properties.items()
