@@ -60,7 +60,7 @@ basic_geometry_types = [
 def _get_leaf_node(cube: DataCube) -> dict:
     """Get leaf node (node with result=True), supporting old and new style of graph building."""
     flat_graph = cube.flat_graph()
-    node, = [n for n in flat_graph.values() if n.get("result")]
+    (node,) = [n for n in flat_graph.values() if n.get("result")]
     return node
 
 
@@ -101,9 +101,9 @@ def test_filter_bbox_parameter(con100: Connection):
         "process_id": "filter_bbox",
         "arguments": {
             "data": {"from_node": "loadcollection1"},
-            "extent": {"from_parameter": "my_bbox"}
+            "extent": {"from_parameter": "my_bbox"},
         },
-        "result": True
+        "result": True,
     }
     bbox_param = Parameter(name="my_bbox", schema={"type": "object"})
 
@@ -321,7 +321,7 @@ def test_aggregate_spatial_target_dimension(con100: Connection):
 def test_aggregate_spatial_context(con100: Connection):
     img = con100.load_collection("S2")
     polygon = shapely.geometry.box(0, 0, 1, 1)
-    masked = img.aggregate_spatial(geometries=polygon, reducer="mean", context={"foo":"bar"})
+    masked = img.aggregate_spatial(geometries=polygon, reducer="mean", context={"foo": "bar"})
     assert masked.flat_graph()["aggregatespatial1"]["arguments"] == {
         "data": {"from_node": "loadcollection1"},
         "geometries": {
@@ -347,11 +347,12 @@ def test_aggregate_spatial_geometry_from_node(con100: Connection, get_geometries
     assert result.flat_graph() == {
         "loadcollection1": {
             "process_id": "load_collection",
-            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None}
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
         },
         "loadvector1": {
             "process_id": "load_vector",
-            "arguments": {"url": "https://geo.test/features.json"}},
+            "arguments": {"url": "https://geo.test/features.json"},
+        },
         "aggregatespatial1": {
             "process_id": "aggregate_spatial",
             "arguments": {
@@ -371,7 +372,7 @@ def test_aggregate_temporal(con100: Connection):
     cube = cube.aggregate_temporal(
         intervals=[["2015-01-01", "2016-01-01"], ["2016-01-01", "2017-01-01"]],
         reducer=lambda d: d.median(),
-        context={"bla": "bla"}
+        context={"bla": "bla"},
     )
 
     assert cube.flat_graph()["aggregatetemporal1"] == {
@@ -459,7 +460,7 @@ def test_mask_polygon_with_crs(con100: Connection, recwarn):
                 "crs": {"type": "name", "properties": {"name": "EPSG:32631"}},
             },
         },
-        "result": True
+        "result": True,
     }
 
 
@@ -474,7 +475,7 @@ def test_mask_polygon_parameter(con100: Connection):
             "data": {"from_node": "loadcollection1"},
             "mask": {"from_parameter": "shape"},
         },
-        "result": True
+        "result": True,
     }
 
 
@@ -488,7 +489,7 @@ def test_mask_polygon_path(con100: Connection):
             "data": {"from_node": "loadcollection1"},
             "mask": {"from_node": "readvector1"},
         },
-        "result": True
+        "result": True,
     }
     assert masked.flat_graph()["readvector1"] == {
         "process_id": "read_vector",
@@ -508,11 +509,12 @@ def test_mask_polygon_from_node(con100: Connection, get_geometries):
     assert result.flat_graph() == {
         "loadcollection1": {
             "process_id": "load_collection",
-            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None}
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
         },
         "loadvector1": {
             "process_id": "load_vector",
-            "arguments": {"url": "https://geo.test/features.json"}},
+            "arguments": {"url": "https://geo.test/features.json"},
+        },
         "maskpolygon1": {
             "process_id": "mask_polygon",
             "arguments": {
@@ -533,9 +535,9 @@ def test_mask_raster(con100: Connection):
         "arguments": {
             "data": {"from_node": "loadcollection1"},
             "mask": {"from_node": "loadcollection2"},
-            "replacement": 102
+            "replacement": 102,
         },
-        "result": True
+        "result": True,
     }
 
 
@@ -549,7 +551,7 @@ def test_merge_cubes(con100: Connection):
             "cube1": {"from_node": "loadcollection1"},
             "cube2": {"from_node": "loadcollection2"},
         },
-        "result": True
+        "result": True,
     }
 
 
@@ -564,15 +566,15 @@ def test_merge_cubes_context(con100: Connection):
             "cube2": {"from_node": "loadcollection2"},
             "context": {"foo": 867},
         },
-        "result": True
+        "result": True,
     }
 
 
 def test_merge_cubes_issue107(con100):
     """https://github.com/Open-EO/openeo-python-client/issues/107"""
     s2 = con100.load_collection("S2")
-    a = s2.filter_bands(['B02'])
-    b = s2.filter_bands(['B04'])
+    a = s2.filter_bands(["B02"])
+    b = s2.filter_bands(["B04"])
     c = a.merge_cubes(b)
 
     flat = c.flat_graph()
@@ -663,7 +665,7 @@ def test_resample_cube_spatial(con100: Connection):
             "target": {"from_node": "loadcollection2"},
             "method": "spline",
         },
-        "result": True
+        "result": True,
     }
 
 
@@ -677,7 +679,7 @@ def test_resample_cube_temporal(con100: Connection):
             "data": {"from_node": "loadcollection1"},
             "target": {"from_node": "loadcollection2"},
         },
-        "result": True
+        "result": True,
     }
 
     cube = data.resample_cube_temporal(target, dimension="t", valid_within=30)
@@ -689,7 +691,7 @@ def test_resample_cube_temporal(con100: Connection):
             "dimension": "t",
             "valid_within": 30,
         },
-        "result": True
+        "result": True,
     }
 
 
@@ -729,10 +731,10 @@ def test_rename_dimension(con100):
             "arguments": {
                 "data": {"from_node": "loadcollection1"},
                 "source": "bands",
-                "target": "ThisIsNotTheBandsDimension"
+                "target": "ThisIsNotTheBandsDimension",
             },
-            "result": True
-        }
+            "result": True,
+        },
     }
 
 
@@ -749,10 +751,10 @@ def test_add_dimension(con100):
             "arguments": {
                 "data": {"from_node": "loadcollection1"},
                 "name": "james_band",
-                "label": "alpha"
+                "label": "alpha",
             },
-            "result": True
-        }
+            "result": True,
+        },
     }
 
 
@@ -770,8 +772,8 @@ def test_drop_dimension(con100):
                 "data": {"from_node": "loadcollection1"},
                 "name": "bands",
             },
-            "result": True
-        }
+            "result": True,
+        },
     }
 
 
@@ -1188,56 +1190,64 @@ def test_load_collection_properties(con100):
         temporal_extent=["2018-01-01", "2019-01-01"],
         properties={
             "eo:cloud_cover": between(min=0, max=50),
-            "platform": eq("Sentinel-2B", case_sensitive=False)
-        }
+            "platform": eq("Sentinel-2B", case_sensitive=False),
+        },
     )
 
-    expected = load_json_resource('data/1.0.0/load_collection_properties.json')
+    expected = load_json_resource("data/1.0.0/load_collection_properties.json")
     assert im.flat_graph() == expected
 
 
 def test_load_collection_properties_process_builder_function(con100):
     from openeo.processes import between, eq
+
     im = con100.load_collection(
         "S2",
         spatial_extent={"west": 16.1, "east": 16.6, "north": 48.6, "south": 47.2},
         temporal_extent=["2018-01-01", "2019-01-01"],
         properties={
             "eo:cloud_cover": lambda x: between(x=x, min=0, max=50),
-            "platform": lambda x: eq(x=x, y="Sentinel-2B", case_sensitive=False)
-        }
+            "platform": lambda x: eq(x=x, y="Sentinel-2B", case_sensitive=False),
+        },
     )
 
-    expected = load_json_resource('data/1.0.0/load_collection_properties.json')
+    expected = load_json_resource("data/1.0.0/load_collection_properties.json")
     assert im.flat_graph() == expected
 
 
-def test_load_collection_temporalextent_process_builder_function(con100):
+def test_load_collection_temporal_extent_process_builder_function(con100):
     from openeo.processes import date_shift
+
+    expected = {
+        "dateshift1": {
+            "arguments": {
+                "date": {"from_parameter": "start_date"},
+                "unit": "days",
+                "value": -2,
+            },
+            "process_id": "date_shift",
+        },
+        "loadcollection1": {
+            "arguments": {
+                "id": "S2",
+                "spatial_extent": None,
+                "temporal_extent": [{"from_node": "dateshift1"}, "2019-01-01"],
+            },
+            "process_id": "load_collection",
+            "result": True,
+        },
+    }
 
     im = con100.load_collection(
         "S2",
         temporal_extent=[date_shift(Parameter("start_date"), -2, unit="days").pgnode, "2019-01-01"],
-
     )
-
-    expected = {'dateshift1': {'arguments': {'date': {'from_parameter': 'start_date'},
-                                                     'unit': 'days',
-                                                     'value': -2},
-                                       'process_id': 'date_shift'},
-                        'loadcollection1': {'arguments': {'id': 'S2',
-                                                          'spatial_extent': None,
-                                                          'temporal_extent': [{'from_node': 'dateshift1'},
-                                                                              '2019-01-01']},
-                                            'process_id': 'load_collection',
-                                            'result': True}}
     assert im.flat_graph() == expected
 
-    assert con100.load_collection(
-        "S2",
-        temporal_extent=[date_shift(Parameter("start_date"), -2, unit="days"), "2019-01-01"],
-
-    ).flat_graph() == expected
+    im = con100.load_collection(
+        "S2", temporal_extent=[date_shift(Parameter("start_date"), -2, unit="days"), "2019-01-01"],
+    )
+    assert im.flat_graph() == expected
 
 
 def test_apply_dimension_temporal_cumsum_with_target(con100):
@@ -1367,15 +1377,15 @@ def test_filter_spatial_callback(con100):
     collection = con100.load_collection("S2")
 
     feature_collection = {
-            "type": "FeatureCollection",
-            "features": [{
-                "type": "Feature",
-                "geometry": {
-                    "type": "Point",
-                    "coordinates": [125.6, 10.1]
-                }
-            }]
-        }
+        "type": "FeatureCollection",
+        "features": [{
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [125.6, 10.1]
+            }
+        }]
+    }
     from openeo.processes import run_udf
     udf_code = "def transform_point_into_bbox(data:UdfData): blabla"
     feature_collection_processed = run_udf(data=feature_collection, udf=udf_code, runtime="Python")
@@ -1561,7 +1571,7 @@ def test_to_json_compact(con100):
     expected = '{"process_graph": {"loadcollection1": {"process_id": "load_collection", "arguments": {"id": "S2", "spatial_extent": null, "temporal_extent": null}}, "ndvi1": {"process_id": "ndvi", "arguments": {"data": {"from_node": "loadcollection1"}}, "result": true}}}'
     assert ndvi.to_json(indent=None) == expected
     expected = '{"process_graph":{"loadcollection1":{"process_id":"load_collection","arguments":{"id":"S2","spatial_extent":null,"temporal_extent":null}},"ndvi1":{"process_id":"ndvi","arguments":{"data":{"from_node":"loadcollection1"}},"result":true}}}'
-    assert ndvi.to_json(indent=None, separators=(',', ':')) == expected
+    assert ndvi.to_json(indent=None, separators=(",", ":")) == expected
 
 
 def test_print_json_default(con100, capsys):
@@ -1594,26 +1604,39 @@ def test_sar_backscatter_defaults(con100):
         "process_id": "sar_backscatter",
         "arguments": {
             "data": {"from_node": "loadcollection1"},
-            "coefficient": "gamma0-terrain", "elevation_model": None,
-            "mask": False, "contributing_area": False, "local_incidence_angle": False,
-            "ellipsoid_incidence_angle": False, "noise_removal": True
+            "coefficient": "gamma0-terrain",
+            "elevation_model": None,
+            "mask": False,
+            "contributing_area": False,
+            "local_incidence_angle": False,
+            "ellipsoid_incidence_angle": False,
+            "noise_removal": True,
         },
-        "result": True
+        "result": True,
     }
 
 
 def test_sar_backscatter_custom(con100):
     cube = con100.load_collection("S2")
-    cube = cube.sar_backscatter(coefficient="sigma0-ellipsoid", elevation_model="mapzen", options={"speed": "warp42"})
+    cube = cube.sar_backscatter(
+        coefficient="sigma0-ellipsoid",
+        elevation_model="mapzen",
+        options={"speed": "warp42"},
+    )
     assert _get_leaf_node(cube) == {
         "process_id": "sar_backscatter",
         "arguments": {
             "data": {"from_node": "loadcollection1"},
-            "coefficient": "sigma0-ellipsoid", "elevation_model": "mapzen",
-            "mask": False, "contributing_area": False, "local_incidence_angle": False,
-            "ellipsoid_incidence_angle": False, "noise_removal": True, "options": {"speed": "warp42"}
+            "coefficient": "sigma0-ellipsoid",
+            "elevation_model": "mapzen",
+            "mask": False,
+            "contributing_area": False,
+            "local_incidence_angle": False,
+            "ellipsoid_incidence_angle": False,
+            "noise_removal": True,
+            "options": {"speed": "warp42"},
         },
-        "result": True
+        "result": True,
     }
 
 
@@ -1870,7 +1893,7 @@ def test_rename_labels_bands(con100):
                 "target": ["blue", "green"],
                 "source": ["B02", "B03"],
             },
-            "result": True
+            "result": True,
         },
     }
 
@@ -1890,13 +1913,14 @@ def test_rename_labels_temporal(con100):
                 "dimension": "t",
                 "target": ["2019", "2020", "2021"],
             },
-            "result": True
+            "result": True,
         },
     }
 
 
 def test_fit_curve_callback(con100: Connection):
     from openeo.processes import array_element
+
     def model(x, parameters):
         return array_element(parameters, 0) + array_element(parameters, 1) * x
 
@@ -2084,8 +2108,8 @@ def test_merge_if(con100):
                 "cube1": {"from_node": "loadcollection1"},
                 "cube2": {"from_node": "if1"},
             },
-            "result": True
-        }
+            "result": True,
+        },
     }
 
 
@@ -2096,7 +2120,9 @@ def test_update_arguments_basic(con100):
         "loadcollection1": {
             "process_id": "load_collection",
             "arguments": {
-                "id": "S2", "spatial_extent": None, "temporal_extent": None,
+                "id": "S2",
+                "spatial_extent": None,
+                "temporal_extent": None,
                 "feature_flags": "fluzbaxing",
             },
             "result": True,
@@ -2180,7 +2206,7 @@ def test_save_result_and_download(
         assert process_histogram["save_result"] == 1
         return b"tiffdata"
 
-    post_result_mock = requests_mock.post(API_URL + '/result', content=post_result)
+    post_result_mock = requests_mock.post(API_URL + "/result", content=post_result)
 
     cube = con100.load_collection("S2")
     if save_result_kwargs:
@@ -2244,7 +2270,8 @@ class TestBatchJob:
         """Legacy `DataCube.send_job` alis for `create_job"""
         requests_mock.post(API_URL + "/jobs", json=self._get_handler_post_jobs())
         cube = con100.load_collection("S2")
-        with pytest.warns(UserDeprecationWarning, match="Call to deprecated method `send_job`, use `create_job` instead."):
+        expected_warning = "Call to deprecated method `send_job`, use `create_job` instead."
+        with pytest.warns(UserDeprecationWarning, match=expected_warning):
             job = cube.send_job(out_format="GTiff")
         assert job.job_id == "myj0b1"
 
