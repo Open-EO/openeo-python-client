@@ -101,15 +101,17 @@ class UDF:
     def from_file(
             cls, path: Union[str, pathlib.Path], runtime: Optional[str] = None, version: Optional[str] = None,
             context: Optional[dict] = None
-    ):
+    ) -> "UDF":
         """
         Load a UDF from a local file.
+
+        .. seealso::
+            :py:meth:`from_url` for loading from a URL.
 
         :param path: path to the local file with UDF source code
         :param runtime: optional UDF runtime identifier, will be auto-detected from source code if omitted.
         :param version: optional UDF runtime version string
         :param context: optional additional UDF context data
-        :return:
         """
         path = pathlib.Path(path)
         code = path.read_text(encoding="utf-8")
@@ -119,15 +121,17 @@ class UDF:
     def from_url(
             cls, url: str, runtime: Optional[str] = None, version: Optional[str] = None,
             context: Optional[dict] = None
-    ):
+    ) -> "UDF":
         """
-        Load a UDF from an URL
+        Load a UDF from a URL.
+
+        .. seealso::
+            :py:meth:`from_file` for loading from a local file.
 
         :param url: URL path to load the UDF source code from
         :param runtime: optional UDF runtime identifier, will be auto-detected from source code if omitted.
         :param version: optional UDF runtime version string
         :param context: optional additional UDF context data
-        :return:
         """
         resp = requests.get(url)
         resp.raise_for_status()
