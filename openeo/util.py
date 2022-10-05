@@ -470,12 +470,22 @@ class LazyLoadCache:
 
 def str_truncate(text: str, width: int = 64, ellipsis: str = "...") -> str:
     """Shorten a string (with an ellipsis) if it is longer than certain length."""
-    assert width >= 0
+    width = max(0, int(width))
     if len(text) <= width:
         return text
     if len(ellipsis) > width:
         ellipsis = ellipsis[:width]
     return text[:max(0, (width - len(ellipsis)))] + ellipsis
+
+
+def repr_truncate(obj: Any, width: int = 64, ellipsis: str = "...") -> str:
+    """Do `repr` rendering of an object, but truncate string if it is too long ."""
+    if isinstance(obj, str) and width > len(ellipsis) + 2:
+        # Special case: put ellipsis inside quotes
+        return repr(str_truncate(text=obj, width=width - 2, ellipsis=ellipsis))
+    else:
+        # General case: just put ellipsis at end
+        return str_truncate(text=repr(obj), width=width, ellipsis=ellipsis)
 
 
 def in_interactive_mode() -> bool:

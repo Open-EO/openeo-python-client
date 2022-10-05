@@ -11,7 +11,7 @@ import pytest
 
 from openeo.util import first_not_none, get_temporal_extent, TimingLogger, ensure_list, ensure_dir, dict_no_none, \
     deep_get, DeepKeyError, Rfc3339, rfc3339, deep_set, \
-    LazyLoadCache, guess_format, ContextTimer, str_truncate, to_bbox_dict, BBoxDict
+    LazyLoadCache, guess_format, ContextTimer, str_truncate, to_bbox_dict, BBoxDict, repr_truncate
 
 
 def test_rfc3339_date():
@@ -493,7 +493,6 @@ def test_guess_format():
     assert guess_format("../folder/file.notaformat") == "NOTAFORMAT"
 
 
-
 class TestLazyLoadCache:
     def test_basic(self):
         cache = LazyLoadCache()
@@ -516,7 +515,36 @@ def test_str_truncate():
     assert str_truncate("hello world", width=5) == "he..."
     assert str_truncate("hello world", width=3) == "..."
     assert str_truncate("hello world", width=1) == "."
+    assert str_truncate("hello world", width=0) == ""
+    assert str_truncate("hello world", width=-1) == ""
+    assert str_truncate("hello world", width=-10) == ""
     assert str_truncate("hello world", width=10, ellipsis="<..>") == "hello <..>"
+
+
+def test_repr_truncate_str():
+    assert repr_truncate("hello world") == "'hello world'"
+    assert repr_truncate("hello world", width=20) == "'hello world'"
+    assert repr_truncate("hello world", width=12) == "'hello w...'"
+    assert repr_truncate("hello world", width=7) == "'he...'"
+    assert repr_truncate("hello world", width=6) == "'h...'"
+    assert repr_truncate("hello world", width=5) == "'h..."
+    assert repr_truncate("hello world", width=4) == "'..."
+    assert repr_truncate("hello world", width=3) == "..."
+    assert repr_truncate("hello world", width=2) == ".."
+    assert repr_truncate("hello world", width=0) == ""
+    assert repr_truncate("hello world", width=-1) == ""
+    assert repr_truncate("hello world", width=-10) == ""
+    assert repr_truncate("hello world", width=10, ellipsis="<->") == "'hello<->'"
+
+
+def test_repr_truncate_generic():
+    assert repr_truncate([1, 2, 3, 4, 5]) == "[1, 2, 3, 4, 5]"
+    assert repr_truncate([1, 2, 3, 4, 5], width=10) == "[1, 2, ..."
+    assert repr_truncate([1, 2, 3, 4, 5], width=5) == "[1..."
+    assert repr_truncate([1, 2, 3, 4, 5], width=2) == ".."
+
+    assert repr_truncate(["one", "two", "three"], width=10) == "['one',..."
+    assert repr_truncate(ValueError("That's not right"), width=22) == 'ValueError("That\'s ...'
 
 
 class TestBBoxDict:
