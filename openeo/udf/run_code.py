@@ -44,11 +44,7 @@ def _build_default_execution_context():
         # "SpatialExtent": SpatialExtent,  # TODO?
         # "MachineLearnModel": MachineLearnModelConfig, # TODO?
     }
-    for name in ["geopandas", "torch", "torchvision", "tensorflow", "tensorboard"]:
-        try:
-            context[name] = importlib.import_module(name)
-        except ImportError:
-            _log.info("Module {m} not available for UDF execution context".format(m=name))
+
 
     return context
 
