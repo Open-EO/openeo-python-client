@@ -188,12 +188,12 @@ To be as concrete as possible, we will assume that we are about to release versi
 
     A.  **Obtain a wheel archive** of the package, with one of these approaches:
 
-        -   Path of least surprise: build wheel through GitHub Actions.
+        -   *Preferably*: path of least surprise: build wheel through GitHub Actions.
             Go to workflow `"Build wheel" <https://github.com/Open-EO/openeo-python-client/actions/workflows/build-wheel.yml>`_,
             manually trigger a build with "Run workflow" button, wait for it to finish successfully,
             download generated ``artifact.zip``, and finally: unzip it to obtain ``openeo-0.4.7-py3-none-any.whl``
 
-        -   If you know what you are doing and you're sure you have a clean
+        -   *Or*, if you know what you are doing and you're sure you have a clean
             local checkout, you can also build it locally::
 
                 python setup.py bdist_wheel
@@ -204,6 +204,13 @@ To be as concrete as possible, we will assume that we are about to release versi
 
             python -m twine upload openeo-0.4.7-py3-none-any.whl
 
+        Check the `release history on PyPI <https://pypi.org/project/openeo/#history>`_
+        to verify the twine upload.
+        Another way to verify that the freshly created release installs
+        is using docker to do a quick install-and-burn,
+        for example as follows (check the installed version in pip's output)::
+
+            docker run --rm -it python python -m pip install --no-deps openeo
 
 #.  Create a **git version tag** and push it to GitHub::
 

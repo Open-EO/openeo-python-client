@@ -32,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - autodetect `runtime` from file/URL suffix or source code
     - hide implementation details around `data` argument (e.g.`data={"from_parameter": "x"}`)
     - old usage patterns of `openeo.UDF` and `DataCube.apply_dimension()` still work but trigger deprecation warnings
-- Show warning when using `load_collection` property filters that are not defined in the collection metatadata (summaries).
+- Show warning when using `load_collection` property filters that are not defined in the collection metadata (summaries).
 
 
 
