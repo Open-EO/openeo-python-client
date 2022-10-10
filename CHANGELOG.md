@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Removed
+
+### Fixed
+
+
+## [0.13.0] - 2022-10-10 - "UDF UX" release
+
+### Added
+
 - Add `max_cloud_cover` argument to `load_collection()` to simplify setting maximum cloud cover (property `eo:cloud_cover`) ([#328](https://github.com/Open-EO/openeo-python-client/issues/328))
 
 ### Changed
@@ -23,9 +34,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - old usage patterns of `openeo.UDF` and `DataCube.apply_dimension()` still work but trigger deprecation warnings
 - Show warning when using `load_collection` property filters that are not defined in the collection metatadata (summaries).
 
-### Removed
-
-### Fixed
 
 
 ## [0.12.1] - 2022-09-15
