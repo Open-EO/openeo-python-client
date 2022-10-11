@@ -41,6 +41,7 @@ Installation with Conda
 
 This is work in progress. See `openeo-python-client#176 <https://github.com/Open-EO/openeo-python-client/issues/176>`_ for more information.
 
+If you want to set up the openeo client for development on Windows with conda: see :ref:`windows-dev-install-with-conda`.
 
 Verifying and troubleshooting
 -----------------------------
@@ -102,4 +103,59 @@ you make a change.
 
 The ``[dev]`` (a so-called "extra") installs additional development related dependencies,
 for example to run the unit tests.
+
+
+.. _windows-dev-install-with-conda:
+
+Development Installation on Windows with ``conda``
+--------------------------------------
+
+There are some difficulties to install the development dependencies on Windows.
+Namely, geopandas depends on a few libraries that are a bit trickier to install and for which there is no official python wheel.
+
+The simplest way to do your development install for openeo is to use conda, either from Anaconda, or from Miniforge.
+
+* `Anaconda <https://anaconda.org/>`_ is a commercial product, and `Miniforge <https://github.com/conda-forge/miniforge>` is a fully open source, drop-in replacement that gives you the same conda command.
+
+* `Miniforge on GitHub <https://github.com/conda-forge/miniforge>`_
+
+It is geopandas that depends on de more difficult libraries. One of is GDAL which written in C/C++.
+So without python wheels or conda, you may need to install a C++ compiler and set it all up so pip can find it in your python environment or virtualenv.
+
+
+The instructions below should work in both Anaconda and Miniforge.
+
+Create a conda environment with the geopandas package already installed.
+This is the step that avoids the hard part.
+
+.. code-block:: console
+
+    conda create -n <your environment's name>  geopandas
+
+    # for example
+    conda create -n openeopyclient  geopandas
+
+Activate the conda environment
+
+.. code-block:: console
+
+    conda activate openeopyclient
+
+Next, run the dev install with pip
+
+In the directory where you git-cloned the openEO Python client:
+
+.. code-block:: console
+
+    python -m pip install -e .[dev]
+
+Here is a quick way to check that the client was succesfully installed:
+In your conda environment, launch the Python interpreter and try the following snippet of Python code to show the client's version:
+
+.. code-block:: python
+
+    import openeo
+
+    print(openeo.client_version())
+
 
