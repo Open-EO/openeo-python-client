@@ -114,6 +114,7 @@ There are some difficulties to install the development dependencies on Windows.
 Namely, geopandas depends on a few libraries that are a bit trickier to install and for which there is no official python wheel.
 
 The simplest way install your development setup for openeo is to use the conda package manager, either via Anaconda, or via Miniforge.
+
 Anaconda is a commercial product and you can buy support for it. Miniforge is a fully open source alternative, that has a drop-in replacement for the conda command.
 Miniforge uses the `Conda-forge <https://conda-forge.org/>`_ repository by default.
 
@@ -127,10 +128,7 @@ There are some other options as well:
 
 * a) There are unofficial Python wheels for Geopandas, Fiona and GDAL, but as the name says these have no official support, so they are not recommended for production.
 
-* b) If you are comfortable with Linux you can install your development setup in WSL, the Windows Subsystem for Linux.
-This might be an option if you don't have a dual boot and don't want a full virtual machine.
-
-The instructions for Linux should work in WSL. (At the time of writing, 11/Oct/2022, checked with WSL Ubuntu 22.04 LTS)
+* b) If you are comfortable with Linux you can install your development setup in WSL, the Windows Subsystem for Linux. The instructions for Linux should work in WSL in the most common distros.
 
 * c) Dockerize it.
 
