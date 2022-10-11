@@ -125,14 +125,14 @@ Miniforge uses the `Conda-forge <https://conda-forge.org/>`_ repository by defau
 
 There are some other options as well:
 
-a) There are unofficial Python wheels for Geopandas, Fiona and GDAL, but as the name says these have no official support, so they are not recommended for production.
+* a) There are unofficial Python wheels for Geopandas, Fiona and GDAL, but as the name says these have no official support, so they are not recommended for production.
 
-b) If you are comfortable with Linux you can install your development setup in WSL, the Windows Subsystem for Linux.
+* b) If you are comfortable with Linux you can install your development setup in WSL, the Windows Subsystem for Linux.
 This might be an option if you don't have a dual boot and don't want a full virtual machine.
 
 The instructions for Linux should work in WSL. (At the time of writing, 11/Oct/2022, checked with WSL Ubuntu 22.04 LTS)
 
-c) Dockerize it.
+* c) Dockerize it.
 
 
 The main difficulty is that the geopandas depends on some more difficult libraries.
