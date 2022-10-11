@@ -107,21 +107,37 @@ for example to run the unit tests.
 
 .. _windows-dev-install-with-conda:
 
-Development Installation on Windows with ``conda``
---------------------------------------
+Development Installation on Windows with conda
+----------------------------------------------
 
 There are some difficulties to install the development dependencies on Windows.
 Namely, geopandas depends on a few libraries that are a bit trickier to install and for which there is no official python wheel.
 
-The simplest way to do your development install for openeo is to use conda, either from Anaconda, or from Miniforge.
+The simplest way install your development setup for openeo is to use the conda package manager, either via Anaconda, or via Miniforge.
+Anaconda is a commercial product and you can buy support for it. Miniforge is a fully open source alternative, that has a drop-in replacement for the conda command.
+Miniforge uses the `Conda-forge <https://conda-forge.org/>`_ repository by default.
 
-* `Anaconda <https://anaconda.org/>`_ is a commercial product, and `Miniforge <https://github.com/conda-forge/miniforge>` is a fully open source, drop-in replacement that gives you the same conda command.
+* `Anaconda <https://anaconda.org/>`_
 
 * `Miniforge on GitHub <https://github.com/conda-forge/miniforge>`_
 
-It is geopandas that depends on de more difficult libraries. One of is GDAL which written in C/C++.
-So without python wheels or conda, you may need to install a C++ compiler and set it all up so pip can find it in your python environment or virtualenv.
+* `Conda-forge <https://conda-forge.org/>`_
 
+There are some other options as well:
+
+a) There are unofficial Python wheels for Geopandas, Fiona and GDAL, but as the name says these have no official support, so they are not recommended for production.
+
+b) If you are comfortable with Linux you can install your development setup in WSL, the Windows Subsystem for Linux.
+This might be an option if you don't have a dual boot and don't want a full virtual machine.
+
+The instructions for Linux should work in WSL. (At the time of writing, 11/Oct/2022, checked with WSL Ubuntu 22.04 LTS)
+
+c) Dockerize it.
+
+
+The main difficulty is that the geopandas depends on some more difficult libraries.
+One of them is GDAL, which written in C/C++, so it pip can not really manage that (not without a Python wheel).
+So without Python wheels or conda, you may need to install a C++ compiler and set it all up so pip can find it in your Python environment or virtualenv.
 
 The instructions below should work in both Anaconda and Miniforge.
 
@@ -149,7 +165,8 @@ In the directory where you git-cloned the openEO Python client:
 
     python -m pip install -e .[dev]
 
-Here is a quick way to check that the client was succesfully installed:
+A quick way to check whether the client was successfully installed or not is to print its version number.
+
 In your conda environment, launch the Python interpreter and try the following snippet of Python code to show the client's version:
 
 .. code-block:: python
