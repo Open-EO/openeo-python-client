@@ -21,7 +21,7 @@ tests_require = [
     'pytest>=4.5.0',
     'mock',
     'requests-mock>=1.8.0',
-    'h5netcdf',
+    'netCDF4',  # e.g. for writing/loading NetCDF data with xarray
     'matplotlib',
     'geopandas',
 ]
@@ -54,6 +54,7 @@ setup(name=name,
               "sphinx-autodoc-annotation",
               "sphinx-autodoc-typehints",
               "flake8",
+              "myst-parser",
           ]
       },
       entry_points={

@@ -1,4 +1,4 @@
-OpenEO CookBook
+openEO CookBook
 ===============
 
 .. toctree::
@@ -9,3 +9,4 @@ OpenEO CookBook
    sampling
    udp_sharing
    spectral_indices
+   tricks

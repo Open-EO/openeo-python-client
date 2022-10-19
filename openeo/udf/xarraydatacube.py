@@ -9,7 +9,7 @@ import collections
 import json
 import typing
 from pathlib import Path
-from typing import Union
+from typing import Union, Optional
 
 import numpy
 import xarray
@@ -314,17 +314,20 @@ class XarrayIO:
         return r.transpose(*dims)
 
     @classmethod
-    def from_netcdf_file(cls, path: Union[str, Path]) -> xarray.DataArray:
+    def from_netcdf_file(cls, path: Union[str, Path], engine: Optional[str] = None) -> xarray.DataArray:
         # load the dataset and convert to data array
-        ds = xarray.open_dataset(path, engine='h5netcdf')
+        ds = xarray.open_dataset(path, engine=engine)
+
+        # Skip non-numerical variables (like "crs")
+        band_vars = [k for k, v in ds.data_vars.items() if v.dtype.kind in {"b", "i", "u", "f"} and len(v.dims) > 0]
+        ds = ds[band_vars]
+
         r = ds.to_array(dim='bands')
-        # build dimension list in proper order
-        dims = list(filter(lambda i: i != 't' and i != 'bands' and i != 'x' and i != 'y', r.dims))
-        if 't' in r.dims: dims += ['t']
-        if 'bands' in r.dims: dims += ['bands']
-        if 'x' in r.dims: dims += ['x']
-        if 'y' in r.dims: dims += ['y']
-        # return the resulting data array
+
+        # Reorder dims to proper order (t-bands-x-y at the end)
+        expected_order = ("t", "bands", "x", "y")
+        dims = [d for d in r.dims if d not in expected_order] + [d for d in expected_order if d in r.dims]
+
         return r.transpose(*dims)
 
     @classmethod
@@ -357,7 +360,7 @@ class XarrayIO:
             custom_print(jsonarray)
 
     @classmethod
-    def to_netcdf_file(cls, array: xarray.DataArray, path: Union[str, Path]):
+    def to_netcdf_file(cls, array: xarray.DataArray, path: Union[str, Path], engine: Optional[str] = None):
         # temp reference to avoid modifying the original array
         result = array
         # rearrange in a basic way because older xarray versions have a bug and ellipsis don't work in xarray.transpose()
@@ -372,5 +375,4 @@ class XarrayIO:
                 labels = ['band_' + str(i) for i in range(result.shape[result.dims.index('bands')])]
                 result = result.assign_coords(bands=labels)
         result = result.to_dataset('bands')
-        result.to_netcdf(path, engine='h5netcdf')
-
+        result.to_netcdf(path, engine=engine)

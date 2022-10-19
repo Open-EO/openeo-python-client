@@ -6,6 +6,8 @@ import pytest
 
 from openeo.util import ensure_dir
 
+pytest_plugins = "pytester"
+
 # Make tests more predictable and avoid loading real configs in tests.
 os.environ["XDG_CONFIG_HOME"] = str(Path(__file__).parent / "data/user_dirs/config")
 os.environ["XDG_DATA_HOME"] = str(Path(__file__).parent / "data/user_dirs/data")

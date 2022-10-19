@@ -10,6 +10,10 @@ class MetadataException(Exception):
     pass
 
 
+class DimensionAlreadyExistsException(MetadataException):
+    pass
+
+
 class Dimension:
     """Base class for dimensions."""
 
@@ -45,8 +49,10 @@ class Dimension:
 class SpatialDimension(Dimension):
     DEFAULT_CRS = 4326
 
-    def __init__(self, name: str, extent: Union[Tuple[float, float], List[float]],
-                 crs: Union[str, int, dict] = DEFAULT_CRS, step = None):
+    def __init__(
+            self, name: str, extent: Union[Tuple[float, float], List[float]],
+            crs: Union[str, int, dict] = DEFAULT_CRS, step=None
+    ):
         """
 
         @param name:
@@ -209,7 +215,9 @@ class CollectionMetadata:
         else:
             return cls(metadata=metadata or {})
 
-    def _clone_and_update(self, metadata: dict = None, dimensions: List[Dimension] = None, **kwargs) -> 'CollectionMetadata':
+    def _clone_and_update(
+            self, metadata: dict = None, dimensions: List[Dimension] = None, **kwargs
+    ) -> 'CollectionMetadata':
         """Create a new instance (of same class) with copied/updated fields."""
         cls = type(self)
         if dimensions == None:
@@ -412,6 +420,8 @@ class CollectionMetadata:
 
     def add_dimension(self, name: str, label: Union[str, float], type: str = None) -> 'CollectionMetadata':
         """Create new metadata object with added dimension"""
+        if any(d.name == name for d in self._dimensions):
+            raise DimensionAlreadyExistsException(f"Dimension with name {name!r} already exists")
         if type == "bands":
             dim = BandDimension(name=name, bands=[Band(label, None, None)])
         elif type == "spatial":
@@ -430,4 +440,7 @@ class CollectionMetadata:
         return self._clone_and_update(dimensions=[d for d in self._dimensions if not d.name == name])
 
     def _repr_html_(self):
-        return render_component('collection', data = self._orig_metadata)
+        return render_component('collection', data=self._orig_metadata)
+
+    def __str__(self) -> str:
+        return f"CollectionMetadata({self.extent} - {self.band_names} - {self.dimension_names()})"

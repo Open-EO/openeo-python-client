@@ -4,12 +4,13 @@ Functionality for abstracting, building, manipulating and processing openEO proc
 """
 import abc
 import collections
+from pathlib import Path
 from typing import Union, Dict, Any, Optional
 
 from openeo.api.process import Parameter
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor, ProcessGraphUnflattener, \
     ProcessGraphVisitException
-from openeo.util import legacy_alias, dict_no_none
+from openeo.util import dict_no_none, load_json_resource
 
 
 class _FromNodeMixin(abc.ABC):
@@ -17,6 +18,10 @@ class _FromNodeMixin(abc.ABC):
 
     @abc.abstractmethod
     def from_node(self) -> "PGNode":
+        # TODO: "from_node" is a bit a confusing name:
+        #       it refers to the "from_node" node reference in openEO process graphs,
+        #       but as a method name here it read like "construct from PGNode",
+        #       while it is actually meant as "export as PGNode" (that can be used in a "from_node" reference).
         pass
 
 
@@ -27,6 +32,18 @@ class PGNode(_FromNodeMixin):
     Note that a full openEO "process graph" is essentially a directed acyclic graph of nodes
     pointing to each other. A full process graph is practically equivalent with its "result" node,
     as it points (directly or indirectly) to all the other nodes it depends on.
+
+    .. warning::
+        This class is an implementation detail meant for internal use.
+        It is not recommended for general use in normal user code.
+        Instead, use process graph abstraction builders like
+        :py:meth:`Connection.load_collection() <openeo.rest.connection.Connection.load_collection>`,
+        :py:meth:`Connection.datacube_from_process() <openeo.rest.connection.Connection.datacube_from_process>`,
+        :py:meth:`Connection.datacube_from_flat_graph() <openeo.rest.connection.Connection.datacube_from_flat_graph>`,
+        :py:meth:`Connection.datacube_from_json() <openeo.rest.connection.Connection.datacube_from_json>`,
+        :py:meth:`Connection.load_ml_model() <openeo.rest.connection.Connection.load_ml_model>`,
+        :py:func:`openeo.processes.process()`,
+
     """
 
     def __init__(self, process_id: str, arguments: dict = None, namespace: Union[str, None] = None, **kwargs):
@@ -101,10 +118,8 @@ class PGNode(_FromNodeMixin):
         return _deep_copy(self)
 
     def flat_graph(self) -> dict:
-        """Get the process graph in flat dict representation."""
+        """Get the process graph in internal flat dict representation."""
         return GraphFlattener().flatten(node=self)
-
-    flatten = legacy_alias(flat_graph, name="flatten")
 
     @staticmethod
     def to_process_graph_argument(value: Union['PGNode', str, dict]) -> dict:
@@ -132,35 +147,17 @@ class PGNode(_FromNodeMixin):
 
 def as_flat_graph(x: Union[dict, Any]) -> dict:
     """
-    Convert given object to a flat dict graph representation.
+    Convert given object to a internal flat dict graph representation.
     """
     if isinstance(x, dict):
         return x
     elif hasattr(x, 'flat_graph'):
         # The "flat_graph" API (supported by `PGNode`, `DataCube`, `ProcessBuilderBase`, ...)
         return x.flat_graph()
-    else:
-        raise ValueError(x)
-
-
-class UDF(PGNode):
-    """
-    A 'run_udf' process graph node. This is offered as a convenient way to construct run_udf processes.
-    """
-
-    def __init__(self, code: str, runtime: str, data, version: str = None, context: Dict = None):
-        arguments = {
-            "data": data,
-            "udf": code,
-            "runtime": runtime
-        }
-        if version is not None:
-            arguments["version"] = version
-
-        if context is not None:
-            arguments["context"] = context
-
-        super().__init__(process_id='run_udf', arguments=arguments)
+    elif isinstance(x, (str, Path)):
+        # Assume a JSON resource (raw JSON, path to local file, JSON url, ...)
+        return load_json_resource(x)
+    raise ValueError(x)
 
 
 class ReduceNode(PGNode):

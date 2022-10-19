@@ -14,8 +14,9 @@ def test_inspect_basic(caplog):
     record: logging.LogRecord = caplog.records[0]
     assert record.name == "openeo.udf.debug.user"
     assert record.levelno == logging.INFO
-    assert "hello" in record.message
-    assert "[1, 2, 3]" in record.message
+    assert record.message == "hello"
+    assert record.__dict__["data"] == [1, 2, 3]
+    assert record.__dict__["code"] == "User"
 
 
 @pytest.mark.skipif(sys.version_info < (3, 8), reason="Requires python 3.8 or higher (logging `stacklevel`)")
@@ -37,4 +38,4 @@ def test_inspect_code(caplog):
     caplog.set_level("INFO")
     inspect(data=[1, 2, 3], message="hello", code="Dev")
     record: logging.LogRecord = caplog.records[0]
-    assert "Dev" in record.message
+    assert record.__dict__["code"] == "Dev"

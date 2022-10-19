@@ -41,14 +41,49 @@ Building the documentation requires `Sphinx <https://www.sphinx-doc.org/en/maste
 and some plugins
 (which are installed automatically as part of the ``[dev]`` install).
 
-To building the documentation locally as HTML::
+Quick and easy
+---------------
 
-    python setup.py build_sphinx -c docs
+The easiest way to build the documentation is working from the ``docs`` folder
+and using the ``Makefile``:
 
-or as LaTeX documents::
+.. code-block:: shell
 
-    python setup.py build_sphinx -c docs -b latex
+    # From `docs` folder
+    make html
 
+(assumes you have ``make`` available, if not: use ``python -msphinx -M html .  _build``.)
+
+This will generate the docs in HTML format under ``docs/_build/html/``.
+Open the HTML files manually,
+or use Python's built-in web server to host them locally, e.g.:
+
+.. code-block:: shell
+
+    # From `docs` folder
+    python -m http.server 8000
+
+Then, visit  http://127.0.0.1:8000/_build/html/ in your browser
+
+
+Like a Pro
+------------
+
+When doing larger documentation work, it can be tedious to manually rebuild the docs
+and refresh your browser to check the result.
+Instead, use `sphinx-autobuild <https://github.com/executablebooks/sphinx-autobuild>`_
+to automatically rebuild on documentation changes and live-reload it in your browser.
+After installation (``pip install sphinx-autobuild`` in your development environment),
+just run
+
+.. code-block:: shell
+
+    # From project root
+    sphinx-autobuild docs/ --watch openeo/ docs/_build/html/
+
+and then visit http://127.0.0.1:8000 .
+When you change (and save) documentation source files, your browser should now
+automatically refresh and show the newly build docs. Just like magic.
 
 
 Creating a release
@@ -153,12 +188,12 @@ To be as concrete as possible, we will assume that we are about to release versi
 
     A.  **Obtain a wheel archive** of the package, with one of these approaches:
 
-        -   Path of least surprise: build wheel through GitHub Actions.
+        -   *Preferably*: path of least surprise: build wheel through GitHub Actions.
             Go to workflow `"Build wheel" <https://github.com/Open-EO/openeo-python-client/actions/workflows/build-wheel.yml>`_,
             manually trigger a build with "Run workflow" button, wait for it to finish successfully,
             download generated ``artifact.zip``, and finally: unzip it to obtain ``openeo-0.4.7-py3-none-any.whl``
 
-        -   If you know what you are doing and you're sure you have a clean
+        -   *Or*, if you know what you are doing and you're sure you have a clean
             local checkout, you can also build it locally::
 
                 python setup.py bdist_wheel
@@ -169,6 +204,13 @@ To be as concrete as possible, we will assume that we are about to release versi
 
             python -m twine upload openeo-0.4.7-py3-none-any.whl
 
+        Check the `release history on PyPI <https://pypi.org/project/openeo/#history>`_
+        to verify the twine upload.
+        Another way to verify that the freshly created release installs
+        is using docker to do a quick install-and-burn,
+        for example as follows (check the installed version in pip's output)::
+
+            docker run --rm -it python python -m pip install --no-deps openeo
 
 #.  Create a **git version tag** and push it to GitHub::
 

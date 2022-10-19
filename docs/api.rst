@@ -6,10 +6,10 @@ High level Interface
 --------------------
 
 The high-level interface tries to provide an opinionated, Pythonic, API
-to interact with OpenEO back-ends. It's aim is to hide some of the details
+to interact with openEO back-ends. It's aim is to hide some of the details
 of using a web service, so the user can produce concise and readable code.
 
-Users that want to interact with OpenEO on a lower level, and have more control, can
+Users that want to interact with openEO on a lower level, and have more control, can
 use the lower level classes.
 
 
@@ -25,6 +25,7 @@ openeo.rest.datacube
 .. automodule:: openeo.rest.datacube
    :members: DataCube
    :inherited-members:
+   :special-members: __init__
 
 
 openeo.rest.vectorcube
@@ -108,7 +109,14 @@ openeo.util
 -------------
 
 .. automodule:: openeo.util
-    :members: to_bbox_dict, BBoxDict
+    :members: to_bbox_dict, BBoxDict, load_json_resource
+
+
+openeo.processes
+----------------
+
+.. automodule:: openeo.processes
+    :members: process
 
 
 openeo.internal

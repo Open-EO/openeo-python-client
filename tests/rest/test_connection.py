@@ -7,7 +7,7 @@ import textwrap
 import typing
 import unittest.mock as mock
 import zlib
-from typing import Optional
+from pathlib import Path
 
 import pytest
 import requests.auth
@@ -1107,7 +1107,7 @@ def test_authenticate_oidc_device_flow_pkce_multiple_provider_one_config_no_give
 
 def test_authenticate_oidc_device_flow_pkce_multiple_provider_one_config_no_given_default_client(requests_mock, auth_config):
     """
-    OIDC device flow + default_client + PKCE with multiple OIDC providers, one in config and none specified to use.
+    OIDC device flow + default_clients + PKCE with multiple OIDC providers, one in config and none specified to use.
     """
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     default_client_id = "dadefaultklient"
@@ -1214,7 +1214,7 @@ def test_authenticate_oidc_device_flow_pkce_store_refresh_token(requests_mock):
     })
 
     expected_fields = {
-        "scope": "openid", "code_verifier":True, "code_challenge":True
+        "scope": "openid", "code_verifier": True, "code_challenge": True
     }
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
@@ -1320,11 +1320,7 @@ def test_authenticate_oidc_auto_with_existing_refresh_token(requests_mock, refre
     assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
 
     new_refresh_token = refresh_token_store.get_refresh_token(issuer=issuer, client_id=client_id)
-    if store_refresh_token:
-        assert new_refresh_token != orig_refresh_token
-        assert new_refresh_token == oidc_mock.state["refresh_token"]
-    else:
-        assert new_refresh_token == orig_refresh_token
+    assert new_refresh_token == orig_refresh_token
     assert [r["grant_type"] for r in oidc_mock.grant_request_history] == ["refresh_token"]
 
 
@@ -1415,7 +1411,7 @@ def _setup_get_me_handler(requests_mock, oidc_mock: OidcMock):
     def get_me(request: requests.Request, context):
         """handler for `GET /me` (with access_token checking)"""
         auth_header = request.headers["Authorization"]
-        oidc_provider, access_token = re.match("Bearer oidc/(?P<p>\w+)/(?P<a>.*)", auth_header).group("p", "a")
+        oidc_provider, access_token = re.match(r"Bearer oidc/(?P<p>\w+)/(?P<a>.*)", auth_header).group("p", "a")
         try:
             user_id = oidc_mock.validate_access_token(access_token)["user_id"]
         except LookupError:
@@ -1467,8 +1463,7 @@ def test_authenticate_oidc_auto_refresh_expired_access_token_initial_refresh_tok
     # Just one "refresh_token" auth request so far
     assert [h["grant_type"] for h in oidc_mock.grant_request_history] == ["refresh_token"]
     access_token1 = oidc_mock.state["access_token"]
-    refresh_token1 = oidc_mock.state["refresh_token"]
-    assert refresh_token1 != initial_refresh_token
+    assert "refresh_token" not in oidc_mock.state
     # Do request that requires auth headers
     assert conn.describe_account() == {
         "user_id": "john",
@@ -1479,21 +1474,20 @@ def test_authenticate_oidc_auto_refresh_expired_access_token_initial_refresh_tok
     # Expire access token and expect new refresh_token auth request with latest refresh token
     if invalidate:
         oidc_mock.invalidate_access_token()
-        oidc_mock.expected_fields["refresh_token"] = refresh_token1
     # Do request that requires auth headers and might trigger re-authentication
     assert "[403] TokenInvalid" not in caplog.text
     get_me_response = conn.describe_account()
     access_token2 = oidc_mock.state["access_token"]
-    refresh_token2 = oidc_mock.state["refresh_token"]
+    assert "refresh_token" not in oidc_mock.state
     if invalidate:
         # Two "refresh_token" auth requests should have happened now
         assert [h["grant_type"] for h in oidc_mock.grant_request_history] == ["refresh_token", "refresh_token"]
-        assert (access_token2, refresh_token2) != (access_token1, refresh_token1)
+        assert access_token2 != access_token1
         assert "expired access token ([403] TokenInvalid)" in caplog.text
         assert "automatically re-authenticated with refresh token" in caplog.text
     else:
         assert [h["grant_type"] for h in oidc_mock.grant_request_history] == ["refresh_token"]
-        assert (access_token2, refresh_token2) == (access_token1, refresh_token1)
+        assert access_token2 == access_token1
         assert "[403] TokenInvalid" not in caplog.text
 
     assert get_me_response == {
@@ -1585,6 +1579,7 @@ def test_authenticate_oidc_auto_refresh_expired_access_token_initial_device_code
         "_used_access_token": access_token2,
     }
 
+
 def test_authenticate_oidc_auto_refresh_expired_access_token_invalid_refresh_token(
         requests_mock, refresh_token_store, caplog
 ):
@@ -1641,7 +1636,7 @@ def test_authenticate_oidc_auto_refresh_expired_access_token_invalid_refresh_tok
         conn.describe_account()
 
     assert "expired access token ([403] TokenInvalid)" in caplog.text
-    assert "failed to automatically re-authenticate with refresh token" in caplog.text
+    assert "failed to automatically re-authenticate using refresh token" in caplog.text
 
 
 def test_authenticate_oidc_auto_refresh_expired_access_token_other_errors(
@@ -1697,7 +1692,7 @@ def test_load_collection_arguments_040(requests_mock):
     im = conn.load_collection(
         "FOO", spatial_extent=spatial_extent, temporal_extent=temporal_extent, bands=["red", "green"]
     )
-    node = im.graph[im.node_id]
+    node = im.flat_graph()[im.node_id]
     assert node["process_id"] == "load_collection"
     assert node["arguments"] == {
         "id": "FOO",
@@ -2406,3 +2401,128 @@ def test_version_info(requests_mock, capabilities, expected):
     requests_mock.get("https://oeo.test/", json=capabilities)
     con = Connection(API_URL)
     assert con.version_info() == expected
+
+
+class TestExecute:
+    # Dummy process graphs
+    PG_JSON_1 = '{"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": true}}'
+    PG_JSON_2 = '{"process_graph": {"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": true}}}'
+
+    # Dummy `POST /result` handlers
+    def _post_result_handler_tiff(self, response: requests.Request, context):
+        pg = response.json()["process"]["process_graph"]
+        assert pg == {"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}}
+        return b"TIFF data"
+
+    def _post_result_handler_json(self, response: requests.Request, context):
+        pg = response.json()["process"]["process_graph"]
+        assert pg == {"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}}
+        return {"answer": 8}
+
+    def _post_jobs_handler_json(self, response: requests.Request, context):
+        pg = response.json()["process"]["process_graph"]
+        assert pg == {"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}}
+        context.headers["OpenEO-Identifier"] = "j-123"
+        return b""
+
+    @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
+    def test_download_pg_json(self, requests_mock, tmp_path, pg_json: str):
+        requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+        requests_mock.post(API_URL + "result", content=self._post_result_handler_tiff)
+
+        conn = Connection(API_URL)
+        output = tmp_path / "result.tiff"
+        conn.download(pg_json, outputfile=output)
+        assert output.read_bytes() == b"TIFF data"
+
+    @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
+    def test_execute_pg_json(self, requests_mock, pg_json: str):
+        requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+        requests_mock.post(API_URL + "result", json=self._post_result_handler_json)
+
+        conn = Connection(API_URL)
+        result = conn.execute(pg_json)
+        assert result == {"answer": 8}
+
+    @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
+    def test_create_job_pg_json(self, requests_mock, pg_json: str):
+        requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+        requests_mock.post(API_URL + "jobs", status_code=201, content=self._post_jobs_handler_json)
+
+        conn = Connection(API_URL)
+        job = conn.create_job(pg_json)
+        assert job.job_id == "j-123"
+
+    @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
+    @pytest.mark.parametrize("path_factory", [str, Path])
+    def test_download_pg_json_file(self, requests_mock, tmp_path, pg_json: str, path_factory):
+        requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+        requests_mock.post(API_URL + "result", content=self._post_result_handler_tiff)
+        json_file = tmp_path / "input.json"
+        json_file.write_text(pg_json)
+        json_file = path_factory(json_file)
+
+        conn = Connection(API_URL)
+        output = tmp_path / "result.tiff"
+        conn.download(json_file, outputfile=output)
+        assert output.read_bytes() == b"TIFF data"
+
+    @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
+    @pytest.mark.parametrize("path_factory", [str, Path])
+    def test_execute_pg_json_file(self, requests_mock, pg_json: str, tmp_path, path_factory):
+        requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+        requests_mock.post(API_URL + "result", json=self._post_result_handler_json)
+        json_file = tmp_path / "input.json"
+        json_file.write_text(pg_json)
+        json_file = path_factory(json_file)
+
+        conn = Connection(API_URL)
+        result = conn.execute(json_file)
+        assert result == {"answer": 8}
+
+    @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
+    @pytest.mark.parametrize("path_factory", [str, Path])
+    def test_create_job_pg_json_file(self, requests_mock, pg_json: str, tmp_path, path_factory):
+        requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+        requests_mock.post(API_URL + "jobs", status_code=201, content=self._post_jobs_handler_json)
+        json_file = tmp_path / "input.json"
+        json_file.write_text(pg_json)
+        json_file = path_factory(json_file)
+
+        conn = Connection(API_URL)
+        job = conn.create_job(json_file)
+        assert job.job_id == "j-123"
+
+    @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
+    def test_download_pg_json_url(self, requests_mock, tmp_path, pg_json: str):
+        requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+        requests_mock.post(API_URL + "result", content=self._post_result_handler_tiff)
+        url = "https://jsonbin.test/pg.json"
+        requests_mock.get(url, text=pg_json)
+
+        conn = Connection(API_URL)
+        output = tmp_path / "result.tiff"
+        conn.download(url, outputfile=output)
+        assert output.read_bytes() == b"TIFF data"
+
+    @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
+    def test_execute_pg_json_url(self, requests_mock, pg_json: str):
+        requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+        requests_mock.post(API_URL + "result", json=self._post_result_handler_json)
+        url = "https://jsonbin.test/pg.json"
+        requests_mock.get(url, text=pg_json)
+
+        conn = Connection(API_URL)
+        result = conn.execute(url)
+        assert result == {"answer": 8}
+
+    @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
+    def test_create_job_pg_json_url(self, requests_mock, pg_json: str):
+        requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+        requests_mock.post(API_URL + "jobs", status_code=201, content=self._post_jobs_handler_json)
+        url = "https://jsonbin.test/pg.json"
+        requests_mock.get(url, text=pg_json)
+
+        conn = Connection(API_URL)
+        job = conn.create_job(url)
+        assert job.job_id == "j-123"

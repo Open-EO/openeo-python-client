@@ -46,7 +46,7 @@ class BasicBearerAuth(BearerAuth):
         super().__init__(bearer='basic//{t}'.format(t=access_token))
 
 
-OidcRefreshInfo = collections.namedtuple("_OidcRefreshData", ["provider_id", "client_id", "store_refresh_token"])
+OidcRefreshInfo = collections.namedtuple("_OidcRefreshData", ["provider_id", "client_id"])
 
 
 class OidcBearerAuth(BearerAuth):

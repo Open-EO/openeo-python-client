@@ -9,12 +9,12 @@ Band math related tests against both
 import numpy as np
 import pytest
 
+import openeo
 from openeo.rest import BandMathException
 from .. import get_download_graph
 from ..conftest import reset_graphbuilder
 from ... import load_json_resource
 from .test_datacube import _get_leaf_node
-
 
 
 def test_band_basic(connection, api_version):
@@ -130,21 +130,27 @@ def test_db_to_natural(con100):
     assert natural.flat_graph() == expected_graph
 
 
-def test_ndvi_udf(connection, api_version):
+def test_ndvi_reduce_bands_udf(connection, api_version):
+    # TODO #181 #312 drop this deprecated pattern
     s2_radio = connection.load_collection("SENTINEL2_RADIOMETRY_10M")
-    ndvi_coverage = s2_radio.reduce_bands_udf("def myfunction(tile):\n"
-                                         "    print(tile)\n"
-                                         "    return tile")
+    ndvi_coverage = s2_radio.reduce_bands_udf("def myfunction(tile):\n    print(tile)\n    return tile")
     actual_graph = get_download_graph(ndvi_coverage)
     expected_graph = load_json_resource('data/%s/udf_graph.json' % api_version)["process_graph"]
     assert actual_graph == expected_graph
 
 
-def test_ndvi_udf_v100(con100):
+def test_ndvi_reduce_bands_udf_legacy_v100(con100):
+    # TODO #181 #312 drop this deprecated pattern
     s2_radio = con100.load_collection("SENTINEL2_RADIOMETRY_10M")
-    ndvi_coverage = s2_radio.reduce_bands_udf("def myfunction(tile):\n"
-                                              "    print(tile)\n"
-                                              "    return tile")
+    ndvi_coverage = s2_radio.reduce_bands_udf("def myfunction(tile):\n    print(tile)\n    return tile")
+    actual_graph = get_download_graph(ndvi_coverage)
+    expected_graph = load_json_resource('data/1.0.0/udf_graph.json')["process_graph"]
+    assert actual_graph == expected_graph
+
+
+def test_ndvi_reduce_bands_udf_v100(con100):
+    s2_radio = con100.load_collection("SENTINEL2_RADIOMETRY_10M")
+    ndvi_coverage = s2_radio.reduce_bands(openeo.UDF("def myfunction(tile):\n    print(tile)\n    return tile"))
     actual_graph = get_download_graph(ndvi_coverage)
     expected_graph = load_json_resource('data/1.0.0/udf_graph.json')["process_graph"]
     assert actual_graph == expected_graph
@@ -210,19 +216,6 @@ def test_band_operation(con100, process, expected):
             "result": True,
         }
     }
-
-
-def test_merge_issue107(con100):
-    """https://github.com/Open-EO/openeo-python-client/issues/107"""
-    s2 = con100.load_collection("S2")
-    a = s2.filter_bands(['B02'])
-    b = s2.filter_bands(['B04'])
-    c = a.merge(b)
-
-    flat = c.flat_graph()
-    # There should be only one `load_collection` node (but two `filter_band` ones)
-    processes = sorted(n["process_id"] for n in flat.values())
-    assert processes == ["filter_bands", "filter_bands", "load_collection", "merge_cubes"]
 
 
 def test_invert_band(connection, api_version):
@@ -346,20 +339,6 @@ def test_merge_cubes_multiple(connection, api_version):
     assert actual == load_json_resource('data/%s/merge_cubes_multiple.json' % api_version)
 
 
-def test_merge_cubes_no_resolver(connection, api_version):
-    s2 = connection.load_collection("S2")
-    mask = connection.load_collection("MASK")
-    merged = s2.merge(mask)
-    assert merged.flat_graph() == load_json_resource('data/%s/merge_cubes_no_resolver.json' % api_version)
-
-
-def test_merge_cubes_max_resolver(connection, api_version):
-    s2 = connection.load_collection("S2")
-    mask = connection.load_collection("MASK")
-    merged = s2.merge(mask, overlap_resolver="max")
-    assert merged.flat_graph() == load_json_resource('data/%s/merge_cubes_max.json' % api_version)
-
-
 def test_fuzzy_mask(connection, api_version):
     s2 = connection.load_collection("SENTINEL2_SCF")
     scf_band = s2.band("SCENECLASSIFICATION")
@@ -369,13 +348,13 @@ def test_fuzzy_mask(connection, api_version):
     assert mask.flat_graph() == load_json_resource('data/%s/fuzzy_mask.json' % api_version)
 
 
-def test_fuzzy_mask_band_math(connection, api_version):
-    s2 = connection.load_collection("SENTINEL2_SCF")
+def test_fuzzy_mask_band_math(con100):
+    s2 = con100.load_collection("SENTINEL2_SCF")
     scf_band = s2.band("SCENECLASSIFICATION")
     clouds = scf_band == 4
     fuzzy = clouds.apply_kernel(kernel=0.1 * np.ones((3, 3)))
     mask = fuzzy.add_dimension("bands", "mask", "bands").band("mask") > 0.3
-    assert mask.flat_graph() == load_json_resource('data/%s/fuzzy_mask_add_dim.json' % api_version)
+    assert mask.flat_graph() == load_json_resource('data/1.0.0/fuzzy_mask_add_dim.json')
 
 
 def test_normalized_difference(connection, api_version):
@@ -390,7 +369,7 @@ def test_normalized_difference(connection, api_version):
 
 def test_ln(con100):
     result = con100.load_collection("S2").band('B04').ln()
-    assert result.flat_graph() == load_json_resource('data/1.0.0/bm_ln.json' )
+    assert result.flat_graph() == load_json_resource('data/1.0.0/bm_ln.json')
 
 
 def test_log10(con100):
@@ -404,6 +383,7 @@ def test_log2(con100):
         'data/1.0.0/bm_log.json',
         preprocess=lambda s: s.replace('"base": 10', '"base": 2')
     )
+
 
 def test_log3(con100):
     result = con100.load_collection("S2").band('B04').logarithm(base=3)

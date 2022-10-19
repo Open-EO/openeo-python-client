@@ -13,7 +13,6 @@ from typing import Dict, List, Tuple, Union, Callable, Optional, Any, Iterator
 from urllib.parse import urljoin
 
 import requests
-from deprecated.sphinx import deprecated
 from requests import Response
 from requests.auth import HTTPBasicAuth, AuthBase
 
@@ -23,6 +22,7 @@ from openeo.config import get_config_option, config_log
 from openeo.internal.graph_building import PGNode, as_flat_graph
 from openeo.internal.jupyter import VisualDict, VisualList
 from openeo.internal.processes.builder import ProcessBuilderBase
+from openeo.internal.warnings import legacy_alias, deprecated
 from openeo.metadata import CollectionMetadata
 from openeo.rest import OpenEoClientException, OpenEoApiError, OpenEoRestError
 from openeo.rest.auth.auth import NullAuth, BearerAuth, BasicBearerAuth, OidcBearerAuth, OidcRefreshInfo
@@ -37,7 +37,7 @@ from openeo.rest.job import BatchJob, RESTJob
 from openeo.rest.rest_capabilities import RESTCapabilities
 from openeo.rest.service import Service
 from openeo.rest.udp import RESTUserDefinedProcess, Parameter
-from openeo.util import ensure_list, legacy_alias, dict_no_none, rfc3339, load_json_resource, LazyLoadCache, \
+from openeo.util import ensure_list, dict_no_none, rfc3339, load_json_resource, LazyLoadCache, \
     ContextTimer, str_truncate
 
 _log = logging.getLogger(__name__)
@@ -212,11 +212,6 @@ class Connection(RestApiConnection):
 
     _MINIMUM_API_VERSION = ComparableVersion("0.4.0")
 
-    # Temporary workaround flag to enable for backends (e.g. EURAC) that expect id_token to be sent as bearer token
-    # TODO #300 DEPRECATED To remove when all backends properly expect access_token
-    # see https://github.com/Open-EO/openeo-wcps-driver/issues/45
-    oidc_auth_user_id_token_as_bearer = False
-
     def __init__(
             self, url: str, auth: AuthBase = None, session: requests.Session = None, default_timeout: int = None,
             auth_config: AuthConfig = None, refresh_token_store: RefreshTokenStore = None,
@@ -378,8 +373,8 @@ class Connection(RestApiConnection):
             if client_id:
                 _log.info("Using client_id {c!r} from config (provider {p!r})".format(c=client_id, p=provider_id))
         if client_id is None and default_client_grant_check:
-            # Try "default_client" from backend's provider info.
-            _log.debug("No client_id given: checking default client in backend's provider info")
+            # Try "default_clients" from backend's provider info.
+            _log.debug("No client_id given: checking default clients in backend's provider info")
             client_id = provider.get_default_client_id(grant_check=default_client_grant_check)
             if client_id:
                 _log.info("Using default client_id {c!r} from OIDC provider {p!r} info.".format(
@@ -395,8 +390,10 @@ class Connection(RestApiConnection):
     def _authenticate_oidc(
             self,
             authenticator: OidcAuthenticator,
+            *,
             provider_id: str,
             store_refresh_token: bool = False,
+            fallback_refresh_token_to_store: Optional[str] = None,
             refreshable: bool = False,
     ) -> 'Connection':
         """
@@ -405,22 +402,22 @@ class Connection(RestApiConnection):
         tokens = authenticator.get_tokens(request_refresh_token=store_refresh_token)
         _log.info("Obtained tokens: {t}".format(t=[k for k, v in tokens._asdict().items() if v]))
         if store_refresh_token:
-            if tokens.refresh_token:
+            refresh_token = tokens.refresh_token or fallback_refresh_token_to_store
+            if refresh_token:
                 self._get_refresh_token_store().set_refresh_token(
                     issuer=authenticator.provider_info.issuer,
                     client_id=authenticator.client_id,
-                    refresh_token=tokens.refresh_token
+                    refresh_token=refresh_token
                 )
                 refreshable = True
             else:
-                _log.warning("OIDC token response did not contain refresh token.")
-        token = tokens.access_token if not self.oidc_auth_user_id_token_as_bearer else tokens.id_token
+                _log.warning("No OIDC refresh token to store.")
+        token = tokens.access_token
         if self._api_version.at_least("1.0.0"):
             if refreshable:
                 refresh_data = OidcRefreshInfo(
                     provider_id=provider_id,
                     client_id=authenticator.client_id,
-                    store_refresh_token=store_refresh_token,
                 )
             else:
                 refresh_data = None
@@ -510,7 +507,11 @@ class Connection(RestApiConnection):
 
         authenticator = OidcRefreshTokenAuthenticator(client_info=client_info, refresh_token=refresh_token)
         return self._authenticate_oidc(
-            authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token, refreshable=True,
+            authenticator,
+            provider_id=provider_id,
+            store_refresh_token=store_refresh_token,
+            fallback_refresh_token_to_store=refresh_token,
+            refreshable=True,
         )
 
     def authenticate_oidc_device(
@@ -566,7 +567,10 @@ class Connection(RestApiConnection):
                 _log.info("Found refresh token: trying refresh token based authentication.")
                 authenticator = OidcRefreshTokenAuthenticator(client_info=client_info, refresh_token=refresh_token)
                 con = self._authenticate_oidc(
-                    authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token
+                    authenticator,
+                    provider_id=provider_id,
+                    store_refresh_token=store_refresh_token,
+                    fallback_refresh_token_to_store=refresh_token,
                 )
                 # TODO: pluggable/jupyter-aware display function?
                 print("Authenticated using refresh token.")
@@ -608,7 +612,6 @@ class Connection(RestApiConnection):
                         self.authenticate_oidc_refresh_token(
                             client_id=self.auth.refresh_data.client_id,
                             provider_id=self.auth.refresh_data.provider_id,
-                            store_refresh_token=self.auth.refresh_data.store_refresh_token,
                         )
                         _log.warning(
                             f"Connection with expired access token ([{api_exc.http_status_code}] {api_exc.code})"
@@ -617,7 +620,7 @@ class Connection(RestApiConnection):
                     except OpenEoClientException as auth_exc:
                         _log.error(
                             f"Connection with expired access token ([{api_exc.http_status_code}] {api_exc.code})"
-                            f" failed to automatically re-authenticate with refresh token: {auth_exc!r}.")
+                            f" failed to automatically re-authenticate using refresh token: {auth_exc!r}.")
                     else:
                         # Retry request.
                         return _request()
@@ -635,16 +638,27 @@ class Connection(RestApiConnection):
 
     def list_collections(self) -> List[dict]:
         """
-        Loads all available imagecollections types.
+        List basic metadata of all collections provided by the back-end.
 
-        :return: list of collection meta data dictionaries
+        .. caution::
+
+            Only the basic collection metadata will be returned.
+            To obtain full metadata of a particular collection,
+            it is recommended to use :py:meth:`~openeo.rest.connection.Connection.describe_collection` instead.
+
+        :return: list of dictionaries with basic collection metadata.
         """
         data = self.get('/collections', expected_status=200).json()["collections"]
         return VisualList("collections", data=data)
 
     def list_collection_ids(self) -> List[str]:
         """
-        Get list of all collection ids
+        List all collection ids provided by the back-end.
+
+        .. seealso::
+
+            :py:meth:`~openeo.rest.connection.Connection.describe_collection`
+            to get the metadata of a particular collection.
 
         :return: list of collection ids
         """
@@ -711,15 +725,20 @@ class Connection(RestApiConnection):
         services = self.get('/services', expected_status=200).json()["services"]
         return VisualList("data-table", data=services, parameters={'columns': 'services'})
 
-    def describe_collection(self, name) -> dict:
+    def describe_collection(self, collection_id: str) -> dict:
         """
-        Loads detailed information of a specific image collection.
+        Get full collection metadata for given collection id.
+        
+        .. seealso::
+        
+            :py:meth:`~openeo.rest.connection.Connection.list_collection_ids`
+            to list all collection ids provided by the back-end.
 
-        :param name: String Id of the collection
-        :return: data_dict: Dict Detailed information about the collection
+        :param collection_id: collection id
+        :return: collection metadata.
         """
         # TODO: duplication with `Connection.collection_metadata`: deprecate one or the other?
-        data = self.get('/collections/{}'.format(name), expected_status=200).json()
+        data = self.get(f"/collections/{collection_id}", expected_status=200).json()
         return VisualDict("collection", data=data)
 
     def collection_items(self, name, spatial_extent: Optional[List[float]] = None, temporal_extent: Optional[List[Union[str, datetime.datetime]]] = None, limit: int = None) -> Iterator[dict]:
@@ -882,9 +901,9 @@ class Connection(RestApiConnection):
 
     def datacube_from_process(self, process_id: str, namespace: str = None, **kwargs) -> DataCube:
         """
-        Load a raster datacube, from a custom process.
+        Load a data cube from a (custom) process.
 
-        :param process_id: The process id of the custom process.
+        :param process_id: The process id.
         :param namespace: optional: process namespace
         :param kwargs: The arguments of the custom process
         :return: A :py:class:`DataCube`, without valid metadata, as the client is not aware of this custom process.
@@ -940,6 +959,7 @@ class Connection(RestApiConnection):
             temporal_extent: Optional[List[Union[str, datetime.datetime, datetime.date]]] = None,
             bands: Optional[List[str]] = None,
             properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
+            max_cloud_cover: Optional[float] = None,
             fetch_metadata=True,
     ) -> DataCube:
         """
@@ -950,12 +970,17 @@ class Connection(RestApiConnection):
         :param temporal_extent: limit data to specified temporal interval
         :param bands: only add the specified bands
         :param properties: limit data by metadata property predicates
+        :param max_cloud_cover: shortcut to set maximum cloud cover ("eo:cloud_cover" collection property)
         :return: a datacube containing the requested data
+
+        .. versionadded:: 0.13.0
+            added the ``max_cloud_cover`` argument.
         """
         if self._api_version.at_least("1.0.0"):
             return DataCube.load_collection(
                 collection_id=collection_id, connection=self,
                 spatial_extent=spatial_extent, temporal_extent=temporal_extent, bands=bands, properties=properties,
+                max_cloud_cover=max_cloud_cover,
                 fetch_metadata=fetch_metadata,
             )
         else:
@@ -1071,14 +1096,21 @@ class Connection(RestApiConnection):
         return result
 
     # TODO: unify `download` and `execute` better: e.g. `download` always writes to disk, `execute` returns result (raw or as JSON decoded dict)
-    def download(self, graph: dict, outputfile: Union[Path, str, None] = None, timeout:int=30*60):
+    def download(
+            self,
+            graph: Union[dict, str, Path],
+            outputfile: Union[Path, str, None] = None,
+            timeout: int = 30 * 60,
+    ):
         """
         Downloads the result of a process graph synchronously,
         and save the result to the given file or return bytes object if no outputfile is specified.
         This method is useful to export binary content such as images. For json content, the execute method is recommended.
 
-        :param graph: (flat) dict representing a process graph
+        :param graph: (flat) dict representing a process graph, or process graph as raw JSON string,
+            or as local file path or URL
         :param outputfile: output file
+        :param timeout: timeout to wait for response
         """
         request = self._build_request_with_process_graph(process_graph=graph)
         response = self.post(path="/result", json=request, expected_status=200, stream=True, timeout=timeout)
@@ -1090,24 +1122,28 @@ class Connection(RestApiConnection):
         else:
             return response.content
 
-    def execute(self, process_graph: dict):
+    def execute(self, process_graph: Union[dict, str, Path]):
         """
         Execute a process graph synchronously and return the result (assumed to be JSON).
 
-        :param process_graph: (flat) dict representing a process graph
+        :param process_graph: (flat) dict representing a process graph, or process graph as raw JSON string,
+            or as local file path or URL
+        :return: parsed JSON response
         """
         req = self._build_request_with_process_graph(process_graph=process_graph)
         return self.post(path="/result", json=req, expected_status=200).json()
 
     def create_job(
-            self, process_graph: dict, title: Optional[str] = None, description: Optional[str] = None,
+            self, process_graph: Union[dict, str, Path],
+            title: Optional[str] = None, description: Optional[str] = None,
             plan: Optional[str] = None, budget: Optional[float] = None,
             additional: Optional[dict] = None
     ) -> BatchJob:
         """
         Posts a job to the back end.
 
-        :param process_graph: (flat) dict representing process graph
+        :param process_graph: (flat) dict representing a process graph, or process graph as raw JSON string,
+            or as local file path or URL
         :param title: String title of the job
         :param description: String description of the job
         :param plan: billing plan

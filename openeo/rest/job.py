@@ -7,11 +7,11 @@ import typing
 from pathlib import Path
 from typing import List, Union, Dict, Optional
 
-from deprecated.sphinx import deprecated
 import requests
 
 from openeo.api.logs import LogEntry
 from openeo.internal.jupyter import render_component, render_error, VisualDict, VisualList
+from openeo.internal.warnings import deprecated
 from openeo.rest import OpenEoClientException, JobFailedException, OpenEoApiError
 from openeo.util import ensure_dir
 
@@ -52,6 +52,14 @@ class BatchJob:
         # GET /jobs/{job_id}
         # TODO: rename to just `describe`? #280
         return self.connection.get("/jobs/{}".format(self.job_id), expected_status=200).json()
+
+    def status(self) -> str:
+        """
+        Get the status of the batch job
+
+        :return: batch job status, one of "created", "queued", "running", "canceled", "finished" or "error".
+        """
+        return self.describe_job().get("status", "N/A")
 
     def update_job(self, process_graph=None, output_format=None,
                    output_parameters=None, title=None, description=None,
@@ -128,12 +136,9 @@ class BatchJob:
         """
         return JobResults(self)
 
-    def status(self):
-        """ Returns the status of the job."""
-        return self.describe_job().get("status", "N/A")
-
     def logs(self, offset=None) -> List[LogEntry]:
         """ Retrieve job logs."""
+        # TODO: option to filter on level? Or move filtering functionality to a separate batch job logs class?
         url = "/jobs/{}/logs".format(self.job_id)
         logs = self.connection.get(url, params={'offset': offset}, expected_status=200).json()["logs"]
         entries = [LogEntry(log) for log in logs]
@@ -225,6 +230,7 @@ class BatchJob:
             """.format(i=self.job_id)))
             # TODO: make it possible to disable printing logs automatically?
             # TODO: render logs jupyter-aware in a notebook context?
+            # TODO: only print the error level logs? Or the tail of the logs?
             print("Printing logs:")
             print(self.logs())
             raise JobFailedException("Batch job {i!r} didn't finish successfully. Status: {s} (after {t}).".format(
@@ -402,7 +408,7 @@ class JobResults:
         """
         target = Path(target or Path.cwd())
         if target.exists() and not target.is_dir():
-            raise OpenEoClientException("The target argument must be a folder. Got {t!r}".format(t=str(target)))
+            raise OpenEoClientException(f"Target argument {target} exists but isn't a folder.")
         ensure_dir(target)
 
         downloaded = [a.download(target) for a in self.get_assets()]
@@ -436,7 +442,7 @@ class _Result:
     def download_files(self, target: Union[str, Path] = None) -> Dict[Path, dict]:
         target = Path(target or Path.cwd())
         if target.exists() and not target.is_dir():
-            raise OpenEoClientException("The target argument must be a folder. Got {t!r}".format(t=str(target)))
+            raise OpenEoClientException(f"Target argument {target} exists but isn't a folder.")
         return {a.download(target): a.metadata for a in self.results.get_assets()}
 
     def load_json(self) -> dict:

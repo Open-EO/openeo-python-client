@@ -71,7 +71,12 @@ Convenience methods
 
 Most of the important pre-defined processes are covered directly by methods
 on classes like :class:`~openeo.rest.datacube.DataCube` or
-:class:`~openeo.rest.vectorcube.VectorCube`
+:class:`~openeo.rest.vectorcube.VectorCube`.
+
+.. seealso::
+    See :ref:`openeo_process_mapping` for a mapping of openEO processes
+    the corresponding methods in the openEO Python Client library.
+
 For example, to apply the ``filter_temporal`` process to a raster data cube::
 
     cube = cube.filter_temporal("2020-02-20", "2020-06-06")
@@ -99,6 +104,8 @@ but you can call the corresponding client method in multiple equivalent ways::
 
 Advanced argument tweaking
 ---------------------------
+
+.. versionadded:: 0.10.1
 
 In some situations, you may want to finetune what the (convenience) methods generate.
 For example, you want to play with non-standard, experimental arguments,
@@ -187,6 +194,27 @@ constant as symbolic reference to the "current" cube::
             .process("ndvi", data=THIS)
     )
 
+
+Passing results from other process calls as arguments
+------------------------------------------------------
+
+Another use case of generically applying (custom) processes is
+passing a process result as argument to another process working on a cube.
+For example, assume we have a custom process ``load_my_vector_cube``
+to load a vector cube from an online resource.
+We can use this vector cube as geometry for
+:py:meth:`DataCube.aggregate_spatial() <openeo.rest.datacube.DataCube.aggregate_spatial>`
+using :py:func:`openeo.processes.process()` as follows:
+
+
+.. code-block:: python
+
+    from openeo.processes import process
+
+    res = cube.aggregate_spatial(
+        geometries=process("load_my_vector_cube", url="https://geo.example/features.db"),
+        reducer="mean"
+    )
 
 
 .. _callbackfunctions:
@@ -385,7 +413,7 @@ Luckily the openEO Python client Library should raise an error if it detects tha
 Callback as ``PGNode``
 -----------------------
 
-You can also pass a ``PGNode`` object as callback.
+You can also pass a :py:class:`~openeo.internal.graph_building.PGNode` object as callback.
 This method is used internally and could be useful for more
 advanced use cases, but it requires more in-depth knowledge of
 the openEO API and openEO Python Client Library to construct correctly.

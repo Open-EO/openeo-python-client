@@ -4,7 +4,7 @@ from typing import List
 import pytest
 
 from openeo.metadata import CollectionMetadata, Band, SpatialDimension, Dimension, TemporalDimension, BandDimension, \
-    MetadataException
+    MetadataException, DimensionAlreadyExistsException
 
 
 def test_metadata_get():
@@ -97,21 +97,20 @@ def test_band_dimension_rename_labels():
     b03 = Band("B03", "green", 0.560)
     b04 = Band("B04", "red", 0.665)
     bdim = BandDimension(name="bs", bands=[b02, b03, b04])
-    metadata = CollectionMetadata({},dimensions=[bdim])
-    newdim = metadata.rename_labels("bs",target=['1','2','3']).band_dimension
+    metadata = CollectionMetadata({}, dimensions=[bdim])
+    newdim = metadata.rename_labels("bs", target=['1', '2', '3']).band_dimension
 
-    assert metadata.band_dimension.band_names == ['B02','B03','B04']
-    assert newdim.band_names == ['1','2','3']
+    assert metadata.band_dimension.band_names == ['B02', 'B03', 'B04']
+    assert newdim.band_names == ['1', '2', '3']
 
 
 def test_band_dimension_set_labels():
-
-    bdim = BandDimension(name="bs", bands=[Band('some_name',None,None)])
-    metadata = CollectionMetadata({},dimensions=[bdim])
-    newdim = metadata.rename_labels("bs",target=['1','2','3']).band_dimension
+    bdim = BandDimension(name="bs", bands=[Band('some_name', None, None)])
+    metadata = CollectionMetadata({}, dimensions=[bdim])
+    newdim = metadata.rename_labels("bs", target=['1', '2', '3']).band_dimension
 
     assert metadata.band_dimension.band_names == ['some_name']
-    assert newdim.band_names == ['1','2','3']
+    assert newdim.band_names == ['1', '2', '3']
 
 
 def test_band_dimension_rename_labels_with_source():
@@ -119,11 +118,11 @@ def test_band_dimension_rename_labels_with_source():
     b03 = Band("B03", "green", 0.560)
     b04 = Band("B04", "red", 0.665)
     bdim = BandDimension(name="bs", bands=[b02, b03, b04])
-    metadata = CollectionMetadata({},dimensions=[bdim])
-    newdim = metadata.rename_labels("bs",target=['2'],source=['B03']).band_dimension
+    metadata = CollectionMetadata({}, dimensions=[bdim])
+    newdim = metadata.rename_labels("bs", target=['2'], source=['B03']).band_dimension
 
-    assert metadata.band_dimension.band_names == ['B02','B03','B04']
-    assert newdim.band_names == ['B02','2','B04']
+    assert metadata.band_dimension.band_names == ['B02', 'B03', 'B04']
+    assert newdim.band_names == ['B02', '2', 'B04']
 
 
 def test_band_dimension_rename_labels_with_source_mismatch():
@@ -478,6 +477,17 @@ def test_metadata_add_band_dimension():
     assert new.band_names == ["red"]
 
 
+def test_metadata_add_band_dimension_duplicate():
+    metadata = CollectionMetadata({
+        "cube:dimensions": {
+            "t": {"type": "temporal"}
+        }
+    })
+    metadata = metadata.add_dimension("layer", "red", "bands")
+    with pytest.raises(DimensionAlreadyExistsException, match="Dimension with name 'layer' already exists"):
+        _ = metadata.add_dimension("layer", "red", "bands")
+
+
 def test_metadata_add_temporal_dimension():
     metadata = CollectionMetadata({
         "cube:dimensions": {
@@ -493,6 +503,17 @@ def test_metadata_add_temporal_dimension():
     assert new.dimension_names() == ["x", "date"]
     assert new.temporal_dimension.name == "date"
     assert new.temporal_dimension.extent == ["2020-05-15", "2020-05-15"]
+
+
+def test_metadata_add_temporal_dimension_duplicate():
+    metadata = CollectionMetadata({
+        "cube:dimensions": {
+            "x": {"type": "spatial"}
+        }
+    })
+    metadata = metadata.add_dimension("date", "2020-05-15", "temporal")
+    with pytest.raises(DimensionAlreadyExistsException, match="Dimension with name 'date' already exists"):
+        _ = metadata.add_dimension("date", "2020-05-15", "temporal")
 
 
 def test_metadata_drop_dimension():

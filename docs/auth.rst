@@ -1,3 +1,5 @@
+.. _authentication_chapter:
+
 *************************************
 Authentication and Account Management
 *************************************
@@ -609,7 +611,7 @@ without user interaction.
 Guidelines and tips
 --------------------
 
-Some guidelines get long-term and non-interactive authentication working for your use case:
+Some guidelines to get long-term and non-interactive authentication working for your use case:
 
 -   If you run a workflow periodically, but the interval between runs
     is larger than the expiry time of the refresh token
@@ -618,10 +620,11 @@ Some guidelines get long-term and non-interactive authentication working for you
     refresh token timeout.
     The practical details of this heavily depend on the OIDC Identity Provider
     in play and are out of scope of this discussion.
--   Obtaining the initial refresh token requires manual/interactive authentication,
+-   Obtaining a refresh token requires manual/interactive authentication,
     but once it is stored on the necessary machine(s)
     in the refresh token store as discussed in :ref:`auth_configuration_files`,
-    no further manual interaction should be necessary.
+    no further manual interaction should be necessary
+    during the lifetime of the refresh token.
     To do so, use one of the following methods:
 
     -   Use the ``openeo-auth oidc-auth`` cli tool, for example to authenticate
@@ -651,17 +654,17 @@ Some guidelines get long-term and non-interactive authentication working for you
                 },
             ...
 
--   Authenticate in your script or application with the refresh token
-    and make sure newer refresh tokens are stored as well::
-
-        import openeo
-        con = openeo.connect("openeo.example.com")
-        con.authenticate_oidc_refresh_token(store_refresh_token=True)
 
 
+Best Practices and Troubleshooting Tips
+========================================
 
-Troubleshooting tips
-====================
+.. warning::
+
+    Handle (OIDC) access and refresh tokens like secret, personal passwords.
+    **Never share your access or refresh tokens** with other people,
+    publicly, or for user support reasons.
+
 
 Clear the refresh token file
 ----------------------------

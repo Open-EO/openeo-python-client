@@ -11,14 +11,98 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Rename `RESTJob` class name to less cryptic and more user-friendly `BatchJob`. 
-  Original `RESTJob` is still available as deprecated alias.
-  ([#280](https://github.com/Open-EO/openeo-python-client/issues/280))
-
-
 ### Removed
 
 ### Fixed
+
+
+## [0.13.0] - 2022-10-10 - "UDF UX" release
+
+### Added
+
+- Add `max_cloud_cover` argument to `load_collection()` to simplify setting maximum cloud cover (property `eo:cloud_cover`) ([#328](https://github.com/Open-EO/openeo-python-client/issues/328))
+
+### Changed
+- Improve default dimension metadata of a datacube created with `openeo.rest.datacube.DataCube.load_disk_collection`
+- `DataCube.download()`: only automatically add `save_result` node when there is none yet.
+- Deprecation warnings: make sure they are shown by default and can be hidden when necessary.
+- Rework and improve `openeo.UDF` helper class for UDF usage
+  ([#312](https://github.com/Open-EO/openeo-python-client/issues/312)).
+    - allow loading directly from local file or URL
+    - autodetect `runtime` from file/URL suffix or source code
+    - hide implementation details around `data` argument (e.g.`data={"from_parameter": "x"}`)
+    - old usage patterns of `openeo.UDF` and `DataCube.apply_dimension()` still work but trigger deprecation warnings
+- Show warning when using `load_collection` property filters that are not defined in the collection metadata (summaries).
+
+
+
+## [0.12.1] - 2022-09-15
+
+### Changed
+
+- Eliminate dependency on `distutils.version.LooseVersion` which started to trigger deprecation warnings  ([#316](https://github.com/Open-EO/openeo-python-client/issues/316)).
+
+### Removed
+
+- Remove old `Connection.oidc_auth_user_id_token_as_bearer` workaround flag ([#300](https://github.com/Open-EO/openeo-python-client/issues/300))
+
+### Fixed
+
+- Fix refresh token handling in case of OIDC token request with refresh token grant ([#326](https://github.com/Open-EO/openeo-python-client/issues/326))
+
+
+## [0.12.0] - 2022-09-09
+
+### Added
+
+- Allow passing raw JSON string, JSON file path or URL to `Connection.download()`,
+  `Connection.execute()` and `Connection.create_job()`
+- Add support for reverse math operators on DataCube in `apply` mode ([#323](https://github.com/Open-EO/openeo-python-client/issues/323))
+- Add `DataCube.print_json()` to simplify exporting process graphs in Jupyter or other interactive environments ([#324](https://github.com/Open-EO/openeo-python-client/issues/324))
+- Raise `DimensionAlreadyExistsException` when trying to `add_dimension()` a dimension with existing name ([Open-EO/openeo-geopyspark-driver#205](https://github.com/Open-EO/openeo-geopyspark-driver/issues/205))
+
+### Changed
+
+- `DataCube.execute_batch()` now also guesses the output format from the filename, 
+  and allows using `format` argument next to the current `out_format` 
+  to align with the `DataCube.download()` method. ([#240](https://github.com/Open-EO/openeo-python-client/issues/240))
+- Better client-side handling of merged band name metadata in `DataCube.merge_cubes()`
+
+### Removed
+
+- Remove legacy `DataCube.graph` and `DataCube.flatten()` to prevent usage patterns that cause interoperability issues
+  ([#155](https://github.com/Open-EO/openeo-python-client/issues/155), [#209](https://github.com/Open-EO/openeo-python-client/issues/209), [#324](https://github.com/Open-EO/openeo-python-client/issues/324))
+
+
+## [0.11.0] - 2022-07-02
+
+### Added
+
+- Add support for passing a PGNode/VectorCube as geometry to `aggregate_spatial`, `mask_polygon`, ...
+- Add support for second order callbacks e.g. `is_valid` in `count` in `reduce_dimension` ([#317](https://github.com/Open-EO/openeo-python-client/issues/317))
+
+### Changed
+
+- Rename `RESTJob` class name to less cryptic and more user-friendly `BatchJob`. 
+  Original `RESTJob` is still available as deprecated alias.
+  ([#280](https://github.com/Open-EO/openeo-python-client/issues/280))
+- Dropped default reducer ("max") from `DataCube.reduce_temporal_simple()`
+- Various documentation improvements: 
+    - general styling, landing page and structure tweaks ([#285](https://github.com/Open-EO/openeo-python-client/issues/285))
+    - batch job docs ([#286](https://github.com/Open-EO/openeo-python-client/issues/286))
+    - getting started docs ([#308](https://github.com/Open-EO/openeo-python-client/issues/308))
+    - part of UDF docs ([#309](https://github.com/Open-EO/openeo-python-client/issues/309))
+    - added process-to-method mapping docs 
+- Drop hardcoded `h5netcdf` engine from `XarrayIO.from_netcdf_file()`
+  and `XarrayIO.to_netcdf_file()` ([#314](https://github.com/Open-EO/openeo-python-client/issues/314))
+- Changed argument name of `Connection.describe_collection()` from `name` to `collection_id` 
+  to be more in line with other methods/functions.
+
+### Fixed
+
+- Fix `context`/`condition` confusion bug with `count` callback in `DataCube.reduce_dimension()` ([#317](https://github.com/Open-EO/openeo-python-client/issues/317))
+
+
 
 ## [0.10.1] - 2022-05-18 - "LPS22" release
 
@@ -373,7 +457,7 @@ Minor release to address version packaging issue.
 - Moved datacube write/save/plot utilities from udf to client (EP-3456)
 - Add documentation on OpenID Connect authentication (EP-3485)
 
-## Fixed
+### Fixed
 - Fix `kwargs` handling in `TimingLogger` decorator
 
 

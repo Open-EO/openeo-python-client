@@ -1,3 +1,6 @@
+.. _data_access_chapter:
+
+
 ========================
 Finding and loading data
 ========================
@@ -12,11 +15,15 @@ Data discovery
 To explore data in a given back-end, it is recommended to use a more visual tool like the openEO Hub
 (http://hub.openeo.org/). This shows available collections, and metadata in a user-friendly manner.
 
-Next to that, the client also offers various methods:
+Next to that, the client also offers various :py:class:`~openeo.rest.connection.Connection` methods
+to explore collections and their metadata:
 
-- :func:`~openeo.rest.connection.Connection.list_collection_ids` to list all collection ids
-- :func:`~openeo.rest.connection.Connection.list_collections` to list all collection metadata
-- :func:`~openeo.rest.connection.Connection.describe_collection` to show metadata for a particular collection
+- :py:meth:`~openeo.rest.connection.Connection.list_collection_ids`
+  to list all collection ids provided by the back-end
+- :py:meth:`~openeo.rest.connection.Connection.list_collections`
+  to list the basic metadata of all collections
+- :py:meth:`~openeo.rest.connection.Connection.describe_collection`
+  to get the complete metadata of a particular collection
 
 When using these methods inside a Jupyter notebook, you should notice that the output is rendered in a user friendly way.
 
@@ -81,13 +88,19 @@ One example is filtering on the relative orbit number of SAR data. This example 
         }
     )
 
-A similar and very useful example is to pre-filter Sentinel-2 products on cloud cover. This avoids loading clouded data,
-and increases performance::
+A similar and very useful example is to pre-filter Sentinel-2 products on cloud cover.
+This avoids loading clouded data unnecessarily and increases performance.
+:py:meth:`Connection.load_collection() <openeo.rest.connection.Connection.load_collection>` provides
+a dedicated ``max_cloud_cover`` argument (shortcut for the ``eo:cloud_cover`` property) for that:
+
+.. code-block:: python
 
     connection.load_collection("SENTINEL2_L2A",
-        spatial_extent={'west':3.7582164,'east':4.087806,'south':51.291,'north':51.39},
-        temporal_extent=["2021-05-07","2021-05-14"],bands=['B04','B03','B02'],
-        properties={"eo:cloud_cover": lambda v: v == 80} )
+        spatial_extent={'west': 3.75, 'east': 4.08, 'south': 51.29, 'north': 51.39},
+        temporal_extent=["2021-05-07", "2021-05-14"],
+        bands=['B04', 'B03', 'B02'],
+        max_cloud_cover=80,
+    )
 
 Note that property names follow STAC metadata conventions, but some collections can have different names.
 

@@ -8,28 +8,28 @@ be evaluated by an openEO backend.
 
 """
 import datetime
-import inspect
-import json
 import logging
 import pathlib
+import re
 import typing
 import warnings
 from builtins import staticmethod
-from typing import List, Dict, Union, Tuple, Optional
+from typing import List, Dict, Union, Tuple, Optional, Any
 
 import numpy as np
+import requests
 import shapely.geometry
 import shapely.geometry.base
-from deprecated.sphinx import deprecated
 from shapely.geometry import Polygon, MultiPolygon, mapping
 
 import openeo
 import openeo.processes
 from openeo.api.process import Parameter
-from openeo.imagecollection import ImageCollection
 from openeo.internal.documentation import openeo_process
-from openeo.internal.graph_building import PGNode, ReduceNode
-from openeo.metadata import CollectionMetadata, Band, BandDimension
+from openeo.internal.graph_building import PGNode, ReduceNode, _FromNodeMixin
+from openeo.internal.processes.builder import get_parameter_names, convert_callable_to_pgnode
+from openeo.internal.warnings import legacy_alias, UserDeprecationWarning, deprecated
+from openeo.metadata import CollectionMetadata, Band, BandDimension, TemporalDimension, SpatialDimension
 from openeo.processes import ProcessBuilder
 from openeo.rest import BandMathException, OperatorException, OpenEoClientException
 from openeo.rest._datacube import _ProcessGraphAbstraction, THIS
@@ -38,7 +38,7 @@ from openeo.rest.mlmodel import MlModel
 from openeo.rest.service import Service
 from openeo.rest.udp import RESTUserDefinedProcess
 from openeo.rest.vectorcube import VectorCube
-from openeo.util import get_temporal_extent, dict_no_none, legacy_alias, rfc3339, guess_format
+from openeo.util import get_temporal_extent, dict_no_none, rfc3339, guess_format
 
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).
@@ -50,6 +50,139 @@ if typing.TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
+class UDF:
+    """
+    Helper class to load UDF code (e.g. from file) and embed them as "callback" or child process in a process graph.
+
+    Usage example:
+
+    .. code-block:: python
+
+        udf = UDF.from_file("my-udf-code.py")
+        cube = cube.apply(process=udf)
+
+
+    .. versionchanged:: 0.13.0
+        Added auto-detection of ``runtime``.
+        Specifying the ``data`` argument is not necessary anymore, and actually deprecated.
+        Added :py:meth:`from_file` to simplify loading UDF code from a file.
+        See :ref:`old_udf_api` for more background about the changes.
+    """
+
+    __slots__ = ["code", "runtime", "version", "context", "_source"]
+
+    def __init__(
+            self, code: str, runtime: Optional[str] = None, data=None,
+            version: Optional[str] = None, context: Optional[dict] = None, _source=None,
+    ):
+        """
+        Construct a UDF object from given code string and other argument related to the ``run_udf`` process.
+
+        :param code: UDF source code string (Python, R, ...)
+        :param runtime: optional UDF runtime identifier, will be autodetected from source code if omitted.
+        :param data: unused leftover from old API. Don't use this argument, it will be removed in a future release.
+        :param version: optional UDF runtime version string
+        :param context: optional additional UDF context data
+        :param _source: (for internal use) source identifier
+        """
+        # TODO: automatically dedent code (when literal string) ?
+        self.code = code
+        self.runtime = runtime
+        self.version = version
+        self.context = context
+        self._source = _source
+        if data is not None:
+            # TODO #181 remove `data` argument
+            warnings.warn(
+                f"The `data` argument of `{self.__class__.__name__}` is deprecated, unused and will be removed in a future release.",
+                category=UserDeprecationWarning, stacklevel=2
+            )
+
+    @classmethod
+    def from_file(
+            cls, path: Union[str, pathlib.Path], runtime: Optional[str] = None, version: Optional[str] = None,
+            context: Optional[dict] = None
+    ) -> "UDF":
+        """
+        Load a UDF from a local file.
+
+        .. seealso::
+            :py:meth:`from_url` for loading from a URL.
+
+        :param path: path to the local file with UDF source code
+        :param runtime: optional UDF runtime identifier, will be auto-detected from source code if omitted.
+        :param version: optional UDF runtime version string
+        :param context: optional additional UDF context data
+        """
+        path = pathlib.Path(path)
+        code = path.read_text(encoding="utf-8")
+        return cls(code=code, runtime=runtime, version=version, context=context, _source=path)
+
+    @classmethod
+    def from_url(
+            cls, url: str, runtime: Optional[str] = None, version: Optional[str] = None,
+            context: Optional[dict] = None
+    ) -> "UDF":
+        """
+        Load a UDF from a URL.
+
+        .. seealso::
+            :py:meth:`from_file` for loading from a local file.
+
+        :param url: URL path to load the UDF source code from
+        :param runtime: optional UDF runtime identifier, will be auto-detected from source code if omitted.
+        :param version: optional UDF runtime version string
+        :param context: optional additional UDF context data
+        """
+        resp = requests.get(url)
+        resp.raise_for_status()
+        code = resp.text
+        return cls(code=code, runtime=runtime, version=version, context=context, _source=url)
+
+    def _guess_runtime(self, connection: "openeo.Connection") -> str:
+        """Guess UDF runtime from UDF source (path) or source code."""
+        # First, guess UDF language
+        language = None
+        if isinstance(self._source, pathlib.Path):
+            language = self._guess_runtime_from_suffix(self._source.suffix)
+        elif isinstance(self._source, str):
+            url_match = re.match(r"https?://.*?(?P<suffix>\.\w+)([&#].*)?$", self._source)
+            if url_match:
+                language = self._guess_runtime_from_suffix(url_match.group("suffix"))
+        if not language:
+            # Guess language from UDF code
+            if re.search("^def [\w0-9_]+\(", self.code, flags=re.MULTILINE):
+                language = "Python"
+            # TODO: detection heuristics for R and other languages?
+        if not language:
+            raise OpenEoClientException("Failed to detect language of UDF code.")
+        # Find runtime for language
+        runtimes = {k.lower(): k for k in connection.list_udf_runtimes().keys()}
+        if language.lower() in runtimes:
+            return runtimes[language.lower()]
+        else:
+            raise OpenEoClientException(f"Failed to match UDF language {language!r} with a runtime ({runtimes})")
+
+    def _guess_runtime_from_suffix(self, suffix: str) -> Union[str]:
+        return {
+            ".py": "Python",
+            ".r": "R",
+        }.get(suffix.lower())
+
+    def get_run_udf_callback(self, connection: "openeo.Connection", data_parameter: str = "data") -> PGNode:
+        """
+        For internal use: construct `run_udf` node to be used as callback in `apply`, `reduce_dimension`, ...
+        """
+        arguments = dict_no_none(
+            data={"from_parameter": data_parameter},
+            udf=self.code,
+            runtime=self.runtime or self._guess_runtime(connection=connection),
+            version=self.version,
+            context=self.context,
+        )
+        return PGNode(process_id="run_udf", arguments=arguments)
+
+
 class DataCube(_ProcessGraphAbstraction):
     """
     Class representing a openEO (raster) data cube.
@@ -59,19 +192,8 @@ class DataCube(_ProcessGraphAbstraction):
     """
 
     def __init__(self, graph: PGNode, connection: 'openeo.Connection', metadata: CollectionMetadata = None):
-        super().__init__(pgnode=graph,  connection=connection)
+        super().__init__(pgnode=graph, connection=connection)
         self.metadata = CollectionMetadata.get_or_create(metadata)
-
-    @property
-    @deprecated(reason="Use :py:meth:`DataCube.flat_graph()` instead.", version="0.9.0")
-    def graph(self) -> dict:
-        """
-        Get the process graph in flat dict representation.
-
-        .. note:: This property is mainly for internal use, subject to change and not recommended for general usage.
-        """
-        # TODO: is it feasible to just remove this property?
-        return self.flat_graph()
 
     def process(
             self,
@@ -115,10 +237,11 @@ class DataCube(_ProcessGraphAbstraction):
             collection_id: str,
             connection: 'openeo.Connection' = None,
             spatial_extent: Optional[Dict[str, float]] = None,
-            temporal_extent: Optional[List[Union[str, datetime.datetime, datetime.date,PGNode]]] = None,
+            temporal_extent: Optional[List[Union[str, datetime.datetime, datetime.date, PGNode]]] = None,
             bands: Optional[List[str]] = None,
-            fetch_metadata = True,
-            properties: Optional[Dict[str, Union[str, PGNode, typing.Callable]]] = None
+            fetch_metadata=True,
+            properties: Optional[Dict[str, Union[str, PGNode, typing.Callable]]] = None,
+            max_cloud_cover: Optional[float] = None,
     ) -> 'DataCube':
         """
         Create a new Raster Data cube.
@@ -129,7 +252,12 @@ class DataCube(_ProcessGraphAbstraction):
         :param temporal_extent: limit data to specified temporal interval
         :param bands: only add the specified bands
         :param properties: limit data by metadata property predicates
+        :param max_cloud_cover: shortcut to set maximum cloud cover ("eo:cloud_cover" collection property)
         :return: new DataCube containing the collection
+
+        .. versionadded:: 0.13.0
+            added the ``max_cloud_cover`` argument.
+
         """
         if temporal_extent:
             temporal_extent = cls._get_temporal_extent(extent=temporal_extent)
@@ -146,14 +274,25 @@ class DataCube(_ProcessGraphAbstraction):
             if isinstance(bands, str):
                 bands = [bands]
             if metadata:
-                bands = [ b if isinstance(b,str) else metadata.band_dimension.band_name(b) for b in bands]
+                bands = [b if isinstance(b, str) else metadata.band_dimension.band_name(b) for b in bands]
                 metadata = metadata.filter_bands(bands)
             else:
                 # Ensure minimal metadata with best effort band dimension guess (based on `bands` argument).
                 band_dimension = BandDimension("bands", bands=[Band(b, None, None) for b in bands])
                 metadata = CollectionMetadata({}, dimensions=[band_dimension])
             arguments['bands'] = bands
+        if max_cloud_cover:
+            properties = properties or {}
+            properties["eo:cloud_cover"] = lambda v: v <= max_cloud_cover
         if properties:
+            summaries = metadata and metadata.get("summaries") or {}
+            undefined_properties = set(properties.keys()).difference(summaries.keys())
+            if undefined_properties:
+                warnings.warn(
+                    f"{collection_id} property filtering with properties that are undefined "
+                    f"in the collection metadata (summaries): {', '.join(undefined_properties)}.",
+                    stacklevel=2,
+                )
             arguments['properties'] = {
                 prop: cls._get_callback(pred, parent_parameters=["value"])
                 for prop, pred in properties.items()
@@ -171,6 +310,9 @@ class DataCube(_ProcessGraphAbstraction):
                              **options) -> 'DataCube':
         """
         Loads image data from disk as a DataCube.
+        This is backed by a non-standard process ('load_disk_data'). This will eventually be replaced by standard options such as
+        https://processes.openeo.org/#load_uploaded_files
+
 
         :param connection: The connection to use to connect with the backend.
         :param file_format: the file format, e.g. 'GTiff'
@@ -186,7 +328,14 @@ class DataCube(_ProcessGraphAbstraction):
                 'options': options
             }
         )
-        return cls(graph=pg, connection=connection, metadata=CollectionMetadata({}))
+
+        metadata = CollectionMetadata({}, dimensions=[
+            SpatialDimension(name="x", extent=[]),
+            SpatialDimension(name="y", extent=[]),
+            TemporalDimension(name='t', extent=[]),
+            BandDimension(name="bands", bands=[Band("unknown")]),
+        ])
+        return cls(graph=pg, connection=connection, metadata=metadata)
 
     @classmethod
     def _get_temporal_extent(
@@ -203,9 +352,17 @@ class DataCube(_ProcessGraphAbstraction):
             assert start_date is None and end_date is None
             return extent
         else:
+            def convertor(d: Any) -> Any:
+                # TODO: can this be generalized through _FromNodeMixin?
+                if isinstance(d, Parameter) or isinstance(d, PGNode):
+                    return d
+                elif isinstance(d, ProcessBuilder):
+                    return d.pgnode
+                else:
+                    return rfc3339.normalize(d)
+
             return list(get_temporal_extent(
-                *args, start_date=start_date, end_date=end_date, extent=extent,
-                convertor=lambda d: d if isinstance(d, Parameter) or isinstance(d, PGNode) else d.pgnode if isinstance(d,ProcessBuilder) else rfc3339.normalize(d)
+                *args, start_date=start_date, end_date=end_date, extent=extent, convertor=convertor
             ))
 
     @openeo_process
@@ -279,7 +436,7 @@ class DataCube(_ProcessGraphAbstraction):
                 >>> bbox_param = Parameter(name="my_bbox", schema="object")
                 >>> cube.filter_bbox(bbox_param)
                 >>> cube.filter_bbox(bbox=bbox_param)
-            
+
             - With a CRS other than EPSG 4326::
 
                 >>> cube.filter_bbox(west=652000, east=672000, north=5161000, south=5181000, crs=32632)
@@ -384,8 +541,8 @@ class DataCube(_ProcessGraphAbstraction):
             bands = [bands]
         bands = [self.metadata.band_dimension.band_name(b) for b in bands]
         cube = self.process(
-            process_id='filter_bands',
-            arguments={'data': THIS, 'bands': bands}
+            process_id="filter_bands",
+            arguments={"data": THIS, "bands": bands},
         )
         if cube.metadata:
             cube.metadata = cube.metadata.filter_bands(bands)
@@ -393,7 +550,7 @@ class DataCube(_ProcessGraphAbstraction):
 
     band_filter = legacy_alias(filter_bands, "band_filter")
 
-    def band(self, band: Union[str, int]) -> 'DataCube':
+    def band(self, band: Union[str, int]) -> "DataCube":
         """
         Filter out a single band
 
@@ -401,7 +558,7 @@ class DataCube(_ProcessGraphAbstraction):
         :return: a DataCube instance
         """
         band_index = self.metadata.get_band_index(band)
-        return self._reduce_bands(reducer=PGNode(
+        return self.reduce_bands(reducer=PGNode(
             process_id='array_element',
             arguments={
                 'data': {'from_parameter': 'data'},
@@ -475,12 +632,13 @@ class DataCube(_ProcessGraphAbstraction):
         else:
             if isinstance(other, DataCube):
                 return self._merge_operator_binary_cubes(operator, other)
-            elif isinstance(other, (int, float)) and not reverse:
+            elif isinstance(other, (int, float)):
+                if reverse:
+                    args = {"x": other, "y": {"from_parameter": "x"}}
+                else:
+                    args = {"x": {"from_parameter": "x"}, "y": other}
                 # TODO #123: support appending to pre-existing apply process instead of adding a whole new one
-                return self.apply(process=PGNode(
-                    process_id=operator,
-                    arguments={"x": {"from_parameter": "x"}, "y": other}
-                ))
+                return self.apply(process=PGNode(process_id=operator, arguments=args))
         raise OperatorException("Unsupported operator {op!r} with {other!r} (band math mode={b})".format(
             op=operator, other=other, b=band_math_mode))
 
@@ -500,8 +658,8 @@ class DataCube(_ProcessGraphAbstraction):
         return self._operator_binary("subtract", other, reverse=reverse)
 
     @openeo_process(mode="operator")
-    def divide(self, other: Union['DataCube', int, float]) -> 'DataCube':
-        return self._operator_binary("divide", other)
+    def divide(self, other: Union['DataCube', int, float], reverse=False) -> 'DataCube':
+        return self._operator_binary("divide", other, reverse=reverse)
 
     @openeo_process(mode="operator")
     def multiply(self, other: Union['DataCube', int, float], reverse=False) -> 'DataCube':
@@ -525,7 +683,7 @@ class DataCube(_ProcessGraphAbstraction):
         return self._operator_binary("or", other)
 
     @openeo_process(process_id="and", mode="operator")
-    def logical_and(self, other: 'DataCube') -> 'DataCube':
+    def logical_and(self, other: "DataCube") -> "DataCube":
         """
         Apply element-wise logical `and` operation
 
@@ -535,15 +693,15 @@ class DataCube(_ProcessGraphAbstraction):
         return self._operator_binary("and", other)
 
     @openeo_process(process_id="not", mode="operator")
-    def __invert__(self) -> 'DataCube':
+    def __invert__(self) -> "DataCube":
         return self._operator_unary("not")
 
     @openeo_process(process_id="neq", mode="operator")
-    def __ne__(self, other: Union['DataCube', int, float]) -> 'DataCube':
+    def __ne__(self, other: Union["DataCube", int, float]) -> "DataCube":
         return self._operator_binary("neq", other)
 
     @openeo_process(process_id="eq", mode="operator")
-    def __eq__(self, other: Union['DataCube', int, float]) -> 'DataCube':
+    def __eq__(self, other: Union["DataCube", int, float]) -> "DataCube":
         """
         Pixelwise comparison of this data cube with another cube or constant.
 
@@ -553,7 +711,7 @@ class DataCube(_ProcessGraphAbstraction):
         return self._operator_binary("eq", other)
 
     @openeo_process(process_id="gt", mode="operator")
-    def __gt__(self, other: Union['DataCube', int, float]) -> 'DataCube':
+    def __gt__(self, other: Union["DataCube", int, float]) -> "DataCube":
         """
         Pairwise comparison of the bands in this data cube with the bands in the 'other' data cube.
 
@@ -563,11 +721,11 @@ class DataCube(_ProcessGraphAbstraction):
         return self._operator_binary("gt", other)
 
     @openeo_process(process_id="ge", mode="operator")
-    def __ge__(self, other: Union['DataCube', int, float]) -> 'DataCube':
+    def __ge__(self, other: Union["DataCube", int, float]) -> "DataCube":
         return self._operator_binary("gte", other)
 
     @openeo_process(process_id="lt", mode="operator")
-    def __lt__(self, other: Union['DataCube', int, float]) -> 'DataCube':
+    def __lt__(self, other: Union["DataCube", int, float]) -> "DataCube":
         """
         Pairwise comparison of the bands in this data cube with the bands in the 'other' data cube.
         The number of bands in both data cubes has to be the same.
@@ -578,47 +736,51 @@ class DataCube(_ProcessGraphAbstraction):
         return self._operator_binary("lt", other)
 
     @openeo_process(process_id="le", mode="operator")
-    def __le__(self, other: Union['DataCube', int, float]) -> 'DataCube':
+    def __le__(self, other: Union["DataCube", int, float]) -> "DataCube":
         return self._operator_binary("lte", other)
 
     @openeo_process(process_id="add", mode="operator")
-    def __add__(self, other) -> 'DataCube':
+    def __add__(self, other) -> "DataCube":
         return self.add(other)
 
     @openeo_process(process_id="add", mode="operator")
-    def __radd__(self, other) -> 'DataCube':
+    def __radd__(self, other) -> "DataCube":
         return self.add(other, reverse=True)
 
     @openeo_process(process_id="subtract", mode="operator")
-    def __sub__(self, other) -> 'DataCube':
+    def __sub__(self, other) -> "DataCube":
         return self.subtract(other)
 
     @openeo_process(process_id="subtract", mode="operator")
-    def __rsub__(self, other) -> 'DataCube':
+    def __rsub__(self, other) -> "DataCube":
         return self.subtract(other, reverse=True)
 
     @openeo_process(process_id="multiply", mode="operator")
-    def __neg__(self) -> 'DataCube':
+    def __neg__(self) -> "DataCube":
         return self.multiply(-1)
 
     @openeo_process(process_id="multiply", mode="operator")
-    def __mul__(self, other) -> 'DataCube':
+    def __mul__(self, other) -> "DataCube":
         return self.multiply(other)
 
     @openeo_process(process_id="multiply", mode="operator")
-    def __rmul__(self, other) -> 'DataCube':
+    def __rmul__(self, other) -> "DataCube":
         return self.multiply(other, reverse=True)
 
     @openeo_process(process_id="divide", mode="operator")
-    def __truediv__(self, other) -> 'DataCube':
+    def __truediv__(self, other) -> "DataCube":
         return self.divide(other)
 
+    @openeo_process(process_id="divide", mode="operator")
+    def __rtruediv__(self, other) -> "DataCube":
+        return self.divide(other, reverse=True)
+
     @openeo_process(process_id="power", mode="operator")
-    def __rpow__(self, other) -> 'DataCube':
+    def __rpow__(self, other) -> "DataCube":
         return self._power(other, reverse=True)
 
     @openeo_process(process_id="power", mode="operator")
-    def __pow__(self, other) -> 'DataCube':
+    def __pow__(self, other) -> "DataCube":
         return self._power(other, reverse=False)
 
     def _power(self, other, reverse=False):
@@ -636,32 +798,32 @@ class DataCube(_ProcessGraphAbstraction):
         return self._power(other=p, reverse=False)
 
     @openeo_process(process_id="ln", mode="operator")
-    def ln(self) -> 'DataCube':
+    def ln(self) -> "DataCube":
         return self._operator_unary("ln")
 
     @openeo_process(process_id="log", mode="operator")
-    def logarithm(self, base: float) -> 'DataCube':
+    def logarithm(self, base: float) -> "DataCube":
         return self._operator_unary("log", base=base)
 
     @openeo_process(process_id="log", mode="operator")
-    def log2(self) -> 'DataCube':
+    def log2(self) -> "DataCube":
         return self.logarithm(base=2)
 
     @openeo_process(process_id="log", mode="operator")
-    def log10(self) -> 'DataCube':
+    def log10(self) -> "DataCube":
         return self.logarithm(base=10)
 
     @openeo_process(process_id="or", mode="operator")
-    def __or__(self, other) -> 'DataCube':
+    def __or__(self, other) -> "DataCube":
         return self.logical_or(other)
 
     @openeo_process(process_id="and", mode="operator")
     def __and__(self, other):
         return self.logical_and(other)
 
-    def _bandmath_operator_binary_cubes(self, operator, other: 'DataCube',
-                                        left_arg_name="x", right_arg_name="y"
-                                        ) -> 'DataCube':
+    def _bandmath_operator_binary_cubes(
+            self, operator, other: "DataCube", left_arg_name="x", right_arg_name="y"
+    ) -> "DataCube":
         """Band math binary operator with cube as right hand side argument"""
         left = self._get_bandmath_node()
         right = other._get_bandmath_node()
@@ -674,7 +836,7 @@ class DataCube(_ProcessGraphAbstraction):
             arguments={
                 left_arg_name: {"from_node": left.reducer_process_graph()},
                 right_arg_name: {"from_node": right.reducer_process_graph()},
-            }
+            },
         )
         return self.process_with_node(left.clone_with_new_reducer(merged))
 
@@ -719,7 +881,7 @@ class DataCube(_ProcessGraphAbstraction):
 
     def _get_geometry_argument(
             self,
-            geometry: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter],
+            geometry: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter, _FromNodeMixin],
             valid_geojson_types: List[str],
             crs: str = None,
     ) -> Union[dict, Parameter, PGNode]:
@@ -733,6 +895,8 @@ class DataCube(_ProcessGraphAbstraction):
             return PGNode(process_id="read_vector", arguments={"filename": str(geometry)})
         elif isinstance(geometry, Parameter):
             return geometry
+        elif isinstance(geometry, _FromNodeMixin):
+            return geometry.from_node()
 
         if isinstance(geometry, shapely.geometry.base.BaseGeometry):
             geometry = mapping(geometry)
@@ -753,7 +917,7 @@ class DataCube(_ProcessGraphAbstraction):
     @openeo_process
     def aggregate_spatial(
             self,
-            geometries: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter],
+            geometries: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter, "VectorCube"],
             reducer: Union[str, PGNode, typing.Callable],
             target_dimension: Optional[str] = None,
             crs: str = None,
@@ -764,7 +928,8 @@ class DataCube(_ProcessGraphAbstraction):
         Aggregates statistics for one or more geometries (e.g. zonal statistics for polygons)
         over the spatial dimensions.
 
-        :param geometries: shapely geometry, GeoJSON dictionary or path to GeoJSON file
+        :param geometries: a shapely geometry, a GeoJSON-style dictionary,
+            a public GeoJSON URL, or a path (that is valid for the back-end) to a GeoJSON file.
         :param reducer: a callback function that creates a process graph, see :ref:`callbackfunctions`
         :param target_dimension: The new dimension name to be used for storing the results.
         :param crs: The spatial reference system of the provided polygon.
@@ -787,7 +952,11 @@ class DataCube(_ProcessGraphAbstraction):
         )
 
     @staticmethod
-    def _get_callback(process: Union[str, PGNode, typing.Callable], parent_parameters: List[str]) -> dict:
+    def _get_callback(
+            process: Union[str, PGNode, typing.Callable, UDF],
+            parent_parameters: List[str],
+            connection: Optional["openeo.Connection"] = None,
+    ) -> dict:
         """
         Build a "callback" process: a user defined process that is used by another process (such
         as `apply`, `apply_dimension`, `reduce`, ....)
@@ -796,15 +965,7 @@ class DataCube(_ProcessGraphAbstraction):
         :param parent_parameters: list of parameter names defined for child process
         :return:
         """
-
-        def get_parameter_names(process: typing.Callable) -> List[str]:
-            signature = inspect.signature(process)
-            return [
-                p.name for p in signature.parameters.values()
-                if p.kind in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
-            ]
-
-        # TODO: autodetect the parameters defined by process?
+        # TODO: autodetect the parameters defined by parent process?
         if isinstance(process, PGNode):
             # Assume this is already a valid callback process
             pg = process
@@ -812,31 +973,22 @@ class DataCube(_ProcessGraphAbstraction):
             # Assume given reducer is a simple predefined reduce process_id
             if process in openeo.processes.__dict__:
                 process_params = get_parameter_names(openeo.processes.__dict__[process])
+                # TODO: switch to "Callable" handling here
             else:
                 # Best effort guess
                 process_params = parent_parameters
             if parent_parameters == ["x", "y"] and (len(process_params) == 1 or process_params[:1] == ["data"]):
                 # Special case: wrap all parent parameters in an array
                 arguments = {process_params[0]: [{"from_parameter": p} for p in parent_parameters]}
-            elif parent_parameters == ["data", "context"] and "context" not in process_params:
-                arguments = {process_params[0]: {"from_parameter": "data"}}
             else:
-                arguments = {a: {"from_parameter": b} for a, b in zip(process_params, parent_parameters)}
+                # Only pass parameters that correspond with an arg name
+                common = set(process_params).intersection(parent_parameters)
+                arguments = {p: {"from_parameter": p} for p in common}
             pg = PGNode(process_id=process, arguments=arguments)
         elif isinstance(process, typing.Callable):
-            process_params = get_parameter_names(process)
-            if parent_parameters == ["x", "y"] and (len(process_params) == 1 or process_params[:1] == ["data"]):
-                # Special case: wrap all parent parameters in an array
-                arguments = [ProcessBuilder([{"from_parameter": p} for p in parent_parameters])]
-            elif parent_parameters == ["data", "context"] and "context" not in process_params:
-                arguments = [ProcessBuilder({"from_parameter": "data"})]
-            else:
-                arguments = [ProcessBuilder({"from_parameter": p}) for p in parent_parameters]
-
-            callback_result = process(*arguments)
-            if callback_result is None:
-                raise ValueError("Your callback did not return a result, make sure that your callbacks have a return statement, and return a ProcessBuilder: " + str(process))
-            pg = callback_result.pgnode
+            pg = convert_callable_to_pgnode(process, parent_parameters=parent_parameters)
+        elif isinstance(process, UDF):
+            pg = process.get_run_udf_callback(connection=connection, data_parameter=parent_parameters[0])
         else:
             raise ValueError(process)
 
@@ -845,7 +997,7 @@ class DataCube(_ProcessGraphAbstraction):
     @openeo_process
     def apply_dimension(
             self, code: str = None, runtime=None,
-            process: Union[str, PGNode, typing.Callable] = None,
+            process: Union[str, PGNode, typing.Callable, UDF] = None,
             version="latest",
             # TODO: dimension has no default (per spec)?
             dimension="t",
@@ -871,10 +1023,16 @@ class DataCube(_ProcessGraphAbstraction):
         the dimension labels will be incrementing integers starting from zero, which can be changed using
         rename_labels afterwards. The number of labels will equal to the number of values computed by the process.
 
-        :param code: UDF code or process identifier (optional)
-        :param runtime: UDF runtime to use (optional)
+        .. note::
+            .. versionchanged:: 0.13.0
+                arguments ``code``, ``runtime`` and ``version`` are deprecated if favor of the standard approach
+                of using an :py:class:`openeo.UDF <openeo.rest.datacube.UDF>` object in the ``process`` argument.
+                See :ref:`old_udf_api` for more background about the changes.
+
+        :param code: [**deprecated**] UDF code or process identifier (optional)
+        :param runtime: [**deprecated**] UDF runtime to use (optional)
         :param process: a callback function that creates a process graph, see :ref:`callbackfunctions`
-        :param version: Version of the UDF runtime to use
+        :param version: [**deprecated**] Version of the UDF runtime to use
         :param dimension: The name of the source dimension to apply the process on. Fails with a DimensionNotAvailable error if the specified dimension does not exist.
         :param target_dimension: The name of the target dimension or null (the default) to use the source dimension
             specified in the parameter dimension. By specifying a target dimension, the source dimension is removed.
@@ -884,15 +1042,19 @@ class DataCube(_ProcessGraphAbstraction):
         :return: A datacube with the UDF applied to the given dimension.
         :raises: DimensionNotAvailable
         """
-        if runtime:
-            # TODO EP-3555: unify better with UDF(PGNode) class and avoid doing same UDF code-runtime-version argument stuff in each method
-            callback_process_node = self._create_run_udf(code, runtime, version)
-            process = PGNode.to_process_graph_argument(callback_process_node)
-        elif code or process:
-            # TODO EP-3555 unify `code` and `process`
-            process = self._get_callback(code or process, parent_parameters=["data", "context"])
+        # TODO #137 #181 #312 remove support for code/runtime/version
+        if runtime or (isinstance(code, str) and "\n" in code):
+            warnings.warn(
+                "Specifying UDF code through `code`, `runtime` and `version` arguments is deprecated. "
+                "Instead create an `openeo.UDF` object and pass that to the `process` argument.",
+                category=UserDeprecationWarning, stacklevel=2
+            )
+            process = UDF(code=code, runtime=runtime, version=version, context=context)
         else:
-            raise OpenEoClientException("No UDF code or process given")
+            process = process or code
+        process = self._get_callback(
+            process=process, parent_parameters=["data", "context"], connection=self.connection
+        )
         arguments = {
             "data": THIS,
             "process": process,
@@ -909,7 +1071,8 @@ class DataCube(_ProcessGraphAbstraction):
     @openeo_process
     def reduce_dimension(
             self,
-            dimension: str, reducer: Union[str, PGNode, typing.Callable],
+            dimension: str,
+            reducer: Union[str, PGNode, typing.Callable, UDF],
             context: Optional[dict] = None,
             process_id="reduce_dimension", band_math_mode: bool = False
     ) -> "DataCube":
@@ -922,7 +1085,9 @@ class DataCube(_ProcessGraphAbstraction):
         """
         # TODO: check if dimension is valid according to metadata? #116
         # TODO: #125 use/test case for `reduce_dimension_binary`?
-        reducer = self._get_callback(reducer, parent_parameters=["data", "context"])
+        reducer = self._get_callback(
+            process=reducer, parent_parameters=["data", "context"], connection=self.connection
+        )
 
         return self.process_with_node(ReduceNode(
             process_id=process_id,
@@ -937,7 +1102,7 @@ class DataCube(_ProcessGraphAbstraction):
     # @openeo_process
     def chunk_polygon(
             self,
-            chunks: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter],
+            chunks: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter, "VectorCube"],
             process: Union[str, PGNode, typing.Callable],
             mask_value: float = None,
             context: Optional[dict] = None,
@@ -947,9 +1112,8 @@ class DataCube(_ProcessGraphAbstraction):
 
         .. warning:: experimental process: not generally supported, API subject to change.
 
-        :param chunks: Polygon(s), provided as a :class:`shapely.geometry.GeometryCollection`
-            , a :class:`shapely.geometry.MultiPolygon`, a filename pointing to a valid vector file
-            or a :class:`shapely.geometry.Polygon`.
+        :param chunks: Polygons, provided as a shapely geometry, a GeoJSON-style dictionary,
+            a public GeoJSON URL, or a path (that is valid for the back-end) to a GeoJSON file.
         :param process: "child callback" function, see :ref:`callbackfunctions`
         :param mask_value: The value used for cells outside the polygon.
             This provides a distinction between NoData cells within the polygon (due to e.g. clouds)
@@ -968,22 +1132,32 @@ class DataCube(_ProcessGraphAbstraction):
             arguments=dict_no_none(
                 mask_value=mask_value,
                 context=context,
-            )
+            ),
         )
 
-    def _reduce_bands(self, reducer: PGNode) -> 'DataCube':
-        # TODO #123 is it (still) necessary to make "band" math a special case?
+    def reduce_bands(self, reducer: Union[str, PGNode, typing.Callable, UDF]) -> 'DataCube':
+        """
+        Shortcut for :py:meth:`reduce_dimension` along the band dimension
+
+        :param reducer: "child callback" function, see :ref:`callbackfunctions`
+        """
         return self.reduce_dimension(dimension=self.metadata.band_dimension.name, reducer=reducer, band_math_mode=True)
 
-    def _reduce_temporal(self, reducer: PGNode) -> 'DataCube':
+    def reduce_temporal(self, reducer: Union[str, PGNode, typing.Callable, UDF]) -> 'DataCube':
+        """
+        Shortcut for :py:meth:`reduce_dimension` along the temporal dimension
+
+        :param reducer: "child callback" function, see :ref:`callbackfunctions`
+        """
         return self.reduce_dimension(dimension=self.metadata.temporal_dimension.name, reducer=reducer)
 
-    def reduce_bands_udf(self, code: str, runtime="Python", version="latest") -> 'DataCube':
+    @deprecated("Use :py:meth:`reduce_bands` with :py:class:`UDF` as reducer.", version="0.13.0")
+    def reduce_bands_udf(self, code: str, runtime: Optional[str] = None, version: Optional[str] = None) -> 'DataCube':
         """
-        Apply reduce (`reduce_dimension`) process with given UDF along band/spectral dimension.
+        Use `reduce_dimension` process with given UDF along band/spectral dimension.
         """
-        # TODO EP-3555: unify better with UDF(PGNode) class and avoid doing same UDF code-runtime-version argument stuff in each method
-        return self._reduce_bands(reducer=self._create_run_udf(code, runtime, version))
+        # TODO #181 #312 drop this deprecated pattern
+        return self.reduce_bands(reducer=UDF(code=code, runtime=runtime, version=version))
 
     @openeo_process
     def add_dimension(self, name: str, label: str, type: Optional[str] = None):
@@ -1020,23 +1194,10 @@ class DataCube(_ProcessGraphAbstraction):
         return self.process(
             process_id="drop_dimension",
             arguments={"data": self, "name": name},
-            metadata=self.metadata.drop_dimension(name=name)
+            metadata=self.metadata.drop_dimension(name=name),
         )
 
-    def _create_run_udf(self, code, runtime, version) -> PGNode:
-        # TODO EP-3555: unify better with UDF(PGNode) class
-        return PGNode(
-            process_id="run_udf",
-            arguments={
-                "data": {
-                    "from_parameter": "data"
-                },
-                "runtime": runtime,
-                "version": version,
-                "udf": code
-            })
-
-    @openeo_process(process_id="reduce_dimension")
+    @deprecated("Use :py:meth:`reduce_temporal` with :py:class:`UDF` as reducer", version="0.13.0")
     def reduce_temporal_udf(self, code: str, runtime="Python", version="latest"):
         """
         Apply reduce (`reduce_dimension`) process with given UDF along temporal dimension.
@@ -1045,15 +1206,15 @@ class DataCube(_ProcessGraphAbstraction):
         :param runtime: The UDF runtime
         :param version: The UDF runtime version
         """
-        # TODO EP-3555: unify better with UDF(PGNode) class and avoid doing same UDF code-runtime-version argument stuff in each method
-        return self._reduce_temporal(reducer=self._create_run_udf(code, runtime, version))
+        # TODO #181 #312 drop this deprecated pattern
+        return self.reduce_temporal(reducer=UDF(code=code, runtime=runtime, version=version))
 
     reduce_tiles_over_time = legacy_alias(reduce_temporal_udf, name="reduce_tiles_over_time")
 
     @openeo_process
     def apply_neighborhood(
             self,
-            process: Union[str, PGNode, typing.Callable],
+            process: Union[str, PGNode, typing.Callable, UDF],
             size: List[Dict],
             overlap: List[dict] = None,
             context: Optional[dict] = None,
@@ -1079,10 +1240,10 @@ class DataCube(_ProcessGraphAbstraction):
         :return:
         """
         return self.process(
-            process_id='apply_neighborhood',
+            process_id="apply_neighborhood",
             arguments=dict_no_none(
                 data=THIS,
-                process=self._get_callback(process, parent_parameters=["data"]),
+                process=self._get_callback(process=process, parent_parameters=["data"], connection=self.connection),
                 size=size,
                 overlap=overlap,
                 context=context,
@@ -1090,7 +1251,11 @@ class DataCube(_ProcessGraphAbstraction):
         )
 
     @openeo_process
-    def apply(self, process: Union[str, PGNode, typing.Callable] = None, context: Optional[dict] = None) -> 'DataCube':
+    def apply(
+            self,
+            process: Union[str, PGNode, typing.Callable, UDF] = None,
+            context: Optional[dict] = None,
+    ) -> "DataCube":
         """
         Applies a unary process (a local operation) to each value of the specified or all dimensions in the data cube.
 
@@ -1104,26 +1269,21 @@ class DataCube(_ProcessGraphAbstraction):
             process_id="apply",
             arguments=dict_no_none({
                 "data": THIS,
-                "process": self._get_callback(process, parent_parameters=["x"]),
+                "process": self._get_callback(process, parent_parameters=["x"], connection=self.connection),
                 "context": context,
             })
         )
 
-    @openeo_process(process_id="reduce_dimension")
-    def reduce_temporal_simple(self, process_id="max") -> 'DataCube':
-        """Do temporal reduce with a simple given process as callback."""
-        return self._reduce_temporal(reducer=PGNode(
-            process_id=process_id,
-            arguments={"data": {"from_parameter": "data"}}
-        ))
+    reduce_temporal_simple = legacy_alias(reduce_temporal, "reduce_temporal_simple")
 
     @openeo_process(process_id="min", mode="reduce_dimension")
     def min_time(self) -> 'DataCube':
-        """Finds the minimum value of a time series for all bands of the input dataset.
-
-            :return: a DataCube instance
         """
-        return self.reduce_temporal_simple("min")
+        Finds the minimum value of a time series for all bands of the input dataset.
+
+        :return: a DataCube instance
+        """
+        return self.reduce_temporal("min")
 
     @openeo_process(process_id="max", mode="reduce_dimension")
     def max_time(self) -> 'DataCube':
@@ -1132,31 +1292,34 @@ class DataCube(_ProcessGraphAbstraction):
 
         :return: a DataCube instance
         """
-        return self.reduce_temporal_simple("max")
+        return self.reduce_temporal("max")
 
     @openeo_process(process_id="mean", mode="reduce_dimension")
-    def mean_time(self) -> 'DataCube':
-        """Finds the mean value of a time series for all bands of the input dataset.
-
-            :return: a DataCube instance
+    def mean_time(self) -> "DataCube":
         """
-        return self.reduce_temporal_simple("mean")
+        Finds the mean value of a time series for all bands of the input dataset.
+
+        :return: a DataCube instance
+        """
+        return self.reduce_temporal("mean")
 
     @openeo_process(process_id="median", mode="reduce_dimension")
-    def median_time(self) -> 'DataCube':
-        """Finds the median value of a time series for all bands of the input dataset.
-
-            :return: a DataCube instance
+    def median_time(self) -> "DataCube":
         """
-        return self.reduce_temporal_simple("median")
+        Finds the median value of a time series for all bands of the input dataset.
+
+        :return: a DataCube instance
+        """
+        return self.reduce_temporal("median")
 
     @openeo_process(process_id="count", mode="reduce_dimension")
-    def count_time(self) -> 'DataCube':
-        """Counts the number of images with a valid mask in a time series for all bands of the input dataset.
-
-            :return: a DataCube instance
+    def count_time(self) -> "DataCube":
         """
-        return self.reduce_temporal_simple("count")
+        Counts the number of images with a valid mask in a time series for all bands of the input dataset.
+
+        :return: a DataCube instance
+        """
+        return self.reduce_temporal("count")
 
     @openeo_process
     def aggregate_temporal(
@@ -1167,19 +1330,20 @@ class DataCube(_ProcessGraphAbstraction):
             dimension: Optional[str] = None,
             context: Optional[dict] = None,
     ) -> "DataCube":
-        """ Computes a temporal aggregation based on an array of date and/or time intervals.
+        """
+        Computes a temporal aggregation based on an array of date and/or time intervals.
 
-            Calendar hierarchies such as year, month, week etc. must be transformed into specific intervals by the clients. For each interval, all data along the dimension will be passed through the reducer. The computed values will be projected to the labels, so the number of labels and the number of intervals need to be equal.
+        Calendar hierarchies such as year, month, week etc. must be transformed into specific intervals by the clients. For each interval, all data along the dimension will be passed through the reducer. The computed values will be projected to the labels, so the number of labels and the number of intervals need to be equal.
 
-            If the dimension is not set, the data cube is expected to only have one temporal dimension.
+        If the dimension is not set, the data cube is expected to only have one temporal dimension.
 
-            :param intervals: Temporal left-closed intervals so that the start time is contained, but not the end time.
-            :param reducer: A reducer to be applied on all values along the specified dimension. The reducer must be a callable process (or a set processes) that accepts an array and computes a single return value of the same type as the input values, for example median.
-            :param labels: Labels for the intervals. The number of labels and the number of groups need to be equal.
-            :param dimension: The temporal dimension for aggregation. All data along the dimension will be passed through the specified reducer. If the dimension is not set, the data cube is expected to only have one temporal dimension.
-            :param context: Additional data to be passed to the reducer. Not set by default.
+        :param intervals: Temporal left-closed intervals so that the start time is contained, but not the end time.
+        :param reducer: A reducer to be applied on all values along the specified dimension. The reducer must be a callable process (or a set processes) that accepts an array and computes a single return value of the same type as the input values, for example median.
+        :param labels: Labels for the intervals. The number of labels and the number of groups need to be equal.
+        :param dimension: The temporal dimension for aggregation. All data along the dimension will be passed through the specified reducer. If the dimension is not set, the data cube is expected to only have one temporal dimension.
+        :param context: Additional data to be passed to the reducer. Not set by default.
 
-            :return: An ImageCollection containing  a result for each time window
+        :return: An ImageCollection containing  a result for each time window
         """
         return self.process(
             process_id="aggregate_temporal",
@@ -1189,8 +1353,8 @@ class DataCube(_ProcessGraphAbstraction):
                 labels=labels,
                 dimension=dimension,
                 reducer=self._get_callback(reducer, parent_parameters=["data"]),
-                context=context
-            )
+                context=context,
+            ),
         )
 
     @openeo_process
@@ -1201,32 +1365,33 @@ class DataCube(_ProcessGraphAbstraction):
             dimension: Optional[str] = None,
             context: Optional[Dict] = None,
     ) -> "DataCube":
-        """ Computes a temporal aggregation based on calendar hierarchies such as years, months or seasons. For other calendar hierarchies aggregate_temporal can be used.
+        """
+        Computes a temporal aggregation based on calendar hierarchies such as years, months or seasons. For other calendar hierarchies aggregate_temporal can be used.
 
-            For each interval, all data along the dimension will be passed through the reducer.
+        For each interval, all data along the dimension will be passed through the reducer.
 
-            If the dimension is not set or is set to null, the data cube is expected to only have one temporal dimension.
+        If the dimension is not set or is set to null, the data cube is expected to only have one temporal dimension.
 
-            The period argument specifies the time intervals to aggregate. The following pre-defined values are available:
+        The period argument specifies the time intervals to aggregate. The following pre-defined values are available:
 
-            - hour: Hour of the day
-            - day: Day of the year
-            - week: Week of the year
-            - dekad: Ten day periods, counted per year with three periods per month (day 1 - 10, 11 - 20 and 21 - end of month). The third dekad of the month can range from 8 to 11 days. For example, the fourth dekad is Feb, 1 - Feb, 10 each year.
-            - month: Month of the year
-            - season: Three month periods of the calendar seasons (December - February, March - May, June - August, September - November).
-            - tropical-season: Six month periods of the tropical seasons (November - April, May - October).
-            - year: Proleptic years
-            - decade: Ten year periods (0-to-9 decade), from a year ending in a 0 to the next year ending in a 9.
-            - decade-ad: Ten year periods (1-to-0 decade) better aligned with the Anno Domini (AD) calendar era, from a year ending in a 1 to the next year ending in a 0.
+        - hour: Hour of the day
+        - day: Day of the year
+        - week: Week of the year
+        - dekad: Ten day periods, counted per year with three periods per month (day 1 - 10, 11 - 20 and 21 - end of month). The third dekad of the month can range from 8 to 11 days. For example, the fourth dekad is Feb, 1 - Feb, 10 each year.
+        - month: Month of the year
+        - season: Three month periods of the calendar seasons (December - February, March - May, June - August, September - November).
+        - tropical-season: Six month periods of the tropical seasons (November - April, May - October).
+        - year: Proleptic years
+        - decade: Ten year periods (0-to-9 decade), from a year ending in a 0 to the next year ending in a 9.
+        - decade-ad: Ten year periods (1-to-0 decade) better aligned with the Anno Domini (AD) calendar era, from a year ending in a 1 to the next year ending in a 0.
 
 
-            :param period: The period of the time intervals to aggregate.
-            :param reducer: A reducer to be applied on all values along the specified dimension. The reducer must be a callable process (or a set processes) that accepts an array and computes a single return value of the same type as the input values, for example median.
-            :param dimension: The temporal dimension for aggregation. All data along the dimension will be passed through the specified reducer. If the dimension is not set, the data cube is expected to only have one temporal dimension.
-            :param context: Additional data to be passed to the reducer.
+        :param period: The period of the time intervals to aggregate.
+        :param reducer: A reducer to be applied on all values along the specified dimension. The reducer must be a callable process (or a set processes) that accepts an array and computes a single return value of the same type as the input values, for example median.
+        :param dimension: The temporal dimension for aggregation. All data along the dimension will be passed through the specified reducer. If the dimension is not set, the data cube is expected to only have one temporal dimension.
+        :param context: Additional data to be passed to the reducer.
 
-            :return: A data cube with the same dimensions. The dimension properties (name, type, labels, reference system and resolution) remain unchanged.
+        :return: A data cube with the same dimensions. The dimension properties (name, type, labels, reference system and resolution) remain unchanged.
         """
         return self.process(
             process_id="aggregate_temporal_period",
@@ -1235,31 +1400,31 @@ class DataCube(_ProcessGraphAbstraction):
                 period=period,
                 dimension=dimension,
                 reducer=self._get_callback(reducer, parent_parameters=["data"]),
-                context=context
-            )
+                context=context,
+            ),
         )
 
     @openeo_process
     def ndvi(self, nir: str = None, red: str = None, target_band: str = None) -> 'DataCube':
-        """ Normalized Difference Vegetation Index (NDVI)
+        """
+        Normalized Difference Vegetation Index (NDVI)
 
-            :param nir: (optional) name of NIR band
-            :param red: (optional) name of red band
-            :param target_band: (optional) name of the newly created band
+        :param nir: (optional) name of NIR band
+        :param red: (optional) name of red band
+        :param target_band: (optional) name of the newly created band
 
-            :return: a DataCube instance
+        :return: a DataCube instance
         """
         if target_band is None:
             metadata = self.metadata.reduce_dimension(self.metadata.band_dimension.name)
         else:
             metadata = self.metadata.append_band(Band(target_band, "ndvi", None))
         return self.process(
-            process_id='ndvi',
+            process_id="ndvi",
             arguments=dict_no_none(
-                data=THIS,
-                nir=nir, red=red, target_band=target_band
+                data=THIS, nir=nir, red=red, target_band=target_band
             ),
-            metadata=metadata
+            metadata=metadata,
         )
 
     @openeo_process
@@ -1275,34 +1440,35 @@ class DataCube(_ProcessGraphAbstraction):
         if target in self.metadata.dimension_names():
             raise ValueError('Target dimension name conflicts with existing dimension: %s.' % target)
         return self.process(
-            process_id='rename_dimension',
+            process_id="rename_dimension",
             arguments=dict_no_none(
                 data=THIS,
                 source=self.metadata.assert_valid_dimension(source),
-                target=target
+                target=target,
             ),
-            metadata=self.metadata.rename_dimension(source,target)
+            metadata=self.metadata.rename_dimension(source, target),
         )
 
     @openeo_process
     def rename_labels(self, dimension: str, target: list, source: list = None) -> 'DataCube':
-        """ Renames the labels of the specified dimension in the data cube from source to target.
+        """
+        Renames the labels of the specified dimension in the data cube from source to target.
 
-            :param dimension: Dimension name
-            :param target: The new names for the labels.
-            :param source: The names of the labels as they are currently in the data cube.
+        :param dimension: Dimension name
+        :param target: The new names for the labels.
+        :param source: The names of the labels as they are currently in the data cube.
 
-            :return: An DataCube instance
+        :return: An DataCube instance
         """
         return self.process(
-            process_id='rename_labels',
+            process_id="rename_labels",
             arguments=dict_no_none(
                 data=THIS,
                 dimension=self.metadata.assert_valid_dimension(dimension),
                 target=target,
-                source=source
+                source=source,
             ),
-            metadata=self.metadata.rename_labels(dimension, target, source)
+            metadata=self.metadata.rename_labels(dimension, target, source),
         )
 
     @openeo_process(mode="apply")
@@ -1331,7 +1497,7 @@ class DataCube(_ProcessGraphAbstraction):
         return self.apply(lambda x: x.linear_scale_range(input_min, input_max, output_min, output_max))
 
     @openeo_process
-    def mask(self, mask: 'DataCube' = None, replacement=None) -> 'DataCube':
+    def mask(self, mask: "DataCube" = None, replacement=None) -> "DataCube":
         """
         Applies a mask to a raster data cube. To apply a vector mask use `mask_polygon`.
 
@@ -1352,7 +1518,7 @@ class DataCube(_ProcessGraphAbstraction):
     @openeo_process
     def mask_polygon(
             self,
-            mask: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter],
+            mask: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter, "VectorCube"],
             srs: str = None,
             replacement=None, inside: bool = None
     ) -> 'DataCube':
@@ -1366,7 +1532,8 @@ class DataCube(_ProcessGraphAbstraction):
         The pixel values are replaced with the value specified for `replacement`,
         which defaults to `no data`.
 
-        :param mask: A polygon, provided as a :class:`shapely.geometry.Polygon` or :class:`shapely.geometry.MultiPolygon`, or a filename pointing to a valid vector file
+        :param mask: The geometry to mask with: a shapely geometry, a GeoJSON-style dictionary,
+            a public GeoJSON URL, or a path (that is valid for the back-end) to a GeoJSON file.
         :param srs: The spatial reference system of the provided polygon.
             By default longitude-latitude (EPSG:4326) is assumed.
 
@@ -1414,18 +1581,27 @@ class DataCube(_ProcessGraphAbstraction):
 
         :return: The merged data cube.
         """
-        arguments = {'cube1': self, 'cube2': other}
+        arguments = {"cube1": self, "cube2": other}
         if overlap_resolver:
             arguments["overlap_resolver"] = self._get_callback(overlap_resolver, parent_parameters=["x", "y"])
+        # Minimal client side metadata merging
+        merged_metadata = self.metadata
+        if self.metadata.has_band_dimension() and isinstance(other, DataCube) and other.metadata.has_band_dimension():
+            for b in other.metadata.band_dimension.bands:
+                if b not in merged_metadata.bands:
+                    merged_metadata = merged_metadata.append_band(b)
+        # TODO: warn about missing overlap_resolver if we can detect that one is required?
         if context:
             arguments["context"] = context
-        # TODO: set metadata of reduced cube?
-        return self.process(process_id="merge_cubes", arguments=arguments)
+        return self.process(process_id="merge_cubes", arguments=arguments, metadata=merged_metadata)
 
     merge = legacy_alias(merge_cubes, name="merge")
 
     @openeo_process
-    def apply_kernel(self, kernel: Union[np.ndarray, List[List[float]]], factor=1.0, border = 0, replace_invalid=0) -> 'DataCube':
+    def apply_kernel(
+            self, kernel: Union[np.ndarray, List[List[float]]], factor=1.0, border=0,
+            replace_invalid=0
+    ) -> "DataCube":
         """
         Applies a focal operation based on a weighted kernel to each value of the specified dimensions in the data cube.
 
@@ -1454,8 +1630,9 @@ class DataCube(_ProcessGraphAbstraction):
         })
 
     @openeo_process
-    def resolution_merge(self, high_resolution_bands: List[str], low_resolution_bands: List[str]
-                         , method: str=None) -> 'DataCube':
+    def resolution_merge(
+            self, high_resolution_bands: List[str], low_resolution_bands: List[str], method: str = None
+    ) -> "DataCube":
         """
         Resolution merging algorithms try to improve the spatial resolution of lower resolution bands
         (e.g. Sentinel-2 20M) based on higher resolution bands. (e.g. Sentinel-2 10M).
@@ -1621,10 +1798,24 @@ class DataCube(_ProcessGraphAbstraction):
         :param options: Optional, file format options
         :return: None if the result is stored to disk, or a bytes object returned by the backend.
         """
-        if not format:
-            format = guess_format(outputfile) if outputfile else "GTiff"
-        # TODO: only add `save_result` node when there is none yet?
-        cube = self.save_result(format=format, options=options)
+        if self.result_node().process_id == "save_result":
+            # There is already a `save_result` node: check if it is consistent with given format/options
+            args = self.result_node().arguments
+            if format is not None and format.lower() != args["format"].lower():
+                raise ValueError(
+                    f"Existing `save_result` node with different format {args['format']!r} != {format!r}"
+                )
+            if options is not None and options != args["options"]:
+                raise ValueError(
+                    f"Existing `save_result` node with different options {args['options']!r} != {options!r}"
+                )
+            cube = self
+        else:
+            # No `save_result` node yet: automatically add it.
+            if not format:
+                format = guess_format(outputfile) if outputfile else "GTiff"
+            cube = self.save_result(format=format, options=options)
+
         return self._connection.download(cube.flat_graph(), outputfile)
 
     def validate(self) -> List[dict]:
@@ -1655,6 +1846,10 @@ class DataCube(_ProcessGraphAbstraction):
         :param format_options: String Parameters for the job result format
 
         """
+        if "format" in format_options and not out_format:
+            out_format = format_options["format"]  # align with 'download' call arg name
+        if not out_format:
+            out_format = guess_format(outputfile) if outputfile else "GTiff"
         job = self.create_job(out_format, job_options=job_options, **format_options)
         return job.run_synchronous(
             outputfile=outputfile,
@@ -1727,7 +1922,10 @@ class DataCube(_ProcessGraphAbstraction):
         return openeo.udf.run_code.execute_local_udf(udf=udf, datacube=datacube, fmt=fmt)
 
     @openeo_process
-    def ard_normalized_radar_backscatter(self, elevation_model:str = None, contributing_area = False, ellipsoid_incidence_angle:bool = False, noise_removal:bool = True):
+    def ard_normalized_radar_backscatter(
+            self, elevation_model: str = None, contributing_area=False,
+            ellipsoid_incidence_angle: bool = False, noise_removal: bool = True
+    ) -> "DataCube":
         """
         Computes CARD4L compliant backscatter (gamma0) from SAR input.
         This method is a variant of :py:meth:`~openeo.rest.datacube.DataCube.sar_backscatter`,
@@ -1933,7 +2131,7 @@ class DataCube(_ProcessGraphAbstraction):
                 max_variables=max_variables,
                 num_trees=num_trees,
                 seed=seed,
-            )
+            ),
         )
         model = MlModel(graph=pgnode, connection=self._connection)
         return model
@@ -1974,7 +2172,7 @@ class DataCube(_ProcessGraphAbstraction):
                 max_variables=max_variables,
                 num_trees=num_trees,
                 seed=seed,
-            )
+            ),
         )
         model = MlModel(graph=pgnode, connection=self._connection)
         return model
@@ -2029,5 +2227,5 @@ class DataCube(_ProcessGraphAbstraction):
                 dimension=dimension,
                 target_dimensions=target_dimensions,
                 label_separator=label_separator,
-            )
+            ),
         )

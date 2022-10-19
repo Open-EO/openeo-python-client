@@ -37,8 +37,7 @@
                 "x": {
                   "from_parameter": "value"
                 },
-                "y": "Sentinel-2B",
-                "case_sensitive": false
+                "y": "Sentinel-2B"
               },
               "result": true
             }

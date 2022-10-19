@@ -2,8 +2,7 @@ import json
 from abc import ABC
 from typing import Union, Tuple, Any
 
-from deprecated import deprecated
-
+from openeo.internal.warnings import deprecated
 from openeo.rest import OpenEoClientException
 
 
@@ -76,7 +75,7 @@ class ProcessGraphVisitor(ABC):
         self.accept_node(graph[top_level_node])
         return self
 
-    @deprecated(reason="Use accept_node() instead")
+    @deprecated(reason="Use accept_node() instead", version="0.4.6")
     def accept(self, node: dict):
         self.accept_node(node)
 

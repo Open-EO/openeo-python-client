@@ -79,7 +79,6 @@ and passing the original target class data::
 
     model = predictors.fit_class_random_forest(
         target=feature_collection,
-        training=0.8
     )
     # Save the model as a batch job result asset
     # so that we can load it in another job.

@@ -35,20 +35,23 @@ import openeo
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['sphinx.ext.autodoc',
-              'sphinx_autodoc_annotation',
-              'sphinx_autodoc_typehints',
-                'sphinx.ext.viewcode',
-    'sphinx.ext.doctest']
+extensions = [
+    'sphinx.ext.autodoc',
+    'sphinx_autodoc_typehints',
+    'sphinx.ext.viewcode',
+    'sphinx.ext.doctest',
+    'myst_parser',
+]
 
+import sphinx_autodoc_typehints
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
 # The suffix(es) of source filenames.
-# You can specify multiple suffix as a list of string:
-#
-# source_suffix = ['.rst', '.md']
-source_suffix = '.rst'
+source_suffix = {
+    ".rst": "restructuredtext",
+    ".md": "markdown",
+}
 
 # The master toctree document.
 master_doc = 'index'
@@ -103,8 +106,9 @@ html_theme_options = {
     'github_user': 'Open-EO',
     'github_repo': 'openeo-python-client',
     'github_banner': True,
-    'fixed_sidebar': True,
-    'page_width':'600px',
+    'fixed_sidebar': False,
+    'page_width': '1200px',
+    'sidebar_width': '300px',
     'font_family': 'Cantarell, Georgia, serif',
     'code_font_family': "'Liberation Mono', 'Consolas', 'Menlo', 'DejaVu Sans Mono', 'Bitstream Vera Sans Mono', monospace",
 }
@@ -122,7 +126,7 @@ html_static_path = ['_static']
 html_sidebars = {
     '**': [
         'about.html',
-        'localtoc.html',
+        'globaltoc.html',
         'relations.html',  # needs 'show_related': True theme option to display
         'searchbox.html',
         'hacks.html',
