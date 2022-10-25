@@ -82,3 +82,30 @@ Functions under ``openeo.processes``
 .. autofunction:: openeo.processes.vector_to_regular_points
 
 
+
+
+SRR4
+----
+
+Unlike the previous SRR iterations,
+there was no need
+in the openEO Python client library
+for the addition of methods/functions/processes
+related to specific SRR4 tasks.
+
+Apart from general improvements and bug fixes,
+here are a couple of notable changes however:
+
+- Documentation improvements:
+
+    - rework of "getting started" docs and landing page
+    - rework of batch job docs
+    - rework of UDF docs (some parts are still work in progress)
+    - added overview page that maps openEO process to related openEO Python client library functions/methods.
+
+- Simplify/improve workflow for using UDFs
+  (loading from file, autodetect language, hide internals better)
+- :py:class:`RESTJob` has been renamed to less cryptic and more user-friendly :py:class:`BatchJob`
+- Align OpenID Connect handling with recent changes
+  in EGI Check-In
+
