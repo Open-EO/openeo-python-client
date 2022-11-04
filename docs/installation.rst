@@ -105,39 +105,51 @@ The ``[dev]`` (a so-called "extra") installs additional development related depe
 for example to run the unit tests.
 
 
+
+
+Development Installation on Windows
+-----------------------------------
+
+There can be a few difficulties to install the development dependencies on Windows via pip.
+
+Namely, geopandas depends on a few libraries that are a bit trickier to install. They need some compiled code and unfortunately these libraries do not provide officially supported python wheels for Windows.
+
+Cause: Down the line geopandas depends on GDAL and that is a C++ library that does not provide *official* binaries for Windows, though there are binaries from other sources.
+
+Because there isn't supported binary or Python wheel, the pip installation process will try to compile the C libraries on the fly but that will only work if your have set up a C++ compiler properly.
+
+Solutions - overview
+~~~~~~~~~~~~~~~~~~~~
+
+These are a few solutions we know, ordered from the easiest option to the most complex one:
+
+1. **Recommended option:** install the client in a conda environment, using either Anaconda or Miniforge. For most people this would be the simplest the solution: 
+
+    See: :ref:`windows-dev-install-with-conda`
+
+2. Use some unofficial python wheels for GDAL and Fiona. This is only suitable for development, not for production.
+
+    See: :ref:`windows-dev-install-unofficial-wheels`
+
+3. If you already use Docker or WSL, using either of those is also a good option for you.
+4. Install a C++ compiler and deal with the compilation issues when you install it via pip.
+
 .. _windows-dev-install-with-conda:
 
-Development Installation on Windows with conda
-----------------------------------------------
-
-There are some difficulties to install the development dependencies on Windows.
-Namely, geopandas depends on a few libraries that are a bit trickier to install and for which there is no official python wheel.
+Option 1) Install the client in a conda environment
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The simplest way install your development setup for openeo is to use the conda package manager, either via Anaconda, or via Miniforge.
 
-Anaconda is a commercial product and you can buy support for it. Miniforge is a fully open source alternative, that has a drop-in replacement for the conda command.
-Miniforge uses the `Conda-forge <https://conda-forge.org/>`_ repository by default.
+Anaconda is a commercial product and you can buy support for it. Miniforge is a fully open source alternative that has a drop-in replacement for the conda command.
+Miniforge uses the `Conda-forge <https://conda-forge.org/>`_ channel (which is a package repository) by default.
 
 * `Anaconda <https://anaconda.org/>`_
-
 * `Miniforge on GitHub <https://github.com/conda-forge/miniforge>`_
-
 * `Conda-forge <https://conda-forge.org/>`_
 
-There are some other options as well:
-
-* a) There are unofficial Python wheels for Geopandas, Fiona and GDAL, but as the name says these have no official support, so they are not recommended for production.
-
-* b) If you are comfortable with Linux you can install your development setup in WSL, the Windows Subsystem for Linux. The instructions for Linux should work in WSL in the most common distros.
-
-* c) Dockerize it.
-
-
-The main difficulty is that the geopandas depends on some more difficult libraries.
-One of them is GDAL, which written in C/C++, so it pip can not really manage that (not without a Python wheel).
-So without Python wheels or conda, you may need to install a C++ compiler and set it all up so pip can find it in your Python environment or virtualenv.
-
 The instructions below should work in both Anaconda and Miniforge.
+Though with Miniforge you can simplify the commands a little bit because the conda-forge channel is the default, so you can leave out the option ``-c conda-forge``.
 
 Create a conda environment with the geopandas package already installed.
 This is the step that avoids the hard part.
@@ -174,3 +186,26 @@ In your conda environment, launch the Python interpreter and try the following s
     print(openeo.client_version())
 
 
+.. _windows-dev-install-unofficial-wheels:
+
+Option 2) Use some unofficial python wheels for GDAL and Fiona
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+There are `unofficial Python wheels at https://www.lfd.uci.edu/~gohlke/pythonlibs/: <https://www.lfd.uci.edu/~gohlke/pythonlibs/>`_
+
+But as the name says, these wheels have no official support, so they are not recommended for production.
+They can however help you out for a development environment.
+
+You need to install the wheels for GDAL and Fiona.
+
+* wheels for `Fiona <https://www.lfd.uci.edu/~gohlke/pythonlibs#fiona>`_
+* wheels for `GDAL <https://www.lfd.uci.edu/~gohlke/pythonlibs/#gdal>`_
+
+.. code-block::
+
+    # In your activate virtualenv
+    # install the wheels:
+    pip install <path to GDAL whl file> <path to fiona whl file>
+
+    # And then the regular developer installation command.
+    python -m pip install -e .[dev]
