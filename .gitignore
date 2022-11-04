@@ -99,7 +99,10 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+# IDEs
 .idea
+.vscode
 
 # Unit test related artifacts
 pytest-junit.xml
