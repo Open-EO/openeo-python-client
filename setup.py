@@ -26,6 +26,12 @@ tests_require = [
     'geopandas',
 ]
 
+processing_require = [
+    'rioxarray',
+    'pyproj',
+    'pathlib'
+]
+
 name = 'openeo'
 setup(name=name,
       version=_version['__version__'],
@@ -55,7 +61,8 @@ setup(name=name,
               "sphinx-autodoc-typehints",
               "flake8",
               "myst-parser",
-          ]
+          ],
+          "processing": processing_require
       },
       entry_points={
           "console_scripts": ["openeo-auth=openeo.rest.auth.cli:main"],
