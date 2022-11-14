@@ -1601,6 +1601,7 @@ class DataCube(_ProcessGraphAbstraction):
         Download image collection, e.g. as GeoTIFF.
         If outputfile is provided, the result is stored on disk locally, otherwise, a bytes object is returned.
         The bytes object can be passed on to a suitable decoder for decoding.
+
         :param outputfile: Optional, an output file if the result needs to be stored on disk.
         :param format: Optional, an output format supported by the backend.
         :param options: Optional, file format options
