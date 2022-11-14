@@ -50,7 +50,7 @@ def _build_default_execution_context():
 
 
 @functools.lru_cache(maxsize=100)
-def load_module_from_string(code: str):
+def load_module_from_string(code: str) -> dict:
     """
     Experimental: avoid loading same UDF module more than once, to make caching inside the udf work.
     @param code:

@@ -46,7 +46,7 @@ setup(name=name,
           'numpy>=1.17.0',
           'xarray>=0.12.3',
           'pandas>0.20.0',
-          'deprecated>=1.2.12'
+          'deprecated>=1.2.12',
       ],
       extras_require={
           "dev": tests_require + [
