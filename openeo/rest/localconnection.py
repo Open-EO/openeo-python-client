@@ -228,20 +228,18 @@ def _get_geotiff_metadata(file_path):
 def _get_netcdf_collections(local_collections_path):
     local_collections_netcdfs = glob(local_collections_path + '/*.nc')
     local_collections_list = []
-    if len(local_collections_netcdfs)>0:
-        for local_netcdf in local_collections_netcdfs: 
-            metadata = _get_netcdf_metadata(local_netcdf)
-            local_collections_list.append(metadata)
+    for local_netcdf in local_collections_netcdfs: 
+        metadata = _get_netcdf_metadata(local_netcdf)
+        local_collections_list.append(metadata)
     local_collections_dict = {'collections':local_collections_list}
     return local_collections_dict
 
 def _get_geotiff_collections(local_collections_path):
     local_collections_geotiffs = glob(local_collections_path + '/*.tif*')
     local_collections_list = []
-    if len(local_collections_geotiffs)>0:
-        for local_geotiff in local_collections_geotiffs: 
-            metadata = _get_geotiff_metadata(local_geotiff)
-            local_collections_list.append(metadata)
+    for local_geotiff in local_collections_geotiffs: 
+        metadata = _get_geotiff_metadata(local_geotiff)
+        local_collections_list.append(metadata)
     local_collections_dict = {'collections':local_collections_list}
     return local_collections_dict
 
