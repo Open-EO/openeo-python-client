@@ -1601,20 +1601,29 @@ class DataCube(_ProcessGraphAbstraction):
         Download image collection, e.g. as GeoTIFF.
         If outputfile is provided, the result is stored on disk locally, otherwise, a bytes object is returned.
         The bytes object can be passed on to a suitable decoder for decoding.
-
         :param outputfile: Optional, an output file if the result needs to be stored on disk.
         :param format: Optional, an output format supported by the backend.
         :param options: Optional, file format options
         :return: None if the result is stored to disk, or a bytes object returned by the backend.
         """
-        if not format:
-            format = guess_format(outputfile) if outputfile else "GTiff"
-        # TODO: only add `save_result` node when there is none yet?
-        for p in self.flat_graph().keys():
-            if "save_result" in self.flat_graph()[p]["process_id"] and self.flat_graph()[p]["result"]:
-                cube = self
-            else:
-                cube = self.save_result(format=format, options=options)
+        if self.result_node().process_id == "save_result":
+            # There is already a `save_result` node: check if it is consistent with given format/options
+            args = self.result_node().arguments
+            if format is not None and format.lower() != args["format"].lower():
+                raise ValueError(
+                    f"Existing `save_result` node with different format {args['format']!r} != {format!r}"
+                )
+            if options is not None and options != args["options"]:
+                raise ValueError(
+                    f"Existing `save_result` node with different options {args['options']!r} != {options!r}"
+                )
+            cube = self
+        else:
+            # No `save_result` node yet: automatically add it.
+            if not format:
+                format = guess_format(outputfile) if outputfile else "GTiff"
+            cube = self.save_result(format=format, options=options)
+
         return self._connection.download(cube.flat_graph(), outputfile)
 
     def validate(self) -> List[dict]:
