@@ -24,7 +24,6 @@ from openeo.internal.jupyter import VisualDict, VisualList
 from openeo.internal.processes.builder import ProcessBuilderBase
 from openeo.internal.warnings import legacy_alias, deprecated
 from openeo.metadata import CollectionMetadata
-
 from openeo.rest import OpenEoClientException, OpenEoApiError, OpenEoRestError
 from openeo.rest.auth.auth import NullAuth, BearerAuth, BasicBearerAuth, OidcBearerAuth, OidcRefreshInfo
 from openeo.rest.auth.config import RefreshTokenStore, AuthConfig
@@ -40,9 +39,9 @@ from openeo.rest.service import Service
 from openeo.rest.udp import RESTUserDefinedProcess, Parameter
 from openeo.util import ensure_list, dict_no_none, rfc3339, load_json_resource, LazyLoadCache, \
     ContextTimer, str_truncate
-from openeo.rest.localconnection import LocalConnection
 
 _log = logging.getLogger(__name__)
+
 
 def url_join(root_url: str, path: str):
     """Join a base url and sub path properly."""
@@ -204,7 +203,8 @@ class RestApiConnection:
 
     def __repr__(self):
         return "<{c} to {r!r} with {a}>".format(c=type(self).__name__, r=self._root_url, a=type(self.auth).__name__)
-    
+
+
 class Connection(RestApiConnection):
     """
     Connection to an openEO backend.
@@ -1291,23 +1291,17 @@ def connect(
 
     if not url:
         raise OpenEoClientException("No openEO back-end URL given or known to connect to.")
-    
-    try:
-        connection = Connection(url, session=session, default_timeout=default_timeout)
-        auth_type = auth_type.lower() if isinstance(auth_type, str) else auth_type
-        if auth_type in {None, False, 'null', 'none'}:
-            pass
-        elif auth_type == "basic":
-            connection.authenticate_basic(**(auth_options or {}))
-        elif auth_type in {"oidc", "openid"}:
-            connection.authenticate_oidc(**(auth_options or {}))
-        else:
-            raise ValueError("Unknown auth type {a!r}".format(a=auth_type))
-    except Exception as e:
-        if Path(url).exists():
-            connection = LocalConnection(url)
-        else:
-            raise e
+    connection = Connection(url, session=session, default_timeout=default_timeout)
+
+    auth_type = auth_type.lower() if isinstance(auth_type, str) else auth_type
+    if auth_type in {None, False, 'null', 'none'}:
+        pass
+    elif auth_type == "basic":
+        connection.authenticate_basic(**(auth_options or {}))
+    elif auth_type in {"oidc", "openid"}:
+        connection.authenticate_oidc(**(auth_options or {}))
+    else:
+        raise ValueError("Unknown auth type {a!r}".format(a=auth_type))
     return connection
 
 
