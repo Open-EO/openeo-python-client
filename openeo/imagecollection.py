@@ -7,9 +7,10 @@ from typing import List, Dict, Union, Tuple, Callable
 from deprecated import deprecated
 from shapely.geometry import Polygon, MultiPolygon
 
+from openeo.internal.warnings import legacy_alias
 from openeo.rest.job import BatchJob, RESTJob
 from openeo.rest.service import Service
-from openeo.util import get_temporal_extent, first_not_none, dict_no_none, legacy_alias
+from openeo.util import get_temporal_extent, first_not_none, dict_no_none
 
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).

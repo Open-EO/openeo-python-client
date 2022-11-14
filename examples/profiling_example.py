@@ -5,11 +5,6 @@ import tarfile
 import tempfile
 import pstats
 
-# reading NDVI compute UDF from file
-class UDFString():
-    def __init__(self, filename):
-        with open(str(Path(filename)), 'r+') as f:
-            self.value=f.read()
 
 if __name__ == '__main__':
 
@@ -24,7 +19,7 @@ if __name__ == '__main__':
             [5.047760653506093, 51.21384099522948, 5.062440732032759, 51.22255852538937]
         )))\
         .filter_bands(["B04", "B08"])
-    data=data.apply_dimension(UDFString('udf/udf_profiling_ndvi.py').value, dimension='t',runtime="Python")
+    data=data.apply_dimension(process=openeo.UDF.from_file('udf/udf_profiling_ndvi.py'), dimension='t')
  
     # enable profiling and run the process
     # IMPORTANT: profiling can only be enabled in batch mode

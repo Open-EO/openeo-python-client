@@ -3,13 +3,11 @@ Various utilities and helpers.
 """
 import datetime as dt
 import functools
-import inspect
 import json
 import logging
 import re
 import sys
 import time
-import warnings
 from collections import OrderedDict
 from pathlib import Path
 from typing import Any, Union, Tuple, Callable, Optional
@@ -97,7 +95,7 @@ class Rfc3339:
 
     def normalize(self, x: Any, *args) -> Union[str, None]:
         """
-        Format given date(time)-like object as RFC-333 date or date-time string depending on given resolution
+        Format given date(time)-like object as RFC-3339 date or date-time string depending on given resolution
 
             >>> rfc3339.normalize("2020/03/17")
             "2020-03-17"
@@ -458,51 +456,6 @@ def load_json_resource(src: Union[str, Path]) -> dict:
     raise ValueError(src)
 
 
-def legacy_alias(orig: Callable, name: str, action="always", category=DeprecationWarning):
-    """
-    Create legacy alias of given function/method/classmethod/staticmethod
-
-    :param orig: function/method to create legacy alias for
-    :param name: name of the alias
-    :return:
-    """
-    post_process = None
-    if isinstance(orig, classmethod):
-        post_process = classmethod
-        orig = orig.__func__
-        kind = "class method"
-    elif isinstance(orig, staticmethod):
-        post_process = staticmethod
-        orig = orig.__func__
-        kind = "static method"
-    elif inspect.ismethod(orig) or "self" in inspect.signature(orig).parameters:
-        kind = "method"
-    elif inspect.isfunction(orig):
-        kind = "function"
-    else:
-        raise ValueError(orig)
-
-    msg = "Call to deprecated {k} `{n}`, use `{o}` instead.".format(k=kind, n=name, o=orig.__name__)
-
-    @functools.wraps(orig)
-    def wrapper(*args, **kwargs):
-        # This is based on warning handling/throwing implemented in `deprecated` package
-        with warnings.catch_warnings():
-            warnings.simplefilter(action, category)
-            warnings.warn(msg, category=category, stacklevel=2)
-
-        return orig(*args, **kwargs)
-
-    # TODO: make this more Sphinx aware
-    wrapper.__doc__ = "Use of this legacy {k} is deprecated, use :py:{r}:`.{o}` instead.".format(
-        k=kind, r="meth" if "method" in kind else "func", o=orig.__name__
-    )
-
-    if post_process:
-        wrapper = post_process(wrapper)
-    return wrapper
-
-
 class LazyLoadCache:
     """Simple cache that allows to (lazy) load on cache miss."""
 
@@ -517,12 +470,22 @@ class LazyLoadCache:
 
 def str_truncate(text: str, width: int = 64, ellipsis: str = "...") -> str:
     """Shorten a string (with an ellipsis) if it is longer than certain length."""
-    assert width >= 0
+    width = max(0, int(width))
     if len(text) <= width:
         return text
     if len(ellipsis) > width:
         ellipsis = ellipsis[:width]
     return text[:max(0, (width - len(ellipsis)))] + ellipsis
+
+
+def repr_truncate(obj: Any, width: int = 64, ellipsis: str = "...") -> str:
+    """Do `repr` rendering of an object, but truncate string if it is too long ."""
+    if isinstance(obj, str) and width > len(ellipsis) + 2:
+        # Special case: put ellipsis inside quotes
+        return repr(str_truncate(text=obj, width=width - 2, ellipsis=ellipsis))
+    else:
+        # General case: just put ellipsis at end
+        return str_truncate(text=repr(obj), width=width, ellipsis=ellipsis)
 
 
 def in_interactive_mode() -> bool:

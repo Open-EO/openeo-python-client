@@ -11,6 +11,7 @@ COMPONENT_MAP = {
     'file-formats': 'formats',
     'item': 'data',
     'job-estimate': 'estimate',
+    'model-builder': 'value',
     'service-type': 'service',
     'service-types': 'services',
     'udf-runtime': 'runtime',

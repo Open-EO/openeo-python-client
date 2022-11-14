@@ -9,11 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Jupyter integration: show process graph visualization of `DataCube` objects instead of generic `repr`.  ([#336](https://github.com/Open-EO/openeo-python-client/issues/336))
+
 ### Changed
 
 ### Removed
 
 ### Fixed
+
+
+## [0.13.0] - 2022-10-10 - "UDF UX" release
+
+### Added
+
+- Add `max_cloud_cover` argument to `load_collection()` to simplify setting maximum cloud cover (property `eo:cloud_cover`) ([#328](https://github.com/Open-EO/openeo-python-client/issues/328))
+
+### Changed
+- Improve default dimension metadata of a datacube created with `openeo.rest.datacube.DataCube.load_disk_collection`
+- `DataCube.download()`: only automatically add `save_result` node when there is none yet.
+- Deprecation warnings: make sure they are shown by default and can be hidden when necessary.
+- Rework and improve `openeo.UDF` helper class for UDF usage
+  ([#312](https://github.com/Open-EO/openeo-python-client/issues/312)).
+    - allow loading directly from local file or URL
+    - autodetect `runtime` from file/URL suffix or source code
+    - hide implementation details around `data` argument (e.g.`data={"from_parameter": "x"}`)
+    - old usage patterns of `openeo.UDF` and `DataCube.apply_dimension()` still work but trigger deprecation warnings
+- Show warning when using `load_collection` property filters that are not defined in the collection metadata (summaries).
+
 
 
 ## [0.12.1] - 2022-09-15

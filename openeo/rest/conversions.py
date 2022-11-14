@@ -6,8 +6,8 @@ import typing
 
 import numpy as np
 import pandas
-from deprecated.sphinx import deprecated
 
+from openeo.internal.warnings import deprecated
 
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).

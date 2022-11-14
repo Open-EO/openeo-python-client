@@ -118,3 +118,6 @@ openeo-*.whl
 # Sphinx output folders
 _build
 
+# GitHub Actions build downloads
+artifact*.zip
+

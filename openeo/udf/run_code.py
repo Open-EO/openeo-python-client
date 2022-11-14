@@ -18,6 +18,7 @@ import shapely
 import xarray
 from pandas import Series
 
+import openeo
 from openeo.udf import OpenEoUdfException
 from openeo.udf.feature_collection import FeatureCollection
 from openeo.udf.structured_data import StructuredData
@@ -43,11 +44,7 @@ def _build_default_execution_context():
         # "SpatialExtent": SpatialExtent,  # TODO?
         # "MachineLearnModel": MachineLearnModelConfig, # TODO?
     }
-    for name in ["geopandas", "torch", "torchvision", "tensorflow", "tensorboard"]:
-        try:
-            context[name] = importlib.import_module(name)
-        except ImportError:
-            _log.info("Module {m} not available for UDF execution context".format(m=name))
+
 
     return context
 
@@ -186,7 +183,7 @@ def run_udf_code(code: str, data: UdfData) -> UdfData:
     raise OpenEoUdfException("No UDF found.")
 
 
-def execute_local_udf(udf: str, datacube: Union[str, xarray.DataArray, XarrayDataCube], fmt='netcdf'):
+def execute_local_udf(udf: Union[str, openeo.UDF], datacube: Union[str, xarray.DataArray, XarrayDataCube], fmt='netcdf'):
     """
     Locally executes an user defined function on a previously downloaded datacube.
 
@@ -195,6 +192,8 @@ def execute_local_udf(udf: str, datacube: Union[str, xarray.DataArray, XarrayDat
     :param fmt: format of the file if datacube is string
     :return: the resulting DataCube
     """
+    if isinstance(udf, openeo.UDF):
+        udf = udf.code
 
     if isinstance(datacube, (str, pathlib.Path)):
         d = XarrayDataCube.from_file(path=datacube, fmt=fmt)

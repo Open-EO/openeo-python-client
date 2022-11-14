@@ -9,30 +9,31 @@ from openeo.rest.datacube import DataCube
 
 API_URL = "https://oeo.test"
 
+DEFAULT_S2_METADATA = {
+    "cube:dimensions": {
+        "x": {"type": "spatial"},
+        "y": {"type": "spatial"},
+        "t": {"type": "temporal"},
+        "bands": {"type": "bands", "values": ["B02", "B03", "B04", "B08"]}
+    },
+    "summaries": {
+        "eo:bands": [
+            {"name": "B02", "common_name": "blue", "center_wavelength": 0.4966},
+            {"name": "B03", "common_name": "green", "center_wavelength": 0.560},
+            {"name": "B04", "common_name": "red", "center_wavelength": 0.6645},
+            {"name": "B08", "common_name": "nir", "center_wavelength": 0.8351},
+        ]
+    },
+}
+
 
 def _setup_connection(api_version, requests_mock) -> Connection:
     # TODO: make this more reusable?
     requests_mock.get(API_URL + "/", json={"api_version": api_version})
-    s2_properties = {
-        "cube:dimensions": {
-            "x": {"type": "spatial"},
-            "y": {"type": "spatial"},
-            "t": {"type": "temporal"},
-            "bands": {"type": "bands", "values": ["B02", "B03", "B04", "B08"]}
-        },
-        "summaries": {
-            "eo:bands": [
-                {"name": "B02", "common_name": "blue", "center_wavelength": 0.4966},
-                {"name": "B03", "common_name": "green", "center_wavelength": 0.560},
-                {"name": "B04", "common_name": "red", "center_wavelength": 0.6645},
-                {"name": "B08", "common_name": "nir", "center_wavelength": 0.8351},
-            ]
-        },
-    }
     # Classic Sentinel2 collection
-    requests_mock.get(API_URL + "/collections/SENTINEL2_RADIOMETRY_10M", json=s2_properties)
+    requests_mock.get(API_URL + "/collections/SENTINEL2_RADIOMETRY_10M", json=DEFAULT_S2_METADATA)
     # Alias for quick tests
-    requests_mock.get(API_URL + "/collections/S2", json=s2_properties)
+    requests_mock.get(API_URL + "/collections/S2", json=DEFAULT_S2_METADATA)
     # Some other collections
     setup_collection_metadata(requests_mock=requests_mock, cid="MASK", bands=["CLOUDS", "WATER"])
     setup_collection_metadata(requests_mock=requests_mock, cid="SENTINEL2_SCF", bands=["SCENECLASSIFICATION", "MSK"])
@@ -43,6 +44,10 @@ def _setup_connection(api_version, requests_mock) -> Connection:
             "netCDF": {"gis_data_types": ["raster"]},
             "csv": {"gis_data_types": ["table"]},
         }
+    })
+    requests_mock.get(API_URL + "/udf_runtimes", json={
+        "Python": {"type": "language", "default": "3", "versions": {"3": {"libraries": {}}}},
+        "R": {"type": "language", "default": "4", "versions": {"4": {"libraries": {}}}},
     })
 
     return openeo.connect(API_URL)
