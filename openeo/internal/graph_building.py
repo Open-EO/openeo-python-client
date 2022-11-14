@@ -10,7 +10,7 @@ from typing import Union, Dict, Any, Optional
 from openeo.api.process import Parameter
 from openeo.internal.process_graph_visitor import ProcessGraphVisitor, ProcessGraphUnflattener, \
     ProcessGraphVisitException
-from openeo.util import legacy_alias, dict_no_none, load_json_resource
+from openeo.util import dict_no_none, load_json_resource
 
 
 class _FromNodeMixin(abc.ABC):
@@ -18,6 +18,10 @@ class _FromNodeMixin(abc.ABC):
 
     @abc.abstractmethod
     def from_node(self) -> "PGNode":
+        # TODO: "from_node" is a bit a confusing name:
+        #       it refers to the "from_node" node reference in openEO process graphs,
+        #       but as a method name here it read like "construct from PGNode",
+        #       while it is actually meant as "export as PGNode" (that can be used in a "from_node" reference).
         pass
 
 
@@ -154,26 +158,6 @@ def as_flat_graph(x: Union[dict, Any]) -> dict:
         # Assume a JSON resource (raw JSON, path to local file, JSON url, ...)
         return load_json_resource(x)
     raise ValueError(x)
-
-
-class UDF(PGNode):
-    """
-    A 'run_udf' process graph node. This is offered as a convenient way to construct run_udf processes.
-    """
-
-    def __init__(self, code: str, runtime: str, data, version: str = None, context: Dict = None):
-        arguments = {
-            "data": data,
-            "udf": code,
-            "runtime": runtime
-        }
-        if version is not None:
-            arguments["version"] = version
-
-        if context is not None:
-            arguments["context"] = context
-
-        super().__init__(process_id='run_udf', arguments=arguments)
 
 
 class ReduceNode(PGNode):

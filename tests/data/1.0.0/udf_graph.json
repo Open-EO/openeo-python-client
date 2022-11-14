@@ -24,7 +24,6 @@
                   "from_parameter": "data"
                 },
                 "runtime": "Python",
-                "version": "latest",
                 "udf": "def myfunction(tile):\n    print(tile)\n    return tile"
               },
               "result": true

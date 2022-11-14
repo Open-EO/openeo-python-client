@@ -4,10 +4,11 @@ import sys
 import typing
 from pathlib import Path
 from typing import Optional, Union, Tuple
+import uuid
 
 from openeo.internal.compat import nullcontext
 from openeo.internal.graph_building import PGNode, _FromNodeMixin
-from openeo.util import legacy_alias
+from openeo.internal.jupyter import render_component
 
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).
@@ -125,3 +126,12 @@ class _ProcessGraphAbstraction(_FromNodeMixin):
         return PGNode(process_id=process_id, arguments=arguments, namespace=namespace)
 
     # TODO #278 also move process graph "execution" methods here: `download`, `execute`, `execute_batch`, `create_job`, `save_udf`,  ...
+
+    def _repr_html_(self):
+        process = {"process_graph": self.flat_graph()}
+        parameters = {
+            'id': uuid.uuid4().hex,
+            'explicit-zoom': True,
+            'height': '400px'
+        }
+        return render_component('model-builder', data = process, parameters = parameters)

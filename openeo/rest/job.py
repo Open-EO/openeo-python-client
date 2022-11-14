@@ -7,11 +7,11 @@ import typing
 from pathlib import Path
 from typing import List, Union, Dict, Optional
 
-from deprecated.sphinx import deprecated
 import requests
 
 from openeo.api.logs import LogEntry
 from openeo.internal.jupyter import render_component, render_error, VisualDict, VisualList
+from openeo.internal.warnings import deprecated
 from openeo.rest import OpenEoClientException, JobFailedException, OpenEoApiError
 from openeo.util import ensure_dir
 

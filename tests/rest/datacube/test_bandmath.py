@@ -9,12 +9,12 @@ Band math related tests against both
 import numpy as np
 import pytest
 
+import openeo
 from openeo.rest import BandMathException
 from .. import get_download_graph
 from ..conftest import reset_graphbuilder
 from ... import load_json_resource
 from .test_datacube import _get_leaf_node
-
 
 
 def test_band_basic(connection, api_version):
@@ -130,21 +130,27 @@ def test_db_to_natural(con100):
     assert natural.flat_graph() == expected_graph
 
 
-def test_ndvi_udf(connection, api_version):
+def test_ndvi_reduce_bands_udf(connection, api_version):
+    # TODO #181 #312 drop this deprecated pattern
     s2_radio = connection.load_collection("SENTINEL2_RADIOMETRY_10M")
-    ndvi_coverage = s2_radio.reduce_bands_udf("def myfunction(tile):\n"
-                                         "    print(tile)\n"
-                                         "    return tile")
+    ndvi_coverage = s2_radio.reduce_bands_udf("def myfunction(tile):\n    print(tile)\n    return tile")
     actual_graph = get_download_graph(ndvi_coverage)
     expected_graph = load_json_resource('data/%s/udf_graph.json' % api_version)["process_graph"]
     assert actual_graph == expected_graph
 
 
-def test_ndvi_udf_v100(con100):
+def test_ndvi_reduce_bands_udf_legacy_v100(con100):
+    # TODO #181 #312 drop this deprecated pattern
     s2_radio = con100.load_collection("SENTINEL2_RADIOMETRY_10M")
-    ndvi_coverage = s2_radio.reduce_bands_udf("def myfunction(tile):\n"
-                                              "    print(tile)\n"
-                                              "    return tile")
+    ndvi_coverage = s2_radio.reduce_bands_udf("def myfunction(tile):\n    print(tile)\n    return tile")
+    actual_graph = get_download_graph(ndvi_coverage)
+    expected_graph = load_json_resource('data/1.0.0/udf_graph.json')["process_graph"]
+    assert actual_graph == expected_graph
+
+
+def test_ndvi_reduce_bands_udf_v100(con100):
+    s2_radio = con100.load_collection("SENTINEL2_RADIOMETRY_10M")
+    ndvi_coverage = s2_radio.reduce_bands(openeo.UDF("def myfunction(tile):\n    print(tile)\n    return tile"))
     actual_graph = get_download_graph(ndvi_coverage)
     expected_graph = load_json_resource('data/1.0.0/udf_graph.json')["process_graph"]
     assert actual_graph == expected_graph
@@ -363,7 +369,7 @@ def test_normalized_difference(connection, api_version):
 
 def test_ln(con100):
     result = con100.load_collection("S2").band('B04').ln()
-    assert result.flat_graph() == load_json_resource('data/1.0.0/bm_ln.json' )
+    assert result.flat_graph() == load_json_resource('data/1.0.0/bm_ln.json')
 
 
 def test_log10(con100):
@@ -377,6 +383,7 @@ def test_log2(con100):
         'data/1.0.0/bm_log.json',
         preprocess=lambda s: s.replace('"base": 10', '"base": 2')
     )
+
 
 def test_log3(con100):
     result = con100.load_collection("S2").band('B04').logarithm(base=3)

@@ -88,13 +88,19 @@ One example is filtering on the relative orbit number of SAR data. This example 
         }
     )
 
-A similar and very useful example is to pre-filter Sentinel-2 products on cloud cover. This avoids loading clouded data,
-and increases performance::
+A similar and very useful example is to pre-filter Sentinel-2 products on cloud cover.
+This avoids loading clouded data unnecessarily and increases performance.
+:py:meth:`Connection.load_collection() <openeo.rest.connection.Connection.load_collection>` provides
+a dedicated ``max_cloud_cover`` argument (shortcut for the ``eo:cloud_cover`` property) for that:
+
+.. code-block:: python
 
     connection.load_collection("SENTINEL2_L2A",
-        spatial_extent={'west':3.7582164,'east':4.087806,'south':51.291,'north':51.39},
-        temporal_extent=["2021-05-07","2021-05-14"],bands=['B04','B03','B02'],
-        properties={"eo:cloud_cover": lambda v: v == 80} )
+        spatial_extent={'west': 3.75, 'east': 4.08, 'south': 51.29, 'north': 51.39},
+        temporal_extent=["2021-05-07", "2021-05-14"],
+        bands=['B04', 'B03', 'B02'],
+        max_cloud_cover=80,
+    )
 
 Note that property names follow STAC metadata conventions, but some collections can have different names.
 
