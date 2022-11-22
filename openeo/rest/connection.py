@@ -37,6 +37,7 @@ from openeo.rest.job import BatchJob, RESTJob
 from openeo.rest.rest_capabilities import RESTCapabilities
 from openeo.rest.service import Service
 from openeo.rest.udp import RESTUserDefinedProcess, Parameter
+from openeo.rest.vectorcube import VectorCube
 from openeo.util import ensure_list, dict_no_none, rfc3339, load_json_resource, LazyLoadCache, \
     ContextTimer, str_truncate
 
@@ -898,6 +899,19 @@ class Connection(RestApiConnection):
     def _api_version(self) -> ComparableVersion:
         # TODO make this a public property (it's also useful outside the Connection class)
         return self.capabilities().api_version_check
+
+    def vectorcube_from_paths(self, paths:List[str], format:str, options:dict={}) -> VectorCube:
+        """
+        Loads one or more files referenced by url or path that is accessible by the backend.
+
+        :param paths: The files to read.
+        :param format:  The file format to read from. It must be one of the values that the server reports as supported input file formats.
+        :param options: The file format parameters to be used to read the files. Must correspond to the parameters that the server reports as supported parameters for the chosen format.
+
+        :return: A :py:class:`VectorCube`.
+        """
+        graph = PGNode("load_uploaded_files", arguments=dict(paths=paths,format=format,options=options))
+        return VectorCube(graph=graph, connection=self)
 
     def datacube_from_process(self, process_id: str, namespace: str = None, **kwargs) -> DataCube:
         """
