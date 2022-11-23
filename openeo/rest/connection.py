@@ -900,7 +900,9 @@ class Connection(RestApiConnection):
         # TODO make this a public property (it's also useful outside the Connection class)
         return self.capabilities().api_version_check
 
-    def vectorcube_from_paths(self, paths:List[str], format:str, options:dict={}) -> VectorCube:
+    def vectorcube_from_paths(
+        self, paths: List[str], format: str, options: dict = {}
+    ) -> VectorCube:
         """
         Loads one or more files referenced by url or path that is accessible by the backend.
 
@@ -910,7 +912,10 @@ class Connection(RestApiConnection):
 
         :return: A :py:class:`VectorCube`.
         """
-        graph = PGNode("load_uploaded_files", arguments=dict(paths=paths,format=format,options=options))
+        graph = PGNode(
+            "load_uploaded_files",
+            arguments=dict(paths=paths, format=format, options=options),
+        )
         return VectorCube(graph=graph, connection=self)
 
     def datacube_from_process(self, process_id: str, namespace: str = None, **kwargs) -> DataCube:

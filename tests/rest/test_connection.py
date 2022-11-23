@@ -2402,15 +2402,18 @@ def test_version_info(requests_mock, capabilities, expected):
     con = Connection(API_URL)
     assert con.version_info() == expected
 
+
 def test_vectorcube_from_paths(requests_mock):
-    requests_mock.get("https://oeo.test/", json={"api_version": "1.1.0"})
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     con = Connection(API_URL)
-    vc = con.vectorcube_from_paths(["mydata.pq"],format="parquet")
-    assert {'loaduploadedfiles1': {'arguments': {'format': 'parquet',
-                                      'options': {},
-                                      'paths': ['mydata.pq']},
-                        'process_id': 'load_uploaded_files',
-                        'result': True}} == vc.flat_graph()
+    vc = con.vectorcube_from_paths(["mydata.pq"], format="parquet")
+    assert vc.flat_graph() == {
+        "loaduploadedfiles1": {
+            "process_id": "load_uploaded_files",
+            "arguments": {"paths": ["mydata.pq"], "format": "parquet", "options": {}},
+            "result": True,
+        }
+    }
 
 
 class TestExecute:
