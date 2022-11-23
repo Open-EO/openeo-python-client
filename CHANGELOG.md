@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Jupyter integration: show process graph visualization of `DataCube` objects instead of generic `repr`.  ([#336](https://github.com/Open-EO/openeo-python-client/issues/336))
+- Add `Connection.vectorcube_from_paths()` to load a vector cube 
+  from files (on back-end) or URLs with `load_uploaded_files` process.
 
 ### Changed
 
