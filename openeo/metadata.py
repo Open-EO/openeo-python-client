@@ -442,5 +442,15 @@ class CollectionMetadata:
     def _repr_html_(self):
         return render_component('collection', data=self._orig_metadata)
 
+    def as_dict(self):
+        """
+        Return dictionary following STAC metadata spec.
+        Returns:
+
+        """
+
+        dimensions = {d.name:{"type":d.type} for d in self._dimensions}
+        return {"cube:dimensions":dimensions}
+
     def __str__(self) -> str:
         return f"CollectionMetadata({self.extent} - {self.band_names} - {self.dimension_names()})"
