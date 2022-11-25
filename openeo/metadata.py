@@ -215,6 +215,10 @@ class CollectionMetadata:
         else:
             return cls(metadata=metadata or {})
 
+    def __eq__(self, o: object) -> bool:
+        return self._dimensions == o._dimensions
+
+
     def _clone_and_update(
             self, metadata: dict = None, dimensions: List[Dimension] = None, **kwargs
     ) -> 'CollectionMetadata':
