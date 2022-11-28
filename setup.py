@@ -26,10 +26,9 @@ tests_require = [
     'geopandas',
 ]
 
-processing_require = [
+localprocessing_require = [
     'rioxarray',
-    'pyproj',
-    'pathlib'
+    'pyproj'
 ]
 
 name = 'openeo'
@@ -62,7 +61,7 @@ setup(name=name,
               "flake8",
               "myst-parser",
           ],
-          "processing": processing_require
+          "localprocessing": localprocessing_require
       },
       entry_points={
           "console_scripts": ["openeo-auth=openeo.rest.auth.cli:main"],

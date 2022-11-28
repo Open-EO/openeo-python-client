@@ -16,7 +16,6 @@ from openeo.imagecollection import ImageCollection
 from openeo.rest.datacube import DataCube, UDF
 from openeo.rest.connection import connect, session, Connection
 from openeo.rest.job import BatchJob, RESTJob
-from openeo.local.connection import LocalConnection
 
 def client_version() -> str:
     try:

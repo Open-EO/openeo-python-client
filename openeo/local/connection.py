@@ -2,7 +2,6 @@ import datetime
 import xarray as xr
 import numpy as np
 import rioxarray
-from glob import glob
 from pathlib import Path
 from pyproj import Transformer
 from typing import Dict, List, Tuple, Union, Callable, Optional, Any, Iterator
@@ -13,40 +12,19 @@ from openeo.rest.datacube import DataCube
 from openeo.internal.jupyter import VisualDict, VisualList
 
 def _get_temporal_dimension(dims):
-    if 't' in dims:
-        return 't'
-    elif 'time' in dims:
-        return 'time'
-    elif 'temporal' in dims:
-        return 'temporal'
-    elif 'DATE' in dims:
-        return 'DATE'
-    else:
-        return None
+    for field in ['t', 'time', 'temporal', 'DATE']:
+        if field in dims:
+            return field
 
 def _get_x_spatial_dimension(dims):
-    if 'x' in dims:
-        return 'x'
-    elif 'X' in dims:
-        return 'X'
-    elif 'lon' in dims:
-        return 'lon'
-    elif 'longitude' in dims:
-        return 'longitude'
-    else:
-        return None
+    for field in ['x', 'X', 'lon', 'longitude']:
+        if field in dims:
+            return field
 
 def _get_y_spatial_dimension(dims):
-    if 'y' in dims:
-        return 'y'
-    elif 'Y' in dims:
-        return 'Y'
-    elif 'lat' in dims:
-        return 'lat'
-    elif 'latitude' in dims:
-        return 'latitude'
-    else:
-        return None
+    for field in ['y', 'Y', 'lat', 'latitude']:
+        if field in dims:
+            return field
 
 def _get_netcdf_metadata(file_path):
     data = xr.open_dataset(file_path,chunks={})
@@ -226,19 +204,19 @@ def _get_geotiff_metadata(file_path):
     return metadata
 
 def _get_netcdf_collections(local_collections_path):
-    local_collections_netcdfs = glob(local_collections_path + '/*.nc')
+    local_collections_netcdfs = Path(local_collections_path).glob('*.nc')
     local_collections_list = []
     for local_netcdf in local_collections_netcdfs: 
-        metadata = _get_netcdf_metadata(local_netcdf)
+        metadata = _get_netcdf_metadata(local_netcdf.as_posix())
         local_collections_list.append(metadata)
     local_collections_dict = {'collections':local_collections_list}
     return local_collections_dict
 
 def _get_geotiff_collections(local_collections_path):
-    local_collections_geotiffs = glob(local_collections_path + '/*.tif*')
+    local_collections_geotiffs = Path(local_collections_path).glob('*.tif*')
     local_collections_list = []
     for local_geotiff in local_collections_geotiffs: 
-        metadata = _get_geotiff_metadata(local_geotiff)
+        metadata = _get_geotiff_metadata(local_geotiff.as_posix())
         local_collections_list.append(metadata)
     local_collections_dict = {'collections':local_collections_list}
     return local_collections_dict
@@ -254,7 +232,7 @@ class LocalConnection():
 
         :param local_collections_path: String path to the folder with the local collections in netCDF or geoTIFF
         """
-        self.local_collections_path = local_collections_path.split('file://')[-1]
+        self.local_collections_path = local_collections_path
         
     def list_collections(self) -> List[dict]:
         """
