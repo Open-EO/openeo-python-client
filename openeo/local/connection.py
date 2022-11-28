@@ -11,26 +11,17 @@ from openeo.internal.graph_building import PGNode
 from openeo.rest.datacube import DataCube
 from openeo.internal.jupyter import VisualDict, VisualList
 
-def _get_temporal_dimension(dims):
-    for field in ['t', 'time', 'temporal', 'DATE']:
-        if field in dims:
-            return field
-
-def _get_x_spatial_dimension(dims):
-    for field in ['x', 'X', 'lon', 'longitude']:
-        if field in dims:
-            return field
-
-def _get_y_spatial_dimension(dims):
-    for field in ['y', 'Y', 'lat', 'latitude']:
-        if field in dims:
-            return field
-
+def _get_dimension(dims: dict, candidates: List[str]):
+    for name in candidates:
+        if name in dims:
+            return name
+        
 def _get_netcdf_metadata(file_path):
     data = xr.open_dataset(file_path,chunks={})
-    t_dim = _get_temporal_dimension(data.dims)
-    x_dim = _get_x_spatial_dimension(data.dims)
-    y_dim = _get_y_spatial_dimension(data.dims)
+    
+    t_dim = _get_dimension(data.dims, ['t', 'time', 'temporal', 'DATE'])
+    x_dim = _get_dimension(data.dims, ["x", "X", "lon", "longitude"])
+    y_dim = _get_dimension(data.dims, ['y', 'Y', 'lat', 'latitude'])
 
     metadata = {}
     metadata['stac_version'] = '1.0.0-rc.2'
@@ -112,9 +103,9 @@ def _get_netcdf_metadata(file_path):
 def _get_geotiff_metadata(file_path):
     data = rioxarray.open_rasterio(file_path,chunks={})
 
-    t_dim = _get_temporal_dimension(data.dims)
-    x_dim = _get_x_spatial_dimension(data.dims)
-    y_dim = _get_y_spatial_dimension(data.dims)
+    t_dim = _get_dimension(data.dims, ['t', 'time', 'temporal', 'DATE'])
+    x_dim = _get_dimension(data.dims, ["x", "X", "lon", "longitude"])
+    y_dim = _get_dimension(data.dims, ['y', 'Y', 'lat', 'latitude'])
 
     metadata = {}
     metadata['stac_version'] = '1.0.0-rc.2'
