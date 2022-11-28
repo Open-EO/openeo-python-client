@@ -236,6 +236,8 @@ In the next steps we will address cloud masking.
 
 .. image:: _static/images/basics/evi-composite.png
 
+# (Is it possible to add a note about the visualization of the evi-composite.png here? In my case, despite following the above-mentioned steps for evi computation and simple visualization, I see a different image than what is shown in the result, which I believe is due to the value range used when plotting the image. Nevertheless, when we use the same result for the next step of masking cloud, we get the result shown in the documentation.)
+
 
 Batch Jobs (asynchronous execution)
 ===================================
