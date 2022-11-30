@@ -16,14 +16,15 @@ import requests_mock
 import openeo
 from openeo.capabilities import ComparableVersion
 from openeo.internal.graph_building import PGNode
-from openeo.rest import OpenEoClientException, OpenEoApiError, OpenEoRestError
-from openeo.rest.auth.auth import NullAuth, BearerAuth
+from openeo.rest import OpenEoApiError, OpenEoClientException, OpenEoRestError
+from openeo.rest.auth.auth import BearerAuth, NullAuth
 from openeo.rest.auth.oidc import OidcException
+from openeo.rest.auth.testing import ABSENT, OidcMock, assert_device_code_poll_sleep
 from openeo.rest.connection import Connection, RestApiConnection, connect, paginate
 from openeo.util import ContextTimer
-from .auth.test_cli import auth_config, refresh_token_store
-from .auth.test_oidc import OidcMock, assert_device_code_poll_sleep, ABSENT
+
 from .. import load_json_resource
+from .auth.test_cli import auth_config, refresh_token_store
 
 API_URL = "https://oeo.test/"
 

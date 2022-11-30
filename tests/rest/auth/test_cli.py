@@ -6,7 +6,7 @@ import pytest
 from openeo.rest.auth import cli
 from openeo.rest.auth.cli import CliToolException
 from openeo.rest.auth.config import AuthConfig, RefreshTokenStore
-from .test_oidc import OidcMock, assert_device_code_poll_sleep
+from openeo.rest.auth.testing import OidcMock, assert_device_code_poll_sleep
 
 
 def mock_input(*args: str):
