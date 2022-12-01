@@ -19,10 +19,10 @@ This allows you to build your own *library of reusable building blocks*.
 
 .. warning::
 
-    Don not confuse **user-defined processes** (sometimes abbreviated as UDP) with
+    Do not confuse **user-defined processes** (sometimes abbreviated as UDP) with
     **user-defined functions** (UDF) in openEO, which is a mechanism to
     inject Python or R scripts as process nodes in a process graph.
-    see :ref:`user-defined-functions` for more information.
+    See :ref:`user-defined-functions` for more information.
 
 A user-defined process can not only be constructed from
 pre-defined processes provided by the back-end,
