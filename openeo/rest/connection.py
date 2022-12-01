@@ -38,15 +38,18 @@ from openeo.rest.rest_capabilities import RESTCapabilities
 from openeo.rest.service import Service
 from openeo.rest.udp import RESTUserDefinedProcess, Parameter
 from openeo.rest.vectorcube import VectorCube
-from openeo.util import ensure_list, dict_no_none, rfc3339, load_json_resource, LazyLoadCache, \
-    ContextTimer, str_truncate
+from openeo.util import (
+    ensure_list,
+    dict_no_none,
+    rfc3339,
+    load_json_resource,
+    LazyLoadCache,
+    ContextTimer,
+    str_truncate,
+    url_join,
+)
 
 _log = logging.getLogger(__name__)
-
-
-def url_join(root_url: str, path: str):
-    """Join a base url and sub path properly."""
-    return urljoin(root_url.rstrip('/') + '/', path.lstrip('/'))
 
 
 class RestApiConnection:

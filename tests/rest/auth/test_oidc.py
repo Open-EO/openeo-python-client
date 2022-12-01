@@ -220,18 +220,33 @@ def test_provider_info_get_scopes_string_refresh_token_offline_access(requests_m
 
 
 def test_oidc_client_info_uess_device_flow_pkce_support(requests_mock):
-    oidc_discovery_url = "http://oidc.test/.well-known/openid-configuration"
+    oidc_issuer = "https://oidc.test"
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
-        oidc_discovery_url=oidc_discovery_url,
+        oidc_issuer=oidc_issuer,
         expected_grant_type=None,
     )
-    provider = OidcProviderInfo(discovery_url=oidc_discovery_url, default_clients=[
-        {"id": "c1", "grant_types": ["authorization_code+pkce"]},
-        {"id": "c2", "grant_types": ["urn:ietf:params:oauth:grant-type:device_code"]},
-        {"id": "c3", "grant_types": ["urn:ietf:params:oauth:grant-type:device_code+pkce"]},
-        {"id": "c4", "grant_types": ["refresh_token", "urn:ietf:params:oauth:grant-type:device_code+pkce"]},
-    ])
+    provider = OidcProviderInfo(
+        issuer=oidc_issuer,
+        default_clients=[
+            {"id": "c1", "grant_types": ["authorization_code+pkce"]},
+            {
+                "id": "c2",
+                "grant_types": ["urn:ietf:params:oauth:grant-type:device_code"],
+            },
+            {
+                "id": "c3",
+                "grant_types": ["urn:ietf:params:oauth:grant-type:device_code+pkce"],
+            },
+            {
+                "id": "c4",
+                "grant_types": [
+                    "refresh_token",
+                    "urn:ietf:params:oauth:grant-type:device_code+pkce",
+                ],
+            },
+        ],
+    )
 
     for client_id, expected in [
         ("c1", False),
@@ -252,16 +267,16 @@ def test_oidc_auth_code_pkce_flow(requests_mock):
     requests_mock.get("http://oidc.test/.well-known/openid-configuration", json={"scopes_supported": ["openid"]})
 
     client_id = "myclient"
-    oidc_discovery_url = "http://oidc.test/.well-known/openid-configuration"
+    oidc_issuer = "https://oidc.test"
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
         expected_grant_type="authorization_code",
         expected_client_id=client_id,
         expected_fields={"scope": "openid testpkce"},
-        oidc_discovery_url=oidc_discovery_url,
+        oidc_issuer=oidc_issuer,
         scopes_supported=["openid", "testpkce"]
     )
-    provider = OidcProviderInfo(discovery_url=oidc_discovery_url, scopes=["openid", "testpkce"])
+    provider = OidcProviderInfo(issuer=oidc_issuer, scopes=["openid", "testpkce"])
     authenticator = OidcAuthCodePkceAuthenticator(
         client_info=OidcClientInfo(client_id=client_id, provider=provider),
         webbrowser_open=oidc_mock.webbrowser_open
@@ -273,17 +288,17 @@ def test_oidc_auth_code_pkce_flow(requests_mock):
 
 def test_oidc_client_credentials_flow(requests_mock):
     client_id = "myclient"
-    oidc_discovery_url = "http://oidc.test/.well-known/openid-configuration"
+    oidc_issuer = "https://oidc.test"
     client_secret = "$3cr3t"
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
         expected_grant_type="client_credentials",
         expected_client_id=client_id,
         expected_fields={"client_secret": client_secret},
-        oidc_discovery_url=oidc_discovery_url
+        oidc_issuer=oidc_issuer,
     )
 
-    provider = OidcProviderInfo(discovery_url=oidc_discovery_url)
+    provider = OidcProviderInfo(issuer=oidc_issuer)
     authenticator = OidcClientCredentialsAuthenticator(
         client_info=OidcClientInfo(client_id=client_id, provider=provider, client_secret=client_secret)
     )
@@ -294,7 +309,7 @@ def test_oidc_client_credentials_flow(requests_mock):
 def test_oidc_resource_owner_password_credentials_flow(requests_mock):
     client_id = "myclient"
     client_secret = "$3cr3t"
-    oidc_discovery_url = "http://oidc.test/.well-known/openid-configuration"
+    oidc_issuer = "https://oidc.test"
     username, password = "john", "j0hn"
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
@@ -303,10 +318,10 @@ def test_oidc_resource_owner_password_credentials_flow(requests_mock):
         expected_fields={
             "username": username, "password": password, "scope": "openid testpwd", "client_secret": client_secret
         },
-        oidc_discovery_url=oidc_discovery_url,
+        oidc_issuer=oidc_issuer,
         scopes_supported=["openid", "testpwd"],
     )
-    provider = OidcProviderInfo(discovery_url=oidc_discovery_url, scopes=["testpwd"])
+    provider = OidcProviderInfo(issuer=oidc_issuer, scopes=["testpwd"])
 
     authenticator = OidcResourceOwnerPasswordAuthenticator(
         client_info=OidcClientInfo(client_id=client_id, provider=provider, client_secret=client_secret),
@@ -319,17 +334,17 @@ def test_oidc_resource_owner_password_credentials_flow(requests_mock):
 def test_oidc_device_flow_with_client_secret(requests_mock, caplog):
     client_id = "myclient"
     client_secret = "$3cr3t"
-    oidc_discovery_url = "http://oidc.test/.well-known/openid-configuration"
+    oidc_issuer = "https://oidc.test"
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
         expected_grant_type="urn:ietf:params:oauth:grant-type:device_code",
         expected_client_id=client_id,
-        oidc_discovery_url=oidc_discovery_url,
+        oidc_issuer=oidc_issuer,
         expected_fields={"scope": "df openid", "client_secret": client_secret},
         state={"device_code_callback_timeline": ["authorization_pending", "slow_down", "great success"]},
         scopes_supported=["openid", "df"]
     )
-    provider = OidcProviderInfo(discovery_url=oidc_discovery_url, scopes=["df"])
+    provider = OidcProviderInfo(issuer=oidc_issuer, scopes=["df"])
     display = []
     authenticator = OidcDeviceAuthenticator(
         client_info=OidcClientInfo(client_id=client_id, provider=provider, client_secret=client_secret),
@@ -339,10 +354,11 @@ def test_oidc_device_flow_with_client_secret(requests_mock, caplog):
         with caplog.at_level(logging.INFO):
             tokens = authenticator.get_tokens()
     assert oidc_mock.state["access_token"] == tokens.access_token
-    assert re.search(
-        r"visit https://auth\.test/dc and enter the user code {c!r}".format(c=oidc_mock.state['user_code']),
-        display[0]
+    assert (
+        f"visit https://oidc.test/dc and enter the user code {oidc_mock.state['user_code']!r}"
+        in display[0]
     )
+
     assert display[1] == "Authorized successfully."
     assert sleep.mock_calls == [mock.call(2), mock.call(2), mock.call(7)]
     assert re.search(
@@ -354,17 +370,17 @@ def test_oidc_device_flow_with_client_secret(requests_mock, caplog):
 
 def test_oidc_device_flow_with_pkce(requests_mock, caplog):
     client_id = "myclient"
-    oidc_discovery_url = "http://oidc.test/.well-known/openid-configuration"
+    oidc_issuer = "https://oidc.test"
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
         expected_grant_type="urn:ietf:params:oauth:grant-type:device_code",
         expected_client_id=client_id,
-        oidc_discovery_url=oidc_discovery_url,
+        oidc_issuer=oidc_issuer,
         expected_fields={"scope": "df openid", "code_challenge": True, "code_verifier": True},
         state={"device_code_callback_timeline": ["authorization_pending", "slow_down", "great success"]},
         scopes_supported=["openid", "df"]
     )
-    provider = OidcProviderInfo(discovery_url=oidc_discovery_url, scopes=["df"])
+    provider = OidcProviderInfo(issuer=oidc_issuer, scopes=["df"])
     display = []
     authenticator = OidcDeviceAuthenticator(
         client_info=OidcClientInfo(client_id=client_id, provider=provider),
@@ -375,9 +391,9 @@ def test_oidc_device_flow_with_pkce(requests_mock, caplog):
         with caplog.at_level(logging.INFO):
             tokens = authenticator.get_tokens()
     assert oidc_mock.state["access_token"] == tokens.access_token
-    assert re.search(
-        r"visit https://auth\.test/dc and enter the user code {c!r}".format(c=oidc_mock.state['user_code']),
-        display[0]
+    assert (
+        f"visit https://oidc.test/dc and enter the user code {oidc_mock.state['user_code']!r}"
+        in display[0]
     )
     assert display[1] == "Authorized successfully."
     assert sleep.mock_calls == [mock.call(2), mock.call(2), mock.call(7)]
@@ -390,17 +406,17 @@ def test_oidc_device_flow_with_pkce(requests_mock, caplog):
 
 def test_oidc_device_flow_without_pkce_nor_secret(requests_mock, caplog):
     client_id = "myclient"
-    oidc_discovery_url = "http://oidc.test/.well-known/openid-configuration"
+    oidc_issuer = "https://oidc.test"
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
         expected_grant_type="urn:ietf:params:oauth:grant-type:device_code",
         expected_client_id=client_id,
-        oidc_discovery_url=oidc_discovery_url,
+        oidc_issuer=oidc_issuer,
         expected_fields={"scope": "df openid", "code_challenge": ABSENT, "code_verifier": ABSENT},
         state={"device_code_callback_timeline": ["authorization_pending", "slow_down", "great success"]},
         scopes_supported=["openid", "df"]
     )
-    provider = OidcProviderInfo(discovery_url=oidc_discovery_url, scopes=["df"])
+    provider = OidcProviderInfo(issuer=oidc_issuer, scopes=["df"])
     display = []
     authenticator = OidcDeviceAuthenticator(
         client_info=OidcClientInfo(client_id=client_id, provider=provider),
@@ -410,9 +426,9 @@ def test_oidc_device_flow_without_pkce_nor_secret(requests_mock, caplog):
         with caplog.at_level(logging.INFO):
             tokens = authenticator.get_tokens()
     assert oidc_mock.state["access_token"] == tokens.access_token
-    assert re.search(
-        r"visit https://auth\.test/dc and enter the user code {c!r}".format(c=oidc_mock.state['user_code']),
-        display[0]
+    assert (
+        f"visit https://oidc.test/dc and enter the user code {oidc_mock.state['user_code']!r}"
+        in display[0]
     )
     assert display[1] == "Authorized successfully."
     assert sleep.mock_calls == [mock.call(2), mock.call(2), mock.call(7)]
@@ -464,20 +480,30 @@ def test_oidc_device_flow_auto_detect(
         requests_mock, caplog, mode, client_id, use_pkce, client_secret, expected_fields
 ):
     """Autodetection of device auth grant mode: with secret, PKCE or neither."""
-    oidc_discovery_url = "http://oidc.test/.well-known/openid-configuration"
+    oidc_issuer = "https://oidc.test"
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
         expected_grant_type="urn:ietf:params:oauth:grant-type:device_code",
         expected_client_id=client_id,
-        oidc_discovery_url=oidc_discovery_url,
+        oidc_issuer=oidc_issuer,
         expected_fields=expected_fields,
         state={"device_code_callback_timeline": ["authorization_pending", "slow_down", "great success"]},
         scopes_supported=["openid", "df"]
     )
-    provider = OidcProviderInfo(discovery_url=oidc_discovery_url, scopes=["df"], default_clients=[
-        {"id": "default-with-pkce", "grant_types": ["urn:ietf:params:oauth:grant-type:device_code+pkce"]},
-        {"id": "default-no-pkce", "grant_types": ["urn:ietf:params:oauth:grant-type:device_code"]},
-    ])
+    provider = OidcProviderInfo(
+        issuer=oidc_issuer,
+        scopes=["df"],
+        default_clients=[
+            {
+                "id": "default-with-pkce",
+                "grant_types": ["urn:ietf:params:oauth:grant-type:device_code+pkce"],
+            },
+            {
+                "id": "default-no-pkce",
+                "grant_types": ["urn:ietf:params:oauth:grant-type:device_code"],
+            },
+        ],
+    )
     display = []
     authenticator = OidcDeviceAuthenticator(
         client_info=OidcClientInfo(client_id=client_id, provider=provider, client_secret=client_secret),
@@ -488,9 +514,9 @@ def test_oidc_device_flow_auto_detect(
         with caplog.at_level(logging.INFO):
             tokens = authenticator.get_tokens()
     assert oidc_mock.state["access_token"] == tokens.access_token
-    assert re.search(
-        r"visit https://auth\.test/dc and enter the user code {c!r}".format(c=oidc_mock.state['user_code']),
-        display[0]
+    assert (
+        f"visit https://oidc.test/dc and enter the user code {oidc_mock.state['user_code']!r}"
+        in display[0]
     )
     assert display[1] == "Authorized successfully."
     assert sleep.mock_calls == [mock.call(2), mock.call(2), mock.call(7)]
@@ -505,16 +531,16 @@ def test_oidc_refresh_token_flow(requests_mock, caplog):
     client_id = "myclient"
     client_secret = "$3cr3t"
     refresh_token = "r3fr35h.d4.t0k3n.w1lly4"
-    oidc_discovery_url = "http://oidc.test/.well-known/openid-configuration"
+    oidc_issuer = "https://oidc.test"
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
         expected_grant_type="refresh_token",
         expected_client_id=client_id,
-        oidc_discovery_url=oidc_discovery_url,
+        oidc_issuer=oidc_issuer,
         expected_fields={"scope": "openid", "client_secret": client_secret, "refresh_token": refresh_token},
         scopes_supported=["openid"]
     )
-    provider = OidcProviderInfo(discovery_url=oidc_discovery_url)
+    provider = OidcProviderInfo(issuer=oidc_issuer)
     authenticator = OidcRefreshTokenAuthenticator(
         client_info=OidcClientInfo(client_id=client_id, provider=provider, client_secret=client_secret),
         refresh_token=refresh_token
@@ -526,16 +552,16 @@ def test_oidc_refresh_token_flow(requests_mock, caplog):
 def test_oidc_refresh_token_flow_no_secret(requests_mock, caplog):
     client_id = "myclient"
     refresh_token = "r3fr35h.d4.t0k3n.w1lly4"
-    oidc_discovery_url = "http://oidc.test/.well-known/openid-configuration"
+    oidc_issuer = "https://oidc.test"
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
         expected_grant_type="refresh_token",
         expected_client_id=client_id,
-        oidc_discovery_url=oidc_discovery_url,
+        oidc_issuer=oidc_issuer,
         expected_fields={"scope": "openid", "refresh_token": refresh_token},
         scopes_supported=["openid"]
     )
-    provider = OidcProviderInfo(discovery_url=oidc_discovery_url)
+    provider = OidcProviderInfo(issuer=oidc_issuer)
     authenticator = OidcRefreshTokenAuthenticator(
         client_info=OidcClientInfo(client_id=client_id, provider=provider),
         refresh_token=refresh_token
@@ -547,16 +573,16 @@ def test_oidc_refresh_token_flow_no_secret(requests_mock, caplog):
 def test_oidc_refresh_token_invalid_token(requests_mock, caplog):
     client_id = "myclient"
     refresh_token = "wr0n9.t0k3n"
-    oidc_discovery_url = "http://oidc.test/.well-known/openid-configuration"
+    oidc_issuer = "https://oidc.test"
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
         expected_grant_type="refresh_token",
         expected_client_id=client_id,
-        oidc_discovery_url=oidc_discovery_url,
+        oidc_issuer=oidc_issuer,
         expected_fields={"scope": "openid", "refresh_token": "c0rr3ct.t0k3n"},
         scopes_supported=["openid"]
     )
-    provider = OidcProviderInfo(discovery_url=oidc_discovery_url)
+    provider = OidcProviderInfo(issuer=oidc_issuer)
     authenticator = OidcRefreshTokenAuthenticator(
         client_info=OidcClientInfo(client_id=client_id, provider=provider),
         refresh_token=refresh_token

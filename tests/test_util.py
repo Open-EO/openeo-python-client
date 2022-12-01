@@ -11,7 +11,7 @@ import pytest
 
 from openeo.util import first_not_none, get_temporal_extent, TimingLogger, ensure_list, ensure_dir, dict_no_none, \
     deep_get, DeepKeyError, Rfc3339, rfc3339, deep_set, \
-    LazyLoadCache, guess_format, ContextTimer, str_truncate, to_bbox_dict, BBoxDict, repr_truncate
+    LazyLoadCache, guess_format, ContextTimer, str_truncate, to_bbox_dict, BBoxDict, repr_truncate, url_join
 
 
 def test_rfc3339_date():
@@ -599,3 +599,10 @@ class TestBBoxDict:
     def test_to_bbox_dict_from_geometry(self):
         geometry = shapely.geometry.Polygon([(4, 2), (7, 4), (5, 8), (3, 3), (4, 2)])
         assert to_bbox_dict(geometry) == {"west": 3, "south": 2, "east": 7, "north": 8}
+
+
+def test_url_join():
+    assert url_join("http://d.test", "foo/bar") == "http://d.test/foo/bar"
+    assert url_join("http://d.test/", "foo/bar") == "http://d.test/foo/bar"
+    assert url_join("http://d.test", "/foo/bar") == "http://d.test/foo/bar"
+    assert url_join("http://d.test/", "/foo/bar") == "http://d.test/foo/bar"

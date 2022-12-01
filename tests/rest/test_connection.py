@@ -471,7 +471,6 @@ def test_create_connection_lazy_refresh_token_store(requests_mock):
     client_secret = "$3cr3t"
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     issuer = "https://oidc.test"
-    oidc_discovery_url = "https://oidc.test/.well-known/openid-configuration"
     requests_mock.get(API_URL + 'credentials/oidc', json={
         "providers": [{"id": "oi", "issuer": issuer, "title": "example", "scopes": ["openid"]}]
     })
@@ -480,7 +479,7 @@ def test_create_connection_lazy_refresh_token_store(requests_mock):
         expected_grant_type="client_credentials",
         expected_client_id=client_id,
         expected_fields={"client_secret": client_secret},
-        oidc_discovery_url=oidc_discovery_url,
+        oidc_issuer=issuer,
     )
 
     with mock.patch('openeo.rest.connection.RefreshTokenStore') as RefreshTokenStore:
@@ -570,7 +569,7 @@ def test_authenticate_oidc_authorization_code_100_single_implicit(requests_mock,
         expected_grant_type="authorization_code",
         expected_client_id=client_id,
         expected_fields={"scope": "im openid"},
-        oidc_discovery_url="https://fauth.test/.well-known/openid-configuration",
+        oidc_issuer="https://fauth.test",
         scopes_supported=["openid", "im"],
     )
 
@@ -615,7 +614,7 @@ def test_authenticate_oidc_authorization_code_100_multiple_no_given_id(requests_
         expected_grant_type="authorization_code",
         expected_client_id=client_id,
         expected_fields={"scope": "openid w"},
-        oidc_discovery_url="https://fauth.test/.well-known/openid-configuration",
+        oidc_issuer="https://fauth.test",
         scopes_supported=["openid", "w"],
     )
 
@@ -662,7 +661,7 @@ def test_authenticate_oidc_authorization_code_100_multiple_success(requests_mock
         expected_grant_type="authorization_code",
         expected_client_id=client_id,
         expected_fields={"scope": "mu openid"},
-        oidc_discovery_url="https://bauth.test/.well-known/openid-configuration",
+        oidc_issuer="https://bauth.test",
         scopes_supported=["openid", "mu"],
     )
 
@@ -690,7 +689,6 @@ def test_authenticate_oidc_auth_code_pkce_flow(requests_mock, store_refresh_toke
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
     issuer = "https://oidc.test"
-    oidc_discovery_url = "https://oidc.test/.well-known/openid-configuration"
     requests_mock.get(API_URL + 'credentials/oidc', json={
         "providers": [{"id": "oi", "issuer": issuer, "title": "example", "scopes": ["openid"]}]
     })
@@ -699,7 +697,7 @@ def test_authenticate_oidc_auth_code_pkce_flow(requests_mock, store_refresh_toke
         expected_grant_type="authorization_code",
         expected_client_id=client_id,
         expected_fields={"scope": expected_scope},
-        oidc_discovery_url=oidc_discovery_url,
+        oidc_issuer=issuer,
         scopes_supported=scopes_supported,
     )
 
@@ -726,7 +724,6 @@ def test_authenticate_oidc_auth_code_pkce_flow_client_from_config(requests_mock,
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
     issuer = "https://oidc.test"
-    oidc_discovery_url = "https://oidc.test/.well-known/openid-configuration"
     requests_mock.get(API_URL + 'credentials/oidc', json={
         "providers": [{"id": "oi", "issuer": issuer, "title": "example", "scopes": ["openid"]}]
     })
@@ -735,7 +732,7 @@ def test_authenticate_oidc_auth_code_pkce_flow_client_from_config(requests_mock,
         expected_grant_type="authorization_code",
         expected_client_id=client_id,
         expected_fields={"scope": "openid"},
-        oidc_discovery_url=oidc_discovery_url,
+        oidc_issuer=issuer,
         scopes_supported=["openid"],
     )
     auth_config.set_oidc_client_config(backend=API_URL, provider_id="oi", client_id=client_id)
@@ -755,7 +752,6 @@ def test_authenticate_oidc_client_credentials(requests_mock):
     client_id = "myclient"
     client_secret = "$3cr3t"
     issuer = "https://oidc.test"
-    oidc_discovery_url = "https://oidc.test/.well-known/openid-configuration"
     requests_mock.get(API_URL + 'credentials/oidc', json={
         "providers": [{"id": "oi", "issuer": issuer, "title": "example", "scopes": ["openid"]}]
     })
@@ -764,7 +760,7 @@ def test_authenticate_oidc_client_credentials(requests_mock):
         expected_grant_type="client_credentials",
         expected_client_id=client_id,
         expected_fields={"client_secret": client_secret},
-        oidc_discovery_url=oidc_discovery_url,
+        oidc_issuer=issuer,
     )
 
     # With all this set up, kick off the openid connect flow
@@ -793,7 +789,6 @@ def test_authenticate_oidc_client_credentials_client_from_config(requests_mock, 
     client_id = "myclient"
     client_secret = "$3cr3t"
     issuer = "https://oidc.test"
-    oidc_discovery_url = "https://oidc.test/.well-known/openid-configuration"
     requests_mock.get(API_URL + 'credentials/oidc', json={
         "providers": [{"id": "oi", "issuer": issuer, "title": "example", "scopes": ["openid"]}]
     })
@@ -802,7 +797,7 @@ def test_authenticate_oidc_client_credentials_client_from_config(requests_mock, 
         expected_grant_type="client_credentials",
         expected_client_id=client_id,
         expected_fields={"client_secret": client_secret},
-        oidc_discovery_url=oidc_discovery_url,
+        oidc_issuer=issuer,
     )
     auth_config.set_oidc_client_config(
         backend=API_URL, provider_id="oi", client_id=client_id, client_secret=client_secret
@@ -824,7 +819,6 @@ def test_authenticate_oidc_resource_owner_password_credentials(requests_mock):
     client_secret = "$3cr3t"
     username, password = "john", "j0hn"
     issuer = "https://oidc.test"
-    oidc_discovery_url = "https://oidc.test/.well-known/openid-configuration"
     requests_mock.get(API_URL + 'credentials/oidc', json={
         "providers": [{"id": "oi", "issuer": issuer, "title": "example", "scopes": ["openid"]}]
     })
@@ -835,7 +829,7 @@ def test_authenticate_oidc_resource_owner_password_credentials(requests_mock):
         expected_fields={
             "username": username, "password": password, "scope": "openid", "client_secret": client_secret
         },
-        oidc_discovery_url=oidc_discovery_url,
+        oidc_issuer=issuer,
     )
 
     # With all this set up, kick off the openid connect flow
@@ -866,7 +860,6 @@ def test_authenticate_oidc_resource_owner_password_credentials_client_from_confi
     client_secret = "$3cr3t"
     username, password = "john", "j0hn"
     issuer = "https://oidc.test"
-    oidc_discovery_url = "https://oidc.test/.well-known/openid-configuration"
     requests_mock.get(API_URL + 'credentials/oidc', json={
         "providers": [{"id": "oi", "issuer": issuer, "title": "example", "scopes": ["openid"]}]
     })
@@ -877,7 +870,7 @@ def test_authenticate_oidc_resource_owner_password_credentials_client_from_confi
         expected_fields={
             "username": username, "password": password, "scope": "openid", "client_secret": client_secret
         },
-        oidc_discovery_url=oidc_discovery_url,
+        oidc_issuer=issuer,
     )
     auth_config.set_oidc_client_config(
         backend=API_URL, provider_id="oi", client_id=client_id, client_secret=client_secret
@@ -909,7 +902,6 @@ def test_authenticate_oidc_device_flow_with_secret(
     client_id = "myclient"
     client_secret = "$3cr3t"
     issuer = "https://oidc.test"
-    oidc_discovery_url = "https://oidc.test/.well-known/openid-configuration"
     requests_mock.get(API_URL + 'credentials/oidc', json={
         "providers": [{"id": "oi", "issuer": issuer, "title": "example", "scopes": ["openid"]}]
     })
@@ -922,7 +914,7 @@ def test_authenticate_oidc_device_flow_with_secret(
             "client_secret": client_secret
         },
         scopes_supported=scopes_supported or ["openid"],
-        oidc_discovery_url=oidc_discovery_url,
+        oidc_issuer=issuer,
     )
 
     # With all this set up, kick off the openid connect flow
@@ -950,7 +942,6 @@ def test_authenticate_oidc_device_flow_with_secret_from_config(requests_mock, au
     client_id = "myclient"
     client_secret = "$3cr3t"
     issuer = "https://oidc.test"
-    oidc_discovery_url = "https://oidc.test/.well-known/openid-configuration"
     requests_mock.get(API_URL + 'credentials/oidc', json={
         "providers": [{"id": "oi", "issuer": issuer, "title": "example", "scopes": ["openid"]}]
     })
@@ -962,7 +953,7 @@ def test_authenticate_oidc_device_flow_with_secret_from_config(requests_mock, au
             "scope": "openid", "client_secret": client_secret
         },
         scopes_supported=["openid"],
-        oidc_discovery_url=oidc_discovery_url,
+        oidc_issuer=issuer,
     )
     auth_config.set_oidc_client_config(
         backend=API_URL, provider_id="oi", client_id=client_id, client_secret=client_secret
@@ -989,13 +980,12 @@ def test_authenticate_oidc_device_flow_no_support(requests_mock, auth_config):
     client_id = "myclient"
     client_secret = "$3cr3t"
     issuer = "https://oidc.test"
-    oidc_discovery_url = "https://oidc.test/.well-known/openid-configuration"
     requests_mock.get(API_URL + 'credentials/oidc', json={
         "providers": [{"id": "oi", "issuer": issuer, "title": "example", "scopes": ["openid"]}]
     })
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
-        oidc_discovery_url=oidc_discovery_url,
+        oidc_issuer=issuer,
         expected_grant_type="urn:ietf:params:oauth:grant-type:device_code",
         expected_client_id=client_id,
         expected_fields={"scope": "openid"},
@@ -1041,7 +1031,7 @@ def test_authenticate_oidc_device_flow_pkce_multiple_providers_no_given(
             "code_challenge": True if expect_pkce else ABSENT,
         },
         scopes_supported=["openid", "w"],
-        oidc_discovery_url="https://fauth.test/.well-known/openid-configuration",
+        oidc_issuer="https://fauth.test",
     )
     assert auth_config.load() == {}
 
@@ -1086,7 +1076,7 @@ def test_authenticate_oidc_device_flow_pkce_multiple_provider_one_config_no_give
             "code_challenge": True if expect_pkce else ABSENT,
         },
         scopes_supported=["openid"],
-        oidc_discovery_url="https://fauth.test/.well-known/openid-configuration",
+        oidc_issuer="https://fauth.test",
     )
     assert auth_config.load() == {}
     auth_config.set_oidc_client_config(backend=API_URL, provider_id="fauth", client_id=client_id)
@@ -1132,7 +1122,7 @@ def test_authenticate_oidc_device_flow_pkce_multiple_provider_one_config_no_give
             "scope": "openid", "code_verifier": True, "code_challenge": True
         },
         scopes_supported=["openid"],
-        oidc_discovery_url="https://bauth.test/.well-known/openid-configuration",
+        oidc_issuer="https://bauth.test",
     )
     assert auth_config.load() == {}
     auth_config.set_oidc_client_config(backend=API_URL, provider_id="bauth", client_id=None)
@@ -1162,14 +1152,23 @@ def test_authenticate_oidc_device_flow_pkce_default_client_handling(requests_moc
     """
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     default_client_id = "dadefaultklient"
-    requests_mock.get(API_URL + 'credentials/oidc', json={
-        "providers": [
-            {
-                "id": "auth", "issuer": "https://auth.test", "title": "Auth", "scopes": ["openid"],
-                "default_clients": [{"id": default_client_id, "grant_types": grant_types}]
-            },
-        ]
-    })
+    oidc_issuer = "https://auth.test"
+    requests_mock.get(
+        API_URL + "credentials/oidc",
+        json={
+            "providers": [
+                {
+                    "id": "auth",
+                    "issuer": oidc_issuer,
+                    "title": "Auth",
+                    "scopes": ["openid"],
+                    "default_clients": [
+                        {"id": default_client_id, "grant_types": grant_types}
+                    ],
+                },
+            ]
+        },
+    )
 
     expected_fields = {
         "scope": "openid",
@@ -1183,7 +1182,7 @@ def test_authenticate_oidc_device_flow_pkce_default_client_handling(requests_moc
         expected_client_id=default_client_id,
         expected_fields=expected_fields,
         scopes_supported=["openid"],
-        oidc_discovery_url="https://auth.test/.well-known/openid-configuration",
+        oidc_issuer=oidc_issuer,
     )
 
     # With all this set up, kick off the openid connect flow
@@ -1223,7 +1222,7 @@ def test_authenticate_oidc_device_flow_pkce_store_refresh_token(requests_mock):
         expected_client_id=default_client_id,
         expected_fields=expected_fields,
         scopes_supported=["openid"],
-        oidc_discovery_url="https://auth.test/.well-known/openid-configuration",
+        oidc_issuer="https://auth.test",
     )
 
     # With all this set up, kick off the openid connect flow
@@ -1248,7 +1247,6 @@ def test_authenticate_oidc_refresh_token(requests_mock):
     client_id = "myclient"
     refresh_token = "r3fr35h!"
     issuer = "https://oidc.test"
-    oidc_discovery_url = "https://oidc.test/.well-known/openid-configuration"
     requests_mock.get(API_URL + 'credentials/oidc', json={
         "providers": [{"id": "oi", "issuer": issuer, "title": "example", "scopes": ["openid"]}]
     })
@@ -1256,7 +1254,7 @@ def test_authenticate_oidc_refresh_token(requests_mock):
         requests_mock=requests_mock,
         expected_grant_type="refresh_token",
         expected_client_id=client_id,
-        oidc_discovery_url=oidc_discovery_url,
+        oidc_issuer=issuer,
         expected_fields={"refresh_token": refresh_token}
     )
 
@@ -1273,7 +1271,6 @@ def test_authenticate_oidc_refresh_token_expired(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
     issuer = "https://oidc.test"
-    oidc_discovery_url = "https://oidc.test/.well-known/openid-configuration"
     requests_mock.get(API_URL + 'credentials/oidc', json={
         "providers": [{"id": "oi", "issuer": issuer, "title": "example", "scopes": ["openid"]}]
     })
@@ -1281,7 +1278,7 @@ def test_authenticate_oidc_refresh_token_expired(requests_mock):
         requests_mock=requests_mock,
         expected_grant_type="refresh_token",
         expected_client_id=client_id,
-        oidc_discovery_url=oidc_discovery_url,
+        oidc_issuer=issuer,
         expected_fields={"refresh_token": "c0rr3ct.t0k3n"}
     )
 
@@ -1300,7 +1297,6 @@ def test_authenticate_oidc_auto_with_existing_refresh_token(requests_mock, refre
     client_id = "myclient"
     orig_refresh_token = "r3fr35h!"
     issuer = "https://oidc.test"
-    oidc_discovery_url = "https://oidc.test/.well-known/openid-configuration"
     requests_mock.get(API_URL + 'credentials/oidc', json={
         "providers": [{"id": "oi", "issuer": issuer, "title": "example", "scopes": ["openid"]}]
     })
@@ -1308,7 +1304,7 @@ def test_authenticate_oidc_auto_with_existing_refresh_token(requests_mock, refre
         requests_mock=requests_mock,
         expected_grant_type="refresh_token",
         expected_client_id=client_id,
-        oidc_discovery_url=oidc_discovery_url,
+        oidc_issuer=issuer,
         expected_fields={"refresh_token": orig_refresh_token}
     )
     refresh_token_store.set_refresh_token(issuer=issuer, client_id=client_id, refresh_token=orig_refresh_token)
@@ -1334,7 +1330,6 @@ def test_authenticate_oidc_auto_no_existing_refresh_token(requests_mock, refresh
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
     issuer = "https://oidc.test"
-    oidc_discovery_url = "https://oidc.test/.well-known/openid-configuration"
     requests_mock.get(API_URL + 'credentials/oidc', json={
         "providers": [{"id": "oi", "issuer": issuer, "title": "example", "scopes": ["openid"]}]
     })
@@ -1343,7 +1338,7 @@ def test_authenticate_oidc_auto_no_existing_refresh_token(requests_mock, refresh
         requests_mock=requests_mock,
         expected_client_id=client_id,
         expected_grant_type=None,
-        oidc_discovery_url=oidc_discovery_url,
+        oidc_issuer=issuer,
         expected_fields={
             "refresh_token": "unkn0wn",
             "scope": "openid",
@@ -1374,7 +1369,6 @@ def test_authenticate_oidc_auto_expired_refresh_token(requests_mock, refresh_tok
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
     issuer = "https://oidc.test"
-    oidc_discovery_url = "https://oidc.test/.well-known/openid-configuration"
     requests_mock.get(API_URL + 'credentials/oidc', json={
         "providers": [{"id": "oi", "issuer": issuer, "title": "example", "scopes": ["openid"]}]
     })
@@ -1383,7 +1377,7 @@ def test_authenticate_oidc_auto_expired_refresh_token(requests_mock, refresh_tok
         requests_mock=requests_mock,
         expected_client_id=client_id,
         expected_grant_type=None,
-        oidc_discovery_url=oidc_discovery_url,
+        oidc_issuer=issuer,
         expected_fields={
             "refresh_token": "unkn0wn",
             "scope": "openid",
@@ -1439,15 +1433,25 @@ def test_authenticate_oidc_auto_refresh_expired_access_token_initial_refresh_tok
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
     initial_refresh_token = "r3fr35h!"
-    oidc_discovery_url = "https://oidc.test/.well-known/openid-configuration"
-    requests_mock.get(API_URL + 'credentials/oidc', json={
-        "providers": [{"id": "oi", "issuer": "https://oidc.test", "title": "example", "scopes": ["openid"]}]
-    })
+    oidc_issuer = "https://oidc.test"
+    requests_mock.get(
+        API_URL + "credentials/oidc",
+        json={
+            "providers": [
+                {
+                    "id": "oi",
+                    "issuer": oidc_issuer,
+                    "title": "example",
+                    "scopes": ["openid"],
+                }
+            ]
+        },
+    )
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
         expected_grant_type="refresh_token",
         expected_client_id=client_id,
-        oidc_discovery_url=oidc_discovery_url,
+        oidc_issuer=oidc_issuer,
         expected_fields={"refresh_token": initial_refresh_token}
     )
     _setup_get_me_handler(requests_mock=requests_mock, oidc_mock=oidc_mock)
@@ -1507,15 +1511,25 @@ def test_authenticate_oidc_auto_refresh_expired_access_token_initial_device_code
 ):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
-    oidc_discovery_url = "https://oidc.test/.well-known/openid-configuration"
-    requests_mock.get(API_URL + 'credentials/oidc', json={
-        "providers": [{"id": "oi", "issuer": "https://oidc.test", "title": "example", "scopes": ["openid"]}]
-    })
+    oidc_issuer = "https://oidc.test"
+    requests_mock.get(
+        API_URL + "credentials/oidc",
+        json={
+            "providers": [
+                {
+                    "id": "oi",
+                    "issuer": oidc_issuer,
+                    "title": "example",
+                    "scopes": ["openid"],
+                }
+            ]
+        },
+    )
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
         expected_grant_type="urn:ietf:params:oauth:grant-type:device_code",
         expected_client_id=client_id,
-        oidc_discovery_url=oidc_discovery_url,
+        oidc_issuer=oidc_issuer,
         expected_fields={
             "scope": "openid",
             "code_verifier": True,
@@ -1586,15 +1600,25 @@ def test_authenticate_oidc_auto_refresh_expired_access_token_invalid_refresh_tok
 ):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
-    oidc_discovery_url = "https://oidc.test/.well-known/openid-configuration"
-    requests_mock.get(API_URL + 'credentials/oidc', json={
-        "providers": [{"id": "oi", "issuer": "https://oidc.test", "title": "example", "scopes": ["openid"]}]
-    })
+    oidc_issuer = "https://oidc.test"
+    requests_mock.get(
+        API_URL + "credentials/oidc",
+        json={
+            "providers": [
+                {
+                    "id": "oi",
+                    "issuer": oidc_issuer,
+                    "title": "example",
+                    "scopes": ["openid"],
+                }
+            ]
+        },
+    )
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
         expected_grant_type="urn:ietf:params:oauth:grant-type:device_code",
         expected_client_id=client_id,
-        oidc_discovery_url=oidc_discovery_url,
+        oidc_issuer=oidc_issuer,
         expected_fields={
             "scope": "openid",
             "code_verifier": True,
@@ -1646,15 +1670,25 @@ def test_authenticate_oidc_auto_refresh_expired_access_token_other_errors(
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
     initial_refresh_token = "r3fr35h!"
-    oidc_discovery_url = "https://oidc.test/.well-known/openid-configuration"
-    requests_mock.get(API_URL + 'credentials/oidc', json={
-        "providers": [{"id": "oi", "issuer": "https://oidc.test", "title": "example", "scopes": ["openid"]}]
-    })
+    oidc_issuer = "https://oidc.test"
+    requests_mock.get(
+        API_URL + "credentials/oidc",
+        json={
+            "providers": [
+                {
+                    "id": "oi",
+                    "issuer": oidc_issuer,
+                    "title": "example",
+                    "scopes": ["openid"],
+                }
+            ]
+        },
+    )
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
         expected_grant_type="refresh_token",
         expected_client_id=client_id,
-        oidc_discovery_url=oidc_discovery_url,
+        oidc_issuer=oidc_issuer,
         expected_fields={"refresh_token": initial_refresh_token}
     )
 
@@ -2281,7 +2315,7 @@ def test_connect_auto_auth_from_config_oidc_refresh_token(
         requests_mock=requests_mock,
         expected_grant_type="refresh_token",
         expected_client_id=client_id,
-        oidc_discovery_url=f"{issuer}/.well-known/openid-configuration",
+        oidc_issuer=issuer,
         expected_fields={"refresh_token": refresh_token}
     )
     refresh_token_store.set_refresh_token(issuer=issuer, client_id=client_id, refresh_token=refresh_token)
@@ -2354,7 +2388,7 @@ def test_connect_auto_auth_from_config_oidc_device_code(
         expected_client_id=default_client_id,
         expected_fields=expected_fields,
         scopes_supported=["openid"],
-        oidc_discovery_url=f"{issuer}/.well-known/openid-configuration",
+        oidc_issuer=issuer,
     )
     assert auth_config.load() == {}
 

@@ -15,7 +15,7 @@ import requests
 import requests_mock.request
 
 from openeo.rest.auth.oidc import PkceCode, random_string
-from openeo.util import dict_no_none
+from openeo.util import dict_no_none, url_join
 
 DEVICE_CODE_POLL_INTERVAL = 2
 
@@ -32,38 +32,43 @@ class OidcMock:
     def __init__(
         self,
         requests_mock: requests_mock.Mocker,
-        oidc_discovery_url: str,
         expected_grant_type: Union[str, None],
+        *,
+        oidc_issuer: str = "https://oidc.test",
         expected_client_id: str = "myclient",
         expected_fields: dict = None,
-        provider_root_url: str = "https://auth.test",
         state: dict = None,
         scopes_supported: List[str] = None,
         device_code_flow_support: bool = True,
+        oidc_discovery_url: Optional[str] = None,
     ):
         self.requests_mock = requests_mock
-        self.oidc_discovery_url = oidc_discovery_url
+        self.oidc_issuer = oidc_issuer
         self.expected_grant_type = expected_grant_type
         self.grant_request_history = []
         self.expected_client_id = expected_client_id
         self.expected_fields = expected_fields or {}
         self.expected_authorization_code = None
-        self.provider_root_url = provider_root_url
-        self.authorization_endpoint = provider_root_url + "/auth"
-        self.token_endpoint = provider_root_url + "/token"
+        self.authorization_endpoint = url_join(self.oidc_issuer, "/auth")
+        self.token_endpoint = url_join(self.oidc_issuer, "/token")
         self.device_code_endpoint = (
-            provider_root_url + "/device_code" if device_code_flow_support else None
+            url_join(self.oidc_issuer, "/device_code")
+            if device_code_flow_support
+            else None
         )
         self.state = state or {}
         self.scopes_supported = scopes_supported or ["openid", "email", "profile"]
 
+        oidc_discovery_url = oidc_discovery_url or url_join(
+            oidc_issuer, "/.well-known/openid-configuration"
+        )
         self.requests_mock.get(
             oidc_discovery_url,
             text=json.dumps(
                 dict_no_none(
                     {
                         # Rudimentary OpenID Connect discovery document
-                        "issuer": self.provider_root_url,
+                        "issuer": self.oidc_issuer,
                         "authorization_endpoint": self.authorization_endpoint,
                         "token_endpoint": self.token_endpoint,
                         "device_authorization_endpoint": self.device_code_endpoint,
@@ -167,7 +172,7 @@ class OidcMock:
         return json.dumps(
             {
                 # TODO: also verification_url (google tweak)
-                "verification_uri": self.provider_root_url + "/dc",
+                "verification_uri": url_join(self.oidc_issuer, "/dc"),
                 "device_code": self.state["device_code"],
                 "user_code": self.state["user_code"],
                 "interval": DEVICE_CODE_POLL_INTERVAL,
