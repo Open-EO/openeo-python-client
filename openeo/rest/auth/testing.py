@@ -26,14 +26,14 @@ ABSENT = object()
 
 class OidcMock:
     """
-    Mock object to test OIDC flows
+    Fixture/mock to act as stand-in OIDC provider to test OIDC flows
     """
 
     def __init__(
         self,
         requests_mock: requests_mock.Mocker,
-        expected_grant_type: Union[str, None],
         *,
+        expected_grant_type: Optional[str] = None,
         oidc_issuer: str = "https://oidc.test",
         expected_client_id: str = "myclient",
         expected_fields: dict = None,
@@ -297,6 +297,18 @@ class OidcMock:
     def invalidate_access_token(self):
         self.state["access_token"] = "***invalidated***"
 
+    def get_request_history(
+        self, url: Optional[str] = None, method: Optional[str] = None
+    ) -> List[requests_mock.request._RequestObjectProxy]:
+        """Get mocked request history: requests with given method/url."""
+        if url and url.startswith("/"):
+            url = url_join(self.oidc_issuer, url)
+        return [
+            r
+            for r in self.requests_mock.request_history
+            if (method is None or method.lower() == r.method.lower())
+            and (url is None or url == r.url)
+        ]
 
 @contextlib.contextmanager
 def assert_device_code_poll_sleep(expect_called=True):

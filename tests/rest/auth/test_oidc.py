@@ -219,12 +219,11 @@ def test_provider_info_get_scopes_string_refresh_token_offline_access(requests_m
     assert p.get_scopes_string() == "openid"
 
 
-def test_oidc_client_info_uess_device_flow_pkce_support(requests_mock):
+def test_oidc_client_info_uses_device_flow_pkce_support(requests_mock):
     oidc_issuer = "https://oidc.test"
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
         oidc_issuer=oidc_issuer,
-        expected_grant_type=None,
     )
     provider = OidcProviderInfo(
         issuer=oidc_issuer,
