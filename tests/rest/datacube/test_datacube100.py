@@ -2235,6 +2235,160 @@ def test_apply_math_simple(con100, math, process, args):
     }
 
 
+@pytest.mark.parametrize(
+    ["math", "apply_pg"],
+    [
+        (
+            lambda c: c + 1,
+            {
+                "add1": {
+                    "process_id": "add",
+                    "arguments": {"x": {"from_parameter": "x"}, "y": 1},
+                    "result": True,
+                },
+            },
+        ),
+        (
+            lambda c: 1 + c + 2,
+            {
+                "add1": {
+                    "process_id": "add",
+                    "arguments": {"x": 1, "y": {"from_parameter": "x"}},
+                },
+                "add2": {
+                    "process_id": "add",
+                    "arguments": {"x": {"from_node": "add1"}, "y": 2},
+                    "result": True,
+                },
+            },
+        ),
+        (
+            lambda c: 1 - c - 2,
+            {
+                "subtract1": {
+                    "process_id": "subtract",
+                    "arguments": {"x": 1, "y": {"from_parameter": "x"}},
+                },
+                "subtract2": {
+                    "process_id": "subtract",
+                    "arguments": {"x": {"from_node": "subtract1"}, "y": 2},
+                    "result": True,
+                },
+            },
+        ),
+        (
+            lambda c: 2 * (3 / c) - 1,
+            {
+                "divide1": {
+                    "process_id": "divide",
+                    "arguments": {"x": 3, "y": {"from_parameter": "x"}},
+                },
+                "multiply1": {
+                    "process_id": "multiply",
+                    "arguments": {"x": 2, "y": {"from_node": "divide1"}},
+                },
+                "subtract1": {
+                    "process_id": "subtract",
+                    "arguments": {"x": {"from_node": "multiply1"}, "y": 1},
+                    "result": True,
+                },
+            },
+        ),
+        (
+            lambda c: 0 * c,
+            {
+                "multiply1": {
+                    "process_id": "multiply",
+                    "arguments": {"x": 0, "y": {"from_parameter": "x"}},
+                    "result": True,
+                },
+            },
+        ),
+        (
+            lambda c: 10 * c.log10(),
+            {
+                "log1": {
+                    "process_id": "log",
+                    "arguments": {"x": {"from_parameter": "x"}, "base": 10},
+                },
+                "multiply1": {
+                    "process_id": "multiply",
+                    "arguments": {"x": 10, "y": {"from_node": "log1"}},
+                    "result": True,
+                },
+            },
+        ),
+        (
+            lambda c: ~c,
+            {
+                "not1": {
+                    "process_id": "not",
+                    "arguments": {"x": {"from_parameter": "x"}},
+                    "result": True,
+                },
+            },
+        ),
+        (
+            lambda c: ~(c == 5),
+            {
+                "eq1": {
+                    "process_id": "eq",
+                    "arguments": {"x": {"from_parameter": "x"}, "y": 5},
+                },
+                "not1": {
+                    "process_id": "not",
+                    "arguments": {"x": {"from_node": "eq1"}},
+                    "result": True,
+                },
+            },
+        ),
+    ],
+)
+def test_apply_more_math(con100, math, apply_pg):
+    """https://github.com/Open-EO/openeo-python-client/issues/123"""
+    cube = con100.load_collection("S2")
+    res = math(cube)
+    graph = res.flat_graph()
+    assert set(graph.keys()) == {"loadcollection1", "apply1"}
+    assert graph["apply1"] == {
+        "process_id": "apply",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "process": {"process_graph": apply_pg},
+        },
+        "result": True,
+    }
+
+
+def test_apply_append_math_keep_context(con100):
+    cube = con100.load_collection("S2")
+    cube = cube.apply(lambda x: x + 1, context={"foo": 866})
+    cube = cube * 123
+    graph = cube.flat_graph()
+    assert set(graph.keys()) == {"loadcollection1", "apply1"}
+    assert graph["apply1"] == {
+        "process_id": "apply",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "process": {
+                "process_graph": {
+                    "add1": {
+                        "process_id": "add",
+                        "arguments": {"x": {"from_parameter": "x"}, "y": 1},
+                    },
+                    "multiply1": {
+                        "process_id": "multiply",
+                        "arguments": {"x": {"from_node": "add1"}, "y": 123},
+                        "result": True,
+                    },
+                }
+            },
+            "context": {"foo": 866},
+        },
+        "result": True,
+    }
+
+
 @pytest.mark.parametrize(["save_result_kwargs", "download_kwargs", "expected_fail"], [
     ({}, {}, None),
     ({"format": "GTiff"}, {}, None),

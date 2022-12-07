@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fixed/improved math operator/process support for `DataCube`s in "apply" mode (non-"band math"),
+  allowing expressions like `10 * cube.log10()` and `~(cube == 0)`
+  ([#123](https://github.com/Open-EO/openeo-python-client/issues/123))
+
 
 ## [0.13.0] - 2022-10-10 - "UDF UX" release
 
