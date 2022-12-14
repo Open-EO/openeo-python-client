@@ -1,6 +1,8 @@
 import json
 from unittest import mock
+import platform
 
+import oschmod
 import pytest
 
 import openeo.rest.auth.config
@@ -31,7 +33,10 @@ class TestPrivateJsonFile:
         assert not private.path.exists()
         private.set("foo", "bar", value=42)
         assert private.path.exists()
-        st_mode = private.path.stat().st_mode
+        if platform.system() == 'Windows':
+            st_mode = oschmod.get_mode(str(private.path))
+        else:
+            st_mode = private.path.stat().st_mode
         assert st_mode & 0o777 == 0o600
 
     def test_wrong_permissions(self, tmp_path):
@@ -151,7 +156,12 @@ class TestRefreshTokenStorage:
     def test_permissions(self, tmp_path):
         r = RefreshTokenStore(path=tmp_path)
         r.set_refresh_token("foo", "bar", "imd6$3cr3t")
-        st_mode = (tmp_path / RefreshTokenStore.DEFAULT_FILENAME).stat().st_mode
+        token_path = (tmp_path / RefreshTokenStore.DEFAULT_FILENAME)
+        if platform.system() == 'Windows':
+            st_mode = oschmod.get_mode(str(token_path))
+        else:
+            token_path.stat.st_mode()
+            st_mode = (tmp_path / RefreshTokenStore.DEFAULT_FILENAME).stat().st_mode
         assert st_mode & 0o777 == 0o600
 
     def test_get_set_refresh_token(self, tmp_path):

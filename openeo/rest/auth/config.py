@@ -14,6 +14,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Union, Tuple, Dict
 
+import oschmod
+
 from openeo import __version__
 from openeo.config import get_user_config_dir, get_user_data_dir
 from openeo.util import rfc3339, deep_get, deep_set
@@ -25,15 +27,21 @@ log = logging.getLogger(__name__)
 
 def assert_private_file(path: Path):
     """Check that given file is only readable by user."""
-    mode = path.stat().st_mode
+
+    # use oschmod on Windows
+    if platform.system() == "Windows":
+        mode = oschmod.get_mode(str(path))
+    else:
+        mode = path.stat().st_mode
     if (mode & stat.S_IRWXG) or (mode & stat.S_IRWXO):
         message = "File {p} could be readable by others: mode {a:o} (expected: {e:o}).".format(
             p=path, a=mode & (stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO), e=_PRIVATE_PERMS
         )
-        if platform.system() == 'Windows':
-            log.info(message)
-        else:
-            raise PermissionError(message)
+        raise PermissionError(message)
+        # if platform.system() == 'Windows':
+        #     log.info(message)
+        # else:
+        #     raise PermissionError(message)
 
 
 def utcnow_rfc3339() -> str:
@@ -86,7 +94,11 @@ class PrivateJsonFile:
         # TODO: add file locking to avoid race conditions?
         with self._path.open("w", encoding="utf8") as f:
             json.dump(data, f, indent=2)
-        self._path.chmod(mode=_PRIVATE_PERMS)
+        # on Windows us oschmod because Python chmod implementation doesn't work on Windows.
+        if platform.system() == "Windows":
+            oschmod.set_mode(str(self._path), mode=_PRIVATE_PERMS)
+        else:
+            self._path.chmod(mode=_PRIVATE_PERMS)
         assert_private_file(self._path)
 
     def get(self, *keys, default=None) -> Union[dict, str, int]:
