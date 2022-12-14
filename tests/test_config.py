@@ -168,6 +168,13 @@ def test_get_config_verbose(tmp_path, caplog, capsys, verbose, force_interactive
         config = get_config()
         assert config.get("general.verbose") == verbose
 
-    regex = re.compile(f"Loaded.*config from.*{config_path}")
+    # TODO: on Windows the path in config_path makes the regex invalid.
+    #   My guess is the \ from the path is interpreted as an escape sequence
+    import platform
+    if platform.system() == "Windows":
+        config_path_escaped = str(config_path).replace("\\", "\\\\")
+    else:
+        config_path_escaped = config_path
+    regex = re.compile(f"Loaded.*config from.*{config_path_escaped}")
     assert regex.search(caplog.text)
     assert bool(regex.search(capsys.readouterr().out)) == on_stdout
