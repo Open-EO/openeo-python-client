@@ -168,9 +168,9 @@ def test_get_config_verbose(tmp_path, caplog, capsys, verbose, force_interactive
         config = get_config()
         assert config.get("general.verbose") == verbose
 
-    # TODO: on Windows the path in config_path makes the regex invalid.
-    #   My guess is the \ from the path is interpreted as an escape sequence
-    import platform
+    # On Windows the path in config_path would make the regex invalid because
+    # windows paths contain \ and a regex interprets that as an escape sequence.
+    # Therefore we have to escape the \ to \\ .
     if platform.system() == "Windows":
         config_path_escaped = str(config_path).replace("\\", "\\\\")
     else:
