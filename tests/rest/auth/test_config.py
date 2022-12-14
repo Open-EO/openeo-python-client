@@ -160,7 +160,7 @@ class TestRefreshTokenStorage:
         if platform.system() == 'Windows':
             st_mode = oschmod.get_mode(str(token_path))
         else:
-            token_path.stat.st_mode()
+            token_path.stat().st_mode
             st_mode = (tmp_path / RefreshTokenStore.DEFAULT_FILENAME).stat().st_mode
         assert st_mode & 0o777 == 0o600
 

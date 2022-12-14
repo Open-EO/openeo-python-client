@@ -29,6 +29,7 @@ def assert_private_file(path: Path):
     """Check that given file is only readable by user."""
 
     # use oschmod on Windows
+    # TODO: can we use oschmod for all operating systems, make the code simpler and consitent?
     if platform.system() == "Windows":
         mode = oschmod.get_mode(str(path))
     else:
@@ -38,10 +39,6 @@ def assert_private_file(path: Path):
             p=path, a=mode & (stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO), e=_PRIVATE_PERMS
         )
         raise PermissionError(message)
-        # if platform.system() == 'Windows':
-        #     log.info(message)
-        # else:
-        #     raise PermissionError(message)
 
 
 def utcnow_rfc3339() -> str:
@@ -94,7 +91,8 @@ class PrivateJsonFile:
         # TODO: add file locking to avoid race conditions?
         with self._path.open("w", encoding="utf8") as f:
             json.dump(data, f, indent=2)
-        # on Windows us oschmod because Python chmod implementation doesn't work on Windows.
+        # On Windows we use oschmod because Python chmod implementation doesn't work on Windows.
+        # TODO: can we use oschmod on all platforms? Seems like that is the intention of oschmod.
         if platform.system() == "Windows":
             oschmod.set_mode(str(self._path), mode=_PRIVATE_PERMS)
         else:
