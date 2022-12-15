@@ -137,7 +137,7 @@ These are a few solutions we know, ordered from the easiest option to the most c
 .. _windows-dev-install-with-conda:
 
 Option 1) Install the client in a conda environment
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The simplest way install your development setup for openeo is to use the conda package manager, either via Anaconda, or via Miniforge.
 
@@ -189,7 +189,7 @@ In your conda environment, launch the Python interpreter and try the following s
 .. _windows-dev-install-unofficial-wheels:
 
 Option 2) Use some unofficial python wheels for GDAL and Fiona
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 There are `unofficial Python wheels at https://www.lfd.uci.edu/~gohlke/pythonlibs/: <https://www.lfd.uci.edu/~gohlke/pythonlibs/>`_
 
