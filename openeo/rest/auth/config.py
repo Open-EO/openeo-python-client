@@ -8,7 +8,6 @@ from local config files.
 
 import json
 import logging
-import platform
 import stat
 from datetime import datetime
 from pathlib import Path
@@ -18,8 +17,15 @@ from openeo import __version__
 from openeo.config import get_user_config_dir, get_user_data_dir
 from openeo.util import rfc3339, deep_get, deep_set
 
-if platform.system() == 'Windows':
+# Use oschmod if it is installed.
+# Otherwise we fall back on Python's chmod implementation.
+# On Windows we have to use oschmod because Python chmod implementation doesn't work on Windows.
+# TODO: Can we use oschmod transparantly on all platforms?
+#       Seems like that is the intention of oschmod, but for now we will play it safe.
+try:
     import oschmod
+except ImportError:
+    oschmod = None
 
 
 _PRIVATE_PERMS = stat.S_IRUSR | stat.S_IWUSR
@@ -27,15 +33,24 @@ _PRIVATE_PERMS = stat.S_IRUSR | stat.S_IWUSR
 log = logging.getLogger(__name__)
 
 
+def get_file_mode(path: Path):
+    """Get the file permission bits in a way that works on both *nix and Windows platforms."""
+    if oschmod:
+        return oschmod.get_mode(str(path))
+    return path.stat().st_mode
+
+
+def set_file_mode(path: Path, mode):
+    """Set the file permission bits in a way that works on both *nix and Windows platforms."""
+    if oschmod:
+        oschmod.set_mode(str(path), mode=mode)
+    else:
+        path.chmod(mode=mode)
+
+
 def assert_private_file(path: Path):
     """Check that given file is only readable by user."""
-
-    # use oschmod on Windows
-    # TODO: can we use oschmod for all operating systems, make the code simpler and consitent?
-    if platform.system() == "Windows":
-        mode = oschmod.get_mode(str(path))
-    else:
-        mode = path.stat().st_mode
+    mode = get_file_mode(path)
     if (mode & stat.S_IRWXG) or (mode & stat.S_IRWXO):
         message = "File {p} could be readable by others: mode {a:o} (expected: {e:o}).".format(
             p=path, a=mode & (stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO), e=_PRIVATE_PERMS
@@ -93,12 +108,7 @@ class PrivateJsonFile:
         # TODO: add file locking to avoid race conditions?
         with self._path.open("w", encoding="utf8") as f:
             json.dump(data, f, indent=2)
-        # On Windows we use oschmod because Python chmod implementation doesn't work on Windows.
-        # TODO: can we use oschmod on all platforms? Seems like that is the intention of oschmod.
-        if platform.system() == "Windows":
-            oschmod.set_mode(str(self._path), mode=_PRIVATE_PERMS)
-        else:
-            self._path.chmod(mode=_PRIVATE_PERMS)
+        set_file_mode(self._path, mode=_PRIVATE_PERMS)
         assert_private_file(self._path)
 
     def get(self, *keys, default=None) -> Union[dict, str, int]:

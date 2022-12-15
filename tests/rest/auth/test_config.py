@@ -1,18 +1,10 @@
 import json
 from unittest import mock
-import platform
 
 import pytest
 
 import openeo.rest.auth.config
-from openeo.rest.auth.config import RefreshTokenStore, AuthConfig, PrivateJsonFile
-
-# TODO: We could simplify the code if we can verify oschmod works transparently on Linux/Mac as well.
-#   I think oschmod does work on Linux and Mac, but since it we use it for a
-#   security sensitive feature, let's make sure there are no problems first.
-#   For now, it is fine to have some Windows specific code.
-if platform.system() == 'Windows':
-    import oschmod
+from openeo.rest.auth.config import RefreshTokenStore, AuthConfig, PrivateJsonFile, get_file_mode
 
 
 class TestPrivateJsonFile:
@@ -39,10 +31,7 @@ class TestPrivateJsonFile:
         assert not private.path.exists()
         private.set("foo", "bar", value=42)
         assert private.path.exists()
-        if platform.system() == 'Windows':
-            st_mode = oschmod.get_mode(str(private.path))
-        else:
-            st_mode = private.path.stat().st_mode
+        st_mode = get_file_mode(private.path)
         assert st_mode & 0o777 == 0o600
 
     def test_wrong_permissions(self, tmp_path):
@@ -162,12 +151,7 @@ class TestRefreshTokenStorage:
     def test_permissions(self, tmp_path):
         r = RefreshTokenStore(path=tmp_path)
         r.set_refresh_token("foo", "bar", "imd6$3cr3t")
-        token_path = (tmp_path / RefreshTokenStore.DEFAULT_FILENAME)
-        if platform.system() == 'Windows':
-            st_mode = oschmod.get_mode(str(token_path))
-        else:
-            token_path.stat().st_mode
-            st_mode = (tmp_path / RefreshTokenStore.DEFAULT_FILENAME).stat().st_mode
+        st_mode = get_file_mode(tmp_path / RefreshTokenStore.DEFAULT_FILENAME)
         assert st_mode & 0o777 == 0o600
 
     def test_get_set_refresh_token(self, tmp_path):

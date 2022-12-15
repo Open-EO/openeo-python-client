@@ -1,7 +1,6 @@
 import contextlib
 import logging
 import os
-import platform
 import random
 import re
 import textwrap
@@ -160,13 +159,7 @@ def test_get_config_verbose(tmp_path, caplog, capsys, verbose, force_interactive
         config = get_config()
         assert config.get("general.verbose") == verbose
 
-    # On Windows the path in config_path would make the regex invalid because
-    # windows paths contain \ and a regex interprets that as an escape sequence.
-    # Therefore we have to escape the \ to \\ .
-    if platform.system() == "Windows":
-        config_path_escaped = str(config_path).replace("\\", "\\\\")
-    else:
-        config_path_escaped = config_path
-    regex = re.compile(f"Loaded.*config from.*{config_path_escaped}")
+    # re.escape config_path because Windows paths contain "\"
+    regex = re.compile(f"Loaded.*config from.*{re.escape(config_path)}")
     assert regex.search(caplog.text)
     assert bool(regex.search(capsys.readouterr().out)) == on_stdout
