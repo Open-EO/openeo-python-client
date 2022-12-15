@@ -16,23 +16,19 @@ from openeo.config import get_user_config_dir, get_user_data_dir, ClientConfig, 
 
 
 def test_get_user_config_dir():
-    # For Linux/Mac we configure the config and data directories in conftest.py
-    # via the environment variables XDG_CONFIG_HOME and XDG_DATA_HOME.
-    # But on Windows we need to set APPDATA instead, and we don't have separate
-    # variables for config and data.
     if platform.system() == "Windows":
-        os.environ["APPDATA"] = str(Path(__file__).parent / "data/user_dirs/config")
-    assert get_user_config_dir() == Path(__file__).parent / "data/user_dirs/config/openeo-python-client"
+        expected = Path(__file__).parent / "data/user_dirs/AppData/Roaming/openeo-python-client"
+    else:
+        expected = Path(__file__).parent / "data/user_dirs/config/openeo-python-client"
+    assert get_user_config_dir() == expected
 
 
 def test_get_user_data_dir():
-    # For Linux/Mac we configure the config and data directories in conftest.py
-    # via the environment variables XDG_CONFIG_HOME and XDG_DATA_HOME.
-    # But on Windows we need to set APPDATA instead, and we don't have separate
-    # variables for config and data.
     if platform.system() == "Windows":
-        os.environ["APPDATA"] = str(Path(__file__).parent / "data/user_dirs/data")
-    assert get_user_data_dir() == Path(__file__).parent / "data/user_dirs/data/openeo-python-client"
+        expected = Path(__file__).parent / "data/user_dirs/AppData/Roaming/openeo-python-client"
+    else:
+        expected = Path(__file__).parent / "data/user_dirs/data/openeo-python-client"
+    assert get_user_data_dir() == expected
 
 
 class TestClientConfig:
