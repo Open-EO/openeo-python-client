@@ -47,7 +47,7 @@ setup(name=name,
           'xarray>=0.12.3',
           'pandas>0.20.0',
           'deprecated>=1.2.12',
-          'oschmod>=0.3.12',
+          'oschmod>=0.3.12; sys_platform == "win32"',
       ],
       extras_require={
           "dev": tests_require + [
@@ -56,6 +56,9 @@ setup(name=name,
               "sphinx-autodoc-typehints",
               "flake8",
               "myst-parser",
+          ],
+          "oschmod": [  # install oschmod even when platform is not Windows, e.g. for testing in CI.
+              "oschmod>=0.3.12"
           ]
       },
       entry_points={
