@@ -47,8 +47,7 @@ setup(name=name,
           'xarray>=0.12.3',
           'pandas>0.20.0',
           'deprecated>=1.2.12',
-          'oschmod; sys_platform == "win32"',
-          'pywin32; sys_platform == "win32"',
+          'oschmod>=0.3.12',
       ],
       extras_require={
           "dev": tests_require + [
