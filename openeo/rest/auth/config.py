@@ -14,11 +14,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Union, Tuple, Dict
 
-import oschmod
-
 from openeo import __version__
 from openeo.config import get_user_config_dir, get_user_data_dir
 from openeo.util import rfc3339, deep_get, deep_set
+
+if platform.system() == 'Windows':
+    import oschmod
+
 
 _PRIVATE_PERMS = stat.S_IRUSR | stat.S_IWUSR
 
