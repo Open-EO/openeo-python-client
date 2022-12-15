@@ -1,6 +1,7 @@
 import contextlib
 import logging
 import os
+import platform
 import random
 import re
 import textwrap
@@ -15,11 +16,19 @@ from openeo.config import get_user_config_dir, get_user_data_dir, ClientConfig, 
 
 
 def test_get_user_config_dir():
-    assert get_user_config_dir() == Path(__file__).parent / "data/user_dirs/config/openeo-python-client"
+    if platform.system() == "Windows":
+        expected = Path(__file__).parent / "data/user_dirs/AppData/Roaming/openeo-python-client"
+    else:
+        expected = Path(__file__).parent / "data/user_dirs/config/openeo-python-client"
+    assert get_user_config_dir() == expected
 
 
 def test_get_user_data_dir():
-    assert get_user_data_dir() == Path(__file__).parent / "data/user_dirs/data/openeo-python-client"
+    if platform.system() == "Windows":
+        expected = Path(__file__).parent / "data/user_dirs/AppData/Roaming/openeo-python-client"
+    else:
+        expected = Path(__file__).parent / "data/user_dirs/data/openeo-python-client"
+    assert get_user_data_dir() == expected
 
 
 class TestClientConfig:
