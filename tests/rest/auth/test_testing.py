@@ -1,0 +1,35 @@
+from openeo.rest.auth.oidc import (
+    OidcProviderInfo,
+    OidcClientInfo,
+    OidcClientCredentialsAuthenticator,
+)
+from openeo.rest.auth.testing import OidcMock
+
+
+class TestOidcMock:
+    def test_request_history(self, requests_mock):
+        oidc_issuer = "https://oidc.test"
+        oidc_mock = OidcMock(
+            requests_mock=requests_mock,
+            oidc_issuer=oidc_issuer,
+            expected_grant_type="client_credentials",
+            expected_fields={"client_secret": "$ecr6t"},
+        )
+        assert [r.url for r in oidc_mock.get_request_history()] == []
+
+        oidc_provider = OidcProviderInfo(issuer=oidc_issuer)
+        assert [r.url for r in oidc_mock.get_request_history()] == [
+            "https://oidc.test/.well-known/openid-configuration"
+        ]
+
+        client_info = OidcClientInfo(
+            client_id="myclient",
+            provider=oidc_provider,
+            client_secret="$ecr6t",
+        )
+        authenticator = OidcClientCredentialsAuthenticator(client_info=client_info)
+        authenticator.get_tokens()
+
+        assert [r.url for r in oidc_mock.get_request_history("/token")] == [
+            "https://oidc.test/token"
+        ]

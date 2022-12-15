@@ -8,11 +8,22 @@ on: [push, pull_request]
 jobs:
   build:
 
-    runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.6", "3.7", "3.8", "3.9"]
+        # Basic configurations to run on
+        os: ["ubuntu-latest"]
+        python-version:
+          - "3.7"
+          - "3.8"
+          - "3.9"
+          - "3.10"
+          - "3.11"
+        # Additional special cases (see https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#example-adding-configurations)
+        include:
+          - os: "ubuntu-20.04"
+            python-version: "3.6"
 
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python ${{ matrix.python-version }}

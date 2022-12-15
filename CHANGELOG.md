@@ -9,11 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Jupyter integration: show process graph visualization of `DataCube` objects instead of generic `repr`.  ([#336](https://github.com/Open-EO/openeo-python-client/issues/336))
+- Add `Connection.vectorcube_from_paths()` to load a vector cube 
+  from files (on back-end) or URLs with `load_uploaded_files` process.
+- Python 3.10 and 3.11 are now officially supported 
+  (test run now also for 3.10 and 3.11 in GitHub Actions, [#346](https://github.com/Open-EO/openeo-python-client/issues/346))
+
 ### Changed
 
 ### Removed
 
 ### Fixed
+
+- Fixed/improved math operator/process support for `DataCube`s in "apply" mode (non-"band math"),
+  allowing expressions like `10 * cube.log10()` and `~(cube == 0)`
+  ([#123](https://github.com/Open-EO/openeo-python-client/issues/123))
 
 
 ## [0.13.0] - 2022-10-10 - "UDF UX" release

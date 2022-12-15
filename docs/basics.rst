@@ -92,7 +92,7 @@ and it will print a web link and a short *user code*, for example:
 
 .. code-block::
 
-    To authenticate: visit https://aai.egi.eu/oidc/device and enter the user code 'Ka4rJ4L'.
+    To authenticate: visit https://aai.egi.eu/auth/realms/egi/device and enter the user code 'SLUO-BMUD'.
 
 Visit this web page in a browser, log in there with an existing account and enter the user code.
 If everything goes well, the ``connection`` object in the script will be authenticated

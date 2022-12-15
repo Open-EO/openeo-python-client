@@ -6,7 +6,7 @@ import pytest
 from openeo.rest.auth import cli
 from openeo.rest.auth.cli import CliToolException
 from openeo.rest.auth.config import AuthConfig, RefreshTokenStore
-from .test_oidc import OidcMock, assert_device_code_poll_sleep
+from openeo.rest.auth.testing import OidcMock, assert_device_code_poll_sleep
 
 
 def mock_input(*args: str):
@@ -296,8 +296,7 @@ def test_oidc_auth_device_flow(auth_config, refresh_token_store, requests_mock, 
         requests_mock=requests_mock,
         expected_grant_type="urn:ietf:params:oauth:grant-type:device_code",
         expected_client_id=client_id,
-        provider_root_url="https://authit.test",
-        oidc_discovery_url="https://authit.test/.well-known/openid-configuration",
+        oidc_issuer="https://authit.test",
         expected_fields={"scope": "openid", "client_secret": client_secret},
         state={"device_code_callback_timeline": ["great success"]},
         scopes_supported=["openid"]
@@ -343,8 +342,7 @@ def test_oidc_auth_device_flow_default_client(auth_config, refresh_token_store, 
         requests_mock=requests_mock,
         expected_grant_type="urn:ietf:params:oauth:grant-type:device_code",
         expected_client_id=default_client_id,
-        provider_root_url="https://authit.test",
-        oidc_discovery_url="https://authit.test/.well-known/openid-configuration",
+        oidc_issuer="https://authit.test",
         expected_fields={"scope": "openid", "code_verifier": True, "code_challenge": True},
         state={"device_code_callback_timeline": ["great success"]},
         scopes_supported=["openid"]
@@ -389,8 +387,7 @@ def test_oidc_auth_device_flow_no_config_all_defaults(auth_config, refresh_token
         requests_mock=requests_mock,
         expected_grant_type="urn:ietf:params:oauth:grant-type:device_code",
         expected_client_id=default_client_id,
-        provider_root_url="https://authit.test",
-        oidc_discovery_url="https://authit.test/.well-known/openid-configuration",
+        oidc_issuer="https://authit.test",
         expected_fields={"scope": "openid", "code_verifier": True, "code_challenge": True},
         state={"device_code_callback_timeline": ["great success"]},
         scopes_supported=["openid"]
@@ -436,8 +433,7 @@ def test_oidc_auth_auth_code_flow(auth_config, refresh_token_store, requests_moc
         expected_grant_type="authorization_code",
         expected_client_id=client_id,
         expected_fields={"scope": "openid"},
-        provider_root_url="https://authit.test",
-        oidc_discovery_url="https://authit.test/.well-known/openid-configuration",
+        oidc_issuer="https://authit.test",
         scopes_supported=["openid"]
     )
 
