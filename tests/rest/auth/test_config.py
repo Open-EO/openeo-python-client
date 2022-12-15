@@ -2,11 +2,17 @@ import json
 from unittest import mock
 import platform
 
-import oschmod
 import pytest
 
 import openeo.rest.auth.config
 from openeo.rest.auth.config import RefreshTokenStore, AuthConfig, PrivateJsonFile
+
+# TODO: We could simplify the code if we can verify oschmod works transparently on Linux/Mac as well.
+#   I think oschmod does work on Linux and Mac, but since it we use it for a
+#   security sensitive feature, let's make sure there are no problems first.
+#   For now, it is fine to have some Windows specific code.
+if platform.system() == 'Windows':
+    import oschmod
 
 
 class TestPrivateJsonFile:
