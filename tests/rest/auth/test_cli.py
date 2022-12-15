@@ -1,5 +1,6 @@
 import logging
 from unittest import mock
+import os
 
 import pytest
 
@@ -37,8 +38,8 @@ def refresh_token_store(tmp_openeo_config_home) -> RefreshTokenStore:
 def test_paths(capsys):
     cli.main(["paths"])
     out = capsys.readouterr().out
-    assert "/auth-config.json" in out
-    assert "/refresh-tokens.json" in out
+    assert os.sep + "auth-config.json" in out
+    assert os.sep + "refresh-tokens.json" in out
 
 
 def test_config_dump(capsys, auth_config):
