@@ -21,8 +21,8 @@ def test_get_user_config_dir():
     # But on Windows we need to set APPDATA instead, and we don't have separate
     # variables for config and data.
     if platform.system() == "Windows":
-        os.environ["APPDATA"] = str(Path(__file__).parent / Path("data/user_dirs/config"))
-    assert get_user_config_dir() == Path(__file__).parent / Path("data/user_dirs/config/openeo-python-client")
+        os.environ["APPDATA"] = str(Path(__file__).parent / "data/user_dirs/config")
+    assert get_user_config_dir() == Path(__file__).parent / "data/user_dirs/config/openeo-python-client"
 
 
 def test_get_user_data_dir():
@@ -31,8 +31,8 @@ def test_get_user_data_dir():
     # But on Windows we need to set APPDATA instead, and we don't have separate
     # variables for config and data.
     if platform.system() == "Windows":
-        os.environ["APPDATA"] = str(Path(__file__).parent / Path("data/user_dirs/data"))
-    assert get_user_data_dir() == Path(__file__).parent / Path("data/user_dirs/data/openeo-python-client")
+        os.environ["APPDATA"] = str(Path(__file__).parent / "data/user_dirs/data")
+    assert get_user_data_dir() == Path(__file__).parent / "data/user_dirs/data/openeo-python-client"
 
 
 class TestClientConfig:
