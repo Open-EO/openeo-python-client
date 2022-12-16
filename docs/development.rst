@@ -13,6 +13,7 @@ like this::
 
     pip install -e .[dev]
 
+If you are on Windows and experience problems installing this way, you can find some solutions in section `Development Installation on Windows`_.
 
 Running the unit tests
 ======================
@@ -262,38 +263,71 @@ import it and print the package version.
 Development Installation on Windows
 ===================================
 
-There can be a few difficulties to install the development dependencies on Windows via pip.
+Normally you can install the client the same way on Windows as on Linux, like so:
 
-Namely, geopandas depends on a few libraries that are a bit trickier to install. They need some compiled code and unfortunately these libraries do not provide officially supported python wheels for Windows.
+.. code-block:: console
 
-Cause: Down the line geopandas depends on GDAL and that is a C++ library that does not provide *official* binaries for Windows, though there are binaries from other sources.
+    pip install -e .[dev]
 
-Because there isn't supported binary or Python wheel, the pip installation process will try to compile the C libraries on the fly but that will only work if your have set up a C++ compiler properly.
+This should be working with the most recent code, however, in the past we sometimes had issues with a development installation.
+Should you experience problems, then this section describes some ways to solve them.
+
+Known issue
+-----------
+
+The specific problem we experienced on Windows is that the geopandas Python package depends on a few libraries that are a bit trickier to install.
+They need some compiled C/C++ code and unfortunately these libraries do not provide officially supported python wheels for Windows.
+
+Root Cause
+~~~~~~~~~~
+
+Down the line geopandas depends on GDAL and that is a C++ library that does not provide *official* binaries for Windows, though there are binaries from other sources.
+
+Because there isn't a supported binary or a Python wheel, the pip installation process will fall back to compiling the C libraries on the fly.
+But that will only work if your have set up a C++ compiler, and have all the dependencies installed,
+and setting up all the dependencies needed for these binaries can be a bit of work.
+
+Below are some easier solutions.
 
 Solutions
 ---------
 
-These are a few solutions we know, ordered from the easiest option to the most complex one:
+These are a few solutions we know, from the easiest option at the top to the most complex at the bottom.
+The first two options are described in more detail in the sections below.
 
-1. **Recommended option:** install the client in a conda environment, using either Anaconda or Miniforge. For most people this would be the simplest the solution: 
+1. **Recommended option:** install the client in a conda environment.
+
+    For most people this would be the simplest solution.
 
     See: :ref:`windows-dev-install-with-conda`
 
-2. Use some unofficial python wheels for GDAL and Fiona. This is only suitable for development, not for production.
+2. Use unofficial python wheels for GDAL and Fiona.
+
+    This is only suitable for development, not for production.
 
     See: :ref:`windows-dev-install-unofficial-wheels`
 
-3. If you already use Docker or WSL, using either of those is also a good option for you.
+3. If you already use Docker or WSL2, using either of those is also a good option for you.
+
+    - Then you will be on Linux in a container or the WSL VM.
+    - Installation on WSL should be the same as on native Linux.
+    - If you are comfortable with creating your own Dockerfiles then Docker is also an option.
+
 4. Install a C++ compiler and deal with the compilation issues when you install it via pip.
+
+    Can be complex, so your mileage may vary.
+
+
 
 .. _windows-dev-install-with-conda:
 
 Option 1) Install the client in a conda environment
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The simplest way install your development setup for openeo is to use the conda package manager, either via Anaconda, or via Miniforge.
+The simplest way to install your openeo development setup is to use the conda package manager, either via Anaconda, or via Miniforge.
 
-Anaconda is a commercial product and you can buy support for it. Miniforge is a fully open source alternative that has a drop-in replacement for the conda command.
+Anaconda is a commercial product and you can buy support for it.
+Miniforge is a fully open source alternative that has a drop-in replacement for the conda command.
 Miniforge uses the `Conda-forge <https://conda-forge.org/>`_ channel (which is a package repository) by default.
 
 * `Anaconda <https://anaconda.org/>`_
@@ -304,7 +338,7 @@ The instructions below should work in both Anaconda and Miniforge.
 Though with Miniforge you can simplify the commands a little bit because the conda-forge channel is the default, so you can leave out the option ``-c conda-forge``.
 
 Create a conda environment with the geopandas package already installed.
-This is the step that avoids the hard part.
+Installing geopandas from a conda package is the step that avoids the hard part.
 
 .. code-block:: console
 
