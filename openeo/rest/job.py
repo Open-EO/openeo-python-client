@@ -207,7 +207,7 @@ class BatchJob:
                 soft_error("Connection error while polling job status: {e}".format(e=e))
                 continue
             except OpenEoApiError as e:
-                if e.http_status_code == 503:
+                if e.http_status_code in [502, 503]:
                     soft_error("Service availability error while polling job status: {e}".format(e=e))
                     continue
                 else:
