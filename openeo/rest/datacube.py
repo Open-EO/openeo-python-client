@@ -21,7 +21,6 @@ import requests
 import shapely.geometry
 import shapely.geometry.base
 from shapely.geometry import Polygon, MultiPolygon, mapping
-from ipyleaflet import Map, TileLayer, basemaps
 
 import openeo
 import openeo.processes
@@ -1842,12 +1841,11 @@ class DataCube(_ProcessGraphAbstraction):
                     return pg[node]["arguments"]["spatial_extent"]
         return None
 
-
     def preview(
         self,
         center: Union[Iterable, None] = None,
         zoom: Union[int, None] = None,
-    ) -> Tuple[Map, Service]:
+    ):
         """
         Creates a service with the process graph and displays a map widget. Only supports XYZ.
 
@@ -1856,6 +1854,23 @@ class DataCube(_ProcessGraphAbstraction):
 
         :return: ipyleaflet Map object and the displayed Service
         """
+
+        # Check we are inside Jupyer Notebook
+        try:
+            shell = get_ipython().__class__.__name__
+            if shell == "ZMQInteractiveShell":
+                try:
+                    from IPython.display import display
+                    from ipyleaflet import Map, TileLayer, basemaps
+                except ModuleNotFoundError:
+                    raise Exception(
+                        "Additional modules must be installed for on demand viewer. Run `pip install openeo[ondemandpreview]` or refer to the documentation."
+                    )
+            else:
+                raise Exception("On demand preview only supported in Jupyter notebooks!")
+        except NameError:
+            raise Exception("On demand preview only supported in Jupyter notebooks!")
+
         if "XYZ" not in self.connection.list_service_types():
             raise OpenEoClientException(f"Backend does not support service type 'XYZ'.")
 
@@ -1880,20 +1895,8 @@ class DataCube(_ProcessGraphAbstraction):
                         [spatial_extent["north"], spatial_extent["east"]],
                     ]
                 )
-
-        try:
-            # Check we are inside Jupyer Notebook
-            shell = get_ipython().__class__.__name__
-            if shell == "ZMQInteractiveShell":
-                from IPython.display import display
-
-                display(m)
-        except NameError:
-            pass
-
+        display(m)
         return m, service
-
-
 
     def execute_batch(
             self,

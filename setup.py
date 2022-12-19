@@ -47,7 +47,6 @@ setup(name=name,
           'xarray>=0.12.3',
           'pandas>0.20.0',
           'deprecated>=1.2.12',
-          'ipyleaflet'
       ],
       extras_require={
           "dev": tests_require + [
@@ -56,6 +55,10 @@ setup(name=name,
               "sphinx-autodoc-typehints",
               "flake8",
               "myst-parser",
+          ],
+          "ondemandpreview": [
+              "ipyleaflet",
+              "ipython",
           ]
       },
       entry_points={
