@@ -11,6 +11,7 @@ import time
 from collections import OrderedDict
 from pathlib import Path
 from typing import Any, Union, Tuple, Callable, Optional
+from urllib.parse import urljoin
 
 import requests
 import shapely.geometry.base
@@ -573,3 +574,8 @@ def to_bbox_dict(x: Any, *, crs: Optional[str] = None) -> BBoxDict:
     :return: dictionary (subclass) with keys "west", "south", "east", "north", and optionally "crs".
     """
     return BBoxDict.from_any(x=x, crs=crs)
+
+
+def url_join(root_url: str, path: str):
+    """Join a base url and sub path properly."""
+    return urljoin(root_url.rstrip("/") + "/", path.lstrip("/"))

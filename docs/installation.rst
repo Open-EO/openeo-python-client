@@ -41,6 +41,7 @@ Installation with Conda
 
 This is work in progress. See `openeo-python-client#176 <https://github.com/Open-EO/openeo-python-client/issues/176>`_ for more information.
 
+If you want to set up the openeo client for development on Windows with conda: see :ref:`windows-dev-install-with-conda`.
 
 Verifying and troubleshooting
 -----------------------------
@@ -103,3 +104,4 @@ you make a change.
 The ``[dev]`` (a so-called "extra") installs additional development related dependencies,
 for example to run the unit tests.
 
+You can also find more information about installation for development on the :ref:`development-and-maintenance` page.

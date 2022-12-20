@@ -152,6 +152,7 @@ def as_flat_graph(x: Union[dict, Any]) -> dict:
     if isinstance(x, dict):
         return x
     elif hasattr(x, 'flat_graph'):
+        # TODO: define mixin/interface parent class for cleaner definition of this "flat_graph" API
         # The "flat_graph" API (supported by `PGNode`, `DataCube`, `ProcessBuilderBase`, ...)
         return x.flat_graph()
     elif isinstance(x, (str, Path)):
