@@ -279,8 +279,46 @@ instead of the original digital number range (thousands):
 
 Illustration of data chunking in ``apply`` with a  UDF
 ========================================================
+Chunk_polygon can be used to apply a specific kind of process to spatial chunks of a data cube. In the following example, we repeat the method of rescaling a data cube using chunk_polygon. Furthermore, in this example, we show that with the Geojson file, users can try with shapefile if they want to and fed in as a feature collection. Though a function to read JSON is shown here, you can replace it with your process.
 
-TODO
+.. code-block:: python
+    :linenos:
+    :caption: UDF alongwith chunk_polygon 
+    :emphasize-lines: 14-25
+
+    import openeo
+
+    # Create connection to openEO back-end
+    connection = openeo.connect("...").authenticate_oidc()
+
+    # Load your data cube based on your prefernce
+
+    S2_cube = eoconn.load_collection(
+        "SENTINEL2_L2A",
+        temporal_extent = ["2022-06-04", "2022-08-04"],
+        bands = ["B02", "B03", "B04"]
+    )
+
+    # Create a UDF object from inline source code.
+    my_code = """
+    from openeo.udf import XarrayDataCube
+
+    def apply_datacube(cube: XarrayDataCube, context: dict) -> XarrayDataCube:
+        array = cube.get_array()
+        array.values = 0.0001* array.values
+        return cube
+    """
+    my_udf = lambda data: data.run_udf(udf=my_code,runtime='python')
+
+    # Pass UDF object as child process to `chunk_polygon`.
+
+    aoi = read_json("./aoi/caro_multipoly.geojson")
+    rescaled_chunks = S2_cube.chunk_polygon(chunks=aoi,process=my_udf)
+
+    # perform time dimension reduction
+    Rrescaled_chunks = rescaled_chunks.reduce_dimension(dimension="t", reducer="mean")
+
+Once the process is completed you can download the result either by direct download (in case of the small spatial extent with few processing) or perform create a `batch job <https://open-eo.github.io/openeo-python-client/batch_jobs.html>`_ in case it is a heavy task over a large extent.
 
 Example: ``apply_dimension`` with a UDF
 ========================================
