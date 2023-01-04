@@ -86,7 +86,7 @@ just run
 
 and then visit http://127.0.0.1:8000 .
 When you change (and save) documentation source files, your browser should now
-automatically refresh and show the newly build docs. Just like magic.
+automatically refresh and show the newly built docs. Just like magic.
 
 
 Creating a release

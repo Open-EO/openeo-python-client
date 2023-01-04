@@ -4,35 +4,36 @@ Best practices, coding style and general tips
 
 This is a collection of guidelines regarding best practices,
 coding style and usage patterns for the openEO Python Client Library.
-It is in the first place a recommendation aimed internally at openEO developers
-to give code examples, demo's, documentation and tutorials
-a **consistent** look and feel and to promote software engineering best practices.
-Secondly, the wider audience of openEO users is also invited to pick up
+
+It is in the first place an internal recommendation for openEO *developers*
+to give documentation, code examples, demo's and tutorials
+a *consistent* look and feel,
+following common software engineering best practices.
+Secondly, the wider audience of openEO *users* is also invited to pick up
 a couple of tips and principles to improve their own code and scripts.
 
 
 Background and inspiration
 ---------------------------
 
-While one could argue that coding style is an arbitrary, somewhat personal choice,
-there are technical and practical reasons to prefer certain rules.
-For example, as version control tools like git get more widespread,
-it is beneficial to adopt a coding style that optimizes
-the *signal/noise ratio* of code diffs and history,
-and minimizes the risk on merge conflicts.
-Likewise, while desktop monitors have plenty of space nowadays,
-you still avoid long source code lines
-because your code might still be viewed in a constrained viewport, widget or device.
+While some people consider coding style a personal choice or even irrelevant,
+there are various reasons to settle on certain conventions.
+Just the fact alone of following conventions
+lowers the bar to get faster to the important details in someone else's code.
+Apart from taste, there are also technical reasons to pick certain rules
+to *streamline the programming workflow*,
+not only for humans,
+but also supporting tools (e.g. minimize risk on merge conflicts).
 
-For the Python language, which, by design, already has a strong focus on readability,
-there is already a strong foundation of code style recommendations like
+While the Python language already has a strong focus on readability by design,
+the Python community is strongly gravitating to even more strict conventions:
 
 - `pep8 <https://peps.python.org/pep-0008/>`_: the mother of all Python code style guides
 - `black <https://black.readthedocs.io/en/stable/>`_: an opinionated code formatting tool
-  that gets more and more traction in high profile projects and packages.
+  that gets more and more traction in popular, high profile projects.
 
-This openEO oriented style guide will highlight recommendations from these sources
-and iterate on them in the context of openEO usage patterns.
+This openEO oriented style guide will highlight
+and build on these recommendations.
 
 
 General code style recommendations
@@ -49,17 +50,23 @@ General code style recommendations
 Line (length) management
 --------------------------
 
-It is a common recommendation to *avoid long source code lines*.
-Not only are long lines hard to read and annoying to scroll horizontally,
-they also don't play well with version control tools.
-Here are some guidelines on how to split long statements over multiple line.
+While desktop monitors offer plenty of (horizontal) space nowadays,
+it is still a common recommendation to *avoid long source code lines*.
+Not only are long lines hard to read and understand,
+one should also consider that source code might still be viewed
+on a small screen or tight viewport,
+where scrolling horizontally is annoying or even impossible.
+Unnecessarily long lines are also notorious
+for not playing well with version control tools and workflows.
 
-Split long function/method calls directly after the parenthesis
-and list arguments with a standard 4 space indentation,
-not after the first argument with some ad-hoc indentation.
+Here are some guidelines on how to split long statements over multiple lines.
+
+Split long function/method calls directly after the opening parenthesis
+and list arguments with a standard 4 space indentation
+(not after the first argument with some ad-hoc indentation).
 Put the closing parenthesis on its own line.
 
-.. code-block:: Python
+.. code-block:: python
 
     # Avoid this:
     s2_fapar = connection.load_collection("TERRASCOPE_S2_FAPAR_V2",
