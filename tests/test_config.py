@@ -1,6 +1,7 @@
 import contextlib
 import logging
 import os
+import platform
 import random
 import re
 import textwrap
@@ -10,23 +11,32 @@ from unittest import mock
 
 import pytest
 
-from openeo.config import get_user_config_dir, get_user_data_dir, ClientConfig, ConfigLoader, get_config, \
-    get_config_option
+from openeo.config import (
+    ClientConfig,
+    ConfigLoader,
+    get_config,
+    get_config_option,
+    get_user_config_dir,
+    get_user_data_dir,
+)
+
+
+DATA_ROOT_DIR = Path(__file__).parent / "data"
 
 
 def test_get_user_config_dir():
     if platform.system() == "Windows":
-        expected = Path(__file__).parent / "data/user_dirs/AppData/Roaming/openeo-python-client"
+        expected = DATA_ROOT_DIR / "user_dirs/AppData/Roaming/openeo-python-client"
     else:
-        expected = Path(__file__).parent / "data/user_dirs/config/openeo-python-client"
+        expected = DATA_ROOT_DIR / "user_dirs/config/openeo-python-client"
     assert get_user_config_dir() == expected
 
 
 def test_get_user_data_dir():
     if platform.system() == "Windows":
-        expected = Path(__file__).parent / "data/user_dirs/AppData/Roaming/openeo-python-client"
+        expected = DATA_ROOT_DIR / "user_dirs/AppData/Roaming/openeo-python-client"
     else:
-        expected = Path(__file__).parent / "data/user_dirs/data/openeo-python-client"
+        expected = DATA_ROOT_DIR / "user_dirs/data/openeo-python-client"
     assert get_user_data_dir() == expected
 
 
