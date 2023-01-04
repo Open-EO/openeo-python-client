@@ -24,10 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed/improved math operator/process support for `DataCube`s in "apply" mode (non-"band math"),
   allowing expressions like `10 * cube.log10()` and `~(cube == 0)`
   ([#123](https://github.com/Open-EO/openeo-python-client/issues/123))
-- Fixed: PermissionError with PrivateJsonFile on Windows. It can now protect the file, using oschmod.
+- Support `PrivateJsonFile` permissions properly on Windows, using oschmod library.
   ([#198](https://github.com/Open-EO/openeo-python-client/issues/198))
-- Fixed: Some unit tests for configuration that were broken on Windows due to differences in paths.
+- Fixed some broken unit tests on Windows related to path (separator) handling.
   ([#350](https://github.com/Open-EO/openeo-python-client/issues/350))
+
 
 ## [0.13.0] - 2022-10-10 - "UDF UX" release
 

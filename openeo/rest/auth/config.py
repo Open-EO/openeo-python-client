@@ -17,12 +17,9 @@ from openeo import __version__
 from openeo.config import get_user_config_dir, get_user_data_dir
 from openeo.util import rfc3339, deep_get, deep_set
 
-# Use oschmod if it is installed.
-# Otherwise we fall back on Python's chmod implementation.
-# On Windows we have to use oschmod because Python chmod implementation doesn't work on Windows.
-# TODO: Can we use oschmod transparantly on all platforms?
-#       Seems like that is the intention of oschmod, but for now we will play it safe.
 try:
+    # Use oschmod when available (fall back to POSIX-only functionality from stdlib otherwise)
+    # TODO: enforce oschmod as dependency for all platforms?
     import oschmod
 except ImportError:
     oschmod = None
@@ -33,14 +30,14 @@ _PRIVATE_PERMS = stat.S_IRUSR | stat.S_IWUSR
 log = logging.getLogger(__name__)
 
 
-def get_file_mode(path: Path):
+def get_file_mode(path: Path) -> int:
     """Get the file permission bits in a way that works on both *nix and Windows platforms."""
     if oschmod:
         return oschmod.get_mode(str(path))
     return path.stat().st_mode
 
 
-def set_file_mode(path: Path, mode):
+def set_file_mode(path: Path, mode: int):
     """Set the file permission bits in a way that works on both *nix and Windows platforms."""
     if oschmod:
         oschmod.set_mode(str(path), mode=mode)
