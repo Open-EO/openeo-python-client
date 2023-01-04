@@ -1,7 +1,6 @@
 import contextlib
 import logging
 import os
-import platform
 import random
 import re
 import textwrap
@@ -168,6 +167,7 @@ def test_get_config_verbose(tmp_path, caplog, capsys, verbose, force_interactive
         config = get_config()
         assert config.get("general.verbose") == verbose
 
-    regex = re.compile(f"Loaded.*config from.*{config_path}")
+    # re.escape config_path because Windows paths contain "\"
+    regex = re.compile(f"Loaded.*config from.*{re.escape(str(config_path))}")
     assert regex.search(caplog.text)
     assert bool(regex.search(capsys.readouterr().out)) == on_stdout
