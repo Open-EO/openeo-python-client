@@ -279,11 +279,13 @@ instead of the original digital number range (thousands):
 
 Illustration of data chunking in ``apply`` with a  UDF
 ========================================================
-Chunk_polygon can be used to apply a specific kind of process to spatial chunks of a data cube. In the following example, we repeat the method of rescaling a data cube using chunk_polygon. Furthermore, in this example, we show that with the Geojson file, users can try with shapefile if they want to and fed in as a feature collection. Though a function to read JSON is shown here, you can replace it with your process.
+Chunk_polygon can be used to apply a specific kind of process to spatial chunks of a data cube.   
 
+
+In the following example, we repeat the method of rescaling a data cube using chunk_polygon.
 .. code-block:: python
     :linenos:
-    :caption: UDF alongwith chunk_polygon 
+    :caption: UDF along with chunk_polygon 
     :emphasize-lines: 14-25
 
     import openeo
@@ -293,7 +295,7 @@ Chunk_polygon can be used to apply a specific kind of process to spatial chunks 
 
     # Load your data cube based on your prefernce
 
-    S2_cube = eoconn.load_collection(
+    S2_cube = connection.load_collection(
         "SENTINEL2_L2A",
         temporal_extent = ["2022-06-04", "2022-08-04"],
         bands = ["B02", "B03", "B04"]
@@ -309,16 +311,18 @@ Chunk_polygon can be used to apply a specific kind of process to spatial chunks 
         return cube
     """
     my_udf = lambda data: data.run_udf(udf=my_code,runtime='python')
+    
+    #Though a function to read JSON is shown here, you can replace it with your process.
+    aoi = read_json("./aoi/your_aoi.geojson")
 
-    # Pass UDF object as child process to `chunk_polygon`.
-
-    aoi = read_json("./aoi/caro_multipoly.geojson")
+    #use `chunk_polygon` to apply my udf on selected aoi.
     rescaled_chunks = S2_cube.chunk_polygon(chunks=aoi,process=my_udf)
 
     # perform time dimension reduction
-    Rrescaled_chunks = rescaled_chunks.reduce_dimension(dimension="t", reducer="mean")
+    Final_result = rescaled_chunks.reduce_dimension(dimension="t", reducer="mean")
+    Final_result.download("apply-chunk-polygon.tiff")
 
-Once the process is completed you can download the result either by direct download (in case of the small spatial extent with few processing) or perform create a `batch job <https://open-eo.github.io/openeo-python-client/batch_jobs.html>`_ in case it is a heavy task over a large extent.
+In the above example we directly passed an UDF to data chunking.
 
 Example: ``apply_dimension`` with a UDF
 ========================================
