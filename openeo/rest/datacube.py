@@ -1165,9 +1165,19 @@ class DataCube(_ProcessGraphAbstraction):
             and masked cells outside it. If no value is provided, NoData cells are used outside the polygon.
         :param context: Additional data to be passed to the process.
         """
-        process = self._get_callback(process, parent_parameters=["data"])
-        valid_geojson_types = ["Polygon", "MultiPolygon", "GeometryCollection", "Feature", "FeatureCollection"]
-        chunks = self._get_geometry_argument(chunks, valid_geojson_types=valid_geojson_types)
+        process = self._get_callback(
+            process, parent_parameters=["data"], connection=self.connection
+        )
+        valid_geojson_types = [
+            "Polygon",
+            "MultiPolygon",
+            "GeometryCollection",
+            "Feature",
+            "FeatureCollection",
+        ]
+        chunks = self._get_geometry_argument(
+            chunks, valid_geojson_types=valid_geojson_types
+        )
         mask_value = float(mask_value) if mask_value is not None else None
         return self.process(
             process_id="chunk_polygon",
