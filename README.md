@@ -9,8 +9,8 @@
 
 # openEO Python Client
 
-Python Client Library for the [openEO API](https://github.com/Open-EO/openeo-api). 
-Allows you to interact with openEO backends from your own (local) Python environment. 
+Python Client Library for the [openEO API](https://github.com/Open-EO/openeo-api).
+Allows you to interact with openEO backends from your own (local) Python environment.
 [Read more on usage in the documentation.](https://open-eo.github.io/openeo-python-client/)
 
 [Quick Start Guide](https://openeo.org/documentation/1.0/python/#installation)
@@ -18,17 +18,17 @@ Allows you to interact with openEO backends from your own (local) Python environ
 
 ## Requirements and installation
 
-* Requirement: a **Python 3.6 (or higher) environment** 
-    where some dependencies can be installed 
+* Requirement: a **Python 3.6 (or higher) environment**
+    where some dependencies can be installed
     (including usual suspects like `numpy` and `pandas`)
 
-    Note for Windows users: it is recommended to work with 
-    [Anaconda Python](https://www.anaconda.com/products/individual) 
+    Note for Windows users: it is recommended to work with
+    [Anaconda Python](https://www.anaconda.com/products/individual)
     as the `shapely` dependency may need to be installed separately
     (e.g. using the Anaconda Navigator).
 
 * Basic installation procedure (in a `pip` powered environment):
-    
+
         pip install openeo
 
 ## Usage
@@ -38,5 +38,3 @@ Allows you to interact with openEO backends from your own (local) Python environ
 [Some example scripts](https://github.com/Open-EO/openeo-python-client/blob/master/examples)
 
 [General OpenEO background](https://open-eo.github.io/openeo-api/)
-
-

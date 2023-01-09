@@ -4,7 +4,7 @@ from unittest import mock
 import pytest
 
 import openeo.rest.auth.config
-from openeo.rest.auth.config import RefreshTokenStore, AuthConfig, PrivateJsonFile
+from openeo.rest.auth.config import RefreshTokenStore, AuthConfig, PrivateJsonFile, get_file_mode
 
 
 class TestPrivateJsonFile:
@@ -31,7 +31,7 @@ class TestPrivateJsonFile:
         assert not private.path.exists()
         private.set("foo", "bar", value=42)
         assert private.path.exists()
-        st_mode = private.path.stat().st_mode
+        st_mode = get_file_mode(private.path)
         assert st_mode & 0o777 == 0o600
 
     def test_wrong_permissions(self, tmp_path):
@@ -151,7 +151,7 @@ class TestRefreshTokenStorage:
     def test_permissions(self, tmp_path):
         r = RefreshTokenStore(path=tmp_path)
         r.set_refresh_token("foo", "bar", "imd6$3cr3t")
-        st_mode = (tmp_path / RefreshTokenStore.DEFAULT_FILENAME).stat().st_mode
+        st_mode = get_file_mode(tmp_path / RefreshTokenStore.DEFAULT_FILENAME)
         assert st_mode & 0o777 == 0o600
 
     def test_get_set_refresh_token(self, tmp_path):

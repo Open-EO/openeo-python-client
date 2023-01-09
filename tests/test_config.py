@@ -11,23 +11,32 @@ from unittest import mock
 
 import pytest
 
-from openeo.config import get_user_config_dir, get_user_data_dir, ClientConfig, ConfigLoader, get_config, \
-    get_config_option
+from openeo.config import (
+    ClientConfig,
+    ConfigLoader,
+    get_config,
+    get_config_option,
+    get_user_config_dir,
+    get_user_data_dir,
+)
+
+
+DATA_ROOT_DIR = Path(__file__).parent / "data"
 
 
 def test_get_user_config_dir():
     if platform.system() == "Windows":
-        expected = Path(__file__).parent / "data/user_dirs/AppData/Roaming/openeo-python-client"
+        expected = DATA_ROOT_DIR / "user_dirs/AppData/Roaming/openeo-python-client"
     else:
-        expected = Path(__file__).parent / "data/user_dirs/config/openeo-python-client"
+        expected = DATA_ROOT_DIR / "user_dirs/config/openeo-python-client"
     assert get_user_config_dir() == expected
 
 
 def test_get_user_data_dir():
     if platform.system() == "Windows":
-        expected = Path(__file__).parent / "data/user_dirs/AppData/Roaming/openeo-python-client"
+        expected = DATA_ROOT_DIR / "user_dirs/AppData/Roaming/openeo-python-client"
     else:
-        expected = Path(__file__).parent / "data/user_dirs/data/openeo-python-client"
+        expected = DATA_ROOT_DIR / "user_dirs/data/openeo-python-client"
     assert get_user_data_dir() == expected
 
 
@@ -168,6 +177,7 @@ def test_get_config_verbose(tmp_path, caplog, capsys, verbose, force_interactive
         config = get_config()
         assert config.get("general.verbose") == verbose
 
-    regex = re.compile(f"Loaded.*config from.*{config_path}")
+    # re.escape config_path because Windows paths contain "\"
+    regex = re.compile(f"Loaded.*config from.*{re.escape(str(config_path))}")
     assert regex.search(caplog.text)
     assert bool(regex.search(capsys.readouterr().out)) == on_stdout
