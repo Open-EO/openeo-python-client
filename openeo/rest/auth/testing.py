@@ -41,6 +41,7 @@ class OidcMock:
         scopes_supported: List[str] = None,
         device_code_flow_support: bool = True,
         oidc_discovery_url: Optional[str] = None,
+        use_verification_uri_complete: Optional[bool] = False,
     ):
         self.requests_mock = requests_mock
         self.oidc_issuer = oidc_issuer
@@ -56,6 +57,7 @@ class OidcMock:
             if device_code_flow_support
             else None
         )
+        self.use_verification_uri_complete = use_verification_uri_complete
         self.state = state or {}
         self.scopes_supported = scopes_supported or ["openid", "email", "profile"]
 
@@ -83,6 +85,12 @@ class OidcMock:
             self.requests_mock.post(
                 self.device_code_endpoint, text=self.device_code_callback
             )
+            if self.use_verification_uri_complete:
+                self._set_user_code()
+                end_point = (
+                    f"{self.device_code_endpoint}?user_code={self.state['user_code']}"
+                )
+                self.requests_mock.post(end_point, text=self.device_code_callback)
 
     def webbrowser_open(self, url: str):
         """Doing fake browser and Oauth Provider handling here"""
@@ -151,6 +159,9 @@ class OidcMock:
         assert params["scope"] == self.expected_fields["scope"]
         return self._build_token_response()
 
+    def _set_user_code(self):
+        self.state["user_code"] = random_string(length=6).upper()
+
     def device_code_callback(
         self, request: requests_mock.request._RequestObjectProxy, context
     ):
@@ -158,8 +169,14 @@ class OidcMock:
         assert params["client_id"] == self.expected_client_id
         assert params["scope"] == self.expected_fields["scope"]
         self.state["device_code"] = random_string()
-        self.state["user_code"] = random_string(length=6).upper()
         self.state["scope"] = params["scope"]
+
+        # When the mock should also provide the verification_uri_complete then we
+        # we have already set the user_code in the constructor, because we set up
+        # and extra request_mock there for a URL that includes the user_code.
+        if not self.use_verification_uri_complete:
+            self._set_user_code()
+
         if "code_challenge" in self.expected_fields:
             expect_code_challenge = self.expected_fields.get("code_challenge")
             if expect_code_challenge in [True]:
@@ -169,15 +186,21 @@ class OidcMock:
                 assert "code_challenge" not in params
             else:
                 raise ValueError(expect_code_challenge)
-        return json.dumps(
-            {
+
+        token = {
                 # TODO: also verification_url (google tweak)
                 "verification_uri": url_join(self.oidc_issuer, "/dc"),
                 "device_code": self.state["device_code"],
                 "user_code": self.state["user_code"],
                 "interval": DEVICE_CODE_POLL_INTERVAL,
             }
-        )
+        # TODO: Issue #335: add verification_uri_complete
+        if self.use_verification_uri_complete:
+            user_code = self.state["user_code"]
+            token["verification_uri_complete"] = url_join(
+                self.oidc_issuer, f"/dc?user_code={user_code}"
+            )
+        return json.dumps(token)
 
     def token_callback_device_code(self, params: dict, context):
         assert params["client_id"] == self.expected_client_id

@@ -437,46 +437,106 @@ def test_oidc_device_flow_without_pkce_nor_secret(requests_mock, caplog):
         flags=re.DOTALL
     )
 
-
-@pytest.mark.parametrize(["mode", "client_id", "use_pkce", "client_secret", "expected_fields"], [
-    (
+# fmt: off
+@pytest.mark.parametrize(
+    ["mode", "client_id", "use_pkce", "client_secret", "expected_fields", "use_verification_uri_complete"],
+    [
+        (
             "client_secret, no PKCE",
             "myclient", False, "$3cr3t",
-            {"scope": "df openid", "client_secret": "$3cr3t", "code_challenge": ABSENT, "code_verifier": ABSENT}
-    ),
-    (
+            {"scope": "df openid", "client_secret": "$3cr3t", "code_challenge": ABSENT, "code_verifier": ABSENT},
+            False,
+        ),
+        (
+            "client_secret, no PKCE",
+            "myclient", False, "$3cr3t",
+            {"scope": "df openid", "client_secret": "$3cr3t", "code_challenge": ABSENT, "code_verifier": ABSENT},
+            True,
+        ),
+        (
             "client_secret, auto PKCE",
             "myclient", None, "$3cr3t",
-            {"scope": "df openid", "client_secret": "$3cr3t", "code_challenge": ABSENT, "code_verifier": ABSENT}
-    ),
-    (
+            {"scope": "df openid", "client_secret": "$3cr3t", "code_challenge": ABSENT, "code_verifier": ABSENT},
+            False,
+        ),
+        (
+            "client_secret, auto PKCE",
+            "myclient", None, "$3cr3t",
+            {"scope": "df openid", "client_secret": "$3cr3t", "code_challenge": ABSENT, "code_verifier": ABSENT},
+            True,
+        ),
+        (
             "use PKCE",
             "myclient", True, None,
-            {"scope": "df openid", "code_challenge": True, "code_verifier": True}
-    ),
-    (
+            {"scope": "df openid", "code_challenge": True, "code_verifier": True},
+            False,
+        ),
+        (
+            "use PKCE",
+            "myclient", True, None,
+            {"scope": "df openid", "code_challenge": True, "code_verifier": True},
+            True,
+        ),
+        (
             "auto PKCE",
             "myclient", None, None,
-            {"scope": "df openid", "code_challenge": ABSENT, "code_verifier": ABSENT}
-    ),
-    (
+            {"scope": "df openid", "code_challenge": ABSENT, "code_verifier": ABSENT},
+            False,
+        ),
+        (
+            "auto PKCE",
+            "myclient", None, None,
+            {"scope": "df openid", "code_challenge": ABSENT, "code_verifier": ABSENT},
+            True,
+        ),
+        (
             "auto PKCE, default client with PKCE",
             "default-with-pkce", None, None,
-            {"scope": "df openid", "code_challenge": True, "code_verifier": True}
-    ),
-    (
+            {"scope": "df openid", "code_challenge": True, "code_verifier": True},
+            False,
+        ),
+        (
+            "auto PKCE, default client with PKCE",
+            "default-with-pkce", None, None,
+            {"scope": "df openid", "code_challenge": True, "code_verifier": True},
+            True,
+        ),
+        (
             "auto PKCE, default client no PKCE",
             "default-no-pkce", None, None,
-            {"scope": "df openid", "code_challenge": ABSENT, "code_verifier": ABSENT}
-    ),
-    (
+            {"scope": "df openid", "code_challenge": ABSENT, "code_verifier": ABSENT},
+            False,
+        ),
+        (
+            "auto PKCE, default client no PKCE",
+            "default-no-pkce", None, None,
+            {"scope": "df openid", "code_challenge": ABSENT, "code_verifier": ABSENT},
+            True,
+        ),
+        (
             "auto PKCE, default client with PKCE, and secret",
             "default-with-pkce", None, "$3cr3t",
-            {"scope": "df openid", "client_secret": "$3cr3t", "code_challenge": ABSENT, "code_verifier": ABSENT}
-    ),
-])
+            {"scope": "df openid", "client_secret": "$3cr3t", "code_challenge": ABSENT, "code_verifier": ABSENT},
+            False,
+        ),
+        (
+            "auto PKCE, default client with PKCE, and secret",
+            "default-with-pkce", None, "$3cr3t",
+            {"scope": "df openid", "client_secret": "$3cr3t", "code_challenge": ABSENT, "code_verifier": ABSENT},
+            True,
+        ),
+    ],
+)
+# fmt: on
 def test_oidc_device_flow_auto_detect(
-        requests_mock, caplog, mode, client_id, use_pkce, client_secret, expected_fields
+    requests_mock,
+    caplog,
+    mode,
+    client_id,
+    use_pkce,
+    client_secret,
+    expected_fields,
+    use_verification_uri_complete,
 ):
     """Autodetection of device auth grant mode: with secret, PKCE or neither."""
     oidc_issuer = "https://oidc.test"
@@ -487,7 +547,8 @@ def test_oidc_device_flow_auto_detect(
         oidc_issuer=oidc_issuer,
         expected_fields=expected_fields,
         state={"device_code_callback_timeline": ["authorization_pending", "slow_down", "great success"]},
-        scopes_supported=["openid", "df"]
+        scopes_supported=["openid", "df"],
+        use_verification_uri_complete=use_verification_uri_complete,
     )
     provider = OidcProviderInfo(
         issuer=oidc_issuer,
@@ -513,10 +574,13 @@ def test_oidc_device_flow_auto_detect(
         with caplog.at_level(logging.INFO):
             tokens = authenticator.get_tokens()
     assert oidc_mock.state["access_token"] == tokens.access_token
-    assert (
-        f"visit https://oidc.test/dc and enter the user code {oidc_mock.state['user_code']!r}"
-        in display[0]
-    )
+    if use_verification_uri_complete:
+        expected_msg = (
+            f"visit https://oidc.test/dc?user_code={oidc_mock.state['user_code']}"
+        )
+    else:
+        expected_msg = f"visit https://oidc.test/dc and enter the user code {oidc_mock.state['user_code']!r}"
+    assert expected_msg in display[0]
     assert display[1] == "Authorized successfully."
     assert sleep.mock_calls == [mock.call(2), mock.call(2), mock.call(7)]
     assert re.search(
