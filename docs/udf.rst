@@ -302,15 +302,14 @@ In the following example, we repeat the method of rescaling a data cube using ch
     )
 
     # Create a UDF object from inline source code.
-    my_code = """
+    my_udf = openeo.UDF("""
     from openeo.udf import XarrayDataCube
 
     def apply_datacube(cube: XarrayDataCube, context: dict) -> XarrayDataCube:
         array = cube.get_array()
-        array.values = 0.0001* array.values
+        array.values = 0.0001 * array.values
         return cube
-    """
-    my_udf = lambda data: data.run_udf(udf=my_code,runtime='python')
+    """)
     
     #Though a function to read JSON is shown here, you can replace it with your process.
     aoi = read_json("./aoi/your_aoi.geojson")
