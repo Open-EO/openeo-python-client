@@ -41,6 +41,7 @@ class OidcMock:
         scopes_supported: List[str] = None,
         device_code_flow_support: bool = True,
         oidc_discovery_url: Optional[str] = None,
+        support_verification_uri_complete: bool = False,
     ):
         self.requests_mock = requests_mock
         self.oidc_issuer = oidc_issuer
@@ -58,6 +59,7 @@ class OidcMock:
         )
         self.state = state or {}
         self.scopes_supported = scopes_supported or ["openid", "email", "profile"]
+        self.support_verification_uri_complete = support_verification_uri_complete
 
         oidc_discovery_url = oidc_discovery_url or url_join(
             oidc_issuer, "/.well-known/openid-configuration"
@@ -169,15 +171,19 @@ class OidcMock:
                 assert "code_challenge" not in params
             else:
                 raise ValueError(expect_code_challenge)
-        return json.dumps(
-            {
-                # TODO: also verification_url (google tweak)
-                "verification_uri": url_join(self.oidc_issuer, "/dc"),
-                "device_code": self.state["device_code"],
-                "user_code": self.state["user_code"],
-                "interval": DEVICE_CODE_POLL_INTERVAL,
-            }
-        )
+
+        response = {
+            # TODO: also verification_url (google tweak)
+            "verification_uri": url_join(self.oidc_issuer, "/dc"),
+            "device_code": self.state["device_code"],
+            "user_code": self.state["user_code"],
+            "interval": DEVICE_CODE_POLL_INTERVAL,
+        }
+        if self.support_verification_uri_complete:
+            response["verification_uri_complete"] = (
+                response["verification_uri"] + f"?user_code={self.state['user_code']}"
+            )
+        return json.dumps(response)
 
     def token_callback_device_code(self, params: dict, context):
         assert params["client_id"] == self.expected_client_id
