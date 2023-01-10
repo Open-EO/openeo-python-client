@@ -151,6 +151,10 @@ def test_execute_batch_with_error(con100, requests_mock, tmpdir):
             },
             "Service availability error while polling job status: [503] OidcProviderUnavailable: OIDC Provider is unavailable",
     ),
+    (
+            {"status_code": 502, "text": "Bad Gateway"},
+            "Service availability error while polling job status: [502] unknown: Bad Gateway",
+    ),
 ])
 def test_execute_batch_with_soft_errors(con100, requests_mock, tmpdir, error_response, expected):
     requests_mock.get(API_URL + "/file_formats", json={"output": {"GTiff": {"gis_data_types": ["raster"]}}})
