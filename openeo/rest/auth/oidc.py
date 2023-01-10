@@ -627,7 +627,10 @@ class OidcRefreshTokenAuthenticator(OidcAuthenticator):
         return data
 
 
-VerificationInfo = namedtuple("VerificationInfo", ["verification_uri", "device_code", "user_code", "interval"])
+VerificationInfo = namedtuple(
+    "VerificationInfo",
+    ["verification_uri", "verification_uri_complete", "device_code", "user_code", "interval"]
+)
 
 
 class OidcDeviceAuthenticator(OidcAuthenticator):
@@ -671,6 +674,8 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
             verification_info = VerificationInfo(
                 # Google OAuth/OIDC implementation uses non standard "verification_url" instead of "verification_uri"
                 verification_uri=data["verification_uri"] if "verification_uri" in data else data["verification_url"],
+                # verification_uri_complete is optional, will be None if this key is not present
+                verification_uri_complete=data.get("verification_uri_complete"),
                 device_code=data["device_code"],
                 user_code=data["user_code"],
                 interval=data.get("interval", 5),
@@ -683,9 +688,14 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
     def get_tokens(self, request_refresh_token: bool = False) -> AccessTokenResult:
         # Get verification url and user code
         verification_info = self._get_verification_info(request_refresh_token=request_refresh_token)
-        self._display("To authenticate: visit {u} and enter the user code {c!r}.".format(
-            u=verification_info.verification_uri, c=verification_info.user_code)
-        )
+        if verification_info.verification_uri_complete:
+            self._display(
+                f"To authenticate: visit {verification_info.verification_uri_complete}."
+            )
+        else:
+            self._display("To authenticate: visit {u} and enter the user code {c!r}.".format(
+                u=verification_info.verification_uri, c=verification_info.user_code)
+            )
 
         # Poll token endpoint
         elapsed = create_timer()
