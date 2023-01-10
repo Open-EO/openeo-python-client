@@ -330,7 +330,10 @@ def test_oidc_resource_owner_password_credentials_flow(requests_mock):
     assert oidc_mock.state["access_token"] == tokens.access_token
 
 
-def test_oidc_device_flow_with_client_secret(requests_mock, caplog):
+@pytest.mark.parametrize("support_verification_uri_complete", [False, True])
+def test_oidc_device_flow_with_client_secret(
+    requests_mock, caplog, support_verification_uri_complete
+):
     client_id = "myclient"
     client_secret = "$3cr3t"
     oidc_issuer = "https://oidc.test"
@@ -341,7 +344,8 @@ def test_oidc_device_flow_with_client_secret(requests_mock, caplog):
         oidc_issuer=oidc_issuer,
         expected_fields={"scope": "df openid", "client_secret": client_secret},
         state={"device_code_callback_timeline": ["authorization_pending", "slow_down", "great success"]},
-        scopes_supported=["openid", "df"]
+        scopes_supported=["openid", "df"],
+        support_verification_uri_complete=support_verification_uri_complete,
     )
     provider = OidcProviderInfo(issuer=oidc_issuer, scopes=["df"])
     display = []
@@ -353,10 +357,14 @@ def test_oidc_device_flow_with_client_secret(requests_mock, caplog):
         with caplog.at_level(logging.INFO):
             tokens = authenticator.get_tokens()
     assert oidc_mock.state["access_token"] == tokens.access_token
-    assert (
-        f"visit https://oidc.test/dc and enter the user code {oidc_mock.state['user_code']!r}"
-        in display[0]
-    )
+    user_code = oidc_mock.state["user_code"]
+    if support_verification_uri_complete:
+        expected_msg = f"visit https://oidc.test/dc?user_code={user_code} ."
+    else:
+        expected_msg = (
+            f"visit https://oidc.test/dc and enter the user code {user_code!r}"
+        )
+    assert expected_msg in display[0]
 
     assert display[1] == "Authorized successfully."
     assert sleep.mock_calls == [mock.call(2), mock.call(2), mock.call(7)]
@@ -367,7 +375,10 @@ def test_oidc_device_flow_with_client_secret(requests_mock, caplog):
     )
 
 
-def test_oidc_device_flow_with_pkce(requests_mock, caplog):
+@pytest.mark.parametrize("support_verification_uri_complete", [False, True])
+def test_oidc_device_flow_with_pkce(
+    requests_mock, caplog, support_verification_uri_complete
+):
     client_id = "myclient"
     oidc_issuer = "https://oidc.test"
     oidc_mock = OidcMock(
@@ -377,7 +388,8 @@ def test_oidc_device_flow_with_pkce(requests_mock, caplog):
         oidc_issuer=oidc_issuer,
         expected_fields={"scope": "df openid", "code_challenge": True, "code_verifier": True},
         state={"device_code_callback_timeline": ["authorization_pending", "slow_down", "great success"]},
-        scopes_supported=["openid", "df"]
+        scopes_supported=["openid", "df"],
+        support_verification_uri_complete=support_verification_uri_complete,
     )
     provider = OidcProviderInfo(issuer=oidc_issuer, scopes=["df"])
     display = []
@@ -390,10 +402,14 @@ def test_oidc_device_flow_with_pkce(requests_mock, caplog):
         with caplog.at_level(logging.INFO):
             tokens = authenticator.get_tokens()
     assert oidc_mock.state["access_token"] == tokens.access_token
-    assert (
-        f"visit https://oidc.test/dc and enter the user code {oidc_mock.state['user_code']!r}"
-        in display[0]
-    )
+    user_code = oidc_mock.state["user_code"]
+    if support_verification_uri_complete:
+        expected_msg = f"visit https://oidc.test/dc?user_code={user_code} ."
+    else:
+        expected_msg = (
+            f"visit https://oidc.test/dc and enter the user code {user_code!r}"
+        )
+    assert expected_msg in display[0]
     assert display[1] == "Authorized successfully."
     assert sleep.mock_calls == [mock.call(2), mock.call(2), mock.call(7)]
     assert re.search(
@@ -403,7 +419,10 @@ def test_oidc_device_flow_with_pkce(requests_mock, caplog):
     )
 
 
-def test_oidc_device_flow_without_pkce_nor_secret(requests_mock, caplog):
+@pytest.mark.parametrize("support_verification_uri_complete", [False, True])
+def test_oidc_device_flow_without_pkce_nor_secret(
+    requests_mock, caplog, support_verification_uri_complete
+):
     client_id = "myclient"
     oidc_issuer = "https://oidc.test"
     oidc_mock = OidcMock(
@@ -413,7 +432,8 @@ def test_oidc_device_flow_without_pkce_nor_secret(requests_mock, caplog):
         oidc_issuer=oidc_issuer,
         expected_fields={"scope": "df openid", "code_challenge": ABSENT, "code_verifier": ABSENT},
         state={"device_code_callback_timeline": ["authorization_pending", "slow_down", "great success"]},
-        scopes_supported=["openid", "df"]
+        scopes_supported=["openid", "df"],
+        support_verification_uri_complete=support_verification_uri_complete,
     )
     provider = OidcProviderInfo(issuer=oidc_issuer, scopes=["df"])
     display = []
@@ -425,10 +445,14 @@ def test_oidc_device_flow_without_pkce_nor_secret(requests_mock, caplog):
         with caplog.at_level(logging.INFO):
             tokens = authenticator.get_tokens()
     assert oidc_mock.state["access_token"] == tokens.access_token
-    assert (
-        f"visit https://oidc.test/dc and enter the user code {oidc_mock.state['user_code']!r}"
-        in display[0]
-    )
+    user_code = oidc_mock.state["user_code"]
+    if support_verification_uri_complete:
+        expected_msg = f"visit https://oidc.test/dc?user_code={user_code} ."
+    else:
+        expected_msg = (
+            f"visit https://oidc.test/dc and enter the user code {user_code!r}"
+        )
+    assert expected_msg in display[0]
     assert display[1] == "Authorized successfully."
     assert sleep.mock_calls == [mock.call(2), mock.call(2), mock.call(7)]
     assert re.search(
@@ -475,8 +499,16 @@ def test_oidc_device_flow_without_pkce_nor_secret(requests_mock, caplog):
             {"scope": "df openid", "client_secret": "$3cr3t", "code_challenge": ABSENT, "code_verifier": ABSENT}
     ),
 ])
+@pytest.mark.parametrize("support_verification_uri_complete", [False, True])
 def test_oidc_device_flow_auto_detect(
-        requests_mock, caplog, mode, client_id, use_pkce, client_secret, expected_fields
+    requests_mock,
+    caplog,
+    mode,
+    client_id,
+    use_pkce,
+    client_secret,
+    expected_fields,
+    support_verification_uri_complete,
 ):
     """Autodetection of device auth grant mode: with secret, PKCE or neither."""
     oidc_issuer = "https://oidc.test"
@@ -486,8 +518,15 @@ def test_oidc_device_flow_auto_detect(
         expected_client_id=client_id,
         oidc_issuer=oidc_issuer,
         expected_fields=expected_fields,
-        state={"device_code_callback_timeline": ["authorization_pending", "slow_down", "great success"]},
-        scopes_supported=["openid", "df"]
+        state={
+            "device_code_callback_timeline": [
+                "authorization_pending",
+                "slow_down",
+                "great success",
+            ]
+        },
+        scopes_supported=["openid", "df"],
+        support_verification_uri_complete=support_verification_uri_complete,
     )
     provider = OidcProviderInfo(
         issuer=oidc_issuer,
@@ -513,10 +552,14 @@ def test_oidc_device_flow_auto_detect(
         with caplog.at_level(logging.INFO):
             tokens = authenticator.get_tokens()
     assert oidc_mock.state["access_token"] == tokens.access_token
-    assert (
-        f"visit https://oidc.test/dc and enter the user code {oidc_mock.state['user_code']!r}"
-        in display[0]
-    )
+    user_code = oidc_mock.state["user_code"]
+    if support_verification_uri_complete:
+        expected_msg = f"visit https://oidc.test/dc?user_code={user_code} ."
+    else:
+        expected_msg = (
+            f"visit https://oidc.test/dc and enter the user code {user_code!r}"
+        )
+    assert expected_msg in display[0]
     assert display[1] == "Authorized successfully."
     assert sleep.mock_calls == [mock.call(2), mock.call(2), mock.call(7)]
     assert re.search(

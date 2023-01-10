@@ -690,7 +690,7 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
         verification_info = self._get_verification_info(request_refresh_token=request_refresh_token)
         if verification_info.verification_uri_complete:
             self._display(
-                f"To authenticate: visit {verification_info.verification_uri_complete}."
+                f"To authenticate: visit {verification_info.verification_uri_complete} ."
             )
         else:
             self._display("To authenticate: visit {u} and enter the user code {c!r}.".format(
