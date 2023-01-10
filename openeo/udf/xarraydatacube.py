@@ -120,7 +120,7 @@ class XarrayDataCube:
             raise ValueError("Can not guess format of {p}".format(p=path))
 
     @classmethod
-    def from_file(cls, path: Union[str, Path], fmt=None) -> "XarrayDataCube":
+    def from_file(cls, path: Union[str, Path], fmt=None, **kwargs) -> "XarrayDataCube":
         """
         Load data file as :py:class:`XarrayDataCube` in memory
 
@@ -132,13 +132,13 @@ class XarrayDataCube:
         """
         fmt = fmt or cls._guess_format(path)
         if fmt.lower() == 'netcdf':
-            return cls(array=XarrayIO.from_netcdf_file(path=path))
+            return cls(array=XarrayIO.from_netcdf_file(path=path, **kwargs))
         elif fmt.lower() == 'json':
             return cls(array=XarrayIO.from_json_file(path=path))
         else:
             raise ValueError("invalid format {f}".format(f=fmt))
 
-    def save_to_file(self, path: Union[str, Path], fmt=None):
+    def save_to_file(self, path: Union[str, Path], fmt=None, **kwargs):
         """
         Store :py:class:`XarrayDataCube` to file
 
@@ -148,7 +148,7 @@ class XarrayDataCube:
         """
         fmt = fmt or self._guess_format(path)
         if fmt.lower() == 'netcdf':
-            XarrayIO.to_netcdf_file(array=self.get_array(), path=path)
+            XarrayIO.to_netcdf_file(array=self.get_array(), path=path, **kwargs)
         elif fmt.lower() == 'json':
             XarrayIO.to_json_file(array=self.get_array(), path=path)
         else:
