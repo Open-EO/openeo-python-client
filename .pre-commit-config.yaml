@@ -10,6 +10,6 @@ repos:
       - id: check-json
       - id: check-yaml
   - repo: https://github.com/akaihola/darker
-    rev: 1.5.1
+    rev: 1.6.1
     hooks:
       - id: darker
