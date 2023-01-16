@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Python 3.10 and 3.11 are now officially supported
   (test run now also for 3.10 and 3.11 in GitHub Actions, [#346](https://github.com/Open-EO/openeo-python-client/issues/346))
 - Support for simplified OIDC device code flow, ([#335](https://github.com/Open-EO/openeo-python-client/issues/335))
+- Added MultiBackendJobManager, based on implementation from openeo-classification project
+  ([#361](https://github.com/Open-EO/openeo-python-client/issues/361))
 
 ### Changed
 
