@@ -8,6 +8,7 @@ import shlex
 import sys
 import warnings
 from collections import OrderedDict
+from functools import partial, lru_cache
 from pathlib import Path
 from typing import Dict, List, Tuple, Union, Callable, Optional, Any, Iterator
 from urllib.parse import urljoin
@@ -732,9 +733,9 @@ class Connection(RestApiConnection):
     def describe_collection(self, collection_id: str) -> dict:
         """
         Get full collection metadata for given collection id.
-        
+
         .. seealso::
-        
+
             :py:meth:`~openeo.rest.connection.Connection.list_collection_ids`
             to list all collection ids provided by the back-end.
 
@@ -1197,7 +1198,7 @@ class Connection(RestApiConnection):
     def job(self, job_id: str) -> BatchJob:
         """
         Get the job based on the id. The job with the given id should already exist.
-        
+
         Use :py:meth:`openeo.rest.connection.Connection.create_job` to create new jobs
 
         :param job_id: the job id of an existing job
@@ -1208,7 +1209,7 @@ class Connection(RestApiConnection):
     def service(self, service_id: str) -> Service:
         """
         Get the secondary web service based on the id. The service with the given id should already exist.
-        
+
         Use :py:meth:`openeo.rest.connection.Connection.create_service` to create new services
 
         :param job_id: the service id of an existing secondary web service
@@ -1355,3 +1356,37 @@ def paginate(con: Connection, url: str, params: dict = None, callback: Callable 
         page += 1
         params = {}
 
+
+
+#
+# For caching connections
+#
+
+_default_url = "openeo-dev.vito.be"
+
+
+def set_backend(url: str):
+    _default_url = url
+
+
+@lru_cache(maxsize=None)
+def _cached_connection(url: str) -> Connection:
+    return openeo.connect(url).authenticate_oidc()
+
+
+def cached_connection(url: Optional[str] = _default_url) -> Connection:
+    """
+    Returns an authenticated openEO connection.
+    Connects to openEO platform by default, but others can be used as well by specifying the url.
+
+    @param url:
+    @return:
+    """
+    return _cached_connection(url)
+
+
+# TODO: I think we can drop these partial functions. We can still define them in openeo-classification if we want.
+#   That is probably a more appropriate place for them.
+terrascope_dev = partial(cached_connection, "openeo-dev.vito.be")
+openeo_platform = partial(cached_connection, "openeo.cloud")
+creo = partial(cached_connection, "openeo-dev.creo.vito.be")

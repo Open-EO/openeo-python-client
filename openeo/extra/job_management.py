@@ -15,7 +15,7 @@ from openeo import Connection, BatchJob
 from openeo.rest import OpenEoApiError
 from openeo.util import deep_get
 
-from openeo.extra.connection import connection
+from openeo.rest.connection import cached_connection
 
 
 _log = logging.getLogger(__name__)
@@ -98,7 +98,7 @@ def running_jobs(status_df):
     ].index
 
 
-def update_statuses(status_df, connection_provider=connection):
+def update_statuses(status_df, connection_provider=cached_connection):
     con = connection_provider()
     for i in running_jobs(status_df):
         job_id = status_df.loc[i, "id"]
@@ -125,6 +125,11 @@ def update_statuses(status_df, connection_provider=connection):
     return status_df
 
 
+# TODO: Do we still need this function after moving the code to openeo-python-client?
+#   (https://github.com/openEOPlatform/openeo-classification/issues/361)
+#   It is never called in the python client, but it is called within openeo-classification,
+#   from main.py and spanish_sampling.py.
+#   If we do need to keep it in the client, then we need those resources in the python client as well.
 # TODO: invalid path reference (https://github.com/openEOPlatform/openeo-classification/issues/2)
 def create_or_load_job_statistics(path="resources/training_data/job_statistics.csv"):
     if os.path.isfile(path):
