@@ -100,6 +100,7 @@ class MultiBackendJobManager:
             df["geometry"] = df["geometry"].apply(shapely.wkt.loads)
         return df
 
+    # TODO: long method with deep nesting. Refactor it to make it more readable.
     def run_jobs(self, df: pd.DataFrame, start_job: Callable, output_file: Path):
         """Runs jobs, specified in a dataframe, and tracks parameters.
 
