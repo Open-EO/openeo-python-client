@@ -1,13 +1,12 @@
-import openeo
-import pandas as pd
-from openeo.rest.job import RESTJob
-
-from openeo.extra.job_management import MultiBackendJobManager
-
-import pytest
 import os
-
 from pathlib import Path
+
+import pandas as pd
+import pytest
+
+import openeo
+from openeo.extra.job_management import MultiBackendJobManager
+from openeo.rest.job import RESTJob
 
 
 @pytest.fixture
