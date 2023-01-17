@@ -93,6 +93,8 @@ class TestMultiBackendJobManager:
         df = pd.DataFrame(
             {
                 "year": [2018, 2019, 2020, 2021, 2022],
+                # Use simple points in WKT format to test conversion to the geometry dtype
+                "geometry": ["POINT (1 2)"] * 5,
             }
         )
         output_file = tmp_path / "jobs.csv"
@@ -107,3 +109,52 @@ class TestMultiBackendJobManager:
         assert len(result) == 5
         assert set(result.status) == {"finished"}
         assert set(result.backend_name) == {"foo", "bar"}
+
+    def test_normalize_df_adds_required_columns(self):
+        df = pd.DataFrame(
+            {
+                "some_number": [3, 2, 1],
+            }
+        )
+
+        manager = MultiBackendJobManager()
+        df_normalized = manager._normalize_df(df)
+
+        assert set(df_normalized.columns) == set(
+            [
+                "some_number",
+                "status",
+                "id",
+                "start_time",
+                "cpu",
+                "memory",
+                "duration",
+                "backend_name",
+            ]
+        )
+
+    def test_normalize_df_converts_wkt_geometry_column(self):
+        df = pd.DataFrame(
+            {
+                "some_number": [3, 2],
+                "geometry": [
+                    "Point (100 200)",
+                    "Point (99 123)",
+                    # "MULTIPOINT(0 0,1 1)",
+                    # "LINESTRING(1.5 2.45,3.21 4)"
+                ],
+            }
+        )
+
+        manager = MultiBackendJobManager()
+        df_normalized = manager._normalize_df(df)
+
+        import shapely
+        import shapely.geometry.point
+
+        first_point = df_normalized.loc[0, "geometry"]
+        second_point = df_normalized.loc[1, "geometry"]
+        assert isinstance(first_point, shapely.geometry.point.Point)
+
+        assert first_point == shapely.Point(100, 200)
+        assert second_point == shapely.Point(99, 123)

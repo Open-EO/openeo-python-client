@@ -18,11 +18,12 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 tests_require = [
-    'pytest>=4.5.0',
-    'mock',
-    'requests-mock>=1.8.0',
-    'netCDF4',  # e.g. for writing/loading NetCDF data with xarray
-    'matplotlib',
+    "pytest>=4.5.0",
+    "mock",
+    "requests-mock>=1.8.0",
+    "netCDF4",  # e.g. for writing/loading NetCDF data with xarray
+    "matplotlib",
+    "geopandas",
 ]
 
 name = "openeo"
@@ -46,7 +47,6 @@ setup(
         "numpy>=1.17.0",
         "xarray>=0.12.3",
         "pandas>0.20.0",
-        "geopandas>=0.12.2",
         "deprecated>=1.2.12",
         "oschmod>=0.3.12; sys_platform == 'win32'",
     ],

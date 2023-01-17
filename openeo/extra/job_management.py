@@ -7,9 +7,9 @@ import time
 from pathlib import Path
 from typing import Callable, Dict, Optional, Union
 
-import geopandas as gpd
 import pandas as pd
 import requests
+import shapely.wkt
 
 from openeo import BatchJob, Connection
 from openeo.rest import OpenEoApiError
@@ -97,7 +97,7 @@ class MultiBackendJobManager:
         df = df.assign(**new_columns)
         # Workaround for loading of geopandas "geometry" column.
         if "geometry" in df.columns and df["geometry"].dtype.name != "geometry":
-            df["geometry"] = gpd.GeoSeries.from_wkt(df["geometry"])
+            df["geometry"] = df["geometry"].apply(shapely.wkt.loads)
         return df
 
     def run_jobs(self, df: pd.DataFrame, start_job: Callable, output_file: Path):
