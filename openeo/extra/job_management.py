@@ -3,7 +3,6 @@ import contextlib
 import datetime
 import json
 import logging
-import os
 import time
 from pathlib import Path
 from typing import Callable, Union, Dict, Optional
@@ -15,139 +14,8 @@ from openeo import Connection, BatchJob
 from openeo.rest import OpenEoApiError
 from openeo.util import deep_get
 
-from openeo.rest.connection import cached_connection
-
 
 _log = logging.getLogger(__name__)
-
-
-def run_jobs(
-    df: pd.DataFrame,
-    start_job: Callable,
-    outputFile: Path,
-    connection_provider: Callable,
-    parallel_jobs=2,
-):
-    """
-    Runs jobs, specified in a dataframe, and tracks parameters.
-
-    @param df: Job dataframe
-    @param start_job: A callback which will be invoked with the row of the dataframe for which a job should be started.
-    @param outputFile: A file on disk to track job statuses.
-    @return:
-    """
-
-    # TODO: original dataframe is completely discarded if `outputFile` exists, isn't that weird?
-    #       E.g. New code changes will not be picked up as long as an old/outdated CSV exist.
-    if outputFile.is_file():
-        df = pd.read_csv(outputFile)
-        df["geometry"] = gpd.GeoSeries.from_wkt(df["geometry"])
-    else:
-        df["status"] = "not_started"
-        df["start_time"] = ""
-        df["id"] = "None"
-        df["cpu"] = 0
-        df["memory"] = 0
-        df["duration"] = 0
-        df.to_csv(outputFile, index=False)
-
-    # TODO: this will never exit if there are failed/skipped jobs
-    while len(df[(df["status"] != "finished")]) > 0:
-        try:
-            jobs_to_run = df[df.status == "not_started"]
-            df = update_statuses(df, connection_provider)
-            df.to_csv(outputFile, index=False)
-            if jobs_to_run.empty:
-                time.sleep(60)
-                continue
-
-            if (
-                len(
-                    df[
-                        (df["status"] == "running")
-                        | (df["status"] == "queued")
-                        | (df["status"] == "created")
-                    ]
-                )
-                < parallel_jobs
-            ):
-                next_job = jobs_to_run.iloc[0]
-                job = start_job(next_job)
-                if job is not None:
-                    next_job["status"] = job.status()
-                    next_job["id"] = job.job_id
-                else:
-                    next_job["status"] = "skipped"
-                next_job["start_time"] = datetime.datetime.now().isoformat()
-                print(next_job)
-                df.loc[next_job.name] = next_job
-
-                df.to_csv(outputFile, index=False)
-            else:
-                time.sleep(60)
-
-        except requests.exceptions.ConnectionError as e:
-            _log.warning(f"Skipping connection error: {e}")
-
-
-def running_jobs(status_df):
-    return status_df.loc[
-        (status_df["status"] == "queued")
-        | (status_df["status"] == "running")
-        | (status_df["status"] == "created")
-    ].index
-
-
-def update_statuses(status_df, connection_provider=cached_connection):
-    con = connection_provider()
-    for i in running_jobs(status_df):
-        job_id = status_df.loc[i, "id"]
-        the_job = con.job(job_id)
-        job = the_job.describe_job()
-        usage = job.get("usage", {})
-        if status_df.loc[i, "status"] == "running" and job["status"] == "finished":
-            the_job.get_results().download_files(target=job["title"])
-        status_df.loc[
-            i, "cpu"
-        ] = f"{deep_get(usage,'cpu','value',default=0)} {deep_get(usage,'cpu','unit',default='')}"
-        status_df.loc[i, "status"] = job["status"]
-        status_df.loc[
-            i, "memory"
-        ] = f"{deep_get(usage,'memory','value',default=0)} {deep_get(usage,'memory','unit',default='')}"
-        status_df.loc[i, "duration"] = deep_get(usage, "duration", "value", default=0)
-        print(
-            time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime())
-            + "\tCurrent status of job "
-            + job_id
-            + " is : "
-            + job["status"]
-        )
-    return status_df
-
-
-# TODO: Do we still need this function after moving the code to openeo-python-client?
-#   (https://github.com/openEOPlatform/openeo-classification/issues/361)
-#   It is never called in the python client, but it is called within openeo-classification,
-#   from main.py and spanish_sampling.py.
-#   If we do need to keep it in the client, then we need those resources in the python client as well.
-# TODO: invalid path reference (https://github.com/openEOPlatform/openeo-classification/issues/2)
-def create_or_load_job_statistics(path="resources/training_data/job_statistics.csv"):
-    if os.path.isfile(path):
-        df = pd.read_csv(path)
-    else:
-        df = pd.DataFrame(
-            {
-                "fp": [],
-                "status": [],
-                "start_time": [],
-                "id": [],
-                "cpu": [],
-                "memory": [],
-                "duration": [],
-            }
-        )
-        df.to_csv(path, index=False)
-    return df
 
 
 # Container for backend info/settings
@@ -173,7 +41,11 @@ class MultiBackendJobManager:
 
     """
 
-    def __init__(self, poll_sleep=60):
+    def __init__(self, poll_sleep: int = 60):
+        """Create a MultiBackendJobManager
+
+        :param poll_sleep: How many seconds to sleep between polls.
+        """
         self.backends: Dict[str, _Backend] = {}
         self.poll_sleep = poll_sleep
 
@@ -181,7 +53,7 @@ class MultiBackendJobManager:
         self,
         name: str,
         connection: Union[Connection, Callable[[], Connection]],
-        parallel_jobs=2,
+        parallel_jobs: int = 2,
     ):
         """Register a backend with a name and a Connection getter"""
         if isinstance(connection, Connection):
@@ -213,6 +85,15 @@ class MultiBackendJobManager:
         return df
 
     def run_jobs(self, df: pd.DataFrame, start_job: Callable, output_file: Path):
+        """Runs jobs, specified in a dataframe, and tracks parameters.
+
+        :param df:
+            DataFrame that specifies the jobs, and tracks the jobs' statuses.
+        :param start_job:
+            A callback which will be invoked with the row of the dataframe for which a job should be started.
+        :param output_file:
+            Path to output file (CSV) containing the status and metadata of the jobs.
+        """
         # TODO: this resume functionality better fits outside of this function
         #       (e.g. if `output_file` exists: `df` is fully discarded)
         if output_file.exists() and output_file.is_file():
@@ -310,9 +191,12 @@ class MultiBackendJobManager:
         Handles jobs that have finished. Can be overridden to provide custom behaviour.
 
         Default implementation downloads the results into a folder containing the title.
-        @param job:
-        @return:
+
+        :param job: the job that has finished.
+        :param row: DataFrame row containing the job's metadata.
         """
+        # TODO: param `row` is never accessed in this method. Remove it? Is this intended for future use?
+
         job_metadata = job.describe_job()
         job.get_results().download_files(target=job_metadata["title"])
         with open(Path(job_metadata["title"]) / f"job_{job.job_id}.json", "w") as f:

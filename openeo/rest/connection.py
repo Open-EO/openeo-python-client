@@ -8,10 +8,8 @@ import shlex
 import sys
 import warnings
 from collections import OrderedDict
-from functools import partial, lru_cache
 from pathlib import Path
 from typing import Dict, List, Tuple, Union, Callable, Optional, Any, Iterator
-from urllib.parse import urljoin
 
 import requests
 from requests import Response
@@ -1355,38 +1353,3 @@ def paginate(con: Connection, url: str, params: dict = None, callback: Callable 
         url = next_links[0]["href"]
         page += 1
         params = {}
-
-
-
-#
-# For caching connections
-#
-
-_default_url = "openeo-dev.vito.be"
-
-
-def set_backend(url: str):
-    _default_url = url
-
-
-@lru_cache(maxsize=None)
-def _cached_connection(url: str) -> Connection:
-    return openeo.connect(url).authenticate_oidc()
-
-
-def cached_connection(url: Optional[str] = _default_url) -> Connection:
-    """
-    Returns an authenticated openEO connection.
-    Connects to openEO platform by default, but others can be used as well by specifying the url.
-
-    @param url:
-    @return:
-    """
-    return _cached_connection(url)
-
-
-# TODO: I think we can drop these partial functions. We can still define them in openeo-classification if we want.
-#   That is probably a more appropriate place for them.
-terrascope_dev = partial(cached_connection, "openeo-dev.vito.be")
-openeo_platform = partial(cached_connection, "openeo.cloud")
-creo = partial(cached_connection, "openeo-dev.creo.vito.be")
