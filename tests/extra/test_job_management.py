@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
+import shapely.geometry.point as shpt
 
 import openeo
 from openeo.extra.job_management import MultiBackendJobManager
@@ -149,12 +150,12 @@ class TestMultiBackendJobManager:
         manager = MultiBackendJobManager()
         df_normalized = manager._normalize_df(df)
 
-        import shapely
-        import shapely.geometry.point
-
         first_point = df_normalized.loc[0, "geometry"]
         second_point = df_normalized.loc[1, "geometry"]
-        assert isinstance(first_point, shapely.geometry.point.Point)
 
-        assert first_point == shapely.Point(100, 200)
-        assert second_point == shapely.Point(99, 123)
+        # The geometry columns should be converted so now it should contain
+        # Point objects from the module shapely.geometry.point
+        assert isinstance(first_point, shpt.Point)
+
+        assert first_point == shpt.Point(100, 200)
+        assert second_point == shpt.Point(99, 123)
