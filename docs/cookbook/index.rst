@@ -9,4 +9,5 @@ openEO CookBook
    sampling
    udp_sharing
    spectral_indices
+   job_manager
    tricks
