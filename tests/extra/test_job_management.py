@@ -67,7 +67,7 @@ class TestMultiBackendJobManager:
         mock_job_status("job-2021", queued=3, running=5)
         mock_job_status("job-2022", queued=5, running=6)
 
-        root_dir = "job_mgr_root"
+        root_dir = tmp_path / "job_mgr_root"
         manager = MultiBackendJobManager(poll_sleep=0.2, root_dir=root_dir)
 
         manager.add_backend("foo", connection=openeo.connect("http://foo.test"))
