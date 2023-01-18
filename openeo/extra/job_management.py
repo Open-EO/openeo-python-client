@@ -127,7 +127,7 @@ class MultiBackendJobManager:
             DataFrame that specifies the jobs, and tracks the jobs' statuses.
         :param start_job:
             A callback which will be invoked with the row of the dataframe for which a job should be started.
-            This callable should return a openeo.rest.job.BatchJob object.
+            This callable should return a :py:class:`openeo.rest.job.BatchJob` object.
         :param output_file:
             Path to output file (CSV) containing the status and metadata of the jobs.
         """
