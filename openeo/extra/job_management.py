@@ -42,13 +42,30 @@ class MultiBackendJobManager:
 
     """
 
-    def __init__(self, poll_sleep: int = 60):
+    def __init__(
+        self, poll_sleep: int = 60, root_dir: Optional[Union[str, Path]] = "."
+    ):
         """Create a MultiBackendJobManager.
 
-        :param poll_sleep: How many seconds to sleep between polls.
+        :param poll_sleep:
+            How many seconds to sleep between polls.
+
+        :param root_dir:
+            Root directory to save files for the jobs, e.g. metadata and error logs.
+            This defaults to "." the current directory.
+
+            Each job gets its own subfolder in this root directory.
+            You can use the following methods to find the relevant paths,
+            based on the job ID:
+                - get_job_dir
+                - get_error_log_path
+                - get_job_metadata_path
         """
         self.backends: Dict[str, _Backend] = {}
         self.poll_sleep = poll_sleep
+
+        # An explicit None or "" should also default to "."
+        self._root_dir = Path(root_dir or ".")
 
     def add_backend(
         self,
@@ -101,18 +118,22 @@ class MultiBackendJobManager:
         return df
 
     # TODO: long method with deep nesting. Refactor it to make it more readable.
-    def run_jobs(self, df: pd.DataFrame, start_job: Callable, output_file: Path):
+    def run_jobs(
+        self, df: pd.DataFrame, start_job: Callable[[], BatchJob], output_file: Path
+    ):
         """Runs jobs, specified in a dataframe, and tracks parameters.
 
         :param df:
             DataFrame that specifies the jobs, and tracks the jobs' statuses.
         :param start_job:
             A callback which will be invoked with the row of the dataframe for which a job should be started.
+            This callable should return a openeo.rest.job.BatchJob object.
         :param output_file:
             Path to output file (CSV) containing the status and metadata of the jobs.
         """
         # TODO: this resume functionality better fits outside of this function
         #       (e.g. if `output_file` exists: `df` is fully discarded)
+
         if output_file.exists() and output_file.is_file():
             # Resume from existing CSV
             _log.info(f"Resuming `run_jobs` from {output_file.absolute()}")
@@ -215,8 +236,13 @@ class MultiBackendJobManager:
         # TODO: param `row` is never accessed in this method. Remove it? Is this intended for future use?
 
         job_metadata = job.describe_job()
-        job.get_results().download_files(target=job_metadata["title"])
-        with open(Path(job_metadata["title"]) / f"job_{job.job_id}.json", "w") as f:
+        job_dir = self.get_job_dir(job.job_id)
+        metadata_path = self.get_job_metadata_path(job.job_id)
+
+        self.ensure_job_dir_exists(job.job_id)
+        job.get_results().download_files(target=job_dir)
+
+        with open(metadata_path, "w") as f:
             json.dump(job_metadata, f, ensure_ascii=False)
 
     def on_job_error(self, job: BatchJob, row):
@@ -232,11 +258,29 @@ class MultiBackendJobManager:
 
         logs = job.logs()
         error_logs = [l for l in logs if l.level.lower() == "error"]
-        job_metadata = job.describe_job()
+        error_log_path = self.get_error_log_path(job.job_id)
 
-        title = job_metadata["title"]
         if len(error_logs) > 0:
-            f"job_{title}_errors.json".write_text(json.dumps(error_logs, indent=2))
+            self.ensure_job_dir_exists(job.job_id)
+            error_log_path.write_text(json.dumps(error_logs, indent=2))
+
+    def get_job_dir(self, job_id: str) -> Path:
+        """Path to directory where job metadata, results and error logs are be saved."""
+        return self._root_dir / f"job_{job_id}"
+
+    def get_error_log_path(self, job_id: str) -> Path:
+        """Path where error log file for the job is saved."""
+        return self.get_job_dir(job_id) / f"job_{job_id}_errors.json"
+
+    def get_job_metadata_path(self, job_id: str) -> Path:
+        """Path where job metadata file is saved."""
+        return self.get_job_dir(job_id) / f"job_{job_id}.json"
+
+    def ensure_job_dir_exists(self, job_id: str) -> Path:
+        """Create the job folder if it does not exist yet."""
+        job_dir = self.get_job_dir(job_id)
+        if not job_dir.exists():
+            job_dir.mkdir(parents=True)
 
     def _update_statuses(self, df: pd.DataFrame):
         """Update status (and stats) of running jobs (in place)."""
@@ -269,7 +313,7 @@ class MultiBackendJobManager:
                     df.loc[i, key] = _format_usage_stat(job_metadata, key)
 
             except OpenEoApiError as e:
-                print(f"error for {backend_name}")
+                print(f"error for job {job_id!r} on backend {backend_name}")
                 print(e)
 
 

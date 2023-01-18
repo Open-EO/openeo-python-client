@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 
@@ -7,7 +8,7 @@ import shapely.geometry.point as shpt
 
 import openeo
 from openeo.extra.job_management import MultiBackendJobManager
-from openeo.rest.job import RESTJob
+from openeo import BatchJob
 
 
 @pytest.fixture
@@ -32,7 +33,7 @@ def temp_working_dir(tmp_path):
 
 
 class TestMultiBackendJobManager:
-    def test_basic(self, tmp_path, requests_mock, temp_working_dir):
+    def test_basic(self, tmp_path, requests_mock):
         requests_mock.get("http://foo.test/", json={"api_version": "1.1.0"})
         requests_mock.get("http://bar.test/", json={"api_version": "1.1.0"})
 
@@ -87,7 +88,9 @@ class TestMultiBackendJobManager:
         mock_job_status("job-2021", queued=3, running=5)
         mock_job_status("job-2022", queued=5, running=6)
 
-        manager = MultiBackendJobManager(poll_sleep=0.2)
+        root_dir = "job_mgr_root"
+        manager = MultiBackendJobManager(poll_sleep=0.2, root_dir=root_dir)
+
         manager.add_backend("foo", connection=openeo.connect("http://foo.test"))
         manager.add_backend("bar", connection=openeo.connect("http://bar.test"))
 
@@ -102,7 +105,7 @@ class TestMultiBackendJobManager:
 
         def start_job(row, connection, **kwargs):
             year = row["year"]
-            return RESTJob(job_id=f"job-{year}", connection=connection)
+            return BatchJob(job_id=f"job-{year}", connection=connection)
 
         manager.run_jobs(df=df, start_job=start_job, output_file=output_file)
 
@@ -110,6 +113,44 @@ class TestMultiBackendJobManager:
         assert len(result) == 5
         assert set(result.status) == {"finished"}
         assert set(result.backend_name) == {"foo", "bar"}
+
+        # We expect that the job metadata was saved, so verify that it exists.
+        # Checking for one of the jobs is enough.
+        metadata_path = manager.get_job_metadata_path(job_id="job-2022")
+        assert metadata_path.exists()
+
+    def test_on_error_log(self, tmp_path, requests_mock):
+        backend = "http://foo.test"
+        requests_mock.get(backend, json={"api_version": "1.1.0"})
+
+        job_id = "job-2018"
+        errors_log_lines = [
+            {
+                "id": job_id,
+                "level": "error",
+                "message": "Test that error handling works",
+            }
+        ]
+        requests_mock.get(
+            f"{backend}/jobs/{job_id}/logs", json={"logs": errors_log_lines}
+        )
+
+        root_dir = tmp_path / "job_mgr_root"
+        manager = MultiBackendJobManager(poll_sleep=0.2, root_dir=root_dir)
+        connection = openeo.connect(backend)
+        manager.add_backend("foo", connection=connection)
+
+        df = pd.DataFrame({"year": [2018]})
+        job = BatchJob(job_id=f"job-2018", connection=connection)
+        row = df.loc[0]
+
+        manager.on_job_error(job=job, row=row)
+
+        # Check that the error log file exists and contains the message we expect.
+        error_log_path = manager.get_error_log_path(job_id=job_id)
+        assert error_log_path.exists()
+        contents = error_log_path.read_text()
+        assert json.loads(contents) == errors_log_lines
 
     def test_normalize_df_adds_required_columns(self):
         df = pd.DataFrame(
