@@ -151,7 +151,7 @@ class UDF:
                 language = self._guess_runtime_from_suffix(url_match.group("suffix"))
         if not language:
             # Guess language from UDF code
-            if re.search("^def [\w0-9_]+\(", self.code, flags=re.MULTILINE):
+            if re.search(r"^def [\w0-9_]+\(", self.code, flags=re.MULTILINE):
                 language = "Python"
             # TODO: detection heuristics for R and other languages?
         if not language:
