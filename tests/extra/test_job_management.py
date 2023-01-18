@@ -11,27 +11,6 @@ from openeo.extra.job_management import MultiBackendJobManager
 from openeo import BatchJob
 
 
-@pytest.fixture
-def temp_working_dir(tmp_path):
-    """Use a temporary working directory, because some tests generate files
-    in the working directory, and that pollutes your git work tree.
-
-    Preventing it would be better, but sometimes that is difficult.
-    TODO: What if we want to keep those files for inspecting after the test run, but preferably in a separate folder?
-    """
-
-    orig_workdir: Path = Path.cwd()
-    # Make the CWD a bit more specific because test can use tmp_dir for other things too.
-    temp_word_dir: Path = tmp_path / "test-workdir"
-    if not temp_word_dir.exists():
-        temp_word_dir.mkdir()
-    os.chdir(temp_word_dir)
-
-    yield temp_word_dir
-
-    os.chdir(orig_workdir)
-
-
 class TestMultiBackendJobManager:
     def test_basic(self, tmp_path, requests_mock):
         requests_mock.get("http://foo.test/", json={"api_version": "1.1.0"})
