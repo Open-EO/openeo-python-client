@@ -16,9 +16,12 @@ def _get_dimension(dims: dict, candidates: List[str]):
         if name in dims:
             return name
         
-def _get_netcdf_metadata(file_path):
-    data = xr.open_dataset(file_path,chunks={})
-    
+def _get_netcdf_zarr_metadata(file_path):
+    if '.zarr' in file_path.suffixes:
+        data = xr.open_dataset(file_path.as_posix(),chunks={},engine='zarr')
+    else:
+        data = xr.open_dataset(file_path.as_posix(),chunks={})
+    file_path = file_path.as_posix()
     t_dim = _get_dimension(data.dims, ['t', 'time', 'temporal', 'DATE'])
     x_dim = _get_dimension(data.dims, ["x", "X", "lon", "longitude"])
     y_dim = _get_dimension(data.dims, ['y', 'Y', 'lat', 'latitude'])
@@ -101,7 +104,8 @@ def _get_netcdf_metadata(file_path):
     return metadata
 
 def _get_geotiff_metadata(file_path):
-    data = rioxarray.open_rasterio(file_path,chunks={})
+    data = rioxarray.open_rasterio(file_path.as_posix(),chunks={})
+    file_path = file_path.as_posix()
 
     t_dim = _get_dimension(data.dims, ['t', 'time', 'temporal', 'DATE'])
     x_dim = _get_dimension(data.dims, ["x", "X", "lon", "longitude"])
@@ -194,20 +198,20 @@ def _get_geotiff_metadata(file_path):
 
     return metadata
 
-def _get_netcdf_collections(local_collections_path):
-    local_collections_netcdfs = Path(local_collections_path).rglob('*.nc')
+def _get_netcdf_zarr_collections(local_collections_path):
+    local_collections_netcdf_zarr = [p for p in Path(local_collections_path).rglob('*') if p.suffix in  ['.nc','.zarr']]
     local_collections_list = []
-    for local_netcdf in local_collections_netcdfs: 
-        metadata = _get_netcdf_metadata(local_netcdf.as_posix())
+    for local_file in local_collections_netcdf_zarr:
+        metadata = _get_netcdf_zarr_metadata(local_file)
         local_collections_list.append(metadata)
     local_collections_dict = {'collections':local_collections_list}
     return local_collections_dict
 
 def _get_geotiff_collections(local_collections_path):
-    local_collections_geotiffs = Path(local_collections_path).rglob('*.tif*')
+    local_collections_geotiffs = [p for p in Path(local_collections_path).rglob('*') if p.suffix in  ['.tif','.tiff']]
     local_collections_list = []
-    for local_geotiff in local_collections_geotiffs: 
-        metadata = _get_geotiff_metadata(local_geotiff.as_posix())
+    for local_file in local_collections_geotiffs: 
+        metadata = _get_geotiff_metadata(local_file)
         local_collections_list.append(metadata)
     local_collections_dict = {'collections':local_collections_list}
     return local_collections_dict
@@ -232,7 +236,7 @@ class LocalConnection():
         .. caution::
         :return: list of dictionaries with basic collection metadata.
         """
-        data_nc = _get_netcdf_collections(self.local_collections_path)["collections"]
+        data_nc = _get_netcdf_zarr_collections(self.local_collections_path)["collections"]
         data_tif = _get_geotiff_collections(self.local_collections_path)["collections"]
         data = data_nc + data_tif
         return VisualList("collections", data=data)
@@ -249,10 +253,11 @@ class LocalConnection():
         :param collection_id: collection id
         :return: collection metadata.
         """
-        if '.nc' in Path(collection_id).suffixes:
-            data = _get_netcdf_metadata(collection_id)
-        elif '.tif' in Path(collection_id).suffixes or '.tiff' in Path(collection_id).suffixes:
-            data = _get_geotiff_metadata(collection_id)
+        local_collection = Path(collection_id)
+        if '.nc' in local_collection.suffixes or '.zarr' in local_collection.suffixes:
+            data = _get_netcdf_zarr_metadata(local_collection)
+        elif '.tif' in local_collection.suffixes or '.tiff' in local_collection.suffixes:
+            data = _get_geotiff_metadata(local_collection)
         return VisualDict("collection", data=data)
     
     def collection_metadata(self, name) -> CollectionMetadata:
