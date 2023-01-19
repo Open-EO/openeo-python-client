@@ -24,7 +24,7 @@ tests_require = [
     "netCDF4",  # e.g. for writing/loading NetCDF data with xarray
     "matplotlib",
     "geopandas",
-    "flake8",
+    "flake8>=5.0.0",
 ]
 
 docs_require = [
