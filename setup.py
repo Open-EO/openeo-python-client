@@ -24,6 +24,14 @@ tests_require = [
     "netCDF4",  # e.g. for writing/loading NetCDF data with xarray
     "matplotlib",
     "geopandas",
+    "flake8",
+]
+
+docs_require = [
+    "sphinx",
+    "sphinx-autodoc-annotation",
+    "sphinx-autodoc-typehints",
+    "myst-parser",
 ]
 
 name = "openeo"
@@ -51,14 +59,8 @@ setup(
         'oschmod>=0.3.12; sys_platform == "win32"',
     ],
     extras_require={
-        "dev": tests_require
-        + [
-            "sphinx",
-            "sphinx-autodoc-annotation",
-            "sphinx-autodoc-typehints",
-            "flake8",
-            "myst-parser",
-        ],
+        "dev": tests_require + docs_require,
+        "docs": docs_require,
         "oschmod": [  # install oschmod even when platform is not Windows, e.g. for testing in CI.
             "oschmod>=0.3.12"
         ],
