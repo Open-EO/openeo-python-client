@@ -29,17 +29,21 @@ class MultiBackendJobManager:
 
     Usage example:
 
+    .. code-block:: python
+
         manager = MultiBackendJobManager()
         manager.add_backend("foo", connection=openeo.connect("http://foo.test"))
         manager.add_backend("bar", connection=openeo.connect("http://bar.test"))
 
-        jobs_df = pd.DataFrame(....)
+        jobs_df = pd.DataFrame(...)
+
         output_file = Path("jobs.csv")
         def start_job(row, connection, **kwargs):
             ...
 
         manager.run_jobs(df=df, start_job=start_job, output_file=output_file)
 
+    .. versionadded:: 0.14.0
     """
 
     def __init__(
