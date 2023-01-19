@@ -25,7 +25,7 @@ import requests
 
 import openeo
 from openeo.rest import OpenEoClientException
-from openeo.util import dict_no_none
+from openeo.util import dict_no_none, url_join
 
 log = logging.getLogger(__name__)
 
@@ -247,7 +247,9 @@ class OidcProviderInfo:
         self.title = title
         if issuer is None and discovery_url is None:
             raise ValueError("At least `issuer` or `discovery_url` should be specified")
-        self.discovery_url = discovery_url or (issuer.rstrip("/") + "/.well-known/openid-configuration")
+        self.discovery_url = discovery_url or (
+            url_join(issuer, "/.well-known/openid-configuration")
+        )
         discovery_resp = requests.get(self.discovery_url, timeout=20)
         discovery_resp.raise_for_status()
         self.config = discovery_resp.json()

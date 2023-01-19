@@ -633,21 +633,65 @@ class DataCube(_ProcessGraphAbstraction):
             if isinstance(other, DataCube):
                 return self._merge_operator_binary_cubes(operator, other)
             elif isinstance(other, (int, float)):
-                if reverse:
-                    args = {"x": other, "y": {"from_parameter": "x"}}
-                else:
-                    args = {"x": {"from_parameter": "x"}, "y": other}
-                # TODO #123: support appending to pre-existing apply process instead of adding a whole new one
-                return self.apply(process=PGNode(process_id=operator, arguments=args))
-        raise OperatorException("Unsupported operator {op!r} with {other!r} (band math mode={b})".format(
-            op=operator, other=other, b=band_math_mode))
+                # "`apply` math" mode
+                return self._apply_operator(
+                    operator=operator, other=other, reverse=reverse
+                )
+        raise OperatorException(
+            f"Unsupported operator {operator!r} with `other` type {type(other)!r} (band math mode={band_math_mode})"
+        )
 
     def _operator_unary(self, operator: str, **kwargs) -> 'DataCube':
         band_math_mode = self._in_bandmath_mode()
         if band_math_mode:
             return self._bandmath_operator_unary(operator, **kwargs)
-        raise OperatorException("Unsupported unary operator {op!r} (band math mode={b})".format(
-            op=operator, b=band_math_mode))
+        else:
+            return self._apply_operator(operator=operator, extra_arguments=kwargs)
+
+    def _apply_operator(
+        self,
+        operator: str,
+        other: Optional[Union[int, float]] = None,
+        reverse: Optional[bool] = None,
+        extra_arguments: Optional[dict] = None,
+    ) -> "DataCube":
+        """
+        Apply a unary or binary operator/process,
+        by appending to existing `apply` node, or starting a new one.
+
+        :param operator: process id of operator
+        :param other: for binary operators: "other" argument
+        :param reverse: for binary operators: "self" and "other" should be swapped (reflected operator mode)
+        """
+        if self.result_node().process_id == "apply":
+            # Append to existing `apply` node
+            orig_apply = self.result_node()
+            data = orig_apply.arguments["data"]
+            x = {"from_node": orig_apply.arguments["process"]["process_graph"]}
+            context = orig_apply.arguments.get("context")
+        else:
+            # Start new `apply` node.
+            data = self
+            x = {"from_parameter": "x"}
+            context = None
+        # Build args for child callback.
+        args = {"x": x, **(extra_arguments or {})}
+        if other is not None:
+            # Binary operator mode
+            args["y"] = other
+            if reverse:
+                args["x"], args["y"] = args["y"], args["x"]
+        child_pg = PGNode(process_id=operator, arguments=args)
+        return self.process_with_node(
+            PGNode(
+                process_id="apply",
+                arguments=dict_no_none(
+                    data=data,
+                    process={"process_graph": child_pg},
+                    context=context,
+                ),
+            )
+        )
 
     @openeo_process(mode="operator")
     def add(self, other: Union['DataCube', int, float], reverse=False) -> 'DataCube':
@@ -858,6 +902,7 @@ class DataCube(_ProcessGraphAbstraction):
         ))
 
     def _in_bandmath_mode(self) -> bool:
+        """So-called "band math" mode: current result node is reduce_dimension along "bands" dimension."""
         # TODO #123 is it (still) necessary to make "band" math a special case?
         return isinstance(self._pg, ReduceNode) and self._pg.band_math_mode
 
