@@ -23,7 +23,7 @@ from openeo.internal.graph_building import PGNode, as_flat_graph
 from openeo.internal.jupyter import VisualDict, VisualList
 from openeo.internal.processes.builder import ProcessBuilderBase
 from openeo.internal.warnings import legacy_alias, deprecated
-from openeo.metadata import CollectionMetadata
+from openeo.metadata import CollectionMetadata, SpatialDimension, TemporalDimension, BandDimension, Band
 from openeo.rest import OpenEoClientException, OpenEoApiError, OpenEoRestError
 from openeo.rest.auth.auth import NullAuth, BearerAuth, BasicBearerAuth, OidcBearerAuth, OidcRefreshInfo
 from openeo.rest.auth.config import RefreshTokenStore, AuthConfig
@@ -1035,15 +1035,18 @@ class Connection(RestApiConnection):
         if self._api_version.below("1.0.0"):
             raise OpenEoClientException(
                 "This method requires support for at least version 1.0.0 in the openEO backend.")
-        return self.datacube_from_process(
-            process_id="load_result",
-            id=id,
-            **dict_no_none(
-                spatial_extent=spatial_extent,
-                temporal_extent=temporal_extent and DataCube._get_temporal_extent(temporal_extent),
-                bands=bands
-            )
-        )
+        metadata = CollectionMetadata({}, dimensions=[
+            SpatialDimension(name="x", extent=[]),
+            SpatialDimension(name="y", extent=[]),
+            TemporalDimension(name='t', extent=[]),
+            BandDimension(name="bands", bands=[Band("unknown")]),
+        ])
+        cube = self.datacube_from_process(process_id="load_result", id=id,
+                                             **dict_no_none(spatial_extent=spatial_extent,
+                                                            temporal_extent=temporal_extent and DataCube._get_temporal_extent(
+                                                                temporal_extent), bands=bands))
+        cube.metadata = metadata
+        return cube
 
     def load_ml_model(self, id: Union[str, BatchJob]) -> "MlModel":
         """
