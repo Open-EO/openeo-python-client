@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - `execute_batch` also skips temporal `502 Bad Gateway errors`. [#352](https://github.com/Open-EO/openeo-python-client/issues/352)
+- First steps to have more flexibility in `Connection.execute()` regarding parsing/decoding/loading of the response
+  (related to [#7](https://github.com/Open-EO/openeo-python-client/issues/7),
+  [#340](https://github.com/Open-EO/openeo-python-client/issues/340),
+  [#338](https://github.com/Open-EO/openeo-python-client/pull/338))
 
 ### Removed
 

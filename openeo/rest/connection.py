@@ -732,9 +732,9 @@ class Connection(RestApiConnection):
     def describe_collection(self, collection_id: str) -> dict:
         """
         Get full collection metadata for given collection id.
-        
+
         .. seealso::
-        
+
             :py:meth:`~openeo.rest.connection.Connection.list_collection_ids`
             to list all collection ids provided by the back-end.
 
@@ -1117,12 +1117,12 @@ class Connection(RestApiConnection):
             result["process_graph"] = process_graph
         return result
 
-    # TODO: unify `download` and `execute` better: e.g. `download` always writes to disk, `execute` returns result (raw or as JSON decoded dict)
     def download(
-            self,
-            graph: Union[dict, str, Path],
-            outputfile: Union[Path, str, None] = None,
-            timeout: int = 30 * 60,
+        self,
+        graph: Union[dict, str, Path],
+        outputfile: Union[Path, str, None] = None,
+        *,
+        timeout: int = 30 * 60,
     ):
         """
         Downloads the result of a process graph synchronously,
@@ -1134,8 +1134,9 @@ class Connection(RestApiConnection):
         :param outputfile: output file
         :param timeout: timeout to wait for response
         """
-        request = self._build_request_with_process_graph(process_graph=graph)
-        response = self.post(path="/result", json=request, expected_status=200, stream=True, timeout=timeout)
+        response = self.execute(
+            process_graph=graph, stream=True, timeout=timeout, _handling="response"
+        )
 
         if outputfile is not None:
             with Path(outputfile).open(mode="wb") as f:
@@ -1144,16 +1145,60 @@ class Connection(RestApiConnection):
         else:
             return response.content
 
-    def execute(self, process_graph: Union[dict, str, Path]):
+    def execute(
+        self,
+        process_graph: Union[dict, str, Path],
+        *,
+        stream: Optional[bool] = None,
+        timeout: int = 30 * 60,
+        _handling: str = "auto",
+    ):
         """
-        Execute a process graph synchronously and return the result (assumed to be JSON).
+        Execute a process graph synchronously and return the result.
 
         :param process_graph: (flat) dict representing a process graph, or process graph as raw JSON string,
             or as local file path or URL
-        :return: parsed JSON response
+        :param stream: Whether to use response streaming
+        :param timeout: timeout to wait for response
+        :param _handling: (experimental) How to handle the response
+            and what to return. One of:
+
+            - "json": parse response as JSON and return parsed data structure
+            - "bytes": return response as raw bytes
+            - "response": return as :py:class:`requests.Response` object
+            - "auto" (default): attempt to detect content type of response
+              and parse/decode it appropriately.
+
+        :return: raw/parsed/decoded response or result
+
+        .. versionadded:: 0.14.0
+            experimental ``_handling`` argument
         """
-        req = self._build_request_with_process_graph(process_graph=process_graph)
-        return self.post(path="/result", json=req, expected_status=200).json()
+        data = self._build_request_with_process_graph(process_graph=process_graph)
+        response = self.post(
+            path="/result",
+            json=data,
+            expected_status=200,
+            stream=stream,
+            timeout=timeout,
+        )
+        if _handling == "json":
+            return response.json()
+        elif _handling == "response":
+            return response
+        elif _handling == "bytes":
+            return response.content
+        elif _handling == "auto":
+            # TODO: this is legacy behaviour for now: assume JSON.
+            #       Guess appropriate parsing/loading from response content type (load xarray data from NetCDF)
+            content_type = response.headers.get("Content-Type")
+            if content_type != "application/json":
+                _log.warning(
+                    f"Response with content type {content_type!r} to be interpreted as JSON."
+                )
+            return response.json()
+        else:
+            raise OpenEoClientException(f"Unknown result handling {_handling!r}")
 
     def create_job(
             self, process_graph: Union[dict, str, Path],
@@ -1197,7 +1242,7 @@ class Connection(RestApiConnection):
     def job(self, job_id: str) -> BatchJob:
         """
         Get the job based on the id. The job with the given id should already exist.
-        
+
         Use :py:meth:`openeo.rest.connection.Connection.create_job` to create new jobs
 
         :param job_id: the job id of an existing job
@@ -1208,7 +1253,7 @@ class Connection(RestApiConnection):
     def service(self, service_id: str) -> Service:
         """
         Get the secondary web service based on the id. The service with the given id should already exist.
-        
+
         Use :py:meth:`openeo.rest.connection.Connection.create_service` to create new services
 
         :param job_id: the service id of an existing secondary web service
@@ -1354,4 +1399,3 @@ def paginate(con: Connection, url: str, params: dict = None, callback: Callable 
         url = next_links[0]["href"]
         page += 1
         params = {}
-

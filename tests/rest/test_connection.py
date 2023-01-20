@@ -1945,8 +1945,13 @@ def test_execute_042(requests_mock):
         conn.execute({"foo1": {"process_id": "foo"}})
     assert request.call_args_list == [
         mock.call(
-            "post", path="/result", allow_redirects=False, expected_status=200,
-            json={"process_graph": {"foo1": {"process_id": "foo"}}}
+            "post",
+            path="/result",
+            allow_redirects=False,
+            expected_status=200,
+            stream=None,
+            timeout=1800,
+            json={"process_graph": {"foo1": {"process_id": "foo"}}},
         )
     ]
 
@@ -1963,8 +1968,13 @@ def test_execute_100(requests_mock, pg):
         conn.execute(pg)
     assert request.call_args_list == [
         mock.call(
-            "post", path="/result", allow_redirects=False, expected_status=200,
-            json={"process": {"process_graph": {"foo1": {"process_id": "foo"}}}}
+            "post",
+            path="/result",
+            allow_redirects=False,
+            expected_status=200,
+            stream=None,
+            timeout=1800,
+            json={"process": {"process_graph": {"foo1": {"process_id": "foo"}}}},
         )
     ]
 
@@ -2457,18 +2467,19 @@ class TestExecute:
     PG_JSON_2 = '{"process_graph": {"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": true}}}'
 
     # Dummy `POST /result` handlers
-    def _post_result_handler_tiff(self, response: requests.Request, context):
-        pg = response.json()["process"]["process_graph"]
+    def _post_result_handler_tiff(self, request: requests.Request, context):
+        pg = request.json()["process"]["process_graph"]
         assert pg == {"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}}
         return b"TIFF data"
 
-    def _post_result_handler_json(self, response: requests.Request, context):
-        pg = response.json()["process"]["process_graph"]
+    def _post_result_handler_json(self, request: requests.Request, context):
+        pg = request.json()["process"]["process_graph"]
         assert pg == {"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}}
+        context.headers["Content-Type"] = "application/json"
         return {"answer": 8}
 
-    def _post_jobs_handler_json(self, response: requests.Request, context):
-        pg = response.json()["process"]["process_graph"]
+    def _post_jobs_handler_json(self, request: requests.Request, context):
+        pg = request.json()["process"]["process_graph"]
         assert pg == {"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}}
         context.headers["OpenEO-Identifier"] = "j-123"
         return b""
@@ -2574,3 +2585,35 @@ class TestExecute:
         conn = Connection(API_URL)
         job = conn.create_job(url)
         assert job.job_id == "j-123"
+
+    @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
+    def test_execute_handling_json(self, requests_mock, pg_json: str):
+        requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+        requests_mock.post(API_URL + "result", json=self._post_result_handler_json)
+        connection = Connection(API_URL)
+        result = connection.execute(pg_json, _handling="json")
+        assert result == {"answer": 8}
+
+    @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
+    def test_execute_handling_bytes(self, requests_mock, pg_json: str):
+        requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+        requests_mock.post(API_URL + "result", json=self._post_result_handler_json)
+        connection = Connection(API_URL)
+        result = connection.execute(pg_json, _handling="bytes")
+        assert result == b'{"answer": 8}'
+
+    @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
+    def test_execute_handling_response(self, requests_mock, pg_json: str):
+        requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+        requests_mock.post(API_URL + "result", json=self._post_result_handler_json)
+        connection = Connection(API_URL)
+        result = connection.execute(pg_json, _handling="response")
+        assert isinstance(result, requests.Response)
+
+    @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
+    def test_execute_handling_auto_json(self, requests_mock, pg_json: str):
+        requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+        requests_mock.post(API_URL + "result", json=self._post_result_handler_json)
+        connection = Connection(API_URL)
+        result = connection.execute(pg_json, _handling="auto")
+        assert result == {"answer": 8}
