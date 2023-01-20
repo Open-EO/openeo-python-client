@@ -1893,7 +1893,7 @@ class DataCube(_ProcessGraphAbstraction):
         Evaluate the process graph by creating a batch job, and retrieving the results when it is finished.
         This method is mostly recommended if the batch job is expected to run in a reasonable amount of time.
 
-        For very long running jobs, you probably do not want to keep the client running.
+        For very long-running jobs, you probably do not want to keep the client running.
 
         :param job_options:
         :param outputfile: The path of a file to which a result can be written
@@ -1916,8 +1916,12 @@ class DataCube(_ProcessGraphAbstraction):
             job_options=None, **format_options
     ) -> BatchJob:
         """
-        Sends a job to the backend and returns a Job instance. The job will still need to be started and managed explicitly.
-        The :func:`~openeo.imagecollection.ImageCollection.execute_batch` method allows you to run batch jobs without managing it.
+        Sends the datacube's process graph as a batch job to the back-end
+        and return a :py:class:`~openeo.rest.job.BatchJob` instance.
+
+        Note that the batch job will just be created at the back-end,
+        it still needs to be started and tracked explicitly.
+        Use :py:meth:`execute_batch` instead to have the openEO Python client take care of that job management.
 
         :param out_format: String Format of the job result.
         :param job_options: A dictionary containing (custom) job options
@@ -2123,8 +2127,8 @@ class DataCube(_ProcessGraphAbstraction):
 
         :param model: a reference to a trained model, one of
 
-                - a :py:class:`MlModel` instance (e.g. loaded from :py:meth:`Connection.load_ml_model`)
-                - a :py:class:`BatchJob` instance of a batch job that saved a single random forest model
+                - a :py:class:`~openeo.rest.mlmodel.MlModel` instance (e.g. loaded from :py:meth:`Connection.load_ml_model`)
+                - a :py:class:`~openeo.rest.job.BatchJob` instance of a batch job that saved a single random forest model
                 - a job id (``str``) of a batch job that saved a single random forest model
                 - a STAC item URL (``str``) to load the random forest from.
                   (The STAC Item must implement the `ml-model` extension.)
