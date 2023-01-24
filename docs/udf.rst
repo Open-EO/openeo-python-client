@@ -408,7 +408,7 @@ Logging from the UDFs
 In most cases, users will want to use print statements within a UDF so that they can monitor their results and make debugging easier. One possible solution is to use ```inspect``` logging function.
 
 
-.. code-block:: python
+code-block:: python
     import openeo
 
     # Create connection to openEO back-end
