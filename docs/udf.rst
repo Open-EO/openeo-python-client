@@ -402,6 +402,42 @@ An example code can be found `here <https://github.com/Open-EO/openeo-python-cli
 
 
 
+Logging from the UDFs
+==============================
+
+In most cases, users will want to use print statements within a UDF so that they can monitor their results and make debugging easier. One possible solution is to use ```inspect``` logging function.
+
+
+.. code-block:: python
+    import openeo
+
+    # Create connection to openEO back-end
+    connection = openeo.connect("openeo.vito.be").authenticate_oidc()
+
+    # Load initial data cube.
+    s2_cube = connection.load_collection(
+        "SENTINEL2_L2A",
+        spatial_extent={"west": 4.00, "south": 51.04, "east": 4.10, "north": 51.1},
+        temporal_extent=["2022-03-01", "2022-03-31"],
+        bands=["B02", "B03", "B04"]
+    )
+
+    # Create a UDF object from inline source code.
+    udf = openeo.UDF("""
+    from openeo.udf import XarrayDataCube
+    from openeo.udf.debug import inspect
+
+    def apply_datacube(cube: XarrayDataCube, context: dict) -> XarrayDataCube:
+        array = cube.get_array()
+        inspect(data=[array.shape], message="UDF logging shape of my array")
+        array.values = 0.0001 * array.values
+        return cube
+    """)
+
+    # Pass UDF object as child process to `reduce_dimension`.
+    rescaled = s2_cube.apply(process=udf)
+
+
 
 
 .. _old_udf_api:
