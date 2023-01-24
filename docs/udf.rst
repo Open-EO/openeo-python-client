@@ -405,22 +405,10 @@ An example code can be found `here <https://github.com/Open-EO/openeo-python-cli
 Logging from the UDFs
 ==============================
 
-In most cases, users will want to use print statements within a UDF so that they can monitor their results and make debugging easier. One possible solution is to use ```inspect``` logging function.
+In most cases, users will want to use print statements within a UDF so that they can monitor their 
+results and make debugging easier. One possible solution is to use ```inspect``` logging function.
 
-For example::
-
-    import openeo
-
-    # Create connection to openEO back-end
-    connection = openeo.connect("openeo.vito.be").authenticate_oidc()
-
-    # Load initial data cube.
-    s2_cube = connection.load_collection(
-        "SENTINEL2_L2A",
-        spatial_extent={"west": 4.00, "south": 51.04, "east": 4.10, "north": 51.1},
-        temporal_extent=["2022-03-01", "2022-03-31"],
-        bands=["B02", "B03", "B04"]
-    )
+For example, when rescaling an RGB image(such as SENTINEL2_L2A), user want to keep a log of array shape encountered within a UDF::
 
     # Create a UDF object from inline source code.
     udf = openeo.UDF("""
@@ -434,8 +422,9 @@ For example::
         return cube
     """)
 
-    # Pass UDF object as child process to `reduce_dimension`.
-    rescaled = s2_cube.apply(process=udf)
+Then, in a Jupyter notebook use the ```job.logs()``` to request the job logs, you are be able to see these log entries as shown here:
+
+![image](_static/images/udf/logging_arrayshape.png)
 
 
 
