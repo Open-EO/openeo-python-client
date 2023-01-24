@@ -426,7 +426,8 @@ Then, in a Jupyter notebook use the ```job.logs()``` to request the job logs, yo
 
 .. image:: _static/images/udf/logging_arrayshape.png
 
-
+The array of shape 3x256x256 was logged in. [Please note that this method experimental and not all 
+data types are properly supported in ```data``` argument of ```inspect```]
 
 
 .. _old_udf_api:
