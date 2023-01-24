@@ -424,7 +424,7 @@ For example, when rescaling an RGB image(such as SENTINEL2_L2A), user want to ke
 
 Then, in a Jupyter notebook use the ```job.logs()``` to request the job logs, you are be able to see these log entries as shown here:
 
-![image](_static/images/udf/logging_arrayshape.png)
+.. image:: _static/images/udf/logging_arrayshape.png
 
 
 
