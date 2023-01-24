@@ -408,7 +408,7 @@ Logging from the UDFs
 In some cases, users might want to use print statements within a UDF so that they can monitor their 
 results that makes debugging easier. One possible way is to use ```inspect``` logging function in the UDF.
 
-For example, when rescaling an RGB image(such as SENTINEL2_L2A), suppose user want to keep a log of array shape encountered 
+For example, in the previous example of rescaling an RGB image(from SENTINEL2_L2A), suppose user want to keep a log of array shape encountered 
 within a UDF::
 
     # Create a UDF object from inline source code.
