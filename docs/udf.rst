@@ -405,10 +405,11 @@ An example code can be found `here <https://github.com/Open-EO/openeo-python-cli
 Logging from the UDFs
 ==============================
 
-In most cases, users will want to use print statements within a UDF so that they can monitor their 
-results and make debugging easier. One possible solution is to use ```inspect``` logging function.
+In some cases, users might want to use print statements within a UDF so that they can monitor their 
+results that makes debugging easier. One possible way is to use ```inspect``` logging function in the UDF.
 
-For example, when rescaling an RGB image(such as SENTINEL2_L2A), user want to keep a log of array shape encountered within a UDF::
+For example, when rescaling an RGB image(such as SENTINEL2_L2A), suppose user want to keep a log of array shape encountered 
+within a UDF::
 
     # Create a UDF object from inline source code.
     udf = openeo.UDF("""
@@ -422,12 +423,13 @@ For example, when rescaling an RGB image(such as SENTINEL2_L2A), user want to ke
         return cube
     """)
 
-Then, in a Jupyter notebook use the ```job.logs()``` to request the job logs, you are be able to see these log entries as shown here:
+Then, in a Jupyter notebook you can use the ```job.logs()``` to request the job logs where you will
+be able to see the log entries as shown in the image:
 
 .. image:: _static/images/udf/logging_arrayshape.png
 
-The array of shape 3x256x256 was logged in. [Please note that this method experimental and not all 
-data types are properly supported in ```data``` argument of ```inspect```]
+Thus, an array of shape 3x256x256 was logged in on which rescaling was performed. [Please note that at this moment, 
+this method is experimental and doesnot support all data types in ```data``` argument of ```inspect```]
 
 
 .. _old_udf_api:
