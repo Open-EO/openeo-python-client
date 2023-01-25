@@ -406,10 +406,10 @@ Logging from the UDFs
 ==============================
 
 In some cases, users might want to use print statements within a UDF so that they can monitor their 
-results that makes debugging easier. One possible way is to use ```inspect``` logging function in the UDF.
+results that makes debugging easier. One possible way is to use ``inspect`` logging function in the UDF.
 
-For example, in the previous example of rescaling an RGB image(from SENTINEL2_L2A), suppose user want to keep a log of array shape encountered 
-within a UDF::
+For example, in the previous example of rescaling an RGB image(from SENTINEL2_L2A), suppose user 
+want to keep a log of array shape encountered within a UDF::
 
     # Create a UDF object from inline source code.
     udf = openeo.UDF("""
@@ -423,13 +423,13 @@ within a UDF::
         return cube
     """)
 
-Then, in a Jupyter notebook you can use the ```job.logs()``` to request the job logs where you will
+Then, for users using a Jupyter notebook you can use the ```job.logs()``` to request the job logs where you will
 be able to see the log entries as shown in the image:
 
 .. image:: _static/images/udf/logging_arrayshape.png
 
 Thus, an array of shape 3x256x256 was logged in on which rescaling was performed. [Please note that at this moment, 
-this method is experimental and doesnot support all data types in ```data``` argument of ```inspect```]
+this method is experimental and does not support all data types in ``data`` argument of ``inspect``]
 
 
 .. _old_udf_api:
