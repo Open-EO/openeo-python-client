@@ -90,9 +90,9 @@ class MultiBackendJobManager:
             Maximum number of jobs to allow in parallel on a backend.
         """
 
-        # TODO: Code could be simpler if _Backend is a class and this logic is move there.
-        # We would need to keep add_backend here as part of the public API though.
-        # But the amount of unrelated "stuff to manage" would be less (better cohesion)
+        # TODO: Code might become simpler if we turn _Backend into class move this logic there.
+        #   We would need to keep add_backend here as part of the public API though.
+        #   But the amount of unrelated "stuff to manage" would be less (better cohesion)
         if isinstance(connection, Connection):
             c = connection
             connection = lambda: c
@@ -102,11 +102,20 @@ class MultiBackendJobManager:
         )
 
     def _get_connection(self, backend_name: str, resilient: bool = True) -> Connection:
+        """Get a connection for the backend and optionally make it resilient (adds retry behavior)
+
+        The default is to get a resilient connection, but if necessary you can turn it off with
+        resilient=False
+        """
+
         # TODO: Code could be simplified if _Backend is a class and this method is moved there.
         # TODO: Is it better to make this a public method?
 
         # Reuse the connection if we can, in order to avoid modifying the same connection several times.
-        # This is to avoid adding the retry adapter multiple times.
+        # This is to avoid adding the retry HTTPAdapter multiple times.
+        # Remember that the get_connection attribute on _Backend can be a Connection object instead
+        # of a callable, so we don't want to assume it is a fresh connection that doesn't have the
+        # retry adapter yet.
         if backend_name in self._connections:
             return self._connections[backend_name]
 
@@ -130,7 +139,7 @@ class MultiBackendJobManager:
         status_forcelist = [502, 503, 504]
 
         # TODO: Check the number of retries for each type.
-        #   I think `total actually overrides all the other ones that are currently higher.
+        #   I think `total` actually overrides all the other ones that are currently set to a higher number.
         retries = Retry(
             total=5,
             read=50,
@@ -173,7 +182,6 @@ class MultiBackendJobManager:
         df.to_csv(output_file, index=False)
         _log.info(f"Wrote job metadata to {output_file.absolute()}")
 
-    # TODO: long method with deep nesting. Refactor it to make it more readable.
     def run_jobs(
         self, df: pd.DataFrame, start_job: Callable[[], BatchJob], output_file: Path
     ):
@@ -181,9 +189,29 @@ class MultiBackendJobManager:
 
         :param df:
             DataFrame that specifies the jobs, and tracks the jobs' statuses.
+
         :param start_job:
             A callback which will be invoked with the row of the dataframe for which a job should be started.
             This callable should return a :py:class:`openeo.rest.job.BatchJob` object.
+
+            In general the callback should have the following parameters described below,
+            If it does not need all of these you can use *args and **kwargs to ignore
+            the ones it doesn't need:
+
+                row:
+                    The row in the pandas dataframe that stores the jobs state and other tracked data.
+
+                connection_provider:
+                    Like connection in add_backend:
+                    - either a Connection to the backend,
+                    - or a callable to create a backend connection.
+
+                connection:
+                    The Connection itself, that has already been created.
+
+                provider:
+                    The name of the backend that will run the job.
+
         :param output_file:
             Path to output file (CSV) containing the status and metadata of the jobs.
         """
@@ -236,6 +264,41 @@ class MultiBackendJobManager:
             time.sleep(self.poll_sleep)
 
     def _launch_job(self, start_job, df, i, backend_name):
+        """Helper method for launching jobs
+
+        :param start_job:
+            A callback which will be invoked with the row of the dataframe for which a job should be started.
+            This callable should return a :py:class:`openeo.rest.job.BatchJob` object.
+
+            The callback should have the following parameters described below,
+            If it does not need all of these you can use *args and **kwargs to ignore
+            the ones it doesn't need:
+
+                row:
+                    The row in the pandas dataframe that stores the jobs state and other tracked data.
+
+                connection_provider:
+                    Like connection in add_backend:
+                    - either a Connection to the backend,
+                    - or a callable to create a backend connection.
+
+                connection:
+                    The Connection itself, that has already been created.
+
+                provider:
+                    The name of the backend.
+                    This is filled in with the value from backend_name in this _launch_job.
+
+        :param df:
+            DataFrame that specifies the jobs, and tracks the jobs' statuses.
+
+        :param i:
+            index of the job's row in dataframe df
+
+        :param backend_name:
+            name of the backend that will execute the job.
+        """
+
         df.loc[i, "backend_name"] = backend_name
         row = df.loc[i]
         try:

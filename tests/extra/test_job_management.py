@@ -8,7 +8,7 @@ import json
 #   But I would rather not have two dependencies with almost the same goal.
 import httpretty
 
-# Thiis is an ugly alias, but the conflicting names are poorly chosen.
+# Alias to avoid conflicting names in httpretty.
 from httpretty.core import httpretty as corehttpretty
 
 import pandas as pd
