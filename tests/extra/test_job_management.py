@@ -202,7 +202,11 @@ class TestMultiBackendJobManager:
         But we don't care much about the details of the retrying (config),
         because that would really be testing stuff that the requests library already checks.
 
-        TODO: unfortunately this test needs httpretty instead of requests_mock. Perhaps there is a better way.
+        Nota bene:
+
+        This test needs httpretty instead of requests_mock because the requests_mock uses
+        an HTTPAdapter for its mocking, and that overrides the HTTPAdaptor we are adding
+        for the retry behavior.
         """
 
         backend = "http://foo.test"
@@ -271,7 +275,11 @@ class TestMultiBackendJobManager:
         But we don't care much about the details of the retrying (config),
         because that would really be testing stuff that the requests library already checks.
 
-        TODO: unfortunately this test needs httpretty instead of requests_mock. Perhaps there is a better way.
+        Nota bene:
+
+        This test needs httpretty instead of requests_mock because the requests_mock uses
+        an HTTPAdapter for its mocking, and that overrides the HTTPAdaptor we are adding
+        for the retry behavior.
         """
 
         backend = "http://foo.test"
@@ -331,56 +339,4 @@ class TestMultiBackendJobManager:
         result = pd.read_csv(output_file)
         assert len(result) == 1
         assert set(result.status) == {"running"}
-        assert set(result.backend_name) == {"foo"}
-
-    @pytest.mark.skip("Test approach doesn't work. Find another way")
-    def test_is_resilient_to_backend_failure_with_request_mock(
-        self, tmp_path, requests_mock
-    ):
-        # TODO: this is not going to work because mock_requests overrides the HTTPAdapter with the Retry.
-        #   Therefore the HTTP 50x exception just comes through instead of retrying.
-
-        backend = "http://foo.test"
-        job_id = "job-2018"
-        max_retries = 5
-
-        requests_mock.get(backend, json={"api_version": "1.1.0"})
-        response_list = [{"status_code": 502}] * max_retries
-        response_list += [
-            {
-                "json": {
-                    "id": job_id,
-                    "title": f"Job {job_id}",
-                    "status": "finished",
-                },
-                "status_code": 200,
-            }
-        ]
-        mock_job_status = requests_mock.get(
-            f"{backend}/jobs/{job_id}", response_list=response_list
-        )
-
-        root_dir = tmp_path / "job_mgr_root"
-        manager = MultiBackendJobManager(poll_sleep=0.2, root_dir=root_dir)
-        connection = openeo.connect(backend)
-        manager.add_backend("foo", connection=connection)
-
-        df = pd.DataFrame(
-            {
-                "year": [2018],
-            }
-        )
-
-        def start_job(row, connection_provider, connection, **kwargs):
-            year = row["year"]
-            return BatchJob(job_id=f"job-{year}", connection=connection)
-
-        output_file = tmp_path / "jobs.csv"
-
-        manager.run_jobs(df=df, start_job=start_job, output_file=output_file)
-
-        assert mock_job_status.call_count == 5
-        result = pd.read_csv(output_file)
-        assert len(result) == 1
-        assert set(result.status) == {"finished"}
         assert set(result.backend_name) == {"foo"}

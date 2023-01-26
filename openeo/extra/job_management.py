@@ -105,7 +105,6 @@ class MultiBackendJobManager:
         # TODO: Code could be simplified if _Backend is a class and this method is moved there.
         # TODO: Is it better to make this a public method?
 
-        # TODO: Trying different approach, undo if it doesn't help: Should you reuse the connection you have?
         # Reuse the connection if we can, in order to avoid modifying the same connection several times.
         # This is to avoid adding the retry adapter multiple times.
         if backend_name in self._connections:

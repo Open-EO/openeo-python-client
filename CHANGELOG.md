@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for simplified OIDC device code flow, ([#335](https://github.com/Open-EO/openeo-python-client/issues/335))
 - Added MultiBackendJobManager, based on implementation from openeo-classification project
   ([#361](https://github.com/Open-EO/openeo-python-client/issues/361))
+- Added resilience to MultiBackendJobManager for backend failures ([#365](https://github.com/Open-EO/openeo-python-client/issues/365))
 
 ### Changed
 
