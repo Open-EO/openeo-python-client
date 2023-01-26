@@ -10,6 +10,7 @@ from typing import Callable, Dict, Optional, Union
 import pandas as pd
 import requests
 import shapely.wkt
+from requests.adapters import HTTPAdapter, Retry
 
 from openeo import BatchJob, Connection
 from openeo.rest import OpenEoApiError
@@ -67,6 +68,7 @@ class MultiBackendJobManager:
         """
         self.backends: Dict[str, _Backend] = {}
         self.poll_sleep = poll_sleep
+        self._connections: Dict[str, _Backend] = {}
 
         # An explicit None or "" should also default to "."
         self._root_dir = Path(root_dir or ".")
@@ -87,6 +89,10 @@ class MultiBackendJobManager:
         :param parallel_jobs:
             Maximum number of jobs to allow in parallel on a backend.
         """
+
+        # TODO: Code could be simpler if _Backend is a class and this logic is move there.
+        # We would need to keep add_backend here as part of the public API though.
+        # But the amount of unrelated "stuff to manage" would be less (better cohesion)
         if isinstance(connection, Connection):
             c = connection
             connection = lambda: c
@@ -94,6 +100,49 @@ class MultiBackendJobManager:
         self.backends[name] = _Backend(
             get_connection=connection, parallel_jobs=parallel_jobs
         )
+
+    def _get_connection(self, backend_name: str, resilient: bool = True) -> Connection:
+        # TODO: Code could be simplified if _Backend is a class and this method is moved there.
+        # TODO: Is it better to make this a public method?
+
+        # TODO: Trying different approach, undo if it doesn't help: Should you reuse the connection you have?
+        # Reuse the connection if we can, in order to avoid modifying the same connection several times.
+        # This is to avoid adding the retry adapter multiple times.
+        if backend_name in self._connections:
+            return self._connections[backend_name]
+
+        connection = self.backends[backend_name].get_connection()
+        # If we really need it we can skip making it resilient, but by default it should be resilient.
+        if resilient:
+            self._make_resilient(connection)
+
+        self._connections[backend_name] = connection
+        return connection
+
+    def _make_resilient(self, connection):
+        """Add an HTTPAdapter that retries the request if it fails.
+
+        Retry for the following HTTP 50x statuses:
+        502 Bad Gateway
+        503 Service Unavailable
+        504 Gateway Timeout
+        """
+
+        status_forcelist = [502, 503, 504]
+
+        # TODO: Check the number of retries for each type.
+        #   I think `total actually overrides all the other ones that are currently higher.
+        retries = Retry(
+            total=5,
+            read=50,
+            other=50,
+            status=50,
+            backoff_factor=0.1,
+            status_forcelist=status_forcelist,
+            allowed_methods=["HEAD", "GET", "OPTIONS", "POST"],
+        )
+        connection.session.mount("https://", HTTPAdapter(max_retries=retries))
+        connection.session.mount("http://", HTTPAdapter(max_retries=retries))
 
     def _normalize_df(self, df: pd.DataFrame) -> pd.DataFrame:
         """Ensure we have the required columns and the expected type for the geometry column.
@@ -121,6 +170,10 @@ class MultiBackendJobManager:
             df["geometry"] = df["geometry"].apply(shapely.wkt.loads)
         return df
 
+    def _persists(self, df, output_file):
+        df.to_csv(output_file, index=False)
+        _log.info(f"Wrote job metadata to {output_file.absolute()}")
+
     # TODO: long method with deep nesting. Refactor it to make it more readable.
     def run_jobs(
         self, df: pd.DataFrame, start_job: Callable[[], BatchJob], output_file: Path
@@ -147,10 +200,6 @@ class MultiBackendJobManager:
 
         df = self._normalize_df(df)
 
-        def persists(df, output_file):
-            df.to_csv(output_file, index=False)
-            _log.info(f"Wrote job metadata to {output_file.absolute()}")
-
         while (
             df[
                 (df.status != "finished")
@@ -163,7 +212,7 @@ class MultiBackendJobManager:
                 self._update_statuses(df)
             status_histogram = df.groupby("status").size().to_dict()
             _log.info(f"Status histogram: {status_histogram}")
-            persists(df, output_file)
+            self._persists(df, output_file)
 
             if len(df[df.status == "not_started"]) > 0:
                 # Check number of jobs running at each backend
@@ -182,51 +231,44 @@ class MultiBackendJobManager:
                         )
                         to_launch = df[df.status == "not_started"].iloc[0:to_add]
                         for i in to_launch.index:
-                            df.loc[i, "backend_name"] = backend_name
-                            row = df.loc[i]
-                            try:
-                                _log.info(
-                                    f"Starting job on backend {backend_name} for {row.to_dict()}"
-                                )
-                                job = start_job(
-                                    row=row,
-                                    connection_provider=self.backends[
-                                        backend_name
-                                    ].get_connection,
-                                    connection=self.backends[
-                                        backend_name
-                                    ].get_connection(),
-                                    provider=backend_name,
-                                )
-                            except requests.exceptions.ConnectionError as e:
-                                _log.warning(
-                                    f"Failed to start job for {row.to_dict()}",
-                                    exc_info=True,
-                                )
-                                df.loc[i, "status"] = "start_failed"
-                            else:
-                                df.loc[
-                                    i, "start_time"
-                                ] = datetime.datetime.now().isoformat()
-                                if job:
-                                    df.loc[i, "id"] = job.job_id
-                                    with ignore_connection_errors(context="get status"):
-                                        status = job.status()
-                                        df.loc[i, "status"] = status
-                                        if status == "created":
-                                            # start job if not yet done by callback
-                                            try:
-                                                job.start_job()
-                                                df.loc[i, "status"] = job.status()
-                                            except OpenEoApiError as e:
-                                                _log.error(e)
-                                                df.loc[i, "status"] = "start_failed"
-                                else:
-                                    df.loc[i, "status"] = "skipped"
-
-                            persists(df, output_file)
+                            self._launch_job(start_job, df, i, backend_name)
+                            self._persists(df, output_file)
 
             time.sleep(self.poll_sleep)
+
+    def _launch_job(self, start_job, df, i, backend_name):
+        df.loc[i, "backend_name"] = backend_name
+        row = df.loc[i]
+        try:
+            _log.info(f"Starting job on backend {backend_name} for {row.to_dict()}")
+            connection = self._get_connection(backend_name, resilient=True)
+
+            job = start_job(
+                row=row,
+                connection_provider=self._get_connection,
+                connection=connection,
+                provider=backend_name,
+            )
+        except requests.exceptions.ConnectionError as e:
+            _log.warning(f"Failed to start job for {row.to_dict()}", exc_info=True)
+            df.loc[i, "status"] = "start_failed"
+        else:
+            df.loc[i, "start_time"] = datetime.datetime.now().isoformat()
+            if job:
+                df.loc[i, "id"] = job.job_id
+                with ignore_connection_errors(context="get status"):
+                    status = job.status()
+                    df.loc[i, "status"] = status
+                    if status == "created":
+                        # start job if not yet done by callback
+                        try:
+                            job.start_job()
+                            df.loc[i, "status"] = job.status()
+                        except OpenEoApiError as e:
+                            _log.error(e)
+                            df.loc[i, "status"] = "start_failed"
+            else:
+                df.loc[i, "status"] = "skipped"
 
     def on_job_done(self, job: BatchJob, row):
         """
@@ -251,7 +293,7 @@ class MultiBackendJobManager:
 
     def on_job_error(self, job: BatchJob, row):
         """
-        Handles jobs that stopped with errors.  Can be overridden to provide custom behaviour.
+        Handles jobs that stopped with errors. Can be overridden to provide custom behaviour.
 
         Default implementation writes the error logs to a JSON file.
 
@@ -298,7 +340,7 @@ class MultiBackendJobManager:
             backend_name = df.loc[i, "backend_name"]
 
             try:
-                con = self.backends[backend_name].get_connection()
+                con = self._get_connection(backend_name)
                 the_job = con.job(job_id)
                 job_metadata = the_job.describe_job()
                 _log.info(
