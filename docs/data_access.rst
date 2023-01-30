@@ -120,4 +120,15 @@ Handling large vector data
 
 When a user tries to run something with too much data, the 'POST' request becomes to large, and a 
 'request entity too large' error happens. To avoid this, vector data should be uploaded to a public location, 
-and referenced by url. (This can be something like google drive normally.) As an extra, using a more efficient file format, like parquet, is recommended, as geojsons can get very large.
+and referenced by url. (This can be something like google drive normally.) As an extra, using a more efficient file format, 
+like parquet, is recommended, as geojsons can get very large.
+
+.. code-block:: python
+
+    parcels = eoconn.vectorcube_from_paths(["https://artifactory.vgt.vito.be/testdata-public/parcels/32TPT.pq"],format="parquet")
+    connection.load_collection("SENTINEL2_L2A",
+        spatial_extent= parcels,
+        temporal_extent=["2021-05-07", "2021-05-14"],
+        bands=['B04', 'B03', 'B02'],
+        max_cloud_cover=80,
+    )
