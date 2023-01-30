@@ -20,7 +20,7 @@ def _get_netcdf_zarr_metadata(file_path):
     if '.zarr' in file_path.suffixes:
         data = xr.open_dataset(file_path.as_posix(),chunks={},engine='zarr')
     else:
-        data = xr.open_dataset(file_path.as_posix(),chunks={})
+        data = xr.open_dataset(file_path.as_posix(),chunks={}) # Add decode_coords='all' if the crs as a band gives some issues
     file_path = file_path.as_posix()
     try:
         t_dim = _get_dimension(data.dims, ['t', 'time', 'temporal', 'DATE'])
@@ -32,7 +32,6 @@ def _get_netcdf_zarr_metadata(file_path):
     except Exception as e:
         _log.warning(error)
         raise Exception(f'Error creating metadata for {file_path}') from e
-
     metadata = {}
     metadata['stac_version'] = '1.0.0-rc.2'
     metadata['type'] = 'Collection'
@@ -77,19 +76,20 @@ def _get_netcdf_zarr_metadata(file_path):
     if 'crs' in bands:
         bands.remove('crs')
         crs_present = True
-
+    extent = {}
     if crs_present:
         if 'crs_wkt' in data.crs.attrs:
             transformer = Transformer.from_crs(data.crs.attrs['crs_wkt'], "epsg:4326")
             lat_min,lon_min = transformer.transform(x_min,y_min)
             lat_max,lon_max = transformer.transform(x_max,y_max)               
-            extent = {'spatial': {'bbox': [[lon_min, lat_min, lon_max, lat_max]]}}
-            if t_dim is not None:
-                t_min = str(data[t_dim].min().values)
-                t_max = str(data[t_dim].max().values)
-                extent['temporal'] = {'interval': [[t_min,t_max]]}
+            extent['spatial'] = {'bbox': [[lon_min, lat_min, lon_max, lat_max]]}
 
-            metadata['extent'] = extent
+    if t_dim is not None:
+        t_min = str(data[t_dim].min().values)
+        t_max = str(data[t_dim].max().values)
+        extent['temporal'] = {'interval': [[t_min,t_max]]}
+
+    metadata['extent'] = extent
 
     t_dimension = {}
     if t_dim is not None:
@@ -179,16 +179,18 @@ def _get_geotiff_metadata(file_path):
                 isinstance(bands[0],np.int32) or \
                 isinstance(bands[0],np.int64):
                 bands = [int(b) for b in bands]
+    extent = {}
     if crs_present:
         if 'crs_wkt' in data.spatial_ref.attrs:
             transformer = Transformer.from_crs(data.spatial_ref.attrs['crs_wkt'], 'epsg:4326')
             lat_min,lon_min = transformer.transform(x_min,y_min)
             lat_max,lon_max = transformer.transform(x_max,y_max)
-            extent = {'spatial': {'bbox': [[lon_min, lat_min, lon_max, lat_max]]}}
-            if t_dim is not None:
-                t_min = str(data[t_dim].min().values)
-                t_max = str(data[t_dim].max().values)
-                extent['temporal'] = {'interval': [[t_min,t_max]]}
+            extent['spatial'] = {'bbox': [[lon_min, lat_min, lon_max, lat_max]]}
+
+    if t_dim is not None:
+        t_min = str(data[t_dim].min().values)
+        t_max = str(data[t_dim].max().values)
+        extent['temporal'] = {'interval': [[t_min,t_max]]}
 
     metadata['extent'] = extent
 
