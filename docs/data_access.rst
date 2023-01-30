@@ -115,3 +115,9 @@ on the collection and the catalog that is used by it. This is not a problem caus
 standardization between catalogs of EO data.
 
 
+Handling large vector data
+#######################
+
+When a user tries to run something with too much data, the 'POST' request becomes to large, and a 
+'request entity too large' error happens. To avoid this, vector data should be uploaded to a public location, 
+and referenced by url. (This can be something like google drive normally.) As an extra, using a more efficient file format, like parquet, is recommended, as geojsons can get very large.
