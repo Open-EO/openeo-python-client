@@ -194,9 +194,10 @@ class MultiBackendJobManager:
             A callback which will be invoked with the row of the dataframe for which a job should be started.
             This callable should return a :py:class:`openeo.rest.job.BatchJob` object.
 
-            In general the callback should have the following parameters described below,
-            If it does not need all of these you can use *args and **kwargs to ignore
-            the ones it doesn't need:
+            The run_jobs method passes the following parameters to the start_job callback.
+            You do not have to define all of the parameters described below, but if you leave
+            any of them out, then remember to include the *args and **kwargs parameters.
+            Otherwise you will have an exception because run_jobs passes unknown parameters to start_job.
 
                 row:
                     The row in the pandas dataframe that stores the jobs state and other tracked data.
@@ -205,9 +206,13 @@ class MultiBackendJobManager:
                     Like connection in add_backend:
                     - either a Connection to the backend,
                     - or a callable to create a backend connection.
+                    Typically you would need either the parameter `connection_provider`,
+                    or the parameter `connection`, but likely you will not need both.
 
                 connection:
                     The Connection itself, that has already been created.
+                    Typically you would need either the parameter `connection_provider`,
+                    or the parameter `connection`, but likely you will not need both.
 
                 provider:
                     The name of the backend that will run the job.
@@ -215,6 +220,8 @@ class MultiBackendJobManager:
         :param output_file:
             Path to output file (CSV) containing the status and metadata of the jobs.
         """
+        # TODO: Defining start_jobs as a Protocol might make its usage more clear, and avoid complicated doctrings,
+        #   but Protocols are only supported in Python 3.8 and higher.
         # TODO: this resume functionality better fits outside of this function
         #       (e.g. if `output_file` exists: `df` is fully discarded)
 
@@ -270,24 +277,12 @@ class MultiBackendJobManager:
             A callback which will be invoked with the row of the dataframe for which a job should be started.
             This callable should return a :py:class:`openeo.rest.job.BatchJob` object.
 
-            The callback should have the following parameters described below,
-            If it does not need all of these you can use *args and **kwargs to ignore
-            the ones it doesn't need:
+            See also:
+            `MultiBackendJobManager.run_jobs` for the parameters and return type of this callable
 
-                row:
-                    The row in the pandas dataframe that stores the jobs state and other tracked data.
-
-                connection_provider:
-                    Like connection in add_backend:
-                    - either a Connection to the backend,
-                    - or a callable to create a backend connection.
-
-                connection:
-                    The Connection itself, that has already been created.
-
-                provider:
-                    The name of the backend.
-                    This is filled in with the value from backend_name in this _launch_job.
+            Even though it is called here in `_launch_job` and that is where the constraints
+            really come from, the public method `run_jobs` needs to document `start_job` anyway,
+            so let's avoid duplication in the docstrings.
 
         :param df:
             DataFrame that specifies the jobs, and tracks the jobs' statuses.
