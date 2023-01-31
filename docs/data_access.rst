@@ -130,6 +130,7 @@ The code-snippets showen below provides an example of how this can be achieved:
 .. code-block:: python
 
     parcels = connection.vectorcube_from_paths(["https://artifactory.vgt.vito.be/testdata-public/parcels/32TPT.pq"],format="parquet")
-    datacube = connection.load_collection("SENTINEL1_GAMMA0_SENTINELHUB",temporal_extent = ["2021-05-12",'2021-06-01'])
+    datacube = connection.load_collection("SENTINEL1_GAMMA0_SENTINELHUB",
+                temporal_extent = ["2021-05-12",'2021-06-01'])
     s1_cube = datacube.aggregate_spatial(geometries=parcels,
                            reducer="mean")
