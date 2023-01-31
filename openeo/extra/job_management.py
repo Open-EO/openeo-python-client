@@ -24,6 +24,8 @@ _log = logging.getLogger(__name__)
 _Backend = collections.namedtuple("_Backend", ["get_connection", "parallel_jobs"])
 
 
+MAX_RETRIES = 5
+
 class MultiBackendJobManager:
     """
     Tracker for multiple jobs on multiple backends.
@@ -135,16 +137,12 @@ class MultiBackendJobManager:
         503 Service Unavailable
         504 Gateway Timeout
         """
-
         status_forcelist = [502, 503, 504]
-
-        # TODO: Check the number of retries for each type.
-        #   I think `total` actually overrides all the other ones that are currently set to a higher number.
         retries = Retry(
-            total=5,
-            read=50,
-            other=50,
-            status=50,
+            total=MAX_RETRIES,
+            read=MAX_RETRIES,
+            other=MAX_RETRIES,
+            status=MAX_RETRIES,
             backoff_factor=0.1,
             status_forcelist=status_forcelist,
             allowed_methods=["HEAD", "GET", "OPTIONS", "POST"],

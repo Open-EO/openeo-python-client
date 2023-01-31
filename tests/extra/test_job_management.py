@@ -18,7 +18,7 @@ import shapely.geometry.point as shpt
 
 
 import openeo
-from openeo.extra.job_management import MultiBackendJobManager
+from openeo.extra.job_management import MultiBackendJobManager, MAX_RETRIES
 from openeo import BatchJob
 
 class TestMultiBackendJobManager:
@@ -211,7 +211,6 @@ class TestMultiBackendJobManager:
 
         backend = "http://foo.test"
         job_id = "job-2018"
-        max_retries = 5
 
         httpretty.register_uri(
             "GET", backend, body=json.dumps({"api_version": "1.1.0"})
@@ -222,7 +221,7 @@ class TestMultiBackendJobManager:
             corehttpretty.Response(
                 f"Simulate error HTTP {http_error_status}", status=http_error_status
             )
-        ] * max_retries
+        ] * MAX_RETRIES
         response_list += [
             corehttpretty.Response(
                 body=json.dumps(
@@ -284,7 +283,6 @@ class TestMultiBackendJobManager:
 
         backend = "http://foo.test"
         job_id = "job-2018"
-        max_retries = 5
 
         httpretty.register_uri(
             "GET", backend, body=json.dumps({"api_version": "1.1.0"})
@@ -309,7 +307,7 @@ class TestMultiBackendJobManager:
             corehttpretty.Response(
                 f"Simulate error HTTP {http_error_status}", status=http_error_status
             )
-        ] * (max_retries + 1)
+        ] * (MAX_RETRIES + 1)
 
         httpretty.register_uri(
             "GET", f"{backend}/jobs/{job_id}", responses=response_list
