@@ -119,11 +119,9 @@ Handling large vector data
 #######################
 
 When you try to execute a process on considerably large data, you will most probably encounter a 'request'
-entity too large' error as your 'POST' request becomes too large to handle. To avoid this error, upload your vector 
-data to a public location and use it as a URL (e.g., via Google Drive). The data stored in the URL can then be loded using 
+entity too large' error as your 'POST' request becomes too large to handle for the system. In order to avoid this error, you can upload
+your vector data to a public location(e.g., via Google Drive) and use it as an URL. The data stored in the URL can be loaded using 
 :py:meth:`~openeo.rest.connection.Connection.vectorcube_from_paths`
-
-Please note that using a more efficient file format (such as parquet instead of GeoJSON) is recommended.
 
 The code-snippets shown below provides an example of how this can be achieved:
 
@@ -134,3 +132,5 @@ The code-snippets shown below provides an example of how this can be achieved:
                 temporal_extent = ["2021-05-12",'2021-06-01'])
     s1_cube = datacube.aggregate_spatial(geometries=parcels,
                            reducer="mean")
+
+Please note that using a more efficient file format (such as parquet instead of GeoJSON) is recommended.
