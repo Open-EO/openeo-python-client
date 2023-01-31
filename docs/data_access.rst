@@ -118,17 +118,18 @@ standardization between catalogs of EO data.
 Handling large vector data
 #######################
 
-When a user tries to run something with too much data, the 'POST' request becomes to large, and a 
-'request entity too large' error happens. To avoid this, vector data should be uploaded to a public location, 
-and referenced by url. (This can be something like google drive normally.) As an extra, using a more efficient file format, 
-like parquet, is recommended, as geojsons can get very large.
+When you try to execute a process on considerably large data, you will most probably encounter a 'request'
+entity too large' error as your 'POST' request becomes too large to handle. To avoid this error, upload your vector 
+data to a public location and use it as a URL (e.g., via Google Drive). The data stored in the URL can then be loded using 
+:py:meth:`~openeo.rest.connection.Connection.vectorcube_from_paths`
+
+Please note that using a more efficient file format (such as parquet instead of GeoJSON) is recommended.
+
+The code-snippets showen below provides an example of how this can be achieved:
 
 .. code-block:: python
 
-    parcels = eoconn.vectorcube_from_paths(["https://artifactory.vgt.vito.be/testdata-public/parcels/32TPT.pq"],format="parquet")
-    connection.load_collection("SENTINEL2_L2A",
-        spatial_extent= parcels,
-        temporal_extent=["2021-05-07", "2021-05-14"],
-        bands=['B04', 'B03', 'B02'],
-        max_cloud_cover=80,
-    )
+    parcels = connection.vectorcube_from_paths(["https://artifactory.vgt.vito.be/testdata-public/parcels/32TPT.pq"],format="parquet")
+    datacube = connection.load_collection("SENTINEL1_GAMMA0_SENTINELHUB",temporal_extent = ["2021-05-12",'2021-06-01'])
+    s1_cube = datacube.aggregate_spatial(geometries=parcels,
+                           reducer="mean")
