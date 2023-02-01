@@ -1,13 +1,16 @@
 import datetime
 import logging
 from pathlib import Path
+import xarray as xr
 from typing import Dict, List, Tuple, Union, Callable, Optional, Any, Iterator
 
 from openeo.metadata import CollectionMetadata
-from openeo.internal.graph_building import PGNode
+from openeo.internal.graph_building import PGNode, as_flat_graph
 from openeo.rest.datacube import DataCube
 from openeo.internal.jupyter import VisualDict, VisualList
 from openeo.local.collections import _get_netcdf_zarr_collections, _get_geotiff_collections, _get_netcdf_zarr_metadata, _get_geotiff_metadata
+from openeo.local.processing import PROCESS_REGISTRY
+from openeo_pg_parser_networkx.graph import OpenEOProcessGraph
 
 class LocalConnection():
     """
@@ -82,3 +85,13 @@ class LocalConnection():
             spatial_extent=spatial_extent, temporal_extent=temporal_extent, bands=bands, properties=properties,
             fetch_metadata=fetch_metadata,
         )
+
+    def execute(self, process_graph: Union[dict, str, Path]) -> xr.DataArray:
+        """
+        Execute locally the process graph and return the result as an xarray.DataArray.
+
+        :param process_graph: (flat) dict representing a process graph, or process graph as raw JSON string,
+        :return: a datacube containing the requested data
+        """
+        process_graph = as_flat_graph(process_graph)
+        return OpenEOProcessGraph(process_graph).to_callable(PROCESS_REGISTRY)()
