@@ -103,7 +103,7 @@ class BatchJob:
     def download_result(self, target: Union[str, Path] = None) -> Path:
         """
         Download single job result to the target file path or into folder (current working dir by default).
-        
+
         Fails if there are multiple result files.
 
         :param target: String or path where the file should be downloaded to.
@@ -136,13 +136,55 @@ class BatchJob:
         """
         return JobResults(self)
 
-    def logs(self, offset=None) -> List[LogEntry]:
-        """ Retrieve job logs."""
+    def logs(
+        self, offset=None, log_level: Optional[int] = logging.ERROR
+    ) -> List[LogEntry]:
+        """Retrieve job logs.
+
+        :param offset: _description_, defaults to None
+        :param log_level:
+            Show only messages of this log level and higher levels, defaults to logging.ERROR
+        :return: a list of log entries
+        """
+
         # TODO: option to filter on level? Or move filtering functionality to a separate batch job logs class?
+        #   See: https://github.com/Open-EO/openeo-python-client/issues/332
         url = "/jobs/{}/logs".format(self.job_id)
         logs = self.connection.get(url, params={'offset': offset}, expected_status=200).json()["logs"]
-        entries = [LogEntry(log) for log in logs]
+        log_level = BatchJob._normalize_log_level(log_level)
+        entries = [
+            LogEntry(log)
+            for log in logs
+            if BatchJob._string_to_log_level(log["level"]) >= log_level
+        ]
         return VisualList('logs', data=entries)
+
+    @classmethod
+    def _normalize_log_level(cls, log_level):
+        if log_level is None:
+            return logging.ERROR
+
+        if isinstance(log_level, str):
+            return cls._string_to_log_level(log_level)
+
+        return log_level
+
+    @staticmethod
+    def _string_to_log_level(internal_log_level: Optional[str]) -> Optional[str]:
+        if not internal_log_level:
+            return logging.ERROR
+
+        internal_log_level = internal_log_level.upper()
+        if internal_log_level in ["CRITICAL", "ERROR"]:
+            return logging.ERROR
+        elif internal_log_level == "WARNING":
+            return logging.WARNING
+        elif internal_log_level == "INFO":
+            return logging.INFO
+        elif internal_log_level == "DEBUG":
+            return logging.DEBUG
+
+        return logging.ERROR
 
     def run_synchronous(
             self, outputfile: Union[str, Path, None] = None,
