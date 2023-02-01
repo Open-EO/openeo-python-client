@@ -173,23 +173,20 @@ class BatchJob:
         return VisualList('logs', data=entries)
 
     @classmethod
-    def _normalize_log_level(cls, log_level):
+    def _normalize_log_level(cls, log_level: Optional[Union[int, str]]) -> int:
+        """Convert log level from inputs that can be str, int or None to the integer
+        constants uses in logging for internal use in BatchJob.
+
+        :param log_level: the input to be converted.
+        :raises TypeError: when log_level it is neither a str, an int or None.
+        :return: one of the following log level constants from the standard module ``logging``:
+            logging.ERROR, logging.WARNING, logging.INFO, or logging.DEBUG
+        """
         if log_level is None:
             return logging.ERROR
 
         if isinstance(log_level, str):
-            log_level = log_level.upper()
-
-            if log_level in ["CRITICAL", "ERROR"]:
-                return logging.ERROR
-            elif log_level == "WARNING":
-                return logging.WARNING
-            elif log_level == "INFO":
-                return logging.INFO
-            elif log_level == "DEBUG":
-                return logging.DEBUG
-
-            return logging.ERROR
+            return cls._string_to_log_level(log_level)
 
         # Now is should be an int
         if not isinstance(log_level, int):
@@ -198,6 +195,24 @@ class BatchJob:
             )
 
         return log_level
+
+    @staticmethod
+    def _string_to_log_level(log_level: str) -> int:
+        """Simpler conversion when you know log_level is always a string."""
+        if not log_level:
+            return logging.ERROR
+
+        log_level = log_level.upper()
+        if log_level in ["CRITICAL", "ERROR"]:
+            return logging.ERROR
+        elif log_level == "WARNING":
+            return logging.WARNING
+        elif log_level == "INFO":
+            return logging.INFO
+        elif log_level == "DEBUG":
+            return logging.DEBUG
+
+        return logging.ERROR
 
     def run_synchronous(
             self, outputfile: Union[str, Path, None] = None,
