@@ -162,9 +162,6 @@ class BatchJob:
 
         :return: A list containing the log entries for the batch job.
         """
-
-        # TODO: option to filter on level? Or move filtering functionality to a separate batch job logs class?
-        #   See: https://github.com/Open-EO/openeo-python-client/issues/332
         url = "/jobs/{}/logs".format(self.job_id)
         logs = self.connection.get(url, params={'offset': offset}, expected_status=200).json()["logs"]
         log_level = BatchJob._normalize_log_level(log_level)
@@ -288,8 +285,6 @@ class BatchJob:
             """.format(i=self.job_id)))
             # TODO: make it possible to disable printing logs automatically?
             # TODO: render logs jupyter-aware in a notebook context?
-            # TODO: only print the error level logs? Or the tail of the logs?
-            # TODO: Add message with instructions how to get logs with all log levels if you need them. (Issue #322)
             print("Printing logs:")
             print("Only printing messages of log level ERROR.")
             print(
