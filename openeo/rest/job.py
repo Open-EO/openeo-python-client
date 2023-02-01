@@ -178,26 +178,26 @@ class BatchJob:
             return logging.ERROR
 
         if isinstance(log_level, str):
-            return cls._string_to_log_level(log_level)
+            log_level = log_level.upper()
+
+            if log_level in ["CRITICAL", "ERROR"]:
+                return logging.ERROR
+            elif log_level == "WARNING":
+                return logging.WARNING
+            elif log_level == "INFO":
+                return logging.INFO
+            elif log_level == "DEBUG":
+                return logging.DEBUG
+
+            return logging.ERROR
+
+        # Now is should be an int
+        if not isinstance(log_level, int):
+            raise TypeError(
+                f"Value for log_level is not an int or str: type={type(log_level)}, value={log_level}"
+            )
 
         return log_level
-
-    @staticmethod
-    def _string_to_log_level(log_level: Optional[str]) -> Optional[str]:
-        if not log_level:
-            return logging.ERROR
-
-        log_level = log_level.upper()
-        if log_level in ["CRITICAL", "ERROR"]:
-            return logging.ERROR
-        elif log_level == "WARNING":
-            return logging.WARNING
-        elif log_level == "INFO":
-            return logging.INFO
-        elif log_level == "DEBUG":
-            return logging.DEBUG
-
-        return logging.ERROR
 
     def run_synchronous(
             self, outputfile: Union[str, Path, None] = None,

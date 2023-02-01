@@ -377,6 +377,16 @@ def test_normalize_log_level(log_level_in, expected_log_level):
     assert BatchJob._normalize_log_level(log_level_in) == expected_log_level
 
 
+
+@pytest.mark.parametrize(
+    "log_level", [1.0, b"not a string"]
+)
+def test_normalize_log_level_raises_type_error(log_level):
+
+    with pytest.raises(TypeError):
+        assert BatchJob._normalize_log_level(log_level)
+
+
 def test_create_job_100(con100, requests_mock):
     def check_request(request):
         assert request.json() == {
