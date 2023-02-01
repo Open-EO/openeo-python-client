@@ -358,6 +358,7 @@ def test_get_job_logs_keeps_loglevel_that_is_higher_or_equal(
     "log_level_in, expected_log_level",
     [
         (None, logging.ERROR),
+        ("", logging.ERROR),
         (logging.ERROR, logging.ERROR),
         ("error", logging.ERROR),
         ("ERROR", logging.ERROR),

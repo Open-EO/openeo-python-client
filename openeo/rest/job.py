@@ -137,14 +137,30 @@ class BatchJob:
         return JobResults(self)
 
     def logs(
-        self, offset=None, log_level: Optional[int] = logging.ERROR
+        self, offset=None, log_level: Optional[Union[int, str]] = None
     ) -> List[LogEntry]:
         """Retrieve job logs.
 
-        :param offset: _description_, defaults to None
-        :param log_level:
-            Show only messages of this log level and higher levels, defaults to logging.ERROR
-        :return: a list of log entries
+        :param offset: The last identifier (property ``id`` of a LogEntry) the client has received.
+
+            If provided, the back-ends only sends the entries that occurred after the specified identifier.
+            If not provided or empty, start with the first entry.
+
+            Defaults to None.
+
+        :param log_level: Show only messages of this log level and its higher levels.
+
+            You can use either constants from Python's standard module ``logging``
+            or their names (case insensitive).
+
+            For example:
+                ``logging.INFO``, ``"info"`` or ``"INFO"`` can all be used to show the messages
+                for level ``logging.INFO`` and above, i.e. also ``logging.WARNING`` and
+                ``logging.ERROR`` will be included.
+
+            Defaults to ``logging.ERROR`` (also when explicitly passing log_level=None or log_level="").
+
+        :return: A list containing the log entries for the batch job.
         """
 
         # TODO: option to filter on level? Or move filtering functionality to a separate batch job logs class?
@@ -170,18 +186,18 @@ class BatchJob:
         return log_level
 
     @staticmethod
-    def _string_to_log_level(internal_log_level: Optional[str]) -> Optional[str]:
-        if not internal_log_level:
+    def _string_to_log_level(log_level: Optional[str]) -> Optional[str]:
+        if not log_level:
             return logging.ERROR
 
-        internal_log_level = internal_log_level.upper()
-        if internal_log_level in ["CRITICAL", "ERROR"]:
+        log_level = log_level.upper()
+        if log_level in ["CRITICAL", "ERROR"]:
             return logging.ERROR
-        elif internal_log_level == "WARNING":
+        elif log_level == "WARNING":
             return logging.WARNING
-        elif internal_log_level == "INFO":
+        elif log_level == "INFO":
             return logging.INFO
-        elif internal_log_level == "DEBUG":
+        elif log_level == "DEBUG":
             return logging.DEBUG
 
         return logging.ERROR
@@ -273,8 +289,14 @@ class BatchJob:
             # TODO: make it possible to disable printing logs automatically?
             # TODO: render logs jupyter-aware in a notebook context?
             # TODO: only print the error level logs? Or the tail of the logs?
+            # TODO: Add message with instructions how to get logs with all log levels if you need them. (Issue #322)
             print("Printing logs:")
-            print(self.logs())
+            print("Only printing messages of log level ERROR.")
+            print(
+                "To get logs for all log levels, use the method `BatchJob.logs` with the parameter `log_level` ."
+            )
+            print('For example: my_batch_job.logs(log_level="info")')
+            print(self.logs(log_level=logging.ERROR))
             raise JobFailedException("Batch job {i!r} didn't finish successfully. Status: {s} (after {t}).".format(
                 i=self.job_id, s=status, t=elapsed()
             ), job=self)
