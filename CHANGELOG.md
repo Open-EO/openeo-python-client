@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Removed
+
+### Fixed
+
+
+## [0.14.0] - 2023-02-01
+
+### Added
+
 - Jupyter integration: show process graph visualization of `DataCube` objects instead of generic `repr`.  ([#336](https://github.com/Open-EO/openeo-python-client/issues/336))
 - Add `Connection.vectorcube_from_paths()` to load a vector cube
   from files (on back-end) or URLs with `load_uploaded_files` process.
@@ -22,8 +33,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - `execute_batch` also skips temporal `502 Bad Gateway errors`. [#352](https://github.com/Open-EO/openeo-python-client/issues/352)
-
-### Removed
 
 ### Fixed
 
