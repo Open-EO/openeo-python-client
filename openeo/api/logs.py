@@ -53,8 +53,10 @@ class LogEntry(dict):
 
 
 def normalize_log_level(log_level: Optional[Union[int, str]]) -> int:
-    """Convert a log level that may come from user input, so it could be str, int or None, to the integer
-    constants defined in logging.
+    """Helper function to convert a log level to the integer constants defined in logging, e.g. logging.ERROR.
+
+    Essentially log_level may be user input, or come from a method/function parameter filled in
+    by a user of the Python client.
 
     :param log_level: the input to be converted.
     :raises TypeError: when log_level it is neither a str, an int or None.
@@ -77,7 +79,14 @@ def normalize_log_level(log_level: Optional[Union[int, str]]) -> int:
 
 
 def string_to_log_level(log_level: str) -> int:
-    """Simpler conversion when you know log_level is always a string."""
+    """Helper function: a simpler conversion of a log level, to use when you know log_level should **always** be a string.
+
+    :param log_level: the input to be converted.
+    :raises TypeError: when log_level it not a string.
+    :return: one of the following log level constants from the standard module ``logging``:
+        logging.ERROR, logging.WARNING, logging.INFO, or logging.DEBUG
+    """
+
     if not isinstance(log_level, str):
         raise TypeError(
             f"Parameter 'log_level' must be type str, but it is type {type(log_level)}. Value: log_level={log_level!r}"

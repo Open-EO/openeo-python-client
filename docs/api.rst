@@ -55,7 +55,7 @@ openeo.api.logs
 -----------------
 
 .. automodule:: openeo.api.logs
-    :members: LogEntry
+    :members: LogEntry, normalize_log_level, string_to_log_level
 
 
 openeo.rest.connection
@@ -124,4 +124,3 @@ openeo.internal
 
 .. automodule:: openeo.internal.graph_building
     :members: PGNode
-
