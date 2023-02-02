@@ -302,7 +302,7 @@ def test_get_job_logs_returns_only_error_loglevel_by_default(session040, request
 
 
 @pytest.mark.parametrize(
-    "log_level,exp_num_messages",
+    ["log_level", "exp_num_messages"],
     [
         (None, 1),
         (logging.ERROR, 1),
@@ -352,35 +352,6 @@ def test_get_job_logs_keeps_loglevel_that_is_higher_or_equal(
 
     log_entries = session040.job("f00ba5").logs(log_level=log_level)
     assert len(log_entries) == exp_num_messages
-
-
-@pytest.mark.parametrize(
-    "log_level_in, expected_log_level",
-    [
-        (None, logging.ERROR),
-        ("", logging.ERROR),
-        (logging.ERROR, logging.ERROR),
-        ("error", logging.ERROR),
-        ("ERROR", logging.ERROR),
-        (logging.WARNING, logging.WARNING),
-        ("warning", logging.WARNING),
-        ("WARNING", logging.WARNING),
-        (logging.INFO, logging.INFO),
-        ("INFO", logging.INFO),
-        ("info", logging.INFO),
-        (logging.DEBUG, logging.DEBUG),
-        ("DEBUG", logging.DEBUG),
-        ("debug", logging.DEBUG),
-    ],
-)
-def test_normalize_log_level(log_level_in, expected_log_level):
-    assert BatchJob._normalize_log_level(log_level_in) == expected_log_level
-
-
-@pytest.mark.parametrize("log_level", [1.0, b"not a string"])
-def test_normalize_log_level_raises_type_error(log_level):
-    with pytest.raises(TypeError):
-        assert BatchJob._normalize_log_level(log_level)
 
 
 def test_create_job_100(con100, requests_mock):
