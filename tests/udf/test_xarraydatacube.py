@@ -294,6 +294,8 @@ def test_save_load_no_xy_dim(roundtrip, tmp_path):
 
 @pytest.mark.parametrize("roundtrip", _roundtrips())
 def test_save_load_dtype_int64(roundtrip, tmp_path):
+    if roundtrip.save_kwargs.get("engine") == "scipy":
+        pytest.skip("scipy engine does not appear to support int64")
     xdc = _build_xdc(ts=[2019, 2020, 2021], bands=["a", "b"], xs=[2, 3, 4, 5], ys=[5, 6, 7, 8, 9], dtype=numpy.int64)
     assert xdc.array.shape == (3, 2, 4, 5)
     result = _assert_equal_after_save_and_load(xdc, tmp_path, roundtrip=roundtrip)
