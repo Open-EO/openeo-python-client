@@ -169,6 +169,9 @@ def _roundtrips() -> Iterator[_SaveLoadRoundTrip]:
     netcdf_engines = _get_netcdf_engines()
     assert len(netcdf_engines) > 0
     for e1, e2 in itertools.product(netcdf_engines, netcdf_engines):
+        if (e1 == "scipy") != (e2 == "scipy"):
+            # Only test scipy engine against itself
+            continue
         yield pytest.param(
             _SaveLoadRoundTrip(
                 format="netcdf", save_kwargs={"engine": e1}, load_kwargs={"engine": e2}

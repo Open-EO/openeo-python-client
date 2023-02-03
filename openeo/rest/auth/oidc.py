@@ -572,8 +572,6 @@ class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
 class OidcClientCredentialsAuthenticator(OidcAuthenticator):
     """
     Implementation of "Client Credentials" Flow.
-
-    TODO: is this a useful flow in practice?
     """
 
     grant_type = "client_credentials"

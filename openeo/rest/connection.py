@@ -732,9 +732,9 @@ class Connection(RestApiConnection):
     def describe_collection(self, collection_id: str) -> dict:
         """
         Get full collection metadata for given collection id.
-        
+
         .. seealso::
-        
+
             :py:meth:`~openeo.rest.connection.Connection.list_collection_ids`
             to list all collection ids provided by the back-end.
 
@@ -914,6 +914,8 @@ class Connection(RestApiConnection):
         :param options: The file format parameters to be used to read the files. Must correspond to the parameters that the server reports as supported parameters for the chosen format.
 
         :return: A :py:class:`VectorCube`.
+
+        .. versionadded:: 0.14.0
         """
         graph = PGNode(
             "load_uploaded_files",
@@ -1200,7 +1202,7 @@ class Connection(RestApiConnection):
     def job(self, job_id: str) -> BatchJob:
         """
         Get the job based on the id. The job with the given id should already exist.
-        
+
         Use :py:meth:`openeo.rest.connection.Connection.create_job` to create new jobs
 
         :param job_id: the job id of an existing job
@@ -1211,7 +1213,7 @@ class Connection(RestApiConnection):
     def service(self, service_id: str) -> Service:
         """
         Get the secondary web service based on the id. The service with the given id should already exist.
-        
+
         Use :py:meth:`openeo.rest.connection.Connection.create_service` to create new services
 
         :param job_id: the service id of an existing secondary web service
@@ -1357,4 +1359,3 @@ def paginate(con: Connection, url: str, params: dict = None, callback: Callable 
         url = next_links[0]["href"]
         page += 1
         params = {}
-
