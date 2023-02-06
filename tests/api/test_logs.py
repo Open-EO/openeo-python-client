@@ -38,8 +38,8 @@ def test_log_entry_legacy():
 @pytest.mark.parametrize(
     ["log_level_in", "expected_log_level"],
     [
-        (None, logging.ERROR),
-        ("", logging.ERROR),
+        (None, logging.DEBUG),
+        ("", logging.DEBUG),
         (logging.ERROR, logging.ERROR),
         ("error", logging.ERROR),
         ("ERROR", logging.ERROR),
@@ -67,7 +67,7 @@ def test_normalize_log_level_raises_type_error(log_level):
 @pytest.mark.parametrize(
     ["log_level_in", "expected_log_level"],
     [
-        ("", logging.ERROR),
+        ("", logging.DEBUG),
         ("error", logging.ERROR),
         ("ERROR", logging.ERROR),
         ("warning", logging.WARNING),

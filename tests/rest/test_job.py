@@ -266,7 +266,7 @@ def test_get_job_logs(session040, requests_mock):
 
 
 # TODO: do we keep testing on sesssion040, or should we switch to con100?
-def test_get_job_logs_returns_only_error_loglevel_by_default(session040, requests_mock):
+def test_get_job_logs_returns_debug_loglevel_by_default(session040, requests_mock):
     requests_mock.get(
         API_URL + "/jobs/f00ba5/logs",
         json={
@@ -297,14 +297,17 @@ def test_get_job_logs_returns_only_error_loglevel_by_default(session040, request
 
     log_entries = session040.job("f00ba5").logs()
 
-    assert len(log_entries) == 1
-    assert log_entries[0].message == "error processing batch job"
+    assert len(log_entries) == 4
+    assert log_entries[0].level == "error"
+    assert log_entries[1].level == "debug"
+    assert log_entries[2].level == "info"
+    assert log_entries[3].level == "warning"
 
 
 @pytest.mark.parametrize(
     ["log_level", "exp_num_messages"],
     [
-        (None, 1),
+        (None, 4),  # Default is DEBUG / show all log levels.
         (logging.ERROR, 1),
         ("error", 1),
         ("ERROR", 1),

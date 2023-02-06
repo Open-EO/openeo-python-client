@@ -2,6 +2,10 @@ import logging
 from typing import Optional, Union
 
 
+# To keep the helper functions for converting log levels consistent.
+_DEFAULT_LOG_LEVEL = logging.DEBUG
+
+
 class LogEntry(dict):
     """
     Log message and info for jobs and services
@@ -64,7 +68,7 @@ def normalize_log_level(log_level: Optional[Union[int, str]]) -> int:
         logging.ERROR, logging.WARNING, logging.INFO, or logging.DEBUG
     """
     if log_level is None:
-        return logging.ERROR
+        return _DEFAULT_LOG_LEVEL
 
     if isinstance(log_level, str):
         return string_to_log_level(log_level)
@@ -91,8 +95,12 @@ def string_to_log_level(log_level: str) -> int:
         raise TypeError(
             f"Parameter 'log_level' must be type str, but it is type {type(log_level)}. Value: log_level={log_level!r}"
         )
+    # We are not encouraging passing an empty string to log_level, because this function
+    # assumes this input is already valid, i.e. it is coming from code rather that from
+    # user input. But if we do get an empty string anyway, then the default should be
+    # consistent with `normalize_log_level`.
     if log_level == "":
-        return logging.ERROR
+        return _DEFAULT_LOG_LEVEL
 
     log_level = log_level.upper()
     if log_level in ["CRITICAL", "ERROR"]:

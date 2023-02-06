@@ -158,13 +158,17 @@ class BatchJob:
                 for level ``logging.INFO`` and above, i.e. also ``logging.WARNING`` and
                 ``logging.ERROR`` will be included.
 
-            Defaults to ``logging.ERROR`` (also when explicitly passing log_level=None or log_level="").
+            Default is to show all log levels, in other words ``logging.DEBUG``.
+            This is also the result when you explicitly pass log_level=None or log_level="".
 
         :return: A list containing the log entries for the batch job.
         """
         url = "/jobs/{}/logs".format(self.job_id)
         logs = self.connection.get(url, params={'offset': offset}, expected_status=200).json()["logs"]
-        log_level = normalize_log_level(log_level)
+
+        # Before we introduced the log_level param we printed all logs.
+        # So we explicitly keep that default behavior, making DEBUG the default log level.
+        log_level = normalize_log_level(log_level) if log_level else logging.DEBUG
         entries = [
             LogEntry(log)
             for log in logs
