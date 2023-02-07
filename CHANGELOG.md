@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 
+## [0.14.1] - 2023-02-06
+
+### Fixed
+
+- Fine-tuned `XarrayDataCube` tests for conda building and packaging ([#176](https://github.com/Open-EO/openeo-python-client/issues/176))
+
+
 ## [0.14.0] - 2023-02-01
 
 ### Added
