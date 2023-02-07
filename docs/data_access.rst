@@ -136,7 +136,8 @@ The code-snippets shown below provides an example of how this can be achieved:
                 )
     s2_cube = datacube.aggregate_spatial(
                           geometries=parcels,
-                          reducer="mean")
+                          reducer="mean"
+                          )
 
 Please note that though :py:meth:`~openeo.rest.connection.Connection.vectorcube_from_paths` supports GeoJSON and Parquet file format.
 Yet, it is recommended to use the parquet format for large vector dataset in comparision to GeoJSON.
