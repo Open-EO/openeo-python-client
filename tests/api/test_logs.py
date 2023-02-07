@@ -1,6 +1,6 @@
 import logging
 
-from openeo.api.logs import LogEntry, normalize_log_level, string_to_log_level
+from openeo.api.logs import LogEntry, normalize_log_level
 import pytest
 
 
@@ -58,33 +58,11 @@ def test_normalize_log_level(log_level_in, expected_log_level):
     assert normalize_log_level(log_level_in) == expected_log_level
 
 
+def test_normalize_log_level_default_input_returns_debug_level():
+    assert normalize_log_level() == logging.DEBUG
+
+
 @pytest.mark.parametrize("log_level", [10.0, b"not a string"])
 def test_normalize_log_level_raises_type_error(log_level):
     with pytest.raises(TypeError):
         assert normalize_log_level(log_level)
-
-
-@pytest.mark.parametrize(
-    ["log_level_in", "expected_log_level"],
-    [
-        ("", logging.DEBUG),
-        ("error", logging.ERROR),
-        ("ERROR", logging.ERROR),
-        ("warning", logging.WARNING),
-        ("WARNING", logging.WARNING),
-        ("INFO", logging.INFO),
-        ("info", logging.INFO),
-        ("DEBUG", logging.DEBUG),
-        ("debug", logging.DEBUG),
-    ],
-)
-def test_string_to_log_level(log_level_in, expected_log_level):
-    assert string_to_log_level(log_level_in) == expected_log_level
-
-
-@pytest.mark.parametrize(
-    "log_level", [None, 42, 10.0, logging.WARNING, b"not a string"]
-)
-def test_string_to_log_level_raises_type_error(log_level):
-    with pytest.raises(TypeError):
-        assert string_to_log_level(log_level)

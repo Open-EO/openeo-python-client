@@ -2,10 +2,6 @@ import logging
 from typing import Optional, Union
 
 
-# To keep the helper functions for converting log levels consistent.
-_DEFAULT_LOG_LEVEL = logging.DEBUG
-
-
 class LogEntry(dict):
     """
     Log message and info for jobs and services
@@ -56,60 +52,45 @@ class LogEntry(dict):
     # TODO: add properties for "code", "time", "path", "links" and "data" with sensible defaults?
 
 
-def normalize_log_level(log_level: Optional[Union[int, str]]) -> int:
-    """Helper function to convert a log level to the integer constants defined in logging, e.g. logging.ERROR.
+def normalize_log_level(log_level: Optional[Union[int, str]] = logging.DEBUG) -> int:
+    """Helper function to convert a log level to the integer constants defined in logging, e.g. ``logging.ERROR``.
 
-    Essentially log_level may be user input, or come from a method/function parameter filled in
-    by a user of the Python client.
+    :param log_level: The input to be converted.
 
-    :param log_level: the input to be converted.
-    :raises TypeError: when log_level it is neither a str, an int or None.
-    :return: one of the following log level constants from the standard module ``logging``:
-        logging.ERROR, logging.WARNING, logging.INFO, or logging.DEBUG
+        The value  may be user input, or it can come from a method/function parameter
+        filled in by the user of the Python client, so it is not necessarily valid.
+
+        If no value is given or it is None, the empty string, or even any other 'falsy' value,
+        then the default return value is ``logging.DEBUG``.
+
+    :raises TypeError: when log_level is any other type than str, an int or None.
+    :return: One of the following log level constants from the standard module ``logging``:
+        ``logging.ERROR``, ``logging.WARNING``, ``logging.INFO``, or ``logging.DEBUG`` .
     """
-    if log_level is None:
-        return _DEFAULT_LOG_LEVEL
+
+    # None and the empty string could be passed explicitly (or other falsy values).
+    # Or the value could come from a field that is None.
+    if not log_level:
+        return logging.DEBUG
 
     if isinstance(log_level, str):
-        return string_to_log_level(log_level)
+        log_level = log_level.upper()
+        if log_level in ["CRITICAL", "ERROR"]:
+            return logging.ERROR
+        elif log_level == "WARNING":
+            return logging.WARNING
+        elif log_level == "INFO":
+            return logging.INFO
+        elif log_level == "DEBUG":
+            return logging.DEBUG
 
-    # Now is should be an int
+        # Still a string, but not a supported/standard log level.
+        return logging.ERROR
+
+    # Now it should be an int, otherwise the input is an unsupported type.
     if not isinstance(log_level, int):
         raise TypeError(
             f"Value for log_level is not an int or str: type={type(log_level)}, value={log_level!r}"
         )
 
     return log_level
-
-
-def string_to_log_level(log_level: str) -> int:
-    """Helper function: a simpler conversion of a log level, to use when you know log_level should **always** be a string.
-
-    :param log_level: the input to be converted.
-    :raises TypeError: when log_level it not a string.
-    :return: one of the following log level constants from the standard module ``logging``:
-        logging.ERROR, logging.WARNING, logging.INFO, or logging.DEBUG
-    """
-
-    if not isinstance(log_level, str):
-        raise TypeError(
-            f"Parameter 'log_level' must be type str, but it is type {type(log_level)}. Value: log_level={log_level!r}"
-        )
-    # We are not encouraging passing an empty string to log_level, because this function
-    # assumes this input is already valid, i.e. it is coming from code rather that from
-    # user input. But if we do get an empty string anyway, then the default should be
-    # consistent with `normalize_log_level`.
-    if log_level == "":
-        return _DEFAULT_LOG_LEVEL
-
-    log_level = log_level.upper()
-    if log_level in ["CRITICAL", "ERROR"]:
-        return logging.ERROR
-    elif log_level == "WARNING":
-        return logging.WARNING
-    elif log_level == "INFO":
-        return logging.INFO
-    elif log_level == "DEBUG":
-        return logging.DEBUG
-
-    return logging.ERROR

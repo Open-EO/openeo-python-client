@@ -55,7 +55,7 @@ openeo.api.logs
 -----------------
 
 .. automodule:: openeo.api.logs
-    :members: LogEntry, normalize_log_level, string_to_log_level
+    :members: LogEntry, normalize_log_level
 
 
 openeo.rest.connection

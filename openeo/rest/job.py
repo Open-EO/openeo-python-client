@@ -9,7 +9,7 @@ from typing import List, Union, Dict, Optional
 
 import requests
 
-from openeo.api.logs import LogEntry, normalize_log_level, string_to_log_level
+from openeo.api.logs import LogEntry, normalize_log_level
 from openeo.internal.jupyter import render_component, render_error, VisualDict, VisualList
 from openeo.internal.warnings import deprecated
 from openeo.rest import OpenEoClientException, JobFailedException, OpenEoApiError
@@ -168,11 +168,11 @@ class BatchJob:
 
         # Before we introduced the log_level param we printed all logs.
         # So we explicitly keep that default behavior, making DEBUG the default log level.
-        log_level = normalize_log_level(log_level) if log_level else logging.DEBUG
+        log_level = normalize_log_level(log_level)
         entries = [
             LogEntry(log)
             for log in logs
-            if string_to_log_level(log["level"]) >= log_level
+            if normalize_log_level(log["level"]) >= log_level
         ]
         return VisualList('logs', data=entries)
 
@@ -262,12 +262,15 @@ class BatchJob:
             """.format(i=self.job_id)))
             # TODO: make it possible to disable printing logs automatically?
             # TODO: render logs jupyter-aware in a notebook context?
-            print("Printing logs:")
-            print("Only printing messages of log level ERROR.")
             print(
-                "To get logs for all log levels, use the method `BatchJob.logs` with the parameter `log_level` ."
+                textwrap.dedent(
+                    f"""
+                Printing logs (only log level ERROR):
+                To get logs that include all log levels, use:
+                BatchJob(job_id='{self.job_id}', connection=your_connection>).logs(log_level='DEBUG')")
+                """
+                )
             )
-            print('For example: my_batch_job.logs(log_level="info")')
             print(self.logs(log_level=logging.ERROR))
             raise JobFailedException("Batch job {i!r} didn't finish successfully. Status: {s} (after {t}).".format(
                 i=self.job_id, s=status, t=elapsed()
