@@ -115,21 +115,27 @@ on the collection and the catalog that is used by it. This is not a problem caus
 standardization between catalogs of EO data.
 
 
-Handling large vector data
-##########################
+Handling large vector data sets
+-------------------------------
 
-Handling large volumes of data is crucial for making decisions, improving processes and having an efficient solution.
-However, if you attempt to use a significantly large vector dataset directly on your process, you would most likely
-encounter a 'Request Entity Too Large' error because your REST request was too large for the system to handle. In
-order to avoid this error, you can upload your vector data to a public location(e.g., via Google Drive/Github) and use it as an URL. The data stored in the URL can be loaded using
-:py:meth:`~openeo.rest.connection.Connection.vectorcube_from_paths`
+For simple use cases, it is common to directly embed geometries (vector data) in your openEO process graph.
+Unfortunately, with large vector data sets this leads to very large process graphs
+and you might hit certain limits,
+resulting in HTTP errors like ``413 Request Entity Too Large`` or ``413 Payload Too Large``.
 
-The code-snippets shown below provides an example of how this can be achieved:
+This problem can be circumvented by first uploading your vector data to a file sharing service
+(like Google Drive, DropBox, GitHub, ...)
+and use its public URL in the process graph instead
+through :py:meth:`Connection.vectorcube_from_paths <openeo.rest.connection.Connection.vectorcube_from_paths>`.
+For example, as follows:
 
 .. code-block:: python
 
+    # Load vector data from URL
     url = "https://github.com/Open-EO/openeo-python-client/blob/master/tests/data/example_aoi.geoparquet"
     parcels = connection.vectorcube_from_paths([url], format="parquet")
+
+    # Use the parcel vector data, for example to do aggregation.
     cube = connection.load_collection(
         "SENTINEL2_L2A",
         bands=["B04", "B03", "B02"],
@@ -140,5 +146,5 @@ The code-snippets shown below provides an example of how this can be achieved:
         reducer="mean",
     )
 
-Please note that though :py:meth:`~openeo.rest.connection.Connection.vectorcube_from_paths` supports GeoJSON and Parquet file format.
-Yet, it is recommended to use the parquet format for large vector dataset in comparision to GeoJSON.
+Note that while openEO back-ends typically support multiple vector formats, like GeoJSON and Parquet,
+it is usually recommended to use a compact format like Parquet, instead of GeoJSON.
