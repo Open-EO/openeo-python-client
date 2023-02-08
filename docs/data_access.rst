@@ -128,19 +128,17 @@ The code-snippets shown below provides an example of how this can be achieved:
 
 .. code-block:: python
 
-    parcels = connection.vectorcube_from_paths(
-      ["https://github.com/Open-EO/openeo-python-client/blob/master/tests/data/example_aoi.pq"],
-      format="parquet",
-      )
-    datacube = connection.load_collection(
-                "SENTINEL2_L2A",
-                bands=['B04', 'B03', 'B02'],
-                temporal_extent = ["2021-05-12",'2021-06-01']
-                )
-    s2_cube = datacube.aggregate_spatial(
-                          geometries=parcels,
-                          reducer="mean"
-                          )
+    url = "https://github.com/Open-EO/openeo-python-client/blob/master/tests/data/example_aoi.pq"
+    parcels = connection.vectorcube_from_paths([url], format="parquet")
+    cube = connection.load_collection(
+        "SENTINEL2_L2A",
+        bands=["B04", "B03", "B02"],
+        temporal_extent=["2021-05-12", "2021-06-01"],
+    )
+    aggregations = cube.aggregate_spatial(
+        geometries=parcels,
+        reducer="mean",
+    )
 
 Please note that though :py:meth:`~openeo.rest.connection.Connection.vectorcube_from_paths` supports GeoJSON and Parquet file format.
 Yet, it is recommended to use the parquet format for large vector dataset in comparision to GeoJSON.
