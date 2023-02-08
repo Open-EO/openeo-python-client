@@ -331,7 +331,7 @@ and apply it along a dimension:
 Downloading a datacube and executing an UDF locally
 =============================================================
 
-Sometimes it is advantageous to run a UDF on the client machine (for example when developing/testing that UDF). 
+Sometimes it is advantageous to run a UDF on the client machine (for example when developing/testing that UDF).
 This is possible by using the convenience function :py:func:`openeo.udf.run_code.execute_local_udf`.
 The steps to run a UDF (like the code from ``smooth_savitzky_golay.py`` above) are as follows:
 

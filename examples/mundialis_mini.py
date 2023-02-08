@@ -28,7 +28,7 @@ s2_radiometry = ImageCollectionClient.load_collection(
                     collection_id=collection_id,
                     temporal_extent=temporal_extent,
                     spatial_extent=spatial_extent
-                    )            
+                    )
 # g.bands pattern="S2"
 B02 = s2_radiometry.band("S2_2")
 B04 = s2_radiometry.band("S2_4")

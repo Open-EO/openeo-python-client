@@ -19,22 +19,22 @@ from openeo.internal.documentation import _process_registry
 
 def main():
     print(dedent(f"""
-        .. 
+        ..
             !Warning! This is an auto-generated file.
             Do not edit directly.
             Generated from: {sys.argv}
-            
+
         .. _openeo_process_mapping:
-    
+
         openEO Process Mapping
         #######################
-        
+
         The table below maps openEO processes to the corresponding
         method or function in the openEO Python Client Library.
-        
-        .. list-table:: 
+
+        .. list-table::
             :header-rows: 1
-            
+
             *   - openEO process
                 - openEO Python Client Method
     """))

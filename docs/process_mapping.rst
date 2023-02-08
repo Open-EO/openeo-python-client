@@ -1,5 +1,5 @@
 
-.. 
+..
     !Warning! This is an auto-generated file.
     Do not edit directly.
     Generated from: ['process_mapping.py']
@@ -12,7 +12,7 @@ openEO Process Mapping
 The table below maps openEO processes to the corresponding
 method or function in the openEO Python Client Library.
 
-.. list-table:: 
+.. list-table::
     :header-rows: 1
 
     *   - openEO process
