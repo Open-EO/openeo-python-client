@@ -128,7 +128,7 @@ The code-snippets shown below provides an example of how this can be achieved:
 
 .. code-block:: python
 
-    parcels = connection.vectorcube_from_paths(["https://github.com/Open-EO/openeo-python-client/blob/master/tests/data/Selected_aoi.parquet"],format="parquet")
+    parcels = connection.vectorcube_from_paths(["https://github.com/Open-EO/openeo-python-client/blob/master/tests/data/example_aoi.geoparquet"],format="parquet")
     datacube = connection.load_collection(
                 "SENTINEL2_L2A",
                 bands=['B04', 'B03', 'B02'],
