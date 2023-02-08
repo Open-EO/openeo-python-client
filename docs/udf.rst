@@ -424,7 +424,7 @@ want to keep a log of array shape encountered within a UDF::
         return cube
     """)
 
-If you are using Jupyter Notebook, you can see the log entries using :py:class:`~openeo.rest.connection.Connection.job_logs` 
+If you are using Jupyter Notebook, you can see the log entries using :py:class:`~openeo.rest.job.BatchJob.logs` 
 as shown in the image:
 
 .. image:: _static/images/udf/logging_arrayshape.png
