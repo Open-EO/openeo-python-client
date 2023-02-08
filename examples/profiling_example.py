@@ -32,7 +32,3 @@ if __name__ == '__main__':
             tf.extractall(td)
             for iprof in list(filter(lambda i: i.endswith('.pstats'), tf.getnames())):
                 pstats.Stats(str(Path(td,iprof))).print_stats()
-        
-
-    
-    

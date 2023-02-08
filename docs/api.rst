@@ -124,4 +124,3 @@ openeo.internal
 
 .. automodule:: openeo.internal.graph_building
     :members: PGNode
-

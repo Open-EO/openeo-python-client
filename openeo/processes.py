@@ -4811,5 +4811,3 @@ def xor(x, y) -> ProcessBuilder:
     :return: Boolean result of the logical XOR.
     """
     return _process('xor', x=x, y=y)
-
-

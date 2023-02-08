@@ -116,4 +116,3 @@ as :py:class:`~openeo.rest.job.BatchJob` instance,
 as URL to the corresponding STAC Item that implements the `ml-model` extension,
 or as :py:class:`~openeo.rest.mlmodel.MlModel` instance (e.g. loaded through
 :py:meth:`~openeo.rest.connection.Connection.load_ml_model`).
-

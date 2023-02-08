@@ -453,4 +453,3 @@ loading and working with UDFs was a bit inconsistent and cumbersome.
         # Unchanged: usage of other apply/reduce/... methods
         cube.apply(process=udf)
         cube.reduce_dimension(reducer=udf, dimension="t")
-

@@ -113,5 +113,3 @@ One important caveat in this example is that 'relativeOrbitNumber' is a catalog 
 different archives may choose a different name for a given property, and the properties that are available can depend
 on the collection and the catalog that is used by it. This is not a problem caused by openEO, but by the limited
 standardization between catalogs of EO data.
-
-
