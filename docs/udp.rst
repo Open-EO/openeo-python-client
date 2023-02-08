@@ -388,5 +388,3 @@ which we can process further and download::
     cube.download("fancy.tiff", format="GTiff")
 
 See :ref:`datacube_from_process` for more information on :func:`~openeo.rest.connection.Connection.datacube_from_process`.
-
-

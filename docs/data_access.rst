@@ -118,10 +118,10 @@ standardization between catalogs of EO data.
 Handling large vector data
 ##########################
 
-Handling large volumes of data is crucial for making decisions, improving processes and having an efficient solution. 
-However, if you attempt to use a significantly large vector dataset directly on your process, you would most likely 
-encounter a 'Request Entity Too Large' error because your REST request was too large for the system to handle. In 
-order to avoid this error, you can upload your vector data to a public location(e.g., via Google Drive/Github) and use it as an URL. The data stored in the URL can be loaded using 
+Handling large volumes of data is crucial for making decisions, improving processes and having an efficient solution.
+However, if you attempt to use a significantly large vector dataset directly on your process, you would most likely
+encounter a 'Request Entity Too Large' error because your REST request was too large for the system to handle. In
+order to avoid this error, you can upload your vector data to a public location(e.g., via Google Drive/Github) and use it as an URL. The data stored in the URL can be loaded using
 :py:meth:`~openeo.rest.connection.Connection.vectorcube_from_paths`
 
 The code-snippets shown below provides an example of how this can be achieved:

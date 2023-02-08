@@ -52,4 +52,3 @@ def test_load_bytes_040(session040, requests_mock):
     content = session040.job('1').get_result().load_bytes()
 
     assert content == b'\x01\x02\x03\x04\x05'
-

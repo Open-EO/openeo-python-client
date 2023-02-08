@@ -82,4 +82,3 @@ timeseries_raw_dc = evi_cube.polygonal_mean_timeseries(polygon)
 
 timeseries_raw = pd.Series(timeseries_raw_dc.execute(),name="evi_raw")
 print(timeseries_raw.head(15))
-

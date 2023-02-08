@@ -109,10 +109,10 @@ def generate_process_py(processes: List[Process], output=sys.stdout, argv=None):
     oo_src = textwrap.dedent("""
         import builtins
         from openeo.internal.processes.builder import ProcessBuilderBase, UNSET
-        
-        
+
+
         class ProcessBuilder(ProcessBuilderBase):
-        
+
             _ITERATION_LIMIT = 100
 
             def __add__(self, other) -> 'ProcessBuilder':
@@ -126,7 +126,7 @@ def generate_process_py(processes: List[Process], output=sys.stdout, argv=None):
 
             def __rsub__(self, other) -> 'ProcessBuilder':
                 return subtract(other, self)
-            
+
             def __mul__(self, other) -> 'ProcessBuilder':
                 return self.multiply(other)
 
@@ -181,8 +181,8 @@ def generate_process_py(processes: List[Process], output=sys.stdout, argv=None):
         process = ProcessBuilder.process
         # Private shortcut that has lower chance to collide with a process argument named `process`
         _process = ProcessBuilder.process
-        
-        
+
+
     """)
     fun_renderer = PythonRenderer(
         body_template="return _process({id!r}, {args})",

@@ -294,7 +294,7 @@ class ImageCollectionClient(ImageCollection):
         :return:
         """
         return self._reduce_bands_binary_xy('eq', other)
-    
+
     def __gt__(self, other:Union[ImageCollection,Union[int,float]]):
         """
         Pairwise comparison of the bands in this data cube with the bands in the 'other' data cube.
@@ -304,7 +304,7 @@ class ImageCollectionClient(ImageCollection):
         :return ImageCollection: this + other
         """
         return self._reduce_bands_binary_xy('gt', other)
-            
+
     def __ge__(self, other:Union[ImageCollection,Union[int,float]]):
         return self._reduce_bands_binary_xy('gte', other)
 
@@ -450,14 +450,14 @@ class ImageCollectionClient(ImageCollection):
             # now current_node should be a reduce node, let's modify it
             # TODO: properly update metadata of reduced cube? #metadatareducedimension
             return ImageCollectionClient(node_id, new_builder, reducing_graph.session, metadata=self.metadata)
-        
+
     def _reduce_bands_binary_xy(self,operator,other:Union[ImageCollection,Union[int,float]]):
         """
         Pixelwise comparison of this data cube with another cube or constant.
 
         :param other: Another data cube, or a constant
         :return:
-        """        
+        """
         if isinstance(other, int) or isinstance(other, float):
             my_builder = self._get_band_graph_builder()
             new_builder = None
@@ -951,7 +951,7 @@ class ImageCollectionClient(ImageCollection):
         """Download image collection, e.g. as GeoTIFF."""
         if not format:
             format = guess_format(outputfile) if outputfile else "GTiff"
- 
+
         newcollection = self.save_result(format=format, options=options)
         newcollection.graph[newcollection.node_id]["result"] = True
         return self.session.download(newcollection.graph, outputfile)

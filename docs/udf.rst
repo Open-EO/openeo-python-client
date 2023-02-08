@@ -331,7 +331,7 @@ and apply it along a dimension:
 Downloading a datacube and executing an UDF locally
 =============================================================
 
-Sometimes it is advantageous to run a UDF on the client machine (for example when developing/testing that UDF). 
+Sometimes it is advantageous to run a UDF on the client machine (for example when developing/testing that UDF).
 This is possible by using the convenience function :py:func:`openeo.udf.run_code.execute_local_udf`.
 The steps to run a UDF (like the code from ``smooth_savitzky_golay.py`` above) are as follows:
 
@@ -405,11 +405,11 @@ An example code can be found `here <https://github.com/Open-EO/openeo-python-cli
 Logging from the UDFs
 ==============================
 
-In some cases, you may want to log information from your user defined function, 
-for instance to provide debug information or to log warnings. You can use the :py:class:`~openeo.udf.debug.inspect` 
+In some cases, you may want to log information from your user defined function,
+for instance to provide debug information or to log warnings. You can use the :py:class:`~openeo.udf.debug.inspect`
 logging function to achieve this.
 
-For example, in the previous example of rescaling an RGB image(from SENTINEL2_L2A), suppose you 
+For example, in the previous example of rescaling an RGB image(from SENTINEL2_L2A), suppose you
 want to keep a log of array shape encountered within a UDF::
 
     # Create a UDF object from inline source code.
@@ -424,13 +424,13 @@ want to keep a log of array shape encountered within a UDF::
         return cube
     """)
 
-If you are using Jupyter Notebook, you can see the log entries using :py:class:`~openeo.rest.job.BatchJob.logs` 
+If you are using Jupyter Notebook, you can see the log entries using :py:class:`~openeo.rest.job.BatchJob.logs`
 as shown in the image:
 
 .. image:: _static/images/udf/logging_arrayshape.png
 Please note that this nice rendering only happens in Jupyter Notebook, while in plain python you will get a dict.
 
-Thus, an array of shape 3x256x256 was logged in on which rescaling was performed. [Please note that at this moment, 
+Thus, an array of shape 3x256x256 was logged in on which rescaling was performed. [Please note that at this moment,
 this method is experimental and does not support all data types in ``data`` argument of :py:class:`~openeo.udf.debug.inspect`]
 
 
@@ -483,4 +483,3 @@ loading and working with UDFs was a bit inconsistent and cumbersome.
         # Unchanged: usage of other apply/reduce/... methods
         cube.apply(process=udf)
         cube.reduce_dimension(reducer=udf, dimension="t")
-

@@ -103,7 +103,7 @@ class BatchJob:
     def download_result(self, target: Union[str, Path] = None) -> Path:
         """
         Download single job result to the target file path or into folder (current working dir by default).
-        
+
         Fails if there are multiple result files.
 
         :param target: String or path where the file should be downloaded to.

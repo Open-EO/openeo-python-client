@@ -35,4 +35,3 @@ Combining all of this, results in the following sample code::
 
 Sampling only works for batch jobs, because it results in multiple output files, which can not be conveniently transferred
 in a synchronous call.
-

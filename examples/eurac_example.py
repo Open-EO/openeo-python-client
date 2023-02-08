@@ -25,7 +25,7 @@ print(con.list_collections())
 # Load a specific dataset
 datacube = con.load_collection(collection_id="openEO_S2_32632_10m_L2A_D22", bands=['B02', 'B03', 'B04', 'B08'])
 # Perform spatial subsetting (e.g around the city of Bolzano)
-datacube = datacube.filter_bbox(west=11.279182434082033, south=46.464349400461145, 
+datacube = datacube.filter_bbox(west=11.279182434082033, south=46.464349400461145,
                                 east=11.406898498535158, north=46.522729291844286, crs=32632)
 # Perform temporal subsetting (e.g. for the month of june in 2018, only this data available in this collection)
 temp = datacube.filter_temporal(extent=["2018-06-06T00:00:00Z", "2018-06-22T00:00:00Z"])
