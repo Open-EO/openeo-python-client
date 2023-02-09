@@ -132,7 +132,7 @@ For example, as follows:
 .. code-block:: python
 
     # Load vector data from URL
-    url = "https://github.com/Open-EO/openeo-python-client/blob/master/tests/data/example_aoi.geoparquet"
+    url = "https://github.com/Open-EO/openeo-python-client/blob/master/tests/data/example_aoi.pq"
     parcels = connection.vectorcube_from_paths([url], format="parquet")
 
     # Use the parcel vector data, for example to do aggregation.
