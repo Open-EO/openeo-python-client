@@ -113,3 +113,38 @@ One important caveat in this example is that 'relativeOrbitNumber' is a catalog 
 different archives may choose a different name for a given property, and the properties that are available can depend
 on the collection and the catalog that is used by it. This is not a problem caused by openEO, but by the limited
 standardization between catalogs of EO data.
+
+
+Handling large vector data sets
+-------------------------------
+
+For simple use cases, it is common to directly embed geometries (vector data) in your openEO process graph.
+Unfortunately, with large vector data sets this leads to very large process graphs
+and you might hit certain limits,
+resulting in HTTP errors like ``413 Request Entity Too Large`` or ``413 Payload Too Large``.
+
+This problem can be circumvented by first uploading your vector data to a file sharing service
+(like Google Drive, DropBox, GitHub, ...)
+and use its public URL in the process graph instead
+through :py:meth:`Connection.vectorcube_from_paths <openeo.rest.connection.Connection.vectorcube_from_paths>`.
+For example, as follows:
+
+.. code-block:: python
+
+    # Load vector data from URL
+    url = "https://github.com/Open-EO/openeo-python-client/blob/master/tests/data/example_aoi.pq"
+    parcels = connection.vectorcube_from_paths([url], format="parquet")
+
+    # Use the parcel vector data, for example to do aggregation.
+    cube = connection.load_collection(
+        "SENTINEL2_L2A",
+        bands=["B04", "B03", "B02"],
+        temporal_extent=["2021-05-12", "2021-06-01"],
+    )
+    aggregations = cube.aggregate_spatial(
+        geometries=parcels,
+        reducer="mean",
+    )
+
+Note that while openEO back-ends typically support multiple vector formats, like GeoJSON and Parquet,
+it is usually recommended to use a compact format like Parquet, instead of GeoJSON.
