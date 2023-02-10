@@ -132,7 +132,7 @@ For example, as follows:
 .. code-block:: python
 
     # Load vector data from URL
-    url = "https://github.com/Open-EO/openeo-python-client/blob/master/tests/data/example_aoi.pq"
+    url = "https://github.com/Open-EO/openeo-python-client/raw/master/tests/data/example_aoi.pq"
     parcels = connection.vectorcube_from_paths([url], format="parquet")
 
     # Use the parcel vector data, for example to do aggregation.
@@ -146,5 +146,8 @@ For example, as follows:
         reducer="mean",
     )
 
-Note that while openEO back-ends typically support multiple vector formats, like GeoJSON and Parquet,
-it is usually recommended to use a compact format like Parquet, instead of GeoJSON.
+Note that while openEO back-ends typically support multiple vector formats, like GeoJSON and GeoParquet,
+it is usually recommended to use a compact format like GeoParquet, instead of GeoJSON. The list of supported formats
+is also advertised by the backend, and can be queried with
+:py:meth:`Connection.list_file_formats <openeo.rest.connection.Connection.list_file_formats>`.
+
