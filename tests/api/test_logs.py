@@ -52,14 +52,16 @@ def test_log_entry_legacy():
         (logging.DEBUG, logging.DEBUG),
         ("DEBUG", logging.DEBUG),
         ("debug", logging.DEBUG),
+        ("m3h!", logging.DEBUG),
     ],
 )
 def test_normalize_log_level(log_level_in, expected_log_level):
     assert normalize_log_level(log_level_in) == expected_log_level
 
 
-def test_normalize_log_level_default_input_returns_debug_level():
-    assert normalize_log_level() == logging.DEBUG
+def test_normalize_log_level_default():
+    assert normalize_log_level(None) == logging.DEBUG
+    assert normalize_log_level(None, default=logging.ERROR) == logging.ERROR
 
 
 @pytest.mark.parametrize("log_level", [10.0, b"not a string"])

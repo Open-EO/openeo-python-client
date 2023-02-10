@@ -151,7 +151,7 @@ class BatchJob:
         :param log_level: Show only messages of this log level and its higher levels.
 
             You can use either constants from Python's standard module ``logging``
-            or their names (case insensitive).
+            or their names (case-insensitive).
 
             For example:
                 ``logging.INFO``, ``"info"`` or ``"INFO"`` can all be used to show the messages
@@ -166,15 +166,17 @@ class BatchJob:
         url = "/jobs/{}/logs".format(self.job_id)
         logs = self.connection.get(url, params={'offset': offset}, expected_status=200).json()["logs"]
 
-        # Before we introduced the log_level param we printed all logs.
-        # So we explicitly keep that default behavior, making DEBUG the default log level.
-        log_level = normalize_log_level(log_level)
-        entries = [
-            LogEntry(log)
-            for log in logs
-            if normalize_log_level(log["level"]) >= log_level
-        ]
-        return VisualList('logs', data=entries)
+        # Only filter logs when specified.
+        if log_level is not None:
+            log_level = normalize_log_level(log_level)
+            logs = (
+                log
+                for log in logs
+                if normalize_log_level(log.get("level")) >= log_level
+            )
+
+        entries = [LogEntry(log) for log in logs]
+        return VisualList("logs", data=entries)
 
     def run_synchronous(
             self, outputfile: Union[str, Path, None] = None,
@@ -256,25 +258,17 @@ class BatchJob:
             poll_interval = min(1.25 * poll_interval, max_poll_interval)
 
         if status != "finished":
-            print(textwrap.dedent("""
-                Your batch job {i!r} failed.
-                Logs can be inspected in an openEO (web) editor or with `connection.job({i!r}).logs()`.
-            """.format(i=self.job_id)))
-            # TODO: make it possible to disable printing logs automatically?
+            # TODO: allow to disable this printing logs (e.g. in non-interactive contexts)?
             # TODO: render logs jupyter-aware in a notebook context?
-            print(
-                textwrap.dedent(
-                    f"""
-                Printing logs (only log level ERROR):
-                To get logs that include all log levels, use:
-                BatchJob(job_id='{self.job_id}', connection=your_connection>).logs(log_level='DEBUG')")
-                """
-                )
-            )
+            print(f"Your batch job {self.job_id!r} failed. Error logs:")
             print(self.logs(log_level=logging.ERROR))
-            raise JobFailedException("Batch job {i!r} didn't finish successfully. Status: {s} (after {t}).".format(
-                i=self.job_id, s=status, t=elapsed()
-            ), job=self)
+            print(
+                f"Full logs can be inspected in an openEO (web) editor or with `connection.job({self.job_id!r}).logs()`."
+            )
+            raise JobFailedException(
+                f"Batch job {self.job_id!r} didn't finish successfully. Status: {status} (after {elapsed()}).",
+                job=self,
+            )
 
         return self
 

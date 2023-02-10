@@ -128,12 +128,18 @@ def test_execute_batch_with_error(con100, requests_mock, tmpdir):
             ("error", "error processing batch job"),
         ]
 
-    assert re.match(r"0:00:01 Job 'f00ba5': send 'start'", log[0])
-    assert re.match(r"0:00:02 Job 'f00ba5': submitted \(progress N/A\)", log[1])
-    assert re.match(r"0:00:04 Job 'f00ba5': queued \(progress N/A\)", log[2])
-    assert re.match(r"0:00:07 Job 'f00ba5': running \(progress 15%\)", log[3])
-    assert re.match(r"0:00:12 Job 'f00ba5': running \(progress 80%\)", log[4])
-    assert re.match(r"0:00:20 Job 'f00ba5': error \(progress 100%\)", log[5])
+
+    assert log == [
+        "0:00:01 Job 'f00ba5': send 'start'",
+        "0:00:02 Job 'f00ba5': submitted (progress N/A)",
+        "0:00:04 Job 'f00ba5': queued (progress N/A)",
+        "0:00:07 Job 'f00ba5': running (progress 15%)",
+        "0:00:12 Job 'f00ba5': running (progress 80%)",
+        "0:00:20 Job 'f00ba5': error (progress 100%)",
+        "Your batch job 'f00ba5' failed. Error logs:",
+        [{"id": "123abc", "level": "error", "message": "error processing batch job"}],
+        "Full logs can be inspected in an openEO (web) editor or with `connection.job('f00ba5').logs()`.",
+    ]
 
 
 @pytest.mark.parametrize(["error_response", "expected"], [
