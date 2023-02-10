@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 from pathlib import Path
 from unittest import mock
@@ -262,6 +263,98 @@ def test_get_job_logs(session040, requests_mock):
     log_entries = session040.job('f00ba5').logs(offset="123abc")
 
     assert log_entries[0].message == "error processing batch job"
+
+
+# TODO: do we keep testing on sesssion040, or should we switch to con100?
+def test_get_job_logs_returns_debug_loglevel_by_default(session040, requests_mock):
+    requests_mock.get(
+        API_URL + "/jobs/f00ba5/logs",
+        json={
+            "logs": [
+                {
+                    "id": "123abc",
+                    "level": "error",
+                    "message": "error processing batch job",
+                },
+                {
+                    "id": "234abc",
+                    "level": "debug",
+                    "message": "Some debug info we want to filter out",
+                },
+                {
+                    "id": "345abc",
+                    "level": "info",
+                    "message": "Some general info we want to filter out",
+                },
+                {
+                    "id": "345abc",
+                    "level": "warning",
+                    "message": "Some warning we want to filter out",
+                },
+            ]
+        },
+    )
+
+    log_entries = session040.job("f00ba5").logs()
+
+    assert len(log_entries) == 4
+    assert log_entries[0].level == "error"
+    assert log_entries[1].level == "debug"
+    assert log_entries[2].level == "info"
+    assert log_entries[3].level == "warning"
+
+
+@pytest.mark.parametrize(
+    ["log_level", "exp_num_messages"],
+    [
+        (None, 4),  # Default is DEBUG / show all log levels.
+        (logging.ERROR, 1),
+        ("error", 1),
+        ("ERROR", 1),
+        (logging.WARNING, 2),
+        ("warning", 2),
+        ("WARNING", 2),
+        (logging.INFO, 3),
+        ("INFO", 3),
+        ("info", 3),
+        (logging.DEBUG, 4),
+        ("DEBUG", 4),
+        ("debug", 4),
+    ],
+)
+def test_get_job_logs_keeps_loglevel_that_is_higher_or_equal(
+    session040, requests_mock, log_level, exp_num_messages
+):
+    requests_mock.get(
+        API_URL + "/jobs/f00ba5/logs",
+        json={
+            "logs": [
+                {
+                    "id": "123abc",
+                    "level": "error",
+                    "message": "error processing batch job",
+                },
+                {
+                    "id": "234abc",
+                    "level": "debug",
+                    "message": "Some debug info we want to filter out",
+                },
+                {
+                    "id": "345abc",
+                    "level": "info",
+                    "message": "Some general info we want to filter out",
+                },
+                {
+                    "id": "345abc",
+                    "level": "warning",
+                    "message": "Some warning we want to filter out",
+                },
+            ]
+        },
+    )
+
+    log_entries = session040.job("f00ba5").logs(log_level=log_level)
+    assert len(log_entries) == exp_num_messages
 
 
 def test_create_job_100(con100, requests_mock):

@@ -9,7 +9,7 @@ from typing import List, Union, Dict, Optional
 
 import requests
 
-from openeo.api.logs import LogEntry
+from openeo.api.logs import LogEntry, normalize_log_level
 from openeo.internal.jupyter import render_component, render_error, VisualDict, VisualList
 from openeo.internal.warnings import deprecated
 from openeo.rest import OpenEoClientException, JobFailedException, OpenEoApiError
@@ -136,12 +136,44 @@ class BatchJob:
         """
         return JobResults(self)
 
-    def logs(self, offset=None) -> List[LogEntry]:
-        """ Retrieve job logs."""
-        # TODO: option to filter on level? Or move filtering functionality to a separate batch job logs class?
+    def logs(
+        self, offset=None, log_level: Optional[Union[int, str]] = None
+    ) -> List[LogEntry]:
+        """Retrieve job logs.
+
+        :param offset: The last identifier (property ``id`` of a LogEntry) the client has received.
+
+            If provided, the back-ends only sends the entries that occurred after the specified identifier.
+            If not provided or empty, start with the first entry.
+
+            Defaults to None.
+
+        :param log_level: Show only messages of this log level and its higher levels.
+
+            You can use either constants from Python's standard module ``logging``
+            or their names (case insensitive).
+
+            For example:
+                ``logging.INFO``, ``"info"`` or ``"INFO"`` can all be used to show the messages
+                for level ``logging.INFO`` and above, i.e. also ``logging.WARNING`` and
+                ``logging.ERROR`` will be included.
+
+            Default is to show all log levels, in other words ``logging.DEBUG``.
+            This is also the result when you explicitly pass log_level=None or log_level="".
+
+        :return: A list containing the log entries for the batch job.
+        """
         url = "/jobs/{}/logs".format(self.job_id)
         logs = self.connection.get(url, params={'offset': offset}, expected_status=200).json()["logs"]
-        entries = [LogEntry(log) for log in logs]
+
+        # Before we introduced the log_level param we printed all logs.
+        # So we explicitly keep that default behavior, making DEBUG the default log level.
+        log_level = normalize_log_level(log_level)
+        entries = [
+            LogEntry(log)
+            for log in logs
+            if normalize_log_level(log["level"]) >= log_level
+        ]
         return VisualList('logs', data=entries)
 
     def run_synchronous(
@@ -230,9 +262,16 @@ class BatchJob:
             """.format(i=self.job_id)))
             # TODO: make it possible to disable printing logs automatically?
             # TODO: render logs jupyter-aware in a notebook context?
-            # TODO: only print the error level logs? Or the tail of the logs?
-            print("Printing logs:")
-            print(self.logs())
+            print(
+                textwrap.dedent(
+                    f"""
+                Printing logs (only log level ERROR):
+                To get logs that include all log levels, use:
+                BatchJob(job_id='{self.job_id}', connection=your_connection>).logs(log_level='DEBUG')")
+                """
+                )
+            )
+            print(self.logs(log_level=logging.ERROR))
             raise JobFailedException("Batch job {i!r} didn't finish successfully. Status: {s} (after {t}).".format(
                 i=self.job_id, s=status, t=elapsed()
             ), job=self)
