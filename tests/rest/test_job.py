@@ -97,20 +97,25 @@ def test_execute_batch_with_error(con100, requests_mock, tmpdir):
     requests_mock.get(API_URL + "/collections/SENTINEL2", json={"foo": "bar"})
     requests_mock.post(API_URL + "/jobs", status_code=201, headers={"OpenEO-Identifier": "f00ba5"})
     requests_mock.post(API_URL + "/jobs/f00ba5/results", status_code=202)
-    requests_mock.get(API_URL + "/jobs/f00ba5", [
-        {'json': {"status": "submitted"}},
-        {'json': {"status": "queued"}},
-        {'json': {"status": "running", "progress": 15}},
-        {'json': {"status": "running", "progress": 80}},
-        {'json': {"status": "error", "progress": 100}},
-    ])
-    requests_mock.get(API_URL + "/jobs/f00ba5/logs", json={
-        'logs': [{
-            'id': "123abc",
-            'level': 'error',
-            'message': "error processing batch job"
-        }]
-    })
+    requests_mock.get(
+        API_URL + "/jobs/f00ba5",
+        [
+            {"json": {"status": "submitted"}},
+            {"json": {"status": "queued"}},
+            {"json": {"status": "running", "progress": 15}},
+            {"json": {"status": "running", "progress": 80}},
+            {"json": {"status": "error", "progress": 100}},
+        ],
+    )
+    requests_mock.get(
+        API_URL + "/jobs/f00ba5/logs",
+        json={
+            "logs": [
+                {"id": "12", "level": "info", "message": "starting"},
+                {"id": "34", "level": "error", "message": "nope"},
+            ]
+        },
+    )
 
     path = tmpdir.join("tmp.tiff")
     log = []
@@ -125,9 +130,9 @@ def test_execute_batch_with_error(con100, requests_mock, tmpdir):
     except JobFailedException as e:
         assert e.job.status() == "error"
         assert [(l.level, l.message) for l in e.job.logs()] == [
-            ("error", "error processing batch job"),
+            ("info", "starting"),
+            ("error", "nope"),
         ]
-
 
     assert log == [
         "0:00:01 Job 'f00ba5': send 'start'",
@@ -137,7 +142,7 @@ def test_execute_batch_with_error(con100, requests_mock, tmpdir):
         "0:00:12 Job 'f00ba5': running (progress 80%)",
         "0:00:20 Job 'f00ba5': error (progress 100%)",
         "Your batch job 'f00ba5' failed. Error logs:",
-        [{"id": "123abc", "level": "error", "message": "error processing batch job"}],
+        [{"id": "34", "level": "error", "message": "nope"}],
         "Full logs can be inspected in an openEO (web) editor or with `connection.job('f00ba5').logs()`.",
     ]
 
