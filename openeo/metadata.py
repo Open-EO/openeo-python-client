@@ -1,6 +1,6 @@
 import warnings
 from collections import namedtuple
-from typing import List, Union, Tuple, Callable
+from typing import List, Union, Tuple, Callable, Any
 
 from openeo.util import deep_get
 from openeo.internal.jupyter import render_component
@@ -215,9 +215,8 @@ class CollectionMetadata:
         else:
             return cls(metadata=metadata or {})
 
-    def __eq__(self, o: object) -> bool:
-        return self._dimensions == o._dimensions
-
+    def __eq__(self, o: Any) -> bool:
+        return isinstance(o, CollectionMetadata) and self._dimensions == o._dimensions
 
     def _clone_and_update(
             self, metadata: dict = None, dimensions: List[Dimension] = None, **kwargs
