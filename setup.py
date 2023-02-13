@@ -26,6 +26,7 @@ tests_require = [
     "matplotlib",
     "geopandas",
     "flake8>=5.0.0",
+    "time_machine",
 ]
 
 docs_require = [

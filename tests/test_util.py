@@ -248,6 +248,16 @@ class TestRfc3339:
 
         assert Rfc3339(propagate_none=True).parse_date_or_datetime(None) is None
 
+    def test_today(self, time_machine):
+        time_machine.move_to("2023-02-10T12:34:56Z")
+        assert rfc3339.today() == "2023-02-10"
+
+    def test_utcnow(self, time_machine):
+        time_machine.move_to("2023-02-10T12:34:56Z")
+        assert rfc3339.utcnow() == "2023-02-10T12:34:56Z"
+        time_machine.move_to("2023-02-10T12:34:56+03")
+        assert rfc3339.utcnow() == "2023-02-10T09:34:56Z"
+
 
 def test_dict_no_none_kwargs():
     assert dict_no_none() == {}

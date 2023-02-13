@@ -174,6 +174,16 @@ class Rfc3339:
         except Exception:
             raise ValueError("Can not parse as date: {s}".format(s=s))
 
+    def today(self) -> str:
+        """Today (date) in RFC3339 format"""
+        return self.date(dt.date.today())
+
+    def utcnow(self) -> str:
+        """Current UTC datetime in RFC3339 format."""
+        # Current time in UTC timezone (instead of naive `datetime.datetime.utcnow()`, per `datetime` documentation)
+        now = dt.datetime.now(tz=dt.timezone.utc)
+        return self.datetime(now)
+
 
 # Default RFC3339 date-time formatter
 rfc3339 = Rfc3339()
