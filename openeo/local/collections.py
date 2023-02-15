@@ -121,7 +121,7 @@ def _get_geotiff_metadata(file_path):
         x_dim = _get_dimension(data.dims, ["x", "X", "lon", "longitude"])
         y_dim = _get_dimension(data.dims, ['y', 'Y', 'lat', 'latitude'])
     except Exception as e:
-        _log.warning(error)
+        _log.warning(e)
         raise Exception(f'Error creating metadata for {file_path}') from e
         
     metadata = {}
