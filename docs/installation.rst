@@ -39,7 +39,14 @@ To upgrade the package to the latest release:
 Installation with Conda
 ------------------------
 
-This is work in progress. See `openeo-python-client#176 <https://github.com/Open-EO/openeo-python-client/issues/176>`_ for more information.
+The openEO Python client library is available on `conda-forge <https://anaconda.org/conda-forge/openeo>`_
+and can be easily installed in a conda environment, for example:
+
+.. code-block:: console
+
+    $ conda install -c conda-forge openeo
+
+
 
 If you want to set up the openeo client for development on Windows with conda: see :ref:`windows-dev-install-with-conda`.
 
