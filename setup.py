@@ -21,10 +21,12 @@ tests_require = [
     "pytest>=4.5.0",
     "mock",
     "requests-mock>=1.8.0",
+    "httpretty>=1.1.4",
     "netCDF4",  # e.g. for writing/loading NetCDF data with xarray
     "matplotlib",
     "geopandas",
-    "flake8",
+    "flake8>=5.0.0",
+    "time_machine",
 ]
 
 docs_require = [
