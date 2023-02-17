@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The openeo Python client library can now also be installed with conda (conda-forge channel)
   ([#176](https://github.com/Open-EO/openeo-python-client/issues/176))
+- Allow using a custom `requests.Session` in `openeo.rest.auth.oidc` logic
 
 ### Changed
 

@@ -7,6 +7,7 @@ from unittest import mock
 
 import pytest
 import requests
+import requests_mock
 
 import openeo.rest.auth.oidc
 from openeo.rest.auth.oidc import (
@@ -110,6 +111,23 @@ def test_provider_info_discovery_url(requests_mock):
     p = OidcProviderInfo(discovery_url=discovery_url)
     assert p.discovery_url == "https://authit.test/.well-known/openid-configuration"
     assert p.get_scopes_string() == "openid"
+
+
+def test_provider_info_issuer_custom_requests_session():
+    # Instead of using the requests_mock fixture like we do in other tests:
+    # explicitly create a requests session to play with, using an adapter from requests_mock
+    session = requests.Session()
+    adapter = requests_mock.Adapter()
+    session.mount("https://", adapter)
+    adapter.register_uri(
+        "GET",
+        "https://authit.test/.well-known/openid-configuration",
+        json={"scopes_supported": ["openid"]},
+    )
+    p = OidcProviderInfo(issuer="https://authit.test", requests_session=session)
+    assert p.discovery_url == "https://authit.test/.well-known/openid-configuration"
+    assert p.get_scopes_string() == "openid"
+    assert len(adapter.request_history) == 1
 
 
 def test_provider_info_scopes(requests_mock):
@@ -631,3 +649,49 @@ def test_oidc_refresh_token_invalid_token(requests_mock, caplog):
     )
     with pytest.raises(OidcException, match="Failed to retrieve access token.*invalid refresh token"):
         tokens = authenticator.get_tokens()
+
+
+def test_oidc_refresh_token_flow_custom_requests_session():
+    client_id = "myclient"
+    client_secret = "53cr3t"
+    refresh_token = "r3fr35h.d4.t0k3n.w1lly4"
+    oidc_issuer = "https://oidc.test"
+
+    # Instead of using the OidcMock helper and related requests_mock fixture like we do in other tests:
+    # explicitly create a requests session to play with, using an adapter from requests_mock
+    session = requests.Session()
+    adapter = requests_mock.Adapter()
+    session.mount("https://", adapter)
+    adapter.register_uri(
+        "GET",
+        f"{oidc_issuer}/.well-known/openid-configuration",
+        json={
+            "issuer": oidc_issuer,
+            "scopes_supported": ["openid"],
+            "token_endpoint": f"{oidc_issuer}/token",
+        },
+    )
+
+    def post_token(request, context):
+        # Very simple handler here (compared to OidcMock implementation)
+        assert f"refresh_token={refresh_token}" in request.text
+        return {"access_token": "6cce5-t0k3n"}
+
+    adapter.register_uri("POST", f"{oidc_issuer}/token", json=post_token)
+
+    # Pass custom requests session
+    provider = OidcProviderInfo(
+        issuer=oidc_issuer,
+        requests_session=session,
+    )
+    authenticator = OidcRefreshTokenAuthenticator(
+        client_info=OidcClientInfo(
+            client_id=client_id, provider=provider, client_secret=client_secret
+        ),
+        refresh_token=refresh_token,
+        requests_session=session,
+    )
+    tokens = authenticator.get_tokens()
+
+    assert tokens.access_token == "6cce5-t0k3n"
+    assert len(adapter.request_history) == 2
