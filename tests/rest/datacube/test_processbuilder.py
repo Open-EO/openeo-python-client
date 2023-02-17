@@ -5,6 +5,7 @@ import pytest
 
 import openeo.processes
 from openeo.internal.graph_building import PGNode
+from openeo.internal.warnings import ignore_warnings
 from openeo.processes import ProcessBuilder
 from ... import load_json_resource
 
@@ -594,6 +595,12 @@ def test_getitem_array_element_label(con100):
     }
 
 
+ignore_undefined_property_filtering = ignore_warnings(
+    message=".*property filtering with properties that are undefined in the collection metadata"
+)
+
+
+@ignore_undefined_property_filtering
 def test_load_collection_properties_eq_process(con100):
     from openeo.processes import eq
     cube = con100.load_collection("S2", properties={"provider": lambda v: eq(v, "ESA")})
@@ -607,6 +614,7 @@ def test_load_collection_properties_eq_process(con100):
     assert cube.flat_graph() == expected
 
 
+@ignore_undefined_property_filtering
 def test_load_collection_properties_eq_operator(con100):
     cube = con100.load_collection("S2", properties={"provider": lambda v: v == "ESA"})
     expected = load_json_resource('data/1.0.0/load_collection_properties_eq.json')
@@ -616,6 +624,7 @@ def test_load_collection_properties_eq_operator(con100):
     assert cube.flat_graph() == expected
 
 
+@ignore_undefined_property_filtering
 def test_load_collection_properties_neq_process(con100):
     from openeo.processes import neq
     cube = con100.load_collection("S2", properties={"provider": lambda v: neq(v, "ESA")})
@@ -631,7 +640,7 @@ def test_load_collection_properties_neq_process(con100):
     cube = con100.load_collection("S2", properties={"provider": lambda v: neq("ESA", v)})
     assert cube.flat_graph() == expected
 
-
+@ignore_undefined_property_filtering
 def test_load_collection_properties_neq_operator(con100):
     cube = con100.load_collection("S2", properties={"provider": lambda v: v != "ESA"})
     expected = load_json_resource(

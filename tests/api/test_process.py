@@ -1,10 +1,31 @@
+import warnings
+
 import pytest
 
 from openeo.api.process import Parameter
 
 
+@pytest.fixture(autouse=True)
+def ignore_parameter_without_description():
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            action="ignore",
+            message="Parameter without description: using name as description",
+            category=UserWarning,
+        )
+        yield
+
+
 def test_parameter_defaults():
     p = Parameter(name="x")
+    assert p.to_dict() == {"name": "x", "description": "x", "schema": {}}
+
+
+def test_parameter_no_description_warning():
+    with pytest.warns(
+        UserWarning, match="Parameter without description: using name as description"
+    ):
+        p = Parameter(name="x")
     assert p.to_dict() == {"name": "x", "description": "x", "schema": {}}
 
 

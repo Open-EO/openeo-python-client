@@ -78,3 +78,20 @@ def legacy_alias(orig: Callable, name: str):
 def deprecated(reason: str, version: str):
     """Wrapper around `deprecated.sphinx.deprecated` to explicitly set the warning category."""
     return _deprecated(reason=reason, version=version, category=UserDeprecationWarning)
+
+
+def ignore_warnings(message: str, category=UserWarning):
+    """Decorator for test functions to ignore/hide warnings"""
+
+    def decorator(fun):
+        @functools.wraps(fun)
+        def wrapped(*args, **kwargs):
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    action="ignore", message=message, category=category
+                )
+                return fun(*args, **kwargs)
+
+        return wrapped
+
+    return decorator

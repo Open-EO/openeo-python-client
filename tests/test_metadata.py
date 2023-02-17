@@ -1,12 +1,24 @@
-import contextlib
 from typing import List
 
 import pytest
 
-from openeo.metadata import CollectionMetadata, Band, SpatialDimension, Dimension, TemporalDimension, BandDimension, \
-    MetadataException, DimensionAlreadyExistsException
+from openeo.internal.warnings import ignore_warnings
+from openeo.metadata import (
+    CollectionMetadata,
+    Band,
+    SpatialDimension,
+    Dimension,
+    TemporalDimension,
+    BandDimension,
+    MetadataException,
+    DimensionAlreadyExistsException,
+)
 
 
+ignore_warnings_no_cube_dimensions = ignore_warnings("No cube:dimensions metadata")
+
+
+@ignore_warnings_no_cube_dimensions
 def test_metadata_get():
     metadata = CollectionMetadata({
         "foo": "bar",
@@ -20,6 +32,7 @@ def test_metadata_get():
     assert metadata.get("invalid", "key", default="nope") == "nope"
 
 
+@ignore_warnings_no_cube_dimensions
 def test_metadata_extent():
     metadata = CollectionMetadata({
         "extent": {"spatial": {"xmin": 4, "xmax": 10}}
@@ -138,6 +151,7 @@ def assert_same_dimensions(dims1: List[Dimension], dims2: List[Dimension]):
     assert sorted(dims1, key=lambda d: d.name) == sorted(dims2, key=lambda d: d.name)
 
 
+@ignore_warnings_no_cube_dimensions
 def test_get_dimensions_cube_dimensions_empty():
     dims = CollectionMetadata._parse_dimensions({})
     assert_same_dimensions(dims, [])
@@ -387,6 +401,8 @@ def test_metadata_bands_dimension_no_band_dimensions():
             ]
         }},
 ])
+@ignore_warnings_no_cube_dimensions
+@ignore_warnings(message="Assuming name 'bands' for anonymous band dimension.")
 def test_metadata_bands_dimension_eo_bands(spec):
     metadata = CollectionMetadata(spec)
     assert metadata.band_dimension.name == "bands"

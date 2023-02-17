@@ -20,7 +20,7 @@ import openeo.processes
 from openeo.api.process import Parameter
 from openeo.internal.graph_building import PGNode
 from openeo.internal.process_graph_visitor import ProcessGraphVisitException
-from openeo.internal.warnings import UserDeprecationWarning
+from openeo.internal.warnings import UserDeprecationWarning, ignore_warnings
 from openeo.rest import OpenEoClientException
 from openeo.rest.connection import Connection
 from openeo.rest.datacube import THIS, DataCube, ProcessBuilder, UDF
@@ -1749,6 +1749,7 @@ class TestDataCubeFromFlatGraph:
         cube = con100.datacube_from_json(url)
         assert cube.flat_graph() == {"add1": {"process_id": "add", "arguments": {"x": 1, "y": 2}, "result": True}}
 
+    @ignore_warnings(message="No cube:dimensions metadata")
     def test_process_dict_wrapper(self, con100):
         flat_graph = {
             "id": "one-plus-two",
