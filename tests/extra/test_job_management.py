@@ -1,4 +1,5 @@
 import json
+from unittest import mock
 
 # TODO: can we avoid using httpretty?
 #   We need it for testing the resilience, which uses an HTTPadapter with Retry
@@ -23,8 +24,12 @@ from openeo import BatchJob
 
 
 class TestMultiBackendJobManager:
-    @pytest.mark.slow
-    def test_basic(self, tmp_path, requests_mock):
+    @pytest.fixture
+    def sleep_mock(self):
+        with mock.patch("time.sleep") as sleep:
+            yield sleep
+
+    def test_basic(self, tmp_path, requests_mock, sleep_mock):
         requests_mock.get("http://foo.test/", json={"api_version": "1.1.0"})
         requests_mock.get("http://bar.test/", json={"api_version": "1.1.0"})
 
@@ -80,7 +85,7 @@ class TestMultiBackendJobManager:
         mock_job_status("job-2022", queued=5, running=6)
 
         root_dir = tmp_path / "job_mgr_root"
-        manager = MultiBackendJobManager(poll_sleep=0.2, root_dir=root_dir)
+        manager = MultiBackendJobManager(root_dir=root_dir)
 
         manager.add_backend("foo", connection=openeo.connect("http://foo.test"))
         manager.add_backend("bar", connection=openeo.connect("http://bar.test"))
@@ -99,6 +104,7 @@ class TestMultiBackendJobManager:
             return BatchJob(job_id=f"job-{year}", connection=connection)
 
         manager.run_jobs(df=df, start_job=start_job, output_file=output_file)
+        assert sleep_mock.call_count > 10
 
         result = pd.read_csv(output_file)
         assert len(result) == 5
@@ -127,7 +133,7 @@ class TestMultiBackendJobManager:
         )
 
         root_dir = tmp_path / "job_mgr_root"
-        manager = MultiBackendJobManager(poll_sleep=0.2, root_dir=root_dir)
+        manager = MultiBackendJobManager(root_dir=root_dir)
         connection = openeo.connect(backend)
         manager.add_backend("foo", connection=connection)
 
@@ -192,10 +198,11 @@ class TestMultiBackendJobManager:
         assert first_point == shpt.Point(100, 200)
         assert second_point == shpt.Point(99, 123)
 
-    @pytest.mark.slow
     @httpretty.activate(allow_net_connect=False, verbose=True)
     @pytest.mark.parametrize("http_error_status", [502, 503, 504])
-    def test_is_resilient_to_backend_failures(self, tmp_path, http_error_status):
+    def test_is_resilient_to_backend_failures(
+        self, tmp_path, http_error_status, sleep_mock
+    ):
         """
         Our job should still succeed when the backend request succeeds eventually,
         after first failing the maximum allowed number of retries.
@@ -241,7 +248,7 @@ class TestMultiBackendJobManager:
         )
 
         root_dir = tmp_path / "job_mgr_root"
-        manager = MultiBackendJobManager(poll_sleep=0.2, root_dir=root_dir)
+        manager = MultiBackendJobManager(root_dir=root_dir)
         connection = openeo.connect(backend)
         manager.add_backend("foo", connection=connection)
 
@@ -258,6 +265,7 @@ class TestMultiBackendJobManager:
         output_file = tmp_path / "jobs.csv"
 
         manager.run_jobs(df=df, start_job=start_job, output_file=output_file)
+        assert sleep_mock.call_count > 3
 
         # Sanity check: the job succeeded
         result = pd.read_csv(output_file)
@@ -265,11 +273,10 @@ class TestMultiBackendJobManager:
         assert set(result.status) == {"finished"}
         assert set(result.backend_name) == {"foo"}
 
-    @pytest.mark.slow
     @httpretty.activate(allow_net_connect=False, verbose=True)
     @pytest.mark.parametrize("http_error_status", [502, 503, 504])
     def test_resilient_backend_reports_error_when_max_retries_exceeded(
-        self, tmp_path, http_error_status
+        self, tmp_path, http_error_status, sleep_mock
     ):
         """We should get a RetryError when the backend request fails more times than the maximum allowed number of retries.
 
@@ -318,7 +325,7 @@ class TestMultiBackendJobManager:
         )
 
         root_dir = tmp_path / "job_mgr_root"
-        manager = MultiBackendJobManager(poll_sleep=0.2, root_dir=root_dir)
+        manager = MultiBackendJobManager(root_dir=root_dir)
         connection = openeo.connect(backend)
         manager.add_backend("foo", connection=connection)
 
@@ -336,6 +343,8 @@ class TestMultiBackendJobManager:
 
         with pytest.raises(requests.exceptions.RetryError) as exc:
             manager.run_jobs(df=df, start_job=start_job, output_file=output_file)
+
+        assert sleep_mock.call_count > 3
 
         # Sanity check: the job has status "error"
         result = pd.read_csv(output_file)
