@@ -21,7 +21,9 @@ import openeo
 from openeo.extra.job_management import MultiBackendJobManager, MAX_RETRIES
 from openeo import BatchJob
 
+
 class TestMultiBackendJobManager:
+    @pytest.mark.slow
     def test_basic(self, tmp_path, requests_mock):
         requests_mock.get("http://foo.test/", json={"api_version": "1.1.0"})
         requests_mock.get("http://bar.test/", json={"api_version": "1.1.0"})
@@ -190,6 +192,7 @@ class TestMultiBackendJobManager:
         assert first_point == shpt.Point(100, 200)
         assert second_point == shpt.Point(99, 123)
 
+    @pytest.mark.slow
     @httpretty.activate(allow_net_connect=False, verbose=True)
     @pytest.mark.parametrize("http_error_status", [502, 503, 504])
     def test_is_resilient_to_backend_failures(self, tmp_path, http_error_status):
@@ -262,6 +265,7 @@ class TestMultiBackendJobManager:
         assert set(result.status) == {"finished"}
         assert set(result.backend_name) == {"foo"}
 
+    @pytest.mark.slow
     @httpretty.activate(allow_net_connect=False, verbose=True)
     @pytest.mark.parametrize("http_error_status", [502, 503, 504])
     def test_resilient_backend_reports_error_when_max_retries_exceeded(
