@@ -1097,7 +1097,7 @@ class Connection(RestApiConnection):
         """
 
         files = self.get('/files', expected_status=200).json()['files']
-        files = [UserFile(file['path'], self, file) for file in files]
+        files = [UserFile(file['path'], connection=self, metadata=file) for file in files]
         return VisualList("data-table", data=files, parameters={'columns': 'files'})
 
     def get_file(self, path) -> UserFile:
@@ -1106,7 +1106,7 @@ class Connection(RestApiConnection):
 
         :return: UserFile object.
         """
-        return UserFile(path, self)
+        return UserFile(path, connection=self)
 
     def _build_request_with_process_graph(self, process_graph: Union[dict, Any], **kwargs) -> dict:
         """
