@@ -33,6 +33,7 @@ from openeo.rest.auth.oidc import OidcClientCredentialsAuthenticator, OidcAuthCo
 from openeo.rest.datacube import DataCube
 from openeo.rest.imagecollectionclient import ImageCollectionClient
 from openeo.rest.mlmodel import MlModel
+from openeo.rest.userfile import UserFile
 from openeo.rest.job import BatchJob, RESTJob
 from openeo.rest.rest_capabilities import RESTCapabilities
 from openeo.rest.service import Service
@@ -1092,20 +1093,20 @@ class Connection(RestApiConnection):
         """
         Lists all files that the logged in user uploaded.
 
-        :return: file_list: List of the user uploaded files.
+        :return: file_list: List of the user-uploaded files.
         """
 
         files = self.get('/files', expected_status=200).json()['files']
+        files = [UserFile(file['path'], self, file) for file in files]
         return VisualList("data-table", data=files, parameters={'columns': 'files'})
 
-    def create_file(self, path):
+    def get_file(self, path) -> UserFile:
         """
-        Creates virtual file
+        Gets a (virtual) file for the user workspace
 
-        :return: file object.
+        :return: UserFile object.
         """
-        # No endpoint just returns a file object.
-        raise NotImplementedError()
+        return UserFile(path, self)
 
     def _build_request_with_process_graph(self, process_graph: Union[dict, Any], **kwargs) -> dict:
         """
