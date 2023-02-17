@@ -102,6 +102,8 @@ def render_component(component: str, data = None, parameters: dict = None):
     # Set the data as the corresponding parameter in the Vue components
     key = COMPONENT_MAP.get(component, component)
     if data is not None:
+        if isinstance(data, list):
+            data = [(x.to_dict() if "to_dict" in dir(x) else x) for x in data]
         parameters[key] = data
 
     # Construct HTML, load Vue Components source files only if the openEO HTML tag is not yet defined
