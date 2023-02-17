@@ -5,6 +5,7 @@ import datetime
 import json
 import logging
 import shlex
+import os
 import sys
 import warnings
 from collections import OrderedDict
@@ -1100,13 +1101,22 @@ class Connection(RestApiConnection):
         files = [UserFile(file['path'], connection=self, metadata=file) for file in files]
         return VisualList("data-table", data=files, parameters={'columns': 'files'})
 
-    def get_file(self, path) -> UserFile:
+    def get_file(self, path: str) -> UserFile:
         """
         Gets a (virtual) file for the user workspace
 
         :return: UserFile object.
         """
         return UserFile(path, connection=self)
+
+    def upload_file(self, source: Union[Path, str]) -> UserFile:
+        """
+        Uploads a file to the user workspace and stores it with the filename of the source given.
+        If a file with the name exists on the user workspace it will be replaced.
+
+        :return: UserFile object.
+        """
+        return self.get_file(os.path.basename(source)).upload(source)
 
     def _build_request_with_process_graph(self, process_graph: Union[dict, Any], **kwargs) -> dict:
         """
