@@ -270,128 +270,26 @@ Normally you can install the client the same way on Windows as on Linux, like so
     pip install -e .[dev]
 
 This should be working with the most recent code, however, in the past we sometimes had issues with a development installation.
-Should you experience problems, then this section describes some ways to solve them.
 
-Known issue
------------
-
-The specific problem we experienced on Windows is that the geopandas Python package depends on a few libraries that are a bit trickier to install.
-They need some compiled C/C++ code and unfortunately these libraries do not provide officially supported python wheels for Windows.
-
-Root Cause
-~~~~~~~~~~
-
-Down the line geopandas depends on GDAL and that is a C++ library that does not provide *official* binaries for Windows, though there are binaries from other sources.
-
-Because there isn't a supported binary or a Python wheel, the pip installation process will fall back to compiling the C libraries on the fly.
-But that will only work if your have set up a C++ compiler, and have all the dependencies installed,
-and setting up all the dependencies needed for these binaries can be a bit of work.
-
-Below are some easier solutions.
-
-Solutions
----------
-
-These are a few solutions we know, from the easiest option at the top to the most complex at the bottom.
-The first two options are described in more detail in the sections below.
-
-1. **Recommended option:** install the client in a conda environment.
-
-    For most people this would be the simplest solution.
-
-    See: :ref:`windows-dev-install-with-conda`
-
-2. Use unofficial python wheels for GDAL and Fiona.
-
-    This is only suitable for development, not for production.
-
-    See: :ref:`windows-dev-install-unofficial-wheels`
-
-3. If you already use Docker or WSL2, using either of those is also a good option for you.
-
-    - Then you will be on Linux in a container or the WSL VM.
-    - Installation on WSL should be the same as on native Linux.
-    - If you are comfortable with creating your own Dockerfiles then Docker is also an option.
-
-4. Install a C++ compiler and deal with the compilation issues when you install it via pip.
-
-    Can be complex, so your mileage may vary.
-
-
-
-.. _windows-dev-install-with-conda:
-
-Option 1) Install the client in a conda environment
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The simplest way to install your openeo development setup is to use the conda package manager, either via Anaconda, or via Miniforge.
-
-Anaconda is a commercial product and you can buy support for it.
-Miniforge is a fully open source alternative that has a drop-in replacement for the conda command.
-Miniforge uses the `Conda-forge <https://conda-forge.org/>`_ channel (which is a package repository) by default.
-
-* `Anaconda <https://anaconda.org/>`_
-* `Miniforge on GitHub <https://github.com/conda-forge/miniforge>`_
-* `Conda-forge <https://conda-forge.org/>`_
-
-The instructions below should work in both Anaconda and Miniforge.
-Though with Miniforge you can simplify the commands a little bit because the conda-forge channel is the default, so you can leave out the option ``-c conda-forge``.
-
-Create a conda environment with the geopandas package already installed.
-Installing geopandas from a conda package is the step that avoids the hard part.
+Should you experience problems, there is also a conda package for the Python client and that should be the easiest solution.
 
 .. code-block:: console
 
-    conda create -n <your environment's name>  geopandas
+    conda create -n <your environment's name>
 
     # for example
-    conda create -n openeopyclient  geopandas
+    conda create -n openeopyclient
 
-Activate the conda environment
-
-.. code-block:: console
-
+    # Activate the conda environment
     conda activate openeopyclient
 
-Next, run the dev install with pip
+    # Install openeo from the conda-forge channel
+    conda install -c conda-forge openeo
 
-In the directory where you git-cloned the openEO Python client:
+
+There is a also shorter version of the above, if you prefer.
+This command creates the environment and installs openeo all in one go:
 
 .. code-block:: console
 
-    python -m pip install -e .[dev]
-
-A quick way to check whether the client was successfully installed or not is to print its version number.
-
-In your conda environment, launch the Python interpreter and try the following snippet of Python code to show the client's version:
-
-.. code-block:: python
-
-    import openeo
-
-    print(openeo.client_version())
-
-
-.. _windows-dev-install-unofficial-wheels:
-
-Option 2) Use some unofficial python wheels for GDAL and Fiona
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-There are `unofficial Python wheels at https://www.lfd.uci.edu/~gohlke/pythonlibs/: <https://www.lfd.uci.edu/~gohlke/pythonlibs/>`_
-
-But as the name says, these wheels have no official support, so they are not recommended for production.
-They can however help you out for a development environment.
-
-You need to install the wheels for GDAL and Fiona.
-
-* wheels for `Fiona <https://www.lfd.uci.edu/~gohlke/pythonlibs#fiona>`_
-* wheels for `GDAL <https://www.lfd.uci.edu/~gohlke/pythonlibs/#gdal>`_
-
-.. code-block::
-
-    # In your activate virtualenv
-    # install the wheels:
-    pip install <path to GDAL whl file> <path to fiona whl file>
-
-    # And then the regular developer installation command.
-    python -m pip install -e .[dev]
+    conda create -n openeopyclient -c conda-forge openeo
