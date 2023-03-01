@@ -273,23 +273,36 @@ This should be working with the most recent code, however, in the past we someti
 
 Should you experience problems, there is also a conda package for the Python client and that should be the easiest solution.
 
+For development, what you need to do is:
+
+1. Create and activate a new conda environment for developing the openeo-python-client.
+2. In that conda environment, install only the dependencies of openeo via conda, but not the openeo package itself.
+3. Do a pip install of the code in *editable mode* with `pip -e`.
+
 .. code-block:: console
 
     conda create -n <your environment's name>
 
-    # for example
+    # For example:
     conda create -n openeopyclient
 
     # Activate the conda environment
     conda activate openeopyclient
 
     # Install openeo from the conda-forge channel
-    conda install -c conda-forge openeo
+    conda install --only-deps -c conda-forge openeo
+
+    # Now install the openeo code in editable mode.
+    pip install -e .[dev]
 
 
 There is a also shorter version of the above, if you prefer.
-This command creates the environment and installs openeo all in one go:
+You can create the environment and install openeo's dependencies in one go:
 
 .. code-block:: console
 
-    conda create -n openeopyclient -c conda-forge openeo
+    conda create -n openeopyclient --only-deps -c conda-forge openeo
+
+    # And the rest is the same.
+    conda activate openeopyclient
+    pip install -e .[dev]
