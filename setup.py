@@ -81,4 +81,10 @@ setup(
         "Development Status :: 5 - Production/Stable",
         "Operating System :: OS Independent",
     ],
+    project_urls={
+        "Documentation": "https://open-eo.github.io/openeo-python-client/",
+        "Source Code": "https://github.com/Open-EO/openeo-python-client",
+        "Bug Tracker": "https://github.com/Open-EO/openeo-python-client/issues",
+        "Changelog": "https://github.com/Open-EO/openeo-python-client/blob/master/CHANGELOG.md",
+    },
 )
