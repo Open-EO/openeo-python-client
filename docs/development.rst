@@ -294,15 +294,3 @@ For development, what you need to do is:
 
     # Now install the openeo code in editable mode.
     pip install -e .[dev]
-
-
-There is a also shorter version of the above, if you prefer.
-You can create the environment and install openeo's dependencies in one go:
-
-.. code-block:: console
-
-    conda create -n openeopyclient --only-deps -c conda-forge openeo
-
-    # And the rest is the same.
-    conda activate openeopyclient
-    pip install -e .[dev]
