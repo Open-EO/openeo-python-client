@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Removed
+
+### Fixed
+
+
+## [0.15.0] - 2023-03-03
+
+### Added
+
 - The openeo Python client library can now also be installed with conda (conda-forge channel)
   ([#176](https://github.com/Open-EO/openeo-python-client/issues/176))
 - Allow using a custom `requests.Session` in `openeo.rest.auth.oidc` logic
@@ -17,10 +28,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Less verbose log printing on failed batch job [#332](https://github.com/Open-EO/openeo-python-client/issues/332)
 - Improve (UTC) timezone handling in `openeo.util.Rfc3339` and add `rfc3339.today()`/`rfc3339.utcnow()`.
-
-### Removed
-
-### Fixed
 
 
 ## [0.14.1] - 2023-02-06
