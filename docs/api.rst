@@ -86,6 +86,13 @@ openeo.rest.udp
     :members: RESTUserDefinedProcess
 
 
+openeo.rest.userfile
+----------------------
+
+.. automodule:: openeo.rest.userfile
+    :members:
+
+
 openeo.udf
 -------------
 
