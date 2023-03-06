@@ -1097,17 +1097,19 @@ class Connection(RestApiConnection):
         """
 
         files = self.get('/files', expected_status=200).json()['files']
-        files = [UserFile(file['path'], connection=self, metadata=file) for file in files]
+        files = [UserFile.from_metadata(metadata=f, connection=self) for f in files]
         return VisualList("data-table", data=files, parameters={'columns': 'files'})
 
-    def get_file(self, path: Union[str, PurePosixPath]) -> UserFile:
+    def get_file(
+        self, path: Union[str, PurePosixPath], metadata: Optional[dict] = None
+    ) -> UserFile:
         """
         Gets a handle to a file in the user workspace on the back-end.
 
         :param path: The path on the user workspace.
         :return: UserFile object.
         """
-        return UserFile(path, connection=self)
+        return UserFile(path=path, connection=self, metadata=metadata)
 
     def upload_file(
         self,
@@ -1123,9 +1125,13 @@ class Connection(RestApiConnection):
         :param target: The desired path on the user workspace. If not set, defaults to the filename (without path) of the local file.
         :return: UserFile object.
         """
-        if target is None:
-            target = Path(source).name
-        return self.get_file(target).upload(source)
+        source = Path(source)
+        target = target or source.name
+        # TODO: support other non-path sources too: bytes, open file, url, ...
+        with source.open("rb") as f:
+            resp = self.put(f"/files/{target!s}", expected_status=200, data=f)
+            metadata = resp.json()
+        return UserFile.from_metadata(metadata=metadata, connection=self)
 
     def _build_request_with_process_graph(self, process_graph: Union[dict, Any], **kwargs) -> dict:
         """

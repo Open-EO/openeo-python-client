@@ -1,3 +1,5 @@
+import re
+
 from openeo.rest import OpenEoApiError
 from openeo.rest.userfile import UserFile
 from pathlib import Path, PurePosixPath
@@ -19,10 +21,17 @@ class TestUserFile:
     def test_simple(self, con100):
         f = UserFile("foo.txt", connection=con100)
         assert f.path == PurePosixPath("foo.txt")
+        assert f.metadata == {"path": "foo.txt"}
+
+    def test_from_metadata(self, con100):
+        f = UserFile.from_metadata(metadata={"path": "foo.txt"}, connection=con100)
+        assert f.path == PurePosixPath("foo.txt")
+        assert f.metadata == {"path": "foo.txt"}
 
     def test_connection_get_file(self, con100):
         f = con100.get_file("foo.txt")
         assert f.path == PurePosixPath("foo.txt")
+        assert f.metadata == {"path": "foo.txt"}
 
     def test_connection_list_files(self, con100, requests_mock):
         requests_mock.get(
@@ -79,8 +88,13 @@ class TestUserFile:
 
         upload_mock = requests_mock.put(API_URL + "/files/foo.txt", json=put_files)
 
-        # TODO: check response?
-        f.upload(source)
+        f2 = f.upload(source)
+        assert f2.path == PurePosixPath("foo.txt")
+        assert f2.metadata == {
+            "path": "foo.txt",
+            "size": 12,
+            "modified": "2018-01-03T10:55:29Z",
+        }
 
         assert upload_mock.call_count == 1
 
@@ -104,6 +118,7 @@ class TestUserFile:
         [
             (None, "to-upload.txt"),
             ("foo.txt", "foo.txt"),
+            ("data/foo.txt", "data/foo.txt"),
         ],
     )
     def test_connection_upload(
@@ -122,7 +137,7 @@ class TestUserFile:
             assert body == b"hello world\n"
             context.status_code = 200
             return {
-                "path": request.path,
+                "path": re.match("/files/(.*)", request.path).group(1),
                 "size": len(body),
                 "modified": "2018-01-03T10:55:29Z",
             }
@@ -134,9 +149,26 @@ class TestUserFile:
         f = con100.upload_file(source, target=target)
         assert upload_mock.call_count == 1
 
-        # TODO
-        # assert f.path == PurePosixPath(expected_target)
-        # assert f.metadata == {}
+        assert f.path == PurePosixPath(expected_target)
+        assert f.metadata == {
+            "path": expected_target,
+            "size": 12,
+            "modified": "2018-01-03T10:55:29Z",
+        }
+
+    @pytest.mark.parametrize("status_code", [404, 500])
+    def test_connection_upload_fail(self, con100, tmp_path, requests_mock, status_code):
+        source = tmp_path / "foo.txt"
+        source.write_text("hello world\n")
+
+        upload_mock = requests_mock.put(
+            API_URL + "/files/foo.txt", status_code=status_code
+        )
+
+        with pytest.raises(OpenEoApiError, match=rf"\[{status_code}\]"):
+            con100.upload_file(source=source)
+
+        assert upload_mock.call_count == 1
 
     @pytest.mark.parametrize(
         ["target", "expected"],
