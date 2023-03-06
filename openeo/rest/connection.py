@@ -8,7 +8,7 @@ import shlex
 import sys
 import warnings
 from collections import OrderedDict
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Dict, List, Tuple, Union, Callable, Optional, Any, Iterator
 from urllib.parse import urljoin
 
@@ -33,6 +33,7 @@ from openeo.rest.auth.oidc import OidcClientCredentialsAuthenticator, OidcAuthCo
 from openeo.rest.datacube import DataCube
 from openeo.rest.imagecollectionclient import ImageCollectionClient
 from openeo.rest.mlmodel import MlModel
+from openeo.rest.userfile import UserFile
 from openeo.rest.job import BatchJob, RESTJob
 from openeo.rest.rest_capabilities import RESTCapabilities
 from openeo.rest.service import Service
@@ -1088,24 +1089,47 @@ class Connection(RestApiConnection):
         """Get batch job logs."""
         return BatchJob(job_id=job_id, connection=self).logs(offset=offset)
 
-    def list_files(self):
+    def list_files(self) -> List[UserFile]:
         """
-        Lists all files that the logged in user uploaded.
+        Lists all user-uploaded files in the user workspace on the back-end.
 
-        :return: file_list: List of the user uploaded files.
+        :return: List of the user-uploaded files.
         """
-
         files = self.get('/files', expected_status=200).json()['files']
+        files = [UserFile.from_metadata(metadata=f, connection=self) for f in files]
         return VisualList("data-table", data=files, parameters={'columns': 'files'})
 
-    def create_file(self, path):
+    def get_file(
+        self, path: Union[str, PurePosixPath], metadata: Optional[dict] = None
+    ) -> UserFile:
         """
-        Creates virtual file
+        Gets a handle to a user-uploaded file in the user workspace on the back-end.
 
-        :return: file object.
+        :param path: The path on the user workspace.
         """
-        # No endpoint just returns a file object.
-        raise NotImplementedError()
+        return UserFile(path=path, connection=self, metadata=metadata)
+
+    def upload_file(
+        self,
+        source: Union[Path, str],
+        target: Optional[Union[str, PurePosixPath]] = None,
+    ) -> UserFile:
+        """
+        Uploads a file to the given target location in the user workspace on the back-end.
+
+        If a file at the target path exists in the user workspace it will be replaced.
+
+        :param source: A path to a file on the local file system to upload.
+        :param target: The desired path (which can contain a folder structure if desired) on the user workspace.
+            If not set: defaults to the original filename (without any folder structure) of the local file .
+        """
+        source = Path(source)
+        target = target or source.name
+        # TODO: support other non-path sources too: bytes, open file, url, ...
+        with source.open("rb") as f:
+            resp = self.put(f"/files/{target!s}", expected_status=200, data=f)
+            metadata = resp.json()
+        return UserFile.from_metadata(metadata=metadata, connection=self)
 
     def _build_request_with_process_graph(self, process_graph: Union[dict, Any], **kwargs) -> dict:
         """
