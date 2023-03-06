@@ -8,7 +8,7 @@ import shlex
 import sys
 import warnings
 from collections import OrderedDict
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Dict, List, Tuple, Union, Callable, Optional, Any, Iterator
 from urllib.parse import urljoin
 
@@ -1120,7 +1120,7 @@ class Connection(RestApiConnection):
         :return: UserFile object.
         """
         if target is None:
-            target = Path(source).name
+            target = PurePosixPath(source).name
         return self.get_file(target).upload(source)
 
     def _build_request_with_process_graph(self, process_graph: Union[dict, Any], **kwargs) -> dict:
