@@ -1,6 +1,5 @@
 import typing
 from typing import Any, Dict, Union
-import os
 from pathlib import Path
 from openeo.util import ensure_dir
 
@@ -13,7 +12,7 @@ class UserFile:
     """Represents a file in the user-workspace of openeo."""
 
     def __init__(self, path: str, connection: 'Connection', metadata: Dict[str, Any] = None):
-        self.path = path
+        self.path = Path(path)
         self.metadata = metadata or {"path": path}
         self.connection = connection
 
@@ -21,7 +20,7 @@ class UserFile:
         return '<{c} file={i!r}>'.format(c=self.__class__.__name__, i=self.path)
 
     def _get_endpoint(self) -> str:
-        return "/files/{}".format(self.path)
+        return f"/files/{self.path!s}"
 
     def download(self, target: Union[Path, str] = None) -> Path:
         """
@@ -36,7 +35,7 @@ class UserFile:
 
         target = Path(target or Path.cwd()) 
         if target.is_dir():
-            target = target / os.path.basename(self.path)
+            target = target / self.path.name
         ensure_dir(target.parent)
         
         with target.open(mode="wb") as f:
