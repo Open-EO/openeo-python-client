@@ -1089,9 +1089,9 @@ class Connection(RestApiConnection):
         """Get batch job logs."""
         return BatchJob(job_id=job_id, connection=self).logs(offset=offset)
 
-    def list_files(self):
+    def list_files(self) -> List[UserFile]:
         """
-        Lists all files that the logged in user uploaded.
+        Lists all files that the logged-in user uploaded.
 
         :return: file_list: List of the user-uploaded files.
         """
@@ -1100,16 +1100,20 @@ class Connection(RestApiConnection):
         files = [UserFile(file['path'], connection=self, metadata=file) for file in files]
         return VisualList("data-table", data=files, parameters={'columns': 'files'})
 
-    def get_file(self, path: str) -> UserFile:
+    def get_file(self, path: Union[str, PurePosixPath]) -> UserFile:
         """
         Gets a handle to a file in the user workspace on the back-end.
 
-        :param path: The  path on the user workspace.
+        :param path: The path on the user workspace.
         :return: UserFile object.
         """
         return UserFile(path, connection=self)
 
-    def upload_file(self, source: Union[Path, str], target: str = None) -> UserFile:
+    def upload_file(
+        self,
+        source: Union[Path, str],
+        target: Optional[Union[str, PurePosixPath]] = None,
+    ) -> UserFile:
         """
         Uploads a file to the given target location in the user workspace.
 
@@ -1120,7 +1124,7 @@ class Connection(RestApiConnection):
         :return: UserFile object.
         """
         if target is None:
-            target = PurePosixPath(source).name
+            target = Path(source).name
         return self.get_file(target).upload(source)
 
     def _build_request_with_process_graph(self, process_graph: Union[dict, Any], **kwargs) -> dict:

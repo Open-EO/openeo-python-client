@@ -1,6 +1,7 @@
 import typing
-from typing import Any, Dict, Union
 from pathlib import Path, PurePosixPath
+from typing import Any, Dict, Union
+
 from openeo.util import ensure_dir
 
 if typing.TYPE_CHECKING:
@@ -11,7 +12,12 @@ if typing.TYPE_CHECKING:
 class UserFile:
     """Represents a file in the user-workspace of openeo."""
 
-    def __init__(self, path: str, connection: 'Connection', metadata: Dict[str, Any] = None):
+    def __init__(
+        self,
+        path: Union[str, PurePosixPath],
+        connection: "Connection",
+        metadata: Dict[str, Any] = None,
+    ):
         self.path = PurePosixPath(path)
         self.metadata = metadata or {"path": path}
         self.connection = connection
@@ -53,8 +59,10 @@ class UserFile:
          :param source: A path to a file on the local file system to upload.
         """
         # PUT /files/{path}
+        # TODO: support other non-path sources too: bytes, open file, url, ...
         path = Path(source)
         with path.open(mode="rb") as f:
+            # TODO: `PUT /files/{path} results in new file metadata, so should we return a new UserFile here?
             self.connection.put(self._get_endpoint(), expected_status=200, data=f)
 
     def delete(self):
