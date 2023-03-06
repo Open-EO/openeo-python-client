@@ -12,13 +12,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The openeo Python client library can now also be installed with conda (conda-forge channel)
   ([#176](https://github.com/Open-EO/openeo-python-client/issues/176))
 - Allow using a custom `requests.Session` in `openeo.rest.auth.oidc` logic
-- Full support for user-uploaded files (`/files` endpoints) [#377](https://github.com/Open-EO/openeo-python-client/issues/377)
+- Full support for user-uploaded files (`/files` endpoints)
+  ([#377](https://github.com/Open-EO/openeo-python-client/issues/377))
 
 ### Changed
 
 - Less verbose log printing on failed batch job [#332](https://github.com/Open-EO/openeo-python-client/issues/332)
 - Improve (UTC) timezone handling in `openeo.util.Rfc3339` and add `rfc3339.today()`/`rfc3339.utcnow()`.
-- `list_files()` returns a list of `UserFile` objects instead of a list of dictionaries - use `to_dict` on the `UserFile` object to get the dictionary.
+- `Connection.list_files()` returns a list of `UserFile` objects instead of a list of metadata dictionaries.
+  Use `UserFile.metadata` to get the original dictionary.
+  ([#377](https://github.com/Open-EO/openeo-python-client/issues/377))
 
 ### Removed
 
