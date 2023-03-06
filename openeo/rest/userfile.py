@@ -1,6 +1,6 @@
 import typing
 from typing import Any, Dict, Union
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from openeo.util import ensure_dir
 
 if typing.TYPE_CHECKING:
@@ -12,7 +12,7 @@ class UserFile:
     """Represents a file in the user-workspace of openeo."""
 
     def __init__(self, path: str, connection: 'Connection', metadata: Dict[str, Any] = None):
-        self.path = Path(path)
+        self.path = PurePosixPath(path)
         self.metadata = metadata or {"path": path}
         self.connection = connection
 
@@ -26,25 +26,25 @@ class UserFile:
         """
         Downloads a user-uploaded file to the given location.
 
-         :param target: download target path. Can be an existing folder 
-             (in which case the file name advertised by backend will be used) 
+         :param target: download target path. Can be an existing folder
+             (in which case the file name advertised by backend will be used)
              or full file name. By default, the working directory will be used.
         """
         # GET /files/{path}
         response = self.connection.get(self._get_endpoint(), expected_status=200, stream=True)
 
-        target = Path(target or Path.cwd()) 
+        target = Path(target or Path.cwd())
         if target.is_dir():
             target = target / self.path.name
         ensure_dir(target.parent)
-        
+
         with target.open(mode="wb") as f:
             for chunk in response.iter_content(chunk_size=None):
                 f.write(chunk)
 
         return target
-    
-    def upload(self, source: Union[Path, str], target = None):
+
+    def upload(self, source: Union[Path, str]):
         """
         Uploads a file to the given target location in the user workspace.
 
