@@ -236,8 +236,16 @@ To be as concrete as possible, we will assume that we are about to release versi
     Commit this (e.g. with message ``_version.py: next alpha version 0.4.8a1``)
     and push to GitHub.
 
-#.  Optionally: send a tweet about the release or announce it in the `openEO Platform Forum <https://discuss.eodc.eu/c/openeo-platform/clients/18>`_ .
+#.  Update `conda-forge package <https://github.com/conda-forge/openeo-feedstock>`_ too
+    (requires conda recipe maintainer role).
+    Normally, the "regro-cf-autotick-bot" will create a `pull request <https://github.com/conda-forge/openeo-feedstock/pulls>`_.
+    If it builds fine, merge it.
+    If not, fix the issue
+    (typically in `recipe/meta.yaml <https://github.com/conda-forge/openeo-feedstock/blob/main/recipe/meta.yaml>`_)
+    and merge.
 
+#.  Optionally: send a tweet about the release
+    or announce it in the `openEO Platform Forum <https://discuss.eodc.eu/c/openeo-platform/clients/18>`_.
 
 Verification
 ~~~~~~~~~~~~
