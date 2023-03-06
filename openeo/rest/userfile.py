@@ -70,8 +70,13 @@ class UserFile:
 
     def upload(self, source: Union[Path, str]) -> "UserFile":
         """
-        Uploads a local file to the given target location in the user workspace
+        Uploads a local file to the path corresponding to this :py:class:`UserFile` in the user workspace
         and returns new :py:class:`UserFile` of newly uploaded file.
+
+            .. tip::
+                Usually you'll just need
+                :py:meth:`Connection.upload_file() <openeo.rest.connection.Connection.upload_file>`
+                instead of this :py:class:`UserFile` method.
 
         If the file exists in the user workspace it will be replaced.
 
