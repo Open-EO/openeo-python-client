@@ -1091,11 +1091,10 @@ class Connection(RestApiConnection):
 
     def list_files(self) -> List[UserFile]:
         """
-        Lists all files that the logged-in user uploaded.
+        Lists all user-uploaded files in the user workspace on the back-end.
 
-        :return: file_list: List of the user-uploaded files.
+        :return: List of the user-uploaded files.
         """
-
         files = self.get('/files', expected_status=200).json()['files']
         files = [UserFile.from_metadata(metadata=f, connection=self) for f in files]
         return VisualList("data-table", data=files, parameters={'columns': 'files'})
@@ -1104,10 +1103,9 @@ class Connection(RestApiConnection):
         self, path: Union[str, PurePosixPath], metadata: Optional[dict] = None
     ) -> UserFile:
         """
-        Gets a handle to a file in the user workspace on the back-end.
+        Gets a handle to a user-uploaded file in the user workspace on the back-end.
 
         :param path: The path on the user workspace.
-        :return: UserFile object.
         """
         return UserFile(path=path, connection=self, metadata=metadata)
 
@@ -1117,13 +1115,13 @@ class Connection(RestApiConnection):
         target: Optional[Union[str, PurePosixPath]] = None,
     ) -> UserFile:
         """
-        Uploads a file to the given target location in the user workspace.
+        Uploads a file to the given target location in the user workspace on the back-end.
 
         If a file at the target path exists in the user workspace it will be replaced.
 
         :param source: A path to a file on the local file system to upload.
-        :param target: The desired path on the user workspace. If not set, defaults to the filename (without path) of the local file.
-        :return: UserFile object.
+        :param target: The desired path (which can contain a folder structure if desired) on the user workspace.
+            If not set: defaults to the original filename (without any folder structure) of the local file .
         """
         source = Path(source)
         target = target or source.name

@@ -10,7 +10,9 @@ if typing.TYPE_CHECKING:
 
 
 class UserFile:
-    """Represents a file in the user-workspace of openeo."""
+    """
+    Handle to a (user-uploaded) file in the user workspace on a openEO back-end.
+    """
 
     def __init__(
         self,
@@ -34,25 +36,27 @@ class UserFile:
 
     @classmethod
     def from_metadata(cls, metadata: dict, connection: "Connection") -> "UserFile":
-        """Build :py:class:`UserFile` from workspace file metadata dictionary."""
+        """Build :py:class:`UserFile` from a workspace file metadata dictionary."""
         return cls(path=None, connection=connection, metadata=metadata)
 
     def __repr__(self):
-        return '<{c} file={i!r}>'.format(c=self.__class__.__name__, i=self.path)
+        return "<{c} file={i!r}>".format(c=self.__class__.__name__, i=self.path)
 
     def _get_endpoint(self) -> str:
         return f"/files/{self.path!s}"
 
     def download(self, target: Union[Path, str] = None) -> Path:
         """
-        Downloads a user-uploaded file to the given location.
+        Downloads a user-uploaded file from the user workspace on the back-end
+        locally to the given location.
 
-         :param target: download target path. Can be an existing folder
+        :param target: local download target path. Can be an existing folder
              (in which case the file name advertised by backend will be used)
              or full file name. By default, the working directory will be used.
         """
-        # GET /files/{path}
-        response = self.connection.get(self._get_endpoint(), expected_status=200, stream=True)
+        response = self.connection.get(
+            self._get_endpoint(), expected_status=200, stream=True
+        )
 
         target = Path(target or Path.cwd())
         if target.is_dir():
@@ -67,24 +71,27 @@ class UserFile:
 
     def upload(self, source: Union[Path, str]) -> "UserFile":
         """
-        Uploads a file to the given target location in the user workspace.
+        Uploads a local file to the path corresponding to this :py:class:`UserFile` in the user workspace
+        and returns new :py:class:`UserFile` of newly uploaded file.
+
+            .. tip::
+                Usually you'll just need
+                :py:meth:`Connection.upload_file() <openeo.rest.connection.Connection.upload_file>`
+                instead of this :py:class:`UserFile` method.
 
         If the file exists in the user workspace it will be replaced.
 
         :param source: A path to a file on the local file system to upload.
+        :return: new :py:class:`UserFile` instance of the newly uploaded file
         """
-        # PUT /files/{path}
         return self.connection.upload_file(source, target=self.path)
 
     def delete(self):
-        """ Delete a user-uploaded file."""
-        # DELETE /files/{path}
+        """Delete the user-uploaded file from the user workspace on the back-end."""
         self.connection.delete(self._get_endpoint(), expected_status=204)
 
     def to_dict(self) -> Dict[str, Any]:
-        """
-        Returns the provided metadata as dict.
-
-        This is used in internal/jupyter.py to detect and get the original metadata.
-        """
+        """Returns the provided metadata as dict."""
+        # This is used in internal/jupyter.py to detect and get the original metadata.
+        # TODO: make this more explicit with an internal API?
         return self.metadata

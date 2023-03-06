@@ -103,6 +103,7 @@ def render_component(component: str, data = None, parameters: dict = None):
     key = COMPONENT_MAP.get(component, component)
     if data is not None:
         if isinstance(data, list):
+            # TODO: make this `to_dict` usage more explicit with an internal API?
             data = [(x.to_dict() if hasattr(x, "to_dict") else x) for x in data]
         parameters[key] = data
 
