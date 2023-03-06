@@ -1,6 +1,6 @@
 import typing
 from pathlib import Path, PurePosixPath
-from typing import Any, Dict, Union
+from typing import Any, Dict, Optional, Union
 
 from openeo.util import ensure_dir
 
@@ -14,13 +14,28 @@ class UserFile:
 
     def __init__(
         self,
-        path: Union[str, PurePosixPath],
+        path: Union[str, PurePosixPath, None],
+        *,
         connection: "Connection",
-        metadata: Dict[str, Any] = None,
+        metadata: Optional[dict] = None,
     ):
+        if path:
+            pass
+        elif metadata and metadata.get("path"):
+            path = metadata.get("path")
+        else:
+            raise ValueError(
+                "File path should be specified through `path` or `metadata` argument."
+            )
+
         self.path = PurePosixPath(path)
         self.metadata = metadata or {"path": path}
         self.connection = connection
+
+    @classmethod
+    def from_metadata(cls, metadata: dict, connection: "Connection") -> "UserFile":
+        """Build :py:class:`UserFile` from workspace file metadata dictionary."""
+        return cls(path=None, connection=connection, metadata=metadata)
 
     def __repr__(self):
         return '<{c} file={i!r}>'.format(c=self.__class__.__name__, i=self.path)
@@ -50,20 +65,16 @@ class UserFile:
 
         return target
 
-    def upload(self, source: Union[Path, str]):
+    def upload(self, source: Union[Path, str]) -> "UserFile":
         """
         Uploads a file to the given target location in the user workspace.
 
         If the file exists in the user workspace it will be replaced.
 
-         :param source: A path to a file on the local file system to upload.
+        :param source: A path to a file on the local file system to upload.
         """
         # PUT /files/{path}
-        # TODO: support other non-path sources too: bytes, open file, url, ...
-        path = Path(source)
-        with path.open(mode="rb") as f:
-            # TODO: `PUT /files/{path} results in new file metadata, so should we return a new UserFile here?
-            self.connection.put(self._get_endpoint(), expected_status=200, data=f)
+        return self.connection.upload_file(source, target=self.path)
 
     def delete(self):
         """ Delete a user-uploaded file."""
