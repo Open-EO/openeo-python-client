@@ -89,6 +89,70 @@ When you change (and save) documentation source files, your browser should now
 automatically refresh and show the newly built docs. Just like magic.
 
 
+Contributing code
+==================
+
+User contributions (such as bug fixes and new features, both in source code and documentation)
+are greatly appreciated and welcome.
+
+
+Pull requests
+--------------
+
+We use a traditional `GitHub Pull Request (PR) <https://docs.github.com/en/pull-requests>`_ workflow
+for user contributions, which roughly follows these steps:
+
+- Create a personal fork of https://github.com/Open-EO/openeo-python-client
+  (unless you already have push permissions to an existing fork or the original repo)
+- Preferably: work on your contribution in a new feature branch
+- Push your feature branch to your fork and create a pull request
+- The pull request is the place for review, discussion and fine-tuning of your work
+- Once your pull request is in good shape it will be merged by a maintainer
+
+
+.. _precommit:
+
+Pre-commit for basic code quality checks
+------------------------------------------
+
+We started using the `pre-commit <https://pre-commit.com/>`_ tool
+for basic code quality fine-tuning of new contributions.
+Note that the whole repository does not adhere yet to these new code styles rules at the moment,
+we're just gradually introducing it, piggybacking on new contributions.
+
+It's not enforced, but recommended and appreciated to **enable pre-commit**
+in your git clone when contributing code, as follows:
+
+-   Install the ``pre-commit`` command line tool:
+
+    -   The simplest option is to install it directly in the *virtual environment*
+        you are using for openEO Python client development (e.g. ``pip install pre-commit``).
+    -   You can also install it *globally* on your system
+        so you can easily use it across different projects
+        (e.g. using `pipx <https://pypa.github.io/pipx/>`_, in your base conda environment, ...,
+        see the `pre-commit installation docs <https://pre-commit.com/#installation>`_ for more information).
+-   Install the git hook scripts in your local clone:
+
+    .. code-block:: console
+
+        pre-commit install
+
+    This will automatically install additional tools required to check the rules
+    defined in the ``.pre-commit-config.yaml`` configuration file.
+
+
+Now, when you commit new changes, the pre-commit tool will run,
+flag issues (e.g. invalid JSON files)
+and even fix simple problems (e.g. clean up excessive whitespace).
+Address these problems and try to commit again.
+
+.. tip::
+
+    Use the staging feature of git to prepare your commit.
+    That makes it easier to review the changes proposed by pre-commit,
+    as these are not staged automatically.
+
+
 Creating a release
 ==================
 
