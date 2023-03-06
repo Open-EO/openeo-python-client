@@ -1120,8 +1120,8 @@ class Connection(RestApiConnection):
         If a file at the target path exists in the user workspace it will be replaced.
 
         :param source: A path to a file on the local file system to upload.
-        :param target: The desired path on the user workspace.
-            If not set, defaults to the filename (without path) of the local file.
+        :param target: The desired path (which can contain a folder structure if desired) on the user workspace.
+            If not set: defaults to the original filename (without any folder structure) of the local file .
         """
         source = Path(source)
         target = target or source.name
