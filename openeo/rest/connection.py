@@ -5,7 +5,6 @@ import datetime
 import json
 import logging
 import shlex
-import os
 import sys
 import warnings
 from collections import OrderedDict
@@ -1103,7 +1102,7 @@ class Connection(RestApiConnection):
 
     def get_file(self, path: str) -> UserFile:
         """
-        Gets a (virtual) file for the user workspace
+        Gets a handle to a file in the user workspace on the back-end.
 
         :return: UserFile object.
         """
@@ -1116,7 +1115,7 @@ class Connection(RestApiConnection):
 
         :return: UserFile object.
         """
-        return self.get_file(os.path.basename(source)).upload(source)
+        return self.get_file(Path(source).name).upload(source)
 
     def _build_request_with_process_graph(self, process_graph: Union[dict, Any], **kwargs) -> dict:
         """
