@@ -43,11 +43,16 @@ class UserFile:
                 f.write(chunk)
 
         return target
+    
+    def upload(self, source: Union[Path, str], target = None):
+        """
+        Uploads a file to the given target location in the user workspace.
 
+        If the file exists in the user workspace it will be replaced.
 
-    def upload(self, source: Union[Path, str]):
+         :param source: A path to a file on the local file system to upload.
+        """
         # PUT /files/{path}
-        """ Uploaded (or replaces) a user-uploaded file."""
         path = Path(source)
         with path.open(mode="rb") as f:
             self.connection.put(self._get_endpoint(), expected_status=200, data=f)
@@ -58,5 +63,9 @@ class UserFile:
         self.connection.delete(self._get_endpoint(), expected_status=204)
 
     def to_dict(self) -> Dict[str, Any]:
-        """ Returns the provided metadata as dict."""
+        """
+        Returns the provided metadata as dict.
+
+        This is used in internal/jupyter.py to detect and get the original metadata.
+        """
         return self.metadata

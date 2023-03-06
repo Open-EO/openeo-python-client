@@ -1104,18 +1104,24 @@ class Connection(RestApiConnection):
         """
         Gets a handle to a file in the user workspace on the back-end.
 
+        :param path: The  path on the user workspace.
         :return: UserFile object.
         """
         return UserFile(path, connection=self)
 
-    def upload_file(self, source: Union[Path, str]) -> UserFile:
+    def upload_file(self, source: Union[Path, str], target: str = None) -> UserFile:
         """
-        Uploads a file to the user workspace and stores it with the filename of the source given.
-        If a file with the name exists on the user workspace it will be replaced.
+        Uploads a file to the given target location in the user workspace.
 
+        If a file at the target path exists in the user workspace it will be replaced.
+
+        :param source: A path to a file on the local file system to upload.
+        :param target: The desired path on the user workspace. If not set, defaults to the filename (without path) of the local file.
         :return: UserFile object.
         """
-        return self.get_file(Path(source).name).upload(source)
+        if target is None:
+            target = Path(source).name
+        return self.get_file(target).upload(source)
 
     def _build_request_with_process_graph(self, process_graph: Union[dict, Any], **kwargs) -> dict:
         """
