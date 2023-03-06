@@ -9,11 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Full support for user-uploaded files (`/files` endpoints) [#377](https://github.com/Open-EO/openeo-python-client/issues/377)
+- Full support for user-uploaded files (`/files` endpoints)
+  ([#377](https://github.com/Open-EO/openeo-python-client/issues/377))
 
 ### Changed
 
-- `list_files()` returns a list of `UserFile` objects instead of a list of dictionaries - use `to_dict` on the `UserFile` object to get the dictionary.
+- `Connection.list_files()` returns a list of `UserFile` objects instead of a list of metadata dictionaries.
+  Use `UserFile.metadata` to get the original dictionary.
+  ([#377](https://github.com/Open-EO/openeo-python-client/issues/377))
 
 ### Removed
 
