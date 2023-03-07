@@ -1716,27 +1716,6 @@ def test_authenticate_oidc_auto_refresh_expired_access_token_other_errors(
     assert "re-auth" not in caplog.text
 
 
-def test_load_collection_arguments_040(requests_mock):
-    requests_mock.get(API_URL, json={"api_version": "0.4.0"})
-    conn = Connection(API_URL)
-    requests_mock.get(API_URL + "collections/FOO", json={
-        "properties": {"eo:bands": [{"name": "red"}, {"name": "green"}, {"name": "blue"}]}
-    })
-    spatial_extent = {"west": 1, "south": 2, "east": 3, "north": 4}
-    temporal_extent = ["2019-01-01", "2019-01-22"]
-    im = conn.load_collection(
-        "FOO", spatial_extent=spatial_extent, temporal_extent=temporal_extent, bands=["red", "green"]
-    )
-    node = im.flat_graph()[im.node_id]
-    assert node["process_id"] == "load_collection"
-    assert node["arguments"] == {
-        "id": "FOO",
-        "spatial_extent": spatial_extent,
-        "temporal_extent": temporal_extent,
-        "bands": ["red", "green"]
-    }
-
-
 def test_load_collection_arguments_100(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     conn = Connection(API_URL)

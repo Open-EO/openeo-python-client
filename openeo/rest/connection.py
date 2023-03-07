@@ -31,7 +31,6 @@ from openeo.rest.auth.oidc import OidcClientCredentialsAuthenticator, OidcAuthCo
     OidcClientInfo, OidcAuthenticator, OidcRefreshTokenAuthenticator, OidcResourceOwnerPasswordAuthenticator, \
     OidcDeviceAuthenticator, OidcProviderInfo, OidcException, DefaultOidcClientGrant, GrantsChecker
 from openeo.rest.datacube import DataCube
-from openeo.rest.imagecollectionclient import ImageCollectionClient
 from openeo.rest.mlmodel import MlModel
 from openeo.rest.userfile import UserFile
 from openeo.rest.job import BatchJob, RESTJob
@@ -1001,17 +1000,12 @@ class Connection(RestApiConnection):
         .. versionadded:: 0.13.0
             added the ``max_cloud_cover`` argument.
         """
-        if self._api_version.at_least("1.0.0"):
-            return DataCube.load_collection(
+        assert self._api_version.at_least("1.0.0")
+        return DataCube.load_collection(
                 collection_id=collection_id, connection=self,
                 spatial_extent=spatial_extent, temporal_extent=temporal_extent, bands=bands, properties=properties,
                 max_cloud_cover=max_cloud_cover,
                 fetch_metadata=fetch_metadata,
-            )
-        else:
-            return ImageCollectionClient.load_collection(
-                collection_id=collection_id, session=self,
-                spatial_extent=spatial_extent, temporal_extent=temporal_extent, bands=bands
             )
 
     imagecollection = legacy_alias(load_collection, name="imagecollection")
@@ -1245,7 +1239,9 @@ class Connection(RestApiConnection):
         """
         return Service(service_id, connection=self)
 
-    def load_disk_collection(self, format: str, glob_pattern: str, options: dict = {}) -> ImageCollectionClient:
+    def load_disk_collection(
+        self, format: str, glob_pattern: str, options: Optional[dict] = None
+    ) -> DataCube:
         """
         Loads image data from disk as an ImageCollection.
 
@@ -1254,11 +1250,10 @@ class Connection(RestApiConnection):
         :param options: options specific to the file format
         :return: the data as an ImageCollection
         """
-
-        if self._api_version.at_least("1.0.0"):
-            return DataCube.load_disk_collection(self, format, glob_pattern, **options)
-        else:
-            return ImageCollectionClient.load_disk_collection(self, format, glob_pattern, **options)
+        assert self._api_version.at_least("1.0.0")
+        return DataCube.load_disk_collection(
+            self, format, glob_pattern, **(options or {})
+        )
 
     def as_curl(self, data: Union[dict, DataCube], path="/result", method="POST") -> str:
         """

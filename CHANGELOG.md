@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- Remove `ImageCollectionClient` (and related helpers),
+  a now unused leftover from the pre-1.0.0 versions of the openEO API
+  ([#134](https://github.com/Open-EO/openeo-python-client/issues/134), [#100](https://github.com/Open-EO/openeo-python-client/issues/100))
+
 ### Fixed
 
 

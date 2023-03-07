@@ -19,6 +19,7 @@ TIFF_CONTENT = b'T1f7D6t6l0l' * 1000
 
 @pytest.fixture
 def session040(requests_mock):
+    # TODO #134 eliminate 0.4.0 support
     requests_mock.get(API_URL + "/", json={
         "api_version": "0.4.0",
         "endpoints": [{"path": "/credentials/basic", "methods": ["GET"]}]
