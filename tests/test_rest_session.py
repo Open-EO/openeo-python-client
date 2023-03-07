@@ -142,16 +142,18 @@ class TestUserFiles(TestCase):
             openeo.connect(self.endpoint)
 
     def test_capabilities_api_version_recent(self, m):
-        m.register_uri('GET', "{}/".format(self.endpoint), json={'version': '0.4.0'})
+        m.register_uri("GET", "{}/".format(self.endpoint), json={"version": "1.0.0"})
         capabilities = openeo.connect(self.endpoint).capabilities()
-        assert capabilities.version() == '0.4.0'
-        assert capabilities.api_version() == '0.4.0'
+        assert capabilities.version() == "1.0.0"
+        assert capabilities.api_version() == "1.0.0"
 
     def test_capabilities_api_version_recent2(self, m):
-        m.register_uri('GET', "{}/".format(self.endpoint), json={'api_version': '0.4.1'})
+        m.register_uri(
+            "GET", "{}/".format(self.endpoint), json={"api_version": "1.1.0"}
+        )
         capabilities = openeo.connect(self.endpoint).capabilities()
-        assert capabilities.version() == '0.4.1'
-        assert capabilities.api_version() == '0.4.1'
+        assert capabilities.version() == "1.1.0"
+        assert capabilities.api_version() == "1.1.0"
 
     def test_capabilities_api_version_check(self, m):
         capabilties_url = "{}/".format(self.endpoint)

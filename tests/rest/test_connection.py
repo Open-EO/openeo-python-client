@@ -285,46 +285,82 @@ def test_connect_with_session():
     (
             [
                 {"api_version": "0.4.1", "url": "https://oeo.test/openeo/0.4.1/"},
-                {"api_version": "0.4.2", "url": "https://oeo.test/openeo/0.4.2/"},
                 {"api_version": "1.0.0", "url": "https://oeo.test/openeo/1.0.0/"},
+                {"api_version": "1.1.0", "url": "https://oeo.test/openeo/1.1.0/"},
             ],
-            "https://oeo.test/openeo/1.0.0/",
-            "1.0.0",
-    ),
-    (
+            "https://oeo.test/openeo/1.1.0/",
+            "1.1.0",
+        ),
+        (
             [
                 {"api_version": "0.4.1", "url": "https://oeo.test/openeo/0.4.1/"},
-                {"api_version": "0.4.2", "url": "https://oeo.test/openeo/0.4.2/"},
-                {"api_version": "1.0.0", "url": "https://oeo.test/openeo/1.0.0/", "production": False},
-            ],
-            "https://oeo.test/openeo/0.4.2/",
-            "0.4.2",
-    ),
-    (
-            [
-                {"api_version": "0.4.1", "url": "https://oeo.test/openeo/0.4.1/", "production": True},
-                {"api_version": "0.4.2", "url": "https://oeo.test/openeo/0.4.2/", "production": True},
-                {"api_version": "1.0.0", "url": "https://oeo.test/openeo/1.0.0/", "production": False},
-            ],
-            "https://oeo.test/openeo/0.4.2/",
-            "0.4.2",
-    ),
-    (
-            [
-                {"api_version": "0.4.1", "url": "https://oeo.test/openeo/0.4.1/", "production": False},
-                {"api_version": "0.4.2", "url": "https://oeo.test/openeo/0.4.2/", "production": False},
-                {"api_version": "1.0.0", "url": "https://oeo.test/openeo/1.0.0/", "production": False},
+                {"api_version": "1.0.0", "url": "https://oeo.test/openeo/1.0.0/"},
+                {
+                    "api_version": "1.1.0",
+                    "url": "https://oeo.test/openeo/1.1.0/",
+                    "production": False,
+                },
             ],
             "https://oeo.test/openeo/1.0.0/",
             "1.0.0",
     ),
     (
             [
-                {"api_version": "0.1.0", "url": "https://oeo.test/openeo/0.1.0/", "production": True},
-                {"api_version": "0.4.2", "url": "https://oeo.test/openeo/0.4.2/", "production": False},
+                {
+                    "api_version": "0.4.1",
+                    "url": "https://oeo.test/openeo/0.4.1/",
+                    "production": True,
+                },
+                {
+                    "api_version": "1.0.0",
+                    "url": "https://oeo.test/openeo/1.0.0/",
+                    "production": True,
+                },
+                {
+                    "api_version": "1.1.0",
+                    "url": "https://oeo.test/openeo/1.1.0/",
+                    "production": False,
+                },
             ],
-            "https://oeo.test/openeo/0.4.2/",
-            "0.4.2",
+            "https://oeo.test/openeo/1.0.0/",
+            "1.0.0",
+    ),
+    (
+            [
+                {
+                    "api_version": "0.4.1",
+                    "url": "https://oeo.test/openeo/0.4.1/",
+                    "production": False,
+                },
+                {
+                    "api_version": "1.0.0",
+                    "url": "https://oeo.test/openeo/1.0.0/",
+                    "production": False,
+                },
+                {
+                    "api_version": "1.1.0",
+                    "url": "https://oeo.test/openeo/1.1.0/",
+                    "production": False,
+                },
+            ],
+            "https://oeo.test/openeo/1.1.0/",
+            "1.1.0",
+        ),
+        (
+            [
+                {
+                    "api_version": "0.1.0",
+                    "url": "https://oeo.test/openeo/0.1.0/",
+                    "production": True,
+                },
+                {
+                    "api_version": "1.0.0",
+                    "url": "https://oeo.test/openeo/1.0.0/",
+                    "production": False,
+                },
+            ],
+            "https://oeo.test/openeo/1.0.0/",
+            "1.0.0",
     ),
     (
             [],
@@ -391,10 +427,16 @@ def test_file_formats(requests_mock):
 
 
 def test_api_error(requests_mock):
-    requests_mock.get('https://oeo.test/', json={"api_version": "0.4.0"})
-    requests_mock.get('https://oeo.test/collections/foobar', status_code=404, json={
-        "code": "CollectionNotFound", "message": "No such thing as a collection 'foobar'", "id": "54321",
-    })
+    requests_mock.get("https://oeo.test/", json={"api_version": "1.0.0"})
+    requests_mock.get(
+        "https://oeo.test/collections/foobar",
+        status_code=404,
+        json={
+            "code": "CollectionNotFound",
+            "message": "No such thing as a collection 'foobar'",
+            "id": "54321",
+        },
+    )
     with pytest.raises(OpenEoApiError) as exc_info:
         Connection(API_URL).describe_collection("foobar")
     exc = exc_info.value
@@ -407,10 +449,15 @@ def test_api_error(requests_mock):
 
 
 def test_api_error_no_id(requests_mock):
-    requests_mock.get('https://oeo.test/', json={"api_version": "0.4.0"})
-    requests_mock.get('https://oeo.test/collections/foobar', status_code=404, json={
-        "code": "CollectionNotFound", "message": "No such thing as a collection 'foobar'",
-    })
+    requests_mock.get("https://oeo.test/", json={"api_version": "1.0.0"})
+    requests_mock.get(
+        "https://oeo.test/collections/foobar",
+        status_code=404,
+        json={
+            "code": "CollectionNotFound",
+            "message": "No such thing as a collection 'foobar'",
+        },
+    )
     with pytest.raises(OpenEoApiError) as exc_info:
         Connection(API_URL).describe_collection("foobar")
     exc = exc_info.value
@@ -423,7 +470,7 @@ def test_api_error_no_id(requests_mock):
 
 
 def test_api_error_non_json(requests_mock):
-    requests_mock.get('https://oeo.test/', json={"api_version": "0.4.0"})
+    requests_mock.get("https://oeo.test/", json={"api_version": "1.0.0"})
     conn = Connection(API_URL)
     requests_mock.get('https://oeo.test/collections/foobar', status_code=500, text="olapola")
     with pytest.raises(OpenEoApiError) as exc_info:
