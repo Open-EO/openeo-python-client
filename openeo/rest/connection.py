@@ -298,10 +298,8 @@ class Connection(RestApiConnection):
             auth=HTTPBasicAuth(username, password)
         ).json()
         # Switch to bearer based authentication in further requests.
-        if self._api_version.at_least("1.0.0"):
-            self.auth = BasicBearerAuth(access_token=resp["access_token"])
-        else:
-            self.auth = BearerAuth(bearer=resp["access_token"])
+        assert self._api_version.at_least("1.0.0")
+        self.auth = BasicBearerAuth(access_token=resp["access_token"])
         return self
 
     def _get_oidc_provider(self, provider_id: Union[str, None] = None) -> Tuple[str, OidcProviderInfo]:
@@ -312,46 +310,44 @@ class Connection(RestApiConnection):
             Can be None if there is just one provider.
         :return: updated provider_id and provider info object
         """
-        if self._api_version.at_least("1.0.0"):
-            oidc_info = self.get("/credentials/oidc", expected_status=200).json()
-            providers = OrderedDict((p["id"], p) for p in oidc_info["providers"])
-            if len(providers) < 1:
-                raise OpenEoClientException("Backend lists no OIDC providers.")
-            _log.info("Found OIDC providers: {p}".format(p=list(providers.keys())))
-            if provider_id:
-                if provider_id not in providers:
-                    raise OpenEoClientException(
-                        "Requested OIDC provider {r!r} not available. Should be one of {p}.".format(
-                            r=provider_id, p=list(providers.keys())
-                        )
+        assert self._api_version.at_least("1.0.0")
+        oidc_info = self.get("/credentials/oidc", expected_status=200).json()
+        providers = OrderedDict((p["id"], p) for p in oidc_info["providers"])
+        if len(providers) < 1:
+            raise OpenEoClientException("Backend lists no OIDC providers.")
+        _log.info("Found OIDC providers: {p}".format(p=list(providers.keys())))
+        if provider_id:
+            if provider_id not in providers:
+                raise OpenEoClientException(
+                    "Requested OIDC provider {r!r} not available. Should be one of {p}.".format(
+                        r=provider_id, p=list(providers.keys())
                     )
-                provider = providers[provider_id]
-            elif len(providers) == 1:
-                provider_id, provider = providers.popitem()
-                _log.info("No OIDC provider given, but only one available: {p!r}. Using that one.".format(
-                    p=provider_id
-                ))
-            else:
-                # Check if there is a single provider in the config to use.
-                backend = self._orig_url
-                provider_configs = self._get_auth_config().get_oidc_provider_configs(backend=backend)
-                intersection = set(provider_configs.keys()).intersection(providers.keys())
-                if len(intersection) == 1:
-                    provider_id = intersection.pop()
-                    provider = providers[provider_id]
-                    _log.info(
-                        "No OIDC provider given, but only one in config (for backend {b!r}): {p!r}."
-                        " Using that one.".format(b=backend, p=provider_id)
-                    )
-                else:
-                    provider_id, provider = providers.popitem(last=False)
-                    _log.info("No OIDC provider given. Using first provider {p!r} as advertised by backend.".format(
-                        p=provider_id
-                    ))
-            provider = OidcProviderInfo.from_dict(provider)
+                )
+            provider = providers[provider_id]
+        elif len(providers) == 1:
+            provider_id, provider = providers.popitem()
+            _log.info(
+                f"No OIDC provider given, but only one available: {provider_id!r}. Using that one."
+            )
         else:
-            # Per spec: '/credentials/oidc' will redirect to  OpenID Connect discovery document
-            provider = OidcProviderInfo(discovery_url=self.build_url('/credentials/oidc'))
+            # Check if there is a single provider in the config to use.
+            backend = self._orig_url
+            provider_configs = self._get_auth_config().get_oidc_provider_configs(
+                backend=backend
+            )
+            intersection = set(provider_configs.keys()).intersection(providers.keys())
+            if len(intersection) == 1:
+                provider_id = intersection.pop()
+                provider = providers[provider_id]
+                _log.info(
+                    f"No OIDC provider given, but only one in config (for backend {backend!r}): {provider_id!r}. Using that one."
+                )
+            else:
+                provider_id, provider = providers.popitem(last=False)
+                _log.info(
+                    f"No OIDC provider given. Using first provider {provider_id!r} as advertised by backend."
+                )
+        provider = OidcProviderInfo.from_dict(provider)
         return provider_id, provider
 
     def _get_oidc_provider_and_client_info(
@@ -417,17 +413,17 @@ class Connection(RestApiConnection):
             else:
                 _log.warning("No OIDC refresh token to store.")
         token = tokens.access_token
-        if self._api_version.at_least("1.0.0"):
-            if refreshable:
-                refresh_data = OidcRefreshInfo(
-                    provider_id=provider_id,
-                    client_id=authenticator.client_id,
-                )
-            else:
-                refresh_data = None
-            self.auth = OidcBearerAuth(provider_id=provider_id, access_token=token, refresh_data=refresh_data)
+        assert self._api_version.at_least("1.0.0")
+        if refreshable:
+            refresh_data = OidcRefreshInfo(
+                provider_id=provider_id,
+                client_id=authenticator.client_id,
+            )
         else:
-            self.auth = BearerAuth(bearer=token)
+            refresh_data = None
+        self.auth = OidcBearerAuth(
+            provider_id=provider_id, access_token=token, refresh_data=refresh_data
+        )
         return self
 
     def authenticate_oidc_authorization_code(

@@ -561,10 +561,7 @@ def test_authenticate_basic(requests_mock, api_version):
     assert isinstance(conn.auth, NullAuth)
     conn.authenticate_basic(username=user, password=pwd)
     assert isinstance(conn.auth, BearerAuth)
-    if ComparableVersion(api_version).at_least("1.0.0"):
-        assert conn.auth.bearer == "basic//w3lc0m3"
-    else:
-        assert conn.auth.bearer == "w3lc0m3"
+    assert conn.auth.bearer == "basic//w3lc0m3"
 
 
 def test_authenticate_basic_from_config(requests_mock, api_version, auth_config):
@@ -577,31 +574,7 @@ def test_authenticate_basic_from_config(requests_mock, api_version, auth_config)
     assert isinstance(conn.auth, NullAuth)
     conn.authenticate_basic()
     assert isinstance(conn.auth, BearerAuth)
-    if ComparableVersion(api_version).at_least("1.0.0"):
-        assert conn.auth.bearer == "basic//w3lc0m3"
-    else:
-        assert conn.auth.bearer == "w3lc0m3"
-
-
-@pytest.mark.slow
-def test_authenticate_oidc_authorization_code_040(requests_mock):
-    client_id = "myclient"
-    oidc_discovery_url = "https://oeo.test/credentials/oidc"
-    oidc_mock = OidcMock(
-        requests_mock=requests_mock,
-        expected_grant_type="authorization_code",
-        expected_client_id=client_id,
-        expected_fields={"scope": "openid"},
-        oidc_discovery_url=oidc_discovery_url
-    )
-    requests_mock.get(API_URL, json={"api_version": "0.4.0"})
-
-    # With all this set up, kick off the openid connect flow
-    conn = Connection(API_URL)
-    assert isinstance(conn.auth, NullAuth)
-    conn.authenticate_oidc_authorization_code(client_id=client_id, webbrowser_open=oidc_mock.webbrowser_open)
-    assert isinstance(conn.auth, BearerAuth)
-    assert conn.auth.bearer == oidc_mock.state["access_token"]
+    assert conn.auth.bearer == "basic//w3lc0m3"
 
 
 @pytest.mark.slow
