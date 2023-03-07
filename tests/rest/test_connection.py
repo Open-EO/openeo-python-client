@@ -14,7 +14,7 @@ import requests.auth
 import requests_mock
 
 import openeo
-from openeo.capabilities import ComparableVersion
+from openeo.capabilities import ComparableVersion, ApiVersionException
 from openeo.internal.graph_building import PGNode
 from openeo.rest import OpenEoApiError, OpenEoClientException, OpenEoRestError
 from openeo.rest.auth.auth import BearerAuth, NullAuth
@@ -392,6 +392,12 @@ def test_connect_version_discovery_timeout(requests_mock):
     assert well_known.request_history[-1].timeout == 4
 
 
+def test_connect_api_version_too_old(requests_mock):
+    requests_mock.get(API_URL, status_code=200, json={"api_version": "0.4.0"})
+    with pytest.raises(ApiVersionException):
+        _ = openeo.connect("https://oeo.test")
+
+
 def test_connection_repr(requests_mock):
     requests_mock.get("https://oeo.test/", status_code=404)
     requests_mock.get("https://oeo.test/.well-known/openeo", status_code=200, json={
@@ -405,6 +411,29 @@ def test_connection_repr(requests_mock):
     assert repr(conn) == "<Connection to 'https://oeo.test/openeo/1.x/' with NullAuth>"
     conn.authenticate_basic("foo", "bar")
     assert repr(conn) == "<Connection to 'https://oeo.test/openeo/1.x/' with BasicBearerAuth>"
+
+
+def test_capabilities_api_version(requests_mock):
+    requests_mock.get(API_URL, status_code=200, json={"api_version": "1.0.0"})
+    con = openeo.connect("https://oeo.test")
+    capabilities = con.capabilities()
+    assert capabilities.version() == "1.0.0"
+    assert capabilities.api_version() == "1.0.0"
+
+
+def test_capabilities_api_version_check(requests_mock):
+    requests_mock.get(API_URL, status_code=200, json={"api_version": "1.2.3"})
+    con = openeo.connect("https://oeo.test")
+    api_version_check = con.capabilities().api_version_check
+    assert api_version_check.below("1.2.4")
+    assert api_version_check.below("1.1") is False
+    assert api_version_check.at_most("1.3")
+    assert api_version_check.at_most("1.2.3")
+    assert api_version_check.at_most("1.2.2") is False
+    assert api_version_check.at_least("1.2.3")
+    assert api_version_check.at_least("1.5") is False
+    assert api_version_check.above("1.2.3") is False
+    assert api_version_check.above("1.2.2")
 
 
 def test_capabilities_caching(requests_mock):
@@ -484,6 +513,7 @@ def test_api_error_non_json(requests_mock):
 
 
 def _credentials_basic_handler(username, password, access_token="w3lc0m3"):
+    # TODO: better reuse of this helper
     expected_auth = requests.auth._basic_auth_str(username=username, password=password)
 
     def handler(request, context):
@@ -1867,6 +1897,32 @@ def test_list_udf_runtimes_error(requests_mock):
     with pytest.raises(OpenEoRestError):
         conn.list_udf_runtimes()
     assert m.call_count == 2
+
+
+def test_list_collections(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    collections = [
+        {"id": "SENTINEL2", "description": "Sentinel 2 data"},
+        {"id": "NDVI", "description": "NDVI data"},
+    ]
+    requests_mock.get(
+        API_URL + "collections", json={"collections": collections, "links": []}
+    )
+    con = Connection(API_URL)
+    assert con.list_collections() == collections
+
+
+def test_describe_collection(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    requests_mock.get(
+        API_URL + "collections/SENTINEL2",
+        json={"id": "SENTINEL2", "description": "Sentinel 2 data"},
+    )
+    con = Connection(API_URL)
+    assert con.describe_collection("SENTINEL2") == {
+        "id": "SENTINEL2",
+        "description": "Sentinel 2 data",
+    }
 
 
 def test_list_processes(requests_mock):

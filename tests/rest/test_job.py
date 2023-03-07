@@ -11,6 +11,7 @@ import openeo
 import openeo.rest.job
 from openeo.rest import JobFailedException, OpenEoClientException
 from openeo.rest.job import BatchJob, ResultAsset
+from .test_connection import _credentials_basic_handler
 
 API_URL = "https://oeo.test"
 
@@ -657,3 +658,41 @@ def test_get_results_download_file_other_domain(con100, requests_mock, tmp_path)
     assert res == target
     with target.open("rb") as f:
         assert f.read() == TIFF_CONTENT
+
+
+def test_list_jobs(con100, requests_mock):
+    username = "john"
+    password = "j0hn!"
+    access_token = "6cc35!"
+    requests_mock.get(
+        API_URL + "/credentials/basic",
+        text=_credentials_basic_handler(
+            username=username, password=password, access_token=access_token
+        ),
+    )
+
+    def get_jobs(request, context):
+        assert request.headers["Authorization"] == f"Bearer basic//{access_token}"
+        return {
+            "jobs": [
+                {
+                    "id": "job123",
+                    "status": "running",
+                    "created": "2021-02-22T09:00:00Z",
+                },
+                {
+                    "id": "job456",
+                    "status": "created",
+                    "created": "2021-03-22T10:00:00Z",
+                },
+            ]
+        }
+
+    requests_mock.get(API_URL + "/jobs", json=get_jobs)
+
+    con100.authenticate_basic(username, password)
+    jobs = con100.list_jobs()
+    assert jobs == [
+        {"id": "job123", "status": "running", "created": "2021-02-22T09:00:00Z"},
+        {"id": "job456", "status": "created", "created": "2021-03-22T10:00:00Z"},
+    ]

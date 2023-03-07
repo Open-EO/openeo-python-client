@@ -642,6 +642,7 @@ class Connection(RestApiConnection):
 
         :return: list of dictionaries with basic collection metadata.
         """
+        # TODO: add caching #383
         data = self.get('/collections', expected_status=200).json()["collections"]
         return VisualList("collections", data=data)
 
@@ -729,6 +730,7 @@ class Connection(RestApiConnection):
         :return: collection metadata.
         """
         # TODO: duplication with `Connection.collection_metadata`: deprecate one or the other?
+        # TODO: add caching #383
         data = self.get(f"/collections/{collection_id}", expected_status=200).json()
         return VisualDict("collection", data=data)
 
@@ -802,7 +804,6 @@ class Connection(RestApiConnection):
                 return VisualDict("process", data=process, parameters={'show-graph': True, 'provide-download': False})
 
         raise OpenEoClientException("Process does not exist.")
-
 
     def list_jobs(self) -> List[dict]:
         """
