@@ -380,12 +380,10 @@ class JobResults:
         """
         # TODO: add arguments to filter on metadata, e.g. to only get assets of type "image/tiff"
         metadata = self.get_metadata()
-        if "assets" in metadata:
-            # API 1.0 style: dictionary mapping filenames to metadata dict (with at least a "href" field)
-            assets = metadata["assets"]
-        else:
-            # Best effort translation of on old style to "assets" style (#134)
-            assets = {a["href"].split("/")[-1]: a for a in metadata["links"]}
+        # API 1.0 style: dictionary mapping filenames to metadata dict (with at least a "href" field)
+        assets = metadata.get("assets", {})
+        if not assets:
+            logger.warning("No assets found in job result metadata.")
         return [
             ResultAsset(job=self._job, name=name, href=asset["href"], metadata=asset)
             for name, asset in assets.items()
