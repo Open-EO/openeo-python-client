@@ -1132,12 +1132,10 @@ class Connection(RestApiConnection):
         """
         result = kwargs
         process_graph = as_flat_graph(process_graph)
-        if self._api_version.at_least("1.0.0"):
-            if "process_graph" not in process_graph:
-                process_graph = {"process_graph": process_graph}
-            result["process"] = process_graph
-        else:
-            result["process_graph"] = process_graph
+        assert self._api_version.at_least("1.0.0")
+        if "process_graph" not in process_graph:
+            process_graph = {"process_graph": process_graph}
+        result["process"] = process_graph
         return result
 
     # TODO: unify `download` and `execute` better: e.g. `download` always writes to disk, `execute` returns result (raw or as JSON decoded dict)

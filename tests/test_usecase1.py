@@ -9,7 +9,10 @@ from openeo.rest.auth.auth import BearerAuth
 
 @requests_mock.mock()
 class TestUsecase1(TestCase):
-    _capabilities = {"api_version": "0.4.0", "endpoints": [{"path": "/credentials/basic", "methods": ["GET"]}]}
+    _capabilities = {
+        "api_version": "1.0.0",
+        "endpoints": [{"path": "/credentials/basic", "methods": ["GET"]}],
+    }
 
     def setUp(self):
         # configuration phase: define username, endpoint, parameters?

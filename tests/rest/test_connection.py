@@ -1967,18 +1967,6 @@ def test_default_timeout(requests_mock):
     assert conn.get("/foo", timeout=5).json() == '5'
 
 
-def test_execute_042(requests_mock):
-    requests_mock.get(API_URL, json={"api_version": "0.4.2"})
-    conn = Connection(API_URL)
-    with mock.patch.object(conn, "request") as request:
-        conn.execute({"foo1": {"process_id": "foo"}})
-    assert request.call_args_list == [
-        mock.call(
-            "post", path="/result", allow_redirects=False, expected_status=200,
-            json={"process_graph": {"foo1": {"process_id": "foo"}}}
-        )
-    ]
-
 
 @pytest.mark.parametrize("pg", [
     {"foo1": {"process_id": "foo"}},
