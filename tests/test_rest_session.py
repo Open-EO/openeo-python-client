@@ -56,6 +56,7 @@ PROCESSES = [
 
 @requests_mock.mock()
 class TestUserFiles(TestCase):
+    # TODO: review this test class (looks very dated), most things are probably already covered elsewhere
 
     def setUp(self):
         # configuration phase: define username, endpoint, parameters?
@@ -121,7 +122,7 @@ class TestUserFiles(TestCase):
 
     def test_list_capabilities(self, m):
         capabilities = {
-            "api_version": "0.4.0",
+            "api_version": "1.0.0",
             "endpoints": [
                 {"path": "/collections", "methods": ["GET"]},
             ]
@@ -170,7 +171,7 @@ class TestUserFiles(TestCase):
         assert capabilities.api_version_check.above('1.2.2')
 
     def test_list_collections(self, m):
-        m.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})
+        m.get("http://localhost:8000/api/", json={"api_version": "1.0.0"})
         con = openeo.connect(self.endpoint)
 
         collection_url = "{}/collections".format(self.endpoint)
@@ -179,7 +180,7 @@ class TestUserFiles(TestCase):
         assert collections == COLLECTIONS
 
     def test_get_collection(self, m):
-        m.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})
+        m.get("http://localhost:8000/api/", json={"api_version": "1.0.0"})
         con = openeo.connect(self.endpoint)
 
         collection_org = COLLECTIONS[0]
@@ -190,7 +191,7 @@ class TestUserFiles(TestCase):
         assert collection == collection_org
 
     def test_get_all_processes(self, m):
-        m.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})
+        m.get("http://localhost:8000/api/", json={"api_version": "1.0.0"})
         con = openeo.connect(self.endpoint)
 
         processes_url = "{}/processes".format(self.endpoint)

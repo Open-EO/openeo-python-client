@@ -1,6 +1,6 @@
 import pytest
 
-from openeo.capabilities import ComparableVersion
+from openeo.capabilities import ComparableVersion, ApiVersionException
 
 
 class TestComparableVersion:
@@ -135,3 +135,10 @@ class TestComparableVersion:
         assert v.accept_lower("1.2.2") is True
         assert v.accept_lower("1.2.3") is False
         assert v.accept_lower("1.2.4") is False
+
+    def test_require_at_least(self):
+        v = ComparableVersion("1.2.3")
+        v.require_at_least("1.0.0")
+        v.require_at_least("1.2.0")
+        with pytest.raises(ApiVersionException):
+            v.require_at_least("1.2.4")

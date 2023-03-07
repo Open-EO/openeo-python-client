@@ -9,6 +9,8 @@ from openeo.rest.auth.auth import BearerAuth
 
 @requests_mock.mock()
 class TestUsecase1(TestCase):
+    # TODO: review this test class (looks very dated), most things are probably already covered elsewhere
+
     _capabilities = {
         "api_version": "1.0.0",
         "endpoints": [{"path": "/credentials/basic", "methods": ["GET"]}],
@@ -41,7 +43,7 @@ class TestUsecase1(TestCase):
         assert jobs == [job_info]
 
     def test_viewing_data(self, m):
-        m.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})
+        m.get("http://localhost:8000/api/", json={"api_version": "1.0.0"})
         m.get("http://localhost:8000/api/collections", json={"collections": [{"product_id": "sentinel2_subset"}]})
         m.get("http://localhost:8000/api/collections/sentinel2_subset", json={"product_id": "sentinel2_subset"})
 
@@ -55,7 +57,7 @@ class TestUsecase1(TestCase):
         self.assertEqual(data_info["product_id"], self.data_id)
 
     def test_viewing_processes(self, m):
-        m.get("http://localhost:8000/api/", json={"api_version": "0.4.0"})
+        m.get("http://localhost:8000/api/", json={"api_version": "1.0.0"})
         con = openeo.connect(self.endpoint)
 
         m.get("http://localhost:8000/api/processes", json={"processes": [{"process_id": "calculate_ndvi"}]})

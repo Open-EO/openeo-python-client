@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import List, Tuple
 
 from openeo import connect, Connection
+from openeo.capabilities import ApiVersionException
 from openeo.rest.auth.config import AuthConfig, RefreshTokenStore
 from openeo.rest.auth.oidc import OidcProviderInfo
 
@@ -250,9 +251,8 @@ def main_add_oidc(args):
     print("to config file: {c!r}".format(c=str(config.path)))
 
     con = connect(backend)
-    api_version = con.capabilities().api_version_check
-    if api_version < "1.0.0":
-        raise CliToolException("Backend API version is too low: {v} < 1.0.0".format(v=api_version))
+    con.capabilities().api_version_check.require_at_least("1.0.0")
+
     # Find provider ID
     oidc_info = con.get("/credentials/oidc", expected_status=200).json()
     providers = OrderedDict((p["id"], OidcProviderInfo.from_dict(p)) for p in oidc_info["providers"])
