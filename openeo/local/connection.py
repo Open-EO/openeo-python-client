@@ -8,7 +8,7 @@ from openeo.metadata import CollectionMetadata
 from openeo.internal.graph_building import PGNode, as_flat_graph
 from openeo.rest.datacube import DataCube
 from openeo.internal.jupyter import VisualDict, VisualList
-from openeo.local.collections import _get_netcdf_zarr_collections, _get_geotiff_collections, _get_netcdf_zarr_metadata, _get_geotiff_metadata
+from openeo.local.collections import _get_local_collections, _get_netcdf_zarr_metadata, _get_geotiff_metadata
 from openeo.local.processing import PROCESS_REGISTRY
 from openeo_pg_parser_networkx.graph import OpenEOProcessGraph
 
@@ -33,9 +33,7 @@ class LocalConnection():
         .. caution::
         :return: list of dictionaries with basic collection metadata.
         """
-        data_nc = _get_netcdf_zarr_collections(self.local_collections_path)["collections"]
-        data_tif = _get_geotiff_collections(self.local_collections_path)["collections"]
-        data = data_nc + data_tif
+        data = _get_local_collections(self.local_collections_path)["collections"]
         return VisualList("collections", data=data)
     
     def describe_collection(self, collection_id: str) -> dict:
