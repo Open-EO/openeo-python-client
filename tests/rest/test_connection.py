@@ -285,46 +285,82 @@ def test_connect_with_session():
     (
             [
                 {"api_version": "0.4.1", "url": "https://oeo.test/openeo/0.4.1/"},
-                {"api_version": "0.4.2", "url": "https://oeo.test/openeo/0.4.2/"},
                 {"api_version": "1.0.0", "url": "https://oeo.test/openeo/1.0.0/"},
+                {"api_version": "1.1.0", "url": "https://oeo.test/openeo/1.1.0/"},
             ],
-            "https://oeo.test/openeo/1.0.0/",
-            "1.0.0",
-    ),
-    (
+            "https://oeo.test/openeo/1.1.0/",
+            "1.1.0",
+        ),
+        (
             [
                 {"api_version": "0.4.1", "url": "https://oeo.test/openeo/0.4.1/"},
-                {"api_version": "0.4.2", "url": "https://oeo.test/openeo/0.4.2/"},
-                {"api_version": "1.0.0", "url": "https://oeo.test/openeo/1.0.0/", "production": False},
-            ],
-            "https://oeo.test/openeo/0.4.2/",
-            "0.4.2",
-    ),
-    (
-            [
-                {"api_version": "0.4.1", "url": "https://oeo.test/openeo/0.4.1/", "production": True},
-                {"api_version": "0.4.2", "url": "https://oeo.test/openeo/0.4.2/", "production": True},
-                {"api_version": "1.0.0", "url": "https://oeo.test/openeo/1.0.0/", "production": False},
-            ],
-            "https://oeo.test/openeo/0.4.2/",
-            "0.4.2",
-    ),
-    (
-            [
-                {"api_version": "0.4.1", "url": "https://oeo.test/openeo/0.4.1/", "production": False},
-                {"api_version": "0.4.2", "url": "https://oeo.test/openeo/0.4.2/", "production": False},
-                {"api_version": "1.0.0", "url": "https://oeo.test/openeo/1.0.0/", "production": False},
+                {"api_version": "1.0.0", "url": "https://oeo.test/openeo/1.0.0/"},
+                {
+                    "api_version": "1.1.0",
+                    "url": "https://oeo.test/openeo/1.1.0/",
+                    "production": False,
+                },
             ],
             "https://oeo.test/openeo/1.0.0/",
             "1.0.0",
     ),
     (
             [
-                {"api_version": "0.1.0", "url": "https://oeo.test/openeo/0.1.0/", "production": True},
-                {"api_version": "0.4.2", "url": "https://oeo.test/openeo/0.4.2/", "production": False},
+                {
+                    "api_version": "0.4.1",
+                    "url": "https://oeo.test/openeo/0.4.1/",
+                    "production": True,
+                },
+                {
+                    "api_version": "1.0.0",
+                    "url": "https://oeo.test/openeo/1.0.0/",
+                    "production": True,
+                },
+                {
+                    "api_version": "1.1.0",
+                    "url": "https://oeo.test/openeo/1.1.0/",
+                    "production": False,
+                },
             ],
-            "https://oeo.test/openeo/0.4.2/",
-            "0.4.2",
+            "https://oeo.test/openeo/1.0.0/",
+            "1.0.0",
+    ),
+    (
+            [
+                {
+                    "api_version": "0.4.1",
+                    "url": "https://oeo.test/openeo/0.4.1/",
+                    "production": False,
+                },
+                {
+                    "api_version": "1.0.0",
+                    "url": "https://oeo.test/openeo/1.0.0/",
+                    "production": False,
+                },
+                {
+                    "api_version": "1.1.0",
+                    "url": "https://oeo.test/openeo/1.1.0/",
+                    "production": False,
+                },
+            ],
+            "https://oeo.test/openeo/1.1.0/",
+            "1.1.0",
+        ),
+        (
+            [
+                {
+                    "api_version": "0.1.0",
+                    "url": "https://oeo.test/openeo/0.1.0/",
+                    "production": True,
+                },
+                {
+                    "api_version": "1.0.0",
+                    "url": "https://oeo.test/openeo/1.0.0/",
+                    "production": False,
+                },
+            ],
+            "https://oeo.test/openeo/1.0.0/",
+            "1.0.0",
     ),
     (
             [],
@@ -391,10 +427,16 @@ def test_file_formats(requests_mock):
 
 
 def test_api_error(requests_mock):
-    requests_mock.get('https://oeo.test/', json={"api_version": "0.4.0"})
-    requests_mock.get('https://oeo.test/collections/foobar', status_code=404, json={
-        "code": "CollectionNotFound", "message": "No such thing as a collection 'foobar'", "id": "54321",
-    })
+    requests_mock.get("https://oeo.test/", json={"api_version": "1.0.0"})
+    requests_mock.get(
+        "https://oeo.test/collections/foobar",
+        status_code=404,
+        json={
+            "code": "CollectionNotFound",
+            "message": "No such thing as a collection 'foobar'",
+            "id": "54321",
+        },
+    )
     with pytest.raises(OpenEoApiError) as exc_info:
         Connection(API_URL).describe_collection("foobar")
     exc = exc_info.value
@@ -407,10 +449,15 @@ def test_api_error(requests_mock):
 
 
 def test_api_error_no_id(requests_mock):
-    requests_mock.get('https://oeo.test/', json={"api_version": "0.4.0"})
-    requests_mock.get('https://oeo.test/collections/foobar', status_code=404, json={
-        "code": "CollectionNotFound", "message": "No such thing as a collection 'foobar'",
-    })
+    requests_mock.get("https://oeo.test/", json={"api_version": "1.0.0"})
+    requests_mock.get(
+        "https://oeo.test/collections/foobar",
+        status_code=404,
+        json={
+            "code": "CollectionNotFound",
+            "message": "No such thing as a collection 'foobar'",
+        },
+    )
     with pytest.raises(OpenEoApiError) as exc_info:
         Connection(API_URL).describe_collection("foobar")
     exc = exc_info.value
@@ -423,7 +470,7 @@ def test_api_error_no_id(requests_mock):
 
 
 def test_api_error_non_json(requests_mock):
-    requests_mock.get('https://oeo.test/', json={"api_version": "0.4.0"})
+    requests_mock.get("https://oeo.test/", json={"api_version": "1.0.0"})
     conn = Connection(API_URL)
     requests_mock.get('https://oeo.test/collections/foobar', status_code=500, text="olapola")
     with pytest.raises(OpenEoApiError) as exc_info:
@@ -514,10 +561,7 @@ def test_authenticate_basic(requests_mock, api_version):
     assert isinstance(conn.auth, NullAuth)
     conn.authenticate_basic(username=user, password=pwd)
     assert isinstance(conn.auth, BearerAuth)
-    if ComparableVersion(api_version).at_least("1.0.0"):
-        assert conn.auth.bearer == "basic//w3lc0m3"
-    else:
-        assert conn.auth.bearer == "w3lc0m3"
+    assert conn.auth.bearer == "basic//w3lc0m3"
 
 
 def test_authenticate_basic_from_config(requests_mock, api_version, auth_config):
@@ -530,31 +574,7 @@ def test_authenticate_basic_from_config(requests_mock, api_version, auth_config)
     assert isinstance(conn.auth, NullAuth)
     conn.authenticate_basic()
     assert isinstance(conn.auth, BearerAuth)
-    if ComparableVersion(api_version).at_least("1.0.0"):
-        assert conn.auth.bearer == "basic//w3lc0m3"
-    else:
-        assert conn.auth.bearer == "w3lc0m3"
-
-
-@pytest.mark.slow
-def test_authenticate_oidc_authorization_code_040(requests_mock):
-    client_id = "myclient"
-    oidc_discovery_url = "https://oeo.test/credentials/oidc"
-    oidc_mock = OidcMock(
-        requests_mock=requests_mock,
-        expected_grant_type="authorization_code",
-        expected_client_id=client_id,
-        expected_fields={"scope": "openid"},
-        oidc_discovery_url=oidc_discovery_url
-    )
-    requests_mock.get(API_URL, json={"api_version": "0.4.0"})
-
-    # With all this set up, kick off the openid connect flow
-    conn = Connection(API_URL)
-    assert isinstance(conn.auth, NullAuth)
-    conn.authenticate_oidc_authorization_code(client_id=client_id, webbrowser_open=oidc_mock.webbrowser_open)
-    assert isinstance(conn.auth, BearerAuth)
-    assert conn.auth.bearer == oidc_mock.state["access_token"]
+    assert conn.auth.bearer == "basic//w3lc0m3"
 
 
 @pytest.mark.slow
@@ -1716,27 +1736,6 @@ def test_authenticate_oidc_auto_refresh_expired_access_token_other_errors(
     assert "re-auth" not in caplog.text
 
 
-def test_load_collection_arguments_040(requests_mock):
-    requests_mock.get(API_URL, json={"api_version": "0.4.0"})
-    conn = Connection(API_URL)
-    requests_mock.get(API_URL + "collections/FOO", json={
-        "properties": {"eo:bands": [{"name": "red"}, {"name": "green"}, {"name": "blue"}]}
-    })
-    spatial_extent = {"west": 1, "south": 2, "east": 3, "north": 4}
-    temporal_extent = ["2019-01-01", "2019-01-22"]
-    im = conn.load_collection(
-        "FOO", spatial_extent=spatial_extent, temporal_extent=temporal_extent, bands=["red", "green"]
-    )
-    node = im.flat_graph()[im.node_id]
-    assert node["process_id"] == "load_collection"
-    assert node["arguments"] == {
-        "id": "FOO",
-        "spatial_extent": spatial_extent,
-        "temporal_extent": temporal_extent,
-        "bands": ["red", "green"]
-    }
-
-
 def test_load_collection_arguments_100(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     conn = Connection(API_URL)
@@ -1940,18 +1939,6 @@ def test_default_timeout(requests_mock):
     assert conn.get("/foo").json() == '2'
     assert conn.get("/foo", timeout=5).json() == '5'
 
-
-def test_execute_042(requests_mock):
-    requests_mock.get(API_URL, json={"api_version": "0.4.2"})
-    conn = Connection(API_URL)
-    with mock.patch.object(conn, "request") as request:
-        conn.execute({"foo1": {"process_id": "foo"}})
-    assert request.call_args_list == [
-        mock.call(
-            "post", path="/result", allow_redirects=False, expected_status=200,
-            json={"process_graph": {"foo1": {"process_id": "foo"}}}
-        )
-    ]
 
 
 @pytest.mark.parametrize("pg", [

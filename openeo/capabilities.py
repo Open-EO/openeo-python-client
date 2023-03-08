@@ -173,6 +173,13 @@ class ComparableVersion:
         """Other is higher than self."""
         return ComparableVersion(other) > self
 
+    def require_at_least(self, other: Union[str, "ComparableVersion"]):
+        """Raise exception if self is not at least other."""
+        if not self.at_least(other):
+            raise ApiVersionException(
+                f"openEO API version should be at least {other!s}, but got {self!s}."
+            )
+
 
 class ApiVersionException(RuntimeError):
     pass

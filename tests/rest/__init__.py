@@ -1,13 +1,11 @@
 import json
-from typing import Union
 
 import mock
 
 from openeo.rest.datacube import DataCube
-from openeo.rest.imagecollectionclient import ImageCollectionClient
 
 
-def get_download_graph(cube: Union[DataCube, ImageCollectionClient]) -> dict:
+def get_download_graph(cube: DataCube) -> dict:
     """
     Do fake download of a cube and intercept the process graph
     :param cube: cube to download
@@ -22,7 +20,7 @@ def get_download_graph(cube: Union[DataCube, ImageCollectionClient]) -> dict:
     return actual_graph
 
 
-def get_execute_graph(cube: Union[DataCube, ImageCollectionClient]) -> dict:
+def get_execute_graph(cube: DataCube) -> dict:
     """
     Do fake execute of a cube and intercept the process graph
     :param cube: cube to download

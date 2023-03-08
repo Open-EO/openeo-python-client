@@ -20,6 +20,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- Dropped support for pre-1.0.0 versions of the openEO API
+  ([#134](https://github.com/Open-EO/openeo-python-client/issues/134)):
+  - Remove `ImageCollectionClient` and related helpers
+    (now unused leftovers from version 0.4.0 and earlier).
+    (Also [#100](https://github.com/Open-EO/openeo-python-client/issues/100))
+  - Drop support for pre-1.0.0 job result metadata
+  - Require at least version 1.0.0 of the openEO API for a back-end in `Connection`
+    and all its methods.
+
 ### Fixed
 
 
