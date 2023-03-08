@@ -79,7 +79,7 @@ def _get_netcdf_zarr_metadata(file_path):
     extent = {}
     if crs_present:
         if 'crs_wkt' in data.crs.attrs:
-            transformer = Transformer.from_crs(data.crs.attrs['crs_wkt'], "epsg:4326")
+            transformer = Transformer.from_crs(data.crs.attrs['crs_wkt'],'epsg:4326')
             lat_min,lon_min = transformer.transform(x_min,y_min)
             lat_max,lon_max = transformer.transform(x_max,y_max)               
             extent['spatial'] = {'bbox': [[lon_min, lat_min, lon_max, lat_max]]}
@@ -118,7 +118,7 @@ def _get_geotiff_metadata(file_path):
     except:
         t_dim = None
     try:
-        x_dim = _get_dimension(data.dims, ["x", "X", "lon", "longitude"])
+        x_dim = _get_dimension(data.dims, ['x', 'X', 'lon', 'longitude'])
         y_dim = _get_dimension(data.dims, ['y', 'Y', 'lat', 'latitude'])
     except Exception as e:
         _log.warning(e)
@@ -213,7 +213,7 @@ def _get_geotiff_metadata(file_path):
 
     return metadata
 
-def _get_netcdf_zarr_collections(local_collections_path):
+def _get_local_collections(local_collections_path):
     if isinstance(local_collections_path,str):
         local_collections_path = [local_collections_path]
     local_collections_list = []
@@ -226,16 +226,6 @@ def _get_netcdf_zarr_collections(local_collections_path):
             except Exception as e:
                 _log.error(e)
                 continue
-    
-    local_collections_dict = {'collections':local_collections_list}
-    
-    return local_collections_dict
-
-def _get_geotiff_collections(local_collections_path):
-    if isinstance(local_collections_path,str):
-        local_collections_path = [local_collections_path]
-    local_collections_list = []
-    for flds in local_collections_path:
         local_collections_geotiffs = [p for p in Path(flds).rglob('*') if p.suffix in  ['.tif','.tiff']]
         for local_file in local_collections_geotiffs: 
             try:
@@ -244,7 +234,6 @@ def _get_geotiff_collections(local_collections_path):
             except Exception as e:
                 _log.error(e)
                 continue
-    
     local_collections_dict = {'collections':local_collections_list}
     
     return local_collections_dict
