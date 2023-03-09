@@ -46,6 +46,8 @@ class PGNode(_FromNodeMixin):
 
     """
 
+    __slots__ = ["_process_id", "_arguments", "_namespace"]
+
     def __init__(self, process_id: str, arguments: dict = None, namespace: Union[str, None] = None, **kwargs):
         self._process_id = process_id
         # Merge arguments dict and kwargs
