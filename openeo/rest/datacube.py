@@ -10,14 +10,12 @@ be evaluated by an openEO backend.
 import datetime
 import logging
 import pathlib
-import re
 import typing
 import warnings
 from builtins import staticmethod
 from typing import List, Dict, Union, Tuple, Optional, Any
 
 import numpy as np
-import requests
 import shapely.geometry
 import shapely.geometry.base
 from shapely.geometry import Polygon, MultiPolygon, mapping
@@ -32,8 +30,8 @@ from openeo.internal.warnings import legacy_alias, UserDeprecationWarning, depre
 from openeo.metadata import CollectionMetadata, Band, BandDimension, TemporalDimension, SpatialDimension
 from openeo.processes import ProcessBuilder
 from openeo.rest import BandMathException, OperatorException, OpenEoClientException
-from openeo.rest._datacube import _ProcessGraphAbstraction, THIS
-from openeo.rest.job import BatchJob, RESTJob
+from openeo.rest._datacube import _ProcessGraphAbstraction, THIS, UDF
+from openeo.rest.job import BatchJob
 from openeo.rest.mlmodel import MlModel
 from openeo.rest.service import Service
 from openeo.rest.udp import RESTUserDefinedProcess
@@ -50,137 +48,6 @@ if typing.TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-class UDF:
-    """
-    Helper class to load UDF code (e.g. from file) and embed them as "callback" or child process in a process graph.
-
-    Usage example:
-
-    .. code-block:: python
-
-        udf = UDF.from_file("my-udf-code.py")
-        cube = cube.apply(process=udf)
-
-
-    .. versionchanged:: 0.13.0
-        Added auto-detection of ``runtime``.
-        Specifying the ``data`` argument is not necessary anymore, and actually deprecated.
-        Added :py:meth:`from_file` to simplify loading UDF code from a file.
-        See :ref:`old_udf_api` for more background about the changes.
-    """
-
-    __slots__ = ["code", "runtime", "version", "context", "_source"]
-
-    def __init__(
-            self, code: str, runtime: Optional[str] = None, data=None,
-            version: Optional[str] = None, context: Optional[dict] = None, _source=None,
-    ):
-        """
-        Construct a UDF object from given code string and other argument related to the ``run_udf`` process.
-
-        :param code: UDF source code string (Python, R, ...)
-        :param runtime: optional UDF runtime identifier, will be autodetected from source code if omitted.
-        :param data: unused leftover from old API. Don't use this argument, it will be removed in a future release.
-        :param version: optional UDF runtime version string
-        :param context: optional additional UDF context data
-        :param _source: (for internal use) source identifier
-        """
-        # TODO: automatically dedent code (when literal string) ?
-        self.code = code
-        self.runtime = runtime
-        self.version = version
-        self.context = context
-        self._source = _source
-        if data is not None:
-            # TODO #181 remove `data` argument
-            warnings.warn(
-                f"The `data` argument of `{self.__class__.__name__}` is deprecated, unused and will be removed in a future release.",
-                category=UserDeprecationWarning, stacklevel=2
-            )
-
-    @classmethod
-    def from_file(
-            cls, path: Union[str, pathlib.Path], runtime: Optional[str] = None, version: Optional[str] = None,
-            context: Optional[dict] = None
-    ) -> "UDF":
-        """
-        Load a UDF from a local file.
-
-        .. seealso::
-            :py:meth:`from_url` for loading from a URL.
-
-        :param path: path to the local file with UDF source code
-        :param runtime: optional UDF runtime identifier, will be auto-detected from source code if omitted.
-        :param version: optional UDF runtime version string
-        :param context: optional additional UDF context data
-        """
-        path = pathlib.Path(path)
-        code = path.read_text(encoding="utf-8")
-        return cls(code=code, runtime=runtime, version=version, context=context, _source=path)
-
-    @classmethod
-    def from_url(
-            cls, url: str, runtime: Optional[str] = None, version: Optional[str] = None,
-            context: Optional[dict] = None
-    ) -> "UDF":
-        """
-        Load a UDF from a URL.
-
-        .. seealso::
-            :py:meth:`from_file` for loading from a local file.
-
-        :param url: URL path to load the UDF source code from
-        :param runtime: optional UDF runtime identifier, will be auto-detected from source code if omitted.
-        :param version: optional UDF runtime version string
-        :param context: optional additional UDF context data
-        """
-        resp = requests.get(url)
-        resp.raise_for_status()
-        code = resp.text
-        return cls(code=code, runtime=runtime, version=version, context=context, _source=url)
-
-    def _guess_runtime(self, connection: "openeo.Connection") -> str:
-        """Guess UDF runtime from UDF source (path) or source code."""
-        # First, guess UDF language
-        language = None
-        if isinstance(self._source, pathlib.Path):
-            language = self._guess_runtime_from_suffix(self._source.suffix)
-        elif isinstance(self._source, str):
-            url_match = re.match(r"https?://.*?(?P<suffix>\.\w+)([&#].*)?$", self._source)
-            if url_match:
-                language = self._guess_runtime_from_suffix(url_match.group("suffix"))
-        if not language:
-            # Guess language from UDF code
-            if re.search(r"^def [\w0-9_]+\(", self.code, flags=re.MULTILINE):
-                language = "Python"
-            # TODO: detection heuristics for R and other languages?
-        if not language:
-            raise OpenEoClientException("Failed to detect language of UDF code.")
-        # Find runtime for language
-        runtimes = {k.lower(): k for k in connection.list_udf_runtimes().keys()}
-        if language.lower() in runtimes:
-            return runtimes[language.lower()]
-        else:
-            raise OpenEoClientException(f"Failed to match UDF language {language!r} with a runtime ({runtimes})")
-
-    def _guess_runtime_from_suffix(self, suffix: str) -> Union[str]:
-        return {
-            ".py": "Python",
-            ".r": "R",
-        }.get(suffix.lower())
-
-    def get_run_udf_callback(self, connection: "openeo.Connection", data_parameter: str = "data") -> PGNode:
-        """
-        For internal use: construct `run_udf` node to be used as callback in `apply`, `reduce_dimension`, ...
-        """
-        arguments = dict_no_none(
-            data={"from_parameter": data_parameter},
-            udf=self.code,
-            runtime=self.runtime or self._guess_runtime(connection=connection),
-            version=self.version,
-            context=self.context,
-        )
-        return PGNode(process_id="run_udf", arguments=arguments)
 
 
 class DataCube(_ProcessGraphAbstraction):
@@ -1094,7 +961,7 @@ class DataCube(_ProcessGraphAbstraction):
         .. note::
             .. versionchanged:: 0.13.0
                 arguments ``code``, ``runtime`` and ``version`` are deprecated if favor of the standard approach
-                of using an :py:class:`openeo.UDF <openeo.rest.datacube.UDF>` object in the ``process`` argument.
+                of using an :py:class:`UDF <openeo.rest._datacube.UDF>` object in the ``process`` argument.
                 See :ref:`old_udf_api` for more background about the changes.
 
         :param code: [**deprecated**] UDF code or process identifier (optional)
@@ -1229,8 +1096,13 @@ class DataCube(_ProcessGraphAbstraction):
         """
         return self.reduce_dimension(dimension=self.metadata.temporal_dimension.name, reducer=reducer)
 
-    @deprecated("Use :py:meth:`reduce_bands` with :py:class:`UDF` as reducer.", version="0.13.0")
-    def reduce_bands_udf(self, code: str, runtime: Optional[str] = None, version: Optional[str] = None) -> 'DataCube':
+    @deprecated(
+        "Use :py:meth:`reduce_bands` with :py:class:`UDF <openeo.rest._datacube.UDF>` as reducer.",
+        version="0.13.0",
+    )
+    def reduce_bands_udf(
+        self, code: str, runtime: Optional[str] = None, version: Optional[str] = None
+    ) -> "DataCube":
         """
         Use `reduce_dimension` process with given UDF along band/spectral dimension.
         """
@@ -1275,7 +1147,10 @@ class DataCube(_ProcessGraphAbstraction):
             metadata=self.metadata.drop_dimension(name=name),
         )
 
-    @deprecated("Use :py:meth:`reduce_temporal` with :py:class:`UDF` as reducer", version="0.13.0")
+    @deprecated(
+        "Use :py:meth:`reduce_temporal` with :py:class:`UDF <openeo.rest._datacube.UDF>` as reducer",
+        version="0.13.0",
+    )
     def reduce_temporal_udf(self, code: str, runtime="Python", version="latest"):
         """
         Apply reduce (`reduce_dimension`) process with given UDF along temporal dimension.
