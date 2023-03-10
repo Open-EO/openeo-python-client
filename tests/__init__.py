@@ -9,8 +9,8 @@ def get_test_resource(relative_path: str) -> Path:
     return dir / relative_path
 
 
-def load_json_resource(relative_path, preprocess: Callable = None):
-    with get_test_resource(relative_path).open('r+') as f:
+def load_json_resource(relative_path, preprocess: Callable = None) -> dict:
+    with get_test_resource(relative_path).open("r+") as f:
         data = f.read()
         if preprocess:
             data = preprocess(data)

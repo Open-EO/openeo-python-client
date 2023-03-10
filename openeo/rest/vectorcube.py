@@ -6,7 +6,7 @@ from openeo.internal.documentation import openeo_process
 from openeo.internal.graph_building import PGNode
 from openeo.internal.warnings import legacy_alias
 from openeo.metadata import CollectionMetadata
-from openeo.rest._datacube import _ProcessGraphAbstraction
+from openeo.rest._datacube import _ProcessGraphAbstraction, UDF
 from openeo.rest.mlmodel import MlModel
 from openeo.rest.job import BatchJob
 from openeo.util import dict_no_none
@@ -49,11 +49,39 @@ class VectorCube(_ProcessGraphAbstraction):
 
     @openeo_process
     def run_udf(
-            self, udf: str, runtime: str, version: Optional[str] = None, context: Optional[dict] = None
+        self,
+        udf: Union[str, UDF],
+        runtime: Optional[str] = None,
+        version: Optional[str] = None,
+        context: Optional[dict] = None,
     ) -> "VectorCube":
         """
+        Run a UDF on the vector cube.
+
+        It is recommended to provide the UDF just as :py:class:`UDF <openeo.rest._datacube.UDF>` instance.
+        (the other arguments could be used to override UDF parameters if necessary).
+
+        :param udf: UDF code as a string or :py:class:`UDF <openeo.rest._datacube.UDF>` instance
+        :param runtime: UDF runtime
+        :param version: UDF version
+        :param context: UDF context
+
+        .. warning:: EXPERIMENTAL: not generally supported, API subject to change.
+
         .. versionadded:: 0.10.0
+
+        .. versionchanged:: 0.16.0
+            Added support to pass self-contained :py:class:`UDF <openeo.rest._datacube.UDF>` instance.
         """
+        if isinstance(udf, UDF):
+            # `UDF` instance is preferred usage pattern, but allow overriding.
+            version = version or udf.version
+            context = context or udf.context
+            runtime = runtime or udf.get_runtime(connection=self.connection)
+            udf = udf.code
+        else:
+            if not runtime:
+                raise ValueError("Argument `runtime` must be specified")
         return self.process(
             process_id="run_udf",
             data=self, udf=udf, runtime=runtime,

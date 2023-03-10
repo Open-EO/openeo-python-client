@@ -9,6 +9,7 @@ import io
 import pathlib
 import re
 import textwrap
+import warnings
 from typing import Optional
 
 import pytest
@@ -24,6 +25,7 @@ from openeo.internal.warnings import UserDeprecationWarning
 from openeo.rest import OpenEoClientException
 from openeo.rest.connection import Connection
 from openeo.rest.datacube import THIS, DataCube, ProcessBuilder, UDF
+from openeo.rest.vectorcube import VectorCube
 from .conftest import API_URL, setup_collection_metadata, DEFAULT_S2_METADATA
 from ... import load_json_resource
 
@@ -2737,3 +2739,75 @@ class TestUDF:
             },
             "result": True,
         }
+
+    def test_run_udf_on_vector_data_cube_generic_datacube_process(self, con100):
+        """
+        https://github.com/Open-EO/openeo-python-client/issues/385 with usage pattern:
+
+            res = aggregated.process("run_udf", data=aggregated, udf="...", ...)`
+        """
+        cube = con100.load_collection("S2")
+        geometries = load_json_resource("data/geojson/polygon01.json")
+        aggregated = cube.aggregate_spatial(geometries=geometries, reducer="mean")
+
+        udf = "def foo(x):\n    return x\n"
+        post_processed = aggregated.process(
+            "run_udf", data=aggregated, udf=udf, runtime="Python"
+        )
+
+        expected = load_json_resource("data/1.0.0/run_udf_on_vector_data_cube.json")
+        assert post_processed.flat_graph() == expected
+
+    def test_run_udf_on_vector_data_cube_processes_builder(self, con100):
+        """
+        https://github.com/Open-EO/openeo-python-client/issues/385 with usage pattern:
+
+            res = openeo.processes.run_udf(data=aggregated, udf="...", ...)`
+        """
+        cube = con100.load_collection("S2")
+        geometries = load_json_resource("data/geojson/polygon01.json")
+        aggregated = cube.aggregate_spatial(geometries=geometries, reducer="mean")
+
+        udf = "def foo(x):\n    return x\n"
+        post_processed = openeo.processes.run_udf(
+            data=aggregated, udf=udf, runtime="Python"
+        )
+
+        expected = load_json_resource("data/1.0.0/run_udf_on_vector_data_cube.json")
+        assert post_processed.flat_graph() == expected
+
+    def test_run_udf_on_vector_data_cube_udf_helper(self, con100):
+        """
+        https://github.com/Open-EO/openeo-python-client/issues/385 with usage pattern:
+
+            udf = UDF("...")
+            res = aggregated.run_udf(udf)
+        """
+        cube = con100.load_collection("S2")
+        geometries = load_json_resource("data/geojson/polygon01.json")
+        aggregated = cube.aggregate_spatial(geometries=geometries, reducer="mean")
+
+        udf = UDF("def foo(x):\n    return x\n")
+        post_processed = aggregated.run_udf(udf)
+
+        expected = load_json_resource("data/1.0.0/run_udf_on_vector_data_cube.json")
+        assert post_processed.flat_graph() == expected
+
+    def test_run_udf_on_vector_data_cube_udf_helper_with_overrides(self, con100):
+        """
+        https://github.com/Open-EO/openeo-python-client/issues/385 with usage pattern:
+
+            udf = UDF("...")
+            res = aggregated.run_udf(udf, version="custom")
+        """
+        cube = con100.load_collection("S2")
+        geometries = load_json_resource("data/geojson/polygon01.json")
+        aggregated = cube.aggregate_spatial(geometries=geometries, reducer="mean")
+
+        udf = UDF("def foo(x):\n    return x\n")
+        post_processed = aggregated.run_udf(udf, runtime="Py", version="v4")
+
+        expected = load_json_resource("data/1.0.0/run_udf_on_vector_data_cube.json")
+        expected["runudf1"]["arguments"]["runtime"] = "Py"
+        expected["runudf1"]["arguments"]["version"] = "v4"
+        assert post_processed.flat_graph() == expected
