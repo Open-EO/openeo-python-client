@@ -113,7 +113,13 @@ class _ProcessGraphAbstraction(_FromNodeMixin):
         # _FromNodeMixin API
         return self._pg
 
-    def _build_pgnode(self, process_id: str, arguments: dict, namespace: Optional[str], **kwargs) -> PGNode:
+    def _build_pgnode(
+        self,
+        process_id: str,
+        arguments: Optional[dict] = None,
+        namespace: Optional[str] = None,
+        **kwargs
+    ) -> PGNode:
         """
         Helper to build a PGNode from given argument dict and/or kwargs,
         and possibly resolving the `THIS` reference.

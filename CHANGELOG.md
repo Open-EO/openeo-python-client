@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Connection.list_files()` returns a list of `UserFile` objects instead of a list of metadata dictionaries.
   Use `UserFile.metadata` to get the original dictionary.
   ([#377](https://github.com/Open-EO/openeo-python-client/issues/377))
+- `DataCube.aggregate_spatial()` returns a `VectorCube` now, instead of a `DataCube`
+  ([#386](https://github.com/Open-EO/openeo-python-client/issues/386)).
+  The (experimental) `fit_class_random_forest()` and `fit_regr_random_forest()` methods
+  moved accordingly to the `VectorCube` class.
 
 ### Removed
 

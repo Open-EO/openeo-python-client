@@ -196,13 +196,13 @@ class DataCube(_ProcessGraphAbstraction):
         self.metadata = CollectionMetadata.get_or_create(metadata)
 
     def process(
-            self,
-            process_id: str,
-            arguments: dict = None,
-            metadata: Optional[CollectionMetadata] = None,
-            namespace: Optional[str] = None,
-            **kwargs
-    ) -> 'DataCube':
+        self,
+        process_id: str,
+        arguments: Optional[dict] = None,
+        metadata: Optional[CollectionMetadata] = None,
+        namespace: Optional[str] = None,
+        **kwargs,
+    ) -> "DataCube":
         """
         Generic helper to create a new DataCube by applying a process.
 
@@ -926,10 +926,17 @@ class DataCube(_ProcessGraphAbstraction):
         ))
 
     def _get_geometry_argument(
-            self,
-            geometry: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter, _FromNodeMixin],
-            valid_geojson_types: List[str],
-            crs: str = None,
+        self,
+        geometry: Union[
+            shapely.geometry.base.BaseGeometry,
+            dict,
+            str,
+            pathlib.Path,
+            Parameter,
+            _FromNodeMixin,
+        ],
+        valid_geojson_types: List[str],
+        crs: Optional[str] = None,
     ) -> Union[dict, Parameter, PGNode]:
         """
         Convert input to a geometry as "geojson" subtype object.
@@ -962,14 +969,21 @@ class DataCube(_ProcessGraphAbstraction):
 
     @openeo_process
     def aggregate_spatial(
-            self,
-            geometries: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter, "VectorCube"],
-            reducer: Union[str, PGNode, typing.Callable],
-            target_dimension: Optional[str] = None,
-            crs: str = None,
-            context: Optional[dict] = None,
-            # TODO arguments: target dimension, context
-    ) -> 'DataCube':
+        self,
+        geometries: Union[
+            shapely.geometry.base.BaseGeometry,
+            dict,
+            str,
+            pathlib.Path,
+            Parameter,
+            VectorCube,
+        ],
+        reducer: Union[str, PGNode, typing.Callable],
+        target_dimension: Optional[str] = None,
+        crs: Optional[str] = None,
+        context: Optional[dict] = None,
+        # TODO arguments: target dimension, context
+    ) -> VectorCube:
         """
         Aggregates statistics for one or more geometries (e.g. zonal statistics for polygons)
         over the spatial dimensions.
@@ -985,16 +999,24 @@ class DataCube(_ProcessGraphAbstraction):
             .. note:: this ``crs`` argument is a non-standard/experimental feature, only supported by specific back-ends.
                 See https://github.com/Open-EO/openeo-processes/issues/235 for details.
         """
-        # TODO #279 aggregate_spatial should return a VectorCube, not a DataCube
         valid_geojson_types = [
             "Point", "MultiPoint", "LineString", "MultiLineString",
             "Polygon", "MultiPolygon", "GeometryCollection", "Feature", "FeatureCollection"
         ]
         geometries = self._get_geometry_argument(geometries, valid_geojson_types=valid_geojson_types, crs=crs)
         reducer = self._get_callback(reducer, parent_parameters=["data"])
-        return self.process(
-            process_id="aggregate_spatial", data=THIS, geometries=geometries, reducer=reducer,
-            **dict_no_none(target_dimension=target_dimension, context=context)
+        return VectorCube(
+            graph=self._build_pgnode(
+                process_id="aggregate_spatial",
+                data=THIS,
+                geometries=geometries,
+                reducer=reducer,
+                arguments=dict_no_none(
+                    target_dimension=target_dimension, context=context
+                ),
+            ),
+            connection=self._connection,
+            # TODO: metadata?
         )
 
     @staticmethod
@@ -1975,7 +1997,7 @@ class DataCube(_ProcessGraphAbstraction):
             returns=returns, categories=categories, examples=examples, links=links,
         )
 
-    def execute(self) -> Dict:
+    def execute(self) -> dict:
         """Executes the process graph of the imagery. """
         return self._connection.execute(self.flat_graph())
 
@@ -2095,6 +2117,7 @@ class DataCube(_ProcessGraphAbstraction):
         :param function: "child callback" function, see :ref:`callbackfunctions`
         :param dimension:
         """
+        # TODO: does this return a `DataCube`? Shouldn't it just return an array (wrapper)?
         return self.process(process_id="fit_curve", arguments={
             "data": THIS,
             "parameters": parameters,
@@ -2158,88 +2181,6 @@ class DataCube(_ProcessGraphAbstraction):
         if dimension_names and dimension not in dimension_names:
             raise ValueError(f"Invalid dimension name {dimension!r}, should be one of {dimension_names}")
         return self.process(process_id="dimension_labels", arguments={"data": THIS, "dimension": dimension})
-
-    @openeo_process
-    def fit_class_random_forest(
-            self,
-            # TODO #279 #293: target type should be `VectorCube` (with adapters for GeoJSON FeatureCollection, GeoPandas, ...)
-            target: dict,
-            # TODO #293 max_variables officially has no default
-            max_variables: Optional[int] = None,
-            num_trees: int = 100,
-            seed: Optional[int] = None,
-    ) -> 'MlModel':
-        """
-        Executes the fit of a random forest classification based on the user input of target and predictors.
-        The Random Forest classification model is based on the approach by Breiman (2001).
-
-        .. warning:: EXPERIMENTAL: not generally supported, API subject to change.
-
-        :param target: The training sites for the classification model as a vector data cube. This is associated with the target
-            variable for the Random Forest model. The geometry has to be associated with a value to predict (e.g. fractional
-            forest canopy cover).
-        :param max_variables: Specifies how many split variables will be used at a node. Default value is `null`, which corresponds to the
-            number of predictors divided by 3.
-        :param num_trees: The number of trees build within the Random Forest classification.
-        :param seed: A randomization seed to use for the random sampling in training.
-
-        .. versionadded:: 0.10.0
-        """
-        # TODO #279: `fit_class_random_forest` should be defined on VectorCube instead of DataCube
-        pgnode = PGNode(
-            process_id="fit_class_random_forest",
-            arguments=dict_no_none(
-                predictors=self,
-                # TODO #279 strictly per-spec, target should be a `vector-cube`, but due to lack of proper support we are limited to inline GeoJSON for now
-                target=target,
-                max_variables=max_variables,
-                num_trees=num_trees,
-                seed=seed,
-            ),
-        )
-        model = MlModel(graph=pgnode, connection=self._connection)
-        return model
-
-    @openeo_process
-    def fit_regr_random_forest(
-            self,
-            # TODO #279 #293: target type should be `VectorCube` (with adapters for GeoJSON FeatureCollection, GeoPandas, ...)
-            target: dict,
-            # TODO #293 max_variables officially has no default
-            max_variables: Optional[int] = None,
-            num_trees: int = 100,
-            seed: Optional[int] = None,
-    ) -> 'MlModel':
-        """
-        Executes the fit of a random forest regression based on training data.
-        The Random Forest regression model is based on the approach by Breiman (2001).
-
-        .. warning:: EXPERIMENTAL: not generally supported, API subject to change.
-
-        :param target: The training sites for the regression model as a vector data cube.
-            This is associated with the target variable for the Random Forest model.
-            The geometry has to associated with a value to predict (e.g. fractional forest canopy cover).
-        :param max_variables: Specifies how many split variables will be used at a node. Default value is `null`, which corresponds to the
-            number of predictors divided by 3.
-        :param num_trees: The number of trees build within the Random Forest classification.
-        :param seed: A randomization seed to use for the random sampling in training.
-
-        .. versionadded:: 0.10.1
-        """
-        # TODO #279 #293: `fit_class_random_forest` should be defined on VectorCube instead of DataCube
-        pgnode = PGNode(
-            process_id="fit_regr_random_forest",
-            arguments=dict_no_none(
-                predictors=self,
-                # TODO #279 strictly per-spec, target should be a `vector-cube`, but due to lack of proper support we are limited to inline GeoJSON for now
-                target=target,
-                max_variables=max_variables,
-                num_trees=num_trees,
-                seed=seed,
-            ),
-        )
-        model = MlModel(graph=pgnode, connection=self._connection)
-        return model
 
     @openeo_process
     def flatten_dimensions(self, dimensions: List[str], target_dimension: str, label_separator: Optional[str] = None):
