@@ -4,7 +4,7 @@ import keyword
 import sys
 import textwrap
 from pathlib import Path
-from typing import Union, List, Iterator
+from typing import Union, List, Iterator, Optional
 
 from openeo.internal.processes.parse import Process, parse_all_from_dir
 
@@ -14,18 +14,20 @@ class PythonRenderer:
     DEFAULT_WIDTH = 115
 
     def __init__(
-            self,
-            oo_mode=False,
-            indent="    ",
-            body_template="return _process({id!r}, {args})",
-            optional_default="None",
-            return_type_hint: str = None
+        self,
+        oo_mode: bool = False,
+        indent: str = "    ",
+        body_template: str = "return _process({id!r}, {args})",
+        optional_default="None",
+        return_type_hint: Optional[str] = None,
+        decorator: Optional[str] = None,
     ):
         self.oo_mode = oo_mode
         self.indent = indent
         self.body_template = body_template
         self.optional_default = optional_default
         self.return_type_hint = return_type_hint
+        self.decorator = decorator
 
     def render_process(self, process: Process, prefix: str = None, width: int = DEFAULT_WIDTH) -> str:
         if prefix is None:
@@ -46,11 +48,12 @@ class PythonRenderer:
             id=process.id, safe_name=self._safe_name(process.id), args=call_args
         )
 
-        return textwrap.indent("\n".join([
+        lines = ([self.decorator] if self.decorator else []) + [
             def_line,
             self.render_docstring(process, width=width - len(prefix), prefix=self.indent),
             body
-        ]), prefix=prefix)
+        ]
+        return textwrap.indent("\n".join(lines), prefix=prefix)
 
     def _safe_name(self, name: str) -> str:
         if keyword.iskeyword(name):
@@ -107,45 +110,61 @@ def collect_processes(sources: List[Union[Path, str]]) -> List[Process]:
 
 
 def generate_process_py(processes: List[Process], output=sys.stdout, argv=None):
-    oo_src = textwrap.dedent("""
+    oo_src = textwrap.dedent(
+        """
         import builtins
         from openeo.internal.processes.builder import ProcessBuilderBase, UNSET
+        from openeo.internal.documentation import openeo_process
 
 
         class ProcessBuilder(ProcessBuilderBase):
+            \"\"\"
+            .. include:: api-processbuilder.rst
+            \"\"\"
 
             _ITERATION_LIMIT = 100
 
+            @openeo_process(process_id="add", mode="operator")
             def __add__(self, other) -> 'ProcessBuilder':
                 return self.add(other)
 
+            @openeo_process(process_id="add", mode="operator")
             def __radd__(self, other) -> 'ProcessBuilder':
                 return add(other, self)
 
+            @openeo_process(process_id="subtract", mode="operator")
             def __sub__(self, other) -> 'ProcessBuilder':
                 return self.subtract(other)
 
+            @openeo_process(process_id="subtract", mode="operator")
             def __rsub__(self, other) -> 'ProcessBuilder':
                 return subtract(other, self)
 
+            @openeo_process(process_id="multiply", mode="operator")
             def __mul__(self, other) -> 'ProcessBuilder':
                 return self.multiply(other)
 
+            @openeo_process(process_id="multiply", mode="operator")
             def __rmul__(self, other) -> 'ProcessBuilder':
                 return multiply(other, self)
 
+            @openeo_process(process_id="divide", mode="operator")
             def __truediv__(self, other) -> 'ProcessBuilder':
                 return self.divide(other)
 
+            @openeo_process(process_id="divide", mode="operator")
             def __rtruediv__(self, other) -> 'ProcessBuilder':
                 return divide(other, self)
 
+            @openeo_process(process_id="multiply", mode="operator")
             def __neg__(self) -> 'ProcessBuilder':
                 return self.multiply(-1)
 
+            @openeo_process(process_id="power", mode="operator")
             def __pow__(self, other) -> 'ProcessBuilder':
                 return self.power(other)
 
+            @openeo_process(process_id="array_element", mode="operator")
             def __getitem__(self, key) -> 'ProcessBuilder':
                 if isinstance(key, builtins.int):
                     if key > self._ITERATION_LIMIT:
@@ -158,43 +177,54 @@ def generate_process_py(processes: List[Process], output=sys.stdout, argv=None):
                 else:
                     return self.array_element(label=key)
 
+            @openeo_process(process_id="eq", mode="operator")
             def __eq__(self, other) -> 'ProcessBuilder':
                 return eq(self, other)
 
+            @openeo_process(process_id="neq", mode="operator")
             def __ne__(self, other) -> 'ProcessBuilder':
                 return neq(self, other)
 
+            @openeo_process(process_id="lt", mode="operator")
             def __lt__(self, other) -> 'ProcessBuilder':
                 return lt(self, other)
 
+            @openeo_process(process_id="lte", mode="operator")
             def __le__(self, other) -> 'ProcessBuilder':
                 return lte(self, other)
 
+            @openeo_process(process_id="ge", mode="operator")
             def __ge__(self, other) -> 'ProcessBuilder':
                 return gte(self, other)
 
+            @openeo_process(process_id="gt", mode="operator")
             def __gt__(self, other) -> 'ProcessBuilder':
                 return gt(self, other)
 
-    """)
-    fun_src = textwrap.dedent("""
+    """
+    )
+    fun_src = textwrap.dedent(
+        """
         # Public shortcut
         process = ProcessBuilder.process
         # Private shortcut that has lower chance to collide with a process argument named `process`
         _process = ProcessBuilder.process
 
 
-    """)
+    """
+    )
     fun_renderer = PythonRenderer(
         body_template="return _process({id!r}, {args})",
         optional_default="UNSET",
-        return_type_hint="ProcessBuilder"
+        return_type_hint="ProcessBuilder",
+        decorator="@openeo_process",
     )
     oo_renderer = PythonRenderer(
         oo_mode=True,
         body_template="return {safe_name}({args})",
         optional_default="UNSET",
-        return_type_hint="'ProcessBuilder'"
+        return_type_hint="'ProcessBuilder'",
+        decorator="@openeo_process",
     )
     for p in processes:
         fun_src += fun_renderer.render_process(p) + "\n\n\n"

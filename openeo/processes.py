@@ -7,42 +7,57 @@
 
 import builtins
 from openeo.internal.processes.builder import ProcessBuilderBase, UNSET
+from openeo.internal.documentation import openeo_process
 
 
 class ProcessBuilder(ProcessBuilderBase):
+    """
+    .. include:: api-processbuilder.rst
+    """
 
     _ITERATION_LIMIT = 100
 
+    @openeo_process(process_id="add", mode="operator")
     def __add__(self, other) -> 'ProcessBuilder':
         return self.add(other)
 
+    @openeo_process(process_id="add", mode="operator")
     def __radd__(self, other) -> 'ProcessBuilder':
         return add(other, self)
 
+    @openeo_process(process_id="subtract", mode="operator")
     def __sub__(self, other) -> 'ProcessBuilder':
         return self.subtract(other)
 
+    @openeo_process(process_id="subtract", mode="operator")
     def __rsub__(self, other) -> 'ProcessBuilder':
         return subtract(other, self)
 
+    @openeo_process(process_id="multiply", mode="operator")
     def __mul__(self, other) -> 'ProcessBuilder':
         return self.multiply(other)
 
+    @openeo_process(process_id="multiply", mode="operator")
     def __rmul__(self, other) -> 'ProcessBuilder':
         return multiply(other, self)
 
+    @openeo_process(process_id="divide", mode="operator")
     def __truediv__(self, other) -> 'ProcessBuilder':
         return self.divide(other)
 
+    @openeo_process(process_id="divide", mode="operator")
     def __rtruediv__(self, other) -> 'ProcessBuilder':
         return divide(other, self)
 
+    @openeo_process(process_id="multiply", mode="operator")
     def __neg__(self) -> 'ProcessBuilder':
         return self.multiply(-1)
 
+    @openeo_process(process_id="power", mode="operator")
     def __pow__(self, other) -> 'ProcessBuilder':
         return self.power(other)
 
+    @openeo_process(process_id="array_element", mode="operator")
     def __getitem__(self, key) -> 'ProcessBuilder':
         if isinstance(key, builtins.int):
             if key > self._ITERATION_LIMIT:
@@ -55,24 +70,31 @@ class ProcessBuilder(ProcessBuilderBase):
         else:
             return self.array_element(label=key)
 
+    @openeo_process(process_id="eq", mode="operator")
     def __eq__(self, other) -> 'ProcessBuilder':
         return eq(self, other)
 
+    @openeo_process(process_id="neq", mode="operator")
     def __ne__(self, other) -> 'ProcessBuilder':
         return neq(self, other)
 
+    @openeo_process(process_id="lt", mode="operator")
     def __lt__(self, other) -> 'ProcessBuilder':
         return lt(self, other)
 
+    @openeo_process(process_id="lte", mode="operator")
     def __le__(self, other) -> 'ProcessBuilder':
         return lte(self, other)
 
+    @openeo_process(process_id="ge", mode="operator")
     def __ge__(self, other) -> 'ProcessBuilder':
         return gte(self, other)
 
+    @openeo_process(process_id="gt", mode="operator")
     def __gt__(self, other) -> 'ProcessBuilder':
         return gt(self, other)
 
+    @openeo_process
     def absolute(self) -> 'ProcessBuilder':
         """
         Absolute value
@@ -83,6 +105,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return absolute(x=self)
 
+    @openeo_process
     def add(self, y) -> 'ProcessBuilder':
         """
         Addition of two numbers
@@ -94,6 +117,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return add(x=self, y=y)
 
+    @openeo_process
     def add_dimension(self, name, label, type=UNSET) -> 'ProcessBuilder':
         """
         Add a new dimension
@@ -108,6 +132,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return add_dimension(data=self, name=name, label=label, type=type)
 
+    @openeo_process
     def aggregate_spatial(self, geometries, reducer, target_dimension=UNSET, context=UNSET) -> 'ProcessBuilder':
         """
         Zonal statistics for geometries
@@ -148,6 +173,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return aggregate_spatial(data=self, geometries=geometries, reducer=reducer, target_dimension=target_dimension, context=context)
 
+    @openeo_process
     def aggregate_spatial_window(self, reducer, size, boundary=UNSET, align=UNSET, context=UNSET) -> 'ProcessBuilder':
         """
         Zonal statistics for rectangular windows
@@ -176,6 +202,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return aggregate_spatial_window(data=self, reducer=reducer, size=size, boundary=boundary, align=align, context=context)
 
+    @openeo_process
     def aggregate_temporal(self, intervals, reducer, labels=UNSET, dimension=UNSET, context=UNSET) -> 'ProcessBuilder':
         """
         Temporal aggregations
@@ -209,6 +236,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return aggregate_temporal(data=self, intervals=intervals, reducer=reducer, labels=labels, dimension=dimension, context=context)
 
+    @openeo_process
     def aggregate_temporal_period(self, period, reducer, dimension=UNSET, context=UNSET) -> 'ProcessBuilder':
         """
         Temporal aggregations based on calendar hierarchies
@@ -253,6 +281,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return aggregate_temporal_period(data=self, period=period, reducer=reducer, dimension=dimension, context=context)
 
+    @openeo_process
     def all(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
         Are all of the values true?
@@ -264,6 +293,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return all(data=self, ignore_nodata=ignore_nodata)
 
+    @openeo_process
     def and_(self, y) -> 'ProcessBuilder':
         """
         Logical AND
@@ -275,6 +305,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return and_(x=self, y=y)
 
+    @openeo_process
     def anomaly(self, normals, period) -> 'ProcessBuilder':
         """
         Compute anomalies
@@ -314,6 +345,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return anomaly(data=self, normals=normals, period=period)
 
+    @openeo_process
     def any(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
         Is at least one value true?
@@ -325,6 +357,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return any(data=self, ignore_nodata=ignore_nodata)
 
+    @openeo_process
     def apply(self, process, context=UNSET) -> 'ProcessBuilder':
         """
         Apply a process to each pixel
@@ -340,6 +373,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return apply(data=self, process=process, context=context)
 
+    @openeo_process
     def apply_dimension(self, process, dimension, target_dimension=UNSET, context=UNSET) -> 'ProcessBuilder':
         """
         Apply a process to pixels along a dimension
@@ -376,6 +410,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return apply_dimension(data=self, process=process, dimension=dimension, target_dimension=target_dimension, context=context)
 
+    @openeo_process
     def apply_kernel(self, kernel, factor=UNSET, border=UNSET, replace_invalid=UNSET) -> 'ProcessBuilder':
         """
         Apply a spatial convolution with a kernel
@@ -402,6 +437,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return apply_kernel(data=self, kernel=kernel, factor=factor, border=border, replace_invalid=replace_invalid)
 
+    @openeo_process
     def apply_neighborhood(self, process, size, overlap=UNSET, context=UNSET) -> 'ProcessBuilder':
         """
         Apply a process to pixels in a n-dimensional neighborhood
@@ -425,6 +461,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return apply_neighborhood(data=self, process=process, size=size, overlap=overlap, context=context)
 
+    @openeo_process
     def arccos(self) -> 'ProcessBuilder':
         """
         Inverse cosine
@@ -435,6 +472,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return arccos(x=self)
 
+    @openeo_process
     def arcosh(self) -> 'ProcessBuilder':
         """
         Inverse hyperbolic cosine
@@ -445,6 +483,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return arcosh(x=self)
 
+    @openeo_process
     def arcsin(self) -> 'ProcessBuilder':
         """
         Inverse sine
@@ -455,6 +494,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return arcsin(x=self)
 
+    @openeo_process
     def arctan(self) -> 'ProcessBuilder':
         """
         Inverse tangent
@@ -465,6 +505,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return arctan(x=self)
 
+    @openeo_process
     def arctan2(self, x) -> 'ProcessBuilder':
         """
         Inverse tangent of two numbers
@@ -476,6 +517,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return arctan2(y=self, x=x)
 
+    @openeo_process
     def ard_normalized_radar_backscatter(self, elevation_model=UNSET, contributing_area=UNSET, ellipsoid_incidence_angle=UNSET, noise_removal=UNSET, options=UNSET) -> 'ProcessBuilder':
         """
         CARD4L compliant SAR NRB generation
@@ -501,6 +543,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return ard_normalized_radar_backscatter(data=self, elevation_model=elevation_model, contributing_area=contributing_area, ellipsoid_incidence_angle=ellipsoid_incidence_angle, noise_removal=noise_removal, options=options)
 
+    @openeo_process
     def ard_surface_reflectance(self, atmospheric_correction_method, cloud_detection_method, elevation_model=UNSET, atmospheric_correction_options=UNSET, cloud_detection_options=UNSET) -> 'ProcessBuilder':
         """
         CARD4L compliant Surface Reflectance generation
@@ -548,6 +591,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return ard_surface_reflectance(data=self, atmospheric_correction_method=atmospheric_correction_method, cloud_detection_method=cloud_detection_method, elevation_model=elevation_model, atmospheric_correction_options=atmospheric_correction_options, cloud_detection_options=cloud_detection_options)
 
+    @openeo_process
     def array_append(self, value, label=UNSET) -> 'ProcessBuilder':
         """
         Append a value to an array
@@ -562,6 +606,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return array_append(data=self, value=value, label=label)
 
+    @openeo_process
     def array_apply(self, process, context=UNSET) -> 'ProcessBuilder':
         """
         Apply a process to each array element
@@ -577,6 +622,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return array_apply(data=self, process=process, context=context)
 
+    @openeo_process
     def array_concat(self, array2) -> 'ProcessBuilder':
         """
         Merge two arrays
@@ -588,6 +634,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return array_concat(array1=self, array2=array2)
 
+    @openeo_process
     def array_contains(self, value) -> 'ProcessBuilder':
         """
         Check whether the array contains a given value
@@ -599,6 +646,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return array_contains(data=self, value=value)
 
+    @openeo_process
     def array_create(self=UNSET, repeat=UNSET) -> 'ProcessBuilder':
         """
         Create an array
@@ -611,6 +659,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return array_create(data=self, repeat=repeat)
 
+    @openeo_process
     def array_create_labeled(self, labels) -> 'ProcessBuilder':
         """
         Create a labeled array
@@ -622,6 +671,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return array_create_labeled(data=self, labels=labels)
 
+    @openeo_process
     def array_element(self, index=UNSET, label=UNSET, return_nodata=UNSET) -> 'ProcessBuilder':
         """
         Get an element from an array
@@ -637,6 +687,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return array_element(data=self, index=index, label=label, return_nodata=return_nodata)
 
+    @openeo_process
     def array_filter(self, condition, context=UNSET) -> 'ProcessBuilder':
         """
         Filter an array based on a condition
@@ -651,6 +702,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return array_filter(data=self, condition=condition, context=context)
 
+    @openeo_process
     def array_find(self, value, reverse=UNSET) -> 'ProcessBuilder':
         """
         Get the index for a value in an array
@@ -665,6 +717,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return array_find(data=self, value=value, reverse=reverse)
 
+    @openeo_process
     def array_find_label(self, label) -> 'ProcessBuilder':
         """
         Get the index for a label in a labeled array
@@ -677,6 +730,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return array_find_label(data=self, label=label)
 
+    @openeo_process
     def array_interpolate_linear(self) -> 'ProcessBuilder':
         """
         One-dimensional linear interpolation for arrays
@@ -690,6 +744,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return array_interpolate_linear(data=self)
 
+    @openeo_process
     def array_labels(self) -> 'ProcessBuilder':
         """
         Get the labels for an array
@@ -700,6 +755,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return array_labels(data=self)
 
+    @openeo_process
     def array_modify(self, values, index, length=UNSET) -> 'ProcessBuilder':
         """
         Change the content of an array (remove, insert, update)
@@ -720,6 +776,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return array_modify(data=self, values=values, index=index, length=length)
 
+    @openeo_process
     def arsinh(self) -> 'ProcessBuilder':
         """
         Inverse hyperbolic sine
@@ -730,6 +787,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return arsinh(x=self)
 
+    @openeo_process
     def artanh(self) -> 'ProcessBuilder':
         """
         Inverse hyperbolic tangent
@@ -740,6 +798,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return artanh(x=self)
 
+    @openeo_process
     def atmospheric_correction(self, method, elevation_model=UNSET, options=UNSET) -> 'ProcessBuilder':
         """
         Apply atmospheric correction
@@ -758,6 +817,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return atmospheric_correction(data=self, method=method, elevation_model=elevation_model, options=options)
 
+    @openeo_process
     def between(self, min, max, exclude_max=UNSET) -> 'ProcessBuilder':
         """
         Between comparison
@@ -771,6 +831,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return between(x=self, min=min, max=max, exclude_max=exclude_max)
 
+    @openeo_process
     def ceil(self) -> 'ProcessBuilder':
         """
         Round fractions up
@@ -781,6 +842,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return ceil(x=self)
 
+    @openeo_process
     def climatological_normal(self, period, climatology_period=UNSET) -> 'ProcessBuilder':
         """
         Compute climatology normals
@@ -811,6 +873,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return climatological_normal(data=self, period=period, climatology_period=climatology_period)
 
+    @openeo_process
     def clip(self, min, max) -> 'ProcessBuilder':
         """
         Clip a value between a minimum and a maximum
@@ -825,6 +888,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return clip(x=self, min=min, max=max)
 
+    @openeo_process
     def cloud_detection(self, method, options=UNSET) -> 'ProcessBuilder':
         """
         Create cloud masks
@@ -844,6 +908,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return cloud_detection(data=self, method=method, options=options)
 
+    @openeo_process
     def constant(self) -> 'ProcessBuilder':
         """
         Define a constant value
@@ -854,6 +919,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return constant(x=self)
 
+    @openeo_process
     def cos(self) -> 'ProcessBuilder':
         """
         Cosine
@@ -864,6 +930,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return cos(x=self)
 
+    @openeo_process
     def cosh(self) -> 'ProcessBuilder':
         """
         Hyperbolic cosine
@@ -874,6 +941,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return cosh(x=self)
 
+    @openeo_process
     def count(self, condition=UNSET, context=UNSET) -> 'ProcessBuilder':
         """
         Count the number of elements
@@ -889,6 +957,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return count(data=self, condition=condition, context=context)
 
+    @openeo_process
     def create_raster_cube(self) -> 'ProcessBuilder':
         """
         Create an empty raster data cube
@@ -897,6 +966,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return create_raster_cube()
 
+    @openeo_process
     def cummax(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
         Cumulative maxima
@@ -910,6 +980,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return cummax(data=self, ignore_nodata=ignore_nodata)
 
+    @openeo_process
     def cummin(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
         Cumulative minima
@@ -923,6 +994,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return cummin(data=self, ignore_nodata=ignore_nodata)
 
+    @openeo_process
     def cumproduct(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
         Cumulative products
@@ -936,6 +1008,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return cumproduct(data=self, ignore_nodata=ignore_nodata)
 
+    @openeo_process
     def cumsum(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
         Cumulative sums
@@ -949,6 +1022,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return cumsum(data=self, ignore_nodata=ignore_nodata)
 
+    @openeo_process
     def date_shift(self, value, unit) -> 'ProcessBuilder':
         """
         Manipulates dates and times by addition or subtraction
@@ -971,6 +1045,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return date_shift(date=self, value=value, unit=unit)
 
+    @openeo_process
     def dimension_labels(self, dimension) -> 'ProcessBuilder':
         """
         Get the dimension labels
@@ -982,6 +1057,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return dimension_labels(data=self, dimension=dimension)
 
+    @openeo_process
     def divide(self, y) -> 'ProcessBuilder':
         """
         Division of two numbers
@@ -993,6 +1069,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return divide(x=self, y=y)
 
+    @openeo_process
     def drop_dimension(self, name) -> 'ProcessBuilder':
         """
         Remove a dimension
@@ -1006,6 +1083,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return drop_dimension(data=self, name=name)
 
+    @openeo_process
     def e(self) -> 'ProcessBuilder':
         """
         Euler's number (e)
@@ -1014,6 +1092,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return e()
 
+    @openeo_process
     def eq(self, y, delta=UNSET, case_sensitive=UNSET) -> 'ProcessBuilder':
         """
         Equal to comparison
@@ -1031,6 +1110,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return eq(x=self, y=y, delta=delta, case_sensitive=case_sensitive)
 
+    @openeo_process
     def exp(self) -> 'ProcessBuilder':
         """
         Exponentiation to the base e
@@ -1041,6 +1121,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return exp(p=self)
 
+    @openeo_process
     def extrema(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
         Minimum and maximum values
@@ -1056,6 +1137,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return extrema(data=self, ignore_nodata=ignore_nodata)
 
+    @openeo_process
     def filter_bands(self, bands=UNSET, wavelengths=UNSET) -> 'ProcessBuilder':
         """
         Filter the bands by names
@@ -1078,6 +1160,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return filter_bands(data=self, bands=bands, wavelengths=wavelengths)
 
+    @openeo_process
     def filter_bbox(self, extent) -> 'ProcessBuilder':
         """
         Spatial filter using a bounding box
@@ -1091,6 +1174,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return filter_bbox(data=self, extent=extent)
 
+    @openeo_process
     def filter_labels(self, condition, dimension, context=UNSET) -> 'ProcessBuilder':
         """
         Filter dimension labels based on a condition
@@ -1109,6 +1193,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return filter_labels(data=self, condition=condition, dimension=dimension, context=context)
 
+    @openeo_process
     def filter_spatial(self, geometries) -> 'ProcessBuilder':
         """
         Spatial filter using geometries
@@ -1122,6 +1207,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return filter_spatial(data=self, geometries=geometries)
 
+    @openeo_process
     def filter_temporal(self, extent, dimension=UNSET) -> 'ProcessBuilder':
         """
         Temporal filter based on temporal intervals
@@ -1143,6 +1229,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return filter_temporal(data=self, extent=extent, dimension=dimension)
 
+    @openeo_process
     def first(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
         First element
@@ -1156,6 +1243,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return first(data=self, ignore_nodata=ignore_nodata)
 
+    @openeo_process
     def fit_class_random_forest(self, target, max_variables, num_trees=UNSET, seed=UNSET) -> 'ProcessBuilder':
         """
         Train a random forest classification model
@@ -1180,6 +1268,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return fit_class_random_forest(predictors=self, target=target, max_variables=max_variables, num_trees=num_trees, seed=seed)
 
+    @openeo_process
     def fit_curve(self, parameters, function, dimension) -> 'ProcessBuilder':
         """
         Curve fitting
@@ -1199,6 +1288,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return fit_curve(data=self, parameters=parameters, function=function, dimension=dimension)
 
+    @openeo_process
     def fit_regr_random_forest(self, target, max_variables, num_trees=UNSET, seed=UNSET) -> 'ProcessBuilder':
         """
         Train a random forest regression model
@@ -1223,6 +1313,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return fit_regr_random_forest(predictors=self, target=target, max_variables=max_variables, num_trees=num_trees, seed=seed)
 
+    @openeo_process
     def flatten_dimensions(self, dimensions, target_dimension, label_separator=UNSET) -> 'ProcessBuilder':
         """
         Combine multiple dimensions into a single dimension
@@ -1243,6 +1334,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return flatten_dimensions(data=self, dimensions=dimensions, target_dimension=target_dimension, label_separator=label_separator)
 
+    @openeo_process
     def floor(self) -> 'ProcessBuilder':
         """
         Round fractions down
@@ -1253,6 +1345,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return floor(x=self)
 
+    @openeo_process
     def gt(self, y) -> 'ProcessBuilder':
         """
         Greater than comparison
@@ -1265,6 +1358,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return gt(x=self, y=y)
 
+    @openeo_process
     def gte(self, y) -> 'ProcessBuilder':
         """
         Greater than or equal to comparison
@@ -1277,6 +1371,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return gte(x=self, y=y)
 
+    @openeo_process
     def if_(self, accept, reject=UNSET) -> 'ProcessBuilder':
         """
         If-Then-Else conditional
@@ -1289,6 +1384,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return if_(value=self, accept=accept, reject=reject)
 
+    @openeo_process
     def inspect(self, code=UNSET, level=UNSET, message=UNSET) -> 'ProcessBuilder':
         """
         Add information to the logs
@@ -1303,6 +1399,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return inspect(data=self, code=code, level=level, message=message)
 
+    @openeo_process
     def int(self) -> 'ProcessBuilder':
         """
         Integer part of a number
@@ -1313,6 +1410,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return int(x=self)
 
+    @openeo_process
     def is_infinite(self) -> 'ProcessBuilder':
         """
         Value is an infinite number
@@ -1323,6 +1421,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return is_infinite(x=self)
 
+    @openeo_process
     def is_nan(self) -> 'ProcessBuilder':
         """
         Value is not a number
@@ -1333,6 +1432,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return is_nan(x=self)
 
+    @openeo_process
     def is_nodata(self) -> 'ProcessBuilder':
         """
         Value is a no-data value
@@ -1343,6 +1443,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return is_nodata(x=self)
 
+    @openeo_process
     def is_valid(self) -> 'ProcessBuilder':
         """
         Value is valid data
@@ -1353,6 +1454,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return is_valid(x=self)
 
+    @openeo_process
     def last(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
         Last element
@@ -1366,6 +1468,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return last(data=self, ignore_nodata=ignore_nodata)
 
+    @openeo_process
     def linear_scale_range(self, inputMin, inputMax, outputMin=UNSET, outputMax=UNSET) -> 'ProcessBuilder':
         """
         Linear transformation between two ranges
@@ -1381,6 +1484,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return linear_scale_range(x=self, inputMin=inputMin, inputMax=inputMax, outputMin=outputMin, outputMax=outputMax)
 
+    @openeo_process
     def ln(self) -> 'ProcessBuilder':
         """
         Natural logarithm
@@ -1391,6 +1495,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return ln(x=self)
 
+    @openeo_process
     def load_collection(self, spatial_extent, temporal_extent, bands=UNSET, properties=UNSET) -> 'ProcessBuilder':
         """
         Load a collection
@@ -1435,6 +1540,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return load_collection(id=self, spatial_extent=spatial_extent, temporal_extent=temporal_extent, bands=bands, properties=properties)
 
+    @openeo_process
     def load_ml_model(self) -> 'ProcessBuilder':
         """
         Load a ML model
@@ -1447,6 +1553,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return load_ml_model(id=self)
 
+    @openeo_process
     def load_result(self, spatial_extent=UNSET, temporal_extent=UNSET, bands=UNSET) -> 'ProcessBuilder':
         """
         Load batch job results
@@ -1484,6 +1591,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return load_result(id=self, spatial_extent=spatial_extent, temporal_extent=temporal_extent, bands=bands)
 
+    @openeo_process
     def load_uploaded_files(self, format, options=UNSET) -> 'ProcessBuilder':
         """
         Load files from the user workspace
@@ -1502,6 +1610,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return load_uploaded_files(paths=self, format=format, options=options)
 
+    @openeo_process
     def log(self, base) -> 'ProcessBuilder':
         """
         Logarithm to a base
@@ -1513,6 +1622,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return log(x=self, base=base)
 
+    @openeo_process
     def lt(self, y) -> 'ProcessBuilder':
         """
         Less than comparison
@@ -1524,6 +1634,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return lt(x=self, y=y)
 
+    @openeo_process
     def lte(self, y) -> 'ProcessBuilder':
         """
         Less than or equal to comparison
@@ -1536,6 +1647,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return lte(x=self, y=y)
 
+    @openeo_process
     def mask(self, mask, replacement=UNSET) -> 'ProcessBuilder':
         """
         Apply a raster mask
@@ -1550,6 +1662,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return mask(data=self, mask=mask, replacement=replacement)
 
+    @openeo_process
     def mask_polygon(self, mask, replacement=UNSET, inside=UNSET) -> 'ProcessBuilder':
         """
         Apply a polygon mask
@@ -1570,6 +1683,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return mask_polygon(data=self, mask=mask, replacement=replacement, inside=inside)
 
+    @openeo_process
     def max(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
         Maximum value
@@ -1583,6 +1697,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return max(data=self, ignore_nodata=ignore_nodata)
 
+    @openeo_process
     def mean(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
         Arithmetic mean (average)
@@ -1596,6 +1711,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return mean(data=self, ignore_nodata=ignore_nodata)
 
+    @openeo_process
     def median(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
         Statistical median
@@ -1609,6 +1725,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return median(data=self, ignore_nodata=ignore_nodata)
 
+    @openeo_process
     def merge_cubes(self, cube2, overlap_resolver=UNSET, context=UNSET) -> 'ProcessBuilder':
         """
         Merge two data cubes
@@ -1626,6 +1743,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return merge_cubes(cube1=self, cube2=cube2, overlap_resolver=overlap_resolver, context=context)
 
+    @openeo_process
     def min(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
         Minimum value
@@ -1639,6 +1757,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return min(data=self, ignore_nodata=ignore_nodata)
 
+    @openeo_process
     def mod(self, y) -> 'ProcessBuilder':
         """
         Modulo
@@ -1650,6 +1769,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return mod(x=self, y=y)
 
+    @openeo_process
     def multiply(self, y) -> 'ProcessBuilder':
         """
         Multiplication of two numbers
@@ -1661,6 +1781,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return multiply(x=self, y=y)
 
+    @openeo_process
     def nan(self) -> 'ProcessBuilder':
         """
         Not a Number (NaN)
@@ -1669,6 +1790,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return nan()
 
+    @openeo_process
     def ndvi(self, nir=UNSET, red=UNSET, target_band=UNSET) -> 'ProcessBuilder':
         """
         Normalized Difference Vegetation Index
@@ -1696,6 +1818,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return ndvi(data=self, nir=nir, red=red, target_band=target_band)
 
+    @openeo_process
     def neq(self, y, delta=UNSET, case_sensitive=UNSET) -> 'ProcessBuilder':
         """
         Not equal to comparison
@@ -1713,6 +1836,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return neq(x=self, y=y, delta=delta, case_sensitive=case_sensitive)
 
+    @openeo_process
     def normalized_difference(self, y) -> 'ProcessBuilder':
         """
         Normalized difference
@@ -1724,6 +1848,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return normalized_difference(x=self, y=y)
 
+    @openeo_process
     def not_(self) -> 'ProcessBuilder':
         """
         Inverting a boolean
@@ -1734,6 +1859,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return not_(x=self)
 
+    @openeo_process
     def or_(self, y) -> 'ProcessBuilder':
         """
         Logical OR
@@ -1745,6 +1871,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return or_(x=self, y=y)
 
+    @openeo_process
     def order(self, asc=UNSET, nodata=UNSET) -> 'ProcessBuilder':
         """
         Create a permutation
@@ -1759,6 +1886,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return order(data=self, asc=asc, nodata=nodata)
 
+    @openeo_process
     def pi(self) -> 'ProcessBuilder':
         """
         Pi (π)
@@ -1767,6 +1895,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return pi()
 
+    @openeo_process
     def power(self, p) -> 'ProcessBuilder':
         """
         Exponentiation
@@ -1778,6 +1907,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return power(base=self, p=p)
 
+    @openeo_process
     def predict_curve(self, parameters, function, dimension, labels=UNSET) -> 'ProcessBuilder':
         """
         Predict values
@@ -1796,6 +1926,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return predict_curve(data=self, parameters=parameters, function=function, dimension=dimension, labels=labels)
 
+    @openeo_process
     def predict_random_forest(self, model) -> 'ProcessBuilder':
         """
         Predict values from a Random Forest model
@@ -1809,6 +1940,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return predict_random_forest(data=self, model=model)
 
+    @openeo_process
     def product(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
         Compute the product by multiplying numbers
@@ -1822,6 +1954,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return product(data=self, ignore_nodata=ignore_nodata)
 
+    @openeo_process
     def quantiles(self, probabilities=UNSET, q=UNSET, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
         Quantiles
@@ -1842,6 +1975,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return quantiles(data=self, probabilities=probabilities, q=q, ignore_nodata=ignore_nodata)
 
+    @openeo_process
     def rearrange(self, order) -> 'ProcessBuilder':
         """
         Rearrange an array based on a permutation
@@ -1853,6 +1987,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return rearrange(data=self, order=order)
 
+    @openeo_process
     def reduce_dimension(self, reducer, dimension, context=UNSET) -> 'ProcessBuilder':
         """
         Reduce dimensions
@@ -1871,6 +2006,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return reduce_dimension(data=self, reducer=reducer, dimension=dimension, context=context)
 
+    @openeo_process
     def reduce_spatial(self, reducer, context=UNSET) -> 'ProcessBuilder':
         """
         Reduce spatial dimensions 'x' and 'y'
@@ -1887,6 +2023,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return reduce_spatial(data=self, reducer=reducer, context=context)
 
+    @openeo_process
     def rename_dimension(self, source, target) -> 'ProcessBuilder':
         """
         Rename a dimension
@@ -1903,6 +2040,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return rename_dimension(data=self, source=source, target=target)
 
+    @openeo_process
     def rename_labels(self, dimension, target, source=UNSET) -> 'ProcessBuilder':
         """
         Rename dimension labels
@@ -1925,6 +2063,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return rename_labels(data=self, dimension=dimension, target=target, source=source)
 
+    @openeo_process
     def resample_cube_spatial(self, target, method=UNSET) -> 'ProcessBuilder':
         """
         Resample the spatial dimensions to match a target data cube
@@ -1950,6 +2089,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return resample_cube_spatial(data=self, target=target, method=method)
 
+    @openeo_process
     def resample_cube_temporal(self, target, dimension=UNSET, valid_within=UNSET) -> 'ProcessBuilder':
         """
         Resample temporal dimensions to match a target data cube
@@ -1976,6 +2116,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return resample_cube_temporal(data=self, target=target, dimension=dimension, valid_within=valid_within)
 
+    @openeo_process
     def resample_spatial(self, resolution=UNSET, projection=UNSET, method=UNSET, align=UNSET) -> 'ProcessBuilder':
         """
         Resample and warp the spatial dimensions
@@ -2010,6 +2151,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return resample_spatial(data=self, resolution=resolution, projection=projection, method=method, align=align)
 
+    @openeo_process
     def round(self, p=UNSET) -> 'ProcessBuilder':
         """
         Round to a specified precision
@@ -2023,6 +2165,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return round(x=self, p=p)
 
+    @openeo_process
     def run_udf(self, udf, runtime, version=UNSET, context=UNSET) -> 'ProcessBuilder':
         """
         Run a UDF
@@ -2039,6 +2182,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return run_udf(data=self, udf=udf, runtime=runtime, version=version, context=context)
 
+    @openeo_process
     def run_udf_externally(self, url, context=UNSET) -> 'ProcessBuilder':
         """
         Run an externally hosted UDF container
@@ -2052,6 +2196,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return run_udf_externally(data=self, url=url, context=context)
 
+    @openeo_process
     def sar_backscatter(self, coefficient=UNSET, elevation_model=UNSET, mask=UNSET, contributing_area=UNSET, local_incidence_angle=UNSET, ellipsoid_incidence_angle=UNSET, noise_removal=UNSET, options=UNSET) -> 'ProcessBuilder':
         """
         Computes backscatter from SAR input
@@ -2082,6 +2227,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return sar_backscatter(data=self, coefficient=coefficient, elevation_model=elevation_model, mask=mask, contributing_area=contributing_area, local_incidence_angle=local_incidence_angle, ellipsoid_incidence_angle=ellipsoid_incidence_angle, noise_removal=noise_removal, options=options)
 
+    @openeo_process
     def save_ml_model(self, options=UNSET) -> 'ProcessBuilder':
         """
         Save a ML model
@@ -2093,6 +2239,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return save_ml_model(data=self, options=options)
 
+    @openeo_process
     def save_result(self, format, options=UNSET) -> 'ProcessBuilder':
         """
         Save processed data
@@ -2110,6 +2257,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return save_result(data=self, format=format, options=options)
 
+    @openeo_process
     def sd(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
         Standard deviation
@@ -2123,6 +2271,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return sd(data=self, ignore_nodata=ignore_nodata)
 
+    @openeo_process
     def sgn(self) -> 'ProcessBuilder':
         """
         Signum
@@ -2133,6 +2282,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return sgn(x=self)
 
+    @openeo_process
     def sin(self) -> 'ProcessBuilder':
         """
         Sine
@@ -2143,6 +2293,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return sin(x=self)
 
+    @openeo_process
     def sinh(self) -> 'ProcessBuilder':
         """
         Hyperbolic sine
@@ -2153,6 +2304,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return sinh(x=self)
 
+    @openeo_process
     def sort(self, asc=UNSET, nodata=UNSET) -> 'ProcessBuilder':
         """
         Sort data
@@ -2167,6 +2319,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return sort(data=self, asc=asc, nodata=nodata)
 
+    @openeo_process
     def sqrt(self) -> 'ProcessBuilder':
         """
         Square root
@@ -2177,6 +2330,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return sqrt(x=self)
 
+    @openeo_process
     def subtract(self, y) -> 'ProcessBuilder':
         """
         Subtraction of two numbers
@@ -2188,6 +2342,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return subtract(x=self, y=y)
 
+    @openeo_process
     def sum(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
         Compute the sum by adding up numbers
@@ -2201,6 +2356,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return sum(data=self, ignore_nodata=ignore_nodata)
 
+    @openeo_process
     def tan(self) -> 'ProcessBuilder':
         """
         Tangent
@@ -2211,6 +2367,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return tan(x=self)
 
+    @openeo_process
     def tanh(self) -> 'ProcessBuilder':
         """
         Hyperbolic tangent
@@ -2221,6 +2378,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return tanh(x=self)
 
+    @openeo_process
     def text_begins(self, pattern, case_sensitive=UNSET) -> 'ProcessBuilder':
         """
         Text begins with another text
@@ -2233,6 +2391,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return text_begins(data=self, pattern=pattern, case_sensitive=case_sensitive)
 
+    @openeo_process
     def text_concat(self, separator=UNSET) -> 'ProcessBuilder':
         """
         Concatenate elements to a single text
@@ -2247,6 +2406,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return text_concat(data=self, separator=separator)
 
+    @openeo_process
     def text_contains(self, pattern, case_sensitive=UNSET) -> 'ProcessBuilder':
         """
         Text contains another text
@@ -2259,6 +2419,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return text_contains(data=self, pattern=pattern, case_sensitive=case_sensitive)
 
+    @openeo_process
     def text_ends(self, pattern, case_sensitive=UNSET) -> 'ProcessBuilder':
         """
         Text ends with another text
@@ -2271,6 +2432,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return text_ends(data=self, pattern=pattern, case_sensitive=case_sensitive)
 
+    @openeo_process
     def trim_cube(self) -> 'ProcessBuilder':
         """
         Remove dimension labels with no-data values
@@ -2282,6 +2444,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return trim_cube(data=self)
 
+    @openeo_process
     def unflatten_dimension(self, dimension, target_dimensions, label_separator=UNSET) -> 'ProcessBuilder':
         """
         Split a single dimensions into multiple dimensions
@@ -2302,6 +2465,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return unflatten_dimension(data=self, dimension=dimension, target_dimensions=target_dimensions, label_separator=label_separator)
 
+    @openeo_process
     def variance(self, ignore_nodata=UNSET) -> 'ProcessBuilder':
         """
         Variance
@@ -2315,6 +2479,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return variance(data=self, ignore_nodata=ignore_nodata)
 
+    @openeo_process
     def vector_buffer(self, distance) -> 'ProcessBuilder':
         """
         Buffer geometries by distance
@@ -2331,6 +2496,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return vector_buffer(geometries=self, distance=distance)
 
+    @openeo_process
     def vector_to_random_points(self, geometry_count=UNSET, total_count=UNSET, group=UNSET, seed=UNSET) -> 'ProcessBuilder':
         """
         Sample random points from geometries
@@ -2353,6 +2519,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return vector_to_random_points(data=self, geometry_count=geometry_count, total_count=total_count, group=group, seed=seed)
 
+    @openeo_process
     def vector_to_regular_points(self, distance, group=UNSET) -> 'ProcessBuilder':
         """
         Sample regular points from geometries
@@ -2377,6 +2544,7 @@ class ProcessBuilder(ProcessBuilderBase):
         """
         return vector_to_regular_points(data=self, distance=distance, group=group)
 
+    @openeo_process
     def xor(self, y) -> 'ProcessBuilder':
         """
         Logical XOR (exclusive or)
@@ -2395,6 +2563,7 @@ process = ProcessBuilder.process
 _process = ProcessBuilder.process
 
 
+@openeo_process
 def absolute(x) -> ProcessBuilder:
     """
     Absolute value
@@ -2406,6 +2575,7 @@ def absolute(x) -> ProcessBuilder:
     return _process('absolute', x=x)
 
 
+@openeo_process
 def add(x, y) -> ProcessBuilder:
     """
     Addition of two numbers
@@ -2418,6 +2588,7 @@ def add(x, y) -> ProcessBuilder:
     return _process('add', x=x, y=y)
 
 
+@openeo_process
 def add_dimension(data, name, label, type=UNSET) -> ProcessBuilder:
     """
     Add a new dimension
@@ -2433,6 +2604,7 @@ def add_dimension(data, name, label, type=UNSET) -> ProcessBuilder:
     return _process('add_dimension', data=data, name=name, label=label, type=type)
 
 
+@openeo_process
 def aggregate_spatial(data, geometries, reducer, target_dimension=UNSET, context=UNSET) -> ProcessBuilder:
     """
     Zonal statistics for geometries
@@ -2473,6 +2645,7 @@ def aggregate_spatial(data, geometries, reducer, target_dimension=UNSET, context
     return _process('aggregate_spatial', data=data, geometries=geometries, reducer=reducer, target_dimension=target_dimension, context=context)
 
 
+@openeo_process
 def aggregate_spatial_window(data, reducer, size, boundary=UNSET, align=UNSET, context=UNSET) -> ProcessBuilder:
     """
     Zonal statistics for rectangular windows
@@ -2502,6 +2675,7 @@ def aggregate_spatial_window(data, reducer, size, boundary=UNSET, align=UNSET, c
     return _process('aggregate_spatial_window', data=data, reducer=reducer, size=size, boundary=boundary, align=align, context=context)
 
 
+@openeo_process
 def aggregate_temporal(data, intervals, reducer, labels=UNSET, dimension=UNSET, context=UNSET) -> ProcessBuilder:
     """
     Temporal aggregations
@@ -2535,6 +2709,7 @@ def aggregate_temporal(data, intervals, reducer, labels=UNSET, dimension=UNSET, 
     return _process('aggregate_temporal', data=data, intervals=intervals, reducer=reducer, labels=labels, dimension=dimension, context=context)
 
 
+@openeo_process
 def aggregate_temporal_period(data, period, reducer, dimension=UNSET, context=UNSET) -> ProcessBuilder:
     """
     Temporal aggregations based on calendar hierarchies
@@ -2579,6 +2754,7 @@ def aggregate_temporal_period(data, period, reducer, dimension=UNSET, context=UN
     return _process('aggregate_temporal_period', data=data, period=period, reducer=reducer, dimension=dimension, context=context)
 
 
+@openeo_process
 def all(data, ignore_nodata=UNSET) -> ProcessBuilder:
     """
     Are all of the values true?
@@ -2591,6 +2767,7 @@ def all(data, ignore_nodata=UNSET) -> ProcessBuilder:
     return _process('all', data=data, ignore_nodata=ignore_nodata)
 
 
+@openeo_process
 def and_(x, y) -> ProcessBuilder:
     """
     Logical AND
@@ -2603,6 +2780,7 @@ def and_(x, y) -> ProcessBuilder:
     return _process('and', x=x, y=y)
 
 
+@openeo_process
 def anomaly(data, normals, period) -> ProcessBuilder:
     """
     Compute anomalies
@@ -2642,6 +2820,7 @@ def anomaly(data, normals, period) -> ProcessBuilder:
     return _process('anomaly', data=data, normals=normals, period=period)
 
 
+@openeo_process
 def any(data, ignore_nodata=UNSET) -> ProcessBuilder:
     """
     Is at least one value true?
@@ -2654,6 +2833,7 @@ def any(data, ignore_nodata=UNSET) -> ProcessBuilder:
     return _process('any', data=data, ignore_nodata=ignore_nodata)
 
 
+@openeo_process
 def apply(data, process, context=UNSET) -> ProcessBuilder:
     """
     Apply a process to each pixel
@@ -2670,6 +2850,7 @@ def apply(data, process, context=UNSET) -> ProcessBuilder:
     return _process('apply', data=data, process=process, context=context)
 
 
+@openeo_process
 def apply_dimension(data, process, dimension, target_dimension=UNSET, context=UNSET) -> ProcessBuilder:
     """
     Apply a process to pixels along a dimension
@@ -2705,6 +2886,7 @@ def apply_dimension(data, process, dimension, target_dimension=UNSET, context=UN
     return _process('apply_dimension', data=data, process=process, dimension=dimension, target_dimension=target_dimension, context=context)
 
 
+@openeo_process
 def apply_kernel(data, kernel, factor=UNSET, border=UNSET, replace_invalid=UNSET) -> ProcessBuilder:
     """
     Apply a spatial convolution with a kernel
@@ -2731,6 +2913,7 @@ def apply_kernel(data, kernel, factor=UNSET, border=UNSET, replace_invalid=UNSET
     return _process('apply_kernel', data=data, kernel=kernel, factor=factor, border=border, replace_invalid=replace_invalid)
 
 
+@openeo_process
 def apply_neighborhood(data, process, size, overlap=UNSET, context=UNSET) -> ProcessBuilder:
     """
     Apply a process to pixels in a n-dimensional neighborhood
@@ -2755,6 +2938,7 @@ def apply_neighborhood(data, process, size, overlap=UNSET, context=UNSET) -> Pro
     return _process('apply_neighborhood', data=data, process=process, size=size, overlap=overlap, context=context)
 
 
+@openeo_process
 def arccos(x) -> ProcessBuilder:
     """
     Inverse cosine
@@ -2766,6 +2950,7 @@ def arccos(x) -> ProcessBuilder:
     return _process('arccos', x=x)
 
 
+@openeo_process
 def arcosh(x) -> ProcessBuilder:
     """
     Inverse hyperbolic cosine
@@ -2777,6 +2962,7 @@ def arcosh(x) -> ProcessBuilder:
     return _process('arcosh', x=x)
 
 
+@openeo_process
 def arcsin(x) -> ProcessBuilder:
     """
     Inverse sine
@@ -2788,6 +2974,7 @@ def arcsin(x) -> ProcessBuilder:
     return _process('arcsin', x=x)
 
 
+@openeo_process
 def arctan(x) -> ProcessBuilder:
     """
     Inverse tangent
@@ -2799,6 +2986,7 @@ def arctan(x) -> ProcessBuilder:
     return _process('arctan', x=x)
 
 
+@openeo_process
 def arctan2(y, x) -> ProcessBuilder:
     """
     Inverse tangent of two numbers
@@ -2811,6 +2999,7 @@ def arctan2(y, x) -> ProcessBuilder:
     return _process('arctan2', y=y, x=x)
 
 
+@openeo_process
 def ard_normalized_radar_backscatter(data, elevation_model=UNSET, contributing_area=UNSET, ellipsoid_incidence_angle=UNSET, noise_removal=UNSET, options=UNSET) -> ProcessBuilder:
     """
     CARD4L compliant SAR NRB generation
@@ -2837,6 +3026,7 @@ def ard_normalized_radar_backscatter(data, elevation_model=UNSET, contributing_a
     return _process('ard_normalized_radar_backscatter', data=data, elevation_model=elevation_model, contributing_area=contributing_area, ellipsoid_incidence_angle=ellipsoid_incidence_angle, noise_removal=noise_removal, options=options)
 
 
+@openeo_process
 def ard_surface_reflectance(data, atmospheric_correction_method, cloud_detection_method, elevation_model=UNSET, atmospheric_correction_options=UNSET, cloud_detection_options=UNSET) -> ProcessBuilder:
     """
     CARD4L compliant Surface Reflectance generation
@@ -2884,6 +3074,7 @@ def ard_surface_reflectance(data, atmospheric_correction_method, cloud_detection
     return _process('ard_surface_reflectance', data=data, atmospheric_correction_method=atmospheric_correction_method, cloud_detection_method=cloud_detection_method, elevation_model=elevation_model, atmospheric_correction_options=atmospheric_correction_options, cloud_detection_options=cloud_detection_options)
 
 
+@openeo_process
 def array_append(data, value, label=UNSET) -> ProcessBuilder:
     """
     Append a value to an array
@@ -2899,6 +3090,7 @@ def array_append(data, value, label=UNSET) -> ProcessBuilder:
     return _process('array_append', data=data, value=value, label=label)
 
 
+@openeo_process
 def array_apply(data, process, context=UNSET) -> ProcessBuilder:
     """
     Apply a process to each array element
@@ -2915,6 +3107,7 @@ def array_apply(data, process, context=UNSET) -> ProcessBuilder:
     return _process('array_apply', data=data, process=process, context=context)
 
 
+@openeo_process
 def array_concat(array1, array2) -> ProcessBuilder:
     """
     Merge two arrays
@@ -2927,6 +3120,7 @@ def array_concat(array1, array2) -> ProcessBuilder:
     return _process('array_concat', array1=array1, array2=array2)
 
 
+@openeo_process
 def array_contains(data, value) -> ProcessBuilder:
     """
     Check whether the array contains a given value
@@ -2939,6 +3133,7 @@ def array_contains(data, value) -> ProcessBuilder:
     return _process('array_contains', data=data, value=value)
 
 
+@openeo_process
 def array_create(data=UNSET, repeat=UNSET) -> ProcessBuilder:
     """
     Create an array
@@ -2952,6 +3147,7 @@ def array_create(data=UNSET, repeat=UNSET) -> ProcessBuilder:
     return _process('array_create', data=data, repeat=repeat)
 
 
+@openeo_process
 def array_create_labeled(data, labels) -> ProcessBuilder:
     """
     Create a labeled array
@@ -2964,6 +3160,7 @@ def array_create_labeled(data, labels) -> ProcessBuilder:
     return _process('array_create_labeled', data=data, labels=labels)
 
 
+@openeo_process
 def array_element(data, index=UNSET, label=UNSET, return_nodata=UNSET) -> ProcessBuilder:
     """
     Get an element from an array
@@ -2980,6 +3177,7 @@ def array_element(data, index=UNSET, label=UNSET, return_nodata=UNSET) -> Proces
     return _process('array_element', data=data, index=index, label=label, return_nodata=return_nodata)
 
 
+@openeo_process
 def array_filter(data, condition, context=UNSET) -> ProcessBuilder:
     """
     Filter an array based on a condition
@@ -2995,6 +3193,7 @@ def array_filter(data, condition, context=UNSET) -> ProcessBuilder:
     return _process('array_filter', data=data, condition=condition, context=context)
 
 
+@openeo_process
 def array_find(data, value, reverse=UNSET) -> ProcessBuilder:
     """
     Get the index for a value in an array
@@ -3010,6 +3209,7 @@ def array_find(data, value, reverse=UNSET) -> ProcessBuilder:
     return _process('array_find', data=data, value=value, reverse=reverse)
 
 
+@openeo_process
 def array_find_label(data, label) -> ProcessBuilder:
     """
     Get the index for a label in a labeled array
@@ -3023,6 +3223,7 @@ def array_find_label(data, label) -> ProcessBuilder:
     return _process('array_find_label', data=data, label=label)
 
 
+@openeo_process
 def array_interpolate_linear(data) -> ProcessBuilder:
     """
     One-dimensional linear interpolation for arrays
@@ -3037,6 +3238,7 @@ def array_interpolate_linear(data) -> ProcessBuilder:
     return _process('array_interpolate_linear', data=data)
 
 
+@openeo_process
 def array_labels(data) -> ProcessBuilder:
     """
     Get the labels for an array
@@ -3048,6 +3250,7 @@ def array_labels(data) -> ProcessBuilder:
     return _process('array_labels', data=data)
 
 
+@openeo_process
 def array_modify(data, values, index, length=UNSET) -> ProcessBuilder:
     """
     Change the content of an array (remove, insert, update)
@@ -3068,6 +3271,7 @@ def array_modify(data, values, index, length=UNSET) -> ProcessBuilder:
     return _process('array_modify', data=data, values=values, index=index, length=length)
 
 
+@openeo_process
 def arsinh(x) -> ProcessBuilder:
     """
     Inverse hyperbolic sine
@@ -3079,6 +3283,7 @@ def arsinh(x) -> ProcessBuilder:
     return _process('arsinh', x=x)
 
 
+@openeo_process
 def artanh(x) -> ProcessBuilder:
     """
     Inverse hyperbolic tangent
@@ -3090,6 +3295,7 @@ def artanh(x) -> ProcessBuilder:
     return _process('artanh', x=x)
 
 
+@openeo_process
 def atmospheric_correction(data, method, elevation_model=UNSET, options=UNSET) -> ProcessBuilder:
     """
     Apply atmospheric correction
@@ -3108,6 +3314,7 @@ def atmospheric_correction(data, method, elevation_model=UNSET, options=UNSET) -
     return _process('atmospheric_correction', data=data, method=method, elevation_model=elevation_model, options=options)
 
 
+@openeo_process
 def between(x, min, max, exclude_max=UNSET) -> ProcessBuilder:
     """
     Between comparison
@@ -3122,6 +3329,7 @@ def between(x, min, max, exclude_max=UNSET) -> ProcessBuilder:
     return _process('between', x=x, min=min, max=max, exclude_max=exclude_max)
 
 
+@openeo_process
 def ceil(x) -> ProcessBuilder:
     """
     Round fractions up
@@ -3133,6 +3341,7 @@ def ceil(x) -> ProcessBuilder:
     return _process('ceil', x=x)
 
 
+@openeo_process
 def climatological_normal(data, period, climatology_period=UNSET) -> ProcessBuilder:
     """
     Compute climatology normals
@@ -3162,6 +3371,7 @@ def climatological_normal(data, period, climatology_period=UNSET) -> ProcessBuil
     return _process('climatological_normal', data=data, period=period, climatology_period=climatology_period)
 
 
+@openeo_process
 def clip(x, min, max) -> ProcessBuilder:
     """
     Clip a value between a minimum and a maximum
@@ -3177,6 +3387,7 @@ def clip(x, min, max) -> ProcessBuilder:
     return _process('clip', x=x, min=min, max=max)
 
 
+@openeo_process
 def cloud_detection(data, method, options=UNSET) -> ProcessBuilder:
     """
     Create cloud masks
@@ -3196,6 +3407,7 @@ def cloud_detection(data, method, options=UNSET) -> ProcessBuilder:
     return _process('cloud_detection', data=data, method=method, options=options)
 
 
+@openeo_process
 def constant(x) -> ProcessBuilder:
     """
     Define a constant value
@@ -3207,6 +3419,7 @@ def constant(x) -> ProcessBuilder:
     return _process('constant', x=x)
 
 
+@openeo_process
 def cos(x) -> ProcessBuilder:
     """
     Cosine
@@ -3218,6 +3431,7 @@ def cos(x) -> ProcessBuilder:
     return _process('cos', x=x)
 
 
+@openeo_process
 def cosh(x) -> ProcessBuilder:
     """
     Hyperbolic cosine
@@ -3229,6 +3443,7 @@ def cosh(x) -> ProcessBuilder:
     return _process('cosh', x=x)
 
 
+@openeo_process
 def count(data, condition=UNSET, context=UNSET) -> ProcessBuilder:
     """
     Count the number of elements
@@ -3245,6 +3460,7 @@ def count(data, condition=UNSET, context=UNSET) -> ProcessBuilder:
     return _process('count', data=data, condition=condition, context=context)
 
 
+@openeo_process
 def create_raster_cube() -> ProcessBuilder:
     """
     Create an empty raster data cube
@@ -3254,6 +3470,7 @@ def create_raster_cube() -> ProcessBuilder:
     return _process('create_raster_cube', )
 
 
+@openeo_process
 def cummax(data, ignore_nodata=UNSET) -> ProcessBuilder:
     """
     Cumulative maxima
@@ -3267,6 +3484,7 @@ def cummax(data, ignore_nodata=UNSET) -> ProcessBuilder:
     return _process('cummax', data=data, ignore_nodata=ignore_nodata)
 
 
+@openeo_process
 def cummin(data, ignore_nodata=UNSET) -> ProcessBuilder:
     """
     Cumulative minima
@@ -3280,6 +3498,7 @@ def cummin(data, ignore_nodata=UNSET) -> ProcessBuilder:
     return _process('cummin', data=data, ignore_nodata=ignore_nodata)
 
 
+@openeo_process
 def cumproduct(data, ignore_nodata=UNSET) -> ProcessBuilder:
     """
     Cumulative products
@@ -3293,6 +3512,7 @@ def cumproduct(data, ignore_nodata=UNSET) -> ProcessBuilder:
     return _process('cumproduct', data=data, ignore_nodata=ignore_nodata)
 
 
+@openeo_process
 def cumsum(data, ignore_nodata=UNSET) -> ProcessBuilder:
     """
     Cumulative sums
@@ -3306,6 +3526,7 @@ def cumsum(data, ignore_nodata=UNSET) -> ProcessBuilder:
     return _process('cumsum', data=data, ignore_nodata=ignore_nodata)
 
 
+@openeo_process
 def date_shift(date, value, unit) -> ProcessBuilder:
     """
     Manipulates dates and times by addition or subtraction
@@ -3329,6 +3550,7 @@ def date_shift(date, value, unit) -> ProcessBuilder:
     return _process('date_shift', date=date, value=value, unit=unit)
 
 
+@openeo_process
 def dimension_labels(data, dimension) -> ProcessBuilder:
     """
     Get the dimension labels
@@ -3341,6 +3563,7 @@ def dimension_labels(data, dimension) -> ProcessBuilder:
     return _process('dimension_labels', data=data, dimension=dimension)
 
 
+@openeo_process
 def divide(x, y) -> ProcessBuilder:
     """
     Division of two numbers
@@ -3353,6 +3576,7 @@ def divide(x, y) -> ProcessBuilder:
     return _process('divide', x=x, y=y)
 
 
+@openeo_process
 def drop_dimension(data, name) -> ProcessBuilder:
     """
     Remove a dimension
@@ -3367,6 +3591,7 @@ def drop_dimension(data, name) -> ProcessBuilder:
     return _process('drop_dimension', data=data, name=name)
 
 
+@openeo_process
 def e() -> ProcessBuilder:
     """
     Euler's number (e)
@@ -3376,6 +3601,7 @@ def e() -> ProcessBuilder:
     return _process('e', )
 
 
+@openeo_process
 def eq(x, y, delta=UNSET, case_sensitive=UNSET) -> ProcessBuilder:
     """
     Equal to comparison
@@ -3394,6 +3620,7 @@ def eq(x, y, delta=UNSET, case_sensitive=UNSET) -> ProcessBuilder:
     return _process('eq', x=x, y=y, delta=delta, case_sensitive=case_sensitive)
 
 
+@openeo_process
 def exp(p) -> ProcessBuilder:
     """
     Exponentiation to the base e
@@ -3405,6 +3632,7 @@ def exp(p) -> ProcessBuilder:
     return _process('exp', p=p)
 
 
+@openeo_process
 def extrema(data, ignore_nodata=UNSET) -> ProcessBuilder:
     """
     Minimum and maximum values
@@ -3421,6 +3649,7 @@ def extrema(data, ignore_nodata=UNSET) -> ProcessBuilder:
     return _process('extrema', data=data, ignore_nodata=ignore_nodata)
 
 
+@openeo_process
 def filter_bands(data, bands=UNSET, wavelengths=UNSET) -> ProcessBuilder:
     """
     Filter the bands by names
@@ -3443,6 +3672,7 @@ def filter_bands(data, bands=UNSET, wavelengths=UNSET) -> ProcessBuilder:
     return _process('filter_bands', data=data, bands=bands, wavelengths=wavelengths)
 
 
+@openeo_process
 def filter_bbox(data, extent) -> ProcessBuilder:
     """
     Spatial filter using a bounding box
@@ -3457,6 +3687,7 @@ def filter_bbox(data, extent) -> ProcessBuilder:
     return _process('filter_bbox', data=data, extent=extent)
 
 
+@openeo_process
 def filter_labels(data, condition, dimension, context=UNSET) -> ProcessBuilder:
     """
     Filter dimension labels based on a condition
@@ -3476,6 +3707,7 @@ def filter_labels(data, condition, dimension, context=UNSET) -> ProcessBuilder:
     return _process('filter_labels', data=data, condition=condition, dimension=dimension, context=context)
 
 
+@openeo_process
 def filter_spatial(data, geometries) -> ProcessBuilder:
     """
     Spatial filter using geometries
@@ -3490,6 +3722,7 @@ def filter_spatial(data, geometries) -> ProcessBuilder:
     return _process('filter_spatial', data=data, geometries=geometries)
 
 
+@openeo_process
 def filter_temporal(data, extent, dimension=UNSET) -> ProcessBuilder:
     """
     Temporal filter based on temporal intervals
@@ -3512,6 +3745,7 @@ def filter_temporal(data, extent, dimension=UNSET) -> ProcessBuilder:
     return _process('filter_temporal', data=data, extent=extent, dimension=dimension)
 
 
+@openeo_process
 def first(data, ignore_nodata=UNSET) -> ProcessBuilder:
     """
     First element
@@ -3526,6 +3760,7 @@ def first(data, ignore_nodata=UNSET) -> ProcessBuilder:
     return _process('first', data=data, ignore_nodata=ignore_nodata)
 
 
+@openeo_process
 def fit_class_random_forest(predictors, target, max_variables, num_trees=UNSET, seed=UNSET) -> ProcessBuilder:
     """
     Train a random forest classification model
@@ -3550,6 +3785,7 @@ def fit_class_random_forest(predictors, target, max_variables, num_trees=UNSET, 
     return _process('fit_class_random_forest', predictors=predictors, target=target, max_variables=max_variables, num_trees=num_trees, seed=seed)
 
 
+@openeo_process
 def fit_curve(data, parameters, function, dimension) -> ProcessBuilder:
     """
     Curve fitting
@@ -3570,6 +3806,7 @@ def fit_curve(data, parameters, function, dimension) -> ProcessBuilder:
     return _process('fit_curve', data=data, parameters=parameters, function=function, dimension=dimension)
 
 
+@openeo_process
 def fit_regr_random_forest(predictors, target, max_variables, num_trees=UNSET, seed=UNSET) -> ProcessBuilder:
     """
     Train a random forest regression model
@@ -3594,6 +3831,7 @@ def fit_regr_random_forest(predictors, target, max_variables, num_trees=UNSET, s
     return _process('fit_regr_random_forest', predictors=predictors, target=target, max_variables=max_variables, num_trees=num_trees, seed=seed)
 
 
+@openeo_process
 def flatten_dimensions(data, dimensions, target_dimension, label_separator=UNSET) -> ProcessBuilder:
     """
     Combine multiple dimensions into a single dimension
@@ -3615,6 +3853,7 @@ def flatten_dimensions(data, dimensions, target_dimension, label_separator=UNSET
     return _process('flatten_dimensions', data=data, dimensions=dimensions, target_dimension=target_dimension, label_separator=label_separator)
 
 
+@openeo_process
 def floor(x) -> ProcessBuilder:
     """
     Round fractions down
@@ -3626,6 +3865,7 @@ def floor(x) -> ProcessBuilder:
     return _process('floor', x=x)
 
 
+@openeo_process
 def gt(x, y) -> ProcessBuilder:
     """
     Greater than comparison
@@ -3638,6 +3878,7 @@ def gt(x, y) -> ProcessBuilder:
     return _process('gt', x=x, y=y)
 
 
+@openeo_process
 def gte(x, y) -> ProcessBuilder:
     """
     Greater than or equal to comparison
@@ -3650,6 +3891,7 @@ def gte(x, y) -> ProcessBuilder:
     return _process('gte', x=x, y=y)
 
 
+@openeo_process
 def if_(value, accept, reject=UNSET) -> ProcessBuilder:
     """
     If-Then-Else conditional
@@ -3663,6 +3905,7 @@ def if_(value, accept, reject=UNSET) -> ProcessBuilder:
     return _process('if', value=value, accept=accept, reject=reject)
 
 
+@openeo_process
 def inspect(data, code=UNSET, level=UNSET, message=UNSET) -> ProcessBuilder:
     """
     Add information to the logs
@@ -3678,6 +3921,7 @@ def inspect(data, code=UNSET, level=UNSET, message=UNSET) -> ProcessBuilder:
     return _process('inspect', data=data, code=code, level=level, message=message)
 
 
+@openeo_process
 def int(x) -> ProcessBuilder:
     """
     Integer part of a number
@@ -3689,6 +3933,7 @@ def int(x) -> ProcessBuilder:
     return _process('int', x=x)
 
 
+@openeo_process
 def is_infinite(x) -> ProcessBuilder:
     """
     Value is an infinite number
@@ -3700,6 +3945,7 @@ def is_infinite(x) -> ProcessBuilder:
     return _process('is_infinite', x=x)
 
 
+@openeo_process
 def is_nan(x) -> ProcessBuilder:
     """
     Value is not a number
@@ -3711,6 +3957,7 @@ def is_nan(x) -> ProcessBuilder:
     return _process('is_nan', x=x)
 
 
+@openeo_process
 def is_nodata(x) -> ProcessBuilder:
     """
     Value is a no-data value
@@ -3722,6 +3969,7 @@ def is_nodata(x) -> ProcessBuilder:
     return _process('is_nodata', x=x)
 
 
+@openeo_process
 def is_valid(x) -> ProcessBuilder:
     """
     Value is valid data
@@ -3733,6 +3981,7 @@ def is_valid(x) -> ProcessBuilder:
     return _process('is_valid', x=x)
 
 
+@openeo_process
 def last(data, ignore_nodata=UNSET) -> ProcessBuilder:
     """
     Last element
@@ -3746,6 +3995,7 @@ def last(data, ignore_nodata=UNSET) -> ProcessBuilder:
     return _process('last', data=data, ignore_nodata=ignore_nodata)
 
 
+@openeo_process
 def linear_scale_range(x, inputMin, inputMax, outputMin=UNSET, outputMax=UNSET) -> ProcessBuilder:
     """
     Linear transformation between two ranges
@@ -3762,6 +4012,7 @@ def linear_scale_range(x, inputMin, inputMax, outputMin=UNSET, outputMax=UNSET) 
     return _process('linear_scale_range', x=x, inputMin=inputMin, inputMax=inputMax, outputMin=outputMin, outputMax=outputMax)
 
 
+@openeo_process
 def ln(x) -> ProcessBuilder:
     """
     Natural logarithm
@@ -3773,6 +4024,7 @@ def ln(x) -> ProcessBuilder:
     return _process('ln', x=x)
 
 
+@openeo_process
 def load_collection(id, spatial_extent, temporal_extent, bands=UNSET, properties=UNSET) -> ProcessBuilder:
     """
     Load a collection
@@ -3817,6 +4069,7 @@ def load_collection(id, spatial_extent, temporal_extent, bands=UNSET, properties
     return _process('load_collection', id=id, spatial_extent=spatial_extent, temporal_extent=temporal_extent, bands=bands, properties=properties)
 
 
+@openeo_process
 def load_ml_model(id) -> ProcessBuilder:
     """
     Load a ML model
@@ -3830,6 +4083,7 @@ def load_ml_model(id) -> ProcessBuilder:
     return _process('load_ml_model', id=id)
 
 
+@openeo_process
 def load_result(id, spatial_extent=UNSET, temporal_extent=UNSET, bands=UNSET) -> ProcessBuilder:
     """
     Load batch job results
@@ -3867,6 +4121,7 @@ def load_result(id, spatial_extent=UNSET, temporal_extent=UNSET, bands=UNSET) ->
     return _process('load_result', id=id, spatial_extent=spatial_extent, temporal_extent=temporal_extent, bands=bands)
 
 
+@openeo_process
 def load_uploaded_files(paths, format, options=UNSET) -> ProcessBuilder:
     """
     Load files from the user workspace
@@ -3886,6 +4141,7 @@ def load_uploaded_files(paths, format, options=UNSET) -> ProcessBuilder:
     return _process('load_uploaded_files', paths=paths, format=format, options=options)
 
 
+@openeo_process
 def log(x, base) -> ProcessBuilder:
     """
     Logarithm to a base
@@ -3898,6 +4154,7 @@ def log(x, base) -> ProcessBuilder:
     return _process('log', x=x, base=base)
 
 
+@openeo_process
 def lt(x, y) -> ProcessBuilder:
     """
     Less than comparison
@@ -3910,6 +4167,7 @@ def lt(x, y) -> ProcessBuilder:
     return _process('lt', x=x, y=y)
 
 
+@openeo_process
 def lte(x, y) -> ProcessBuilder:
     """
     Less than or equal to comparison
@@ -3922,6 +4180,7 @@ def lte(x, y) -> ProcessBuilder:
     return _process('lte', x=x, y=y)
 
 
+@openeo_process
 def mask(data, mask, replacement=UNSET) -> ProcessBuilder:
     """
     Apply a raster mask
@@ -3937,6 +4196,7 @@ def mask(data, mask, replacement=UNSET) -> ProcessBuilder:
     return _process('mask', data=data, mask=mask, replacement=replacement)
 
 
+@openeo_process
 def mask_polygon(data, mask, replacement=UNSET, inside=UNSET) -> ProcessBuilder:
     """
     Apply a polygon mask
@@ -3957,6 +4217,7 @@ def mask_polygon(data, mask, replacement=UNSET, inside=UNSET) -> ProcessBuilder:
     return _process('mask_polygon', data=data, mask=mask, replacement=replacement, inside=inside)
 
 
+@openeo_process
 def max(data, ignore_nodata=UNSET) -> ProcessBuilder:
     """
     Maximum value
@@ -3970,6 +4231,7 @@ def max(data, ignore_nodata=UNSET) -> ProcessBuilder:
     return _process('max', data=data, ignore_nodata=ignore_nodata)
 
 
+@openeo_process
 def mean(data, ignore_nodata=UNSET) -> ProcessBuilder:
     """
     Arithmetic mean (average)
@@ -3983,6 +4245,7 @@ def mean(data, ignore_nodata=UNSET) -> ProcessBuilder:
     return _process('mean', data=data, ignore_nodata=ignore_nodata)
 
 
+@openeo_process
 def median(data, ignore_nodata=UNSET) -> ProcessBuilder:
     """
     Statistical median
@@ -3996,6 +4259,7 @@ def median(data, ignore_nodata=UNSET) -> ProcessBuilder:
     return _process('median', data=data, ignore_nodata=ignore_nodata)
 
 
+@openeo_process
 def merge_cubes(cube1, cube2, overlap_resolver=UNSET, context=UNSET) -> ProcessBuilder:
     """
     Merge two data cubes
@@ -4014,6 +4278,7 @@ def merge_cubes(cube1, cube2, overlap_resolver=UNSET, context=UNSET) -> ProcessB
     return _process('merge_cubes', cube1=cube1, cube2=cube2, overlap_resolver=overlap_resolver, context=context)
 
 
+@openeo_process
 def min(data, ignore_nodata=UNSET) -> ProcessBuilder:
     """
     Minimum value
@@ -4027,6 +4292,7 @@ def min(data, ignore_nodata=UNSET) -> ProcessBuilder:
     return _process('min', data=data, ignore_nodata=ignore_nodata)
 
 
+@openeo_process
 def mod(x, y) -> ProcessBuilder:
     """
     Modulo
@@ -4039,6 +4305,7 @@ def mod(x, y) -> ProcessBuilder:
     return _process('mod', x=x, y=y)
 
 
+@openeo_process
 def multiply(x, y) -> ProcessBuilder:
     """
     Multiplication of two numbers
@@ -4051,6 +4318,7 @@ def multiply(x, y) -> ProcessBuilder:
     return _process('multiply', x=x, y=y)
 
 
+@openeo_process
 def nan() -> ProcessBuilder:
     """
     Not a Number (NaN)
@@ -4060,6 +4328,7 @@ def nan() -> ProcessBuilder:
     return _process('nan', )
 
 
+@openeo_process
 def ndvi(data, nir=UNSET, red=UNSET, target_band=UNSET) -> ProcessBuilder:
     """
     Normalized Difference Vegetation Index
@@ -4088,6 +4357,7 @@ def ndvi(data, nir=UNSET, red=UNSET, target_band=UNSET) -> ProcessBuilder:
     return _process('ndvi', data=data, nir=nir, red=red, target_band=target_band)
 
 
+@openeo_process
 def neq(x, y, delta=UNSET, case_sensitive=UNSET) -> ProcessBuilder:
     """
     Not equal to comparison
@@ -4106,6 +4376,7 @@ def neq(x, y, delta=UNSET, case_sensitive=UNSET) -> ProcessBuilder:
     return _process('neq', x=x, y=y, delta=delta, case_sensitive=case_sensitive)
 
 
+@openeo_process
 def normalized_difference(x, y) -> ProcessBuilder:
     """
     Normalized difference
@@ -4118,6 +4389,7 @@ def normalized_difference(x, y) -> ProcessBuilder:
     return _process('normalized_difference', x=x, y=y)
 
 
+@openeo_process
 def not_(x) -> ProcessBuilder:
     """
     Inverting a boolean
@@ -4129,6 +4401,7 @@ def not_(x) -> ProcessBuilder:
     return _process('not', x=x)
 
 
+@openeo_process
 def or_(x, y) -> ProcessBuilder:
     """
     Logical OR
@@ -4141,6 +4414,7 @@ def or_(x, y) -> ProcessBuilder:
     return _process('or', x=x, y=y)
 
 
+@openeo_process
 def order(data, asc=UNSET, nodata=UNSET) -> ProcessBuilder:
     """
     Create a permutation
@@ -4156,6 +4430,7 @@ def order(data, asc=UNSET, nodata=UNSET) -> ProcessBuilder:
     return _process('order', data=data, asc=asc, nodata=nodata)
 
 
+@openeo_process
 def pi() -> ProcessBuilder:
     """
     Pi (π)
@@ -4165,6 +4440,7 @@ def pi() -> ProcessBuilder:
     return _process('pi', )
 
 
+@openeo_process
 def power(base, p) -> ProcessBuilder:
     """
     Exponentiation
@@ -4177,6 +4453,7 @@ def power(base, p) -> ProcessBuilder:
     return _process('power', base=base, p=p)
 
 
+@openeo_process
 def predict_curve(data, parameters, function, dimension, labels=UNSET) -> ProcessBuilder:
     """
     Predict values
@@ -4196,6 +4473,7 @@ def predict_curve(data, parameters, function, dimension, labels=UNSET) -> Proces
     return _process('predict_curve', data=data, parameters=parameters, function=function, dimension=dimension, labels=labels)
 
 
+@openeo_process
 def predict_random_forest(data, model) -> ProcessBuilder:
     """
     Predict values from a Random Forest model
@@ -4209,6 +4487,7 @@ def predict_random_forest(data, model) -> ProcessBuilder:
     return _process('predict_random_forest', data=data, model=model)
 
 
+@openeo_process
 def product(data, ignore_nodata=UNSET) -> ProcessBuilder:
     """
     Compute the product by multiplying numbers
@@ -4222,6 +4501,7 @@ def product(data, ignore_nodata=UNSET) -> ProcessBuilder:
     return _process('product', data=data, ignore_nodata=ignore_nodata)
 
 
+@openeo_process
 def quantiles(data, probabilities=UNSET, q=UNSET, ignore_nodata=UNSET) -> ProcessBuilder:
     """
     Quantiles
@@ -4243,6 +4523,7 @@ def quantiles(data, probabilities=UNSET, q=UNSET, ignore_nodata=UNSET) -> Proces
     return _process('quantiles', data=data, probabilities=probabilities, q=q, ignore_nodata=ignore_nodata)
 
 
+@openeo_process
 def rearrange(data, order) -> ProcessBuilder:
     """
     Rearrange an array based on a permutation
@@ -4255,6 +4536,7 @@ def rearrange(data, order) -> ProcessBuilder:
     return _process('rearrange', data=data, order=order)
 
 
+@openeo_process
 def reduce_dimension(data, reducer, dimension, context=UNSET) -> ProcessBuilder:
     """
     Reduce dimensions
@@ -4274,6 +4556,7 @@ def reduce_dimension(data, reducer, dimension, context=UNSET) -> ProcessBuilder:
     return _process('reduce_dimension', data=data, reducer=reducer, dimension=dimension, context=context)
 
 
+@openeo_process
 def reduce_spatial(data, reducer, context=UNSET) -> ProcessBuilder:
     """
     Reduce spatial dimensions 'x' and 'y'
@@ -4291,6 +4574,7 @@ def reduce_spatial(data, reducer, context=UNSET) -> ProcessBuilder:
     return _process('reduce_spatial', data=data, reducer=reducer, context=context)
 
 
+@openeo_process
 def rename_dimension(data, source, target) -> ProcessBuilder:
     """
     Rename a dimension
@@ -4308,6 +4592,7 @@ def rename_dimension(data, source, target) -> ProcessBuilder:
     return _process('rename_dimension', data=data, source=source, target=target)
 
 
+@openeo_process
 def rename_labels(data, dimension, target, source=UNSET) -> ProcessBuilder:
     """
     Rename dimension labels
@@ -4331,6 +4616,7 @@ def rename_labels(data, dimension, target, source=UNSET) -> ProcessBuilder:
     return _process('rename_labels', data=data, dimension=dimension, target=target, source=source)
 
 
+@openeo_process
 def resample_cube_spatial(data, target, method=UNSET) -> ProcessBuilder:
     """
     Resample the spatial dimensions to match a target data cube
@@ -4356,6 +4642,7 @@ def resample_cube_spatial(data, target, method=UNSET) -> ProcessBuilder:
     return _process('resample_cube_spatial', data=data, target=target, method=method)
 
 
+@openeo_process
 def resample_cube_temporal(data, target, dimension=UNSET, valid_within=UNSET) -> ProcessBuilder:
     """
     Resample temporal dimensions to match a target data cube
@@ -4381,6 +4668,7 @@ def resample_cube_temporal(data, target, dimension=UNSET, valid_within=UNSET) ->
     return _process('resample_cube_temporal', data=data, target=target, dimension=dimension, valid_within=valid_within)
 
 
+@openeo_process
 def resample_spatial(data, resolution=UNSET, projection=UNSET, method=UNSET, align=UNSET) -> ProcessBuilder:
     """
     Resample and warp the spatial dimensions
@@ -4414,6 +4702,7 @@ def resample_spatial(data, resolution=UNSET, projection=UNSET, method=UNSET, ali
     return _process('resample_spatial', data=data, resolution=resolution, projection=projection, method=method, align=align)
 
 
+@openeo_process
 def round(x, p=UNSET) -> ProcessBuilder:
     """
     Round to a specified precision
@@ -4428,6 +4717,7 @@ def round(x, p=UNSET) -> ProcessBuilder:
     return _process('round', x=x, p=p)
 
 
+@openeo_process
 def run_udf(data, udf, runtime, version=UNSET, context=UNSET) -> ProcessBuilder:
     """
     Run a UDF
@@ -4445,6 +4735,7 @@ def run_udf(data, udf, runtime, version=UNSET, context=UNSET) -> ProcessBuilder:
     return _process('run_udf', data=data, udf=udf, runtime=runtime, version=version, context=context)
 
 
+@openeo_process
 def run_udf_externally(data, url, context=UNSET) -> ProcessBuilder:
     """
     Run an externally hosted UDF container
@@ -4459,6 +4750,7 @@ def run_udf_externally(data, url, context=UNSET) -> ProcessBuilder:
     return _process('run_udf_externally', data=data, url=url, context=context)
 
 
+@openeo_process
 def sar_backscatter(data, coefficient=UNSET, elevation_model=UNSET, mask=UNSET, contributing_area=UNSET, local_incidence_angle=UNSET, ellipsoid_incidence_angle=UNSET, noise_removal=UNSET, options=UNSET) -> ProcessBuilder:
     """
     Computes backscatter from SAR input
@@ -4490,6 +4782,7 @@ def sar_backscatter(data, coefficient=UNSET, elevation_model=UNSET, mask=UNSET, 
     return _process('sar_backscatter', data=data, coefficient=coefficient, elevation_model=elevation_model, mask=mask, contributing_area=contributing_area, local_incidence_angle=local_incidence_angle, ellipsoid_incidence_angle=ellipsoid_incidence_angle, noise_removal=noise_removal, options=options)
 
 
+@openeo_process
 def save_ml_model(data, options=UNSET) -> ProcessBuilder:
     """
     Save a ML model
@@ -4502,6 +4795,7 @@ def save_ml_model(data, options=UNSET) -> ProcessBuilder:
     return _process('save_ml_model', data=data, options=options)
 
 
+@openeo_process
 def save_result(data, format, options=UNSET) -> ProcessBuilder:
     """
     Save processed data
@@ -4520,6 +4814,7 @@ def save_result(data, format, options=UNSET) -> ProcessBuilder:
     return _process('save_result', data=data, format=format, options=options)
 
 
+@openeo_process
 def sd(data, ignore_nodata=UNSET) -> ProcessBuilder:
     """
     Standard deviation
@@ -4533,6 +4828,7 @@ def sd(data, ignore_nodata=UNSET) -> ProcessBuilder:
     return _process('sd', data=data, ignore_nodata=ignore_nodata)
 
 
+@openeo_process
 def sgn(x) -> ProcessBuilder:
     """
     Signum
@@ -4544,6 +4840,7 @@ def sgn(x) -> ProcessBuilder:
     return _process('sgn', x=x)
 
 
+@openeo_process
 def sin(x) -> ProcessBuilder:
     """
     Sine
@@ -4555,6 +4852,7 @@ def sin(x) -> ProcessBuilder:
     return _process('sin', x=x)
 
 
+@openeo_process
 def sinh(x) -> ProcessBuilder:
     """
     Hyperbolic sine
@@ -4566,6 +4864,7 @@ def sinh(x) -> ProcessBuilder:
     return _process('sinh', x=x)
 
 
+@openeo_process
 def sort(data, asc=UNSET, nodata=UNSET) -> ProcessBuilder:
     """
     Sort data
@@ -4581,6 +4880,7 @@ def sort(data, asc=UNSET, nodata=UNSET) -> ProcessBuilder:
     return _process('sort', data=data, asc=asc, nodata=nodata)
 
 
+@openeo_process
 def sqrt(x) -> ProcessBuilder:
     """
     Square root
@@ -4592,6 +4892,7 @@ def sqrt(x) -> ProcessBuilder:
     return _process('sqrt', x=x)
 
 
+@openeo_process
 def subtract(x, y) -> ProcessBuilder:
     """
     Subtraction of two numbers
@@ -4604,6 +4905,7 @@ def subtract(x, y) -> ProcessBuilder:
     return _process('subtract', x=x, y=y)
 
 
+@openeo_process
 def sum(data, ignore_nodata=UNSET) -> ProcessBuilder:
     """
     Compute the sum by adding up numbers
@@ -4617,6 +4919,7 @@ def sum(data, ignore_nodata=UNSET) -> ProcessBuilder:
     return _process('sum', data=data, ignore_nodata=ignore_nodata)
 
 
+@openeo_process
 def tan(x) -> ProcessBuilder:
     """
     Tangent
@@ -4628,6 +4931,7 @@ def tan(x) -> ProcessBuilder:
     return _process('tan', x=x)
 
 
+@openeo_process
 def tanh(x) -> ProcessBuilder:
     """
     Hyperbolic tangent
@@ -4639,6 +4943,7 @@ def tanh(x) -> ProcessBuilder:
     return _process('tanh', x=x)
 
 
+@openeo_process
 def text_begins(data, pattern, case_sensitive=UNSET) -> ProcessBuilder:
     """
     Text begins with another text
@@ -4652,6 +4957,7 @@ def text_begins(data, pattern, case_sensitive=UNSET) -> ProcessBuilder:
     return _process('text_begins', data=data, pattern=pattern, case_sensitive=case_sensitive)
 
 
+@openeo_process
 def text_concat(data, separator=UNSET) -> ProcessBuilder:
     """
     Concatenate elements to a single text
@@ -4666,6 +4972,7 @@ def text_concat(data, separator=UNSET) -> ProcessBuilder:
     return _process('text_concat', data=data, separator=separator)
 
 
+@openeo_process
 def text_contains(data, pattern, case_sensitive=UNSET) -> ProcessBuilder:
     """
     Text contains another text
@@ -4679,6 +4986,7 @@ def text_contains(data, pattern, case_sensitive=UNSET) -> ProcessBuilder:
     return _process('text_contains', data=data, pattern=pattern, case_sensitive=case_sensitive)
 
 
+@openeo_process
 def text_ends(data, pattern, case_sensitive=UNSET) -> ProcessBuilder:
     """
     Text ends with another text
@@ -4692,6 +5000,7 @@ def text_ends(data, pattern, case_sensitive=UNSET) -> ProcessBuilder:
     return _process('text_ends', data=data, pattern=pattern, case_sensitive=case_sensitive)
 
 
+@openeo_process
 def trim_cube(data) -> ProcessBuilder:
     """
     Remove dimension labels with no-data values
@@ -4704,6 +5013,7 @@ def trim_cube(data) -> ProcessBuilder:
     return _process('trim_cube', data=data)
 
 
+@openeo_process
 def unflatten_dimension(data, dimension, target_dimensions, label_separator=UNSET) -> ProcessBuilder:
     """
     Split a single dimensions into multiple dimensions
@@ -4724,6 +5034,7 @@ def unflatten_dimension(data, dimension, target_dimensions, label_separator=UNSE
     return _process('unflatten_dimension', data=data, dimension=dimension, target_dimensions=target_dimensions, label_separator=label_separator)
 
 
+@openeo_process
 def variance(data, ignore_nodata=UNSET) -> ProcessBuilder:
     """
     Variance
@@ -4737,6 +5048,7 @@ def variance(data, ignore_nodata=UNSET) -> ProcessBuilder:
     return _process('variance', data=data, ignore_nodata=ignore_nodata)
 
 
+@openeo_process
 def vector_buffer(geometries, distance) -> ProcessBuilder:
     """
     Buffer geometries by distance
@@ -4754,6 +5066,7 @@ def vector_buffer(geometries, distance) -> ProcessBuilder:
     return _process('vector_buffer', geometries=geometries, distance=distance)
 
 
+@openeo_process
 def vector_to_random_points(data, geometry_count=UNSET, total_count=UNSET, group=UNSET, seed=UNSET) -> ProcessBuilder:
     """
     Sample random points from geometries
@@ -4777,6 +5090,7 @@ def vector_to_random_points(data, geometry_count=UNSET, total_count=UNSET, group
     return _process('vector_to_random_points', data=data, geometry_count=geometry_count, total_count=total_count, group=group, seed=seed)
 
 
+@openeo_process
 def vector_to_regular_points(data, distance, group=UNSET) -> ProcessBuilder:
     """
     Sample regular points from geometries
@@ -4802,6 +5116,7 @@ def vector_to_regular_points(data, distance, group=UNSET) -> ProcessBuilder:
     return _process('vector_to_regular_points', data=data, distance=distance, group=group)
 
 
+@openeo_process
 def xor(x, y) -> ProcessBuilder:
     """
     Logical XOR (exclusive or)

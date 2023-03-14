@@ -845,7 +845,7 @@ class DataCube(_ProcessGraphAbstraction):
             Parameter,
             VectorCube,
         ],
-        reducer: Union[str, PGNode, typing.Callable],
+        reducer: Union[str, typing.Callable, PGNode],
         target_dimension: Optional[str] = None,
         crs: Optional[str] = None,
         context: Optional[dict] = None,
@@ -857,7 +857,20 @@ class DataCube(_ProcessGraphAbstraction):
 
         :param geometries: a shapely geometry, a GeoJSON-style dictionary,
             a public GeoJSON URL, or a path (that is valid for the back-end) to a GeoJSON file.
-        :param reducer: a callback function that creates a process graph, see :ref:`callbackfunctions`
+        :param reducer: the "child callback":
+            the name of a single openEO process,
+            or a callback function as discussed in :ref:`callbackfunctions`,
+            or a :py:class:`UDF <openeo.rest._datacube.UDF>` instance.
+
+            The callback should correspond to a process that
+            receives an array of numerical values
+            and returns a single numerical value.
+            For example:
+
+            -   ``"mean"`` (string)
+            -   :py:func:`absolute <openeo.processes.max>` (:ref:`predefined openEO process function <openeo_processes_functions>`)
+            -   ``lambda data: data.min()`` (function or lambda)
+
         :param target_dimension: The new dimension name to be used for storing the results.
         :param crs: The spatial reference system of the provided polygon.
             By default longitude-latitude (EPSG:4326) is assumed.
@@ -931,14 +944,17 @@ class DataCube(_ProcessGraphAbstraction):
 
     @openeo_process
     def apply_dimension(
-            self, code: str = None, runtime=None,
-            process: Union[str, PGNode, typing.Callable, UDF] = None,
-            version="latest",
-            # TODO: dimension has no default (per spec)?
-            dimension="t",
-            target_dimension=None,
-            context: Optional[dict] = None,
-    ) -> 'DataCube':
+        self,
+        code: str = None,
+        runtime=None,
+        # TODO: drop None default of process (when `code` and `runtime` args can be dropped)
+        process: Union[str, typing.Callable, UDF, PGNode] = None,
+        version="latest",
+        # TODO: dimension has no default (per spec)?
+        dimension="t",
+        target_dimension=None,
+        context: Optional[dict] = None,
+    ) -> "DataCube":
         """
         Applies a process to all pixel values along a dimension of a raster data cube. For example,
         if the temporal dimension is specified the process will work on a time series of pixel values.
@@ -966,7 +982,21 @@ class DataCube(_ProcessGraphAbstraction):
 
         :param code: [**deprecated**] UDF code or process identifier (optional)
         :param runtime: [**deprecated**] UDF runtime to use (optional)
-        :param process: a callback function that creates a process graph, see :ref:`callbackfunctions`
+        :param process: the "child callback":
+            the name of a single process,
+            or a callback function as discussed in :ref:`callbackfunctions`,
+            or a :py:class:`UDF <openeo.rest._datacube.UDF>` instance.
+
+            The callback should correspond to a process that
+            receives an array of numerical values
+            and returns an array of numerical values.
+            For example:
+
+            -   ``"sort"`` (string)
+            -   :py:func:`sort <openeo.processes.sort>` (:ref:`predefined openEO process function <openeo_processes_functions>`)
+            -   ``lambda data: data.concat([42, -3])`` (function or lambda)
+
+
         :param version: [**deprecated**] Version of the UDF runtime to use
         :param dimension: The name of the source dimension to apply the process on. Fails with a DimensionNotAvailable error if the specified dimension does not exist.
         :param target_dimension: The name of the target dimension or null (the default) to use the source dimension
@@ -1005,17 +1035,31 @@ class DataCube(_ProcessGraphAbstraction):
 
     @openeo_process
     def reduce_dimension(
-            self,
-            dimension: str,
-            reducer: Union[str, PGNode, typing.Callable, UDF],
-            context: Optional[dict] = None,
-            process_id="reduce_dimension", band_math_mode: bool = False
+        self,
+        dimension: str,
+        reducer: Union[str, typing.Callable, UDF, PGNode],
+        context: Optional[dict] = None,
+        process_id="reduce_dimension",
+        band_math_mode: bool = False,
     ) -> "DataCube":
         """
         Add a reduce process with given reducer callback along given dimension
 
         :param dimension: the label of the dimension to reduce
-        :param reducer: "child callback" function, see :ref:`callbackfunctions`
+        :param reducer: the "child callback":
+            the name of a single openEO process,
+            or a callback function as discussed in :ref:`callbackfunctions`,
+            or a :py:class:`UDF <openeo.rest._datacube.UDF>` instance.
+
+            The callback should correspond to a process that
+            receives an array of numerical values
+            and returns a single numerical value.
+            For example:
+
+            -   ``"mean"`` (string)
+            -   :py:func:`absolute <openeo.processes.max>` (:ref:`predefined openEO process function <openeo_processes_functions>`)
+            -   ``lambda data: data.min()`` (function or lambda)
+
         :param context: Additional data to be passed to the process.
         """
         # TODO: check if dimension is valid according to metadata? #116
@@ -1207,15 +1251,27 @@ class DataCube(_ProcessGraphAbstraction):
 
     @openeo_process
     def apply(
-            self,
-            process: Union[str, PGNode, typing.Callable, UDF] = None,
-            context: Optional[dict] = None,
+        self,
+        process: Union[str, typing.Callable, UDF, PGNode],
+        context: Optional[dict] = None,
     ) -> "DataCube":
         """
         Applies a unary process (a local operation) to each value of the specified or all dimensions in the data cube.
 
-        :param process: the name of a process, or a callback function that creates a process graph, see :ref:`callbackfunctions`
-        :param dimensions: The names of the dimensions to apply the process on. Defaults to an empty array so that all dimensions are used.
+        :param process: the "child callback":
+            the name of a single process,
+            or a callback function as discussed in :ref:`callbackfunctions`,
+            or a :py:class:`UDF <openeo.rest._datacube.UDF>` instance.
+
+            The callback should correspond to a process that
+            receives a single numerical value
+            and returns a single numerical value.
+            For example:
+
+            -   ``"absolute"`` (string)
+            -   :py:func:`absolute <openeo.processes.absolute>` (:ref:`predefined openEO process function <openeo_processes_functions>`)
+            -   ``lambda x: x * 2 + 3`` (function or lambda)
+
         :param context: Additional data to be passed to the process.
 
         :return: A data cube with the newly computed values. The resolution, cardinality and the number of dimensions are the same as for the original data cube.
@@ -1280,12 +1336,12 @@ class DataCube(_ProcessGraphAbstraction):
 
     @openeo_process
     def aggregate_temporal(
-            self,
-            intervals: List[list],
-            reducer: Union[str, PGNode, typing.Callable],
-            labels: Optional[List[str]] = None,
-            dimension: Optional[str] = None,
-            context: Optional[dict] = None,
+        self,
+        intervals: List[list],
+        reducer: Union[str, typing.Callable, PGNode],
+        labels: Optional[List[str]] = None,
+        dimension: Optional[str] = None,
+        context: Optional[dict] = None,
     ) -> "DataCube":
         """
         Computes a temporal aggregation based on an array of date and/or time intervals.
@@ -1295,7 +1351,20 @@ class DataCube(_ProcessGraphAbstraction):
         If the dimension is not set, the data cube is expected to only have one temporal dimension.
 
         :param intervals: Temporal left-closed intervals so that the start time is contained, but not the end time.
-        :param reducer: A reducer to be applied on all values along the specified dimension. The reducer must be a callable process (or a set processes) that accepts an array and computes a single return value of the same type as the input values, for example median.
+        :param reducer: the "child callback":
+            the name of a single openEO process,
+            or a callback function as discussed in :ref:`callbackfunctions`,
+            or a :py:class:`UDF <openeo.rest._datacube.UDF>` instance.
+
+            The callback should correspond to a process that
+            receives an array of numerical values
+            and returns a single numerical value.
+            For example:
+
+            -   ``"mean"`` (string)
+            -   :py:func:`absolute <openeo.processes.max>` (:ref:`predefined openEO process function <openeo_processes_functions>`)
+            -   ``lambda data: data.min()`` (function or lambda)
+
         :param labels: Labels for the intervals. The number of labels and the number of groups need to be equal.
         :param dimension: The temporal dimension for aggregation. All data along the dimension will be passed through the specified reducer. If the dimension is not set, the data cube is expected to only have one temporal dimension.
         :param context: Additional data to be passed to the reducer. Not set by default.

@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([#386](https://github.com/Open-EO/openeo-python-client/issues/386)).
   The (experimental) `fit_class_random_forest()` and `fit_regr_random_forest()` methods
   moved accordingly to the `VectorCube` class.
+- Improved documentation on `openeo.processes` and `ProcessBuilder`
+  ([#390](https://github.com/Open-EO/openeo-python-client/issues/390)).
 
 ### Removed
 
