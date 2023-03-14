@@ -34,17 +34,33 @@ class MultiBackendJobManager:
 
     .. code-block:: python
 
+        import pandas as pd
+        import openeo
+        from openeo.extra.job_management import MultiBackendJobManager
+
         manager = MultiBackendJobManager()
         manager.add_backend("foo", connection=openeo.connect("http://foo.test"))
         manager.add_backend("bar", connection=openeo.connect("http://bar.test"))
 
         jobs_df = pd.DataFrame(...)
+        output_file = "jobs.csv"
 
-        output_file = Path("jobs.csv")
-        def start_job(row, connection, **kwargs):
+        def start_job(
+            row: pd.Series,
+            connection: openeo.Connection,
+            **kwargs
+        ) -> openeo.BatchJob:
+            year = row["year"]
+            cube = connection.load_collection(
+                ...,
+                temporal_extent=[f"{year}-01-01", f"{year+1}-01-01"],
+            )
             ...
+            return cube.create_job(...)
 
-        manager.run_jobs(df=df, start_job=start_job, output_file=output_file)
+        manager.run_jobs(df=jobs_df, start_job=start_job, output_file=output_file)
+
+    See :py:meth:`.run_jobs` for more information on the ``start_job`` callable.
 
     .. versionadded:: 0.14.0
     """
@@ -181,7 +197,10 @@ class MultiBackendJobManager:
         _log.info(f"Wrote job metadata to {output_file.absolute()}")
 
     def run_jobs(
-        self, df: pd.DataFrame, start_job: Callable[[], BatchJob], output_file: Path
+        self,
+        df: pd.DataFrame,
+        start_job: Callable[[], BatchJob],
+        output_file: Union[str, Path],
     ):
         """Runs jobs, specified in a dataframe, and tracks parameters.
 
@@ -189,31 +208,31 @@ class MultiBackendJobManager:
             DataFrame that specifies the jobs, and tracks the jobs' statuses.
 
         :param start_job:
-            A callback which will be invoked with the row of the dataframe for which a job should be started.
+            A callback which will be invoked with, amongst others,
+            the row of the dataframe for which a job should be created and/or started.
             This callable should return a :py:class:`openeo.rest.job.BatchJob` object.
 
-            The run_jobs method passes the following parameters to the start_job callback.
-            You do not have to define all of the parameters described below, but if you leave
-            any of them out, then remember to include the *args and **kwargs parameters.
-            Otherwise you will have an exception because run_jobs passes unknown parameters to start_job.
+            The following parameters will be passed to ``start_job``:
 
-                row:
+                ``row`` (:py:class:`pandas.Series`):
                     The row in the pandas dataframe that stores the jobs state and other tracked data.
 
-                connection_provider:
-                    Like connection in add_backend:
-                    - either a Connection to the backend,
-                    - or a callable to create a backend connection.
-                    Typically you would need either the parameter `connection_provider`,
-                    or the parameter `connection`, but likely you will not need both.
+                ``connection_provider``:
+                    A getter to get a connection by backend name.
+                    Typically, you would need either the parameter ``connection_provider``,
+                    or the parameter ``connection``, but likely you will not need both.
 
-                connection:
-                    The Connection itself, that has already been created.
-                    Typically you would need either the parameter `connection_provider`,
-                    or the parameter `connection`, but likely you will not need both.
+                ``connection`` (:py:class:`Connection`):
+                    The :py:class:`Connection` itself, that has already been created.
+                    Typically, you would need either the parameter ``connection_provider``,
+                    or the parameter ``connection``, but likely you will not need both.
 
-                provider:
+                ``provider`` (``str``):
                     The name of the backend that will run the job.
+
+            You do not have to define all the parameters described below, but if you leave
+            any of them out, then remember to include the ``*args`` and ``**kwargs`` parameters.
+            Otherwise you will have an exception because :py:meth:`run_jobs` passes unknown parameters to ``start_job``.
 
         :param output_file:
             Path to output file (CSV) containing the status and metadata of the jobs.
@@ -222,7 +241,7 @@ class MultiBackendJobManager:
         #   but Protocols are only supported in Python 3.8 and higher.
         # TODO: this resume functionality better fits outside of this function
         #       (e.g. if `output_file` exists: `df` is fully discarded)
-
+        output_file = Path(output_file)
         if output_file.exists() and output_file.is_file():
             # Resume from existing CSV
             _log.info(f"Resuming `run_jobs` from {output_file.absolute()}")
