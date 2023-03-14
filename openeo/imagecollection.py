@@ -17,6 +17,7 @@ if typing.TYPE_CHECKING:
     from openeo.rest.vectorcube import VectorCube
 
 
+# TODO: this base class has no implementation anymore in openeo package: remove all together #100
 class ImageCollection(ABC):
     """Class representing Processes. """
 

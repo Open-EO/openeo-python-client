@@ -385,7 +385,6 @@ class DataCube(_ProcessGraphAbstraction):
         :param start_date: start date of the filter (inclusive), as a string or date object
         :param end_date: end date of the filter (exclusive), as a string or date object
         :param extent: two element list/tuple start and end date of the filter
-        :return: An ImageCollection filtered by date.
 
         https://open-eo.github.io/openeo-api/processreference/#filter_temporal
         """
@@ -1404,7 +1403,7 @@ class DataCube(_ProcessGraphAbstraction):
         :param dimension: The temporal dimension for aggregation. All data along the dimension will be passed through the specified reducer. If the dimension is not set, the data cube is expected to only have one temporal dimension.
         :param context: Additional data to be passed to the reducer. Not set by default.
 
-        :return: An ImageCollection containing  a result for each time window
+        :return: A :py:class:`DataCube` containing a result for each time window
         """
         return self.process(
             process_id="aggregate_temporal",

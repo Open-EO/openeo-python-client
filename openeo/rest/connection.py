@@ -1220,12 +1220,11 @@ class Connection(RestApiConnection):
         self, format: str, glob_pattern: str, options: Optional[dict] = None
     ) -> DataCube:
         """
-        Loads image data from disk as an ImageCollection.
+        Loads image data from disk as a :py:class:`DataCube`.
 
         :param format: the file format, e.g. 'GTiff'
         :param glob_pattern: a glob pattern that matches the files to load from disk
         :param options: options specific to the file format
-        :return: the data as an ImageCollection
         """
         return DataCube.load_disk_collection(
             self, format, glob_pattern, **(options or {})
