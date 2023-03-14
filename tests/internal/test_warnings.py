@@ -96,6 +96,32 @@ def test_legacy_alias_staticmethod(recwarn):
     assert res == 5
 
 
+def test_legacy_alias_function_since(recwarn):
+    def add(x, y):
+        """Add x and y."""
+        return x + y
+
+    do_plus = legacy_alias(add, "do_plus", since="0.5.9")
+
+    assert add.__doc__ == "Add x and y."
+    assert (
+        do_plus.__doc__
+        == "Use of this legacy function is deprecated (since version 0.5.9), use :py:func:`.add` instead."
+    )
+
+    assert add(2, 3) == 5
+    assert len(recwarn) == 0
+
+    with pytest.warns(
+        UserDeprecationWarning,
+        match=re.escape(
+            "Call to deprecated function `do_plus` (since version 0.5.9), use `add` instead."
+        ),
+    ):
+        res = do_plus(2, 3)
+    assert res == 5
+
+
 def test_deprecated_decorator():
     class Foo:
 

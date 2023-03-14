@@ -215,7 +215,7 @@ class DataCube(_ProcessGraphAbstraction):
         pg = self._build_pgnode(process_id=process_id, arguments=arguments, namespace=namespace, **kwargs)
         return DataCube(graph=pg, connection=self._connection, metadata=metadata or self.metadata)
 
-    graph_add_node = legacy_alias(process, "graph_add_node")
+    graph_add_node = legacy_alias(process, "graph_add_node", since="0.1.1")
 
     def process_with_node(self, pg: PGNode, metadata: Optional[CollectionMetadata] = None) -> 'DataCube':
         """
@@ -303,7 +303,9 @@ class DataCube(_ProcessGraphAbstraction):
         )
         return cls(graph=pg, connection=connection, metadata=metadata)
 
-    create_collection = legacy_alias(load_collection, name="create_collection")
+    create_collection = legacy_alias(
+        load_collection, name="create_collection", since="0.4.6"
+    )
 
     @classmethod
     def load_disk_collection(cls, connection: 'openeo.Connection', file_format: str, glob_pattern: str,
@@ -548,7 +550,7 @@ class DataCube(_ProcessGraphAbstraction):
             cube.metadata = cube.metadata.filter_bands(bands)
         return cube
 
-    band_filter = legacy_alias(filter_bands, "band_filter")
+    band_filter = legacy_alias(filter_bands, "band_filter", since="0.1.0")
 
     def band(self, band: Union[str, int]) -> "DataCube":
         """
@@ -1264,7 +1266,9 @@ class DataCube(_ProcessGraphAbstraction):
         # TODO #181 #312 drop this deprecated pattern
         return self.reduce_temporal(reducer=UDF(code=code, runtime=runtime, version=version))
 
-    reduce_tiles_over_time = legacy_alias(reduce_temporal_udf, name="reduce_tiles_over_time")
+    reduce_tiles_over_time = legacy_alias(
+        reduce_temporal_udf, name="reduce_tiles_over_time", since="0.1.1"
+    )
 
     @openeo_process
     def apply_neighborhood(
@@ -1329,7 +1333,9 @@ class DataCube(_ProcessGraphAbstraction):
             })
         )
 
-    reduce_temporal_simple = legacy_alias(reduce_temporal, "reduce_temporal_simple")
+    reduce_temporal_simple = legacy_alias(
+        reduce_temporal, "reduce_temporal_simple", since="0.13.0"
+    )
 
     @openeo_process(process_id="min", mode="reduce_dimension")
     def min_time(self) -> 'DataCube':
@@ -1650,7 +1656,7 @@ class DataCube(_ProcessGraphAbstraction):
             arguments["context"] = context
         return self.process(process_id="merge_cubes", arguments=arguments, metadata=merged_metadata)
 
-    merge = legacy_alias(merge_cubes, name="merge")
+    merge = legacy_alias(merge_cubes, name="merge", since="0.4.6")
 
     @openeo_process
     def apply_kernel(
@@ -1938,7 +1944,7 @@ class DataCube(_ProcessGraphAbstraction):
             title=title, description=description, plan=plan, budget=budget, additional=job_options
         )
 
-    send_job = legacy_alias(create_job, name="send_job")
+    send_job = legacy_alias(create_job, name="send_job", since="0.9.3")
 
     def save_user_defined_process(
             self,

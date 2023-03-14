@@ -113,4 +113,4 @@ class VectorCube(_ProcessGraphAbstraction):
             shp = shp.save_result(format=out_format, options=format_options)
         return self._connection.create_job(process_graph=shp.flat_graph(), additional=job_options)
 
-    send_job = legacy_alias(create_job, name="send_job")
+    send_job = legacy_alias(create_job, name="send_job", since="0.9.3")

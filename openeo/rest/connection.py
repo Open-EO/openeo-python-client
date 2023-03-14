@@ -671,7 +671,9 @@ class Connection(RestApiConnection):
     def list_output_formats(self) -> dict:
         return self.list_file_formats().get("output", {})
 
-    list_file_types = legacy_alias(list_output_formats, "list_file_types")
+    list_file_types = legacy_alias(
+        list_output_formats, "list_file_types", since="0.4.6"
+    )
 
     def list_file_formats(self) -> dict:
         """
@@ -986,7 +988,10 @@ class Connection(RestApiConnection):
                 fetch_metadata=fetch_metadata,
             )
 
-    imagecollection = legacy_alias(load_collection, name="imagecollection")
+    # TODO: remove this #100 #134 0.4.10
+    imagecollection = legacy_alias(
+        load_collection, name="imagecollection", since="0.4.10"
+    )
 
     def load_result(
             self,

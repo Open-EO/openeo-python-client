@@ -1,7 +1,7 @@
 import functools
 import inspect
 import warnings
-from typing import Callable
+from typing import Callable, Optional
 from deprecated.sphinx import deprecated as _deprecated
 
 
@@ -34,12 +34,13 @@ def test_warnings(stacklevel=1):
         )
 
 
-def legacy_alias(orig: Callable, name: str):
+def legacy_alias(orig: Callable, name: str, since: Optional[str] = None):
     """
     Create legacy alias of given function/method/classmethod/staticmethod
 
     :param orig: function/method to create legacy alias for
     :param name: name of the alias
+    :param since: version since when this is alias is deprecated
     :return:
     """
     post_process = None
@@ -58,7 +59,9 @@ def legacy_alias(orig: Callable, name: str):
     else:
         raise ValueError(orig)
 
-    msg = "Call to deprecated {k} `{n}`, use `{o}` instead.".format(k=kind, n=name, o=orig.__name__)
+    since = f" (since version {since})" if since else ""
+
+    msg = f"Call to deprecated {kind} `{name}`{since}, use `{orig.__name__}` instead."
 
     @functools.wraps(orig)
     def wrapper(*args, **kwargs):
@@ -66,8 +69,9 @@ def legacy_alias(orig: Callable, name: str):
         return orig(*args, **kwargs)
 
     # TODO: make this more Sphinx aware
-    wrapper.__doc__ = "Use of this legacy {k} is deprecated, use :py:{r}:`.{o}` instead.".format(
-        k=kind, r="meth" if "method" in kind else "func", o=orig.__name__
+    ref = f":py:{'meth' if 'method' in kind else 'func'}:`.{orig.__name__}`"
+    wrapper.__doc__ = (
+        f"Use of this legacy {kind} is deprecated{since}, use {ref} instead."
     )
 
     if post_process:
