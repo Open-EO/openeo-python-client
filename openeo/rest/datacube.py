@@ -1944,7 +1944,7 @@ class DataCube(_ProcessGraphAbstraction):
             title=title, description=description, plan=plan, budget=budget, additional=job_options
         )
 
-    send_job = legacy_alias(create_job, name="send_job", since="0.9.3")
+    send_job = legacy_alias(create_job, name="send_job", since="0.10.0")
 
     def save_user_defined_process(
             self,

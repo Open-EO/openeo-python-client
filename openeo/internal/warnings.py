@@ -34,7 +34,7 @@ def test_warnings(stacklevel=1):
         )
 
 
-def legacy_alias(orig: Callable, name: str, since: Optional[str] = None):
+def legacy_alias(orig: Callable, name: str, since: str):
     """
     Create legacy alias of given function/method/classmethod/staticmethod
 
@@ -59,20 +59,18 @@ def legacy_alias(orig: Callable, name: str, since: Optional[str] = None):
     else:
         raise ValueError(orig)
 
-    since = f" (since version {since})" if since else ""
-
-    msg = f"Call to deprecated {kind} `{name}`{since}, use `{orig.__name__}` instead."
-
+    # Create a "copy" by wrapping the original
     @functools.wraps(orig)
     def wrapper(*args, **kwargs):
-        warnings.warn(msg, category=UserDeprecationWarning, stacklevel=2)
         return orig(*args, **kwargs)
 
-    # TODO: make this more Sphinx aware
+    # Drop original doc block, just show deprecation note.
+    wrapper.__doc__ = ""
     ref = f":py:{'meth' if 'method' in kind else 'func'}:`.{orig.__name__}`"
-    wrapper.__doc__ = (
-        f"Use of this legacy {kind} is deprecated{since}, use {ref} instead."
-    )
+    wrapper = deprecated(
+        reason=f"Use of this legacy {kind} is deprecated, use {ref} instead.",
+        version=since,
+    )(wrapper)
 
     if post_process:
         wrapper = post_process(wrapper)

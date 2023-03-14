@@ -2481,8 +2481,8 @@ class TestBatchJob:
         """Legacy `DataCube.send_job` alis for `create_job"""
         requests_mock.post(API_URL + "/jobs", json=self._get_handler_post_jobs())
         cube = con100.load_collection("S2")
-        expected_warning = "Call to deprecated method `send_job`, use `create_job` instead."
-        with pytest.warns(UserDeprecationWarning, match=expected_warning):
+        expected_warning = "Call to deprecated method create_job. (Use of this legacy method is deprecated, use `.create_job` instead.) -- Deprecated since version 0.10.0."
+        with pytest.warns(UserDeprecationWarning, match=re.escape(expected_warning)):
             job = cube.send_job(out_format="GTiff")
         assert job.job_id == "myj0b1"
 

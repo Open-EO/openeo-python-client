@@ -542,7 +542,7 @@ class ImageCollection(ABC):
         """
         pass
 
-    send_job = legacy_alias(create_job, name="send_job", since="0.9.3")
+    send_job = legacy_alias(create_job, name="send_job", since="0.10.0")
 
     def pipe(self, func: Callable, *args, **kwargs):
         """

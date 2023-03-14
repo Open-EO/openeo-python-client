@@ -23,15 +23,27 @@ def test_legacy_alias_function(recwarn):
         """Add x and y."""
         return x + y
 
-    do_plus = legacy_alias(add, "do_plus")
+    do_plus = legacy_alias(add, "do_plus", since="v1.2")
 
     assert add.__doc__ == "Add x and y."
-    assert do_plus.__doc__ == "Use of this legacy function is deprecated, use :py:func:`.add` instead."
+    assert do_plus.__doc__ == (
+        "\n"
+        ".. deprecated:: v1.2\n"
+        "   Use of this legacy function is deprecated, use :py:func:`.add`\n"
+        "   instead.\n"
+    )
 
     assert add(2, 3) == 5
     assert len(recwarn) == 0
 
-    with pytest.warns(UserDeprecationWarning, match="Call to deprecated function `do_plus`, use `add` instead."):
+    with pytest.warns(
+        UserDeprecationWarning,
+        match=re.escape(
+            "Call to deprecated function (or staticmethod) add."
+            " (Use of this legacy function is deprecated, use `.add` instead.)"
+            " -- Deprecated since version v1.2."
+        ),
+    ):
         res = do_plus(2, 3)
     assert res == 5
 
@@ -42,15 +54,27 @@ def test_legacy_alias_method(recwarn):
             """Add x and y."""
             return x + y
 
-        do_plus = legacy_alias(add, "do_plus")
+        do_plus = legacy_alias(add, "do_plus", since="v1.2")
 
     assert Foo.add.__doc__ == "Add x and y."
-    assert Foo.do_plus.__doc__ == "Use of this legacy method is deprecated, use :py:meth:`.add` instead."
+    assert Foo.do_plus.__doc__ == (
+        "\n"
+        ".. deprecated:: v1.2\n"
+        "   Use of this legacy method is deprecated, use :py:meth:`.add`\n"
+        "   instead.\n"
+    )
 
     assert Foo().add(2, 3) == 5
     assert len(recwarn) == 0
 
-    with pytest.warns(UserDeprecationWarning, match="Call to deprecated method `do_plus`, use `add` instead."):
+    with pytest.warns(
+        UserDeprecationWarning,
+        match=re.escape(
+            "Call to deprecated method add."
+            " (Use of this legacy method is deprecated, use `.add` instead.)"
+            " -- Deprecated since version v1.2."
+        ),
+    ):
         res = Foo().do_plus(2, 3)
     assert res == 5
 
@@ -63,15 +87,27 @@ def test_legacy_alias_classmethod(recwarn):
             assert cls is Foo
             return x + y
 
-        do_plus = legacy_alias(add, "do_plus")
+        do_plus = legacy_alias(add, "do_plus", since="v1.2")
 
     assert Foo.add.__doc__ == "Add x and y."
-    assert Foo.do_plus.__doc__ == "Use of this legacy class method is deprecated, use :py:meth:`.add` instead."
+    assert Foo.do_plus.__doc__ == (
+        "\n"
+        ".. deprecated:: v1.2\n"
+        "   Use of this legacy class method is deprecated, use\n"
+        "   :py:meth:`.add` instead.\n"
+    )
 
     assert Foo().add(2, 3) == 5
     assert len(recwarn) == 0
 
-    with pytest.warns(UserDeprecationWarning, match="Call to deprecated class method `do_plus`, use `add` instead."):
+    with pytest.warns(
+        UserDeprecationWarning,
+        match=re.escape(
+            "Call to deprecated class method add."
+            " (Use of this legacy class method is deprecated, use `.add` instead.)"
+            " -- Deprecated since version v1.2."
+        ),
+    ):
         res = Foo().do_plus(2, 3)
     assert res == 5
 
@@ -83,43 +119,30 @@ def test_legacy_alias_staticmethod(recwarn):
             """Add x and y."""
             return x + y
 
-        do_plus = legacy_alias(add, "do_plus")
+        do_plus = legacy_alias(add, "do_plus", since="v1.2")
 
     assert Foo.add.__doc__ == "Add x and y."
-    assert Foo.do_plus.__doc__ == "Use of this legacy static method is deprecated, use :py:meth:`.add` instead."
-
-    assert Foo().add(2, 3) == 5
-    assert len(recwarn) == 0
-
-    with pytest.warns(UserDeprecationWarning, match="Call to deprecated static method `do_plus`, use `add` instead."):
-        res = Foo().do_plus(2, 3)
-    assert res == 5
-
-
-def test_legacy_alias_function_since(recwarn):
-    def add(x, y):
-        """Add x and y."""
-        return x + y
-
-    do_plus = legacy_alias(add, "do_plus", since="0.5.9")
-
-    assert add.__doc__ == "Add x and y."
-    assert (
-        do_plus.__doc__
-        == "Use of this legacy function is deprecated (since version 0.5.9), use :py:func:`.add` instead."
+    assert Foo.do_plus.__doc__ == (
+        "\n"
+        ".. deprecated:: v1.2\n"
+        "   Use of this legacy static method is deprecated, use\n"
+        "   :py:meth:`.add` instead.\n"
     )
 
-    assert add(2, 3) == 5
+    assert Foo().add(2, 3) == 5
     assert len(recwarn) == 0
 
     with pytest.warns(
         UserDeprecationWarning,
         match=re.escape(
-            "Call to deprecated function `do_plus` (since version 0.5.9), use `add` instead."
+            "Call to deprecated function (or staticmethod) add."
+            " (Use of this legacy static method is deprecated, use `.add` instead.)"
+            " -- Deprecated since version v1.2."
         ),
     ):
-        res = do_plus(2, 3)
+        res = Foo().do_plus(2, 3)
     assert res == 5
+
 
 
 def test_deprecated_decorator():
