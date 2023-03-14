@@ -111,6 +111,17 @@ def test_legacy_alias_classmethod(recwarn):
         res = Foo().do_plus(2, 3)
     assert res == 5
 
+    with pytest.warns(
+        UserDeprecationWarning,
+        match=re.escape(
+            "Call to deprecated class method add."
+            " (Use of this legacy class method is deprecated, use `.add` instead.)"
+            " -- Deprecated since version v1.2."
+        ),
+    ):
+        res = Foo.do_plus(2, 3)
+    assert res == 5
+
 
 def test_legacy_alias_staticmethod(recwarn):
     class Foo:
@@ -141,6 +152,17 @@ def test_legacy_alias_staticmethod(recwarn):
         ),
     ):
         res = Foo().do_plus(2, 3)
+    assert res == 5
+
+    with pytest.warns(
+        UserDeprecationWarning,
+        match=re.escape(
+            "Call to deprecated function (or staticmethod) add."
+            " (Use of this legacy static method is deprecated, use `.add` instead.)"
+            " -- Deprecated since version v1.2."
+        ),
+    ):
+        res = Foo.do_plus(2, 3)
     assert res == 5
 
 
