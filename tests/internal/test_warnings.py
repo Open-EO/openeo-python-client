@@ -1,4 +1,5 @@
 import re
+import sys
 
 import pytest
 
@@ -100,25 +101,18 @@ def test_legacy_alias_classmethod(recwarn):
     assert Foo().add(2, 3) == 5
     assert len(recwarn) == 0
 
-    with pytest.warns(
-        UserDeprecationWarning,
-        match=re.escape(
-            "Call to deprecated class method add."
-            " (Use of this legacy class method is deprecated, use `.add` instead.)"
-            " -- Deprecated since version v1.2."
-        ),
-    ):
+    expected_warning = re.escape(
+        # Workaround for bug in classmethod detection before Python 3.9 (see https://wrapt.readthedocs.io/en/latest/decorators.html#decorating-class-methods
+        f"Call to deprecated {'class method' if sys.version_info >= (3, 9) else 'function (or staticmethod)'} add."
+        " (Use of this legacy class method is deprecated, use `.add` instead.)"
+        " -- Deprecated since version v1.2."
+    )
+
+    with pytest.warns(UserDeprecationWarning, match=expected_warning):
         res = Foo().do_plus(2, 3)
     assert res == 5
 
-    with pytest.warns(
-        UserDeprecationWarning,
-        match=re.escape(
-            "Call to deprecated class method add."
-            " (Use of this legacy class method is deprecated, use `.add` instead.)"
-            " -- Deprecated since version v1.2."
-        ),
-    ):
+    with pytest.warns(UserDeprecationWarning, match=expected_warning):
         res = Foo.do_plus(2, 3)
     assert res == 5
 
@@ -143,25 +137,16 @@ def test_legacy_alias_staticmethod(recwarn):
     assert Foo().add(2, 3) == 5
     assert len(recwarn) == 0
 
-    with pytest.warns(
-        UserDeprecationWarning,
-        match=re.escape(
-            "Call to deprecated function (or staticmethod) add."
-            " (Use of this legacy static method is deprecated, use `.add` instead.)"
-            " -- Deprecated since version v1.2."
-        ),
-    ):
+    expected_warning = re.escape(
+        "Call to deprecated function (or staticmethod) add."
+        " (Use of this legacy static method is deprecated, use `.add` instead.)"
+        " -- Deprecated since version v1.2."
+    )
+    with pytest.warns(UserDeprecationWarning, match=expected_warning):
         res = Foo().do_plus(2, 3)
     assert res == 5
 
-    with pytest.warns(
-        UserDeprecationWarning,
-        match=re.escape(
-            "Call to deprecated function (or staticmethod) add."
-            " (Use of this legacy static method is deprecated, use `.add` instead.)"
-            " -- Deprecated since version v1.2."
-        ),
-    ):
+    with pytest.warns(UserDeprecationWarning, match=expected_warning):
         res = Foo.do_plus(2, 3)
     assert res == 5
 
