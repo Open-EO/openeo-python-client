@@ -180,7 +180,7 @@ def get_config() -> ClientConfig:
     global _global_config
     if _global_config is None:
         _global_config = ConfigLoader.load()
-        message = f"Loaded openEO client config from {', '.join(_global_config.sources)}"
+        message = f"Loaded openEO client config from sources {_global_config.sources}"
         _log.info(message)
         if _global_config.sources:
             config_log(message)
