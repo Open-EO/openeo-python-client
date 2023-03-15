@@ -177,7 +177,8 @@ def test_get_config_verbose(tmp_path, caplog, capsys, verbose, force_interactive
         config = get_config()
         assert config.get("general.verbose") == verbose
 
-    # re.escape config_path because Windows paths contain "\"
+    # re.escape config_path because Windows paths contain "\", and regardless which OS
+    # the paths can also contain "-" which in a regex also has a special meaning.
     regex = re.compile(f"Loaded.*config from.*{re.escape(str(config_path))}")
     assert regex.search(caplog.text)
     assert bool(regex.search(capsys.readouterr().out)) == on_stdout

@@ -180,7 +180,16 @@ def get_config() -> ClientConfig:
     global _global_config
     if _global_config is None:
         _global_config = ConfigLoader.load()
-        message = f"Loaded openEO client config from sources {_global_config.sources}"
+
+        # In this case we avoid f-strings and use a more complicated expression,
+        # because on Windows we already have '\\' in the paths and then the f-string
+        # will escape those a *second* time, so we end up with '\\\\' .
+        # That is unreadable, and also a lot harder to deal with in unit tests.
+        message = (
+            "Loaded openEO client config from sources ["
+            + ", ".join(_global_config.sources)
+            + "]"
+        )
         _log.info(message)
         if _global_config.sources:
             config_log(message)
