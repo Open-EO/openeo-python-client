@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fixed a few unit tests that were failing on Windows due to different EOL character and path separators ([#393](https://github.com/Open-EO/openeo-python-client/issues/393))
 
 ## [0.15.0] - 2023-03-03
 
