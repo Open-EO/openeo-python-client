@@ -366,3 +366,24 @@ For development, what you need to do is:
 
     # Now install the openeo code in editable mode.
     pip install -e .[dev]
+
+
+
+Update of generated files
+==========================
+
+Some parts of the openEO Python Client Library source code are
+generated/compiled from upstream sources (e.g. official openEO specifications).
+Because updates are not often required,
+it's just a semi-manual procedure (to run from the project root):
+
+.. code-block:: console
+
+    # Update the sub-repositories (like git submodules, but optional)
+    python specs/update-subrepos.py
+
+    # Update `openeo/processes.py` from specifications in openeo-processes repository
+    python openeo/internal/processes/generator.py  specs/openeo-processes specs/openeo-processes/proposals --output openeo/processes.py
+
+    # Update the openEO process mapping documentation page
+    python docs/process_mapping.py > docs/process_mapping.rst

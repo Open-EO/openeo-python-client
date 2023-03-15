@@ -1,4 +1,5 @@
 import argparse
+import datetime
 import keyword
 import sys
 import textwrap
@@ -207,13 +208,17 @@ def generate_process_py(processes: List[Process], output=sys.stdout, argv=None):
             # Used command line arguments:
             #    {cli}
         """.format(cli=" ".join(argv))))
+    output.write(f"# Generated on {datetime.date.today().isoformat()}\n")
+
     output.write(oo_src)
-    output.write(fun_src)
+    output.write(fun_src.rstrip() + "\n")
 
 
 def main():
-    # Usage example (from project root, assuming the `openeo-process` repo is checked out as well):
-    #     python openeo/internal/processes/generator.py  ../openeo-processes  --output openeo/processes.py
+    # Usage example (from project root):
+    #   # Update subrepos (with process specs)
+    #   python specs/update-subrepos.py
+    #   python openeo/internal/processes/generator.py  specs/openeo-processes specs/openeo-processes/proposals --output openeo/processes.py
 
     argv = sys.argv
     arg_parser = argparse.ArgumentParser()
