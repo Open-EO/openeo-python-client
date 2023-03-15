@@ -68,7 +68,7 @@ class TestUserFile:
 
     def test_upload(self, con100, tmp_path, requests_mock):
         source = tmp_path / "to-upload.txt"
-        source.write_text("hello world\n")
+        source.write_bytes(b"hello world\n")
         f = UserFile("foo.txt", connection=con100)
 
         def put_files(request, context):
@@ -125,7 +125,7 @@ class TestUserFile:
         self, con100, tmp_path, requests_mock, target, expected_target
     ):
         source = tmp_path / "to-upload.txt"
-        source.write_text("hello world\n")
+        source.write_bytes(b"hello world\n")
 
         def put_files(request, context):
             import io
