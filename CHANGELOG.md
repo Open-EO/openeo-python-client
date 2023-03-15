@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Full support for user-uploaded files (`/files` endpoints)
   ([#377](https://github.com/Open-EO/openeo-python-client/issues/377))
+- Initial, experimental "local processing" feature to use
+  openEO Python Client Library functionality on local
+  GeoTIFF/NetCDF files and also do the processing locally
+  using the `openeo_processes_dask` package
+  ([#338](https://github.com/Open-EO/openeo-python-client/pull/338))
 
 ### Changed
 
@@ -21,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([#386](https://github.com/Open-EO/openeo-python-client/issues/386)).
   The (experimental) `fit_class_random_forest()` and `fit_regr_random_forest()` methods
   moved accordingly to the `VectorCube` class.
+- Improved documentation on `openeo.processes` and `ProcessBuilder`
+  ([#390](https://github.com/Open-EO/openeo-python-client/issues/390)).
 
 ### Removed
 
