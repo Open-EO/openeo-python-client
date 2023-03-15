@@ -2,10 +2,16 @@ import pytest
 import xarray as xr
 import numpy as np
 import pandas as pd
-import rioxarray
 
-from openeo.local import LocalConnection
+try:
+    from openeo.local import LocalConnection
+except ImportError:
+    LocalConnection = None
 
+
+@pytest.mark.skipif(
+    not LocalConnection, reason="environment does not support localprocessing"
+)
 def test_local_collection_metadata(tmp_path_factory):
     sample_netcdf = create_local_data(tmp_path_factory,2,2,2,'netcdf')
     sample_geotiff = create_local_data(tmp_path_factory,2,2,2,'tiff')
