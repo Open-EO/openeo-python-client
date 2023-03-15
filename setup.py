@@ -40,7 +40,7 @@ localprocessing_require = [
     "rioxarray",
     "pyproj",
     "openeo_pg_parser_networkx>=2023.1.2",
-    "openeo_processes_dask>=2023.1.2",
+    "openeo_processes_dask>=2023.3.0",
 ]
 
 
