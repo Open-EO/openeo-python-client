@@ -10,4 +10,5 @@ openEO CookBook
    udp_sharing
    spectral_indices
    job_manager
+   localprocessing
    tricks
