@@ -9,6 +9,7 @@ from local config files.
 import json
 import logging
 import stat
+import platform
 from datetime import datetime
 from pathlib import Path
 from typing import Union, Tuple, Dict
@@ -52,7 +53,10 @@ def assert_private_file(path: Path):
         message = "File {p} could be readable by others: mode {a:o} (expected: {e:o}).".format(
             p=path, a=mode & (stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO), e=_PRIVATE_PERMS
         )
-        raise PermissionError(message)
+        if platform.system() == "Windows":
+            log.info(message)
+        else:
+            raise PermissionError(message)
 
 
 def utcnow_rfc3339() -> str:
