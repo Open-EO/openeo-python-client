@@ -180,7 +180,9 @@ def get_config() -> ClientConfig:
     global _global_config
     if _global_config is None:
         _global_config = ConfigLoader.load()
-        message = f"Loaded openEO client config from sources {_global_config.sources}"
+        # Note: explicit `', '.join()` instead of implicit `repr` on full `sources` list
+        # as the latter causes ugly escaping of Windows path separator.
+        message = f"Loaded openEO client config from sources: [{', '.join(_global_config.sources)}]"
         _log.info(message)
         if _global_config.sources:
             config_log(message)
