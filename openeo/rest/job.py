@@ -51,7 +51,7 @@ class BatchJob:
         """ Get all job information."""
         # GET /jobs/{job_id}
         # TODO: rename to just `describe`? #280
-        return self.connection.get("/jobs/{}".format(self.job_id), expected_status=200).json()
+        return self.connection.get(f"/jobs/{self.job_id}", expected_status=200).json()
 
     def status(self) -> str:
         """
@@ -73,12 +73,14 @@ class BatchJob:
         """ Delete a job."""
         # DELETE /jobs/{job_id}
         # TODO: rename to just `delete`? #280
-        self.connection.delete("/jobs/{}".format(self.job_id), expected_status=204)
+        self.connection.delete(f"/jobs/{self.job_id}", expected_status=204)
 
     def estimate_job(self):
-        """ Calculate an time/cost estimate for a job."""
+        """Calculate time/cost estimate for a job."""
         # GET /jobs/{job_id}/estimate
-        data = self.connection.get("/jobs/{}/estimate".format(self.job_id), expected_status=200).json()
+        data = self.connection.get(
+            f"/jobs/{self.job_id}/estimate", expected_status=200
+        ).json()
         currency = self.connection.capabilities().currency()
         return VisualDict('job-estimate', data=data, parameters={'currency': currency})
 
@@ -87,13 +89,17 @@ class BatchJob:
         # POST /jobs/{job_id}/results
         # TODO: rename to just `start`? #280
         # TODO: return self, to allow chained calls
-        self.connection.post("/jobs/{}/results".format(self.job_id), expected_status=202)
+        self.connection.post(f"/jobs/{self.job_id}/results", expected_status=202)
 
     def stop_job(self):
         """ Stop / cancel job processing."""
         # DELETE /jobs/{job_id}/results
         # TODO: rename to just `stop`? #280
-        self.connection.delete("/jobs/{}/results".format(self.job_id), expected_status=204)
+        self.connection.delete(f"/jobs/{self.job_id}/results", expected_status=204)
+
+    def get_results_metadata_url(self) -> str:
+        """Get results metadata URL"""
+        return f"/jobs/{self.job_id}/results"
 
     @deprecated("Use :py:meth:`~BatchJob.get_results` instead.", version="0.4.10")
     def list_results(self) -> dict:
@@ -134,7 +140,7 @@ class BatchJob:
 
         .. versionadded:: 0.4.10
         """
-        return JobResults(self)
+        return JobResults(job=self)
 
     def logs(
         self, offset=None, log_level: Optional[Union[int, str]] = None
@@ -163,7 +169,7 @@ class BatchJob:
 
         :return: A list containing the log entries for the batch job.
         """
-        url = "/jobs/{}/logs".format(self.job_id)
+        url = f"/jobs/{self.job_id}/logs"
         logs = self.connection.get(url, params={'offset': offset}, expected_status=200).json()["logs"]
 
         # Only filter logs when specified.
@@ -353,7 +359,6 @@ class JobResults:
 
     def __init__(self, job: BatchJob):
         self._job = job
-        self._results_url = "/jobs/{j}/results".format(j=self._job.job_id)
         self._results = None
 
     def __repr__(self):
@@ -369,7 +374,9 @@ class JobResults:
     def get_metadata(self, force=False) -> dict:
         """Get batch job results metadata (parsed JSON)"""
         if self._results is None or force:
-            self._results = self._job.connection.get(self._results_url, expected_status=200).json()
+            self._results = self._job.connection.get(
+                self._job.get_results_metadata_url(), expected_status=200
+            ).json()
         return self._results
 
     # TODO: provide methods for `stac_version`, `id`, `geometry`, `properties`, `links`, ...?

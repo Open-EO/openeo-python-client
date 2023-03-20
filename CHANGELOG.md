@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   GeoTIFF/NetCDF files and also do the processing locally
   using the `openeo_processes_dask` package
   ([#338](https://github.com/Open-EO/openeo-python-client/pull/338))
+- Add `BatchJob.get_results_metadata_url()`.
 
 ### Changed
 

@@ -396,6 +396,10 @@ def test_create_job_100(con100, requests_mock):
     con100.create_job({"foo1": {"process_id": "foo"}}, title="Foo", description="just testing")
 
 
+def test_get_results_metadata_url(con100):
+    job = con100.job("job-456")
+    assert job.get_results_metadata_url() == "/jobs/job-456/results"
+
 
 @pytest.fixture
 def job_with_1_asset(con100, requests_mock, tmp_path) -> BatchJob:
