@@ -38,4 +38,3 @@ def _setup_connection(api_version, requests_mock) -> Connection:
 def con(requests_mock) -> Connection:
     """Connection fixture to a 1.0.0 backend with some image collections."""
     return _setup_connection("1.0.0", requests_mock)
-

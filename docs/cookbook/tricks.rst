@@ -80,4 +80,3 @@ For example:
 
     # `create_job` with URL to JSON file
     job = connection.create_job("https://jsonbin.example/my/process-graph.json")
-

@@ -15,12 +15,12 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v2
       with:
-        python-version: 3.8
+        python-version: "3.11"
 
-    - name: Install dependencies (including Sphinx)
+    - name: Install package and documentation dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install .[dev] sphinx
+        python -m pip install .[docs]
 
     - name: Sphinx build
       run: python -m sphinx -b html docs build
@@ -41,4 +41,3 @@ jobs:
         git push --force "https://${GITHUB_ACTOR}:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}" gh-pages
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-

@@ -9,11 +9,89 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Full support for user-uploaded files (`/files` endpoints)
+  ([#377](https://github.com/Open-EO/openeo-python-client/issues/377))
+- Initial, experimental "local processing" feature to use
+  openEO Python Client Library functionality on local
+  GeoTIFF/NetCDF files and also do the processing locally
+  using the `openeo_processes_dask` package
+  ([#338](https://github.com/Open-EO/openeo-python-client/pull/338))
+- Add `BatchJob.get_results_metadata_url()`.
+
 ### Changed
+
+- `Connection.list_files()` returns a list of `UserFile` objects instead of a list of metadata dictionaries.
+  Use `UserFile.metadata` to get the original dictionary.
+  ([#377](https://github.com/Open-EO/openeo-python-client/issues/377))
+- `DataCube.aggregate_spatial()` returns a `VectorCube` now, instead of a `DataCube`
+  ([#386](https://github.com/Open-EO/openeo-python-client/issues/386)).
+  The (experimental) `fit_class_random_forest()` and `fit_regr_random_forest()` methods
+  moved accordingly to the `VectorCube` class.
+- Improved documentation on `openeo.processes` and `ProcessBuilder`
+  ([#390](https://github.com/Open-EO/openeo-python-client/issues/390)).
 
 ### Removed
 
+- Dropped support for pre-1.0.0 versions of the openEO API
+  ([#134](https://github.com/Open-EO/openeo-python-client/issues/134)):
+  - Remove `ImageCollectionClient` and related helpers
+    (now unused leftovers from version 0.4.0 and earlier).
+    (Also [#100](https://github.com/Open-EO/openeo-python-client/issues/100))
+  - Drop support for pre-1.0.0 job result metadata
+  - Require at least version 1.0.0 of the openEO API for a back-end in `Connection`
+    and all its methods.
+
 ### Fixed
+
+
+## [0.15.0] - 2023-03-03
+
+### Added
+
+- The openeo Python client library can now also be installed with conda (conda-forge channel)
+  ([#176](https://github.com/Open-EO/openeo-python-client/issues/176))
+- Allow using a custom `requests.Session` in `openeo.rest.auth.oidc` logic
+
+### Changed
+
+- Less verbose log printing on failed batch job [#332](https://github.com/Open-EO/openeo-python-client/issues/332)
+- Improve (UTC) timezone handling in `openeo.util.Rfc3339` and add `rfc3339.today()`/`rfc3339.utcnow()`.
+
+
+## [0.14.1] - 2023-02-06
+
+### Fixed
+
+- Fine-tuned `XarrayDataCube` tests for conda building and packaging ([#176](https://github.com/Open-EO/openeo-python-client/issues/176))
+
+
+## [0.14.0] - 2023-02-01
+
+### Added
+
+- Jupyter integration: show process graph visualization of `DataCube` objects instead of generic `repr`.  ([#336](https://github.com/Open-EO/openeo-python-client/issues/336))
+- Add `Connection.vectorcube_from_paths()` to load a vector cube
+  from files (on back-end) or URLs with `load_uploaded_files` process.
+- Python 3.10 and 3.11 are now officially supported
+  (test run now also for 3.10 and 3.11 in GitHub Actions, [#346](https://github.com/Open-EO/openeo-python-client/issues/346))
+- Support for simplified OIDC device code flow, ([#335](https://github.com/Open-EO/openeo-python-client/issues/335))
+- Added MultiBackendJobManager, based on implementation from openeo-classification project
+  ([#361](https://github.com/Open-EO/openeo-python-client/issues/361))
+- Added resilience to MultiBackendJobManager for backend failures ([#365](https://github.com/Open-EO/openeo-python-client/issues/365))
+
+### Changed
+
+- `execute_batch` also skips temporal `502 Bad Gateway errors`. [#352](https://github.com/Open-EO/openeo-python-client/issues/352)
+
+### Fixed
+
+- Fixed/improved math operator/process support for `DataCube`s in "apply" mode (non-"band math"),
+  allowing expressions like `10 * cube.log10()` and `~(cube == 0)`
+  ([#123](https://github.com/Open-EO/openeo-python-client/issues/123))
+- Support `PrivateJsonFile` permissions properly on Windows, using oschmod library.
+  ([#198](https://github.com/Open-EO/openeo-python-client/issues/198))
+- Fixed some broken unit tests on Windows related to path (separator) handling.
+  ([#350](https://github.com/Open-EO/openeo-python-client/issues/350))
 
 
 ## [0.13.0] - 2022-10-10 - "UDF UX" release
@@ -63,8 +141,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `DataCube.execute_batch()` now also guesses the output format from the filename, 
-  and allows using `format` argument next to the current `out_format` 
+- `DataCube.execute_batch()` now also guesses the output format from the filename,
+  and allows using `format` argument next to the current `out_format`
   to align with the `DataCube.download()` method. ([#240](https://github.com/Open-EO/openeo-python-client/issues/240))
 - Better client-side handling of merged band name metadata in `DataCube.merge_cubes()`
 
@@ -83,19 +161,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Rename `RESTJob` class name to less cryptic and more user-friendly `BatchJob`. 
+- Rename `RESTJob` class name to less cryptic and more user-friendly `BatchJob`.
   Original `RESTJob` is still available as deprecated alias.
   ([#280](https://github.com/Open-EO/openeo-python-client/issues/280))
 - Dropped default reducer ("max") from `DataCube.reduce_temporal_simple()`
-- Various documentation improvements: 
+- Various documentation improvements:
     - general styling, landing page and structure tweaks ([#285](https://github.com/Open-EO/openeo-python-client/issues/285))
     - batch job docs ([#286](https://github.com/Open-EO/openeo-python-client/issues/286))
     - getting started docs ([#308](https://github.com/Open-EO/openeo-python-client/issues/308))
     - part of UDF docs ([#309](https://github.com/Open-EO/openeo-python-client/issues/309))
-    - added process-to-method mapping docs 
+    - added process-to-method mapping docs
 - Drop hardcoded `h5netcdf` engine from `XarrayIO.from_netcdf_file()`
   and `XarrayIO.to_netcdf_file()` ([#314](https://github.com/Open-EO/openeo-python-client/issues/314))
-- Changed argument name of `Connection.describe_collection()` from `name` to `collection_id` 
+- Changed argument name of `Connection.describe_collection()` from `name` to `collection_id`
   to be more in line with other methods/functions.
 
 ### Fixed
@@ -108,7 +186,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `context` parameter to `DataCube.aggregate_spatial()`, `DataCube.apply_dimension()`, 
+- Add `context` parameter to `DataCube.aggregate_spatial()`, `DataCube.apply_dimension()`,
   `DataCube.apply_neighborhood()`, `DataCube.apply()`, `DataCube.merge_cubes()`.
   ([#291](https://github.com/Open-EO/openeo-python-client/issues/291))
 - Add `DataCube.fit_regr_random_forest()` ([#293](https://github.com/Open-EO/openeo-python-client/issues/293))
@@ -130,13 +208,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add support for comparison operators (`<`, `>`, `<=` and `>=`) in callback process building
 - Added `Connection.describe_process()` to retrieve and show a single process
-- Added `DataCube.flatten_dimensions()` and `DataCube.unflatten_dimension` 
+- Added `DataCube.flatten_dimensions()` and `DataCube.unflatten_dimension`
   ([Open-EO/openeo-processes#308](https://github.com/Open-EO/openeo-processes/issues/308), [Open-EO/openeo-processes#316](https://github.com/Open-EO/openeo-processes/pull/316))
 - Added `VectorCube.run_udf` (to avoid non-standard `process_with_node(UDF(...))` usage)
 - Added `DataCube.fit_class_random_forest()` and `Connection.load_ml_model()` to train and load Machine Learning models
   ([#279](https://github.com/Open-EO/openeo-python-client/issues/279))
 - Added `DataCube.predict_random_forest()` to easily use `reduce_dimension` with a `predict_random_forest` reducer
-  using a `MlModel` (trained with `fit_class_random_forest`)  
+  using a `MlModel` (trained with `fit_class_random_forest`)
   ([#279](https://github.com/Open-EO/openeo-python-client/issues/279))
 - Added `DataCube.resample_cube_temporal` ([#284](https://github.com/Open-EO/openeo-python-client/issues/284))
 - Add `target_dimension` argument to `DataCube.aggregate_spatial` ([#288](https://github.com/Open-EO/openeo-python-client/issues/288))
@@ -226,7 +304,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update documentation/examples/tests: EPSG CRS in `filter_bbox` should be integer code, not string
   ([#233](https://github.com/Open-EO/openeo-python-client/pull/233)).
 - Raise `ProcessGraphVisitException` from `ProcessGraphVisitor.resolve_from_node()` (instead of generic `ValueError`)
-- `DataCube.linear_scale_range` is now a shortcut for `DataCube.apply(lambda  x:x.x.linear_scale_range( input_min, input_max, output_min, output_max))`.  
+- `DataCube.linear_scale_range` is now a shortcut for `DataCube.apply(lambda  x:x.x.linear_scale_range( input_min, input_max, output_min, output_max))`.
    Instead of creating an invalid process graph that tries to invoke linear_scale_range on a datacube directly.
 - Nicer error message when back-end does not support basic auth ([#247](https://github.com/Open-EO/openeo-python-client/issues/247))
 
@@ -239,7 +317,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.8.2] - 2021-08-24
 
-Minor release to address version packaging issue. 
+Minor release to address version packaging issue.
 
 ## [0.8.1] - 2021-08-24
 
@@ -271,7 +349,7 @@ Minor release to address version packaging issue.
 ### Added
 
 - Allow, but raise warning when specifying a CRS for the geometry passed to `aggregate_spatial` and `mask_polygon`,
-  which is non-standard/experimental feature, only supported by specific back-ends 
+  which is non-standard/experimental feature, only supported by specific back-ends
   ([#204](https://github.com/Open-EO/openeo-python-client/issues/204))
 - Add `optional` argument to `Parameter` and fix re-encoding parameters with default value. (EP-3846)
 - Add support to test strict equality with `ComparableVersion`
@@ -280,11 +358,11 @@ Minor release to address version packaging issue.
 - Add support for [aggregate_temporal_period](https://processes.openeo.org/#aggregate_temporal_period)
 - Added class `Service` for secondary web-services
 - Added a method `service` to `Connection`
-- Add `Rfc3339.parse_date` and `Rfc3339.parse_date_or_datetime` 
+- Add `Rfc3339.parse_date` and `Rfc3339.parse_date_or_datetime`
 
 ### Changed
 
-- Disallow redirects on POST/DELETE/... requests and require status code 200 on `POST /result` requests. 
+- Disallow redirects on POST/DELETE/... requests and require status code 200 on `POST /result` requests.
   This improves error information where `POST /result` would involve a redirect. (EP-3889)
 - Class `JobLogEntry` got replaced with a more complete and re-usable `LogEntry` dict
 - The following methods return a `Service` class instead of a dict: `tiled_viewing_service` in `ImageCollection`, `ImageCollectionClient` and `DataCube`, `create_service` in `Connection`
@@ -305,7 +383,7 @@ Minor release to address version packaging issue.
 ### Changed
 
 - Eliminate development/optional dependency on `openeo_udf` project
-  ([#159](https://github.com/Open-EO/openeo-python-client/issues/159), [#190](https://github.com/Open-EO/openeo-python-client/pull/190), EP-3578). 
+  ([#159](https://github.com/Open-EO/openeo-python-client/issues/159), [#190](https://github.com/Open-EO/openeo-python-client/pull/190), EP-3578).
   Now the openEO client library itself contains the necessary classes and implementation to run UDF code locally.
 
 ### Fixed
@@ -317,7 +395,7 @@ Minor release to address version packaging issue.
 
 ### Changed
 
-- Improve OpenID Connect usability on Windows: don't raise exception on file permissions 
+- Improve OpenID Connect usability on Windows: don't raise exception on file permissions
   that can not be changed (by `os.chmod` on Windows) ([#198](https://github.com/Open-EO/openeo-python-client/issues/198))
 
 
@@ -327,7 +405,7 @@ Minor release to address version packaging issue.
 
 - Add initial/experimental support for OIDC device code flow with PKCE (alternative for client secret) ([#191](https://github.com/Open-EO/openeo-python-client/issues/191) / EP-3700)
 - When creating a connection: use "https://" by default when no protocol is specified
-- `DataCube.mask_polygon`: support `Parameter` argument for `mask` 
+- `DataCube.mask_polygon`: support `Parameter` argument for `mask`
 - Add initial/experimental support for default OIDC client ([#192](https://github.com/Open-EO/openeo-python-client/issues/192), [Open-EO/openeo-api#366](https://github.com/Open-EO/openeo-api/pull/366))
 - Add `Connection.authenticate_oidc` for user-friendlier OIDC authentication: first try refresh token and fall back on device code flow
 - Add experimental support for `array_modify` process ([Open-EO/openeo-processes#202](https://github.com/Open-EO/openeo-processes/issues/202))
@@ -342,18 +420,18 @@ Minor release to address version packaging issue.
 ### Added
 
 - Add namespace support to `DataCube.process`, `PGNode`, `ProcessGraphVisitor` (minor API breaking change) and related.
-  Allows building process graphs with processes from non-"backend" namespaces 
+  Allows building process graphs with processes from non-"backend" namespaces
   ([#182](https://github.com/Open-EO/openeo-python-client/issues/182))
 - `collection_items` to request collection items through a STAC API
 - `paginate` as a basic method to support link-based pagination
 - Add namespace support to `Connection.datacube_from_process`
-- Add basic support for band name aliases in `metadata.Band` for band index lookup (EP-3670) 
+- Add basic support for band name aliases in `metadata.Band` for band index lookup (EP-3670)
 
 ### Changed
 
 - `OpenEoApiError` moved from `openeo.rest.connection` to `openeo.rest`
 - Added HTML representation for `list_jobs`, `list_services`, `list_files` and for job results
-- Improve refresh token handling in OIDC logic: avoid requesting refresh token 
+- Improve refresh token handling in OIDC logic: avoid requesting refresh token
   (which can fail if OIDC client is not set up for that) when not necessary (EP-3700)
 - `RESTJob.start_and_wait`: add status line when sending "start" request, and drop microsecond resolution from status lines
 
@@ -365,15 +443,15 @@ Minor release to address version packaging issue.
 
 ### Added
 
-- Add "reflected" operator support to `ProcessBuilder` 
+- Add "reflected" operator support to `ProcessBuilder`
 - Add `RESTJob.get_results()`, `JobResults` and `ResultAsset` for more fine-grained batch job result handling. (EP-3739)
 - Add documentation on batch job result (asset) handling and downloading
 
 ### Changed
 
 - Mark `Connection.imagecollection` more clearly as deprecated/legacy alias of `Connection.load_collection`
-- Deprecated `job_results()` and `job_logs()` on `Connection` object, it's better to work through `RESTJob` object. 
-- Update `DataCube.sar_backscatter` to the latest process spec: add `coefficient` argument 
+- Deprecated `job_results()` and `job_logs()` on `Connection` object, it's better to work through `RESTJob` object.
+- Update `DataCube.sar_backscatter` to the latest process spec: add `coefficient` argument
   and remove `orthorectify`, `rtc`. ([openeo-processes#210](https://github.com/Open-EO/openeo-processes/pull/210))
 
 ### Removed
@@ -386,7 +464,7 @@ Minor release to address version packaging issue.
 
 ### Added
 
-- Make `DataCube.filter_bbox()` easier to use: allow passing a bbox tuple, list, dict or even shapely geometry directly as first positional argument or as `bbox` keyword argument. 
+- Make `DataCube.filter_bbox()` easier to use: allow passing a bbox tuple, list, dict or even shapely geometry directly as first positional argument or as `bbox` keyword argument.
   Handling of the legacy non-standard west-east-north-south positional argument order is preserved for now ([#136](https://github.com/Open-EO/openeo-python-client/issues/136))
 - Add "band math" methods `DataCube.ln()`, `DataCube.logarithm(base)`, `DataCube.log10()` and `DataCube.log2()`
 - Improved support for creating and handling parameters when defining user-defined processes (EP-3698)
@@ -397,7 +475,7 @@ Minor release to address version packaging issue.
 
 ### Fixed
 
-- Fixed 'Content-Encoding' handling in `Connection.download`: client did not automatically decompress `/result` 
+- Fixed 'Content-Encoding' handling in `Connection.download`: client did not automatically decompress `/result`
   responses when necessary ([#175](https://github.com/Open-EO/openeo-python-client/issues/175))
 
 
@@ -418,7 +496,7 @@ Minor release to address version packaging issue.
 - Allow to subclass `CollectionMetadata` and preserve original type when "cloning"
 
 ### Changed
-- Changed `execute_batch` to support downloading multiple files (within EP-3359, support profiling)  
+- Changed `execute_batch` to support downloading multiple files (within EP-3359, support profiling)
 - Don't send None-valued `title`/`description`/`plan`/`budget` fields from `DataCube.send_job` ([#157](https://github.com/Open-EO/openeo-python-client/pull/157) / [#158](https://github.com/Open-EO/openeo-python-client/pull/158))
 
 ### Removed
@@ -426,7 +504,7 @@ Minor release to address version packaging issue.
 
 ### Fixed
 - Various documentation fixes and tweaks
-- Avoid `merge_cubes` warning when using non-band-math `DataCube` operators 
+- Avoid `merge_cubes` warning when using non-band-math `DataCube` operators
 
 
 ## [0.4.6] - 2020-10-15

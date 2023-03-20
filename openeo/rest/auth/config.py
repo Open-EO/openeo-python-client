@@ -8,7 +8,6 @@ from local config files.
 
 import json
 import logging
-import platform
 import stat
 from datetime import datetime
 from pathlib import Path
@@ -18,22 +17,42 @@ from openeo import __version__
 from openeo.config import get_user_config_dir, get_user_data_dir
 from openeo.util import rfc3339, deep_get, deep_set
 
+try:
+    # Use oschmod when available (fall back to POSIX-only functionality from stdlib otherwise)
+    # TODO: enforce oschmod as dependency for all platforms?
+    import oschmod
+except ImportError:
+    oschmod = None
+
+
 _PRIVATE_PERMS = stat.S_IRUSR | stat.S_IWUSR
 
 log = logging.getLogger(__name__)
 
 
+def get_file_mode(path: Path) -> int:
+    """Get the file permission bits in a way that works on both *nix and Windows platforms."""
+    if oschmod:
+        return oschmod.get_mode(str(path))
+    return path.stat().st_mode
+
+
+def set_file_mode(path: Path, mode: int):
+    """Set the file permission bits in a way that works on both *nix and Windows platforms."""
+    if oschmod:
+        oschmod.set_mode(str(path), mode=mode)
+    else:
+        path.chmod(mode=mode)
+
+
 def assert_private_file(path: Path):
     """Check that given file is only readable by user."""
-    mode = path.stat().st_mode
+    mode = get_file_mode(path)
     if (mode & stat.S_IRWXG) or (mode & stat.S_IRWXO):
         message = "File {p} could be readable by others: mode {a:o} (expected: {e:o}).".format(
             p=path, a=mode & (stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO), e=_PRIVATE_PERMS
         )
-        if platform.system() == 'Windows':
-            log.info(message)
-        else:
-            raise PermissionError(message)
+        raise PermissionError(message)
 
 
 def utcnow_rfc3339() -> str:
@@ -86,7 +105,7 @@ class PrivateJsonFile:
         # TODO: add file locking to avoid race conditions?
         with self._path.open("w", encoding="utf8") as f:
             json.dump(data, f, indent=2)
-        self._path.chmod(mode=_PRIVATE_PERMS)
+        set_file_mode(self._path, mode=_PRIVATE_PERMS)
         assert_private_file(self._path)
 
     def get(self, *keys, default=None) -> Union[dict, str, int]:

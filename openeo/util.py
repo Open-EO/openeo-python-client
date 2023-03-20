@@ -11,6 +11,7 @@ import time
 from collections import OrderedDict
 from pathlib import Path
 from typing import Any, Union, Tuple, Callable, Optional
+from urllib.parse import urljoin
 
 import requests
 import shapely.geometry.base
@@ -125,19 +126,27 @@ class Rfc3339:
             return None
         raise ValueError(x)
 
-    def parse_datetime(self, x: Union[str, None]) -> Union[dt.datetime, None]:
+    def parse_datetime(
+        self, x: Union[str, None], with_timezone: bool = False
+    ) -> Union[dt.datetime, None]:
         """Parse given string as RFC3339 date-time."""
         if isinstance(x, str):
-            return dt.datetime.strptime(x, '%Y-%m-%dT%H:%M:%SZ')
+            # TODO: Also support other timezones than UTC (Z)
+            res = dt.datetime.strptime(x, "%Y-%m-%dT%H:%M:%SZ")
+            if with_timezone:
+                res = res.replace(tzinfo=dt.timezone.utc)
+            return res
         elif x is None and self._propagate_none:
             return None
         raise ValueError(x)
 
-    def parse_date_or_datetime(self, x: Union[str, None]) -> Union[dt.date, dt.datetime, None]:
+    def parse_date_or_datetime(
+        self, x: Union[str, None], with_timezone: bool = False
+    ) -> Union[dt.date, dt.datetime, None]:
         """Parse given string as RFC3339 date or date-time."""
         if isinstance(x, str):
             if len(x) > 10:
-                return self.parse_datetime(x)
+                return self.parse_datetime(x, with_timezone=with_timezone)
             else:
                 return self.parse_date(x)
         elif x is None and self._propagate_none:
@@ -147,7 +156,9 @@ class Rfc3339:
     @classmethod
     def _format_datetime(cls, d: dt.datetime) -> str:
         """Format given datetime as RFC-3339 date-time string."""
-        assert d.tzinfo is None, "timezone handling not supported (TODO)"
+        if d.tzinfo not in {None, dt.timezone.utc}:
+            # TODO: add support for non-UTC timezones?
+            raise ValueError(f"No support for non-UTC timezone {d.tzinfo}")
         return d.strftime(cls._FMT_DATETIME)
 
     @classmethod
@@ -162,6 +173,16 @@ class Rfc3339:
             return tuple(int(v) for v in cls._regex_datetime.match(s).groups() if v is not None)
         except Exception:
             raise ValueError("Can not parse as date: {s}".format(s=s))
+
+    def today(self) -> str:
+        """Today (date) in RFC3339 format"""
+        return self.date(dt.date.today())
+
+    def utcnow(self) -> str:
+        """Current UTC datetime in RFC3339 format."""
+        # Current time in UTC timezone (instead of naive `datetime.datetime.utcnow()`, per `datetime` documentation)
+        now = dt.datetime.now(tz=dt.timezone.utc)
+        return self.datetime(now)
 
 
 # Default RFC3339 date-time formatter
@@ -573,3 +594,8 @@ def to_bbox_dict(x: Any, *, crs: Optional[str] = None) -> BBoxDict:
     :return: dictionary (subclass) with keys "west", "south", "east", "north", and optionally "crs".
     """
     return BBoxDict.from_any(x=x, crs=crs)
+
+
+def url_join(root_url: str, path: str):
+    """Join a base url and sub path properly."""
+    return urljoin(root_url.rstrip("/") + "/", path.lstrip("/"))

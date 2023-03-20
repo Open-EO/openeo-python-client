@@ -19,10 +19,10 @@ This allows you to build your own *library of reusable building blocks*.
 
 .. warning::
 
-    Don not confuse **user-defined processes** (sometimes abbreviated as UDP) with
+    Do not confuse **user-defined processes** (sometimes abbreviated as UDP) with
     **user-defined functions** (UDF) in openEO, which is a mechanism to
     inject Python or R scripts as process nodes in a process graph.
-    see :ref:`user-defined-functions` for more information.
+    See :ref:`user-defined-functions` for more information.
 
 A user-defined process can not only be constructed from
 pre-defined processes provided by the back-end,
@@ -302,7 +302,7 @@ representing the Fahrenheit to Celsius conversion we discussed before::
             "process_id": "divide",
             "arguments": {"x": {"from_node": "subtract1"}, "y": 1.8},
             "result": True
-        }
+        }}
 
 We can store this directly, taking into account that we have to define
 a parameter named ``f`` corresponding with the ``{"from_parameter": "f"}`` argument
@@ -311,7 +311,7 @@ from the dictionary above::
     connection.save_user_defined_process(
         user_defined_process_id="fahrenheit_to_celsius",
         process_graph=fahrenheit_to_celsius,
-        parameters=[Parameter.number(name="f", description="Degrees Fahrenheit")
+        parameters=[Parameter.number(name="f", description="Degrees Fahrenheit")]
     )
 
 
@@ -388,5 +388,3 @@ which we can process further and download::
     cube.download("fancy.tiff", format="GTiff")
 
 See :ref:`datacube_from_process` for more information on :func:`~openeo.rest.connection.Connection.datacube_from_process`.
-
-

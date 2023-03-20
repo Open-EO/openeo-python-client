@@ -21,9 +21,9 @@ def test_render_basic():
         def incr(x):
             """
             Increment a value
-           
+
             :param x: value
-           
+
             :return: incremented value
             """
             return _process('incr', x=x)''')
@@ -143,7 +143,7 @@ def test_render_oo_no_params():
             def pi(self):
                 """
                 Pi
-    
+
                 :return: value of pi
                 """
                 return _process('pi', )''')

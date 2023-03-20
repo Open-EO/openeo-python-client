@@ -1,12 +1,14 @@
 import logging
 from unittest import mock
+import os
 
 import pytest
 
+from openeo.capabilities import ApiVersionException
 from openeo.rest.auth import cli
 from openeo.rest.auth.cli import CliToolException
 from openeo.rest.auth.config import AuthConfig, RefreshTokenStore
-from .test_oidc import OidcMock, assert_device_code_poll_sleep
+from openeo.rest.auth.testing import OidcMock, assert_device_code_poll_sleep
 
 
 def mock_input(*args: str):
@@ -37,8 +39,8 @@ def refresh_token_store(tmp_openeo_config_home) -> RefreshTokenStore:
 def test_paths(capsys):
     cli.main(["paths"])
     out = capsys.readouterr().out
-    assert "/auth-config.json" in out
-    assert "/refresh-tokens.json" in out
+    assert os.sep + "auth-config.json" in out
+    assert os.sep + "refresh-tokens.json" in out
 
 
 def test_config_dump(capsys, auth_config):
@@ -224,7 +226,10 @@ def test_add_oidc_use_default_client_overwrite(auth_config, requests_mock, caplo
 
 def test_add_oidc_04(auth_config, requests_mock):
     requests_mock.get("https://oeo.test/", json={"api_version": "0.4.0"})
-    with pytest.raises(CliToolException, match="Backend API version is too low"):
+    with pytest.raises(
+        ApiVersionException,
+        match="openEO API version should be at least 1.0.0, but got 0.4.0",
+    ):
         cli.main(["add-oidc", "https://oeo.test"])
 
 
@@ -296,8 +301,7 @@ def test_oidc_auth_device_flow(auth_config, refresh_token_store, requests_mock, 
         requests_mock=requests_mock,
         expected_grant_type="urn:ietf:params:oauth:grant-type:device_code",
         expected_client_id=client_id,
-        provider_root_url="https://authit.test",
-        oidc_discovery_url="https://authit.test/.well-known/openid-configuration",
+        oidc_issuer="https://authit.test",
         expected_fields={"scope": "openid", "client_secret": client_secret},
         state={"device_code_callback_timeline": ["great success"]},
         scopes_supported=["openid"]
@@ -343,8 +347,7 @@ def test_oidc_auth_device_flow_default_client(auth_config, refresh_token_store, 
         requests_mock=requests_mock,
         expected_grant_type="urn:ietf:params:oauth:grant-type:device_code",
         expected_client_id=default_client_id,
-        provider_root_url="https://authit.test",
-        oidc_discovery_url="https://authit.test/.well-known/openid-configuration",
+        oidc_issuer="https://authit.test",
         expected_fields={"scope": "openid", "code_verifier": True, "code_challenge": True},
         state={"device_code_callback_timeline": ["great success"]},
         scopes_supported=["openid"]
@@ -389,8 +392,7 @@ def test_oidc_auth_device_flow_no_config_all_defaults(auth_config, refresh_token
         requests_mock=requests_mock,
         expected_grant_type="urn:ietf:params:oauth:grant-type:device_code",
         expected_client_id=default_client_id,
-        provider_root_url="https://authit.test",
-        oidc_discovery_url="https://authit.test/.well-known/openid-configuration",
+        oidc_issuer="https://authit.test",
         expected_fields={"scope": "openid", "code_verifier": True, "code_challenge": True},
         state={"device_code_callback_timeline": ["great success"]},
         scopes_supported=["openid"]
@@ -436,8 +438,7 @@ def test_oidc_auth_auth_code_flow(auth_config, refresh_token_store, requests_moc
         expected_grant_type="authorization_code",
         expected_client_id=client_id,
         expected_fields={"scope": "openid"},
-        provider_root_url="https://authit.test",
-        oidc_discovery_url="https://authit.test/.well-known/openid-configuration",
+        oidc_issuer="https://authit.test",
         scopes_supported=["openid"]
     )
 

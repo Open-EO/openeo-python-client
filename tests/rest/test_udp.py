@@ -1,3 +1,5 @@
+import warnings
+
 import pytest
 
 import openeo
@@ -121,11 +123,12 @@ def test_store_collision(con100, requests_mock):
     adapter2 = requests_mock.put(API_URL + "/process_graphs/subtract", additional_matcher=check_body)
 
     parameters = [Parameter.number("x"), Parameter.number("y")]
-    with pytest.warns(None) as recorder:
+    with warnings.catch_warnings():
+        # Turn warnings into exceptions
+        warnings.simplefilter("error")
         udp = con100.save_user_defined_process("my_subtract", subtract, parameters=parameters)
     assert isinstance(udp, RESTUserDefinedProcess)
     assert adapter1.call_count == 1
-    assert len(recorder) == 0
 
     with pytest.warns(UserWarning, match="same id as a pre-defined process") as recorder:
         udp = con100.save_user_defined_process("subtract", subtract, parameters=parameters)

@@ -19,13 +19,13 @@ import warnings
 import webbrowser
 from collections import namedtuple
 from queue import Queue, Empty
-from typing import Tuple, Callable, Union, List
+from typing import Tuple, Callable, Union, List, Optional
 
 import requests
 
 import openeo
 from openeo.rest import OpenEoClientException
-from openeo.util import dict_no_none
+from openeo.util import dict_no_none, url_join
 
 log = logging.getLogger(__name__)
 
@@ -238,17 +238,27 @@ class OidcProviderInfo:
     """OpenID Connect Provider information, as provided by an openEO back-end (endpoint `/credentials/oidc`)"""
 
     def __init__(
-            self, issuer: str = None, discovery_url: str = None, scopes: List[str] = None,
-            provider_id: str = None, title: str = None,
-            default_clients: Union[List[dict], None] = None,
+        self,
+        issuer: str = None,
+        discovery_url: str = None,
+        scopes: List[str] = None,
+        provider_id: str = None,
+        title: str = None,
+        default_clients: Union[List[dict], None] = None,
+        requests_session: Optional[requests.Session] = None,
     ):
         # TODO: id and title are required in the openEO API spec.
         self.id = provider_id
         self.title = title
-        if issuer is None and discovery_url is None:
+        if discovery_url:
+            self.discovery_url = discovery_url
+        elif issuer:
+            self.discovery_url = url_join(issuer, "/.well-known/openid-configuration")
+        else:
             raise ValueError("At least `issuer` or `discovery_url` should be specified")
-        self.discovery_url = discovery_url or (issuer.rstrip("/") + "/.well-known/openid-configuration")
-        discovery_resp = requests.get(self.discovery_url, timeout=20)
+        if not requests_session:
+            requests_session = requests.Session()
+        discovery_resp = requests_session.get(self.discovery_url, timeout=20)
         discovery_resp.raise_for_status()
         self.config = discovery_resp.json()
         self.issuer = issuer or self.config["issuer"]
@@ -333,10 +343,15 @@ class OidcAuthenticator:
     """
     grant_type = NotImplemented
 
-    def __init__(self, client_info: OidcClientInfo):
+    def __init__(
+        self,
+        client_info: OidcClientInfo,
+        requests_session: Optional[requests.Session] = None,
+    ):
         self._client_info = client_info
         self._provider_config = client_info.provider.config
         # TODO: check provider config (e.g. if grant type is supported)
+        self._requests = requests_session or requests.Session()
 
     @property
     def client_id(self) -> str:
@@ -368,7 +383,7 @@ class OidcAuthenticator:
         log.info("Doing {g!r} token request {u!r} with post data fields {p!r} (client_id {c!r})".format(
             g=self.grant_type, c=self.client_id, u=token_endpoint, p=list(post_data.keys()))
         )
-        resp = requests.post(url=token_endpoint, data=post_data)
+        resp = self._requests.post(url=token_endpoint, data=post_data)
         if resp.status_code != 200:
             # TODO: are other status_code values valid too?
             raise OidcException("Failed to retrieve access token at {u!r}: {s} {r!r} {t!r}".format(
@@ -456,11 +471,14 @@ class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
     TIMEOUT_DEFAULT = 60
 
     def __init__(
-            self,
-            client_info: OidcClientInfo,
-            webbrowser_open: Callable = None, timeout: int = None, server_address: Tuple[str, int] = None
+        self,
+        client_info: OidcClientInfo,
+        webbrowser_open: Callable = None,
+        timeout: int = None,
+        server_address: Tuple[str, int] = None,
+        requests_session: Optional[requests.Session] = None,
     ):
-        super().__init__(client_info=client_info)
+        super().__init__(client_info=client_info, requests_session=requests_session)
         self._webbrowser_open = webbrowser_open or webbrowser.open
         self._authentication_timeout = timeout or self.TIMEOUT_DEFAULT
         self._server_address = server_address
@@ -570,8 +588,6 @@ class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
 class OidcClientCredentialsAuthenticator(OidcAuthenticator):
     """
     Implementation of "Client Credentials" Flow.
-
-    TODO: is this a useful flow in practice?
     """
 
     grant_type = "client_credentials"
@@ -592,8 +608,14 @@ class OidcResourceOwnerPasswordAuthenticator(OidcAuthenticator):
 
     grant_type = "password"
 
-    def __init__(self, client_info: OidcClientInfo, username: str, password: str):
-        super().__init__(client_info=client_info)
+    def __init__(
+        self,
+        client_info: OidcClientInfo,
+        username: str,
+        password: str,
+        requests_session: Optional[requests.Session] = None,
+    ):
+        super().__init__(client_info=client_info, requests_session=requests_session)
         self._username = username
         self._password = password
 
@@ -613,8 +635,13 @@ class OidcRefreshTokenAuthenticator(OidcAuthenticator):
 
     grant_type = "refresh_token"
 
-    def __init__(self, client_info: OidcClientInfo, refresh_token: str):
-        super().__init__(client_info=client_info)
+    def __init__(
+        self,
+        client_info: OidcClientInfo,
+        refresh_token: str,
+        requests_session: Optional[requests.Session] = None,
+    ):
+        super().__init__(client_info=client_info, requests_session=requests_session)
         self._refresh_token = refresh_token
 
     def _get_token_endpoint_post_data(self) -> dict:
@@ -625,7 +652,10 @@ class OidcRefreshTokenAuthenticator(OidcAuthenticator):
         return data
 
 
-VerificationInfo = namedtuple("VerificationInfo", ["verification_uri", "device_code", "user_code", "interval"])
+VerificationInfo = namedtuple(
+    "VerificationInfo",
+    ["verification_uri", "verification_uri_complete", "device_code", "user_code", "interval"]
+)
 
 
 class OidcDeviceAuthenticator(OidcAuthenticator):
@@ -636,10 +666,15 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
     grant_type = "urn:ietf:params:oauth:grant-type:device_code"
 
     def __init__(
-            self, client_info: OidcClientInfo, display: Callable[[str], None] = print, device_code_url: str = None,
-            max_poll_time=5 * 60, use_pkce: Union[bool, None] = None
+        self,
+        client_info: OidcClientInfo,
+        display: Callable[[str], None] = print,
+        device_code_url: str = None,
+        max_poll_time=5 * 60,
+        use_pkce: Union[bool, None] = None,
+        requests_session: Optional[requests.Session] = None,
     ):
-        super().__init__(client_info=client_info)
+        super().__init__(client_info=client_info, requests_session=requests_session)
         self._display = display
         # Allow to specify/override device code URL for cases when it is not available in OIDC discovery doc.
         self._device_code_url = device_code_url or self._provider_config.get("device_authorization_endpoint")
@@ -659,7 +694,7 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
         if self._pkce:
             post_data["code_challenge"] = self._pkce.code_challenge,
             post_data["code_challenge_method"] = self._pkce.code_challenge_method
-        resp = requests.post(url=self._device_code_url, data=post_data)
+        resp = self._requests.post(url=self._device_code_url, data=post_data)
         if resp.status_code != 200:
             raise OidcException("Failed to get verification URL and user code from {u!r}: {s} {r!r} {t!r}".format(
                 s=resp.status_code, r=resp.reason, u=resp.url, t=resp.text
@@ -669,6 +704,8 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
             verification_info = VerificationInfo(
                 # Google OAuth/OIDC implementation uses non standard "verification_url" instead of "verification_uri"
                 verification_uri=data["verification_uri"] if "verification_uri" in data else data["verification_url"],
+                # verification_uri_complete is optional, will be None if this key is not present
+                verification_uri_complete=data.get("verification_uri_complete"),
                 device_code=data["device_code"],
                 user_code=data["user_code"],
                 interval=data.get("interval", 5),
@@ -681,9 +718,14 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
     def get_tokens(self, request_refresh_token: bool = False) -> AccessTokenResult:
         # Get verification url and user code
         verification_info = self._get_verification_info(request_refresh_token=request_refresh_token)
-        self._display("To authenticate: visit {u} and enter the user code {c!r}.".format(
-            u=verification_info.verification_uri, c=verification_info.user_code)
-        )
+        if verification_info.verification_uri_complete:
+            self._display(
+                f"To authenticate: visit {verification_info.verification_uri_complete} ."
+            )
+        else:
+            self._display("To authenticate: visit {u} and enter the user code {c!r}.".format(
+                u=verification_info.verification_uri, c=verification_info.user_code)
+            )
 
         # Poll token endpoint
         elapsed = create_timer()
@@ -705,7 +747,7 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
             log.debug("Doing {g!r} token request {u!r} with post data fields {p!r} (client_id {c!r})".format(
                 g=self.grant_type, c=self.client_id, u=token_endpoint, p=list(post_data.keys()))
             )
-            resp = requests.post(url=token_endpoint, data=post_data)
+            resp = self._requests.post(url=token_endpoint, data=post_data)
             if resp.status_code == 200:
                 log.info("[{e:5.1f}s] Authorized successfully.".format(e=elapsed()))
                 self._display("Authorized successfully.")

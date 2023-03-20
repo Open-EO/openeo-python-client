@@ -17,6 +17,7 @@ if typing.TYPE_CHECKING:
     from openeo.rest.vectorcube import VectorCube
 
 
+# TODO: this base class has no implementation anymore in openeo package: remove all together #100
 class ImageCollection(ABC):
     """Class representing Processes. """
 
@@ -542,7 +543,7 @@ class ImageCollection(ABC):
         """
         pass
 
-    send_job = legacy_alias(create_job, name="send_job")
+    send_job = legacy_alias(create_job, name="send_job", since="0.10.0")
 
     def pipe(self, func: Callable, *args, **kwargs):
         """

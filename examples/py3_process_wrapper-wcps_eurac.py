@@ -30,7 +30,7 @@ def execute(
     Version -- 1-hbo
     Author -- Alexander Jacob, Eurac Research, openEO
     Mission -- hackathon
-    
+
     Inputs:
     user -- User -- 45/User String -- guest
     password -- Password -- 45/User String -- guest_123
@@ -42,17 +42,17 @@ def execute(
     band_format -- Band Format -- 45/User String -- gtiff
     bbox_string -- BBox -- 45/User String -- 10.446624755859375, 46.72574176193996, 10.629272460937498, 46.845164430292755
     temporal_extent -- Temporal Extent -- 44/DateRange -- 2016-06-28T00:00:00.000Z/2016-06-28T00:00:00.000Z
-    
+
     Outputs:
     band_dir -- Band Directory -- 45/User String
     band_files -- Band Files -- 45/User String
-    
+
     Main Dependency:
     python-3
 
     Software Dependencies:
     openeo-0.4
-    
+
     Processing Resources:
     ram -- 1
     disk -- 10
@@ -78,7 +78,7 @@ def execute(
         image_collection,
         json.dumps(connection.describe_collection(image_collection), indent=2),
     )
-    cube = ImageCollectionClient.load_collection(session = connection, collection_id = image_collection, bands = all_bands)
+    cube = connection.load_collection(collection_id=image_collection, bands=all_bands)
     cube = cube.filter_bbox( **bbox)
     cube = cube.filter_temporal(extent=temporal_extent)
 

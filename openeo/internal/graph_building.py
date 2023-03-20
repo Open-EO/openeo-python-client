@@ -46,6 +46,8 @@ class PGNode(_FromNodeMixin):
 
     """
 
+    __slots__ = ["_process_id", "_arguments", "_namespace"]
+
     def __init__(self, process_id: str, arguments: dict = None, namespace: Union[str, None] = None, **kwargs):
         self._process_id = process_id
         # Merge arguments dict and kwargs
@@ -152,6 +154,7 @@ def as_flat_graph(x: Union[dict, Any]) -> dict:
     if isinstance(x, dict):
         return x
     elif hasattr(x, 'flat_graph'):
+        # TODO: define mixin/interface parent class for cleaner definition of this "flat_graph" API
         # The "flat_graph" API (supported by `PGNode`, `DataCube`, `ProcessBuilderBase`, ...)
         return x.flat_graph()
     elif isinstance(x, (str, Path)):
