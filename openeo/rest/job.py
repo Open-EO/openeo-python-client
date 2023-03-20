@@ -97,9 +97,12 @@ class BatchJob:
         # TODO: rename to just `stop`? #280
         self.connection.delete(f"/jobs/{self.job_id}/results", expected_status=204)
 
-    def get_results_metadata_url(self) -> str:
+    def get_results_metadata_url(self, *, full: bool = False) -> str:
         """Get results metadata URL"""
-        return f"/jobs/{self.job_id}/results"
+        url = f"/jobs/{self.job_id}/results"
+        if full:
+            url = self.connection.build_url(url)
+        return url
 
     @deprecated("Use :py:meth:`~BatchJob.get_results` instead.", version="0.4.10")
     def list_results(self) -> dict:

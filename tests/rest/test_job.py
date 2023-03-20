@@ -401,6 +401,14 @@ def test_get_results_metadata_url(con100):
     assert job.get_results_metadata_url() == "/jobs/job-456/results"
 
 
+def test_get_results_metadata_url_full(con100):
+    job = con100.job("job-456")
+    assert (
+        job.get_results_metadata_url(full=True)
+        == "https://oeo.test/jobs/job-456/results"
+    )
+
+
 @pytest.fixture
 def job_with_1_asset(con100, requests_mock, tmp_path) -> BatchJob:
     requests_mock.get(API_URL + "/jobs/jj1/results", json={"assets": {
