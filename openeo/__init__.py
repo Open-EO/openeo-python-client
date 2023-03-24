@@ -13,8 +13,6 @@ class BaseOpenEoException(Exception):
 
 from openeo._version import __version__
 
-# TODO remove this import #100 #134
-from openeo.imagecollection import ImageCollection
 from openeo.rest.datacube import DataCube, UDF
 from openeo.rest.connection import connect, session, Connection
 from openeo.rest.job import BatchJob, RESTJob

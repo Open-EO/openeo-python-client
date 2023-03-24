@@ -1,7 +1,5 @@
 from shapely.geometry import Polygon
 
-from openeo import ImageCollection
-
 import openeo
 import logging
 import os
