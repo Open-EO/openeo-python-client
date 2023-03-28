@@ -43,6 +43,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Reinstated old behavior of authentication related user files (e.g. refresh token store) on Windows: when `PrivateJsonFile` may be readable by others, just log a message instead of raising `PermissionError` ([387](https://github.com/Open-EO/openeo-python-client/issues/387))
+
 
 ## [0.15.0] - 2023-03-03
 
