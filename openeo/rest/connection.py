@@ -532,11 +532,13 @@ class Connection(RestApiConnection):
         return self._authenticate_oidc(authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token)
 
     def authenticate_oidc(
-            self,
-            provider_id: str = None,
-            client_id: Union[str, None] = None, client_secret: Union[str, None] = None,
-            store_refresh_token: bool = True,
-            use_pkce: Union[bool, None] = None,
+        self,
+        provider_id: Optional[str] = None,
+        client_id: Optional[str] = None,
+        client_secret: Optional[str] = None,
+        store_refresh_token: bool = True,
+        use_pkce: Optional[bool] = None,
+        display: Callable[[str], None] = print,
     ):
         """
         Do OpenID Connect authentication, first trying refresh tokens and falling back on device code flow.
@@ -575,8 +577,14 @@ class Connection(RestApiConnection):
         # Fall back on device code flow
         # TODO: make it possible to do other fallback flows too?
         _log.info("Trying device code flow.")
-        authenticator = OidcDeviceAuthenticator(client_info=client_info, use_pkce=use_pkce)
-        con = self._authenticate_oidc(authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token)
+        authenticator = OidcDeviceAuthenticator(
+            client_info=client_info, use_pkce=use_pkce, display=display
+        )
+        con = self._authenticate_oidc(
+            authenticator,
+            provider_id=provider_id,
+            store_refresh_token=store_refresh_token,
+        )
         print("Authenticated using device code flow.")
         return con
 
