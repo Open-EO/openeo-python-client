@@ -2,8 +2,6 @@
 
 import json
 import openeo
-# TODO remove next line, create a "cube" through connection.load_collection()
-from openeo.rest.imagecollectionclient import ImageCollectionClient
 
 backend_url = 'https://openeo.mundialis.de'
 

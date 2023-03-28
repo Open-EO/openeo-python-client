@@ -4,7 +4,6 @@ import logging
 from datetime import datetime
 
 import openeo
-from openeo.rest.imagecollectionclient import ImageCollectionClient
 import sys
 
 logger = logging.getLogger(__name__)

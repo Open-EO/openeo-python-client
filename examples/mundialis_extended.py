@@ -4,8 +4,6 @@ import logging
 from datetime import datetime
 
 import openeo
-# TODO remove next line, create a "cube" through connection.load_collection()
-from openeo.rest.imagecollectionclient import ImageCollectionClient
 import sys
 
 logger = logging.getLogger(__name__)

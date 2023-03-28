@@ -7,8 +7,6 @@ from pathlib import Path
 import pandas as pd
 
 #enable logging in requests library
-from openeo.rest.imagecollectionclient import ImageCollectionClient
-
 logging.basicConfig(level=logging.DEBUG)
 
 #connect with EURAC backend

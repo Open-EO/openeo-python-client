@@ -1,7 +1,6 @@
 """
 
 General cube method tests against both
-- 0.4.0-style ImageCollectionClient
 - 1.0.0-style DataCube
 
 """
