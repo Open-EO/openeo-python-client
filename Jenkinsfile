@@ -18,4 +18,8 @@ pythonPipeline {
   wheel_repo = 'python-openeo'
   wheel_repo_dev = 'python-openeo'
   pep440 = true
+  extra_env_variables = [
+    /* Workaround to have pytest `basetemp` inside Jenkins workspace, including the retention feature. Set see https://github.com/pytest-dev/pytest/issues/10829 */
+    "PYTEST_DEBUG_TEMPROOT=pytest-tmp",
+  ]
 }
