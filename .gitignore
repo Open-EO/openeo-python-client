@@ -124,5 +124,5 @@ _build
 # GitHub Actions build downloads
 artifact*.zip
 
-# pytest basetemp root for tmp_path fixture
+# pytest basetemp root (e.g. for tmp_path fixture).
 pytest-tmp
