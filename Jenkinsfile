@@ -22,4 +22,5 @@ pythonPipeline {
     /* Workaround to have pytest `basetemp` inside Jenkins workspace, including the retention feature. Also see https://github.com/pytest-dev/pytest/issues/10829 */
     "PYTEST_DEBUG_TEMPROOT=pytest-tmp",
   ]
+  pre_test_script = 'pre_test.sh'
 }
