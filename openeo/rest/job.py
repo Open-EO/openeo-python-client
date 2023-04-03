@@ -1,7 +1,6 @@
 import datetime
 import json
 import logging
-import textwrap
 import time
 import typing
 from pathlib import Path
@@ -9,7 +8,7 @@ from typing import List, Union, Dict, Optional
 
 import requests
 
-from openeo.api.logs import LogEntry, normalize_log_level
+from openeo.api.logs import LogEntry, normalize_log_level, log_level_name
 from openeo.internal.jupyter import render_component, render_error, VisualDict, VisualList
 from openeo.internal.warnings import deprecated
 from openeo.rest import OpenEoClientException, JobFailedException, OpenEoApiError
@@ -174,7 +173,9 @@ class BatchJob:
         """
         url = f"/jobs/{self.job_id}/logs"
         logs = self.connection.get(
-            url, params={"offset": offset, "log_level": log_level}, expected_status=200
+            url,
+            params={"offset": offset, "log_level": log_level_name(log_level)},
+            expected_status=200,
         ).json()["logs"]
 
         # Only filter logs when specified.
