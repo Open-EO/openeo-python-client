@@ -237,7 +237,7 @@ class Connection(RestApiConnection):
         self._capabilities_cache = LazyLoadCache()
 
         # Initial API version check.
-        self.api_version.require_at_least(self._MINIMUM_API_VERSION)
+        self._api_version.require_at_least(self._MINIMUM_API_VERSION)
 
         self._auth_config = auth_config
         self._refresh_token_store = refresh_token_store
@@ -897,7 +897,7 @@ class Connection(RestApiConnection):
         return self.post(path="/validation", json=request, expected_status=200).json()["errors"]
 
     @property
-    def api_version(self) -> ComparableVersion:
+    def _api_version(self) -> ComparableVersion:
         # TODO make this a public property (it's also useful outside the Connection class)
         return self.capabilities().api_version_check
 

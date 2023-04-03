@@ -177,21 +177,16 @@ class BatchJob:
             url, params={"offset": offset, "log_level": log_level}, expected_status=200
         ).json()["logs"]
 
-        #
-        # TODO: we should still support client-side log_level filtering when the backend
-        #   itself doesn't support filtering. What is the best way to check that, the API version?
-        #   https://github.com/Open-EO/openeo-python-driver/issues/170
-        #
-
         # Only filter logs when specified.
-        if self.connection.api_version.at_most("1.1.0"):
-            if log_level is not None:
-                log_level = normalize_log_level(log_level)
-                logs = (
-                    log
-                    for log in logs
-                    if normalize_log_level(log.get("level")) >= log_level
-                )
+        # We should still support client-side log_level filtering because not all backends
+        # support the log_level option.
+        if log_level is not None:
+            log_level = normalize_log_level(log_level)
+            logs = (
+                log
+                for log in logs
+                if normalize_log_level(log.get("level")) >= log_level
+            )
 
         entries = [LogEntry(log) for log in logs]
         return VisualList("logs", data=entries)
