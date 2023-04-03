@@ -43,7 +43,14 @@ def load_local_collection(*args, **kwargs):
     elif '.nc' in collection.suffixes:
         data = xr.open_dataset(kwargs['id'],chunks={},decode_coords='all').to_array(dim='bands') # Add decode_coords='all' if the crs as a band gives some issues
     elif '.tiff' in collection.suffixes or '.tif' in collection.suffixes:
-        data = rioxarray.open_rasterio(kwargs['id']).rename({'band':'bands'})
+        data = rioxarray.open_rasterio(kwargs['id'],chunks={},band_as_variable=True)
+        for d in data.data_vars:
+            data_attrs_lowercase = [x.lower() for x in data[d].attrs]
+            data_attrs_original  = [x for x in data[d].attrs]
+            data_attrs = dict(zip(data_attrs_lowercase,data_attrs_original))
+            if 'description' in data_attrs_lowercase:
+                data = data.rename({d:data[d].attrs[data_attrs['description']]})
+        data = data.to_array(dim='bands')
     return data
 
 from openeo_processes_dask.specs import load_collection as load_collection_spec
