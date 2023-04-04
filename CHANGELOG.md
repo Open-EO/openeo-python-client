@@ -32,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `DataCube.create_job()` and `Connection.create_job()` now require
   keyword arguments for all but the first argument for clarity.
   ([#412](https://github.com/Open-EO/openeo-python-client/issues/412)).
+- Pass log_level to backend when retrieving BatchJob's logs. ([Open-EO/openeo-python-driver#170](https://github.com/Open-EO/openeo-python-driver/issues/170))
+
 
 ### Removed
 
