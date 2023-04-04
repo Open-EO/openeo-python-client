@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   moved accordingly to the `VectorCube` class.
 - Improved documentation on `openeo.processes` and `ProcessBuilder`
   ([#390](https://github.com/Open-EO/openeo-python-client/issues/390)).
+- Pass log_level to backend when retrieving BatchJob's logs. ([Open-EO/openeo-python-driver#170](https://github.com/Open-EO/openeo-python-driver/issues/170))
 
 ### Removed
 
