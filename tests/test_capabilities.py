@@ -142,3 +142,19 @@ class TestComparableVersion:
         v.require_at_least("1.2.0")
         with pytest.raises(ApiVersionException):
             v.require_at_least("1.2.4")
+
+    def test_hashable_dict(self):
+        d = {
+            ComparableVersion("1.2.3"): "red",
+        }
+        assert d[ComparableVersion((1, 2, 3))] == "red"
+
+    def test_hashable_set(self):
+        s = {
+            ComparableVersion("1.2.3"),
+            ComparableVersion("2.4.6"),
+        }
+        assert s == {
+            ComparableVersion((2, 4, 6)),
+            ComparableVersion("1.2.3"),
+        }
