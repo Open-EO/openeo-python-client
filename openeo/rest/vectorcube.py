@@ -90,6 +90,10 @@ class VectorCube(_ProcessGraphAbstraction):
 
     @openeo_process
     def save_result(self, format: str = "GeoJson", options: dict = None):
+        # TODO?
+        # TODO: check format against supported formats
+        # TODO: should not return a VectorCube again, but bool wrapper
+        # TODO: should save_result also work on non-cube data types, e.g. arrays, scalars?
         return self.process(
             process_id="save_result",
             arguments={
@@ -105,6 +109,7 @@ class VectorCube(_ProcessGraphAbstraction):
 
     def download(self, outputfile: str, format: str = "GeoJSON", options: dict = None):
         # TODO: only add save_result, when not already present (see DataCube.download)
+        # TODO
         cube = self.save_result(format=format, options=options)
         return self._connection.download(cube.flat_graph(), outputfile)
 
