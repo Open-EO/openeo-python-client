@@ -45,11 +45,9 @@ def load_local_collection(*args, **kwargs):
     elif '.tiff' in collection.suffixes or '.tif' in collection.suffixes:
         data = rioxarray.open_rasterio(kwargs['id'],chunks={},band_as_variable=True)
         for d in data.data_vars:
-            data_attrs_lowercase = [x.lower() for x in data[d].attrs]
-            data_attrs_original  = [x for x in data[d].attrs]
-            data_attrs = dict(zip(data_attrs_lowercase,data_attrs_original))
-            if 'description' in data_attrs_lowercase:
-                data = data.rename({d:data[d].attrs[data_attrs['description']]})
+            descriptions = [v for k, v in data[d].attrs.items() if k.lower() == "description"]
+            if descriptions:
+                data = data.rename({d: descriptions[0]})
         data = data.to_array(dim='bands')
     return data
 
