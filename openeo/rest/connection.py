@@ -1164,10 +1164,14 @@ class Connection(RestApiConnection):
         return self.post(path="/result", json=req, expected_status=200).json()
 
     def create_job(
-            self, process_graph: Union[dict, str, Path],
-            title: Optional[str] = None, description: Optional[str] = None,
-            plan: Optional[str] = None, budget: Optional[float] = None,
-            additional: Optional[dict] = None
+        self,
+        process_graph: Union[dict, str, Path],
+        *,
+        title: Optional[str] = None,
+        description: Optional[str] = None,
+        plan: Optional[str] = None,
+        budget: Optional[float] = None,
+        additional: Optional[dict] = None,
     ) -> BatchJob:
         """
         Posts a job to the back end.

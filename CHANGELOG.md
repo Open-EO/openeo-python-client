@@ -29,7 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   moved accordingly to the `VectorCube` class.
 - Improved documentation on `openeo.processes` and `ProcessBuilder`
   ([#390](https://github.com/Open-EO/openeo-python-client/issues/390)).
-- `DataCube.create_job()` now requires keyword arguments for all but the `out_format` argument.
+- `DataCube.create_job()` and `Connection.create_job()` now require
+  keyword arguments for all but the first argument for clarity.
   ([#412](https://github.com/Open-EO/openeo-python-client/issues/412)).
 
 ### Removed

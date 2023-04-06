@@ -134,7 +134,7 @@ class VectorCube(_ProcessGraphAbstraction):
 
     def create_job(
         self,
-        out_format=None,
+        out_format: Optional[str] = None,
         *,
         title: Optional[str] = None,
         description: Optional[str] = None,

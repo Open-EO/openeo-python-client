@@ -81,7 +81,6 @@ class MlModel(_ProcessGraphAbstraction):
 
     def create_job(
         self,
-        out_format=None,
         *,
         title: Optional[str] = None,
         description: Optional[str] = None,
@@ -92,7 +91,6 @@ class MlModel(_ProcessGraphAbstraction):
         """
         Sends a job to the backend and returns a ClientJob instance.
 
-        :param out_format: String Format of the job result.
         :param title: job title
         :param description: job description
         :param plan: billing plan
