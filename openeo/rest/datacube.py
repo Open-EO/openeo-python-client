@@ -1699,51 +1699,64 @@ class DataCube(_ProcessGraphAbstraction):
 
     ####VIEW methods #######
 
-    @deprecated("Use :py:meth:`aggregate_spatial` with reducer ``'mean'``.", version="0.10.0")
-    def polygonal_mean_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> 'DataCube':
+    @deprecated(
+        "Use :py:meth:`aggregate_spatial` with reducer ``'mean'``.", version="0.10.0"
+    )
+    def polygonal_mean_timeseries(
+        self, polygon: Union[Polygon, MultiPolygon, str]
+    ) -> VectorCube:
         """
         Extract a mean time series for the given (multi)polygon. Its points are
         expected to be in the EPSG:4326 coordinate
         reference system.
 
         :param polygon: The (multi)polygon; or a file path or HTTP URL to a GeoJSON file or shape file
-        :return: DataCube
         """
         return self.aggregate_spatial(geometries=polygon, reducer="mean")
 
-    @deprecated("Use :py:meth:`aggregate_spatial` with reducer ``'histogram'``.", version="0.10.0")
-    def polygonal_histogram_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> 'DataCube':
+    @deprecated(
+        "Use :py:meth:`aggregate_spatial` with reducer ``'histogram'``.",
+        version="0.10.0",
+    )
+    def polygonal_histogram_timeseries(
+        self, polygon: Union[Polygon, MultiPolygon, str]
+    ) -> VectorCube:
         """
         Extract a histogram time series for the given (multi)polygon. Its points are
         expected to be in the EPSG:4326 coordinate
         reference system.
 
         :param polygon: The (multi)polygon; or a file path or HTTP URL to a GeoJSON file or shape file
-        :return: DataCube
         """
         return self.aggregate_spatial(geometries=polygon, reducer="histogram")
 
-    @deprecated("Use :py:meth:`aggregate_spatial` with reducer ``'median'``.", version="0.10.0")
-    def polygonal_median_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> 'DataCube':
+    @deprecated(
+        "Use :py:meth:`aggregate_spatial` with reducer ``'median'``.", version="0.10.0"
+    )
+    def polygonal_median_timeseries(
+        self, polygon: Union[Polygon, MultiPolygon, str]
+    ) -> VectorCube:
         """
         Extract a median time series for the given (multi)polygon. Its points are
         expected to be in the EPSG:4326 coordinate
         reference system.
 
         :param polygon: The (multi)polygon; or a file path or HTTP URL to a GeoJSON file or shape file
-        :return: DataCube
         """
         return self.aggregate_spatial(geometries=polygon, reducer="median")
 
-    @deprecated("Use :py:meth:`aggregate_spatial` with reducer ``'sd'``.", version="0.10.0")
-    def polygonal_standarddeviation_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> 'DataCube':
+    @deprecated(
+        "Use :py:meth:`aggregate_spatial` with reducer ``'sd'``.", version="0.10.0"
+    )
+    def polygonal_standarddeviation_timeseries(
+        self, polygon: Union[Polygon, MultiPolygon, str]
+    ) -> VectorCube:
         """
         Extract a time series of standard deviations for the given (multi)polygon. Its points are
         expected to be in the EPSG:4326 coordinate
         reference system.
 
         :param polygon: The (multi)polygon; or a file path or HTTP URL to a GeoJSON file or shape file
-        :return: DataCube
         """
         return self.aggregate_spatial(geometries=polygon, reducer="sd")
 
