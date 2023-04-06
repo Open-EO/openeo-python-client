@@ -6,13 +6,9 @@ import rioxarray
 from pathlib import Path
 
 from openeo_pg_parser_networkx import ProcessRegistry
-from openeo_processes_dask.process_implementations.core import process
-from openeo_pg_parser_networkx.process_registry import Process
+from openeo_processes_dask.core import process as openeo_process
 
-PROCESS_REGISTRY = ProcessRegistry(wrap_funcs=[process])
-
-# Import these pre-defined processes from openeo_processes_dask and register them into registry
-processes_from_module = [
+standard_processes = [
     func
     for _, func in inspect.getmembers(
         importlib.import_module("openeo_processes_dask.process_implementations"),
@@ -20,17 +16,12 @@ processes_from_module = [
     )
 ]
 
-specs_module = importlib.import_module("openeo_processes_dask.specs")
-specs = {
-    func.__name__: getattr(specs_module, func.__name__)
-    for func in processes_from_module
-}
+PROCESS_REGISTRY = ProcessRegistry(wrap_funcs=[openeo_process])
 
-for func in processes_from_module:
-    PROCESS_REGISTRY[func.__name__] = Process(
-        spec=specs[func.__name__], implementation=func
-    )
+for func in standard_processes:
+    PROCESS_REGISTRY[func.__name__] = func
 
+#We need to define a custom `load_collection` process, used to load local netCDFs
 _log = logging.getLogger(__name__)
 def load_local_collection(*args, **kwargs):
     pretty_args = {k: type(v) for k, v in kwargs.items()}
@@ -46,5 +37,4 @@ def load_local_collection(*args, **kwargs):
         data = rioxarray.open_rasterio(kwargs['id']).rename({'band':'bands'})
     return data
 
-from openeo_processes_dask.specs import load_collection as load_collection_spec
-PROCESS_REGISTRY["load_collection"] = Process(spec=load_collection_spec, implementation=load_local_collection)
+PROCESS_REGISTRY["load_collection"] = load_local_collection
