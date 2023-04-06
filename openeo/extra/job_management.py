@@ -376,7 +376,7 @@ class MultiBackendJobManager:
         """
         # TODO: param `row` is never accessed in this method. Remove it? Is this intended for future use?
 
-        error_logs = job.logs(log_level="error")
+        error_logs = job.logs(level="error")
         error_log_path = self.get_error_log_path(job.job_id)
 
         if len(error_logs) > 0:

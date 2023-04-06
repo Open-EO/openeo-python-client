@@ -145,7 +145,7 @@ class BatchJob:
         return JobResults(job=self)
 
     def logs(
-        self, offset=None, log_level: Optional[Union[int, str]] = None
+        self, offset: Optional[str] = None, level: Optional[Union[str, int]] = None
     ) -> List[LogEntry]:
         """Retrieve job logs.
 
@@ -156,7 +156,7 @@ class BatchJob:
 
             Defaults to None.
 
-        :param log_level: Show only messages of this log level and its higher levels.
+        :param level: Minimum log level to retrieve.
 
             You can use either constants from Python's standard module ``logging``
             or their names (case-insensitive).
@@ -172,17 +172,19 @@ class BatchJob:
         :return: A list containing the log entries for the batch job.
         """
         url = f"/jobs/{self.job_id}/logs"
-        logs = self.connection.get(
-            url,
-            params={"offset": offset, "log_level": log_level_name(log_level)},
-            expected_status=200,
-        ).json()["logs"]
+        params = {}
+        if offset is not None:
+            params["offset"] = offset
+        if level is not None:
+            params["level"] = log_level_name(level)
+        response = self.connection.get(url, params=params, expected_status=200)
+        logs = response.json()["logs"]
 
         # Only filter logs when specified.
         # We should still support client-side log_level filtering because not all backends
-        # support the log_level option.
-        if log_level is not None:
-            log_level = normalize_log_level(log_level)
+        # support the minimum log level parameter.
+        if level is not None:
+            log_level = normalize_log_level(level)
             logs = (
                 log
                 for log in logs
@@ -275,7 +277,7 @@ class BatchJob:
             # TODO: allow to disable this printing logs (e.g. in non-interactive contexts)?
             # TODO: render logs jupyter-aware in a notebook context?
             print(f"Your batch job {self.job_id!r} failed. Error logs:")
-            print(self.logs(log_level=logging.ERROR))
+            print(self.logs(level=logging.ERROR))
             print(
                 f"Full logs can be inspected in an openEO (web) editor or with `connection.job({self.job_id!r}).logs()`."
             )

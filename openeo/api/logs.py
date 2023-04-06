@@ -91,8 +91,9 @@ def normalize_log_level(
         )
 
 
-def log_level_name(log_level):
-    """Get the name of a normalized log level.
-    This value conforms to log level names used in the openeo API.
+def log_level_name(log_level: Union[int, str, None]) -> str:
+    """
+    Get the name of a normalized log level.
+    This value conforms to log level names used in the openEO API.
     """
     return logging.getLevelName(normalize_log_level(log_level)).lower()
