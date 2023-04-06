@@ -78,4 +78,4 @@ We can now do a simple processing for demo purposes, let's compute the median ND
    result_NDVI = NDVI_median.execute()
    result_NDVI.plot.imshow(cmap='Greens')
 
-.. image:: _static/images/local/local_ndvi.jpg
+.. image:: ../_static/images/local/local_ndvi.jpg
