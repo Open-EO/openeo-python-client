@@ -1699,51 +1699,64 @@ class DataCube(_ProcessGraphAbstraction):
 
     ####VIEW methods #######
 
-    @deprecated("Use :py:meth:`aggregate_spatial` with reducer ``'mean'``.", version="0.10.0")
-    def polygonal_mean_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> 'DataCube':
+    @deprecated(
+        "Use :py:meth:`aggregate_spatial` with reducer ``'mean'``.", version="0.10.0"
+    )
+    def polygonal_mean_timeseries(
+        self, polygon: Union[Polygon, MultiPolygon, str]
+    ) -> VectorCube:
         """
         Extract a mean time series for the given (multi)polygon. Its points are
         expected to be in the EPSG:4326 coordinate
         reference system.
 
         :param polygon: The (multi)polygon; or a file path or HTTP URL to a GeoJSON file or shape file
-        :return: DataCube
         """
         return self.aggregate_spatial(geometries=polygon, reducer="mean")
 
-    @deprecated("Use :py:meth:`aggregate_spatial` with reducer ``'histogram'``.", version="0.10.0")
-    def polygonal_histogram_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> 'DataCube':
+    @deprecated(
+        "Use :py:meth:`aggregate_spatial` with reducer ``'histogram'``.",
+        version="0.10.0",
+    )
+    def polygonal_histogram_timeseries(
+        self, polygon: Union[Polygon, MultiPolygon, str]
+    ) -> VectorCube:
         """
         Extract a histogram time series for the given (multi)polygon. Its points are
         expected to be in the EPSG:4326 coordinate
         reference system.
 
         :param polygon: The (multi)polygon; or a file path or HTTP URL to a GeoJSON file or shape file
-        :return: DataCube
         """
         return self.aggregate_spatial(geometries=polygon, reducer="histogram")
 
-    @deprecated("Use :py:meth:`aggregate_spatial` with reducer ``'median'``.", version="0.10.0")
-    def polygonal_median_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> 'DataCube':
+    @deprecated(
+        "Use :py:meth:`aggregate_spatial` with reducer ``'median'``.", version="0.10.0"
+    )
+    def polygonal_median_timeseries(
+        self, polygon: Union[Polygon, MultiPolygon, str]
+    ) -> VectorCube:
         """
         Extract a median time series for the given (multi)polygon. Its points are
         expected to be in the EPSG:4326 coordinate
         reference system.
 
         :param polygon: The (multi)polygon; or a file path or HTTP URL to a GeoJSON file or shape file
-        :return: DataCube
         """
         return self.aggregate_spatial(geometries=polygon, reducer="median")
 
-    @deprecated("Use :py:meth:`aggregate_spatial` with reducer ``'sd'``.", version="0.10.0")
-    def polygonal_standarddeviation_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> 'DataCube':
+    @deprecated(
+        "Use :py:meth:`aggregate_spatial` with reducer ``'sd'``.", version="0.10.0"
+    )
+    def polygonal_standarddeviation_timeseries(
+        self, polygon: Union[Polygon, MultiPolygon, str]
+    ) -> VectorCube:
         """
         Extract a time series of standard deviations for the given (multi)polygon. Its points are
         expected to be in the EPSG:4326 coordinate
         reference system.
 
         :param polygon: The (multi)polygon; or a file path or HTTP URL to a GeoJSON file or shape file
-        :return: DataCube
         """
         return self.aggregate_spatial(geometries=polygon, reducer="sd")
 
@@ -1883,8 +1896,15 @@ class DataCube(_ProcessGraphAbstraction):
         )
 
     def create_job(
-            self, out_format=None, title: str = None, description: str = None, plan: str = None, budget=None,
-            job_options=None, **format_options
+        self,
+        out_format: Optional[str] = None,
+        *,
+        title: Optional[str] = None,
+        description: Optional[str] = None,
+        plan: Optional[str] = None,
+        budget: Optional[float] = None,
+        job_options: Optional[dict] = None,
+        **format_options,
     ) -> BatchJob:
         """
         Sends the datacube's process graph as a batch job to the back-end
@@ -1895,18 +1915,28 @@ class DataCube(_ProcessGraphAbstraction):
         Use :py:meth:`execute_batch` instead to have the openEO Python client take care of that job management.
 
         :param out_format: String Format of the job result.
+        :param title: job title
+        :param description: job description
+        :param plan: billing plan
+        :param budget: maximum cost the request is allowed to produce
         :param job_options: A dictionary containing (custom) job options
         :param format_options: String Parameters for the job result format
-        :return: status: Job resulting job.
+        :return: Created job.
         """
         # TODO: add option to also automatically start the job?
-        img = self
+        # TODO: avoid using all kwargs as format_options
+        # TODO: centralize `create_job` for `DataCube`, `VectorCube`, `MlModel`, ...
+        cube = self
         if out_format:
             # add `save_result` node
-            img = img.save_result(format=out_format, options=format_options)
+            cube = cube.save_result(format=out_format, options=format_options)
         return self._connection.create_job(
-            process_graph=img.flat_graph(),
-            title=title, description=description, plan=plan, budget=budget, additional=job_options
+            process_graph=cube.flat_graph(),
+            title=title,
+            description=description,
+            plan=plan,
+            budget=budget,
+            additional=job_options,
         )
 
     send_job = legacy_alias(create_job, name="send_job", since="0.10.0")

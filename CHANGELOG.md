@@ -29,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   moved accordingly to the `VectorCube` class.
 - Improved documentation on `openeo.processes` and `ProcessBuilder`
   ([#390](https://github.com/Open-EO/openeo-python-client/issues/390)).
+- `DataCube.create_job()` now requires keyword arguments for all but the `out_format` argument.
+  ([#412](https://github.com/Open-EO/openeo-python-client/issues/412)).
 
 ### Removed
 
@@ -44,6 +46,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Reinstated old behavior of authentication related user files (e.g. refresh token store) on Windows: when `PrivateJsonFile` may be readable by others, just log a message instead of raising `PermissionError` ([387](https://github.com/Open-EO/openeo-python-client/issues/387))
+- `VectorCube.create_job()` and `MlModel.create_job()` are properly aligned with `DataCube.create_job()`
+  regarding setting job title, description, etc.
+  ([#412](https://github.com/Open-EO/openeo-python-client/issues/412)).
 
 
 ## [0.15.0] - 2023-03-03
