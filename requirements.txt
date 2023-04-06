@@ -1,3 +1,0 @@
-# Tested versions of specific packages used in openeo[localprocessing]
-openeo-pg-parser-networkx==2023.3.1
-openeo-processes-dask==2023.3.2
