@@ -1174,7 +1174,7 @@ class Connection(RestApiConnection):
         additional: Optional[dict] = None,
     ) -> BatchJob:
         """
-        Posts a job to the back end.
+        Create a new job from given process graph on the back-end.
 
         :param process_graph: (flat) dict representing a process graph, or process graph as raw JSON string,
             or as local file path or URL
@@ -1183,7 +1183,7 @@ class Connection(RestApiConnection):
         :param plan: billing plan
         :param budget: maximum cost the request is allowed to produce
         :param additional: additional job options to pass to the backend
-        :return: job_id: String Job id of the new created job
+        :return: Created job
         """
         # TODO move all this (BatchJob factory) logic to BatchJob?
         req = self._build_request_with_process_graph(
