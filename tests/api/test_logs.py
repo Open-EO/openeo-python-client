@@ -1,6 +1,6 @@
 import logging
 
-from openeo.api.logs import LogEntry, normalize_log_level
+from openeo.api.logs import LogEntry, normalize_log_level, log_level_name
 import pytest
 
 
@@ -68,3 +68,23 @@ def test_normalize_log_level_default():
 def test_normalize_log_level_raises_type_error(log_level):
     with pytest.raises(TypeError):
         assert normalize_log_level(log_level)
+
+
+def test_log_level_name():
+    assert log_level_name("debug") == "debug"
+    assert log_level_name("DEBUG") == "debug"
+    assert log_level_name("info") == "info"
+    assert log_level_name("InfO") == "info"
+    assert log_level_name("warn") == "warning"
+    assert log_level_name("warning") == "warning"
+    assert log_level_name("Warning") == "warning"
+    assert log_level_name("error") == "error"
+    assert log_level_name("ERROR") == "error"
+
+    assert log_level_name(logging.DEBUG) == "debug"
+    assert log_level_name(logging.INFO) == "info"
+    assert log_level_name(logging.WARN) == "warning"
+    assert log_level_name(logging.WARNING) == "warning"
+    assert log_level_name(logging.ERROR) == "error"
+
+    assert log_level_name(None) == "debug"
