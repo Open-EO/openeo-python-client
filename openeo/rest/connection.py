@@ -1174,8 +1174,8 @@ class Connection(RestApiConnection):
 
         :param process_graph: (flat) dict representing a process graph, or process graph as raw JSON string,
             or as local file path or URL
-        :param title: String title of the job
-        :param description: String description of the job
+        :param title: job title
+        :param description: job description
         :param plan: billing plan
         :param budget: maximum cost the request is allowed to produce
         :param additional: additional job options to pass to the backend
