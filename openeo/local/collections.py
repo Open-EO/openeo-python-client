@@ -111,7 +111,7 @@ def _get_netcdf_zarr_metadata(file_path):
     return metadata
 
 def _get_geotiff_metadata(file_path):
-    data = rioxarray.open_rasterio(file_path.as_posix(),chunks={})
+    data = rioxarray.open_rasterio(file_path.as_posix(),chunks={},band_as_variable=True)
     file_path = file_path.as_posix()
     try:
         t_dim = _get_dimension(data.dims, ['t', 'time', 'temporal', 'DATE'])
@@ -168,17 +168,15 @@ def _get_geotiff_metadata(file_path):
     if 'spatial_ref' in coords:
         # bands.remove('crs')
         crs_present = True
-    # TODO: list bands if more available
     bands = []
-    if 'band' in coords:
-        bands = list(data['band'].values)
-        if len(bands)>0:
-            # The JSON decoder does not handle npint types, we need to convert them in advance
-            if isinstance(bands[0],np.int8) or \
-                isinstance(bands[0],np.int16) or \
-                isinstance(bands[0],np.int32) or \
-                isinstance(bands[0],np.int64):
-                bands = [int(b) for b in bands]
+    for d in data.data_vars:
+        data_attrs_lowercase = [x.lower() for x in data[d].attrs]
+        data_attrs_original  = [x for x in data[d].attrs]
+        data_attrs = dict(zip(data_attrs_lowercase,data_attrs_original))
+        if 'description' in data_attrs_lowercase:
+            bands.append(data[d].attrs[data_attrs['description']])
+        else:
+            bands.append(d)
     extent = {}
     if crs_present:
         if 'crs_wkt' in data.spatial_ref.attrs:

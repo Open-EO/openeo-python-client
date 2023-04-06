@@ -118,6 +118,9 @@ class ComparableVersion:
     def __str__(self):
         return ".".join(map(str, self._version))
 
+    def __hash__(self):
+        return hash(self._version)
+
     def to_string(self):
         return str(self)
 
