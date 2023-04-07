@@ -54,6 +54,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `VectorCube.create_job()` and `MlModel.create_job()` are properly aligned with `DataCube.create_job()`
   regarding setting job title, description, etc.
   ([#412](https://github.com/Open-EO/openeo-python-client/issues/412)).
+- More robust handling of billing currency/plans in capabilities
+  ([#414](https://github.com/Open-EO/openeo-python-client/issues/414))
 
 
 ## [0.15.0] - 2023-03-03

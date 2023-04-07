@@ -4,7 +4,7 @@ import re
 from typing import Union, Tuple
 
 
-# Is this base class (still) useful?
+# TODO Is this base class (still) useful?
 
 
 class Capabilities(ABC):
