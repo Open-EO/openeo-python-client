@@ -6,7 +6,7 @@ from openeo.internal.documentation import openeo_process
 from openeo.internal.graph_building import PGNode
 from openeo.internal.warnings import legacy_alias
 from openeo.metadata import CollectionMetadata
-from openeo.rest._datacube import _ProcessGraphAbstraction, UDF
+from openeo.rest._datacube import _ProcessGraphAbstraction, UDF, _Cube
 from openeo.rest.mlmodel import MlModel
 from openeo.rest.job import BatchJob
 from openeo.util import dict_no_none
@@ -16,7 +16,7 @@ if typing.TYPE_CHECKING:
     from openeo import Connection
 
 
-class VectorCube(_ProcessGraphAbstraction):
+class VectorCube(_Cube):
     """
     A Vector Cube, or 'Vector Collection' is a data structure containing 'Features':
     https://www.w3.org/TR/sdw-bp/#dfn-feature
@@ -90,6 +90,10 @@ class VectorCube(_ProcessGraphAbstraction):
 
     @openeo_process
     def save_result(self, format: str = "GeoJson", options: dict = None):
+        # TODO?
+        # TODO: check format against supported formats
+        # TODO: should not return a VectorCube again, but bool wrapper
+        # TODO: should save_result also work on non-cube data types, e.g. arrays, scalars?
         return self.process(
             process_id="save_result",
             arguments={
@@ -105,6 +109,7 @@ class VectorCube(_ProcessGraphAbstraction):
 
     def download(self, outputfile: str, format: str = "GeoJSON", options: dict = None):
         # TODO: only add save_result, when not already present (see DataCube.download)
+        # TODO
         cube = self.save_result(format=format, options=options)
         return self._connection.download(cube.flat_graph(), outputfile)
 

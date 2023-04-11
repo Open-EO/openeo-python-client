@@ -151,6 +151,55 @@ class _ProcessGraphAbstraction(_FromNodeMixin):
         }
         return render_component("model-builder", data=process, parameters=parameters)
 
+    def execute(self) -> dict:
+        """Executes the process graph."""
+        return self._connection.execute(self.flat_graph())
+
+
+class _Cube(_ProcessGraphAbstraction):
+    """Common base class for raster and vector data cubes."""
+
+    _DEFAULT_OUTPUT_FORMAT = None
+
+    def _ensure_save_result(
+        self,
+        format: Optional[str] = None,
+        options: Optional[dict] = None,
+    ) -> "_Cube":
+        """
+        Make sure there is a (final) `save_result` node in the process graph.
+        If there is already one: check if it is consistent with the given format/options (if any)
+        and add a new one otherwise.
+
+        :param format: (optional) desired `save_result` file format
+        :param options: (optional) desired `save_result` file format parameters
+        :return:
+        """
+        # TODO: move to generic data cube parent class (not only for raster cubes, but also vector cubes)
+        result_node = self.result_node()
+        if result_node.process_id == "save_result":
+            # There is already a `save_result` node:
+            # check if it is consistent with given format/options (if any)
+            args = result_node.arguments
+            if format is not None and format.lower() != args["format"].lower():
+                raise ValueError(
+                    f"Existing `save_result` node with different format {args['format']!r} != {format!r}"
+                )
+            if options is not None and options != args["options"]:
+                raise ValueError(
+                    f"Existing `save_result` node with different options {args['options']!r} != {options!r}"
+                )
+            cube = self
+        else:
+            # No `save_result` node yet: automatically add it.
+            # TODO: define `save_result` and or `process` methods on `_Cube`?
+            cube = self.save_result(
+                format=format or self._DEFAULT_OUTPUT_FORMAT, options=options
+            )
+        return cube
+
+    # TODO: define `create_job`, `execute_batch`, ... here too
+
 
 class UDF:
     """
