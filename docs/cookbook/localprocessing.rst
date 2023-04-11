@@ -52,7 +52,7 @@ With some sample data we can now check the STAC metadata for the local files by 
 This code will parse the metadata content of each netCDF, geoTIFF or ZARR file in the provided folders and return a JSON object containing the STAC representation of the metadata. If this code is run in a Jupyter Notebook, the metadata will be rendered nicely.
 
 
-**Please note:** the code expects local files to have a similar structure to the sample files provided `here <https://github.com/Open-EO/openeo-localprocessing-data.git>`__. If the code can not handle you special netCDF, you can still modify the function that reads the metadata from it `here <https://github.com/Open-EO/openeo-python-client/blob/90c0505fae47c56746e49c91476be5147be6e1d0/openeo/local/collections.py#L19>`__ and the function that reads the data `here <https://github.com/Open-EO/openeo-python-client/blob/90c0505fae47c56746e49c91476be5147be6e1d0/openeo/local/processing.py#L26>`__.
+**Please note:** the code expects local files to have a similar structure to the sample files provided `here <https://github.com/Open-EO/openeo-localprocessing-data.git>`_. If the code can not handle you special netCDF, you can still modify the function that reads the metadata from it `here <https://github.com/Open-EO/openeo-python-client/blob/90c0505fae47c56746e49c91476be5147be6e1d0/openeo/local/collections.py#L19>`_ and the function that reads the data `here <https://github.com/Open-EO/openeo-python-client/blob/90c0505fae47c56746e49c91476be5147be6e1d0/openeo/local/processing.py#L26>`_.
 
 Local Processing
 ~~~~~~~~
