@@ -1131,7 +1131,7 @@ class Connection(RestApiConnection):
             graph: Union[dict, str, Path],
             outputfile: Union[Path, str, None] = None,
             timeout: int = 30 * 60,
-    ):
+    ) -> Union[None, bytes]:
         """
         Downloads the result of a process graph synchronously,
         and save the result to the given file or return bytes object if no outputfile is specified.

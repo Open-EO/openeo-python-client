@@ -2391,33 +2391,76 @@ def test_apply_append_math_keep_context(con100):
     }
 
 
-@pytest.mark.parametrize(["save_result_kwargs", "download_kwargs", "expected_fail"], [
-    ({}, {}, None),
-    ({"format": "GTiff"}, {}, None),
-    ({}, {"format": "GTiff"}, None),
-    ({"format": "GTiff"}, {"format": "GTiff"}, None),
-    ({"format": "netCDF"}, {"format": "NETCDF"}, None),
-    (
+@pytest.mark.parametrize(
+    ["save_result_kwargs", "download_filename", "download_kwargs", "expected"],
+    [
+        ({}, "result.tiff", {}, b"this is GTiff data"),
+        ({}, "result.nc", {}, b"this is netCDF data"),
+        ({"format": "GTiff"}, "result.tiff", {}, b"this is GTiff data"),
+        ({"format": "GTiff"}, "result.tif", {}, b"this is GTiff data"),
+        (
+            {"format": "GTiff"},
+            "result.nc",
+            {},
+            ValueError(
+                "Existing `save_result` node with different format 'GTiff' != 'netCDF'"
+            ),
+        ),
+        ({}, "result.tiff", {"format": "GTiff"}, b"this is GTiff data"),
+        ({}, "result.nc", {"format": "netCDF"}, b"this is netCDF data"),
+        ({}, "result.meh", {"format": "netCDF"}, b"this is netCDF data"),
+        (
+            {"format": "GTiff"},
+            "result.tiff",
+            {"format": "GTiff"},
+            b"this is GTiff data",
+        ),
+        (
             {"format": "netCDF"},
+            "result.tiff",
+            {"format": "NETCDF"},
+            b"this is netCDF data",
+        ),
+        (
+            {"format": "netCDF"},
+            "result.json",
             {"format": "JSON"},
-            "Existing `save_result` node with different format 'netCDF' != 'JSON'"
-    ),
-    ({"options": {}}, {}, None),
-    ({"options": {"quality": "low"}}, {"options": {"quality": "low"}}, None),
-    (
-            {"options": {"colormap": "jet"}},
+            ValueError(
+                "Existing `save_result` node with different format 'netCDF' != 'JSON'"
+            ),
+        ),
+        ({"options": {}}, "result.tiff", {}, b"this is GTiff data"),
+        (
             {"options": {"quality": "low"}},
-            "Existing `save_result` node with different options {'colormap': 'jet'} != {'quality': 'low'}"
-    ),
-])
+            "result.tiff",
+            {"options": {"quality": "low"}},
+            b"this is GTiff data",
+        ),
+        (
+            {"options": {"colormap": "jet"}},
+            "result.tiff",
+            {"options": {"quality": "low"}},
+            ValueError(
+                "Existing `save_result` node with different options {'colormap': 'jet'} != {'quality': 'low'}"
+            ),
+        ),
+    ],
+)
 def test_save_result_and_download(
-        con100, requests_mock, tmp_path, save_result_kwargs, download_kwargs, expected_fail
+    con100,
+    requests_mock,
+    tmp_path,
+    save_result_kwargs,
+    download_filename,
+    download_kwargs,
+    expected,
 ):
     def post_result(request, context):
         pg = request.json()["process"]["process_graph"]
         process_histogram = collections.Counter(p["process_id"] for p in pg.values())
         assert process_histogram["save_result"] == 1
-        return b"tiffdata"
+        format = pg["saveresult1"]["arguments"]["format"]
+        return f"this is {format} data".encode("utf8")
 
     post_result_mock = requests_mock.post(API_URL + "/result", content=post_result)
 
@@ -2425,14 +2468,14 @@ def test_save_result_and_download(
     if save_result_kwargs:
         cube = cube.save_result(**save_result_kwargs)
 
-    path = tmp_path / "tmp.tiff"
-    if expected_fail:
-        with pytest.raises(ValueError, match=expected_fail):
+    path = tmp_path / download_filename
+    if isinstance(expected, ValueError):
+        with pytest.raises(ValueError, match=str(expected)):
             cube.download(str(path), **download_kwargs)
         assert post_result_mock.call_count == 0
     else:
         cube.download(str(path), **download_kwargs)
-        assert path.read_bytes() == b"tiffdata"
+        assert path.read_bytes() == expected
         assert post_result_mock.call_count == 1
 
 

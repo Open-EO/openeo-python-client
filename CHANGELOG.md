@@ -56,6 +56,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([#412](https://github.com/Open-EO/openeo-python-client/issues/412)).
 - More robust handling of billing currency/plans in capabilities
   ([#414](https://github.com/Open-EO/openeo-python-client/issues/414))
+- Avoid blindly adding a `save_result` node from `DataCube.execute_batch()` when there is already one
+  ([#401](https://github.com/Open-EO/openeo-python-client/issues/401))
 
 
 ## [0.15.0] - 2023-03-03
