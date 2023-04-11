@@ -7,29 +7,34 @@ from pathlib import Path
 
 from openeo_pg_parser_networkx import ProcessRegistry
 from openeo_processes_dask.process_implementations.core import process
+import openeo_processes_dask.specs
+import openeo_processes_dask.process_implementations
 from openeo_pg_parser_networkx.process_registry import Process
 
-PROCESS_REGISTRY = ProcessRegistry(wrap_funcs=[process])
+def init_process_registry():
+    process_registry = ProcessRegistry(wrap_funcs=[process])
 
-# Import these pre-defined processes from openeo_processes_dask and register them into registry
-processes_from_module = [
-    func
-    for _, func in inspect.getmembers(
-        importlib.import_module("openeo_processes_dask.process_implementations"),
-        inspect.isfunction,
-    )
-]
+    # Import these pre-defined processes from openeo_processes_dask and register them into registry
+    processes_from_module = [
+        func
+        for _, func in inspect.getmembers(
+            openeo_processes_dask.process_implementations,
+            inspect.isfunction,
+        )
+    ]
 
-specs_module = importlib.import_module("openeo_processes_dask.specs")
-specs = {
-    func.__name__: getattr(specs_module, func.__name__)
-    for func in processes_from_module
-}
+    specs = {
+        func.__name__: getattr(openeo_processes_dask.specs, func.__name__)
+        for func in processes_from_module
+    }
 
-for func in processes_from_module:
-    PROCESS_REGISTRY[func.__name__] = Process(
-        spec=specs[func.__name__], implementation=func
-    )
+    for func in processes_from_module:
+        process_registry[func.__name__] = Process(
+            spec=specs[func.__name__], implementation=func
+        )
+    return process_registry
+
+PROCESS_REGISTRY = init_process_registry()
 
 _log = logging.getLogger(__name__)
 def load_local_collection(*args, **kwargs):
