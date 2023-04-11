@@ -9,7 +9,7 @@ Background
 -----
 
 The client-side processing functionality allows to test and use openEO with its processes locally, i.e. without any connection to an openEO back-end.
-It relies on the projects `openeo-pg-parser-networkx <https://github.com/Open-EO/openeo-pg-parser-networkx>`__, which provides an openEO process graph parsing tool, and `openeo-processes-dask <https://github.com/Open-EO/openeo-processes-dask>`__, which provides an xArray and Dask implementation of most openEO processes. 
+It relies on the projects `openeo-pg-parser-networkx <https://github.com/Open-EO/openeo-pg-parser-networkx>`_, which provides an openEO process graph parsing tool, and `openeo-processes-dask <https://github.com/Open-EO/openeo-processes-dask>`_, which provides an Xarray and Dask implementation of most openEO processes. 
 
 Installation
 -----
