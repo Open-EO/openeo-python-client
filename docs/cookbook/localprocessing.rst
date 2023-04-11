@@ -42,7 +42,10 @@ With some sample data we can now check the STAC metadata for the local files by 
 .. code:: python
 
    from openeo.local import LocalConnection
-   local_data_folders = ['./openeo-localprocessing-data/sample_netcdf','./openeo-localprocessing-data/sample_geotiff']
+   local_data_folders = [
+       "./openeo-localprocessing-data/sample_netcdf",
+       "./openeo-localprocessing-data/sample_geotiff",
+   ]
    local_conn = LocalConnection(local_data_folders)
    local_conn.list_collections()
 
