@@ -56,5 +56,7 @@ def load_local_collection(*args, **kwargs):
         data = data.to_array(dim='bands')
     return data
 
-from openeo_processes_dask.specs import load_collection as load_collection_spec
-PROCESS_REGISTRY["load_collection"] = Process(spec=load_collection_spec, implementation=load_local_collection)
+PROCESS_REGISTRY["load_collection"] = Process(
+    spec=openeo_processes_dask.specs.load_collection, 
+    implementation=load_local_collection,
+)
