@@ -63,12 +63,26 @@ Local Processing
 
 Let's start with the provided sample netCDF of Sentinel-2 data:
 
-.. code:: python
+.. code-block:: pycon
 
-   local_collection = "openeo-localprocessing-data/sample_netcdf/S2_L2A_sample.nc"
-   s2_datacube = local_conn.load_collection(local_collection)
-   # Check if the data is loaded correctly
-   print(s2_datacube.execute())
+    >>> local_collection = "openeo-localprocessing-data/sample_netcdf/S2_L2A_sample.nc"
+    >>> s2_datacube = local_conn.load_collection(local_collection)
+    >>> # Check if the data is loaded correctly
+    >>> s2_datacube.execute()
+    <xarray.DataArray (bands: 5, t: 12, y: 705, x: 935)>
+    dask.array<stack, shape=(5, 12, 705, 935), dtype=float32, chunksize=(1, 12, 705, 935), chunktype=numpy.ndarray>
+    Coordinates:
+      * t        (t) datetime64[ns] 2022-06-02 2022-06-05 ... 2022-06-27 2022-06-30
+      * x        (x) float64 6.75e+05 6.75e+05 6.75e+05 ... 6.843e+05 6.843e+05
+      * y        (y) float64 5.155e+06 5.155e+06 5.155e+06 ... 5.148e+06 5.148e+06
+        crs      |S1 ...
+      * bands    (bands) object 'B04' 'B03' 'B02' 'B08' 'SCL'
+    Attributes:
+        Conventions:  CF-1.9
+        institution:  openEO platform - Geotrellis backend: 0.9.5a1
+        description:  
+        title:        
+    ...
 
 As you can see in the previous example, we are using a call to execute() which will execute locally the generated openEO process graph.
 In this case, the process graph consist only in a single load_collection, which performs lazy loading of the data. With this first step you can check if the data is being read correctly by openEO.
