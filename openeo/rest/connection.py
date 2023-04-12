@@ -628,14 +628,14 @@ class Connection(RestApiConnection):
                         return _request()
             raise
 
-    def describe_account(self) -> str:
+    def describe_account(self) -> dict:
         """
         Describes the currently authenticated user account.
         """
         return self.get('/me', expected_status=200).json()
 
     @deprecated("use :py:meth:`list_jobs` instead", version="0.4.10")
-    def user_jobs(self) -> dict:
+    def user_jobs(self) -> List[dict]:
         return self.list_jobs()
 
     def list_collections(self) -> List[dict]:
