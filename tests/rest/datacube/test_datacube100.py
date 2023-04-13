@@ -636,6 +636,7 @@ def test_merge_cubes_band_merging_disjunct(con100, requests_mock, overlap_resolv
 
 @pytest.mark.parametrize("overlap_resolver", [None, "max"])
 def test_merge_cubes_band_merging_with_overlap(con100, requests_mock, overlap_resolver):
+    # Overlapping bands without overlap resolver will give an error in the backend
     setup_collection_metadata(requests_mock=requests_mock, cid="S3", bands=["B2", "B3", "B5", "B8"])
     setup_collection_metadata(requests_mock=requests_mock, cid="S4", bands=["B4", "B5", "B6"])
 

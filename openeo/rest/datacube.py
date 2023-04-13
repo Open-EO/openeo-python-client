@@ -1619,7 +1619,7 @@ class DataCube(_ProcessGraphAbstraction):
             for b in other.metadata.band_dimension.bands:
                 if b not in merged_metadata.bands:
                     merged_metadata = merged_metadata.append_band(b)
-        # TODO: warn about missing overlap_resolver if we can detect that one is required?
+        # Overlapping bands without overlap resolver will give an error in the backend
         if context:
             arguments["context"] = context
         return self.process(process_id="merge_cubes", arguments=arguments, metadata=merged_metadata)
