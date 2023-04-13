@@ -634,8 +634,8 @@ def test_merge_cubes_band_merging_disjunct(con100, requests_mock, overlap_resolv
     assert s4_f_m_s3_f.metadata.band_names == ["C6", "C4", "B2"]
 
 
-@pytest.mark.parametrize("overlap_resolver", [None, "max"])
-def test_merge_cubes_band_merging_with_overlap(con100, requests_mock, overlap_resolver):
+def test_merge_cubes_band_merging_with_overlap(con100, requests_mock):
+    overlap_resolver = "max"
     setup_collection_metadata(requests_mock=requests_mock, cid="S3", bands=["B2", "B3", "B5", "B8"])
     setup_collection_metadata(requests_mock=requests_mock, cid="S4", bands=["B4", "B5", "B6"])
 
@@ -656,6 +656,20 @@ def test_merge_cubes_band_merging_with_overlap(con100, requests_mock, overlap_re
     assert s4_f.metadata.band_names == ["B6", "B5"]
     assert s3_f_m_s4_f.metadata.band_names == ["B5", "B8", "B6"]
     assert s4_f_m_s3_f.metadata.band_names == ["B6", "B5", "B8"]
+
+
+def test_merge_cubes_band_merging_with_overlap_error(con100, requests_mock):
+    overlap_resolver = None
+    setup_collection_metadata(requests_mock=requests_mock, cid="S3", bands=["B2", "B3", "B5", "B8"])
+    setup_collection_metadata(requests_mock=requests_mock, cid="S4", bands=["B4", "B5", "B6"])
+
+    s3 = con100.load_collection("S3")
+    s4 = con100.load_collection("S4")
+
+    with pytest.raises(Exception):
+        s3.merge_cubes(s4, overlap_resolver=overlap_resolver)
+    with pytest.raises(Exception):
+        s4.merge_cubes(s3, overlap_resolver=overlap_resolver)
 
 
 def test_resample_cube_spatial(con100: Connection):

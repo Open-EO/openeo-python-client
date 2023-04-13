@@ -1619,6 +1619,13 @@ class DataCube(_ProcessGraphAbstraction):
             for b in other.metadata.band_dimension.bands:
                 if b not in merged_metadata.bands:
                     merged_metadata = merged_metadata.append_band(b)
+                elif not overlap_resolver:
+                    left_names = list(map(lambda x: x.name, self.metadata.bands))
+                    right_names = list(map(lambda x: x.name, other.metadata.bands))
+                    raise Exception(
+                        f"merge_cubes: No overlaps_resolver is set, and band names overlap. Either set an overlaps_resolver or rename the bands. Left names: {left_names}, right names: {right_names}."
+                    )
+
         # TODO: warn about missing overlap_resolver if we can detect that one is required?
         if context:
             arguments["context"] = context
