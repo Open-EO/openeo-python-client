@@ -1905,8 +1905,7 @@ class DataCube(_ProcessGraphAbstraction):
         for node in pg:
             if pg[node]["process_id"] == "load_collection":
                 if "spatial_extent" in pg[node]["arguments"] and all(
-                    cd
-                    for cd in pg[node]["arguments"]["spatial_extent"]
+                    cd in pg[node]["arguments"]["spatial_extent"]
                     for cd in ["east", "west", "south", "north"]
                 ):
                     return pg[node]["arguments"]["spatial_extent"]
@@ -1925,6 +1924,8 @@ class DataCube(_ProcessGraphAbstraction):
 
         :return: ipyleaflet Map object and the displayed Service
         """
+        if "XYZ" not in self.connection.list_service_types():
+            raise OpenEoClientException("Backend does not support service type 'XYZ'.")
 
         # Check we are inside Jupyer Notebook
         try:
@@ -1932,8 +1933,8 @@ class DataCube(_ProcessGraphAbstraction):
             if shell == "ZMQInteractiveShell":
                 try:
                     from IPython.display import display
-                    from ipyleaflet import Map, TileLayer, basemaps
-                except ModuleNotFoundError:
+                    import ipyleaflet
+                except ImportError:
                     raise Exception(
                         "Additional modules must be installed for on demand viewer. Run `pip install openeo[ondemandpreview]` or refer to the documentation."
                     )
@@ -1941,20 +1942,16 @@ class DataCube(_ProcessGraphAbstraction):
                 raise Exception("On demand preview only supported in Jupyter notebooks!")
         except NameError:
             raise Exception("On demand preview only supported in Jupyter notebooks!")
-
-        if "XYZ" not in self.connection.list_service_types():
-            raise OpenEoClientException(f"Backend does not support service type 'XYZ'.")
-
         service = self.tiled_viewing_service("XYZ")
         service_metadata = service.describe_service()
 
-        m = Map(
+        m = ipyleaflet.Map(
             center=center or (0, 0),
             zoom=zoom or 1,
             scroll_wheel_zoom=True,
-            basemap=basemaps.OpenStreetMap.Mapnik,
+            basemap=ipyleaflet.basemaps.OpenStreetMap.Mapnik,
         )
-        service_layer = TileLayer(url=service_metadata["url"])
+        service_layer = ipyleaflet.TileLayer(url=service_metadata["url"])
         m.add_layer(service_layer)
 
         if center is None and zoom is None:
