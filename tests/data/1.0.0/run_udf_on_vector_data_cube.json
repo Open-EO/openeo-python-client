@@ -1,0 +1,69 @@
+{
+  "loadcollection1": {
+    "process_id": "load_collection",
+    "arguments": {
+      "id": "S2",
+      "spatial_extent": null,
+      "temporal_extent": null
+    }
+  },
+  "aggregatespatial1": {
+    "process_id": "aggregate_spatial",
+    "arguments": {
+      "data": {
+        "from_node": "loadcollection1"
+      },
+      "geometries": {
+        "coordinates": [
+          [
+            [
+              3.0,
+              51.0
+            ],
+            [
+              3.1,
+              51.0
+            ],
+            [
+              3.1,
+              51.1
+            ],
+            [
+              3.0,
+              51.1
+            ],
+            [
+              3.0,
+              51.0
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "reducer": {
+        "process_graph": {
+          "mean1": {
+            "arguments": {
+              "data": {
+                "from_parameter": "data"
+              }
+            },
+            "process_id": "mean",
+            "result": true
+          }
+        }
+      }
+    }
+  },
+  "runudf1": {
+    "process_id": "run_udf",
+    "arguments": {
+      "data": {
+        "from_node": "aggregatespatial1"
+      },
+      "runtime": "Python",
+      "udf": "def foo(x):\n    return x\n"
+    },
+    "result": true
+  }
+}

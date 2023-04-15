@@ -123,5 +123,3 @@ This also implies that parameters defined in the user-defined process have to be
     # Prints: 30.0
 
 For more information, also see :ref:`datacube_from_json`.
-
-

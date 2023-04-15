@@ -4,179 +4,259 @@ import os
 import pathlib
 import re
 import unittest.mock as mock
-from datetime import datetime, date
+import datetime as dt
 from typing import List, Union
+
 import shapely.geometry
 import pytest
 
 from openeo.util import first_not_none, get_temporal_extent, TimingLogger, ensure_list, ensure_dir, dict_no_none, \
     deep_get, DeepKeyError, Rfc3339, rfc3339, deep_set, \
-    LazyLoadCache, guess_format, ContextTimer, str_truncate, to_bbox_dict, BBoxDict, repr_truncate
+    LazyLoadCache, guess_format, ContextTimer, str_truncate, to_bbox_dict, BBoxDict, repr_truncate, url_join
 
 
-def test_rfc3339_date():
-    assert "2020-03-17" == rfc3339.date("2020-03-17")
-    assert "2020-03-17" == rfc3339.date("2020/03/17")
-    assert "2020-03-17" == rfc3339.date("2020:03:17")
-    assert "2020-03-17" == rfc3339.date("2020_03_17")
-    assert "2020-03-17" == rfc3339.date("2020-03-17-12-34-56")
-    assert "2020-03-17" == rfc3339.date("2020-03-17-12-34")
-    assert "2020-03-17" == rfc3339.date("2020:03:17:12:34:56")
-    assert "2020-03-17" == rfc3339.date("2020/03/17/12/34/56")
-    assert "2020-03-17" == rfc3339.date("2020/03/17/12/34")
-    assert "2020-03-17" == rfc3339.date("2020_03_17_12_34_56")
-    assert "2020-03-17" == rfc3339.date("2020-03-17T12:34:56Z")
-    assert "2020-03-17" == rfc3339.date(date(2020, 3, 17))
-    assert "2020-03-17" == rfc3339.date(datetime(2020, 3, 17, 12, 34, 56))
-    assert "2020-03-17" == rfc3339.date((2020, 3, 17))
-    assert "2020-03-17" == rfc3339.date([2020, 3, 17])
-    assert "2020-03-17" == rfc3339.date(2020, 3, 17)
-    assert "2020-03-17" == rfc3339.date((2020, 3, 17, 12, 34, 56))
-    assert "2020-03-17" == rfc3339.date([2020, 3, 17, 12, 34, 56])
-    assert "2020-03-17" == rfc3339.date(2020, 3, 17, 12, 34, 56)
-    assert "2020-03-17" == rfc3339.date(2020, 3, 17, 12, 34)
-    assert "2020-03-17" == rfc3339.date(("2020", "3", 17))
-    assert "2020-09-17" == rfc3339.date(["2020", "09", 17])
-    assert "2020-09-17" == rfc3339.date("2020", "09", 17)
+class TestRfc3339:
+    def test_date(self):
+        assert "2020-03-17" == rfc3339.date("2020-03-17")
+        assert "2020-03-17" == rfc3339.date("2020/03/17")
+        assert "2020-03-17" == rfc3339.date("2020:03:17")
+        assert "2020-03-17" == rfc3339.date("2020_03_17")
+        assert "2020-03-17" == rfc3339.date("2020-03-17-12-34-56")
+        assert "2020-03-17" == rfc3339.date("2020-03-17-12-34")
+        assert "2020-03-17" == rfc3339.date("2020:03:17:12:34:56")
+        assert "2020-03-17" == rfc3339.date("2020/03/17/12/34/56")
+        assert "2020-03-17" == rfc3339.date("2020/03/17/12/34")
+        assert "2020-03-17" == rfc3339.date("2020_03_17_12_34_56")
+        assert "2020-03-17" == rfc3339.date("2020-03-17T12:34:56Z")
+        assert "2020-03-17" == rfc3339.date(dt.date(2020, 3, 17))
+        assert "2020-03-17" == rfc3339.date(dt.datetime(2020, 3, 17, 12, 34, 56))
+        assert "2020-03-17" == rfc3339.date((2020, 3, 17))
+        assert "2020-03-17" == rfc3339.date([2020, 3, 17])
+        assert "2020-03-17" == rfc3339.date(2020, 3, 17)
+        assert "2020-03-17" == rfc3339.date((2020, 3, 17, 12, 34, 56))
+        assert "2020-03-17" == rfc3339.date([2020, 3, 17, 12, 34, 56])
+        assert "2020-03-17" == rfc3339.date(2020, 3, 17, 12, 34, 56)
+        assert "2020-03-17" == rfc3339.date(2020, 3, 17, 12, 34)
+        assert "2020-03-17" == rfc3339.date(("2020", "3", 17))
+        assert "2020-09-17" == rfc3339.date(["2020", "09", 17])
+        assert "2020-09-17" == rfc3339.date("2020", "09", 17)
 
+    def test_datetime(self):
+        assert "2020-03-17T00:00:00Z" == rfc3339.datetime("2020-03-17")
+        assert "2020-03-17T00:00:00Z" == rfc3339.datetime("2020/03/17")
+        assert "2020-03-17T00:00:00Z" == rfc3339.datetime("2020:03:17")
+        assert "2020-03-17T00:00:00Z" == rfc3339.datetime("2020_03_17")
+        assert "2020-03-17T12:34:56Z" == rfc3339.datetime("2020-03-17-12-34-56")
+        assert "2020-03-17T12:34:00Z" == rfc3339.datetime("2020-03-17-12-34")
+        assert "2020-03-17T12:34:56Z" == rfc3339.datetime("2020:03:17:12:34:56")
+        assert "2020-03-17T12:34:56Z" == rfc3339.datetime("2020/03/17/12/34/56")
+        assert "2020-03-17T12:34:00Z" == rfc3339.datetime("2020/03/17/12/34")
+        assert "2020-03-17T12:34:56Z" == rfc3339.datetime("2020_03_17_12_34_56")
+        assert "2020-03-17T12:34:56Z" == rfc3339.datetime("2020-03-17T12:34:56Z")
+        assert "2020-03-17T00:00:00Z" == rfc3339.datetime(dt.date(2020, 3, 17))
+        assert "2020-03-17T12:34:56Z" == rfc3339.datetime(
+            dt.datetime(2020, 3, 17, 12, 34, 56)
+        )
+        assert "2020-03-17T00:00:00Z" == rfc3339.datetime((2020, 3, 17))
+        assert "2020-03-17T00:00:00Z" == rfc3339.datetime([2020, 3, 17])
+        assert "2020-03-17T00:00:00Z" == rfc3339.datetime(2020, 3, 17)
+        assert "2020-03-17T12:34:56Z" == rfc3339.datetime((2020, 3, 17, 12, 34, 56))
+        assert "2020-03-17T12:34:56Z" == rfc3339.datetime([2020, 3, 17, 12, 34, 56])
+        assert "2020-03-17T12:34:56Z" == rfc3339.datetime(2020, 3, 17, 12, 34, 56)
+        assert "2020-03-17T12:34:00Z" == rfc3339.datetime(2020, 3, 17, 12, 34)
+        assert "2020-03-17T12:34:56Z" == rfc3339.datetime(
+            (2020, "3", 17, "12", "34", 56)
+        )
+        assert "2020-09-17T12:34:56Z" == rfc3339.datetime(
+            [2020, "09", 17, "12", "34", 56]
+        )
+        assert "2020-09-17T12:34:56Z" == rfc3339.datetime(
+            2020, "09", "17", "12", "34", 56
+        )
+        assert "2020-03-17T12:34:56Z" == rfc3339.datetime(
+            dt.datetime(2020, 3, 17, 12, 34, 56, tzinfo=None)
+        )
+        assert "2020-03-17T12:34:56Z" == rfc3339.datetime(
+            dt.datetime(2020, 3, 17, 12, 34, 56, tzinfo=dt.timezone.utc)
+        )
+        assert "2020-03-17T12:34:56Z" == rfc3339.datetime(
+            dt.datetime(
+                *(2020, 3, 17, 12, 34, 56),
+                tzinfo=dt.timezone(offset=dt.timedelta(hours=0)),
+            )
+        )
 
-def test_rfc3339_datetime():
-    assert "2020-03-17T00:00:00Z" == rfc3339.datetime("2020-03-17")
-    assert "2020-03-17T00:00:00Z" == rfc3339.datetime("2020/03/17")
-    assert "2020-03-17T00:00:00Z" == rfc3339.datetime("2020:03:17")
-    assert "2020-03-17T00:00:00Z" == rfc3339.datetime("2020_03_17")
-    assert "2020-03-17T12:34:56Z" == rfc3339.datetime("2020-03-17-12-34-56")
-    assert "2020-03-17T12:34:00Z" == rfc3339.datetime("2020-03-17-12-34")
-    assert "2020-03-17T12:34:56Z" == rfc3339.datetime("2020:03:17:12:34:56")
-    assert "2020-03-17T12:34:56Z" == rfc3339.datetime("2020/03/17/12/34/56")
-    assert "2020-03-17T12:34:00Z" == rfc3339.datetime("2020/03/17/12/34")
-    assert "2020-03-17T12:34:56Z" == rfc3339.datetime("2020_03_17_12_34_56")
-    assert "2020-03-17T12:34:56Z" == rfc3339.datetime("2020-03-17T12:34:56Z")
-    assert "2020-03-17T00:00:00Z" == rfc3339.datetime(date(2020, 3, 17))
-    assert "2020-03-17T12:34:56Z" == rfc3339.datetime(datetime(2020, 3, 17, 12, 34, 56))
-    assert "2020-03-17T00:00:00Z" == rfc3339.datetime((2020, 3, 17))
-    assert "2020-03-17T00:00:00Z" == rfc3339.datetime([2020, 3, 17])
-    assert "2020-03-17T00:00:00Z" == rfc3339.datetime(2020, 3, 17)
-    assert "2020-03-17T12:34:56Z" == rfc3339.datetime((2020, 3, 17, 12, 34, 56))
-    assert "2020-03-17T12:34:56Z" == rfc3339.datetime([2020, 3, 17, 12, 34, 56])
-    assert "2020-03-17T12:34:56Z" == rfc3339.datetime(2020, 3, 17, 12, 34, 56)
-    assert "2020-03-17T12:34:00Z" == rfc3339.datetime(2020, 3, 17, 12, 34)
-    assert "2020-03-17T12:34:56Z" == rfc3339.datetime((2020, "3", 17, "12", "34", 56))
-    assert "2020-09-17T12:34:56Z" == rfc3339.datetime([2020, "09", 17, "12", "34", 56])
-    assert "2020-09-17T12:34:56Z" == rfc3339.datetime(2020, "09", "17", "12", "34", 56)
+    def test_normalize(self):
+        assert "2020-03-17" == rfc3339.normalize("2020-03-17")
+        assert "2020-03-17" == rfc3339.normalize("2020/03/17")
+        assert "2020-03-17" == rfc3339.normalize("2020:03:17")
+        assert "2020-03-17" == rfc3339.normalize("2020_03_17")
+        assert "2020-03-17T12:34:56Z" == rfc3339.normalize("2020-03-17-12-34-56")
+        assert "2020-03-17T12:34:00Z" == rfc3339.normalize("2020-03-17-12-34")
+        assert "2020-03-17T12:34:56Z" == rfc3339.normalize("2020:03:17:12:34:56")
+        assert "2020-03-17T12:34:56Z" == rfc3339.normalize("2020/03/17/12/34/56")
+        assert "2020-03-17T12:34:00Z" == rfc3339.normalize("2020/03/17/12/34")
+        assert "2020-03-17T12:34:56Z" == rfc3339.normalize("2020_03_17_12_34_56")
+        assert "2020-03-17T12:34:56Z" == rfc3339.normalize("2020-03-17T12:34:56Z")
+        assert "2020-03-17T12:34:56Z" == rfc3339.normalize(
+            "2020-03-17T12:34:56.44546546Z"
+        )
+        assert "2020-03-17" == rfc3339.normalize(dt.date(2020, 3, 17))
+        assert "2020-03-17T12:34:56Z" == rfc3339.normalize(
+            dt.datetime(2020, 3, 17, 12, 34, 56)
+        )
+        assert "2020-03-17T12:34:56Z" == rfc3339.normalize(
+            dt.datetime(2020, 3, 17, 12, 34, 56, tzinfo=None)
+        )
+        assert "2020-03-17T12:34:56Z" == rfc3339.normalize(
+            dt.datetime(2020, 3, 17, 12, 34, 56, tzinfo=dt.timezone.utc)
+        )
+        assert "2020-03-17T12:34:56Z" == rfc3339.normalize(
+            dt.datetime(
+                *(2020, 3, 17, 12, 34, 56),
+                tzinfo=dt.timezone(offset=dt.timedelta(hours=0)),
+            )
+        )
+        assert "2020-03-17" == rfc3339.normalize((2020, 3, 17))
+        assert "2020-03-17" == rfc3339.normalize([2020, 3, 17])
+        assert "2020-03-17" == rfc3339.normalize(2020, 3, 17)
+        assert "2020-03-17T12:34:56Z" == rfc3339.normalize((2020, 3, 17, 12, 34, 56))
+        assert "2020-03-17T12:34:56Z" == rfc3339.normalize([2020, 3, 17, 12, 34, 56])
+        assert "2020-03-17T12:34:56Z" == rfc3339.normalize(2020, 3, 17, 12, 34, 56)
+        assert "2020-03-17T12:00:00Z" == rfc3339.normalize(2020, 3, 17, 12)
+        assert "2020-03-17T12:34:00Z" == rfc3339.normalize(2020, 3, 17, 12, 34)
+        assert "2020-03-17T12:34:56Z" == rfc3339.normalize(
+            (2020, "3", 17, "12", "34", 56)
+        )
+        assert "2020-09-17T12:34:56Z" == rfc3339.normalize(
+            [2020, "09", 17, "12", "34", 56]
+        )
+        assert "2020-09-17T12:34:56Z" == rfc3339.normalize(
+            2020, "09", "17", "12", "34", 56
+        )
 
+    def test_datetime_dont_propagate_none(self):
+        formatter = Rfc3339(propagate_none=False)
+        assert formatter.datetime("2020-03-17") == "2020-03-17T00:00:00Z"
+        assert formatter.date("2020-03-17") == "2020-03-17"
+        with pytest.raises(ValueError):
+            formatter.datetime(None)
+        with pytest.raises(ValueError):
+            formatter.date(None)
 
-def test_rfc3339_normalize():
-    assert "2020-03-17" == rfc3339.normalize("2020-03-17")
-    assert "2020-03-17" == rfc3339.normalize("2020/03/17")
-    assert "2020-03-17" == rfc3339.normalize("2020:03:17")
-    assert "2020-03-17" == rfc3339.normalize("2020_03_17")
-    assert "2020-03-17T12:34:56Z" == rfc3339.normalize("2020-03-17-12-34-56")
-    assert "2020-03-17T12:34:00Z" == rfc3339.normalize("2020-03-17-12-34")
-    assert "2020-03-17T12:34:56Z" == rfc3339.normalize("2020:03:17:12:34:56")
-    assert "2020-03-17T12:34:56Z" == rfc3339.normalize("2020/03/17/12/34/56")
-    assert "2020-03-17T12:34:00Z" == rfc3339.normalize("2020/03/17/12/34")
-    assert "2020-03-17T12:34:56Z" == rfc3339.normalize("2020_03_17_12_34_56")
-    assert "2020-03-17T12:34:56Z" == rfc3339.normalize("2020-03-17T12:34:56Z")
-    assert "2020-03-17T12:34:56Z" == rfc3339.normalize("2020-03-17T12:34:56.44546546Z")
-    assert "2020-03-17" == rfc3339.normalize(date(2020, 3, 17))
-    assert "2020-03-17T12:34:56Z" == rfc3339.normalize(datetime(2020, 3, 17, 12, 34, 56))
-    assert "2020-03-17" == rfc3339.normalize((2020, 3, 17))
-    assert "2020-03-17" == rfc3339.normalize([2020, 3, 17])
-    assert "2020-03-17" == rfc3339.normalize(2020, 3, 17)
-    assert "2020-03-17T12:34:56Z" == rfc3339.normalize((2020, 3, 17, 12, 34, 56))
-    assert "2020-03-17T12:34:56Z" == rfc3339.normalize([2020, 3, 17, 12, 34, 56])
-    assert "2020-03-17T12:34:56Z" == rfc3339.normalize(2020, 3, 17, 12, 34, 56)
-    assert "2020-03-17T12:00:00Z" == rfc3339.normalize(2020, 3, 17, 12)
-    assert "2020-03-17T12:34:00Z" == rfc3339.normalize(2020, 3, 17, 12, 34)
-    assert "2020-03-17T12:34:56Z" == rfc3339.normalize((2020, "3", 17, "12", "34", 56))
-    assert "2020-09-17T12:34:56Z" == rfc3339.normalize([2020, "09", 17, "12", "34", 56])
-    assert "2020-09-17T12:34:56Z" == rfc3339.normalize(2020, "09", "17", "12", "34", 56)
+    def test_datetime_propagate_none(self):
+        formatter = Rfc3339(propagate_none=True)
+        assert formatter.datetime("2020-03-17") == "2020-03-17T00:00:00Z"
+        assert formatter.datetime(None) is None
+        assert formatter.date("2020-03-17") == "2020-03-17"
+        assert formatter.date(None) is None
 
+    def test_parse_date(self):
+        assert rfc3339.parse_date("2011-12-13") == dt.date(2011, 12, 13)
+        # `datetime.strptime` does not require leading zeros for month, day, hour, minutes, seconds
+        assert rfc3339.parse_date("0001-2-3") == dt.date(1, 2, 3)
 
-def test_rfc3339_datetime_dont_propagate_none():
-    formatter = Rfc3339(propagate_none=False)
-    assert formatter.datetime("2020-03-17") == "2020-03-17T00:00:00Z"
-    assert formatter.date("2020-03-17") == "2020-03-17"
-    with pytest.raises(ValueError):
-        formatter.datetime(None)
-    with pytest.raises(ValueError):
-        formatter.date(None)
+    def test_parse_date_none(self):
+        with pytest.raises(ValueError):
+            rfc3339.parse_date(None)
 
+        assert Rfc3339(propagate_none=True).parse_date(None) is None
 
-def test_rfc3339_datetime_propagate_none():
-    formatter = Rfc3339(propagate_none=True)
-    assert formatter.datetime("2020-03-17") == "2020-03-17T00:00:00Z"
-    assert formatter.datetime(None) is None
-    assert formatter.date("2020-03-17") == "2020-03-17"
-    assert formatter.date(None) is None
+    @pytest.mark.parametrize(
+        "date",
+        [
+            "2011",
+            "2011-12",
+            "20111213",
+            "2011/12/13",
+            "2011:12:13",
+            "11-12-14",
+            "1-2-3",
+            "2011-12-13T",
+            "2011-12-13T14:15:16Z",
+            "foobar",
+        ],
+    )
+    def test_parse_date_invalid(self, date):
+        with pytest.raises(ValueError):
+            rfc3339.parse_date(date)
 
+    def test_parse_datetime(self):
+        assert rfc3339.parse_datetime("2011-12-13T14:15:16Z") == dt.datetime(
+            2011, 12, 13, 14, 15, 16
+        )
+        # `datetime.strptime` is apparently case-insensitive about non-placeholder bits
+        assert rfc3339.parse_datetime("2011-12-13t14:15:16z") == dt.datetime(
+            2011, 12, 13, 14, 15, 16
+        )
+        # `datetime.strptime` does not require leading zeros for month, day, hour, minutes, seconds
+        assert rfc3339.parse_datetime("0001-2-3T4:5:6Z") == dt.datetime(
+            1, 2, 3, 4, 5, 6
+        )
+        # Timezone handling
+        assert rfc3339.parse_datetime(
+            "2011-12-13T14:15:16Z", with_timezone=True
+        ) == dt.datetime(2011, 12, 13, 14, 15, 16, tzinfo=dt.timezone.utc)
 
-def test_rfc3339_parse_date():
-    assert rfc3339.parse_date("2011-12-13") == date(2011, 12, 13)
-    # `datetime.strptime` does not require leading zeros for month, day, hour, minutes, seconds
-    assert rfc3339.parse_date("0001-2-3") == date(1, 2, 3)
+    def test_parse_datetime_none(self):
+        with pytest.raises(ValueError):
+            rfc3339.parse_datetime(None)
 
+        assert Rfc3339(propagate_none=True).parse_datetime(None) is None
 
-def test_rfc3339_parse_date_none():
-    with pytest.raises(ValueError):
-        rfc3339.parse_date(None)
+    @pytest.mark.parametrize(
+        "date",
+        [
+            "2011",
+            "2011-12",
+            "2011-12-13",
+            "2011-12-13T",
+            "2011-12-13T14",
+            "2011-12-13T14:15",
+            "2011-12-13T14:15:16",
+            "20111213141516",
+            "2011/12/13T14:15:16Z",
+            "2011-12-13T14-15-16Z",
+            "2011:12:13T14:15:16Z",
+            "1-2-3T4:5:6Z",
+            "foobar",
+        ],
+    )
+    def test_parse_datetime_invalid(self, date):
+        with pytest.raises(ValueError):
+            rfc3339.parse_datetime(date)
 
-    assert Rfc3339(propagate_none=True).parse_date(None) is None
+    def test_parse_date_or_datetime(self):
+        assert rfc3339.parse_date_or_datetime("2011-12-13") == dt.date(2011, 12, 13)
+        assert rfc3339.parse_date_or_datetime("0001-2-3") == dt.date(1, 2, 3)
+        assert rfc3339.parse_date_or_datetime("2011-12-13T14:15:16Z") == dt.datetime(
+            2011, 12, 13, 14, 15, 16
+        )
+        assert rfc3339.parse_date_or_datetime("2011-12-13t14:15:16z") == dt.datetime(
+            2011, 12, 13, 14, 15, 16
+        )
+        assert rfc3339.parse_date_or_datetime("0001-2-3T4:5:6Z") == dt.datetime(
+            1, 2, 3, 4, 5, 6
+        )
+        assert rfc3339.parse_date_or_datetime(
+            "2011-12-13T14:15:16Z", with_timezone=True
+        ) == dt.datetime(2011, 12, 13, 14, 15, 16, tzinfo=dt.timezone.utc)
 
+    def test_parse_date_or_datetime_none(self):
+        with pytest.raises(ValueError):
+            rfc3339.parse_date_or_datetime(None)
 
-@pytest.mark.parametrize("date", [
-    "2011", "2011-12",
-    "20111213", "2011/12/13", "2011:12:13",
-    "11-12-14", "1-2-3",
-    "2011-12-13T", "2011-12-13T14:15:16Z",
-    "foobar",
-])
-def test_rfc3339_parse_date_invalid(date):
-    with pytest.raises(ValueError):
-        rfc3339.parse_date(date)
+        assert Rfc3339(propagate_none=True).parse_date_or_datetime(None) is None
 
+    def test_today(self, time_machine):
+        time_machine.move_to("2023-02-10T12:34:56Z")
+        assert rfc3339.today() == "2023-02-10"
 
-def test_rfc3339_parse_datetime():
-    assert rfc3339.parse_datetime("2011-12-13T14:15:16Z") == datetime(2011, 12, 13, 14, 15, 16)
-    # `datetime.strptime` is apparently case insensitive about non-placeholder bits
-    assert rfc3339.parse_datetime("2011-12-13t14:15:16z") == datetime(2011, 12, 13, 14, 15, 16)
-    # `datetime.strptime` does not require leading zeros for month, day, hour, minutes, seconds
-    assert rfc3339.parse_datetime("0001-2-3T4:5:6Z") == datetime(1, 2, 3, 4, 5, 6)
-
-
-def test_rfc3339_parse_datetime_none():
-    with pytest.raises(ValueError):
-        rfc3339.parse_datetime(None)
-
-    assert Rfc3339(propagate_none=True).parse_datetime(None) is None
-
-
-@pytest.mark.parametrize("date", [
-    "2011", "2011-12", "2011-12-13", "2011-12-13T", "2011-12-13T14", "2011-12-13T14:15", "2011-12-13T14:15:16",
-    "20111213141516",
-    "2011/12/13T14:15:16Z", "2011-12-13T14-15-16Z", "2011:12:13T14:15:16Z",
-    "1-2-3T4:5:6Z",
-    "foobar",
-])
-def test_rfc3339_parse_datetime_invalid(date):
-    with pytest.raises(ValueError):
-        rfc3339.parse_datetime(date)
-
-
-def test_rfc3339_parse_date_or_datetime():
-    assert rfc3339.parse_date_or_datetime("2011-12-13") == date(2011, 12, 13)
-    assert rfc3339.parse_date_or_datetime("0001-2-3") == date(1, 2, 3)
-    assert rfc3339.parse_date_or_datetime("2011-12-13T14:15:16Z") == datetime(2011, 12, 13, 14, 15, 16)
-    assert rfc3339.parse_date_or_datetime("2011-12-13t14:15:16z") == datetime(2011, 12, 13, 14, 15, 16)
-    assert rfc3339.parse_date_or_datetime("0001-2-3T4:5:6Z") == datetime(1, 2, 3, 4, 5, 6)
-
-
-def test_rfc3339_parse_date_or_datetime_none():
-    with pytest.raises(ValueError):
-        rfc3339.parse_date_or_datetime(None)
-
-    assert Rfc3339(propagate_none=True).parse_date_or_datetime(None) is None
+    def test_utcnow(self, time_machine):
+        time_machine.move_to("2023-02-10T12:34:56Z")
+        assert rfc3339.utcnow() == "2023-02-10T12:34:56Z"
+        time_machine.move_to("2023-02-10T12:34:56+03")
+        assert rfc3339.utcnow() == "2023-02-10T09:34:56Z"
 
 
 def test_dict_no_none_kwargs():
@@ -317,19 +397,23 @@ class _Logger:
         self.logs.append(msg)
 
 
-def _fake_clock(times: List[Union[int, datetime]] = None):
+def _fake_clock(times: List[Union[int, dt.datetime]] = None):
     # Trick to have a "time" function that returns different times in subsequent calls
-    times = times or [datetime(2020, 3, 4, 5 + x, 2 * x, 1 + 3 * x, 1000) for x in range(0, 12)]
+    times = times or [
+        dt.datetime(2020, 3, 4, 5 + x, 2 * x, 1 + 3 * x, 1000) for x in range(0, 12)
+    ]
     return iter(times).__next__
 
 
 def test_timing_logger_custom():
     logger = _Logger()
     timing_logger = TimingLogger("Testing", logger=logger)
-    timing_logger._now = _fake_clock([
-        datetime(2019, 12, 12, 10, 10, 10, 10000),
-        datetime(2019, 12, 12, 11, 12, 13, 14141)
-    ])
+    timing_logger._now = _fake_clock(
+        [
+            dt.datetime(2019, 12, 12, 10, 10, 10, 10000),
+            dt.datetime(2019, 12, 12, 11, 12, 13, 14141),
+        ]
+    )
 
     with timing_logger:
         logger("Hello world")
@@ -344,10 +428,12 @@ def test_timing_logger_custom():
 def test_timing_logger_context_return():
     logger = _Logger()
     timing_logger = TimingLogger("Testing", logger=logger)
-    timing_logger._now = _fake_clock([
-        datetime(2019, 12, 12, 10, 10, 10, 0),
-        datetime(2019, 12, 12, 11, 12, 13, 0)
-    ])
+    timing_logger._now = _fake_clock(
+        [
+            dt.datetime(2019, 12, 12, 10, 10, 10, 0),
+            dt.datetime(2019, 12, 12, 11, 12, 13, 0),
+        ]
+    )
 
     with timing_logger as timer:
         logger("Hello world")
@@ -359,10 +445,12 @@ def test_timing_logger_context_return():
 def test_timing_logger_fail():
     logger = _Logger()
     timing_logger = TimingLogger("Testing", logger=logger)
-    timing_logger._now = _fake_clock([
-        datetime(2019, 12, 12, 10, 10, 10, 10000),
-        datetime(2019, 12, 12, 11, 12, 13, 14141)
-    ])
+    timing_logger._now = _fake_clock(
+        [
+            dt.datetime(2019, 12, 12, 10, 10, 10, 10000),
+            dt.datetime(2019, 12, 12, 11, 12, 13, 14141),
+        ]
+    )
 
     try:
         with timing_logger:
@@ -599,3 +687,10 @@ class TestBBoxDict:
     def test_to_bbox_dict_from_geometry(self):
         geometry = shapely.geometry.Polygon([(4, 2), (7, 4), (5, 8), (3, 3), (4, 2)])
         assert to_bbox_dict(geometry) == {"west": 3, "south": 2, "east": 7, "north": 8}
+
+
+def test_url_join():
+    assert url_join("http://d.test", "foo/bar") == "http://d.test/foo/bar"
+    assert url_join("http://d.test/", "foo/bar") == "http://d.test/foo/bar"
+    assert url_join("http://d.test", "/foo/bar") == "http://d.test/foo/bar"
+    assert url_join("http://d.test/", "/foo/bar") == "http://d.test/foo/bar"

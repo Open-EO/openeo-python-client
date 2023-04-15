@@ -1,10 +1,13 @@
+import logging
 import json
+import platform
+import re
 from unittest import mock
 
 import pytest
 
 import openeo.rest.auth.config
-from openeo.rest.auth.config import RefreshTokenStore, AuthConfig, PrivateJsonFile
+from openeo.rest.auth.config import RefreshTokenStore, AuthConfig, PrivateJsonFile, get_file_mode
 
 
 class TestPrivateJsonFile:
@@ -31,18 +34,38 @@ class TestPrivateJsonFile:
         assert not private.path.exists()
         private.set("foo", "bar", value=42)
         assert private.path.exists()
-        st_mode = private.path.stat().st_mode
+        st_mode = get_file_mode(private.path)
         assert st_mode & 0o777 == 0o600
 
-    def test_wrong_permissions(self, tmp_path):
+    def test_wrong_permissions(self, tmp_path, caplog):
         private = PrivateJsonFile(tmp_path)
         with private.path.open("w") as f:
             json.dump({"foo": "bar"}, f)
         assert private.path.stat().st_mode & 0o077 > 0
-        with pytest.raises(PermissionError, match="readable by others.*expected: 600"):
+
+        if platform.system() != "Windows":
+            with pytest.raises(
+                PermissionError, match="readable by others.*expected: 600"
+            ):
+                private.get("foo")
+            with pytest.raises(
+                PermissionError, match="readable by others.*expected: 600"
+            ):
+                private.set("foo", value="lol")
+        else:
+            regex = re.compile("readable by others.*expected: 600")
+            caplog.set_level(logging.INFO)
+
             private.get("foo")
-        with pytest.raises(PermissionError, match="readable by others.*expected: 600"):
+            assert caplog.record_tuples[0][1] == logging.INFO
+            message = caplog.record_tuples[0][2]
+            assert regex.search(message)
+
+            caplog.clear()
             private.set("foo", value="lol")
+            assert caplog.record_tuples[0][1] == logging.INFO
+            message = caplog.record_tuples[0][2]
+            assert regex.search(message)
 
     def test_set_get(self, tmp_path):
         private = PrivateJsonFile(tmp_path)
@@ -138,20 +161,39 @@ class TestAuthConfig:
 
 class TestRefreshTokenStorage:
 
-    def test_public_file(self, tmp_path):
+    def test_public_file(self, tmp_path, caplog):
         path = tmp_path / "refresh_tokens.json"
         with path.open("w") as f:
             json.dump({}, f)
         r = RefreshTokenStore(path=path)
-        with pytest.raises(PermissionError, match="readable by others.*expected: 600"):
+        if platform.system() != "Windows":
+            with pytest.raises(
+                PermissionError, match="readable by others.*expected: 600"
+            ):
+                r.get_refresh_token("foo", "bar")
+            with pytest.raises(
+                PermissionError, match="readable by others.*expected: 600"
+            ):
+                r.set_refresh_token("foo", "bar", "imd6$3cr3t")
+        else:
+            regex = re.compile("readable by others.*expected: 600")
+            caplog.set_level(logging.INFO)
+
             r.get_refresh_token("foo", "bar")
-        with pytest.raises(PermissionError, match="readable by others.*expected: 600"):
+            assert caplog.record_tuples[0][1] == logging.INFO
+            message = caplog.record_tuples[0][2]
+            assert regex.search(message)
+
+            caplog.clear()
             r.set_refresh_token("foo", "bar", "imd6$3cr3t")
+            assert caplog.record_tuples[0][1] == logging.INFO
+            message = caplog.record_tuples[0][2]
+            assert regex.search(message)
 
     def test_permissions(self, tmp_path):
         r = RefreshTokenStore(path=tmp_path)
         r.set_refresh_token("foo", "bar", "imd6$3cr3t")
-        st_mode = (tmp_path / RefreshTokenStore.DEFAULT_FILENAME).stat().st_mode
+        st_mode = get_file_mode(tmp_path / RefreshTokenStore.DEFAULT_FILENAME)
         assert st_mode & 0o777 == 0o600
 
     def test_get_set_refresh_token(self, tmp_path):

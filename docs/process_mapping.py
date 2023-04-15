@@ -9,6 +9,7 @@ Usage: run this script and redirect to rst file:
 import datetime
 import sys
 from textwrap import dedent
+import importlib
 
 from openeo.internal.documentation import _process_registry
 
@@ -19,25 +20,33 @@ from openeo.internal.documentation import _process_registry
 
 def main():
     print(dedent(f"""
-        .. 
+        ..
             !Warning! This is an auto-generated file.
             Do not edit directly.
             Generated from: {sys.argv}
-            
+
         .. _openeo_process_mapping:
-    
+
         openEO Process Mapping
         #######################
-        
+
         The table below maps openEO processes to the corresponding
         method or function in the openEO Python Client Library.
-        
-        .. list-table:: 
+
+        .. list-table::
             :header-rows: 1
-            
+
             *   - openEO process
                 - openEO Python Client Method
     """))
+    # Import some submodules to make sure `_process_registry` is populated
+    for mod in [
+        "openeo.rest.datacube",
+        "openeo.rest.vectorcube",
+        "openeo.rest.mlmodel",
+        "openeo.processes",
+    ]:
+        importlib.import_module(mod)
 
     for process_id in sorted(_process_registry.keys()):
         functions = [x[0] for x in _process_registry[process_id]]

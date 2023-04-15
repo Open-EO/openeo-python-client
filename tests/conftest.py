@@ -11,6 +11,9 @@ pytest_plugins = "pytester"
 # Make tests more predictable and avoid loading real configs in tests.
 os.environ["XDG_CONFIG_HOME"] = str(Path(__file__).parent / "data/user_dirs/config")
 os.environ["XDG_DATA_HOME"] = str(Path(__file__).parent / "data/user_dirs/data")
+# Windows does not use the *nix environment variables XDG_CONFIG_HOME and XDG_DATA_HOME
+# It has only one corresponding folder for both config and data: APPDATA
+os.environ["APPDATA"] = str(Path(__file__).parent / "data/user_dirs/AppData/Roaming")
 
 
 @pytest.fixture

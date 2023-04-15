@@ -10,14 +10,12 @@ be evaluated by an openEO backend.
 import datetime
 import logging
 import pathlib
-import re
 import typing
 import warnings
 from builtins import staticmethod
 from typing import List, Dict, Union, Tuple, Optional, Any, Iterable
 
 import numpy as np
-import requests
 import shapely.geometry
 import shapely.geometry.base
 from shapely.geometry import Polygon, MultiPolygon, mapping
@@ -32,8 +30,8 @@ from openeo.internal.warnings import legacy_alias, UserDeprecationWarning, depre
 from openeo.metadata import CollectionMetadata, Band, BandDimension, TemporalDimension, SpatialDimension
 from openeo.processes import ProcessBuilder
 from openeo.rest import BandMathException, OperatorException, OpenEoClientException
-from openeo.rest._datacube import _ProcessGraphAbstraction, THIS
-from openeo.rest.job import BatchJob, RESTJob
+from openeo.rest._datacube import _ProcessGraphAbstraction, THIS, UDF
+from openeo.rest.job import BatchJob
 from openeo.rest.mlmodel import MlModel
 from openeo.rest.service import Service
 from openeo.rest.udp import RESTUserDefinedProcess
@@ -50,137 +48,6 @@ if typing.TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-class UDF:
-    """
-    Helper class to load UDF code (e.g. from file) and embed them as "callback" or child process in a process graph.
-
-    Usage example:
-
-    .. code-block:: python
-
-        udf = UDF.from_file("my-udf-code.py")
-        cube = cube.apply(process=udf)
-
-
-    .. versionchanged:: 0.13.0
-        Added auto-detection of ``runtime``.
-        Specifying the ``data`` argument is not necessary anymore, and actually deprecated.
-        Added :py:meth:`from_file` to simplify loading UDF code from a file.
-        See :ref:`old_udf_api` for more background about the changes.
-    """
-
-    __slots__ = ["code", "runtime", "version", "context", "_source"]
-
-    def __init__(
-            self, code: str, runtime: Optional[str] = None, data=None,
-            version: Optional[str] = None, context: Optional[dict] = None, _source=None,
-    ):
-        """
-        Construct a UDF object from given code string and other argument related to the ``run_udf`` process.
-
-        :param code: UDF source code string (Python, R, ...)
-        :param runtime: optional UDF runtime identifier, will be autodetected from source code if omitted.
-        :param data: unused leftover from old API. Don't use this argument, it will be removed in a future release.
-        :param version: optional UDF runtime version string
-        :param context: optional additional UDF context data
-        :param _source: (for internal use) source identifier
-        """
-        # TODO: automatically dedent code (when literal string) ?
-        self.code = code
-        self.runtime = runtime
-        self.version = version
-        self.context = context
-        self._source = _source
-        if data is not None:
-            # TODO #181 remove `data` argument
-            warnings.warn(
-                f"The `data` argument of `{self.__class__.__name__}` is deprecated, unused and will be removed in a future release.",
-                category=UserDeprecationWarning, stacklevel=2
-            )
-
-    @classmethod
-    def from_file(
-            cls, path: Union[str, pathlib.Path], runtime: Optional[str] = None, version: Optional[str] = None,
-            context: Optional[dict] = None
-    ) -> "UDF":
-        """
-        Load a UDF from a local file.
-
-        .. seealso::
-            :py:meth:`from_url` for loading from a URL.
-
-        :param path: path to the local file with UDF source code
-        :param runtime: optional UDF runtime identifier, will be auto-detected from source code if omitted.
-        :param version: optional UDF runtime version string
-        :param context: optional additional UDF context data
-        """
-        path = pathlib.Path(path)
-        code = path.read_text(encoding="utf-8")
-        return cls(code=code, runtime=runtime, version=version, context=context, _source=path)
-
-    @classmethod
-    def from_url(
-            cls, url: str, runtime: Optional[str] = None, version: Optional[str] = None,
-            context: Optional[dict] = None
-    ) -> "UDF":
-        """
-        Load a UDF from a URL.
-
-        .. seealso::
-            :py:meth:`from_file` for loading from a local file.
-
-        :param url: URL path to load the UDF source code from
-        :param runtime: optional UDF runtime identifier, will be auto-detected from source code if omitted.
-        :param version: optional UDF runtime version string
-        :param context: optional additional UDF context data
-        """
-        resp = requests.get(url)
-        resp.raise_for_status()
-        code = resp.text
-        return cls(code=code, runtime=runtime, version=version, context=context, _source=url)
-
-    def _guess_runtime(self, connection: "openeo.Connection") -> str:
-        """Guess UDF runtime from UDF source (path) or source code."""
-        # First, guess UDF language
-        language = None
-        if isinstance(self._source, pathlib.Path):
-            language = self._guess_runtime_from_suffix(self._source.suffix)
-        elif isinstance(self._source, str):
-            url_match = re.match(r"https?://.*?(?P<suffix>\.\w+)([&#].*)?$", self._source)
-            if url_match:
-                language = self._guess_runtime_from_suffix(url_match.group("suffix"))
-        if not language:
-            # Guess language from UDF code
-            if re.search("^def [\w0-9_]+\(", self.code, flags=re.MULTILINE):
-                language = "Python"
-            # TODO: detection heuristics for R and other languages?
-        if not language:
-            raise OpenEoClientException("Failed to detect language of UDF code.")
-        # Find runtime for language
-        runtimes = {k.lower(): k for k in connection.list_udf_runtimes().keys()}
-        if language.lower() in runtimes:
-            return runtimes[language.lower()]
-        else:
-            raise OpenEoClientException(f"Failed to match UDF language {language!r} with a runtime ({runtimes})")
-
-    def _guess_runtime_from_suffix(self, suffix: str) -> Union[str]:
-        return {
-            ".py": "Python",
-            ".r": "R",
-        }.get(suffix.lower())
-
-    def get_run_udf_callback(self, connection: "openeo.Connection", data_parameter: str = "data") -> PGNode:
-        """
-        For internal use: construct `run_udf` node to be used as callback in `apply`, `reduce_dimension`, ...
-        """
-        arguments = dict_no_none(
-            data={"from_parameter": data_parameter},
-            udf=self.code,
-            runtime=self.runtime or self._guess_runtime(connection=connection),
-            version=self.version,
-            context=self.context,
-        )
-        return PGNode(process_id="run_udf", arguments=arguments)
 
 
 class DataCube(_ProcessGraphAbstraction):
@@ -191,18 +58,21 @@ class DataCube(_ProcessGraphAbstraction):
     and this process graph can be "grown" to a desired workflow by calling the appropriate methods.
     """
 
+    # TODO: set this based on back-end or user preference?
+    _DEFAULT_RASTER_FORMAT = "GTiff"
+
     def __init__(self, graph: PGNode, connection: 'openeo.Connection', metadata: CollectionMetadata = None):
         super().__init__(pgnode=graph, connection=connection)
         self.metadata = CollectionMetadata.get_or_create(metadata)
 
     def process(
-            self,
-            process_id: str,
-            arguments: dict = None,
-            metadata: Optional[CollectionMetadata] = None,
-            namespace: Optional[str] = None,
-            **kwargs
-    ) -> 'DataCube':
+        self,
+        process_id: str,
+        arguments: Optional[dict] = None,
+        metadata: Optional[CollectionMetadata] = None,
+        namespace: Optional[str] = None,
+        **kwargs,
+    ) -> "DataCube":
         """
         Generic helper to create a new DataCube by applying a process.
 
@@ -215,7 +85,7 @@ class DataCube(_ProcessGraphAbstraction):
         pg = self._build_pgnode(process_id=process_id, arguments=arguments, namespace=namespace, **kwargs)
         return DataCube(graph=pg, connection=self._connection, metadata=metadata or self.metadata)
 
-    graph_add_node = legacy_alias(process, "graph_add_node")
+    graph_add_node = legacy_alias(process, "graph_add_node", since="0.1.1")
 
     def process_with_node(self, pg: PGNode, metadata: Optional[CollectionMetadata] = None) -> 'DataCube':
         """
@@ -303,7 +173,9 @@ class DataCube(_ProcessGraphAbstraction):
         )
         return cls(graph=pg, connection=connection, metadata=metadata)
 
-    create_collection = legacy_alias(load_collection, name="create_collection")
+    create_collection = legacy_alias(
+        load_collection, name="create_collection", since="0.4.6"
+    )
 
     @classmethod
     def load_disk_collection(cls, connection: 'openeo.Connection', file_format: str, glob_pattern: str,
@@ -383,7 +255,6 @@ class DataCube(_ProcessGraphAbstraction):
         :param start_date: start date of the filter (inclusive), as a string or date object
         :param end_date: end date of the filter (exclusive), as a string or date object
         :param extent: two element list/tuple start and end date of the filter
-        :return: An ImageCollection filtered by date.
 
         https://open-eo.github.io/openeo-api/processreference/#filter_temporal
         """
@@ -548,7 +419,7 @@ class DataCube(_ProcessGraphAbstraction):
             cube.metadata = cube.metadata.filter_bands(bands)
         return cube
 
-    band_filter = legacy_alias(filter_bands, "band_filter")
+    band_filter = legacy_alias(filter_bands, "band_filter", since="0.1.0")
 
     def band(self, band: Union[str, int]) -> "DataCube":
         """
@@ -633,21 +504,65 @@ class DataCube(_ProcessGraphAbstraction):
             if isinstance(other, DataCube):
                 return self._merge_operator_binary_cubes(operator, other)
             elif isinstance(other, (int, float)):
-                if reverse:
-                    args = {"x": other, "y": {"from_parameter": "x"}}
-                else:
-                    args = {"x": {"from_parameter": "x"}, "y": other}
-                # TODO #123: support appending to pre-existing apply process instead of adding a whole new one
-                return self.apply(process=PGNode(process_id=operator, arguments=args))
-        raise OperatorException("Unsupported operator {op!r} with {other!r} (band math mode={b})".format(
-            op=operator, other=other, b=band_math_mode))
+                # "`apply` math" mode
+                return self._apply_operator(
+                    operator=operator, other=other, reverse=reverse
+                )
+        raise OperatorException(
+            f"Unsupported operator {operator!r} with `other` type {type(other)!r} (band math mode={band_math_mode})"
+        )
 
     def _operator_unary(self, operator: str, **kwargs) -> 'DataCube':
         band_math_mode = self._in_bandmath_mode()
         if band_math_mode:
             return self._bandmath_operator_unary(operator, **kwargs)
-        raise OperatorException("Unsupported unary operator {op!r} (band math mode={b})".format(
-            op=operator, b=band_math_mode))
+        else:
+            return self._apply_operator(operator=operator, extra_arguments=kwargs)
+
+    def _apply_operator(
+        self,
+        operator: str,
+        other: Optional[Union[int, float]] = None,
+        reverse: Optional[bool] = None,
+        extra_arguments: Optional[dict] = None,
+    ) -> "DataCube":
+        """
+        Apply a unary or binary operator/process,
+        by appending to existing `apply` node, or starting a new one.
+
+        :param operator: process id of operator
+        :param other: for binary operators: "other" argument
+        :param reverse: for binary operators: "self" and "other" should be swapped (reflected operator mode)
+        """
+        if self.result_node().process_id == "apply":
+            # Append to existing `apply` node
+            orig_apply = self.result_node()
+            data = orig_apply.arguments["data"]
+            x = {"from_node": orig_apply.arguments["process"]["process_graph"]}
+            context = orig_apply.arguments.get("context")
+        else:
+            # Start new `apply` node.
+            data = self
+            x = {"from_parameter": "x"}
+            context = None
+        # Build args for child callback.
+        args = {"x": x, **(extra_arguments or {})}
+        if other is not None:
+            # Binary operator mode
+            args["y"] = other
+            if reverse:
+                args["x"], args["y"] = args["y"], args["x"]
+        child_pg = PGNode(process_id=operator, arguments=args)
+        return self.process_with_node(
+            PGNode(
+                process_id="apply",
+                arguments=dict_no_none(
+                    data=data,
+                    process={"process_graph": child_pg},
+                    context=context,
+                ),
+            )
+        )
 
     @openeo_process(mode="operator")
     def add(self, other: Union['DataCube', int, float], reverse=False) -> 'DataCube':
@@ -858,6 +773,7 @@ class DataCube(_ProcessGraphAbstraction):
         ))
 
     def _in_bandmath_mode(self) -> bool:
+        """So-called "band math" mode: current result node is reduce_dimension along "bands" dimension."""
         # TODO #123 is it (still) necessary to make "band" math a special case?
         return isinstance(self._pg, ReduceNode) and self._pg.band_math_mode
 
@@ -880,10 +796,17 @@ class DataCube(_ProcessGraphAbstraction):
         ))
 
     def _get_geometry_argument(
-            self,
-            geometry: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter, _FromNodeMixin],
-            valid_geojson_types: List[str],
-            crs: str = None,
+        self,
+        geometry: Union[
+            shapely.geometry.base.BaseGeometry,
+            dict,
+            str,
+            pathlib.Path,
+            Parameter,
+            _FromNodeMixin,
+        ],
+        valid_geojson_types: List[str],
+        crs: Optional[str] = None,
     ) -> Union[dict, Parameter, PGNode]:
         """
         Convert input to a geometry as "geojson" subtype object.
@@ -916,21 +839,41 @@ class DataCube(_ProcessGraphAbstraction):
 
     @openeo_process
     def aggregate_spatial(
-            self,
-            geometries: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter, "VectorCube"],
-            reducer: Union[str, PGNode, typing.Callable],
-            target_dimension: Optional[str] = None,
-            crs: str = None,
-            context: Optional[dict] = None,
-            # TODO arguments: target dimension, context
-    ) -> 'DataCube':
+        self,
+        geometries: Union[
+            shapely.geometry.base.BaseGeometry,
+            dict,
+            str,
+            pathlib.Path,
+            Parameter,
+            VectorCube,
+        ],
+        reducer: Union[str, typing.Callable, PGNode],
+        target_dimension: Optional[str] = None,
+        crs: Optional[str] = None,
+        context: Optional[dict] = None,
+        # TODO arguments: target dimension, context
+    ) -> VectorCube:
         """
         Aggregates statistics for one or more geometries (e.g. zonal statistics for polygons)
         over the spatial dimensions.
 
         :param geometries: a shapely geometry, a GeoJSON-style dictionary,
             a public GeoJSON URL, or a path (that is valid for the back-end) to a GeoJSON file.
-        :param reducer: a callback function that creates a process graph, see :ref:`callbackfunctions`
+        :param reducer: the "child callback":
+            the name of a single openEO process,
+            or a callback function as discussed in :ref:`callbackfunctions`,
+            or a :py:class:`UDF <openeo.rest._datacube.UDF>` instance.
+
+            The callback should correspond to a process that
+            receives an array of numerical values
+            and returns a single numerical value.
+            For example:
+
+            -   ``"mean"`` (string)
+            -   :py:func:`absolute <openeo.processes.max>` (:ref:`predefined openEO process function <openeo_processes_functions>`)
+            -   ``lambda data: data.min()`` (function or lambda)
+
         :param target_dimension: The new dimension name to be used for storing the results.
         :param crs: The spatial reference system of the provided polygon.
             By default longitude-latitude (EPSG:4326) is assumed.
@@ -939,16 +882,24 @@ class DataCube(_ProcessGraphAbstraction):
             .. note:: this ``crs`` argument is a non-standard/experimental feature, only supported by specific back-ends.
                 See https://github.com/Open-EO/openeo-processes/issues/235 for details.
         """
-        # TODO #279 aggregate_spatial should return a VectorCube, not a DataCube
         valid_geojson_types = [
             "Point", "MultiPoint", "LineString", "MultiLineString",
             "Polygon", "MultiPolygon", "GeometryCollection", "Feature", "FeatureCollection"
         ]
         geometries = self._get_geometry_argument(geometries, valid_geojson_types=valid_geojson_types, crs=crs)
         reducer = self._get_callback(reducer, parent_parameters=["data"])
-        return self.process(
-            process_id="aggregate_spatial", data=THIS, geometries=geometries, reducer=reducer,
-            **dict_no_none(target_dimension=target_dimension, context=context)
+        return VectorCube(
+            graph=self._build_pgnode(
+                process_id="aggregate_spatial",
+                data=THIS,
+                geometries=geometries,
+                reducer=reducer,
+                arguments=dict_no_none(
+                    target_dimension=target_dimension, context=context
+                ),
+            ),
+            connection=self._connection,
+            # TODO: metadata?
         )
 
     @staticmethod
@@ -996,14 +947,17 @@ class DataCube(_ProcessGraphAbstraction):
 
     @openeo_process
     def apply_dimension(
-            self, code: str = None, runtime=None,
-            process: Union[str, PGNode, typing.Callable, UDF] = None,
-            version="latest",
-            # TODO: dimension has no default (per spec)?
-            dimension="t",
-            target_dimension=None,
-            context: Optional[dict] = None,
-    ) -> 'DataCube':
+        self,
+        code: str = None,
+        runtime=None,
+        # TODO: drop None default of process (when `code` and `runtime` args can be dropped)
+        process: Union[str, typing.Callable, UDF, PGNode] = None,
+        version="latest",
+        # TODO: dimension has no default (per spec)?
+        dimension="t",
+        target_dimension=None,
+        context: Optional[dict] = None,
+    ) -> "DataCube":
         """
         Applies a process to all pixel values along a dimension of a raster data cube. For example,
         if the temporal dimension is specified the process will work on a time series of pixel values.
@@ -1026,12 +980,26 @@ class DataCube(_ProcessGraphAbstraction):
         .. note::
             .. versionchanged:: 0.13.0
                 arguments ``code``, ``runtime`` and ``version`` are deprecated if favor of the standard approach
-                of using an :py:class:`openeo.UDF <openeo.rest.datacube.UDF>` object in the ``process`` argument.
+                of using an :py:class:`UDF <openeo.rest._datacube.UDF>` object in the ``process`` argument.
                 See :ref:`old_udf_api` for more background about the changes.
 
         :param code: [**deprecated**] UDF code or process identifier (optional)
         :param runtime: [**deprecated**] UDF runtime to use (optional)
-        :param process: a callback function that creates a process graph, see :ref:`callbackfunctions`
+        :param process: the "child callback":
+            the name of a single process,
+            or a callback function as discussed in :ref:`callbackfunctions`,
+            or a :py:class:`UDF <openeo.rest._datacube.UDF>` instance.
+
+            The callback should correspond to a process that
+            receives an array of numerical values
+            and returns an array of numerical values.
+            For example:
+
+            -   ``"sort"`` (string)
+            -   :py:func:`sort <openeo.processes.sort>` (:ref:`predefined openEO process function <openeo_processes_functions>`)
+            -   ``lambda data: data.concat([42, -3])`` (function or lambda)
+
+
         :param version: [**deprecated**] Version of the UDF runtime to use
         :param dimension: The name of the source dimension to apply the process on. Fails with a DimensionNotAvailable error if the specified dimension does not exist.
         :param target_dimension: The name of the target dimension or null (the default) to use the source dimension
@@ -1070,17 +1038,31 @@ class DataCube(_ProcessGraphAbstraction):
 
     @openeo_process
     def reduce_dimension(
-            self,
-            dimension: str,
-            reducer: Union[str, PGNode, typing.Callable, UDF],
-            context: Optional[dict] = None,
-            process_id="reduce_dimension", band_math_mode: bool = False
+        self,
+        dimension: str,
+        reducer: Union[str, typing.Callable, UDF, PGNode],
+        context: Optional[dict] = None,
+        process_id="reduce_dimension",
+        band_math_mode: bool = False,
     ) -> "DataCube":
         """
         Add a reduce process with given reducer callback along given dimension
 
         :param dimension: the label of the dimension to reduce
-        :param reducer: "child callback" function, see :ref:`callbackfunctions`
+        :param reducer: the "child callback":
+            the name of a single openEO process,
+            or a callback function as discussed in :ref:`callbackfunctions`,
+            or a :py:class:`UDF <openeo.rest._datacube.UDF>` instance.
+
+            The callback should correspond to a process that
+            receives an array of numerical values
+            and returns a single numerical value.
+            For example:
+
+            -   ``"mean"`` (string)
+            -   :py:func:`absolute <openeo.processes.max>` (:ref:`predefined openEO process function <openeo_processes_functions>`)
+            -   ``lambda data: data.min()`` (function or lambda)
+
         :param context: Additional data to be passed to the process.
         """
         # TODO: check if dimension is valid according to metadata? #116
@@ -1120,9 +1102,19 @@ class DataCube(_ProcessGraphAbstraction):
             and masked cells outside it. If no value is provided, NoData cells are used outside the polygon.
         :param context: Additional data to be passed to the process.
         """
-        process = self._get_callback(process, parent_parameters=["data"])
-        valid_geojson_types = ["Polygon", "MultiPolygon", "GeometryCollection", "Feature", "FeatureCollection"]
-        chunks = self._get_geometry_argument(chunks, valid_geojson_types=valid_geojson_types)
+        process = self._get_callback(
+            process, parent_parameters=["data"], connection=self.connection
+        )
+        valid_geojson_types = [
+            "Polygon",
+            "MultiPolygon",
+            "GeometryCollection",
+            "Feature",
+            "FeatureCollection",
+        ]
+        chunks = self._get_geometry_argument(
+            chunks, valid_geojson_types=valid_geojson_types
+        )
         mask_value = float(mask_value) if mask_value is not None else None
         return self.process(
             process_id="chunk_polygon",
@@ -1151,8 +1143,13 @@ class DataCube(_ProcessGraphAbstraction):
         """
         return self.reduce_dimension(dimension=self.metadata.temporal_dimension.name, reducer=reducer)
 
-    @deprecated("Use :py:meth:`reduce_bands` with :py:class:`UDF` as reducer.", version="0.13.0")
-    def reduce_bands_udf(self, code: str, runtime: Optional[str] = None, version: Optional[str] = None) -> 'DataCube':
+    @deprecated(
+        "Use :py:meth:`reduce_bands` with :py:class:`UDF <openeo.rest._datacube.UDF>` as reducer.",
+        version="0.13.0",
+    )
+    def reduce_bands_udf(
+        self, code: str, runtime: Optional[str] = None, version: Optional[str] = None
+    ) -> "DataCube":
         """
         Use `reduce_dimension` process with given UDF along band/spectral dimension.
         """
@@ -1197,7 +1194,10 @@ class DataCube(_ProcessGraphAbstraction):
             metadata=self.metadata.drop_dimension(name=name),
         )
 
-    @deprecated("Use :py:meth:`reduce_temporal` with :py:class:`UDF` as reducer", version="0.13.0")
+    @deprecated(
+        "Use :py:meth:`reduce_temporal` with :py:class:`UDF <openeo.rest._datacube.UDF>` as reducer",
+        version="0.13.0",
+    )
     def reduce_temporal_udf(self, code: str, runtime="Python", version="latest"):
         """
         Apply reduce (`reduce_dimension`) process with given UDF along temporal dimension.
@@ -1209,7 +1209,9 @@ class DataCube(_ProcessGraphAbstraction):
         # TODO #181 #312 drop this deprecated pattern
         return self.reduce_temporal(reducer=UDF(code=code, runtime=runtime, version=version))
 
-    reduce_tiles_over_time = legacy_alias(reduce_temporal_udf, name="reduce_tiles_over_time")
+    reduce_tiles_over_time = legacy_alias(
+        reduce_temporal_udf, name="reduce_tiles_over_time", since="0.1.1"
+    )
 
     @openeo_process
     def apply_neighborhood(
@@ -1252,15 +1254,27 @@ class DataCube(_ProcessGraphAbstraction):
 
     @openeo_process
     def apply(
-            self,
-            process: Union[str, PGNode, typing.Callable, UDF] = None,
-            context: Optional[dict] = None,
+        self,
+        process: Union[str, typing.Callable, UDF, PGNode],
+        context: Optional[dict] = None,
     ) -> "DataCube":
         """
         Applies a unary process (a local operation) to each value of the specified or all dimensions in the data cube.
 
-        :param process: the name of a process, or a callback function that creates a process graph, see :ref:`callbackfunctions`
-        :param dimensions: The names of the dimensions to apply the process on. Defaults to an empty array so that all dimensions are used.
+        :param process: the "child callback":
+            the name of a single process,
+            or a callback function as discussed in :ref:`callbackfunctions`,
+            or a :py:class:`UDF <openeo.rest._datacube.UDF>` instance.
+
+            The callback should correspond to a process that
+            receives a single numerical value
+            and returns a single numerical value.
+            For example:
+
+            -   ``"absolute"`` (string)
+            -   :py:func:`absolute <openeo.processes.absolute>` (:ref:`predefined openEO process function <openeo_processes_functions>`)
+            -   ``lambda x: x * 2 + 3`` (function or lambda)
+
         :param context: Additional data to be passed to the process.
 
         :return: A data cube with the newly computed values. The resolution, cardinality and the number of dimensions are the same as for the original data cube.
@@ -1274,7 +1288,9 @@ class DataCube(_ProcessGraphAbstraction):
             })
         )
 
-    reduce_temporal_simple = legacy_alias(reduce_temporal, "reduce_temporal_simple")
+    reduce_temporal_simple = legacy_alias(
+        reduce_temporal, "reduce_temporal_simple", since="0.13.0"
+    )
 
     @openeo_process(process_id="min", mode="reduce_dimension")
     def min_time(self) -> 'DataCube':
@@ -1323,12 +1339,12 @@ class DataCube(_ProcessGraphAbstraction):
 
     @openeo_process
     def aggregate_temporal(
-            self,
-            intervals: List[list],
-            reducer: Union[str, PGNode, typing.Callable],
-            labels: Optional[List[str]] = None,
-            dimension: Optional[str] = None,
-            context: Optional[dict] = None,
+        self,
+        intervals: List[list],
+        reducer: Union[str, typing.Callable, PGNode],
+        labels: Optional[List[str]] = None,
+        dimension: Optional[str] = None,
+        context: Optional[dict] = None,
     ) -> "DataCube":
         """
         Computes a temporal aggregation based on an array of date and/or time intervals.
@@ -1338,12 +1354,25 @@ class DataCube(_ProcessGraphAbstraction):
         If the dimension is not set, the data cube is expected to only have one temporal dimension.
 
         :param intervals: Temporal left-closed intervals so that the start time is contained, but not the end time.
-        :param reducer: A reducer to be applied on all values along the specified dimension. The reducer must be a callable process (or a set processes) that accepts an array and computes a single return value of the same type as the input values, for example median.
+        :param reducer: the "child callback":
+            the name of a single openEO process,
+            or a callback function as discussed in :ref:`callbackfunctions`,
+            or a :py:class:`UDF <openeo.rest._datacube.UDF>` instance.
+
+            The callback should correspond to a process that
+            receives an array of numerical values
+            and returns a single numerical value.
+            For example:
+
+            -   ``"mean"`` (string)
+            -   :py:func:`absolute <openeo.processes.max>` (:ref:`predefined openEO process function <openeo_processes_functions>`)
+            -   ``lambda data: data.min()`` (function or lambda)
+
         :param labels: Labels for the intervals. The number of labels and the number of groups need to be equal.
         :param dimension: The temporal dimension for aggregation. All data along the dimension will be passed through the specified reducer. If the dimension is not set, the data cube is expected to only have one temporal dimension.
         :param context: Additional data to be passed to the reducer. Not set by default.
 
-        :return: An ImageCollection containing  a result for each time window
+        :return: A :py:class:`DataCube` containing a result for each time window
         """
         return self.process(
             process_id="aggregate_temporal",
@@ -1590,12 +1619,12 @@ class DataCube(_ProcessGraphAbstraction):
             for b in other.metadata.band_dimension.bands:
                 if b not in merged_metadata.bands:
                     merged_metadata = merged_metadata.append_band(b)
-        # TODO: warn about missing overlap_resolver if we can detect that one is required?
+        # Overlapping bands without overlap resolver will give an error in the backend
         if context:
             arguments["context"] = context
         return self.process(process_id="merge_cubes", arguments=arguments, metadata=merged_metadata)
 
-    merge = legacy_alias(merge_cubes, name="merge")
+    merge = legacy_alias(merge_cubes, name="merge", since="0.4.6")
 
     @openeo_process
     def apply_kernel(
@@ -1673,51 +1702,64 @@ class DataCube(_ProcessGraphAbstraction):
 
     ####VIEW methods #######
 
-    @deprecated("Use :py:meth:`aggregate_spatial` with reducer ``'mean'``.", version="0.10.0")
-    def polygonal_mean_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> 'DataCube':
+    @deprecated(
+        "Use :py:meth:`aggregate_spatial` with reducer ``'mean'``.", version="0.10.0"
+    )
+    def polygonal_mean_timeseries(
+        self, polygon: Union[Polygon, MultiPolygon, str]
+    ) -> VectorCube:
         """
         Extract a mean time series for the given (multi)polygon. Its points are
         expected to be in the EPSG:4326 coordinate
         reference system.
 
         :param polygon: The (multi)polygon; or a file path or HTTP URL to a GeoJSON file or shape file
-        :return: DataCube
         """
         return self.aggregate_spatial(geometries=polygon, reducer="mean")
 
-    @deprecated("Use :py:meth:`aggregate_spatial` with reducer ``'histogram'``.", version="0.10.0")
-    def polygonal_histogram_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> 'DataCube':
+    @deprecated(
+        "Use :py:meth:`aggregate_spatial` with reducer ``'histogram'``.",
+        version="0.10.0",
+    )
+    def polygonal_histogram_timeseries(
+        self, polygon: Union[Polygon, MultiPolygon, str]
+    ) -> VectorCube:
         """
         Extract a histogram time series for the given (multi)polygon. Its points are
         expected to be in the EPSG:4326 coordinate
         reference system.
 
         :param polygon: The (multi)polygon; or a file path or HTTP URL to a GeoJSON file or shape file
-        :return: DataCube
         """
         return self.aggregate_spatial(geometries=polygon, reducer="histogram")
 
-    @deprecated("Use :py:meth:`aggregate_spatial` with reducer ``'median'``.", version="0.10.0")
-    def polygonal_median_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> 'DataCube':
+    @deprecated(
+        "Use :py:meth:`aggregate_spatial` with reducer ``'median'``.", version="0.10.0"
+    )
+    def polygonal_median_timeseries(
+        self, polygon: Union[Polygon, MultiPolygon, str]
+    ) -> VectorCube:
         """
         Extract a median time series for the given (multi)polygon. Its points are
         expected to be in the EPSG:4326 coordinate
         reference system.
 
         :param polygon: The (multi)polygon; or a file path or HTTP URL to a GeoJSON file or shape file
-        :return: DataCube
         """
         return self.aggregate_spatial(geometries=polygon, reducer="median")
 
-    @deprecated("Use :py:meth:`aggregate_spatial` with reducer ``'sd'``.", version="0.10.0")
-    def polygonal_standarddeviation_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> 'DataCube':
+    @deprecated(
+        "Use :py:meth:`aggregate_spatial` with reducer ``'sd'``.", version="0.10.0"
+    )
+    def polygonal_standarddeviation_timeseries(
+        self, polygon: Union[Polygon, MultiPolygon, str]
+    ) -> VectorCube:
         """
         Extract a time series of standard deviations for the given (multi)polygon. Its points are
         expected to be in the EPSG:4326 coordinate
         reference system.
 
         :param polygon: The (multi)polygon; or a file path or HTTP URL to a GeoJSON file or shape file
-        :return: DataCube
         """
         return self.aggregate_spatial(geometries=polygon, reducer="sd")
 
@@ -1771,8 +1813,13 @@ class DataCube(_ProcessGraphAbstraction):
         })
 
     @openeo_process
-    def save_result(self, format: str = "GTiff", options: dict = None) -> 'DataCube':
+    def save_result(
+        self,
+        format: str = _DEFAULT_RASTER_FORMAT,
+        options: Optional[dict] = None,
+    ) -> "DataCube":
         formats = set(self._connection.list_output_formats().keys())
+        # TODO: map format to correct casing too?
         if format.lower() not in {f.lower() for f in formats}:
             raise ValueError("Invalid format {f!r}. Should be one of {s}".format(f=format, s=formats))
         return self.process(
@@ -1780,27 +1827,31 @@ class DataCube(_ProcessGraphAbstraction):
             arguments={
                 "data": THIS,
                 "format": format,
+                # TODO: leave out options if unset?
                 "options": options or {}
             }
         )
 
-    def download(
-            self, outputfile: Union[str, pathlib.Path, None] = None, format: Optional[str] = None,
-            options: Optional[dict] = None
-    ):
+    def _ensure_save_result(
+        self,
+        format: Optional[str] = None,
+        options: Optional[dict] = None,
+    ) -> "DataCube":
         """
-        Download image collection, e.g. as GeoTIFF.
-        If outputfile is provided, the result is stored on disk locally, otherwise, a bytes object is returned.
-        The bytes object can be passed on to a suitable decoder for decoding.
+        Make sure there is a (final) `save_result` node in the process graph.
+        If there is already one: check if it is consistent with the given format/options (if any)
+        and add a new one otherwise.
 
-        :param outputfile: Optional, an output file if the result needs to be stored on disk.
-        :param format: Optional, an output format supported by the backend.
-        :param options: Optional, file format options
-        :return: None if the result is stored to disk, or a bytes object returned by the backend.
+        :param format: (optional) desired `save_result` file format
+        :param options: (optional) desired `save_result` file format parameters
+        :return:
         """
-        if self.result_node().process_id == "save_result":
-            # There is already a `save_result` node: check if it is consistent with given format/options
-            args = self.result_node().arguments
+        # TODO: move to generic data cube parent class (not only for raster cubes, but also vector cubes)
+        result_node = self.result_node()
+        if result_node.process_id == "save_result":
+            # There is already a `save_result` node:
+            # check if it is consistent with given format/options (if any)
+            args = result_node.arguments
             if format is not None and format.lower() != args["format"].lower():
                 raise ValueError(
                     f"Existing `save_result` node with different format {args['format']!r} != {format!r}"
@@ -1812,10 +1863,30 @@ class DataCube(_ProcessGraphAbstraction):
             cube = self
         else:
             # No `save_result` node yet: automatically add it.
-            if not format:
-                format = guess_format(outputfile) if outputfile else "GTiff"
-            cube = self.save_result(format=format, options=options)
+            cube = self.save_result(
+                format=format or self._DEFAULT_RASTER_FORMAT, options=options
+            )
+        return cube
 
+    def download(
+        self,
+        outputfile: Optional[Union[str, pathlib.Path]] = None,
+        format: Optional[str] = None,
+        options: Optional[dict] = None,
+    ) -> Union[None, bytes]:
+        """
+        Download the raster data cube, e.g. as GeoTIFF.
+        If outputfile is provided, the result is stored on disk locally, otherwise, a bytes object is returned.
+        The bytes object can be passed on to a suitable decoder for decoding.
+
+        :param outputfile: Optional, an output file if the result needs to be stored on disk.
+        :param format: Optional, an output format supported by the backend.
+        :param options: Optional, file format options
+        :return: None if the result is stored to disk, or a bytes object returned by the backend.
+        """
+        if format is None and outputfile is not None:
+            format = guess_format(outputfile)
+        cube = self._ensure_save_result(format=format, options=options)
         return self._connection.download(cube.flat_graph(), outputfile)
 
     def validate(self) -> List[dict]:
@@ -1899,56 +1970,82 @@ class DataCube(_ProcessGraphAbstraction):
         return m, service
 
     def execute_batch(
-            self,
-            outputfile: Union[str, pathlib.Path] = None, out_format: str = None,
-            print=print, max_poll_interval=60, connection_retry_interval=30,
-            job_options=None, **format_options) -> BatchJob:
+        self,
+        outputfile: Optional[Union[str, pathlib.Path]] = None,
+        out_format: Optional[str] = None,
+        *,
+        print: typing.Callable[[str], None] = print,
+        max_poll_interval: float = 60,
+        connection_retry_interval: float = 30,
+        job_options: Optional[dict] = None,
+        # TODO: avoid `format_options` as keyword arguments
+        **format_options,
+    ) -> BatchJob:
         """
         Evaluate the process graph by creating a batch job, and retrieving the results when it is finished.
         This method is mostly recommended if the batch job is expected to run in a reasonable amount of time.
 
-        For very long running jobs, you probably do not want to keep the client running.
+        For very long-running jobs, you probably do not want to keep the client running.
 
-        :param job_options:
         :param outputfile: The path of a file to which a result can be written
-        :param out_format: (optional) Format of the job result.
-        :param format_options: String Parameters for the job result format
-
+        :param out_format: (optional) File format to use for the job result.
+        :param job_options:
         """
         if "format" in format_options and not out_format:
             out_format = format_options["format"]  # align with 'download' call arg name
-        if not out_format:
-            out_format = guess_format(outputfile) if outputfile else "GTiff"
-        job = self.create_job(out_format, job_options=job_options, **format_options)
+        if not out_format and outputfile:
+            out_format = guess_format(outputfile)
+
+        job = self.create_job(
+            out_format=out_format, job_options=job_options, **format_options
+        )
         return job.run_synchronous(
             outputfile=outputfile,
             print=print, max_poll_interval=max_poll_interval, connection_retry_interval=connection_retry_interval
         )
 
     def create_job(
-            self, out_format=None, title: str = None, description: str = None, plan: str = None, budget=None,
-            job_options=None, **format_options
+        self,
+        out_format: Optional[str] = None,
+        *,
+        title: Optional[str] = None,
+        description: Optional[str] = None,
+        plan: Optional[str] = None,
+        budget: Optional[float] = None,
+        job_options: Optional[dict] = None,
+        # TODO: avoid `format_options` as keyword arguments
+        **format_options,
     ) -> BatchJob:
         """
-        Sends a job to the backend and returns a Job instance. The job will still need to be started and managed explicitly.
-        The :func:`~openeo.imagecollection.ImageCollection.execute_batch` method allows you to run batch jobs without managing it.
+        Sends the datacube's process graph as a batch job to the back-end
+        and return a :py:class:`~openeo.rest.job.BatchJob` instance.
 
-        :param out_format: String Format of the job result.
-        :param job_options: A dictionary containing (custom) job options
-        :param format_options: String Parameters for the job result format
-        :return: status: Job resulting job.
+        Note that the batch job will just be created at the back-end,
+        it still needs to be started and tracked explicitly.
+        Use :py:meth:`execute_batch` instead to have the openEO Python client take care of that job management.
+
+        :param out_format: output file format.
+        :param title: job title
+        :param description: job description
+        :param plan: billing plan
+        :param budget: maximum cost the request is allowed to produce
+        :param job_options: custom job options.
+        :return: Created job.
         """
         # TODO: add option to also automatically start the job?
-        img = self
-        if out_format:
-            # add `save_result` node
-            img = img.save_result(format=out_format, options=format_options)
+        # TODO: avoid using all kwargs as format_options
+        # TODO: centralize `create_job` for `DataCube`, `VectorCube`, `MlModel`, ...
+        cube = self._ensure_save_result(format=out_format, options=format_options)
         return self._connection.create_job(
-            process_graph=img.flat_graph(),
-            title=title, description=description, plan=plan, budget=budget, additional=job_options
+            process_graph=cube.flat_graph(),
+            title=title,
+            description=description,
+            plan=plan,
+            budget=budget,
+            additional=job_options,
         )
 
-    send_job = legacy_alias(create_job, name="send_job")
+    send_job = legacy_alias(create_job, name="send_job", since="0.10.0")
 
     def save_user_defined_process(
             self,
@@ -1980,7 +2077,7 @@ class DataCube(_ProcessGraphAbstraction):
             returns=returns, categories=categories, examples=examples, links=links,
         )
 
-    def execute(self) -> Dict:
+    def execute(self) -> dict:
         """Executes the process graph of the imagery. """
         return self._connection.execute(self.flat_graph())
 
@@ -2100,6 +2197,7 @@ class DataCube(_ProcessGraphAbstraction):
         :param function: "child callback" function, see :ref:`callbackfunctions`
         :param dimension:
         """
+        # TODO: does this return a `DataCube`? Shouldn't it just return an array (wrapper)?
         return self.process(process_id="fit_curve", arguments={
             "data": THIS,
             "parameters": parameters,
@@ -2137,8 +2235,8 @@ class DataCube(_ProcessGraphAbstraction):
 
         :param model: a reference to a trained model, one of
 
-                - a :py:class:`MlModel` instance (e.g. loaded from :py:meth:`Connection.load_ml_model`)
-                - a :py:class:`BatchJob` instance of a batch job that saved a single random forest model
+                - a :py:class:`~openeo.rest.mlmodel.MlModel` instance (e.g. loaded from :py:meth:`Connection.load_ml_model`)
+                - a :py:class:`~openeo.rest.job.BatchJob` instance of a batch job that saved a single random forest model
                 - a job id (``str``) of a batch job that saved a single random forest model
                 - a STAC item URL (``str``) to load the random forest from.
                   (The STAC Item must implement the `ml-model` extension.)
@@ -2163,88 +2261,6 @@ class DataCube(_ProcessGraphAbstraction):
         if dimension_names and dimension not in dimension_names:
             raise ValueError(f"Invalid dimension name {dimension!r}, should be one of {dimension_names}")
         return self.process(process_id="dimension_labels", arguments={"data": THIS, "dimension": dimension})
-
-    @openeo_process
-    def fit_class_random_forest(
-            self,
-            # TODO #279 #293: target type should be `VectorCube` (with adapters for GeoJSON FeatureCollection, GeoPandas, ...)
-            target: dict,
-            # TODO #293 max_variables officially has no default
-            max_variables: Optional[int] = None,
-            num_trees: int = 100,
-            seed: Optional[int] = None,
-    ) -> 'MlModel':
-        """
-        Executes the fit of a random forest classification based on the user input of target and predictors.
-        The Random Forest classification model is based on the approach by Breiman (2001).
-
-        .. warning:: EXPERIMENTAL: not generally supported, API subject to change.
-
-        :param target: The training sites for the classification model as a vector data cube. This is associated with the target
-            variable for the Random Forest model. The geometry has to be associated with a value to predict (e.g. fractional
-            forest canopy cover).
-        :param max_variables: Specifies how many split variables will be used at a node. Default value is `null`, which corresponds to the
-            number of predictors divided by 3.
-        :param num_trees: The number of trees build within the Random Forest classification.
-        :param seed: A randomization seed to use for the random sampling in training.
-
-        .. versionadded:: 0.10.0
-        """
-        # TODO #279: `fit_class_random_forest` should be defined on VectorCube instead of DataCube
-        pgnode = PGNode(
-            process_id="fit_class_random_forest",
-            arguments=dict_no_none(
-                predictors=self,
-                # TODO #279 strictly per-spec, target should be a `vector-cube`, but due to lack of proper support we are limited to inline GeoJSON for now
-                target=target,
-                max_variables=max_variables,
-                num_trees=num_trees,
-                seed=seed,
-            ),
-        )
-        model = MlModel(graph=pgnode, connection=self._connection)
-        return model
-
-    @openeo_process
-    def fit_regr_random_forest(
-            self,
-            # TODO #279 #293: target type should be `VectorCube` (with adapters for GeoJSON FeatureCollection, GeoPandas, ...)
-            target: dict,
-            # TODO #293 max_variables officially has no default
-            max_variables: Optional[int] = None,
-            num_trees: int = 100,
-            seed: Optional[int] = None,
-    ) -> 'MlModel':
-        """
-        Executes the fit of a random forest regression based on training data.
-        The Random Forest regression model is based on the approach by Breiman (2001).
-
-        .. warning:: EXPERIMENTAL: not generally supported, API subject to change.
-
-        :param target: The training sites for the regression model as a vector data cube.
-            This is associated with the target variable for the Random Forest model.
-            The geometry has to associated with a value to predict (e.g. fractional forest canopy cover).
-        :param max_variables: Specifies how many split variables will be used at a node. Default value is `null`, which corresponds to the
-            number of predictors divided by 3.
-        :param num_trees: The number of trees build within the Random Forest classification.
-        :param seed: A randomization seed to use for the random sampling in training.
-
-        .. versionadded:: 0.10.1
-        """
-        # TODO #279 #293: `fit_class_random_forest` should be defined on VectorCube instead of DataCube
-        pgnode = PGNode(
-            process_id="fit_regr_random_forest",
-            arguments=dict_no_none(
-                predictors=self,
-                # TODO #279 strictly per-spec, target should be a `vector-cube`, but due to lack of proper support we are limited to inline GeoJSON for now
-                target=target,
-                max_variables=max_variables,
-                num_trees=num_trees,
-                seed=seed,
-            ),
-        )
-        model = MlModel(graph=pgnode, connection=self._connection)
-        return model
 
     @openeo_process
     def flatten_dimensions(self, dimensions: List[str], target_dimension: str, label_separator: Optional[str] = None):

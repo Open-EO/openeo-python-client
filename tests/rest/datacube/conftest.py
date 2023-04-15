@@ -3,7 +3,6 @@ from typing import List
 import pytest
 
 import openeo
-import openeo.internal.graphbuilder_040
 from openeo.rest.connection import Connection
 from openeo.rest.datacube import DataCube
 
@@ -69,12 +68,6 @@ def setup_collection_metadata(requests_mock, cid: str, bands: List[str]):
 def connection(api_version, requests_mock) -> Connection:
     """Connection fixture to a backend of given version with some image collections."""
     return _setup_connection(api_version, requests_mock)
-
-
-@pytest.fixture
-def con040(requests_mock) -> Connection:
-    """Connection fixture to a 0.4.0 backend with some image collections."""
-    return _setup_connection("0.4.0", requests_mock)
 
 
 @pytest.fixture

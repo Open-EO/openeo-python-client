@@ -1,5 +1,6 @@
-from typing import Union
-
+import itertools
+from typing import Union, Optional, List, Tuple, Iterator, NamedTuple
+import collections
 import numpy
 import pytest
 import xarray
@@ -64,12 +65,12 @@ def test_xarray_datacube_from_dict():
 
 
 def _build_xdc(
-        ts: Union[list, int] = None,
-        bands: Union[list, int] = None,
-        xs: Union[list, int] = None,
-        ys: Union[list, int] = None,
-        dtype=numpy.int32,
-):
+    ts: Union[list, int] = None,
+    bands: Union[list, int] = None,
+    xs: Union[list, int] = None,
+    ys: Union[list, int] = None,
+    dtype=numpy.int32,
+) -> XarrayDataCube:
     """
     Build multi-dimensional XarrayDataCube containing given dimensions/coordinates
     """
@@ -139,19 +140,65 @@ def test_build_xdc():
     )
 
 
-def _assert_equal_after_save_and_load(xdc, tmp_path, format) -> XarrayDataCube:
-    path = tmp_path / ("cube." + format)
-    xdc.save_to_file(path=path, fmt=format)
-    result = XarrayDataCube.from_file(path=path, fmt=format)
+class _SaveLoadRoundTrip(NamedTuple):
+    format: str
+    save_kwargs: dict = {}
+    load_kwargs: dict = {}
+
+
+def _get_netcdf_engines() -> List[str]:
+    if hasattr(xarray.backends, "list_engines"):
+        # xarray 0.17 or higher provides xarray.backends.list_engines
+        netcdf_engines = [
+            name
+            for name, engine in xarray.backends.list_engines().items()
+            if engine.guess_can_open("dummy.nc")
+        ]
+    else:
+        # Poor man's hardcoded fallback
+        # TODO: drop this once we can require "xarray>=0.17" (which requires "python>=3.7")
+        netcdf_engines = ["netcdf4"]
+    return netcdf_engines
+
+
+def _roundtrips() -> Iterator[_SaveLoadRoundTrip]:
+    yield pytest.param(_SaveLoadRoundTrip(format="json"), id="json")
+
+    yield pytest.param(_SaveLoadRoundTrip(format="netcdf"), id=f"netcdf-defaults")
+
+    netcdf_engines = _get_netcdf_engines()
+    assert len(netcdf_engines) > 0
+    for e1, e2 in itertools.product(netcdf_engines, netcdf_engines):
+        if (e1 == "scipy") != (e2 == "scipy"):
+            # Only test scipy engine against itself
+            continue
+        yield pytest.param(
+            _SaveLoadRoundTrip(
+                format="netcdf", save_kwargs={"engine": e1}, load_kwargs={"engine": e2}
+            ),
+            id=f"netcdf-{e1}-{e2}",
+        )
+
+
+def _assert_equal_after_save_and_load(
+    xdc: XarrayDataCube, tmp_path, roundtrip: _SaveLoadRoundTrip
+) -> XarrayDataCube:
+    path = tmp_path / ("cube." + roundtrip.format)
+    xdc.save_to_file(path=path, fmt=roundtrip.format, **roundtrip.save_kwargs)
+    result = XarrayDataCube.from_file(
+        path=path, fmt=roundtrip.format, **roundtrip.load_kwargs
+    )
     xarray.testing.assert_equal(xdc.array, result.array)
     return result
 
 
-@pytest.mark.parametrize("format", ["json", "netcdf"])
-def test_save_load_full(format, tmp_path):
-    xdc = _build_xdc(ts=[2019, 2020, 2021], bands=["a", "b"], xs=[2, 3, 4, 5], ys=[5, 6, 7, 8, 9])
+@pytest.mark.parametrize("roundtrip", _roundtrips())
+def test_save_load_full(roundtrip, tmp_path):
+    xdc = _build_xdc(
+        ts=[2019, 2020, 2021], bands=["a", "b"], xs=[2, 3, 4, 5], ys=[5, 6, 7, 8, 9]
+    )
     assert xdc.array.shape == (3, 2, 4, 5)
-    _assert_equal_after_save_and_load(xdc, tmp_path, format)
+    _assert_equal_after_save_and_load(xdc, tmp_path, roundtrip=roundtrip)
 
 
 @pytest.mark.parametrize(["filename", "save_format", "load_format"], [
@@ -187,77 +234,79 @@ def test_save_load_guess_format_invalid(tmp_path):
     xarray.testing.assert_equal(xdc.array, result.array)
 
 
-@pytest.mark.parametrize("format", ["json", "netcdf"])
-def test_save_load_no_time_labels(format, tmp_path):
+@pytest.mark.parametrize("roundtrip", _roundtrips())
+def test_save_load_no_time_labels(roundtrip, tmp_path):
     xdc = _build_xdc(ts=3, bands=["a", "b"], xs=[2, 3, 4, 5], ys=[5, 6, 7, 8, 9])
     assert xdc.array.shape == (3, 2, 4, 5)
-    _assert_equal_after_save_and_load(xdc, tmp_path, format)
+    _assert_equal_after_save_and_load(xdc, tmp_path, roundtrip=roundtrip)
 
 
-@pytest.mark.parametrize("format", ["json", "netcdf"])
-def test_save_load_no_time_dim(format, tmp_path):
+@pytest.mark.parametrize("roundtrip", _roundtrips())
+def test_save_load_no_time_dim(roundtrip, tmp_path):
     xdc = _build_xdc(bands=["a", "b"], xs=[2, 3, 4, 5], ys=[5, 6, 7, 8, 9])
     assert xdc.array.shape == (2, 4, 5)
-    _assert_equal_after_save_and_load(xdc, tmp_path, format)
+    _assert_equal_after_save_and_load(xdc, tmp_path, roundtrip=roundtrip)
 
 
-@pytest.mark.parametrize("format", ["json", "netcdf"])
-def test_save_load_one_band_no_labels(format, tmp_path):
-    if format == "netcdf":
+@pytest.mark.parametrize("roundtrip", _roundtrips())
+def test_save_load_one_band_no_labels(roundtrip, tmp_path):
+    if roundtrip.format == "netcdf":
         # TODO fix saving procedure or test?
         pytest.skip("_save_DataArray_to_NetCDF introduces band names if they don't exist, which fails equality test")
     xdc = _build_xdc(ts=[2019, 2020, 2021], bands=1, xs=[2, 3, 4, 5], ys=[5, 6, 7, 8, 9])
     assert xdc.array.shape == (3, 1, 4, 5)
-    _assert_equal_after_save_and_load(xdc, tmp_path, format)
+    _assert_equal_after_save_and_load(xdc, tmp_path, roundtrip=roundtrip)
 
 
-@pytest.mark.parametrize("format", ["json", "netcdf"])
-def test_save_load_two_band_no_labels(format, tmp_path):
-    if format == "netcdf":
+@pytest.mark.parametrize("roundtrip", _roundtrips())
+def test_save_load_two_band_no_labels(roundtrip, tmp_path):
+    if roundtrip.format == "netcdf":
         # TODO fix saving procedure or test?
         pytest.skip("_save_DataArray_to_NetCDF introduces band names if they don't exist, which fails equality test")
     xdc = _build_xdc(ts=[2019, 2020, 2021], bands=2, xs=[2, 3, 4, 5], ys=[5, 6, 7, 8, 9])
     assert xdc.array.shape == (3, 2, 4, 5)
-    _assert_equal_after_save_and_load(xdc, tmp_path, format)
+    _assert_equal_after_save_and_load(xdc, tmp_path, roundtrip=roundtrip)
 
 
-@pytest.mark.parametrize("format", ["json", "netcdf"])
-def test_save_load_no_band_dim(format, tmp_path):
-    if format == "netcdf":
+@pytest.mark.parametrize("roundtrip", _roundtrips())
+def test_save_load_no_band_dim(roundtrip, tmp_path):
+    if roundtrip.format == "netcdf":
         # TODO fix saving procedure or test?
         pytest.skip("_save_DataArray_to_NetCDF introduces band dim if it doesn't exist, which fails equality test")
     xdc = _build_xdc(ts=[2019, 2020, 2021], xs=[2, 3, 4, 5], ys=[5, 6, 7, 8, 9])
     assert xdc.array.shape == (3, 4, 5)
-    _assert_equal_after_save_and_load(xdc, tmp_path, format)
+    _assert_equal_after_save_and_load(xdc, tmp_path, roundtrip=roundtrip)
 
 
-@pytest.mark.parametrize("format", ["json", "netcdf"])
-def test_save_load_no_xy_labels(format, tmp_path):
+@pytest.mark.parametrize("roundtrip", _roundtrips())
+def test_save_load_no_xy_labels(roundtrip, tmp_path):
     xdc = _build_xdc(ts=[2019, 2020, 2021], bands=["a", "b"], xs=4, ys=5)
     assert xdc.array.shape == (3, 2, 4, 5)
-    _assert_equal_after_save_and_load(xdc, tmp_path, format)
+    _assert_equal_after_save_and_load(xdc, tmp_path, roundtrip=roundtrip)
 
 
-@pytest.mark.parametrize("format", ["json", "netcdf"])
-def test_save_load_no_xy_dim(format, tmp_path):
+@pytest.mark.parametrize("roundtrip", _roundtrips())
+def test_save_load_no_xy_dim(roundtrip, tmp_path):
     xdc = _build_xdc(ts=[2019, 2020, 2021], bands=["a", "b"], )
     assert xdc.array.shape == (3, 2)
-    _assert_equal_after_save_and_load(xdc, tmp_path, format)
+    _assert_equal_after_save_and_load(xdc, tmp_path, roundtrip=roundtrip)
 
 
-@pytest.mark.parametrize("format", ["json", "netcdf"])
-def test_save_load_dtype_int64(format, tmp_path):
+@pytest.mark.parametrize("roundtrip", _roundtrips())
+def test_save_load_dtype_int64(roundtrip, tmp_path):
+    if roundtrip.save_kwargs.get("engine") == "scipy":
+        pytest.skip("scipy engine does not appear to support int64")
     xdc = _build_xdc(ts=[2019, 2020, 2021], bands=["a", "b"], xs=[2, 3, 4, 5], ys=[5, 6, 7, 8, 9], dtype=numpy.int64)
     assert xdc.array.shape == (3, 2, 4, 5)
-    result = _assert_equal_after_save_and_load(xdc, tmp_path, format)
+    result = _assert_equal_after_save_and_load(xdc, tmp_path, roundtrip=roundtrip)
     assert result.array.dtype == numpy.int64
 
 
-@pytest.mark.parametrize("format", ["json", "netcdf"])
-def test_save_load_dtype_float64(format, tmp_path):
+@pytest.mark.parametrize("roundtrip", _roundtrips())
+def test_save_load_dtype_float64(roundtrip, tmp_path):
     xdc = _build_xdc(ts=[2019, 2020, 2021], bands=["a", "b"], xs=[2, 3, 4, 5], ys=[5, 6, 7, 8, 9], dtype=numpy.float64)
     assert xdc.array.shape == (3, 2, 4, 5)
-    result = _assert_equal_after_save_and_load(xdc, tmp_path, format)
+    result = _assert_equal_after_save_and_load(xdc, tmp_path, roundtrip=roundtrip)
     assert result.array.dtype == numpy.float64
 
 

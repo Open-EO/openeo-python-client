@@ -4,8 +4,6 @@ import logging
 from datetime import datetime
 
 import openeo
-# TODO remove next line, create a "cube" through connection.load_collection()
-from openeo.rest.imagecollectionclient import ImageCollectionClient
 import sys
 
 logger = logging.getLogger(__name__)
@@ -31,7 +29,7 @@ def execute(
     Version -- 1-hbo
     Author -- Alexander Jacob, Eurac Research, openEO
     Mission -- hackathon
-    
+
     Inputs:
     user -- User -- 45/User String -- openeo
     password -- Password -- 45/User String -- XXXXXXXXX
@@ -43,18 +41,18 @@ def execute(
     band_format -- Band Format -- 45/User String -- GTiff
     bbox_string -- BBox -- 45/User String -- 10.446624755859375, 46.72574176193996, 10.629272460937498, 46.845164430292755
     temporal_extent -- Temporal Extent -- 44/DateRange -- 2018-05-01T00:00:00.000Z/2018-10-01T00:00:00.000Z
-    
+
     Outputs:
     band_dir -- Band Directory -- 45/User String
     band_files -- Band Files -- 45/User String
     out_dir -- directory to store output
-    
+
     Main Dependency:
     python-3
 
     Software Dependencies:
     openeo-0.4
-    
+
     Processing Resources:
     ram -- 1
     disk -- 10
@@ -80,8 +78,7 @@ def execute(
         image_collection,
         json.dumps(connection.describe_collection(image_collection), indent=2),
     )
-    # TODO: change to con.load_collection()
-    cube = ImageCollectionClient.load_collection(session = connection, collection_id = image_collection, bands = all_bands)
+    cube = connection.load_collection(collection_id=image_collection, bands=all_bands)
     cube = cube.filter_bbox( **bbox)
     cube = cube.filter_temporal(extent=temporal_extent)
 

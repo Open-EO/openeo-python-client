@@ -28,7 +28,7 @@ def execute(
     Version -- 1-hbo-AJ
     Author -- Alexander Jacob, Eurac Research, openEO
     Mission -- hackathon
-    
+
     Inputs:
     user -- User -- 45/User String -- guest
     provider -- Provider -- 45/User String -- Eurac Research
@@ -39,11 +39,11 @@ def execute(
     band_format -- Band Format -- 45/User String -- gtiff
     bbox_string -- BBox -- 45/User String -- 10.446624755859375, 46.72574176193996, 10.629272460937498, 46.845164430292755
     temporal_extent -- Temporal Extent -- 44/DateRange -- 2016-06-28T00:00:00.000Z/2016-06-28T00:00:00.000Z
-    
+
     Outputs:
     band_dir -- Band Directory -- 45/User String
     band_files -- Band Files -- 45/User String
-    
+
     Main Dependency:
     python-2
 
@@ -51,7 +51,7 @@ def execute(
     python-2
     python-3
     openeo-0.4
-    
+
     Processing Resources:
     ram -- 1
     disk -- 10

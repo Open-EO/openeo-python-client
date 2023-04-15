@@ -1,16 +1,18 @@
 
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/openeo)
 ![Status](https://img.shields.io/pypi/status/openeo)
-[![Lint and Test](https://github.com/Open-EO/openeo-python-client/actions/workflows/lint-and-test.yml/badge.svg?branch=master)](https://github.com/Open-EO/openeo-python-client/actions/workflows/lint-and-test.yml)
+[![Lint](https://github.com/Open-EO/openeo-python-client/actions/workflows/lint.yml/badge.svg?branch=master)](https://github.com/Open-EO/openeo-python-client/actions/workflows/lint.yml)
+[![Tests](https://github.com/Open-EO/openeo-python-client/actions/workflows/unittests.yml/badge.svg?branch=master)](https://github.com/Open-EO/openeo-python-client/actions/workflows/unittests.yml)
 [![PyPI](https://img.shields.io/pypi/v/openeo)](https://pypi.org/project/openeo/)
+[![Conda (channel only)](https://img.shields.io/conda/vn/conda-forge/openeo)](https://anaconda.org/conda-forge/openeo)
 
 
 
 
 # openEO Python Client
 
-Python Client Library for the [openEO API](https://github.com/Open-EO/openeo-api). 
-Allows you to interact with openEO backends from your own (local) Python environment. 
+Python Client Library for the [openEO API](https://github.com/Open-EO/openeo-api).
+Allows you to interact with openEO backends from your own (local) Python environment.
 [Read more on usage in the documentation.](https://open-eo.github.io/openeo-python-client/)
 
 [Quick Start Guide](https://openeo.org/documentation/1.0/python/#installation)
@@ -18,17 +20,17 @@ Allows you to interact with openEO backends from your own (local) Python environ
 
 ## Requirements and installation
 
-* Requirement: a **Python 3.6 (or higher) environment** 
-    where some dependencies can be installed 
+* Requirement: a **Python 3.6 (or higher) environment**
+    where some dependencies can be installed
     (including usual suspects like `numpy` and `pandas`)
 
-    Note for Windows users: it is recommended to work with 
-    [Anaconda Python](https://www.anaconda.com/products/individual) 
+    Note for Windows users: it is recommended to work with
+    [Anaconda Python](https://www.anaconda.com/products/individual)
     as the `shapely` dependency may need to be installed separately
     (e.g. using the Anaconda Navigator).
 
 * Basic installation procedure (in a `pip` powered environment):
-    
+
         pip install openeo
 
 * Installing with on-demand preview extra:
@@ -42,5 +44,3 @@ Allows you to interact with openEO backends from your own (local) Python environ
 [Some example scripts](https://github.com/Open-EO/openeo-python-client/blob/master/examples)
 
 [General OpenEO background](https://open-eo.github.io/openeo-api/)
-
-

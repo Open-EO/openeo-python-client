@@ -288,11 +288,19 @@ This will print a message like this::
     To authenticate: visit https://oidc.example.net/device
     and enter the user code 'DTNY-KLNX'.
 
+Some OpenID Connect Providers use a slightly longer URL that already includes
+the user code, and then you don't need to enter the user code in one of the next steps::
+
+    To authenticate: visit https://oidc.example.net/device?user_code=DTNY-KLNX
+
 You should now visit this URL.
-Usually it is intentionally a short URL to make it feasible to type it
+Usually, it is intentionally a short URL to make it feasible to type it
 instead of copy-pasting it (e.g. on another device).
-Authenticate with the OpenID Connect provider and enter the user code
+
+Authenticate with the OpenID Connect provider and, if requested, enter the user code
 shown in the message.
+When the URL already contains the user code, the page won't ask for this code.
+
 Meanwhile, the openEO Python Client Library is actively polling the OpenID Connect
 provider and when you successfully complete the authentication
 and entering of the user code,
@@ -690,4 +698,3 @@ remove your refresh token file in one of the following ways:
 
         from openeo.rest.auth.config import RefreshTokenStore
         RefreshTokenStore().remove()
-

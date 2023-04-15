@@ -227,20 +227,37 @@ to be invoked on a subset or slice of the datacube.
 For example:
 
 *   process ``apply`` requires a transformation that will be applied
-    to each pixel in the cube (separately)
+    to each pixel in the cube (separately), e.g. in pseudocode
+
+    .. code-block:: text
+
+        cube.apply(
+            given a pixel value
+            => scale it with factor 0.01
+        )
+
 *   process ``reduce_dimension`` requires an aggregation function to convert
-    an array of pixel values (along a given dimension) to a single value
+    an array of pixel values (along a given dimension) to a single value,
+    e.g. in pseudocode
+
+    .. code-block:: text
+
+        cube.reduce_dimension(
+            given a pixel timeseries (array) for a (x,y)-location
+            => temporal mean of that array
+        )
+
 *   process ``aggregate_spatial`` requires a function to aggregate the values
     in one or more geometries
 
 These transformation functions are usually called "**callbacks**"
 because instead of being called explicitly by the user,
-they are called by their "parent" process
+they are called and managed by their "parent" process
 (the ``apply``, ``reduce_dimension`` and ``aggregate_spatial`` in the examples)
 
 
 The openEO Python Client Library currently provides a couple of DataCube methods
-that expect a callback, most commonly:
+that expect such a callback, most commonly:
 
 - :py:meth:`openeo.rest.datacube.DataCube.aggregate_spatial`
 - :py:meth:`openeo.rest.datacube.DataCube.aggregate_temporal`
@@ -249,8 +266,14 @@ that expect a callback, most commonly:
 - :py:meth:`openeo.rest.datacube.DataCube.apply_neighborhood`
 - :py:meth:`openeo.rest.datacube.DataCube.reduce_dimension`
 
-These functions support several ways to specify the desired callback.
+The openEO Python Client Library supports several ways
+to specify the desired callback for these functions:
 
+
+.. contents::
+   :depth: 1
+   :local:
+   :backlinks: top
 
 Callback as string
 ------------------
@@ -269,7 +292,7 @@ for example:
 This approach is only possible if the desired transformation is available
 as a single process. If not, use one of the methods below.
 
-Also important is that the "signature" of the provided callback process
+It's also important to note that the "signature" of the provided callback process
 should correspond properly with what the parent process expects.
 For example: ``apply`` requires a callback process that receives a
 number and returns one (like ``absolute`` or ``sqrt``),
@@ -283,11 +306,29 @@ Callback as a callable
 -----------------------
 
 You can also specify the callback as a "callable":
-a Python object that can be called (e.g. a function without parenthesis).
+which is a fancy word for a Python object that can be called,
+but just think of it like a function you can call.
 
-The openEO Python Client Library defines the
-official processes in the :py:mod:`openeo.processes` module,
-which can be used directly:
+You can use a regular Python function, like this:
+
+.. code-block:: python
+
+    def transform(x):
+        return x * 2 + 3
+
+    cube.apply(transform)
+
+or, more compactly, a "lambda"
+(a construct in Python to create anonymous inline functions):
+
+.. code-block:: python
+
+    cube.apply(lambda x: x * 2 + 3)
+
+
+The openEO Python Client Library implements most of the official openEO processes as
+:ref:`functions in the "openeo.processes" module <openeo_processes_functions>`,
+which can be used directly as callback:
 
 .. code-block:: python
 
@@ -296,31 +337,10 @@ which can be used directly:
     cube.apply(absolute)
     cube.reduce_dimension(max, dimension="t")
 
-You can also use ``lambda`` functions:
 
-.. code-block:: python
-
-    cube.apply(lambda x: x * 2 + 3)
-
-
-or normal Python functions:
-
-.. code-block:: python
-
-    from openeo.processes import array_element
-
-    def my_bandmath(data):
-        band1 = array_element(data, index=0)
-        band2 = array_element(data, index=1)
-        return band1 + 1.2 * band2
-
-
-    cube.reduce_dimension(my_bandmath, dimension="bands")
-
-
-The argument that is passed to these functions is
-an instance of :py:class:`openeo.processes.ProcessBuilder`.
-This is a helper object with predefined methods for all standard processes,
+The argument that will be passed to all these callback functions is
+a :py:class:`ProcessBuilder <openeo.processes.ProcessBuilder>` instance.
+This is a helper object with predefined methods for all standard openEO processes,
 allowing to use an object oriented coding style to define the callback.
 For example:
 
@@ -334,12 +354,14 @@ For example:
     cube.reduce_dimension(avg, dimension="t")
 
 
-These methods also return ``ProcessBuilder`` objects,
+These methods also return :py:class:`ProcessBuilder <openeo.processes.ProcessBuilder>` objects,
 which also allows writing callbacks in chained fashion:
 
 .. code-block:: python
 
-    cube.apply(lambda x: x.absolute().cos().add(y=1.23))
+    cube.apply(
+        lambda x: x.absolute().cos().add(y=1.23)
+    )
 
 
 All this gives a lot of flexibility to define callbacks compactly
@@ -377,7 +399,7 @@ looks intuitive and straightforward, but it should be noted
 that not everything is allowed in these functions.
 You should just limit yourself to calling
 :py:mod:`openeo.processes` functions,
-:py:class:`openeo.processes.ProcessBuilder` methods
+:py:class:`ProcessBuilder <openeo.processes.ProcessBuilder>` methods
 and basic math operators.
 Don't call functions from other libraries like numpy or scipy.
 Don't use Python control flow statements like ``if/else`` constructs
@@ -414,9 +436,14 @@ Callback as ``PGNode``
 -----------------------
 
 You can also pass a :py:class:`~openeo.internal.graph_building.PGNode` object as callback.
-This method is used internally and could be useful for more
-advanced use cases, but it requires more in-depth knowledge of
-the openEO API and openEO Python Client Library to construct correctly.
+
+.. attention::
+    This approach should generally not be used in normal use cases.
+    The other options discussed above should be preferred.
+    It's mainly intended for internal use and an occasional, advanced use case.
+    It requires in-depth knowledge of the openEO API
+    and openEO Python Client Library to construct correctly.
+
 Some examples:
 
 .. code-block:: python

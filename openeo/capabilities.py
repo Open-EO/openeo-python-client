@@ -4,7 +4,7 @@ import re
 from typing import Union, Tuple
 
 
-# Is this base class (still) useful?
+# TODO Is this base class (still) useful?
 
 
 class Capabilities(ABC):
@@ -118,6 +118,9 @@ class ComparableVersion:
     def __str__(self):
         return ".".join(map(str, self._version))
 
+    def __hash__(self):
+        return hash(self._version)
+
     def to_string(self):
         return str(self)
 
@@ -172,6 +175,13 @@ class ComparableVersion:
     def accept_higher(self, other: Union[str, 'ComparableVersion']):
         """Other is higher than self."""
         return ComparableVersion(other) > self
+
+    def require_at_least(self, other: Union[str, "ComparableVersion"]):
+        """Raise exception if self is not at least other."""
+        if not self.at_least(other):
+            raise ApiVersionException(
+                f"openEO API version should be at least {other!s}, but got {self!s}."
+            )
 
 
 class ApiVersionException(RuntimeError):

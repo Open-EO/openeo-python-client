@@ -1,3 +1,7 @@
+import logging
+from typing import Optional, Union
+
+
 class LogEntry(dict):
     """
     Log message and info for jobs and services
@@ -46,3 +50,50 @@ class LogEntry(dict):
         return self["level"]
 
     # TODO: add properties for "code", "time", "path", "links" and "data" with sensible defaults?
+
+
+def normalize_log_level(
+    log_level: Union[int, str, None], default: int = logging.DEBUG
+) -> int:
+    """
+    Helper function to convert a openEO API log level (e.g. string "error")
+    to the integer constants defined in Python's standard library ``logging`` module (e.g. ``logging.ERROR``).
+
+    :param log_level: log level to normalize: a log level string in the style of
+        the openEO API ("error", "warning", "info", or "debug"),
+        an integer value (e.g. a ``logging`` constant), or ``None``.
+
+    :param default: fallback log level to return on unknown log level strings or ``None`` input.
+
+    :raises TypeError: when log_level is any other type than str, an int or None.
+    :return: One of the following log level constants from the standard module ``logging``:
+        ``logging.ERROR``, ``logging.WARNING``, ``logging.INFO``, or ``logging.DEBUG`` .
+    """
+    if isinstance(log_level, str):
+        log_level = log_level.upper()
+        if log_level in ["CRITICAL", "ERROR", "FATAL"]:
+            return logging.ERROR
+        elif log_level in ["WARNING", "WARN"]:
+            return logging.WARNING
+        elif log_level == "INFO":
+            return logging.INFO
+        elif log_level == "DEBUG":
+            return logging.DEBUG
+        else:
+            return default
+    elif isinstance(log_level, int):
+        return log_level
+    elif log_level is None:
+        return default
+    else:
+        raise TypeError(
+            f"Value for log_level is not an int or str: type={type(log_level)}, value={log_level!r}"
+        )
+
+
+def log_level_name(log_level: Union[int, str, None]) -> str:
+    """
+    Get the name of a normalized log level.
+    This value conforms to log level names used in the openEO API.
+    """
+    return logging.getLevelName(normalize_log_level(log_level)).lower()

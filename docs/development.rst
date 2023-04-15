@@ -1,3 +1,5 @@
+.. _development-and-maintenance:
+
 ###########################
 Development and maintenance
 ###########################
@@ -11,6 +13,7 @@ like this::
 
     pip install -e .[dev]
 
+If you are on Windows and experience problems installing this way, you can find some solutions in section `Development Installation on Windows`_.
 
 Running the unit tests
 ======================
@@ -83,7 +86,71 @@ just run
 
 and then visit http://127.0.0.1:8000 .
 When you change (and save) documentation source files, your browser should now
-automatically refresh and show the newly build docs. Just like magic.
+automatically refresh and show the newly built docs. Just like magic.
+
+
+Contributing code
+==================
+
+User contributions (such as bug fixes and new features, both in source code and documentation)
+are greatly appreciated and welcome.
+
+
+Pull requests
+--------------
+
+We use a traditional `GitHub Pull Request (PR) <https://docs.github.com/en/pull-requests>`_ workflow
+for user contributions, which roughly follows these steps:
+
+- Create a personal fork of https://github.com/Open-EO/openeo-python-client
+  (unless you already have push permissions to an existing fork or the original repo)
+- Preferably: work on your contribution in a new feature branch
+- Push your feature branch to your fork and create a pull request
+- The pull request is the place for review, discussion and fine-tuning of your work
+- Once your pull request is in good shape it will be merged by a maintainer
+
+
+.. _precommit:
+
+Pre-commit for basic code quality checks
+------------------------------------------
+
+We started using the `pre-commit <https://pre-commit.com/>`_ tool
+for basic code quality fine-tuning of new contributions.
+Note that the whole repository does not adhere yet to these new code styles rules at the moment,
+we're just gradually introducing it, piggybacking on new contributions.
+
+It's not enforced, but recommended and appreciated to **enable pre-commit**
+in your git clone when contributing code, as follows:
+
+-   Install the ``pre-commit`` command line tool:
+
+    -   The simplest option is to install it directly in the *virtual environment*
+        you are using for openEO Python client development (e.g. ``pip install pre-commit``).
+    -   You can also install it *globally* on your system
+        so you can easily use it across different projects
+        (e.g. using `pipx <https://pypa.github.io/pipx/>`_, in your base conda environment, ...,
+        see the `pre-commit installation docs <https://pre-commit.com/#installation>`_ for more information).
+-   Install the git hook scripts in your local clone:
+
+    .. code-block:: console
+
+        pre-commit install
+
+    This will automatically install additional tools required to check the rules
+    defined in the ``.pre-commit-config.yaml`` configuration file.
+
+
+Now, when you commit new changes, the pre-commit tool will run,
+flag issues (e.g. invalid JSON files)
+and even fix simple problems (e.g. clean up excessive whitespace).
+Address these problems and try to commit again.
+
+.. tip::
+
+    Use the staging feature of git to prepare your commit.
+    That makes it easier to review the changes proposed by pre-commit,
+    as these are not staged automatically.
 
 
 Creating a release
@@ -233,8 +300,16 @@ To be as concrete as possible, we will assume that we are about to release versi
     Commit this (e.g. with message ``_version.py: next alpha version 0.4.8a1``)
     and push to GitHub.
 
-#.  Optionally: send a tweet about the release or announce it in the `openEO Platform Forum <https://discuss.eodc.eu/c/openeo-platform/clients/18>`_ .
+#.  Update `conda-forge package <https://github.com/conda-forge/openeo-feedstock>`_ too
+    (requires conda recipe maintainer role).
+    Normally, the "regro-cf-autotick-bot" will create a `pull request <https://github.com/conda-forge/openeo-feedstock/pulls>`_.
+    If it builds fine, merge it.
+    If not, fix the issue
+    (typically in `recipe/meta.yaml <https://github.com/conda-forge/openeo-feedstock/blob/main/recipe/meta.yaml>`_)
+    and merge.
 
+#.  Optionally: send a tweet about the release
+    or announce it in the `openEO Platform Forum <https://discuss.eodc.eu/c/openeo-platform/clients/18>`_.
 
 Verification
 ~~~~~~~~~~~~
@@ -256,3 +331,59 @@ Here is a bash oneliner to verify that the PyPI release works properly::
 It tries to install the package in a temporary virtual env,
 import it and print the package version.
 
+
+Development Installation on Windows
+===================================
+
+Normally you can install the client the same way on Windows as on Linux, like so:
+
+.. code-block:: console
+
+    pip install -e .[dev]
+
+This should be working with the most recent code, however, in the past we sometimes had issues with a development installation.
+
+Should you experience problems, there is also a conda package for the Python client and that should be the easiest solution.
+
+For development, what you need to do is:
+
+1. Create and activate a new conda environment for developing the openeo-python-client.
+2. In that conda environment, install only the dependencies of openeo via conda, but not the openeo package itself.
+3. Do a pip install of the code in *editable mode* with `pip -e`.
+
+.. code-block:: console
+
+    conda create -n <your environment's name>
+
+    # For example:
+    conda create -n openeopyclient
+
+    # Activate the conda environment
+    conda activate openeopyclient
+
+    # Install openeo from the conda-forge channel
+    conda install --only-deps -c conda-forge openeo
+
+    # Now install the openeo code in editable mode.
+    pip install -e .[dev]
+
+
+
+Update of generated files
+==========================
+
+Some parts of the openEO Python Client Library source code are
+generated/compiled from upstream sources (e.g. official openEO specifications).
+Because updates are not often required,
+it's just a semi-manual procedure (to run from the project root):
+
+.. code-block:: console
+
+    # Update the sub-repositories (like git submodules, but optional)
+    python specs/update-subrepos.py
+
+    # Update `openeo/processes.py` from specifications in openeo-processes repository
+    python openeo/internal/processes/generator.py  specs/openeo-processes specs/openeo-processes/proposals --output openeo/processes.py
+
+    # Update the openEO process mapping documentation page
+    python docs/process_mapping.py > docs/process_mapping.rst

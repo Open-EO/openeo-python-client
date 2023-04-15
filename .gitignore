@@ -83,8 +83,8 @@ celerybeat-schedule
 .env
 
 # virtualenv
-.venv
-venv/
+.venv*
+venv*
 ENV/
 
 # Spyder project settings
@@ -99,18 +99,21 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+# IDEs
 .idea
+.vscode
+.project
+.pydevproject
 
 # Unit test related artifacts
 pytest-junit.xml
 out.geotiff
 
-# Temp folders
-tmp/
-temp/
-Temp/
-/.project
-/.pydevproject
+# Temp files and folders
+tmp*
+temp*
+Temp*
 
 # Locally built/downloaded wheels
 openeo-*.whl
@@ -121,3 +124,5 @@ _build
 # GitHub Actions build downloads
 artifact*.zip
 
+# pytest basetemp root (e.g. for tmp_path fixture).
+pytest-tmp

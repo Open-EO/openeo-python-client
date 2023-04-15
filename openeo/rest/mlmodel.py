@@ -79,16 +79,36 @@ class MlModel(_ProcessGraphAbstraction):
             print=print, max_poll_interval=max_poll_interval, connection_retry_interval=connection_retry_interval
         )
 
-    def create_job(self, **kwargs) -> BatchJob:
+    def create_job(
+        self,
+        *,
+        title: Optional[str] = None,
+        description: Optional[str] = None,
+        plan: Optional[str] = None,
+        budget: Optional[float] = None,
+        job_options: Optional[dict] = None,
+    ) -> BatchJob:
         """
         Sends a job to the backend and returns a ClientJob instance.
 
-        See :py:meth:`Connection.create_job` for additional arguments (e.g. to set job title, description, ...)
-
-        :return: resulting job.
+        :param title: job title
+        :param description: job description
+        :param plan: billing plan
+        :param budget: maximum cost the request is allowed to produce
+        :param job_options: A dictionary containing (custom) job options
+        :param format_options: String Parameters for the job result format
+        :return: Created job.
         """
+        # TODO: centralize `create_job` for `DataCube`, `VectorCube`, `MlModel`, ...
         pg = self
         if pg.result_node().process_id not in {"save_ml_model"}:
             _log.warning("Process graph has no final `save_ml_model`. Adding it automatically.")
             pg = pg.save_ml_model()
-        return self._connection.create_job(process_graph=pg.flat_graph(), **kwargs)
+        return self._connection.create_job(
+            process_graph=pg.flat_graph(),
+            title=title,
+            description=description,
+            plan=plan,
+            budget=budget,
+            additional=job_options,
+        )

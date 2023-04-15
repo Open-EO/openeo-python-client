@@ -9,6 +9,7 @@ import io
 import pathlib
 import re
 import textwrap
+import warnings
 from typing import Optional
 
 import pytest
@@ -24,6 +25,7 @@ from openeo.internal.warnings import UserDeprecationWarning
 from openeo.rest import OpenEoClientException
 from openeo.rest.connection import Connection
 from openeo.rest.datacube import THIS, DataCube, ProcessBuilder, UDF
+from openeo.rest.vectorcube import VectorCube
 from .conftest import API_URL, setup_collection_metadata, DEFAULT_S2_METADATA
 from ... import load_json_resource
 
@@ -634,6 +636,7 @@ def test_merge_cubes_band_merging_disjunct(con100, requests_mock, overlap_resolv
 
 @pytest.mark.parametrize("overlap_resolver", [None, "max"])
 def test_merge_cubes_band_merging_with_overlap(con100, requests_mock, overlap_resolver):
+    # Overlapping bands without overlap resolver will give an error in the backend
     setup_collection_metadata(requests_mock=requests_mock, cid="S3", bands=["B2", "B3", "B5", "B8"])
     setup_collection_metadata(requests_mock=requests_mock, cid="S4", bands=["B4", "B5", "B6"])
 
@@ -2235,33 +2238,230 @@ def test_apply_math_simple(con100, math, process, args):
     }
 
 
-@pytest.mark.parametrize(["save_result_kwargs", "download_kwargs", "expected_fail"], [
-    ({}, {}, None),
-    ({"format": "GTiff"}, {}, None),
-    ({}, {"format": "GTiff"}, None),
-    ({"format": "GTiff"}, {"format": "GTiff"}, None),
-    ({"format": "netCDF"}, {"format": "NETCDF"}, None),
-    (
+@pytest.mark.parametrize(
+    ["math", "apply_pg"],
+    [
+        (
+            lambda c: c + 1,
+            {
+                "add1": {
+                    "process_id": "add",
+                    "arguments": {"x": {"from_parameter": "x"}, "y": 1},
+                    "result": True,
+                },
+            },
+        ),
+        (
+            lambda c: 1 + c + 2,
+            {
+                "add1": {
+                    "process_id": "add",
+                    "arguments": {"x": 1, "y": {"from_parameter": "x"}},
+                },
+                "add2": {
+                    "process_id": "add",
+                    "arguments": {"x": {"from_node": "add1"}, "y": 2},
+                    "result": True,
+                },
+            },
+        ),
+        (
+            lambda c: 1 - c - 2,
+            {
+                "subtract1": {
+                    "process_id": "subtract",
+                    "arguments": {"x": 1, "y": {"from_parameter": "x"}},
+                },
+                "subtract2": {
+                    "process_id": "subtract",
+                    "arguments": {"x": {"from_node": "subtract1"}, "y": 2},
+                    "result": True,
+                },
+            },
+        ),
+        (
+            lambda c: 2 * (3 / c) - 1,
+            {
+                "divide1": {
+                    "process_id": "divide",
+                    "arguments": {"x": 3, "y": {"from_parameter": "x"}},
+                },
+                "multiply1": {
+                    "process_id": "multiply",
+                    "arguments": {"x": 2, "y": {"from_node": "divide1"}},
+                },
+                "subtract1": {
+                    "process_id": "subtract",
+                    "arguments": {"x": {"from_node": "multiply1"}, "y": 1},
+                    "result": True,
+                },
+            },
+        ),
+        (
+            lambda c: 0 * c,
+            {
+                "multiply1": {
+                    "process_id": "multiply",
+                    "arguments": {"x": 0, "y": {"from_parameter": "x"}},
+                    "result": True,
+                },
+            },
+        ),
+        (
+            lambda c: 10 * c.log10(),
+            {
+                "log1": {
+                    "process_id": "log",
+                    "arguments": {"x": {"from_parameter": "x"}, "base": 10},
+                },
+                "multiply1": {
+                    "process_id": "multiply",
+                    "arguments": {"x": 10, "y": {"from_node": "log1"}},
+                    "result": True,
+                },
+            },
+        ),
+        (
+            lambda c: ~c,
+            {
+                "not1": {
+                    "process_id": "not",
+                    "arguments": {"x": {"from_parameter": "x"}},
+                    "result": True,
+                },
+            },
+        ),
+        (
+            lambda c: ~(c == 5),
+            {
+                "eq1": {
+                    "process_id": "eq",
+                    "arguments": {"x": {"from_parameter": "x"}, "y": 5},
+                },
+                "not1": {
+                    "process_id": "not",
+                    "arguments": {"x": {"from_node": "eq1"}},
+                    "result": True,
+                },
+            },
+        ),
+    ],
+)
+def test_apply_more_math(con100, math, apply_pg):
+    """https://github.com/Open-EO/openeo-python-client/issues/123"""
+    cube = con100.load_collection("S2")
+    res = math(cube)
+    graph = res.flat_graph()
+    assert set(graph.keys()) == {"loadcollection1", "apply1"}
+    assert graph["apply1"] == {
+        "process_id": "apply",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "process": {"process_graph": apply_pg},
+        },
+        "result": True,
+    }
+
+
+def test_apply_append_math_keep_context(con100):
+    cube = con100.load_collection("S2")
+    cube = cube.apply(lambda x: x + 1, context={"foo": 866})
+    cube = cube * 123
+    graph = cube.flat_graph()
+    assert set(graph.keys()) == {"loadcollection1", "apply1"}
+    assert graph["apply1"] == {
+        "process_id": "apply",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "process": {
+                "process_graph": {
+                    "add1": {
+                        "process_id": "add",
+                        "arguments": {"x": {"from_parameter": "x"}, "y": 1},
+                    },
+                    "multiply1": {
+                        "process_id": "multiply",
+                        "arguments": {"x": {"from_node": "add1"}, "y": 123},
+                        "result": True,
+                    },
+                }
+            },
+            "context": {"foo": 866},
+        },
+        "result": True,
+    }
+
+
+@pytest.mark.parametrize(
+    ["save_result_kwargs", "download_filename", "download_kwargs", "expected"],
+    [
+        ({}, "result.tiff", {}, b"this is GTiff data"),
+        ({}, "result.nc", {}, b"this is netCDF data"),
+        ({"format": "GTiff"}, "result.tiff", {}, b"this is GTiff data"),
+        ({"format": "GTiff"}, "result.tif", {}, b"this is GTiff data"),
+        (
+            {"format": "GTiff"},
+            "result.nc",
+            {},
+            ValueError(
+                "Existing `save_result` node with different format 'GTiff' != 'netCDF'"
+            ),
+        ),
+        ({}, "result.tiff", {"format": "GTiff"}, b"this is GTiff data"),
+        ({}, "result.nc", {"format": "netCDF"}, b"this is netCDF data"),
+        ({}, "result.meh", {"format": "netCDF"}, b"this is netCDF data"),
+        (
+            {"format": "GTiff"},
+            "result.tiff",
+            {"format": "GTiff"},
+            b"this is GTiff data",
+        ),
+        (
             {"format": "netCDF"},
+            "result.tiff",
+            {"format": "NETCDF"},
+            b"this is netCDF data",
+        ),
+        (
+            {"format": "netCDF"},
+            "result.json",
             {"format": "JSON"},
-            "Existing `save_result` node with different format 'netCDF' != 'JSON'"
-    ),
-    ({"options": {}}, {}, None),
-    ({"options": {"quality": "low"}}, {"options": {"quality": "low"}}, None),
-    (
-            {"options": {"colormap": "jet"}},
+            ValueError(
+                "Existing `save_result` node with different format 'netCDF' != 'JSON'"
+            ),
+        ),
+        ({"options": {}}, "result.tiff", {}, b"this is GTiff data"),
+        (
             {"options": {"quality": "low"}},
-            "Existing `save_result` node with different options {'colormap': 'jet'} != {'quality': 'low'}"
-    ),
-])
+            "result.tiff",
+            {"options": {"quality": "low"}},
+            b"this is GTiff data",
+        ),
+        (
+            {"options": {"colormap": "jet"}},
+            "result.tiff",
+            {"options": {"quality": "low"}},
+            ValueError(
+                "Existing `save_result` node with different options {'colormap': 'jet'} != {'quality': 'low'}"
+            ),
+        ),
+    ],
+)
 def test_save_result_and_download(
-        con100, requests_mock, tmp_path, save_result_kwargs, download_kwargs, expected_fail
+    con100,
+    requests_mock,
+    tmp_path,
+    save_result_kwargs,
+    download_filename,
+    download_kwargs,
+    expected,
 ):
     def post_result(request, context):
         pg = request.json()["process"]["process_graph"]
         process_histogram = collections.Counter(p["process_id"] for p in pg.values())
         assert process_histogram["save_result"] == 1
-        return b"tiffdata"
+        format = pg["saveresult1"]["arguments"]["format"]
+        return f"this is {format} data".encode("utf8")
 
     post_result_mock = requests_mock.post(API_URL + "/result", content=post_result)
 
@@ -2269,14 +2469,14 @@ def test_save_result_and_download(
     if save_result_kwargs:
         cube = cube.save_result(**save_result_kwargs)
 
-    path = tmp_path / "tmp.tiff"
-    if expected_fail:
-        with pytest.raises(ValueError, match=expected_fail):
+    path = tmp_path / download_filename
+    if isinstance(expected, ValueError):
+        with pytest.raises(ValueError, match=str(expected)):
             cube.download(str(path), **download_kwargs)
         assert post_result_mock.call_count == 0
     else:
         cube.download(str(path), **download_kwargs)
-        assert path.read_bytes() == b"tiffdata"
+        assert path.read_bytes() == expected
         assert post_result_mock.call_count == 1
 
 
@@ -2327,8 +2527,8 @@ class TestBatchJob:
         """Legacy `DataCube.send_job` alis for `create_job"""
         requests_mock.post(API_URL + "/jobs", json=self._get_handler_post_jobs())
         cube = con100.load_collection("S2")
-        expected_warning = "Call to deprecated method `send_job`, use `create_job` instead."
-        with pytest.warns(UserDeprecationWarning, match=expected_warning):
+        expected_warning = "Call to deprecated method create_job. (Use of this legacy method is deprecated, use `.create_job` instead.) -- Deprecated since version 0.10.0."
+        with pytest.warns(UserDeprecationWarning, match=re.escape(expected_warning)):
             job = cube.send_job(out_format="GTiff")
         assert job.job_id == "myj0b1"
 
@@ -2583,3 +2783,75 @@ class TestUDF:
             },
             "result": True,
         }
+
+    def test_run_udf_on_vector_data_cube_generic_datacube_process(self, con100):
+        """
+        https://github.com/Open-EO/openeo-python-client/issues/385 with usage pattern:
+
+            res = aggregated.process("run_udf", data=aggregated, udf="...", ...)`
+        """
+        cube = con100.load_collection("S2")
+        geometries = load_json_resource("data/geojson/polygon01.json")
+        aggregated = cube.aggregate_spatial(geometries=geometries, reducer="mean")
+
+        udf = "def foo(x):\n    return x\n"
+        post_processed = aggregated.process(
+            "run_udf", data=aggregated, udf=udf, runtime="Python"
+        )
+
+        expected = load_json_resource("data/1.0.0/run_udf_on_vector_data_cube.json")
+        assert post_processed.flat_graph() == expected
+
+    def test_run_udf_on_vector_data_cube_processes_builder(self, con100):
+        """
+        https://github.com/Open-EO/openeo-python-client/issues/385 with usage pattern:
+
+            res = openeo.processes.run_udf(data=aggregated, udf="...", ...)`
+        """
+        cube = con100.load_collection("S2")
+        geometries = load_json_resource("data/geojson/polygon01.json")
+        aggregated = cube.aggregate_spatial(geometries=geometries, reducer="mean")
+
+        udf = "def foo(x):\n    return x\n"
+        post_processed = openeo.processes.run_udf(
+            data=aggregated, udf=udf, runtime="Python"
+        )
+
+        expected = load_json_resource("data/1.0.0/run_udf_on_vector_data_cube.json")
+        assert post_processed.flat_graph() == expected
+
+    def test_run_udf_on_vector_data_cube_udf_helper(self, con100):
+        """
+        https://github.com/Open-EO/openeo-python-client/issues/385 with usage pattern:
+
+            udf = UDF("...")
+            res = aggregated.run_udf(udf)
+        """
+        cube = con100.load_collection("S2")
+        geometries = load_json_resource("data/geojson/polygon01.json")
+        aggregated = cube.aggregate_spatial(geometries=geometries, reducer="mean")
+
+        udf = UDF("def foo(x):\n    return x\n")
+        post_processed = aggregated.run_udf(udf)
+
+        expected = load_json_resource("data/1.0.0/run_udf_on_vector_data_cube.json")
+        assert post_processed.flat_graph() == expected
+
+    def test_run_udf_on_vector_data_cube_udf_helper_with_overrides(self, con100):
+        """
+        https://github.com/Open-EO/openeo-python-client/issues/385 with usage pattern:
+
+            udf = UDF("...")
+            res = aggregated.run_udf(udf, version="custom")
+        """
+        cube = con100.load_collection("S2")
+        geometries = load_json_resource("data/geojson/polygon01.json")
+        aggregated = cube.aggregate_spatial(geometries=geometries, reducer="mean")
+
+        udf = UDF("def foo(x):\n    return x\n")
+        post_processed = aggregated.run_udf(udf, runtime="Py", version="v4")
+
+        expected = load_json_resource("data/1.0.0/run_udf_on_vector_data_cube.json")
+        expected["runudf1"]["arguments"]["runtime"] = "Py"
+        expected["runudf1"]["arguments"]["version"] = "v4"
+        assert post_processed.flat_graph() == expected

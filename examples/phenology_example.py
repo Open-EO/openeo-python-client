@@ -1,7 +1,5 @@
 from shapely.geometry import Polygon
 
-from openeo import ImageCollection
-
 import openeo
 import logging
 import os
@@ -9,8 +7,6 @@ from pathlib import Path
 import pandas as pd
 
 #enable logging in requests library
-from openeo.rest.imagecollectionclient import ImageCollectionClient
-
 logging.basicConfig(level=logging.DEBUG)
 
 #connect with EURAC backend
@@ -82,4 +78,3 @@ timeseries_raw_dc = evi_cube.polygonal_mean_timeseries(polygon)
 
 timeseries_raw = pd.Series(timeseries_raw_dc.execute(),name="evi_raw")
 print(timeseries_raw.head(15))
-

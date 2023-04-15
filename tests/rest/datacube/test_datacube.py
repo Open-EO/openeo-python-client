@@ -1,13 +1,12 @@
 """
 
 General cube method tests against both
-- 0.4.0-style ImageCollectionClient
 - 1.0.0-style DataCube
 
 """
-
-from datetime import date, datetime
 import pathlib
+from datetime import date, datetime
+from unittest import mock
 
 import numpy as np
 import pytest
@@ -17,11 +16,10 @@ import shapely.geometry
 from openeo.capabilities import ComparableVersion
 from openeo.rest import BandMathException
 from openeo.rest.datacube import DataCube
-from openeo.rest.imagecollectionclient import ImageCollectionClient
-from .conftest import API_URL
-from .. import get_download_graph
-from ..conftest import reset_graphbuilder
+
 from ... import load_json_resource
+from .. import get_download_graph
+from .conftest import API_URL
 
 
 def test_apply_dimension_temporal_cumsum(s2cube, api_version):
@@ -45,9 +43,7 @@ def test_min_time(s2cube, api_version):
 
 def _get_leaf_node(cube, force_flat=True) -> dict:
     """Get leaf node (node with result=True), supporting old and new style of graph building."""
-    if isinstance(cube, ImageCollectionClient):
-        return cube.flat_graph()[cube.node_id]
-    elif isinstance(cube, DataCube):
+    if isinstance(cube, DataCube):
         if force_flat:
             flat_graph = cube.flat_graph()
             node, = [n for n in flat_graph.values() if n.get("result")]
@@ -57,21 +53,6 @@ def _get_leaf_node(cube, force_flat=True) -> dict:
     else:
         raise ValueError(repr(cube))
 
-
-def test_date_range_filter(con040):
-    s2cube = con040.load_collection("S2")
-    im = s2cube.date_range_filter("2016-01-01", "2016-03-10")
-    graph = _get_leaf_node(im)
-    assert graph['process_id'] == 'filter_temporal'
-    assert graph['arguments']['extent'] == ["2016-01-01", "2016-03-10"]
-
-
-def test_filter_daterange(con040):
-    s2cube = con040.load_collection("S2")
-    im = s2cube.filter_daterange(extent=("2016-01-01", "2016-03-10"))
-    graph = _get_leaf_node(im)
-    assert graph['process_id'] == 'filter_temporal'
-    assert graph['arguments']['extent'] == ["2016-01-01", "2016-03-10"]
 
 
 def test_filter_temporal(s2cube):
@@ -192,15 +173,6 @@ def test_filter_bands_index(s2cube, api_version):
     assert im.flat_graph() == expected
 
 
-def test_pipe(con040):
-    def ndvi_percent(cube):
-        return cube.ndvi().linear_scale_range(0, 1, 0, 100)
-
-    s2cube = con040.load_collection("S2")
-    im = s2cube.pipe(ndvi_percent)
-    assert im.flat_graph() == load_json_resource('data/0.4.0/pipe.json')
-
-
 def test_filter_bbox_minimal(s2cube):
     im = s2cube.filter_bbox(west=3.0, east=3.1, north=51.1, south=51.0)
     graph = _get_leaf_node(im)
@@ -256,45 +228,6 @@ def test_filter_bbox_default_handling(s2cube, kwargs, expected):
     graph = _get_leaf_node(im)
     assert graph["process_id"] == "filter_bbox"
     assert graph["arguments"]["extent"] == dict(west=3, east=4, south=8, north=9, **expected)
-
-
-def test_bbox_filter_nsew(con040):
-    # TODO: remove this test for deprecated `bbox_filter`
-    s2cube = con040.load_collection("S2")
-    im = s2cube.bbox_filter(
-        west=652000, east=672000, north=5161000, south=5181000, crs=32632
-    )
-    graph = _get_leaf_node(im)
-    assert graph["process_id"] == "filter_bbox"
-    assert graph["arguments"]["extent"] == {
-        "west": 652000, "east": 672000, "north": 5161000, "south": 5181000, "crs": 32632
-    }
-
-
-def test_bbox_filter_tblr(con040):
-    # TODO: remove this test for deprecated `bbox_filter`
-    s2cube = con040.load_collection("S2")
-    im = s2cube.bbox_filter(
-        left=652000, right=672000, top=5161000, bottom=5181000, srs=32632
-    )
-    graph = _get_leaf_node(im)
-    assert graph["process_id"] == "filter_bbox"
-    assert graph["arguments"]["extent"] == {
-        "west": 652000, "east": 672000, "north": 5161000, "south": 5181000, "crs": 32632
-    }
-
-
-def test_bbox_filter_nsew_zero(con040):
-    # TODO: remove this test for deprecated `bbox_filter`
-    s2cube = con040.load_collection("S2")
-    im = s2cube.bbox_filter(
-        west=0, east=0, north=0, south=0, crs=32632
-    )
-    graph = _get_leaf_node(im)
-    assert graph["process_id"] == "filter_bbox"
-    assert graph["arguments"]["extent"] == {
-        "west": 0, "east": 0, "north": 0, "south": 0, "crs": 32632
-    }
 
 
 def test_max_time(s2cube, api_version):
@@ -447,7 +380,6 @@ def test_apply_dimension(connection, requests_mock):
     s22 = connection.load_collection("S22")
 
     for dim in ["color", "alpha", "date"]:
-        reset_graphbuilder()
         cube = s22.apply_dimension(dimension=dim, code="subtract_mean")
         assert cube.flat_graph()["applydimension1"]["process_id"] == "apply_dimension"
         assert cube.flat_graph()["applydimension1"]["arguments"]["dimension"] == dim
@@ -515,3 +447,192 @@ def test_download_bytes(connection, requests_mock, api_version, format, expected
     requests_mock.post(API_URL + '/result', content=result_callback)
     result = connection.load_collection("S2").download(format=format)
     assert result == b"data"
+
+
+class TestExecuteBatch:
+    @pytest.fixture
+    def get_create_job_pg(self, connection):
+        """Fixture to help intercepting the process graph that was passed to Connection.create_job"""
+        with mock.patch.object(connection, "create_job") as create_job:
+
+            def get() -> dict:
+                assert create_job.call_count == 1
+                return create_job.call_args[1]["process_graph"]
+
+            yield get
+
+    def test_create_job_defaults(self, s2cube, get_create_job_pg, recwarn, caplog):
+        s2cube.create_job()
+        pg = get_create_job_pg()
+        assert set(pg.keys()) == {"loadcollection1", "saveresult1"}
+        assert pg["saveresult1"] == {
+            "process_id": "save_result",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "format": "GTiff",
+                "options": {},
+            },
+            "result": True,
+        }
+        assert recwarn.list == []
+        assert caplog.records == []
+
+    @pytest.mark.parametrize(
+        ["out_format", "expected"],
+        [("GTiff", "GTiff"), ("NetCDF", "NetCDF")],
+    )
+    def test_create_job_out_format(
+        self, s2cube, get_create_job_pg, out_format, expected
+    ):
+        s2cube.create_job(out_format=out_format)
+        pg = get_create_job_pg()
+        assert set(pg.keys()) == {"loadcollection1", "saveresult1"}
+        assert pg["saveresult1"] == {
+            "process_id": "save_result",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "format": expected,
+                "options": {},
+            },
+            "result": True,
+        }
+
+    @pytest.mark.parametrize(
+        ["save_result_format", "execute_format", "expected"],
+        [
+            ("GTiff", "GTiff", "GTiff"),
+            ("GTiff", None, "GTiff"),
+            ("NetCDF", "NetCDF", "NetCDF"),
+            ("NetCDF", None, "NetCDF"),
+        ],
+    )
+    def test_create_job_existing_save_result(
+        self,
+        s2cube,
+        get_create_job_pg,
+        save_result_format,
+        execute_format,
+        expected,
+    ):
+        cube = s2cube.save_result(format=save_result_format)
+        cube.create_job(out_format=execute_format)
+        pg = get_create_job_pg()
+        assert set(pg.keys()) == {"loadcollection1", "saveresult1"}
+        assert pg["saveresult1"] == {
+            "process_id": "save_result",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "format": expected,
+                "options": {},
+            },
+            "result": True,
+        }
+
+    @pytest.mark.parametrize(
+        ["save_result_format", "execute_format"],
+        [("NetCDF", "GTiff"), ("GTiff", "NetCDF")],
+    )
+    def test_create_job_existing_save_result_incompatible(
+        self, s2cube, save_result_format, execute_format
+    ):
+        cube = s2cube.save_result(format=save_result_format)
+        with pytest.raises(ValueError):
+            cube.create_job(out_format=execute_format)
+
+    def test_execute_batch_defaults(self, s2cube, get_create_job_pg, recwarn, caplog):
+        s2cube.execute_batch()
+        pg = get_create_job_pg()
+        assert set(pg.keys()) == {"loadcollection1", "saveresult1"}
+        assert pg["saveresult1"] == {
+            "process_id": "save_result",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "format": "GTiff",
+                "options": {},
+            },
+            "result": True,
+        }
+        assert recwarn.list == []
+        assert caplog.records == []
+
+    @pytest.mark.parametrize(
+        ["out_format", "expected"],
+        [("GTiff", "GTiff"), ("NetCDF", "NetCDF")],
+    )
+    def test_execute_batch_out_format(
+        self, s2cube, get_create_job_pg, out_format, expected
+    ):
+        s2cube.execute_batch(out_format=out_format)
+        pg = get_create_job_pg()
+        assert set(pg.keys()) == {"loadcollection1", "saveresult1"}
+        assert pg["saveresult1"] == {
+            "process_id": "save_result",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "format": expected,
+                "options": {},
+            },
+            "result": True,
+        }
+
+    @pytest.mark.parametrize(
+        ["output_file", "expected"],
+        [("cube.tiff", "GTiff"), ("cube.nc", "netCDF")],
+    )
+    def test_execute_batch_out_format_from_output_file(
+        self, s2cube, get_create_job_pg, output_file, expected
+    ):
+        s2cube.execute_batch(outputfile=output_file)
+        pg = get_create_job_pg()
+        assert set(pg.keys()) == {"loadcollection1", "saveresult1"}
+        assert pg["saveresult1"] == {
+            "process_id": "save_result",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "format": expected,
+                "options": {},
+            },
+            "result": True,
+        }
+
+    @pytest.mark.parametrize(
+        ["save_result_format", "execute_format", "expected"],
+        [
+            ("GTiff", "GTiff", "GTiff"),
+            ("GTiff", None, "GTiff"),
+            ("NetCDF", "NetCDF", "NetCDF"),
+            ("NetCDF", None, "NetCDF"),
+        ],
+    )
+    def test_execute_batch_existing_save_result(
+        self,
+        s2cube,
+        get_create_job_pg,
+        save_result_format,
+        execute_format,
+        expected,
+    ):
+        cube = s2cube.save_result(format=save_result_format)
+        cube.execute_batch(out_format=execute_format)
+        pg = get_create_job_pg()
+        assert set(pg.keys()) == {"loadcollection1", "saveresult1"}
+        assert pg["saveresult1"] == {
+            "process_id": "save_result",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "format": expected,
+                "options": {},
+            },
+            "result": True,
+        }
+
+    @pytest.mark.parametrize(
+        ["save_result_format", "execute_format"],
+        [("NetCDF", "GTiff"), ("GTiff", "NetCDF")],
+    )
+    def test_execute_batch_existing_save_result_incompatible(
+        self, s2cube, save_result_format, execute_format
+    ):
+        cube = s2cube.save_result(format=save_result_format)
+        with pytest.raises(ValueError):
+            cube.execute_batch(out_format=execute_format)

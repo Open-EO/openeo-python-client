@@ -1,6 +1,6 @@
-===
-API
-===
+=============
+API (General)
+=============
 
 High level Interface
 --------------------
@@ -26,6 +26,9 @@ openeo.rest.datacube
    :members: DataCube
    :inherited-members:
    :special-members: __init__
+
+.. automodule:: openeo.rest._datacube
+   :members: UDF
 
 
 openeo.rest.vectorcube
@@ -55,7 +58,7 @@ openeo.api.logs
 -----------------
 
 .. automodule:: openeo.api.logs
-    :members: LogEntry
+    :members: LogEntry, normalize_log_level
 
 
 openeo.rest.connection
@@ -84,6 +87,13 @@ openeo.rest.udp
 
 .. automodule:: openeo.rest.udp
     :members: RESTUserDefinedProcess
+
+
+openeo.rest.userfile
+----------------------
+
+.. automodule:: openeo.rest.userfile
+    :members:
 
 
 openeo.udf
@@ -124,4 +134,3 @@ openeo.internal
 
 .. automodule:: openeo.internal.graph_building
     :members: PGNode
-

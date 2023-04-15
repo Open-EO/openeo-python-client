@@ -380,7 +380,7 @@ want to download with the ``name`` argument:
 
 .. code-block:: python
 
-    result.download_file("data/out/result.tiff", name="res002.tiff")
+    results.download_file("data/out/result.tiff", name="res002.tiff")
 
 
 Fine-grained asset downloads
@@ -411,4 +411,3 @@ For example, load a JSON asset with :py:meth:`~openeo.rest.job.ResultAsset.load_
     >>> data = asset.load_json()
     >>> data
     {"2021-02-24T10:59:23Z": [[3, 2, 5], [3, 4, 5]], ....}
-

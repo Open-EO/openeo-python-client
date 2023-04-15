@@ -60,6 +60,7 @@ Table of contents
    configuration
    cookbook/index
    api
+   api-processes
    process_mapping
    development
    best_practices

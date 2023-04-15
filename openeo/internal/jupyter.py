@@ -11,6 +11,7 @@ COMPONENT_MAP = {
     'file-formats': 'formats',
     'item': 'data',
     'job-estimate': 'estimate',
+    'model-builder': 'value',
     'service-type': 'service',
     'service-types': 'services',
     'udf-runtime': 'runtime',
@@ -101,6 +102,9 @@ def render_component(component: str, data = None, parameters: dict = None):
     # Set the data as the corresponding parameter in the Vue components
     key = COMPONENT_MAP.get(component, component)
     if data is not None:
+        if isinstance(data, list):
+            # TODO: make this `to_dict` usage more explicit with an internal API?
+            data = [(x.to_dict() if hasattr(x, "to_dict") else x) for x in data]
         parameters[key] = data
 
     # Construct HTML, load Vue Components source files only if the openEO HTML tag is not yet defined
