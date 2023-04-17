@@ -1,8 +1,8 @@
 import inspect
 import logging
-from typing import Union, Callable, List, Optional, Any
+from typing import Union, Callable, List, Optional, Any, Dict
 
-from openeo.internal.graph_building import PGNode, _FromNodeMixin
+from openeo.internal.graph_building import PGNode, _FromNodeMixin, FlatGraphableMixin
 from openeo.rest import OpenEoClientException
 
 UNSET = object()
@@ -23,7 +23,7 @@ def _to_pgnode_data(value: Any) -> Union[PGNode, dict, Any]:
         return value
 
 
-class ProcessBuilderBase(_FromNodeMixin):
+class ProcessBuilderBase(_FromNodeMixin, FlatGraphableMixin):
     """
     Base implementation of a builder pattern that allows constructing process graphs
     by calling functions.
@@ -52,7 +52,7 @@ class ProcessBuilderBase(_FromNodeMixin):
         }
         return cls(PGNode(process_id=process_id, arguments=arguments, namespace=namespace))
 
-    def flat_graph(self) -> dict:
+    def flat_graph(self) -> Dict[str, dict]:
         """Get the process graph in internal flat dict representation."""
         return self.pgnode.flat_graph()
 

@@ -7,13 +7,13 @@ import typing
 import uuid
 import warnings
 from pathlib import Path
-from typing import Union, Tuple, Optional
+from typing import Union, Tuple, Optional, Dict
 
 import requests
 
 import openeo.processes
 from openeo.internal.compat import nullcontext
-from openeo.internal.graph_building import PGNode, _FromNodeMixin
+from openeo.internal.graph_building import PGNode, _FromNodeMixin, FlatGraphableMixin
 from openeo.internal.jupyter import render_component
 from openeo.internal.warnings import UserDeprecationWarning
 from openeo.rest import OpenEoClientException
@@ -29,7 +29,7 @@ log = logging.getLogger(__name__)
 THIS = object()
 
 
-class _ProcessGraphAbstraction(_FromNodeMixin):
+class _ProcessGraphAbstraction(_FromNodeMixin, FlatGraphableMixin):
     """
     Base class for client-side abstractions/wrappers
     for structures that are represented by a openEO process graph:
@@ -43,7 +43,7 @@ class _ProcessGraphAbstraction(_FromNodeMixin):
     def __str__(self):
         return "{t}({pg})".format(t=self.__class__.__name__, pg=self._pg)
 
-    def flat_graph(self) -> dict:
+    def flat_graph(self) -> Dict[str, dict]:
         """
         Get the process graph in internal flat dict representation.
 
