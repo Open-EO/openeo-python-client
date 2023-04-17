@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Removed
+
+### Fixed
+
+
+
+## [0.16.0] - 2023-04-17 - "SRR5" release
+
+### Added
+
 - Full support for user-uploaded files (`/files` endpoints)
   ([#377](https://github.com/Open-EO/openeo-python-client/issues/377))
 - Initial, experimental "local processing" feature to use
