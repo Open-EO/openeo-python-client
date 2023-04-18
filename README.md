@@ -33,9 +33,6 @@ Allows you to interact with openEO backends from your own (local) Python environ
 
         pip install openeo
 
-* Installing with on-demand preview extra:
-        
-        pip install openeo[ondemandpreview]
 
 ## Usage
 
