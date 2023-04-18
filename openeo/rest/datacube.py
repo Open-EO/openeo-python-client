@@ -1939,7 +1939,7 @@ class DataCube(_ProcessGraphAbstraction):
                         "Additional modules must be installed for on demand viewer. Run `pip install openeo[ondemandpreview]` or refer to the documentation."
                     )
             else:
-                raise Exception("On demand preview only supported in Jupyter notebooks!")
+                raise Exception("On-demand preview only supported in Jupyter notebooks!")
         except NameError:
             raise Exception("On-demand preview only supported in Jupyter notebooks!")
         service = self.tiled_viewing_service("XYZ")
