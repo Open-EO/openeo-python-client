@@ -1941,7 +1941,7 @@ class DataCube(_ProcessGraphAbstraction):
             else:
                 raise Exception("On demand preview only supported in Jupyter notebooks!")
         except NameError:
-            raise Exception("On demand preview only supported in Jupyter notebooks!")
+            raise Exception("On-demand preview only supported in Jupyter notebooks!")
         service = self.tiled_viewing_service("XYZ")
         service_metadata = service.describe_service()
 
