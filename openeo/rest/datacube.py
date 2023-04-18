@@ -1963,8 +1963,22 @@ class DataCube(_ProcessGraphAbstraction):
                         [spatial_extent["north"], spatial_extent["east"]],
                     ]
                 )
-        display(m)
-        return m, service
+        
+        class Preview:
+            """
+            On-demand preview instance holding the associated XYZ service and ipyleaflet Map
+            """
+            def __init__(self, service: Service, ipyleaflet_map: ipyleaflet.Map):
+                self.service = service
+                self.map = ipyleaflet_map
+
+            def _repr_html_(self):
+                display(self.map)
+
+            def delete_service(self):
+                self.service.delete_service()
+
+        return Preview(service, m)
 
     def execute_batch(
         self,
