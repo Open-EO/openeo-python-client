@@ -12,7 +12,7 @@
 pythonPipeline {
   package_name = 'openeo'
   wipeout_workspace = true
-  python_version = ["3.6"]
+  python_version = ["3.8"]
   extras_require = 'dev'
   upload_dev_wheels = false
   wheel_repo = 'python-openeo'
