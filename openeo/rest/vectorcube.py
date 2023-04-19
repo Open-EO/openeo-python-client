@@ -132,20 +132,43 @@ class VectorCube(_ProcessGraphAbstraction):
             print=print, max_poll_interval=max_poll_interval, connection_retry_interval=connection_retry_interval
         )
 
-    def create_job(self, out_format=None, job_options=None, **format_options) -> BatchJob:
+    def create_job(
+        self,
+        out_format: Optional[str] = None,
+        *,
+        title: Optional[str] = None,
+        description: Optional[str] = None,
+        plan: Optional[str] = None,
+        budget: Optional[float] = None,
+        job_options: Optional[dict] = None,
+        **format_options,
+    ) -> BatchJob:
         """
         Sends a job to the backend and returns a ClientJob instance.
 
         :param out_format: String Format of the job result.
-        :param job_options:
+        :param title: job title
+        :param description: job description
+        :param plan: billing plan
+        :param budget: maximum cost the request is allowed to produce
+        :param job_options: A dictionary containing (custom) job options
         :param format_options: String Parameters for the job result format
-        :return: status: ClientJob resulting job.
+        :return: Created job.
         """
-        shp = self
+        # TODO: avoid using all kwargs as format_options
+        # TODO: centralize `create_job` for `DataCube`, `VectorCube`, `MlModel`, ...
+        cube = self
         if out_format:
             # add `save_result` node
-            shp = shp.save_result(format=out_format, options=format_options)
-        return self._connection.create_job(process_graph=shp.flat_graph(), additional=job_options)
+            cube = cube.save_result(format=out_format, options=format_options)
+        return self._connection.create_job(
+            process_graph=cube.flat_graph(),
+            title=title,
+            description=description,
+            plan=plan,
+            budget=budget,
+            additional=job_options,
+        )
 
     send_job = legacy_alias(create_job, name="send_job", since="0.10.0")
 

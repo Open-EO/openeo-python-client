@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Removed
+
+### Fixed
+
+
+
+## [0.16.0] - 2023-04-17 - "SRR5" release
+
+### Added
+
 - Full support for user-uploaded files (`/files` endpoints)
   ([#377](https://github.com/Open-EO/openeo-python-client/issues/377))
 - Initial, experimental "local processing" feature to use
@@ -29,6 +41,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   moved accordingly to the `VectorCube` class.
 - Improved documentation on `openeo.processes` and `ProcessBuilder`
   ([#390](https://github.com/Open-EO/openeo-python-client/issues/390)).
+- `DataCube.create_job()` and `Connection.create_job()` now require
+  keyword arguments for all but the first argument for clarity.
+  ([#412](https://github.com/Open-EO/openeo-python-client/issues/412)).
+- Pass minimum log level to backend when retrieving batch job and secondary service logs.
+  ([Open-EO/openeo-api#485](https://github.com/Open-EO/openeo-api/issues/485),
+  [Open-EO/openeo-python-driver#170](https://github.com/Open-EO/openeo-python-driver/issues/170))
+
 
 ### Removed
 
@@ -44,6 +63,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Reinstated old behavior of authentication related user files (e.g. refresh token store) on Windows: when `PrivateJsonFile` may be readable by others, just log a message instead of raising `PermissionError` ([387](https://github.com/Open-EO/openeo-python-client/issues/387))
+- `VectorCube.create_job()` and `MlModel.create_job()` are properly aligned with `DataCube.create_job()`
+  regarding setting job title, description, etc.
+  ([#412](https://github.com/Open-EO/openeo-python-client/issues/412)).
+- More robust handling of billing currency/plans in capabilities
+  ([#414](https://github.com/Open-EO/openeo-python-client/issues/414))
+- Avoid blindly adding a `save_result` node from `DataCube.execute_batch()` when there is already one
+  ([#401](https://github.com/Open-EO/openeo-python-client/issues/401))
 
 
 ## [0.15.0] - 2023-03-03

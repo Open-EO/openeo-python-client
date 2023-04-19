@@ -7,29 +7,34 @@ from pathlib import Path
 
 from openeo_pg_parser_networkx import ProcessRegistry
 from openeo_processes_dask.process_implementations.core import process
+import openeo_processes_dask.specs
+import openeo_processes_dask.process_implementations
 from openeo_pg_parser_networkx.process_registry import Process
 
-PROCESS_REGISTRY = ProcessRegistry(wrap_funcs=[process])
+def init_process_registry():
+    process_registry = ProcessRegistry(wrap_funcs=[process])
 
-# Import these pre-defined processes from openeo_processes_dask and register them into registry
-processes_from_module = [
-    func
-    for _, func in inspect.getmembers(
-        importlib.import_module("openeo_processes_dask.process_implementations"),
-        inspect.isfunction,
-    )
-]
+    # Import these pre-defined processes from openeo_processes_dask and register them into registry
+    processes_from_module = [
+        func
+        for _, func in inspect.getmembers(
+            openeo_processes_dask.process_implementations,
+            inspect.isfunction,
+        )
+    ]
 
-specs_module = importlib.import_module("openeo_processes_dask.specs")
-specs = {
-    func.__name__: getattr(specs_module, func.__name__)
-    for func in processes_from_module
-}
+    specs = {
+        func.__name__: getattr(openeo_processes_dask.specs, func.__name__)
+        for func in processes_from_module
+    }
 
-for func in processes_from_module:
-    PROCESS_REGISTRY[func.__name__] = Process(
-        spec=specs[func.__name__], implementation=func
-    )
+    for func in processes_from_module:
+        process_registry[func.__name__] = Process(
+            spec=specs[func.__name__], implementation=func
+        )
+    return process_registry
+
+PROCESS_REGISTRY = init_process_registry()
 
 _log = logging.getLogger(__name__)
 def load_local_collection(*args, **kwargs):
@@ -43,8 +48,15 @@ def load_local_collection(*args, **kwargs):
     elif '.nc' in collection.suffixes:
         data = xr.open_dataset(kwargs['id'],chunks={},decode_coords='all').to_array(dim='bands') # Add decode_coords='all' if the crs as a band gives some issues
     elif '.tiff' in collection.suffixes or '.tif' in collection.suffixes:
-        data = rioxarray.open_rasterio(kwargs['id']).rename({'band':'bands'})
+        data = rioxarray.open_rasterio(kwargs['id'],chunks={},band_as_variable=True)
+        for d in data.data_vars:
+            descriptions = [v for k, v in data[d].attrs.items() if k.lower() == "description"]
+            if descriptions:
+                data = data.rename({d: descriptions[0]})
+        data = data.to_array(dim='bands')
     return data
 
-from openeo_processes_dask.specs import load_collection as load_collection_spec
-PROCESS_REGISTRY["load_collection"] = Process(spec=load_collection_spec, implementation=load_local_collection)
+PROCESS_REGISTRY["load_collection"] = Process(
+    spec=openeo_processes_dask.specs.load_collection, 
+    implementation=load_local_collection,
+)

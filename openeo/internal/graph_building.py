@@ -13,6 +13,17 @@ from openeo.internal.process_graph_visitor import ProcessGraphVisitor, ProcessGr
 from openeo.util import dict_no_none, load_json_resource
 
 
+class FlatGraphableMixin(metaclass=abc.ABCMeta):
+    """
+    Mixin for classes that can be exported/converted to
+    a "flat graph" representation of a process graph.
+    """
+
+    @abc.abstractmethod
+    def flat_graph(self) -> Dict[str, dict]:
+        ...
+
+
 class _FromNodeMixin(abc.ABC):
     """Mixin for classes that want to hook into the generation of a "from_node" reference."""
 
@@ -20,12 +31,12 @@ class _FromNodeMixin(abc.ABC):
     def from_node(self) -> "PGNode":
         # TODO: "from_node" is a bit a confusing name:
         #       it refers to the "from_node" node reference in openEO process graphs,
-        #       but as a method name here it read like "construct from PGNode",
+        #       but as a method name here it reads like "construct from PGNode",
         #       while it is actually meant as "export as PGNode" (that can be used in a "from_node" reference).
         pass
 
 
-class PGNode(_FromNodeMixin):
+class PGNode(_FromNodeMixin, FlatGraphableMixin):
     """
     A process node in a process graph: has at least a process_id and arguments.
 
@@ -119,7 +130,7 @@ class PGNode(_FromNodeMixin):
 
         return _deep_copy(self)
 
-    def flat_graph(self) -> dict:
+    def flat_graph(self) -> Dict[str, dict]:
         """Get the process graph in internal flat dict representation."""
         return GraphFlattener().flatten(node=self)
 
@@ -147,15 +158,13 @@ class PGNode(_FromNodeMixin):
         return PGNodeGraphUnflattener.unflatten(flat_graph=flat_graph, parameters=parameters)
 
 
-def as_flat_graph(x: Union[dict, Any]) -> dict:
+def as_flat_graph(x: Union[dict, FlatGraphableMixin, Any]) -> Dict[str, dict]:
     """
     Convert given object to a internal flat dict graph representation.
     """
     if isinstance(x, dict):
         return x
-    elif hasattr(x, 'flat_graph'):
-        # TODO: define mixin/interface parent class for cleaner definition of this "flat_graph" API
-        # The "flat_graph" API (supported by `PGNode`, `DataCube`, `ProcessBuilderBase`, ...)
+    elif isinstance(x, FlatGraphableMixin):
         return x.flat_graph()
     elif isinstance(x, (str, Path)):
         # Assume a JSON resource (raw JSON, path to local file, JSON url, ...)
@@ -228,11 +237,11 @@ class GraphFlattener(ProcessGraphVisitor):
         super().__init__()
         self._node_id_generator = node_id_generator or FlatGraphNodeIdGenerator()
         self._last_node_id = None
-        self._flattened = {}
+        self._flattened: Dict[str, dict] = {}
         self._argument_stack = []
         self._node_cache = {}
 
-    def flatten(self, node: PGNode) -> dict:
+    def flatten(self, node: PGNode) -> Dict[str, dict]:
         """Consume given nested process graph and return flat dict representation"""
         self.accept_node(node)
         assert len(self._argument_stack) == 0

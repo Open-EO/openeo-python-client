@@ -1,7 +1,7 @@
 import typing
-from typing import List
+from typing import List, Optional, Union
 
-from openeo.api.logs import LogEntry
+from openeo.api.logs import LogEntry, log_level_name
 from openeo.internal.jupyter import VisualDict, VisualList
 
 if typing.TYPE_CHECKING:
@@ -40,9 +40,17 @@ class Service:
         # DELETE /services/{service_id}
         self.connection.delete("/services/{}".format(self.service_id), expected_status=204)
 
-    def logs(self, offset=None) -> List[LogEntry]:
-        """ Retrieve service logs."""
-        url = "/service/{}/logs".format(self.service_id)
-        logs = self.connection.get(url, params={'offset': offset}, expected_status=200).json()["logs"]
+    def logs(
+        self, offset: Optional[str] = None, level: Optional[Union[str, int]] = None
+    ) -> List[LogEntry]:
+        """Retrieve service logs."""
+        url = f"/service/{self.service_id}/logs"
+        params = {}
+        if offset is not None:
+            params["offset"] = offset
+        if level is not None:
+            params["level"] = log_level_name(level)
+        resp = self.connection.get(url, params=params, expected_status=200)
+        logs = resp.json()["logs"]
         entries = [LogEntry(log) for log in logs]
-        return VisualList('logs', data = entries)
+        return VisualList("logs", data=entries)

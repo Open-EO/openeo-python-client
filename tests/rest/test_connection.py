@@ -15,7 +15,7 @@ import requests_mock
 
 import openeo
 from openeo.capabilities import ComparableVersion, ApiVersionException
-from openeo.internal.graph_building import PGNode
+from openeo.internal.graph_building import PGNode, FlatGraphableMixin
 from openeo.rest import OpenEoApiError, OpenEoClientException, OpenEoRestError
 from openeo.rest.auth.auth import BearerAuth, NullAuth
 from openeo.rest.auth.oidc import OidcException
@@ -1996,12 +1996,19 @@ def test_default_timeout(requests_mock):
     assert conn.get("/foo", timeout=5).json() == '5'
 
 
+class DummyFlatGraphable(FlatGraphableMixin):
+    def flat_graph(self) -> typing.Dict[str, dict]:
+        return {"foo1": {"process_id": "foo"}}
 
-@pytest.mark.parametrize("pg", [
-    {"foo1": {"process_id": "foo"}},
-    {"process_graph": {"foo1": {"process_id": "foo"}}},
-    type("", (object,), {"flat_graph": (lambda: {"foo1": {"process_id": "foo"}})})
-])
+
+@pytest.mark.parametrize(
+    "pg",
+    [
+        {"foo1": {"process_id": "foo"}},
+        {"process_graph": {"foo1": {"process_id": "foo"}}},
+        DummyFlatGraphable(),
+    ],
+)
 def test_execute_100(requests_mock, pg):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     conn = Connection(API_URL)

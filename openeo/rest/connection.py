@@ -628,14 +628,14 @@ class Connection(RestApiConnection):
                         return _request()
             raise
 
-    def describe_account(self) -> str:
+    def describe_account(self) -> dict:
         """
         Describes the currently authenticated user account.
         """
         return self.get('/me', expected_status=200).json()
 
     @deprecated("use :py:meth:`list_jobs` instead", version="0.4.10")
-    def user_jobs(self) -> dict:
+    def user_jobs(self) -> List[dict]:
         return self.list_jobs()
 
     def list_collections(self) -> List[dict]:
@@ -1131,7 +1131,7 @@ class Connection(RestApiConnection):
             graph: Union[dict, str, Path],
             outputfile: Union[Path, str, None] = None,
             timeout: int = 30 * 60,
-    ):
+    ) -> Union[None, bytes]:
         """
         Downloads the result of a process graph synchronously,
         and save the result to the given file or return bytes object if no outputfile is specified.
@@ -1164,22 +1164,26 @@ class Connection(RestApiConnection):
         return self.post(path="/result", json=req, expected_status=200).json()
 
     def create_job(
-            self, process_graph: Union[dict, str, Path],
-            title: Optional[str] = None, description: Optional[str] = None,
-            plan: Optional[str] = None, budget: Optional[float] = None,
-            additional: Optional[dict] = None
+        self,
+        process_graph: Union[dict, str, Path],
+        *,
+        title: Optional[str] = None,
+        description: Optional[str] = None,
+        plan: Optional[str] = None,
+        budget: Optional[float] = None,
+        additional: Optional[dict] = None,
     ) -> BatchJob:
         """
-        Posts a job to the back end.
+        Create a new job from given process graph on the back-end.
 
         :param process_graph: (flat) dict representing a process graph, or process graph as raw JSON string,
             or as local file path or URL
-        :param title: String title of the job
-        :param description: String description of the job
+        :param title: job title
+        :param description: job description
         :param plan: billing plan
         :param budget: maximum cost the request is allowed to produce
         :param additional: additional job options to pass to the backend
-        :return: job_id: String Job id of the new created job
+        :return: Created job
         """
         # TODO move all this (BatchJob factory) logic to BatchJob?
         req = self._build_request_with_process_graph(

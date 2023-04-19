@@ -1,5 +1,8 @@
+from typing import List, Optional
+
 from openeo.capabilities import Capabilities
 from openeo.internal.jupyter import render_component
+from openeo.util import deep_get
 
 
 class RESTCapabilities(Capabilities):
@@ -12,6 +15,9 @@ class RESTCapabilities(Capabilities):
 
     def get(self, key: str, default=None):
         return self.capabilities.get(key, default)
+
+    def deep_get(self, *keys, default=None):
+        return deep_get(self.capabilities, *keys, default=default)
 
     def api_version(self) -> str:
         """ Get openEO version."""
@@ -36,13 +42,13 @@ class RESTCapabilities(Capabilities):
             for endpoint in self.capabilities.get("endpoints", [])
         )
 
-    def currency(self):
-        """ Get default billing currency."""
-        return self.capabilities.get('billing', {}).get('currency')
+    def currency(self) -> Optional[str]:
+        """Get default billing currency."""
+        return self.deep_get("billing", "currency", default=None)
 
-    def list_plans(self):
-        """ List all billing plans."""
-        return self.capabilities.get('billing', {}).get('plans')
+    def list_plans(self) -> List[dict]:
+        """List all billing plans."""
+        return self.deep_get("billing", "plans", default=[])
 
     def _repr_html_(self):
         return render_component("capabilities", data = self.capabilities, parameters = {"url": self.url})

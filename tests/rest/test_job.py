@@ -377,7 +377,7 @@ def test_get_job_logs_keeps_loglevel_that_is_higher_or_equal(
         },
     )
 
-    log_entries = con100.job("f00ba5").logs(log_level=log_level)
+    log_entries = con100.job("f00ba5").logs(level=log_level)
     assert len(log_entries) == exp_num_messages
 
 
