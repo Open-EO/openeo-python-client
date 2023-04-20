@@ -595,6 +595,7 @@ class OidcClientCredentialsAuthenticator(OidcAuthenticator):
     def _get_token_endpoint_post_data(self) -> dict:
         data = super()._get_token_endpoint_post_data()
         data["client_secret"] = self.client_secret
+        data["scope"] = self._client_info.provider.get_scopes_string()
         return data
 
 

@@ -555,7 +555,7 @@ def test_create_connection_lazy_refresh_token_store(requests_mock):
         requests_mock=requests_mock,
         expected_grant_type="client_credentials",
         expected_client_id=client_id,
-        expected_fields={"client_secret": client_secret},
+        expected_fields={"client_secret": client_secret, "scope": "openid"},
         oidc_issuer=issuer,
     )
 
@@ -809,7 +809,7 @@ def test_authenticate_oidc_client_credentials(requests_mock):
         requests_mock=requests_mock,
         expected_grant_type="client_credentials",
         expected_client_id=client_id,
-        expected_fields={"client_secret": client_secret},
+        expected_fields={"client_secret": client_secret, "scope": "openid"},
         oidc_issuer=issuer,
     )
 
@@ -846,7 +846,7 @@ def test_authenticate_oidc_client_credentials_client_from_config(requests_mock, 
         requests_mock=requests_mock,
         expected_grant_type="client_credentials",
         expected_client_id=client_id,
-        expected_fields={"client_secret": client_secret},
+        expected_fields={"client_secret": client_secret, "scope": "openid"},
         oidc_issuer=issuer,
     )
     auth_config.set_oidc_client_config(

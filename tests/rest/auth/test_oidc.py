@@ -311,7 +311,7 @@ def test_oidc_client_credentials_flow(requests_mock):
         requests_mock=requests_mock,
         expected_grant_type="client_credentials",
         expected_client_id=client_id,
-        expected_fields={"client_secret": client_secret},
+        expected_fields={"client_secret": client_secret, "scope": "openid"},
         oidc_issuer=oidc_issuer,
     )
 
