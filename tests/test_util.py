@@ -181,22 +181,34 @@ class TestRfc3339:
         with pytest.raises(ValueError):
             rfc3339.parse_date(date)
 
-    def test_parse_datetime(self):
-        assert rfc3339.parse_datetime("2011-12-13T14:15:16Z") == dt.datetime(
-            2011, 12, 13, 14, 15, 16
-        )
-        # `datetime.strptime` is apparently case-insensitive about non-placeholder bits
-        assert rfc3339.parse_datetime("2011-12-13t14:15:16z") == dt.datetime(
-            2011, 12, 13, 14, 15, 16
-        )
-        # `datetime.strptime` does not require leading zeros for month, day, hour, minutes, seconds
-        assert rfc3339.parse_datetime("0001-2-3T4:5:6Z") == dt.datetime(
-            1, 2, 3, 4, 5, 6
-        )
-        # Timezone handling
-        assert rfc3339.parse_datetime(
-            "2011-12-13T14:15:16Z", with_timezone=True
-        ) == dt.datetime(2011, 12, 13, 14, 15, 16, tzinfo=dt.timezone.utc)
+    @pytest.mark.parametrize(
+        ["input", "expected"],
+        [
+            ("2011-12-13T14:15:16Z", dt.datetime(2011, 12, 13, 14, 15, 16)),
+            # `datetime.strptime` is apparently case-insensitive about non-placeholder bits
+            ("2011-12-13t14:15:16z", dt.datetime(2011, 12, 13, 14, 15, 16)),
+            # `datetime.strptime` does not require leading zeros for month, day, hour, minutes, seconds
+            ("0001-2-3T4:5:6Z", dt.datetime(1, 2, 3, 4, 5, 6)),
+            # Support for fractional seconds
+            ("2011-12-13T14:15:16.789Z", dt.datetime(2011, 12, 13, 14, 15, 16, microsecond=789000)),
+        ],
+    )
+    def test_parse_datetime(self, input, expected):
+        assert rfc3339.parse_datetime(input) == expected
+
+    @pytest.mark.parametrize(
+        ["input", "expected"],
+        [
+            ("2011-12-13T14:15:16Z", dt.datetime(2011, 12, 13, 14, 15, 16, tzinfo=dt.timezone.utc)),
+            # Support for fractional seconds
+            (
+                "2011-12-13T14:15:16.789876Z",
+                dt.datetime(2011, 12, 13, 14, 15, 16, microsecond=789876, tzinfo=dt.timezone.utc),
+            ),
+        ],
+    )
+    def test_parse_datetime_with_timezone(self, input, expected):
+        assert rfc3339.parse_datetime(input, with_timezone=True) == expected
 
     def test_parse_datetime_none(self):
         with pytest.raises(ValueError):
@@ -226,21 +238,32 @@ class TestRfc3339:
         with pytest.raises(ValueError):
             rfc3339.parse_datetime(date)
 
-    def test_parse_date_or_datetime(self):
-        assert rfc3339.parse_date_or_datetime("2011-12-13") == dt.date(2011, 12, 13)
-        assert rfc3339.parse_date_or_datetime("0001-2-3") == dt.date(1, 2, 3)
-        assert rfc3339.parse_date_or_datetime("2011-12-13T14:15:16Z") == dt.datetime(
-            2011, 12, 13, 14, 15, 16
-        )
-        assert rfc3339.parse_date_or_datetime("2011-12-13t14:15:16z") == dt.datetime(
-            2011, 12, 13, 14, 15, 16
-        )
-        assert rfc3339.parse_date_or_datetime("0001-2-3T4:5:6Z") == dt.datetime(
-            1, 2, 3, 4, 5, 6
-        )
-        assert rfc3339.parse_date_or_datetime(
-            "2011-12-13T14:15:16Z", with_timezone=True
-        ) == dt.datetime(2011, 12, 13, 14, 15, 16, tzinfo=dt.timezone.utc)
+    @pytest.mark.parametrize(
+        ["input", "expected"],
+        [
+            ("2011-12-13", dt.date(2011, 12, 13)),
+            ("0001-2-3", dt.date(1, 2, 3)),
+            ("2011-12-13T14:15:16Z", dt.datetime(2011, 12, 13, 14, 15, 16)),
+            ("2011-12-13t14:15:16z", dt.datetime(2011, 12, 13, 14, 15, 16)),
+            ("2011-12-13T14:15:16.789Z", dt.datetime(2011, 12, 13, 14, 15, 16, microsecond=789000)),
+            ("0001-2-3T4:5:6Z", dt.datetime(1, 2, 3, 4, 5, 6)),
+        ],
+    )
+    def test_parse_date_or_datetime(self, input, expected):
+        assert rfc3339.parse_date_or_datetime(input) == expected
+
+    @pytest.mark.parametrize(
+        ["input", "expected"],
+        [
+            ("2011-12-13T14:15:16Z", dt.datetime(2011, 12, 13, 14, 15, 16, tzinfo=dt.timezone.utc)),
+            (
+                "2011-12-13T14:15:16.789789Z",
+                dt.datetime(2011, 12, 13, 14, 15, 16, microsecond=789789, tzinfo=dt.timezone.utc),
+            ),
+        ],
+    )
+    def test_parse_date_or_datetime_with_timezone(self, input, expected):
+        assert rfc3339.parse_date_or_datetime(input, with_timezone=True) == expected
 
     def test_parse_date_or_datetime_none(self):
         with pytest.raises(ValueError):

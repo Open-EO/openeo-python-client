@@ -131,8 +131,11 @@ class Rfc3339:
     ) -> Union[dt.datetime, None]:
         """Parse given string as RFC3339 date-time."""
         if isinstance(x, str):
-            # TODO: Also support other timezones than UTC (Z)
-            res = dt.datetime.strptime(x, "%Y-%m-%dT%H:%M:%SZ")
+            # TODO: Also support parsing other timezones than UTC (Z)
+            if re.search(r":\d+\.\d+", x):
+                res = dt.datetime.strptime(x, "%Y-%m-%dT%H:%M:%S.%fZ")
+            else:
+                res = dt.datetime.strptime(x, "%Y-%m-%dT%H:%M:%SZ")
             if with_timezone:
                 res = res.replace(tzinfo=dt.timezone.utc)
             return res

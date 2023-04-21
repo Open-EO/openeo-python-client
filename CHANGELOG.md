@@ -16,7 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Include "scope" parameter in OIDC token request with client credentials grant.
-
+- Support fractional seconds in `Rfc3339.parse_datetime`
+  ([#418](https://github.com/Open-EO/openeo-python-client/issues/418))
 
 ## [0.16.0] - 2023-04-17 - "SRR5" release
 
