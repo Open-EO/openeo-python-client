@@ -1,18 +1,38 @@
+import datetime as dt
 import json
 import logging
 import os
 import pathlib
 import re
 import unittest.mock as mock
-import datetime as dt
 from typing import List, Union
 
-import shapely.geometry
 import pytest
+import shapely.geometry
 
-from openeo.util import first_not_none, get_temporal_extent, TimingLogger, ensure_list, ensure_dir, dict_no_none, \
-    deep_get, DeepKeyError, Rfc3339, rfc3339, deep_set, \
-    LazyLoadCache, guess_format, ContextTimer, str_truncate, to_bbox_dict, BBoxDict, repr_truncate, url_join
+from openeo.util import (
+    BBoxDict,
+    ContextTimer,
+    DeepKeyError,
+    LazyLoadCache,
+    Rfc3339,
+    SimpleProgressBar,
+    TimingLogger,
+    clip,
+    deep_get,
+    deep_set,
+    dict_no_none,
+    ensure_dir,
+    ensure_list,
+    first_not_none,
+    get_temporal_extent,
+    guess_format,
+    repr_truncate,
+    rfc3339,
+    str_truncate,
+    to_bbox_dict,
+    url_join,
+)
 
 
 class TestRfc3339:
@@ -717,3 +737,32 @@ def test_url_join():
     assert url_join("http://d.test/", "foo/bar") == "http://d.test/foo/bar"
     assert url_join("http://d.test", "/foo/bar") == "http://d.test/foo/bar"
     assert url_join("http://d.test/", "/foo/bar") == "http://d.test/foo/bar"
+
+
+def test_clip():
+    assert clip(-3, -2, 8) == -2
+    assert clip(-1, -2, 8) == -1
+    assert clip(-1, min=-2, max=8) == -1
+    assert clip(1, -2, 8) == 1
+    assert clip(8, -2, 8) == 8
+    assert clip(18, -2, 8) == 8
+
+
+class TestSimpleProgressBar:
+    def test_basic(self):
+        pgb = SimpleProgressBar()
+        assert pgb.get(0.0) == "[--------------------------------------]"
+        assert pgb.get(0.1) == "[####----------------------------------]"
+        assert pgb.get(0.5) == "[###################-------------------]"
+        assert pgb.get(1.0) == "[######################################]"
+
+    def test_chars(self):
+        pgb = SimpleProgressBar(bar="%", fill="_", left="[[", right=">>>")
+        assert pgb.get(0.25) == "[[%%%%%%%%%__________________________>>>"
+
+    def test_clip_and_overflow(self):
+        pgb = SimpleProgressBar(bar="#%", fill="-_", left="[=", right="=]")
+        assert pgb.get(0.0) == "[=------------------------------------=]"
+        assert pgb.get(1.0) == "[=####################################=]"
+        assert pgb.get(-0.5) == "[=------------------------------------=]"
+        assert pgb.get(1.5) == "[=####################################=]"

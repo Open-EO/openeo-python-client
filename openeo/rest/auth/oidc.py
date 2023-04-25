@@ -4,12 +4,15 @@ OpenID Connect related functionality and helpers.
 """
 
 import base64
+import contextlib
 import enum
 import functools
 import hashlib
 import http.server
+import inspect
 import json
 import logging
+import math
 import random
 import string
 import threading
@@ -18,14 +21,15 @@ import urllib.parse
 import warnings
 import webbrowser
 from collections import namedtuple
-from queue import Queue, Empty
-from typing import Tuple, Callable, Union, List, Optional
+from queue import Empty, Queue
+from typing import Callable, List, Optional, Tuple, Union
 
 import requests
 
 import openeo
+from openeo.internal.jupyter import in_jupyter_context
 from openeo.rest import OpenEoClientException
-from openeo.util import dict_no_none, url_join
+from openeo.util import SimpleProgressBar, clip, dict_no_none, url_join
 
 log = logging.getLogger(__name__)
 
@@ -659,6 +663,93 @@ VerificationInfo = namedtuple(
 )
 
 
+def _like_print(display: Callable) -> Callable:
+    """Ensure that display function supports an `end` argument like `print`"""
+    if display is print or "end" in inspect.signature(display).parameters:
+        return display
+    else:
+        return lambda *args, end="\n", **kwargs: display(*args, **kwargs)
+
+
+class _BasicDeviceCodePollUi:
+    """
+    Basic (print + carriage return) implementation of the device code
+    polling loop UI (e.g. show progress bar and status).
+    """
+
+    def __init__(
+        self,
+        timeout: float,
+        elapsed: Callable[[], float],
+        max_width: int = 80,
+        display: Callable = print,
+    ):
+        self.timeout = timeout
+        self.elapsed = elapsed
+        self._max_width = max_width
+        self._status = "Authorization pending"
+        self._display = _like_print(display)
+        self._progress_bar = SimpleProgressBar(width=(max_width - 1) // 2)
+
+    def _instructions(self, info: VerificationInfo) -> str:
+        if info.verification_uri_complete:
+            return f"Visit {info.verification_uri_complete} to authenticate."
+        else:
+            return f"Visit {info.verification_uri} and enter user code {info.user_code!r} to authenticate."
+
+    def show_instructions(self, info: VerificationInfo) -> None:
+        self._display(self._instructions(info=info))
+
+    def set_status(self, status: str):
+        self._status = status
+
+    def show_progress(self, status: Optional[str] = None):
+        if status:
+            self.set_status(status)
+        progress_bar = self._progress_bar.get(fraction=1.0 - self.elapsed() / self.timeout)
+        text = f"{progress_bar} {self._status}"
+        self._display(f"{text[:self._max_width]: <{self._max_width}s}", end="\r")
+
+    def close(self):
+        self._display("", end="\n")
+
+
+class _JupyterDeviceCodePollUi(_BasicDeviceCodePollUi):
+    def __init__(
+        self,
+        timeout: float,
+        elapsed: Callable[[], float],
+        max_width: int = 80,
+    ):
+        super().__init__(timeout=timeout, elapsed=elapsed, max_width=max_width)
+        import IPython.display
+
+        self._instructions_display = IPython.display.display({"text/html": " "}, raw=True, display_id=True)
+        self._progress_display = IPython.display.display({"text/html": " "}, raw=True, display_id=True)
+
+    def _instructions(self, info: VerificationInfo) -> str:
+        url = info.verification_uri_complete if info.verification_uri_complete else info.verification_uri
+        instructions = f'Visit <a href="{url}" title="Authenticate at {url}">{url}</a>'
+        instructions += f' <a href="#" onclick="navigator.clipboard.writeText({url!r});return false;" title="Copy authentication URL to clipboard">&#128203;</a>'
+        if not info.verification_uri_complete:
+            instructions += f" and enter user code {info.user_code!r}"
+        instructions += " to authenticate."
+        return instructions
+
+    def show_instructions(self, info: VerificationInfo) -> None:
+        self._instructions_display.update({"text/html": self._instructions(info=info)}, raw=True)
+
+    def show_progress(self, status: Optional[str] = None):
+        # TODO Add emoticons to status?
+        if status:
+            self.set_status(status)
+        progress_bar = self._progress_bar.get(fraction=1.0 - self.elapsed() / self.timeout)
+        self._progress_display.update({"text/html": f"<code>{progress_bar}</code> {self._status}"}, raw=True)
+
+    def close(self):
+        pass
+
+
 class OidcDeviceAuthenticator(OidcAuthenticator):
     """
     Implementation of OAuth Device Authorization grant/flow
@@ -721,17 +812,8 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
     def get_tokens(self, request_refresh_token: bool = False) -> AccessTokenResult:
         # Get verification url and user code
         verification_info = self._get_verification_info(request_refresh_token=request_refresh_token)
-        if verification_info.verification_uri_complete:
-            self._display(
-                f"To authenticate: visit {verification_info.verification_uri_complete} ."
-            )
-        else:
-            self._display("To authenticate: visit {u} and enter the user code {c!r}.".format(
-                u=verification_info.verification_uri, c=verification_info.user_code)
-            )
 
         # Poll token endpoint
-        elapsed = create_timer()
         token_endpoint = self._provider_config['token_endpoint']
         post_data = {
             "client_id": self.client_id,
@@ -742,34 +824,54 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
             post_data["code_verifier"] = self._pkce.code_verifier
         else:
             post_data["client_secret"] = self.client_secret
+
         poll_interval = verification_info.interval
         log.debug("Start polling token endpoint (interval {i}s)".format(i=poll_interval))
-        while elapsed() <= self._max_poll_time:
-            time.sleep(poll_interval)
 
-            log.debug("Doing {g!r} token request {u!r} with post data fields {p!r} (client_id {c!r})".format(
-                g=self.grant_type, c=self.client_id, u=token_endpoint, p=list(post_data.keys()))
-            )
-            resp = self._requests.post(url=token_endpoint, data=post_data)
-            if resp.status_code == 200:
-                log.info("[{e:5.1f}s] Authorized successfully.".format(e=elapsed()))
-                self._display("Authorized successfully.")
-                return self._get_access_token_result(data=resp.json())
-            else:
-                try:
-                    error = resp.json()["error"]
-                except Exception:
-                    error = "unknown"
-                if error == "authorization_pending":
-                    log.info("[{e:5.1f}s] Authorization pending.".format(e=elapsed()))
-                elif error == "slow_down":
-                    log.info("[{e:5.1f}s] Polling too fast, will slow down.".format(e=elapsed()))
-                    poll_interval += 5
-                else:
-                    raise OidcException("Failed to retrieve access token at {u!r}: {s} {r!r} {t!r}".format(
-                        s=resp.status_code, r=resp.reason, u=token_endpoint, t=resp.text
-                    ))
+        elapsed = create_timer()
+        next_poll = elapsed() + poll_interval
+        # TODO: let poll UI determine sleep interval?
+        sleep = clip(self._max_poll_time / 100, min=1, max=5)
 
-        raise OidcException("Timeout exceeded {m:.1f}s while polling for access token at {u!r}".format(
-            u=token_endpoint, m=self._max_poll_time
-        ))
+        if in_jupyter_context():
+            poll_ui = _JupyterDeviceCodePollUi(timeout=self._max_poll_time, elapsed=elapsed)
+        else:
+            poll_ui = _BasicDeviceCodePollUi(timeout=self._max_poll_time, elapsed=elapsed, display=self._display)
+        poll_ui.show_instructions(info=verification_info)
+
+        with contextlib.closing(poll_ui):
+            while elapsed() <= self._max_poll_time:
+                poll_ui.show_progress()
+                time.sleep(sleep)
+
+                if elapsed() >= next_poll:
+                    log.debug(
+                        f"Doing {self.grant_type!r} token request {token_endpoint!r} with post data fields {list(post_data.keys())!r} (client_id {self.client_id!r})"
+                    )
+                    poll_ui.show_progress(status="Polling")
+                    resp = self._requests.post(url=token_endpoint, data=post_data, timeout=5)
+                    if resp.status_code == 200:
+                        log.info(f"[{elapsed():5.1f}s] Authorized successfully.")
+                        poll_ui.show_progress(status="Authorized successfully")
+                        # TODO remove progress bar when authorized succesfully?
+                        return self._get_access_token_result(data=resp.json())
+                    else:
+                        try:
+                            error = resp.json()["error"]
+                        except Exception:
+                            error = "unknown"
+                        log.info(f"[{elapsed():5.1f}s] not authorized yet: {error=}")
+                        if error == "authorization_pending":
+                            poll_ui.show_progress(status="Authorization pending")
+                        elif error == "slow_down":
+                            poll_ui.show_progress(status="Slowing down")
+                            poll_interval += 5
+                        else:
+                            # TODO: skip occasional glitches (e.g. see `SkipIntermittentFailures` from openeo-aggregator)
+                            raise OidcException(
+                                f"Failed to retrieve access token at {token_endpoint!r}: {resp.status_code} {resp.reason!r} {resp.text!r}"
+                            )
+                    next_poll = elapsed() + poll_interval
+
+            poll_ui.show_progress(status="Timed out")
+            raise OidcException(f"Timeout ({self._max_poll_time:.1f}s) while polling for access token.")

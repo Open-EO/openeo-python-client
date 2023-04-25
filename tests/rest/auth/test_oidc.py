@@ -1,6 +1,7 @@
 import contextlib
 import logging
 import re
+import time
 from io import BytesIO
 from queue import Queue
 from unittest import mock
@@ -348,10 +349,17 @@ def test_oidc_resource_owner_password_credentials_flow(requests_mock):
     assert oidc_mock.state["access_token"] == tokens.access_token
 
 
+
+class DeviceCodePollDisplay:
+    def __init__(self):
+        self.lines = []
+
+    def __call__(self, line: str, end: str = "\n"):
+        self.lines.append((time.time(), line, end))
+
+
 @pytest.mark.parametrize("support_verification_uri_complete", [False, True])
-def test_oidc_device_flow_with_client_secret(
-    requests_mock, caplog, support_verification_uri_complete
-):
+def test_oidc_device_flow_with_client_secret(requests_mock, caplog, support_verification_uri_complete, simple_time):
     client_id = "myclient"
     client_secret = "$3cr3t"
     oidc_issuer = "https://oidc.test"
@@ -366,37 +374,50 @@ def test_oidc_device_flow_with_client_secret(
         support_verification_uri_complete=support_verification_uri_complete,
     )
     provider = OidcProviderInfo(issuer=oidc_issuer, scopes=["df"])
-    display = []
+
+    display = DeviceCodePollDisplay()
     authenticator = OidcDeviceAuthenticator(
         client_info=OidcClientInfo(client_id=client_id, provider=provider, client_secret=client_secret),
-        display=display.append
+        display=display,
+        max_poll_time=20,
     )
-    with mock.patch.object(openeo.rest.auth.oidc.time, "sleep") as sleep:
-        with caplog.at_level(logging.INFO):
-            tokens = authenticator.get_tokens()
+    with caplog.at_level(logging.INFO):
+        tokens = authenticator.get_tokens()
+
     assert oidc_mock.state["access_token"] == tokens.access_token
     user_code = oidc_mock.state["user_code"]
-    if support_verification_uri_complete:
-        expected_msg = f"visit https://oidc.test/dc?user_code={user_code} ."
-    else:
-        expected_msg = (
-            f"visit https://oidc.test/dc and enter the user code {user_code!r}"
-        )
-    assert expected_msg in display[0]
 
-    assert display[1] == "Authorized successfully."
-    assert sleep.mock_calls == [mock.call(2), mock.call(2), mock.call(7)]
+    assert 5 < len(display.lines) < 20
+
+    if support_verification_uri_complete:
+        expected_instruction = f"Visit https://oidc.test/dc?user_code={user_code} to authenticate."
+    else:
+        expected_instruction = f"Visit https://oidc.test/dc and enter user code {user_code!r} to authenticate."
+    assert display.lines[0] == (1000, expected_instruction, "\n")
+
+    for expected_line in [
+        (1000, "[#####################################] Authorization pending                   ", "\r"),
+        (1002, "[#################################----] Polling                                 ", "\r"),
+        (1002, "[#################################----] Authorization pending                   ", "\r"),
+        (1004, "[##############################-------] Polling                                 ", "\r"),
+        (1004, "[##############################-------] Slowing down                            ", "\r"),
+        (1010, "[##################-------------------] Slowing down                            ", "\r"),
+    ]:
+        assert expected_line in display.lines
+
+    assert display.lines[-3:] == [
+        (1011, "[#################--------------------] Polling                                 ", "\r"),
+        (1011, "[#################--------------------] Authorized successfully                 ", "\r"),
+        (1011, "", "\n"),
+    ]
+
     assert re.search(
-        r"Authorization pending\..*Polling too fast, will slow down\..*Authorized successfully\.",
-        caplog.text,
-        flags=re.DOTALL
+        r"error='authorization_pending'.*error='slow_down'.*Authorized successfully", caplog.text, flags=re.DOTALL
     )
 
 
 @pytest.mark.parametrize("support_verification_uri_complete", [False, True])
-def test_oidc_device_flow_with_pkce(
-    requests_mock, caplog, support_verification_uri_complete
-):
+def test_oidc_device_flow_with_pkce(requests_mock, caplog, support_verification_uri_complete, simple_time):
     client_id = "myclient"
     oidc_issuer = "https://oidc.test"
     oidc_mock = OidcMock(
@@ -405,41 +426,71 @@ def test_oidc_device_flow_with_pkce(
         expected_client_id=client_id,
         oidc_issuer=oidc_issuer,
         expected_fields={"scope": "df openid", "code_challenge": True, "code_verifier": True},
-        state={"device_code_callback_timeline": ["authorization_pending", "slow_down", "great success"]},
+        state={
+            "device_code_callback_timeline": [
+                "authorization_pending",
+                "authorization_pending",
+                "authorization_pending",
+                "authorization_pending",
+                "authorization_pending",
+                "authorization_pending",
+                "authorization_pending",
+                "great success",
+            ]
+        },
         scopes_supported=["openid", "df"],
         support_verification_uri_complete=support_verification_uri_complete,
     )
     provider = OidcProviderInfo(issuer=oidc_issuer, scopes=["df"])
-    display = []
+    display = DeviceCodePollDisplay()
     authenticator = OidcDeviceAuthenticator(
         client_info=OidcClientInfo(client_id=client_id, provider=provider),
-        display=display.append,
-        use_pkce=True
+        display=display,
+        use_pkce=True,
+        max_poll_time=60,
     )
-    with mock.patch.object(openeo.rest.auth.oidc.time, "sleep") as sleep:
-        with caplog.at_level(logging.INFO):
-            tokens = authenticator.get_tokens()
+    with caplog.at_level(logging.INFO):
+        tokens = authenticator.get_tokens()
+
     assert oidc_mock.state["access_token"] == tokens.access_token
     user_code = oidc_mock.state["user_code"]
+
+    assert 5 < len(display.lines) < 40
+
     if support_verification_uri_complete:
-        expected_msg = f"visit https://oidc.test/dc?user_code={user_code} ."
+        expected_instruction = f"Visit https://oidc.test/dc?user_code={user_code} to authenticate."
     else:
-        expected_msg = (
-            f"visit https://oidc.test/dc and enter the user code {user_code!r}"
-        )
-    assert expected_msg in display[0]
-    assert display[1] == "Authorized successfully."
-    assert sleep.mock_calls == [mock.call(2), mock.call(2), mock.call(7)]
+        expected_instruction = f"Visit https://oidc.test/dc and enter user code {user_code!r} to authenticate."
+    assert display.lines[0] == (1000, expected_instruction, "\n")
+
+    for expected_line in [
+        (1000, "[#####################################] Authorization pending                   ", "\r"),
+        (1002, "[####################################-] Polling                                 ", "\r"),
+        (1002, "[####################################-] Authorization pending                   ", "\r"),
+        (1006, "[#################################----] Polling                                 ", "\r"),
+        (1006, "[#################################----] Authorization pending                   ", "\r"),
+        (1013, "[#############################--------] Authorization pending                   ", "\r"),
+        (1014, "[############################---------] Polling                                 ", "\r"),
+        (1014, "[############################---------] Authorization pending                   ", "\r"),
+    ]:
+        assert expected_line in display.lines
+
+    assert display.lines[-3:] == [
+        (1016, "[###########################----------] Polling                                 ", "\r"),
+        (1016, "[###########################----------] Authorized successfully                 ", "\r"),
+        (1016, "", "\n"),
+    ]
+
     assert re.search(
-        r"Authorization pending\..*Polling too fast, will slow down\..*Authorized successfully\.",
+        r"error='authorization_pending'.*error='authorization_pending'.*Authorized successfully",
         caplog.text,
-        flags=re.DOTALL
+        flags=re.DOTALL,
     )
 
 
 @pytest.mark.parametrize("support_verification_uri_complete", [False, True])
 def test_oidc_device_flow_without_pkce_nor_secret(
-    requests_mock, caplog, support_verification_uri_complete
+    requests_mock, caplog, support_verification_uri_complete, simple_time
 ):
     client_id = "myclient"
     oidc_issuer = "https://oidc.test"
@@ -449,34 +500,66 @@ def test_oidc_device_flow_without_pkce_nor_secret(
         expected_client_id=client_id,
         oidc_issuer=oidc_issuer,
         expected_fields={"scope": "df openid", "code_challenge": ABSENT, "code_verifier": ABSENT},
-        state={"device_code_callback_timeline": ["authorization_pending", "slow_down", "great success"]},
+        state={
+            "device_code_callback_timeline": [
+                "authorization_pending",
+                "slow_down",
+                "authorization_pending",
+                "authorization_pending",
+                "authorization_pending",
+                "authorization_pending",
+                "great success",
+            ]
+        },
         scopes_supported=["openid", "df"],
         support_verification_uri_complete=support_verification_uri_complete,
     )
     provider = OidcProviderInfo(issuer=oidc_issuer, scopes=["df"])
-    display = []
+    display = DeviceCodePollDisplay()
     authenticator = OidcDeviceAuthenticator(
         client_info=OidcClientInfo(client_id=client_id, provider=provider),
-        display=display.append,
+        display=display,
+        max_poll_time=150,
     )
-    with mock.patch.object(openeo.rest.auth.oidc.time, "sleep") as sleep:
-        with caplog.at_level(logging.INFO):
-            tokens = authenticator.get_tokens()
+
+    with caplog.at_level(logging.INFO):
+        tokens = authenticator.get_tokens()
+
     assert oidc_mock.state["access_token"] == tokens.access_token
     user_code = oidc_mock.state["user_code"]
+
+    assert 5 < len(display.lines) < 50
+
     if support_verification_uri_complete:
-        expected_msg = f"visit https://oidc.test/dc?user_code={user_code} ."
+        expected_instruction = f"Visit https://oidc.test/dc?user_code={user_code} to authenticate."
     else:
-        expected_msg = (
-            f"visit https://oidc.test/dc and enter the user code {user_code!r}"
-        )
-    assert expected_msg in display[0]
-    assert display[1] == "Authorized successfully."
-    assert sleep.mock_calls == [mock.call(2), mock.call(2), mock.call(7)]
+        expected_instruction = f"Visit https://oidc.test/dc and enter user code {user_code!r} to authenticate."
+    assert display.lines[0] == (1000, expected_instruction, "\n")
+
+    for expected_line in [
+        (1000.0, "[#####################################] Authorization pending                   ", "\r"),
+        (1001.5, "[#####################################] Authorization pending                   ", "\r"),
+        (1003.0, "[####################################-] Polling                                 ", "\r"),
+        (1003.0, "[####################################-] Authorization pending                   ", "\r"),
+        (1006.0, "[####################################-] Polling                                 ", "\r"),
+        (1006.0, "[####################################-] Slowing down                            ", "\r"),
+        (1012.0, "[##################################---] Slowing down                            ", "\r"),
+        (1013.5, "[##################################---] Polling                                 ", "\r"),
+        (1013.5, "[##################################---] Authorization pending                   ", "\r"),
+        (1028.5, "[##############################-------] Polling                                 ", "\r"),
+        (1028.5, "[##############################-------] Authorization pending                   ", "\r"),
+        (1042.0, "[###########################----------] Authorization pending                   ", "\r"),
+    ]:
+        assert expected_line in display.lines
+
+    assert display.lines[-3:] == [
+        (1043.5, "[##########################-----------] Polling                                 ", "\r"),
+        (1043.5, "[##########################-----------] Authorized successfully                 ", "\r"),
+        (1043.5, "", "\n"),
+    ]
+
     assert re.search(
-        r"Authorization pending\..*Polling too fast, will slow down\..*Authorized successfully\.",
-        caplog.text,
-        flags=re.DOTALL
+        r"error='authorization_pending'.*error='slow_down'.*Authorized successfully", caplog.text, flags=re.DOTALL
     )
 
 
@@ -527,6 +610,7 @@ def test_oidc_device_flow_auto_detect(
     client_secret,
     expected_fields,
     support_verification_uri_complete,
+    simple_time,
 ):
     """Autodetection of device auth grant mode: with secret, PKCE or neither."""
     oidc_issuer = "https://oidc.test"
@@ -540,6 +624,8 @@ def test_oidc_device_flow_auto_detect(
             "device_code_callback_timeline": [
                 "authorization_pending",
                 "slow_down",
+                "authorization_pending",
+                "authorization_pending",
                 "great success",
             ]
         },
@@ -560,30 +646,44 @@ def test_oidc_device_flow_auto_detect(
             },
         ],
     )
-    display = []
+    display = DeviceCodePollDisplay()
     authenticator = OidcDeviceAuthenticator(
         client_info=OidcClientInfo(client_id=client_id, provider=provider, client_secret=client_secret),
-        display=display.append,
+        display=display,
         use_pkce=use_pkce
     )
-    with mock.patch.object(openeo.rest.auth.oidc.time, "sleep") as sleep:
-        with caplog.at_level(logging.INFO):
-            tokens = authenticator.get_tokens()
+
+    with caplog.at_level(logging.INFO):
+        tokens = authenticator.get_tokens()
+
     assert oidc_mock.state["access_token"] == tokens.access_token
     user_code = oidc_mock.state["user_code"]
+
+    assert 10 < len(display.lines) < 50
+
     if support_verification_uri_complete:
-        expected_msg = f"visit https://oidc.test/dc?user_code={user_code} ."
+        expected_instruction = f"Visit https://oidc.test/dc?user_code={user_code} to authenticate."
     else:
-        expected_msg = (
-            f"visit https://oidc.test/dc and enter the user code {user_code!r}"
-        )
-    assert expected_msg in display[0]
-    assert display[1] == "Authorized successfully."
-    assert sleep.mock_calls == [mock.call(2), mock.call(2), mock.call(7)]
+        expected_instruction = f"Visit https://oidc.test/dc and enter user code {user_code!r} to authenticate."
+    assert display.lines[0] == (1000, expected_instruction, "\n")
+
+    for expected_line in [
+        (1000, "[#####################################] Authorization pending                   ", "\r"),
+        (1015, "[###################################--] Polling                                 ", "\r"),
+        (1015, "[###################################--] Authorization pending                   ", "\r"),
+        (1024, "[##################################---] Authorization pending                   ", "\r"),
+        (1027, "[##################################---] Authorization pending                   ", "\r"),
+    ]:
+        assert expected_line in display.lines
+
+    assert display.lines[-3:] == [
+        (1033, "[#################################----] Polling                                 ", "\r"),
+        (1033, "[#################################----] Authorized successfully                 ", "\r"),
+        (1033, "", "\n"),
+    ]
+
     assert re.search(
-        r"Authorization pending\..*Polling too fast, will slow down\..*Authorized successfully\.",
-        caplog.text,
-        flags=re.DOTALL
+        r"error='authorization_pending'.*error='slow_down'.*Authorized successfully", caplog.text, flags=re.DOTALL
     )
 
 
