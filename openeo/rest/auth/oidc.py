@@ -666,12 +666,14 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
 
     grant_type = "urn:ietf:params:oauth:grant-type:device_code"
 
+    DEFAULT_MAX_POLL_TIME = 5 * 60
+
     def __init__(
         self,
         client_info: OidcClientInfo,
         display: Callable[[str], None] = print,
         device_code_url: Optional[str] = None,
-        max_poll_time: float = 5 * 60,
+        max_poll_time: float = DEFAULT_MAX_POLL_TIME,
         use_pkce: Optional[bool] = None,
         requests_session: Optional[requests.Session] = None,
     ):

@@ -509,10 +509,16 @@ class Connection(RestApiConnection):
         )
 
     def authenticate_oidc_device(
-            self, client_id: str = None, client_secret: str = None, provider_id: str = None,
-            store_refresh_token=False, use_pkce: Union[bool, None] = None,
-            **kwargs
-    ) -> 'Connection':
+        self,
+        client_id: Optional[str] = None,
+        client_secret: Optional[str] = None,
+        provider_id: Optional[str] = None,
+        *,
+        store_refresh_token: bool = False,
+        use_pkce: Optional[bool] = None,
+        max_poll_time: float = OidcDeviceAuthenticator.DEFAULT_MAX_POLL_TIME,
+        **kwargs,
+    ) -> "Connection":
         """
         Authenticate with OAuth Device Authorization grant/flow
 
@@ -528,7 +534,9 @@ class Connection(RestApiConnection):
             provider_id=provider_id, client_id=client_id, client_secret=client_secret,
             default_client_grant_check=(lambda grants: _g.DEVICE_CODE in grants or _g.DEVICE_CODE_PKCE in grants),
         )
-        authenticator = OidcDeviceAuthenticator(client_info=client_info, use_pkce=use_pkce, **kwargs)
+        authenticator = OidcDeviceAuthenticator(
+            client_info=client_info, use_pkce=use_pkce, max_poll_time=max_poll_time, **kwargs
+        )
         return self._authenticate_oidc(authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token)
 
     def authenticate_oidc(
@@ -536,9 +544,11 @@ class Connection(RestApiConnection):
         provider_id: Optional[str] = None,
         client_id: Optional[str] = None,
         client_secret: Optional[str] = None,
+        *,
         store_refresh_token: bool = True,
         use_pkce: Optional[bool] = None,
         display: Callable[[str], None] = print,
+        max_poll_time: float = OidcDeviceAuthenticator.DEFAULT_MAX_POLL_TIME,
     ):
         """
         Do OpenID Connect authentication, first trying refresh tokens and falling back on device code flow.
@@ -578,7 +588,7 @@ class Connection(RestApiConnection):
         # TODO: make it possible to do other fallback flows too?
         _log.info("Trying device code flow.")
         authenticator = OidcDeviceAuthenticator(
-            client_info=client_info, use_pkce=use_pkce, display=display
+            client_info=client_info, use_pkce=use_pkce, display=display, max_poll_time=max_poll_time
         )
         con = self._authenticate_oidc(
             authenticator,
