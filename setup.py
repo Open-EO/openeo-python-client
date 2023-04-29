@@ -43,7 +43,7 @@ localprocessing_require = [
     "openeo_processes_dask>=2023.3.0",
 ]
 
-ondemandpreview_require = [
+jupyter_require = [
     "ipyleaflet",
     "ipython",
 ]
@@ -80,7 +80,7 @@ setup(
             "oschmod>=0.3.12"
         ],
         "localprocessing": localprocessing_require,
-        "ondemandpreview": ondemandpreview_require,
+        "jupyter": jupyter_require,
     },
     entry_points={
         "console_scripts": ["openeo-auth=openeo.rest.auth.cli:main"],

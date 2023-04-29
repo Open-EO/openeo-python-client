@@ -1927,21 +1927,22 @@ class DataCube(_ProcessGraphAbstraction):
         if "XYZ" not in self.connection.list_service_types():
             raise OpenEoClientException("Backend does not support service type 'XYZ'.")
 
-        # Check we are inside Jupyer Notebook
         try:
+            from IPython.core.getipython import get_ipython
+            from IPython.display import display
+            import ipyleaflet
+            
+            # Check we are inside Jupyer Notebook
             shell = get_ipython().__class__.__name__
-            if shell == "ZMQInteractiveShell":
-                try:
-                    from IPython.display import display
-                    import ipyleaflet
-                except ImportError:
-                    raise Exception(
-                        "Additional modules must be installed for on demand viewer. Run `pip install openeo[ondemandpreview]` or refer to the documentation."
-                    )
-            else:
+            if shell != "ZMQInteractiveShell":
                 raise Exception("On-demand preview only supported in Jupyter notebooks!")
+        except ImportError:
+            raise Exception(
+                "Additional modules must be installed for on demand viewer. Run `pip install openeo[jupyter]` or refer to the documentation."
+            )
         except NameError:
             raise Exception("On-demand preview only supported in Jupyter notebooks!")
+
         service = self.tiled_viewing_service("XYZ")
         service_metadata = service.describe_service()
 
