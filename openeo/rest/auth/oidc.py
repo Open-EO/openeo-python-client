@@ -860,7 +860,7 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
                             error = resp.json()["error"]
                         except Exception:
                             error = "unknown"
-                        log.info(f"[{elapsed():5.1f}s] not authorized yet: {error=}")
+                        log.info(f"[{elapsed():5.1f}s] not authorized yet: {error}")
                         if error == "authorization_pending":
                             poll_ui.show_progress(status="Authorization pending")
                         elif error == "slow_down":

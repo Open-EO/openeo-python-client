@@ -411,9 +411,7 @@ def test_oidc_device_flow_with_client_secret(requests_mock, caplog, support_veri
         (1011, "", "\n"),
     ]
 
-    assert re.search(
-        r"error='authorization_pending'.*error='slow_down'.*Authorized successfully", caplog.text, flags=re.DOTALL
-    )
+    assert re.search(r"authorization_pending.*slow_down.*Authorized successfully", caplog.text, flags=re.DOTALL)
 
 
 @pytest.mark.parametrize("support_verification_uri_complete", [False, True])
@@ -482,7 +480,7 @@ def test_oidc_device_flow_with_pkce(requests_mock, caplog, support_verification_
     ]
 
     assert re.search(
-        r"error='authorization_pending'.*error='authorization_pending'.*Authorized successfully",
+        r"authorization_pending.*authorization_pending.*Authorized successfully",
         caplog.text,
         flags=re.DOTALL,
     )
@@ -558,9 +556,7 @@ def test_oidc_device_flow_without_pkce_nor_secret(
         (1043.5, "", "\n"),
     ]
 
-    assert re.search(
-        r"error='authorization_pending'.*error='slow_down'.*Authorized successfully", caplog.text, flags=re.DOTALL
-    )
+    assert re.search(r"authorization_pending.*slow_down.*Authorized successfully", caplog.text, flags=re.DOTALL)
 
 
 @pytest.mark.parametrize(["mode", "client_id", "use_pkce", "client_secret", "expected_fields"], [
@@ -682,9 +678,7 @@ def test_oidc_device_flow_auto_detect(
         (1033, "", "\n"),
     ]
 
-    assert re.search(
-        r"error='authorization_pending'.*error='slow_down'.*Authorized successfully", caplog.text, flags=re.DOTALL
-    )
+    assert re.search(r"authorization_pending.*slow_down.*Authorized successfully", caplog.text, flags=re.DOTALL)
 
 
 def test_oidc_refresh_token_flow(requests_mock, caplog):
