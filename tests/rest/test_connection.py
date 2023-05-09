@@ -1839,7 +1839,7 @@ def test_list_file_formats(requests_mock):
 def test_list_file_formats_error(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     conn = Connection(API_URL)
-    m = requests_mock.get(API_URL + "file_formats", status_code=204, json={"message": "No content."})
+    m = requests_mock.get(API_URL + "file_formats", status_code=204)
     with pytest.raises(OpenEoRestError):
         conn.list_file_formats()
     assert m.call_count == 1
@@ -1864,7 +1864,7 @@ def test_list_service_types(requests_mock):
 def test_list_service_types_error(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     conn = Connection(API_URL)
-    m = requests_mock.get(API_URL + "service_types", status_code=204, json={"message": "No content."})
+    m = requests_mock.get(API_URL + "service_types", status_code=204)
     with pytest.raises(OpenEoRestError):
         conn.list_service_types()
     assert m.call_count == 1
@@ -1889,7 +1889,7 @@ def test_list_udf_runtimes(requests_mock):
 def test_list_udf_runtimes_error(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     conn = Connection(API_URL)
-    m = requests_mock.get(API_URL + "udf_runtimes", status_code=204, json={"message": "No content."})
+    m = requests_mock.get(API_URL + "udf_runtimes", status_code=204)
     with pytest.raises(OpenEoRestError):
         conn.list_udf_runtimes()
     assert m.call_count == 1
@@ -1940,7 +1940,7 @@ def test_list_processes(requests_mock):
 def test_list_processes_error(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     conn = Connection(API_URL)
-    m = requests_mock.get(API_URL + "processes", status_code=204, json={"message": "No content."})
+    m = requests_mock.get(API_URL + "processes", status_code=204)
     with pytest.raises(OpenEoRestError):
         conn.list_processes()
     assert m.call_count == 1
