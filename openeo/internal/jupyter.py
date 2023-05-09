@@ -82,6 +82,16 @@ TABLE_COLUMNS = {
 }
 
 
+def in_jupyter_context() -> bool:
+    """Check if we are running in an interactive Jupyter notebook context."""
+    try:
+        from ipykernel.zmqshell import ZMQInteractiveShell
+        from IPython.core.getipython import get_ipython
+    except ImportError:
+        return False
+    return isinstance(get_ipython(), ZMQInteractiveShell)
+
+
 def render_component(component: str, data = None, parameters: dict = None):
     parameters = parameters or {}
     # Special handling for batch job results, show either item or collection depending on the data

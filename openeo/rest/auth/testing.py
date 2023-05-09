@@ -316,13 +316,3 @@ class OidcMock:
             if (method is None or method.lower() == r.method.lower())
             and (url is None or url == r.url)
         ]
-
-@contextlib.contextmanager
-def assert_device_code_poll_sleep(expect_called=True):
-    """Fake sleeping, but check it was called with poll interval (or not)."""
-    with mock.patch("time.sleep") as sleep:
-        yield
-    if expect_called:
-        sleep.assert_called_with(DEVICE_CODE_POLL_INTERVAL)
-    else:
-        sleep.assert_not_called()
