@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Show progress bar while waiting for OIDC authentication with device code flow,
   including special mode for in Jupyter notebooks.
   ([#237](https://github.com/Open-EO/openeo-python-client/issues/237))
+- Basic support for `load_stac` process with `Connection.load_stac()`
+  ([#425](https://github.com/Open-EO/openeo-python-client/issues/))
 
 ### Changed
 

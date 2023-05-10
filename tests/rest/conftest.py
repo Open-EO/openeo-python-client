@@ -8,6 +8,10 @@ from unittest import mock
 import pytest
 import time_machine
 
+from openeo.rest.connection import Connection
+
+API_URL = "https://oeo.test/"
+
 
 @pytest.fixture(params=["1.0.0"])
 def api_version(request):
@@ -65,3 +69,10 @@ def oidc_device_code_flow_checker(time_machine, simple_time, fast_sleep, capsys)
         assert time_machine.coordinates.time() - start >= elapsed
 
     return assert_oidc_device_code_flow
+
+
+@pytest.fixture
+def con120(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.2.0"})
+    con = Connection(API_URL)
+    return con

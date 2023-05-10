@@ -1846,6 +1846,38 @@ def test_load_result_filters(requests_mock):
     }
 
 
+class TestLoadStac:
+    def test_basic(self, con120):
+        cube = con120.load_stac("https://provide.test/dataset")
+        assert cube.flat_graph() == {
+            "loadstac1": {
+                "process_id": "load_stac",
+                "arguments": {"url": "https://provide.test/dataset"},
+                "result": True,
+            }
+        }
+
+    def test_extents(self, con120):
+        cube = con120.load_stac(
+            "https://provide.test/dataset",
+            spatial_extent={"west": 1, "south": 2, "east": 3, "north": 4},
+            temporal_extent=["2023-05-10", "2023-06-01"],
+            bands=["B02", "B03"],
+        )
+        assert cube.flat_graph() == {
+            "loadstac1": {
+                "process_id": "load_stac",
+                "arguments": {
+                    "url": "https://provide.test/dataset",
+                    "spatial_extent": {"east": 3, "north": 4, "south": 2, "west": 1},
+                    "temporal_extent": ["2023-05-10", "2023-06-01"],
+                    "bands": ["B02", "B03"],
+                },
+                "result": True,
+            }
+        }
+
+
 def test_list_file_formats(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     conn = Connection(API_URL)
