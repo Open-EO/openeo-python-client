@@ -18,7 +18,7 @@ def _to_pgnode_data(value: Any, parent_process_id: Optional[str] = None) -> Unio
         return [_to_pgnode_data(item) for item in value]
     elif isinstance(value, Callable):
         parent_params = get_callback_parameters_from_process_id(process_id=parent_process_id)
-        pg = convert_callable_to_pgnode(value, parent_params=parent_params)
+        pg = convert_callable_to_pgnode(value, parent_parameters=parent_params)
         return PGNode.to_process_graph_argument(pg)
     else:
         # Fallback: assume value is valid process graph material already.
