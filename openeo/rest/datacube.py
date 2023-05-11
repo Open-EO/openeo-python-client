@@ -25,7 +25,7 @@ import openeo.processes
 from openeo.api.process import Parameter
 from openeo.internal.documentation import openeo_process
 from openeo.internal.graph_building import PGNode, ReduceNode, _FromNodeMixin
-from openeo.internal.processes.builder import get_parameter_names, convert_callable_to_pgnode
+from openeo.internal.processes.builder import get_parameter_names_from_callable, convert_callable_to_pgnode
 from openeo.internal.warnings import legacy_alias, UserDeprecationWarning, deprecated
 from openeo.metadata import CollectionMetadata, Band, BandDimension, TemporalDimension, SpatialDimension
 from openeo.processes import ProcessBuilder
@@ -923,7 +923,7 @@ class DataCube(_ProcessGraphAbstraction):
         elif isinstance(process, str):
             # Assume given reducer is a simple predefined reduce process_id
             if process in openeo.processes.__dict__:
-                process_params = get_parameter_names(openeo.processes.__dict__[process])
+                process_params = get_parameter_names_from_callable(openeo.processes.__dict__[process])
                 # TODO: switch to "Callable" handling here
             else:
                 # Best effort guess

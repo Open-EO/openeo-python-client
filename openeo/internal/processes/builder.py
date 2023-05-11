@@ -10,14 +10,15 @@ UNSET = object()
 _log = logging.getLogger(__name__)
 
 
-def _to_pgnode_data(value: Any) -> Union[PGNode, dict, Any]:
+def _to_pgnode_data(value: Any, parent_process_id: Optional[str] = None) -> Union[PGNode, dict, Any]:
     """Convert given value to valid process graph material"""
     if isinstance(value, ProcessBuilderBase):
         return value.pgnode
     elif isinstance(value, list):
         return [_to_pgnode_data(item) for item in value]
     elif isinstance(value, Callable):
-        pg = convert_callable_to_pgnode(value)
+        parent_params = get_callback_parameters_from_process_id(process_id=parent_process_id)
+        pg = convert_callable_to_pgnode(value, parent_params=parent_params)
         return PGNode.to_process_graph_argument(pg)
     else:
         # Fallback: assume value is valid process graph material already.
@@ -47,9 +48,7 @@ class ProcessBuilderBase(_FromNodeMixin, FlatGraphableMixin):
         """
         arguments = {**(arguments or {}), **kwargs}
         arguments = {
-            k: _to_pgnode_data(v)
-            for k, v in arguments.items()
-            if v is not UNSET
+            k: _to_pgnode_data(v, parent_process_id=process_id) for k, v in arguments.items() if v is not UNSET
         }
         return cls(PGNode(process_id=process_id, arguments=arguments, namespace=namespace))
 
@@ -62,7 +61,7 @@ class ProcessBuilderBase(_FromNodeMixin, FlatGraphableMixin):
         return self.pgnode
 
 
-def get_parameter_names(process: Callable) -> List[str]:
+def get_parameter_names_from_callable(process: Callable) -> List[str]:
     """Get argument (aka parameter) names of given function/callable."""
     signature = inspect.signature(process)
     return [
@@ -70,6 +69,28 @@ def get_parameter_names(process: Callable) -> List[str]:
         if p.kind in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
     ]
 
+
+def get_callback_parameters_from_process_id(process_id: str) -> Union[List[str], None]:
+    return {
+        # TODO: instead of hardcoding this mapping: pre-compile from official specs, or query specs from back-end?
+        "aggregate_spatial": ["data", "context"],
+        "aggregate_spatial_window": ["data", "context"],
+        "aggregate_temporal": ["data", "context"],
+        "aggregate_temporal_period": ["data", "context"],
+        "apply": ["x", "context"],
+        "apply_dimension": ["x", "context"],
+        "apply_neighborhood": ["x", "context"],
+        "array_apply": ["x", "index", "label", "context"],
+        "array_filter": ["x", "index", "label", "context"],
+        "count": ["x", "context"],
+        "filter_labels": ["value", "context"],
+        "fit_curve": ["x", "parameters"],
+        "load_collection": ["value"],
+        "merge_cubes": ["x", "y", "context"],
+        "predict_curve": ["x", "parameters"],
+        "reduce_dimension": ["data", "context"],
+        "reduce_spatial": ["data", "context"],
+    }.get(process_id)
 
 def convert_callable_to_pgnode(callback: Callable, parent_parameters: Optional[List[str]] = None) -> PGNode:
     """
@@ -84,7 +105,7 @@ def convert_callable_to_pgnode(callback: Callable, parent_parameters: Optional[L
     # TODO: eliminate local import (due to circular dependency)?
     from openeo.processes import ProcessBuilder
 
-    process_params = get_parameter_names(callback)
+    process_params = get_parameter_names_from_callable(callback)
     if parent_parameters is None:
         # Due to lack of parent parameter information,
         # we blindly use all callback's argument names as parameter names

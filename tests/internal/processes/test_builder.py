@@ -5,7 +5,11 @@ import pytest
 
 import openeo.processes
 from openeo.internal.graph_building import PGNode
-from openeo.internal.processes.builder import ProcessBuilderBase, get_parameter_names, convert_callable_to_pgnode
+from openeo.internal.processes.builder import (
+    ProcessBuilderBase,
+    get_parameter_names_from_callable,
+    convert_callable_to_pgnode,
+)
 from openeo.rest import OpenEoClientException
 
 
@@ -27,7 +31,7 @@ def test_get_parameter_names():
     def add_stuff(foo, bar, *args, **kwargs):
         return foo + bar + args + kwargs
 
-    assert get_parameter_names(add_stuff) == ["foo", "bar"]
+    assert get_parameter_names_from_callable(add_stuff) == ["foo", "bar"]
 
 
 class TestConvertCallableToPgnode:
