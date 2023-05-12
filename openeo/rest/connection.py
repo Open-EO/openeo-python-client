@@ -648,11 +648,9 @@ class Connection(RestApiConnection):
     def user_jobs(self) -> List[dict]:
         return self.list_jobs()
 
-    def list_collections(self, pattern: Optional[str] = None) -> List[dict]:
+    def list_collections(self) -> List[dict]:
         """
         List basic metadata of all collections provided by the back-end.
-
-        :param pattern: a pattern that matches the collections of interest, e.g. "sentinel"
 
         .. caution::
 
@@ -664,10 +662,6 @@ class Connection(RestApiConnection):
         """
         # TODO: add caching #383
         data = self.get('/collections', expected_status=200).json()["collections"]
-
-        if pattern is not None:
-            data = [collection for collection in data if 'id' in collection and pattern in collection['id']]
-
         return VisualList("collections", data=data)
 
     def list_collection_ids(self) -> List[str]:
