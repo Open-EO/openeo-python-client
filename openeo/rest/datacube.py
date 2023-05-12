@@ -946,6 +946,61 @@ class DataCube(_ProcessGraphAbstraction):
         return PGNode.to_process_graph_argument(pg)
 
     @openeo_process
+    def aggregate_spatial_window(
+        self,
+        reducer: Union[str, typing.Callable, PGNode],
+        size: List[int],
+        boundary: str = "pad",
+        align: str = "upper-left",
+        context: Optional[dict] = None,
+        # TODO arguments: target dimension, context
+    ) -> 'DataCube':
+        """
+        Aggregates statistics over the horizontal spatial dimensions (axes x and y) of the data cube.
+
+        The pixel grid for the axes x and y is divided into non-overlapping windows with the size
+        specified in the parameter size. If the number of values for the axes x and y is not a multiple
+        of the corresponding window size, the behavior specified in the parameters boundary and align
+        is applied. For each of these windows, the reducer process computes the result.
+
+        :param reducer: the "child callback":
+            the name of a single openEO process,
+            or a callback function as discussed in :ref:`callbackfunctions`,
+            or a :py:class:`UDF <openeo.rest._datacube.UDF>` instance.
+        :param size: Window size in pixels along the horizontal spatial dimensions.
+            The first value corresponds to the x axis, the second value corresponds to the y axis.
+        :param boundary: Behavior to apply if the number of values for the axes x and y is not a
+            multiple of the corresponding value in the size parameter.
+            Options are:
+                pad (default): pad the data cube with the no-data value null to fit the required window size.
+                trim: trim the data cube to fit the required window size.
+            Set the parameter align to specifies to which corner the data is aligned to.
+        :param align: If the data requires padding or trimming (see parameter boundary), specifies
+            to which corner of the spatial extent the data is aligned to. For example, if the data is
+            aligned to the upper left, the process pads/trims at the lower-right.
+        :param context: Additional data to be passed to the process.
+
+        :return: A data cube with the newly computed values and the same dimensions.
+        """
+        valid_boundary_types = ["pad","trim"]
+        valid_align_types = ["lower-left","upper-left","lower-right","upper-right"]
+        if boundary not in valid_boundary_types:
+            raise ValueError(f"Provided boundary type not supported. Please use one of {valid_boundary_types} .")
+        if align not in valid_align_types:
+            raise ValueError(f"Provided align type not supported. Please use one of {valid_align_types} .")
+        if len(size) != 2:
+            raise ValueError(f"Provided size not supported. Please provide a list of 2 integer values.")
+
+        reducer = self._get_callback(reducer, parent_parameters=["data"])
+        arguments = {"data": THIS,
+                     "boundary": boundary,
+                     "align": align,
+                     "size": size,
+                     "reducer":reducer}
+
+        return self.process(process_id="aggregate_spatial_window", arguments=arguments)
+
+    @openeo_process
     def apply_dimension(
         self,
         code: str = None,
