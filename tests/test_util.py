@@ -1,18 +1,38 @@
+import datetime as dt
 import json
 import logging
 import os
 import pathlib
 import re
 import unittest.mock as mock
-import datetime as dt
 from typing import List, Union
 
-import shapely.geometry
 import pytest
+import shapely.geometry
 
-from openeo.util import first_not_none, get_temporal_extent, TimingLogger, ensure_list, ensure_dir, dict_no_none, \
-    deep_get, DeepKeyError, Rfc3339, rfc3339, deep_set, \
-    LazyLoadCache, guess_format, ContextTimer, str_truncate, to_bbox_dict, BBoxDict, repr_truncate, url_join
+from openeo.util import (
+    BBoxDict,
+    ContextTimer,
+    DeepKeyError,
+    LazyLoadCache,
+    Rfc3339,
+    SimpleProgressBar,
+    TimingLogger,
+    clip,
+    deep_get,
+    deep_set,
+    dict_no_none,
+    ensure_dir,
+    ensure_list,
+    first_not_none,
+    get_temporal_extent,
+    guess_format,
+    repr_truncate,
+    rfc3339,
+    str_truncate,
+    to_bbox_dict,
+    url_join,
+)
 
 
 class TestRfc3339:
@@ -181,22 +201,34 @@ class TestRfc3339:
         with pytest.raises(ValueError):
             rfc3339.parse_date(date)
 
-    def test_parse_datetime(self):
-        assert rfc3339.parse_datetime("2011-12-13T14:15:16Z") == dt.datetime(
-            2011, 12, 13, 14, 15, 16
-        )
-        # `datetime.strptime` is apparently case-insensitive about non-placeholder bits
-        assert rfc3339.parse_datetime("2011-12-13t14:15:16z") == dt.datetime(
-            2011, 12, 13, 14, 15, 16
-        )
-        # `datetime.strptime` does not require leading zeros for month, day, hour, minutes, seconds
-        assert rfc3339.parse_datetime("0001-2-3T4:5:6Z") == dt.datetime(
-            1, 2, 3, 4, 5, 6
-        )
-        # Timezone handling
-        assert rfc3339.parse_datetime(
-            "2011-12-13T14:15:16Z", with_timezone=True
-        ) == dt.datetime(2011, 12, 13, 14, 15, 16, tzinfo=dt.timezone.utc)
+    @pytest.mark.parametrize(
+        ["input", "expected"],
+        [
+            ("2011-12-13T14:15:16Z", dt.datetime(2011, 12, 13, 14, 15, 16)),
+            # `datetime.strptime` is apparently case-insensitive about non-placeholder bits
+            ("2011-12-13t14:15:16z", dt.datetime(2011, 12, 13, 14, 15, 16)),
+            # `datetime.strptime` does not require leading zeros for month, day, hour, minutes, seconds
+            ("0001-2-3T4:5:6Z", dt.datetime(1, 2, 3, 4, 5, 6)),
+            # Support for fractional seconds
+            ("2011-12-13T14:15:16.789Z", dt.datetime(2011, 12, 13, 14, 15, 16, microsecond=789000)),
+        ],
+    )
+    def test_parse_datetime(self, input, expected):
+        assert rfc3339.parse_datetime(input) == expected
+
+    @pytest.mark.parametrize(
+        ["input", "expected"],
+        [
+            ("2011-12-13T14:15:16Z", dt.datetime(2011, 12, 13, 14, 15, 16, tzinfo=dt.timezone.utc)),
+            # Support for fractional seconds
+            (
+                "2011-12-13T14:15:16.789876Z",
+                dt.datetime(2011, 12, 13, 14, 15, 16, microsecond=789876, tzinfo=dt.timezone.utc),
+            ),
+        ],
+    )
+    def test_parse_datetime_with_timezone(self, input, expected):
+        assert rfc3339.parse_datetime(input, with_timezone=True) == expected
 
     def test_parse_datetime_none(self):
         with pytest.raises(ValueError):
@@ -226,21 +258,32 @@ class TestRfc3339:
         with pytest.raises(ValueError):
             rfc3339.parse_datetime(date)
 
-    def test_parse_date_or_datetime(self):
-        assert rfc3339.parse_date_or_datetime("2011-12-13") == dt.date(2011, 12, 13)
-        assert rfc3339.parse_date_or_datetime("0001-2-3") == dt.date(1, 2, 3)
-        assert rfc3339.parse_date_or_datetime("2011-12-13T14:15:16Z") == dt.datetime(
-            2011, 12, 13, 14, 15, 16
-        )
-        assert rfc3339.parse_date_or_datetime("2011-12-13t14:15:16z") == dt.datetime(
-            2011, 12, 13, 14, 15, 16
-        )
-        assert rfc3339.parse_date_or_datetime("0001-2-3T4:5:6Z") == dt.datetime(
-            1, 2, 3, 4, 5, 6
-        )
-        assert rfc3339.parse_date_or_datetime(
-            "2011-12-13T14:15:16Z", with_timezone=True
-        ) == dt.datetime(2011, 12, 13, 14, 15, 16, tzinfo=dt.timezone.utc)
+    @pytest.mark.parametrize(
+        ["input", "expected"],
+        [
+            ("2011-12-13", dt.date(2011, 12, 13)),
+            ("0001-2-3", dt.date(1, 2, 3)),
+            ("2011-12-13T14:15:16Z", dt.datetime(2011, 12, 13, 14, 15, 16)),
+            ("2011-12-13t14:15:16z", dt.datetime(2011, 12, 13, 14, 15, 16)),
+            ("2011-12-13T14:15:16.789Z", dt.datetime(2011, 12, 13, 14, 15, 16, microsecond=789000)),
+            ("0001-2-3T4:5:6Z", dt.datetime(1, 2, 3, 4, 5, 6)),
+        ],
+    )
+    def test_parse_date_or_datetime(self, input, expected):
+        assert rfc3339.parse_date_or_datetime(input) == expected
+
+    @pytest.mark.parametrize(
+        ["input", "expected"],
+        [
+            ("2011-12-13T14:15:16Z", dt.datetime(2011, 12, 13, 14, 15, 16, tzinfo=dt.timezone.utc)),
+            (
+                "2011-12-13T14:15:16.789789Z",
+                dt.datetime(2011, 12, 13, 14, 15, 16, microsecond=789789, tzinfo=dt.timezone.utc),
+            ),
+        ],
+    )
+    def test_parse_date_or_datetime_with_timezone(self, input, expected):
+        assert rfc3339.parse_date_or_datetime(input, with_timezone=True) == expected
 
     def test_parse_date_or_datetime_none(self):
         with pytest.raises(ValueError):
@@ -694,3 +737,32 @@ def test_url_join():
     assert url_join("http://d.test/", "foo/bar") == "http://d.test/foo/bar"
     assert url_join("http://d.test", "/foo/bar") == "http://d.test/foo/bar"
     assert url_join("http://d.test/", "/foo/bar") == "http://d.test/foo/bar"
+
+
+def test_clip():
+    assert clip(-3, -2, 8) == -2
+    assert clip(-1, -2, 8) == -1
+    assert clip(-1, min=-2, max=8) == -1
+    assert clip(1, -2, 8) == 1
+    assert clip(8, -2, 8) == 8
+    assert clip(18, -2, 8) == 8
+
+
+class TestSimpleProgressBar:
+    def test_basic(self):
+        pgb = SimpleProgressBar()
+        assert pgb.get(0.0) == "[--------------------------------------]"
+        assert pgb.get(0.1) == "[####----------------------------------]"
+        assert pgb.get(0.5) == "[###################-------------------]"
+        assert pgb.get(1.0) == "[######################################]"
+
+    def test_chars(self):
+        pgb = SimpleProgressBar(bar="%", fill="_", left="[[", right=">>>")
+        assert pgb.get(0.25) == "[[%%%%%%%%%__________________________>>>"
+
+    def test_clip_and_overflow(self):
+        pgb = SimpleProgressBar(bar="#%", fill="-_", left="[=", right="=]")
+        assert pgb.get(0.0) == "[=------------------------------------=]"
+        assert pgb.get(1.0) == "[=####################################=]"
+        assert pgb.get(-0.5) == "[=------------------------------------=]"
+        assert pgb.get(1.5) == "[=####################################=]"

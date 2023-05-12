@@ -62,8 +62,7 @@ class TestConvertCallableToPgnode:
             }
         }
 
-    def test_no_parent_parameter_info(self, caplog):
-        caplog.set_level(logging.WARNING)
+    def test_no_parent_parameter_info(self, recwarn):
 
         def my_callback(data, condition=False, context=None):
             return data.count(condition=condition, context=context)
@@ -82,8 +81,8 @@ class TestConvertCallableToPgnode:
         }
 
         assert re.search(
-            r"Guessing callback parameters.*my_callback.*arguments \['data', 'condition', 'context'\]",
-            caplog.text
+            r"Blindly using callback parameter names from.*my_callback.*argument names: \['data', 'condition', 'context'\]",
+            "\n".join(str(w.message) for w in recwarn.list),
         )
 
     def test_with_parent_parameter_info(self):

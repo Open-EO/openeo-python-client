@@ -509,10 +509,16 @@ class Connection(RestApiConnection):
         )
 
     def authenticate_oidc_device(
-            self, client_id: str = None, client_secret: str = None, provider_id: str = None,
-            store_refresh_token=False, use_pkce: Union[bool, None] = None,
-            **kwargs
-    ) -> 'Connection':
+        self,
+        client_id: Optional[str] = None,
+        client_secret: Optional[str] = None,
+        provider_id: Optional[str] = None,
+        *,
+        store_refresh_token: bool = False,
+        use_pkce: Optional[bool] = None,
+        max_poll_time: float = OidcDeviceAuthenticator.DEFAULT_MAX_POLL_TIME,
+        **kwargs,
+    ) -> "Connection":
         """
         Authenticate with OAuth Device Authorization grant/flow
 
@@ -528,7 +534,9 @@ class Connection(RestApiConnection):
             provider_id=provider_id, client_id=client_id, client_secret=client_secret,
             default_client_grant_check=(lambda grants: _g.DEVICE_CODE in grants or _g.DEVICE_CODE_PKCE in grants),
         )
-        authenticator = OidcDeviceAuthenticator(client_info=client_info, use_pkce=use_pkce, **kwargs)
+        authenticator = OidcDeviceAuthenticator(
+            client_info=client_info, use_pkce=use_pkce, max_poll_time=max_poll_time, **kwargs
+        )
         return self._authenticate_oidc(authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token)
 
     def authenticate_oidc(
@@ -536,9 +544,11 @@ class Connection(RestApiConnection):
         provider_id: Optional[str] = None,
         client_id: Optional[str] = None,
         client_secret: Optional[str] = None,
+        *,
         store_refresh_token: bool = True,
         use_pkce: Optional[bool] = None,
         display: Callable[[str], None] = print,
+        max_poll_time: float = OidcDeviceAuthenticator.DEFAULT_MAX_POLL_TIME,
     ):
         """
         Do OpenID Connect authentication, first trying refresh tokens and falling back on device code flow.
@@ -578,7 +588,7 @@ class Connection(RestApiConnection):
         # TODO: make it possible to do other fallback flows too?
         _log.info("Trying device code flow.")
         authenticator = OidcDeviceAuthenticator(
-            client_info=client_info, use_pkce=use_pkce, display=display
+            client_info=client_info, use_pkce=use_pkce, display=display, max_poll_time=max_poll_time
         )
         con = self._authenticate_oidc(
             authenticator,
@@ -1032,10 +1042,141 @@ class Connection(RestApiConnection):
             TemporalDimension(name='t', extent=[]),
             BandDimension(name="bands", bands=[Band("unknown")]),
         ])
-        cube = self.datacube_from_process(process_id="load_result", id=id,
-                                             **dict_no_none(spatial_extent=spatial_extent,
-                                                            temporal_extent=temporal_extent and DataCube._get_temporal_extent(
-                                                                temporal_extent), bands=bands))
+        cube = self.datacube_from_process(
+            process_id="load_result",
+            id=id,
+            **dict_no_none(
+                spatial_extent=spatial_extent,
+                temporal_extent=temporal_extent and DataCube._get_temporal_extent(temporal_extent),
+                bands=bands,
+            ),
+        )
+        cube.metadata = metadata
+        return cube
+
+    def load_stac(
+        self,
+        url: str,
+        spatial_extent: Optional[Dict[str, float]] = None,
+        temporal_extent: Optional[List[Union[str, datetime.datetime, datetime.date]]] = None,
+        bands: Optional[List[str]] = None,
+        properties: Optional[dict] = None,
+    ) -> DataCube:
+        """
+        Loads data from a static STAC catalog or a STAC API Collection and returns the data as a processable :py:class:`DataCube`.
+        A batch job result can be loaded by providing a reference to it.
+
+        If supported by the underlying metadata and file format, the data that is added to the data cube can be
+        restricted with the parameters ``spatial_extent``, ``temporal_extent`` and ``bands``.
+        If no data is available for the given extents, a ``NoDataAvailable`` error is thrown.
+
+        Remarks:
+
+        * The bands (and all dimensions that specify nominal dimension labels) are expected to be ordered as
+          specified in the metadata if the ``bands`` parameter is set to ``null``.
+        * If no additional parameter is specified this would imply that the whole data set is expected to be loaded.
+          Due to the large size of many data sets, this is not recommended and may be optimized by back-ends to only
+          load the data that is actually required after evaluating subsequent processes such as filters.
+          This means that the values should be processed only after the data has been limited to the required extent
+          and as a consequence also to a manageable size.
+
+
+        :param url: The URL to a static STAC catalog (STAC Item, STAC Collection, or STAC Catalog)
+            or a specific STAC API Collection that allows to filter items and to download assets.
+            This includes batch job results, which itself are compliant to STAC.
+            For external URLs, authentication details such as API keys or tokens may need to be included in the URL.
+
+            Batch job results can be specified in two ways:
+
+            - For Batch job results at the same back-end, a URL pointing to the corresponding batch job results
+              endpoint should be provided. The URL usually ends with ``/jobs/{id}/results`` and ``{id}``
+              is the corresponding batch job ID.
+            - For external results, a signed URL must be provided. Not all back-ends support signed URLs,
+              which are provided as a link with the link relation `canonical` in the batch job result metadata.
+        :param spatial_extent:
+            Limits the data to load to the specified bounding box or polygons.
+
+            For raster data, the process loads the pixel into the data cube if the point at the pixel center intersects
+            with the bounding box or any of the polygons (as defined in the Simple Features standard by the OGC).
+
+            For vector data, the process loads the geometry into the data cube if the geometry is fully within the
+            bounding box or any of the polygons (as defined in the Simple Features standard by the OGC).
+            Empty geometries may only be in the data cube if no spatial extent has been provided.
+
+            The GeoJSON can be one of the following feature types:
+
+            * A ``Polygon`` or ``MultiPolygon`` geometry,
+            * a ``Feature`` with a ``Polygon`` or ``MultiPolygon`` geometry, or
+            * a ``FeatureCollection`` containing at least one ``Feature`` with ``Polygon`` or ``MultiPolygon`` geometries.
+
+            Set this parameter to ``None`` to set no limit for the spatial extent.
+            Be careful with this when loading large datasets. It is recommended to use this parameter instead of
+            using ``filter_bbox()`` or ``filter_spatial()`` directly after loading unbounded data.
+
+        :param temporal_extent:
+            Limits the data to load to the specified left-closed temporal interval.
+            Applies to all temporal dimensions.
+            The interval has to be specified as an array with exactly two elements:
+
+            1.  The first element is the start of the temporal interval.
+                The specified instance in time is **included** in the interval.
+            2.  The second element is the end of the temporal interval.
+                The specified instance in time is **excluded** from the interval.
+
+            The second element must always be greater/later than the first element.
+            Otherwise, a `TemporalExtentEmpty` exception is thrown.
+
+            Also supports open intervals by setting one of the boundaries to ``None``, but never both.
+
+            Set this parameter to ``None`` to set no limit for the temporal extent.
+            Be careful with this when loading large datasets. It is recommended to use this parameter instead of
+            using ``filter_temporal()`` directly after loading unbounded data.
+
+        :param bands:
+            Only adds the specified bands into the data cube so that bands that don't match the list
+            of band names are not available. Applies to all dimensions of type `bands`.
+
+            Either the unique band name (metadata field ``name`` in bands) or one of the common band names
+            (metadata field ``common_name`` in bands) can be specified.
+            If the unique band name and the common name conflict, the unique band name has a higher priority.
+
+            The order of the specified array defines the order of the bands in the data cube.
+            If multiple bands match a common name, all matched bands are included in the original order.
+
+            It is recommended to use this parameter instead of using ``filter_bands()`` directly after loading unbounded data.
+
+        :param properties:
+            Limits the data by metadata properties to include only data in the data cube which
+            all given conditions return ``True`` for (AND operation).
+
+            Specify key-value-pairs with the key being the name of the metadata property,
+            which can be retrieved with the openEO Data Discovery for Collections.
+            The value must be a condition (user-defined process) to be evaluated against a STAC API.
+            This parameter is not supported for static STAC.
+
+        .. versionadded:: 0.17.0
+        """
+        # TODO: detect actual metadata from URL
+        metadata = CollectionMetadata(
+            {},
+            dimensions=[
+                SpatialDimension(name="x", extent=[]),
+                SpatialDimension(name="y", extent=[]),
+                TemporalDimension(name="t", extent=[]),
+                BandDimension(name="bands", bands=[Band("unknown")]),
+            ],
+        )
+        arguments = {"url": url}
+        # TODO: more normalization/validation of extent/band parameters and `properties`
+        if spatial_extent:
+            arguments["spatial_extent"] = spatial_extent
+        if temporal_extent:
+            arguments["temporal_extent"] = DataCube._get_temporal_extent(temporal_extent)
+        if bands:
+            arguments["bands"] = bands
+        if properties:
+            arguments["properties"] = properties
+        cube = self.datacube_from_process(process_id="load_stac", **arguments)
         cube.metadata = metadata
         return cube
 

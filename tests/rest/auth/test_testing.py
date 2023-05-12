@@ -13,7 +13,7 @@ class TestOidcMock:
             requests_mock=requests_mock,
             oidc_issuer=oidc_issuer,
             expected_grant_type="client_credentials",
-            expected_fields={"client_secret": "$ecr6t"},
+            expected_fields={"client_secret": "$ecr6t", "scope": "openid"},
         )
         assert [r.url for r in oidc_mock.get_request_history()] == []
 

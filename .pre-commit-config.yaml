@@ -9,7 +9,8 @@ repos:
       - id: check-added-large-files
       - id: check-json
       - id: check-yaml
+      - id: check-toml
   - repo: https://github.com/akaihola/darker
-    rev: 1.7.0
+    rev: 1.7.1
     hooks:
       - id: darker
