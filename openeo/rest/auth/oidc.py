@@ -669,9 +669,9 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
         self,
         client_info: OidcClientInfo,
         display: Callable[[str], None] = print,
-        device_code_url: str = None,
-        max_poll_time=5 * 60,
-        use_pkce: Union[bool, None] = None,
+        device_code_url: Optional[str] = None,
+        max_poll_time: float = 5 * 60,
+        use_pkce: Optional[bool] = None,
         requests_session: Optional[requests.Session] = None,
     ):
         super().__init__(client_info=client_info, requests_session=requests_session)

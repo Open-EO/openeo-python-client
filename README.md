@@ -4,6 +4,7 @@
 [![Lint](https://github.com/Open-EO/openeo-python-client/actions/workflows/lint.yml/badge.svg?branch=master)](https://github.com/Open-EO/openeo-python-client/actions/workflows/lint.yml)
 [![Tests](https://github.com/Open-EO/openeo-python-client/actions/workflows/unittests.yml/badge.svg?branch=master)](https://github.com/Open-EO/openeo-python-client/actions/workflows/unittests.yml)
 [![PyPI](https://img.shields.io/pypi/v/openeo)](https://pypi.org/project/openeo/)
+[![Conda (channel only)](https://img.shields.io/conda/vn/conda-forge/openeo)](https://anaconda.org/conda-forge/openeo)
 
 
 

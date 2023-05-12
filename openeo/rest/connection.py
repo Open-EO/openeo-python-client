@@ -8,7 +8,7 @@ import shlex
 import sys
 import warnings
 from collections import OrderedDict
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Dict, List, Tuple, Union, Callable, Optional, Any, Iterator
 from urllib.parse import urljoin
 
@@ -31,8 +31,8 @@ from openeo.rest.auth.oidc import OidcClientCredentialsAuthenticator, OidcAuthCo
     OidcClientInfo, OidcAuthenticator, OidcRefreshTokenAuthenticator, OidcResourceOwnerPasswordAuthenticator, \
     OidcDeviceAuthenticator, OidcProviderInfo, OidcException, DefaultOidcClientGrant, GrantsChecker
 from openeo.rest.datacube import DataCube
-from openeo.rest.imagecollectionclient import ImageCollectionClient
 from openeo.rest.mlmodel import MlModel
+from openeo.rest.userfile import UserFile
 from openeo.rest.job import BatchJob, RESTJob
 from openeo.rest.rest_capabilities import RESTCapabilities
 from openeo.rest.service import Service
@@ -214,7 +214,7 @@ class Connection(RestApiConnection):
     Connection to an openEO backend.
     """
 
-    _MINIMUM_API_VERSION = ComparableVersion("0.4.0")
+    _MINIMUM_API_VERSION = ComparableVersion("1.0.0")
 
     def __init__(
             self, url: str, auth: AuthBase = None, session: requests.Session = None, default_timeout: int = None,
@@ -237,10 +237,7 @@ class Connection(RestApiConnection):
         self._capabilities_cache = LazyLoadCache()
 
         # Initial API version check.
-        if self._api_version.below(self._MINIMUM_API_VERSION):
-            raise ApiVersionException("OpenEO API version should be at least {m!s}, but got {v!s}".format(
-                m=self._MINIMUM_API_VERSION, v=self._api_version)
-            )
+        self._api_version.require_at_least(self._MINIMUM_API_VERSION)
 
         self._auth_config = auth_config
         self._refresh_token_store = refresh_token_store
@@ -298,10 +295,7 @@ class Connection(RestApiConnection):
             auth=HTTPBasicAuth(username, password)
         ).json()
         # Switch to bearer based authentication in further requests.
-        if self._api_version.at_least("1.0.0"):
-            self.auth = BasicBearerAuth(access_token=resp["access_token"])
-        else:
-            self.auth = BearerAuth(bearer=resp["access_token"])
+        self.auth = BasicBearerAuth(access_token=resp["access_token"])
         return self
 
     def _get_oidc_provider(self, provider_id: Union[str, None] = None) -> Tuple[str, OidcProviderInfo]:
@@ -312,46 +306,43 @@ class Connection(RestApiConnection):
             Can be None if there is just one provider.
         :return: updated provider_id and provider info object
         """
-        if self._api_version.at_least("1.0.0"):
-            oidc_info = self.get("/credentials/oidc", expected_status=200).json()
-            providers = OrderedDict((p["id"], p) for p in oidc_info["providers"])
-            if len(providers) < 1:
-                raise OpenEoClientException("Backend lists no OIDC providers.")
-            _log.info("Found OIDC providers: {p}".format(p=list(providers.keys())))
-            if provider_id:
-                if provider_id not in providers:
-                    raise OpenEoClientException(
-                        "Requested OIDC provider {r!r} not available. Should be one of {p}.".format(
-                            r=provider_id, p=list(providers.keys())
-                        )
+        oidc_info = self.get("/credentials/oidc", expected_status=200).json()
+        providers = OrderedDict((p["id"], p) for p in oidc_info["providers"])
+        if len(providers) < 1:
+            raise OpenEoClientException("Backend lists no OIDC providers.")
+        _log.info("Found OIDC providers: {p}".format(p=list(providers.keys())))
+        if provider_id:
+            if provider_id not in providers:
+                raise OpenEoClientException(
+                    "Requested OIDC provider {r!r} not available. Should be one of {p}.".format(
+                        r=provider_id, p=list(providers.keys())
                     )
-                provider = providers[provider_id]
-            elif len(providers) == 1:
-                provider_id, provider = providers.popitem()
-                _log.info("No OIDC provider given, but only one available: {p!r}. Using that one.".format(
-                    p=provider_id
-                ))
-            else:
-                # Check if there is a single provider in the config to use.
-                backend = self._orig_url
-                provider_configs = self._get_auth_config().get_oidc_provider_configs(backend=backend)
-                intersection = set(provider_configs.keys()).intersection(providers.keys())
-                if len(intersection) == 1:
-                    provider_id = intersection.pop()
-                    provider = providers[provider_id]
-                    _log.info(
-                        "No OIDC provider given, but only one in config (for backend {b!r}): {p!r}."
-                        " Using that one.".format(b=backend, p=provider_id)
-                    )
-                else:
-                    provider_id, provider = providers.popitem(last=False)
-                    _log.info("No OIDC provider given. Using first provider {p!r} as advertised by backend.".format(
-                        p=provider_id
-                    ))
-            provider = OidcProviderInfo.from_dict(provider)
+                )
+            provider = providers[provider_id]
+        elif len(providers) == 1:
+            provider_id, provider = providers.popitem()
+            _log.info(
+                f"No OIDC provider given, but only one available: {provider_id!r}. Using that one."
+            )
         else:
-            # Per spec: '/credentials/oidc' will redirect to  OpenID Connect discovery document
-            provider = OidcProviderInfo(discovery_url=self.build_url('/credentials/oidc'))
+            # Check if there is a single provider in the config to use.
+            backend = self._orig_url
+            provider_configs = self._get_auth_config().get_oidc_provider_configs(
+                backend=backend
+            )
+            intersection = set(provider_configs.keys()).intersection(providers.keys())
+            if len(intersection) == 1:
+                provider_id = intersection.pop()
+                provider = providers[provider_id]
+                _log.info(
+                    f"No OIDC provider given, but only one in config (for backend {backend!r}): {provider_id!r}. Using that one."
+                )
+            else:
+                provider_id, provider = providers.popitem(last=False)
+                _log.info(
+                    f"No OIDC provider given. Using first provider {provider_id!r} as advertised by backend."
+                )
+        provider = OidcProviderInfo.from_dict(provider)
         return provider_id, provider
 
     def _get_oidc_provider_and_client_info(
@@ -417,17 +408,16 @@ class Connection(RestApiConnection):
             else:
                 _log.warning("No OIDC refresh token to store.")
         token = tokens.access_token
-        if self._api_version.at_least("1.0.0"):
-            if refreshable:
-                refresh_data = OidcRefreshInfo(
-                    provider_id=provider_id,
-                    client_id=authenticator.client_id,
-                )
-            else:
-                refresh_data = None
-            self.auth = OidcBearerAuth(provider_id=provider_id, access_token=token, refresh_data=refresh_data)
+        if refreshable:
+            refresh_data = OidcRefreshInfo(
+                provider_id=provider_id,
+                client_id=authenticator.client_id,
+            )
         else:
-            self.auth = BearerAuth(bearer=token)
+            refresh_data = None
+        self.auth = OidcBearerAuth(
+            provider_id=provider_id, access_token=token, refresh_data=refresh_data
+        )
         return self
 
     def authenticate_oidc_authorization_code(
@@ -542,11 +532,13 @@ class Connection(RestApiConnection):
         return self._authenticate_oidc(authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token)
 
     def authenticate_oidc(
-            self,
-            provider_id: str = None,
-            client_id: Union[str, None] = None, client_secret: Union[str, None] = None,
-            store_refresh_token: bool = True,
-            use_pkce: Union[bool, None] = None,
+        self,
+        provider_id: Optional[str] = None,
+        client_id: Optional[str] = None,
+        client_secret: Optional[str] = None,
+        store_refresh_token: bool = True,
+        use_pkce: Optional[bool] = None,
+        display: Callable[[str], None] = print,
     ):
         """
         Do OpenID Connect authentication, first trying refresh tokens and falling back on device code flow.
@@ -585,8 +577,14 @@ class Connection(RestApiConnection):
         # Fall back on device code flow
         # TODO: make it possible to do other fallback flows too?
         _log.info("Trying device code flow.")
-        authenticator = OidcDeviceAuthenticator(client_info=client_info, use_pkce=use_pkce)
-        con = self._authenticate_oidc(authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token)
+        authenticator = OidcDeviceAuthenticator(
+            client_info=client_info, use_pkce=use_pkce, display=display
+        )
+        con = self._authenticate_oidc(
+            authenticator,
+            provider_id=provider_id,
+            store_refresh_token=store_refresh_token,
+        )
         print("Authenticated using device code flow.")
         return con
 
@@ -630,14 +628,14 @@ class Connection(RestApiConnection):
                         return _request()
             raise
 
-    def describe_account(self) -> str:
+    def describe_account(self) -> dict:
         """
         Describes the currently authenticated user account.
         """
         return self.get('/me', expected_status=200).json()
 
     @deprecated("use :py:meth:`list_jobs` instead", version="0.4.10")
-    def user_jobs(self) -> dict:
+    def user_jobs(self) -> List[dict]:
         return self.list_jobs()
 
     def list_collections(self, pattern: Optional[str] = None) -> List[dict]:
@@ -654,6 +652,7 @@ class Connection(RestApiConnection):
 
         :return: list of dictionaries with basic collection metadata.
         """
+        # TODO: add caching #383
         data = self.get('/collections', expected_status=200).json()["collections"]
 
         if pattern is not None:
@@ -684,12 +683,11 @@ class Connection(RestApiConnection):
         )
 
     def list_output_formats(self) -> dict:
-        if self._api_version.at_least("1.0.0"):
-            return self.list_file_formats()["output"]
-        else:
-            return self.get('/output_formats', expected_status=200).json()
+        return self.list_file_formats().get("output", {})
 
-    list_file_types = legacy_alias(list_output_formats, "list_file_types")
+    list_file_types = legacy_alias(
+        list_output_formats, "list_file_types", since="0.4.6"
+    )
 
     def list_file_formats(self) -> dict:
         """
@@ -748,6 +746,7 @@ class Connection(RestApiConnection):
         :return: collection metadata.
         """
         # TODO: duplication with `Connection.collection_metadata`: deprecate one or the other?
+        # TODO: add caching #383
         data = self.get(f"/collections/{collection_id}", expected_status=200).json()
         return VisualDict("collection", data=data)
 
@@ -821,7 +820,6 @@ class Connection(RestApiConnection):
                 return VisualDict("process", data=process, parameters={'show-graph': True, 'provide-download': False})
 
         raise OpenEoClientException("Process does not exist.")
-
 
     def list_jobs(self) -> List[dict]:
         """
@@ -938,13 +936,8 @@ class Connection(RestApiConnection):
         :param kwargs: The arguments of the custom process
         :return: A :py:class:`DataCube`, without valid metadata, as the client is not aware of this custom process.
         """
-
-        if self._api_version.at_least("1.0.0"):
-            graph = PGNode(process_id, namespace=namespace, arguments=kwargs)
-            return DataCube(graph=graph, connection=self)
-        else:
-            raise OpenEoClientException(
-                "This method requires support for at least version 1.0.0 in the openEO backend.")
+        graph = PGNode(process_id, namespace=namespace, arguments=kwargs)
+        return DataCube(graph=graph, connection=self)
 
     def datacube_from_flat_graph(self, flat_graph: dict, parameters: dict = None) -> DataCube:
         """
@@ -955,10 +948,6 @@ class Connection(RestApiConnection):
             (and optionally parameter metadata under a "parameters" field).
         :return: A :py:class:`DataCube` corresponding with the operations encoded in the process graph
         """
-        if self._api_version.below("1.0.0"):
-            raise OpenEoClientException(
-                "This method requires support for at least version 1.0.0 in the openEO backend.")
-
         parameters = parameters or {}
 
         if "process_graph" in flat_graph:
@@ -1006,20 +995,17 @@ class Connection(RestApiConnection):
         .. versionadded:: 0.13.0
             added the ``max_cloud_cover`` argument.
         """
-        if self._api_version.at_least("1.0.0"):
-            return DataCube.load_collection(
+        return DataCube.load_collection(
                 collection_id=collection_id, connection=self,
                 spatial_extent=spatial_extent, temporal_extent=temporal_extent, bands=bands, properties=properties,
                 max_cloud_cover=max_cloud_cover,
                 fetch_metadata=fetch_metadata,
             )
-        else:
-            return ImageCollectionClient.load_collection(
-                collection_id=collection_id, session=self,
-                spatial_extent=spatial_extent, temporal_extent=temporal_extent, bands=bands
-            )
 
-    imagecollection = legacy_alias(load_collection, name="imagecollection")
+    # TODO: remove this #100 #134 0.4.10
+    imagecollection = legacy_alias(
+        load_collection, name="imagecollection", since="0.4.10"
+    )
 
     def load_result(
             self,
@@ -1040,9 +1026,6 @@ class Connection(RestApiConnection):
         :return: a :py:class:`DataCube`
         """
         # TODO: add check that back-end supports `load_result` process?
-        if self._api_version.below("1.0.0"):
-            raise OpenEoClientException(
-                "This method requires support for at least version 1.0.0 in the openEO backend.")
         metadata = CollectionMetadata({}, dimensions=[
             SpatialDimension(name="x", extent=[]),
             SpatialDimension(name="y", extent=[]),
@@ -1094,24 +1077,47 @@ class Connection(RestApiConnection):
         """Get batch job logs."""
         return BatchJob(job_id=job_id, connection=self).logs(offset=offset)
 
-    def list_files(self):
+    def list_files(self) -> List[UserFile]:
         """
-        Lists all files that the logged in user uploaded.
+        Lists all user-uploaded files in the user workspace on the back-end.
 
-        :return: file_list: List of the user uploaded files.
+        :return: List of the user-uploaded files.
         """
-
         files = self.get('/files', expected_status=200).json()['files']
+        files = [UserFile.from_metadata(metadata=f, connection=self) for f in files]
         return VisualList("data-table", data=files, parameters={'columns': 'files'})
 
-    def create_file(self, path):
+    def get_file(
+        self, path: Union[str, PurePosixPath], metadata: Optional[dict] = None
+    ) -> UserFile:
         """
-        Creates virtual file
+        Gets a handle to a user-uploaded file in the user workspace on the back-end.
 
-        :return: file object.
+        :param path: The path on the user workspace.
         """
-        # No endpoint just returns a file object.
-        raise NotImplementedError()
+        return UserFile(path=path, connection=self, metadata=metadata)
+
+    def upload_file(
+        self,
+        source: Union[Path, str],
+        target: Optional[Union[str, PurePosixPath]] = None,
+    ) -> UserFile:
+        """
+        Uploads a file to the given target location in the user workspace on the back-end.
+
+        If a file at the target path exists in the user workspace it will be replaced.
+
+        :param source: A path to a file on the local file system to upload.
+        :param target: The desired path (which can contain a folder structure if desired) on the user workspace.
+            If not set: defaults to the original filename (without any folder structure) of the local file .
+        """
+        source = Path(source)
+        target = target or source.name
+        # TODO: support other non-path sources too: bytes, open file, url, ...
+        with source.open("rb") as f:
+            resp = self.put(f"/files/{target!s}", expected_status=200, data=f)
+            metadata = resp.json()
+        return UserFile.from_metadata(metadata=metadata, connection=self)
 
     def _build_request_with_process_graph(self, process_graph: Union[dict, Any], **kwargs) -> dict:
         """
@@ -1120,12 +1126,9 @@ class Connection(RestApiConnection):
         """
         result = kwargs
         process_graph = as_flat_graph(process_graph)
-        if self._api_version.at_least("1.0.0"):
-            if "process_graph" not in process_graph:
-                process_graph = {"process_graph": process_graph}
-            result["process"] = process_graph
-        else:
-            result["process_graph"] = process_graph
+        if "process_graph" not in process_graph:
+            process_graph = {"process_graph": process_graph}
+        result["process"] = process_graph
         return result
 
     # TODO: unify `download` and `execute` better: e.g. `download` always writes to disk, `execute` returns result (raw or as JSON decoded dict)
@@ -1134,7 +1137,7 @@ class Connection(RestApiConnection):
             graph: Union[dict, str, Path],
             outputfile: Union[Path, str, None] = None,
             timeout: int = 30 * 60,
-    ):
+    ) -> Union[None, bytes]:
         """
         Downloads the result of a process graph synchronously,
         and save the result to the given file or return bytes object if no outputfile is specified.
@@ -1167,22 +1170,26 @@ class Connection(RestApiConnection):
         return self.post(path="/result", json=req, expected_status=200).json()
 
     def create_job(
-            self, process_graph: Union[dict, str, Path],
-            title: Optional[str] = None, description: Optional[str] = None,
-            plan: Optional[str] = None, budget: Optional[float] = None,
-            additional: Optional[dict] = None
+        self,
+        process_graph: Union[dict, str, Path],
+        *,
+        title: Optional[str] = None,
+        description: Optional[str] = None,
+        plan: Optional[str] = None,
+        budget: Optional[float] = None,
+        additional: Optional[dict] = None,
     ) -> BatchJob:
         """
-        Posts a job to the back end.
+        Create a new job from given process graph on the back-end.
 
         :param process_graph: (flat) dict representing a process graph, or process graph as raw JSON string,
             or as local file path or URL
-        :param title: String title of the job
-        :param description: String description of the job
+        :param title: job title
+        :param description: job description
         :param plan: billing plan
         :param budget: maximum cost the request is allowed to produce
         :param additional: additional job options to pass to the backend
-        :return: job_id: String Job id of the new created job
+        :return: Created job
         """
         # TODO move all this (BatchJob factory) logic to BatchJob?
         req = self._build_request_with_process_graph(
@@ -1227,20 +1234,19 @@ class Connection(RestApiConnection):
         """
         return Service(service_id, connection=self)
 
-    def load_disk_collection(self, format: str, glob_pattern: str, options: dict = {}) -> ImageCollectionClient:
+    def load_disk_collection(
+        self, format: str, glob_pattern: str, options: Optional[dict] = None
+    ) -> DataCube:
         """
-        Loads image data from disk as an ImageCollection.
+        Loads image data from disk as a :py:class:`DataCube`.
 
         :param format: the file format, e.g. 'GTiff'
         :param glob_pattern: a glob pattern that matches the files to load from disk
         :param options: options specific to the file format
-        :return: the data as an ImageCollection
         """
-
-        if self._api_version.at_least("1.0.0"):
-            return DataCube.load_disk_collection(self, format, glob_pattern, **options)
-        else:
-            return ImageCollectionClient.load_disk_collection(self, format, glob_pattern, **options)
+        return DataCube.load_disk_collection(
+            self, format, glob_pattern, **(options or {})
+        )
 
     def as_curl(self, data: Union[dict, DataCube], path="/result", method="POST") -> str:
         """

@@ -36,6 +36,14 @@ docs_require = [
     "myst-parser",
 ]
 
+localprocessing_require = [
+    "rioxarray>=0.13.0",
+    "pyproj",
+    "openeo_pg_parser_networkx>=2023.3.1",
+    "openeo_processes_dask[implementations]>=2023.3.2",
+]
+
+
 name = "openeo"
 setup(
     name=name,
@@ -66,6 +74,7 @@ setup(
         "oschmod": [  # install oschmod even when platform is not Windows, e.g. for testing in CI.
             "oschmod>=0.3.12"
         ],
+        "localprocessing": localprocessing_require,
     },
     entry_points={
         "console_scripts": ["openeo-auth=openeo.rest.auth.cli:main"],
@@ -81,4 +90,10 @@ setup(
         "Development Status :: 5 - Production/Stable",
         "Operating System :: OS Independent",
     ],
+    project_urls={
+        "Documentation": "https://open-eo.github.io/openeo-python-client/",
+        "Source Code": "https://github.com/Open-EO/openeo-python-client",
+        "Bug Tracker": "https://github.com/Open-EO/openeo-python-client/issues",
+        "Changelog": "https://github.com/Open-EO/openeo-python-client/blob/master/CHANGELOG.md",
+    },
 )

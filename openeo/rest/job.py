@@ -1,7 +1,6 @@
 import datetime
 import json
 import logging
-import textwrap
 import time
 import typing
 from pathlib import Path
@@ -9,7 +8,7 @@ from typing import List, Union, Dict, Optional
 
 import requests
 
-from openeo.api.logs import LogEntry, normalize_log_level
+from openeo.api.logs import LogEntry, normalize_log_level, log_level_name
 from openeo.internal.jupyter import render_component, render_error, VisualDict, VisualList
 from openeo.internal.warnings import deprecated
 from openeo.rest import OpenEoClientException, JobFailedException, OpenEoApiError
@@ -51,7 +50,7 @@ class BatchJob:
         """ Get all job information."""
         # GET /jobs/{job_id}
         # TODO: rename to just `describe`? #280
-        return self.connection.get("/jobs/{}".format(self.job_id), expected_status=200).json()
+        return self.connection.get(f"/jobs/{self.job_id}", expected_status=200).json()
 
     def status(self) -> str:
         """
@@ -73,12 +72,14 @@ class BatchJob:
         """ Delete a job."""
         # DELETE /jobs/{job_id}
         # TODO: rename to just `delete`? #280
-        self.connection.delete("/jobs/{}".format(self.job_id), expected_status=204)
+        self.connection.delete(f"/jobs/{self.job_id}", expected_status=204)
 
     def estimate_job(self):
-        """ Calculate an time/cost estimate for a job."""
+        """Calculate time/cost estimate for a job."""
         # GET /jobs/{job_id}/estimate
-        data = self.connection.get("/jobs/{}/estimate".format(self.job_id), expected_status=200).json()
+        data = self.connection.get(
+            f"/jobs/{self.job_id}/estimate", expected_status=200
+        ).json()
         currency = self.connection.capabilities().currency()
         return VisualDict('job-estimate', data=data, parameters={'currency': currency})
 
@@ -87,13 +88,20 @@ class BatchJob:
         # POST /jobs/{job_id}/results
         # TODO: rename to just `start`? #280
         # TODO: return self, to allow chained calls
-        self.connection.post("/jobs/{}/results".format(self.job_id), expected_status=202)
+        self.connection.post(f"/jobs/{self.job_id}/results", expected_status=202)
 
     def stop_job(self):
         """ Stop / cancel job processing."""
         # DELETE /jobs/{job_id}/results
         # TODO: rename to just `stop`? #280
-        self.connection.delete("/jobs/{}/results".format(self.job_id), expected_status=204)
+        self.connection.delete(f"/jobs/{self.job_id}/results", expected_status=204)
+
+    def get_results_metadata_url(self, *, full: bool = False) -> str:
+        """Get results metadata URL"""
+        url = f"/jobs/{self.job_id}/results"
+        if full:
+            url = self.connection.build_url(url)
+        return url
 
     @deprecated("Use :py:meth:`~BatchJob.get_results` instead.", version="0.4.10")
     def list_results(self) -> dict:
@@ -134,10 +142,10 @@ class BatchJob:
 
         .. versionadded:: 0.4.10
         """
-        return JobResults(self)
+        return JobResults(job=self)
 
     def logs(
-        self, offset=None, log_level: Optional[Union[int, str]] = None
+        self, offset: Optional[str] = None, level: Optional[Union[str, int]] = None
     ) -> List[LogEntry]:
         """Retrieve job logs.
 
@@ -148,7 +156,7 @@ class BatchJob:
 
             Defaults to None.
 
-        :param log_level: Show only messages of this log level and its higher levels.
+        :param level: Minimum log level to retrieve.
 
             You can use either constants from Python's standard module ``logging``
             or their names (case-insensitive).
@@ -163,12 +171,20 @@ class BatchJob:
 
         :return: A list containing the log entries for the batch job.
         """
-        url = "/jobs/{}/logs".format(self.job_id)
-        logs = self.connection.get(url, params={'offset': offset}, expected_status=200).json()["logs"]
+        url = f"/jobs/{self.job_id}/logs"
+        params = {}
+        if offset is not None:
+            params["offset"] = offset
+        if level is not None:
+            params["level"] = log_level_name(level)
+        response = self.connection.get(url, params=params, expected_status=200)
+        logs = response.json()["logs"]
 
         # Only filter logs when specified.
-        if log_level is not None:
-            log_level = normalize_log_level(log_level)
+        # We should still support client-side log_level filtering because not all backends
+        # support the minimum log level parameter.
+        if level is not None:
+            log_level = normalize_log_level(level)
             logs = (
                 log
                 for log in logs
@@ -261,7 +277,7 @@ class BatchJob:
             # TODO: allow to disable this printing logs (e.g. in non-interactive contexts)?
             # TODO: render logs jupyter-aware in a notebook context?
             print(f"Your batch job {self.job_id!r} failed. Error logs:")
-            print(self.logs(log_level=logging.ERROR))
+            print(self.logs(level=logging.ERROR))
             print(
                 f"Full logs can be inspected in an openEO (web) editor or with `connection.job({self.job_id!r}).logs()`."
             )
@@ -353,7 +369,6 @@ class JobResults:
 
     def __init__(self, job: BatchJob):
         self._job = job
-        self._results_url = "/jobs/{j}/results".format(j=self._job.job_id)
         self._results = None
 
     def __repr__(self):
@@ -369,7 +384,9 @@ class JobResults:
     def get_metadata(self, force=False) -> dict:
         """Get batch job results metadata (parsed JSON)"""
         if self._results is None or force:
-            self._results = self._job.connection.get(self._results_url, expected_status=200).json()
+            self._results = self._job.connection.get(
+                self._job.get_results_metadata_url(), expected_status=200
+            ).json()
         return self._results
 
     # TODO: provide methods for `stac_version`, `id`, `geometry`, `properties`, `links`, ...?
@@ -380,12 +397,10 @@ class JobResults:
         """
         # TODO: add arguments to filter on metadata, e.g. to only get assets of type "image/tiff"
         metadata = self.get_metadata()
-        if "assets" in metadata:
-            # API 1.0 style: dictionary mapping filenames to metadata dict (with at least a "href" field)
-            assets = metadata["assets"]
-        else:
-            # Best effort translation of on old style to "assets" style (#134)
-            assets = {a["href"].split("/")[-1]: a for a in metadata["links"]}
+        # API 1.0 style: dictionary mapping filenames to metadata dict (with at least a "href" field)
+        assets = metadata.get("assets", {})
+        if not assets:
+            logger.warning("No assets found in job result metadata.")
         return [
             ResultAsset(job=self._job, name=name, href=asset["href"], metadata=asset)
             for name, asset in assets.items()

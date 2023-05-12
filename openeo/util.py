@@ -437,7 +437,7 @@ def deep_set(data: dict, *keys, value):
         raise ValueError("No keys given")
 
 
-def guess_format(filename: Union[str, Path]):
+def guess_format(filename: Union[str, Path]) -> str:
     """
     Guess the output format from a given filename and return the corrected format.
     Any names not in the dict get passed through.

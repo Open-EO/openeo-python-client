@@ -9,6 +9,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Removed
+
+### Fixed
+
+
+
+## [0.16.0] - 2023-04-17 - "SRR5" release
+
+### Added
+
+- Full support for user-uploaded files (`/files` endpoints)
+  ([#377](https://github.com/Open-EO/openeo-python-client/issues/377))
+- Initial, experimental "local processing" feature to use
+  openEO Python Client Library functionality on local
+  GeoTIFF/NetCDF files and also do the processing locally
+  using the `openeo_processes_dask` package
+  ([#338](https://github.com/Open-EO/openeo-python-client/pull/338))
+- Add `BatchJob.get_results_metadata_url()`.
+
+### Changed
+
+- `Connection.list_files()` returns a list of `UserFile` objects instead of a list of metadata dictionaries.
+  Use `UserFile.metadata` to get the original dictionary.
+  ([#377](https://github.com/Open-EO/openeo-python-client/issues/377))
+- `DataCube.aggregate_spatial()` returns a `VectorCube` now, instead of a `DataCube`
+  ([#386](https://github.com/Open-EO/openeo-python-client/issues/386)).
+  The (experimental) `fit_class_random_forest()` and `fit_regr_random_forest()` methods
+  moved accordingly to the `VectorCube` class.
+- Improved documentation on `openeo.processes` and `ProcessBuilder`
+  ([#390](https://github.com/Open-EO/openeo-python-client/issues/390)).
+- `DataCube.create_job()` and `Connection.create_job()` now require
+  keyword arguments for all but the first argument for clarity.
+  ([#412](https://github.com/Open-EO/openeo-python-client/issues/412)).
+- Pass minimum log level to backend when retrieving batch job and secondary service logs.
+  ([Open-EO/openeo-api#485](https://github.com/Open-EO/openeo-api/issues/485),
+  [Open-EO/openeo-python-driver#170](https://github.com/Open-EO/openeo-python-driver/issues/170))
+
+
+### Removed
+
+- Dropped support for pre-1.0.0 versions of the openEO API
+  ([#134](https://github.com/Open-EO/openeo-python-client/issues/134)):
+  - Remove `ImageCollectionClient` and related helpers
+    (now unused leftovers from version 0.4.0 and earlier).
+    (Also [#100](https://github.com/Open-EO/openeo-python-client/issues/100))
+  - Drop support for pre-1.0.0 job result metadata
+  - Require at least version 1.0.0 of the openEO API for a back-end in `Connection`
+    and all its methods.
+
+### Fixed
+
+- Reinstated old behavior of authentication related user files (e.g. refresh token store) on Windows: when `PrivateJsonFile` may be readable by others, just log a message instead of raising `PermissionError` ([387](https://github.com/Open-EO/openeo-python-client/issues/387))
+- `VectorCube.create_job()` and `MlModel.create_job()` are properly aligned with `DataCube.create_job()`
+  regarding setting job title, description, etc.
+  ([#412](https://github.com/Open-EO/openeo-python-client/issues/412)).
+- More robust handling of billing currency/plans in capabilities
+  ([#414](https://github.com/Open-EO/openeo-python-client/issues/414))
+- Avoid blindly adding a `save_result` node from `DataCube.execute_batch()` when there is already one
+  ([#401](https://github.com/Open-EO/openeo-python-client/issues/401))
+
+
+## [0.15.0] - 2023-03-03
+
+### Added
+
 - The openeo Python client library can now also be installed with conda (conda-forge channel)
   ([#176](https://github.com/Open-EO/openeo-python-client/issues/176))
 - Allow using a custom `requests.Session` in `openeo.rest.auth.oidc` logic
@@ -17,10 +84,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Less verbose log printing on failed batch job [#332](https://github.com/Open-EO/openeo-python-client/issues/332)
 - Improve (UTC) timezone handling in `openeo.util.Rfc3339` and add `rfc3339.today()`/`rfc3339.utcnow()`.
-
-### Removed
-
-### Fixed
 
 
 ## [0.14.1] - 2023-02-06

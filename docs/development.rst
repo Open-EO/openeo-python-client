@@ -89,6 +89,70 @@ When you change (and save) documentation source files, your browser should now
 automatically refresh and show the newly built docs. Just like magic.
 
 
+Contributing code
+==================
+
+User contributions (such as bug fixes and new features, both in source code and documentation)
+are greatly appreciated and welcome.
+
+
+Pull requests
+--------------
+
+We use a traditional `GitHub Pull Request (PR) <https://docs.github.com/en/pull-requests>`_ workflow
+for user contributions, which roughly follows these steps:
+
+- Create a personal fork of https://github.com/Open-EO/openeo-python-client
+  (unless you already have push permissions to an existing fork or the original repo)
+- Preferably: work on your contribution in a new feature branch
+- Push your feature branch to your fork and create a pull request
+- The pull request is the place for review, discussion and fine-tuning of your work
+- Once your pull request is in good shape it will be merged by a maintainer
+
+
+.. _precommit:
+
+Pre-commit for basic code quality checks
+------------------------------------------
+
+We started using the `pre-commit <https://pre-commit.com/>`_ tool
+for basic code quality fine-tuning of new contributions.
+Note that the whole repository does not adhere yet to these new code styles rules at the moment,
+we're just gradually introducing it, piggybacking on new contributions.
+
+It's not enforced, but recommended and appreciated to **enable pre-commit**
+in your git clone when contributing code, as follows:
+
+-   Install the ``pre-commit`` command line tool:
+
+    -   The simplest option is to install it directly in the *virtual environment*
+        you are using for openEO Python client development (e.g. ``pip install pre-commit``).
+    -   You can also install it *globally* on your system
+        so you can easily use it across different projects
+        (e.g. using `pipx <https://pypa.github.io/pipx/>`_, in your base conda environment, ...,
+        see the `pre-commit installation docs <https://pre-commit.com/#installation>`_ for more information).
+-   Install the git hook scripts in your local clone:
+
+    .. code-block:: console
+
+        pre-commit install
+
+    This will automatically install additional tools required to check the rules
+    defined in the ``.pre-commit-config.yaml`` configuration file.
+
+
+Now, when you commit new changes, the pre-commit tool will run,
+flag issues (e.g. invalid JSON files)
+and even fix simple problems (e.g. clean up excessive whitespace).
+Address these problems and try to commit again.
+
+.. tip::
+
+    Use the staging feature of git to prepare your commit.
+    That makes it easier to review the changes proposed by pre-commit,
+    as these are not staged automatically.
+
+
 Creating a release
 ==================
 
@@ -236,8 +300,16 @@ To be as concrete as possible, we will assume that we are about to release versi
     Commit this (e.g. with message ``_version.py: next alpha version 0.4.8a1``)
     and push to GitHub.
 
-#.  Optionally: send a tweet about the release or announce it in the `openEO Platform Forum <https://discuss.eodc.eu/c/openeo-platform/clients/18>`_ .
+#.  Update `conda-forge package <https://github.com/conda-forge/openeo-feedstock>`_ too
+    (requires conda recipe maintainer role).
+    Normally, the "regro-cf-autotick-bot" will create a `pull request <https://github.com/conda-forge/openeo-feedstock/pulls>`_.
+    If it builds fine, merge it.
+    If not, fix the issue
+    (typically in `recipe/meta.yaml <https://github.com/conda-forge/openeo-feedstock/blob/main/recipe/meta.yaml>`_)
+    and merge.
 
+#.  Optionally: send a tweet about the release
+    or announce it in the `openEO Platform Forum <https://discuss.eodc.eu/c/openeo-platform/clients/18>`_.
 
 Verification
 ~~~~~~~~~~~~
@@ -270,128 +342,48 @@ Normally you can install the client the same way on Windows as on Linux, like so
     pip install -e .[dev]
 
 This should be working with the most recent code, however, in the past we sometimes had issues with a development installation.
-Should you experience problems, then this section describes some ways to solve them.
 
-Known issue
------------
+Should you experience problems, there is also a conda package for the Python client and that should be the easiest solution.
 
-The specific problem we experienced on Windows is that the geopandas Python package depends on a few libraries that are a bit trickier to install.
-They need some compiled C/C++ code and unfortunately these libraries do not provide officially supported python wheels for Windows.
+For development, what you need to do is:
 
-Root Cause
-~~~~~~~~~~
-
-Down the line geopandas depends on GDAL and that is a C++ library that does not provide *official* binaries for Windows, though there are binaries from other sources.
-
-Because there isn't a supported binary or a Python wheel, the pip installation process will fall back to compiling the C libraries on the fly.
-But that will only work if your have set up a C++ compiler, and have all the dependencies installed,
-and setting up all the dependencies needed for these binaries can be a bit of work.
-
-Below are some easier solutions.
-
-Solutions
----------
-
-These are a few solutions we know, from the easiest option at the top to the most complex at the bottom.
-The first two options are described in more detail in the sections below.
-
-1. **Recommended option:** install the client in a conda environment.
-
-    For most people this would be the simplest solution.
-
-    See: :ref:`windows-dev-install-with-conda`
-
-2. Use unofficial python wheels for GDAL and Fiona.
-
-    This is only suitable for development, not for production.
-
-    See: :ref:`windows-dev-install-unofficial-wheels`
-
-3. If you already use Docker or WSL2, using either of those is also a good option for you.
-
-    - Then you will be on Linux in a container or the WSL VM.
-    - Installation on WSL should be the same as on native Linux.
-    - If you are comfortable with creating your own Dockerfiles then Docker is also an option.
-
-4. Install a C++ compiler and deal with the compilation issues when you install it via pip.
-
-    Can be complex, so your mileage may vary.
-
-
-
-.. _windows-dev-install-with-conda:
-
-Option 1) Install the client in a conda environment
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The simplest way to install your openeo development setup is to use the conda package manager, either via Anaconda, or via Miniforge.
-
-Anaconda is a commercial product and you can buy support for it.
-Miniforge is a fully open source alternative that has a drop-in replacement for the conda command.
-Miniforge uses the `Conda-forge <https://conda-forge.org/>`_ channel (which is a package repository) by default.
-
-* `Anaconda <https://anaconda.org/>`_
-* `Miniforge on GitHub <https://github.com/conda-forge/miniforge>`_
-* `Conda-forge <https://conda-forge.org/>`_
-
-The instructions below should work in both Anaconda and Miniforge.
-Though with Miniforge you can simplify the commands a little bit because the conda-forge channel is the default, so you can leave out the option ``-c conda-forge``.
-
-Create a conda environment with the geopandas package already installed.
-Installing geopandas from a conda package is the step that avoids the hard part.
+1. Create and activate a new conda environment for developing the openeo-python-client.
+2. In that conda environment, install only the dependencies of openeo via conda, but not the openeo package itself.
+3. Do a pip install of the code in *editable mode* with `pip -e`.
 
 .. code-block:: console
 
-    conda create -n <your environment's name>  geopandas
+    conda create -n <your environment's name>
 
-    # for example
-    conda create -n openeopyclient  geopandas
+    # For example:
+    conda create -n openeopyclient
 
-Activate the conda environment
-
-.. code-block:: console
-
+    # Activate the conda environment
     conda activate openeopyclient
 
-Next, run the dev install with pip
+    # Install openeo from the conda-forge channel
+    conda install --only-deps -c conda-forge openeo
 
-In the directory where you git-cloned the openEO Python client:
+    # Now install the openeo code in editable mode.
+    pip install -e .[dev]
+
+
+
+Update of generated files
+==========================
+
+Some parts of the openEO Python Client Library source code are
+generated/compiled from upstream sources (e.g. official openEO specifications).
+Because updates are not often required,
+it's just a semi-manual procedure (to run from the project root):
 
 .. code-block:: console
 
-    python -m pip install -e .[dev]
+    # Update the sub-repositories (like git submodules, but optional)
+    python specs/update-subrepos.py
 
-A quick way to check whether the client was successfully installed or not is to print its version number.
+    # Update `openeo/processes.py` from specifications in openeo-processes repository
+    python openeo/internal/processes/generator.py  specs/openeo-processes specs/openeo-processes/proposals --output openeo/processes.py
 
-In your conda environment, launch the Python interpreter and try the following snippet of Python code to show the client's version:
-
-.. code-block:: python
-
-    import openeo
-
-    print(openeo.client_version())
-
-
-.. _windows-dev-install-unofficial-wheels:
-
-Option 2) Use some unofficial python wheels for GDAL and Fiona
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-There are `unofficial Python wheels at https://www.lfd.uci.edu/~gohlke/pythonlibs/: <https://www.lfd.uci.edu/~gohlke/pythonlibs/>`_
-
-But as the name says, these wheels have no official support, so they are not recommended for production.
-They can however help you out for a development environment.
-
-You need to install the wheels for GDAL and Fiona.
-
-* wheels for `Fiona <https://www.lfd.uci.edu/~gohlke/pythonlibs#fiona>`_
-* wheels for `GDAL <https://www.lfd.uci.edu/~gohlke/pythonlibs/#gdal>`_
-
-.. code-block::
-
-    # In your activate virtualenv
-    # install the wheels:
-    pip install <path to GDAL whl file> <path to fiona whl file>
-
-    # And then the regular developer installation command.
-    python -m pip install -e .[dev]
+    # Update the openEO process mapping documentation page
+    python docs/process_mapping.py > docs/process_mapping.rst

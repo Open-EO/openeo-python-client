@@ -11,20 +11,12 @@ import openeo
 import openeo.rest.job
 from openeo.rest import JobFailedException, OpenEoClientException
 from openeo.rest.job import BatchJob, ResultAsset
+from .test_connection import _credentials_basic_handler
 
 API_URL = "https://oeo.test"
 
 TIFF_CONTENT = b'T1f7D6t6l0l' * 1000
 
-
-@pytest.fixture
-def session040(requests_mock):
-    requests_mock.get(API_URL + "/", json={
-        "api_version": "0.4.0",
-        "endpoints": [{"path": "/credentials/basic", "methods": ["GET"]}]
-    })
-    session = openeo.connect(API_URL)
-    return session
 
 
 @pytest.fixture
@@ -58,16 +50,27 @@ def test_execute_batch(con100, requests_mock, tmpdir):
     requests_mock.get(API_URL + "/collections/SENTINEL2", json={"foo": "bar"})
     requests_mock.post(API_URL + "/jobs", status_code=201, headers={"OpenEO-Identifier": "f00ba5"})
     requests_mock.post(API_URL + "/jobs/f00ba5/results", status_code=202)
-    requests_mock.get(API_URL + "/jobs/f00ba5", [
-        {'json': {"status": "submitted"}},
-        {'json': {"status": "queued"}},
-        {'json': {"status": "running", "progress": 15}},
-        {'json': {"status": "running", "progress": 80}},
-        {'json': {"status": "finished", "progress": 100}},
-    ])
-    requests_mock.get(API_URL + "/jobs/f00ba5/results", json={
-        "links": [{"href": API_URL + "/jobs/f00ba5/files/output.tiff"}]
-    })
+    requests_mock.get(
+        API_URL + "/jobs/f00ba5",
+        [
+            {"json": {"status": "submitted"}},
+            {"json": {"status": "queued"}},
+            {"json": {"status": "running", "progress": 15}},
+            {"json": {"status": "running", "progress": 80}},
+            {"json": {"status": "finished", "progress": 100}},
+        ],
+    )
+    requests_mock.get(
+        API_URL + "/jobs/f00ba5/results",
+        json={
+            "assets": {
+                "output.tiff": {
+                    "href": API_URL + "/jobs/f00ba5/files/output.tiff",
+                    "type": "image/tiff; application=geotiff",
+                },
+            }
+        },
+    )
     requests_mock.get(API_URL + "/jobs/f00ba5/files/output.tiff", text="tiffdata")
     requests_mock.get(API_URL + "/jobs/f00ba5/logs", json={'logs': []})
 
@@ -173,16 +176,27 @@ def test_execute_batch_with_soft_errors(con100, requests_mock, tmpdir, error_res
     requests_mock.get(API_URL + "/collections/SENTINEL2", json={"foo": "bar"})
     requests_mock.post(API_URL + "/jobs", status_code=201, headers={"OpenEO-Identifier": "f00ba5"})
     requests_mock.post(API_URL + "/jobs/f00ba5/results", status_code=202)
-    requests_mock.get(API_URL + "/jobs/f00ba5", [
-        {'json': {"status": "queued"}},
-        {'json': {"status": "running", "progress": 15}},
-        error_response,
-        {'json': {"status": "running", "progress": 80}},
-        {'json': {"status": "finished", "progress": 100}},
-    ])
-    requests_mock.get(API_URL + "/jobs/f00ba5/results", json={
-        "links": [{"href": API_URL + "/jobs/f00ba5/files/output.tiff"}]
-    })
+    requests_mock.get(
+        API_URL + "/jobs/f00ba5",
+        [
+            {"json": {"status": "queued"}},
+            {"json": {"status": "running", "progress": 15}},
+            error_response,
+            {"json": {"status": "running", "progress": 80}},
+            {"json": {"status": "finished", "progress": 100}},
+        ],
+    )
+    requests_mock.get(
+        API_URL + "/jobs/f00ba5/results",
+        json={
+            "assets": {
+                "output.tiff": {
+                    "href": API_URL + "/jobs/f00ba5/files/output.tiff",
+                    "type": "image/tiff; application=geotiff",
+                },
+            }
+        },
+    )
     requests_mock.get(API_URL + "/jobs/f00ba5/files/output.tiff", text="tiffdata")
     requests_mock.get(API_URL + "/jobs/f00ba5/logs", json={'logs': []})
 
@@ -262,7 +276,7 @@ def test_execute_batch_with_excessive_soft_errors(con100, requests_mock, tmpdir,
     ]
 
 
-def test_get_job_logs(session040, requests_mock):
+def test_get_job_logs(con100, requests_mock):
     requests_mock.get(API_URL + "/jobs/f00ba5/logs", json={
         'logs': [{
             'id': "123abc",
@@ -271,13 +285,12 @@ def test_get_job_logs(session040, requests_mock):
         }]
     })
 
-    log_entries = session040.job('f00ba5').logs(offset="123abc")
+    log_entries = con100.job("f00ba5").logs(offset="123abc")
 
     assert log_entries[0].message == "error processing batch job"
 
 
-# TODO: do we keep testing on sesssion040, or should we switch to con100?
-def test_get_job_logs_returns_debug_loglevel_by_default(session040, requests_mock):
+def test_get_job_logs_returns_debug_loglevel_by_default(con100, requests_mock):
     requests_mock.get(
         API_URL + "/jobs/f00ba5/logs",
         json={
@@ -306,7 +319,7 @@ def test_get_job_logs_returns_debug_loglevel_by_default(session040, requests_moc
         },
     )
 
-    log_entries = session040.job("f00ba5").logs()
+    log_entries = con100.job("f00ba5").logs()
 
     assert len(log_entries) == 4
     assert log_entries[0].level == "error"
@@ -334,7 +347,7 @@ def test_get_job_logs_returns_debug_loglevel_by_default(session040, requests_moc
     ],
 )
 def test_get_job_logs_keeps_loglevel_that_is_higher_or_equal(
-    session040, requests_mock, log_level, exp_num_messages
+    con100, requests_mock, log_level, exp_num_messages
 ):
     requests_mock.get(
         API_URL + "/jobs/f00ba5/logs",
@@ -364,7 +377,7 @@ def test_get_job_logs_keeps_loglevel_that_is_higher_or_equal(
         },
     )
 
-    log_entries = session040.job("f00ba5").logs(log_level=log_level)
+    log_entries = con100.job("f00ba5").logs(level=log_level)
     assert len(log_entries) == exp_num_messages
 
 
@@ -383,18 +396,17 @@ def test_create_job_100(con100, requests_mock):
     con100.create_job({"foo1": {"process_id": "foo"}}, title="Foo", description="just testing")
 
 
-def test_download_result_040(session040, requests_mock, tmp_path):
-    requests_mock.get(API_URL + "/jobs/jj/results", json={"links": [
-        {"href": API_URL + "/dl/jjr1.tiff"},
-    ]})
-    requests_mock.get(API_URL + "/dl/jjr1.tiff", content=TIFF_CONTENT)
-    job = BatchJob("jj", connection=session040)
-    assert job.list_results() == {'links': [{'href': 'https://oeo.test/dl/jjr1.tiff'}]}
-    target = tmp_path / "result.tiff"
-    res = job.download_result(target)
-    assert res == target
-    with target.open("rb") as f:
-        assert f.read() == TIFF_CONTENT
+def test_get_results_metadata_url(con100):
+    job = con100.job("job-456")
+    assert job.get_results_metadata_url() == "/jobs/job-456/results"
+
+
+def test_get_results_metadata_url_full(con100):
+    job = con100.job("job-456")
+    assert (
+        job.get_results_metadata_url(full=True)
+        == "https://oeo.test/jobs/job-456/results"
+    )
 
 
 @pytest.fixture
@@ -495,26 +507,6 @@ def test_get_results_multiple_download_single_by_wrong_name(job_with_2_assets: B
         job.get_results().download_file(target, name="foobar.tiff")
 
 
-def test_download_results_040(session040, requests_mock, tmp_path):
-    requests_mock.get(API_URL + "/jobs/jj/results", json={"links": [
-        {"href": API_URL + "/dl/jjr1.tiff", "type": "image/tiff"},
-        {"href": API_URL + "/dl/jjr2.tiff", "type": "image/tiff"},
-    ]})
-    requests_mock.get(API_URL + "/dl/jjr1.tiff", content=TIFF_CONTENT)
-    requests_mock.get(API_URL + "/dl/jjr2.tiff", content=TIFF_CONTENT)
-    job = BatchJob("jj", connection=session040)
-    target = tmp_path / "folder"
-    target.mkdir()
-    downloads = job.download_results(target)
-    assert downloads == {
-        target / "jjr1.tiff": {"href": API_URL + "/dl/jjr1.tiff", "type": "image/tiff"},
-        target / "jjr2.tiff": {"href": API_URL + "/dl/jjr2.tiff", "type": "image/tiff"},
-    }
-    assert set(p.name for p in target.iterdir()) == {"jjr1.tiff", "jjr2.tiff"}
-    with (target / "jjr1.tiff").open("rb") as f:
-        assert f.read() == TIFF_CONTENT
-    with (target / "jjr2.tiff").open("rb") as f:
-        assert f.read() == TIFF_CONTENT
 
 
 def test_download_results(job_with_2_assets: BatchJob, tmp_path):
@@ -678,3 +670,41 @@ def test_get_results_download_file_other_domain(con100, requests_mock, tmp_path)
     assert res == target
     with target.open("rb") as f:
         assert f.read() == TIFF_CONTENT
+
+
+def test_list_jobs(con100, requests_mock):
+    username = "john"
+    password = "j0hn!"
+    access_token = "6cc35!"
+    requests_mock.get(
+        API_URL + "/credentials/basic",
+        text=_credentials_basic_handler(
+            username=username, password=password, access_token=access_token
+        ),
+    )
+
+    def get_jobs(request, context):
+        assert request.headers["Authorization"] == f"Bearer basic//{access_token}"
+        return {
+            "jobs": [
+                {
+                    "id": "job123",
+                    "status": "running",
+                    "created": "2021-02-22T09:00:00Z",
+                },
+                {
+                    "id": "job456",
+                    "status": "created",
+                    "created": "2021-03-22T10:00:00Z",
+                },
+            ]
+        }
+
+    requests_mock.get(API_URL + "/jobs", json=get_jobs)
+
+    con100.authenticate_basic(username, password)
+    jobs = con100.list_jobs()
+    assert jobs == [
+        {"id": "job123", "status": "running", "created": "2021-02-22T09:00:00Z"},
+        {"id": "job456", "status": "created", "created": "2021-03-22T10:00:00Z"},
+    ]

@@ -1,7 +1,6 @@
 """
 
 Band math related tests against both
-- 0.4.0-style ImageCollectionClient
 - 1.0.0-style DataCube
 
 """
@@ -12,7 +11,6 @@ import pytest
 import openeo
 from openeo.rest import BandMathException
 from .. import get_download_graph
-from ..conftest import reset_graphbuilder
 from ... import load_json_resource
 from .test_datacube import _get_leaf_node
 
@@ -21,28 +19,8 @@ def test_band_basic(connection, api_version):
     cube = connection.load_collection("SENTINEL2_RADIOMETRY_10M")
     expected_graph = load_json_resource('data/%s/band0.json' % api_version)
     assert cube.band(0).flat_graph() == expected_graph
-    reset_graphbuilder()
     assert cube.band("B02").flat_graph() == expected_graph
 
-
-def test_indexing_040(con040):
-    cube = con040.load_collection("SENTINEL2_RADIOMETRY_10M")
-    expected_graph = load_json_resource('data/0.4.0/band_red.json')
-    reset_graphbuilder()
-    assert cube.band("B04").flat_graph() == expected_graph
-    reset_graphbuilder()
-    assert cube.band("red").flat_graph() == expected_graph
-    reset_graphbuilder()
-    assert cube.band(2).flat_graph() == expected_graph
-
-    cube2 = cube.filter_bands(['B04', 'B03'])
-    expected_graph = load_json_resource('data/0.4.0/band_red_filtered.json')
-    reset_graphbuilder()
-    assert cube2.band("B04").flat_graph() == expected_graph
-    reset_graphbuilder()
-    assert cube2.band("red").flat_graph() == expected_graph
-    reset_graphbuilder()
-    assert cube2.band(0).flat_graph() == expected_graph
 
 
 def test_indexing_100(con100):

@@ -89,3 +89,11 @@ def normalize_log_level(
         raise TypeError(
             f"Value for log_level is not an int or str: type={type(log_level)}, value={log_level!r}"
         )
+
+
+def log_level_name(log_level: Union[int, str, None]) -> str:
+    """
+    Get the name of a normalized log level.
+    This value conforms to log level names used in the openEO API.
+    """
+    return logging.getLevelName(normalize_log_level(log_level)).lower()

@@ -4,6 +4,7 @@ import os
 
 import pytest
 
+from openeo.capabilities import ApiVersionException
 from openeo.rest.auth import cli
 from openeo.rest.auth.cli import CliToolException
 from openeo.rest.auth.config import AuthConfig, RefreshTokenStore
@@ -225,7 +226,10 @@ def test_add_oidc_use_default_client_overwrite(auth_config, requests_mock, caplo
 
 def test_add_oidc_04(auth_config, requests_mock):
     requests_mock.get("https://oeo.test/", json={"api_version": "0.4.0"})
-    with pytest.raises(CliToolException, match="Backend API version is too low"):
+    with pytest.raises(
+        ApiVersionException,
+        match="openEO API version should be at least 1.0.0, but got 0.4.0",
+    ):
         cli.main(["add-oidc", "https://oeo.test"])
 
 

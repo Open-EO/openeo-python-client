@@ -47,9 +47,6 @@ and can be easily installed in a conda environment, for example:
     $ conda install -c conda-forge openeo
 
 
-
-If you want to set up the openeo client for development on Windows with conda: see :ref:`windows-dev-install-with-conda`.
-
 Verifying and troubleshooting
 -----------------------------
 
