@@ -4,6 +4,7 @@ This module provides a Connection object to manage and persist settings when int
 import datetime
 import json
 import logging
+import os
 import shlex
 import sys
 import warnings
@@ -346,9 +347,11 @@ class Connection(RestApiConnection):
         return provider_id, provider
 
     def _get_oidc_provider_and_client_info(
-            self, provider_id: str,
-            client_id: Union[str, None], client_secret: Union[str, None],
-            default_client_grant_check: Union[None, GrantsChecker] = None
+        self,
+        provider_id: str,
+        client_id: Union[str, None],
+        client_secret: Union[str, None],
+        default_client_grant_check: Union[None, GrantsChecker] = None,
     ) -> Tuple[str, OidcClientInfo]:
         """
         Resolve provider_id and client info (as given or from config)
@@ -444,15 +447,23 @@ class Connection(RestApiConnection):
         return self._authenticate_oidc(authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token)
 
     def authenticate_oidc_client_credentials(
-            self,
-            client_id: str = None,
-            client_secret: str = None,
-            provider_id: str = None,
+        self,
+        client_id: str = None,
+        client_secret: str = None,
+        provider_id: str = None,
             store_refresh_token=False,
     ) -> 'Connection':
         """
         OpenID Connect Client Credentials flow.
         """
+        if client_id is None and "OPENEO_AUTH_CLIENT_ID" in os.environ and "OPENEO_AUTH_CLIENT_SECRET" in os.environ:
+            client_id = os.environ.get("OPENEO_AUTH_CLIENT_ID")
+            client_secret = os.environ.get("OPENEO_AUTH_CLIENT_SECRET")
+            _log.debug(f"Getting client id ({client_id}) and secret from environment")
+
+        # TODO: also support specifying provider through issuer URL?
+        provider_id = provider_id or os.environ.get("OPENEO_AUTH_PROVIDER_ID")
+
         provider_id, client_info = self._get_oidc_provider_and_client_info(
             provider_id=provider_id, client_id=client_id, client_secret=client_secret
         )
@@ -555,6 +566,15 @@ class Connection(RestApiConnection):
 
         .. versionadded:: 0.6.0
         """
+        # TODO: unify `os.environ.get` with `get_config_option`?
+        auth_method = os.environ.get("OPENEO_AUTH_METHOD")
+        if auth_method == "client_credentials":
+            return self.authenticate_oidc_client_credentials(
+                client_id=client_id, client_secret=client_secret, provider_id=provider_id
+            )
+        elif auth_method:
+            raise ValueError(f"Unhandled auth method {auth_method}")
+
         _g = DefaultOidcClientGrant  # alias for compactness
         provider_id, client_info = self._get_oidc_provider_and_client_info(
             provider_id=provider_id, client_id=client_id, client_secret=client_secret,
