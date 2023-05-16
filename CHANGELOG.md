@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([#237](https://github.com/Open-EO/openeo-python-client/issues/237))
 - Basic support for `load_stac` process with `Connection.load_stac()`
   ([#425](https://github.com/Open-EO/openeo-python-client/issues/))
+- Add `DataCube.aggregate_spatial_window()`
 
 ### Changed
 

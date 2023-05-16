@@ -998,6 +998,7 @@ class DataCube(_ProcessGraphAbstraction):
             "align": align,
             "size": size,
             "reducer": reducer,
+            "context": context,
         }
         return self.process(process_id="aggregate_spatial_window", arguments=arguments)
 
