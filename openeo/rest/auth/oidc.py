@@ -281,13 +281,13 @@ class OidcProviderInfo:
             default_clients=data.get("default_clients"),
         )
 
-    def get_scopes_string(self, request_refresh_token: bool = False):
+    def get_scopes_string(self, request_refresh_token: bool = False) -> str:
         """
         Build "scope" string for authentication request.
 
         :param request_refresh_token: include "offline_access" scope (if supported),
             which some OIDC providers require in order to return refresh token
-        :return:
+        :return: space separated scope listing as single string
         """
         scopes = self._scopes
         if request_refresh_token and "offline_access" in self._supported_scopes:
