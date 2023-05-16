@@ -954,7 +954,7 @@ class DataCube(_ProcessGraphAbstraction):
         align: str = "upper-left",
         context: Optional[dict] = None,
         # TODO arguments: target dimension, context
-    ) -> 'DataCube':
+    ) -> "DataCube":
         """
         Aggregates statistics over the horizontal spatial dimensions (axes x and y) of the data cube.
 
@@ -982,8 +982,8 @@ class DataCube(_ProcessGraphAbstraction):
 
         :return: A data cube with the newly computed values and the same dimensions.
         """
-        valid_boundary_types = ["pad","trim"]
-        valid_align_types = ["lower-left","upper-left","lower-right","upper-right"]
+        valid_boundary_types = ["pad", "trim"]
+        valid_align_types = ["lower-left", "upper-left", "lower-right", "upper-right"]
         if boundary not in valid_boundary_types:
             raise ValueError(f"Provided boundary type not supported. Please use one of {valid_boundary_types} .")
         if align not in valid_align_types:
@@ -992,12 +992,13 @@ class DataCube(_ProcessGraphAbstraction):
             raise ValueError(f"Provided size not supported. Please provide a list of 2 integer values.")
 
         reducer = self._get_callback(reducer, parent_parameters=["data"])
-        arguments = {"data": THIS,
-                     "boundary": boundary,
-                     "align": align,
-                     "size": size,
-                     "reducer":reducer}
-
+        arguments = {
+            "data": THIS,
+            "boundary": boundary,
+            "align": align,
+            "size": size,
+            "reducer": reducer,
+        }
         return self.process(process_id="aggregate_spatial_window", arguments=arguments)
 
     @openeo_process

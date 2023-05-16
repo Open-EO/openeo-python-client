@@ -370,9 +370,10 @@ def test_aggregate_spatial_geometry_from_node(con100: Connection, get_geometries
         },
     }
 
+
 def test_aggregate_spatial_window(con100: Connection):
     img = con100.load_collection("S2")
-    size = [5,3]
+    size = [5, 3]
     masked = img.aggregate_spatial_window(size=size, reducer="mean")
     assert sorted(masked.flat_graph().keys()) == ["aggregatespatialwindow1", "loadcollection1"]
     assert masked.flat_graph()["aggregatespatialwindow1"] == {
@@ -381,18 +382,21 @@ def test_aggregate_spatial_window(con100: Connection):
             "align": "upper-left",
             "boundary": "pad",
             "data": {"from_node": "loadcollection1"},
-            "size": [5,3],
-            "reducer": {"process_graph": {
-                "mean1": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}
-            }},
-            "size": [5, 3]
+            "size": [5, 3],
+            "reducer": {
+                "process_graph": {
+                    "mean1": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}
+                }
+            },
+            "size": [5, 3],
         },
-        "result": True
+        "result": True,
     }
     with pytest.raises(ValueError, match="Provided size not supported. Please provide a list of 2 integer values."):
         img.aggregate_spatial_window(size=[1], reducer="mean")
     with pytest.raises(ValueError, match="Provided size not supported. Please provide a list of 2 integer values."):
-        img.aggregate_spatial_window(size=[1,2,3], reducer="mean")
+        img.aggregate_spatial_window(size=[1, 2, 3], reducer="mean")
+
 
 def test_aggregate_temporal(con100: Connection):
     cube = con100.load_collection("S2")
