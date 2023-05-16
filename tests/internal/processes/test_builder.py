@@ -1,11 +1,13 @@
+import io
 import logging
 import re
+import textwrap
 
 import pytest
 
 import openeo.processes
 from openeo.internal.graph_building import PGNode
-from openeo.internal.processes.builder import ProcessBuilderBase, get_parameter_names, convert_callable_to_pgnode
+from openeo.internal.processes.builder import ProcessBuilderBase, convert_callable_to_pgnode, get_parameter_names
 from openeo.rest import OpenEoClientException
 
 
@@ -14,6 +16,39 @@ def test_process_builder_process_basic():
     assert builder.pgnode.flat_graph() == {
         "foo1": {"process_id": "foo", "arguments": {"color": "blue"}, "result": True}
     }
+
+
+def test_process_builder_process_to_json():
+    builder = ProcessBuilderBase.process("foo", color="blue")
+
+    expected = '{"process_graph":{"foo1":{"process_id":"foo","arguments":{"color":"blue"},"result":true}}}'
+    assert builder.to_json(indent=None, separators=(",", ":")) == expected
+
+    expected = textwrap.dedent(
+        """\
+        {
+          "process_graph": {
+            "foo1": {
+              "process_id": "foo",
+              "arguments": {
+                "color": "blue"
+              },
+              "result": true
+            }
+          }
+        }"""
+    )
+    assert builder.to_json() == expected
+
+
+def test_process_builder_process_print_json():
+    builder = ProcessBuilderBase.process("foo", color="blue")
+    out = io.StringIO()
+    builder.print_json(file=out, indent=None)
+    assert (
+        out.getvalue()
+        == '{"process_graph": {"foo1": {"process_id": "foo", "arguments": {"color": "blue"}, "result": true}}}'
+    )
 
 
 def test_process_builder_process_namespace():
