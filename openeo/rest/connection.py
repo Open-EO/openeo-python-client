@@ -451,7 +451,6 @@ class Connection(RestApiConnection):
         client_id: str = None,
         client_secret: str = None,
         provider_id: str = None,
-            store_refresh_token=False,
     ) -> 'Connection':
         """
         OpenID Connect Client Credentials flow.
@@ -468,7 +467,7 @@ class Connection(RestApiConnection):
             provider_id=provider_id, client_id=client_id, client_secret=client_secret
         )
         authenticator = OidcClientCredentialsAuthenticator(client_info=client_info)
-        return self._authenticate_oidc(authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token)
+        return self._authenticate_oidc(authenticator, provider_id=provider_id, store_refresh_token=False)
 
     def authenticate_oidc_resource_owner_password_credentials(
             self,

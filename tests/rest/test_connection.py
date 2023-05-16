@@ -554,9 +554,9 @@ def test_create_connection_lazy_refresh_token_store(requests_mock):
     })
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
-        expected_grant_type="client_credentials",
+        expected_grant_type="password",
         expected_client_id=client_id,
-        expected_fields={"client_secret": client_secret, "scope": "openid"},
+        expected_fields={"username": user, "password": pwd, "scope": "openid", "client_secret": client_secret},
         oidc_issuer=issuer,
     )
 
@@ -564,8 +564,8 @@ def test_create_connection_lazy_refresh_token_store(requests_mock):
         conn = Connection(API_URL)
         assert RefreshTokenStore.call_count == 0
         # Create RefreshTokenStore lazily when necessary
-        conn.authenticate_oidc_client_credentials(
-            client_id=client_id, client_secret=client_secret, store_refresh_token=True
+        conn.authenticate_oidc_resource_owner_password_credentials(
+            username=user, password=pwd, client_id=client_id, client_secret=client_secret, store_refresh_token=True
         )
         assert RefreshTokenStore.call_count == 1
         RefreshTokenStore.return_value.set_refresh_token.assert_called_with(
@@ -825,14 +825,10 @@ def test_authenticate_oidc_client_credentials(requests_mock):
     assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
     assert refresh_token_store.mock_calls == []
     # Again but store refresh token
-    conn.authenticate_oidc_client_credentials(
-        client_id=client_id, client_secret=client_secret, store_refresh_token=True
-    )
+    conn.authenticate_oidc_client_credentials(client_id=client_id, client_secret=client_secret)
     assert isinstance(conn.auth, BearerAuth)
-    assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
-    assert refresh_token_store.mock_calls == [
-        mock.call.set_refresh_token(client_id=client_id, issuer=issuer, refresh_token=oidc_mock.state["refresh_token"])
-    ]
+    assert conn.auth.bearer == "oidc/oi/" + oidc_mock.state["access_token"]
+    assert refresh_token_store.mock_calls == []
 
 
 def test_authenticate_oidc_client_credentials_client_from_config(requests_mock, auth_config):
