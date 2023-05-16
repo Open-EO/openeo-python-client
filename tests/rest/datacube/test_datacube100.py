@@ -389,6 +389,7 @@ def test_aggregate_spatial_window(con100: Connection):
                 }
             },
             "size": [5, 3],
+            "context": None,
         },
         "result": True,
     }
