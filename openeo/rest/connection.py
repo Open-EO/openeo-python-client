@@ -1383,7 +1383,7 @@ class Connection(RestApiConnection):
             self, format, glob_pattern, **(options or {})
         )
 
-    def as_curl(self, data: Union[dict, DataCube], path="/result", method="POST") -> str:
+    def as_curl(self, data: Union[dict, DataCube], path="/result", method="POST", obfuscate_auth: bool = False) -> str:
         """
         Build curl command to evaluate given process graph or data cube
         (including authorization and content-type headers).
@@ -1391,12 +1391,14 @@ class Connection(RestApiConnection):
         :param data: process graph dictionary or :py:class:`~openeo.rest.datacube.DataCube` object
         :param path: endpoint to send request to
         :param method: HTTP method to use
+        :param obfuscate_auth: don't show actual bearer token
+
         :return: curl command as a string
         """
         cmd = ["curl", "-i", "-X", method]
         cmd += ["-H", "Content-Type: application/json"]
         if isinstance(self.auth, BearerAuth):
-            cmd += ["-H", f"Authorization: Bearer {self.auth.bearer}"]
+            cmd += ["-H", f"Authorization: Bearer {'...' if obfuscate_auth else self.auth.bearer}"]
         post_data = self._build_request_with_process_graph(data)
         post_json = json.dumps(post_data, separators=(',', ':'))
         cmd += ["--data", post_json]
