@@ -448,13 +448,21 @@ class Connection(RestApiConnection):
 
     def authenticate_oidc_client_credentials(
         self,
-        client_id: str = None,
-        client_secret: str = None,
-        provider_id: str = None,
+        client_id: Optional[str] = None,
+        client_secret: Optional[str] = None,
+        provider_id: Optional[str] = None,
     ) -> 'Connection':
         """
         OpenID Connect Client Credentials flow.
+
+        Client id, secret and provider id can be specified directly through the available arguments.
+        It is also possible to leave these arguments empty and specify them through
+        environment variables ``OPENEO_AUTH_CLIENT_ID``,
+        ``OPENEO_AUTH_CLIENT_SECRET`` and ``OPENEO_AUTH_PROVIDER_ID`` respectively.
+
+        .. versionchanged:: 0.18.0 Allow specifying client id, secret and provider id through environment variables.
         """
+        # TODO: option to get client id/secret from a config file too?
         if client_id is None and "OPENEO_AUTH_CLIENT_ID" in os.environ and "OPENEO_AUTH_CLIENT_SECRET" in os.environ:
             client_id = os.environ.get("OPENEO_AUTH_CLIENT_ID")
             client_secret = os.environ.get("OPENEO_AUTH_CLIENT_SECRET")
@@ -561,13 +569,25 @@ class Connection(RestApiConnection):
         max_poll_time: float = OidcDeviceAuthenticator.DEFAULT_MAX_POLL_TIME,
     ):
         """
-        Do OpenID Connect authentication, first trying refresh tokens and falling back on device code flow.
+        Generic method to do OpenID Connect authentication.
+
+        In the context of interactive usage, this method first tries to use refresh tokens
+        and falls back on device code flow.
+
+        For non-interactive, machine-to-machine contexts, it is also possible to trigger
+        the usage of the "client_credentials" flow through environment variables.
+        Assuming you have set up a OIDC client (with a secret):
+        set ``OPENEO_AUTH_METHOD`` to ``client_credentials``,
+        set ``OPENEO_AUTH_CLIENT_ID`` to the client id,
+        and set ``OPENEO_AUTH_CLIENT_SECRET`` to the client secret.
 
         .. versionadded:: 0.6.0
+        .. versionchanged:: 0.18.0 Add support for client credentials flow.
         """
         # TODO: unify `os.environ.get` with `get_config_option`?
         auth_method = os.environ.get("OPENEO_AUTH_METHOD")
         if auth_method == "client_credentials":
+            _log.debug("authenticate_oidc: going for 'client_credentials' authentication")
             return self.authenticate_oidc_client_credentials(
                 client_id=client_id, client_secret=client_secret, provider_id=provider_id
             )

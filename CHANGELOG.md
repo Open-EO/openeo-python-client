@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Support OIDC client credentials grant from a generic `connection.authenticate_oidc()` call
+  through environment variables
+  [#419](https://github.com/Open-EO/openeo-python-client/issues/419)
+
 ### Changed
 
 ### Removed
