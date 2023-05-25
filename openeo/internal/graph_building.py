@@ -358,6 +358,8 @@ class GraphFlattener(ProcessGraphVisitor):
                     raise ValueError(pg)
             else:
                 value = {k: self._flatten_argument(v) for k, v in value.items()}
+        elif isinstance(value, Parameter):
+            value = {"from_parameter": value.name}
         return value
 
     def leaveArgument(self, argument_id: str, value):

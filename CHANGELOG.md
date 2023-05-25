@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fixed UDP parameter conversion issue in `build_process_dict` when using parameter in `context` of `run_udf`
+  [#431](https://github.com/Open-EO/openeo-python-client/issues/431)
+
 
 ## [0.17.0] and [0.17.1] - 2023-05-16
 
