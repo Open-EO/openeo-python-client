@@ -27,6 +27,7 @@ from openeo.internal.documentation import openeo_process
 from openeo.internal.graph_building import PGNode, ReduceNode, _FromNodeMixin
 from openeo.internal.processes.builder import get_parameter_names, convert_callable_to_pgnode
 from openeo.internal.warnings import legacy_alias, UserDeprecationWarning, deprecated
+from openeo.internal.jupyter import in_jupyter_context
 from openeo.metadata import CollectionMetadata, Band, BandDimension, TemporalDimension, SpatialDimension
 from openeo.processes import ProcessBuilder
 from openeo.rest import BandMathException, OperatorException, OpenEoClientException
@@ -1984,21 +1985,14 @@ class DataCube(_ProcessGraphAbstraction):
         if "XYZ" not in self.connection.list_service_types():
             raise OpenEoClientException("Backend does not support service type 'XYZ'.")
 
+        if not in_jupyter_context():
+            raise Exception("On-demand preview only supported in Jupyter notebooks!")
         try:
-            from IPython.core.getipython import get_ipython
-            from IPython.display import display
             import ipyleaflet
-            
-            # Check we are inside Jupyer Notebook
-            shell = get_ipython().__class__.__name__
-            if shell != "ZMQInteractiveShell":
-                raise Exception("On-demand preview only supported in Jupyter notebooks!")
         except ImportError:
             raise Exception(
                 "Additional modules must be installed for on demand viewer. Run `pip install openeo[jupyter]` or refer to the documentation."
             )
-        except NameError:
-            raise Exception("On-demand preview only supported in Jupyter notebooks!")
 
         service = self.tiled_viewing_service("XYZ")
         service_metadata = service.describe_service()
@@ -2031,6 +2025,7 @@ class DataCube(_ProcessGraphAbstraction):
                 self.map = ipyleaflet_map
 
             def _repr_html_(self):
+                from IPython.display import display
                 display(self.map)
 
             def delete_service(self):
