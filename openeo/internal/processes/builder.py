@@ -1,8 +1,9 @@
 import inspect
 import logging
-from typing import Union, Callable, List, Optional, Any
+import warnings
+from typing import Union, Callable, List, Optional, Any, Dict
 
-from openeo.internal.graph_building import PGNode, _FromNodeMixin
+from openeo.internal.graph_building import PGNode, _FromNodeMixin, FlatGraphableMixin
 from openeo.rest import OpenEoClientException
 
 UNSET = object()
@@ -23,7 +24,7 @@ def _to_pgnode_data(value: Any) -> Union[PGNode, dict, Any]:
         return value
 
 
-class ProcessBuilderBase(_FromNodeMixin):
+class ProcessBuilderBase(_FromNodeMixin, FlatGraphableMixin):
     """
     Base implementation of a builder pattern that allows constructing process graphs
     by calling functions.
@@ -52,7 +53,7 @@ class ProcessBuilderBase(_FromNodeMixin):
         }
         return cls(PGNode(process_id=process_id, arguments=arguments, namespace=namespace))
 
-    def flat_graph(self) -> dict:
+    def flat_graph(self) -> Dict[str, dict]:
         """Get the process graph in internal flat dict representation."""
         return self.pgnode.flat_graph()
 
@@ -87,8 +88,12 @@ def convert_callable_to_pgnode(callback: Callable, parent_parameters: Optional[L
     if parent_parameters is None:
         # Due to lack of parent parameter information,
         # we blindly use all callback's argument names as parameter names
-        if len(process_params) > 1:
-            _log.warning(f"Guessing callback parameters of {callback!r} from its arguments {process_params!r}")
+        # TODO #426: Instead of guessing: extract expected parent_parameters, e.g. based on parent process_id?
+        message = f"Blindly using callback parameter names from {callback!r} argument names: {process_params!r}"
+        if tuple(process_params) not in {(), ("x",), ("data",), ("x", "y")}:
+            warnings.warn(message)
+        else:
+            _log.info(message)
         kwargs = {p: ProcessBuilder({"from_parameter": p}) for p in process_params}
     elif parent_parameters == ["x", "y"] and (len(process_params) == 1 or process_params[:1] == ["data"]):
         # Special case: wrap all parent parameters in an array

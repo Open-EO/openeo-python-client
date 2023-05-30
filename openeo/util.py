@@ -1,6 +1,7 @@
 """
 Various utilities and helpers.
 """
+# TODO: split this kitchen-sink in thematic submodules
 import datetime as dt
 import functools
 import json
@@ -10,7 +11,7 @@ import sys
 import time
 from collections import OrderedDict
 from pathlib import Path
-from typing import Any, Union, Tuple, Callable, Optional
+from typing import Any, Callable, Optional, Tuple, Union
 from urllib.parse import urljoin
 
 import requests
@@ -131,8 +132,11 @@ class Rfc3339:
     ) -> Union[dt.datetime, None]:
         """Parse given string as RFC3339 date-time."""
         if isinstance(x, str):
-            # TODO: Also support other timezones than UTC (Z)
-            res = dt.datetime.strptime(x, "%Y-%m-%dT%H:%M:%SZ")
+            # TODO: Also support parsing other timezones than UTC (Z)
+            if re.search(r":\d+\.\d+", x):
+                res = dt.datetime.strptime(x, "%Y-%m-%dT%H:%M:%S.%fZ")
+            else:
+                res = dt.datetime.strptime(x, "%Y-%m-%dT%H:%M:%SZ")
             if with_timezone:
                 res = res.replace(tzinfo=dt.timezone.utc)
             return res
@@ -599,3 +603,26 @@ def to_bbox_dict(x: Any, *, crs: Optional[str] = None) -> BBoxDict:
 def url_join(root_url: str, path: str):
     """Join a base url and sub path properly."""
     return urljoin(root_url.rstrip("/") + "/", path.lstrip("/"))
+
+
+def clip(x: float, min: float, max: float) -> float:
+    """Clip given value between minimum and maximum value"""
+    return min if x < min else (x if x < max else max)
+
+
+class SimpleProgressBar:
+    """Simple ASCII-based progress bar helper."""
+
+    __slots__ = ["width", "bar", "fill", "left", "right"]
+
+    def __init__(self, width: int = 40, *, bar: str = "#", fill: str = "-", left: str = "[", right: str = "]"):
+        self.width = int(width)
+        self.bar = bar[0]
+        self.fill = fill[0]
+        self.left = left
+        self.right = right
+
+    def get(self, fraction: float) -> str:
+        width = self.width - len(self.left) - len(self.right)
+        bar = self.bar * int(round(width * clip(fraction, min=0, max=1)))
+        return f"{self.left}{bar:{self.fill}<{width}s}{self.right}"

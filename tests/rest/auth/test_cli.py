@@ -1,6 +1,6 @@
 import logging
-from unittest import mock
 import os
+from unittest import mock
 
 import pytest
 
@@ -8,7 +8,7 @@ from openeo.capabilities import ApiVersionException
 from openeo.rest.auth import cli
 from openeo.rest.auth.cli import CliToolException
 from openeo.rest.auth.config import AuthConfig, RefreshTokenStore
-from openeo.rest.auth.testing import OidcMock, assert_device_code_poll_sleep
+from openeo.rest.auth.testing import OidcMock
 
 
 def mock_input(*args: str):
@@ -287,7 +287,7 @@ def test_add_oidc_interactive(auth_config, requests_mock, capsys):
         assert e in out
 
 
-def test_oidc_auth_device_flow(auth_config, refresh_token_store, requests_mock, capsys):
+def test_oidc_auth_device_flow(auth_config, refresh_token_store, requests_mock, capsys, oidc_device_code_flow_checker):
     requests_mock.get("https://oeo.test/", json={"api_version": "1.0.0"})
     requests_mock.get("https://oeo.test/credentials/oidc", json={"providers": [
         {"id": "authit", "issuer": "https://authit.test", "title": "Auth It", "scopes": ["openid"]},
@@ -303,22 +303,23 @@ def test_oidc_auth_device_flow(auth_config, refresh_token_store, requests_mock, 
         expected_client_id=client_id,
         oidc_issuer="https://authit.test",
         expected_fields={"scope": "openid", "client_secret": client_secret},
-        state={"device_code_callback_timeline": ["great success"]},
+        state={"device_code_callback_timeline": ["authorization_pending", "great success"]},
         scopes_supported=["openid"]
     )
 
-    with assert_device_code_poll_sleep():
+    with oidc_device_code_flow_checker(url=f"{oidc_mock.oidc_issuer}/dc", check_capsys=False):
         cli.main(["oidc-auth", "https://oeo.test", "--flow", "device"])
 
     assert refresh_token_store.get_refresh_token("https://authit.test", client_id) == oidc_mock.state["refresh_token"]
 
     out = capsys.readouterr().out
+    user_code = oidc_mock.state["user_code"]
     expected = [
         "Using provider ID 'authit'",
         "Using client ID 'z3-cl13nt'",
-        "To authenticate: visit https://authit.test/dc",
-        "enter the user code {c!r}".format(c=oidc_mock.state["user_code"]),
-        "Authorized successfully.",
+        f"Visit https://authit.test/dc and enter user code '{user_code}' to authenticate.",
+        "[#####################################] Authorization pending                   \r[#####################################] Polling                                 \r",
+        "[####################################-] Authorized successfully                 \r\n",
         "The OpenID Connect device flow was successful.",
         "Stored refresh token in {p!r}".format(p=str(refresh_token_store.path)),
     ]
@@ -326,7 +327,9 @@ def test_oidc_auth_device_flow(auth_config, refresh_token_store, requests_mock, 
         assert e in out
 
 
-def test_oidc_auth_device_flow_default_client(auth_config, refresh_token_store, requests_mock, capsys):
+def test_oidc_auth_device_flow_default_client(
+    auth_config, refresh_token_store, requests_mock, capsys, oidc_device_code_flow_checker
+):
     """Test device flow with default client (which uses PKCE instead of secret)."""
     default_client_id = "d3f6u17cl13n7"
     requests_mock.get("https://oeo.test/", json={"api_version": "1.0.0"})
@@ -349,23 +352,24 @@ def test_oidc_auth_device_flow_default_client(auth_config, refresh_token_store, 
         expected_client_id=default_client_id,
         oidc_issuer="https://authit.test",
         expected_fields={"scope": "openid", "code_verifier": True, "code_challenge": True},
-        state={"device_code_callback_timeline": ["great success"]},
+        state={"device_code_callback_timeline": ["authorization_pending", "great success"]},
         scopes_supported=["openid"]
     )
 
-    with assert_device_code_poll_sleep():
+    with oidc_device_code_flow_checker(url=f"{oidc_mock.oidc_issuer}/dc", check_capsys=False):
         cli.main(["oidc-auth", "https://oeo.test", "--flow", "device"])
 
     stored_refresh_token = refresh_token_store.get_refresh_token("https://authit.test", default_client_id)
     assert stored_refresh_token == oidc_mock.state["refresh_token"]
 
     out = capsys.readouterr().out
+    user_code = oidc_mock.state["user_code"]
     expected = [
         "Using provider ID 'authit'",
         "Will try to use default client.",
-        "To authenticate: visit https://authit.test/dc",
-        "enter the user code {c!r}".format(c=oidc_mock.state["user_code"]),
-        "Authorized successfully.",
+        f"Visit https://authit.test/dc and enter user code '{user_code}' to authenticate.",
+        "[#####################################] Authorization pending                   \r[#####################################] Polling                                 \r",
+        "[####################################-] Authorized successfully                 \r\n",
         "The OpenID Connect device flow was successful.",
         "Stored refresh token in {p!r}".format(p=str(refresh_token_store.path)),
     ]
@@ -373,7 +377,9 @@ def test_oidc_auth_device_flow_default_client(auth_config, refresh_token_store, 
         assert e in out
 
 
-def test_oidc_auth_device_flow_no_config_all_defaults(auth_config, refresh_token_store, requests_mock, capsys):
+def test_oidc_auth_device_flow_no_config_all_defaults(
+    auth_config, refresh_token_store, requests_mock, capsys, oidc_device_code_flow_checker
+):
     """Test device flow with default client (which uses PKCE instead of secret)."""
     default_client_id = "d3f6u17cl13n7"
     requests_mock.get("https://oeo.test/", json={"api_version": "1.0.0"})
@@ -394,24 +400,25 @@ def test_oidc_auth_device_flow_no_config_all_defaults(auth_config, refresh_token
         expected_client_id=default_client_id,
         oidc_issuer="https://authit.test",
         expected_fields={"scope": "openid", "code_verifier": True, "code_challenge": True},
-        state={"device_code_callback_timeline": ["great success"]},
+        state={"device_code_callback_timeline": ["authorization_pending", "great success"]},
         scopes_supported=["openid"]
     )
 
-    with assert_device_code_poll_sleep():
+    with oidc_device_code_flow_checker(url=f"{oidc_mock.oidc_issuer}/dc", check_capsys=False):
         cli.main(["oidc-auth", "https://oeo.test", "--flow", "device"])
 
     stored_refresh_token = refresh_token_store.get_refresh_token("https://authit.test", default_client_id)
     assert stored_refresh_token == oidc_mock.state["refresh_token"]
 
     out = capsys.readouterr().out
+    user_code = oidc_mock.state["user_code"]
     expected = [
         "Will try to use default provider_id.",
         "Using provider ID None",
         "Will try to use default client.",
-        "To authenticate: visit https://authit.test/dc",
-        "enter the user code {c!r}".format(c=oidc_mock.state["user_code"]),
-        "Authorized successfully.",
+        f"Visit https://authit.test/dc and enter user code '{user_code}' to authenticate.",
+        "[#####################################] Authorization pending                   \r[#####################################] Polling                                 \r",
+        "[####################################-] Authorized successfully                 \r\n",
         "The OpenID Connect device flow was successful.",
         "Stored refresh token in {p!r}".format(p=str(refresh_token_store.path)),
     ]

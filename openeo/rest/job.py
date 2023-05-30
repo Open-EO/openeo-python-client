@@ -32,6 +32,8 @@ class BatchJob:
 
     """
 
+    # TODO #425 method to bootstrap `load_stac` directly from a BatchJob object
+
     def __init__(self, job_id: str, connection: 'Connection'):
         self.job_id = job_id
         """Unique identifier of the batch job (string)."""

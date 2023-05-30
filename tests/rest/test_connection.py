@@ -14,12 +14,13 @@ import requests.auth
 import requests_mock
 
 import openeo
-from openeo.capabilities import ComparableVersion, ApiVersionException
-from openeo.internal.graph_building import PGNode
+from openeo.capabilities import ApiVersionException, ComparableVersion
+from openeo.internal.compat import nullcontext
+from openeo.internal.graph_building import FlatGraphableMixin, PGNode
 from openeo.rest import OpenEoApiError, OpenEoClientException, OpenEoRestError
 from openeo.rest.auth.auth import BearerAuth, NullAuth
 from openeo.rest.auth.oidc import OidcException
-from openeo.rest.auth.testing import ABSENT, OidcMock, assert_device_code_poll_sleep
+from openeo.rest.auth.testing import ABSENT, OidcMock
 from openeo.rest.connection import Connection, RestApiConnection, connect, paginate
 from openeo.util import ContextTimer
 
@@ -553,9 +554,9 @@ def test_create_connection_lazy_refresh_token_store(requests_mock):
     })
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
-        expected_grant_type="client_credentials",
+        expected_grant_type="password",
         expected_client_id=client_id,
-        expected_fields={"client_secret": client_secret},
+        expected_fields={"username": user, "password": pwd, "scope": "openid", "client_secret": client_secret},
         oidc_issuer=issuer,
     )
 
@@ -563,8 +564,8 @@ def test_create_connection_lazy_refresh_token_store(requests_mock):
         conn = Connection(API_URL)
         assert RefreshTokenStore.call_count == 0
         # Create RefreshTokenStore lazily when necessary
-        conn.authenticate_oidc_client_credentials(
-            client_id=client_id, client_secret=client_secret, store_refresh_token=True
+        conn.authenticate_oidc_resource_owner_password_credentials(
+            username=user, password=pwd, client_id=client_id, client_secret=client_secret, store_refresh_token=True
         )
         assert RefreshTokenStore.call_count == 1
         RefreshTokenStore.return_value.set_refresh_token.assert_called_with(
@@ -809,7 +810,7 @@ def test_authenticate_oidc_client_credentials(requests_mock):
         requests_mock=requests_mock,
         expected_grant_type="client_credentials",
         expected_client_id=client_id,
-        expected_fields={"client_secret": client_secret},
+        expected_fields={"client_secret": client_secret, "scope": "openid"},
         oidc_issuer=issuer,
     )
 
@@ -824,14 +825,10 @@ def test_authenticate_oidc_client_credentials(requests_mock):
     assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
     assert refresh_token_store.mock_calls == []
     # Again but store refresh token
-    conn.authenticate_oidc_client_credentials(
-        client_id=client_id, client_secret=client_secret, store_refresh_token=True
-    )
+    conn.authenticate_oidc_client_credentials(client_id=client_id, client_secret=client_secret)
     assert isinstance(conn.auth, BearerAuth)
-    assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
-    assert refresh_token_store.mock_calls == [
-        mock.call.set_refresh_token(client_id=client_id, issuer=issuer, refresh_token=oidc_mock.state["refresh_token"])
-    ]
+    assert conn.auth.bearer == "oidc/oi/" + oidc_mock.state["access_token"]
+    assert refresh_token_store.mock_calls == []
 
 
 def test_authenticate_oidc_client_credentials_client_from_config(requests_mock, auth_config):
@@ -846,7 +843,7 @@ def test_authenticate_oidc_client_credentials_client_from_config(requests_mock, 
         requests_mock=requests_mock,
         expected_grant_type="client_credentials",
         expected_client_id=client_id,
-        expected_fields={"client_secret": client_secret},
+        expected_fields={"client_secret": client_secret, "scope": "openid"},
         oidc_issuer=issuer,
     )
     auth_config.set_oidc_client_config(
@@ -860,6 +857,113 @@ def test_authenticate_oidc_client_credentials_client_from_config(requests_mock, 
     conn.authenticate_oidc_client_credentials()
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
+    assert refresh_token_store.mock_calls == []
+
+
+@pytest.mark.parametrize(
+    ["env_provider_id", "expected_provider_id"],
+    [
+        (None, "oi"),
+        ("oi", "oi"),
+        ("dc", "dc"),
+    ],
+)
+def test_authenticate_oidc_client_credentials_client_from_env(
+    requests_mock, monkeypatch, env_provider_id, expected_provider_id
+):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    client_id = "myclient"
+    client_secret = "$3cr3t"
+    monkeypatch.setenv("OPENEO_AUTH_CLIENT_ID", client_id)
+    monkeypatch.setenv("OPENEO_AUTH_CLIENT_SECRET", client_secret)
+    if env_provider_id:
+        monkeypatch.setenv("OPENEO_AUTH_PROVIDER_ID", env_provider_id)
+    requests_mock.get(
+        API_URL + "credentials/oidc",
+        json={
+            "providers": [
+                {"id": "oi", "issuer": "https://oi.test", "title": "example", "scopes": ["openid"]},
+                {"id": "dc", "issuer": "https://dc.test", "title": "example", "scopes": ["openid"]},
+            ]
+        },
+    )
+    oidc_mock = OidcMock(
+        requests_mock=requests_mock,
+        oidc_issuer=f"https://{expected_provider_id}.test",
+        expected_grant_type="client_credentials",
+        expected_client_id=client_id,
+        expected_fields={"client_secret": client_secret, "scope": "openid"},
+    )
+
+    # With all this set up, kick off the openid connect flow
+    refresh_token_store = mock.Mock()
+    conn = Connection(API_URL, refresh_token_store=refresh_token_store)
+    assert isinstance(conn.auth, NullAuth)
+    conn.authenticate_oidc_client_credentials()
+    assert isinstance(conn.auth, BearerAuth)
+    assert conn.auth.bearer == f"oidc/{expected_provider_id}/" + oidc_mock.state["access_token"]
+    assert refresh_token_store.mock_calls == []
+
+
+@pytest.mark.parametrize(
+    [
+        "env_provider_id",
+        "arg_provider_id",
+        "expected_provider_id",
+        "env_client_id",
+        "arg_client_id",
+        "expected_client_id",
+    ],
+    [
+        (None, None, "oi", None, "aclient", "aclient"),
+        (None, "dc", "dc", None, "aclient", "aclient"),
+        ("dc", None, "dc", "eclient", None, "eclient"),
+        ("oi", "dc", "dc", "eclient", "aclient", "aclient"),
+    ],
+)
+def test_authenticate_oidc_client_credentials_client_precedence(
+    requests_mock,
+    monkeypatch,
+    env_provider_id,
+    arg_provider_id,
+    expected_provider_id,
+    env_client_id,
+    arg_client_id,
+    expected_client_id,
+):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    client_secret = "$3cr3t"
+    if env_client_id:
+        monkeypatch.setenv("OPENEO_AUTH_CLIENT_ID", env_client_id)
+        monkeypatch.setenv("OPENEO_AUTH_CLIENT_SECRET", client_secret)
+    if env_provider_id:
+        monkeypatch.setenv("OPENEO_AUTH_PROVIDER_ID", env_provider_id)
+    requests_mock.get(
+        API_URL + "credentials/oidc",
+        json={
+            "providers": [
+                {"id": "oi", "issuer": "https://oi.test", "title": "example", "scopes": ["openid"]},
+                {"id": "dc", "issuer": "https://dc.test", "title": "example", "scopes": ["openid"]},
+            ]
+        },
+    )
+    oidc_mock = OidcMock(
+        requests_mock=requests_mock,
+        oidc_issuer=f"https://{expected_provider_id}.test",
+        expected_grant_type="client_credentials",
+        expected_client_id=expected_client_id,
+        expected_fields={"client_secret": client_secret, "scope": "openid"},
+    )
+
+    # With all this set up, kick off the openid connect flow
+    refresh_token_store = mock.Mock()
+    conn = Connection(API_URL, refresh_token_store=refresh_token_store)
+    assert isinstance(conn.auth, NullAuth)
+    conn.authenticate_oidc_client_credentials(
+        client_id=arg_client_id, client_secret=client_secret if arg_client_id else None, provider_id=arg_provider_id
+    )
+    assert isinstance(conn.auth, BearerAuth)
+    assert conn.auth.bearer == f"oidc/{expected_provider_id}/" + oidc_mock.state["access_token"]
     assert refresh_token_store.mock_calls == []
 
 
@@ -946,7 +1050,7 @@ def test_authenticate_oidc_resource_owner_password_credentials_client_from_confi
     ]
 )
 def test_authenticate_oidc_device_flow_with_secret(
-        requests_mock, store_refresh_token, scopes_supported, expected_scopes
+    requests_mock, store_refresh_token, scopes_supported, expected_scopes, oidc_device_code_flow_checker
 ):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
@@ -972,7 +1076,8 @@ def test_authenticate_oidc_device_flow_with_secret(
     conn = Connection(API_URL, refresh_token_store=refresh_token_store)
     assert isinstance(conn.auth, NullAuth)
     oidc_mock.state["device_code_callback_timeline"] = ["great success"]
-    with assert_device_code_poll_sleep():
+    # with oidc_mock
+    with oidc_device_code_flow_checker():
         conn.authenticate_oidc_device(
             client_id=client_id, client_secret=client_secret, store_refresh_token=store_refresh_token
         )
@@ -987,7 +1092,9 @@ def test_authenticate_oidc_device_flow_with_secret(
         assert refresh_token_store.mock_calls == []
 
 
-def test_authenticate_oidc_device_flow_with_secret_from_config(requests_mock, auth_config, caplog):
+def test_authenticate_oidc_device_flow_with_secret_from_config(
+    requests_mock, auth_config, caplog, oidc_device_code_flow_checker
+):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
     client_secret = "$3cr3t"
@@ -1015,7 +1122,7 @@ def test_authenticate_oidc_device_flow_with_secret_from_config(requests_mock, au
     conn = Connection(API_URL, refresh_token_store=refresh_token_store)
     assert isinstance(conn.auth, NullAuth)
     oidc_mock.state["device_code_callback_timeline"] = ["great success"]
-    with assert_device_code_poll_sleep():
+    with oidc_device_code_flow_checker():
         conn.authenticate_oidc_device()
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
@@ -1060,7 +1167,7 @@ def test_authenticate_oidc_device_flow_no_support(requests_mock, auth_config):
     (False, False),
 ])
 def test_authenticate_oidc_device_flow_pkce_multiple_providers_no_given(
-        requests_mock, auth_config, caplog, use_pkce, expect_pkce
+    requests_mock, auth_config, caplog, use_pkce, expect_pkce, oidc_device_code_flow_checker
 ):
     """OIDC device flow + PKCE with multiple OIDC providers and none specified to use."""
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
@@ -1071,6 +1178,7 @@ def test_authenticate_oidc_device_flow_pkce_multiple_providers_no_given(
             {"id": "bauth", "issuer": "https://bauth.test", "title": "Bar Auth", "scopes": ["openid", "w"]},
         ]
     })
+    oidc_issuer = oidc_issuer = "https://fauth.test"
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
         expected_grant_type="urn:ietf:params:oauth:grant-type:device_code",
@@ -1081,7 +1189,7 @@ def test_authenticate_oidc_device_flow_pkce_multiple_providers_no_given(
             "code_challenge": True if expect_pkce else ABSENT,
         },
         scopes_supported=["openid", "w"],
-        oidc_issuer="https://fauth.test",
+        oidc_issuer=oidc_issuer,
     )
     assert auth_config.load() == {}
 
@@ -1091,7 +1199,7 @@ def test_authenticate_oidc_device_flow_pkce_multiple_providers_no_given(
     conn = Connection(API_URL, refresh_token_store=refresh_token_store)
     assert isinstance(conn.auth, NullAuth)
     oidc_mock.state["device_code_callback_timeline"] = ["great success"]
-    with assert_device_code_poll_sleep():
+    with oidc_device_code_flow_checker(url=f"{oidc_issuer}/dc"):
         conn.authenticate_oidc_device(client_id=client_id, use_pkce=use_pkce)
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/fauth/' + oidc_mock.state["access_token"]
@@ -1105,7 +1213,7 @@ def test_authenticate_oidc_device_flow_pkce_multiple_providers_no_given(
     (False, False),
 ])
 def test_authenticate_oidc_device_flow_pkce_multiple_provider_one_config_no_given(
-        requests_mock, auth_config, caplog, use_pkce, expect_pkce
+    requests_mock, auth_config, caplog, use_pkce, expect_pkce, oidc_device_code_flow_checker
 ):
     """OIDC device flow + PKCE with multiple OIDC providers, one in config and none specified to use."""
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
@@ -1116,6 +1224,7 @@ def test_authenticate_oidc_device_flow_pkce_multiple_provider_one_config_no_give
             {"id": "bauth", "issuer": "https://bauth.test", "title": "Bar", "scopes": ["openid"]},
         ]
     })
+    oidc_issuer = "https://fauth.test"
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
         expected_grant_type="urn:ietf:params:oauth:grant-type:device_code",
@@ -1126,7 +1235,7 @@ def test_authenticate_oidc_device_flow_pkce_multiple_provider_one_config_no_give
             "code_challenge": True if expect_pkce else ABSENT,
         },
         scopes_supported=["openid"],
-        oidc_issuer="https://fauth.test",
+        oidc_issuer=oidc_issuer,
     )
     assert auth_config.load() == {}
     auth_config.set_oidc_client_config(backend=API_URL, provider_id="fauth", client_id=client_id)
@@ -1137,7 +1246,7 @@ def test_authenticate_oidc_device_flow_pkce_multiple_provider_one_config_no_give
     conn = Connection(API_URL, refresh_token_store=refresh_token_store)
     assert isinstance(conn.auth, NullAuth)
     oidc_mock.state["device_code_callback_timeline"] = ["great success"]
-    with assert_device_code_poll_sleep():
+    with oidc_device_code_flow_checker(url=f"{oidc_issuer}/dc"):
         conn.authenticate_oidc_device(use_pkce=use_pkce)
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/fauth/' + oidc_mock.state["access_token"]
@@ -1146,7 +1255,9 @@ def test_authenticate_oidc_device_flow_pkce_multiple_provider_one_config_no_give
     assert "Using client_id 'myclient' from config (provider 'fauth')" in caplog.text
 
 
-def test_authenticate_oidc_device_flow_pkce_multiple_provider_one_config_no_given_default_client(requests_mock, auth_config):
+def test_authenticate_oidc_device_flow_pkce_multiple_provider_one_config_no_given_default_client(
+    requests_mock, auth_config, oidc_device_code_flow_checker
+):
     """
     OIDC device flow + default_clients + PKCE with multiple OIDC providers, one in config and none specified to use.
     """
@@ -1164,6 +1275,7 @@ def test_authenticate_oidc_device_flow_pkce_multiple_provider_one_config_no_give
             },
         ]
     })
+    oidc_issuer = "https://bauth.test"
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
         expected_grant_type="urn:ietf:params:oauth:grant-type:device_code",
@@ -1172,7 +1284,7 @@ def test_authenticate_oidc_device_flow_pkce_multiple_provider_one_config_no_give
             "scope": "openid", "code_verifier": True, "code_challenge": True
         },
         scopes_supported=["openid"],
-        oidc_issuer="https://bauth.test",
+        oidc_issuer=oidc_issuer,
     )
     assert auth_config.load() == {}
     auth_config.set_oidc_client_config(backend=API_URL, provider_id="bauth", client_id=None)
@@ -1182,21 +1294,26 @@ def test_authenticate_oidc_device_flow_pkce_multiple_provider_one_config_no_give
     conn = Connection(API_URL, refresh_token_store=refresh_token_store)
     assert isinstance(conn.auth, NullAuth)
     oidc_mock.state["device_code_callback_timeline"] = ["great success"]
-    with assert_device_code_poll_sleep():
+    with oidc_device_code_flow_checker(url=f"{oidc_issuer}/dc"):
         conn.authenticate_oidc_device()
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/bauth/' + oidc_mock.state["access_token"]
     assert refresh_token_store.mock_calls == []
 
 
-@pytest.mark.parametrize(["grant_types", "use_pkce", "expect_pkce"], [
-    (["urn:ietf:params:oauth:grant-type:device_code+pkce"], True, True),
-    (["urn:ietf:params:oauth:grant-type:device_code+pkce"], None, True),
-    (["urn:ietf:params:oauth:grant-type:device_code+pkce", "refresh_token"], None, True),
-    (["urn:ietf:params:oauth:grant-type:device_code"], None, False),
-    (["urn:ietf:params:oauth:grant-type:device_code"], False, False),
-])
-def test_authenticate_oidc_device_flow_pkce_default_client_handling(requests_mock, grant_types, use_pkce, expect_pkce):
+@pytest.mark.parametrize(
+    ["grant_types", "use_pkce", "expect_pkce"],
+    [
+        (["urn:ietf:params:oauth:grant-type:device_code+pkce"], True, True),
+        (["urn:ietf:params:oauth:grant-type:device_code+pkce"], None, True),
+        (["urn:ietf:params:oauth:grant-type:device_code+pkce", "refresh_token"], None, True),
+        (["urn:ietf:params:oauth:grant-type:device_code"], None, False),
+        (["urn:ietf:params:oauth:grant-type:device_code"], False, False),
+    ],
+)
+def test_authenticate_oidc_device_flow_pkce_default_client_handling(
+    requests_mock, grant_types, use_pkce, expect_pkce, oidc_device_code_flow_checker
+):
     """
     OIDC device authn grant + secret/PKCE/neither: default client grant_types handling
     """
@@ -1240,14 +1357,14 @@ def test_authenticate_oidc_device_flow_pkce_default_client_handling(requests_moc
     conn = Connection(API_URL, refresh_token_store=refresh_token_store)
     assert isinstance(conn.auth, NullAuth)
     oidc_mock.state["device_code_callback_timeline"] = ["great success"]
-    with assert_device_code_poll_sleep():
+    with oidc_device_code_flow_checker(url=f"{oidc_issuer}/dc"):
         conn.authenticate_oidc_device(use_pkce=use_pkce)
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/auth/' + oidc_mock.state["access_token"]
     assert refresh_token_store.mock_calls == []
 
 
-def test_authenticate_oidc_device_flow_pkce_store_refresh_token(requests_mock):
+def test_authenticate_oidc_device_flow_pkce_store_refresh_token(requests_mock, oidc_device_code_flow_checker):
     """OIDC device authn grant + PKCE + refresh token storage"""
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     default_client_id = "dadefaultklient"
@@ -1266,13 +1383,14 @@ def test_authenticate_oidc_device_flow_pkce_store_refresh_token(requests_mock):
     expected_fields = {
         "scope": "openid", "code_verifier": True, "code_challenge": True
     }
+    oidc_issuer = "https://auth.test"
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
         expected_grant_type="urn:ietf:params:oauth:grant-type:device_code",
         expected_client_id=default_client_id,
         expected_fields=expected_fields,
         scopes_supported=["openid"],
-        oidc_issuer="https://auth.test",
+        oidc_issuer=oidc_issuer,
     )
 
     # With all this set up, kick off the openid connect flow
@@ -1280,7 +1398,7 @@ def test_authenticate_oidc_device_flow_pkce_store_refresh_token(requests_mock):
     conn = Connection(API_URL, refresh_token_store=refresh_token_store)
     assert isinstance(conn.auth, NullAuth)
     oidc_mock.state["device_code_callback_timeline"] = ["great success"]
-    with assert_device_code_poll_sleep():
+    with oidc_device_code_flow_checker(url=f"{oidc_issuer}/dc"):
         conn.authenticate_oidc_device(store_refresh_token=True)
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/auth/' + oidc_mock.state["access_token"]
@@ -1371,12 +1489,17 @@ def test_authenticate_oidc_auto_with_existing_refresh_token(requests_mock, refre
     assert [r["grant_type"] for r in oidc_mock.grant_request_history] == ["refresh_token"]
 
 
-@pytest.mark.parametrize(["use_pkce", "expect_pkce"], [
-    (None, False),
-    (True, True),
-    (False, False),
-])
-def test_authenticate_oidc_auto_no_existing_refresh_token(requests_mock, refresh_token_store, use_pkce, expect_pkce):
+@pytest.mark.parametrize(
+    ["use_pkce", "expect_pkce"],
+    [
+        (None, False),
+        (True, True),
+        (False, False),
+    ],
+)
+def test_authenticate_oidc_auto_no_existing_refresh_token(
+    requests_mock, refresh_token_store, use_pkce, expect_pkce, oidc_device_code_flow_checker
+):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
     issuer = "https://oidc.test"
@@ -1401,7 +1524,7 @@ def test_authenticate_oidc_auto_no_existing_refresh_token(requests_mock, refresh
     conn = Connection(API_URL, refresh_token_store=refresh_token_store)
     assert isinstance(conn.auth, NullAuth)
     oidc_mock.state["device_code_callback_timeline"] = ["great success"]
-    with assert_device_code_poll_sleep():
+    with oidc_device_code_flow_checker():
         conn.authenticate_oidc(client_id=client_id, use_pkce=use_pkce)
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
@@ -1410,12 +1533,17 @@ def test_authenticate_oidc_auto_no_existing_refresh_token(requests_mock, refresh
     ]
 
 
-@pytest.mark.parametrize(["use_pkce", "expect_pkce"], [
-    (None, False),
-    (True, True),
-    (False, False),
-])
-def test_authenticate_oidc_auto_expired_refresh_token(requests_mock, refresh_token_store, use_pkce, expect_pkce):
+@pytest.mark.parametrize(
+    ["use_pkce", "expect_pkce"],
+    [
+        (None, False),
+        (True, True),
+        (False, False),
+    ],
+)
+def test_authenticate_oidc_auto_expired_refresh_token(
+    requests_mock, refresh_token_store, use_pkce, expect_pkce, oidc_device_code_flow_checker
+):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
     issuer = "https://oidc.test"
@@ -1441,7 +1569,7 @@ def test_authenticate_oidc_auto_expired_refresh_token(requests_mock, refresh_tok
     conn = Connection(API_URL, refresh_token_store=refresh_token_store)
     assert isinstance(conn.auth, NullAuth)
     oidc_mock.state["device_code_callback_timeline"] = ["great success"]
-    with assert_device_code_poll_sleep():
+    with oidc_device_code_flow_checker():
         conn.authenticate_oidc(client_id=client_id, use_pkce=use_pkce)
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
@@ -1450,6 +1578,50 @@ def test_authenticate_oidc_auto_expired_refresh_token(requests_mock, refresh_tok
         "urn:ietf:params:oauth:grant-type:device_code",
     ]
     assert oidc_mock.grant_request_history[0]["response"] == {"error": "invalid refresh token"}
+
+
+@pytest.mark.parametrize(
+    ["env_provider_id", "expected_provider_id"],
+    [
+        (None, "oi"),
+        ("oi", "oi"),
+        ("dc", "dc"),
+    ],
+)
+def test_authenticate_oidc_method_client_credentials_from_env(
+    requests_mock, monkeypatch, env_provider_id, expected_provider_id
+):
+    client_id = "myclient"
+    client_secret = "$3cr3t!"
+    monkeypatch.setenv("OPENEO_AUTH_METHOD", "client_credentials")
+    monkeypatch.setenv("OPENEO_AUTH_CLIENT_ID", client_id)
+    monkeypatch.setenv("OPENEO_AUTH_CLIENT_SECRET", client_secret)
+    if env_provider_id:
+        monkeypatch.setenv("OPENEO_AUTH_PROVIDER_ID", env_provider_id)
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    requests_mock.get(
+        API_URL + "credentials/oidc",
+        json={
+            "providers": [
+                {"id": "oi", "issuer": "https://oi.test", "title": "example", "scopes": ["openid"]},
+                {"id": "dc", "issuer": "https://dc.test", "title": "example", "scopes": ["openid"]},
+            ]
+        },
+    )
+    oidc_mock = OidcMock(
+        requests_mock=requests_mock,
+        expected_grant_type="client_credentials",
+        expected_client_id=client_id,
+        oidc_issuer=f"https://{expected_provider_id}.test",
+        expected_fields={"scope": "openid", "client_secret": client_secret},
+    )
+
+    # With all this set up, kick off the openid connect flow
+    conn = Connection(API_URL)
+    assert isinstance(conn.auth, NullAuth)
+    conn.authenticate_oidc()
+    assert isinstance(conn.auth, BearerAuth)
+    assert conn.auth.bearer == f"oidc/{expected_provider_id}/" + oidc_mock.state["access_token"]
 
 
 def _setup_get_me_handler(requests_mock, oidc_mock: OidcMock):
@@ -1557,7 +1729,7 @@ def test_authenticate_oidc_auto_refresh_expired_access_token_initial_refresh_tok
     (True,),
 ])
 def test_authenticate_oidc_auto_refresh_expired_access_token_initial_device_code(
-        requests_mock, refresh_token_store, invalidate, caplog
+    requests_mock, refresh_token_store, invalidate, caplog, oidc_device_code_flow_checker
 ):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
@@ -1594,7 +1766,7 @@ def test_authenticate_oidc_auto_refresh_expired_access_token_initial_device_code
     conn = Connection(API_URL, refresh_token_store=refresh_token_store)
     assert isinstance(conn.auth, NullAuth)
     oidc_mock.state["device_code_callback_timeline"] = ["great success"]
-    with assert_device_code_poll_sleep():
+    with oidc_device_code_flow_checker():
         conn.authenticate_oidc_device(client_id=client_id, use_pkce=True, store_refresh_token=True)
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
@@ -1646,7 +1818,7 @@ def test_authenticate_oidc_auto_refresh_expired_access_token_initial_device_code
 
 
 def test_authenticate_oidc_auto_refresh_expired_access_token_invalid_refresh_token(
-        requests_mock, refresh_token_store, caplog
+    requests_mock, refresh_token_store, caplog, oidc_device_code_flow_checker
 ):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
@@ -1683,7 +1855,7 @@ def test_authenticate_oidc_auto_refresh_expired_access_token_invalid_refresh_tok
     conn = Connection(API_URL, refresh_token_store=refresh_token_store)
     assert isinstance(conn.auth, NullAuth)
     oidc_mock.state["device_code_callback_timeline"] = ["great success"]
-    with assert_device_code_poll_sleep():
+    with oidc_device_code_flow_checker():
         conn.authenticate_oidc_device(client_id=client_id, use_pkce=True, store_refresh_token=True)
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
@@ -1821,6 +1993,38 @@ def test_load_result_filters(requests_mock):
     }
 
 
+class TestLoadStac:
+    def test_basic(self, con120):
+        cube = con120.load_stac("https://provide.test/dataset")
+        assert cube.flat_graph() == {
+            "loadstac1": {
+                "process_id": "load_stac",
+                "arguments": {"url": "https://provide.test/dataset"},
+                "result": True,
+            }
+        }
+
+    def test_extents(self, con120):
+        cube = con120.load_stac(
+            "https://provide.test/dataset",
+            spatial_extent={"west": 1, "south": 2, "east": 3, "north": 4},
+            temporal_extent=["2023-05-10", "2023-06-01"],
+            bands=["B02", "B03"],
+        )
+        assert cube.flat_graph() == {
+            "loadstac1": {
+                "process_id": "load_stac",
+                "arguments": {
+                    "url": "https://provide.test/dataset",
+                    "spatial_extent": {"east": 3, "north": 4, "south": 2, "west": 1},
+                    "temporal_extent": ["2023-05-10", "2023-06-01"],
+                    "bands": ["B02", "B03"],
+                },
+                "result": True,
+            }
+        }
+
+
 def test_list_file_formats(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     conn = Connection(API_URL)
@@ -1839,7 +2043,7 @@ def test_list_file_formats(requests_mock):
 def test_list_file_formats_error(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     conn = Connection(API_URL)
-    m = requests_mock.get(API_URL + "file_formats", status_code=204, json={"message": "No content."})
+    m = requests_mock.get(API_URL + "file_formats", status_code=204)
     with pytest.raises(OpenEoRestError):
         conn.list_file_formats()
     assert m.call_count == 1
@@ -1864,7 +2068,7 @@ def test_list_service_types(requests_mock):
 def test_list_service_types_error(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     conn = Connection(API_URL)
-    m = requests_mock.get(API_URL + "service_types", status_code=204, json={"message": "No content."})
+    m = requests_mock.get(API_URL + "service_types", status_code=204)
     with pytest.raises(OpenEoRestError):
         conn.list_service_types()
     assert m.call_count == 1
@@ -1889,7 +2093,7 @@ def test_list_udf_runtimes(requests_mock):
 def test_list_udf_runtimes_error(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     conn = Connection(API_URL)
-    m = requests_mock.get(API_URL + "udf_runtimes", status_code=204, json={"message": "No content."})
+    m = requests_mock.get(API_URL + "udf_runtimes", status_code=204)
     with pytest.raises(OpenEoRestError):
         conn.list_udf_runtimes()
     assert m.call_count == 1
@@ -1940,7 +2144,7 @@ def test_list_processes(requests_mock):
 def test_list_processes_error(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     conn = Connection(API_URL)
-    m = requests_mock.get(API_URL + "processes", status_code=204, json={"message": "No content."})
+    m = requests_mock.get(API_URL + "processes", status_code=204)
     with pytest.raises(OpenEoRestError):
         conn.list_processes()
     assert m.call_count == 1
@@ -1996,12 +2200,19 @@ def test_default_timeout(requests_mock):
     assert conn.get("/foo", timeout=5).json() == '5'
 
 
+class DummyFlatGraphable(FlatGraphableMixin):
+    def flat_graph(self) -> typing.Dict[str, dict]:
+        return {"foo1": {"process_id": "foo"}}
 
-@pytest.mark.parametrize("pg", [
-    {"foo1": {"process_id": "foo"}},
-    {"process_graph": {"foo1": {"process_id": "foo"}}},
-    type("", (object,), {"flat_graph": (lambda: {"foo1": {"process_id": "foo"}})})
-])
+
+@pytest.mark.parametrize(
+    "pg",
+    [
+        {"foo1": {"process_id": "foo"}},
+        {"process_graph": {"foo1": {"process_id": "foo"}}},
+        DummyFlatGraphable(),
+    ],
+)
 def test_execute_100(requests_mock, pg):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     conn = Connection(API_URL)
@@ -2395,8 +2606,15 @@ def test_connect_auto_auth_from_config_oidc_refresh_token(
     ("default_backend.auto_authenticate", False, False),
 ])
 def test_connect_auto_auth_from_config_oidc_device_code(
-        requests_mock, custom_client_config, auth_config, caplog,
-        auto_auth_config, use_default, authenticated,
+    requests_mock,
+    custom_client_config,
+    auth_config,
+    caplog,
+    auto_auth_config,
+    use_default,
+    authenticated,
+    oidc_device_code_flow_checker,
+    fast_sleep,
 ):
     """Auto-authorize without auth config or refresh tokens"""
     caplog.set_level(logging.INFO)
@@ -2404,7 +2622,7 @@ def test_connect_auto_auth_from_config_oidc_device_code(
     other = f"https://other{random.randint(0, 1000)}.test"
     default_client_id = "dadefaultklient"
     grant_types = ["urn:ietf:params:oauth:grant-type:device_code+pkce", "refresh_token"]
-    issuer = "https://auth.test"
+    oidc_issuer = "https://auth.test"
 
     custom_client_config.write_text(textwrap.dedent(f"""
         [Connection]
@@ -2414,14 +2632,20 @@ def test_connect_auto_auth_from_config_oidc_device_code(
 
     for u in [default, other]:
         requests_mock.get(u, json={"api_version": "1.0.0"})
-        requests_mock.get(f"{u}/credentials/oidc", json={
-            "providers": [
-                {
-                    "id": "auth", "issuer": issuer, "title": "Auth", "scopes": ["openid"],
-                    "default_clients": [{"id": default_client_id, "grant_types": grant_types}]
-                },
-            ]
-        })
+        requests_mock.get(
+            f"{u}/credentials/oidc",
+            json={
+                "providers": [
+                    {
+                        "id": "auth",
+                        "issuer": oidc_issuer,
+                        "title": "Auth",
+                        "scopes": ["openid"],
+                        "default_clients": [{"id": default_client_id, "grant_types": grant_types}],
+                    },
+                ]
+            },
+        )
 
     expected_fields = {
         "scope": "openid",
@@ -2434,13 +2658,17 @@ def test_connect_auto_auth_from_config_oidc_device_code(
         expected_client_id=default_client_id,
         expected_fields=expected_fields,
         scopes_supported=["openid"],
-        oidc_issuer=issuer,
+        oidc_issuer=oidc_issuer,
     )
     assert auth_config.load() == {}
 
     # With all this set up, now the real work:
     oidc_mock.state["device_code_callback_timeline"] = ["great success"]
-    with assert_device_code_poll_sleep(expect_called=authenticated):
+    if authenticated:
+        ctx = oidc_device_code_flow_checker(url=f"{oidc_issuer}/dc")
+    else:
+        ctx = nullcontext()
+    with ctx:
         if use_default:
             con = connect()
             assert con.root_url == default

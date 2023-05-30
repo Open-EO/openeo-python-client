@@ -9,6 +9,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Support OIDC client credentials grant from a generic `connection.authenticate_oidc()` call
+  through environment variables
+  [#419](https://github.com/Open-EO/openeo-python-client/issues/419)
+
+### Changed
+
+### Removed
+
+### Fixed
+
+- Fixed UDP parameter conversion issue in `build_process_dict` when using parameter in `context` of `run_udf`
+  [#431](https://github.com/Open-EO/openeo-python-client/issues/431)
+
+
+## [0.17.0] and [0.17.1] - 2023-05-16
+
+### Added
+
+- `Connection.authenticate_oidc()`: add argument to set maximum device code flow poll time
+- Show progress bar while waiting for OIDC authentication with device code flow,
+  including special mode for in Jupyter notebooks.
+  ([#237](https://github.com/Open-EO/openeo-python-client/issues/237))
+- Basic support for `load_stac` process with `Connection.load_stac()`
+  ([#425](https://github.com/Open-EO/openeo-python-client/issues/))
+- Add `DataCube.aggregate_spatial_window()`
+
+### Fixed
+
+- Include "scope" parameter in OIDC token request with client credentials grant.
+- Support fractional seconds in `Rfc3339.parse_datetime`
+  ([#418](https://github.com/Open-EO/openeo-python-client/issues/418))
+
+## [0.16.0] - 2023-04-17 - "SRR5" release
+
+### Added
+
 - Full support for user-uploaded files (`/files` endpoints)
   ([#377](https://github.com/Open-EO/openeo-python-client/issues/377))
 - Initial, experimental "local processing" feature to use

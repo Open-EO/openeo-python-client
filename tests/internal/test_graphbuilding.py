@@ -1,8 +1,11 @@
+import io
+import textwrap
+
 import pytest
 
 import openeo.processes
 from openeo.api.process import Parameter
-from openeo.internal.graph_building import FlatGraphNodeIdGenerator, PGNode, ReduceNode, PGNodeGraphUnflattener
+from openeo.internal.graph_building import FlatGraphNodeIdGenerator, PGNode, PGNodeGraphUnflattener, ReduceNode
 from openeo.internal.process_graph_visitor import ProcessGraphVisitException
 
 
@@ -73,6 +76,43 @@ def test_pgnode_to_dict_nested():
             }}
         },
     }
+
+
+def test_pgnode_to_json_nested():
+    pg = PGNode(
+        process_id="filter_bands",
+        arguments={
+            "bands": [1, 2, 3],
+            "data": {"from_node": PGNode(process_id="load_collection", arguments={"collection_id": "S2"})},
+        },
+    )
+    assert pg.to_json() == textwrap.dedent(
+        """\
+        {
+          "process_graph": {
+            "loadcollection1": {
+              "process_id": "load_collection",
+              "arguments": {
+                "collection_id": "S2"
+              }
+            },
+            "filterbands1": {
+              "process_id": "filter_bands",
+              "arguments": {
+                "bands": [
+                  1,
+                  2,
+                  3
+                ],
+                "data": {
+                  "from_node": "loadcollection1"
+                }
+              },
+              "result": true
+            }
+          }
+        }"""
+    )
 
 
 def test_pgnode_normalize_pgnode_args():
@@ -239,6 +279,22 @@ def test_pgnode_parameter_basic():
             "result": True
         }
     }
+
+
+def test_pgnode_parameter_to_json():
+    pg = openeo.processes.add(x=Parameter.number("a", description="A."), y=42)
+    expected = '{"process_graph": {"add1": {"process_id": "add", "arguments": {"x": {"from_parameter": "a"}, "y": 42}, "result": true}}}'
+    assert pg.to_json(indent=None) == expected
+
+
+def test_pgnode_parameter_print_json():
+    pg = openeo.processes.add(x=Parameter.number("a", description="A."), y=42)
+    out = io.StringIO()
+    pg.print_json(file=out, indent=None)
+    assert (
+        out.getvalue()
+        == '{"process_graph": {"add1": {"process_id": "add", "arguments": {"x": {"from_parameter": "a"}, "y": 42}, "result": true}}}'
+    )
 
 
 def test_pgnode_parameter_fahrenheit():

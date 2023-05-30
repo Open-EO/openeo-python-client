@@ -141,6 +141,7 @@ class OidcMock:
     def token_callback_client_credentials(self, params: dict, context):
         assert params["client_id"] == self.expected_client_id
         assert params["grant_type"] == "client_credentials"
+        assert params["scope"] == self.expected_fields["scope"]
         assert params["client_secret"] == self.expected_fields["client_secret"]
         return self._build_token_response(include_id_token=False)
 
@@ -315,13 +316,3 @@ class OidcMock:
             if (method is None or method.lower() == r.method.lower())
             and (url is None or url == r.url)
         ]
-
-@contextlib.contextmanager
-def assert_device_code_poll_sleep(expect_called=True):
-    """Fake sleeping, but check it was called with poll interval (or not)."""
-    with mock.patch("time.sleep") as sleep:
-        yield
-    if expect_called:
-        sleep.assert_called_with(DEVICE_CODE_POLL_INTERVAL)
-    else:
-        sleep.assert_not_called()

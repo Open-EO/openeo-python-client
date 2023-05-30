@@ -4,13 +4,74 @@ Functionality for abstracting, building, manipulating and processing openEO proc
 """
 import abc
 import collections
+import json
+import sys
 from pathlib import Path
-from typing import Union, Dict, Any, Optional
+from typing import Any, Dict, Optional, Tuple, Union
 
 from openeo.api.process import Parameter
-from openeo.internal.process_graph_visitor import ProcessGraphVisitor, ProcessGraphUnflattener, \
-    ProcessGraphVisitException
+from openeo.internal.compat import nullcontext
+from openeo.internal.process_graph_visitor import (
+    ProcessGraphUnflattener,
+    ProcessGraphVisitException,
+    ProcessGraphVisitor,
+)
 from openeo.util import dict_no_none, load_json_resource
+
+
+class FlatGraphableMixin(metaclass=abc.ABCMeta):
+    """
+    Mixin for classes that can be exported/converted to
+    a "flat graph" representation of a process graph.
+    """
+
+    @abc.abstractmethod
+    def flat_graph(self) -> Dict[str, dict]:
+        ...
+
+    def to_json(self, *, indent: Union[int, None] = 2, separators: Optional[Tuple[str, str]] = None) -> str:
+        """
+        Get interoperable JSON representation of the process graph.
+
+        See :py:meth:`DataCube.print_json` to directly print the JSON representation
+        and :ref:`process_graph_export` for more usage information.
+
+        Also see ``json.dumps`` docs for more information on the JSON formatting options.
+
+        :param indent: JSON indentation level.
+        :param separators: (optional) tuple of item/key separators.
+        :return: JSON string
+        """
+        pg = {"process_graph": self.flat_graph()}
+        return json.dumps(pg, indent=indent, separators=separators)
+
+    def print_json(self, *, file=None, indent: Union[int, None] = 2, separators: Optional[Tuple[str, str]] = None):
+        """
+        Print interoperable JSON representation of the process graph.
+
+        See :py:meth:`DataCube.to_json` to get the JSON representation as a string
+        and :ref:`process_graph_export` for more usage information.
+
+        Also see ``json.dumps`` docs for more information on the JSON formatting options.
+
+        :param file: file-like object (stream) to print to (current ``sys.stdout`` by default).
+            Or a path (string or pathlib.Path) to a file to write to.
+        :param indent: JSON indentation level.
+        :param separators: (optional) tuple of item/key separators.
+
+        .. versionadded:: 0.12.0
+        """
+        pg = {"process_graph": self.flat_graph()}
+        if isinstance(file, (str, Path)):
+            # Create (new) file and automatically close it
+            file_ctx = Path(file).open("w", encoding="utf8")
+        else:
+            # Just use file as-is, but don't close it automatically.
+            file_ctx = nullcontext(enter_result=file or sys.stdout)
+        with file_ctx as f:
+            json.dump(pg, f, indent=indent, separators=separators)
+            if indent is not None:
+                f.write("\n")
 
 
 class _FromNodeMixin(abc.ABC):
@@ -20,12 +81,12 @@ class _FromNodeMixin(abc.ABC):
     def from_node(self) -> "PGNode":
         # TODO: "from_node" is a bit a confusing name:
         #       it refers to the "from_node" node reference in openEO process graphs,
-        #       but as a method name here it read like "construct from PGNode",
+        #       but as a method name here it reads like "construct from PGNode",
         #       while it is actually meant as "export as PGNode" (that can be used in a "from_node" reference).
         pass
 
 
-class PGNode(_FromNodeMixin):
+class PGNode(_FromNodeMixin, FlatGraphableMixin):
     """
     A process node in a process graph: has at least a process_id and arguments.
 
@@ -119,7 +180,7 @@ class PGNode(_FromNodeMixin):
 
         return _deep_copy(self)
 
-    def flat_graph(self) -> dict:
+    def flat_graph(self) -> Dict[str, dict]:
         """Get the process graph in internal flat dict representation."""
         return GraphFlattener().flatten(node=self)
 
@@ -147,15 +208,13 @@ class PGNode(_FromNodeMixin):
         return PGNodeGraphUnflattener.unflatten(flat_graph=flat_graph, parameters=parameters)
 
 
-def as_flat_graph(x: Union[dict, Any]) -> dict:
+def as_flat_graph(x: Union[dict, FlatGraphableMixin, Any]) -> Dict[str, dict]:
     """
     Convert given object to a internal flat dict graph representation.
     """
     if isinstance(x, dict):
         return x
-    elif hasattr(x, 'flat_graph'):
-        # TODO: define mixin/interface parent class for cleaner definition of this "flat_graph" API
-        # The "flat_graph" API (supported by `PGNode`, `DataCube`, `ProcessBuilderBase`, ...)
+    elif isinstance(x, FlatGraphableMixin):
         return x.flat_graph()
     elif isinstance(x, (str, Path)):
         # Assume a JSON resource (raw JSON, path to local file, JSON url, ...)
@@ -228,11 +287,11 @@ class GraphFlattener(ProcessGraphVisitor):
         super().__init__()
         self._node_id_generator = node_id_generator or FlatGraphNodeIdGenerator()
         self._last_node_id = None
-        self._flattened = {}
+        self._flattened: Dict[str, dict] = {}
         self._argument_stack = []
         self._node_cache = {}
 
-    def flatten(self, node: PGNode) -> dict:
+    def flatten(self, node: PGNode) -> Dict[str, dict]:
         """Consume given nested process graph and return flat dict representation"""
         self.accept_node(node)
         assert len(self._argument_stack) == 0
@@ -299,6 +358,8 @@ class GraphFlattener(ProcessGraphVisitor):
                     raise ValueError(pg)
             else:
                 value = {k: self._flatten_argument(v) for k, v in value.items()}
+        elif isinstance(value, Parameter):
+            value = {"from_parameter": value.name}
         return value
 
     def leaveArgument(self, argument_id: str, value):

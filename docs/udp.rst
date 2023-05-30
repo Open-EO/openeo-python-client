@@ -218,12 +218,32 @@ We can pass it directly to :py:meth:`~openeo.rest.connection.Connection.save_use
 
 
 If you want to inspect its openEO-style process graph representation,
-use the ``.flat_graph()`` method::
+use the :meth:`~openeo.rest.datacube.DataCube.to_json()`
+or :meth:`~openeo.rest.datacube.DataCube.print_json()` method::
 
-    >>> print(fahrenheit_to_celsius.flat_graph())
+    >>> fahrenheit_to_celsius.print_json()
     {
-       'subtract1': {'process_id': 'subtract', 'arguments': {'x': {'from_parameter': 'f'}, 'y': 32}},
-       'divide1': {'process_id': 'divide', 'arguments': {'x': {'from_node': 'subtract1'}, 'y': 1.8}, 'result': True}
+      "process_graph": {
+        "subtract1": {
+          "process_id": "subtract",
+          "arguments": {
+            "x": {
+              "from_parameter": "f"
+            },
+            "y": 32
+          }
+        },
+        "divide1": {
+          "process_id": "divide",
+          "arguments": {
+            "x": {
+              "from_node": "subtract1"
+            },
+            "y": 1.8
+          },
+          "result": true
+        }
+      }
     }
 
 
@@ -268,13 +288,26 @@ We can now store this as a user-defined process called "fancy_load_collection" o
     )
 
 If you want to inspect its openEO-style process graph representation,
-use the ``.flat_graph()`` method::
+use the :meth:`~openeo.rest.datacube.DataCube.to_json()`
+or :meth:`~openeo.rest.datacube.DataCube.print_json()` method::
 
-    >>> print(cube.flat_graph())
-    {'loadcollection1': {'process_id': 'load_collection', 'arguments': {
-    'id': 'SENTINEL2_L2A_SENTINELHUB', 'bands': ['B04'],
-    'spatial_extent': {'from_parameter': 'bbox'},
-    'temporal_extent': None}, 'result': True}}
+    >>> cube.print_json()
+    {
+      "loadcollection1": {
+        "process_id": "load_collection",
+        "arguments": {
+          "id": "SENTINEL2_L2A_SENTINELHUB",
+          "bands": [
+            "B04"
+          ],
+          "spatial_extent": {
+            "from_parameter": "bbox"
+          },
+          "temporal_extent": null
+        },
+        "result": true
+      }
+    }
 
 
 
@@ -368,8 +401,8 @@ generic :func:`openeo.processes.process` function to build a simple
 process graph that calls our ``fahrenheit_to_celsius`` process::
 
     >>> pg = openeo.processes.process("fahrenheit_to_celsius", f=70)
-    >>> print(pg.flat_graph())
-    {'fahrenheittocelsius1': {'process_id': 'fahrenheit_to_celsius', 'arguments': {'f': 70}, 'result': True}}
+    >>> pg.print_json(indent=None)
+    {"process_graph": {"fahrenheittocelsius1": {"process_id": "fahrenheit_to_celsius", "arguments": {"f": 70}, "result": true}}}
 
     >>> res = connection.execute(pg)
     >>> print(res)
