@@ -2,17 +2,14 @@ import json
 import logging
 import pathlib
 import re
-import sys
 import typing
 import uuid
 import warnings
-from pathlib import Path
 from typing import Union, Tuple, Optional, Dict
 
 import requests
 
 import openeo.processes
-from openeo.internal.compat import nullcontext
 from openeo.internal.graph_building import PGNode, _FromNodeMixin, FlatGraphableMixin
 from openeo.internal.jupyter import render_component
 from openeo.internal.warnings import UserDeprecationWarning
@@ -57,50 +54,6 @@ class _ProcessGraphAbstraction(_FromNodeMixin, FlatGraphableMixin):
         """
         # TODO: wrap in {"process_graph":...} by default/optionally?
         return self._pg.flat_graph()
-
-    def to_json(self, *, indent: Union[int, None] = 2, separators: Optional[Tuple[str, str]] = None) -> str:
-        """
-        Get interoperable JSON representation of the process graph.
-
-        See :py:meth:`DataCube.print_json` to directly print the JSON representation
-        and :ref:`process_graph_export` for more usage information.
-
-        Also see ``json.dumps`` docs for more information on the JSON formatting options.
-
-        :param indent: JSON indentation level.
-        :param separators: (optional) tuple of item/key separators.
-        :return: JSON string
-        """
-        pg = {"process_graph": self.flat_graph()}
-        return json.dumps(pg, indent=indent, separators=separators)
-
-    def print_json(self, *, file=None, indent: Union[int, None] = 2, separators: Optional[Tuple[str, str]] = None):
-        """
-        Print interoperable JSON representation of the process graph.
-
-        See :py:meth:`DataCube.to_json` to get the JSON representation as a string
-        and :ref:`process_graph_export` for more usage information.
-
-        Also see ``json.dumps`` docs for more information on the JSON formatting options.
-
-        :param file: file-like object (stream) to print to (current ``sys.stdout`` by default).
-            Or a path (string or pathlib.Path) to a file to write to.
-        :param indent: JSON indentation level.
-        :param separators: (optional) tuple of item/key separators.
-
-        .. versionadded:: 0.12.0
-        """
-        pg = {"process_graph": self.flat_graph()}
-        if isinstance(file, (str, Path)):
-            # Create (new) file and automatically close it
-            file_ctx = Path(file).open("w", encoding="utf8")
-        else:
-            # Just use file as-is, but don't close it automatically.
-            file_ctx = nullcontext(enter_result=file or sys.stdout)
-        with file_ctx as f:
-            json.dump(pg, f, indent=indent, separators=separators)
-            if indent is not None:
-                f.write("\n")
 
     @property
     def _api_version(self):

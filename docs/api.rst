@@ -86,7 +86,7 @@ openeo.rest.udp
 -----------------
 
 .. automodule:: openeo.rest.udp
-    :members: RESTUserDefinedProcess
+    :members: RESTUserDefinedProcess, build_process_dict
 
 
 openeo.rest.userfile

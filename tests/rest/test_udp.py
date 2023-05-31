@@ -460,3 +460,101 @@ def test_build_process_dict_from_datacube(con100):
         "returns": {"schema": {"type": "number"}},
     }
     assert actual == expected
+
+
+def test_build_process_dict_udf_context_param_field(con100):
+    """https://github.com/Open-EO/openeo-python-client/issues/431"""
+    udf_param = Parameter.number("udf_param")
+    cube = con100.datacube_from_process("add", x=3, y=5)
+    udf = openeo.UDF(code="print(123)", runtime="Python", context={"foo": udf_param})
+    cube = cube.apply(process=udf)
+
+    actual = build_process_dict(
+        process_graph=cube,
+        process_id="do_udf",
+        summary="do_udf value",
+        description="do_udf",
+        parameters=[udf_param],
+        returns={"schema": {"type": "number"}},
+    )
+    expected = {
+        "id": "do_udf",
+        "description": "do_udf",
+        "parameters": [{"name": "udf_param", "description": "udf_param", "schema": {"type": "number"}}],
+        "process_graph": {
+            "add1": {"arguments": {"x": 3, "y": 5}, "process_id": "add"},
+            "apply1": {
+                "arguments": {
+                    "data": {"from_node": "add1"},
+                    "process": {
+                        "process_graph": {
+                            "runudf1": {
+                                "process_id": "run_udf",
+                                "arguments": {
+                                    "data": {"from_parameter": "x"},
+                                    "udf": "print(123)",
+                                    "runtime": "Python",
+                                    "context": {"foo": {"from_parameter": "udf_param"}},
+                                },
+                                "result": True,
+                            }
+                        }
+                    },
+                },
+                "process_id": "apply",
+                "result": True,
+            },
+        },
+        "returns": {"schema": {"type": "number"}},
+        "summary": "do_udf value",
+    }
+    assert actual == expected
+
+
+def test_build_process_dict_udf_context_param_direct(con100):
+    """https://github.com/Open-EO/openeo-python-client/issues/431"""
+    udf_param = Parameter.number("udf_param")
+    cube = con100.datacube_from_process("add", x=3, y=5)
+    udf = openeo.UDF(code="print(123)", runtime="Python", context=udf_param)
+    cube = cube.apply(process=udf)
+
+    actual = build_process_dict(
+        process_graph=cube,
+        process_id="do_udf",
+        summary="do_udf value",
+        description="do_udf",
+        parameters=[udf_param],
+        returns={"schema": {"type": "number"}},
+    )
+    expected = {
+        "id": "do_udf",
+        "description": "do_udf",
+        "parameters": [{"name": "udf_param", "description": "udf_param", "schema": {"type": "number"}}],
+        "process_graph": {
+            "add1": {"arguments": {"x": 3, "y": 5}, "process_id": "add"},
+            "apply1": {
+                "arguments": {
+                    "data": {"from_node": "add1"},
+                    "process": {
+                        "process_graph": {
+                            "runudf1": {
+                                "process_id": "run_udf",
+                                "arguments": {
+                                    "data": {"from_parameter": "x"},
+                                    "udf": "print(123)",
+                                    "runtime": "Python",
+                                    "context": {"from_parameter": "udf_param"},
+                                },
+                                "result": True,
+                            }
+                        }
+                    },
+                },
+                "process_id": "apply",
+                "result": True,
+            },
+        },
+        "returns": {"schema": {"type": "number"}},
+        "summary": "do_udf value",
+    }
+    assert actual == expected

@@ -172,7 +172,7 @@ def run_udf_code(code: str, data: UdfData) -> UdfData:
                     c=len(data.get_datacube_list())
                 ))
             # TODO: also support calls without user context?
-            result_cube = func(data.get_datacube_list()[0], data.user_context)
+            result_cube = func(cube=data.get_datacube_list()[0], context=data.user_context)
             data.set_datacube_list([result_cube])
             return data
         elif len(params) == 1 and _annotation_is_udf_data(first_param.annotation):
