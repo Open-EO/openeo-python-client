@@ -636,3 +636,35 @@ class TestExecuteBatch:
         cube = s2cube.save_result(format=save_result_format)
         with pytest.raises(ValueError):
             cube.execute_batch(out_format=execute_format)
+
+    def test_save_result_format_options_vs_create_job(elf, s2cube, get_create_job_pg):
+        """https://github.com/Open-EO/openeo-python-client/issues/433"""
+        cube = s2cube.save_result(format="GTiff", options={"filename_prefix": "wwt-2023-02"})
+        _ = cube.create_job()
+        pg = get_create_job_pg()
+        assert set(pg.keys()) == {"loadcollection1", "saveresult1"}
+        assert pg["saveresult1"] == {
+            "process_id": "save_result",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "format": "GTiff",
+                "options": {"filename_prefix": "wwt-2023-02"},
+            },
+            "result": True,
+        }
+
+    def test_save_result_format_options_vs_execute_batch(elf, s2cube, get_create_job_pg):
+        """https://github.com/Open-EO/openeo-python-client/issues/433"""
+        cube = s2cube.save_result(format="GTiff", options={"filename_prefix": "wwt-2023-02"})
+        _ = cube.execute_batch()
+        pg = get_create_job_pg()
+        assert set(pg.keys()) == {"loadcollection1", "saveresult1"}
+        assert pg["saveresult1"] == {
+            "process_id": "save_result",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "format": "GTiff",
+                "options": {"filename_prefix": "wwt-2023-02"},
+            },
+            "result": True,
+        }

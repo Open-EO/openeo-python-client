@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix format option conflict between `save_result` and `create_job`
+  [#433](https://github.com/Open-EO/openeo-python-client/issues/433)
+
 
 ## [0.18.0] - 2023-05-31
 
