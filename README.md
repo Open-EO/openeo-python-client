@@ -51,7 +51,7 @@ We also acknowledge the financial support received from ESA for the project "ope
 
 This package received major contributions from the following organizations:
 
-[<img src="https://remotesensing.vito.be/sites/all/themes/remotesensing_theme/images/logo.svg" alt="VITO Remote Sensing logo" title="VITO Remote Sensing" height="50" style="background-color: #046; padding: 5px; margin-right: 1rem;">](https://remotesensing.vito.be/)
-[<img src="https://www.uni-muenster.de/imperia/md/images/allgemein/farbunabhaengig/wwu.svg" alt="WWU Münster logo" title="University of Münster" height="50" style="margin-right: 1rem;">](https://www.uni-muenster.de/)
-[<img src="https://upload.wikimedia.org/wikipedia/commons/9/9b/Eurac_Research_-_logo.png" alt="Eurac Research logo" title="Eurac Research" height="50" style="margin-right: 1rem;">](https://www.eurac.edu/)
-[<img src="https://upload.wikimedia.org/wikipedia/commons/e/e5/TU_Signet_CMYK.svg" alt="TU Wien Logo" title="Technische Universität Wien" height="50" style="margin-right: 1rem;">](https://www.tuwien.at/)
+[<img src="https://raw.githubusercontent.com/Open-EO/openeo-python-client/master/docs/_static/images/vito-logo.png" alt="VITO Remote Sensing logo" title="VITO Remote Sensing" height="50">](https://remotesensing.vito.be/) &emsp;
+[<img src="https://www.uni-muenster.de/imperia/md/images/allgemein/farbunabhaengig/wwu.svg" alt="WWU Münster logo" title="University of Münster" height="50">](https://www.uni-muenster.de/) &emsp;
+[<img src="https://upload.wikimedia.org/wikipedia/commons/9/9b/Eurac_Research_-_logo.png" alt="Eurac Research logo" title="Eurac Research" height="50">](https://www.eurac.edu/) &emsp;
+[<img src="https://upload.wikimedia.org/wikipedia/commons/e/e5/TU_Signet_CMYK.svg" alt="TU Wien Logo" title="Technische Universität Wien" height="50">](https://www.tuwien.at/) &emsp;
