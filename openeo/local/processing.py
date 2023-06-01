@@ -46,7 +46,16 @@ def load_local_collection(*args, **kwargs):
     if '.zarr' in collection.suffixes:
         data = xr.open_dataset(kwargs['id'],chunks={},engine='zarr')
     elif '.nc' in collection.suffixes:
-        data = xr.open_dataset(kwargs['id'],chunks={},decode_coords='all').to_array(dim='bands') # Add decode_coords='all' if the crs as a band gives some issues
+        data = xr.open_dataset(kwargs['id'],chunks={},decode_coords='all') # Add decode_coords='all' if the crs as a band gives some issues
+        crs = None
+        if 'crs' in data.coords:
+            if 'spatial_ref' in data.crs.attrs:
+                crs = data.crs.attrs['spatial_ref']
+            elif 'crs_wkt' in data.crs.attrs:
+                crs = data.crs.attrs['crs_wkt']
+        data = data.to_array(dim='bands')
+        if crs is not None:
+            data.rio.write_crs(crs,inplace=True)
     elif '.tiff' in collection.suffixes or '.tif' in collection.suffixes:
         data = rioxarray.open_rasterio(kwargs['id'],chunks={},band_as_variable=True)
         for d in data.data_vars:
