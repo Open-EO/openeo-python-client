@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Generalized support for setting (default) OIDC provider id through env var `OPENEO_AUTH_PROVIDER_ID`
+  [#419](https://github.com/Open-EO/openeo-python-client/issues/419)
+
 ### Changed
 
 ### Removed

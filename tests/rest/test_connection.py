@@ -967,6 +967,69 @@ def test_authenticate_oidc_client_credentials_client_precedence(
     assert refresh_token_store.mock_calls == []
 
 
+@pytest.mark.parametrize(
+    ["provider_id_arg", "provider_id_env", "provider_id_conf", "expected_provider_id"],
+    [
+        (None, None, None, "oidc1"),
+        ("oidc2", None, None, "oidc2"),
+        (None, "oidc2", None, "oidc2"),
+        (None, None, "oidc2", "oidc2"),
+        ("oidc2", "oidc3", "oidc4", "oidc2"),
+        ("oidc2", None, "oidc4", "oidc2"),
+        (None, "oidc3", "oidc4", "oidc3"),
+    ],
+)
+def test_authenticate_oidc_client_credentials_client_multiple_provider_resolution(
+    requests_mock, monkeypatch, auth_config, provider_id_arg, provider_id_env, provider_id_conf, expected_provider_id
+):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    client_id = "myclient"
+    client_secret = "$3cr3t"
+    monkeypatch.setenv("OPENEO_AUTH_CLIENT_ID", client_id)
+    monkeypatch.setenv("OPENEO_AUTH_CLIENT_SECRET", client_secret)
+    requests_mock.get(
+        API_URL + "credentials/oidc",
+        json={
+            "providers": [
+                {
+                    "id": f"oidc{p}",
+                    "issuer": f"https://oidc{p}.test",
+                    "title": "One",
+                    "scopes": ["openid"],
+                    "default_clients": [
+                        {
+                            "id": client_id,
+                            "grant_types": ["urn:ietf:params:oauth:grant-type:device_code+pkce", "refresh_token"],
+                        }
+                    ],
+                }
+                for p in [1, 2, 3, 4]
+            ]
+        },
+    )
+    oidc_mock = OidcMock(
+        requests_mock=requests_mock,
+        oidc_issuer=f"https://{expected_provider_id}.test",
+        expected_grant_type="client_credentials",
+        expected_client_id=client_id,
+        expected_fields={"client_secret": client_secret, "scope": "openid"},
+    )
+    if provider_id_env:
+        monkeypatch.setenv("OPENEO_AUTH_PROVIDER_ID", provider_id_env)
+    assert auth_config.load() == {}
+    if provider_id_conf:
+        auth_config.set_oidc_client_config(backend=API_URL, provider_id=provider_id_conf, client_id=None)
+
+    # With all this set up, kick off the openid connect flow
+    refresh_token_store = mock.Mock()
+    conn = Connection(API_URL, refresh_token_store=refresh_token_store)
+    assert isinstance(conn.auth, NullAuth)
+    conn.authenticate_oidc_client_credentials(provider_id=provider_id_arg)
+    assert isinstance(conn.auth, BearerAuth)
+    assert conn.auth.bearer == f"oidc/{expected_provider_id}/" + oidc_mock.state["access_token"]
+    assert refresh_token_store.mock_calls == []
+
+
 def test_authenticate_oidc_resource_owner_password_credentials(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
@@ -1302,6 +1365,80 @@ def test_authenticate_oidc_device_flow_pkce_multiple_provider_one_config_no_give
 
 
 @pytest.mark.parametrize(
+    ["provider_id_arg", "provider_id_env", "provider_id_conf", "expected_provider"],
+    [
+        (None, None, None, "oidc1"),
+        ("oidc2", None, None, "oidc2"),
+        (None, "oidc2", None, "oidc2"),
+        (None, None, "oidc2", "oidc2"),
+        ("oidc2", "oidc3", "oidc4", "oidc2"),
+        ("oidc2", None, "oidc4", "oidc2"),
+        (None, "oidc3", "oidc4", "oidc3"),
+    ],
+)
+def test_authenticate_oidc_device_flow_pkce_multiple_provider_resolution(
+    requests_mock,
+    auth_config,
+    oidc_device_code_flow_checker,
+    provider_id_arg,
+    provider_id_env,
+    provider_id_conf,
+    expected_provider,
+    monkeypatch,
+):
+    """
+    OIDC device flow + default_clients + PKCE with multiple OIDC providers: provider resolution/precedence
+    """
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    client_id = "klientid"
+    requests_mock.get(
+        API_URL + "credentials/oidc",
+        json={
+            "providers": [
+                {
+                    "id": f"oidc{p}",
+                    "issuer": f"https://oidc{p}.test",
+                    "title": "One",
+                    "scopes": ["openid"],
+                    "default_clients": [
+                        {
+                            "id": client_id,
+                            "grant_types": ["urn:ietf:params:oauth:grant-type:device_code+pkce", "refresh_token"],
+                        }
+                    ],
+                }
+                for p in [1, 2, 3, 4]
+            ]
+        },
+    )
+    oidc_issuer = f"https://{expected_provider}.test"
+    oidc_mock = OidcMock(
+        requests_mock=requests_mock,
+        expected_grant_type="urn:ietf:params:oauth:grant-type:device_code",
+        expected_client_id=client_id,
+        expected_fields={"scope": "openid", "code_verifier": True, "code_challenge": True},
+        scopes_supported=["openid"],
+        oidc_issuer=oidc_issuer,
+    )
+    if provider_id_env:
+        monkeypatch.setenv("OPENEO_AUTH_PROVIDER_ID", provider_id_env)
+    assert auth_config.load() == {}
+    if provider_id_conf:
+        auth_config.set_oidc_client_config(backend=API_URL, provider_id=provider_id_conf, client_id=None)
+
+    # With all this set up, kick off the openid connect flow
+    refresh_token_store = mock.Mock()
+    conn = Connection(API_URL, refresh_token_store=refresh_token_store)
+    assert isinstance(conn.auth, NullAuth)
+    oidc_mock.state["device_code_callback_timeline"] = ["great success"]
+    with oidc_device_code_flow_checker(url=f"{oidc_issuer}/dc"):
+        conn.authenticate_oidc_device(client_id=client_id, provider_id=provider_id_arg)
+    assert isinstance(conn.auth, BearerAuth)
+    assert conn.auth.bearer == f"oidc/{expected_provider}/" + oidc_mock.state["access_token"]
+    assert refresh_token_store.mock_calls == []
+
+
+@pytest.mark.parametrize(
     ["grant_types", "use_pkce", "expect_pkce"],
     [
         (["urn:ietf:params:oauth:grant-type:device_code+pkce"], True, True),
@@ -1457,6 +1594,68 @@ def test_authenticate_oidc_refresh_token_expired(requests_mock):
     with pytest.raises(OidcException, match="Failed to retrieve access token.*invalid refresh token"):
         conn.authenticate_oidc_refresh_token(refresh_token="wr0n8.t0k3n!", client_id=client_id)
     assert isinstance(conn.auth, NullAuth)
+
+
+@pytest.mark.parametrize(
+    ["provider_id_arg", "provider_id_env", "provider_id_conf", "expected_provider"],
+    [
+        (None, None, None, "oidc1"),
+        ("oidc2", None, None, "oidc2"),
+        (None, "oidc2", None, "oidc2"),
+        (None, None, "oidc2", "oidc2"),
+        ("oidc2", "oidc3", "oidc4", "oidc2"),
+        ("oidc2", None, "oidc4", "oidc2"),
+        (None, "oidc3", "oidc4", "oidc3"),
+    ],
+)
+def test_authenticate_oidc_refresh_token_multiple_provider_resolution(
+    requests_mock, auth_config, provider_id_arg, provider_id_env, provider_id_conf, expected_provider, monkeypatch
+):
+    """Multiple OIDC Providers: provider resolution/precedence"""
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    client_id = "myclient"
+    refresh_token = "r3fr35h!"
+    requests_mock.get(
+        API_URL + "credentials/oidc",
+        json={
+            "providers": [
+                {
+                    "id": f"oidc{p}",
+                    "issuer": f"https://oidc{p}.test",
+                    "title": "One",
+                    "scopes": ["openid"],
+                    "default_clients": [
+                        {
+                            "id": client_id,
+                            "grant_types": ["urn:ietf:params:oauth:grant-type:device_code+pkce", "refresh_token"],
+                        }
+                    ],
+                }
+                for p in [1, 2, 3, 4]
+            ]
+        },
+    )
+    oidc_issuer = f"https://{expected_provider}.test"
+    oidc_mock = OidcMock(
+        requests_mock=requests_mock,
+        expected_grant_type="refresh_token",
+        expected_client_id=client_id,
+        oidc_issuer=oidc_issuer,
+        expected_fields={"refresh_token": refresh_token},
+    )
+    if provider_id_env:
+        monkeypatch.setenv("OPENEO_AUTH_PROVIDER_ID", provider_id_env)
+    assert auth_config.load() == {}
+    if provider_id_conf:
+        auth_config.set_oidc_client_config(backend=API_URL, provider_id=provider_id_conf, client_id=None)
+
+    # With all this set up, kick off the openid connect flow
+    refresh_token_store = mock.Mock()
+    conn = Connection(API_URL, refresh_token_store=refresh_token_store)
+    assert isinstance(conn.auth, NullAuth)
+    conn.authenticate_oidc_refresh_token(refresh_token=refresh_token, client_id=client_id, provider_id=provider_id_arg)
+    assert isinstance(conn.auth, BearerAuth)
+    assert conn.auth.bearer == f"oidc/{expected_provider}/" + oidc_mock.state["access_token"]
 
 
 @pytest.mark.parametrize("store_refresh_token", [True, False])

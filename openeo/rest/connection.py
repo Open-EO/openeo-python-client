@@ -312,6 +312,10 @@ class Connection(RestApiConnection):
         if len(providers) < 1:
             raise OpenEoClientException("Backend lists no OIDC providers.")
         _log.info("Found OIDC providers: {p}".format(p=list(providers.keys())))
+
+        # TODO: also support specifying provider through issuer URL?
+        provider_id_from_env = os.environ.get("OPENEO_AUTH_PROVIDER_ID")
+
         if provider_id:
             if provider_id not in providers:
                 raise OpenEoClientException(
@@ -319,6 +323,10 @@ class Connection(RestApiConnection):
                         r=provider_id, p=list(providers.keys())
                     )
                 )
+            provider = providers[provider_id]
+        elif provider_id_from_env and provider_id_from_env in providers:
+            _log.info(f"Using provider_id {provider_id_from_env!r} from OPENEO_AUTH_PROVIDER_ID env var")
+            provider_id = provider_id_from_env
             provider = providers[provider_id]
         elif len(providers) == 1:
             provider_id, provider = providers.popitem()
@@ -469,6 +477,7 @@ class Connection(RestApiConnection):
         :param client_id: client id to use
         :param client_secret: client secret to use
         :param provider_id: provider id to use
+            Fallback value can be set through environment variable ``OPENEO_AUTH_PROVIDER_ID``.
 
         .. versionchanged:: 0.18.0 Allow specifying client id, secret and provider id through environment variables.
         """
@@ -477,9 +486,6 @@ class Connection(RestApiConnection):
             client_id = os.environ.get("OPENEO_AUTH_CLIENT_ID")
             client_secret = os.environ.get("OPENEO_AUTH_CLIENT_SECRET")
             _log.debug(f"Getting client id ({client_id}) and secret from environment")
-
-        # TODO: also support specifying provider through issuer URL?
-        provider_id = provider_id or os.environ.get("OPENEO_AUTH_PROVIDER_ID")
 
         provider_id, client_info = self._get_oidc_provider_and_client_info(
             provider_id=provider_id, client_id=client_id, client_secret=client_secret
@@ -508,11 +514,25 @@ class Connection(RestApiConnection):
         return self._authenticate_oidc(authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token)
 
     def authenticate_oidc_refresh_token(
-            self, client_id: str = None, refresh_token: str = None, client_secret: str = None, provider_id: str = None,
-            store_refresh_token=False,
-    ) -> 'Connection':
+        self,
+        client_id: str = None,
+        refresh_token: str = None,
+        client_secret: str = None,
+        provider_id: str = None,
+        *,
+        store_refresh_token: bool = False,
+    ) -> "Connection":
         """
         Authenticate with :ref:`OIDC Refresh Token flow <authenticate_oidc_client_credentials>`
+
+        :param client_id: client id to use
+        :param refresh_token: refresh token to use
+        :param client_secret: client secret to use
+        :param provider_id: provider id to use.
+            Fallback value can be set through environment variable ``OPENEO_AUTH_PROVIDER_ID``.
+        :param store_refresh_token: whether to store the received refresh token automatically
+
+        .. versionchanged:: 0.19.0 Support fallback provider id through environment variable ``OPENEO_AUTH_PROVIDER_ID``.
         """
         provider_id, client_info = self._get_oidc_provider_and_client_info(
             provider_id=provider_id, client_id=client_id, client_secret=client_secret,
@@ -552,7 +572,8 @@ class Connection(RestApiConnection):
 
         :param client_id: client id to use instead of the default one
         :param client_secret: client secret to use instead of the default one
-        :param provider_id: provider id to use instead of the default one
+        :param provider_id: provider id to use.
+            Fallback value can be set through environment variable ``OPENEO_AUTH_PROVIDER_ID``.
         :param store_refresh_token: whether to store the received refresh token automatically
         :param use_pkce: Use PKCE instead of client secret.
             If not set explicitly to `True` (use PKCE) or `False` (use client secret),
@@ -562,8 +583,8 @@ class Connection(RestApiConnection):
 
         .. versionchanged:: 0.5.1 Add :py:obj:`use_pkce` argument
         .. versionchanged:: 0.17.0 Add :py:obj:`max_poll_time` argument
+        .. versionchanged:: 0.19.0 Support fallback provider id through environment variable ``OPENEO_AUTH_PROVIDER_ID``.
         """
-        # TODO also support OPENEO_AUTH_PROVIDER_ID env var here?
         _g = DefaultOidcClientGrant  # alias for compactness
         provider_id, client_info = self._get_oidc_provider_and_client_info(
             provider_id=provider_id, client_id=client_id, client_secret=client_secret,
@@ -608,7 +629,7 @@ class Connection(RestApiConnection):
         .. versionchanged:: 0.18.0 Add support for client credentials flow.
         """
         # TODO: unify `os.environ.get` with `get_config_option`?
-        # TODO also support OPENEO_AUTH_PROVIDER_ID, OPENEO_AUTH_CLIENT_ID, ... env vars for refresh token and device code auth?
+        # TODO also support OPENEO_AUTH_CLIENT_ID, ... env vars for refresh token and device code auth?
 
         auth_method = os.environ.get("OPENEO_AUTH_METHOD")
         if auth_method == "client_credentials":
