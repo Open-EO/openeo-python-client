@@ -468,6 +468,9 @@ class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
         and shuts down the side thread
     - The authorization code is exchanged for an access code and id token
     - The access code can be used as bearer token for subsequent API calls
+
+    .. deprecated:: 0.19.0
+        Usage of the Authorization Code flow is deprecated (because of its complexity) and will be removed.
     """
 
     grant_type = "authorization_code"

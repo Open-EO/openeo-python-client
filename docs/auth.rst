@@ -20,7 +20,7 @@ we start form a back-end connection::
 
     import openeo
 
-    con = openeo.connect("https://openeo.example.com")
+    connection = openeo.connect("https://openeo.example.com")
 
 Basic HTTP Auth
 ===============
@@ -35,13 +35,13 @@ instead of a ``https://`` one, you should certainly not use basic HTTP auth.
 With these security related caveats out of the way, you authenticate
 using your username and password like this::
 
-    con.authenticate_basic("john", "j0hn123")
+    connection.authenticate_basic("john", "j0hn123")
 
-Subsequent usage of the connection object ``con`` will
+Subsequent usage of the connection object ``connection`` will
 use authenticated calls.
 For example, show information about the authenticated user::
 
-    >>> con.describe_account()
+    >>> connection.describe_account()
     {'user_id': 'john'}
 
 
@@ -50,62 +50,44 @@ OpenID Connect Based Authentication
 ===================================
 
 OpenID Connect (often abbreviated "OIDC") is an identity layer on top of the OAuth 2.0 protocol.
-It is a quite an extensive stack of interacting actors and protocols,
-and an in-depth discussion of its architecture would lead us too far here.
-However, in the context of working with openEO,
-these OpenID Connect concepts are useful to understand:
+An in-depth discussion of the whole architecture would lead us too far here,
+but some central OpenID Connect concepts are quite useful to understand
+in the context of working with openEO:
 
 *   There is **decoupling** between:
 
-    *   the *OpenID Connect identity provider* (the platform
-        that handles the authentication of the user)
-    *   the *openEO back-end*, which manages earth observation collections
+    *   the *OpenID Connect identity provider*
+        which handles the authentication/authorization and stores user information
+        (e.g. an organization Google, Github, Microsoft, your academic/research institution, ...)
+    *   the *openEO back-end* which manages earth observation collections
         and executes your algorithms
 
     Instead of managing the authentication procedure itself,
-    a back-end first forwards a user to the log-in page of
-    a OpenID Connect provider, such as an (external) organisation like Google or Microsoft.
-    The user can log in there with an existing account (or create a new one)
-    and then generally has to explicitly grant access
-    to basic profile information (e.g. email address)
-    that the back-end will use to identify the user.
+    an openEO back-end forwards a user to the relevant OpenID Connect provider to authenticate
+    and request access to basic profile information (e.g. email address).
+    On return, when the user allowed this access,
+    the openEO back-end receives the profile information and uses this to identify the user.
 
     Note that with this approach, the back-end does not have to
     take care of all the security and privacy challenges
-    of properly handling user registration, authentication, etc.
+    of properly handling user registration, passwords/authentication, etc.
     Also, it allows the user to securely reuse an existing account
     registered with an established organisation, instead of having
     to register yet another account with some web service.
 
 *   Your openEO script or application acts as
-    a so called **OpenID Connect client**, with an associated **client ID**.
-    This practically means that, apart from a user account,
-    you need a client ID as well (and often a client secret too)
-    when authenticating.
+    a so called **OpenID Connect client**, with an associated **client id**.
+    In most cases, a default client (id) defined by the openEO back-end will be used automatically.
+    For some applications a custom client might be necessary,
+    but this is out of scope of this documentation.
 
-    The details of how to obtain the client ID and secret largely
-    depend on the back-end and OpenID Connect provider:
-    you might have to register a client yourself,
-    or you might have to use an existing client ID.
-    Consult the openEO back-end (documentation)
-    about how to obtain client ID (and secret).
+*   OpenID Connect authentication can be done with different kind of "**flows**" (also called "grants")
+    and picking the right flow depends on your specific use case.
+    The most common OIDC flows using the openEO Python Client Library are:
 
-*   There are several possible "**flows**" (also called "grants")
-    to complete the whole OpenID Connect authentication dance:
-
-    * Authorization Code Flow
-    * Device Flow
-    * Client Credentials Flow
-    * Resource Owner Password flow
-    * Refresh Token Flow
-
-    Picking the right flow highly depends on your use case and context:
-    are you working interactively,
-    are you working in a browser based environment,
-    should your application be able to work
-    without user interaction in the background,
-    what does the OpenID Connect provider support,
-    ...?
+    * :ref:`authenticate_oidc_device`
+    * :ref:`authenticate_oidc_client_credentials`
+    * :ref:`authenticate_oidc_refresh_token`
 
 
 OpenID Connect is clearly more complex than Basic HTTP Auth.
@@ -115,185 +97,51 @@ General options
 ---------------
 
 *   A back-end might support **multiple OpenID Connect providers**.
-    If there is only one, the openEO Python Client Library will pick it automatically,
-    but if there are multiple you might get an exception like this::
+    The openEO Python Client Library will pick the first one by default,
+    but another another provider can specified explicity with the ``provider_id`` argument, e.g.:
 
-        OpenEoClientException: No provider_id given. Available: ['gl', 'ms'].
+    .. code-block:: python
 
-    Specify explicitly which provider to use with the ``provider_id`` argument, e.g.::
-
-        con.authenticate_oidc_authorization_code(
-            ...
+        connection.authenticate_oidc_device(
             provider_id="gl",
-
-
-Authorization Code Flow
-------------------------
-
-This is the most popular and widely supported OpenID Connect flow
-in the general web development world.
-However, it requires an environment that can be hard to get
-right when using the openEO Python Client Library in your application:
-
-*   You are working interactively (e.g. in a Jupyter notebook,
-    in a Python/IPython shell or running a Python script
-    manually)
-*   You have access to a web browser
-    (preferably on the same machine as your application),
-    to authenticate with the OpenID Connect provider
-*   That web browser has (network) access
-    to a temporary web server that will be spawn
-    by the openEO Python Client Library in your application.
-*   The URL of the temporary web server is properly whitelisted
-    in the OpenID client's "redirect URL" configuration
-    at the OpenID Connect provider's side.
-
-The hardest part are the two last items.
-If you just run your application locally on your machine,
-the whole procedure is doable (using a ``localhost`` based web server).
-But if you are working remotely
-(e.g. on a hosted Jupyter platform),
-it can be challenging or even impossible
-to get the network access part right.
-
-
-Basic usage
-```````````
-
-The bare essentials to run the authorization code flow::
-
-    con.authenticate_oidc_authorization_code(
-        client_id=client_id,
-        client_secret=client_secret,
-    )
-
-We assume here that you are running this locally
-and that the OpenID Connect provider allows to use a wildcard ``*``
-in the redirect URL whitelist.
-The ``client_id`` and ``client_secret`` string variables hold
-the client ID and secret as discussed above.
-
-What happens when running that ``authenticate_oidc_authorization_code`` call:
-
-*   the openEO Python Client Library will
-    try to trigger your browser to open new window,
-    pointing to a log-in page of the
-    OpenID Connect provider (e.g. Google or Microsoft).
-*   You have to authenticate on this page (unless you are logged in already)
-    and allow the client (identified by ``client_id``) access to the
-    basic account information, such as email address
-    (unless you already did that).
-*   Meanwhile, the openEO Python Client Library
-    is running a short-living webserver in the background
-    to serve a "redirect URL".
-*   When you completed logging in and access granting
-    on the OpenID Connect provider website,
-    you are forwarded in your browser to this redirect URL.
-*   Through the data provided in the request to the redirect URL,
-    the openEO Python Client Library can obtain the desired
-    tokens to set up authenticated communication with the back-end.
-
-When the above procedure completed successfully, your connection
-is authenticated, and you should be able
-to inspect the "user" as seen by the back-end, e.g.::
-
-    >>> con.describe_account()
-    {'user_id': 'nIrHtS4rhk4ru7531RhtLHXd6Ou0AW3vHfg'}
-
-The browser window should show a simple success page
-that you can safely close.
-
-
-Options and finetuning
-``````````````````````
-
-The above example only covers the bare foundation
-of the OpenID Connect Authorization code flow.
-In a practical use case, you will probably need
-some of the following finetuning options:
-
-*   The redirect URL is served by default on ``localhost``
-    with a random port number.
-    Most OpenID Connect providers however do not support wildcards
-    in the redirect URL whitelist and require predefined fixed URLs.
-    Also, your networking situation might require you to use
-    a different hostname or IP address instead of ``localhost``
-    to reach the short-living webserver.
-
-    Both the redirect URL **hostname and port number** can be specified
-    explicitly with the `server_address` argument, e.g.::
-
-        con.authenticate_oidc_authorization_code(
             ...
-            server_address=("myhost.example.com", 40878)
-
-    In this example, the corresponding redirect URL to whitelist is::
-
-        http://myhost.example.com:40878/callback
-
-*   As noted above, the openEO Python Client Library tries
-    to trigger your default browser
-    (on the same machine that your application is running)
-    to open a new window.
-    If this does not work
-    (e.g. you are working remotely in a non-graphical environment),
-    or you want to use another browser on another machine,
-    you can specify an alternative way to **"handle" the URL** that initiates
-    the OpenID Connect flow with the ``webbrowser_open`` argument.
-    For example, to just print the URL so you can visit it as you desire::
-
-        con.authenticate_oidc_authorization_code(
-            ...
-            webbrowser_open=lambda url: print("Visit this:", url)
-
-    Note that the web browser you use to visit that URL must be able
-    to resolve and access the redirect URL
-    served on the machine where your application is running.
-
-*   The short-living webserver only waits up to a certain time
-    for the request to the redirect URL.
-    During that time, your application is actively waiting
-    and not doing anything else.
-    You can increase or decrease the maximum **waiting time** (in seconds)
-    with the ``timeout`` argument.
+        )
 
 
-Device Flow
------------
 
-The device flow (also called device authorization grant)
-is a relatively new OpenID Connect flow
-and it is not as widely supported across different OpenID Connect Providers
-as the other flows.
-It provides a nice alternative that is roughly comparable
-to the authorization code flow but without the previously mentioned issues related
-to short-living webservers, network access and browser redirects.
+.. _authenticate_oidc_device:
 
-The device flow is only suited for interactive use cases
-and requires a web browser for the authentication
+OIDC Authentication: Device Code Flow
+======================================
+
+The device code flow (also called device authorization grant)
+is an interactive flow that requires a web browser for the authentication
 with the OpenID Connect provider.
-However, it can be any web browser, even one on your mobile phone.
-There is no networking magic required to be able to access
-any short-living background webserver like with the authorization code flow.
+The nice things is that the browser doesn't have to run on
+the same system or network as where you run your application,
+you could even use a browser on your mobile phone.
 
-To illustrate the flow, this is how to initiate the authentication::
+Use :py:meth:`~openeo.rest.connection.Connection.authenticate_oidc_device` to initiate the flow:
 
-    con.authenticate_oidc_device(
-        client_id=client_id,
-        client_secret=client_secret
-    )
+.. code-block:: python
 
-This will print a message like this::
+    connection.authenticate_oidc_device()
 
-    To authenticate: visit https://oidc.example.net/device
-    and enter the user code 'DTNY-KLNX'.
+This will print a message like this:
+
+.. code-block:: text
+
+    Visit https://oidc.example.net/device
+    and enter user code 'DTNY-KLNX' to authenticate.
 
 Some OpenID Connect Providers use a slightly longer URL that already includes
-the user code, and then you don't need to enter the user code in one of the next steps::
+the user code, and then you don't need to enter the user code in one of the next steps:
 
-    To authenticate: visit https://oidc.example.net/device?user_code=DTNY-KLNX
+.. code-block:: text
 
-You should now visit this URL.
+    Visit https://oidc.example.net/device?user_code=DTNY-KLNX to authenticate.
+
+You should now visit this URL in your browser of choice.
 Usually, it is intentionally a short URL to make it feasible to type it
 instead of copy-pasting it (e.g. on another device).
 
@@ -302,10 +150,11 @@ shown in the message.
 When the URL already contains the user code, the page won't ask for this code.
 
 Meanwhile, the openEO Python Client Library is actively polling the OpenID Connect
-provider and when you successfully complete the authentication
-and entering of the user code,
+provider and when you successfully complete the authentication,
 it will receive the necessary tokens for authenticated communication
-with the back-end and print::
+with the back-end and print:
+
+.. code-block:: text
 
     Authorized successfully.
 
@@ -313,71 +162,12 @@ In case of authentication failure, the openEO Python Client Library
 will stop polling at some point and raise an exception.
 
 
-Some additional options for this flow:
-
-*   By default, the messages containing the authentication URL, user code
-    and success message are printed with standard Python ``print``.
-    You can provide a custom function to display them with the ``display`` option, e.g.::
-
-        con.authenticate_oidc_device(
-            ...
-            display=lambda msg: render_popup(msg)
-
-*   The openEO Python Client Library waits actively
-    for successful authentication, so your application is
-    hanging for a certain time.
-    You can increate or reduce this maximum polling time (in seconds)
-    with the ``max_poll_time`` argument.
 
 
+.. _authenticate_oidc_refresh_token:
 
-Client Credentials Flow
------------------------
-
-The Client Credentials flow directly uses the client ID and secret
-to authenticate::
-
-    con.authenticate_oidc_client_credentials(
-        client_id=client_id,
-        client_secret=client_secret,
-    )
-
-
-It does not involve interactive authentication through a web browser,
-which makes it useful for **non-interactive use cases**.
-
-The downside is of the Client Credentials flow is that it can
-be challenging or even impossible with a given OpenID Connect provider,
-to set up a client that supports this.
-Also, your openEO back-end might not allow it, because technically
-you are authenticating a *client*, and not a *user*.
-
-
-Resource Owner Password flow
-----------------------------
-
-With the Resource Owner Password flow you directly pass
-the user (and client) credentials::
-
-    con.authenticate_oidc_resource_owner_password_credentials(
-        client_id=client_id,
-        client_secret=client_secret,
-        username=username,
-        password=password,
-    )
-
-
-Like the Client Credentials flow, it is useful for **non-interactive uses cases**.
-
-However, usage of the Resource Owner Password flow is **generally discouraged**
-because of its poor security features (e.g. OAuth/OIDC was designed
-to avoid passing and storing user passwords unnecessarily).
-It is also not widely supported across OpenID Connect providers,
-probably due to its weak security measures.
-
-
-Refresh Token Flow
-------------------
+OIDC Authentication: Refresh Token Flow
+========================================
 
 When OpenID Connect authentication completes successfully,
 the openID Python library receives an access token
@@ -398,9 +188,11 @@ the Refresh Token Flow requires
 because refresh tokens usually have a relatively long lifetime).
 When doing the initial authentication,
 you have to explicitly enable storage of the refresh token,
-through the ``store_refresh_token`` argument, e.g.::
+through the ``store_refresh_token`` argument, e.g.:
 
-    con.authenticate_oidc_authorization_code(
+.. code-block:: python
+
+    connection.authenticate_oidc_device(
         ...
         store_refresh_token=True
 
@@ -408,15 +200,137 @@ through the ``store_refresh_token`` argument, e.g.::
 
 The refresh token will be stored in file in private file
 in your home directory and will be used automatically
-when authenticating with the Refresh Token Flow like this::
+when authenticating with the Refresh Token Flow,
+using :py:meth:`~openeo.rest.connection.Connection.authenticate_oidc_refresh_token`:
 
-    con.authenticate_oidc_refresh_token(
+.. code-block:: python
+
+    connection.authenticate_oidc_refresh_token(
         client_secret=client_secret,
         client_id=client_id
     )
 
 You can also bootstrap the refresh token file
 as described in :ref:`oidc_auth_get_refresh_token`
+
+
+
+.. _authenticate_oidc_client_credentials:
+
+OIDC Authentication: Client Credentials Flow
+=============================================
+
+The OIDC Client Credentials flow does not involve interactive authentication (e.g. through a web browser),
+which makes it a useful option for **non-interactive use cases**.
+
+.. important::
+    This method requires a custom **OIDC client id** and **client secret**.
+    It is out of scope of this general documentation to explain
+    how to obtain these as it depends on the openEO back-end you are using
+    and the OIDC provider that is in play.
+
+    Also, your openEO back-end might not allow it, because technically
+    you are authenticating a *client* instead of a *user*.
+
+    Consult the support of the openEO back-end you want to use for more information.
+
+In its most simple form, given your client id and secret,
+you can authenticate with
+:py:meth:`~openeo.rest.connection.Connection.authenticate_oidc_client_credentials`
+as follows:
+
+.. code-block:: python
+
+    connection.authenticate_oidc_client_credentials(
+        client_id=client_id,
+        client_secret=client_secret,
+    )
+
+You might also have to pass a custom provider id (argument ``provider_id``)
+if your OIDC client is associated with an OIDC provider that is different from the default provider.
+
+.. caution::
+    Make sure to *keep the client secret a secret* and avoid putting it directly in your source code
+    or, worse, committing it to a version control system.
+    Instead, fetch the secret from a protected source (e.g. a protected file, a database for sensitive data, ...)
+    or from environment variables.
+
+.. _authenticate_oidc_client_credentials_env_vars:
+
+OIDC Client Credentials Using Environment Variables
+----------------------------------------------------
+
+Since version 0.18.0, the openEO Python Client Library has built-in support to get the client id,
+secret (and provider id) from environment variables
+``OPENEO_AUTH_CLIENT_ID``, ``OPENEO_AUTH_CLIENT_SECRET`` and ``OPENEO_AUTH_PROVIDER_ID`` respectively.
+Just call :py:meth:`~openeo.rest.connection.Connection.authenticate_oidc_client_credentials`
+without arguments.
+
+Usage example assuming a Linux (Bash) shell context:
+
+.. code-block:: console
+
+    $ export OPENEO_AUTH_CLIENT_ID="my-client-id"
+    $ export OPENEO_AUTH_CLIENT_SECRET="Cl13n7S3cr3t!?123"
+    $ export OPENEO_AUTH_PROVIDER_ID="oidcprovider"
+    $ python
+    >>> import openeo
+    >>> connection = openeo.connect("openeo.example.com")
+    >>> connection.authenticate_oidc_client_credentials()
+    <Connection to 'https://openeo.example.com/openeo/1.1/' with OidcBearerAuth>
+
+
+
+.. _authenticate_oidc_automatic:
+
+OIDC Authentication: Dynamic Method Selection
+==============================================
+
+The sections above discuss various authentication options, like
+the :ref:`device code flow <authenticate_oidc_device>`,
+:ref:`refresh tokens <authenticate_oidc_refresh_token>` and
+:ref:`client credentials flow <authenticate_oidc_client_credentials>`,
+but often you want to *dynamically* switch between these depending on the situation:
+e.g. use a refresh token if you have an active one, and fallback on the device code flow otherwise.
+Or you want to be able to run the same code in an interactive environment and automated in an unattended manner,
+without having to switch authentication methods explicitly in code.
+
+That is what :py:meth:`Connection.authenticate_oidc() <openeo.rest.connection.Connection.authenticate_oidc>` is for:
+
+.. code-block:: python
+
+    connection.authenticate_oidc() # is all you need
+
+In a basic situation (without any particular environment variables set as discussed further),
+this method will first try to authenticate with refresh tokens (if any)
+and fall back on the device code flow otherwise.
+Ideally, when valid refresh tokens are available, this works without interaction,
+but occasionally, when the refresh tokens expire, one has to do the interactive device code flow.
+
+Since version 0.18.0, the openEO Python Client Library also allows to trigger the
+:ref:`client credentials flow <authenticate_oidc_client_credentials>`
+from :py:meth:`~openeo.rest.connection.Connection.authenticate_oidc`
+by setting environment variable ``OPENEO_AUTH_METHOD``
+and the other :ref:`client credentials environment variables <authenticate_oidc_client_credentials_env_vars>`.
+For example:
+
+.. code-block:: shell
+
+    $ export OPENEO_AUTH_METHOD="client_credentials"
+    $ export OPENEO_AUTH_CLIENT_ID="my-client-id"
+    $ export OPENEO_AUTH_CLIENT_SECRET="Cl13n7S3cr3t!?123"
+    $ export OPENEO_AUTH_PROVIDER_ID="oidcprovider"
+    $ python
+    >>> import openeo
+    >>> connection = openeo.connect("openeo.example.com")
+    >>> connection.authenticate_oidc()
+    <Connection to 'https://openeo.example.com/openeo/1.1/' with OidcBearerAuth>
+
+
+
+
+
+
 
 
 .. _auth_configuration_files:
@@ -511,7 +425,7 @@ try if these credentials work::
 Now you can authenticate in your application without having to
 specify username and password explicitly::
 
-    con.authenticate_basic()
+    connection.authenticate_basic()
 
 OpenID Connect configs
 -----------------------
@@ -520,7 +434,7 @@ Likewise, with the ``add-oidc`` subcommand you can add OpenID Connect
 credentials to the config::
 
     $ openeo-auth add-oidc https://openeo.example.com/
-    Using provider ID 'example' (issuer 'https://oidc.example.com/')
+    Using provider ID 'example' (issuer 'https://oidc.example.net/')
     Enter client_id and press enter: client-d7393fba
     Enter client_secret and press enter:
     Saved client information to '/home/john/.config/openeo-python-client/auth-config.json'
@@ -529,11 +443,11 @@ Now you can user OpenID Connect based authentication in your application
 without having to specify the client ID and client secret explicitly,
 like one of these calls::
 
-    con.authenticate_oidc_authorization_code()
-    con.authenticate_oidc_client_credentials()
-    con.authenticate_oidc_resource_owner_password_credentials(username=username, password=password)
-    con.authenticate_oidc_device()
-    con.authenticate_oidc_refresh_token()
+    connection.authenticate_oidc_authorization_code()
+    connection.authenticate_oidc_client_credentials()
+    connection.authenticate_oidc_resource_owner_password_credentials(username=username, password=password)
+    connection.authenticate_oidc_device()
+    connection.authenticate_oidc_refresh_token()
 
 Note that you still have to add additional options as required, like
 ``provider_id``, ``server_address``, ``store_refresh_token``, etc.
@@ -589,7 +503,7 @@ add these configuration options to the :ref:`desired configuration file <configu
 Getting an authenticated connection is now as simple as::
 
     >>> import openeo
-    >>> con = openeo.connect()
+    >>> connection = openeo.connect()
     Loaded openEO client config from openeo-client-config.ini
     Using default back-end URL 'openeo.cloud' (from config)
     Doing auto-authentication 'oidc' (from config)
@@ -636,7 +550,7 @@ Some guidelines to get long-term and non-interactive authentication working for 
     To do so, use one of the following methods:
 
     -   Use the ``openeo-auth oidc-auth`` cli tool, for example to authenticate
-        for openeo back-end openo.example.com::
+        for openeo back-end openeo.example.com::
 
             $ openeo-auth oidc-auth openeo.example.com
             ...
@@ -646,8 +560,8 @@ Some guidelines to get long-term and non-interactive authentication working for 
     -   Use a Python snippet to authenticate and store the refresh token::
 
             import openeo
-            con = openeo.connect("openeo.example.com")
-            con.authenticate_oidc_device(store_refresh_token=True)
+            connection = openeo.connect("openeo.example.com")
+            connection.authenticate_oidc_device(store_refresh_token=True)
 
 
     To verify that (and where) the refresh token is stored, use ``openeo-auth token-dump``::

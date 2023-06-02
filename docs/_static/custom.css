@@ -68,7 +68,10 @@ div.sphinxsidebar .toctree-l1 a {
 }
 
 
-div.admonition {
+div.admonition,
+.py div.versionadded,
+.py div.versionchanged,
+.py div.deprecated {
     padding: 1em;
     border-style: solid;
     border-width: 0 0 0 0.5rem;
@@ -82,11 +85,22 @@ div.admonition p.admonition-title {
     font-weight: bold;
 }
 
-div.admonition.note, div.admonition.tip, div.admonition.seealso, div.admonition.hint {
+div.admonition.note,
+div.admonition.tip,
+div.admonition.seealso,
+div.admonition.hint,
+.py div.versionadded,
+.py div.versionchanged {
     border-left-color: #42b983;
 }
 
-div.admonition.warning, div.admonition.attention, div.admonition.caution, div.admonition.danger, div.admonition.error, div.admonition.important {
+div.admonition.warning,
+div.admonition.attention,
+div.admonition.caution,
+div.admonition.danger,
+div.admonition.error,
+div.admonition.important,
+.py div.deprecated {
     border-left-color: #b9425e;
 }
 

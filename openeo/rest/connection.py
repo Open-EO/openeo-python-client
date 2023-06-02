@@ -435,6 +435,11 @@ class Connection(RestApiConnection):
     ) -> 'Connection':
         """
         OpenID Connect Authorization Code Flow (with PKCE).
+
+        .. deprecated:: 0.19.0
+            Usage of the Authorization Code flow is deprecated (because of its complexity) and will be removed.
+            It is recommended to use the Device Code flow  with :py:meth:`authenticate_oidc_device`
+            or Client Credentials flow with :py:meth:`authenticate_oidc_client_credentials`.
         """
         provider_id, client_info = self._get_oidc_provider_and_client_info(
             provider_id=provider_id, client_id=client_id, client_secret=client_secret,
@@ -453,12 +458,17 @@ class Connection(RestApiConnection):
         provider_id: Optional[str] = None,
     ) -> 'Connection':
         """
-        OpenID Connect Client Credentials flow.
+        Authenticate with :ref:`OIDC Client Credentials flow <authenticate_oidc_client_credentials>`
 
         Client id, secret and provider id can be specified directly through the available arguments.
         It is also possible to leave these arguments empty and specify them through
         environment variables ``OPENEO_AUTH_CLIENT_ID``,
-        ``OPENEO_AUTH_CLIENT_SECRET`` and ``OPENEO_AUTH_PROVIDER_ID`` respectively.
+        ``OPENEO_AUTH_CLIENT_SECRET`` and ``OPENEO_AUTH_PROVIDER_ID`` respectively
+        as discussed in :ref:`authenticate_oidc_client_credentials_env_vars`.
+
+        :param client_id: client id to use
+        :param client_secret: client secret to use
+        :param provider_id: provider id to use
 
         .. versionchanged:: 0.18.0 Allow specifying client id, secret and provider id through environment variables.
         """
@@ -502,7 +512,7 @@ class Connection(RestApiConnection):
             store_refresh_token=False,
     ) -> 'Connection':
         """
-        OpenId Connect Refresh Token
+        Authenticate with :ref:`OIDC Refresh Token flow <authenticate_oidc_client_credentials>`
         """
         provider_id, client_info = self._get_oidc_provider_and_client_info(
             provider_id=provider_id, client_id=client_id, client_secret=client_secret,
@@ -538,15 +548,22 @@ class Connection(RestApiConnection):
         **kwargs,
     ) -> "Connection":
         """
-        Authenticate with OAuth Device Authorization grant/flow
+        Authenticate with the :ref:`OIDC Device Code flow <authenticate_oidc_device>`
 
+        :param client_id: client id to use instead of the default one
+        :param client_secret: client secret to use instead of the default one
+        :param provider_id: provider id to use instead of the default one
+        :param store_refresh_token: whether to store the received refresh token automatically
         :param use_pkce: Use PKCE instead of client secret.
             If not set explicitly to `True` (use PKCE) or `False` (use client secret),
             it will be attempted to detect the best mode automatically.
             Note that PKCE for device code is not widely supported among OIDC providers.
+        :param max_poll_time: maximum time to keep polling for successful authentication.
 
         .. versionchanged:: 0.5.1 Add :py:obj:`use_pkce` argument
+        .. versionchanged:: 0.17.0 Add :py:obj:`max_poll_time` argument
         """
+        # TODO also support OPENEO_AUTH_PROVIDER_ID env var here?
         _g = DefaultOidcClientGrant  # alias for compactness
         provider_id, client_info = self._get_oidc_provider_and_client_info(
             provider_id=provider_id, client_id=client_id, client_secret=client_secret,
@@ -581,10 +598,18 @@ class Connection(RestApiConnection):
         set ``OPENEO_AUTH_CLIENT_ID`` to the client id,
         and set ``OPENEO_AUTH_CLIENT_SECRET`` to the client secret.
 
+        See :ref:`authenticate_oidc_automatic` for more details.
+
+        :param provider_id: provider id to use
+        :param client_id: client id to use
+        :param client_secret: client secret to use
+
         .. versionadded:: 0.6.0
         .. versionchanged:: 0.18.0 Add support for client credentials flow.
         """
         # TODO: unify `os.environ.get` with `get_config_option`?
+        # TODO also support OPENEO_AUTH_PROVIDER_ID, OPENEO_AUTH_CLIENT_ID, ... env vars for refresh token and device code auth?
+
         auth_method = os.environ.get("OPENEO_AUTH_METHOD")
         if auth_method == "client_credentials":
             _log.debug("authenticate_oidc: going for 'client_credentials' authentication")
