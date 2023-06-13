@@ -753,6 +753,10 @@ class _JupyterDeviceCodePollUi(_BasicDeviceCodePollUi):
         pass
 
 
+class OidcDeviceCodePollTimeout(OidcException):
+    pass
+
+
 class OidcDeviceAuthenticator(OidcAuthenticator):
     """
     Implementation of OAuth Device Authorization grant/flow
@@ -877,4 +881,4 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
                     next_poll = elapsed() + poll_interval
 
             poll_ui.show_progress(status="Timed out")
-            raise OidcException(f"Timeout ({self._max_poll_time:.1f}s) while polling for access token.")
+            raise OidcDeviceCodePollTimeout(f"Timeout ({self._max_poll_time:.1f}s) while polling for access token.")
