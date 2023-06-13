@@ -125,8 +125,8 @@ class RestApiConnection:
         if check_error and status >= 400 and status not in expected_status:
             self._raise_api_error(resp)
         if expected_status and status not in expected_status:
-            raise OpenEoRestError("Got status code {s!r} for `{m} {p}` (expected {e!r})".format(
-                m=method.upper(), p=path, s=status, e=expected_status)
+            raise OpenEoRestError("Got status code {s!r} for `{m} {p}` (expected {e!r}) with body {body}".format(
+                m=method.upper(), p=path, s=status, e=expected_status, body=resp.text)
             )
         return resp
 
