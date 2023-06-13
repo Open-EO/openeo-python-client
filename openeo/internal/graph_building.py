@@ -22,7 +22,7 @@ from openeo.util import dict_no_none, load_json_resource
 class FlatGraphableMixin(metaclass=abc.ABCMeta):
     """
     Mixin for classes that can be exported/converted to
-    a "flat graph" representation of a process graph.
+    a "flat graph" representation of an openEO process graph.
     """
 
     @abc.abstractmethod
@@ -212,6 +212,10 @@ def as_flat_graph(x: Union[dict, FlatGraphableMixin, Any]) -> Dict[str, dict]:
     """
     Convert given object to a internal flat dict graph representation.
     """
+    # TODO: document or verify which process graph flavor this is:
+    #       including `{"process": {"process_graph": {nodes}}` ("process graph with metadata")
+    #       including `{"process_graph": {nodes}}` ("process graph")
+    #       or just the raw process graph nodes?
     if isinstance(x, dict):
         return x
     elif isinstance(x, FlatGraphableMixin):

@@ -20,7 +20,7 @@ from requests.auth import HTTPBasicAuth, AuthBase
 import openeo
 from openeo.capabilities import ApiVersionException, ComparableVersion
 from openeo.config import get_config_option, config_log
-from openeo.internal.graph_building import PGNode, as_flat_graph
+from openeo.internal.graph_building import PGNode, as_flat_graph, FlatGraphableMixin
 from openeo.internal.jupyter import VisualDict, VisualList
 from openeo.internal.processes.builder import ProcessBuilderBase
 from openeo.internal.warnings import legacy_alias, deprecated
@@ -1339,15 +1339,17 @@ class Connection(RestApiConnection):
             metadata = resp.json()
         return UserFile.from_metadata(metadata=metadata, connection=self)
 
-    def _build_request_with_process_graph(self, process_graph: Union[dict, Any], **kwargs) -> dict:
+    def _build_request_with_process_graph(self, process_graph: Union[dict, FlatGraphableMixin, Any], **kwargs) -> dict:
         """
         Prepare a json payload with a process graph to submit to /result, /services, /jobs, ...
         :param process_graph: flat dict representing a process graph
         """
+        # TODO: make this a more general helper (like `as_flat_graph`)
         result = kwargs
         process_graph = as_flat_graph(process_graph)
         if "process_graph" not in process_graph:
             process_graph = {"process_graph": process_graph}
+        # TODO: also check if `process_graph` already has "process" key (i.e. is a "process graph with metadata already)
         result["process"] = process_graph
         return result
 
@@ -1468,14 +1470,28 @@ class Connection(RestApiConnection):
             self, format, glob_pattern, **(options or {})
         )
 
-    def as_curl(self, data: Union[dict, DataCube], path="/result", method="POST", obfuscate_auth: bool = False) -> str:
+    def as_curl(
+        self,
+        data: Union[dict, DataCube, FlatGraphableMixin],
+        path="/result",
+        method="POST",
+        obfuscate_auth: bool = False,
+    ) -> str:
         """
         Build curl command to evaluate given process graph or data cube
         (including authorization and content-type headers).
 
-        :param data: process graph dictionary or :py:class:`~openeo.rest.datacube.DataCube` object
-        :param path: endpoint to send request to
-        :param method: HTTP method to use
+            >>> print(connection.as_curl(cube))
+            curl -i -X POST -H 'Content-Type: application/json' -H 'Authorization: Bearer ...' \\
+                --data '{"process":{"process_graph":{...}}' \\
+                https://openeo.example/openeo/1.1/result
+
+        :param data: something that is convertable to an openEO process graph: a dictionary,
+            a :py:class:`~openeo.rest.datacube.DataCube` object,
+            a :py:class:`~openeo.processes.ProcessBuilder`, ...
+        :param path: endpoint to send request to: typically ``"/result"`` (default) for synchronous requests
+            or ``"/jobs"`` for batch jobs
+        :param method: HTTP method to use (typically ``"POST"``)
         :param obfuscate_auth: don't show actual bearer token
 
         :return: curl command as a string
