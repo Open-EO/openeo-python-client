@@ -1355,10 +1355,10 @@ class Connection(RestApiConnection):
 
     # TODO: unify `download` and `execute` better: e.g. `download` always writes to disk, `execute` returns result (raw or as JSON decoded dict)
     def download(
-            self,
-            graph: Union[dict, str, Path],
-            outputfile: Union[Path, str, None] = None,
-            timeout: int = 30 * 60,
+        self,
+        graph: Union[dict, FlatGraphableMixin, str, Path],
+        outputfile: Union[Path, str, None] = None,
+        timeout: int = 30 * 60,
     ) -> Union[None, bytes]:
         """
         Downloads the result of a process graph synchronously,

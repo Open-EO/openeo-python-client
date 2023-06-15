@@ -208,7 +208,7 @@ class PGNode(_FromNodeMixin, FlatGraphableMixin):
         return PGNodeGraphUnflattener.unflatten(flat_graph=flat_graph, parameters=parameters)
 
 
-def as_flat_graph(x: Union[dict, FlatGraphableMixin, Any]) -> Dict[str, dict]:
+def as_flat_graph(x: Union[dict, FlatGraphableMixin, Path, Any]) -> Dict[str, dict]:
     """
     Convert given object to a internal flat dict graph representation.
     """
