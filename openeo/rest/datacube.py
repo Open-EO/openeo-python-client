@@ -1981,6 +1981,9 @@ class DataCube(_ProcessGraphAbstraction):
         :param zoom: (optional) Zoom level of the map. Default is 1.
 
         :return: ipyleaflet Map object and the displayed Service
+
+        .. warning:: experimental feature, subject to change.
+        .. versionadded:: 0.19.0
         """
         if "XYZ" not in self.connection.list_service_types():
             raise OpenEoClientException("Backend does not support service type 'XYZ'.")
@@ -1991,7 +1994,7 @@ class DataCube(_ProcessGraphAbstraction):
             import ipyleaflet
         except ImportError:
             raise Exception(
-                "Additional modules must be installed for on demand viewer. Run `pip install openeo[jupyter]` or refer to the documentation."
+                "Additional modules must be installed for on-demand preview. Run `pip install openeo[jupyter]` or refer to the documentation."
             )
 
         service = self.tiled_viewing_service("XYZ")
