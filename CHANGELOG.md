@@ -4,18 +4,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-
 ## [Unreleased]
+
+### Added
+
+- Generalized support for setting (default) OIDC provider id through env var `OPENEO_AUTH_PROVIDER_ID`
+  [#419](https://github.com/Open-EO/openeo-python-client/issues/419)
+- Added `OidcDeviceCodePollTimeout`: specific exception for OIDC device code flow poll timeouts
+
+### Changed
+
+### Removed
+
+### Fixed
+
+- Fix format option conflict between `save_result` and `create_job`
+  [#433](https://github.com/Open-EO/openeo-python-client/issues/433)
+
+
+## [0.18.0] - 2023-05-31
 
 ### Added
 
 - Support OIDC client credentials grant from a generic `connection.authenticate_oidc()` call
   through environment variables
   [#419](https://github.com/Open-EO/openeo-python-client/issues/419)
-
-### Changed
-
-### Removed
 
 ### Fixed
 

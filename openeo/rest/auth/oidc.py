@@ -468,6 +468,9 @@ class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
         and shuts down the side thread
     - The authorization code is exchanged for an access code and id token
     - The access code can be used as bearer token for subsequent API calls
+
+    .. deprecated:: 0.19.0
+        Usage of the Authorization Code flow is deprecated (because of its complexity) and will be removed.
     """
 
     grant_type = "authorization_code"
@@ -750,6 +753,10 @@ class _JupyterDeviceCodePollUi(_BasicDeviceCodePollUi):
         pass
 
 
+class OidcDeviceCodePollTimeout(OidcException):
+    pass
+
+
 class OidcDeviceAuthenticator(OidcAuthenticator):
     """
     Implementation of OAuth Device Authorization grant/flow
@@ -874,4 +881,4 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
                     next_poll = elapsed() + poll_interval
 
             poll_ui.show_progress(status="Timed out")
-            raise OidcException(f"Timeout ({self._max_poll_time:.1f}s) while polling for access token.")
+            raise OidcDeviceCodePollTimeout(f"Timeout ({self._max_poll_time:.1f}s) while polling for access token.")

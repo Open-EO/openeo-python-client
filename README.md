@@ -41,3 +41,18 @@ Allows you to interact with openEO backends from your own (local) Python environ
 [Some example scripts](https://github.com/Open-EO/openeo-python-client/blob/master/examples)
 
 [General OpenEO background](https://open-eo.github.io/openeo-api/)
+
+
+
+## Contributions and funding
+
+The authors acknowledge the financial support for the development of this package
+during the H2020 project "openEO" (Oct 2017 to Sept 2020) by the European Union, funded by call EO-2-2017: EO Big Data Shift, under grant number 776242.
+We also acknowledge the financial support received from ESA for the project "openEO Platform" (Sept 2020 to Sept 2023).
+
+This package received major contributions from the following organizations:
+
+[<img src="https://raw.githubusercontent.com/Open-EO/openeo-python-client/master/docs/_static/images/vito-logo.png" alt="VITO Remote Sensing logo" title="VITO Remote Sensing" height="50">](https://remotesensing.vito.be/) &emsp;
+[<img src="https://www.uni-muenster.de/imperia/md/images/allgemein/farbunabhaengig/wwu.svg" alt="WWU Münster logo" title="University of Münster" height="50">](https://www.uni-muenster.de/) &emsp;
+[<img src="https://upload.wikimedia.org/wikipedia/commons/9/9b/Eurac_Research_-_logo.png" alt="Eurac Research logo" title="Eurac Research" height="50">](https://www.eurac.edu/) &emsp;
+[<img src="https://upload.wikimedia.org/wikipedia/commons/e/e5/TU_Signet_CMYK.svg" alt="TU Wien Logo" title="Technische Universität Wien" height="50">](https://www.tuwien.at/) &emsp;

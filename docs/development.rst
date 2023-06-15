@@ -118,39 +118,58 @@ Pre-commit for basic code quality checks
 We started using the `pre-commit <https://pre-commit.com/>`_ tool
 for basic code quality fine-tuning of new contributions.
 Note that the whole repository does not adhere yet to these new code styles rules at the moment,
-we're just gradually introducing it, piggybacking on new contributions.
+we're just gradually introducing it, piggybacking on new contributions and commits.
+It's currently not enforced, but **enabling pre-commit is recommended** and appreciated
+when contributing code.
 
-It's not enforced, but recommended and appreciated to **enable pre-commit**
-in your git clone when contributing code, as follows:
+Pre-commit set up
+""""""""""""""""""
 
 -   Install the ``pre-commit`` command line tool:
 
     -   The simplest option is to install it directly in the *virtual environment*
         you are using for openEO Python client development (e.g. ``pip install pre-commit``).
     -   You can also install it *globally* on your system
-        so you can easily use it across different projects
-        (e.g. using `pipx <https://pypa.github.io/pipx/>`_, in your base conda environment, ...,
-        see the `pre-commit installation docs <https://pre-commit.com/#installation>`_ for more information).
--   Install the git hook scripts in your local clone:
+        (e.g. using `pipx <https://pypa.github.io/pipx/>`_, conda, homebrew, ...)
+        so you can use it across different projects.
+-   Install the git hook scripts by running this in your local git clone:
 
     .. code-block:: console
 
         pre-commit install
 
-    This will automatically install additional tools required to check the rules
-    defined in the ``.pre-commit-config.yaml`` configuration file.
+    This will automatically install additional tools in a sandbox
+    to run the various checks defined in the ``.pre-commit-config.yaml`` configuration file.
 
+Pre-commit usage
+"""""""""""""""""
 
-Now, when you commit new changes, the pre-commit tool will run,
-flag issues (e.g. invalid JSON files)
-and even fix simple problems (e.g. clean up excessive whitespace).
+When you commit new changes, the freshly installed pre-commit hook
+will now automatically run each of the configured linters/formatters/...
+Some of these just flag issues (e.g. invalid JSON files)
+while others even automatically fix problems (e.g. clean up excessive whitespace).
+
+If there is some kind of violation, the commit will be blocked.
 Address these problems and try to commit again.
+
+.. attention::
+
+    Some pre-commit tools directly *edit* your files (e.g. formatting tweaks)
+    instead of just flagging issues.
+    This might feel intrusive at first, but once you get the hang of it,
+    it should allow to streamline your workflow.
+
+    In particular, it is recommended to use the *staging* feature of git to prepare your commit.
+    Pre-commit's proposed changes are not staged automatically,
+    so you can more easily keep them separate and review.
 
 .. tip::
 
-    Use the staging feature of git to prepare your commit.
-    That makes it easier to review the changes proposed by pre-commit,
-    as these are not staged automatically.
+    You can temporarily disable pre-commit for these rare cases
+    where you intentionally want to commit violating code style,
+    e.g. through ``git commit`` command line option ``-n``/``--no-verify``.
+
+
 
 
 Creating a release

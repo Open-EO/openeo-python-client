@@ -2099,7 +2099,7 @@ class DataCube(_ProcessGraphAbstraction):
         # TODO: add option to also automatically start the job?
         # TODO: avoid using all kwargs as format_options
         # TODO: centralize `create_job` for `DataCube`, `VectorCube`, `MlModel`, ...
-        cube = self._ensure_save_result(format=out_format, options=format_options)
+        cube = self._ensure_save_result(format=out_format, options=format_options or None)
         return self._connection.create_job(
             process_graph=cube.flat_graph(),
             title=title,

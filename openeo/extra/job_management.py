@@ -419,10 +419,7 @@ class MultiBackendJobManager:
                 _log.info(
                     f"Status of job {job_id!r} (on backend {backend_name}) is {job_metadata['status']!r}"
                 )
-                if (
-                    df.loc[i, "status"] == "running"
-                    and job_metadata["status"] == "finished"
-                ):
+                if job_metadata["status"] == "finished":
                     self.on_job_done(the_job, df.loc[i])
                 if df.loc[i, "status"] != "error" and job_metadata["status"] == "error":
                     self.on_job_error(the_job, df.loc[i])

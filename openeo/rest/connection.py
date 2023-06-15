@@ -20,7 +20,7 @@ from requests.auth import HTTPBasicAuth, AuthBase
 import openeo
 from openeo.capabilities import ApiVersionException, ComparableVersion
 from openeo.config import get_config_option, config_log
-from openeo.internal.graph_building import PGNode, as_flat_graph
+from openeo.internal.graph_building import PGNode, as_flat_graph, FlatGraphableMixin
 from openeo.internal.jupyter import VisualDict, VisualList
 from openeo.internal.processes.builder import ProcessBuilderBase
 from openeo.internal.warnings import legacy_alias, deprecated
@@ -125,8 +125,8 @@ class RestApiConnection:
         if check_error and status >= 400 and status not in expected_status:
             self._raise_api_error(resp)
         if expected_status and status not in expected_status:
-            raise OpenEoRestError("Got status code {s!r} for `{m} {p}` (expected {e!r})".format(
-                m=method.upper(), p=path, s=status, e=expected_status)
+            raise OpenEoRestError("Got status code {s!r} for `{m} {p}` (expected {e!r}) with body {body}".format(
+                m=method.upper(), p=path, s=status, e=expected_status, body=resp.text)
             )
         return resp
 
@@ -312,6 +312,10 @@ class Connection(RestApiConnection):
         if len(providers) < 1:
             raise OpenEoClientException("Backend lists no OIDC providers.")
         _log.info("Found OIDC providers: {p}".format(p=list(providers.keys())))
+
+        # TODO: also support specifying provider through issuer URL?
+        provider_id_from_env = os.environ.get("OPENEO_AUTH_PROVIDER_ID")
+
         if provider_id:
             if provider_id not in providers:
                 raise OpenEoClientException(
@@ -319,6 +323,10 @@ class Connection(RestApiConnection):
                         r=provider_id, p=list(providers.keys())
                     )
                 )
+            provider = providers[provider_id]
+        elif provider_id_from_env and provider_id_from_env in providers:
+            _log.info(f"Using provider_id {provider_id_from_env!r} from OPENEO_AUTH_PROVIDER_ID env var")
+            provider_id = provider_id_from_env
             provider = providers[provider_id]
         elif len(providers) == 1:
             provider_id, provider = providers.popitem()
@@ -435,6 +443,11 @@ class Connection(RestApiConnection):
     ) -> 'Connection':
         """
         OpenID Connect Authorization Code Flow (with PKCE).
+
+        .. deprecated:: 0.19.0
+            Usage of the Authorization Code flow is deprecated (because of its complexity) and will be removed.
+            It is recommended to use the Device Code flow  with :py:meth:`authenticate_oidc_device`
+            or Client Credentials flow with :py:meth:`authenticate_oidc_client_credentials`.
         """
         provider_id, client_info = self._get_oidc_provider_and_client_info(
             provider_id=provider_id, client_id=client_id, client_secret=client_secret,
@@ -453,12 +466,18 @@ class Connection(RestApiConnection):
         provider_id: Optional[str] = None,
     ) -> 'Connection':
         """
-        OpenID Connect Client Credentials flow.
+        Authenticate with :ref:`OIDC Client Credentials flow <authenticate_oidc_client_credentials>`
 
         Client id, secret and provider id can be specified directly through the available arguments.
         It is also possible to leave these arguments empty and specify them through
         environment variables ``OPENEO_AUTH_CLIENT_ID``,
-        ``OPENEO_AUTH_CLIENT_SECRET`` and ``OPENEO_AUTH_PROVIDER_ID`` respectively.
+        ``OPENEO_AUTH_CLIENT_SECRET`` and ``OPENEO_AUTH_PROVIDER_ID`` respectively
+        as discussed in :ref:`authenticate_oidc_client_credentials_env_vars`.
+
+        :param client_id: client id to use
+        :param client_secret: client secret to use
+        :param provider_id: provider id to use
+            Fallback value can be set through environment variable ``OPENEO_AUTH_PROVIDER_ID``.
 
         .. versionchanged:: 0.18.0 Allow specifying client id, secret and provider id through environment variables.
         """
@@ -467,9 +486,6 @@ class Connection(RestApiConnection):
             client_id = os.environ.get("OPENEO_AUTH_CLIENT_ID")
             client_secret = os.environ.get("OPENEO_AUTH_CLIENT_SECRET")
             _log.debug(f"Getting client id ({client_id}) and secret from environment")
-
-        # TODO: also support specifying provider through issuer URL?
-        provider_id = provider_id or os.environ.get("OPENEO_AUTH_PROVIDER_ID")
 
         provider_id, client_info = self._get_oidc_provider_and_client_info(
             provider_id=provider_id, client_id=client_id, client_secret=client_secret
@@ -498,11 +514,25 @@ class Connection(RestApiConnection):
         return self._authenticate_oidc(authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token)
 
     def authenticate_oidc_refresh_token(
-            self, client_id: str = None, refresh_token: str = None, client_secret: str = None, provider_id: str = None,
-            store_refresh_token=False,
-    ) -> 'Connection':
+        self,
+        client_id: str = None,
+        refresh_token: str = None,
+        client_secret: str = None,
+        provider_id: str = None,
+        *,
+        store_refresh_token: bool = False,
+    ) -> "Connection":
         """
-        OpenId Connect Refresh Token
+        Authenticate with :ref:`OIDC Refresh Token flow <authenticate_oidc_client_credentials>`
+
+        :param client_id: client id to use
+        :param refresh_token: refresh token to use
+        :param client_secret: client secret to use
+        :param provider_id: provider id to use.
+            Fallback value can be set through environment variable ``OPENEO_AUTH_PROVIDER_ID``.
+        :param store_refresh_token: whether to store the received refresh token automatically
+
+        .. versionchanged:: 0.19.0 Support fallback provider id through environment variable ``OPENEO_AUTH_PROVIDER_ID``.
         """
         provider_id, client_info = self._get_oidc_provider_and_client_info(
             provider_id=provider_id, client_id=client_id, client_secret=client_secret,
@@ -538,14 +568,22 @@ class Connection(RestApiConnection):
         **kwargs,
     ) -> "Connection":
         """
-        Authenticate with OAuth Device Authorization grant/flow
+        Authenticate with the :ref:`OIDC Device Code flow <authenticate_oidc_device>`
 
+        :param client_id: client id to use instead of the default one
+        :param client_secret: client secret to use instead of the default one
+        :param provider_id: provider id to use.
+            Fallback value can be set through environment variable ``OPENEO_AUTH_PROVIDER_ID``.
+        :param store_refresh_token: whether to store the received refresh token automatically
         :param use_pkce: Use PKCE instead of client secret.
             If not set explicitly to `True` (use PKCE) or `False` (use client secret),
             it will be attempted to detect the best mode automatically.
             Note that PKCE for device code is not widely supported among OIDC providers.
+        :param max_poll_time: maximum time to keep polling for successful authentication.
 
         .. versionchanged:: 0.5.1 Add :py:obj:`use_pkce` argument
+        .. versionchanged:: 0.17.0 Add :py:obj:`max_poll_time` argument
+        .. versionchanged:: 0.19.0 Support fallback provider id through environment variable ``OPENEO_AUTH_PROVIDER_ID``.
         """
         _g = DefaultOidcClientGrant  # alias for compactness
         provider_id, client_info = self._get_oidc_provider_and_client_info(
@@ -581,10 +619,18 @@ class Connection(RestApiConnection):
         set ``OPENEO_AUTH_CLIENT_ID`` to the client id,
         and set ``OPENEO_AUTH_CLIENT_SECRET`` to the client secret.
 
+        See :ref:`authenticate_oidc_automatic` for more details.
+
+        :param provider_id: provider id to use
+        :param client_id: client id to use
+        :param client_secret: client secret to use
+
         .. versionadded:: 0.6.0
         .. versionchanged:: 0.18.0 Add support for client credentials flow.
         """
         # TODO: unify `os.environ.get` with `get_config_option`?
+        # TODO also support OPENEO_AUTH_CLIENT_ID, ... env vars for refresh token and device code auth?
+
         auth_method = os.environ.get("OPENEO_AUTH_METHOD")
         if auth_method == "client_credentials":
             _log.debug("authenticate_oidc: going for 'client_credentials' authentication")
@@ -1293,24 +1339,26 @@ class Connection(RestApiConnection):
             metadata = resp.json()
         return UserFile.from_metadata(metadata=metadata, connection=self)
 
-    def _build_request_with_process_graph(self, process_graph: Union[dict, Any], **kwargs) -> dict:
+    def _build_request_with_process_graph(self, process_graph: Union[dict, FlatGraphableMixin, Any], **kwargs) -> dict:
         """
         Prepare a json payload with a process graph to submit to /result, /services, /jobs, ...
         :param process_graph: flat dict representing a process graph
         """
+        # TODO: make this a more general helper (like `as_flat_graph`)
         result = kwargs
         process_graph = as_flat_graph(process_graph)
         if "process_graph" not in process_graph:
             process_graph = {"process_graph": process_graph}
+        # TODO: also check if `process_graph` already has "process" key (i.e. is a "process graph with metadata already)
         result["process"] = process_graph
         return result
 
     # TODO: unify `download` and `execute` better: e.g. `download` always writes to disk, `execute` returns result (raw or as JSON decoded dict)
     def download(
-            self,
-            graph: Union[dict, str, Path],
-            outputfile: Union[Path, str, None] = None,
-            timeout: int = 30 * 60,
+        self,
+        graph: Union[dict, FlatGraphableMixin, str, Path],
+        outputfile: Union[Path, str, None] = None,
+        timeout: int = 30 * 60,
     ) -> Union[None, bytes]:
         """
         Downloads the result of a process graph synchronously,
@@ -1422,14 +1470,28 @@ class Connection(RestApiConnection):
             self, format, glob_pattern, **(options or {})
         )
 
-    def as_curl(self, data: Union[dict, DataCube], path="/result", method="POST", obfuscate_auth: bool = False) -> str:
+    def as_curl(
+        self,
+        data: Union[dict, DataCube, FlatGraphableMixin],
+        path="/result",
+        method="POST",
+        obfuscate_auth: bool = False,
+    ) -> str:
         """
         Build curl command to evaluate given process graph or data cube
         (including authorization and content-type headers).
 
-        :param data: process graph dictionary or :py:class:`~openeo.rest.datacube.DataCube` object
-        :param path: endpoint to send request to
-        :param method: HTTP method to use
+            >>> print(connection.as_curl(cube))
+            curl -i -X POST -H 'Content-Type: application/json' -H 'Authorization: Bearer ...' \\
+                --data '{"process":{"process_graph":{...}}' \\
+                https://openeo.example/openeo/1.1/result
+
+        :param data: something that is convertable to an openEO process graph: a dictionary,
+            a :py:class:`~openeo.rest.datacube.DataCube` object,
+            a :py:class:`~openeo.processes.ProcessBuilder`, ...
+        :param path: endpoint to send request to: typically ``"/result"`` (default) for synchronous requests
+            or ``"/jobs"`` for batch jobs
+        :param method: HTTP method to use (typically ``"POST"``)
         :param obfuscate_auth: don't show actual bearer token
 
         :return: curl command as a string
