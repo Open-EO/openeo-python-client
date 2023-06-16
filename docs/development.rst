@@ -316,7 +316,7 @@ To be as concrete as possible, we will assume that we are about to release versi
 
         __version__ = '0.4.8a1'
 
-    Commit this (e.g. with message ``_version.py: next alpha version 0.4.8a1``)
+    Commit this (e.g. with message ``_version.py: bump to 0.4.8a1``)
     and push to GitHub.
 
 #.  Update `conda-forge package <https://github.com/conda-forge/openeo-feedstock>`_ too
