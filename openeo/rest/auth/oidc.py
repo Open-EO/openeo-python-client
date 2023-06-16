@@ -732,7 +732,9 @@ class _JupyterDeviceCodePollUi(_BasicDeviceCodePollUi):
 
     def _instructions(self, info: VerificationInfo) -> str:
         url = info.verification_uri_complete if info.verification_uri_complete else info.verification_uri
-        instructions = f'Visit <a href="{url}" title="Authenticate at {url}">{url}</a>'
+        instructions = (
+            f'Visit <a href="{url}" title="Authenticate at {url}" target="_blank" rel="noopener noreferrer">{url}</a>'
+        )
         instructions += f' <a href="#" onclick="navigator.clipboard.writeText({url!r});return false;" title="Copy authentication URL to clipboard">&#128203;</a>'
         if not info.verification_uri_complete:
             instructions += f" and enter user code {info.user_code!r}"
