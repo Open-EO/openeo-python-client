@@ -24,11 +24,6 @@ Allows you to interact with openEO backends from your own (local) Python environ
     where some dependencies can be installed
     (including usual suspects like `numpy` and `pandas`)
 
-    Note for Windows users: it is recommended to work with
-    [Anaconda Python](https://www.anaconda.com/products/individual)
-    as the `shapely` dependency may need to be installed separately
-    (e.g. using the Anaconda Navigator).
-
 * Basic installation procedure (in a `pip` powered environment):
 
         pip install openeo
