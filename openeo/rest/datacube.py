@@ -13,7 +13,7 @@ import pathlib
 import typing
 import warnings
 from builtins import staticmethod
-from typing import List, Dict, Union, Tuple, Optional, Any
+from typing import List, Dict, Union, Tuple, Optional, Any, Iterable
 
 import numpy as np
 import shapely.geometry
@@ -27,6 +27,7 @@ from openeo.internal.documentation import openeo_process
 from openeo.internal.graph_building import PGNode, ReduceNode, _FromNodeMixin
 from openeo.internal.processes.builder import get_parameter_names, convert_callable_to_pgnode
 from openeo.internal.warnings import legacy_alias, UserDeprecationWarning, deprecated
+from openeo.internal.jupyter import in_jupyter_context
 from openeo.metadata import CollectionMetadata, Band, BandDimension, TemporalDimension, SpatialDimension
 from openeo.processes import ProcessBuilder
 from openeo.rest import BandMathException, OperatorException, OpenEoClientException
@@ -1956,6 +1957,85 @@ class DataCube(_ProcessGraphAbstraction):
 
     def tiled_viewing_service(self, type: str, **kwargs) -> Service:
         return self._connection.create_service(self.flat_graph(), type=type, **kwargs)
+
+    def _get_spatial_extent_from_load_collection(self):
+        pg = self.flat_graph()
+        for node in pg:
+            if pg[node]["process_id"] == "load_collection":
+                if "spatial_extent" in pg[node]["arguments"] and all(
+                    cd in pg[node]["arguments"]["spatial_extent"] for cd in ["east", "west", "south", "north"]
+                ):
+                    return pg[node]["arguments"]["spatial_extent"]
+        return None
+
+    def preview(
+        self,
+        center: Union[Iterable, None] = None,
+        zoom: Union[int, None] = None,
+    ):
+        """
+        Creates a service with the process graph and displays a map widget. Only supports XYZ.
+
+        :param center: (optional) Map center. Default is (0,0).
+        :param zoom: (optional) Zoom level of the map. Default is 1.
+
+        :return: ipyleaflet Map object and the displayed Service
+
+        .. warning:: experimental feature, subject to change.
+        .. versionadded:: 0.19.0
+        """
+        if "XYZ" not in self.connection.list_service_types():
+            raise OpenEoClientException("Backend does not support service type 'XYZ'.")
+
+        if not in_jupyter_context():
+            raise Exception("On-demand preview only supported in Jupyter notebooks!")
+        try:
+            import ipyleaflet
+        except ImportError:
+            raise Exception(
+                "Additional modules must be installed for on-demand preview. Run `pip install openeo[jupyter]` or refer to the documentation."
+            )
+
+        service = self.tiled_viewing_service("XYZ")
+        service_metadata = service.describe_service()
+
+        m = ipyleaflet.Map(
+            center=center or (0, 0),
+            zoom=zoom or 1,
+            scroll_wheel_zoom=True,
+            basemap=ipyleaflet.basemaps.OpenStreetMap.Mapnik,
+        )
+        service_layer = ipyleaflet.TileLayer(url=service_metadata["url"])
+        m.add(service_layer)
+
+        if center is None and zoom is None:
+            spatial_extent = self._get_spatial_extent_from_load_collection()
+            if spatial_extent is not None:
+                m.fit_bounds(
+                    [
+                        [spatial_extent["south"], spatial_extent["west"]],
+                        [spatial_extent["north"], spatial_extent["east"]],
+                    ]
+                )
+
+        class Preview:
+            """
+            On-demand preview instance holding the associated XYZ service and ipyleaflet Map
+            """
+
+            def __init__(self, service: Service, ipyleaflet_map: ipyleaflet.Map):
+                self.service = service
+                self.map = ipyleaflet_map
+
+            def _repr_html_(self):
+                from IPython.display import display
+
+                display(self.map)
+
+            def delete_service(self):
+                self.service.delete_service()
+
+        return Preview(service, m)
 
     def execute_batch(
         self,
