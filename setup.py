@@ -44,7 +44,7 @@ localprocessing_require = [
 ]
 
 jupyter_require = [
-    "ipyleaflet",
+    "ipyleaflet>=0.17.0",
     "ipython",
 ]
 

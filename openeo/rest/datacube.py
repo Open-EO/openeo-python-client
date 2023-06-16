@@ -2007,7 +2007,7 @@ class DataCube(_ProcessGraphAbstraction):
             basemap=ipyleaflet.basemaps.OpenStreetMap.Mapnik,
         )
         service_layer = ipyleaflet.TileLayer(url=service_metadata["url"])
-        m.add_layer(service_layer)
+        m.add(service_layer)
 
         if center is None and zoom is None:
             spatial_extent = self._get_spatial_extent_from_load_collection()
