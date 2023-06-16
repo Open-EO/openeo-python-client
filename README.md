@@ -7,35 +7,63 @@
 [![Conda (channel only)](https://img.shields.io/conda/vn/conda-forge/openeo)](https://anaconda.org/conda-forge/openeo)
 
 
-
-
 # openEO Python Client
 
 Python Client Library for the [openEO API](https://github.com/Open-EO/openeo-api).
 Allows you to interact with openEO backends from your own (local) Python environment.
-[Read more on usage in the documentation.](https://open-eo.github.io/openeo-python-client/)
 
-[Quick Start Guide](https://openeo.org/documentation/1.0/python/#installation)
+[openEO Python Client Library docs](https://open-eo.github.io/openeo-python-client/)
 
 
-## Requirements and installation
+## Usage example
 
-* Requirement: a **Python 3.6 (or higher) environment**
-    where some dependencies can be installed
-    (including usual suspects like `numpy` and `pandas`)
+A simple example, to give a feel of using this library:
 
-* Basic installation procedure (in a `pip` powered environment):
+```python
+import openeo
 
-        pip install openeo
+# Connect to openEO back-end.
+connection = openeo.connect("openeo.vito.be").authenticate_oidc()
 
-## Usage
+# Load data cube from TERRASCOPE_S2_NDVI_V2 collection.
+cube = connection.load_collection(
+    "TERRASCOPE_S2_NDVI_V2",
+    spatial_extent={"west": 5.05, "south": 51.21, "east": 5.1, "north": 51.23},
+    temporal_extent=["2022-05-01", "2022-05-30"],
+    bands=["NDVI_10M"],
+)
+# Rescale digital number to physical values and take temporal maximum.
+cube = cube.apply(lambda x: 0.004 * x - 0.08).max_time()
 
-[Python client documentation](https://open-eo.github.io/openeo-python-client/)
+cube.download("ndvi-max.tiff")
+```
 
-[Some example scripts](https://github.com/Open-EO/openeo-python-client/blob/master/examples)
+![Example result](https://raw.githubusercontent.com/Open-EO/openeo-python-client/master/docs/_static/images/welcome.png)
 
-[General OpenEO background](https://open-eo.github.io/openeo-api/)
 
+See the [openEO Python Client Library documentation](https://open-eo.github.io/openeo-python-client/) for more details,
+examples and in-depth discussion.
+
+
+## Installation
+
+Python 3.6 or higher is required.
+As always, it is recommended to work in some kind of virtual environment
+(using `venv`, `virtualenv`, conda, docker, ...)
+to install the `openeo` package and its dependencies:
+
+    pip install openeo
+
+See the [installation docs](https://open-eo.github.io/openeo-python-client/installation.html)
+for more information, extras and alternatives.
+
+
+
+## General openEO background and links
+
+- [openEO.org](https://openeo.org/)
+- [api.openEO.org](https://api.openeo.org/)
+- [processes.openEO.org](https://processes.openeo.org/)
 
 
 ## Contributions and funding
