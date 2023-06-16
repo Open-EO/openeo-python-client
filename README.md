@@ -33,7 +33,6 @@ Allows you to interact with openEO backends from your own (local) Python environ
 
         pip install openeo
 
-
 ## Usage
 
 [Python client documentation](https://open-eo.github.io/openeo-python-client/)

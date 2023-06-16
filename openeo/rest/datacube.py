@@ -1963,8 +1963,7 @@ class DataCube(_ProcessGraphAbstraction):
         for node in pg:
             if pg[node]["process_id"] == "load_collection":
                 if "spatial_extent" in pg[node]["arguments"] and all(
-                    cd in pg[node]["arguments"]["spatial_extent"]
-                    for cd in ["east", "west", "south", "north"]
+                    cd in pg[node]["arguments"]["spatial_extent"] for cd in ["east", "west", "south", "north"]
                 ):
                     return pg[node]["arguments"]["spatial_extent"]
         return None
@@ -2018,17 +2017,19 @@ class DataCube(_ProcessGraphAbstraction):
                         [spatial_extent["north"], spatial_extent["east"]],
                     ]
                 )
-        
+
         class Preview:
             """
             On-demand preview instance holding the associated XYZ service and ipyleaflet Map
             """
+
             def __init__(self, service: Service, ipyleaflet_map: ipyleaflet.Map):
                 self.service = service
                 self.map = ipyleaflet_map
 
             def _repr_html_(self):
                 from IPython.display import display
+
                 display(self.map)
 
             def delete_service(self):
