@@ -8,14 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Removed
+
+### Fixed
+
+
+## [0.19.0] - 2023-06-16
+
+### Added
+
 - Generalized support for setting (default) OIDC provider id through env var `OPENEO_AUTH_PROVIDER_ID`
   [#419](https://github.com/Open-EO/openeo-python-client/issues/419)
 - Added `OidcDeviceCodePollTimeout`: specific exception for OIDC device code flow poll timeouts
 - On-demand preview: Added `DataCube.preview()` to generate a XYZ service with the process graph and display a map widget
-
-### Changed
-
-### Removed
 
 ### Fixed
 
