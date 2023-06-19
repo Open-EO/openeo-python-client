@@ -579,7 +579,7 @@ class Connection(RestApiConnection):
             If not set explicitly to `True` (use PKCE) or `False` (use client secret),
             it will be attempted to detect the best mode automatically.
             Note that PKCE for device code is not widely supported among OIDC providers.
-        :param max_poll_time: maximum time to keep polling for successful authentication.
+        :param max_poll_time: maximum time in seconds to keep polling for successful authentication.
 
         .. versionchanged:: 0.5.1 Add :py:obj:`use_pkce` argument
         .. versionchanged:: 0.17.0 Add :py:obj:`max_poll_time` argument
@@ -624,8 +624,10 @@ class Connection(RestApiConnection):
         :param provider_id: provider id to use
         :param client_id: client id to use
         :param client_secret: client secret to use
+        :param max_poll_time: maximum time in seconds to keep polling for successful authentication.
 
         .. versionadded:: 0.6.0
+        .. versionchanged:: 0.17.0 Add :py:obj:`max_poll_time` argument
         .. versionchanged:: 0.18.0 Add support for client credentials flow.
         """
         # TODO: unify `os.environ.get` with `get_config_option`?
