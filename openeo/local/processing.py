@@ -101,7 +101,7 @@ def resample_cube_spatial_rioxarray(*args, **kwargs):
         data.openeo.band_dims + data.openeo.temporal_dims + data.openeo.spatial_dims + data.openeo.other_dims
     )
 
-    if method not in methods_list.keys():
+    if method not in methods_list:
         raise Exception(
             f'Selected resampling method "{method}" is not available! Please select one of '
             f"[{', '.join(methods_list.keys())}]"
