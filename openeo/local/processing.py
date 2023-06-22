@@ -2,11 +2,13 @@ import inspect
 import importlib
 import logging
 import xarray as xr
+import rasterio
 import rioxarray
 from pathlib import Path
 
 from openeo_pg_parser_networkx import ProcessRegistry
 from openeo_processes_dask.process_implementations.core import process
+from openeo_processes_dask.process_implementations.data_model import RasterCube
 import openeo_processes_dask.specs
 import openeo_processes_dask.process_implementations
 from openeo_pg_parser_networkx.process_registry import Process
@@ -23,15 +25,20 @@ def init_process_registry():
         )
     ]
 
-    specs = {
-        func.__name__: getattr(openeo_processes_dask.specs, func.__name__)
-        for func in processes_from_module
-    }
-
+    specs = {}
     for func in processes_from_module:
-        process_registry[func.__name__] = Process(
+        try:
+            specs[func.__name__] = getattr(openeo_processes_dask.specs, func.__name__)
+        except:
+            continue
+        
+    for func in processes_from_module:
+        try:
+            process_registry[func.__name__] = Process(
             spec=specs[func.__name__], implementation=func
-        )
+            )
+        except:
+            continue
     return process_registry
 
 PROCESS_REGISTRY = init_process_registry()
@@ -70,58 +77,55 @@ PROCESS_REGISTRY["load_collection"] = Process(
     implementation=load_local_collection,
 )
 
-def resample_cube_spatial_rioxarray(*args, **kwargs):
-    pretty_args = {k: type(v) for k, v in kwargs.items()}
+def resample_cube_spatial_rioxarray(data: RasterCube, target: RasterCube, method: str = "near") -> RasterCube:
+
     _log.debug(f"Running process resample_cube_spatial")
-    _log.debug(f"kwargs: {pretty_args}")
     _log.debug("-" * 80)
 
-    methods_list = {
-        "near": 0,
-        "bilinear": 1,
-        "cubic": 2,
-        "cubicspline": 3,
-        "lanczos": 4,
-        "average": 5,
-        "mode": 6,
-        "gauss": 7,
-        "max": 8,
-        "min": 9,
-        "med": 10,
-        "q1": 11,
-        "q3": 12,
-        "sum": 13,
-        "rms": 14
+    methods_dict = {
+        "near": rasterio.enums.Resampling.nearest,
+        "bilinear": rasterio.enums.Resampling.bilinear,
+        "cubic": rasterio.enums.Resampling.cubic,
+        "cubicspline": rasterio.enums.Resampling.cubic_spline,
+        "lanczos": rasterio.enums.Resampling.lanczos,
+        "average": rasterio.enums.Resampling.average,
+        "mode": rasterio.enums.Resampling.mode,
+        "gauss": rasterio.enums.Resampling.gauss,
+        "max": rasterio.enums.Resampling.max,
+        "min": rasterio.enums.Resampling.min,
+        "med": rasterio.enums.Resampling.med,
+        "q1": rasterio.enums.Resampling.q1,
+        "q3": rasterio.enums.Resampling.q3,
+        "sum": rasterio.enums.Resampling.sum,
+        "rms": rasterio.enums.Resampling.rms
     }
-    data = kwargs['data']
-    target = kwargs['target']
-    method = kwargs['method']
+
     # The target doesn't need to have the same dimensions as the data
     input_data_dims = (
         data.openeo.band_dims + data.openeo.temporal_dims + data.openeo.spatial_dims + data.openeo.other_dims
     )
 
-    if method not in methods_list:
-        raise Exception(
+    if method not in methods_dict:
+        raise ValueError(
             f'Selected resampling method "{method}" is not available! Please select one of '
-            f"[{', '.join(methods_list.keys())}]"
+            f"[{', '.join(methods_dict.keys())}]"
         )
     if len(data.openeo.temporal_dims) > 0:
         for i,t in enumerate(data[data.openeo.temporal_dims[0]]):
             if i == 0:
                 resampled_data = data.loc[{data.openeo.temporal_dims[0]:t}].rio.reproject_match(
-                    target, resampling=methods_list[method]
+                    target, resampling=methods_dict[method]
                 )
                 resampled_data = resampled_data.assign_coords({data.openeo.temporal_dims[0]:t}).expand_dims(data.openeo.temporal_dims[0])
             else:
                 tmp = data.loc[{data.openeo.temporal_dims[0]:t}].rio.reproject_match(
-                    target, resampling=methods_list[method]
+                    target, resampling=methods_dict[method]
                 )
                 tmp = tmp.assign_coords({data.openeo.temporal_dims[0]:t}).expand_dims(data.openeo.temporal_dims[0])
                 resampled_data = xr.concat([resampled_data,tmp],dim=data.openeo.temporal_dims[0])
     else:
         resampled_data = data.rio.reproject_match(
-            target, resampling=method
+            target, resampling=methods_dict[method]
         )
     resampled_data.rio.write_crs(target.rio.crs, inplace=True)
 
