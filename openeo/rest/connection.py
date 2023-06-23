@@ -10,8 +10,7 @@ import sys
 import warnings
 from collections import OrderedDict
 from pathlib import Path, PurePosixPath
-from typing import Dict, List, Tuple, Union, Callable, Optional, Any, Iterator
-from urllib.parse import urljoin
+from typing import Dict, List, Tuple, Union, Callable, Optional, Any, Iterator, Iterable
 
 import requests
 from requests import Response
@@ -57,8 +56,12 @@ class RestApiConnection:
     """Base connection class implementing generic REST API request functionality"""
 
     def __init__(
-            self, root_url: str, auth: AuthBase = None, session: requests.Session = None,
-            default_timeout: Optional[int] = None, slow_response_threshold: Optional[float] = None,
+        self,
+        root_url: str,
+        auth: Optional[AuthBase] = None,
+        session: Optional[requests.Session] = None,
+        default_timeout: Optional[int] = None,
+        slow_response_threshold: Optional[float] = None,
     ):
         self._root_url = root_url
         self.auth = auth or NullAuth()
@@ -92,8 +95,17 @@ class RestApiConnection:
         root = self.root_url.rstrip("/")
         return not (url == root or url.startswith(root + '/'))
 
-    def request(self, method: str, path: str, headers: dict = None, auth: AuthBase = None,
-                check_error=True, expected_status=None, **kwargs):
+    def request(
+        self,
+        method: str,
+        path: str,
+        *,
+        headers: Optional[dict] = None,
+        auth: Optional[AuthBase] = None,
+        check_error: bool = True,
+        expected_status: Optional[Union[int, Iterable[int]]] = None,
+        **kwargs,
+    ):
         """Generic request send"""
         url = self.build_url(path)
         # Don't send default auth headers to external domains.
@@ -156,7 +168,7 @@ class RestApiConnection:
                 exception = OpenEoApiError(http_status_code=status_code, message=text)
         raise exception
 
-    def get(self, path, stream=False, auth: AuthBase = None, **kwargs) -> Response:
+    def get(self, path: str, stream: bool = False, auth: Optional[AuthBase] = None, **kwargs) -> Response:
         """
         Do GET request to REST API.
 
@@ -167,7 +179,7 @@ class RestApiConnection:
         """
         return self.request("get", path=path, stream=stream, auth=auth, **kwargs)
 
-    def post(self, path, json: dict = None, **kwargs) -> Response:
+    def post(self, path: str, json: Optional[dict] = None, **kwargs) -> Response:
         """
         Do POST request to REST API.
 
@@ -177,7 +189,7 @@ class RestApiConnection:
         """
         return self.request("post", path=path, json=json, allow_redirects=False, **kwargs)
 
-    def delete(self, path, **kwargs) -> Response:
+    def delete(self, path: str, **kwargs) -> Response:
         """
         Do DELETE request to REST API.
 
@@ -186,7 +198,7 @@ class RestApiConnection:
         """
         return self.request("delete", path=path, allow_redirects=False, **kwargs)
 
-    def patch(self, path, **kwargs) -> Response:
+    def patch(self, path: str, **kwargs) -> Response:
         """
         Do PATCH request to REST API.
 
@@ -195,7 +207,7 @@ class RestApiConnection:
         """
         return self.request("patch", path=path, allow_redirects=False, **kwargs)
 
-    def put(self, path, headers: dict = None, data=None, **kwargs) -> Response:
+    def put(self, path: str, headers: Optional[dict] = None, data: Optional[dict] = None, **kwargs) -> Response:
         """
         Do PUT request to REST API.
 
@@ -218,9 +230,15 @@ class Connection(RestApiConnection):
     _MINIMUM_API_VERSION = ComparableVersion("1.0.0")
 
     def __init__(
-            self, url: str, auth: AuthBase = None, session: requests.Session = None, default_timeout: int = None,
-            auth_config: AuthConfig = None, refresh_token_store: RefreshTokenStore = None,
-            slow_response_threshold: Optional[float] = None,
+        self,
+        url: str,
+        *,
+        auth: Optional[AuthBase] = None,
+        session: Optional[requests.Session] = None,
+        default_timeout: Optional[int] = None,
+        auth_config: Optional[AuthConfig] = None,
+        refresh_token_store: Optional[RefreshTokenStore] = None,
+        slow_response_threshold: Optional[float] = None,
     ):
         """
         Constructor of Connection, authenticates user.
@@ -244,7 +262,9 @@ class Connection(RestApiConnection):
         self._refresh_token_store = refresh_token_store
 
     @classmethod
-    def version_discovery(cls, url: str, session: requests.Session = None, timeout: Optional[int] = None) -> str:
+    def version_discovery(
+        cls, url: str, session: Optional[requests.Session] = None, timeout: Optional[int] = None
+    ) -> str:
         """
         Do automatic openEO API version discovery from given url, using a "well-known URI" strategy.
 
@@ -276,7 +296,7 @@ class Connection(RestApiConnection):
             self._refresh_token_store = RefreshTokenStore()
         return self._refresh_token_store
 
-    def authenticate_basic(self, username: str = None, password: str = None) -> 'Connection':
+    def authenticate_basic(self, username: Optional[str] = None, password: Optional[str] = None) -> "Connection":
         """
         Authenticate a user to the backend using basic username and password.
 
@@ -432,15 +452,15 @@ class Connection(RestApiConnection):
         return self
 
     def authenticate_oidc_authorization_code(
-            self,
-            client_id: str = None,
-            client_secret: str = None,
-            provider_id: str = None,
-            timeout: int = None,
-            server_address: Tuple[str, int] = None,
-            webbrowser_open: Callable = None,
-            store_refresh_token=False,
-    ) -> 'Connection':
+        self,
+        client_id: Optional[str] = None,
+        client_secret: Optional[str] = None,
+        provider_id: Optional[str] = None,
+        timeout: Optional[int] = None,
+        server_address: Optional[Tuple[str, int]] = None,
+        webbrowser_open: Optional[Callable] = None,
+        store_refresh_token=False,
+    ) -> "Connection":
         """
         OpenID Connect Authorization Code Flow (with PKCE).
 
@@ -494,13 +514,14 @@ class Connection(RestApiConnection):
         return self._authenticate_oidc(authenticator, provider_id=provider_id, store_refresh_token=False)
 
     def authenticate_oidc_resource_owner_password_credentials(
-            self,
-            username: str, password: str,
-            client_id: str = None,
-            client_secret: str = None,
-            provider_id: str = None,
-            store_refresh_token=False
-    ) -> 'Connection':
+        self,
+        username: str,
+        password: str,
+        client_id: Optional[str] = None,
+        client_secret: Optional[str] = None,
+        provider_id: Optional[str] = None,
+        store_refresh_token: bool = False,
+    ) -> "Connection":
         """
         OpenId Connect Resource Owner Password Credentials
         """
@@ -515,10 +536,10 @@ class Connection(RestApiConnection):
 
     def authenticate_oidc_refresh_token(
         self,
-        client_id: str = None,
-        refresh_token: str = None,
-        client_secret: str = None,
-        provider_id: str = None,
+        client_id: Optional[str] = None,
+        refresh_token: Optional[str] = None,
+        client_secret: Optional[str] = None,
+        provider_id: Optional[str] = None,
         *,
         store_refresh_token: bool = False,
     ) -> "Connection":
@@ -686,8 +707,14 @@ class Connection(RestApiConnection):
         return con
 
     def request(
-            self, method: str, path: str, headers: dict = None, auth: AuthBase = None,
-            check_error=True, expected_status=None, **kwargs,
+        self,
+        method: str,
+        path: str,
+        headers: Optional[dict] = None,
+        auth: Optional[AuthBase] = None,
+        check_error: bool = True,
+        expected_status: Optional[Union[int, Iterable[int]]] = None,
+        **kwargs,
     ):
         # Do request, but with retry when access token has expired and refresh token is available.
         def _request():
@@ -841,7 +868,13 @@ class Connection(RestApiConnection):
         data = self.get(f"/collections/{collection_id}", expected_status=200).json()
         return VisualDict("collection", data=data)
 
-    def collection_items(self, name, spatial_extent: Optional[List[float]] = None, temporal_extent: Optional[List[Union[str, datetime.datetime]]] = None, limit: int = None) -> Iterator[dict]:
+    def collection_items(
+        self,
+        name,
+        spatial_extent: Optional[List[float]] = None,
+        temporal_extent: Optional[List[Union[str, datetime.datetime]]] = None,
+        limit: Optional[int] = None,
+    ) -> Iterator[dict]:
         """
         Loads items for a specific image collection.
         May not be available for all collections.
@@ -877,7 +910,7 @@ class Connection(RestApiConnection):
         # TODO: duplication with `Connection.describe_collection`: deprecate one or the other?
         return CollectionMetadata(metadata=self.describe_collection(name))
 
-    def list_processes(self, namespace: str = None) -> List[dict]:
+    def list_processes(self, namespace: Optional[str] = None) -> List[dict]:
         # TODO: Maybe format the result dictionary so that the process_id is the key of the dictionary.
         """
         Loads all available processes of the back end.
@@ -895,7 +928,7 @@ class Connection(RestApiConnection):
             processes = self.get('/processes/' + namespace, expected_status=200).json()["processes"]
         return VisualList("processes", data=processes, parameters={'show-graph': True, 'provide-download': False})
 
-    def describe_process(self, id: str, namespace: str = None) -> dict:
+    def describe_process(self, id: str, namespace: Optional[str] = None) -> dict:
         """
         Returns a single process from the back end.
 
@@ -1018,7 +1051,7 @@ class Connection(RestApiConnection):
         )
         return VectorCube(graph=graph, connection=self)
 
-    def datacube_from_process(self, process_id: str, namespace: str = None, **kwargs) -> DataCube:
+    def datacube_from_process(self, process_id: str, namespace: Optional[str] = None, **kwargs) -> DataCube:
         """
         Load a data cube from a (custom) process.
 
@@ -1030,7 +1063,7 @@ class Connection(RestApiConnection):
         graph = PGNode(process_id, namespace=namespace, arguments=kwargs)
         return DataCube(graph=graph, connection=self)
 
-    def datacube_from_flat_graph(self, flat_graph: dict, parameters: dict = None) -> DataCube:
+    def datacube_from_flat_graph(self, flat_graph: dict, parameters: Optional[dict] = None) -> DataCube:
         """
         Construct a :py:class:`DataCube` from a flat dictionary representation of a process graph.
 
@@ -1053,7 +1086,7 @@ class Connection(RestApiConnection):
         pgnode = PGNode.from_flat_graph(flat_graph=flat_graph, parameters=parameters or {})
         return DataCube(graph=pgnode, connection=self)
 
-    def datacube_from_json(self, src: Union[str, Path], parameters: dict = None) -> DataCube:
+    def datacube_from_json(self, src: Union[str, Path], parameters: Optional[dict] = None) -> DataCube:
         """
         Construct a :py:class:`DataCube` from JSON resource containing (flat) process graph representation.
 
@@ -1597,7 +1630,7 @@ def session(userid=None, endpoint: str = "https://openeo.org/openeo") -> Connect
     return connect(url=endpoint)
 
 
-def paginate(con: Connection, url: str, params: dict = None, callback: Callable = lambda resp, page: resp):
+def paginate(con: Connection, url: str, params: Optional[dict] = None, callback: Callable = lambda resp, page: resp):
     # TODO: make this a method `get_paginated` on `RestApiConnection`?
     # TODO: is it necessary to have `callback`? It's only used just before yielding,
     #       so it's probably cleaner (even for the caller) to to move it outside.
