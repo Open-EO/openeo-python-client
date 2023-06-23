@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added automatically renewal of access tokens with OIDC client credentials grant (`Connection.authenticate_oidc_client_credentials`)
+  ([#436](https://github.com/Open-EO/openeo-python-client/issues/436))
+
 ### Changed
 
 ### Removed

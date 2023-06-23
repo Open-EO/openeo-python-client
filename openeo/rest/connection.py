@@ -25,7 +25,7 @@ from openeo.internal.processes.builder import ProcessBuilderBase
 from openeo.internal.warnings import legacy_alias, deprecated
 from openeo.metadata import CollectionMetadata, SpatialDimension, TemporalDimension, BandDimension, Band
 from openeo.rest import OpenEoClientException, OpenEoApiError, OpenEoRestError
-from openeo.rest.auth.auth import NullAuth, BearerAuth, BasicBearerAuth, OidcBearerAuth, OidcRefreshInfo
+from openeo.rest.auth.auth import NullAuth, BearerAuth, BasicBearerAuth, OidcBearerAuth
 from openeo.rest.auth.config import RefreshTokenStore, AuthConfig
 from openeo.rest.auth.oidc import OidcClientCredentialsAuthenticator, OidcAuthCodePkceAuthenticator, \
     OidcClientInfo, OidcAuthenticator, OidcRefreshTokenAuthenticator, OidcResourceOwnerPasswordAuthenticator, \
@@ -239,6 +239,7 @@ class Connection(RestApiConnection):
         auth_config: Optional[AuthConfig] = None,
         refresh_token_store: Optional[RefreshTokenStore] = None,
         slow_response_threshold: Optional[float] = None,
+        oidc_auth_renewer: Optional[OidcAuthenticator] = None,
     ):
         """
         Constructor of Connection, authenticates user.
@@ -260,6 +261,7 @@ class Connection(RestApiConnection):
 
         self._auth_config = auth_config
         self._refresh_token_store = refresh_token_store
+        self._oidc_auth_renewer = oidc_auth_renewer
 
     @classmethod
     def version_discovery(
@@ -414,14 +416,14 @@ class Connection(RestApiConnection):
         return provider_id, client_info
 
     def _authenticate_oidc(
-            self,
-            authenticator: OidcAuthenticator,
-            *,
-            provider_id: str,
-            store_refresh_token: bool = False,
-            fallback_refresh_token_to_store: Optional[str] = None,
-            refreshable: bool = False,
-    ) -> 'Connection':
+        self,
+        authenticator: OidcAuthenticator,
+        *,
+        provider_id: str,
+        store_refresh_token: bool = False,
+        fallback_refresh_token_to_store: Optional[str] = None,
+        oidc_auth_renewer: Optional[OidcAuthenticator] = None,
+    ) -> "Connection":
         """
         Authenticate through OIDC and set up bearer token (based on OIDC access_token) for further requests.
         """
@@ -435,20 +437,15 @@ class Connection(RestApiConnection):
                     client_id=authenticator.client_id,
                     refresh_token=refresh_token
                 )
-                refreshable = True
+                if not oidc_auth_renewer:
+                    oidc_auth_renewer = OidcRefreshTokenAuthenticator(
+                        client_info=authenticator.client_info, refresh_token=refresh_token
+                    )
             else:
                 _log.warning("No OIDC refresh token to store.")
         token = tokens.access_token
-        if refreshable:
-            refresh_data = OidcRefreshInfo(
-                provider_id=provider_id,
-                client_id=authenticator.client_id,
-            )
-        else:
-            refresh_data = None
-        self.auth = OidcBearerAuth(
-            provider_id=provider_id, access_token=token, refresh_data=refresh_data
-        )
+        self.auth = OidcBearerAuth(provider_id=provider_id, access_token=token)
+        self._oidc_auth_renewer = oidc_auth_renewer
         return self
 
     def authenticate_oidc_authorization_code(
@@ -511,7 +508,9 @@ class Connection(RestApiConnection):
             provider_id=provider_id, client_id=client_id, client_secret=client_secret
         )
         authenticator = OidcClientCredentialsAuthenticator(client_info=client_info)
-        return self._authenticate_oidc(authenticator, provider_id=provider_id, store_refresh_token=False)
+        return self._authenticate_oidc(
+            authenticator, provider_id=provider_id, store_refresh_token=False, oidc_auth_renewer=authenticator
+        )
 
     def authenticate_oidc_resource_owner_password_credentials(
         self,
@@ -574,7 +573,7 @@ class Connection(RestApiConnection):
             provider_id=provider_id,
             store_refresh_token=store_refresh_token,
             fallback_refresh_token_to_store=refresh_token,
-            refreshable=True,
+            oidc_auth_renewer=authenticator,
         )
 
     def authenticate_oidc_device(
@@ -729,24 +728,20 @@ class Connection(RestApiConnection):
         except OpenEoApiError as api_exc:
             if api_exc.http_status_code == 403 and api_exc.code == "TokenInvalid":
                 # Auth token expired: can we refresh?
-                if isinstance(self.auth, OidcBearerAuth) and self.auth.refresh_data:
-                    _log.debug(
-                        f"Back-end request failed with {str(api_exc)!r}."
-                        f" Trying to re-authenticate with the refresh token."
-                    )
+                if isinstance(self.auth, OidcBearerAuth) and self._oidc_auth_renewer:
+                    msg = f"OIDC access token expired ({api_exc.http_status_code} {api_exc.code})."
                     try:
-                        self.authenticate_oidc_refresh_token(
-                            client_id=self.auth.refresh_data.client_id,
-                            provider_id=self.auth.refresh_data.provider_id,
+                        self._authenticate_oidc(
+                            authenticator=self._oidc_auth_renewer,
+                            provider_id=self._oidc_auth_renewer.provider_info.id,
+                            store_refresh_token=False,
+                            oidc_auth_renewer=self._oidc_auth_renewer,
                         )
-                        _log.warning(
-                            f"Connection with expired access token ([{api_exc.http_status_code}] {api_exc.code})"
-                            f" automatically re-authenticated with refresh token."
-                        )
+                        _log.info(f"{msg} Obtained new access token (grant {self._oidc_auth_renewer.grant_type!r}).")
                     except OpenEoClientException as auth_exc:
                         _log.error(
-                            f"Connection with expired access token ([{api_exc.http_status_code}] {api_exc.code})"
-                            f" failed to automatically re-authenticate using refresh token: {auth_exc!r}.")
+                            f"{msg} Failed to obtain new access token (grant {self._oidc_auth_renewer.grant_type!r}): {auth_exc!r}."
+                        )
                     else:
                         # Retry request.
                         return _request()

@@ -358,6 +358,10 @@ class OidcAuthenticator:
         self._requests = requests_session or requests.Session()
 
     @property
+    def client_info(self) -> OidcClientInfo:
+        return self._client_info
+
+    @property
     def client_id(self) -> str:
         return self._client_info.client_id
 
