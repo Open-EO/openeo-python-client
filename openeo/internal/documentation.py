@@ -2,15 +2,16 @@
 Utilities to build/automate/extend documentation
 """
 import collections
+import inspect
 import textwrap
 from functools import partial
-from typing import Callable, Optional
+from typing import Callable, Optional, Tuple
 
 # TODO: give this a proper public API?
 _process_registry = collections.defaultdict(list)
 
 
-def openeo_process(f: Callable = None, process_id: Optional[str] = None, mode: Optional[str] = None):
+def openeo_process(f: Optional[Callable] = None, process_id: Optional[str] = None, mode: Optional[str] = None):
     """
     Decorator for function or method to associate it with a standard openEO process
 
@@ -34,3 +35,22 @@ def openeo_process(f: Callable = None, process_id: Optional[str] = None, mode: O
 
     _process_registry[process_id].append((f, mode))
     return f
+
+
+def openeo_endpoint(endpoint: str) -> Callable[[Callable], Callable]:
+    """
+    Parameterized decorator to annotate given function or method with the openEO endpoint it interacts with
+
+    :param endpoint: REST endpoint (e.g. "GET /jobs", "POST /result", ...)
+    :return:
+    """
+    # TODO: automatically parse/normalize endpoint (to method+path)
+    # TODO: wrap this in some markup/directive to make this more a "small print" note.
+
+    def decorate(f: Callable) -> Callable:
+        is_method = list(inspect.signature(f).parameters.keys())[:1] == ["self"]
+        seealso = f"This {'method' if is_method else 'function'} uses openEO endpoint ``{endpoint}``"
+        f.__doc__ = textwrap.dedent(f.__doc__ or "") + "\n\n" + seealso + "\n"
+        return f
+
+    return decorate

@@ -9,8 +9,9 @@ from typing import List, Union, Dict, Optional
 import requests
 
 from openeo.api.logs import LogEntry, normalize_log_level, log_level_name
+from openeo.internal.documentation import openeo_endpoint
 from openeo.internal.jupyter import render_component, render_error, VisualDict, VisualList
-from openeo.internal.warnings import deprecated
+from openeo.internal.warnings import deprecated, legacy_alias
 from openeo.rest import OpenEoClientException, JobFailedException, OpenEoApiError
 from openeo.util import ensure_dir
 
@@ -44,15 +45,22 @@ class BatchJob:
         return '<{c} job_id={i!r}>'.format(c=self.__class__.__name__, i=self.job_id)
 
     def _repr_html_(self):
-        data = self.describe_job()
+        data = self.describe()
         currency = self.connection.capabilities().currency()
         return render_component('job', data=data, parameters={'currency': currency})
 
-    def describe_job(self) -> dict:
-        """ Get all job information."""
-        # GET /jobs/{job_id}
-        # TODO: rename to just `describe`? #280
+    @openeo_endpoint("GET /jobs/{job_id}")
+    def describe(self) -> dict:
+        """
+        Get detailed metadata about a submitted batch job
+        (title, process graph, status, progress, ...).
+
+        .. versionadded:: 0.20.0
+            This method was previously called :py:meth:`describe_job`.
+        """
         return self.connection.get(f"/jobs/{self.job_id}", expected_status=200).json()
+
+    describe_job = legacy_alias(describe, since="0.20.0", mode="soft")
 
     def status(self) -> str:
         """
@@ -60,43 +68,57 @@ class BatchJob:
 
         :return: batch job status, one of "created", "queued", "running", "canceled", "finished" or "error".
         """
-        return self.describe_job().get("status", "N/A")
+        return self.describe().get("status", "N/A")
 
-    def update_job(self, process_graph=None, output_format=None,
-                   output_parameters=None, title=None, description=None,
-                   plan=None, budget=None, additional=None):
-        """ Update a job."""
-        # PATCH /jobs/{job_id}
-        # TODO: rename to just `update`? #280
-        raise NotImplementedError
+    @openeo_endpoint("DELETE /jobs/{job_id}")
+    def delete(self):
+        """
+        Delete this batch job.
 
-    def delete_job(self):
-        """ Delete a job."""
-        # DELETE /jobs/{job_id}
-        # TODO: rename to just `delete`? #280
+        .. versionadded:: 0.20.0
+            This method was previously called :py:meth:`delete_job`.
+        """
         self.connection.delete(f"/jobs/{self.job_id}", expected_status=204)
 
-    def estimate_job(self):
+    delete_job = legacy_alias(delete, since="0.20.0", mode="soft")
+
+    @openeo_endpoint("GET /jobs/{job_id}/estimate")
+    def estimate(self):
         """Calculate time/cost estimate for a job."""
-        # GET /jobs/{job_id}/estimate
         data = self.connection.get(
             f"/jobs/{self.job_id}/estimate", expected_status=200
         ).json()
         currency = self.connection.capabilities().currency()
         return VisualDict('job-estimate', data=data, parameters={'currency': currency})
 
-    def start_job(self):
-        """ Start / queue a job for processing."""
-        # POST /jobs/{job_id}/results
-        # TODO: rename to just `start`? #280
-        # TODO: return self, to allow chained calls
-        self.connection.post(f"/jobs/{self.job_id}/results", expected_status=202)
+    estimate_job = legacy_alias(estimate, since="0.20.0", mode="soft")
 
-    def stop_job(self):
-        """ Stop / cancel job processing."""
-        # DELETE /jobs/{job_id}/results
-        # TODO: rename to just `stop`? #280
+    @openeo_endpoint("POST /jobs/{job_id}/results")
+    def start(self) -> "BatchJob":
+        """
+        Start this batch job.
+
+        :return: Started batch job
+
+        .. versionadded:: 0.20.0
+            This method was previously called :py:meth:`start_job`.
+        """
+        self.connection.post(f"/jobs/{self.job_id}/results", expected_status=202)
+        return self
+
+    start_job = legacy_alias(start, since="0.20.0", mode="soft")
+
+    @openeo_endpoint("DELETE /jobs/{job_id}/results")
+    def stop(self):
+        """
+        Stop this batch job.
+
+        .. versionadded:: 0.20.0
+            This method was previously called :py:meth:`stop_job`.
+        """
         self.connection.delete(f"/jobs/{self.job_id}/results", expected_status=204)
+
+    stop_job = legacy_alias(stop, since="0.20.0", mode="soft")
 
     def get_results_metadata_url(self, *, full: bool = False) -> str:
         """Get results metadata URL"""
@@ -232,7 +254,7 @@ class BatchJob:
 
         # TODO: make `max_poll_interval`, `connection_retry_interval` class constants or instance properties?
         print_status("send 'start'")
-        self.start_job()
+        self.start()
 
         # TODO: also add  `wait` method so you can track a job that already has started explicitly
         #   or just rename this method to `wait` and automatically do start if not started yet?
@@ -254,7 +276,7 @@ class BatchJob:
         while True:
             # TODO: also allow a hard time limit on this infinite poll loop?
             try:
-                job_info = self.describe_job()
+                job_info = self.describe()
             except requests.ConnectionError as e:
                 soft_error("Connection error while polling job status: {e}".format(e=e))
                 continue

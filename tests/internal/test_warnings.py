@@ -30,7 +30,7 @@ def test_legacy_alias_function(recwarn):
     assert do_plus.__doc__ == (
         "\n"
         ".. deprecated:: v1.2\n"
-        "   Use of this legacy function is deprecated, use :py:func:`.add`\n"
+        "   Usage of this legacy function is deprecated. Use :py:func:`.add`\n"
         "   instead.\n"
     )
 
@@ -41,7 +41,7 @@ def test_legacy_alias_function(recwarn):
         UserDeprecationWarning,
         match=re.escape(
             "Call to deprecated function (or staticmethod) add."
-            " (Use of this legacy function is deprecated, use `.add` instead.)"
+            " (Usage of this legacy function is deprecated. Use `.add` instead.)"
             " -- Deprecated since version v1.2."
         ),
     ):
@@ -61,7 +61,7 @@ def test_legacy_alias_method(recwarn):
     assert Foo.do_plus.__doc__ == (
         "\n"
         ".. deprecated:: v1.2\n"
-        "   Use of this legacy method is deprecated, use :py:meth:`.add`\n"
+        "   Usage of this legacy method is deprecated. Use :py:meth:`.add`\n"
         "   instead.\n"
     )
 
@@ -72,7 +72,7 @@ def test_legacy_alias_method(recwarn):
         UserDeprecationWarning,
         match=re.escape(
             "Call to deprecated method add."
-            " (Use of this legacy method is deprecated, use `.add` instead.)"
+            " (Usage of this legacy method is deprecated. Use `.add` instead.)"
             " -- Deprecated since version v1.2."
         ),
     ):
@@ -94,7 +94,7 @@ def test_legacy_alias_classmethod(recwarn):
     assert Foo.do_plus.__doc__ == (
         "\n"
         ".. deprecated:: v1.2\n"
-        "   Use of this legacy class method is deprecated, use\n"
+        "   Usage of this legacy class method is deprecated. Use\n"
         "   :py:meth:`.add` instead.\n"
     )
 
@@ -104,7 +104,7 @@ def test_legacy_alias_classmethod(recwarn):
     expected_warning = re.escape(
         # Workaround for bug in classmethod detection before Python 3.9 (see https://wrapt.readthedocs.io/en/latest/decorators.html#decorating-class-methods
         f"Call to deprecated {'class method' if sys.version_info >= (3, 9) else 'function (or staticmethod)'} add."
-        " (Use of this legacy class method is deprecated, use `.add` instead.)"
+        " (Usage of this legacy class method is deprecated. Use `.add` instead.)"
         " -- Deprecated since version v1.2."
     )
 
@@ -130,7 +130,7 @@ def test_legacy_alias_staticmethod(recwarn):
     assert Foo.do_plus.__doc__ == (
         "\n"
         ".. deprecated:: v1.2\n"
-        "   Use of this legacy static method is deprecated, use\n"
+        "   Usage of this legacy static method is deprecated. Use\n"
         "   :py:meth:`.add` instead.\n"
     )
 
@@ -139,7 +139,7 @@ def test_legacy_alias_staticmethod(recwarn):
 
     expected_warning = re.escape(
         "Call to deprecated function (or staticmethod) add."
-        " (Use of this legacy static method is deprecated, use `.add` instead.)"
+        " (Usage of this legacy static method is deprecated. Use `.add` instead.)"
         " -- Deprecated since version v1.2."
     )
     with pytest.warns(UserDeprecationWarning, match=expected_warning):
@@ -150,6 +150,29 @@ def test_legacy_alias_staticmethod(recwarn):
         res = Foo.do_plus(2, 3)
     assert res == 5
 
+
+def test_legacy_alias_method_soft(recwarn):
+    class Foo:
+        def add(self, x, y):
+            """Add x and y."""
+            return x + y
+
+        do_plus = legacy_alias(add, since="v1.2", mode="soft")
+
+    assert Foo.add.__doc__ == "Add x and y."
+    assert Foo.do_plus.__doc__ == (
+        "Add x and y.\n"
+        "\n"
+        ".. deprecated:: v1.2\n"
+        "   Usage of this legacy method is deprecated. Use :py:meth:`.add` instead.\n"
+    )
+
+    assert Foo().add(2, 3) == 5
+    assert len(recwarn) == 0
+
+    res = Foo().do_plus(2, 3)
+    assert len(recwarn) == 0
+    assert res == 5
 
 
 def test_deprecated_decorator():
