@@ -336,7 +336,7 @@ class MultiBackendJobManager:
                     if status == "created":
                         # start job if not yet done by callback
                         try:
-                            job.start_job()
+                            job.start()
                             df.loc[i, "status"] = job.status()
                         except OpenEoApiError as e:
                             _log.error(e)
@@ -355,7 +355,7 @@ class MultiBackendJobManager:
         """
         # TODO: param `row` is never accessed in this method. Remove it? Is this intended for future use?
 
-        job_metadata = job.describe_job()
+        job_metadata = job.describe()
         job_dir = self.get_job_dir(job.job_id)
         metadata_path = self.get_job_metadata_path(job.job_id)
 
@@ -415,7 +415,7 @@ class MultiBackendJobManager:
             try:
                 con = self._get_connection(backend_name)
                 the_job = con.job(job_id)
-                job_metadata = the_job.describe_job()
+                job_metadata = the_job.describe()
                 _log.info(
                     f"Status of job {job_id!r} (on backend {backend_name}) is {job_metadata['status']!r}"
                 )

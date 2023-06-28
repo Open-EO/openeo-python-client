@@ -34,15 +34,19 @@ def test_warnings(stacklevel=1):
         )
 
 
-def legacy_alias(orig: Callable, name: str, since: str):
+def legacy_alias(orig: Callable, name: str = "n/a", *, since: str, mode: str = "full"):
     """
     Create legacy alias of given function/method/classmethod/staticmethod
 
     :param orig: function/method to create legacy alias for
-    :param name: name of the alias
+    :param name: name of the alias (unused)
     :param since: version since when this is alias is deprecated
+    :param mode:
+        - "full": raise warnings on calling, only have deprecation note as doc
+        - "soft": don't raise warning on calling, just add deprecation note to doc
     :return:
     """
+    # TODO: drop `name` argument?
     post_process = None
     if isinstance(orig, classmethod):
         post_process = classmethod
@@ -64,13 +68,18 @@ def legacy_alias(orig: Callable, name: str, since: str):
     def wrapper(*args, **kwargs):
         return orig(*args, **kwargs)
 
-    # Drop original doc block, just show deprecation note.
-    wrapper.__doc__ = ""
     ref = f":py:{'meth' if 'method' in kind else 'func'}:`.{orig.__name__}`"
-    wrapper = deprecated(
-        reason=f"Use of this legacy {kind} is deprecated, use {ref} instead.",
-        version=since,
-    )(wrapper)
+    message = f"Usage of this legacy {kind} is deprecated. Use {ref} instead."
+
+    if mode == "full":
+        # Drop original doc block, just show deprecation note.
+        wrapper.__doc__ = ""
+        wrapper = deprecated(reason=message, version=since)(wrapper)
+    elif mode == "soft":
+        # Only keep first paragraph of original doc block
+        wrapper.__doc__ = "\n\n".join(orig.__doc__.split("\n\n")[:1] + [f".. deprecated:: {since}\n   {message}\n"])
+    else:
+        raise ValueError(mode)
 
     if post_process:
         wrapper = post_process(wrapper)
