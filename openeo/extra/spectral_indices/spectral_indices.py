@@ -8,20 +8,53 @@ from openeo.processes import ProcessBuilder, array_modify, array_create
 from openeo.rest.datacube import DataCube
 
 BAND_MAPPING_LANDSAT457 = {
-    "B1": "B", "B2": "G", "B3": "R", "B4": "N", "B5": "S1", "B6": "T1", "B7": "S2"
+    "B1": "B",
+    "B2": "G",
+    "B3": "R",
+    "B4": "N",
+    "B5": "S1",
+    "B6": "T1",
+    "B7": "S2",
 }
 BAND_MAPPING_LANDSAT8 = {
-    "B1": "A", "B2": "B", "B3": "G", "B4": "R", "B5": "N", "B6": "S1", "B7": "S2", "B10": "T1", "B11": "T2"
+    "B1": "A",
+    "B2": "B",
+    "B3": "G",
+    "B4": "R",
+    "B5": "N",
+    "B6": "S1",
+    "B7": "S2",
+    "B10": "T1",
+    "B11": "T2",
 }
 BAND_MAPPING_MODIS = {
-    "B3": "B", "B4": "G", "B1": "R", "B2": "N", "B5": np.nan, "B6": "S1", "B7": "S2"
+    "B3": "B",
+    "B4": "G",
+    "B1": "R",
+    "B2": "N",
+    "B5": np.nan,
+    "B6": "S1",
+    "B7": "S2",
 }
 BAND_MAPPING_PROBAV = {
-    "BLUE": "B", "RED": "R", "NIR": "N", "SWIR": "S1"
+    "BLUE": "B",
+    "RED": "R",
+    "NIR": "N",
+    "SWIR": "S1",
 }
 BAND_MAPPING_SENTINEL2 = {
-    "B1": "A", "B2": "B", "B3": "G", "B4": "R", "B5": "RE1", "B6": "RE2", "B7": "RE3", "B8": "N",
-    "B8A": "RE4", "B9": "WV", "B11": "S1", "B12": "S2"
+    "B1": "A",
+    "B2": "B",
+    "B3": "G",
+    "B4": "R",
+    "B5": "RE1",
+    "B6": "RE2",
+    "B7": "RE3",
+    "B8": "N",
+    "B8A": "RE4",
+    "B9": "WV",
+    "B11": "S1",
+    "B12": "S2",
 }
 
 
@@ -41,9 +74,7 @@ def _get_expression_map(cube: DataCube, x: ProcessBuilder) -> Dict[str, ProcessB
     elif "TERRASCOPE_S2" in collection_id or "SENTINEL2" in collection_id:
         band_mapping = BAND_MAPPING_SENTINEL2
     else:
-        raise ValueError("Could not detect supported satellite platform from {cid!r} for index computation!".format(
-            cid=collection_id
-        ))
+        raise ValueError(f"Could not detect supported satellite platform from {collection_id!r} for index computation")
 
     cube_bands = [band.replace("0", "").upper() for band in cube.metadata.band_names]
     # TODO: use `label` parameter from `array_element` to avoid index based band references.
@@ -56,7 +87,7 @@ def load_indices() -> Dict[str, dict]:
 
     for path in [
         "resources/awesome-spectral-indices/spectral-indices-dict.json",
-        "resources/extra-indices-dict.json"
+        "resources/extra-indices-dict.json",
     ]:
         with pkg_resources.resource_stream("openeo.extra.spectral_indices", path) as stream:
             specs.update(json.load(stream)["SpectralIndices"])
@@ -70,20 +101,24 @@ def list_indices() -> List[str]:
     return list(specs.keys())
 
 
-def _check_params(item,params):
-    range_vals = ["input_range","output_range"]
+def _check_params(item, params):
+    range_vals = ["input_range", "output_range"]
     if set(params) != set(range_vals):
-        raise ValueError("You have set the following parameters {} on {}, while the following are required {}".format(params,item,range_vals))
+        raise ValueError(
+            f"You have set the parameters {params} on {item}, while the following are required {range_vals}"
+        )
     for rng in range_vals:
-        if params[rng] == None:
+        if params[rng] is None:
             continue
         if len(params[rng]) != 2:
-            raise ValueError("The list of values you have supplied {} for parameter {} for {} is not of length 2".format(params[rng], rng, item))
+            raise ValueError(
+                f"The list of provided values {params[rng]} for parameter {rng} for {item} is not of length 2"
+            )
         # TODO: allow float too?
         if not all(isinstance(val, int) for val in params[rng]):
             raise ValueError("The ranges you supplied are not all of type int")
-    if (params["input_range"] == None) != (params["output_range"] == None):
-        raise ValueError("The index_range and output_range of {} should either be both supplied, or both None".format(item))
+    if (params["input_range"] is None) != (params["output_range"] is None):
+        raise ValueError(f"The index_range and output_range of {item} should either be both supplied, or both None")
 
 
 def _check_validity_index_dict(index_dict: dict, index_specs: dict):
@@ -95,9 +130,11 @@ def _check_validity_index_dict(index_dict: dict, index_specs: dict):
     #       a more generic machine learning data preparation feature
     input_vals = ["collection", "indices"]
     if set(index_dict.keys()) != set(input_vals):
-        raise ValueError("The first level of the dictionary should contain the keys 'collection' and 'indices', but they contain {}".format(index_dict.keys()))
-    _check_params("collection",index_dict["collection"])
-    for index,params in index_dict["indices"].items():
+        raise ValueError(
+            f"The first level of the dictionary should contain the keys 'collection' and 'indices', but they contain {index_dict.keys()}"
+        )
+    _check_params("collection", index_dict["collection"])
+    for index, params in index_dict["indices"].items():
         if index not in index_specs.keys():
             raise NotImplementedError("Index " + index + " is not supported.")
         _check_params(index, params)
@@ -115,7 +152,9 @@ def _callback(x: ProcessBuilder, index_dict: dict, datacube: DataCube, index_spe
             index_result = index_result.linear_scale_range(*params["input_range"], *params["output_range"])
         index_values.append(index_result)
     if index_dict["collection"]["input_range"] is not None:
-        x_res = x_res.linear_scale_range(*index_dict["collection"]["input_range"], *index_dict["collection"]["output_range"])
+        x_res = x_res.linear_scale_range(
+            *index_dict["collection"]["input_range"], *index_dict["collection"]["output_range"]
+        )
     if append:
         return array_modify(data=x_res, values=index_values, index=len(datacube.metadata.band_names))
     else:
@@ -155,11 +194,13 @@ def compute_and_rescale_indices(datacube: DataCube, index_dict: dict, append=Fal
     index_specs = load_indices()
 
     _check_validity_index_dict(index_dict, index_specs)
-    res = datacube.apply_dimension(dimension="bands",process=lambda x: _callback(x, index_dict, datacube, index_specs, append))
+    res = datacube.apply_dimension(
+        dimension="bands", process=lambda x: _callback(x, index_dict, datacube, index_specs, append)
+    )
     if append:
-        return res.rename_labels('bands',target=datacube.metadata.band_names + list(index_dict["indices"].keys()))
+        return res.rename_labels("bands", target=datacube.metadata.band_names + list(index_dict["indices"].keys()))
     else:
-        return res.rename_labels('bands',target=list(index_dict["indices"].keys()))
+        return res.rename_labels("bands", target=list(index_dict["indices"].keys()))
 
 
 def append_and_rescale_indices(datacube: DataCube, index_dict: dict) -> DataCube:
@@ -205,11 +246,9 @@ def compute_indices(datacube: DataCube, indices: List[str], append: bool = False
     index_dict = {
         "collection": {
             "input_range": None,
-            "output_range": None
+            "output_range": None,
         },
-        "indices": {
-            index: {"input_range": None, "output_range": None} for index in indices
-        }
+        "indices": {index: {"input_range": None, "output_range": None} for index in indices},
     }
     return compute_and_rescale_indices(datacube=datacube, index_dict=index_dict, append=append)
 
