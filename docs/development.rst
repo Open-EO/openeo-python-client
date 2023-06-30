@@ -331,23 +331,24 @@ To be as concrete as possible, we will assume that we are about to release versi
     or announce it in the `openEO Platform Forum <https://discuss.eodc.eu/c/openeo-platform/clients/18>`_.
 
 Verification
-~~~~~~~~~~~~
+"""""""""""""
 
 The new release should now be available/listed at:
 
 - `https://pypi.org/project/openeo/#history <https://pypi.org/project/openeo/#history>`_
 - `https://github.com/Open-EO/openeo-python-client/releases <https://github.com/Open-EO/openeo-python-client/releases>`_
 
-Here is a bash oneliner to verify that the PyPI release works properly::
+Here is a bash (subshell) oneliner to verify that the PyPI release works properly::
 
-    (cd /tmp &&\
-        python -m venv tmp-venv-openeo &&\
-        . tmp-venv-openeo/bin/activate &&\
-        pip install openeo==0.4.7 &&\
-        python -c "import openeo;print(openeo);print(openeo.__version__)"\
+    (
+        cd /tmp &&\
+        python -m venv venv-openeo &&\
+        source venv-openeo/bin/activate &&\
+        pip install -U openeo &&\
+        python -c "import openeo;print(openeo);print(openeo.__version__)"
     )
 
-It tries to install the package in a temporary virtual env,
+It tries to install the latest version of the ``openeo`` package in a temporary virtual env,
 import it and print the package version.
 
 
