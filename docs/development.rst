@@ -360,31 +360,34 @@ Normally you can install the client the same way on Windows as on Linux, like so
 
     pip install -e .[dev]
 
-This should be working with the most recent code, however, in the past we sometimes had issues with a development installation.
+Alternative development installation
+-------------------------------------
 
-Should you experience problems, there is also a conda package for the Python client and that should be the easiest solution.
+The standard pure-``pip`` based installation should work with the most recent code.
+However, in the past we sometimes had issues with this procedure.
+Should you experience problems, consider using an alternative conda-based installation procedure:
 
-For development, what you need to do is:
+1.  Create and activate a new conda environment for developing the openeo-python-client.
+    For example:
 
-1. Create and activate a new conda environment for developing the openeo-python-client.
-2. In that conda environment, install only the dependencies of openeo via conda, but not the openeo package itself.
-3. Do a pip install of the code in *editable mode* with `pip -e`.
+    .. code-block:: console
 
-.. code-block:: console
+        conda create -n openeopyclient
+        conda activate openeopyclient
 
-    conda create -n <your environment's name>
+2.  In that conda environment, install only the dependencies of ``openeo`` via conda,
+    but not the ``openeo`` package itself.
 
-    # For example:
-    conda create -n openeopyclient
+    .. code-block:: console
 
-    # Activate the conda environment
-    conda activate openeopyclient
+        # Install openeo dependencies (from the conda-forge channel)
+        conda install --only-deps -c conda-forge openeo
 
-    # Install openeo from the conda-forge channel
-    conda install --only-deps -c conda-forge openeo
+3.  Do a ``pip install`` from the project root in *editable mode* (``pip -e``):
 
-    # Now install the openeo code in editable mode.
-    pip install -e .[dev]
+    .. code-block:: console
+
+        pip install -e .[dev]
 
 
 
