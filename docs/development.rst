@@ -274,12 +274,12 @@ To be as concrete as possible, we will assume that we are about to release versi
 
     A.  **Obtain a wheel archive** of the package, with one of these approaches:
 
-        -   *Preferably*: path of least surprise: build wheel through GitHub Actions.
+        -   *Preferably, the path of least surprise*: build wheel through GitHub Actions.
             Go to workflow `"Build wheel" <https://github.com/Open-EO/openeo-python-client/actions/workflows/build-wheel.yml>`_,
             manually trigger a build with "Run workflow" button, wait for it to finish successfully,
             download generated ``artifact.zip``, and finally: unzip it to obtain ``openeo-0.4.7-py3-none-any.whl``
 
-        -   *Or*, if you know what you are doing and you're sure you have a clean
+        -   *Or, if you know what you are doing* and you're sure you have a clean
             local checkout, you can also build it locally::
 
                 python setup.py bdist_wheel
