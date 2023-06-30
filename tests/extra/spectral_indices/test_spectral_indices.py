@@ -16,7 +16,7 @@ def test_load_indices():
     indices = load_indices()
     assert "NDVI" in indices
     assert indices["NDVI"]["formula"] == "(N - R)/(N + R)"
-    assert indices["NDVI"]["type"] == "vegetation"
+    assert indices["NDVI"]["application_domain"] == "vegetation"
     assert indices["NDVI"]["long_name"] == "Normalized Difference Vegetation Index"
 
 
