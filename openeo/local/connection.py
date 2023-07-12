@@ -1,8 +1,9 @@
 import datetime
 import logging
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Union
+from typing import Dict, List, Union, Callable, Optional
 
+import numpy as np
 import xarray as xr
 from openeo_pg_parser_networkx.graph import OpenEOProcessGraph
 
@@ -202,16 +203,6 @@ class LocalConnection():
 
         .. versionadded:: 0.17.0
         """
-        # TODO: detect actual metadata from URL
-        metadata = CollectionMetadata(
-            {},
-            dimensions=[
-                SpatialDimension(name="x", extent=[]),
-                SpatialDimension(name="y", extent=[]),
-                TemporalDimension(name="time", extent=[]),
-                BandDimension(name="band", bands=[Band("unknown")]),
-            ],
-        )
         arguments = {"url": url}
         # TODO: more normalization/validation of extent/band parameters and `properties`
         if spatial_extent:
@@ -223,6 +214,25 @@ class LocalConnection():
         if properties:
             arguments["properties"] = properties
         cube = self.datacube_from_process(process_id="load_stac", **arguments)
+        # detect actual metadata from URL
+        # run load_stac to get the datacube metadata
+        xarray_cube = cube.execute()
+        attrs = xarray_cube.attrs
+        attrs = {}
+        for at in attrs:
+            # allowed types: str, Number, ndarray, number, list, tuple
+            if not isinstance(attrs[at], (int, float, str, np.ndarray, list, tuple)):
+                attrs[at] = str(attrs[at])
+        metadata = CollectionMetadata(
+            attrs,
+            dimensions=[
+                SpatialDimension(name=xarray_cube.openeo.x_dim, extent=[]),
+                SpatialDimension(name=xarray_cube.openeo.y_dim, extent=[]),
+                TemporalDimension(name=xarray_cube.openeo.temporal_dims[0], extent=[]),
+                BandDimension(name=xarray_cube.openeo.band_dims[0],
+                              bands=[Band(x) for x in xarray_cube[xarray_cube.openeo.band_dims[0]].values])
+            ],
+        )
         cube.metadata = metadata
         return cube
 
