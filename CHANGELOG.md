@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Simplified `BatchJob` methods `start()`, `stop()`, `describe()`, ...
+  Legacy aliases `start_job()`, `describe_job()`, ... are still available and don't trigger a deprecation warning for now.
+  ([#280](https://github.com/Open-EO/openeo-python-client/issues/280))
+
 ### Removed
 
 ### Fixed
