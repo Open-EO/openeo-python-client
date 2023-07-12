@@ -45,10 +45,11 @@ PROCESS_REGISTRY = init_process_registry()
 
 _log = logging.getLogger(__name__)
 def load_local_collection(*args, **kwargs):
-    pretty_args = {k: type(v) for k, v in kwargs.items()}
-    _log.debug(f"Running process load_collection")
-    _log.debug(f"kwargs: {pretty_args}")
-    _log.debug("-" * 80)
+    pretty_args = {k: repr(v)[:80] for k, v in kwargs.items()}
+    _log.info(f"Running process load_collection")
+    _log.debug(
+            f"Running process load_collection with resolved parameters: {pretty_args}"
+        )
     collection = Path(kwargs['id'])
     if '.zarr' in collection.suffixes:
         data = xr.open_dataset(kwargs['id'],chunks={},engine='zarr')
@@ -78,10 +79,7 @@ PROCESS_REGISTRY["load_collection"] = Process(
 )
 
 def resample_cube_spatial_rioxarray(data: RasterCube, target: RasterCube, method: str = "near") -> RasterCube:
-
-    _log.debug(f"Running process resample_cube_spatial")
-    _log.debug("-" * 80)
-
+    _log.info(f"Running process resample_cube_spatial")
     methods_dict = {
         "near": rasterio.enums.Resampling.nearest,
         "bilinear": rasterio.enums.Resampling.bilinear,
