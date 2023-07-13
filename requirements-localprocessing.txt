@@ -1,5 +1,5 @@
 # Those requirements are for the experimental and optional client side processing feature
 # that can be installed via pip install openeo[localprocessing].
 # Please be aware that this functionality is not fully stable and may change quickly.
-openeo-pg-parser-networkx==2023.3.1
-openeo-processes-dask==2023.3.2
+openeo-pg-parser-networkx==2023.5.1
+openeo-processes-dask==2023.7.1
