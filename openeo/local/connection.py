@@ -201,7 +201,7 @@ class LocalConnection():
             The value must be a condition (user-defined process) to be evaluated against a STAC API.
             This parameter is not supported for static STAC.
 
-        .. versionadded:: 0.17.0
+        .. versionadded:: 0.21.0
         """
         arguments = {"url": url}
         # TODO: more normalization/validation of extent/band parameters and `properties`
