@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Removed
+
+### Fixed
+
+
+## [0.20.0] - 2023-06-30
+
+### Added
+
 - Added automatically renewal of access tokens with OIDC client credentials grant (`Connection.authenticate_oidc_client_credentials`)
   ([#436](https://github.com/Open-EO/openeo-python-client/issues/436))
 
@@ -16,10 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Simplified `BatchJob` methods `start()`, `stop()`, `describe()`, ...
   Legacy aliases `start_job()`, `describe_job()`, ... are still available and don't trigger a deprecation warning for now.
   ([#280](https://github.com/Open-EO/openeo-python-client/issues/280))
-
-### Removed
-
-### Fixed
+- Update `openeo.extra.spectral_indices` to [Awesome Spectral Indices v0.4.0](https://github.com/awesome-spectral-indices/awesome-spectral-indices/releases/tag/0.4.0)
 
 
 ## [0.19.0] - 2023-06-16

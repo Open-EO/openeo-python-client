@@ -274,12 +274,12 @@ To be as concrete as possible, we will assume that we are about to release versi
 
     A.  **Obtain a wheel archive** of the package, with one of these approaches:
 
-        -   *Preferably*: path of least surprise: build wheel through GitHub Actions.
+        -   *Preferably, the path of least surprise*: build wheel through GitHub Actions.
             Go to workflow `"Build wheel" <https://github.com/Open-EO/openeo-python-client/actions/workflows/build-wheel.yml>`_,
             manually trigger a build with "Run workflow" button, wait for it to finish successfully,
             download generated ``artifact.zip``, and finally: unzip it to obtain ``openeo-0.4.7-py3-none-any.whl``
 
-        -   *Or*, if you know what you are doing and you're sure you have a clean
+        -   *Or, if you know what you are doing* and you're sure you have a clean
             local checkout, you can also build it locally::
 
                 python setup.py bdist_wheel
@@ -331,23 +331,24 @@ To be as concrete as possible, we will assume that we are about to release versi
     or announce it in the `openEO Platform Forum <https://discuss.eodc.eu/c/openeo-platform/clients/18>`_.
 
 Verification
-~~~~~~~~~~~~
+"""""""""""""
 
 The new release should now be available/listed at:
 
 - `https://pypi.org/project/openeo/#history <https://pypi.org/project/openeo/#history>`_
 - `https://github.com/Open-EO/openeo-python-client/releases <https://github.com/Open-EO/openeo-python-client/releases>`_
 
-Here is a bash oneliner to verify that the PyPI release works properly::
+Here is a bash (subshell) oneliner to verify that the PyPI release works properly::
 
-    (cd /tmp &&\
-        python -m venv tmp-venv-openeo &&\
-        . tmp-venv-openeo/bin/activate &&\
-        pip install openeo==0.4.7 &&\
-        python -c "import openeo;print(openeo);print(openeo.__version__)"\
+    (
+        cd /tmp &&\
+        python -m venv venv-openeo &&\
+        source venv-openeo/bin/activate &&\
+        pip install -U openeo &&\
+        python -c "import openeo;print(openeo);print(openeo.__version__)"
     )
 
-It tries to install the package in a temporary virtual env,
+It tries to install the latest version of the ``openeo`` package in a temporary virtual env,
 import it and print the package version.
 
 
@@ -360,31 +361,34 @@ Normally you can install the client the same way on Windows as on Linux, like so
 
     pip install -e .[dev]
 
-This should be working with the most recent code, however, in the past we sometimes had issues with a development installation.
+Alternative development installation
+-------------------------------------
 
-Should you experience problems, there is also a conda package for the Python client and that should be the easiest solution.
+The standard pure-``pip`` based installation should work with the most recent code.
+However, in the past we sometimes had issues with this procedure.
+Should you experience problems, consider using an alternative conda-based installation procedure:
 
-For development, what you need to do is:
+1.  Create and activate a new conda environment for developing the openeo-python-client.
+    For example:
 
-1. Create and activate a new conda environment for developing the openeo-python-client.
-2. In that conda environment, install only the dependencies of openeo via conda, but not the openeo package itself.
-3. Do a pip install of the code in *editable mode* with `pip -e`.
+    .. code-block:: console
 
-.. code-block:: console
+        conda create -n openeopyclient
+        conda activate openeopyclient
 
-    conda create -n <your environment's name>
+2.  In that conda environment, install only the dependencies of ``openeo`` via conda,
+    but not the ``openeo`` package itself.
 
-    # For example:
-    conda create -n openeopyclient
+    .. code-block:: console
 
-    # Activate the conda environment
-    conda activate openeopyclient
+        # Install openeo dependencies (from the conda-forge channel)
+        conda install --only-deps -c conda-forge openeo
 
-    # Install openeo from the conda-forge channel
-    conda install --only-deps -c conda-forge openeo
+3.  Do a ``pip install`` from the project root in *editable mode* (``pip -e``):
 
-    # Now install the openeo code in editable mode.
-    pip install -e .[dev]
+    .. code-block:: console
+
+        pip install -e .[dev]
 
 
 
