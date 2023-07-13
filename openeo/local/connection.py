@@ -85,7 +85,7 @@ class LocalConnection():
             fetch_metadata=fetch_metadata,
         )
 
-    def datacube_from_process(self, process_id: str, namespace: str = None, **kwargs) -> DataCube:
+    def datacube_from_process(self, process_id: str, namespace: Optional[str] = None, **kwargs) -> DataCube:
         """
         Load a data cube from a (custom) process.
 
