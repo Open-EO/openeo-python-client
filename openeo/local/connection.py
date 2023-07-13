@@ -26,7 +26,7 @@ class LocalConnection():
         the local collections in netCDF, geoTIFF or ZARR.
         """
         self.local_collections_path = local_collections_path
-        
+
     def list_collections(self) -> List[dict]:
         """
         List basic metadata of all collections provided in the local collections folder.
@@ -36,13 +36,13 @@ class LocalConnection():
         """
         data = _get_local_collections(self.local_collections_path)["collections"]
         return VisualList("collections", data=data)
-    
+
     def describe_collection(self, collection_id: str) -> dict:
         """
         Get full collection metadata for given collection id.
-        
+
         .. seealso::
-        
+
             :py:meth:`~openeo.rest.connection.Connection.list_collection_ids`
             to list all collection ids provided by the back-end.
 
@@ -55,11 +55,11 @@ class LocalConnection():
         elif '.tif' in local_collection.suffixes or '.tiff' in local_collection.suffixes:
             data = _get_geotiff_metadata(local_collection)
         return VisualDict("collection", data=data)
-    
+
     def collection_metadata(self, name) -> CollectionMetadata:
         # TODO: duplication with `Connection.describe_collection`: deprecate one or the other?
         return CollectionMetadata(metadata=self.describe_collection(name))
-    
+
     def load_collection(
             self,
             collection_id: str,
@@ -214,7 +214,6 @@ class LocalConnection():
         # run load_stac to get the datacube metadata
         xarray_cube = cube.execute()
         attrs = xarray_cube.attrs
-        attrs = {}
         for at in attrs:
             # allowed types: str, Number, ndarray, number, list, tuple
             if not isinstance(attrs[at], (int, float, str, np.ndarray, list, tuple)):
@@ -232,9 +231,13 @@ class LocalConnection():
         cube.metadata = metadata
         return cube
 
-
-    def execute(self, process_graph: Union[dict, str, 
-                                          ]) -> xr.DataArray:
+    def execute(
+        self,
+        process_graph: Union[
+            dict,
+            str,
+        ],
+    ) -> xr.DataArray:
         """
         Execute locally the process graph and return the result as an xarray.DataArray.
 
