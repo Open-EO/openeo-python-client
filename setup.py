@@ -39,8 +39,8 @@ docs_require = [
 localprocessing_require = [
     "rioxarray>=0.13.0",
     "pyproj",
-    "openeo_pg_parser_networkx>=2023.3.1",
-    "openeo_processes_dask[implementations]>=2023.3.2",
+    "openeo_pg_parser_networkx>=2023.5.1",
+    "openeo_processes_dask[implementations]>=2023.5.1",
 ]
 
 jupyter_require = [
