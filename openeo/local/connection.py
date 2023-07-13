@@ -218,7 +218,6 @@ class LocalConnection():
         # run load_stac to get the datacube metadata
         xarray_cube = cube.execute()
         attrs = xarray_cube.attrs
-        attrs = {}
         for at in attrs:
             # allowed types: str, Number, ndarray, number, list, tuple
             if not isinstance(attrs[at], (int, float, str, np.ndarray, list, tuple)):
@@ -236,9 +235,13 @@ class LocalConnection():
         cube.metadata = metadata
         return cube
 
-
-    def execute(self, process_graph: Union[dict, str, 
-                                          ]) -> xr.DataArray:
+    def execute(
+        self,
+        process_graph: Union[
+            dict,
+            str,
+        ],
+    ) -> xr.DataArray:
         """
         Execute locally the process graph and return the result as an xarray.DataArray.
 
