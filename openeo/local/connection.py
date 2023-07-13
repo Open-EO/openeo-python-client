@@ -1,16 +1,20 @@
 import datetime
 import logging
 from pathlib import Path
-import xarray as xr
-from typing import Dict, List, Tuple, Union, Callable, Optional, Any, Iterator
+from typing import Callable, Dict, List, Optional, Union
 
-from openeo.metadata import CollectionMetadata
-from openeo.internal.graph_building import PGNode, as_flat_graph
-from openeo.rest.datacube import DataCube
-from openeo.internal.jupyter import VisualDict, VisualList
-from openeo.local.collections import _get_local_collections, _get_netcdf_zarr_metadata, _get_geotiff_metadata
-from openeo.local.processing import PROCESS_REGISTRY
+import xarray as xr
 from openeo_pg_parser_networkx.graph import OpenEOProcessGraph
+
+from openeo.internal.graph_building import PGNode, as_flat_graph
+from openeo.internal.jupyter import VisualDict, VisualList
+from openeo.local.collections import _get_geotiff_metadata, _get_local_collections, _get_netcdf_zarr_metadata
+from openeo.local.processing import PROCESS_REGISTRY
+from openeo.metadata import CollectionMetadata
+from openeo.rest.datacube import DataCube
+
+_log = logging.getLogger(__name__)
+
 
 class LocalConnection():
     """
@@ -25,7 +29,7 @@ class LocalConnection():
         the local collections in netCDF, geoTIFF or ZARR.
         """
         self.local_collections_path = local_collections_path
-        
+
     def list_collections(self) -> List[dict]:
         """
         List basic metadata of all collections provided in the local collections folder.
@@ -35,13 +39,13 @@ class LocalConnection():
         """
         data = _get_local_collections(self.local_collections_path)["collections"]
         return VisualList("collections", data=data)
-    
+
     def describe_collection(self, collection_id: str) -> dict:
         """
         Get full collection metadata for given collection id.
-        
+
         .. seealso::
-        
+
             :py:meth:`~openeo.rest.connection.Connection.list_collection_ids`
             to list all collection ids provided by the back-end.
 
@@ -54,11 +58,11 @@ class LocalConnection():
         elif '.tif' in local_collection.suffixes or '.tiff' in local_collection.suffixes:
             data = _get_geotiff_metadata(local_collection)
         return VisualDict("collection", data=data)
-    
+
     def collection_metadata(self, name) -> CollectionMetadata:
         # TODO: duplication with `Connection.describe_collection`: deprecate one or the other?
         return CollectionMetadata(metadata=self.describe_collection(name))
-    
+
     def load_collection(
             self,
             collection_id: str,

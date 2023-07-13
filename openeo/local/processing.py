@@ -1,17 +1,19 @@
 import inspect
-import importlib
 import logging
-import xarray as xr
-import rasterio
-import rioxarray
 from pathlib import Path
 
+import openeo_processes_dask.process_implementations
+import openeo_processes_dask.specs
+import rasterio
+import rioxarray
+import xarray as xr
 from openeo_pg_parser_networkx import ProcessRegistry
+from openeo_pg_parser_networkx.process_registry import Process
 from openeo_processes_dask.process_implementations.core import process
 from openeo_processes_dask.process_implementations.data_model import RasterCube
-import openeo_processes_dask.specs
-import openeo_processes_dask.process_implementations
-from openeo_pg_parser_networkx.process_registry import Process
+
+_log = logging.getLogger(__name__)
+
 
 def init_process_registry():
     process_registry = ProcessRegistry(wrap_funcs=[process])
@@ -29,24 +31,25 @@ def init_process_registry():
     for func in processes_from_module:
         try:
             specs[func.__name__] = getattr(openeo_processes_dask.specs, func.__name__)
-        except:
+        except Exception:
             continue
-        
+
     for func in processes_from_module:
         try:
             process_registry[func.__name__] = Process(
             spec=specs[func.__name__], implementation=func
             )
-        except:
+        except Exception:
             continue
     return process_registry
 
+
 PROCESS_REGISTRY = init_process_registry()
 
-_log = logging.getLogger(__name__)
+
 def load_local_collection(*args, **kwargs):
     pretty_args = {k: repr(v)[:80] for k, v in kwargs.items()}
-    _log.info(f"Running process load_collection")
+    _log.info("Running process load_collection")
     _log.debug(
             f"Running process load_collection with resolved parameters: {pretty_args}"
         )
@@ -74,12 +77,12 @@ def load_local_collection(*args, **kwargs):
     return data
 
 PROCESS_REGISTRY["load_collection"] = Process(
-    spec=openeo_processes_dask.specs.load_collection, 
+    spec=openeo_processes_dask.specs.load_collection,
     implementation=load_local_collection,
 )
 
 def resample_cube_spatial_rioxarray(data: RasterCube, target: RasterCube, method: str = "near") -> RasterCube:
-    _log.info(f"Running process resample_cube_spatial")
+    _log.info("Running process resample_cube_spatial")
     methods_dict = {
         "near": rasterio.enums.Resampling.nearest,
         "bilinear": rasterio.enums.Resampling.bilinear,
@@ -97,11 +100,6 @@ def resample_cube_spatial_rioxarray(data: RasterCube, target: RasterCube, method
         "sum": rasterio.enums.Resampling.sum,
         "rms": rasterio.enums.Resampling.rms
     }
-
-    # The target doesn't need to have the same dimensions as the data
-    input_data_dims = (
-        data.openeo.band_dims + data.openeo.temporal_dims + data.openeo.spatial_dims + data.openeo.other_dims
-    )
 
     if method not in methods_dict:
         raise ValueError(
