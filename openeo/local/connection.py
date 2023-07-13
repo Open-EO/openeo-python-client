@@ -1,17 +1,21 @@
 import datetime
 import logging
 from pathlib import Path
+from typing import Callable, Dict, List, Optional, Union
+
 import xarray as xr
 import numpy as np
-from typing import Dict, List, Tuple, Union, Callable, Optional, Any, Iterator
 
 from openeo.metadata import CollectionMetadata, SpatialDimension, TemporalDimension, BandDimension, Band
-from openeo.internal.graph_building import PGNode, as_flat_graph
-from openeo.rest.datacube import DataCube
-from openeo.internal.jupyter import VisualDict, VisualList
-from openeo.local.collections import _get_local_collections, _get_netcdf_zarr_metadata, _get_geotiff_metadata
-from openeo.local.processing import PROCESS_REGISTRY
 from openeo_pg_parser_networkx.graph import OpenEOProcessGraph
+from openeo.internal.graph_building import PGNode, as_flat_graph
+from openeo.internal.jupyter import VisualDict, VisualList
+from openeo.local.collections import _get_geotiff_metadata, _get_local_collections, _get_netcdf_zarr_metadata
+from openeo.local.processing import PROCESS_REGISTRY
+from openeo.rest.datacube import DataCube
+
+_log = logging.getLogger(__name__)
+
 
 class LocalConnection():
     """

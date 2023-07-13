@@ -1,13 +1,13 @@
-import datetime
 import logging
-import xarray as xr
-import numpy as np
-import rioxarray
 from pathlib import Path
+from typing import List
+
+import rioxarray
+import xarray as xr
 from pyproj import Transformer
-from typing import Dict, List, Tuple, Union
 
 _log = logging.getLogger(__name__)
+
 
 def _get_dimension(dims: dict, candidates: List[str]):
     for name in candidates:
@@ -15,7 +15,8 @@ def _get_dimension(dims: dict, candidates: List[str]):
             return name
     error = f'Dimension matching one of the candidates {candidates} not found! The available ones are {dims}. Please rename the dimension accordingly and try again. This local collection will be skipped.'
     raise Exception(error)
-        
+
+
 def _get_netcdf_zarr_metadata(file_path):
     if '.zarr' in file_path.suffixes:
         data = xr.open_dataset(file_path.as_posix(),chunks={},engine='zarr')
@@ -24,7 +25,7 @@ def _get_netcdf_zarr_metadata(file_path):
     file_path = file_path.as_posix()
     try:
         t_dim = _get_dimension(data.dims, ['t', 'time', 'temporal', 'DATE'])
-    except:
+    except Exception:
         t_dim = None
     try:
         x_dim = _get_dimension(data.dims, ['x', 'X', 'lon', 'longitude'])
@@ -78,11 +79,11 @@ def _get_netcdf_zarr_metadata(file_path):
         crs_present = True
     extent = {}
     if crs_present:
-        if 'crs_wkt' in data.crs.attrs:
-            transformer = Transformer.from_crs(data.crs.attrs['crs_wkt'],'epsg:4326')
-            lat_min,lon_min = transformer.transform(x_min,y_min)
-            lat_max,lon_max = transformer.transform(x_max,y_max)               
-            extent['spatial'] = {'bbox': [[lon_min, lat_min, lon_max, lat_max]]}
+        if "crs_wkt" in data.crs.attrs:
+            transformer = Transformer.from_crs(data.crs.attrs["crs_wkt"], "epsg:4326")
+            lat_min, lon_min = transformer.transform(x_min, y_min)
+            lat_max, lon_max = transformer.transform(x_max, y_max)
+            extent["spatial"] = {"bbox": [[lon_min, lat_min, lon_max, lat_max]]}
 
     if t_dim is not None:
         t_min = str(data[t_dim].min().values)
@@ -110,12 +111,13 @@ def _get_netcdf_zarr_metadata(file_path):
 
     return metadata
 
+
 def _get_geotiff_metadata(file_path):
     data = rioxarray.open_rasterio(file_path.as_posix(),chunks={},band_as_variable=True)
     file_path = file_path.as_posix()
     try:
         t_dim = _get_dimension(data.dims, ['t', 'time', 'temporal', 'DATE'])
-    except:
+    except Exception:
         t_dim = None
     try:
         x_dim = _get_dimension(data.dims, ['x', 'X', 'lon', 'longitude'])
@@ -123,7 +125,7 @@ def _get_geotiff_metadata(file_path):
     except Exception as e:
         _log.warning(e)
         raise Exception(f'Error creating metadata for {file_path}') from e
-        
+
     metadata = {}
     metadata['stac_version'] = '1.0.0-rc.2'
     metadata['type'] = 'Collection'
@@ -211,6 +213,7 @@ def _get_geotiff_metadata(file_path):
 
     return metadata
 
+
 def _get_local_collections(local_collections_path):
     if isinstance(local_collections_path,str):
         local_collections_path = [local_collections_path]
@@ -225,7 +228,7 @@ def _get_local_collections(local_collections_path):
                 _log.error(e)
                 continue
         local_collections_geotiffs = [p for p in Path(flds).rglob('*') if p.suffix in  ['.tif','.tiff']]
-        for local_file in local_collections_geotiffs: 
+        for local_file in local_collections_geotiffs:
             try:
                 metadata = _get_geotiff_metadata(local_file)
                 local_collections_list.append(metadata)
@@ -233,5 +236,5 @@ def _get_local_collections(local_collections_path):
                 _log.error(e)
                 continue
     local_collections_dict = {'collections':local_collections_list}
-    
+
     return local_collections_dict
