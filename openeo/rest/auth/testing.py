@@ -143,7 +143,7 @@ class OidcMock:
         assert params["grant_type"] == "client_credentials"
         assert params["scope"] == self.expected_fields["scope"]
         assert params["client_secret"] == self.expected_fields["client_secret"]
-        return self._build_token_response(include_id_token=False)
+        return self._build_token_response(include_id_token=False, include_refresh_token=False)
 
     def token_callback_resource_owner_password_credentials(self, params: dict, context):
         assert params["client_id"] == self.expected_client_id

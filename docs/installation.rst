@@ -87,6 +87,14 @@ For example:
 - ``matplotlib`` for visualisation (e.g. integrated plot functionality in ``xarray`` )
 
 
+Enabling additional features
+----------------------------
+
+To use the on-demand preview feature and other Jupyter-enabled features, you need to install the necessary dependencies.
+
+.. code-block:: console
+
+    $ pip install openeo[jupyter]
 
 
 Source or development install

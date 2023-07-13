@@ -10,8 +10,7 @@ import sys
 import warnings
 from collections import OrderedDict
 from pathlib import Path, PurePosixPath
-from typing import Dict, List, Tuple, Union, Callable, Optional, Any, Iterator
-from urllib.parse import urljoin
+from typing import Dict, List, Tuple, Union, Callable, Optional, Any, Iterator, Iterable
 
 import requests
 from requests import Response
@@ -20,13 +19,13 @@ from requests.auth import HTTPBasicAuth, AuthBase
 import openeo
 from openeo.capabilities import ApiVersionException, ComparableVersion
 from openeo.config import get_config_option, config_log
-from openeo.internal.graph_building import PGNode, as_flat_graph
+from openeo.internal.graph_building import PGNode, as_flat_graph, FlatGraphableMixin
 from openeo.internal.jupyter import VisualDict, VisualList
 from openeo.internal.processes.builder import ProcessBuilderBase
 from openeo.internal.warnings import legacy_alias, deprecated
 from openeo.metadata import CollectionMetadata, SpatialDimension, TemporalDimension, BandDimension, Band
 from openeo.rest import OpenEoClientException, OpenEoApiError, OpenEoRestError
-from openeo.rest.auth.auth import NullAuth, BearerAuth, BasicBearerAuth, OidcBearerAuth, OidcRefreshInfo
+from openeo.rest.auth.auth import NullAuth, BearerAuth, BasicBearerAuth, OidcBearerAuth
 from openeo.rest.auth.config import RefreshTokenStore, AuthConfig
 from openeo.rest.auth.oidc import OidcClientCredentialsAuthenticator, OidcAuthCodePkceAuthenticator, \
     OidcClientInfo, OidcAuthenticator, OidcRefreshTokenAuthenticator, OidcResourceOwnerPasswordAuthenticator, \
@@ -57,8 +56,12 @@ class RestApiConnection:
     """Base connection class implementing generic REST API request functionality"""
 
     def __init__(
-            self, root_url: str, auth: AuthBase = None, session: requests.Session = None,
-            default_timeout: Optional[int] = None, slow_response_threshold: Optional[float] = None,
+        self,
+        root_url: str,
+        auth: Optional[AuthBase] = None,
+        session: Optional[requests.Session] = None,
+        default_timeout: Optional[int] = None,
+        slow_response_threshold: Optional[float] = None,
     ):
         self._root_url = root_url
         self.auth = auth or NullAuth()
@@ -92,8 +95,17 @@ class RestApiConnection:
         root = self.root_url.rstrip("/")
         return not (url == root or url.startswith(root + '/'))
 
-    def request(self, method: str, path: str, headers: dict = None, auth: AuthBase = None,
-                check_error=True, expected_status=None, **kwargs):
+    def request(
+        self,
+        method: str,
+        path: str,
+        *,
+        headers: Optional[dict] = None,
+        auth: Optional[AuthBase] = None,
+        check_error: bool = True,
+        expected_status: Optional[Union[int, Iterable[int]]] = None,
+        **kwargs,
+    ):
         """Generic request send"""
         url = self.build_url(path)
         # Don't send default auth headers to external domains.
@@ -125,8 +137,8 @@ class RestApiConnection:
         if check_error and status >= 400 and status not in expected_status:
             self._raise_api_error(resp)
         if expected_status and status not in expected_status:
-            raise OpenEoRestError("Got status code {s!r} for `{m} {p}` (expected {e!r})".format(
-                m=method.upper(), p=path, s=status, e=expected_status)
+            raise OpenEoRestError("Got status code {s!r} for `{m} {p}` (expected {e!r}) with body {body}".format(
+                m=method.upper(), p=path, s=status, e=expected_status, body=resp.text)
             )
         return resp
 
@@ -156,7 +168,7 @@ class RestApiConnection:
                 exception = OpenEoApiError(http_status_code=status_code, message=text)
         raise exception
 
-    def get(self, path, stream=False, auth: AuthBase = None, **kwargs) -> Response:
+    def get(self, path: str, stream: bool = False, auth: Optional[AuthBase] = None, **kwargs) -> Response:
         """
         Do GET request to REST API.
 
@@ -167,7 +179,7 @@ class RestApiConnection:
         """
         return self.request("get", path=path, stream=stream, auth=auth, **kwargs)
 
-    def post(self, path, json: dict = None, **kwargs) -> Response:
+    def post(self, path: str, json: Optional[dict] = None, **kwargs) -> Response:
         """
         Do POST request to REST API.
 
@@ -177,7 +189,7 @@ class RestApiConnection:
         """
         return self.request("post", path=path, json=json, allow_redirects=False, **kwargs)
 
-    def delete(self, path, **kwargs) -> Response:
+    def delete(self, path: str, **kwargs) -> Response:
         """
         Do DELETE request to REST API.
 
@@ -186,7 +198,7 @@ class RestApiConnection:
         """
         return self.request("delete", path=path, allow_redirects=False, **kwargs)
 
-    def patch(self, path, **kwargs) -> Response:
+    def patch(self, path: str, **kwargs) -> Response:
         """
         Do PATCH request to REST API.
 
@@ -195,7 +207,7 @@ class RestApiConnection:
         """
         return self.request("patch", path=path, allow_redirects=False, **kwargs)
 
-    def put(self, path, headers: dict = None, data=None, **kwargs) -> Response:
+    def put(self, path: str, headers: Optional[dict] = None, data: Optional[dict] = None, **kwargs) -> Response:
         """
         Do PUT request to REST API.
 
@@ -218,9 +230,16 @@ class Connection(RestApiConnection):
     _MINIMUM_API_VERSION = ComparableVersion("1.0.0")
 
     def __init__(
-            self, url: str, auth: AuthBase = None, session: requests.Session = None, default_timeout: int = None,
-            auth_config: AuthConfig = None, refresh_token_store: RefreshTokenStore = None,
-            slow_response_threshold: Optional[float] = None,
+        self,
+        url: str,
+        *,
+        auth: Optional[AuthBase] = None,
+        session: Optional[requests.Session] = None,
+        default_timeout: Optional[int] = None,
+        auth_config: Optional[AuthConfig] = None,
+        refresh_token_store: Optional[RefreshTokenStore] = None,
+        slow_response_threshold: Optional[float] = None,
+        oidc_auth_renewer: Optional[OidcAuthenticator] = None,
     ):
         """
         Constructor of Connection, authenticates user.
@@ -242,9 +261,12 @@ class Connection(RestApiConnection):
 
         self._auth_config = auth_config
         self._refresh_token_store = refresh_token_store
+        self._oidc_auth_renewer = oidc_auth_renewer
 
     @classmethod
-    def version_discovery(cls, url: str, session: requests.Session = None, timeout: Optional[int] = None) -> str:
+    def version_discovery(
+        cls, url: str, session: Optional[requests.Session] = None, timeout: Optional[int] = None
+    ) -> str:
         """
         Do automatic openEO API version discovery from given url, using a "well-known URI" strategy.
 
@@ -276,7 +298,7 @@ class Connection(RestApiConnection):
             self._refresh_token_store = RefreshTokenStore()
         return self._refresh_token_store
 
-    def authenticate_basic(self, username: str = None, password: str = None) -> 'Connection':
+    def authenticate_basic(self, username: Optional[str] = None, password: Optional[str] = None) -> "Connection":
         """
         Authenticate a user to the backend using basic username and password.
 
@@ -312,6 +334,10 @@ class Connection(RestApiConnection):
         if len(providers) < 1:
             raise OpenEoClientException("Backend lists no OIDC providers.")
         _log.info("Found OIDC providers: {p}".format(p=list(providers.keys())))
+
+        # TODO: also support specifying provider through issuer URL?
+        provider_id_from_env = os.environ.get("OPENEO_AUTH_PROVIDER_ID")
+
         if provider_id:
             if provider_id not in providers:
                 raise OpenEoClientException(
@@ -319,6 +345,10 @@ class Connection(RestApiConnection):
                         r=provider_id, p=list(providers.keys())
                     )
                 )
+            provider = providers[provider_id]
+        elif provider_id_from_env and provider_id_from_env in providers:
+            _log.info(f"Using provider_id {provider_id_from_env!r} from OPENEO_AUTH_PROVIDER_ID env var")
+            provider_id = provider_id_from_env
             provider = providers[provider_id]
         elif len(providers) == 1:
             provider_id, provider = providers.popitem()
@@ -386,14 +416,14 @@ class Connection(RestApiConnection):
         return provider_id, client_info
 
     def _authenticate_oidc(
-            self,
-            authenticator: OidcAuthenticator,
-            *,
-            provider_id: str,
-            store_refresh_token: bool = False,
-            fallback_refresh_token_to_store: Optional[str] = None,
-            refreshable: bool = False,
-    ) -> 'Connection':
+        self,
+        authenticator: OidcAuthenticator,
+        *,
+        provider_id: str,
+        store_refresh_token: bool = False,
+        fallback_refresh_token_to_store: Optional[str] = None,
+        oidc_auth_renewer: Optional[OidcAuthenticator] = None,
+    ) -> "Connection":
         """
         Authenticate through OIDC and set up bearer token (based on OIDC access_token) for further requests.
         """
@@ -407,34 +437,34 @@ class Connection(RestApiConnection):
                     client_id=authenticator.client_id,
                     refresh_token=refresh_token
                 )
-                refreshable = True
+                if not oidc_auth_renewer:
+                    oidc_auth_renewer = OidcRefreshTokenAuthenticator(
+                        client_info=authenticator.client_info, refresh_token=refresh_token
+                    )
             else:
                 _log.warning("No OIDC refresh token to store.")
         token = tokens.access_token
-        if refreshable:
-            refresh_data = OidcRefreshInfo(
-                provider_id=provider_id,
-                client_id=authenticator.client_id,
-            )
-        else:
-            refresh_data = None
-        self.auth = OidcBearerAuth(
-            provider_id=provider_id, access_token=token, refresh_data=refresh_data
-        )
+        self.auth = OidcBearerAuth(provider_id=provider_id, access_token=token)
+        self._oidc_auth_renewer = oidc_auth_renewer
         return self
 
     def authenticate_oidc_authorization_code(
-            self,
-            client_id: str = None,
-            client_secret: str = None,
-            provider_id: str = None,
-            timeout: int = None,
-            server_address: Tuple[str, int] = None,
-            webbrowser_open: Callable = None,
-            store_refresh_token=False,
-    ) -> 'Connection':
+        self,
+        client_id: Optional[str] = None,
+        client_secret: Optional[str] = None,
+        provider_id: Optional[str] = None,
+        timeout: Optional[int] = None,
+        server_address: Optional[Tuple[str, int]] = None,
+        webbrowser_open: Optional[Callable] = None,
+        store_refresh_token=False,
+    ) -> "Connection":
         """
         OpenID Connect Authorization Code Flow (with PKCE).
+
+        .. deprecated:: 0.19.0
+            Usage of the Authorization Code flow is deprecated (because of its complexity) and will be removed.
+            It is recommended to use the Device Code flow  with :py:meth:`authenticate_oidc_device`
+            or Client Credentials flow with :py:meth:`authenticate_oidc_client_credentials`.
         """
         provider_id, client_info = self._get_oidc_provider_and_client_info(
             provider_id=provider_id, client_id=client_id, client_secret=client_secret,
@@ -453,12 +483,18 @@ class Connection(RestApiConnection):
         provider_id: Optional[str] = None,
     ) -> 'Connection':
         """
-        OpenID Connect Client Credentials flow.
+        Authenticate with :ref:`OIDC Client Credentials flow <authenticate_oidc_client_credentials>`
 
         Client id, secret and provider id can be specified directly through the available arguments.
         It is also possible to leave these arguments empty and specify them through
         environment variables ``OPENEO_AUTH_CLIENT_ID``,
-        ``OPENEO_AUTH_CLIENT_SECRET`` and ``OPENEO_AUTH_PROVIDER_ID`` respectively.
+        ``OPENEO_AUTH_CLIENT_SECRET`` and ``OPENEO_AUTH_PROVIDER_ID`` respectively
+        as discussed in :ref:`authenticate_oidc_client_credentials_env_vars`.
+
+        :param client_id: client id to use
+        :param client_secret: client secret to use
+        :param provider_id: provider id to use
+            Fallback value can be set through environment variable ``OPENEO_AUTH_PROVIDER_ID``.
 
         .. versionchanged:: 0.18.0 Allow specifying client id, secret and provider id through environment variables.
         """
@@ -468,23 +504,23 @@ class Connection(RestApiConnection):
             client_secret = os.environ.get("OPENEO_AUTH_CLIENT_SECRET")
             _log.debug(f"Getting client id ({client_id}) and secret from environment")
 
-        # TODO: also support specifying provider through issuer URL?
-        provider_id = provider_id or os.environ.get("OPENEO_AUTH_PROVIDER_ID")
-
         provider_id, client_info = self._get_oidc_provider_and_client_info(
             provider_id=provider_id, client_id=client_id, client_secret=client_secret
         )
         authenticator = OidcClientCredentialsAuthenticator(client_info=client_info)
-        return self._authenticate_oidc(authenticator, provider_id=provider_id, store_refresh_token=False)
+        return self._authenticate_oidc(
+            authenticator, provider_id=provider_id, store_refresh_token=False, oidc_auth_renewer=authenticator
+        )
 
     def authenticate_oidc_resource_owner_password_credentials(
-            self,
-            username: str, password: str,
-            client_id: str = None,
-            client_secret: str = None,
-            provider_id: str = None,
-            store_refresh_token=False
-    ) -> 'Connection':
+        self,
+        username: str,
+        password: str,
+        client_id: Optional[str] = None,
+        client_secret: Optional[str] = None,
+        provider_id: Optional[str] = None,
+        store_refresh_token: bool = False,
+    ) -> "Connection":
         """
         OpenId Connect Resource Owner Password Credentials
         """
@@ -498,11 +534,25 @@ class Connection(RestApiConnection):
         return self._authenticate_oidc(authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token)
 
     def authenticate_oidc_refresh_token(
-            self, client_id: str = None, refresh_token: str = None, client_secret: str = None, provider_id: str = None,
-            store_refresh_token=False,
-    ) -> 'Connection':
+        self,
+        client_id: Optional[str] = None,
+        refresh_token: Optional[str] = None,
+        client_secret: Optional[str] = None,
+        provider_id: Optional[str] = None,
+        *,
+        store_refresh_token: bool = False,
+    ) -> "Connection":
         """
-        OpenId Connect Refresh Token
+        Authenticate with :ref:`OIDC Refresh Token flow <authenticate_oidc_client_credentials>`
+
+        :param client_id: client id to use
+        :param refresh_token: refresh token to use
+        :param client_secret: client secret to use
+        :param provider_id: provider id to use.
+            Fallback value can be set through environment variable ``OPENEO_AUTH_PROVIDER_ID``.
+        :param store_refresh_token: whether to store the received refresh token automatically
+
+        .. versionchanged:: 0.19.0 Support fallback provider id through environment variable ``OPENEO_AUTH_PROVIDER_ID``.
         """
         provider_id, client_info = self._get_oidc_provider_and_client_info(
             provider_id=provider_id, client_id=client_id, client_secret=client_secret,
@@ -523,7 +573,7 @@ class Connection(RestApiConnection):
             provider_id=provider_id,
             store_refresh_token=store_refresh_token,
             fallback_refresh_token_to_store=refresh_token,
-            refreshable=True,
+            oidc_auth_renewer=authenticator,
         )
 
     def authenticate_oidc_device(
@@ -538,14 +588,22 @@ class Connection(RestApiConnection):
         **kwargs,
     ) -> "Connection":
         """
-        Authenticate with OAuth Device Authorization grant/flow
+        Authenticate with the :ref:`OIDC Device Code flow <authenticate_oidc_device>`
 
+        :param client_id: client id to use instead of the default one
+        :param client_secret: client secret to use instead of the default one
+        :param provider_id: provider id to use.
+            Fallback value can be set through environment variable ``OPENEO_AUTH_PROVIDER_ID``.
+        :param store_refresh_token: whether to store the received refresh token automatically
         :param use_pkce: Use PKCE instead of client secret.
             If not set explicitly to `True` (use PKCE) or `False` (use client secret),
             it will be attempted to detect the best mode automatically.
             Note that PKCE for device code is not widely supported among OIDC providers.
+        :param max_poll_time: maximum time in seconds to keep polling for successful authentication.
 
         .. versionchanged:: 0.5.1 Add :py:obj:`use_pkce` argument
+        .. versionchanged:: 0.17.0 Add :py:obj:`max_poll_time` argument
+        .. versionchanged:: 0.19.0 Support fallback provider id through environment variable ``OPENEO_AUTH_PROVIDER_ID``.
         """
         _g = DefaultOidcClientGrant  # alias for compactness
         provider_id, client_info = self._get_oidc_provider_and_client_info(
@@ -581,10 +639,20 @@ class Connection(RestApiConnection):
         set ``OPENEO_AUTH_CLIENT_ID`` to the client id,
         and set ``OPENEO_AUTH_CLIENT_SECRET`` to the client secret.
 
+        See :ref:`authenticate_oidc_automatic` for more details.
+
+        :param provider_id: provider id to use
+        :param client_id: client id to use
+        :param client_secret: client secret to use
+        :param max_poll_time: maximum time in seconds to keep polling for successful authentication.
+
         .. versionadded:: 0.6.0
+        .. versionchanged:: 0.17.0 Add :py:obj:`max_poll_time` argument
         .. versionchanged:: 0.18.0 Add support for client credentials flow.
         """
         # TODO: unify `os.environ.get` with `get_config_option`?
+        # TODO also support OPENEO_AUTH_CLIENT_ID, ... env vars for refresh token and device code auth?
+
         auth_method = os.environ.get("OPENEO_AUTH_METHOD")
         if auth_method == "client_credentials":
             _log.debug("authenticate_oidc: going for 'client_credentials' authentication")
@@ -638,8 +706,14 @@ class Connection(RestApiConnection):
         return con
 
     def request(
-            self, method: str, path: str, headers: dict = None, auth: AuthBase = None,
-            check_error=True, expected_status=None, **kwargs,
+        self,
+        method: str,
+        path: str,
+        headers: Optional[dict] = None,
+        auth: Optional[AuthBase] = None,
+        check_error: bool = True,
+        expected_status: Optional[Union[int, Iterable[int]]] = None,
+        **kwargs,
     ):
         # Do request, but with retry when access token has expired and refresh token is available.
         def _request():
@@ -654,24 +728,20 @@ class Connection(RestApiConnection):
         except OpenEoApiError as api_exc:
             if api_exc.http_status_code == 403 and api_exc.code == "TokenInvalid":
                 # Auth token expired: can we refresh?
-                if isinstance(self.auth, OidcBearerAuth) and self.auth.refresh_data:
-                    _log.debug(
-                        f"Back-end request failed with {str(api_exc)!r}."
-                        f" Trying to re-authenticate with the refresh token."
-                    )
+                if isinstance(self.auth, OidcBearerAuth) and self._oidc_auth_renewer:
+                    msg = f"OIDC access token expired ({api_exc.http_status_code} {api_exc.code})."
                     try:
-                        self.authenticate_oidc_refresh_token(
-                            client_id=self.auth.refresh_data.client_id,
-                            provider_id=self.auth.refresh_data.provider_id,
+                        self._authenticate_oidc(
+                            authenticator=self._oidc_auth_renewer,
+                            provider_id=self._oidc_auth_renewer.provider_info.id,
+                            store_refresh_token=False,
+                            oidc_auth_renewer=self._oidc_auth_renewer,
                         )
-                        _log.warning(
-                            f"Connection with expired access token ([{api_exc.http_status_code}] {api_exc.code})"
-                            f" automatically re-authenticated with refresh token."
-                        )
+                        _log.info(f"{msg} Obtained new access token (grant {self._oidc_auth_renewer.grant_type!r}).")
                     except OpenEoClientException as auth_exc:
                         _log.error(
-                            f"Connection with expired access token ([{api_exc.http_status_code}] {api_exc.code})"
-                            f" failed to automatically re-authenticate using refresh token: {auth_exc!r}.")
+                            f"{msg} Failed to obtain new access token (grant {self._oidc_auth_renewer.grant_type!r}): {auth_exc!r}."
+                        )
                     else:
                         # Retry request.
                         return _request()
@@ -793,7 +863,13 @@ class Connection(RestApiConnection):
         data = self.get(f"/collections/{collection_id}", expected_status=200).json()
         return VisualDict("collection", data=data)
 
-    def collection_items(self, name, spatial_extent: Optional[List[float]] = None, temporal_extent: Optional[List[Union[str, datetime.datetime]]] = None, limit: int = None) -> Iterator[dict]:
+    def collection_items(
+        self,
+        name,
+        spatial_extent: Optional[List[float]] = None,
+        temporal_extent: Optional[List[Union[str, datetime.datetime]]] = None,
+        limit: Optional[int] = None,
+    ) -> Iterator[dict]:
         """
         Loads items for a specific image collection.
         May not be available for all collections.
@@ -829,7 +905,7 @@ class Connection(RestApiConnection):
         # TODO: duplication with `Connection.describe_collection`: deprecate one or the other?
         return CollectionMetadata(metadata=self.describe_collection(name))
 
-    def list_processes(self, namespace: str = None) -> List[dict]:
+    def list_processes(self, namespace: Optional[str] = None) -> List[dict]:
         # TODO: Maybe format the result dictionary so that the process_id is the key of the dictionary.
         """
         Loads all available processes of the back end.
@@ -847,7 +923,7 @@ class Connection(RestApiConnection):
             processes = self.get('/processes/' + namespace, expected_status=200).json()["processes"]
         return VisualList("processes", data=processes, parameters={'show-graph': True, 'provide-download': False})
 
-    def describe_process(self, id: str, namespace: str = None) -> dict:
+    def describe_process(self, id: str, namespace: Optional[str] = None) -> dict:
         """
         Returns a single process from the back end.
 
@@ -970,7 +1046,7 @@ class Connection(RestApiConnection):
         )
         return VectorCube(graph=graph, connection=self)
 
-    def datacube_from_process(self, process_id: str, namespace: str = None, **kwargs) -> DataCube:
+    def datacube_from_process(self, process_id: str, namespace: Optional[str] = None, **kwargs) -> DataCube:
         """
         Load a data cube from a (custom) process.
 
@@ -982,7 +1058,7 @@ class Connection(RestApiConnection):
         graph = PGNode(process_id, namespace=namespace, arguments=kwargs)
         return DataCube(graph=graph, connection=self)
 
-    def datacube_from_flat_graph(self, flat_graph: dict, parameters: dict = None) -> DataCube:
+    def datacube_from_flat_graph(self, flat_graph: dict, parameters: Optional[dict] = None) -> DataCube:
         """
         Construct a :py:class:`DataCube` from a flat dictionary representation of a process graph.
 
@@ -1005,7 +1081,7 @@ class Connection(RestApiConnection):
         pgnode = PGNode.from_flat_graph(flat_graph=flat_graph, parameters=parameters or {})
         return DataCube(graph=pgnode, connection=self)
 
-    def datacube_from_json(self, src: Union[str, Path], parameters: dict = None) -> DataCube:
+    def datacube_from_json(self, src: Union[str, Path], parameters: Optional[dict] = None) -> DataCube:
         """
         Construct a :py:class:`DataCube` from JSON resource containing (flat) process graph representation.
 
@@ -1293,24 +1369,26 @@ class Connection(RestApiConnection):
             metadata = resp.json()
         return UserFile.from_metadata(metadata=metadata, connection=self)
 
-    def _build_request_with_process_graph(self, process_graph: Union[dict, Any], **kwargs) -> dict:
+    def _build_request_with_process_graph(self, process_graph: Union[dict, FlatGraphableMixin, Any], **kwargs) -> dict:
         """
         Prepare a json payload with a process graph to submit to /result, /services, /jobs, ...
         :param process_graph: flat dict representing a process graph
         """
+        # TODO: make this a more general helper (like `as_flat_graph`)
         result = kwargs
         process_graph = as_flat_graph(process_graph)
         if "process_graph" not in process_graph:
             process_graph = {"process_graph": process_graph}
+        # TODO: also check if `process_graph` already has "process" key (i.e. is a "process graph with metadata already)
         result["process"] = process_graph
         return result
 
     # TODO: unify `download` and `execute` better: e.g. `download` always writes to disk, `execute` returns result (raw or as JSON decoded dict)
     def download(
-            self,
-            graph: Union[dict, str, Path],
-            outputfile: Union[Path, str, None] = None,
-            timeout: int = 30 * 60,
+        self,
+        graph: Union[dict, FlatGraphableMixin, str, Path],
+        outputfile: Union[Path, str, None] = None,
+        timeout: int = 30 * 60,
     ) -> Union[None, bytes]:
         """
         Downloads the result of a process graph synchronously,
@@ -1422,14 +1500,28 @@ class Connection(RestApiConnection):
             self, format, glob_pattern, **(options or {})
         )
 
-    def as_curl(self, data: Union[dict, DataCube], path="/result", method="POST", obfuscate_auth: bool = False) -> str:
+    def as_curl(
+        self,
+        data: Union[dict, DataCube, FlatGraphableMixin],
+        path="/result",
+        method="POST",
+        obfuscate_auth: bool = False,
+    ) -> str:
         """
         Build curl command to evaluate given process graph or data cube
         (including authorization and content-type headers).
 
-        :param data: process graph dictionary or :py:class:`~openeo.rest.datacube.DataCube` object
-        :param path: endpoint to send request to
-        :param method: HTTP method to use
+            >>> print(connection.as_curl(cube))
+            curl -i -X POST -H 'Content-Type: application/json' -H 'Authorization: Bearer ...' \\
+                --data '{"process":{"process_graph":{...}}' \\
+                https://openeo.example/openeo/1.1/result
+
+        :param data: something that is convertable to an openEO process graph: a dictionary,
+            a :py:class:`~openeo.rest.datacube.DataCube` object,
+            a :py:class:`~openeo.processes.ProcessBuilder`, ...
+        :param path: endpoint to send request to: typically ``"/result"`` (default) for synchronous requests
+            or ``"/jobs"`` for batch jobs
+        :param method: HTTP method to use (typically ``"POST"``)
         :param obfuscate_auth: don't show actual bearer token
 
         :return: curl command as a string
@@ -1533,7 +1625,7 @@ def session(userid=None, endpoint: str = "https://openeo.org/openeo") -> Connect
     return connect(url=endpoint)
 
 
-def paginate(con: Connection, url: str, params: dict = None, callback: Callable = lambda resp, page: resp):
+def paginate(con: Connection, url: str, params: Optional[dict] = None, callback: Callable = lambda resp, page: resp):
     # TODO: make this a method `get_paginated` on `RestApiConnection`?
     # TODO: is it necessary to have `callback`? It's only used just before yielding,
     #       so it's probably cleaner (even for the caller) to to move it outside.

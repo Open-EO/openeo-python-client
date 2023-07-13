@@ -8,14 +8,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added automatically renewal of access tokens with OIDC client credentials grant (`Connection.authenticate_oidc_client_credentials`)
+  ([#436](https://github.com/Open-EO/openeo-python-client/issues/436))
+
 ### Changed
+
+- Simplified `BatchJob` methods `start()`, `stop()`, `describe()`, ...
+  Legacy aliases `start_job()`, `describe_job()`, ... are still available and don't trigger a deprecation warning for now.
+  ([#280](https://github.com/Open-EO/openeo-python-client/issues/280))
 
 ### Removed
 
 ### Fixed
 
+
+## [0.19.0] - 2023-06-16
+
+### Added
+
+- Generalized support for setting (default) OIDC provider id through env var `OPENEO_AUTH_PROVIDER_ID`
+  [#419](https://github.com/Open-EO/openeo-python-client/issues/419)
+- Added `OidcDeviceCodePollTimeout`: specific exception for OIDC device code flow poll timeouts
+- On-demand preview: Added `DataCube.preview()` to generate a XYZ service with the process graph and display a map widget
+
+### Fixed
+
 - Fix format option conflict between `save_result` and `create_job`
   [#433](https://github.com/Open-EO/openeo-python-client/issues/433)
+- Ensure that OIDC device code link opens in a new tab/window [#443](https://github.com/Open-EO/openeo-python-client/issues/443)
 
 
 ## [0.18.0] - 2023-05-31
@@ -36,7 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `Connection.authenticate_oidc()`: add argument to set maximum device code flow poll time
+- `Connection.authenticate_oidc()`: add argument `max_poll_time` to set maximum device code flow poll time
 - Show progress bar while waiting for OIDC authentication with device code flow,
   including special mode for in Jupyter notebooks.
   ([#237](https://github.com/Open-EO/openeo-python-client/issues/237))

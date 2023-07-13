@@ -358,6 +358,10 @@ class OidcAuthenticator:
         self._requests = requests_session or requests.Session()
 
     @property
+    def client_info(self) -> OidcClientInfo:
+        return self._client_info
+
+    @property
     def client_id(self) -> str:
         return self._client_info.client_id
 
@@ -468,6 +472,9 @@ class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
         and shuts down the side thread
     - The authorization code is exchanged for an access code and id token
     - The access code can be used as bearer token for subsequent API calls
+
+    .. deprecated:: 0.19.0
+        Usage of the Authorization Code flow is deprecated (because of its complexity) and will be removed.
     """
 
     grant_type = "authorization_code"
@@ -729,7 +736,9 @@ class _JupyterDeviceCodePollUi(_BasicDeviceCodePollUi):
 
     def _instructions(self, info: VerificationInfo) -> str:
         url = info.verification_uri_complete if info.verification_uri_complete else info.verification_uri
-        instructions = f'Visit <a href="{url}" title="Authenticate at {url}">{url}</a>'
+        instructions = (
+            f'Visit <a href="{url}" title="Authenticate at {url}" target="_blank" rel="noopener noreferrer">{url}</a>'
+        )
         instructions += f' <a href="#" onclick="navigator.clipboard.writeText({url!r});return false;" title="Copy authentication URL to clipboard">&#128203;</a>'
         if not info.verification_uri_complete:
             instructions += f" and enter user code {info.user_code!r}"
@@ -748,6 +757,10 @@ class _JupyterDeviceCodePollUi(_BasicDeviceCodePollUi):
 
     def close(self):
         pass
+
+
+class OidcDeviceCodePollTimeout(OidcException):
+    pass
 
 
 class OidcDeviceAuthenticator(OidcAuthenticator):
@@ -874,4 +887,4 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
                     next_poll = elapsed() + poll_interval
 
             poll_ui.show_progress(status="Timed out")
-            raise OidcException(f"Timeout ({self._max_poll_time:.1f}s) while polling for access token.")
+            raise OidcDeviceCodePollTimeout(f"Timeout ({self._max_poll_time:.1f}s) while polling for access token.")

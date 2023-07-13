@@ -7,36 +7,74 @@
 [![Conda (channel only)](https://img.shields.io/conda/vn/conda-forge/openeo)](https://anaconda.org/conda-forge/openeo)
 
 
-
-
 # openEO Python Client
 
 Python Client Library for the [openEO API](https://github.com/Open-EO/openeo-api).
 Allows you to interact with openEO backends from your own (local) Python environment.
-[Read more on usage in the documentation.](https://open-eo.github.io/openeo-python-client/)
 
-[Quick Start Guide](https://openeo.org/documentation/1.0/python/#installation)
+[openEO Python Client Library docs](https://open-eo.github.io/openeo-python-client/)
 
 
-## Requirements and installation
+## Usage example
 
-* Requirement: a **Python 3.6 (or higher) environment**
-    where some dependencies can be installed
-    (including usual suspects like `numpy` and `pandas`)
+A simple example, to give a feel of using this library:
 
-    Note for Windows users: it is recommended to work with
-    [Anaconda Python](https://www.anaconda.com/products/individual)
-    as the `shapely` dependency may need to be installed separately
-    (e.g. using the Anaconda Navigator).
+```python
+import openeo
 
-* Basic installation procedure (in a `pip` powered environment):
+# Connect to openEO back-end.
+connection = openeo.connect("openeo.vito.be").authenticate_oidc()
 
-        pip install openeo
+# Load data cube from TERRASCOPE_S2_NDVI_V2 collection.
+cube = connection.load_collection(
+    "TERRASCOPE_S2_NDVI_V2",
+    spatial_extent={"west": 5.05, "south": 51.21, "east": 5.1, "north": 51.23},
+    temporal_extent=["2022-05-01", "2022-05-30"],
+    bands=["NDVI_10M"],
+)
+# Rescale digital number to physical values and take temporal maximum.
+cube = cube.apply(lambda x: 0.004 * x - 0.08).max_time()
 
-## Usage
+cube.download("ndvi-max.tiff")
+```
 
-[Python client documentation](https://open-eo.github.io/openeo-python-client/)
+![Example result](https://raw.githubusercontent.com/Open-EO/openeo-python-client/master/docs/_static/images/welcome.png)
 
-[Some example scripts](https://github.com/Open-EO/openeo-python-client/blob/master/examples)
 
-[General OpenEO background](https://open-eo.github.io/openeo-api/)
+See the [openEO Python Client Library documentation](https://open-eo.github.io/openeo-python-client/) for more details,
+examples and in-depth discussion.
+
+
+## Installation
+
+Python 3.6 or higher is required.
+As always, it is recommended to work in some kind of virtual environment
+(using `venv`, `virtualenv`, conda, docker, ...)
+to install the `openeo` package and its dependencies:
+
+    pip install openeo
+
+See the [installation docs](https://open-eo.github.io/openeo-python-client/installation.html)
+for more information, extras and alternatives.
+
+
+
+## General openEO background and links
+
+- [openEO.org](https://openeo.org/)
+- [api.openEO.org](https://api.openeo.org/)
+- [processes.openEO.org](https://processes.openeo.org/)
+
+
+## Contributions and funding
+
+The authors acknowledge the financial support for the development of this package
+during the H2020 project "openEO" (Oct 2017 to Sept 2020) by the European Union, funded by call EO-2-2017: EO Big Data Shift, under grant number 776242.
+We also acknowledge the financial support received from ESA for the project "openEO Platform" (Sept 2020 to Sept 2023).
+
+This package received major contributions from the following organizations:
+
+[<img src="https://raw.githubusercontent.com/Open-EO/openeo-python-client/master/docs/_static/images/vito-logo.png" alt="VITO Remote Sensing logo" title="VITO Remote Sensing" height="50">](https://remotesensing.vito.be/) &emsp;
+[<img src="https://www.uni-muenster.de/imperia/md/images/allgemein/farbunabhaengig/wwu.svg" alt="WWU Münster logo" title="University of Münster" height="50">](https://www.uni-muenster.de/) &emsp;
+[<img src="https://upload.wikimedia.org/wikipedia/commons/9/9b/Eurac_Research_-_logo.png" alt="Eurac Research logo" title="Eurac Research" height="50">](https://www.eurac.edu/) &emsp;
+[<img src="https://upload.wikimedia.org/wikipedia/commons/e/e5/TU_Signet_CMYK.svg" alt="TU Wien Logo" title="Technische Universität Wien" height="50">](https://www.tuwien.at/) &emsp;

@@ -168,11 +168,11 @@ Run a batch job
 =================
 
 Starting a batch job is pretty straightforward with the
-:py:meth:`~openeo.rest.job.BatchJob.start_job()` method:
+:py:meth:`~openeo.rest.job.BatchJob.start()` method:
 
 .. code-block:: python
 
-    job.start_job()
+    job.start()
 
 If this didn't raise any errors or exceptions your job
 should now have started (status "running")
