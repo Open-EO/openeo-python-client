@@ -31,7 +31,7 @@ from openeo.internal.jupyter import in_jupyter_context
 from openeo.metadata import CollectionMetadata, Band, BandDimension, TemporalDimension, SpatialDimension
 from openeo.processes import ProcessBuilder
 from openeo.rest import BandMathException, OperatorException, OpenEoClientException
-from openeo.rest._datacube import _ProcessGraphAbstraction, THIS, UDF
+from openeo.rest._datacube import _ProcessGraphAbstraction, THIS, UDF, _Cube
 from openeo.rest.job import BatchJob
 from openeo.rest.mlmodel import MlModel
 from openeo.rest.service import Service
@@ -50,8 +50,7 @@ log = logging.getLogger(__name__)
 
 
 
-
-class DataCube(_ProcessGraphAbstraction):
+class DataCube(_Cube):
     """
     Class representing a openEO (raster) data cube.
 
@@ -60,7 +59,7 @@ class DataCube(_ProcessGraphAbstraction):
     """
 
     # TODO: set this based on back-end or user preference?
-    _DEFAULT_RASTER_FORMAT = "GTiff"
+    _DEFAULT_OUTPUT_FORMAT = "GTiff"
 
     def __init__(self, graph: PGNode, connection: 'openeo.Connection', metadata: CollectionMetadata = None):
         super().__init__(pgnode=graph, connection=connection)
@@ -1873,7 +1872,7 @@ class DataCube(_ProcessGraphAbstraction):
     @openeo_process
     def save_result(
         self,
-        format: str = _DEFAULT_RASTER_FORMAT,
+        format: str = _DEFAULT_OUTPUT_FORMAT,
         options: Optional[dict] = None,
     ) -> "DataCube":
         formats = set(self._connection.list_output_formats().keys())
@@ -1922,7 +1921,7 @@ class DataCube(_ProcessGraphAbstraction):
         else:
             # No `save_result` node yet: automatically add it.
             cube = self.save_result(
-                format=format or self._DEFAULT_RASTER_FORMAT, options=options
+                format=format or self._DEFAULT_OUTPUT_FORMAT, options=options
             )
         return cube
 
@@ -2146,8 +2145,9 @@ class DataCube(_ProcessGraphAbstraction):
         )
 
     def execute(self) -> dict:
-        """Executes the process graph of the imagery. """
-        return self._connection.execute(self.flat_graph())
+        """Executes the process graph."""
+        # TODO: still necessary to do this explicitly here?
+        return super().execute()
 
     @staticmethod
     @deprecated(reason="Use :py:func:`openeo.udf.run_code.execute_local_udf` instead", version="0.7.0")

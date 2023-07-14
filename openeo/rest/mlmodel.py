@@ -24,6 +24,8 @@ class MlModel(_ProcessGraphAbstraction):
 
     .. versionadded:: 0.10.0
     """
+
+    # TODO
     def __init__(self, graph: PGNode, connection: 'Connection'):
         super().__init__(pgnode=graph, connection=connection)
 
