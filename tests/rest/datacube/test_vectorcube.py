@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import List
 
 import pytest
@@ -89,8 +90,12 @@ def test_raster_to_vector(con100):
         ("result.nc", "GeoJSON"),  # TODO #401 autodetect format from filename
     ],
 )
-def test_download_auto_save_result_only_file(vector_cube, download_spy, tmp_path, filename, expected_format):
-    vector_cube.download(tmp_path / filename)
+@pytest.mark.parametrize("path_class", [str, Path])
+def test_download_auto_save_result_only_file(
+    vector_cube, download_spy, tmp_path, filename, expected_format, path_class
+):
+    output_path = tmp_path / filename
+    vector_cube.download(path_class(output_path))
 
     assert download_spy.only_request == {
         "createvectorcube1": {"process_id": "create_vector_cube", "arguments": {}},
@@ -104,7 +109,7 @@ def test_download_auto_save_result_only_file(vector_cube, download_spy, tmp_path
             "result": True,
         },
     }
-    assert (tmp_path / filename).read_bytes() == b"Spy data"
+    assert output_path.read_bytes() == b"Spy data"
 
 
 @pytest.mark.parametrize(
@@ -116,12 +121,13 @@ def test_download_auto_save_result_only_file(vector_cube, download_spy, tmp_path
         # TODO #401 more formats to autodetect?
         ("result.nc", "NETcDf", "NETcDf"),  # TODO #401 normalize format
         ("result.nc", "inV6l1d!!!", "inV6l1d!!!"),  # TODO #401 this should fail
-        ("result.json", None, None),  # TODO #401 autodetect format from filename
-        ("result.nc", None, None),  # TODO #401 autodetect format from filename
+        ("result.json", None, "GeoJSON"),  # TODO #401 autodetect format from filename?
+        ("result.nc", None, "GeoJSON"),  # TODO #401 autodetect format from filename
     ],
 )
 def test_download_auto_save_result_with_format(vector_cube, download_spy, tmp_path, filename, format, expected_format):
-    vector_cube.download(tmp_path / filename, format=format)
+    output_path = tmp_path / filename
+    vector_cube.download(output_path, format=format)
 
     assert download_spy.only_request == {
         "createvectorcube1": {"process_id": "create_vector_cube", "arguments": {}},
@@ -135,11 +141,12 @@ def test_download_auto_save_result_with_format(vector_cube, download_spy, tmp_pa
             "result": True,
         },
     }
-    assert (tmp_path / filename).read_bytes() == b"Spy data"
+    assert output_path.read_bytes() == b"Spy data"
 
 
 def test_download_auto_save_result_with_options(vector_cube, download_spy, tmp_path):
-    vector_cube.download(tmp_path / "result.json", format="GeoJSON", options={"precision": 7})
+    output_path = tmp_path / "result.json"
+    vector_cube.download(output_path, format="GeoJSON", options={"precision": 7})
 
     assert download_spy.only_request == {
         "createvectorcube1": {"process_id": "create_vector_cube", "arguments": {}},
@@ -153,24 +160,28 @@ def test_download_auto_save_result_with_options(vector_cube, download_spy, tmp_p
             "result": True,
         },
     }
-    assert (tmp_path / "result.json").read_bytes() == b"Spy data"
+    assert output_path.read_bytes() == b"Spy data"
 
 
-def test_save_result_and_download(vector_cube, download_spy, tmp_path):
+@pytest.mark.parametrize(
+    ["format", "expected_format"],
+    [
+        (None, "GeoJSON"),
+        ("JSON", "JSON"),
+        ("netCDF", "netCDF"),
+    ],
+)
+def test_save_result_and_download(vector_cube, download_spy, tmp_path, format, expected_format):
     """e.g. https://github.com/Open-EO/openeo-geopyspark-driver/issues/477"""
-    vector_cube = vector_cube.save_result(format="JSON")
-    vector_cube.download(tmp_path / "result.json")
-    # TODO #401 there should only be one save_result node
+    vector_cube = vector_cube.save_result(format=format)
+    output_path = tmp_path / "result.json"
+    vector_cube.download(output_path)
     assert download_spy.only_request == {
         "createvectorcube1": {"process_id": "create_vector_cube", "arguments": {}},
         "saveresult1": {
             "process_id": "save_result",
-            "arguments": {"data": {"from_node": "createvectorcube1"}, "format": "JSON", "options": {}},
-        },
-        "saveresult2": {
-            "process_id": "save_result",
-            "arguments": {"data": {"from_node": "saveresult1"}, "format": "GeoJSON", "options": {}},
+            "arguments": {"data": {"from_node": "createvectorcube1"}, "format": expected_format, "options": {}},
             "result": True,
         },
     }
-    assert (tmp_path / "result.json").read_bytes() == b"Spy data"
+    assert output_path.read_bytes() == b"Spy data"

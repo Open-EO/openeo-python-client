@@ -1904,7 +1904,7 @@ class DataCube(_ProcessGraphAbstraction):
         :param options: (optional) desired `save_result` file format parameters
         :return:
         """
-        # TODO: move to generic data cube parent class (not only for raster cubes, but also vector cubes)
+        # TODO #401 Unify with VectorCube._ensure_save_result and move to generic data cube parent class (not only for raster cubes, but also vector cubes)
         result_node = self.result_node()
         if result_node.process_id == "save_result":
             # There is already a `save_result` node:
