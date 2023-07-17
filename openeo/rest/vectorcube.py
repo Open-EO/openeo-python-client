@@ -89,23 +89,57 @@ class VectorCube(_ProcessGraphAbstraction):
         )
 
     @openeo_process
-    def save_result(self, format: str = "GeoJson", options: dict = None):
+    def save_result(self, format: Union[str, None] = "GeoJSON", options: dict = None):
+        # TODO #401: guard against duplicate save_result nodes?
         return self.process(
             process_id="save_result",
             arguments={
                 "data": self,
-                "format": format,
-                "options": options or {}
-            }
+                "format": format or "GeoJSON",
+                "options": options or {},
+            },
         )
+
+    def _ensure_save_result(
+        self,
+        format: Optional[str] = None,
+        options: Optional[dict] = None,
+    ) -> "VectorCube":
+        """
+        Make sure there is a (final) `save_result` node in the process graph.
+        If there is already one: check if it is consistent with the given format/options (if any)
+        and add a new one otherwise.
+
+        :param format: (optional) desired `save_result` file format
+        :param options: (optional) desired `save_result` file format parameters
+        :return:
+        """
+        # TODO #401 Unify with DataCube._ensure_save_result and move to generic data cube parent class
+        result_node = self.result_node()
+        if result_node.process_id == "save_result":
+            # There is already a `save_result` node:
+            # check if it is consistent with given format/options (if any)
+            args = result_node.arguments
+            if format is not None and format.lower() != args["format"].lower():
+                raise ValueError(f"Existing `save_result` node with different format {args['format']!r} != {format!r}")
+            if options is not None and options != args["options"]:
+                raise ValueError(
+                    f"Existing `save_result` node with different options {args['options']!r} != {options!r}"
+                )
+            cube = self
+        else:
+            # No `save_result` node yet: automatically add it.
+            cube = self.save_result(format=format or "GeoJSON", options=options)
+        return cube
 
     def execute(self) -> dict:
         """Executes the process graph of the imagery."""
         return self._connection.execute(self.flat_graph())
 
-    def download(self, outputfile: str, format: str = "GeoJSON", options: dict = None):
-        # TODO: only add save_result, when not already present (see DataCube.download)
-        cube = self.save_result(format=format, options=options)
+    def download(self, outputfile: Union[str, pathlib.Path], format: Optional[str] = None, options: dict = None):
+        # TODO #401 guess format from outputfile?
+        # TODO #401 make outputfile optional (See DataCube.download)
+        cube = self._ensure_save_result(format=format, options=options)
         return self._connection.download(cube.flat_graph(), outputfile)
 
     def execute_batch(
@@ -160,6 +194,7 @@ class VectorCube(_ProcessGraphAbstraction):
         cube = self
         if out_format:
             # add `save_result` node
+            # TODO #401: avoid duplicate save_result
             cube = cube.save_result(format=out_format, options=format_options)
         return self._connection.create_job(
             process_graph=cube.flat_graph(),

@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Avoid double `save_result` nodes when combining `VectorCube.save_result()` and `.download()`.
+  ([#401](https://github.com/Open-EO/openeo-python-client/issues/401), [#448](https://github.com/Open-EO/openeo-python-client/issues/448))
+
 
 ## [0.20.0] - 2023-06-30
 
