@@ -5,9 +5,11 @@ from typing import Callable, Dict, List, Optional, Union
 
 import xarray as xr
 import numpy as np
+from openeo_pg_parser_networkx.graph import OpenEOProcessGraph
+from openeo_pg_parser_networkx.pg_schema import BoundingBox, TemporalInterval
+from openeo_processes_dask.process_implementations.cubes import load_stac
 
 from openeo.metadata import CollectionMetadata, SpatialDimension, TemporalDimension, BandDimension, Band
-from openeo_pg_parser_networkx.graph import OpenEOProcessGraph
 from openeo.internal.graph_building import PGNode, as_flat_graph
 from openeo.internal.jupyter import VisualDict, VisualList
 from openeo.local.collections import _get_geotiff_metadata, _get_local_collections, _get_netcdf_zarr_metadata
@@ -216,7 +218,9 @@ class LocalConnection():
         cube = self.datacube_from_process(process_id="load_stac", **arguments)
         # detect actual metadata from URL
         # run load_stac to get the datacube metadata
-        xarray_cube = cube.execute()
+        arguments["spatial_extent"] = BoundingBox.parse_obj(spatial_extent)
+        arguments["temporal_extent"] = TemporalInterval.parse_obj(temporal_extent)
+        xarray_cube = load_stac(**arguments)
         attrs = xarray_cube.attrs
         for at in attrs:
             # allowed types: str, Number, ndarray, number, list, tuple
