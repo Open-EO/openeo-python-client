@@ -9,7 +9,7 @@ from openeo.metadata import CollectionMetadata
 from openeo.rest._datacube import _ProcessGraphAbstraction, UDF
 from openeo.rest.mlmodel import MlModel
 from openeo.rest.job import BatchJob
-from openeo.util import dict_no_none
+from openeo.util import dict_no_none, guess_format
 
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).
@@ -137,8 +137,10 @@ class VectorCube(_ProcessGraphAbstraction):
         return self._connection.execute(self.flat_graph())
 
     def download(self, outputfile: Union[str, pathlib.Path], format: Optional[str] = None, options: dict = None):
-        # TODO #401 guess format from outputfile?
         # TODO #401 make outputfile optional (See DataCube.download)
+        # TODO #401/#449 don't guess/override format if there is already a save_result with format?
+        if format is None and outputfile is not None:
+            format = guess_format(outputfile)
         cube = self._ensure_save_result(format=format, options=options)
         return self._connection.download(cube.flat_graph(), outputfile)
 

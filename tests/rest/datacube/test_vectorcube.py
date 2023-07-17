@@ -85,9 +85,9 @@ def test_raster_to_vector(con100):
 @pytest.mark.parametrize(
     ["filename", "expected_format"],
     [
-        ("result.json", "GeoJSON"),  # TODO #401 possible to detect "GeoJSON from ".json" extension?
+        ("result.json", "JSON"),  # TODO possible to allow "GeoJSON" with ".json" extension?
         ("result.geojson", "GeoJSON"),
-        ("result.nc", "GeoJSON"),  # TODO #401 autodetect format from filename
+        ("result.nc", "netCDF"),
     ],
 )
 @pytest.mark.parametrize("path_class", [str, Path])
@@ -118,11 +118,12 @@ def test_download_auto_save_result_only_file(
         ("result.json", "JSON", "JSON"),
         ("result.geojson", "GeoJSON", "GeoJSON"),
         ("result.nc", "netCDF", "netCDF"),
-        # TODO #401 more formats to autodetect?
         ("result.nc", "NETcDf", "NETcDf"),  # TODO #401 normalize format
-        ("result.nc", "inV6l1d!!!", "inV6l1d!!!"),  # TODO #401 this should fail
-        ("result.json", None, "GeoJSON"),  # TODO #401 autodetect format from filename?
-        ("result.nc", None, "GeoJSON"),  # TODO #401 autodetect format from filename
+        ("result.nc", "inV6l1d!!!", "inV6l1d!!!"),  # TODO #401 this should fail?
+        ("result.json", None, "JSON"),
+        ("result.geojson", None, "GeoJSON"),
+        ("result.nc", None, "netCDF"),
+        # TODO #449 more formats to autodetect?
     ],
 )
 def test_download_auto_save_result_with_format(vector_cube, download_spy, tmp_path, filename, format, expected_format):
@@ -164,17 +165,18 @@ def test_download_auto_save_result_with_options(vector_cube, download_spy, tmp_p
 
 
 @pytest.mark.parametrize(
-    ["format", "expected_format"],
+    ["output_file", "format", "expected_format"],
     [
-        (None, "GeoJSON"),
-        ("JSON", "JSON"),
-        ("netCDF", "netCDF"),
+        ("result.geojson", None, "GeoJSON"),
+        ("result.geojson", "GeoJSON", "GeoJSON"),
+        ("result.json", "JSON", "JSON"),
+        ("result.nc", "netCDF", "netCDF"),
     ],
 )
-def test_save_result_and_download(vector_cube, download_spy, tmp_path, format, expected_format):
+def test_save_result_and_download(vector_cube, download_spy, tmp_path, output_file, format, expected_format):
     """e.g. https://github.com/Open-EO/openeo-geopyspark-driver/issues/477"""
     vector_cube = vector_cube.save_result(format=format)
-    output_path = tmp_path / "result.json"
+    output_path = tmp_path / output_file
     vector_cube.download(output_path)
     assert download_spy.only_request == {
         "createvectorcube1": {"process_id": "create_vector_cube", "arguments": {}},
