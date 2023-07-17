@@ -32,6 +32,9 @@ The client-side processing adds the possibility to read and use local netCDFs, g
 STAC Collections and Items
 ~~~~~~~~~~~~~~~~~
 
+.. warning::
+    The provided examples using STAC rely on third party STAC Catalogs, we can't guarantee that the urls will remain valid.
+
 With the `load_stac` process it's possible to load and use data provided by remote or local STAC Collections or Items.
 The following code snippet loads Sentinel-2 L2A data from a public STAC Catalog, using specific spatial and temporal extent, band name and also properties for cloud coverage.
 
