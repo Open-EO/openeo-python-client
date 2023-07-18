@@ -30,7 +30,7 @@ Every openEO process graph relies on data which is typically provided by a cloud
 The client-side processing adds the possibility to read and use local netCDFs, geoTIFFs, ZARR files, and remote STAC Collections or Items for your experiments.
 
 STAC Collections and Items
-~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. warning::
     The provided examples using STAC rely on third party STAC Catalogs, we can't guarantee that the urls will remain valid.
@@ -49,10 +49,10 @@ The following code snippet loads Sentinel-2 L2A data from a public STAC Catalog,
     >>> bands = ["red"]
     >>> properties = {"eo:cloud_cover": dict(lt=50)}
     >>> s2_cube = local_conn.load_stac(url=url,
-    >>>                     spatial_extent=spatial_extent,
-    >>>                     temporal_extent=temporal_extent,
-    >>>                     bands=bands,
-    >>>                     properties=properties)
+    ...    spatial_extent=spatial_extent,
+    ...    temporal_extent=temporal_extent,
+    ...    bands=bands,
+    ...    properties=properties)
     >>> s2_cube.execute()
     <xarray.DataArray 'stackstac-08730b1b5458a4ed34edeee60ac79254' (time: 177,
                                                                     band: 1,
@@ -160,10 +160,7 @@ We can perform the same example using data provided by STAC Collection:
     local_conn = LocalConnection("./")
 
     url = "https://earth-search.aws.element84.com/v1/collections/sentinel-2-l2a"
-    spatial_extent =  {"east": 11.406212,
-              "north": 46.522237,
-              "south": 46.461019,
-              "west": 11.259613}
+    spatial_extent =  {"east":11.40,"north":46.52,"south":46.46,"west":11.25}
     temporal_extent = ["2022-06-01","2022-06-30"]
     bands = ["red","nir"]
     properties = {"eo:cloud_cover": dict(lt=80)}
