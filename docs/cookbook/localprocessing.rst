@@ -27,7 +27,7 @@ Usage
 -----
 
 Every openEO process graph relies on data which is typically provided by a cloud infrastructure (the openEO back-end).
-The client-side processing adds the possibility to read and use local netCDFs, geoTIFFs and ZARR files and remote STAC Collections or Items for your experiments.
+The client-side processing adds the possibility to read and use local netCDFs, geoTIFFs, ZARR files, and remote STAC Collections or Items for your experiments.
 
 STAC Collections and Items
 ~~~~~~~~~~~~~~~~~
