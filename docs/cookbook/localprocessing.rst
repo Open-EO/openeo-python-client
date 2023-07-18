@@ -35,7 +35,7 @@ STAC Collections and Items
 .. warning::
     The provided examples using STAC rely on third party STAC Catalogs, we can't guarantee that the urls will remain valid.
 
-With the `load_stac` process it's possible to load and use data provided by remote or local STAC Collections or Items.
+With the ``load_stac`` process it's possible to load and use data provided by remote or local STAC Collections or Items.
 The following code snippet loads Sentinel-2 L2A data from a public STAC Catalog, using specific spatial and temporal extent, band name and also properties for cloud coverage.
 
 .. code-block:: pycon
@@ -45,14 +45,15 @@ The following code snippet loads Sentinel-2 L2A data from a public STAC Catalog,
 
     >>> url = "https://earth-search.aws.element84.com/v1/collections/sentinel-2-l2a"
     >>> spatial_extent = {"west": 11, "east": 12, "south": 46, "north": 47}
-    >>> temporal_extent = ["2019-01-01","2019-06-15"]
+    >>> temporal_extent = ["2019-01-01", "2019-06-15"]
     >>> bands = ["red"]
     >>> properties = {"eo:cloud_cover": dict(lt=50)}
     >>> s2_cube = local_conn.load_stac(url=url,
     ...    spatial_extent=spatial_extent,
     ...    temporal_extent=temporal_extent,
     ...    bands=bands,
-    ...    properties=properties)
+    ...    properties=properties,
+    ... )
     >>> s2_cube.execute()
     <xarray.DataArray 'stackstac-08730b1b5458a4ed34edeee60ac79254' (time: 177,
                                                                     band: 1,
@@ -145,8 +146,8 @@ We can now do a simple processing for demo purposes, let's compute the median ND
 
    b04 = s2_datacube.band("B04")
    b08 = s2_datacube.band("B08")
-   ndvi = (b08-b04)/(b08+b04)
-   ndvi_median = ndvi.reduce_dimension(dimension="t",reducer="median")
+   ndvi = (b08 - b04) / (b08 + b04)
+   ndvi_median = ndvi.reduce_dimension(dimension="t", reducer="median")
    result_ndvi = ndvi_median.execute()
    result_ndvi.plot.imshow(cmap="Greens")
 
@@ -160,18 +161,20 @@ We can perform the same example using data provided by STAC Collection:
     local_conn = LocalConnection("./")
 
     url = "https://earth-search.aws.element84.com/v1/collections/sentinel-2-l2a"
-    spatial_extent =  {"east":11.40,"north":46.52,"south":46.46,"west":11.25}
-    temporal_extent = ["2022-06-01","2022-06-30"]
-    bands = ["red","nir"]
+    spatial_extent =  {"east": 11.40, "north": 46.52, "south": 46.46, "west": 11.25}
+    temporal_extent = ["2022-06-01", "2022-06-30"]
+    bands = ["red", "nir"]
     properties = {"eo:cloud_cover": dict(lt=80)}
-    s2_datacube = local_conn.load_stac(url=url,
-                        spatial_extent=spatial_extent,
-                        temporal_extent=temporal_extent,
-                        bands=bands,
-                        properties=properties)
+    s2_datacube = local_conn.load_stac(
+        url=url,
+        spatial_extent=spatial_extent,
+        temporal_extent=temporal_extent,
+        bands=bands,
+        properties=properties,
+    )
 
     b04 = s2_datacube.band("red")
     b08 = s2_datacube.band("nir")
-    ndvi = (b08-b04)/(b08+b04)
-    ndvi_median = ndvi.reduce_dimension(dimension="time",reducer="median")
+    ndvi = (b08 - b04) / (b08 + b04)
+    ndvi_median = ndvi.reduce_dimension(dimension="time", reducer="median")
     result_ndvi = ndvi_median.execute()

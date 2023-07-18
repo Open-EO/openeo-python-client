@@ -1,7 +1,7 @@
 import datetime
 import logging
 from pathlib import Path
-from typing import Dict, List, Union, Callable, Optional
+from typing import Callable, Dict, List, Optional, Union
 
 import numpy as np
 import xarray as xr
@@ -13,7 +13,7 @@ from openeo.internal.graph_building import PGNode, as_flat_graph
 from openeo.internal.jupyter import VisualDict, VisualList
 from openeo.local.collections import _get_geotiff_metadata, _get_local_collections, _get_netcdf_zarr_metadata
 from openeo.local.processing import PROCESS_REGISTRY
-from openeo.metadata import SpatialDimension, TemporalDimension, BandDimension, Band, CollectionMetadata
+from openeo.metadata import Band, BandDimension, CollectionMetadata, SpatialDimension, TemporalDimension
 from openeo.rest.datacube import DataCube
 
 _log = logging.getLogger(__name__)
@@ -232,14 +232,16 @@ class LocalConnection():
                 SpatialDimension(name=xarray_cube.openeo.x_dim, extent=[]),
                 SpatialDimension(name=xarray_cube.openeo.y_dim, extent=[]),
                 TemporalDimension(name=xarray_cube.openeo.temporal_dims[0], extent=[]),
-                BandDimension(name=xarray_cube.openeo.band_dims[0],
-                              bands=[Band(x) for x in xarray_cube[xarray_cube.openeo.band_dims[0]].values])
+                BandDimension(
+                    name=xarray_cube.openeo.band_dims[0],
+                    bands=[Band(x) for x in xarray_cube[xarray_cube.openeo.band_dims[0]].values],
+                ),
             ],
         )
         cube.metadata = metadata
         return cube
 
-    def execute(self, process_graph: Union[dict, str]) -> xr.DataArray:
+    def execute(self, process_graph: Union[dict, str, Path]) -> xr.DataArray:
         """
         Execute locally the process graph and return the result as an xarray.DataArray.
 
