@@ -139,16 +139,22 @@ class VectorCube(_ProcessGraphAbstraction):
     def download(self, outputfile: Union[str, pathlib.Path], format: Optional[str] = None, options: dict = None):
         # TODO #401 make outputfile optional (See DataCube.download)
         # TODO #401/#449 don't guess/override format if there is already a save_result with format?
-        if format is None and outputfile is not None:
+        if format is None and outputfile:
             format = guess_format(outputfile)
         cube = self._ensure_save_result(format=format, options=options)
         return self._connection.download(cube.flat_graph(), outputfile)
 
     def execute_batch(
-            self,
-            outputfile: Union[str, pathlib.Path] = None, out_format: str = None,
-            print=print, max_poll_interval=60, connection_retry_interval=30,
-            job_options=None, **format_options) -> BatchJob:
+        self,
+        outputfile: Optional[Union[str, pathlib.Path]] = None,
+        out_format: Optional[str] = None,
+        print=print,
+        max_poll_interval: float = 60,
+        connection_retry_interval: float = 30,
+        job_options: Optional[dict] = None,
+        # TODO: avoid using kwargs as format options
+        **format_options,
+    ) -> BatchJob:
         """
         Evaluate the process graph by creating a batch job, and retrieving the results when it is finished.
         This method is mostly recommended if the batch job is expected to run in a reasonable amount of time.
@@ -159,8 +165,11 @@ class VectorCube(_ProcessGraphAbstraction):
         :param outputfile: The path of a file to which a result can be written
         :param out_format: (optional) Format of the job result.
         :param format_options: String Parameters for the job result format
-
         """
+        if out_format is None and outputfile:
+            # TODO #401/#449 don't guess/override format if there is already a save_result with format?
+            out_format = guess_format(outputfile)
+
         job = self.create_job(out_format, job_options=job_options, **format_options)
         return job.run_synchronous(
             # TODO #135 support multi file result sets too
@@ -193,11 +202,7 @@ class VectorCube(_ProcessGraphAbstraction):
         """
         # TODO: avoid using all kwargs as format_options
         # TODO: centralize `create_job` for `DataCube`, `VectorCube`, `MlModel`, ...
-        cube = self
-        if out_format:
-            # add `save_result` node
-            # TODO #401: avoid duplicate save_result
-            cube = cube.save_result(format=out_format, options=format_options)
+        cube = self._ensure_save_result(format=out_format, options=format_options or None)
         return self._connection.create_job(
             process_graph=cube.flat_graph(),
             title=title,

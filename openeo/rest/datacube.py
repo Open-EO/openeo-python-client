@@ -1942,7 +1942,7 @@ class DataCube(_ProcessGraphAbstraction):
         :param options: Optional, file format options
         :return: None if the result is stored to disk, or a bytes object returned by the backend.
         """
-        if format is None and outputfile is not None:
+        if format is None and outputfile:
             # TODO #401/#449 don't guess/override format if there is already a save_result with format?
             format = guess_format(outputfile)
         cube = self._ensure_save_result(format=format, options=options)
@@ -2062,7 +2062,7 @@ class DataCube(_ProcessGraphAbstraction):
         """
         if "format" in format_options and not out_format:
             out_format = format_options["format"]  # align with 'download' call arg name
-        if not out_format and outputfile:
+        if out_format is None and outputfile:
             # TODO #401/#449 don't guess/override format if there is already a save_result with format?
             out_format = guess_format(outputfile)
 
