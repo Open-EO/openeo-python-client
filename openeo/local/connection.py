@@ -239,13 +239,7 @@ class LocalConnection():
         cube.metadata = metadata
         return cube
 
-    def execute(
-        self,
-        process_graph: Union[
-            dict,
-            str,
-        ],
-    ) -> xr.DataArray:
+    def execute(self, process_graph: Union[dict, str]) -> xr.DataArray:
         """
         Execute locally the process graph and return the result as an xarray.DataArray.
 
