@@ -207,19 +207,21 @@ class LocalConnection():
         """
         arguments = {"url": url}
         # TODO: more normalization/validation of extent/band parameters and `properties`
-        if spatial_extent:
+        if spatial_extent is not None:
             arguments["spatial_extent"] = spatial_extent
-        if temporal_extent:
+        if temporal_extent is not None:
             arguments["temporal_extent"] = DataCube._get_temporal_extent(temporal_extent)
-        if bands:
+        if bands is not None:
             arguments["bands"] = bands
-        if properties:
+        if properties is not None:
             arguments["properties"] = properties
         cube = self.datacube_from_process(process_id="load_stac", **arguments)
         # detect actual metadata from URL
         # run load_stac to get the datacube metadata
-        arguments["spatial_extent"] = BoundingBox.parse_obj(spatial_extent)
-        arguments["temporal_extent"] = TemporalInterval.parse_obj(temporal_extent)
+        if spatial_extent is not None:
+            arguments["spatial_extent"] = BoundingBox.parse_obj(spatial_extent)
+        if temporal_extent is not None:
+            arguments["temporal_extent"] = TemporalInterval.parse_obj(temporal_extent)
         xarray_cube = load_stac(**arguments)
         attrs = xarray_cube.attrs
         for at in attrs:
