@@ -136,7 +136,27 @@ class VectorCube(_ProcessGraphAbstraction):
         """Executes the process graph of the imagery."""
         return self._connection.execute(self.flat_graph())
 
-    def download(self, outputfile: Union[str, pathlib.Path], format: Optional[str] = None, options: dict = None):
+    def download(
+        self,
+        outputfile: Optional[Union[str, pathlib.Path]] = None,
+        format: Optional[str] = None,
+        options: Optional[dict] = None,
+    ) -> Union[None, bytes]:
+        """
+        Execute synchronously and download the vector cube.
+
+        The result will be stored to the output path, when specified.
+        If no output path (or ``None``) is given, the raw download content will be returned as ``bytes`` object.
+
+        :param outputfile: (optional) output file to store the result to
+        :param format: (optional) output format to use.
+        :param options: (optional) additional output format options.
+        :return:
+
+        .. versionchanged:: 0.21.0
+            When not specified explicitly, output format is guessed from output file extension.
+
+        """
         # TODO #401 make outputfile optional (See DataCube.download)
         # TODO #401/#449 don't guess/override format if there is already a save_result with format?
         if format is None and outputfile:
@@ -163,8 +183,11 @@ class VectorCube(_ProcessGraphAbstraction):
 
         :param job_options:
         :param outputfile: The path of a file to which a result can be written
-        :param out_format: (optional) Format of the job result.
-        :param format_options: String Parameters for the job result format
+        :param out_format: (optional) output format to use.
+        :param format_options: (optional) additional output format options
+
+        .. versionchanged:: 0.21.0
+            When not specified explicitly, output format is guessed from output file extension.
         """
         if out_format is None and outputfile:
             # TODO #401/#449 don't guess/override format if there is already a save_result with format?

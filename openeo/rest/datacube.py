@@ -1933,7 +1933,8 @@ class DataCube(_ProcessGraphAbstraction):
         options: Optional[dict] = None,
     ) -> Union[None, bytes]:
         """
-        Download the raster data cube, e.g. as GeoTIFF.
+        Execute synchronously and download the raster data cube, e.g. as GeoTIFF.
+
         If outputfile is provided, the result is stored on disk locally, otherwise, a bytes object is returned.
         The bytes object can be passed on to a suitable decoder for decoding.
 
