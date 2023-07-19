@@ -9,7 +9,7 @@ from openeo.metadata import CollectionMetadata
 from openeo.rest._datacube import _ProcessGraphAbstraction, UDF
 from openeo.rest.mlmodel import MlModel
 from openeo.rest.job import BatchJob
-from openeo.util import dict_no_none
+from openeo.util import dict_no_none, guess_format
 
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).
@@ -89,30 +89,72 @@ class VectorCube(_ProcessGraphAbstraction):
         )
 
     @openeo_process
-    def save_result(self, format: str = "GeoJson", options: dict = None):
+    def save_result(self, format: Union[str, None] = "GeoJSON", options: dict = None):
+        # TODO #401: guard against duplicate save_result nodes?
         return self.process(
             process_id="save_result",
             arguments={
                 "data": self,
-                "format": format,
-                "options": options or {}
-            }
+                "format": format or "GeoJSON",
+                "options": options or {},
+            },
         )
+
+    def _ensure_save_result(
+        self,
+        format: Optional[str] = None,
+        options: Optional[dict] = None,
+    ) -> "VectorCube":
+        """
+        Make sure there is a (final) `save_result` node in the process graph.
+        If there is already one: check if it is consistent with the given format/options (if any)
+        and add a new one otherwise.
+
+        :param format: (optional) desired `save_result` file format
+        :param options: (optional) desired `save_result` file format parameters
+        :return:
+        """
+        # TODO #401 Unify with DataCube._ensure_save_result and move to generic data cube parent class
+        result_node = self.result_node()
+        if result_node.process_id == "save_result":
+            # There is already a `save_result` node:
+            # check if it is consistent with given format/options (if any)
+            args = result_node.arguments
+            if format is not None and format.lower() != args["format"].lower():
+                raise ValueError(f"Existing `save_result` node with different format {args['format']!r} != {format!r}")
+            if options is not None and options != args["options"]:
+                raise ValueError(
+                    f"Existing `save_result` node with different options {args['options']!r} != {options!r}"
+                )
+            cube = self
+        else:
+            # No `save_result` node yet: automatically add it.
+            cube = self.save_result(format=format or "GeoJSON", options=options)
+        return cube
 
     def execute(self) -> dict:
         """Executes the process graph of the imagery."""
         return self._connection.execute(self.flat_graph())
 
-    def download(self, outputfile: str, format: str = "GeoJSON", options: dict = None):
-        # TODO: only add save_result, when not already present (see DataCube.download)
-        cube = self.save_result(format=format, options=options)
+    def download(self, outputfile: Union[str, pathlib.Path], format: Optional[str] = None, options: dict = None):
+        # TODO #401 make outputfile optional (See DataCube.download)
+        # TODO #401/#449 don't guess/override format if there is already a save_result with format?
+        if format is None and outputfile:
+            format = guess_format(outputfile)
+        cube = self._ensure_save_result(format=format, options=options)
         return self._connection.download(cube.flat_graph(), outputfile)
 
     def execute_batch(
-            self,
-            outputfile: Union[str, pathlib.Path] = None, out_format: str = None,
-            print=print, max_poll_interval=60, connection_retry_interval=30,
-            job_options=None, **format_options) -> BatchJob:
+        self,
+        outputfile: Optional[Union[str, pathlib.Path]] = None,
+        out_format: Optional[str] = None,
+        print=print,
+        max_poll_interval: float = 60,
+        connection_retry_interval: float = 30,
+        job_options: Optional[dict] = None,
+        # TODO: avoid using kwargs as format options
+        **format_options,
+    ) -> BatchJob:
         """
         Evaluate the process graph by creating a batch job, and retrieving the results when it is finished.
         This method is mostly recommended if the batch job is expected to run in a reasonable amount of time.
@@ -123,8 +165,11 @@ class VectorCube(_ProcessGraphAbstraction):
         :param outputfile: The path of a file to which a result can be written
         :param out_format: (optional) Format of the job result.
         :param format_options: String Parameters for the job result format
-
         """
+        if out_format is None and outputfile:
+            # TODO #401/#449 don't guess/override format if there is already a save_result with format?
+            out_format = guess_format(outputfile)
+
         job = self.create_job(out_format, job_options=job_options, **format_options)
         return job.run_synchronous(
             # TODO #135 support multi file result sets too
@@ -157,10 +202,7 @@ class VectorCube(_ProcessGraphAbstraction):
         """
         # TODO: avoid using all kwargs as format_options
         # TODO: centralize `create_job` for `DataCube`, `VectorCube`, `MlModel`, ...
-        cube = self
-        if out_format:
-            # add `save_result` node
-            cube = cube.save_result(format=out_format, options=format_options)
+        cube = self._ensure_save_result(format=out_format, options=format_options or None)
         return self._connection.create_job(
             process_graph=cube.flat_graph(),
             title=title,

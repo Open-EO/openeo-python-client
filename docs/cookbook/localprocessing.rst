@@ -9,15 +9,15 @@ Background
 ----------
 
 The client-side processing functionality allows to test and use openEO with its processes locally, i.e. without any connection to an openEO back-end.
-It relies on the projects `openeo-pg-parser-networkx <https://github.com/Open-EO/openeo-pg-parser-networkx>`_, which provides an openEO process graph parsing tool, and `openeo-processes-dask <https://github.com/Open-EO/openeo-processes-dask>`_, which provides an Xarray and Dask implementation of most openEO processes. 
+It relies on the projects `openeo-pg-parser-networkx <https://github.com/Open-EO/openeo-pg-parser-networkx>`_, which provides an openEO process graph parsing tool, and `openeo-processes-dask <https://github.com/Open-EO/openeo-processes-dask>`_, which provides an Xarray and Dask implementation of most openEO processes.
 
 Installation
 ------------
 
 .. note::
-    This feature requires ``Python>=3.9`` and has been tested
-    with ``openeo-pg-parser-networkx==2023.3.1`` and
-    ``openeo-processes-dask==2023.3.2``
+    This feature requires ``Python>=3.9``.
+    Tested with ``openeo-pg-parser-networkx==2023.5.1`` and
+    ``openeo-processes-dask==2023.7.1``.
 
 .. code:: bash
 
@@ -26,18 +26,69 @@ Installation
 Usage
 -----
 
+Every openEO process graph relies on data which is typically provided by a cloud infrastructure (the openEO back-end).
+The client-side processing adds the possibility to read and use local netCDFs, geoTIFFs, ZARR files, and remote STAC Collections or Items for your experiments.
+
+STAC Collections and Items
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. warning::
+    The provided examples using STAC rely on third party STAC Catalogs, we can't guarantee that the urls will remain valid.
+
+With the ``load_stac`` process it's possible to load and use data provided by remote or local STAC Collections or Items.
+The following code snippet loads Sentinel-2 L2A data from a public STAC Catalog, using specific spatial and temporal extent, band name and also properties for cloud coverage.
+
+.. code-block:: pycon
+
+    >>> from openeo.local import LocalConnection
+    >>> local_conn = LocalConnection("./")
+
+    >>> url = "https://earth-search.aws.element84.com/v1/collections/sentinel-2-l2a"
+    >>> spatial_extent = {"west": 11, "east": 12, "south": 46, "north": 47}
+    >>> temporal_extent = ["2019-01-01", "2019-06-15"]
+    >>> bands = ["red"]
+    >>> properties = {"eo:cloud_cover": dict(lt=50)}
+    >>> s2_cube = local_conn.load_stac(url=url,
+    ...    spatial_extent=spatial_extent,
+    ...    temporal_extent=temporal_extent,
+    ...    bands=bands,
+    ...    properties=properties,
+    ... )
+    >>> s2_cube.execute()
+    <xarray.DataArray 'stackstac-08730b1b5458a4ed34edeee60ac79254' (time: 177,
+                                                                    band: 1,
+                                                                    y: 11354,
+                                                                    x: 8025)>
+    dask.array<getitem, shape=(177, 1, 11354, 8025), dtype=float64, chunksize=(1, 1, 1024, 1024), chunktype=numpy.ndarray>
+    Coordinates: (12/53)
+      * time                                     (time) datetime64[ns] 2019-01-02...
+        id                                       (time) <U24 'S2B_32TPR_20190102_...
+      * band                                     (band) <U3 'red'
+      * x                                        (x) float64 6.52e+05 ... 7.323e+05
+      * y                                        (y) float64 5.21e+06 ... 5.096e+06
+        s2:product_uri                           (time) <U65 'S2B_MSIL2A_20190102...
+        ...                                       ...
+        raster:bands                             object {'nodata': 0, 'data_type'...
+        gsd                                      int32 10
+        common_name                              <U3 'red'
+        center_wavelength                        float64 0.665
+        full_width_half_max                      float64 0.038
+        epsg                                     int32 32632
+    Attributes:
+        spec:        RasterSpec(epsg=32632, bounds=(600000.0, 4990200.0, 809760.0...
+        crs:         epsg:32632
+        transform:   | 10.00, 0.00, 600000.00|\n| 0.00,-10.00, 5300040.00|\n| 0.0...
+        resolution:  10.0
+
 Local Collections
 ~~~~~~~~~~~~~~~~~
-
-Every openEO process graph relies on data, which was always provided by a cloud infrastructure (the openEO back-end) until now.
-The client-side processing adds the possibility to read and use local netCDFs, geoTIFFs and ZARR files for your experiments.
 
 If you want to use our sample data, please clone this repository:
 
 .. code:: bash
 
    git clone https://github.com/Open-EO/openeo-localprocessing-data.git
-   
+
 With some sample data we can now check the STAC metadata for the local files by doing:
 
 .. code:: python
@@ -80,9 +131,8 @@ Let's start with the provided sample netCDF of Sentinel-2 data:
     Attributes:
         Conventions:  CF-1.9
         institution:  openEO platform - Geotrellis backend: 0.9.5a1
-        description:  
-        title:        
-    ...
+        description:
+        title:
 
 As you can see in the previous example, we are using a call to execute() which will execute locally the generated openEO process graph.
 In this case, the process graph consist only in a single load_collection, which performs lazy loading of the data. With this first step you can check if the data is being read correctly by openEO.
@@ -96,9 +146,35 @@ We can now do a simple processing for demo purposes, let's compute the median ND
 
    b04 = s2_datacube.band("B04")
    b08 = s2_datacube.band("B08")
-   ndvi = (b08-b04)/(b08+b04)
-   ndvi_median = ndvi.reduce_dimension(dimension="t",reducer="median")
+   ndvi = (b08 - b04) / (b08 + b04)
+   ndvi_median = ndvi.reduce_dimension(dimension="t", reducer="median")
    result_ndvi = ndvi_median.execute()
    result_ndvi.plot.imshow(cmap="Greens")
 
 .. image:: ../_static/images/local/local_ndvi.jpg
+
+We can perform the same example using data provided by STAC Collection:
+
+.. code:: python
+
+    from openeo.local import LocalConnection
+    local_conn = LocalConnection("./")
+
+    url = "https://earth-search.aws.element84.com/v1/collections/sentinel-2-l2a"
+    spatial_extent =  {"east": 11.40, "north": 46.52, "south": 46.46, "west": 11.25}
+    temporal_extent = ["2022-06-01", "2022-06-30"]
+    bands = ["red", "nir"]
+    properties = {"eo:cloud_cover": dict(lt=80)}
+    s2_datacube = local_conn.load_stac(
+        url=url,
+        spatial_extent=spatial_extent,
+        temporal_extent=temporal_extent,
+        bands=bands,
+        properties=properties,
+    )
+
+    b04 = s2_datacube.band("red")
+    b08 = s2_datacube.band("nir")
+    ndvi = (b08 - b04) / (b08 + b04)
+    ndvi_median = ndvi.reduce_dimension(dimension="time", reducer="median")
+    result_ndvi = ndvi_median.execute()

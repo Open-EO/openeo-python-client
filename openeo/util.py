@@ -451,6 +451,7 @@ def guess_format(filename: Union[str, Path]) -> str:
     format_map = {
         "gtiff": "GTiff", "geotiff": "GTiff", "geotif": "GTiff", "tiff": "GTiff", "tif": "GTiff",
         "nc": "netCDF", "netcdf": "netCDF",
+        "geojson": "GeoJSON",
     }
 
     return format_map.get(extension, extension.upper())

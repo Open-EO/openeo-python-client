@@ -1904,7 +1904,7 @@ class DataCube(_ProcessGraphAbstraction):
         :param options: (optional) desired `save_result` file format parameters
         :return:
         """
-        # TODO: move to generic data cube parent class (not only for raster cubes, but also vector cubes)
+        # TODO #401 Unify with VectorCube._ensure_save_result and move to generic data cube parent class (not only for raster cubes, but also vector cubes)
         result_node = self.result_node()
         if result_node.process_id == "save_result":
             # There is already a `save_result` node:
@@ -1942,7 +1942,8 @@ class DataCube(_ProcessGraphAbstraction):
         :param options: Optional, file format options
         :return: None if the result is stored to disk, or a bytes object returned by the backend.
         """
-        if format is None and outputfile is not None:
+        if format is None and outputfile:
+            # TODO #401/#449 don't guess/override format if there is already a save_result with format?
             format = guess_format(outputfile)
         cube = self._ensure_save_result(format=format, options=options)
         return self._connection.download(cube.flat_graph(), outputfile)
@@ -2061,7 +2062,8 @@ class DataCube(_ProcessGraphAbstraction):
         """
         if "format" in format_options and not out_format:
             out_format = format_options["format"]  # align with 'download' call arg name
-        if not out_format and outputfile:
+        if out_format is None and outputfile:
+            # TODO #401/#449 don't guess/override format if there is already a save_result with format?
             out_format = guess_format(outputfile)
 
         job = self.create_job(

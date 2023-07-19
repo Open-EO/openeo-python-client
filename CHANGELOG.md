@@ -8,11 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add support in `VectoCube.download()` and `VectorCube.execute_batch()` to guess output format from extension of a given filename
+  ([#401](https://github.com/Open-EO/openeo-python-client/issues/401), [#449](https://github.com/Open-EO/openeo-python-client/issues/449))
+- Added `load_stac` for Client Side Processing, based on the [openeo-processes-dask implementation](https://github.com/Open-EO/openeo-processes-dask/pull/127)
+
 ### Changed
+
+- Updated docs for Client Side Processing with `load_stac` examples, available at https://open-eo.github.io/openeo-python-client/cookbook/localprocessing.html
 
 ### Removed
 
 ### Fixed
+
+- Avoid double `save_result` nodes when combining `VectorCube.save_result()` and `.download()`.
+  ([#401](https://github.com/Open-EO/openeo-python-client/issues/401), [#448](https://github.com/Open-EO/openeo-python-client/issues/448))
 
 
 ## [0.20.0] - 2023-06-30
