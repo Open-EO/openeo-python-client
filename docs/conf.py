@@ -105,7 +105,7 @@ html_theme_options = {
     'badge_branch': 'master',
     'github_user': 'Open-EO',
     'github_repo': 'openeo-python-client',
-    'github_banner': True,
+    'github_banner': False,
     'fixed_sidebar': False,
     'page_width': '1200px',
     'sidebar_width': '300px',

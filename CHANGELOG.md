@@ -4,7 +4,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
 ## [Unreleased]
+
+### Added
+
+### Changed
+
+### Removed
+
+### Fixed
+
+
+## [0.21.1] - 2023-07-19
+
+### Fixed
+
+- Fix `spatial_extent`/`temporal_extent` handling in "localprocessing" `load_stac` ([#451](https://github.com/Open-EO/openeo-python-client/pull/451))
+
+
+## [0.21.0] - 2023-07-19
 
 ### Added
 
@@ -15,8 +34,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Updated docs for Client Side Processing with `load_stac` examples, available at https://open-eo.github.io/openeo-python-client/cookbook/localprocessing.html
-
-### Removed
 
 ### Fixed
 
