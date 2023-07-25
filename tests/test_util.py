@@ -19,6 +19,7 @@ from openeo.util import (
     SimpleProgressBar,
     TimingLogger,
     clip,
+    crs_to_epsg_code,
     deep_get,
     deep_set,
     dict_no_none,
@@ -766,3 +767,22 @@ class TestSimpleProgressBar:
         assert pgb.get(1.0) == "[=####################################=]"
         assert pgb.get(-0.5) == "[=------------------------------------=]"
         assert pgb.get(1.5) == "[=####################################=]"
+
+
+@pytest.mark.parametrize(
+    ["epsg_input", "expected"],
+    [
+        ("epsg:4326", 4326),
+        ("EPSG:4326", 4326),
+        ("Epsg:4326", 4326),
+        ("epsg:32165", 32165),
+        ("EPSG:32165", 32165),
+        ("Epsg:32165", 32165),
+        (4326, 4326),
+        (32165, 32165),
+        (None, None),
+        ("", None),
+    ],
+)
+def test_crs_to_epsg_code(epsg_input, expected):
+    assert crs_to_epsg_code(epsg_input) == expected

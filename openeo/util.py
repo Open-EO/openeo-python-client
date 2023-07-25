@@ -531,6 +531,8 @@ class BBoxDict(dict):
     def __init__(self, *, west: float, south: float, east: float, north: float, crs: Optional[str] = None):
         super().__init__(west=west, south=south, east=east, north=north)
         if crs is not None:
+            # TODO: #259, should we covert EPSG strings to int here with crs_to_epsg_code?
+            # self.update(crs=crs_to_epsg_code(crs))
             self.update(crs=crs)
 
     # TODO: provide west, south, east, north, crs as @properties? Read-only or read-write?
@@ -627,3 +629,23 @@ class SimpleProgressBar:
         width = self.width - len(self.left) - len(self.right)
         bar = self.bar * int(round(width * clip(fraction, min=0, max=1)))
         return f"{self.left}{bar:{self.fill}<{width}s}{self.right}"
+
+
+def crs_to_epsg_code(crs: Union[str, int, None]) -> int:
+    if crs is None or crs == "":
+        return None
+
+    if isinstance(crs, int):
+        return crs
+
+    re_epsg = re.compile("EPSG:(\d+)", re.IGNORECASE)
+    m = re_epsg.match(crs)
+    if m:
+        epsg_code = m.group(1)
+
+        try:
+            return int(epsg_code)
+        except ValueError as exc:
+            # can't convert it
+            logger.error("Could not covert EPSG code to int: epsg_code={epsg_code}, exception: {exc!r}")
+    return crs
