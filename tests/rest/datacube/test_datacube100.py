@@ -61,6 +61,64 @@ basic_geometry_types = [
 ]
 
 
+WKT2_FOR_EPSG23631 = """
+PROJCRS["WGS 84 / UTM zone 31N",
+    BASEGEOGCRS["WGS 84",
+        ENSEMBLE["World Geodetic System 1984 ensemble",
+            MEMBER["World Geodetic System 1984 (Transit)"],
+            MEMBER["World Geodetic System 1984 (G730)"],
+            MEMBER["World Geodetic System 1984 (G873)"],
+            MEMBER["World Geodetic System 1984 (G1150)"],
+            MEMBER["World Geodetic System 1984 (G1674)"],
+            MEMBER["World Geodetic System 1984 (G1762)"],
+            MEMBER["World Geodetic System 1984 (G2139)"],
+            ELLIPSOID["WGS 84",6378137,298.257223563,
+                LENGTHUNIT["metre",1]],
+            ENSEMBLEACCURACY[2.0]],
+        PRIMEM["Greenwich",0,
+            ANGLEUNIT["degree",0.0174532925199433]],
+        ID["EPSG",4326]],
+    CONVERSION["UTM zone 31N",
+        METHOD["Transverse Mercator",
+            ID["EPSG",9807]],
+        PARAMETER["Latitude of natural origin",0,
+            ANGLEUNIT["degree",0.0174532925199433],
+            ID["EPSG",8801]],
+        PARAMETER["Longitude of natural origin",3,
+            ANGLEUNIT["degree",0.0174532925199433],
+            ID["EPSG",8802]],
+        PARAMETER["Scale factor at natural origin",0.9996,
+            SCALEUNIT["unity",1],
+            ID["EPSG",8805]],
+        PARAMETER["False easting",500000,
+            LENGTHUNIT["metre",1],
+            ID["EPSG",8806]],
+        PARAMETER["False northing",0,
+            LENGTHUNIT["metre",1],
+            ID["EPSG",8807]]],
+    CS[Cartesian,2],
+        AXIS["(E)",east,
+            ORDER[1],
+            LENGTHUNIT["metre",1]],
+        AXIS["(N)",north,
+            ORDER[2],
+            LENGTHUNIT["metre",1]],
+    USAGE[
+        SCOPE["Engineering survey, topographic mapping."],
+        AREA["Between 0°E and 6°E, northern hemisphere between equator and 84°N, onshore and offshore. Algeria. Andorra. Belgium. Benin. Burkina Faso. Denmark - North Sea. France. Germany - North Sea. Ghana. Luxembourg. Mali. Netherlands. Niger. Nigeria. Norway. Spain. Togo. United Kingdom (UK) - North Sea."],
+        BBOX[0,0,84,6]],
+    ID["EPSG",32631]]
+"""
+
+UTM31_CRS_STRINGS = [
+    "EPSG:32631",
+    "32631",
+    32631,
+    "+proj=utm +zone=31 +datum=WGS84 +units=m +no_defs",  # is also EPSG:32631, in proj format
+    WKT2_FOR_EPSG23631,
+]
+
+
 def _get_leaf_node(cube: DataCube) -> dict:
     """Get leaf node (node with result=True), supporting old and new style of graph building."""
     flat_graph = cube.flat_graph()
@@ -276,12 +334,13 @@ def test_aggregate_spatial_types(con100: Connection, polygon, expected_geometrie
     }
 
 
-def test_aggregate_spatial_with_crs(con100: Connection, recwarn):
+@pytest.mark.parametrize("crs", UTM31_CRS_STRINGS)
+def test_aggregate_spatial_with_crs(con100: Connection, recwarn, crs: str):
     img = con100.load_collection("S2")
     polygon = shapely.geometry.box(0, 0, 1, 1)
-    masked = img.aggregate_spatial(geometries=polygon, reducer="mean", crs="EPSG:32631")
+    masked = img.aggregate_spatial(geometries=polygon, reducer="mean", crs=crs)
     warnings = [str(w.message) for w in recwarn]
-    assert "Geometry with non-Lon-Lat CRS 'EPSG:32631' is only supported by specific back-ends." in warnings
+    assert f"Geometry with non-Lon-Lat CRS {crs!r} is only supported by specific back-ends." in warnings
     assert sorted(masked.flat_graph().keys()) == ["aggregatespatial1", "loadcollection1"]
     assert masked.flat_graph()["aggregatespatial1"] == {
         "process_id": "aggregate_spatial",
@@ -298,6 +357,51 @@ def test_aggregate_spatial_with_crs(con100: Connection, recwarn):
         },
         "result": True
     }
+
+
+@pytest.mark.parametrize(
+    "crs",
+    [
+        "WGS",  # WGS is not really specific enough, though WGS84 would have been fine
+        "does-not-exist-crs",
+        "EEPSG:32165",  # Simulate a user typo
+    ],
+)
+def test_aggregate_spatial_with_unusual_crs(con100: Connection, recwarn, crs: str):
+    img = con100.load_collection("S2")
+    polygon = shapely.geometry.box(0, 0, 1, 1)
+
+    import openeo.util
+
+    with pytest.raises(openeo.util.EPSGCodeNotFound):
+        masked = img.aggregate_spatial(geometries=polygon, reducer="mean", crs=crs)
+
+
+@pytest.mark.parametrize(
+    "crs",
+    [
+        "does-not-exist-crs",
+        "EEPSG:32165",  # Simulate a user typo
+        -1,  # integer non-sense, negative value can not be valid EPSG code
+        "-1",  # integer non-sense, negative value can not be valid EPSG code
+        1.0,  # floating point non-sense: type is not supported
+        "1.0",  # floating point non-sense: type is not supported
+        "0.0",  # floating point non-sense: type is not supported
+        {1: 1},  # type is not supported
+        [1],  # type is not supported
+    ],
+)
+def test_aggregate_spatial_with_invalid_crs(con100: Connection, recwarn, crs: str):
+    """Test that it refuses invalid input for the CRS: incorrect types and negative integers,
+    i.e. things that can not be a CRS at all, soo it is not just a CRS proj does not know about.
+    """
+    img = con100.load_collection("S2")
+    polygon = shapely.geometry.box(0, 0, 1, 1)
+
+    import openeo.util
+
+    with pytest.raises((ValueError, TypeError, openeo.util.EPSGCodeNotFound)):
+        img.aggregate_spatial(geometries=polygon, reducer="mean", crs=crs)
 
 
 def test_aggregate_spatial_target_dimension(con100: Connection):
@@ -476,12 +580,13 @@ def test_mask_polygon_types(con100: Connection, polygon, expected_mask):
     }
 
 
-def test_mask_polygon_with_crs(con100: Connection, recwarn):
+@pytest.mark.parametrize("crs", UTM31_CRS_STRINGS)
+def test_mask_polygon_with_crs(con100: Connection, recwarn, crs: str):
     img = con100.load_collection("S2")
     polygon = shapely.geometry.box(0, 0, 1, 1)
-    masked = img.mask_polygon(mask=polygon, srs="EPSG:32631")
+    masked = img.mask_polygon(mask=polygon, srs=crs)
     warnings = [str(w.message) for w in recwarn]
-    assert "Geometry with non-Lon-Lat CRS 'EPSG:32631' is only supported by specific back-ends." in warnings
+    assert f"Geometry with non-Lon-Lat CRS {crs!r} is only supported by specific back-ends." in warnings
     assert sorted(masked.flat_graph().keys()) == ["loadcollection1", "maskpolygon1"]
     assert masked.flat_graph()["maskpolygon1"] == {
         "process_id": "mask_polygon",
@@ -489,6 +594,7 @@ def test_mask_polygon_with_crs(con100: Connection, recwarn):
             "data": {"from_node": "loadcollection1"},
             "mask": {
                 "type": "Polygon", "coordinates": (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),),
+                # All listed test inputs for crs should be converted to "EPSG:32631"
                 "crs": {"type": "name", "properties": {"name": "EPSG:32631"}},
             },
         },

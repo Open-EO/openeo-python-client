@@ -15,6 +15,7 @@ from typing import Any, Callable, Optional, Tuple, Union
 from urllib.parse import urljoin
 
 import requests
+import pyproj.crs
 import shapely.geometry.base
 from deprecated import deprecated
 
@@ -631,21 +632,72 @@ class SimpleProgressBar:
         return f"{self.left}{bar:{self.fill}<{width}s}{self.right}"
 
 
-def crs_to_epsg_code(crs: Union[str, int, None]) -> int:
+class EPSGCodeNotFound(Exception):
+    """Could not find matching EPSG code for this CRS"""
+
+    def __init__(self, crs: Union[str, int, None], *args: object) -> None:
+        super().__init__(*args)
+        self.crs = crs
+
+
+def crs_to_epsg_code(crs: Union[str, int, None]) -> Optional[int]:
+    """Convert a CRS string or int to an integer EPGS code, where CRS usually comes from user input.
+
+    Three cases:
+
+    - If it is already an integer we just keep it.
+    - If it is None it stays None, and empty strings become None as well.
+    - If it is a string we try to parse it with the pyproj library.
+        - Strings of the form "EPSG:<int>" will be converted to teh value <int>
+        - For any other strings formats, it will work if pyproj supports is,
+          otherwise it won't.
+
+    The result is **always** an EPSG code, so the CRS should be one that is
+    defined in EPSG. For any other definitions pyproj will only give you the
+    closest EPSG match and that result is possibly inaccurate.
+
+    For a list of CRS input formats that proj supports
+    see: https://pyproj4.github.io/pyproj/stable/api/crs/crs.html#pyproj.crs.CRS.from_user_input
+
+    :param crs:
+        Input from user for the Coordinate Reference System to convert to an
+        EPSG code.
+
+    :raises ValueError:
+        When the crs is a negative value (as int or as a str representing an int)
+    :raises TypeError:
+        When crs is none of the supported types: str, int, None
+
+    :return: An EPGS code if it could be found, otherwise None
+
+    """
+
     if crs is None or crs == "":
         return None
 
+    # TODO: decide: are more fine-grained checks more helpful than always raising EPSGCodeNotFound?
     if isinstance(crs, int):
+        if crs <= 0:
+            raise ValueError("If crs is an integer then it must be > 0.")
         return crs
 
-    re_epsg = re.compile("EPSG:(\d+)", re.IGNORECASE)
-    m = re_epsg.match(crs)
-    if m:
-        epsg_code = m.group(1)
+    if not isinstance(crs, str):
+        raise TypeError("The allowed type for the parameter 'crs' are: str, int and None")
 
-        try:
-            return int(epsg_code)
-        except ValueError as exc:
-            # can't convert it
-            logger.error("Could not covert EPSG code to int: epsg_code={epsg_code}, exception: {exc!r}")
-    return crs
+    try:
+        crs_int = int(crs)
+    except:
+        # Need to process it with pyproj, below.
+        pass
+    else:
+        if crs_int <= 0:
+            raise ValueError("If crs is a string that represents an integer then the number must be > 0.")
+        return crs_int
+
+    try:
+        converted_crs = pyproj.crs.CRS.from_user_input(crs)
+    except pyproj.exceptions.CRSError as exc:
+        logger.error("Could not convert CRS string to EPSG code: {crs=}, exception: {exc}", exc_info=True)
+        raise EPSGCodeNotFound(crs) from exc
+    else:
+        return converted_crs.to_epsg()
