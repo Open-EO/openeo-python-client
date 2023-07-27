@@ -446,4 +446,5 @@ class CollectionMetadata:
         return render_component('collection', data=self._orig_metadata)
 
     def __str__(self) -> str:
+        bands = self.band_names if self.has_band_dimension() else "no bands dimension"
         return f"CollectionMetadata({self.extent} - {self.band_names} - {self.dimension_names()})"
