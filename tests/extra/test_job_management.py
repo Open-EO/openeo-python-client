@@ -116,6 +116,138 @@ class TestMultiBackendJobManager:
         metadata_path = manager.get_job_metadata_path(job_id="job-2022")
         assert metadata_path.exists()
 
+    def test_manager_must_exit_when_all_jobs_done(self, tmp_path, requests_mock, sleep_mock):
+        requests_mock.get("http://foo.test/", json={"api_version": "1.1.0"})
+        requests_mock.get("http://bar.test/", json={"api_version": "1.1.0"})
+
+        def mock_job_status(job_id, succeeds: bool):
+            """Mock job status polling sequence"""
+            response_list = sum(
+                [
+                    [
+                        {
+                            "json": {
+                                "id": job_id,
+                                "title": f"Job {job_id}",
+                                "status": "queued",
+                            }
+                        }
+                    ],
+                    [
+                        {
+                            "json": {
+                                "id": job_id,
+                                "title": f"Job {job_id}",
+                                "status": "running",
+                            }
+                        }
+                    ],
+                    [
+                        {
+                            "json": {
+                                "id": job_id,
+                                "title": f"Job {job_id}",
+                                "status": "finished" if succeeds else "error",
+                            }
+                        }
+                    ],
+                ],
+                [],
+            )
+            for backend in ["http://foo.test", "http://bar.test"]:
+                requests_mock.get(f"{backend}/jobs/{job_id}", response_list)
+                # It also needs the job results endpoint, though that can be a dummy implementation.
+                # When the job is finished the system tries to download the results and that is what
+                # needs this endpoint.
+                if succeeds:
+                    requests_mock.get(f"{backend}/jobs/{job_id}/results", json={"links": []})
+                else:
+                    response = {
+                        "level": "error",
+                        "logs": [
+                            {
+                                "id": "1",
+                                "code": "SampleError",
+                                "level": "error",
+                                "message": "Error for testing",
+                                "time": "2019-08-24T14:15:22Z",
+                                "data": None,
+                                "path": [],
+                                "usage": {},
+                                "links": [],
+                            }
+                        ],
+                        "links": [],
+                    }
+                    requests_mock.get(f"{backend}/jobs/{job_id}/logs?level=error", json=response)
+
+        mock_job_status("job-2018", succeeds=True)
+        mock_job_status("job-2019", succeeds=True)
+        mock_job_status("job-2020", succeeds=True)
+        mock_job_status("job-2021", succeeds=True)
+        mock_job_status("job-2022", succeeds=False)
+
+        root_dir = tmp_path / "job_mgr_root"
+        manager = MultiBackendJobManager(root_dir=root_dir)
+
+        manager.add_backend("foo", connection=openeo.connect("http://foo.test"))
+        manager.add_backend("bar", connection=openeo.connect("http://bar.test"))
+
+        df = pd.DataFrame(
+            {
+                "year": [2018, 2019, 2020, 2021, 2022],
+                # Use simple points in WKT format to test conversion to the geometry dtype
+                "geometry": ["POINT (1 2)"] * 5,
+            }
+        )
+        output_file = tmp_path / "jobs.csv"
+
+        def start_job(row, connection, **kwargs):
+            year = row["year"]
+            return BatchJob(job_id=f"job-{year}", connection=connection)
+
+        # manager.run_jobs(df=df, start_job=start_job, output_file=output_file)
+        ## assert sleep_mock.call_count > 1000
+
+        import multiprocessing
+        import datetime as dt
+        from pathlib import Path
+
+        duration_file: Path = tmp_path / "duration.txt"
+
+        def start_worker_thread():
+            time_start = dt.datetime.now()
+            manager.run_jobs(df=df, start_job=start_job, output_file=output_file)
+            time_end = dt.datetime.now()
+            dur: dt.timedelta = time_end - time_start
+            duration_file.write_text(str(dur.total_seconds()))
+
+        # This should be finished almost immediately within a second.
+        # If it takes too long then we assume it will run forever.
+        proc = multiprocessing.Process(target=start_worker_thread, name="Worker process")
+
+        timeout_sec = 5.0
+        proc.start()
+        proc.join(timeout=timeout_sec)
+        if proc.is_alive:
+            # now forcibly kill the process.
+            proc.kill()
+            proc.join()
+
+        assert duration_file.exists(), "MultiBackendJobManager did not stop on its own and was killed"
+        duration = float(duration_file.read_text())
+        assert duration < timeout_sec, "MultiBackendJobManager did stop on its but took longer than expected to finish"
+
+        result = pd.read_csv(output_file)
+        assert len(result) == 5
+        assert set(result.status) == {"finished", "error"}
+        assert set(result.backend_name) == {"foo", "bar"}
+
+        # We expect that the job metadata was saved, so verify that it exists.
+        # Checking for one of the jobs is enough.
+        metadata_path = manager.get_job_metadata_path(job_id="job-2021")
+        assert metadata_path.exists()
+
     def test_on_error_log(self, tmp_path, requests_mock):
         backend = "http://foo.test"
         requests_mock.get(backend, json={"api_version": "1.1.0"})
