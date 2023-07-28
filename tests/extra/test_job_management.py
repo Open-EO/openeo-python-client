@@ -1,7 +1,5 @@
-import datetime as dt
 import json
 import multiprocessing
-from pathlib import Path
 from unittest import mock
 
 # TODO: can we avoid using httpretty?
