@@ -218,9 +218,6 @@ class TestMultiBackendJobManager:
             year = row["year"]
             return BatchJob(job_id=f"job-{year}", connection=connection)
 
-        # manager.run_jobs(df=df, start_job=start_job, output_file=output_file)
-        ## assert sleep_mock.call_count > 1000
-
         def start_worker_thread():
             manager.run_jobs(df=df, start_job=start_job, output_file=output_file)
             # process_finished_file.write_text("done")
@@ -240,7 +237,7 @@ class TestMultiBackendJobManager:
 
         if proc.is_alive:
             # now forcibly kill the process, then have to join it again.
-            proc.kill()
+            proc.terminate()
             proc.join()
 
         assert proc.exitcode == 0, (
