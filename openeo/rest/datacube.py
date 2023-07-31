@@ -333,7 +333,6 @@ class DataCube(_ProcessGraphAbstraction):
                               " Use keyword arguments or tuple/list argument instead.")
                 west, east, north, south = args[:4]
                 if len(args) > 4:
-                    # TODO #259 convert CRS strings to integer EPSG code
                     crs = crs_to_epsg_code(args[4])
             elif len(args) == 1 and (isinstance(args[0], (list, tuple)) and len(args[0]) == 4
                                      or isinstance(args[0], (dict, shapely.geometry.base.BaseGeometry, Parameter))):
@@ -836,9 +835,6 @@ class DataCube(_ProcessGraphAbstraction):
             # TODO: don't warn when the crs is Lon-Lat like EPSG:4326?
             warnings.warn(f"Geometry with non-Lon-Lat CRS {crs!r} is only supported by specific back-ends.")
             # TODO #204 alternative for non-standard CRS in GeoJSON object?
-            # TODO: #259 Should we also normalize EPSG codes passed as a string here?
-            #   It seems this method already supports epsg codes of the format "EPSG:<int>";
-
             epsg_code = crs_to_epsg_code(crs)
             if epsg_code is not None:
                 # proj did recognize the CRS

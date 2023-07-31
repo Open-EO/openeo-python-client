@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import pathlib
+import platform
 import re
 import unittest.mock as mock
 from typing import List, Union
@@ -18,7 +19,6 @@ from openeo.util import (
     Rfc3339,
     SimpleProgressBar,
     TimingLogger,
-    EPSGCodeNotFound,
     clip,
     crs_to_epsg_code,
     deep_get,
@@ -838,11 +838,6 @@ PROJCRS["WGS 84 / UTM zone 31N",
         ("", None),
         # also likely to occur
         ("WGS84", 4326),
-        # Test some proj definition strings.
-        # Maybe some users will try some things that are WKT or other formats.
-        (WKT2_FOR_EPSG23631, 32631),
-        ("+proj=latlon", 4326),
-        ("+proj=utm +zone=31 +datum=WGS84 +units=m +no_defs", 32631),
     ],
 )
 def test_crs_to_epsg_code_succeeds_with_correct_crses(epsg_input, expected):
@@ -850,23 +845,72 @@ def test_crs_to_epsg_code_succeeds_with_correct_crses(epsg_input, expected):
     assert crs_to_epsg_code(epsg_input) == expected
 
 
+@pytest.mark.skipif(platform.python_version() < "3.7", reason="WKT2 format not supported by pyproj 3.0 / python 3.6")
+def test_crs_to_epsg_code_succeeds_with_wkt2_input():
+    """Test it with WKT2 strings, which is something I expects some users to try.
+
+    > WARNING: Older versions of pyproj do not support this format.
+    > In particular, pyproj 3.0 which is the version we get on python 3.6, will
+    > fail on this test.
+
+    This is an advance option, and for now we won't announce publicly that
+    these advanced formats could be used.
+
+    We could choose to simply not support these values but some of them are
+    fairly common, certainly WKT. So we can expect users to start asking for this.
+    And if we do want to allow it then we need test coverage.
+
+    Further, it would be best to start testing it *now*, before we decide to
+    support it so we can see if it causes problems.
+
+    Specifically, we have to support different versions of python which also
+    means different versions of pyproj and that make it more difficult to maintain.
+    This is in fact why we needed to mark this test with a `skipif` in the
+    first place.
+    """
+    assert crs_to_epsg_code(WKT2_FOR_EPSG23631) == 32631
+
+
 @pytest.mark.parametrize(
-    "epsg_input",
+    ["epsg_input", "expected"],
     [
-        "doesnotexist",
-        "+init=unknownauthority:123",
-        "10.0",  # wrong format: float
-        "4326.0",  # wrong format: float
+        ("+proj=latlon", 4326),
+        ("+proj=utm +zone=31 +datum=WGS84 +units=m +no_defs", 32631),
     ],
 )
+def test_crs_to_epsg_code_succeeds_with_correct_projstring(epsg_input, expected):
+    """These are more advanced inputs that pyproj should support.
+
+    This is an advance option, and for now we won't announce publicly that
+    these advanced formats could be used.
+
+    Contrary to WKT, it seems less likely that users would ask for these
+    proj options. Hence a separate test.
+
+
+    Same remark as for test_crs_to_epsg_code_succeeds_with_wkt2_input:
+
+    We could choose to simply not support these values. They are not as common
+    as WKT, but if we do want to allow it at some point then we need
+    test coverage.
+    Best to start testing this and see how it goes before we decide to
+    officially support it.
+    """
+    assert crs_to_epsg_code(epsg_input) == expected
+
+
+@pytest.mark.parametrize(
+    "epsg_input",
+    ["doesnotexist", "unknownauthority:123", "4326.0"],
+)
 def test_crs_to_epsg_code_handles_incorrect_crs(epsg_input):
-    with pytest.raises(EPSGCodeNotFound) as exc:
+    with pytest.raises(ValueError):
         crs_to_epsg_code(epsg_input)
-        assert exc.crs == epsg_input
 
 
-@pytest.mark.parametrize("epsg_input", [0.0, 1.0, 10.0, [], {}])
+@pytest.mark.parametrize("epsg_input", [0.0, 1.0, 10.0, 4326.0, [], {}])
 def test_crs_to_epsg_code_raises_typeerror(epsg_input):
+    """Verify we restrict the allowed input types to int, str and None."""
     with pytest.raises(TypeError):
         crs_to_epsg_code(epsg_input)
 
@@ -876,5 +920,6 @@ def test_crs_to_epsg_code_raises_typeerror(epsg_input):
     [0, "0", -1, "-1", -321654643],
 )
 def test_crs_to_epsg_code_raises_valueerror(epsg_input):
+    """EPSG codes can not be 0 or negative."""
     with pytest.raises(ValueError):
         crs_to_epsg_code(epsg_input)

@@ -632,14 +632,6 @@ class SimpleProgressBar:
         return f"{self.left}{bar:{self.fill}<{width}s}{self.right}"
 
 
-class EPSGCodeNotFound(Exception):
-    """Could not find matching EPSG code for this CRS"""
-
-    def __init__(self, crs: Union[str, int, None], *args: object) -> None:
-        super().__init__(*args)
-        self.crs = crs
-
-
 def crs_to_epsg_code(crs: Union[str, int, None]) -> Optional[int]:
     """Convert a CRS string or int to an integer EPGS code, where CRS usually comes from user input.
 
@@ -676,28 +668,27 @@ def crs_to_epsg_code(crs: Union[str, int, None]) -> Optional[int]:
         return None
 
     # TODO: decide: are more fine-grained checks more helpful than always raising EPSGCodeNotFound?
-    if isinstance(crs, int):
-        if crs <= 0:
-            raise ValueError("If crs is an integer then it must be > 0.")
-        return crs
-
-    if not isinstance(crs, str):
+    if not isinstance(crs, (int, str)):
         raise TypeError("The allowed type for the parameter 'crs' are: str, int and None")
 
-    try:
-        crs_int = int(crs)
-    except:
-        # Need to process it with pyproj, below.
-        pass
+    # if We want to stop processing as soon as we have an int value, then we
+    # should not accept values that are complete non-sense, as best as we can.
+    crs_intermediate = crs
+    if isinstance(crs, int):
+        crs_intermediate = crs
     else:
-        if crs_int <= 0:
-            raise ValueError("If crs is a string that represents an integer then the number must be > 0.")
-        return crs_int
+        # This conversion is needed to support strings that only contain an integer,
+        # e.g. "4326" though it is a string, is a otherwise a correct EPSG code.
+        try:
+            crs_intermediate = int(crs)
+        except ValueError as exc:
+            # So we need to process it with pyproj, below.
+            logger.debug("crs_to_epsg_code received crs input that was not an int: crs={crs}, exception caught: {exc}")
 
     try:
-        converted_crs = pyproj.crs.CRS.from_user_input(crs)
+        converted_crs = pyproj.crs.CRS.from_user_input(crs_intermediate)
     except pyproj.exceptions.CRSError as exc:
-        logger.error("Could not convert CRS string to EPSG code: {crs=}, exception: {exc}", exc_info=True)
-        raise EPSGCodeNotFound(crs) from exc
+        logger.error(f"Could not convert CRS string to EPSG code: crs={crs}, exception: {exc}", exc_info=True)
+        raise ValueError(crs) from exc
     else:
         return converted_crs.to_epsg()
