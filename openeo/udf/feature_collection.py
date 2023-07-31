@@ -40,8 +40,10 @@ class FeatureCollection:
             for each spatial x,y slice, if no
             end times are defined, then time instances are assumed not intervals
         """
+        # TODO #455 `id` is first and a required argument, but it's unclear what it can/should be used for. Can we eliminate it?
         self.id = id
         self._data = data
+        # TODO #455 why not include these datetimes directly in the dataframe?
         self._start_times = self._as_datetimeindex(start_times, expected_length=len(self.data))
         self._end_times = self._as_datetimeindex(end_times, expected_length=len(self.data))
 
