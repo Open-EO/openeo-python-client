@@ -38,9 +38,9 @@ class Dimension:
         """
         Rename labels, if the type of dimension allows it.
 
-        @param target: List of target labels
-        @param source: Source labels, or empty list
-        @return: A new dimension with modified labels, or the same if no change is applied.
+        :param target: List of target labels
+        :param source: Source labels, or empty list
+        :return: A new dimension with modified labels, or the same if no change is applied.
         """
         # In general, we don't have/manage label info here, so do nothing.
         return Dimension(type=self.type, name=self.name)
@@ -104,6 +104,7 @@ class BandDimension(Dimension):
     def band_index(self, band: Union[int, str]) -> int:
         """
         Resolve a given band (common) name/index to band index
+
         :param band: band name, common name or index
         :return int: band index
         """

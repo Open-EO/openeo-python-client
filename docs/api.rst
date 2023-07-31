@@ -47,6 +47,13 @@ openeo.rest.mlmodel
    :inherited-members:
 
 
+openeo.metadata
+----------------
+
+.. automodule:: openeo.metadata
+   :members: CollectionMetadata, BandDimension, SpatialDimension, TemporalDimension
+
+
 openeo.api.process
 --------------------
 
