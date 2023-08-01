@@ -648,6 +648,14 @@ def crs_to_epsg_code(crs: Union[str, int, None]) -> Optional[int]:
     defined in EPSG. For any other definitions pyproj will only give you the
     closest EPSG match and that result is possibly inaccurate.
 
+    Note that we also need to support WKT string (WKT2),
+    see also: https://github.com/Open-EO/openeo-processes/issues/58
+
+    For very the oldest supported version of Python: v3.6 there is a problem
+    because the pyproj version that is compatible with Python 3.6 is too old
+    and does not properly support WKT2.
+
+
     For a list of CRS input formats that proj supports
     see: https://pyproj4.github.io/pyproj/stable/api/crs/crs.html#pyproj.crs.CRS.from_user_input
 
@@ -656,12 +664,11 @@ def crs_to_epsg_code(crs: Union[str, int, None]) -> Optional[int]:
         EPSG code.
 
     :raises ValueError:
-        When the crs is a negative value (as int or as a str representing an int)
+        When the crs is a not a supported CRS string.
     :raises TypeError:
         When crs is none of the supported types: str, int, None
 
     :return: An EPGS code if it could be found, otherwise None
-
     """
 
     if crs is None or crs == "":

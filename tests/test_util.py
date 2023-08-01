@@ -847,26 +847,18 @@ def test_crs_to_epsg_code_succeeds_with_correct_crses(epsg_input, expected):
 
 @pytest.mark.skipif(platform.python_version() < "3.7", reason="WKT2 format not supported by pyproj 3.0 / python 3.6")
 def test_crs_to_epsg_code_succeeds_with_wkt2_input():
-    """Test it with WKT2 strings, which is something I expects some users to try.
+    """Test can handle WKT2 strings.
 
-    > WARNING: Older versions of pyproj do not support this format.
-    > In particular, pyproj 3.0 which is the version we get on python 3.6, will
-    > fail on this test.
+    We need to support WKT2:
+    See also https://github.com/Open-EO/openeo-processes/issues/58
 
-    This is an advance option, and for now we won't announce publicly that
-    these advanced formats could be used.
 
-    We could choose to simply not support these values but some of them are
-    fairly common, certainly WKT. So we can expect users to start asking for this.
-    And if we do want to allow it then we need test coverage.
+    WARNING:
+    =======
 
-    Further, it would be best to start testing it *now*, before we decide to
-    support it so we can see if it causes problems.
-
-    Specifically, we have to support different versions of python which also
-    means different versions of pyproj and that make it more difficult to maintain.
-    This is in fact why we needed to mark this test with a `skipif` in the
-    first place.
+    Older versions of pyproj do not support this format.
+    In particular, pyproj 3.0 which is the version we get on python 3.6, would
+    fail on this test, and is marked with a skipif for that reason.
     """
     assert crs_to_epsg_code(WKT2_FOR_EPSG23631) == 32631
 
@@ -879,22 +871,13 @@ def test_crs_to_epsg_code_succeeds_with_wkt2_input():
     ],
 )
 def test_crs_to_epsg_code_succeeds_with_correct_projstring(epsg_input, expected):
-    """These are more advanced inputs that pyproj should support.
+    """These are more advanced inputs that pyproj should support, though
+    the proj format is now discouraged, in favor of WKT2 and PROJJSON.
 
-    This is an advance option, and for now we won't announce publicly that
-    these advanced formats could be used.
+    See also https://github.com/Open-EO/openeo-processes/issues/58
 
     Contrary to WKT, it seems less likely that users would ask for these
     proj options. Hence a separate test.
-
-
-    Same remark as for test_crs_to_epsg_code_succeeds_with_wkt2_input:
-
-    We could choose to simply not support these values. They are not as common
-    as WKT, but if we do want to allow it at some point then we need
-    test coverage.
-    Best to start testing this and see how it goes before we decide to
-    officially support it.
     """
     assert crs_to_epsg_code(epsg_input) == expected
 
