@@ -3,7 +3,7 @@ import json
 import logging
 import os
 import pathlib
-import platform
+import sys
 import re
 import unittest.mock as mock
 from typing import List, Union
@@ -845,7 +845,7 @@ def test_crs_to_epsg_code_succeeds_with_correct_crses(epsg_input, expected):
     assert crs_to_epsg_code(epsg_input) == expected
 
 
-@pytest.mark.skipif(platform.python_version() < "3.7", reason="WKT2 format not supported by pyproj 3.0 / python 3.6")
+@pytest.mark.skipif(sys.version_info < (3, 7), reason="WKT2 format not supported by pyproj 3.0 / python 3.6")
 def test_crs_to_epsg_code_succeeds_with_wkt2_input():
     """Test can handle WKT2 strings.
 
@@ -933,7 +933,7 @@ PROJJSON_FOR_EPSG32631 = {
 }
 
 
-@pytest.mark.skipif(platform.python_version() < "3.7", reason="WKT2 format not supported by pyproj 3.0 / python 3.6")
+@pytest.mark.skipif(sys.version_info < (3, 8), reason="PROJJSON format not supported by pyproj v3.2 / python < v3.8")
 def test_crs_to_epsg_code_succeeds_with_correct_projjson():
     json_str = json.dumps(PROJJSON_FOR_EPSG32631)
 

@@ -7,7 +7,7 @@ import collections
 import copy
 import io
 import pathlib
-import platform
+import sys
 import re
 import textwrap
 from typing import Optional
@@ -429,10 +429,39 @@ def test_aggregate_spatial_with_crs(con100: Connection, recwarn, crs: str):
     }
 
 
-@pytest.mark.skipif(platform.python_version() < "3.7", reason="WKT2 format not supported by pyproj 3.0 / python 3.6")
-@pytest.mark.parametrize("crs", [WKT2_FOR_EPSG23631, PROJJSON_FOR_EPSG23631])
-def test_aggregate_spatial_with_crs_as_wkt_or_projjson(con100: Connection, recwarn, crs):
+@pytest.mark.skipif(sys.version_info < (3, 7), reason="WKT2 format not supported by pyproj 3.0 / python 3.6")
+def test_aggregate_spatial_with_crs_as_wkt(con100: Connection, recwarn):
     """Separate test coverage for WKT, so we can skip it for Python3.6"""
+    crs = WKT2_FOR_EPSG23631
+    img = con100.load_collection("S2")
+    polygon = shapely.geometry.box(0, 0, 1, 1)
+    masked = img.aggregate_spatial(geometries=polygon, reducer="mean", crs=crs)
+    warnings = [str(w.message) for w in recwarn]
+    assert f"Geometry with non-Lon-Lat CRS {crs!r} is only supported by specific back-ends." in warnings
+    assert sorted(masked.flat_graph().keys()) == ["aggregatespatial1", "loadcollection1"]
+    assert masked.flat_graph()["aggregatespatial1"] == {
+        "process_id": "aggregate_spatial",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "geometries": {
+                "type": "Polygon",
+                "coordinates": (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),),
+                "crs": {"properties": {"name": "EPSG:32631"}, "type": "name"},
+            },
+            "reducer": {
+                "process_graph": {
+                    "mean1": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}
+                }
+            },
+        },
+        "result": True,
+    }
+
+
+@pytest.mark.skipif(sys.version_info < (3, 8), reason="PROJJSON format not supported by pyproj 3.2 / python < v3.8")
+def test_aggregate_spatial_with_crs_as_projjson(con100: Connection, recwarn):
+    """Separate test coverage for PROJJSON, so we can skip it for Python versions below 3.8"""
+    crs = PROJJSON_FOR_EPSG23631
     img = con100.load_collection("S2")
     polygon = shapely.geometry.box(0, 0, 1, 1)
     masked = img.aggregate_spatial(geometries=polygon, reducer="mean", crs=crs)
@@ -679,10 +708,10 @@ def test_mask_polygon_with_crs(con100: Connection, recwarn, crs: str):
     }
 
 
-@pytest.mark.skipif(platform.python_version() < "3.7", reason="WKT2 format not supported by pyproj 3.0 / python 3.6")
-@pytest.mark.parametrize("crs", [WKT2_FOR_EPSG23631, PROJJSON_FOR_EPSG23631])
-def test_mask_polygon_with_crs_as_wkt_or_projjson(con100: Connection, recwarn, crs):
+@pytest.mark.skipif(sys.version_info < (3, 7), reason="WKT2 format not supported by pyproj 3.0 / python 3.6")
+def test_mask_polygon_with_crs_as_wkt(con100: Connection, recwarn):
     """Separate test coverage for WKT, so we can skip it for Python3.6"""
+    crs = WKT2_FOR_EPSG23631
     img = con100.load_collection("S2")
     polygon = shapely.geometry.box(0, 0, 1, 1)
     masked = img.mask_polygon(mask=polygon, srs=crs)
@@ -695,6 +724,31 @@ def test_mask_polygon_with_crs_as_wkt_or_projjson(con100: Connection, recwarn, c
             "data": {"from_node": "loadcollection1"},
             "mask": {
                 "type": "Polygon", "coordinates": (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),),
+                # All listed test inputs for crs should be converted to "EPSG:32631"
+                "crs": {"type": "name", "properties": {"name": "EPSG:32631"}},
+            },
+        },
+        "result": True,
+    }
+
+
+@pytest.mark.skipif(sys.version_info < (3, 8), reason="PROJJSON format not supported by pyproj 3.2 / python < v3.8")
+def test_mask_polygon_with_crs_as_projjson(con100: Connection, recwarn):
+    """Separate test coverage for PROJJSON, so we can skip it for Python versions below 3.8"""
+    crs = PROJJSON_FOR_EPSG23631
+    img = con100.load_collection("S2")
+    polygon = shapely.geometry.box(0, 0, 1, 1)
+    masked = img.mask_polygon(mask=polygon, srs=crs)
+    warnings = [str(w.message) for w in recwarn]
+    assert f"Geometry with non-Lon-Lat CRS {crs!r} is only supported by specific back-ends." in warnings
+    assert sorted(masked.flat_graph().keys()) == ["loadcollection1", "maskpolygon1"]
+    assert masked.flat_graph()["maskpolygon1"] == {
+        "process_id": "mask_polygon",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "mask": {
+                "type": "Polygon",
+                "coordinates": (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),),
                 # All listed test inputs for crs should be converted to "EPSG:32631"
                 "crs": {"type": "name", "properties": {"name": "EPSG:32631"}},
             },
