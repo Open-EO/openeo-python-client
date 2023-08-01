@@ -6,6 +6,7 @@ Unit tests specifically for 1.0.0-style DataCube
 import collections
 import copy
 import io
+import json
 import pathlib
 import sys
 import re
@@ -459,9 +460,9 @@ def test_aggregate_spatial_with_crs_as_wkt(con100: Connection, recwarn):
 
 
 @pytest.mark.skipif(sys.version_info < (3, 8), reason="PROJJSON format not supported by pyproj 3.2 / python < v3.8")
-def test_aggregate_spatial_with_crs_as_projjson(con100: Connection, recwarn):
+@pytest.mark.parametrize("crs", [PROJJSON_FOR_EPSG23631, json.dumps(PROJJSON_FOR_EPSG23631)])
+def test_aggregate_spatial_with_crs_as_projjson(con100: Connection, recwarn, crs):
     """Separate test coverage for PROJJSON, so we can skip it for Python versions below 3.8"""
-    crs = PROJJSON_FOR_EPSG23631
     img = con100.load_collection("S2")
     polygon = shapely.geometry.box(0, 0, 1, 1)
     masked = img.aggregate_spatial(geometries=polygon, reducer="mean", crs=crs)
@@ -733,9 +734,9 @@ def test_mask_polygon_with_crs_as_wkt(con100: Connection, recwarn):
 
 
 @pytest.mark.skipif(sys.version_info < (3, 8), reason="PROJJSON format not supported by pyproj 3.2 / python < v3.8")
-def test_mask_polygon_with_crs_as_projjson(con100: Connection, recwarn):
+@pytest.mark.parametrize("crs", [PROJJSON_FOR_EPSG23631, json.dumps(PROJJSON_FOR_EPSG23631)])
+def test_mask_polygon_with_crs_as_projjson(con100: Connection, recwarn, crs):
     """Separate test coverage for PROJJSON, so we can skip it for Python versions below 3.8"""
-    crs = PROJJSON_FOR_EPSG23631
     img = con100.load_collection("S2")
     polygon = shapely.geometry.box(0, 0, 1, 1)
     masked = img.mask_polygon(mask=polygon, srs=crs)
