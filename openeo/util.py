@@ -632,7 +632,7 @@ class SimpleProgressBar:
         return f"{self.left}{bar:{self.fill}<{width}s}{self.right}"
 
 
-def crs_to_epsg_code(crs: Union[str, int, None]) -> Optional[int]:
+def crs_to_epsg_code(crs: Union[str, int, dict, None]) -> Optional[int]:
     """Convert a CRS string or int to an integer EPGS code, where CRS usually comes from user input.
 
     Three cases:
@@ -671,19 +671,20 @@ def crs_to_epsg_code(crs: Union[str, int, None]) -> Optional[int]:
     :return: An EPGS code if it could be found, otherwise None
     """
 
-    if crs is None or crs == "":
+    # Only convert to the default if it is an explicitly allowed type.
+    if crs in (None, "", {}):
         return None
 
     # TODO: decide: are more fine-grained checks more helpful than always raising EPSGCodeNotFound?
-    if not isinstance(crs, (int, str)):
-        raise TypeError("The allowed type for the parameter 'crs' are: str, int and None")
+    if not isinstance(crs, (int, str, dict)):
+        raise TypeError("The allowed type for the parameter 'crs' are: str, int, dict and None")
 
     # if We want to stop processing as soon as we have an int value, then we
     # should not accept values that are complete non-sense, as best as we can.
     crs_intermediate = crs
     if isinstance(crs, int):
         crs_intermediate = crs
-    else:
+    elif isinstance(crs, str):
         # This conversion is needed to support strings that only contain an integer,
         # e.g. "4326" though it is a string, is a otherwise a correct EPSG code.
         try:
