@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix: MultibackendJobManager should stop when finished, also when job finishes with error ([#452](https://github.com/Open-EO/openeo-python-client/issues/432))
 
 ## [0.21.1] - 2023-07-19
 
