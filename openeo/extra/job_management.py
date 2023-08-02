@@ -256,6 +256,7 @@ class MultiBackendJobManager:
                 (df.status != "finished")
                 & (df.status != "skipped")
                 & (df.status != "start_failed")
+                & (df.status != "error")
             ].size
             > 0
         ):

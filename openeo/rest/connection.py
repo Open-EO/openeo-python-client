@@ -51,6 +51,11 @@ from openeo.util import (
 
 _log = logging.getLogger(__name__)
 
+# Default timeouts for requests
+# TODO: get default_timeout from config?
+DEFAULT_TIMEOUT = 20 * 60
+DEFAULT_TIMEOUT_SYNCHRONOUS_EXECUTE = 30 * 60
+
 
 class RestApiConnection:
     """Base connection class implementing generic REST API request functionality"""
@@ -66,7 +71,7 @@ class RestApiConnection:
         self._root_url = root_url
         self.auth = auth or NullAuth()
         self.session = session or requests.Session()
-        self.default_timeout = default_timeout
+        self.default_timeout = default_timeout or DEFAULT_TIMEOUT
         self.default_headers = {
             "User-Agent": "openeo-python-client/{cv} {py}/{pv} {pl}".format(
                 cv=openeo.client_version(),
@@ -1388,7 +1393,7 @@ class Connection(RestApiConnection):
         self,
         graph: Union[dict, FlatGraphableMixin, str, Path],
         outputfile: Union[Path, str, None] = None,
-        timeout: int = 30 * 60,
+        timeout: Optional[int] = None,
     ) -> Union[None, bytes]:
         """
         Downloads the result of a process graph synchronously,
@@ -1401,7 +1406,13 @@ class Connection(RestApiConnection):
         :param timeout: timeout to wait for response
         """
         request = self._build_request_with_process_graph(process_graph=graph)
-        response = self.post(path="/result", json=request, expected_status=200, stream=True, timeout=timeout)
+        response = self.post(
+            path="/result",
+            json=request,
+            expected_status=200,
+            stream=True,
+            timeout=timeout or DEFAULT_TIMEOUT_SYNCHRONOUS_EXECUTE,
+        )
 
         if outputfile is not None:
             with Path(outputfile).open(mode="wb") as f:
@@ -1410,7 +1421,11 @@ class Connection(RestApiConnection):
         else:
             return response.content
 
-    def execute(self, process_graph: Union[dict, str, Path]):
+    def execute(
+        self,
+        process_graph: Union[dict, str, Path],
+        timeout: Optional[int] = None,
+    ):
         """
         Execute a process graph synchronously and return the result (assumed to be JSON).
 
@@ -1419,7 +1434,12 @@ class Connection(RestApiConnection):
         :return: parsed JSON response
         """
         req = self._build_request_with_process_graph(process_graph=process_graph)
-        return self.post(path="/result", json=req, expected_status=200).json()
+        return self.post(
+            path="/result",
+            json=req,
+            expected_status=200,
+            timeout=timeout or DEFAULT_TIMEOUT_SYNCHRONOUS_EXECUTE,
+        ).json()
 
     def create_job(
         self,

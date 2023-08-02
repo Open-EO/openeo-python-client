@@ -973,10 +973,13 @@ class DataCube(_ProcessGraphAbstraction):
         :param boundary: Behavior to apply if the number of values for the axes x and y is not a
             multiple of the corresponding value in the size parameter.
             Options are:
-                pad (default): pad the data cube with the no-data value null to fit the required window size.
-                trim: trim the data cube to fit the required window size.
-            Set the parameter align to specifies to which corner the data is aligned to.
-        :param align: If the data requires padding or trimming (see parameter boundary), specifies
+
+                - ``pad`` (default): pad the data cube with the no-data value null to fit the required window size.
+                - ``trim``: trim the data cube to fit the required window size.
+
+            Use the parameter ``align`` to align the data to the desired corner.
+
+        :param align: If the data requires padding or trimming (see parameter ``boundary``), specifies
             to which corner of the spatial extent the data is aligned to. For example, if the data is
             aligned to the upper left, the process pads/trims at the lower-right.
         :param context: Additional data to be passed to the process.
