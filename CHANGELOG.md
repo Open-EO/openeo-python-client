@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Initial `load_geojson` support with `Connection.load_geojson()` ([#424](https://github.com/Open-EO/openeo-python-client/issues/424))
+
 ### Changed
 
 - `Connection` based requests: always use finite timeouts by default (20 minutes in general, 30 minutes for synchronous execute requests)

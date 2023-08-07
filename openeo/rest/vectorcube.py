@@ -1,14 +1,18 @@
+import json
 import pathlib
 import typing
-from typing import Union, Optional
+from typing import List, Optional, Union
 
+import shapely.geometry.base
+
+from openeo.api.process import Parameter
 from openeo.internal.documentation import openeo_process
 from openeo.internal.graph_building import PGNode
 from openeo.internal.warnings import legacy_alias
 from openeo.metadata import CollectionMetadata
-from openeo.rest._datacube import _ProcessGraphAbstraction, UDF
-from openeo.rest.mlmodel import MlModel
+from openeo.rest._datacube import UDF, _ProcessGraphAbstraction
 from openeo.rest.job import BatchJob
+from openeo.rest.mlmodel import MlModel
 from openeo.util import dict_no_none, guess_format
 
 if typing.TYPE_CHECKING:
@@ -42,10 +46,57 @@ class VectorCube(_ProcessGraphAbstraction):
 
         :param process_id: process id of the process.
         :param args: argument dictionary for the process.
-        :return: new DataCube instance
+        :return: new VectorCube instance
         """
         pg = self._build_pgnode(process_id=process_id, arguments=arguments, namespace=namespace, **kwargs)
         return VectorCube(graph=pg, connection=self._connection, metadata=metadata or self.metadata)
+
+    @classmethod
+    @openeo_process
+    def load_geojson(
+        cls,
+        connection: "openeo.Connection",
+        data: Union[dict, str, pathlib.Path, shapely.geometry.base.BaseGeometry, Parameter],
+        properties: Optional[List[str]] = None,
+    ):
+        """
+        Converts GeoJSON data as defined by RFC 7946 into a vector data cube.
+
+        :param connection: the connection to use to connect with the openEO back-end.
+        :param data: the geometry to load. One of:
+
+            - GeoJSON-style data structure: e.g. a dictionary with ``"type": "Polygon"`` and ``"coordinates"`` fields
+            - a path to a local GeoJSON file
+            - a GeoJSON string
+            - a shapely geometry object
+
+        :param properties: A list of properties from the GeoJSON file to construct an additional dimension from.
+        :return: new VectorCube instance
+
+        .. warning:: EXPERIMENTAL: this process is experimental with the potential for major things to change.
+
+        .. versionadded:: 0.22.0
+        """
+        # TODO: unify with `DataCube._get_geometry_argument`
+        if isinstance(data, str) and data.strip().startswith("{"):
+            # Assume JSON dump
+            geometry = json.loads(data)
+        elif isinstance(data, (str, pathlib.Path)):
+            # Assume local file
+            with pathlib.Path(data).open(mode="r", encoding="utf-8") as f:
+                geometry = json.load(f)
+                assert isinstance(geometry, dict)
+        elif isinstance(data, shapely.geometry.base.BaseGeometry):
+            geometry = shapely.geometry.mapping(data)
+        elif isinstance(data, Parameter):
+            geometry = data
+        elif isinstance(data, dict):
+            geometry = data
+        else:
+            raise ValueError(data)
+
+        pg = PGNode(process_id="load_geojson", data=geometry, properties=properties or [])
+        return cls(graph=pg, connection=connection)
 
     @openeo_process
     def run_udf(

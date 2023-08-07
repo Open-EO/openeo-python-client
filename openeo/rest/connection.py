@@ -15,10 +15,12 @@ from typing import Dict, List, Tuple, Union, Callable, Optional, Any, Iterator, 
 import requests
 from requests import Response
 from requests.auth import HTTPBasicAuth, AuthBase
+import shapely.geometry.base
 
 import openeo
 from openeo.capabilities import ApiVersionException, ComparableVersion
 from openeo.config import get_config_option, config_log
+from openeo.internal.documentation import openeo_process
 from openeo.internal.graph_building import PGNode, as_flat_graph, FlatGraphableMixin
 from openeo.internal.jupyter import VisualDict, VisualList
 from openeo.internal.processes.builder import ProcessBuilderBase
@@ -1095,12 +1097,13 @@ class Connection(RestApiConnection):
         """
         return self.datacube_from_flat_graph(load_json_resource(src), parameters=parameters)
 
+    @openeo_process
     def load_collection(
             self,
             collection_id: str,
             spatial_extent: Optional[Dict[str, float]] = None,
-            temporal_extent: Optional[List[Union[str, datetime.datetime, datetime.date]]] = None,
-            bands: Optional[List[str]] = None,
+        temporal_extent: Optional[List[Union[str, datetime.datetime, datetime.date]]] = None,
+        bands: Optional[List[str]] = None,
             properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
             max_cloud_cover: Optional[float] = None,
             fetch_metadata=True,
@@ -1131,6 +1134,7 @@ class Connection(RestApiConnection):
         load_collection, name="imagecollection", since="0.4.10"
     )
 
+    @openeo_process
     def load_result(
             self,
             id: str,
@@ -1168,6 +1172,7 @@ class Connection(RestApiConnection):
         cube.metadata = metadata
         return cube
 
+    @openeo_process
     def load_stac(
         self,
         url: str,
@@ -1304,6 +1309,33 @@ class Connection(RestApiConnection):
         .. versionadded:: 0.10.0
         """
         return MlModel.load_ml_model(connection=self, id=id)
+
+    @openeo_process
+    def load_geojson(
+        self,
+        data: Union[dict, str, Path, shapely.geometry.base.BaseGeometry, Parameter],
+        properties: Optional[List[str]] = None,
+    ):
+        """
+        Converts GeoJSON data as defined by RFC 7946 into a vector data cube.
+
+        :param connection: the connection to use to connect with the openEO back-end.
+        :param data: the geometry to load. One of:
+
+            - GeoJSON-style data structure: e.g. a dictionary with ``"type": "Polygon"`` and ``"coordinates"`` fields
+            - a path to a local GeoJSON file
+            - a GeoJSON string
+            - a shapely geometry object
+
+        :param properties: A list of properties from the GeoJSON file to construct an additional dimension from.
+        :return: new VectorCube instance
+
+        .. warning:: EXPERIMENTAL: this process is experimental with the potential for major things to change.
+
+        .. versionadded:: 0.22.0
+        """
+
+        return VectorCube.load_geojson(connection=self, data=data, properties=properties)
 
     def create_service(self, graph: dict, type: str, **kwargs) -> Service:
         # TODO: type hint for graph: is it a nested or a flat one?

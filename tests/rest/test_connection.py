@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 import requests.auth
 import requests_mock
+import shapely.geometry
 
 import openeo
 from openeo.capabilities import ApiVersionException, ComparableVersion
@@ -22,12 +23,12 @@ from openeo.rest.auth.auth import BearerAuth, NullAuth
 from openeo.rest.auth.oidc import OidcException
 from openeo.rest.auth.testing import ABSENT, OidcMock
 from openeo.rest.connection import (
+    DEFAULT_TIMEOUT,
+    DEFAULT_TIMEOUT_SYNCHRONOUS_EXECUTE,
     Connection,
     RestApiConnection,
     connect,
     paginate,
-    DEFAULT_TIMEOUT,
-    DEFAULT_TIMEOUT_SYNCHRONOUS_EXECUTE,
 )
 from openeo.util import ContextTimer
 
@@ -2357,6 +2358,29 @@ class TestLoadStac:
                 "result": True,
             }
         }
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        {"type": "Polygon", "coordinates": [[[1, 2], [3, 2], [3, 4], [1, 4], [1, 2]]]},
+        """{"type": "Polygon", "coordinates": [[[1, 2], [3, 2], [3, 4], [1, 4], [1, 2]]]}""",
+        shapely.geometry.Polygon([[1, 2], [3, 2], [3, 4], [1, 4], [1, 2]]),
+    ],
+)
+def test_load_geojson(con100, data, dummy_backend):
+    vc = con100.load_geojson(data)
+    vc.execute()
+    assert dummy_backend.get_pg() == {
+        "loadgeojson1": {
+            "process_id": "load_geojson",
+            "arguments": {
+                "data": {"type": "Polygon", "coordinates": [[[1, 2], [3, 2], [3, 4], [1, 4], [1, 2]]]},
+                "properties": [],
+            },
+            "result": True,
+        }
+    }
 
 
 def test_list_file_formats(requests_mock):
