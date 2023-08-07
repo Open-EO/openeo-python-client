@@ -1038,12 +1038,6 @@ class DataCube(_ProcessGraphAbstraction):
         the dimension labels will be incrementing integers starting from zero, which can be changed using
         rename_labels afterwards. The number of labels will equal to the number of values computed by the process.
 
-        .. note::
-            .. versionchanged:: 0.13.0
-                arguments ``code``, ``runtime`` and ``version`` are deprecated if favor of the standard approach
-                of using an :py:class:`UDF <openeo.rest._datacube.UDF>` object in the ``process`` argument.
-                See :ref:`old_udf_api` for more background about the changes.
-
         :param code: [**deprecated**] UDF code or process identifier (optional)
         :param runtime: [**deprecated**] UDF runtime to use (optional)
         :param process: the "child callback":
@@ -1070,6 +1064,12 @@ class DataCube(_ProcessGraphAbstraction):
 
         :return: A datacube with the UDF applied to the given dimension.
         :raises: DimensionNotAvailable
+
+        .. versionchanged:: 0.13.0
+            arguments ``code``, ``runtime`` and ``version`` are deprecated if favor of the standard approach
+            of using an :py:class:`UDF <openeo.rest._datacube.UDF>` object in the ``process`` argument.
+            See :ref:`old_udf_api` for more background about the changes.
+
         """
         # TODO #137 #181 #312 remove support for code/runtime/version
         if runtime or (isinstance(code, str) and "\n" in code):
