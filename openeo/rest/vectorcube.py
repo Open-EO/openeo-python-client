@@ -5,6 +5,7 @@ from typing import List, Optional, Union
 
 import shapely.geometry.base
 
+import openeo
 from openeo.api.process import Parameter
 from openeo.internal.documentation import openeo_process
 from openeo.internal.graph_building import PGNode
