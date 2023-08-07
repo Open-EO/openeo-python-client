@@ -30,6 +30,7 @@ from openeo.rest.connection import (
     connect,
     paginate,
 )
+from openeo.rest.vectorcube import VectorCube
 from openeo.util import ContextTimer
 
 from .. import load_json_resource
@@ -2370,6 +2371,7 @@ class TestLoadStac:
 )
 def test_load_geojson(con100, data, dummy_backend):
     vc = con100.load_geojson(data)
+    assert isinstance(vc, VectorCube)
     vc.execute()
     assert dummy_backend.get_pg() == {
         "loadgeojson1": {
@@ -2378,6 +2380,23 @@ def test_load_geojson(con100, data, dummy_backend):
                 "data": {"type": "Polygon", "coordinates": [[[1, 2], [3, 2], [3, 4], [1, 4], [1, 2]]]},
                 "properties": [],
             },
+            "result": True,
+        }
+    }
+
+
+def test_load_url(con100, dummy_backend, requests_mock):
+    file_formats = {
+        "input": {"GeoJSON": {"gis_data_type": ["vector"]}},
+    }
+    requests_mock.get(API_URL + "file_formats", json=file_formats)
+    vc = con100.load_url("https://example.com/geometry.json", format="GeoJSON")
+    assert isinstance(vc, VectorCube)
+    vc.execute()
+    assert dummy_backend.get_pg() == {
+        "loadurl1": {
+            "process_id": "load_url",
+            "arguments": {"url": "https://example.com/geometry.json", "format": "GeoJSON"},
             "result": True,
         }
     }

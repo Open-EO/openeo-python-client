@@ -802,6 +802,9 @@ class Connection(RestApiConnection):
             load=lambda: RESTCapabilities(data=self.get('/', expected_status=200).json(), url=self._orig_url)
         )
 
+    def list_input_formats(self) -> dict:
+        return self.list_file_formats().get("input", {})
+
     def list_output_formats(self) -> dict:
         return self.list_file_formats().get("output", {})
 
@@ -1319,7 +1322,6 @@ class Connection(RestApiConnection):
         """
         Converts GeoJSON data as defined by RFC 7946 into a vector data cube.
 
-        :param connection: the connection to use to connect with the openEO back-end.
         :param data: the geometry to load. One of:
 
             - GeoJSON-style data structure: e.g. a dictionary with ``"type": "Polygon"`` and ``"coordinates"`` fields
@@ -1336,6 +1338,27 @@ class Connection(RestApiConnection):
         """
 
         return VectorCube.load_geojson(connection=self, data=data, properties=properties)
+
+    @openeo_process
+    def load_url(self, url: str, format: str, options: Optional[dict] = None):
+        """
+        Loads a file from a URL
+
+        :param url: The URL to read from. Authentication details such as API keys or tokens may need to be included in the URL.
+        :param format: The file format to use when loading the data.
+        :param options: The file format parameters to use when reading the data.
+            Must correspond to the parameters that the server reports as supported parameters for the chosen ``format``
+        :return: new VectorCube instance
+
+        .. warning:: EXPERIMENTAL: this process is experimental with the potential for major things to change.
+
+        .. versionadded:: 0.22.0
+        """
+        if format not in self.list_input_formats():
+            # TODO: make this an error?
+            _log.warning(f"Format {format!r} not listed in back-end input formats")
+        # TODO: Inspect format's gis_data_type to see if we need to load a VectorCube or classic raster DataCube
+        return VectorCube.load_url(connection=self, url=url, format=format, options=options)
 
     def create_service(self, graph: dict, type: str, **kwargs) -> Service:
         # TODO: type hint for graph: is it a nested or a flat one?

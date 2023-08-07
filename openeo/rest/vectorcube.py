@@ -58,7 +58,7 @@ class VectorCube(_ProcessGraphAbstraction):
         connection: "openeo.Connection",
         data: Union[dict, str, pathlib.Path, shapely.geometry.base.BaseGeometry, Parameter],
         properties: Optional[List[str]] = None,
-    ):
+    ) -> "VectorCube":
         """
         Converts GeoJSON data as defined by RFC 7946 into a vector data cube.
 
@@ -78,6 +78,7 @@ class VectorCube(_ProcessGraphAbstraction):
         .. versionadded:: 0.22.0
         """
         # TODO: unify with `DataCube._get_geometry_argument`
+        # TODO: also support client side fetching of GeoJSON from URL?
         if isinstance(data, str) and data.strip().startswith("{"):
             # Assume JSON dump
             geometry = json.loads(data)
@@ -96,6 +97,28 @@ class VectorCube(_ProcessGraphAbstraction):
             raise ValueError(data)
 
         pg = PGNode(process_id="load_geojson", data=geometry, properties=properties or [])
+        return cls(graph=pg, connection=connection)
+
+    @classmethod
+    @openeo_process
+    def load_url(
+        cls, connection: "openeo.Connection", url: str, format: str, options: Optional[dict] = None
+    ) -> "VectorCube":
+        """
+        Loads a file from a URL
+
+        :param connection: the connection to use to connect with the openEO back-end.
+        :param url: The URL to read from. Authentication details such as API keys or tokens may need to be included in the URL.
+        :param format: The file format to use when loading the data.
+        :param options: The file format parameters to use when reading the data.
+            Must correspond to the parameters that the server reports as supported parameters for the chosen ``format``
+        :return: new VectorCube instance
+
+        .. warning:: EXPERIMENTAL: this process is experimental with the potential for major things to change.
+
+        .. versionadded:: 0.22.0
+        """
+        pg = PGNode(process_id="load_url", arguments=dict_no_none(url=url, format=format, options=options))
         return cls(graph=pg, connection=connection)
 
     @openeo_process

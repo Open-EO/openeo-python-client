@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial `load_geojson` support with `Connection.load_geojson()` ([#424](https://github.com/Open-EO/openeo-python-client/issues/424))
+- Initial `load_url` (for vector cubes) support with `Connection.load_url()` ([#424](https://github.com/Open-EO/openeo-python-client/issues/424))
 
 ### Changed
 

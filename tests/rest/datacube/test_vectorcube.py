@@ -240,3 +240,16 @@ def test_load_geojson_parameter(con100, dummy_backend):
             "result": True,
         }
     }
+
+
+def test_load_url(con100, dummy_backend):
+    vc = VectorCube.load_url(connection=con100, url="https://example.com/geometry.json", format="GeoJSON")
+    assert isinstance(vc, VectorCube)
+    vc.execute()
+    assert dummy_backend.get_pg() == {
+        "loadurl1": {
+            "process_id": "load_url",
+            "arguments": {"url": "https://example.com/geometry.json", "format": "GeoJSON"},
+            "result": True,
+        }
+    }
