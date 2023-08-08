@@ -1,20 +1,20 @@
-import json
 import logging
 import pathlib
 import re
 import typing
 import uuid
 import warnings
-from typing import Union, Tuple, Optional, Dict
+from typing import Dict, List, Optional, Tuple, Union
 
 import requests
 
 import openeo.processes
-from openeo.internal.graph_building import PGNode, _FromNodeMixin, FlatGraphableMixin
+from openeo.internal.graph_building import FlatGraphableMixin, PGNode, _FromNodeMixin
 from openeo.internal.jupyter import render_component
+from openeo.internal.processes.builder import convert_callable_to_pgnode, get_parameter_names
 from openeo.internal.warnings import UserDeprecationWarning
 from openeo.rest import OpenEoClientException
-from openeo.util import dict_no_none
+from openeo.util import dict_no_none, str_truncate
 
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).
@@ -159,6 +159,9 @@ class UDF:
                 stacklevel=2,
             )
 
+    def __repr__(self):
+        return f"<{type(self).__name__} runtime={self._runtime!r} code={str_truncate(self.code, width=200)!r}>"
+
     def get_runtime(self, connection: "openeo.Connection") -> str:
         return self._runtime or self._guess_runtime(connection=connection)
 
@@ -261,3 +264,46 @@ class UDF:
             context=self.context,
         )
         return PGNode(process_id="run_udf", arguments=arguments)
+
+
+def build_child_callback(
+    process: Union[str, PGNode, typing.Callable, UDF],
+    parent_parameters: List[str],
+    connection: Optional["openeo.Connection"] = None,
+) -> dict:
+    """
+    Build a "callback" process: a user defined process that is used by another process (such
+    as `apply`, `apply_dimension`, `reduce`, ....)
+
+    :param process: process id string, PGNode or callable that uses the ProcessBuilder mechanism to build a process
+    :param parent_parameters: list of parameter names defined for child process
+    :return:
+    """
+    # TODO: autodetect the parameters defined by parent process?
+    if isinstance(process, PGNode):
+        # Assume this is already a valid callback process
+        pg = process
+    elif isinstance(process, str):
+        # Assume given reducer is a simple predefined reduce process_id
+        if process in openeo.processes.__dict__:
+            process_params = get_parameter_names(openeo.processes.__dict__[process])
+            # TODO: switch to "Callable" handling here
+        else:
+            # Best effort guess
+            process_params = parent_parameters
+        if parent_parameters == ["x", "y"] and (len(process_params) == 1 or process_params[:1] == ["data"]):
+            # Special case: wrap all parent parameters in an array
+            arguments = {process_params[0]: [{"from_parameter": p} for p in parent_parameters]}
+        else:
+            # Only pass parameters that correspond with an arg name
+            common = set(process_params).intersection(parent_parameters)
+            arguments = {p: {"from_parameter": p} for p in common}
+        pg = PGNode(process_id=process, arguments=arguments)
+    elif isinstance(process, typing.Callable):
+        pg = convert_callable_to_pgnode(process, parent_parameters=parent_parameters)
+    elif isinstance(process, UDF):
+        pg = process.get_run_udf_callback(connection=connection, data_parameter=parent_parameters[0])
+    else:
+        raise ValueError(process)
+
+    return PGNode.to_process_graph_argument(pg)

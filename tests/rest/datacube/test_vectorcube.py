@@ -253,3 +253,32 @@ def test_load_url(con100, dummy_backend):
             "result": True,
         }
     }
+
+
+def test_apply_dimension(con100, dummy_backend):
+    vc = con100.load_geojson({"type": "Point", "coordinates": [1, 2]})
+    result = vc.apply_dimension("sort", dimension="geometries")
+    result.execute()
+    assert dummy_backend.get_pg() == {
+        "loadgeojson1": {
+            "process_id": "load_geojson",
+            "arguments": {"data": {"coordinates": [1, 2], "type": "Point"}, "properties": []},
+        },
+        "applydimension1": {
+            "process_id": "apply_dimension",
+            "arguments": {
+                "data": {"from_node": "loadgeojson1"},
+                "dimension": "geometries",
+                "process": {
+                    "process_graph": {
+                        "sort1": {
+                            "process_id": "sort",
+                            "arguments": {"data": {"from_parameter": "data"}},
+                            "result": True,
+                        }
+                    }
+                },
+            },
+            "result": True,
+        },
+    }

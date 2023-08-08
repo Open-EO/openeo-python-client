@@ -31,7 +31,7 @@ from openeo.internal.jupyter import in_jupyter_context
 from openeo.metadata import CollectionMetadata, Band, BandDimension, TemporalDimension, SpatialDimension
 from openeo.processes import ProcessBuilder
 from openeo.rest import BandMathException, OperatorException, OpenEoClientException
-from openeo.rest._datacube import _ProcessGraphAbstraction, THIS, UDF
+from openeo.rest._datacube import _ProcessGraphAbstraction, THIS, UDF, build_child_callback
 from openeo.rest.job import BatchJob
 from openeo.rest.mlmodel import MlModel
 from openeo.rest.service import Service
@@ -164,9 +164,8 @@ class DataCube(_ProcessGraphAbstraction):
                     f"in the collection metadata (summaries): {', '.join(undefined_properties)}.",
                     stacklevel=2,
                 )
-            arguments['properties'] = {
-                prop: cls._get_callback(pred, parent_parameters=["value"])
-                for prop, pred in properties.items()
+            arguments["properties"] = {
+                prop: build_child_callback(pred, parent_parameters=["value"]) for prop, pred in properties.items()
             }
         pg = PGNode(
             process_id='load_collection',
@@ -896,7 +895,7 @@ class DataCube(_ProcessGraphAbstraction):
             "Polygon", "MultiPolygon", "GeometryCollection", "Feature", "FeatureCollection"
         ]
         geometries = self._get_geometry_argument(geometries, valid_geojson_types=valid_geojson_types, crs=crs)
-        reducer = self._get_callback(reducer, parent_parameters=["data"])
+        reducer = build_child_callback(reducer, parent_parameters=["data"])
         return VectorCube(
             graph=self._build_pgnode(
                 process_id="aggregate_spatial",
@@ -910,49 +909,6 @@ class DataCube(_ProcessGraphAbstraction):
             connection=self._connection,
             # TODO: metadata?
         )
-
-    @staticmethod
-    def _get_callback(
-            process: Union[str, PGNode, typing.Callable, UDF],
-            parent_parameters: List[str],
-            connection: Optional["openeo.Connection"] = None,
-    ) -> dict:
-        """
-        Build a "callback" process: a user defined process that is used by another process (such
-        as `apply`, `apply_dimension`, `reduce`, ....)
-
-        :param process: process id string, PGNode or callable that uses the ProcessBuilder mechanism to build a process
-        :param parent_parameters: list of parameter names defined for child process
-        :return:
-        """
-        # TODO: autodetect the parameters defined by parent process?
-        if isinstance(process, PGNode):
-            # Assume this is already a valid callback process
-            pg = process
-        elif isinstance(process, str):
-            # Assume given reducer is a simple predefined reduce process_id
-            if process in openeo.processes.__dict__:
-                process_params = get_parameter_names(openeo.processes.__dict__[process])
-                # TODO: switch to "Callable" handling here
-            else:
-                # Best effort guess
-                process_params = parent_parameters
-            if parent_parameters == ["x", "y"] and (len(process_params) == 1 or process_params[:1] == ["data"]):
-                # Special case: wrap all parent parameters in an array
-                arguments = {process_params[0]: [{"from_parameter": p} for p in parent_parameters]}
-            else:
-                # Only pass parameters that correspond with an arg name
-                common = set(process_params).intersection(parent_parameters)
-                arguments = {p: {"from_parameter": p} for p in common}
-            pg = PGNode(process_id=process, arguments=arguments)
-        elif isinstance(process, typing.Callable):
-            pg = convert_callable_to_pgnode(process, parent_parameters=parent_parameters)
-        elif isinstance(process, UDF):
-            pg = process.get_run_udf_callback(connection=connection, data_parameter=parent_parameters[0])
-        else:
-            raise ValueError(process)
-
-        return PGNode.to_process_graph_argument(pg)
 
     @openeo_process
     def aggregate_spatial_window(
@@ -1003,7 +959,7 @@ class DataCube(_ProcessGraphAbstraction):
         if len(size) != 2:
             raise ValueError(f"Provided size not supported. Please provide a list of 2 integer values.")
 
-        reducer = self._get_callback(reducer, parent_parameters=["data"])
+        reducer = build_child_callback(reducer, parent_parameters=["data"])
         arguments = {
             "data": THIS,
             "boundary": boundary,
@@ -1017,14 +973,14 @@ class DataCube(_ProcessGraphAbstraction):
     @openeo_process
     def apply_dimension(
         self,
-        code: str = None,
+        code: Optional[str] = None,
         runtime=None,
         # TODO: drop None default of process (when `code` and `runtime` args can be dropped)
         process: Union[str, typing.Callable, UDF, PGNode] = None,
         version="latest",
         # TODO: dimension has no default (per spec)?
-        dimension="t",
-        target_dimension=None,
+        dimension: str = "t",
+        target_dimension: Optional[str] = None,
         context: Optional[dict] = None,
     ) -> "DataCube":
         """
@@ -1089,7 +1045,7 @@ class DataCube(_ProcessGraphAbstraction):
             process = UDF(code=code, runtime=runtime, version=version, context=context)
         else:
             process = process or code
-        process = self._get_callback(
+        process = build_child_callback(
             process=process, parent_parameters=["data", "context"], connection=self.connection
         )
         arguments = {
@@ -1136,7 +1092,7 @@ class DataCube(_ProcessGraphAbstraction):
         """
         # TODO: check if dimension is valid according to metadata? #116
         # TODO: #125 use/test case for `reduce_dimension_binary`?
-        reducer = self._get_callback(
+        reducer = build_child_callback(
             process=reducer, parent_parameters=["data", "context"], connection=self.connection
         )
 
@@ -1171,9 +1127,7 @@ class DataCube(_ProcessGraphAbstraction):
             and masked cells outside it. If no value is provided, NoData cells are used outside the polygon.
         :param context: Additional data to be passed to the process.
         """
-        process = self._get_callback(
-            process, parent_parameters=["data"], connection=self.connection
-        )
+        process = build_child_callback(process, parent_parameters=["data"], connection=self.connection)
         valid_geojson_types = [
             "Polygon",
             "MultiPolygon",
@@ -1314,7 +1268,7 @@ class DataCube(_ProcessGraphAbstraction):
             process_id="apply_neighborhood",
             arguments=dict_no_none(
                 data=THIS,
-                process=self._get_callback(process=process, parent_parameters=["data"], connection=self.connection),
+                process=build_child_callback(process=process, parent_parameters=["data"], connection=self.connection),
                 size=size,
                 overlap=overlap,
                 context=context,
@@ -1350,11 +1304,13 @@ class DataCube(_ProcessGraphAbstraction):
         """
         return self.process(
             process_id="apply",
-            arguments=dict_no_none({
-                "data": THIS,
-                "process": self._get_callback(process, parent_parameters=["x"], connection=self.connection),
-                "context": context,
-            })
+            arguments=dict_no_none(
+                {
+                    "data": THIS,
+                    "process": build_child_callback(process, parent_parameters=["x"], connection=self.connection),
+                    "context": context,
+                }
+            ),
         )
 
     reduce_temporal_simple = legacy_alias(
@@ -1450,7 +1406,7 @@ class DataCube(_ProcessGraphAbstraction):
                 intervals=intervals,
                 labels=labels,
                 dimension=dimension,
-                reducer=self._get_callback(reducer, parent_parameters=["data"]),
+                reducer=build_child_callback(reducer, parent_parameters=["data"]),
                 context=context,
             ),
         )
@@ -1497,7 +1453,7 @@ class DataCube(_ProcessGraphAbstraction):
                 data=THIS,
                 period=period,
                 dimension=dimension,
-                reducer=self._get_callback(reducer, parent_parameters=["data"]),
+                reducer=build_child_callback(reducer, parent_parameters=["data"]),
                 context=context,
             ),
         )
@@ -1681,7 +1637,7 @@ class DataCube(_ProcessGraphAbstraction):
         """
         arguments = {"cube1": self, "cube2": other}
         if overlap_resolver:
-            arguments["overlap_resolver"] = self._get_callback(overlap_resolver, parent_parameters=["x", "y"])
+            arguments["overlap_resolver"] = build_child_callback(overlap_resolver, parent_parameters=["x", "y"])
         # Minimal client side metadata merging
         merged_metadata = self.metadata
         if self.metadata.has_band_dimension() and isinstance(other, DataCube) and other.metadata.has_band_dimension():
@@ -2280,12 +2236,15 @@ class DataCube(_ProcessGraphAbstraction):
         :param dimension:
         """
         # TODO: does this return a `DataCube`? Shouldn't it just return an array (wrapper)?
-        return self.process(process_id="fit_curve", arguments={
-            "data": THIS,
-            "parameters": parameters,
-            "function": self._get_callback(function, parent_parameters=["x", "parameters"]),
-            "dimension": dimension
-        })
+        return self.process(
+            process_id="fit_curve",
+            arguments={
+                "data": THIS,
+                "parameters": parameters,
+                "function": build_child_callback(function, parent_parameters=["x", "parameters"]),
+                "dimension": dimension,
+            },
+        )
 
     @openeo_process
     def predict_curve(
@@ -2302,13 +2261,16 @@ class DataCube(_ProcessGraphAbstraction):
         :param function: "child callback" function, see :ref:`callbackfunctions`
         :param dimension:
         """
-        return self.process(process_id="predict_curve", arguments={
-            "data": THIS,
-            "parameters": parameters,
-            "function": self._get_callback(function, parent_parameters=["x", "parameters"]),
-            "dimension": dimension,
-            "labels": labels
-        })
+        return self.process(
+            process_id="predict_curve",
+            arguments={
+                "data": THIS,
+                "parameters": parameters,
+                "function": build_child_callback(function, parent_parameters=["x", "parameters"]),
+                "dimension": dimension,
+                "labels": labels,
+            },
+        )
 
     @openeo_process(mode="reduce_dimension")
     def predict_random_forest(self, model: Union[str, BatchJob, MlModel], dimension: str = "bands"):

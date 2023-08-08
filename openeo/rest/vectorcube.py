@@ -11,7 +11,7 @@ from openeo.internal.documentation import openeo_process
 from openeo.internal.graph_building import PGNode
 from openeo.internal.warnings import legacy_alias
 from openeo.metadata import CollectionMetadata
-from openeo.rest._datacube import UDF, _ProcessGraphAbstraction
+from openeo.rest._datacube import THIS, UDF, _ProcessGraphAbstraction, build_child_callback
 from openeo.rest.job import BatchJob
 from openeo.rest.mlmodel import MlModel
 from openeo.util import dict_no_none, guess_format
@@ -98,6 +98,7 @@ class VectorCube(_ProcessGraphAbstraction):
             raise ValueError(data)
 
         pg = PGNode(process_id="load_geojson", data=geometry, properties=properties or [])
+        # TODO #424 add basic metadata
         return cls(graph=pg, connection=connection)
 
     @classmethod
@@ -120,6 +121,7 @@ class VectorCube(_ProcessGraphAbstraction):
         .. versionadded:: 0.22.0
         """
         pg = PGNode(process_id="load_url", arguments=dict_no_none(url=url, format=format, options=options))
+        # TODO #424 add basic metadata
         return cls(graph=pg, connection=connection)
 
     @openeo_process
@@ -396,3 +398,57 @@ class VectorCube(_ProcessGraphAbstraction):
         )
         model = MlModel(graph=pgnode, connection=self._connection)
         return model
+
+    @openeo_process
+    def apply_dimension(
+        self,
+        process: Union[str, typing.Callable, UDF, PGNode],
+        dimension: str,
+        target_dimension: Optional[str] = None,
+        context: Optional[dict] = None,
+    ) -> "VectorCube":
+        """
+        Applies a process to all values along a dimension of a data cube.
+        For example, if the temporal dimension is specified the process will work on the values of a time series.
+
+        The process to apply is specified by providing a callback function in the `process` argument.
+
+        :param process: the "child callback":
+            the name of a single process,
+            or a callback function as discussed in :ref:`callbackfunctions`,
+            or a :py:class:`UDF <openeo.rest._datacube.UDF>` instance.
+
+            The callback should correspond to a process that
+            receives an array of numerical values
+            and returns an array of numerical values.
+            For example:
+
+            -   ``"sort"`` (string)
+            -   :py:func:`sort <openeo.processes.sort>` (:ref:`predefined openEO process function <openeo_processes_functions>`)
+            -   ``lambda data: data.concat([42, -3])`` (function or lambda)
+
+
+        :param dimension: The name of the source dimension to apply the process on. Fails with a DimensionNotAvailable error if the specified dimension does not exist.
+        :param target_dimension: The name of the target dimension or null (the default) to use the source dimension
+            specified in the parameter dimension. By specifying a target dimension, the source dimension is removed.
+            The target dimension with the specified name and the type other (see add_dimension) is created, if it doesn't exist yet.
+        :param context: Additional data to be passed to the process.
+
+        :return: A datacube with the UDF applied to the given dimension.
+        :raises: DimensionNotAvailable
+
+        .. versionadded:: 0.22.0
+        """
+        process = build_child_callback(
+            process=process, parent_parameters=["data", "context"], connection=self.connection
+        )
+        arguments = dict_no_none(
+            {
+                "data": THIS,
+                "process": process,
+                "dimension": dimension,  # TODO #424: self.metadata.assert_valid_dimension(dimension)
+                "target_dimension": target_dimension,
+                "context": context,
+            }
+        )
+        return self.process(process_id="apply_dimension", arguments=arguments)
