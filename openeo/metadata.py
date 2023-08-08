@@ -1,9 +1,13 @@
+import logging
 import warnings
 from collections import namedtuple
 from typing import List, Union, Tuple, Callable, Any
 
 from openeo.util import deep_get
 from openeo.internal.jupyter import render_component
+
+
+_log = logging.getLogger(__name__)
 
 
 class MetadataException(Exception):
@@ -191,6 +195,10 @@ class CollectionMetadata:
 
     """
 
+    # TODO: "CollectionMetadata" is also used as "cube metadata" where the link to original collection
+    #       might be lost (if any). Better separation between rich EO raster collection metadata and
+    #       essential cube metadata? E.g.: also thing of vector cubes.
+
     def __init__(self, metadata: dict, dimensions: List[Dimension] = None):
         # Original collection metadata (actual cube metadata might be altered through processes)
         self._orig_metadata = metadata
@@ -317,11 +325,15 @@ class CollectionMetadata:
     def dimension_names(self) -> List[str]:
         return list(d.name for d in self._dimensions)
 
-    def assert_valid_dimension(self, dimension: str) -> str:
+    def assert_valid_dimension(self, dimension: str, just_warn: bool = False) -> str:
         """Make sure given dimension name is valid."""
         names = self.dimension_names()
         if dimension not in names:
-            raise ValueError("Invalid dimension {d!r}. Should be one of {n}".format(d=dimension, n=names))
+            msg = f"Invalid dimension {dimension!r}. Should be one of {names}"
+            if just_warn:
+                _log.warning(msg)
+            else:
+                raise ValueError(msg)
         return dimension
 
     def has_band_dimension(self) -> bool:

@@ -255,9 +255,17 @@ def test_load_url(con100, dummy_backend):
     }
 
 
-def test_apply_dimension(con100, dummy_backend):
+@pytest.mark.parametrize(
+    ["dimension", "expect_warning"],
+    [
+        ("geometry", False),
+        ("geometries", True),
+        ("wibbles", True),
+    ],
+)
+def test_apply_dimension(con100, dummy_backend, dimension, expect_warning, caplog):
     vc = con100.load_geojson({"type": "Point", "coordinates": [1, 2]})
-    result = vc.apply_dimension("sort", dimension="geometries")
+    result = vc.apply_dimension("sort", dimension=dimension)
     result.execute()
     assert dummy_backend.get_pg() == {
         "loadgeojson1": {
@@ -268,7 +276,7 @@ def test_apply_dimension(con100, dummy_backend):
             "process_id": "apply_dimension",
             "arguments": {
                 "data": {"from_node": "loadgeojson1"},
-                "dimension": "geometries",
+                "dimension": dimension,
                 "process": {
                     "process_graph": {
                         "sort1": {
@@ -282,3 +290,7 @@ def test_apply_dimension(con100, dummy_backend):
             "result": True,
         },
     }
+
+    assert (
+        f"Invalid dimension {dimension!r}. Should be one of ['geometry', 'properties']" in caplog.messages
+    ) == expect_warning

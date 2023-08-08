@@ -1050,10 +1050,12 @@ class Connection(RestApiConnection):
 
         .. versionadded:: 0.14.0
         """
+        # TODO #457 deprecate this in favor of `load_url` and standard support for `load_uploaded_files`
         graph = PGNode(
             "load_uploaded_files",
             arguments=dict(paths=paths, format=format, options=options),
         )
+        # TODO: load_uploaded_files might also return a raster data cube. Determine this based on format?
         return VectorCube(graph=graph, connection=self)
 
     def datacube_from_process(self, process_id: str, namespace: Optional[str] = None, **kwargs) -> DataCube:
@@ -1336,7 +1338,6 @@ class Connection(RestApiConnection):
 
         .. versionadded:: 0.22.0
         """
-
         return VectorCube.load_geojson(connection=self, data=data, properties=properties)
 
     @openeo_process

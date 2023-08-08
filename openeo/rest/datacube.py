@@ -907,7 +907,7 @@ class DataCube(_ProcessGraphAbstraction):
                 ),
             ),
             connection=self._connection,
-            # TODO: metadata?
+            # TODO: metadata? And correct dimension of created vector cube? #457
         )
 
     @openeo_process
@@ -1723,6 +1723,7 @@ class DataCube(_ProcessGraphAbstraction):
         :return: a :py:class:`~openeo.rest.vectorcube.VectorCube`
         """
         pg_node = PGNode(process_id="raster_to_vector", arguments={"data": self})
+        # TODO: properly update metadata (e.g. "geometry" dimension) related to #457
         return VectorCube(pg_node, connection=self._connection, metadata=self.metadata)
 
     ####VIEW methods #######

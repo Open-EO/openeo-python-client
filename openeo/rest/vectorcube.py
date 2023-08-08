@@ -10,7 +10,7 @@ from openeo.api.process import Parameter
 from openeo.internal.documentation import openeo_process
 from openeo.internal.graph_building import PGNode
 from openeo.internal.warnings import legacy_alias
-from openeo.metadata import CollectionMetadata
+from openeo.metadata import CollectionMetadata, Dimension
 from openeo.rest._datacube import THIS, UDF, _ProcessGraphAbstraction, build_child_callback
 from openeo.rest.job import BatchJob
 from openeo.rest.mlmodel import MlModel
@@ -32,16 +32,26 @@ class VectorCube(_ProcessGraphAbstraction):
 
     def __init__(self, graph: PGNode, connection: 'Connection', metadata: CollectionMetadata = None):
         super().__init__(pgnode=graph, connection=connection)
-        # TODO: does VectorCube need CollectionMetadata?
-        self.metadata = metadata
+        self.metadata = metadata or self._build_metadata()
+
+    @classmethod
+    def _build_metadata(cls, add_properties: bool = False) -> CollectionMetadata:
+        """Helper to build a (minimal) `CollectionMetadata` object."""
+        # Vector cubes have at least a "geometry" dimension
+        dimensions = [Dimension(name="geometry", type="geometry")]
+        if add_properties:
+            dimensions.append(Dimension(name="properties", type="other"))
+        # TODO: use a more generic metadata container than "collection" metadata
+        return CollectionMetadata(metadata={}, dimensions=dimensions)
 
     def process(
-            self,
-            process_id: str,
-            arguments: dict = None,
-            metadata: Optional[CollectionMetadata] = None,
-            namespace: Optional[str] = None,
-            **kwargs) -> 'VectorCube':
+        self,
+        process_id: str,
+        arguments: dict = None,
+        metadata: Optional[CollectionMetadata] = None,
+        namespace: Optional[str] = None,
+        **kwargs,
+    ) -> "VectorCube":
         """
         Generic helper to create a new DataCube by applying a process.
 
@@ -79,7 +89,7 @@ class VectorCube(_ProcessGraphAbstraction):
         .. versionadded:: 0.22.0
         """
         # TODO: unify with `DataCube._get_geometry_argument`
-        # TODO: also support client side fetching of GeoJSON from URL?
+        # TODO #457 also support client side fetching of GeoJSON from URL?
         if isinstance(data, str) and data.strip().startswith("{"):
             # Assume JSON dump
             geometry = json.loads(data)
@@ -96,10 +106,12 @@ class VectorCube(_ProcessGraphAbstraction):
             geometry = data
         else:
             raise ValueError(data)
+        # TODO #457 client side verification of GeoJSON construct: valid type, valid structure, presence of CRS, ...?
 
         pg = PGNode(process_id="load_geojson", data=geometry, properties=properties or [])
-        # TODO #424 add basic metadata
-        return cls(graph=pg, connection=connection)
+        # TODO #457 always a "properties" dimension? https://github.com/Open-EO/openeo-processes/issues/448
+        metadata = cls._build_metadata(add_properties=True)
+        return cls(graph=pg, connection=connection, metadata=metadata)
 
     @classmethod
     @openeo_process
@@ -121,8 +133,9 @@ class VectorCube(_ProcessGraphAbstraction):
         .. versionadded:: 0.22.0
         """
         pg = PGNode(process_id="load_url", arguments=dict_no_none(url=url, format=format, options=options))
-        # TODO #424 add basic metadata
-        return cls(graph=pg, connection=connection)
+        # TODO #457 always a "properties" dimension? https://github.com/Open-EO/openeo-processes/issues/448
+        metadata = cls._build_metadata(add_properties=True)
+        return cls(graph=pg, connection=connection, metadata=metadata)
 
     @openeo_process
     def run_udf(
@@ -446,7 +459,8 @@ class VectorCube(_ProcessGraphAbstraction):
             {
                 "data": THIS,
                 "process": process,
-                "dimension": dimension,  # TODO #424: self.metadata.assert_valid_dimension(dimension)
+                # TODO: drop `just_warn`?
+                "dimension": self.metadata.assert_valid_dimension(dimension, just_warn=True),
                 "target_dimension": target_dimension,
                 "context": context,
             }
