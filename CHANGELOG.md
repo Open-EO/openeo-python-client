@@ -9,8 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+
+- Processes that take a CRS as argument now try harder to convert your input into a proper EPSG code, to avoid unexpected results when an invalid argument gets sent to the backend.
 - Initial `load_geojson` support with `Connection.load_geojson()` ([#424](https://github.com/Open-EO/openeo-python-client/issues/424))
 - Initial `load_url` (for vector cubes) support with `Connection.load_url()` ([#424](https://github.com/Open-EO/openeo-python-client/issues/424))
+
 
 ### Changed
 

@@ -15,6 +15,7 @@ from typing import Any, Callable, Optional, Tuple, Union
 from urllib.parse import urljoin
 
 import requests
+import pyproj.crs
 import shapely.geometry.base
 from deprecated import deprecated
 
@@ -531,6 +532,8 @@ class BBoxDict(dict):
     def __init__(self, *, west: float, south: float, east: float, north: float, crs: Optional[str] = None):
         super().__init__(west=west, south=south, east=east, north=north)
         if crs is not None:
+            # TODO: #259, should we covert EPSG strings to int here with crs_to_epsg_code?
+            # self.update(crs=crs_to_epsg_code(crs))
             self.update(crs=crs)
 
     # TODO: provide west, south, east, north, crs as @properties? Read-only or read-write?
@@ -627,3 +630,73 @@ class SimpleProgressBar:
         width = self.width - len(self.left) - len(self.right)
         bar = self.bar * int(round(width * clip(fraction, min=0, max=1)))
         return f"{self.left}{bar:{self.fill}<{width}s}{self.right}"
+
+
+def crs_to_epsg_code(crs: Union[str, int, dict, None]) -> Optional[int]:
+    """Convert a CRS string or int to an integer EPGS code, where CRS usually comes from user input.
+
+    Three cases:
+
+    - If it is already an integer we just keep it.
+    - If it is None it stays None, and empty strings become None as well.
+    - If it is a string we try to parse it with the pyproj library.
+        - Strings of the form "EPSG:<int>" will be converted to teh value <int>
+        - For any other strings formats, it will work if pyproj supports is,
+          otherwise it won't.
+
+    The result is **always** an EPSG code, so the CRS should be one that is
+    defined in EPSG. For any other definitions pyproj will only give you the
+    closest EPSG match and that result is possibly inaccurate.
+
+    Note that we also need to support WKT string (WKT2),
+    see also: https://github.com/Open-EO/openeo-processes/issues/58
+
+    For very the oldest supported version of Python: v3.6 there is a problem
+    because the pyproj version that is compatible with Python 3.6 is too old
+    and does not properly support WKT2.
+
+
+    For a list of CRS input formats that proj supports
+    see: https://pyproj4.github.io/pyproj/stable/api/crs/crs.html#pyproj.crs.CRS.from_user_input
+
+    :param crs:
+        Input from user for the Coordinate Reference System to convert to an
+        EPSG code.
+
+    :raises ValueError:
+        When the crs is a not a supported CRS string.
+    :raises TypeError:
+        When crs is none of the supported types: str, int, None
+
+    :return: An EPGS code if it could be found, otherwise None
+    """
+
+    # Only convert to the default if it is an explicitly allowed type.
+    if crs in (None, "", {}):
+        return None
+
+    # TODO: decide: are more fine-grained checks more helpful than always raising EPSGCodeNotFound?
+    if not isinstance(crs, (int, str, dict)):
+        raise TypeError("The allowed type for the parameter 'crs' are: str, int, dict and None")
+
+    # if We want to stop processing as soon as we have an int value, then we
+    # should not accept values that are complete non-sense, as best as we can.
+    crs_intermediate = crs
+    if isinstance(crs, int):
+        crs_intermediate = crs
+    elif isinstance(crs, str):
+        # This conversion is needed to support strings that only contain an integer,
+        # e.g. "4326" though it is a string, is a otherwise a correct EPSG code.
+        try:
+            crs_intermediate = int(crs)
+        except ValueError as exc:
+            # So we need to process it with pyproj, below.
+            logger.debug("crs_to_epsg_code received crs input that was not an int: crs={crs}, exception caught: {exc}")
+
+    try:
+        converted_crs = pyproj.crs.CRS.from_user_input(crs_intermediate)
+    except pyproj.exceptions.CRSError as exc:
+        logger.error(f"Could not convert CRS string to EPSG code: crs={crs}, exception: {exc}", exc_info=True)
+        raise ValueError(crs) from exc
+    else:
+        return converted_crs.to_epsg()

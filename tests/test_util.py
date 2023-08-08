@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import pathlib
+import sys
 import re
 import unittest.mock as mock
 from typing import List, Union
@@ -19,6 +20,7 @@ from openeo.util import (
     SimpleProgressBar,
     TimingLogger,
     clip,
+    crs_to_epsg_code,
     deep_get,
     deep_set,
     dict_no_none,
@@ -766,3 +768,221 @@ class TestSimpleProgressBar:
         assert pgb.get(1.0) == "[=####################################=]"
         assert pgb.get(-0.5) == "[=------------------------------------=]"
         assert pgb.get(1.5) == "[=####################################=]"
+
+
+WKT2_FOR_EPSG32631 = """
+PROJCRS["WGS 84 / UTM zone 31N",
+    BASEGEOGCRS["WGS 84",
+        ENSEMBLE["World Geodetic System 1984 ensemble",
+            MEMBER["World Geodetic System 1984 (Transit)"],
+            MEMBER["World Geodetic System 1984 (G730)"],
+            MEMBER["World Geodetic System 1984 (G873)"],
+            MEMBER["World Geodetic System 1984 (G1150)"],
+            MEMBER["World Geodetic System 1984 (G1674)"],
+            MEMBER["World Geodetic System 1984 (G1762)"],
+            MEMBER["World Geodetic System 1984 (G2139)"],
+            ELLIPSOID["WGS 84",6378137,298.257223563,
+                LENGTHUNIT["metre",1]],
+            ENSEMBLEACCURACY[2.0]],
+        PRIMEM["Greenwich",0,
+            ANGLEUNIT["degree",0.0174532925199433]],
+        ID["EPSG",4326]],
+    CONVERSION["UTM zone 31N",
+        METHOD["Transverse Mercator",
+            ID["EPSG",9807]],
+        PARAMETER["Latitude of natural origin",0,
+            ANGLEUNIT["degree",0.0174532925199433],
+            ID["EPSG",8801]],
+        PARAMETER["Longitude of natural origin",3,
+            ANGLEUNIT["degree",0.0174532925199433],
+            ID["EPSG",8802]],
+        PARAMETER["Scale factor at natural origin",0.9996,
+            SCALEUNIT["unity",1],
+            ID["EPSG",8805]],
+        PARAMETER["False easting",500000,
+            LENGTHUNIT["metre",1],
+            ID["EPSG",8806]],
+        PARAMETER["False northing",0,
+            LENGTHUNIT["metre",1],
+            ID["EPSG",8807]]],
+    CS[Cartesian,2],
+        AXIS["(E)",east,
+            ORDER[1],
+            LENGTHUNIT["metre",1]],
+        AXIS["(N)",north,
+            ORDER[2],
+            LENGTHUNIT["metre",1]],
+    USAGE[
+        SCOPE["Engineering survey, topographic mapping."],
+        AREA["Between 0°E and 6°E, northern hemisphere between equator and 84°N, onshore and offshore. Algeria. Andorra. Belgium. Benin. Burkina Faso. Denmark - North Sea. France. Germany - North Sea. Ghana. Luxembourg. Mali. Netherlands. Niger. Nigeria. Norway. Spain. Togo. United Kingdom (UK) - North Sea."],
+        BBOX[0,0,84,6]],
+    ID["EPSG",32631]]
+"""
+
+
+@pytest.mark.parametrize(
+    ["epsg_input", "expected"],
+    [
+        ("epsg:4326", 4326),
+        ("EPSG:4326", 4326),
+        ("Epsg:4326", 4326),
+        ("epsg:32165", 32165),
+        ("EPSG:32165", 32165),
+        ("Epsg:32165", 32165),
+        (4326, 4326),
+        (32165, 32165),
+        ("4326", 4326),
+        ("32165", 32165),
+        (None, None),
+        ("", None),
+        ({}, None),  # Should treat empty dict for PROJJSON the same way as "" or None
+        # also likely to occur
+        ("WGS84", 4326),
+    ],
+)
+def test_crs_to_epsg_code_succeeds_with_correct_crses(epsg_input, expected):
+    """Happy path, values that are allowed"""
+    assert crs_to_epsg_code(epsg_input) == expected
+
+
+@pytest.mark.skipif(sys.version_info < (3, 7), reason="WKT2 format not supported by pyproj 3.0 / python 3.6")
+def test_crs_to_epsg_code_succeeds_with_wkt2_input():
+    """Test can handle WKT2 strings.
+
+    We need to support WKT2:
+    See also https://github.com/Open-EO/openeo-processes/issues/58
+
+
+    WARNING:
+    =======
+
+    Older versions of pyproj do not support this format.
+    In particular, pyproj 3.0 which is the version we get on python 3.6, would
+    fail on this test, and is marked with a skipif for that reason.
+    """
+    assert crs_to_epsg_code(WKT2_FOR_EPSG32631) == 32631
+
+
+PROJJSON_FOR_EPSG32631 = {
+    "$schema": "https://proj.org/schemas/v0.4/projjson.schema.json",
+    "type": "ProjectedCRS",
+    "name": "WGS 84 / UTM zone 31N",
+    "base_crs": {
+        "name": "WGS 84",
+        "datum_ensemble": {
+            "name": "World Geodetic System 1984 ensemble",
+            "members": [
+                {"name": "World Geodetic System 1984 (Transit)", "id": {"authority": "EPSG", "code": 1166}},
+                {"name": "World Geodetic System 1984 (G730)", "id": {"authority": "EPSG", "code": 1152}},
+                {"name": "World Geodetic System 1984 (G873)", "id": {"authority": "EPSG", "code": 1153}},
+                {"name": "World Geodetic System 1984 (G1150)", "id": {"authority": "EPSG", "code": 1154}},
+                {"name": "World Geodetic System 1984 (G1674)", "id": {"authority": "EPSG", "code": 1155}},
+                {"name": "World Geodetic System 1984 (G1762)", "id": {"authority": "EPSG", "code": 1156}},
+                {"name": "World Geodetic System 1984 (G2139)", "id": {"authority": "EPSG", "code": 1309}},
+            ],
+            "ellipsoid": {"name": "WGS 84", "semi_major_axis": 6378137, "inverse_flattening": 298.257223563},
+            "accuracy": "2.0",
+            "id": {"authority": "EPSG", "code": 6326},
+        },
+        "coordinate_system": {
+            "subtype": "ellipsoidal",
+            "axis": [
+                {"name": "Geodetic latitude", "abbreviation": "Lat", "direction": "north", "unit": "degree"},
+                {"name": "Geodetic longitude", "abbreviation": "Lon", "direction": "east", "unit": "degree"},
+            ],
+        },
+        "id": {"authority": "EPSG", "code": 4326},
+    },
+    "conversion": {
+        "name": "UTM zone 31N",
+        "method": {"name": "Transverse Mercator", "id": {"authority": "EPSG", "code": 9807}},
+        "parameters": [
+            {
+                "name": "Latitude of natural origin",
+                "value": 0,
+                "unit": "degree",
+                "id": {"authority": "EPSG", "code": 8801},
+            },
+            {
+                "name": "Longitude of natural origin",
+                "value": 3,
+                "unit": "degree",
+                "id": {"authority": "EPSG", "code": 8802},
+            },
+            {
+                "name": "Scale factor at natural origin",
+                "value": 0.9996,
+                "unit": "unity",
+                "id": {"authority": "EPSG", "code": 8805},
+            },
+            {"name": "False easting", "value": 500000, "unit": "metre", "id": {"authority": "EPSG", "code": 8806}},
+            {"name": "False northing", "value": 0, "unit": "metre", "id": {"authority": "EPSG", "code": 8807}},
+        ],
+    },
+    "coordinate_system": {
+        "subtype": "Cartesian",
+        "axis": [
+            {"name": "Easting", "abbreviation": "E", "direction": "east", "unit": "metre"},
+            {"name": "Northing", "abbreviation": "N", "direction": "north", "unit": "metre"},
+        ],
+    },
+    "scope": "Engineering survey, topographic mapping.",
+    "area": "Between 0°E and 6°E, northern hemisphere between equator and 84°N, onshore and offshore. Algeria. Andorra. Belgium. Benin. Burkina Faso. Denmark - North Sea. France. Germany - North Sea. Ghana. Luxembourg. Mali. Netherlands. Niger. Nigeria. Norway. Spain. Togo. United Kingdom (UK) - North Sea.",
+    "bbox": {"south_latitude": 0, "west_longitude": 0, "north_latitude": 84, "east_longitude": 6},
+    "id": {"authority": "EPSG", "code": 32631},
+}
+
+
+@pytest.mark.skipif(sys.version_info < (3, 8), reason="PROJJSON format not supported by pyproj v3.2 / python < v3.8")
+def test_crs_to_epsg_code_succeeds_with_correct_projjson():
+    json_str = json.dumps(PROJJSON_FOR_EPSG32631)
+
+    # It should work with both a JSON string as well as the dict that
+    # represents that same JSON.
+    assert crs_to_epsg_code(json_str) == 32631
+    assert crs_to_epsg_code(PROJJSON_FOR_EPSG32631) == 32631
+
+
+@pytest.mark.parametrize(
+    ["epsg_input", "expected"],
+    [
+        ("+proj=latlon", 4326),
+        ("+proj=utm +zone=31 +datum=WGS84 +units=m +no_defs", 32631),
+    ],
+)
+def test_crs_to_epsg_code_succeeds_with_correct_projstring(epsg_input, expected):
+    """These are more advanced inputs that pyproj should support, though
+    the proj format is now discouraged, in favor of WKT2 and PROJJSON.
+
+    See also https://github.com/Open-EO/openeo-processes/issues/58
+
+    Contrary to WKT, it seems less likely that users would ask for these
+    proj options. Hence a separate test.
+    """
+    assert crs_to_epsg_code(epsg_input) == expected
+
+
+@pytest.mark.parametrize(
+    "epsg_input",
+    ["doesnotexist", "unknownauthority:123", "4326.0"],
+)
+def test_crs_to_epsg_code_handles_incorrect_crs(epsg_input):
+    with pytest.raises(ValueError):
+        crs_to_epsg_code(epsg_input)
+
+
+@pytest.mark.parametrize("epsg_input", [0.0, 1.0, 10.0, 4326.0, []])
+def test_crs_to_epsg_code_raises_typeerror(epsg_input):
+    """Verify we restrict the allowed input types to int, str and None."""
+    with pytest.raises(TypeError):
+        crs_to_epsg_code(epsg_input)
+
+
+@pytest.mark.parametrize(
+    "epsg_input",
+    [0, "0", -1, "-1", -321654643],
+)
+def test_crs_to_epsg_code_raises_valueerror(epsg_input):
+    """EPSG codes can not be 0 or negative."""
+    with pytest.raises(ValueError):
+        crs_to_epsg_code(epsg_input)

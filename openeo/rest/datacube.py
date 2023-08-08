@@ -37,7 +37,7 @@ from openeo.rest.mlmodel import MlModel
 from openeo.rest.service import Service
 from openeo.rest.udp import RESTUserDefinedProcess
 from openeo.rest.vectorcube import VectorCube
-from openeo.util import get_temporal_extent, dict_no_none, rfc3339, guess_format
+from openeo.util import get_temporal_extent, dict_no_none, rfc3339, guess_format, crs_to_epsg_code
 
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).
@@ -333,7 +333,7 @@ class DataCube(_ProcessGraphAbstraction):
                               " Use keyword arguments or tuple/list argument instead.")
                 west, east, north, south = args[:4]
                 if len(args) > 4:
-                    crs = args[4]
+                    crs = crs_to_epsg_code(args[4])
             elif len(args) == 1 and (isinstance(args[0], (list, tuple)) and len(args[0]) == 4
                                      or isinstance(args[0], (dict, shapely.geometry.base.BaseGeometry, Parameter))):
                 bbox = args[0]
@@ -833,9 +833,17 @@ class DataCube(_ProcessGraphAbstraction):
             ))
         if crs:
             # TODO: don't warn when the crs is Lon-Lat like EPSG:4326?
-            warnings.warn("Geometry with non-Lon-Lat CRS {c!r} is only supported by specific back-ends.".format(c=crs))
+            warnings.warn(f"Geometry with non-Lon-Lat CRS {crs!r} is only supported by specific back-ends.")
             # TODO #204 alternative for non-standard CRS in GeoJSON object?
-            geometry["crs"] = {"type": "name", "properties": {"name": crs}}
+            epsg_code = crs_to_epsg_code(crs)
+            if epsg_code is not None:
+                # proj did recognize the CRS
+                crs_name = f"EPSG:{epsg_code}"
+            else:
+                # proj did not recognise this CRS
+                warnings.warn(f"non-Lon-Lat CRS {crs!r} is not known to the proj library and might not be supported.")
+                crs_name = crs
+            geometry["crs"] = {"type": "name", "properties": {"name": crs_name}}
         return geometry
 
     @openeo_process
