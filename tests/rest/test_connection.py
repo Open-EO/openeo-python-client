@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 import requests.auth
 import requests_mock
+import shapely.geometry
 
 import openeo
 from openeo.capabilities import ApiVersionException, ComparableVersion
@@ -21,7 +22,15 @@ from openeo.rest import OpenEoApiError, OpenEoClientException, OpenEoRestError
 from openeo.rest.auth.auth import BearerAuth, NullAuth
 from openeo.rest.auth.oidc import OidcException
 from openeo.rest.auth.testing import ABSENT, OidcMock
-from openeo.rest.connection import Connection, RestApiConnection, connect, paginate
+from openeo.rest.connection import (
+    DEFAULT_TIMEOUT,
+    DEFAULT_TIMEOUT_SYNCHRONOUS_EXECUTE,
+    Connection,
+    RestApiConnection,
+    connect,
+    paginate,
+)
+from openeo.rest.vectorcube import VectorCube
 from openeo.util import ContextTimer
 
 from .. import load_json_resource
@@ -266,7 +275,7 @@ def test_connection_with_session():
     conn = Connection("https://oeo.test/", session=session)
     assert conn.capabilities().capabilities["foo"] == "bar"
     session.request.assert_any_call(
-        url="https://oeo.test/", method="get", headers=mock.ANY, stream=mock.ANY, auth=mock.ANY, timeout=None
+        url="https://oeo.test/", method="get", headers=mock.ANY, stream=mock.ANY, auth=mock.ANY, timeout=DEFAULT_TIMEOUT
     )
 
 
@@ -278,7 +287,7 @@ def test_connect_with_session():
     conn = connect("https://oeo.test/", session=session)
     assert conn.capabilities().capabilities["foo"] == "bar"
     session.request.assert_any_call(
-        url="https://oeo.test/", method="get", headers=mock.ANY, stream=mock.ANY, auth=mock.ANY, timeout=None
+        url="https://oeo.test/", method="get", headers=mock.ANY, stream=mock.ANY, auth=mock.ANY, timeout=DEFAULT_TIMEOUT
     )
 
 
@@ -2352,6 +2361,47 @@ class TestLoadStac:
         }
 
 
+@pytest.mark.parametrize(
+    "data",
+    [
+        {"type": "Polygon", "coordinates": [[[1, 2], [3, 2], [3, 4], [1, 4], [1, 2]]]},
+        """{"type": "Polygon", "coordinates": [[[1, 2], [3, 2], [3, 4], [1, 4], [1, 2]]]}""",
+        shapely.geometry.Polygon([[1, 2], [3, 2], [3, 4], [1, 4], [1, 2]]),
+    ],
+)
+def test_load_geojson(con100, data, dummy_backend):
+    vc = con100.load_geojson(data)
+    assert isinstance(vc, VectorCube)
+    vc.execute()
+    assert dummy_backend.get_pg() == {
+        "loadgeojson1": {
+            "process_id": "load_geojson",
+            "arguments": {
+                "data": {"type": "Polygon", "coordinates": [[[1, 2], [3, 2], [3, 4], [1, 4], [1, 2]]]},
+                "properties": [],
+            },
+            "result": True,
+        }
+    }
+
+
+def test_load_url(con100, dummy_backend, requests_mock):
+    file_formats = {
+        "input": {"GeoJSON": {"gis_data_type": ["vector"]}},
+    }
+    requests_mock.get(API_URL + "file_formats", json=file_formats)
+    vc = con100.load_url("https://example.com/geometry.json", format="GeoJSON")
+    assert isinstance(vc, VectorCube)
+    vc.execute()
+    assert dummy_backend.get_pg() == {
+        "loadurl1": {
+            "process_id": "load_url",
+            "arguments": {"url": "https://example.com/geometry.json", "format": "GeoJSON"},
+            "result": True,
+        }
+    }
+
+
 def test_list_file_formats(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     conn = Connection(API_URL)
@@ -2515,7 +2565,7 @@ def test_default_timeout_default(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     requests_mock.get("/foo", text=lambda req, ctx: repr(req.timeout))
     conn = connect(API_URL)
-    assert conn.get("/foo").text == 'None'
+    assert conn.get("/foo").text == str(DEFAULT_TIMEOUT)
     assert conn.get("/foo", timeout=5).text == '5'
 
 
@@ -2540,6 +2590,32 @@ class DummyFlatGraphable(FlatGraphableMixin):
         DummyFlatGraphable(),
     ],
 )
+def test_download_100(requests_mock, pg):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    conn = Connection(API_URL)
+    with mock.patch.object(conn, "request") as request:
+        conn.download(pg)
+    assert request.call_args_list == [
+        mock.call(
+            "post",
+            path="/result",
+            allow_redirects=False,
+            stream=True,
+            expected_status=200,
+            json={"process": {"process_graph": {"foo1": {"process_id": "foo"}}}},
+            timeout=DEFAULT_TIMEOUT_SYNCHRONOUS_EXECUTE,
+        )
+    ]
+
+
+@pytest.mark.parametrize(
+    "pg",
+    [
+        {"foo1": {"process_id": "foo"}},
+        {"process_graph": {"foo1": {"process_id": "foo"}}},
+        DummyFlatGraphable(),
+    ],
+)
 def test_execute_100(requests_mock, pg):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     conn = Connection(API_URL)
@@ -2547,8 +2623,12 @@ def test_execute_100(requests_mock, pg):
         conn.execute(pg)
     assert request.call_args_list == [
         mock.call(
-            "post", path="/result", allow_redirects=False, expected_status=200,
-            json={"process": {"process_graph": {"foo1": {"process_id": "foo"}}}}
+            "post",
+            path="/result",
+            allow_redirects=False,
+            expected_status=200,
+            json={"process": {"process_graph": {"foo1": {"process_id": "foo"}}}},
+            timeout=DEFAULT_TIMEOUT_SYNCHRONOUS_EXECUTE,
         )
     ]
 
