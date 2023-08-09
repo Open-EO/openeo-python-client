@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([#259](https://github.com/Open-EO/openeo-python-client/issues/259))
 - Initial `load_geojson` support with `Connection.load_geojson()` ([#424](https://github.com/Open-EO/openeo-python-client/issues/424))
 - Initial `load_url` (for vector cubes) support with `Connection.load_url()` ([#424](https://github.com/Open-EO/openeo-python-client/issues/424))
+- Add `VectorCube.apply_dimension()` ([Open-EO/openeo-python-driver#197](https://github.com/Open-EO/openeo-python-driver/issues/197))
 - Support lambda based property filtering in `Connection.load_stac()` ([#425](https://github.com/Open-EO/openeo-python-client/issues/425))
 - `VectorCube`: initial support for `filter_bands`, `filter_bbox`, `filter_labels` and `filter_vector` ([#459](https://github.com/Open-EO/openeo-python-client/issues/459))
 
