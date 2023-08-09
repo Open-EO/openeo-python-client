@@ -5,7 +5,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+
 ## [Unreleased]
+
+### Added
+
+### Changed
+
+### Removed
+
+### Fixed
+
+
+
+## [0.22.0] - 2023-08-09
 
 ### Added
 
@@ -22,8 +35,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `Connection` based requests: always use finite timeouts by default (20 minutes in general, 30 minutes for synchronous execute requests)
   ([#454](https://github.com/Open-EO/openeo-python-client/issues/454))
-
-### Removed
 
 ### Fixed
 
