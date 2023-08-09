@@ -1185,7 +1185,7 @@ class Connection(RestApiConnection):
         spatial_extent: Optional[Dict[str, float]] = None,
         temporal_extent: Optional[List[Union[str, datetime.datetime, datetime.date]]] = None,
         bands: Optional[List[str]] = None,
-        properties: Optional[dict] = None,
+        properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
     ) -> DataCube:
         """
         Loads data from a static STAC catalog or a STAC API Collection and returns the data as a processable :py:class:`DataCube`.
