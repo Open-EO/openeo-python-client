@@ -15,7 +15,6 @@ from typing import Any, Callable, Optional, Tuple, Union
 from urllib.parse import urljoin
 
 import requests
-import pyproj.crs
 import shapely.geometry.base
 from deprecated import deprecated
 
@@ -675,11 +674,10 @@ def crs_to_epsg_code(crs: Union[str, int, dict, None]) -> Optional[int]:
     if crs in (None, "", {}):
         return None
 
-    # TODO: decide: are more fine-grained checks more helpful than always raising EPSGCodeNotFound?
     if not isinstance(crs, (int, str, dict)):
         raise TypeError("The allowed type for the parameter 'crs' are: str, int, dict and None")
 
-    # if We want to stop processing as soon as we have an int value, then we
+    # If we want to stop processing as soon as we have an int value, then we
     # should not accept values that are complete non-sense, as best as we can.
     crs_intermediate = crs
     if isinstance(crs, int):
@@ -693,10 +691,26 @@ def crs_to_epsg_code(crs: Union[str, int, dict, None]) -> Optional[int]:
             # So we need to process it with pyproj, below.
             logger.debug("crs_to_epsg_code received crs input that was not an int: crs={crs}, exception caught: {exc}")
 
+    if isinstance(crs_intermediate, int):
+        if crs_intermediate <= 0:
+            raise ValueError(f"When crs is an integer value it has to be > 0.")
+        else:
+            return crs_intermediate
+
     try:
-        converted_crs = pyproj.crs.CRS.from_user_input(crs_intermediate)
-    except pyproj.exceptions.CRSError as exc:
-        logger.error(f"Could not convert CRS string to EPSG code: crs={crs}, exception: {exc}", exc_info=True)
-        raise ValueError(crs) from exc
+        import pyproj.crs
+    except ImportError as exc:
+        message = (
+            f"Cannot convert CRS string: {crs}. "
+            + "Need pyproj to convert this CRS string but the pyproj library is not installed."
+        )
+        logger.error(message)
+        raise ValueError(message) from ImportError
     else:
-        return converted_crs.to_epsg()
+        try:
+            converted_crs = pyproj.crs.CRS.from_user_input(crs)
+        except pyproj.exceptions.CRSError as exc:
+            logger.error(f"Could not convert CRS string to EPSG code: crs={crs}, exception: {exc}", exc_info=True)
+            raise ValueError(crs) from exc
+        else:
+            return converted_crs.to_epsg()
