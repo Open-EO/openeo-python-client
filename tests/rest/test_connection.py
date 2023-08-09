@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 import requests.auth
 import requests_mock
+import shapely.geometry
 
 import openeo
 from openeo.capabilities import ApiVersionException, ComparableVersion
@@ -22,13 +23,14 @@ from openeo.rest.auth.auth import BearerAuth, NullAuth
 from openeo.rest.auth.oidc import OidcException
 from openeo.rest.auth.testing import ABSENT, OidcMock
 from openeo.rest.connection import (
+    DEFAULT_TIMEOUT,
+    DEFAULT_TIMEOUT_SYNCHRONOUS_EXECUTE,
     Connection,
     RestApiConnection,
     connect,
     paginate,
-    DEFAULT_TIMEOUT,
-    DEFAULT_TIMEOUT_SYNCHRONOUS_EXECUTE,
 )
+from openeo.rest.vectorcube import VectorCube
 from openeo.util import ContextTimer
 
 from .. import load_json_resource
@@ -2357,6 +2359,47 @@ class TestLoadStac:
                 "result": True,
             }
         }
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        {"type": "Polygon", "coordinates": [[[1, 2], [3, 2], [3, 4], [1, 4], [1, 2]]]},
+        """{"type": "Polygon", "coordinates": [[[1, 2], [3, 2], [3, 4], [1, 4], [1, 2]]]}""",
+        shapely.geometry.Polygon([[1, 2], [3, 2], [3, 4], [1, 4], [1, 2]]),
+    ],
+)
+def test_load_geojson(con100, data, dummy_backend):
+    vc = con100.load_geojson(data)
+    assert isinstance(vc, VectorCube)
+    vc.execute()
+    assert dummy_backend.get_pg() == {
+        "loadgeojson1": {
+            "process_id": "load_geojson",
+            "arguments": {
+                "data": {"type": "Polygon", "coordinates": [[[1, 2], [3, 2], [3, 4], [1, 4], [1, 2]]]},
+                "properties": [],
+            },
+            "result": True,
+        }
+    }
+
+
+def test_load_url(con100, dummy_backend, requests_mock):
+    file_formats = {
+        "input": {"GeoJSON": {"gis_data_type": ["vector"]}},
+    }
+    requests_mock.get(API_URL + "file_formats", json=file_formats)
+    vc = con100.load_url("https://example.com/geometry.json", format="GeoJSON")
+    assert isinstance(vc, VectorCube)
+    vc.execute()
+    assert dummy_backend.get_pg() == {
+        "loadurl1": {
+            "process_id": "load_url",
+            "arguments": {"url": "https://example.com/geometry.json", "format": "GeoJSON"},
+            "result": True,
+        }
+    }
 
 
 def test_list_file_formats(requests_mock):

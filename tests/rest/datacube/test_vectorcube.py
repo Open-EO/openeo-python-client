@@ -1,10 +1,11 @@
-import re
 from pathlib import Path
 
 import pytest
+import shapely.geometry
 
-from openeo import Connection
+from openeo.api.process import Parameter
 from openeo.internal.graph_building import PGNode
+from openeo.rest._testing import DummyBackend
 from openeo.rest.vectorcube import VectorCube
 
 
@@ -12,103 +13,6 @@ from openeo.rest.vectorcube import VectorCube
 def vector_cube(con100) -> VectorCube:
     pgnode = PGNode(process_id="create_vector_cube")
     return VectorCube(graph=pgnode, connection=con100)
-
-
-class DummyBackend:
-    """
-    Dummy backend that handles sync/batch execution requests
-    and allows inspection of posted process graphs
-    """
-
-    def __init__(self, requests_mock, connection: Connection):
-        self.connection = connection
-        self.sync_requests = []
-        self.batch_jobs = {}
-        self.next_result = b"Result data"
-        requests_mock.post(connection.build_url("/result"), content=self._handle_post_result)
-        requests_mock.post(connection.build_url("/jobs"), content=self._handle_post_jobs)
-        requests_mock.post(
-            re.compile(connection.build_url(r"/jobs/(job-\d+)/results$")), content=self._handle_post_job_results
-        )
-        requests_mock.get(re.compile(connection.build_url(r"/jobs/(job-\d+)$")), json=self._handle_get_job)
-        requests_mock.get(
-            re.compile(connection.build_url(r"/jobs/(job-\d+)/results$")), json=self._handle_get_job_results
-        )
-        requests_mock.get(
-            re.compile(connection.build_url("/jobs/(.*?)/results/result.data$")),
-            content=self._handle_get_job_result_asset,
-        )
-
-    def _handle_post_result(self, request, context):
-        """handler of `POST /result` (synchronous execute)"""
-        pg = request.json()["process"]["process_graph"]
-        self.sync_requests.append(pg)
-        return self.next_result
-
-    def _handle_post_jobs(self, request, context):
-        """handler of `POST /jobs` (create batch job)"""
-        pg = request.json()["process"]["process_graph"]
-        job_id = f"job-{len(self.batch_jobs):03d}"
-        self.batch_jobs[job_id] = {"job_id": job_id, "pg": pg, "status": "created"}
-        context.status_code = 201
-        context.headers["openeo-identifier"] = job_id
-
-    def _get_job_id(self, request) -> str:
-        match = re.match(r"^/jobs/(job-\d+)(/|$)", request.path)
-        if not match:
-            raise ValueError(f"Failed to extract job_id from {request.path}")
-        job_id = match.group(1)
-        assert job_id in self.batch_jobs
-        return job_id
-
-    def _handle_post_job_results(self, request, context):
-        """Handler of `POST /job/{job_id}/results` (start batch job)."""
-        job_id = self._get_job_id(request)
-        assert self.batch_jobs[job_id]["status"] == "created"
-        # TODO: support custom status sequence (instead of directly going to status "finished")?
-        self.batch_jobs[job_id]["status"] = "finished"
-        context.status_code = 202
-
-    def _handle_get_job(self, request, context):
-        """Handler of `GET /job/{job_id}` (get batch job status and metadata)."""
-        job_id = self._get_job_id(request)
-        return {"id": job_id, "status": self.batch_jobs[job_id]["status"]}
-
-    def _handle_get_job_results(self, request, context):
-        """Handler of `GET /job/{job_id}/results` (list batch job results)."""
-        job_id = self._get_job_id(request)
-        assert self.batch_jobs[job_id]["status"] == "finished"
-        return {
-            "id": job_id,
-            "assets": {"result.data": {"href": self.connection.build_url(f"/jobs/{job_id}/results/result.data")}},
-        }
-
-    def _handle_get_job_result_asset(self, request, context):
-        """Handler of `GET /job/{job_id}/results/result.data` (get batch job result asset)."""
-        job_id = self._get_job_id(request)
-        assert self.batch_jobs[job_id]["status"] == "finished"
-        return self.next_result
-
-    def get_sync_pg(self) -> dict:
-        """Get one and only synchronous process graph"""
-        assert len(self.sync_requests) == 1
-        return self.sync_requests[0]
-
-    def get_batch_pg(self) -> dict:
-        """Get one and only batch process graph"""
-        assert len(self.batch_jobs) == 1
-        return self.batch_jobs[max(self.batch_jobs.keys())]["pg"]
-
-    def get_pg(self) -> dict:
-        """Get one and only batch process graph (sync or batch)"""
-        pgs = self.sync_requests + [b["pg"] for b in self.batch_jobs.values()]
-        assert len(pgs) == 1
-        return pgs[0]
-
-
-@pytest.fixture
-def dummy_backend(requests_mock, con100) -> DummyBackend:
-    yield DummyBackend(requests_mock=requests_mock, connection=con100)
 
 
 def test_raster_to_vector(con100):
@@ -175,7 +79,8 @@ def test_download_auto_save_result_only_file(
             "result": True,
         },
     }
-    assert output_path.read_bytes() == b"Result data"
+    assert output_path.read_bytes() == DummyBackend.DEFAULT_RESULT
+    assert output_path.read_bytes() == DummyBackend.DEFAULT_RESULT
 
 
 @pytest.mark.parametrize(
@@ -216,7 +121,7 @@ def test_download_auto_save_result_with_format(
             "result": True,
         },
     }
-    assert output_path.read_bytes() == b"Result data"
+    assert output_path.read_bytes() == DummyBackend.DEFAULT_RESULT
 
 
 @pytest.mark.parametrize("exec_mode", ["sync", "batch"])
@@ -244,7 +149,7 @@ def test_download_auto_save_result_with_options(vector_cube, dummy_backend, tmp_
             "result": True,
         },
     }
-    assert output_path.read_bytes() == b"Result data"
+    assert output_path.read_bytes() == DummyBackend.DEFAULT_RESULT
 
 
 @pytest.mark.parametrize(
@@ -278,4 +183,114 @@ def test_save_result_and_download(
             "result": True,
         },
     }
-    assert output_path.read_bytes() == b"Result data"
+    assert output_path.read_bytes() == DummyBackend.DEFAULT_RESULT
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        {"type": "Polygon", "coordinates": [[[1, 2], [3, 2], [3, 4], [1, 4], [1, 2]]]},
+        """{"type": "Polygon", "coordinates": [[[1, 2], [3, 2], [3, 4], [1, 4], [1, 2]]]}""",
+        shapely.geometry.Polygon([[1, 2], [3, 2], [3, 4], [1, 4], [1, 2]]),
+    ],
+)
+def test_load_geojson_basic(con100, data, dummy_backend):
+    vc = VectorCube.load_geojson(connection=con100, data=data)
+    assert isinstance(vc, VectorCube)
+    vc.execute()
+    assert dummy_backend.get_pg() == {
+        "loadgeojson1": {
+            "process_id": "load_geojson",
+            "arguments": {
+                "data": {"type": "Polygon", "coordinates": [[[1, 2], [3, 2], [3, 4], [1, 4], [1, 2]]]},
+                "properties": [],
+            },
+            "result": True,
+        }
+    }
+
+
+@pytest.mark.parametrize("path_type", [str, Path])
+def test_load_geojson_path(con100, dummy_backend, tmp_path, path_type):
+    path = tmp_path / "geometry.json"
+    path.write_text("""{"type": "Polygon", "coordinates": [[[1, 2], [3, 2], [3, 4], [1, 4], [1, 2]]]}""")
+    vc = VectorCube.load_geojson(connection=con100, data=path_type(path))
+    assert isinstance(vc, VectorCube)
+    vc.execute()
+    assert dummy_backend.get_pg() == {
+        "loadgeojson1": {
+            "process_id": "load_geojson",
+            "arguments": {
+                "data": {"type": "Polygon", "coordinates": [[[1, 2], [3, 2], [3, 4], [1, 4], [1, 2]]]},
+                "properties": [],
+            },
+            "result": True,
+        }
+    }
+
+
+def test_load_geojson_parameter(con100, dummy_backend):
+    vc = VectorCube.load_geojson(connection=con100, data=Parameter.datacube())
+    assert isinstance(vc, VectorCube)
+    vc.execute()
+    assert dummy_backend.get_pg() == {
+        "loadgeojson1": {
+            "process_id": "load_geojson",
+            "arguments": {"data": {"from_parameter": "data"}, "properties": []},
+            "result": True,
+        }
+    }
+
+
+def test_load_url(con100, dummy_backend):
+    vc = VectorCube.load_url(connection=con100, url="https://example.com/geometry.json", format="GeoJSON")
+    assert isinstance(vc, VectorCube)
+    vc.execute()
+    assert dummy_backend.get_pg() == {
+        "loadurl1": {
+            "process_id": "load_url",
+            "arguments": {"url": "https://example.com/geometry.json", "format": "GeoJSON"},
+            "result": True,
+        }
+    }
+
+
+@pytest.mark.parametrize(
+    ["dimension", "expect_warning"],
+    [
+        ("geometry", False),
+        ("geometries", True),
+        ("wibbles", True),
+    ],
+)
+def test_apply_dimension(con100, dummy_backend, dimension, expect_warning, caplog):
+    vc = con100.load_geojson({"type": "Point", "coordinates": [1, 2]})
+    result = vc.apply_dimension("sort", dimension=dimension)
+    result.execute()
+    assert dummy_backend.get_pg() == {
+        "loadgeojson1": {
+            "process_id": "load_geojson",
+            "arguments": {"data": {"coordinates": [1, 2], "type": "Point"}, "properties": []},
+        },
+        "applydimension1": {
+            "process_id": "apply_dimension",
+            "arguments": {
+                "data": {"from_node": "loadgeojson1"},
+                "dimension": dimension,
+                "process": {
+                    "process_graph": {
+                        "sort1": {
+                            "process_id": "sort",
+                            "arguments": {"data": {"from_parameter": "data"}},
+                            "result": True,
+                        }
+                    }
+                },
+            },
+            "result": True,
+        },
+    }
+
+    assert (
+        f"Invalid dimension {dimension!r}. Should be one of ['geometry', 'properties']" in caplog.messages
+    ) == expect_warning

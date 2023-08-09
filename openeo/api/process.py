@@ -46,6 +46,19 @@ class Parameter:
         return cls(name=name, description=description, schema={"type": "object", "subtype": "raster-cube"})
 
     @classmethod
+    def datacube(cls, name: str = "data", description: str = "A data cube.") -> "Parameter":
+        """
+        Helper to easily create a 'datacube' parameter.
+
+        :param name: name of the parameter.
+        :param description: description of the parameter
+        :return: Parameter
+
+        .. versionadded:: 0.22.0
+        """
+        return cls(name=name, description=description, schema={"type": "object", "subtype": "datacube"})
+
+    @classmethod
     def string(cls, name: str, description: str = None, default=_DEFAULT_UNDEFINED, values=None) -> 'Parameter':
         """Helper to create a 'string' type parameter."""
         schema = {"type": "string"}

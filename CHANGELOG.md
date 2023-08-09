@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+
+- Processes that take a CRS as argument now try harder to convert your input into a proper EPSG code, to avoid unexpected results when an invalid argument gets sent to the backend.
+- Initial `load_geojson` support with `Connection.load_geojson()` ([#424](https://github.com/Open-EO/openeo-python-client/issues/424))
+- Initial `load_url` (for vector cubes) support with `Connection.load_url()` ([#424](https://github.com/Open-EO/openeo-python-client/issues/424))
+
+
 ### Changed
 
 - `Connection` based requests: always use finite timeouts by default (20 minutes in general, 30 minutes for synchronous execute requests)
@@ -18,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix: MultibackendJobManager should stop when finished, also when job finishes with error ([#452](https://github.com/Open-EO/openeo-python-client/issues/432))
 
 ## [0.21.1] - 2023-07-19
 

@@ -1,14 +1,19 @@
+import json
 import pathlib
 import typing
-from typing import Union, Optional
+from typing import List, Optional, Union
 
+import shapely.geometry.base
+
+import openeo
+from openeo.api.process import Parameter
 from openeo.internal.documentation import openeo_process
 from openeo.internal.graph_building import PGNode
 from openeo.internal.warnings import legacy_alias
-from openeo.metadata import CollectionMetadata
-from openeo.rest._datacube import _ProcessGraphAbstraction, UDF
-from openeo.rest.mlmodel import MlModel
+from openeo.metadata import CollectionMetadata, Dimension
+from openeo.rest._datacube import THIS, UDF, _ProcessGraphAbstraction, build_child_callback
 from openeo.rest.job import BatchJob
+from openeo.rest.mlmodel import MlModel
 from openeo.util import dict_no_none, guess_format
 
 if typing.TYPE_CHECKING:
@@ -27,25 +32,110 @@ class VectorCube(_ProcessGraphAbstraction):
 
     def __init__(self, graph: PGNode, connection: 'Connection', metadata: CollectionMetadata = None):
         super().__init__(pgnode=graph, connection=connection)
-        # TODO: does VectorCube need CollectionMetadata?
-        self.metadata = metadata
+        self.metadata = metadata or self._build_metadata()
+
+    @classmethod
+    def _build_metadata(cls, add_properties: bool = False) -> CollectionMetadata:
+        """Helper to build a (minimal) `CollectionMetadata` object."""
+        # Vector cubes have at least a "geometry" dimension
+        dimensions = [Dimension(name="geometry", type="geometry")]
+        if add_properties:
+            dimensions.append(Dimension(name="properties", type="other"))
+        # TODO: use a more generic metadata container than "collection" metadata
+        return CollectionMetadata(metadata={}, dimensions=dimensions)
 
     def process(
-            self,
-            process_id: str,
-            arguments: dict = None,
-            metadata: Optional[CollectionMetadata] = None,
-            namespace: Optional[str] = None,
-            **kwargs) -> 'VectorCube':
+        self,
+        process_id: str,
+        arguments: dict = None,
+        metadata: Optional[CollectionMetadata] = None,
+        namespace: Optional[str] = None,
+        **kwargs,
+    ) -> "VectorCube":
         """
         Generic helper to create a new DataCube by applying a process.
 
         :param process_id: process id of the process.
         :param args: argument dictionary for the process.
-        :return: new DataCube instance
+        :return: new VectorCube instance
         """
         pg = self._build_pgnode(process_id=process_id, arguments=arguments, namespace=namespace, **kwargs)
         return VectorCube(graph=pg, connection=self._connection, metadata=metadata or self.metadata)
+
+    @classmethod
+    @openeo_process
+    def load_geojson(
+        cls,
+        connection: "openeo.Connection",
+        data: Union[dict, str, pathlib.Path, shapely.geometry.base.BaseGeometry, Parameter],
+        properties: Optional[List[str]] = None,
+    ) -> "VectorCube":
+        """
+        Converts GeoJSON data as defined by RFC 7946 into a vector data cube.
+
+        :param connection: the connection to use to connect with the openEO back-end.
+        :param data: the geometry to load. One of:
+
+            - GeoJSON-style data structure: e.g. a dictionary with ``"type": "Polygon"`` and ``"coordinates"`` fields
+            - a path to a local GeoJSON file
+            - a GeoJSON string
+            - a shapely geometry object
+
+        :param properties: A list of properties from the GeoJSON file to construct an additional dimension from.
+        :return: new VectorCube instance
+
+        .. warning:: EXPERIMENTAL: this process is experimental with the potential for major things to change.
+
+        .. versionadded:: 0.22.0
+        """
+        # TODO: unify with `DataCube._get_geometry_argument`
+        # TODO #457 also support client side fetching of GeoJSON from URL?
+        if isinstance(data, str) and data.strip().startswith("{"):
+            # Assume JSON dump
+            geometry = json.loads(data)
+        elif isinstance(data, (str, pathlib.Path)):
+            # Assume local file
+            with pathlib.Path(data).open(mode="r", encoding="utf-8") as f:
+                geometry = json.load(f)
+                assert isinstance(geometry, dict)
+        elif isinstance(data, shapely.geometry.base.BaseGeometry):
+            geometry = shapely.geometry.mapping(data)
+        elif isinstance(data, Parameter):
+            geometry = data
+        elif isinstance(data, dict):
+            geometry = data
+        else:
+            raise ValueError(data)
+        # TODO #457 client side verification of GeoJSON construct: valid type, valid structure, presence of CRS, ...?
+
+        pg = PGNode(process_id="load_geojson", data=geometry, properties=properties or [])
+        # TODO #457 always a "properties" dimension? https://github.com/Open-EO/openeo-processes/issues/448
+        metadata = cls._build_metadata(add_properties=True)
+        return cls(graph=pg, connection=connection, metadata=metadata)
+
+    @classmethod
+    @openeo_process
+    def load_url(
+        cls, connection: "openeo.Connection", url: str, format: str, options: Optional[dict] = None
+    ) -> "VectorCube":
+        """
+        Loads a file from a URL
+
+        :param connection: the connection to use to connect with the openEO back-end.
+        :param url: The URL to read from. Authentication details such as API keys or tokens may need to be included in the URL.
+        :param format: The file format to use when loading the data.
+        :param options: The file format parameters to use when reading the data.
+            Must correspond to the parameters that the server reports as supported parameters for the chosen ``format``
+        :return: new VectorCube instance
+
+        .. warning:: EXPERIMENTAL: this process is experimental with the potential for major things to change.
+
+        .. versionadded:: 0.22.0
+        """
+        pg = PGNode(process_id="load_url", arguments=dict_no_none(url=url, format=format, options=options))
+        # TODO #457 always a "properties" dimension? https://github.com/Open-EO/openeo-processes/issues/448
+        metadata = cls._build_metadata(add_properties=True)
+        return cls(graph=pg, connection=connection, metadata=metadata)
 
     @openeo_process
     def run_udf(
@@ -321,3 +411,58 @@ class VectorCube(_ProcessGraphAbstraction):
         )
         model = MlModel(graph=pgnode, connection=self._connection)
         return model
+
+    @openeo_process
+    def apply_dimension(
+        self,
+        process: Union[str, typing.Callable, UDF, PGNode],
+        dimension: str,
+        target_dimension: Optional[str] = None,
+        context: Optional[dict] = None,
+    ) -> "VectorCube":
+        """
+        Applies a process to all values along a dimension of a data cube.
+        For example, if the temporal dimension is specified the process will work on the values of a time series.
+
+        The process to apply is specified by providing a callback function in the `process` argument.
+
+        :param process: the "child callback":
+            the name of a single process,
+            or a callback function as discussed in :ref:`callbackfunctions`,
+            or a :py:class:`UDF <openeo.rest._datacube.UDF>` instance.
+
+            The callback should correspond to a process that
+            receives an array of numerical values
+            and returns an array of numerical values.
+            For example:
+
+            -   ``"sort"`` (string)
+            -   :py:func:`sort <openeo.processes.sort>` (:ref:`predefined openEO process function <openeo_processes_functions>`)
+            -   ``lambda data: data.concat([42, -3])`` (function or lambda)
+
+
+        :param dimension: The name of the source dimension to apply the process on. Fails with a DimensionNotAvailable error if the specified dimension does not exist.
+        :param target_dimension: The name of the target dimension or null (the default) to use the source dimension
+            specified in the parameter dimension. By specifying a target dimension, the source dimension is removed.
+            The target dimension with the specified name and the type other (see add_dimension) is created, if it doesn't exist yet.
+        :param context: Additional data to be passed to the process.
+
+        :return: A datacube with the UDF applied to the given dimension.
+        :raises: DimensionNotAvailable
+
+        .. versionadded:: 0.22.0
+        """
+        process = build_child_callback(
+            process=process, parent_parameters=["data", "context"], connection=self.connection
+        )
+        arguments = dict_no_none(
+            {
+                "data": THIS,
+                "process": process,
+                # TODO: drop `just_warn`?
+                "dimension": self.metadata.assert_valid_dimension(dimension, just_warn=True),
+                "target_dimension": target_dimension,
+                "context": context,
+            }
+        )
+        return self.process(process_id="apply_dimension", arguments=arguments)

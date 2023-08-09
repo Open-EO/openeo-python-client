@@ -15,10 +15,12 @@ from typing import Dict, List, Tuple, Union, Callable, Optional, Any, Iterator, 
 import requests
 from requests import Response
 from requests.auth import HTTPBasicAuth, AuthBase
+import shapely.geometry.base
 
 import openeo
 from openeo.capabilities import ApiVersionException, ComparableVersion
 from openeo.config import get_config_option, config_log
+from openeo.internal.documentation import openeo_process
 from openeo.internal.graph_building import PGNode, as_flat_graph, FlatGraphableMixin
 from openeo.internal.jupyter import VisualDict, VisualList
 from openeo.internal.processes.builder import ProcessBuilderBase
@@ -800,6 +802,9 @@ class Connection(RestApiConnection):
             load=lambda: RESTCapabilities(data=self.get('/', expected_status=200).json(), url=self._orig_url)
         )
 
+    def list_input_formats(self) -> dict:
+        return self.list_file_formats().get("input", {})
+
     def list_output_formats(self) -> dict:
         return self.list_file_formats().get("output", {})
 
@@ -1045,10 +1050,12 @@ class Connection(RestApiConnection):
 
         .. versionadded:: 0.14.0
         """
+        # TODO #457 deprecate this in favor of `load_url` and standard support for `load_uploaded_files`
         graph = PGNode(
             "load_uploaded_files",
             arguments=dict(paths=paths, format=format, options=options),
         )
+        # TODO: load_uploaded_files might also return a raster data cube. Determine this based on format?
         return VectorCube(graph=graph, connection=self)
 
     def datacube_from_process(self, process_id: str, namespace: Optional[str] = None, **kwargs) -> DataCube:
@@ -1095,12 +1102,13 @@ class Connection(RestApiConnection):
         """
         return self.datacube_from_flat_graph(load_json_resource(src), parameters=parameters)
 
+    @openeo_process
     def load_collection(
             self,
             collection_id: str,
             spatial_extent: Optional[Dict[str, float]] = None,
-            temporal_extent: Optional[List[Union[str, datetime.datetime, datetime.date]]] = None,
-            bands: Optional[List[str]] = None,
+        temporal_extent: Optional[List[Union[str, datetime.datetime, datetime.date]]] = None,
+        bands: Optional[List[str]] = None,
             properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
             max_cloud_cover: Optional[float] = None,
             fetch_metadata=True,
@@ -1131,6 +1139,7 @@ class Connection(RestApiConnection):
         load_collection, name="imagecollection", since="0.4.10"
     )
 
+    @openeo_process
     def load_result(
             self,
             id: str,
@@ -1168,6 +1177,7 @@ class Connection(RestApiConnection):
         cube.metadata = metadata
         return cube
 
+    @openeo_process
     def load_stac(
         self,
         url: str,
@@ -1304,6 +1314,52 @@ class Connection(RestApiConnection):
         .. versionadded:: 0.10.0
         """
         return MlModel.load_ml_model(connection=self, id=id)
+
+    @openeo_process
+    def load_geojson(
+        self,
+        data: Union[dict, str, Path, shapely.geometry.base.BaseGeometry, Parameter],
+        properties: Optional[List[str]] = None,
+    ):
+        """
+        Converts GeoJSON data as defined by RFC 7946 into a vector data cube.
+
+        :param data: the geometry to load. One of:
+
+            - GeoJSON-style data structure: e.g. a dictionary with ``"type": "Polygon"`` and ``"coordinates"`` fields
+            - a path to a local GeoJSON file
+            - a GeoJSON string
+            - a shapely geometry object
+
+        :param properties: A list of properties from the GeoJSON file to construct an additional dimension from.
+        :return: new VectorCube instance
+
+        .. warning:: EXPERIMENTAL: this process is experimental with the potential for major things to change.
+
+        .. versionadded:: 0.22.0
+        """
+        return VectorCube.load_geojson(connection=self, data=data, properties=properties)
+
+    @openeo_process
+    def load_url(self, url: str, format: str, options: Optional[dict] = None):
+        """
+        Loads a file from a URL
+
+        :param url: The URL to read from. Authentication details such as API keys or tokens may need to be included in the URL.
+        :param format: The file format to use when loading the data.
+        :param options: The file format parameters to use when reading the data.
+            Must correspond to the parameters that the server reports as supported parameters for the chosen ``format``
+        :return: new VectorCube instance
+
+        .. warning:: EXPERIMENTAL: this process is experimental with the potential for major things to change.
+
+        .. versionadded:: 0.22.0
+        """
+        if format not in self.list_input_formats():
+            # TODO: make this an error?
+            _log.warning(f"Format {format!r} not listed in back-end input formats")
+        # TODO: Inspect format's gis_data_type to see if we need to load a VectorCube or classic raster DataCube
+        return VectorCube.load_url(connection=self, url=url, format=format, options=options)
 
     def create_service(self, graph: dict, type: str, **kwargs) -> Service:
         # TODO: type hint for graph: is it a nested or a flat one?

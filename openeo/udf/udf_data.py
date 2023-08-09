@@ -32,7 +32,7 @@ class UdfData:
         The constructor of the UDF argument class that stores all data required by the
         user defined function.
 
-        :param proj: A dictionary of form {"proj type string": "projection description"} i. e. {"EPSG":4326}
+        :param proj: A dictionary of form {"proj type string": "projection description"} e.g. {"EPSG": 4326}
         :param datacube_list: A list of data cube objects
         :param feature_collection_list: A list of VectorTile objects
         :param structured_data_list: A list of structured data objects
