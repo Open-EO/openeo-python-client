@@ -275,7 +275,66 @@ def get_temporal_extent(*args,
     elif extent:
         assert start_date is None and end_date is None
         start_date, end_date = extent
+    if start_date and not end_date and isinstance(start_date, str):
+        start_date, end_date = string_to_temporal_extent(start_date)
     return convertor(start_date) if start_date else None, convertor(end_date) if end_date else None
+
+
+def string_to_temporal_extent(start_date: str) -> Tuple[dt.date, dt.date]:
+    """Convert a string that represents a year or a month, into a date range.
+
+    For example:
+    "2021" : means all data for 2021
+    "2022-08": means all data for the month of august in 2022.
+
+    If the day is included in the string then we leave it alone.
+    Note that `get_temporal_extent` already handles having one date string,
+    where the day is present in the string.
+    """
+
+    # Skip if it represents a day or if it is not even a string
+    # If it is a day, we leave it alone and let the upstream function handle
+    # that case because a day could be a start date or an end date.
+    if not isinstance(start_date, str):
+        return start_date, None
+
+    # day also matches a datetime, no  $ at the end
+    regex_day = re.compile(r"^(\d{4})[:/_-](\d{2})[:/_-](\d{2})")
+    regex_month = re.compile(r"^(\d{4})[:/_-](\d{2})$")
+    regex_year = re.compile(r"^\d{4}$")
+
+    match_day = regex_day.match(start_date)
+    match_month = regex_month.match(start_date)
+    match_year = regex_year.match(start_date)
+
+    if match_day:
+        return start_date, None
+
+    if not (match_year or match_month):
+        raise ValueError(
+            "Value does not represent a year or a year + month: format should "
+            f"be 'yyyy' or 'yyyy-dd', start_date={start_date}"
+        )
+
+    if match_month:
+        year_start = int(match_month.group(1))
+        month_start = int(match_month.group(2))
+        if month_start == 12:
+            year_end = year_start + 1
+            month_end = 1
+        else:
+            month_end = month_start + 1
+            year_end = year_start
+    else:
+        year_start = int(start_date)
+        year_end = year_start + 1
+        month_start = 1
+        month_end = 1
+
+    date_start = dt.date(year_start, month_start, 1)
+    date_end = dt.date(year_end, month_end, 1)
+
+    return date_start, date_end
 
 
 class ContextTimer:

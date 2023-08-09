@@ -28,6 +28,7 @@ from openeo.util import (
     ensure_list,
     first_not_none,
     get_temporal_extent,
+    string_to_temporal_extent,
     guess_format,
     repr_truncate,
     rfc3339,
@@ -389,7 +390,10 @@ def test_get_temporal_extent():
     assert get_temporal_extent(start_date="2019-03-15", end_date="2019-10-11") == ("2019-03-15", "2019-10-11")
     assert get_temporal_extent(start_date="2019-03-15") == ("2019-03-15", None)
     assert get_temporal_extent(end_date="2019-10-11") == (None, "2019-10-11")
-
+    assert get_temporal_extent(start_date="2019") == ("2019-01-01", "2020-01-01")
+    assert get_temporal_extent(start_date="2019-01") == ("2019-01-01", "2019-02-01")
+    assert get_temporal_extent(start_date="2019-11") == ("2019-11-01", "2019-12-01")
+    assert get_temporal_extent(start_date="2019-12") == ("2019-12-01", "2020-01-01")
 
 def test_context_timer_basic():
     with mock.patch.object(ContextTimer, "_clock", new=_fake_clock([3, 5, 8, 13])):
@@ -986,3 +990,46 @@ def test_crs_to_epsg_code_raises_valueerror(epsg_input):
     """EPSG codes can not be 0 or negative."""
     with pytest.raises(ValueError):
         crs_to_epsg_code(epsg_input)
+
+
+@pytest.mark.parametrize(
+    ["date_input", "expected_start", "expected_end"],
+    [
+        ("2023", dt.date(2023, 1, 1), dt.date(2024, 1, 1)),
+        ("1999", dt.date(1999, 1, 1), dt.date(2000, 1, 1)),
+        ("2023-03", dt.date(2023, 3, 1), dt.date(2023, 4, 1)),
+        ("2023/03", dt.date(2023, 3, 1), dt.date(2023, 4, 1)),
+        ("2023-01", dt.date(2023, 1, 1), dt.date(2023, 2, 1)),
+        ("2023/01", dt.date(2023, 1, 1), dt.date(2023, 2, 1)),
+        ("2022-12", dt.date(2022, 12, 1), dt.date(2023, 1, 1)),
+        ("2022/12", dt.date(2022, 12, 1), dt.date(2023, 1, 1)),
+        ("2022-11", dt.date(2022, 11, 1), dt.date(2022, 12, 1)),
+        ("2022/11", dt.date(2022, 11, 1), dt.date(2022, 12, 1)),
+        ("2022-12-31", "2022-12-31", None),
+        ("2022/12/31", "2022/12/31", None),
+        ("2022-11-30", "2022-11-30", None),
+        ("2022/11/30", "2022/11/30", None),
+        ("2022-12-31T12:33:05", "2022-12-31T12:33:05", None),
+        (dt.date(2022, 11, 1), dt.date(2022, 11, 1), None),
+        (dt.datetime(2022, 11, 1, 15, 30, 00), dt.datetime(2022, 11, 1, 15, 30, 00), None),
+    ],
+)
+def test_string_to_temporal_extent(date_input: str, expected_start: dt.date, expected_end: dt.date):
+    actual_start, actual_end = string_to_temporal_extent(date_input)
+    assert actual_start == expected_start
+    assert actual_end == expected_end
+
+
+@pytest.mark.parametrize(
+    "date_input",
+    [
+        "20-22-12-31",
+        "2022/12/31/aa1/bb/cc",
+        "20-2--12",
+        "20-1-1-",
+        "20-2-",
+    ],
+)
+def test_string_to_temporal_extent_raises_valueerror(date_input: Union[str, dt.date, dt.datetime]):
+    with pytest.raises(ValueError):
+        string_to_temporal_extent(date_input)
