@@ -279,6 +279,7 @@ def build_child_callback(
     :param parent_parameters: list of parameter names defined for child process
     :return:
     """
+    # TODO: move this to more generic process graph building utility module
     # TODO: autodetect the parameters defined by parent process?
     if isinstance(process, PGNode):
         # Assume this is already a valid callback process

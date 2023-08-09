@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Processes that take a CRS as argument now try harder to convert your input into a proper EPSG code, to avoid unexpected results when an invalid argument gets sent to the backend.
 - Initial `load_geojson` support with `Connection.load_geojson()` ([#424](https://github.com/Open-EO/openeo-python-client/issues/424))
 - Initial `load_url` (for vector cubes) support with `Connection.load_url()` ([#424](https://github.com/Open-EO/openeo-python-client/issues/424))
+- Support lambda based property filtering in `Connection.load_stac()` ([#425](https://github.com/Open-EO/openeo-python-client/issues/425))
 
 
 ### Changed
@@ -105,7 +106,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   including special mode for in Jupyter notebooks.
   ([#237](https://github.com/Open-EO/openeo-python-client/issues/237))
 - Basic support for `load_stac` process with `Connection.load_stac()`
-  ([#425](https://github.com/Open-EO/openeo-python-client/issues/))
+  ([#425](https://github.com/Open-EO/openeo-python-client/issues/425))
 - Add `DataCube.aggregate_spatial_window()`
 
 ### Fixed

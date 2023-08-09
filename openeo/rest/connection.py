@@ -27,6 +27,7 @@ from openeo.internal.processes.builder import ProcessBuilderBase
 from openeo.internal.warnings import legacy_alias, deprecated
 from openeo.metadata import CollectionMetadata, SpatialDimension, TemporalDimension, BandDimension, Band
 from openeo.rest import OpenEoClientException, OpenEoApiError, OpenEoRestError
+from openeo.rest._datacube import build_child_callback
 from openeo.rest.auth.auth import NullAuth, BearerAuth, BasicBearerAuth, OidcBearerAuth
 from openeo.rest.auth.config import RefreshTokenStore, AuthConfig
 from openeo.rest.auth.oidc import OidcClientCredentialsAuthenticator, OidcAuthCodePkceAuthenticator, \
@@ -1280,7 +1281,8 @@ class Connection(RestApiConnection):
 
         .. versionadded:: 0.17.0
         """
-        # TODO: detect actual metadata from URL
+        # TODO #425 move this implementation to `DataCube` and just forward here (like with `load_collection`)
+        # TODO #425 detect actual metadata from URL
         metadata = CollectionMetadata(
             {},
             dimensions=[
@@ -1291,7 +1293,7 @@ class Connection(RestApiConnection):
             ],
         )
         arguments = {"url": url}
-        # TODO: more normalization/validation of extent/band parameters and `properties`
+        # TODO #425 more normalization/validation of extent/band parameters
         if spatial_extent:
             arguments["spatial_extent"] = spatial_extent
         if temporal_extent:
@@ -1299,7 +1301,9 @@ class Connection(RestApiConnection):
         if bands:
             arguments["bands"] = bands
         if properties:
-            arguments["properties"] = properties
+            arguments["properties"] = {
+                prop: build_child_callback(pred, parent_parameters=["value"]) for prop, pred in properties.items()
+            }
         cube = self.datacube_from_process(process_id="load_stac", **arguments)
         cube.metadata = metadata
         return cube
