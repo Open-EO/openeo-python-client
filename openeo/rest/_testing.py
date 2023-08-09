@@ -108,7 +108,7 @@ class DummyBackend:
             found = [node for node in pg.values() if node.get("process_id") == process_id]
             if len(found) != 1:
                 raise RuntimeError(
-                    f"Expected single process graph node with {process_id=}, but found {len(found)}: {found}"
+                    f"Expected single process graph node with process_id {process_id!r}, but found {len(found)}: {found}"
                 )
             return found[0]
         return pg
