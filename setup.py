@@ -75,6 +75,7 @@ setup(
         'oschmod>=0.3.12; sys_platform == "win32"',
     ],
     extras_require={
+        "tests": tests_require,
         "dev": tests_require + docs_require,
         "docs": docs_require,
         "oschmod": [  # install oschmod even when platform is not Windows, e.g. for testing in CI.
