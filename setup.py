@@ -27,6 +27,7 @@ tests_require = [
     "geopandas",
     "flake8>=5.0.0",
     "time_machine",
+    "pyproj",  # Pyproj is an optional, best-effort runtime dependency
 ]
 
 docs_require = [

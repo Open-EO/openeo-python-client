@@ -8,9 +8,11 @@ import re
 import unittest.mock as mock
 from typing import List, Union
 
+import pyproj
 import pytest
 import shapely.geometry
 
+from openeo.capabilities import ComparableVersion
 from openeo.util import (
     BBoxDict,
     ContextTimer,
@@ -891,6 +893,10 @@ PROJCRS["WGS 84 / UTM zone 31N",
     )
     def test_normalize_crs_succeeds_with_correct_crses(self, epsg_input, expected):
         """Happy path, values that are allowed"""
+        if isinstance(epsg_input, str) and epsg_input.isnumeric() and pyproj.__version__ < ComparableVersion("3.3.1"):
+            # TODO #460 this skip is only necessary for python 3.6 and lower
+            pytest.skip("pyproj below 3.3.1 does not support int-like strings")
+
         assert normalize_crs(epsg_input) == expected
 
     @pytest.mark.parametrize(
@@ -926,22 +932,21 @@ PROJCRS["WGS 84 / UTM zone 31N",
             in caplog.text
         )
 
-    @pytest.mark.skipif(sys.version_info < (3, 7), reason="WKT2 format not supported by pyproj 3.0 / python 3.6")
+    @pytest.mark.skipif(
+        # TODO #460 this skip is only necessary for python 3.6 and lower
+        pyproj.__version__ < ComparableVersion("3.1.0"),
+        reason="WKT2 format support requires pypro 3.1.0 or higher",
+    )
     def test_normalize_crs_succeeds_with_wkt2_input(self):
         """Test can handle WKT2 strings.
 
         We need to support WKT2:
         See also https://github.com/Open-EO/openeo-processes/issues/58
-
-
-        WARNING:
-        =======
-
-        Older versions of pyproj do not support this format.
-        In particular, pyproj 3.0 which is the version we get on python 3.6, would
-        fail on this test, and is marked with a skipif for that reason.
         """
         assert normalize_crs(self.WKT2_FOR_EPSG32631) == 32631
+
+    def test_normalize_crs_without_pyproj_succeeds_with_wkt2_input(self):
+        assert normalize_crs(self.WKT2_FOR_EPSG32631, use_pyproj=False) == self.WKT2_FOR_EPSG32631
 
     PROJJSON_FOR_EPSG32631 = {
         "$schema": "https://proj.org/schemas/v0.4/projjson.schema.json",
@@ -1013,7 +1018,9 @@ PROJCRS["WGS 84 / UTM zone 31N",
     }
 
     @pytest.mark.skipif(
-        sys.version_info < (3, 8), reason="PROJJSON format not supported by pyproj v3.2 / python < v3.8"
+        # TODO #460 this skip is only necessary for python 3.6 and lower
+        pyproj.__version__ < ComparableVersion("3.3.0"),
+        reason="PROJJSON format requires pyproj 3.3.0 or higher",
     )
     def test_normalize_crs_succeeds_with_correct_projjson(
         self,

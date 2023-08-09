@@ -677,7 +677,7 @@ def normalize_crs(crs: Any, *, use_pyproj: bool = True) -> Union[None, int, str]
             # Convert back to EPSG int or WKT2 string
             crs = crs_obj.to_epsg() or crs_obj.to_wkt()
         except pyproj.ProjError as e:
-            raise ValueError(f"Failed to normalize CRS data with pyproj: {crs}") from e
+            raise ValueError(f"Failed to normalize CRS data with pyproj: {crs!r}") from e
     else:
         # Best effort simple validation/normalization
         if isinstance(crs, int) and crs > 0:
