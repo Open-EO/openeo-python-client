@@ -1,7 +1,7 @@
 import json
 import pathlib
 import typing
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Tuple, Callable
 
 import shapely.geometry.base
 
@@ -14,7 +14,7 @@ from openeo.metadata import CollectionMetadata, Dimension
 from openeo.rest._datacube import THIS, UDF, _ProcessGraphAbstraction, build_child_callback
 from openeo.rest.job import BatchJob
 from openeo.rest.mlmodel import MlModel
-from openeo.util import dict_no_none, guess_format
+from openeo.util import dict_no_none, guess_format, crs_to_epsg_code, to_bbox_dict, InvalidBBoxException
 
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).
@@ -326,6 +326,75 @@ class VectorCube(_ProcessGraphAbstraction):
         )
 
     send_job = legacy_alias(create_job, name="send_job", since="0.10.0")
+
+    @openeo_process
+    def filter_bands(self, bands: List[str]) -> "VectorCube":
+        """
+        .. versionadded:: 0.22.0
+        """
+        # TODO #459 docs
+        return self.process(
+            process_id="filter_bands",
+            arguments={"data": THIS, "bands": bands},
+        )
+
+    @openeo_process
+    def filter_bbox(
+        self,
+        *,
+        west: Optional[float] = None,
+        south: Optional[float] = None,
+        east: Optional[float] = None,
+        north: Optional[float] = None,
+        extent: Optional[Union[dict, List[float], Tuple[float, float, float, float], Parameter]] = None,
+        crs: Optional[int] = None,
+    ) -> "VectorCube":
+        """
+        .. versionadded:: 0.22.0
+        """
+        # TODO #459 docs
+        if any(c is not None for c in [west, south, east, north]):
+            if extent is not None:
+                raise InvalidBBoxException("Don't specify both west/south/east/north and extent")
+            extent = dict_no_none(west=west, south=south, east=east, north=north)
+
+        if isinstance(extent, Parameter):
+            pass
+        else:
+            extent = to_bbox_dict(extent, crs=crs)
+        return self.process(
+            process_id="filter_bbox",
+            arguments={"data": THIS, "extent": extent},
+        )
+
+    @openeo_process
+    def filter_labels(
+        self, condition: Union[PGNode, Callable], dimension: str, context: Optional[dict] = None
+    ) -> "VectorCube":
+        """
+        .. versionadded:: 0.22.0
+        """
+        # TODO #459 docs
+        condition = build_child_callback(condition, parent_parameters=["value"])
+        return self.process(
+            process_id="filter_labels",
+            arguments=dict_no_none(data=THIS, condition=condition, dimension=dimension, context=context),
+        )
+
+    @openeo_process
+    def filter_vector(
+        self, geometries: Union["VectorCube", shapely.geometry.base.BaseGeometry, dict], relation: str = "intersects"
+    ) -> "VectorCube":
+        """
+        .. versionadded:: 0.22.0
+        """
+        # TODO #459 docs
+        if not isinstance(geometries, (VectorCube, Parameter)):
+            geometries = self.load_geojson(connection=self.connection, data=geometries)
+        return self.process(
+            process_id="filter_vector",
+            arguments={"data": THIS, "geometries": geometries, "relation": relation},
+        )
 
     @openeo_process
     def fit_class_random_forest(

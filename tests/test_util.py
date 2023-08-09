@@ -34,6 +34,7 @@ from openeo.util import (
     str_truncate,
     to_bbox_dict,
     url_join,
+    InvalidBBoxException,
 )
 
 
@@ -685,7 +686,18 @@ class TestBBoxDict:
     def test_init(self):
         assert BBoxDict(west=1, south=2, east=3, north=4) == {"west": 1, "south": 2, "east": 3, "north": 4}
         assert BBoxDict(west=1, south=2, east=3, north=4, crs="EPSG:4326") == {
-            "west": 1, "south": 2, "east": 3, "north": 4, "crs": "EPSG:4326",
+            "west": 1,
+            "south": 2,
+            "east": 3,
+            "north": 4,
+            "crs": 4326,
+        }
+        assert BBoxDict(west=1, south=2, east=3, north=4, crs=4326) == {
+            "west": 1,
+            "south": 2,
+            "east": 3,
+            "north": 4,
+            "crs": 4326,
         }
 
     def test_repr(self):
@@ -699,35 +711,71 @@ class TestBBoxDict:
     def test_to_bbox_dict_from_sequence(self):
         assert to_bbox_dict([1, 2, 3, 4]) == {"west": 1, "south": 2, "east": 3, "north": 4}
         assert to_bbox_dict((1, 2, 3, 4)) == {"west": 1, "south": 2, "east": 3, "north": 4}
+        assert to_bbox_dict([1, 2, 3, 4], crs=4326) == {
+            "west": 1,
+            "south": 2,
+            "east": 3,
+            "north": 4,
+            "crs": 4326,
+        }
         assert to_bbox_dict([1, 2, 3, 4], crs="EPSG:4326") == {
-            "west": 1, "south": 2, "east": 3, "north": 4, "crs": "EPSG:4326",
+            "west": 1,
+            "south": 2,
+            "east": 3,
+            "north": 4,
+            "crs": 4326,
         }
 
     def test_to_bbox_dict_from_sequence_mismatch(self):
-        with pytest.raises(ValueError, match="Expected sequence with 4 items, but got 3."):
+        with pytest.raises(InvalidBBoxException, match="Expected sequence with 4 items, but got 3."):
             to_bbox_dict([1, 2, 3])
-        with pytest.raises(ValueError, match="Expected sequence with 4 items, but got 5."):
+        with pytest.raises(InvalidBBoxException, match="Expected sequence with 4 items, but got 5."):
             to_bbox_dict([1, 2, 3, 4, 5])
 
     def test_to_bbox_dict_from_dict(self):
         assert to_bbox_dict({"west": 1, "south": 2, "east": 3, "north": 4}) == {
             "west": 1, "south": 2, "east": 3, "north": 4
         }
+        assert to_bbox_dict({"west": 1, "south": 2, "east": 3, "north": 4, "crs": 4326}) == {
+            "west": 1,
+            "south": 2,
+            "east": 3,
+            "north": 4,
+            "crs": 4326,
+        }
         assert to_bbox_dict({"west": 1, "south": 2, "east": 3, "north": 4, "crs": "EPSG:4326"}) == {
-            "west": 1, "south": 2, "east": 3, "north": 4, "crs": "EPSG:4326"
+            "west": 1,
+            "south": 2,
+            "east": 3,
+            "north": 4,
+            "crs": 4326,
         }
         assert to_bbox_dict({"west": 1, "south": 2, "east": 3, "north": 4}, crs="EPSG:4326") == {
-            "west": 1, "south": 2, "east": 3, "north": 4, "crs": "EPSG:4326",
+            "west": 1,
+            "south": 2,
+            "east": 3,
+            "north": 4,
+            "crs": 4326,
         }
-        assert to_bbox_dict({
-            "west": 1, "south": 2, "east": 3, "north": 4, "crs": "EPSG:4326", "color": "red", "other": "garbage",
-        }) == {
-                   "west": 1, "south": 2, "east": 3, "north": 4, "crs": "EPSG:4326"
-               }
+        assert to_bbox_dict(
+            {
+                "west": 1,
+                "south": 2,
+                "east": 3,
+                "north": 4,
+                "crs": "EPSG:4326",
+                "color": "red",
+                "other": "garbage",
+            }
+        ) == {"west": 1, "south": 2, "east": 3, "north": 4, "crs": 4326}
 
     def test_to_bbox_dict_from_dict_missing_field(self):
-        with pytest.raises(ValueError, match="but only found {'east'}"):
+        with pytest.raises(InvalidBBoxException, match=re.escape("Missing bbox fields ['north', 'south', 'west']")):
             to_bbox_dict({"east": 3})
+
+    def test_to_bbox_dict_multiple_crs(self):
+        with pytest.raises(InvalidBBoxException, match="Two CRS values specified: EPSG:32631 and 4326"):
+            _ = to_bbox_dict({"west": 1, "south": 2, "east": 3, "north": 4, "crs": 4326}, crs="EPSG:32631")
 
     def test_to_bbox_dict_from_geometry(self):
         geometry = shapely.geometry.Polygon([(4, 2), (7, 4), (5, 8), (3, 3), (4, 2)])

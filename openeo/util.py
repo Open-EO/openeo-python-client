@@ -521,6 +521,10 @@ def in_interactive_mode() -> bool:
     return hasattr(sys, "ps1")
 
 
+class InvalidBBoxException(ValueError):
+    pass
+
+
 class BBoxDict(dict):
     """
     Dictionary based helper to easily create/work with bounding box dictionaries
@@ -529,18 +533,18 @@ class BBoxDict(dict):
     .. versionadded:: 0.10.1
     """
 
-    def __init__(self, *, west: float, south: float, east: float, north: float, crs: Optional[str] = None):
+    def __init__(self, *, west: float, south: float, east: float, north: float, crs: Optional[Union[str, int]] = None):
         super().__init__(west=west, south=south, east=east, north=north)
         if crs is not None:
-            # TODO: #259, should we covert EPSG strings to int here with crs_to_epsg_code?
-            # self.update(crs=crs_to_epsg_code(crs))
-            self.update(crs=crs)
+            self.update(crs=crs_to_epsg_code(crs))
 
     # TODO: provide west, south, east, north, crs as @properties? Read-only or read-write?
 
     @classmethod
     def from_any(cls, x: Any, *, crs: Optional[str] = None) -> 'BBoxDict':
         if isinstance(x, dict):
+            if crs and "crs" in x and crs != x["crs"]:
+                raise InvalidBBoxException(f"Two CRS values specified: {crs} and {x['crs']}")
             return cls.from_dict({"crs": crs, **x})
         elif isinstance(x, (list, tuple)):
             return cls.from_sequence(x, crs=crs)
@@ -548,31 +552,31 @@ class BBoxDict(dict):
             return cls.from_sequence(x.bounds, crs=crs)
         # TODO: support other input? E.g.: WKT string, GeoJson-style dictionary (Polygon, FeatureCollection, ...)
         else:
-            raise ValueError(f"Can not construct BBoxDict from {x!r}")
+            raise InvalidBBoxException(f"Can not construct BBoxDict from {x!r}")
 
     @classmethod
     def from_dict(cls, data: dict) -> 'BBoxDict':
         """Build from dictionary with at least keys "west", "south", "east", and "north"."""
         expected_fields = {"west", "south", "east", "north"}
-        # TODO: also support converting support case fields?
-        if not all(k in data for k in expected_fields):
-            raise ValueError(
-                f"Expecting fields {expected_fields}, but only found {expected_fields.intersection(data.keys())}."
-            )
-        return cls(
-            west=data["west"], south=data["south"], east=data["east"], north=data["north"],
-            crs=data.get("crs")
-        )
+        # TODO: also support upper case fields?
+        # TODO: optional support for parameterized bbox fields?
+        missing = expected_fields.difference(data.keys())
+        if missing:
+            raise InvalidBBoxException(f"Missing bbox fields {sorted(missing)}")
+        invalid = {k: data[k] for k in expected_fields if not isinstance(data[k], (int, float))}
+        if invalid:
+            raise InvalidBBoxException(f"Non-numerical bbox fields {invalid}.")
+        return cls(west=data["west"], south=data["south"], east=data["east"], north=data["north"], crs=data.get("crs"))
 
     @classmethod
     def from_sequence(cls, seq: Union[list, tuple], crs: Optional[str] = None) -> 'BBoxDict':
         """Build from sequence of 4 bounds (west, south, east and north)."""
         if len(seq) != 4:
-            raise ValueError(f"Expected sequence with 4 items, but got {len(seq)}.")
+            raise InvalidBBoxException(f"Expected sequence with 4 items, but got {len(seq)}.")
         return cls(west=seq[0], south=seq[1], east=seq[2], north=seq[3], crs=crs)
 
 
-def to_bbox_dict(x: Any, *, crs: Optional[str] = None) -> BBoxDict:
+def to_bbox_dict(x: Any, *, crs: Optional[Union[str, int]] = None) -> BBoxDict:
     """
     Convert given data or object to a bounding box dictionary
     (having keys "west", "south", "east", "north", and optionally "crs").
