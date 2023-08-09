@@ -14,7 +14,7 @@ from openeo.metadata import CollectionMetadata, Dimension
 from openeo.rest._datacube import THIS, UDF, _ProcessGraphAbstraction, build_child_callback
 from openeo.rest.job import BatchJob
 from openeo.rest.mlmodel import MlModel
-from openeo.util import dict_no_none, guess_format, crs_to_epsg_code, to_bbox_dict, InvalidBBoxException
+from openeo.util import dict_no_none, guess_format, to_bbox_dict, InvalidBBoxException
 
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).
