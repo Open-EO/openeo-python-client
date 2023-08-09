@@ -27,7 +27,7 @@ tests_require = [
     "geopandas",
     "flake8>=5.0.0",
     "time_machine",
-    "pyproj",  # Pyproj is an optional, best-effort runtime dependency
+    "pyproj",  # Pyproj is an optional, best-effort runtime dependency # TODO #460 set a high enough minimum version when py3.6 support can be dropped
 ]
 
 docs_require = [

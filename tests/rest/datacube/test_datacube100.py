@@ -13,6 +13,7 @@ import re
 import textwrap
 from typing import Optional
 
+import pyproj
 import pytest
 import requests
 import shapely.geometry
@@ -20,6 +21,7 @@ import shapely.geometry
 import openeo.metadata
 import openeo.processes
 from openeo.api.process import Parameter
+from openeo.capabilities import ComparableVersion
 from openeo.internal.graph_building import PGNode
 from openeo.internal.process_graph_visitor import ProcessGraphVisitException
 from openeo.internal.warnings import UserDeprecationWarning
@@ -182,12 +184,21 @@ PROJJSON_FOR_EPSG23631 = {
 }
 
 
-CRS_VALUES_SUPPORTED_FOR_ALL_PYTHON_VERSIONS = [
-    "EPSG:32631",
-    "32631",
-    32631,
-    "+proj=utm +zone=31 +datum=WGS84 +units=m +no_defs",  # is also EPSG:32631, in proj format
-]
+def _get_normalizable_crs_inputs():
+    """
+    Dynamic (proj version based) generation of supported CRS inputs (to normalize).
+    :return:
+    """
+    yield "EPSG:32631"
+    yield 32631
+    if pyproj.__version__ >= ComparableVersion("3.3.1"):
+        # pyproj below 3.3.1 does not support int-like strings
+        # TODO #460 this skip is only necessary for python 3.6 and lower
+        yield "32631"
+    yield "+proj=utm +zone=31 +datum=WGS84 +units=m +no_defs"  # is also EPSG:32631, in proj format
+    if pyproj.__version__ >= ComparableVersion("3.1.0"):
+        # WKT2 format support requires pyproj 3.1.0 or higher
+        yield WKT2_FOR_EPSG23631
 
 
 def _get_leaf_node(cube: DataCube) -> dict:
@@ -405,7 +416,7 @@ def test_aggregate_spatial_types(con100: Connection, polygon, expected_geometrie
     }
 
 
-@pytest.mark.parametrize("crs", CRS_VALUES_SUPPORTED_FOR_ALL_PYTHON_VERSIONS)
+@pytest.mark.parametrize("crs", _get_normalizable_crs_inputs())
 def test_aggregate_spatial_with_crs(con100: Connection, recwarn, crs: str):
     img = con100.load_collection("S2")
     polygon = shapely.geometry.box(0, 0, 1, 1)
@@ -430,36 +441,10 @@ def test_aggregate_spatial_with_crs(con100: Connection, recwarn, crs: str):
     }
 
 
-@pytest.mark.skipif(sys.version_info < (3, 7), reason="WKT2 format not supported by pyproj 3.0 / python 3.6")
-def test_aggregate_spatial_with_crs_as_wkt(con100: Connection, recwarn):
-    """Separate test coverage for WKT, so we can skip it for Python3.6"""
-    crs = WKT2_FOR_EPSG23631
-    img = con100.load_collection("S2")
-    polygon = shapely.geometry.box(0, 0, 1, 1)
-    masked = img.aggregate_spatial(geometries=polygon, reducer="mean", crs=crs)
-    warnings = [str(w.message) for w in recwarn]
-    assert f"Geometry with non-Lon-Lat CRS {crs!r} is only supported by specific back-ends." in warnings
-    assert sorted(masked.flat_graph().keys()) == ["aggregatespatial1", "loadcollection1"]
-    assert masked.flat_graph()["aggregatespatial1"] == {
-        "process_id": "aggregate_spatial",
-        "arguments": {
-            "data": {"from_node": "loadcollection1"},
-            "geometries": {
-                "type": "Polygon",
-                "coordinates": (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),),
-                "crs": {"properties": {"name": "EPSG:32631"}, "type": "name"},
-            },
-            "reducer": {
-                "process_graph": {
-                    "mean1": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}
-                }
-            },
-        },
-        "result": True,
-    }
-
-
-@pytest.mark.skipif(sys.version_info < (3, 8), reason="PROJJSON format not supported by pyproj 3.2 / python < v3.8")
+@pytest.mark.skipif(
+    pyproj.__version__ < ComparableVersion("3.3.0"),
+    reason="PROJJSON format support requires pyproj 3.3.0 or higher",
+)
 @pytest.mark.parametrize("crs", [PROJJSON_FOR_EPSG23631, json.dumps(PROJJSON_FOR_EPSG23631)])
 def test_aggregate_spatial_with_crs_as_projjson(con100: Connection, recwarn, crs):
     """Separate test coverage for PROJJSON, so we can skip it for Python versions below 3.8"""
@@ -686,7 +671,7 @@ def test_mask_polygon_types(con100: Connection, polygon, expected_mask):
     }
 
 
-@pytest.mark.parametrize("crs", CRS_VALUES_SUPPORTED_FOR_ALL_PYTHON_VERSIONS)
+@pytest.mark.parametrize("crs", _get_normalizable_crs_inputs())
 def test_mask_polygon_with_crs(con100: Connection, recwarn, crs: str):
     img = con100.load_collection("S2")
     polygon = shapely.geometry.box(0, 0, 1, 1)
@@ -709,31 +694,10 @@ def test_mask_polygon_with_crs(con100: Connection, recwarn, crs: str):
     }
 
 
-@pytest.mark.skipif(sys.version_info < (3, 7), reason="WKT2 format not supported by pyproj 3.0 / python 3.6")
-def test_mask_polygon_with_crs_as_wkt(con100: Connection, recwarn):
-    """Separate test coverage for WKT, so we can skip it for Python3.6"""
-    crs = WKT2_FOR_EPSG23631
-    img = con100.load_collection("S2")
-    polygon = shapely.geometry.box(0, 0, 1, 1)
-    masked = img.mask_polygon(mask=polygon, srs=crs)
-    warnings = [str(w.message) for w in recwarn]
-    assert f"Geometry with non-Lon-Lat CRS {crs!r} is only supported by specific back-ends." in warnings
-    assert sorted(masked.flat_graph().keys()) == ["loadcollection1", "maskpolygon1"]
-    assert masked.flat_graph()["maskpolygon1"] == {
-        "process_id": "mask_polygon",
-        "arguments": {
-            "data": {"from_node": "loadcollection1"},
-            "mask": {
-                "type": "Polygon", "coordinates": (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),),
-                # All listed test inputs for crs should be converted to "EPSG:32631"
-                "crs": {"type": "name", "properties": {"name": "EPSG:32631"}},
-            },
-        },
-        "result": True,
-    }
-
-
-@pytest.mark.skipif(sys.version_info < (3, 8), reason="PROJJSON format not supported by pyproj 3.2 / python < v3.8")
+@pytest.mark.skipif(
+    pyproj.__version__ < ComparableVersion("3.3.0"),
+    reason="PROJJSON format support requires pyproj 3.3.0 or higher",
+)
 @pytest.mark.parametrize("crs", [PROJJSON_FOR_EPSG23631, json.dumps(PROJJSON_FOR_EPSG23631)])
 def test_mask_polygon_with_crs_as_projjson(con100: Connection, recwarn, crs):
     """Separate test coverage for PROJJSON, so we can skip it for Python versions below 3.8"""

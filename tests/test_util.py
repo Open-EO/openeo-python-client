@@ -935,7 +935,7 @@ PROJCRS["WGS 84 / UTM zone 31N",
     @pytest.mark.skipif(
         # TODO #460 this skip is only necessary for python 3.6 and lower
         pyproj.__version__ < ComparableVersion("3.1.0"),
-        reason="WKT2 format support requires pypro 3.1.0 or higher",
+        reason="WKT2 format support requires pyproj 3.1.0 or higher",
     )
     def test_normalize_crs_succeeds_with_wkt2_input(self):
         """Test can handle WKT2 strings.
@@ -1020,7 +1020,7 @@ PROJCRS["WGS 84 / UTM zone 31N",
     @pytest.mark.skipif(
         # TODO #460 this skip is only necessary for python 3.6 and lower
         pyproj.__version__ < ComparableVersion("3.3.0"),
-        reason="PROJJSON format requires pyproj 3.3.0 or higher",
+        reason="PROJJSON format support requires pyproj 3.3.0 or higher",
     )
     def test_normalize_crs_succeeds_with_correct_projjson(
         self,
