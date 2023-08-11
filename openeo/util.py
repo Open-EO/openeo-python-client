@@ -292,28 +292,38 @@ def string_to_temporal_extent(start_date: str) -> Tuple[dt.date, dt.date]:
     where the day is present in the string.
     """
 
-    # Skip if it represents a day or if it is not even a string
-    # If it is a day, we leave it alone and let the upstream function handle
-    # that case because a day could be a start date or an end date.
+    # Skip it if the string represents a day or if it is not even a string
+    # If it is a day, we want to let the upstream function handle that case
+    # because a day could be either a start date or an end date.
     if not isinstance(start_date, str):
         return start_date, None
 
-    # day also matches a datetime, no  $ at the end
-    regex_day = re.compile(r"^(\d{4})[:/_-](\d{2})[:/_-](\d{2})")
+    # Using a separate and stricter regular expressions to detect day, month,
+    # or year. Having a regex that only matches one type of period makes it
+    # easier to check it is effectively only a year, or only a month,
+    # but not a day. Datetime strings are more complex so we use rfc3339 to
+    # check whether or not it represents a datetime.
+    regex_day = re.compile(r"^(\d{4})[:/_-](\d{2})[:/_-](\d{2})$")
     regex_month = re.compile(r"^(\d{4})[:/_-](\d{2})$")
     regex_year = re.compile(r"^\d{4}$")
+
+    try:
+        rfc3339.parse_datetime(start_date)
+        is_date_time = True
+    except ValueError as exc:
+        is_date_time = False
 
     match_day = regex_day.match(start_date)
     match_month = regex_month.match(start_date)
     match_year = regex_year.match(start_date)
 
-    if match_day:
+    if is_date_time or match_day:
         return start_date, None
 
     if not (match_year or match_month):
         raise ValueError(
-            "Value does not represent a year or a year + month: format should "
-            f"be 'yyyy' or 'yyyy-dd', start_date={start_date}"
+            f"The value of start_date='{start_date}' does not represent any of: "
+            + "a year ('yyyy'), a year + month ('yyyy-dd'), a date, or a datetime."
         )
 
     if match_month:

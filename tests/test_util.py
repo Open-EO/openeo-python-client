@@ -1009,7 +1009,7 @@ def test_crs_to_epsg_code_raises_valueerror(epsg_input):
         ("2022/12/31", "2022/12/31", None),
         ("2022-11-30", "2022-11-30", None),
         ("2022/11/30", "2022/11/30", None),
-        ("2022-12-31T12:33:05", "2022-12-31T12:33:05", None),
+        ("2022-12-31T12:33:05Z", "2022-12-31T12:33:05Z", None),
         (dt.date(2022, 11, 1), dt.date(2022, 11, 1), None),
         (dt.datetime(2022, 11, 1, 15, 30, 00), dt.datetime(2022, 11, 1, 15, 30, 00), None),
     ],
@@ -1023,11 +1023,14 @@ def test_string_to_temporal_extent(date_input: str, expected_start: dt.date, exp
 @pytest.mark.parametrize(
     "date_input",
     [
+        "foobar",
         "20-22-12-31",
         "2022/12/31/aa1/bb/cc",
         "20-2--12",
-        "20-1-1-",
-        "20-2-",
+        "2021-2--12",
+        "2021-1-1-",
+        "2021-2-",
+        "-2021-2",
     ],
 )
 def test_string_to_temporal_extent_raises_valueerror(date_input: Union[str, dt.date, dt.datetime]):
