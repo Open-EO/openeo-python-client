@@ -27,6 +27,7 @@ tests_require = [
     "geopandas",
     "flake8>=5.0.0",
     "time_machine",
+    "pyproj",  # Pyproj is an optional, best-effort runtime dependency # TODO #460 set a high enough minimum version when py3.6 support can be dropped
 ]
 
 docs_require = [
@@ -74,6 +75,7 @@ setup(
         'oschmod>=0.3.12; sys_platform == "win32"',
     ],
     extras_require={
+        "tests": tests_require,
         "dev": tests_require + docs_require,
         "docs": docs_require,
         "oschmod": [  # install oschmod even when platform is not Windows, e.g. for testing in CI.

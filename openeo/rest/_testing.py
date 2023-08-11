@@ -1,6 +1,8 @@
 import re
+from typing import Union, Optional
 
-from openeo import Connection
+from openeo import Connection, DataCube
+from openeo.rest.vectorcube import VectorCube
 
 
 class DummyBackend:
@@ -91,8 +93,33 @@ class DummyBackend:
         assert len(self.batch_jobs) == 1
         return self.batch_jobs[max(self.batch_jobs.keys())]["pg"]
 
-    def get_pg(self) -> dict:
-        """Get one and only batch process graph (sync or batch)"""
+    def get_pg(self, process_id: Optional[str] = None) -> dict:
+        """
+        Get one and only batch process graph (sync or batch)
+
+        :param process_id: just return single process graph node with this process_id
+        :return: process graph (flat graph representation) or process graph node
+        """
         pgs = self.sync_requests + [b["pg"] for b in self.batch_jobs.values()]
         assert len(pgs) == 1
-        return pgs[0]
+        pg = pgs[0]
+        if process_id:
+            # Just return single node (by process_id)
+            found = [node for node in pg.values() if node.get("process_id") == process_id]
+            if len(found) != 1:
+                raise RuntimeError(
+                    f"Expected single process graph node with process_id {process_id!r}, but found {len(found)}: {found}"
+                )
+            return found[0]
+        return pg
+
+    def execute(self, cube: Union[DataCube, VectorCube], process_id: Optional[str] = None) -> dict:
+        """
+        Execute given cube (synchronously) and return observed process graph (or subset thereof).
+
+        :param cube: cube to execute on dummy back-end
+        :param process_id: just return single process graph node with this process_id
+        :return: process graph (flat graph representation) or process graph node
+        """
+        cube.execute()
+        return self.get_pg(process_id=process_id)

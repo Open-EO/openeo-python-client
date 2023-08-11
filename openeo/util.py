@@ -15,9 +15,15 @@ from typing import Any, Callable, Optional, Tuple, Union
 from urllib.parse import urljoin
 
 import requests
-import pyproj.crs
 import shapely.geometry.base
 from deprecated import deprecated
+
+try:
+    # pyproj is an optional dependency
+    import pyproj
+except ImportError:
+    pyproj = None
+
 
 logger = logging.getLogger(__name__)
 
@@ -590,6 +596,10 @@ def in_interactive_mode() -> bool:
     return hasattr(sys, "ps1")
 
 
+class InvalidBBoxException(ValueError):
+    pass
+
+
 class BBoxDict(dict):
     """
     Dictionary based helper to easily create/work with bounding box dictionaries
@@ -598,18 +608,18 @@ class BBoxDict(dict):
     .. versionadded:: 0.10.1
     """
 
-    def __init__(self, *, west: float, south: float, east: float, north: float, crs: Optional[str] = None):
+    def __init__(self, *, west: float, south: float, east: float, north: float, crs: Optional[Union[str, int]] = None):
         super().__init__(west=west, south=south, east=east, north=north)
         if crs is not None:
-            # TODO: #259, should we covert EPSG strings to int here with crs_to_epsg_code?
-            # self.update(crs=crs_to_epsg_code(crs))
-            self.update(crs=crs)
+            self.update(crs=normalize_crs(crs))
 
     # TODO: provide west, south, east, north, crs as @properties? Read-only or read-write?
 
     @classmethod
     def from_any(cls, x: Any, *, crs: Optional[str] = None) -> 'BBoxDict':
         if isinstance(x, dict):
+            if crs and "crs" in x and crs != x["crs"]:
+                raise InvalidBBoxException(f"Two CRS values specified: {crs} and {x['crs']}")
             return cls.from_dict({"crs": crs, **x})
         elif isinstance(x, (list, tuple)):
             return cls.from_sequence(x, crs=crs)
@@ -617,31 +627,31 @@ class BBoxDict(dict):
             return cls.from_sequence(x.bounds, crs=crs)
         # TODO: support other input? E.g.: WKT string, GeoJson-style dictionary (Polygon, FeatureCollection, ...)
         else:
-            raise ValueError(f"Can not construct BBoxDict from {x!r}")
+            raise InvalidBBoxException(f"Can not construct BBoxDict from {x!r}")
 
     @classmethod
     def from_dict(cls, data: dict) -> 'BBoxDict':
         """Build from dictionary with at least keys "west", "south", "east", and "north"."""
         expected_fields = {"west", "south", "east", "north"}
-        # TODO: also support converting support case fields?
-        if not all(k in data for k in expected_fields):
-            raise ValueError(
-                f"Expecting fields {expected_fields}, but only found {expected_fields.intersection(data.keys())}."
-            )
-        return cls(
-            west=data["west"], south=data["south"], east=data["east"], north=data["north"],
-            crs=data.get("crs")
-        )
+        # TODO: also support upper case fields?
+        # TODO: optional support for parameterized bbox fields?
+        missing = expected_fields.difference(data.keys())
+        if missing:
+            raise InvalidBBoxException(f"Missing bbox fields {sorted(missing)}")
+        invalid = {k: data[k] for k in expected_fields if not isinstance(data[k], (int, float))}
+        if invalid:
+            raise InvalidBBoxException(f"Non-numerical bbox fields {invalid}.")
+        return cls(west=data["west"], south=data["south"], east=data["east"], north=data["north"], crs=data.get("crs"))
 
     @classmethod
     def from_sequence(cls, seq: Union[list, tuple], crs: Optional[str] = None) -> 'BBoxDict':
         """Build from sequence of 4 bounds (west, south, east and north)."""
         if len(seq) != 4:
-            raise ValueError(f"Expected sequence with 4 items, but got {len(seq)}.")
+            raise InvalidBBoxException(f"Expected sequence with 4 items, but got {len(seq)}.")
         return cls(west=seq[0], south=seq[1], east=seq[2], north=seq[3], crs=crs)
 
 
-def to_bbox_dict(x: Any, *, crs: Optional[str] = None) -> BBoxDict:
+def to_bbox_dict(x: Any, *, crs: Optional[Union[str, int]] = None) -> BBoxDict:
     """
     Convert given data or object to a bounding box dictionary
     (having keys "west", "south", "east", "north", and optionally "crs").
@@ -701,71 +711,58 @@ class SimpleProgressBar:
         return f"{self.left}{bar:{self.fill}<{width}s}{self.right}"
 
 
-def crs_to_epsg_code(crs: Union[str, int, dict, None]) -> Optional[int]:
-    """Convert a CRS string or int to an integer EPGS code, where CRS usually comes from user input.
+def normalize_crs(crs: Any, *, use_pyproj: bool = True) -> Union[None, int, str]:
+    """
+    Normalize given data structure (typically just an int or string)
+    that encodes a CRS (Coordinate Reference System) to an EPSG (int) code or WKT2 CRS string.
 
-    Three cases:
+    Behavior and data structure support depends on the availability of the ``pyproj`` library:
 
-    - If it is already an integer we just keep it.
-    - If it is None it stays None, and empty strings become None as well.
-    - If it is a string we try to parse it with the pyproj library.
-        - Strings of the form "EPSG:<int>" will be converted to teh value <int>
-        - For any other strings formats, it will work if pyproj supports is,
-          otherwise it won't.
+    -   If the ``pyproj`` library is available: use that to do parsing and conversion.
+        This means that anything that is supported by ``pyproj.CRS.from_user_input`` is allowed.
+        See the ``pyproj`` docs for more details.
+    -   Otherwise, some best effort validation is done:
+        EPSG looking int/str values will be parsed as such, other strings will be assumed to be WKT2 already.
+        Other data structures will not be accepted.
 
-    The result is **always** an EPSG code, so the CRS should be one that is
-    defined in EPSG. For any other definitions pyproj will only give you the
-    closest EPSG match and that result is possibly inaccurate.
+    :param crs: data structure that encodes a CRS, typically just an int or string value.
+        If the ``pyproj`` library is available, everything supported by it is allowed
+    :param use_pyproj: whether ``pyproj`` should be leveraged at all
+        (mainly useful for testing the "no pyproj available" code path)
 
-    Note that we also need to support WKT string (WKT2),
-    see also: https://github.com/Open-EO/openeo-processes/issues/58
-
-    For very the oldest supported version of Python: v3.6 there is a problem
-    because the pyproj version that is compatible with Python 3.6 is too old
-    and does not properly support WKT2.
-
-
-    For a list of CRS input formats that proj supports
-    see: https://pyproj4.github.io/pyproj/stable/api/crs/crs.html#pyproj.crs.CRS.from_user_input
-
-    :param crs:
-        Input from user for the Coordinate Reference System to convert to an
-        EPSG code.
+    :return: EPSG code as int, or WKT2 string. Or None if input was empty .
 
     :raises ValueError:
-        When the crs is a not a supported CRS string.
-    :raises TypeError:
-        When crs is none of the supported types: str, int, None
+        When the given CRS data can not be parsed/converted/normalized.
 
-    :return: An EPGS code if it could be found, otherwise None
     """
-
-    # Only convert to the default if it is an explicitly allowed type.
     if crs in (None, "", {}):
         return None
 
-    # TODO: decide: are more fine-grained checks more helpful than always raising EPSGCodeNotFound?
-    if not isinstance(crs, (int, str, dict)):
-        raise TypeError("The allowed type for the parameter 'crs' are: str, int, dict and None")
-
-    # if We want to stop processing as soon as we have an int value, then we
-    # should not accept values that are complete non-sense, as best as we can.
-    crs_intermediate = crs
-    if isinstance(crs, int):
-        crs_intermediate = crs
-    elif isinstance(crs, str):
-        # This conversion is needed to support strings that only contain an integer,
-        # e.g. "4326" though it is a string, is a otherwise a correct EPSG code.
+    if pyproj and use_pyproj:
         try:
-            crs_intermediate = int(crs)
-        except ValueError as exc:
-            # So we need to process it with pyproj, below.
-            logger.debug("crs_to_epsg_code received crs input that was not an int: crs={crs}, exception caught: {exc}")
-
-    try:
-        converted_crs = pyproj.crs.CRS.from_user_input(crs_intermediate)
-    except pyproj.exceptions.CRSError as exc:
-        logger.error(f"Could not convert CRS string to EPSG code: crs={crs}, exception: {exc}", exc_info=True)
-        raise ValueError(crs) from exc
+            # (if available:) let pyproj do the validation/parsing
+            crs_obj = pyproj.CRS.from_user_input(crs)
+            # Convert back to EPSG int or WKT2 string
+            crs = crs_obj.to_epsg() or crs_obj.to_wkt()
+        except pyproj.ProjError as e:
+            raise ValueError(f"Failed to normalize CRS data with pyproj: {crs!r}") from e
     else:
-        return converted_crs.to_epsg()
+        # Best effort simple validation/normalization
+        if isinstance(crs, int) and crs > 0:
+            # Assume int is already valid EPSG code
+            pass
+        elif isinstance(crs, str):
+            # Parse as EPSG int code if it looks like that,
+            # otherwise: leave it as-is, assuming it is a valid WKT2 CRS string
+            if re.match(r"^(epsg:)?\d+$", crs.strip(), flags=re.IGNORECASE):
+                crs = int(crs.split(":")[-1])
+            elif "GEOGCRS[" in crs:
+                # Very simple WKT2 CRS detection heuristic
+                logger.warning(f"Assuming this is a valid WK2 CRS string: {repr_truncate(crs)}")
+            else:
+                raise ValueError(f"Can not normalize CRS string {repr_truncate(crs)}")
+        else:
+            raise ValueError(f"Can not normalize CRS data {type(crs)}")
+
+    return crs
