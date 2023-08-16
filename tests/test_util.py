@@ -1108,3 +1108,16 @@ def test_string_to_temporal_extent(date_input: str, expected_start: dt.date, exp
 def test_string_to_temporal_extent_raises_valueerror(date_input: Union[str, dt.date, dt.datetime]):
     with pytest.raises(ValueError):
         string_to_temporal_extent(date_input)
+
+
+@pytest.mark.parametrize(
+    "date_input",
+    [
+        2000,
+        {},
+        (),
+    ],
+)
+def test_string_to_temporal_extent_raises_typeerror(date_input: any):
+    with pytest.raises(TypeError):
+        string_to_temporal_extent(date_input)

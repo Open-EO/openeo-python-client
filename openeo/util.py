@@ -286,17 +286,98 @@ def get_temporal_extent(*args,
     return convertor(start_date) if start_date else None, convertor(end_date) if end_date else None
 
 
-def string_to_temporal_extent(start_date: str) -> Tuple[dt.date, dt.date]:
-    """Convert a string that represents a year or a month, into a date range.
+def string_to_temporal_extent(
+    start_date: Union[str, dt.datetime, dt.date]
+) -> Tuple[Union[dt.date, dt.datetime, str], Union[dt.date, dt.datetime, None]]:
+    """Convert a string into a date range when it is an abbreviation for an entire year or month.
 
-    For example:
-    "2021" : means all data for 2021
-    "2022-08": means all data for the month of august in 2022.
+    The result is a 2-tuple ``(start, end)`` that represents the period as a
+    half-open interval, where the end date is not included in the period.
 
-    If the day is included in the string then we leave it alone.
-    Note that `get_temporal_extent` already handles having one date string,
-    where the day is present in the string.
+    The intent of this function is to only convert values into a periods
+    when they are clearly abbreviations, and in all other cases leave the original
+    start_date as it was, because there can be too many complications otherwise.
+
+    The reason being that calling functions, e.g. ``get_temporal_extent``,
+    can allow you to specifying both a start date **and** end date, but either date
+    can be ``None``. What such an open-ended interval means depends very much on
+    what the calling function/method is meant to do, so the caller should really
+    handle that themselves.
+
+    When we don't convert, the return value is the tuple ``(start_date, None)``
+    using the original parameter value start_date, unprocessed.
+
+    :param start_date:
+
+        - Typically a string that represents either a year, a year + month, a day,
+            or a datetime, and it always indicates the *beginning* of that period.
+        - Other data types allowed are a ``datetime.date`` and ``datetime.datetime``,
+            and in that case we return the tuple ``(start_date, None)`` where
+            ``start_date`` is our original input parameter ``start_date`` as-is.
+            Similarly, strings that represent a date or datetime are not processed
+            any further and the return value is also ``(start_date, None)``.
+        - Any other type raises a TypeError.
+
+        - Allowed string formats are:
+            - For year: "yyyy"
+            - For year + month: "yyyy-mm"
+                Some other separators than "-" technically work but they are discouraged.
+            - For date and datetime you must follow the RFC 3339 format. See also: class ``Rfc3339``
+
+    :return:
+        The result is a 2-tuple of the form ``(start, end)`` that represents
+        the period as a half-open interval, where the end date is not included,
+        i.e. end is the first day that is no longer part of the time slot.
+
+        When start_date was indeed an abbreviation and thus was converted to
+        a period, then the element types will be ``(datetime.date, datetime.date)``
+
+        If no conversion happened we return the original start_date wrapped in a
+        2-tuple:  ``(start_date, None)`` so the type is the same as the input's type.
+
+    :raises TypeError:
+        when start_date is neither of the following types:
+        str, datetime.date, datetime.datetime
+
+    :raises ValueError:
+        when start_date was a string but not recognized as either a year,
+        a month, a date, or datetime.
+
+    Examples
+    --------
+
+    >>> import datetime
+
+    1. Year: use all data from the start of 2021 to the end of 2021.
+    >>> string_to_temporal_extent("2021")
+    (datetime.date(2021, 1, 1), datetime.date(2022, 1, 1))
+
+    2. Year + month: all data from the start of August 2022 to the end of August 2022.
+    >>> string_to_temporal_extent("2022-08")
+    (datetime.date(2022, 8, 1), datetime.date(2022, 9, 1))
+
+    3. We received a full date 2022-08-15:
+    In this case we should not process start_date. The calling function/method must
+    handle end date, depending on what an interval with an open end means for the caller.
+    See for example how ``get_temporal_extent`` handles this.
+    >>> string_to_temporal_extent("2022-08-15")
+    ('2022-08-15', None)
+
+    4. Similar to 3), but with a datetime.date instead of a string containing a date.
+    >>> string_to_temporal_extent(datetime.date(2022, 8, 15))
+    (datetime.date(2022, 8, 15), None)
+
+    5. Similar to 3) & 4), but with a datetime.datetime instance.
+    >>> string_to_temporal_extent(datetime.datetime(2022, 8, 15, 0, 0))
+    (datetime.datetime(2022, 8, 15, 0, 0), None)
     """
+    supported_types = (str, dt.date, dt.datetime)
+    if not isinstance(start_date, supported_types):
+        raise TypeError(
+            "Value of start_date must be one of the following types:"
+            + "str, datetime.date, datetime.datetime"
+            + f"but it is {type(start_date)}, value={start_date}"
+        )
 
     # Skip it if the string represents a day or if it is not even a string
     # If it is a day, we want to let the upstream function handle that case
