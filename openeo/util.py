@@ -347,27 +347,27 @@ def string_to_temporal_extent(
     --------
 
     >>> import datetime
-
-    1. Year: use all data from the start of 2021 to the end of 2021.
+    >>>
+    >>> # 1. Year: use all data from the start of 2021 to the end of 2021.
     >>> string_to_temporal_extent("2021")
     (datetime.date(2021, 1, 1), datetime.date(2022, 1, 1))
-
-    2. Year + month: all data from the start of August 2022 to the end of August 2022.
+    >>>
+    >>> # 2. Year + month: all data from the start of August 2022 to the end of August 2022.
     >>> string_to_temporal_extent("2022-08")
     (datetime.date(2022, 8, 1), datetime.date(2022, 9, 1))
-
-    3. We received a full date 2022-08-15:
-    In this case we should not process start_date. The calling function/method must
-    handle end date, depending on what an interval with an open end means for the caller.
-    See for example how ``get_temporal_extent`` handles this.
+    >>>
+    >>> # 3. We received a full date 2022-08-15:
+    >>> # In this case we should not process start_date. The calling function/method must
+    >>> # handle end date, depending on what an interval with an open end means for the caller.
+    >>> # See for example how ``get_temporal_extent`` handles this.
     >>> string_to_temporal_extent("2022-08-15")
     ('2022-08-15', None)
-
-    4. Similar to 3), but with a datetime.date instead of a string containing a date.
+    >>>
+    >>> # 4. Similar to 3), but with a datetime.date instead of a string containing a date.
     >>> string_to_temporal_extent(datetime.date(2022, 8, 15))
     (datetime.date(2022, 8, 15), None)
-
-    5. Similar to 3) & 4), but with a datetime.datetime instance.
+    >>>
+    >>> # 5. Similar to 3) & 4), but with a datetime.datetime instance.
     >>> string_to_temporal_extent(datetime.datetime(2022, 8, 15, 0, 0))
     (datetime.datetime(2022, 8, 15, 0, 0), None)
     """
