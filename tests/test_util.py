@@ -705,6 +705,13 @@ class TestBBoxDict:
             "north": 4,
             "crs": 4326,
         }
+        assert BBoxDict(west=1, south=2, east=3, north=4, crs="4326") == {
+            "west": 1,
+            "south": 2,
+            "east": 3,
+            "north": 4,
+            "crs": 4326,
+        }
 
     def test_repr(self):
         d = BBoxDict(west=1, south=2, east=3, north=4)
@@ -725,6 +732,13 @@ class TestBBoxDict:
             "crs": 4326,
         }
         assert to_bbox_dict([1, 2, 3, 4], crs="EPSG:4326") == {
+            "west": 1,
+            "south": 2,
+            "east": 3,
+            "north": 4,
+            "crs": 4326,
+        }
+        assert to_bbox_dict([1, 2, 3, 4], crs="4326") == {
             "west": 1,
             "south": 2,
             "east": 3,
@@ -756,7 +770,21 @@ class TestBBoxDict:
             "north": 4,
             "crs": 4326,
         }
+        assert to_bbox_dict({"west": 1, "south": 2, "east": 3, "north": 4, "crs": "4326"}) == {
+            "west": 1,
+            "south": 2,
+            "east": 3,
+            "north": 4,
+            "crs": 4326,
+        }
         assert to_bbox_dict({"west": 1, "south": 2, "east": 3, "north": 4}, crs="EPSG:4326") == {
+            "west": 1,
+            "south": 2,
+            "east": 3,
+            "north": 4,
+            "crs": 4326,
+        }
+        assert to_bbox_dict({"west": 1, "south": 2, "east": 3, "north": 4}, crs="4326") == {
             "west": 1,
             "south": 2,
             "east": 3,

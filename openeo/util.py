@@ -690,6 +690,19 @@ class BBoxDict(dict):
     Dictionary based helper to easily create/work with bounding box dictionaries
     (having keys "west", "south", "east", "north", and optionally "crs").
 
+    crs:
+        data structure that encodes a CRS, typically just an int or string value.
+        If the ``pyproj`` library is available, everything supported by it is allowed.
+
+        Integers always refer to the EPSG code that has that number assigned.
+        A string that contains only an integer it is treated the same way.
+
+        You can also specify EPSG codes as a formatted string, "EPSG:number".
+        For example, the following string and int values all specify to the same CRS:
+        ``"EPSG:4326"``, ``"4326"``, and the integer ``4326``.
+
+        .. seealso:: `openeo.org documentation on openeo.util.normalize_crs <api.html#openeo.util.normalize_crs>`_ for the most up to date information.
+
     .. versionadded:: 0.10.1
     """
 
@@ -811,7 +824,15 @@ def normalize_crs(crs: Any, *, use_pyproj: bool = True) -> Union[None, int, str]
         Other data structures will not be accepted.
 
     :param crs: data structure that encodes a CRS, typically just an int or string value.
-        If the ``pyproj`` library is available, everything supported by it is allowed
+        If the ``pyproj`` library is available, everything supported by it is allowed.
+
+        Integers always refer to the EPSG code that has that number assigned.
+        A string that contains only an integer it is treated the same way.
+
+        You can also specify EPSG codes as a formatted string, "EPSG:number".
+        For example, the following string and int values all specify to the same CRS:
+        ``"EPSG:4326"``, ``"4326"``, and the integer ``4326``.
+
     :param use_pyproj: whether ``pyproj`` should be leveraged at all
         (mainly useful for testing the "no pyproj available" code path)
 
