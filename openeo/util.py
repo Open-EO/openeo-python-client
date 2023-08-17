@@ -701,7 +701,7 @@ class BBoxDict(dict):
         For example, the following string and int values all specify to the same CRS:
         ``"EPSG:4326"``, ``"4326"``, and the integer ``4326``.
 
-        .. seealso:: `openeo.org documentation on openeo.util.normalize_crs <api.html#openeo.util.normalize_crs>`_ for the most up to date information.
+        .. seealso:: `openEO Python Client documentation on openeo.util.normalize_crs  <api.html#openeo.util.normalize_crs>`_ for the most up to date information.
 
     .. versionadded:: 0.10.1
     """

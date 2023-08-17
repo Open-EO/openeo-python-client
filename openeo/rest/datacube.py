@@ -347,7 +347,7 @@ class DataCube(_ProcessGraphAbstraction):
             For example, the following string and int values all specify to the same CRS:
             ``"EPSG:4326"``, ``"4326"``, and the integer ``4326``.
 
-            .. seealso:: `openeo.org documentation on openeo.util.normalize_crs <api.html#openeo.util.normalize_crs>`_ for the most up to date information.
+            .. seealso:: `openEO Python Client documentation on openeo.util.normalize_crs  <api.html#openeo.util.normalize_crs>`_ for the most up to date information.
         """
         if args and any(k is not None for k in (west, south, east, north, bbox)):
             raise ValueError("Don't mix positional arguments with keyword arguments.")
@@ -841,7 +841,7 @@ class DataCube(_ProcessGraphAbstraction):
 
         :param crs: data structure that encodes a CRS, typically just an int or string value.
             If the ``pyproj`` library is available, everything supported by it is allowed.
-            .. seealso:: `openeo.org documentation on openeo.util.normalize_crs <api.html#openeo.util.normalize_crs>`_ for the most up to date information.
+            .. seealso:: `openEO Python Client documentation on openeo.util.normalize_crs  <api.html#openeo.util.normalize_crs>`_ for the most up to date information.
 
         """
         if isinstance(geometry, (str, pathlib.Path)):
