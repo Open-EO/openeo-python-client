@@ -701,6 +701,14 @@ class TestBBoxDict:
             "north": 4,
             "crs": 4326,
         }
+
+    @pytest.mark.skipif(
+        # TODO #460 this skip is only necessary for python 3.6 and lower
+        pyproj.__version__ < ComparableVersion("3.3.1"),
+        reason="pyproj below 3.3.1 does not support int-like strings",
+    )
+    def test_init_python_for_pyprojv331(self):
+        """Extra test case that does not work with old pyproj versions that we get on python version 3.7 and below."""
         assert BBoxDict(west=1, south=2, east=3, north=4, crs="4326") == {
             "west": 1,
             "south": 2,
@@ -734,6 +742,14 @@ class TestBBoxDict:
             "north": 4,
             "crs": 4326,
         }
+
+    @pytest.mark.skipif(
+        # TODO #460 this skip is only necessary for python 3.6 and lower
+        pyproj.__version__ < ComparableVersion("3.3.1"),
+        reason="pyproj below 3.3.1 does not support int-like strings",
+    )
+    def test_to_bbox_dict_from_sequence_pyprojv331(self):
+        """Extra test cases that do not work with old pyproj versions that we get on python version 3.7 and below."""
         assert to_bbox_dict([1, 2, 3, 4], crs="4326") == {
             "west": 1,
             "south": 2,
@@ -766,21 +782,7 @@ class TestBBoxDict:
             "north": 4,
             "crs": 4326,
         }
-        assert to_bbox_dict({"west": 1, "south": 2, "east": 3, "north": 4, "crs": "4326"}) == {
-            "west": 1,
-            "south": 2,
-            "east": 3,
-            "north": 4,
-            "crs": 4326,
-        }
         assert to_bbox_dict({"west": 1, "south": 2, "east": 3, "north": 4}, crs="EPSG:4326") == {
-            "west": 1,
-            "south": 2,
-            "east": 3,
-            "north": 4,
-            "crs": 4326,
-        }
-        assert to_bbox_dict({"west": 1, "south": 2, "east": 3, "north": 4}, crs="4326") == {
             "west": 1,
             "south": 2,
             "east": 3,
@@ -798,6 +800,28 @@ class TestBBoxDict:
                 "other": "garbage",
             }
         ) == {"west": 1, "south": 2, "east": 3, "north": 4, "crs": 4326}
+
+    @pytest.mark.skipif(
+        # TODO #460 this skip is only necessary for python 3.6 and lower
+        pyproj.__version__ < ComparableVersion("3.3.1"),
+        reason="pyproj below 3.3.1 does not support int-like strings",
+    )
+    def test_to_bbox_dict_from_dict_for_pyprojv331(self):
+        """Extra test cases that do not work with old pyproj versions that we get on python version 3.7 and below."""
+        assert to_bbox_dict({"west": 1, "south": 2, "east": 3, "north": 4, "crs": "4326"}) == {
+            "west": 1,
+            "south": 2,
+            "east": 3,
+            "north": 4,
+            "crs": 4326,
+        }
+        assert to_bbox_dict({"west": 1, "south": 2, "east": 3, "north": 4}, crs="4326") == {
+            "west": 1,
+            "south": 2,
+            "east": 3,
+            "north": 4,
+            "crs": 4326,
+        }
 
     def test_to_bbox_dict_from_dict_missing_field(self):
         with pytest.raises(InvalidBBoxException, match=re.escape("Missing bbox fields ['north', 'south', 'west']")):
