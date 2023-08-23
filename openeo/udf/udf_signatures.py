@@ -10,6 +10,7 @@ from pandas import Series
 
 from openeo.udf.udf_data import UdfData
 from openeo.udf.xarraydatacube import XarrayDataCube
+from openeo.metadata import CollectionMetadata
 
 
 def apply_timeseries(series: Series, context: dict) -> Series:
@@ -48,5 +49,36 @@ def apply_udf_data(data: UdfData):
     Generic UDF function that directly manipulates a :py:class:`UdfData` object
 
     :param data: :py:class:`UdfData` object to manipulate in-place
+    """
+    pass
+
+
+def apply_metadata(input_metadata:CollectionMetadata, context:dict) -> CollectionMetadata:
+    """
+    .. warning::
+        This signature is not yet fully standardized and subject to change.
+
+    Returns the expected cube metadata, after applying this UDF, based on input metadata.
+    The provided metadata represents the whole raster or vector cube. This function does not need to be called for every data chunk.
+
+    When this function is not implemented by the UDF, the backend may still be able to infer correct metadata by running the
+    UDF, but this can result in reduced performance or errors.
+
+    This function does not need to be provided when using the UDF in combination with processes that by design have a clear
+    effect on cube metadata, such as :py:meth:`~openeo.rest.datacube.DataCube.reduce_dimension()`
+
+    :param input_metadata: the collection metadata of the input data cube
+    :param context: A dictionary containing user context.
+
+    :return: output metadata: the expected metadata of the cube, after applying the udf
+
+    Examples
+    --------
+
+    An example for a UDF that is applied on the 'bands' dimension, and returns a new set of bands with different labels.
+    >>> def convert_dimensions(input_metadata:CollectionMetadata, context:dict) -> CollectionMetadata:
+    >>>     return input_metadata.rename_labels("bands",target=["computed_band_1","computed_band_2"])
+    >>>
+
     """
     pass
