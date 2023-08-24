@@ -76,7 +76,7 @@ def apply_metadata(input_metadata:CollectionMetadata, context:dict) -> Collectio
     --------
 
     An example for a UDF that is applied on the 'bands' dimension, and returns a new set of bands with different labels.
-    >>> def convert_dimensions(input_metadata:CollectionMetadata, context:dict) -> CollectionMetadata:
+    >>> def apply_metadata(input_metadata:CollectionMetadata, context:dict) -> CollectionMetadata:
     >>>     return input_metadata.rename_labels("bands",target=["computed_band_1","computed_band_2"])
     >>>
 
