@@ -898,7 +898,7 @@ PROJCRS["WGS 84 / UTM zone 31N",
     def test_normalize_crs_succeeds_with_correct_crses(self, epsg_input, expected):
         """Happy path, values that are allowed"""
         if isinstance(epsg_input, str) and epsg_input.isnumeric() and pyproj.__version__ < ComparableVersion("3.3.1"):
-            # TODO #460 this skip is only necessary for python 3.6 and lower
+            # TODO drop this skip once support for python 3.7 is dropped (pyproj 3.3.0 requires at least python 3.8)
             pytest.skip("pyproj below 3.3.1 does not support int-like strings")
 
         assert normalize_crs(epsg_input) == expected
@@ -936,11 +936,6 @@ PROJCRS["WGS 84 / UTM zone 31N",
             in caplog.text
         )
 
-    @pytest.mark.skipif(
-        # TODO #460 this skip is only necessary for python 3.6 and lower
-        pyproj.__version__ < ComparableVersion("3.1.0"),
-        reason="WKT2 format support requires pyproj 3.1.0 or higher",
-    )
     def test_normalize_crs_succeeds_with_wkt2_input(self):
         """Test can handle WKT2 strings.
 
@@ -1022,7 +1017,7 @@ PROJCRS["WGS 84 / UTM zone 31N",
     }
 
     @pytest.mark.skipif(
-        # TODO #460 this skip is only necessary for python 3.6 and lower
+        # TODO drop this skip once support for python 3.7 is dropped (pyproj 3.3.0 requires at least python 3.8)
         pyproj.__version__ < ComparableVersion("3.3.0"),
         reason="PROJJSON format support requires pyproj 3.3.0 or higher",
     )
