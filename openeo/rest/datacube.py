@@ -149,7 +149,7 @@ class DataCube(_ProcessGraphAbstraction):
                 metadata = metadata.filter_bands(bands)
             else:
                 # Ensure minimal metadata with best effort band dimension guess (based on `bands` argument).
-                band_dimension = BandDimension("bands", bands=[Band(b, None, None) for b in bands])
+                band_dimension = BandDimension("bands", bands=[Band(name=b) for b in bands])
                 metadata = CollectionMetadata({}, dimensions=[band_dimension])
             arguments['bands'] = bands
         if max_cloud_cover:
@@ -201,12 +201,15 @@ class DataCube(_ProcessGraphAbstraction):
             }
         )
 
-        metadata = CollectionMetadata({}, dimensions=[
-            SpatialDimension(name="x", extent=[]),
-            SpatialDimension(name="y", extent=[]),
-            TemporalDimension(name='t', extent=[]),
-            BandDimension(name="bands", bands=[Band("unknown")]),
-        ])
+        metadata = CollectionMetadata(
+            {},
+            dimensions=[
+                SpatialDimension(name="x", extent=[]),
+                SpatialDimension(name="y", extent=[]),
+                TemporalDimension(name="t", extent=[]),
+                BandDimension(name="bands", bands=[Band(name="unknown")]),
+            ],
+        )
         return cls(graph=pg, connection=connection, metadata=metadata)
 
     @classmethod
@@ -1472,7 +1475,7 @@ class DataCube(_ProcessGraphAbstraction):
         if target_band is None:
             metadata = self.metadata.reduce_dimension(self.metadata.band_dimension.name)
         else:
-            metadata = self.metadata.append_band(Band(target_band, "ndvi", None))
+            metadata = self.metadata.append_band(Band(name=target_band, common_name="ndvi"))
         return self.process(
             process_id="ndvi",
             arguments=dict_no_none(

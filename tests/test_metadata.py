@@ -27,6 +27,11 @@ def test_metadata_extent():
     assert metadata.extent == {"spatial": {"xmin": 4, "xmax": 10}}
 
 
+def test_band_minimal():
+    band = Band("red")
+    assert band.name == "red"
+
+
 def test_band_dimension():
     bdim = BandDimension(name="spectral", bands=[
         Band("B02", "blue", 0.490),

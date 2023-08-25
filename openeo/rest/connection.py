@@ -1160,12 +1160,15 @@ class Connection(RestApiConnection):
         :return: a :py:class:`DataCube`
         """
         # TODO: add check that back-end supports `load_result` process?
-        metadata = CollectionMetadata({}, dimensions=[
-            SpatialDimension(name="x", extent=[]),
-            SpatialDimension(name="y", extent=[]),
-            TemporalDimension(name='t', extent=[]),
-            BandDimension(name="bands", bands=[Band("unknown")]),
-        ])
+        metadata = CollectionMetadata(
+            {},
+            dimensions=[
+                SpatialDimension(name="x", extent=[]),
+                SpatialDimension(name="y", extent=[]),
+                TemporalDimension(name="t", extent=[]),
+                BandDimension(name="bands", bands=[Band(name="unknown")]),
+            ],
+        )
         cube = self.datacube_from_process(
             process_id="load_result",
             id=id,
@@ -1289,7 +1292,7 @@ class Connection(RestApiConnection):
                 SpatialDimension(name="x", extent=[]),
                 SpatialDimension(name="y", extent=[]),
                 TemporalDimension(name="t", extent=[]),
-                BandDimension(name="bands", bands=[Band("unknown")]),
+                BandDimension(name="bands", bands=[Band(name="unknown")]),
             ],
         )
         arguments = {"url": url}

@@ -236,7 +236,7 @@ class LocalConnection():
                 TemporalDimension(name=xarray_cube.openeo.temporal_dims[0], extent=[]),
                 BandDimension(
                     name=xarray_cube.openeo.band_dims[0],
-                    bands=[Band(x) for x in xarray_cube[xarray_cube.openeo.band_dims[0]].values],
+                    bands=[Band(name=x) for x in xarray_cube[xarray_cube.openeo.band_dims[0]].values],
                 ),
             ],
         )
