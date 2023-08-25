@@ -47,7 +47,7 @@ examples and in-depth discussion.
 
 ## Installation
 
-Python 3.6 or higher is required.
+Python 3.7 or higher is required.
 As always, it is recommended to work in some kind of virtual environment
 (using `venv`, `virtualenv`, conda, docker, ...)
 to install the `openeo` package and its dependencies:

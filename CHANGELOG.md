@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- Bumped minimal supported Python version to 3.7 ([#460](https://github.com/Open-EO/openeo-python-client/issues/460))
+
 ### Fixed
 
 
