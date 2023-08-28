@@ -5,6 +5,9 @@ name: Sphinx Documentation to GitHub Pages
 on:
   push:
     branches: [ master ]
+    paths:
+      - 'docs/**'
+      - 'openeo/**'
 
 concurrency:
   group: docs-${{ github.ref }}
