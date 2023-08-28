@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import json
 from abc import ABC
-from typing import Union, Tuple, Any
+from typing import Any, Tuple, Union
 
 from openeo.internal.warnings import deprecated
 from openeo.rest import OpenEoClientException
@@ -63,7 +65,7 @@ class ProcessGraphVisitor(ABC):
             raise ProcessGraphVisitException("No result node in process graph: " + dump[:1000])
         return result_node
 
-    def accept_process_graph(self, graph: dict) -> 'ProcessGraphVisitor':
+    def accept_process_graph(self, graph: dict) -> ProcessGraphVisitor:
         """
         Traverse a (flat) process graph
 

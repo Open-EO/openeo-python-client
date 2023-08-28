@@ -4,8 +4,9 @@
 
 # Note: this module was initially developed under the ``openeo-udf`` project (https://github.com/Open-EO/openeo-udf)
 
+from __future__ import annotations
 
-from typing import Optional, List, Union
+from typing import List, Optional, Union
 
 from openeo.udf.feature_collection import FeatureCollection
 from openeo.udf.structured_data import StructuredData
@@ -113,7 +114,7 @@ class UdfData:
         }
 
     @classmethod
-    def from_dict(cls, udf_dict: dict) -> "UdfData":
+    def from_dict(cls, udf_dict: dict) -> UdfData:
         """
         Create a udf data object from a python dictionary that was created from
         the JSON definition of the UdfData class

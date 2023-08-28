@@ -16,8 +16,6 @@ jobs:
           - "3.11"
         # Additional special cases (see https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#example-adding-configurations)
         include:
-          - os: "ubuntu-20.04"
-            python-version: "3.6"
           - os: "windows-latest"
             python-version: "3.11"
     runs-on: ${{ matrix.os }}

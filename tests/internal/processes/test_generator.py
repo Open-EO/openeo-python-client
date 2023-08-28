@@ -225,7 +225,7 @@ def test_generate_process_py():
     generate_process_py(processes, output=output)
     lines = output.getvalue().split("\n")
     assert "class ProcessBuilder(ProcessBuilderBase):" in lines
-    assert "    def incr(self) -> 'ProcessBuilder':" in lines
-    assert "    def add(self, y) -> 'ProcessBuilder':" in lines
+    assert "    def incr(self) -> ProcessBuilder:" in lines
+    assert "    def add(self, y) -> ProcessBuilder:" in lines
     assert "def incr(x) -> ProcessBuilder:" in lines
     assert "def add(x, y) -> ProcessBuilder:" in lines

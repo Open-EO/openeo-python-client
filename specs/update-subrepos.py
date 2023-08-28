@@ -11,7 +11,6 @@ This script should be runnable without non-stdlib dependencies.
 
 # TODO: windows support?
 
-import collections
 import contextlib
 import logging
 import logging.config
@@ -19,13 +18,17 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import List
+from typing import List, NamedTuple
 
 
 _log = logging.getLogger(__name__)
 _ROOT_DIR = Path(__file__).parent
 
-SubRepo = collections.namedtuple("SubRepo", ["url", "rev", "path"])
+
+class SubRepo(NamedTuple):
+    url: str
+    rev: str
+    path: str
 
 
 def main():

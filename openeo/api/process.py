@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import warnings
 from typing import Union
 
@@ -35,7 +37,7 @@ class Parameter:
         return d
 
     @classmethod
-    def raster_cube(cls, name: str = "data", description: str = "A data cube.") -> 'Parameter':
+    def raster_cube(cls, name: str = "data", description: str = "A data cube.") -> Parameter:
         """
         Helper to easily create a 'raster-cube' parameter.
 
@@ -46,7 +48,7 @@ class Parameter:
         return cls(name=name, description=description, schema={"type": "object", "subtype": "raster-cube"})
 
     @classmethod
-    def datacube(cls, name: str = "data", description: str = "A data cube.") -> "Parameter":
+    def datacube(cls, name: str = "data", description: str = "A data cube.") -> Parameter:
         """
         Helper to easily create a 'datacube' parameter.
 
@@ -59,7 +61,7 @@ class Parameter:
         return cls(name=name, description=description, schema={"type": "object", "subtype": "datacube"})
 
     @classmethod
-    def string(cls, name: str, description: str = None, default=_DEFAULT_UNDEFINED, values=None) -> 'Parameter':
+    def string(cls, name: str, description: str = None, default=_DEFAULT_UNDEFINED, values=None) -> Parameter:
         """Helper to create a 'string' type parameter."""
         schema = {"type": "string"}
         if values is not None:
@@ -68,21 +70,21 @@ class Parameter:
 
 
     @classmethod
-    def integer(cls, name: str, description: str = None, default=_DEFAULT_UNDEFINED) -> 'Parameter':
+    def integer(cls, name: str, description: str = None, default=_DEFAULT_UNDEFINED) -> Parameter:
         """Helper to create a 'integer' type parameter."""
         return cls(name=name, description=description, schema={"type": "integer"}, default=default)
 
     @classmethod
-    def number(cls, name: str, description: str = None, default=_DEFAULT_UNDEFINED) -> 'Parameter':
+    def number(cls, name: str, description: str = None, default=_DEFAULT_UNDEFINED) -> Parameter:
         """Helper to create a 'number' type parameter."""
         return cls(name=name, description=description, schema={"type": "number"}, default=default)
 
     @classmethod
-    def boolean(cls, name: str, description: str = None, default=_DEFAULT_UNDEFINED) -> 'Parameter':
+    def boolean(cls, name: str, description: str = None, default=_DEFAULT_UNDEFINED) -> Parameter:
         """Helper to create a 'boolean' type parameter."""
         return cls(name=name, description=description, schema={"type": "boolean"}, default=default)
 
     @classmethod
-    def array(cls, name: str, description: str = None, default=_DEFAULT_UNDEFINED) -> 'Parameter':
+    def array(cls, name: str, description: str = None, default=_DEFAULT_UNDEFINED) -> Parameter:
         """Helper to create a 'array' type parameter."""
         return cls(name=name, description=description, schema={"type": "array"}, default=default)

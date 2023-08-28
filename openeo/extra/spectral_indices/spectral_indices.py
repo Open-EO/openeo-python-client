@@ -1,11 +1,16 @@
 import json
-import pkg_resources
 from typing import Dict, List
 
 import numpy as np
 
 from openeo.processes import ProcessBuilder, array_modify, array_create
 from openeo.rest.datacube import DataCube
+
+try:
+    import importlib_resources
+except ImportError:
+    import importlib.resources as importlib_resources
+
 
 BAND_MAPPING_LANDSAT457 = {
     "B1": "B",
@@ -89,8 +94,9 @@ def load_indices() -> Dict[str, dict]:
         "resources/awesome-spectral-indices/spectral-indices-dict.json",
         "resources/extra-indices-dict.json",
     ]:
-        with pkg_resources.resource_stream("openeo.extra.spectral_indices", path) as stream:
-            specs.update(json.load(stream)["SpectralIndices"])
+        with importlib_resources.files("openeo.extra.spectral_indices") / path as resource_path:
+            data = json.loads(resource_path.read_text(encoding="utf8"))
+            specs.update(data["SpectralIndices"])
 
     return specs
 

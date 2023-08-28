@@ -4,6 +4,8 @@ Various utilities and helpers.
 
 # TODO #465 split this kitchen-sink in thematic submodules
 
+from __future__ import annotations
+
 import datetime as dt
 import functools
 import json
@@ -470,7 +472,7 @@ class ContextTimer:
             # Currently elapsed inside context.
             return self._clock() - self.start
 
-    def __enter__(self) -> 'ContextTimer':
+    def __enter__(self) -> ContextTimer:
         self.start = self._clock()
         return self
 
@@ -699,7 +701,7 @@ class BBoxDict(dict):
     # TODO: provide west, south, east, north, crs as @properties? Read-only or read-write?
 
     @classmethod
-    def from_any(cls, x: Any, *, crs: Optional[str] = None) -> 'BBoxDict':
+    def from_any(cls, x: Any, *, crs: Optional[str] = None) -> BBoxDict:
         if isinstance(x, dict):
             if crs and "crs" in x and crs != x["crs"]:
                 raise InvalidBBoxException(f"Two CRS values specified: {crs} and {x['crs']}")
@@ -713,7 +715,7 @@ class BBoxDict(dict):
             raise InvalidBBoxException(f"Can not construct BBoxDict from {x!r}")
 
     @classmethod
-    def from_dict(cls, data: dict) -> 'BBoxDict':
+    def from_dict(cls, data: dict) -> BBoxDict:
         """Build from dictionary with at least keys "west", "south", "east", and "north"."""
         expected_fields = {"west", "south", "east", "north"}
         # TODO: also support upper case fields?
@@ -727,7 +729,7 @@ class BBoxDict(dict):
         return cls(west=data["west"], south=data["south"], east=data["east"], north=data["north"], crs=data.get("crs"))
 
     @classmethod
-    def from_sequence(cls, seq: Union[list, tuple], crs: Optional[str] = None) -> 'BBoxDict':
+    def from_sequence(cls, seq: Union[list, tuple], crs: Optional[str] = None) -> BBoxDict:
         """Build from sequence of 4 bounds (west, south, east and north)."""
         if len(seq) != 4:
             raise InvalidBBoxException(f"Expected sequence with 4 items, but got {len(seq)}.")

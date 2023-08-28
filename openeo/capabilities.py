@@ -1,8 +1,9 @@
-import contextlib
-from abc import ABC
-import re
-from typing import Union, Tuple
+from __future__ import annotations
 
+import contextlib
+import re
+from abc import ABC
+from typing import Tuple, Union
 
 # TODO Is this base class (still) useful?
 
@@ -24,7 +25,7 @@ class Capabilities(ABC):
         raise NotImplementedError
 
     @property
-    def api_version_check(self) -> 'ComparableVersion':
+    def api_version_check(self) -> ComparableVersion:
         """Helper to easily check if the API version is at least or below some threshold version."""
         api_version = self.api_version()
         if not api_version:
