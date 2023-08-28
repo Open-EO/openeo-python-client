@@ -540,3 +540,19 @@ class VectorCube(_ProcessGraphAbstraction):
             }
         )
         return self.process(process_id="apply_dimension", arguments=arguments)
+
+    @openeo_process
+    def vector_to_raster(
+        self,
+        target_data_cube: "RasterCube",
+    ):
+        """
+        Creates a raster cube as output based on a vector cube. The values in the output raster cube are based on the numeric properties in the input vector cube.
+
+        :param target_data_cube: A raster data cube used as reference.
+        :return: A raster data cube with the values from the vector data cube.
+        """
+        return self.process(
+            process_id="vector_to_raster",
+            arguments=dict_no_none(data=THIS, target_data_cube=target_data_cube),
+        )

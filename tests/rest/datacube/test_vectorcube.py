@@ -481,3 +481,22 @@ def test_filter_vector_shapely(vector_cube, dummy_backend, geometries):
             "result": True,
         },
     }
+
+
+def test_vector_to_raster(vector_cube, s2cube, dummy_backend):
+    vc = vector_cube.vector_to_raster(target_data_cube=s2cube)
+    assert dummy_backend.execute(vc) == {
+        "loadcollection1": {
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
+            "process_id": "load_collection",
+        },
+        "loadgeojson1": {
+            "arguments": {"data": {"coordinates": [1, 2], "type": "Point"}, "properties": []},
+            "process_id": "load_geojson",
+        },
+        "vectortoraster1": {
+            "arguments": {"data": {"from_node": "loadgeojson1"}, "target_data_cube": {"from_node": "loadcollection1"}},
+            "process_id": "vector_to_raster",
+            "result": True,
+        },
+    }
