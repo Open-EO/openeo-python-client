@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import warnings
 from typing import Any, Callable, List, NamedTuple, Optional, Tuple, Union
@@ -32,11 +34,11 @@ class Dimension:
     def __eq__(self, other):
         return self.__class__ == other.__class__ and self.__dict__ == other.__dict__
 
-    def rename(self, name) -> 'Dimension':
+    def rename(self, name) -> Dimension:
         """Create new dimension with new name."""
         return Dimension(type=self.type, name=name)
 
-    def rename_labels(self, target, source) -> 'Dimension':
+    def rename_labels(self, target, source) -> Dimension:
         """
         Rename labels, if the type of dimension allows it.
 
@@ -67,7 +69,7 @@ class SpatialDimension(Dimension):
         self.crs = crs
         self.step = step
 
-    def rename(self, name) -> 'Dimension':
+    def rename(self, name) -> Dimension:
         return SpatialDimension(name=name, extent=self.extent, crs=self.crs, step=self.step)
 
 
@@ -76,7 +78,7 @@ class TemporalDimension(Dimension):
         super().__init__(type="temporal", name=name)
         self.extent = extent
 
-    def rename(self, name) -> 'Dimension':
+    def rename(self, name) -> Dimension:
         return TemporalDimension(name=name, extent=self.extent)
 
 
@@ -152,7 +154,7 @@ class BandDimension(Dimension):
             return self.band_names[band]
         raise ValueError("Invalid band name/index {b!r}. Valid names: {n!r}".format(b=band, n=self.band_names))
 
-    def filter_bands(self, bands: List[Union[int, str]]) -> 'BandDimension':
+    def filter_bands(self, bands: List[Union[int, str]]) -> BandDimension:
         """
         Construct new BandDimension with subset of bands,
         based on given band indices or (common) names
@@ -162,7 +164,7 @@ class BandDimension(Dimension):
             bands=[self.bands[self.band_index(b)] for b in bands]
         )
 
-    def append_band(self, band: Band) -> 'BandDimension':
+    def append_band(self, band: Band) -> BandDimension:
         """Create new BandDimension with appended band."""
         if band.name in self.band_names:
             raise ValueError("Duplicate band {b!r}".format(b=band))
@@ -172,7 +174,7 @@ class BandDimension(Dimension):
             bands=self.bands + [band]
         )
 
-    def rename_labels(self, target, source) -> 'Dimension':
+    def rename_labels(self, target, source) -> Dimension:
         if source:
             if len(target) != len(source):
                 raise ValueError(
@@ -230,7 +232,7 @@ class CollectionMetadata:
                 self._temporal_dimension = dim
 
     @classmethod
-    def get_or_create(cls, metadata: Union[dict, 'CollectionMetadata', None]) -> 'CollectionMetadata':
+    def get_or_create(cls, metadata: Union[dict, "CollectionMetadata", None]) -> CollectionMetadata:
         """Get or create CollectionMetadata from given argument."""
         if isinstance(metadata, cls):
             return metadata
@@ -242,7 +244,7 @@ class CollectionMetadata:
 
     def _clone_and_update(
             self, metadata: dict = None, dimensions: List[Dimension] = None, **kwargs
-    ) -> 'CollectionMetadata':
+    ) -> CollectionMetadata:
         """Create a new instance (of same class) with copied/updated fields."""
         cls = type(self)
         if dimensions == None:
@@ -397,7 +399,7 @@ class CollectionMetadata:
     def get_band_index(self, band: Union[int, str]) -> int:
         return self.band_dimension.band_index(band)
 
-    def filter_bands(self, band_names: List[Union[int, str]]) -> 'CollectionMetadata':
+    def filter_bands(self, band_names: List[Union[int, str]]) -> CollectionMetadata:
         """
         Create new `CollectionMetadata` with filtered band dimension
         :param band_names: list of band names/indices to keep
@@ -409,7 +411,7 @@ class CollectionMetadata:
             for d in self._dimensions
         ])
 
-    def append_band(self, band: Band) -> 'CollectionMetadata':
+    def append_band(self, band: Band) -> CollectionMetadata:
         """
         Create new `CollectionMetadata` with given band added to band dimension.
         """
@@ -419,7 +421,7 @@ class CollectionMetadata:
             for d in self._dimensions
         ])
 
-    def rename_labels(self, dimension: str, target: list, source: list = None) -> 'CollectionMetadata':
+    def rename_labels(self, dimension: str, target: list, source: list = None) -> CollectionMetadata:
         """
         Renames the labels of the specified dimension from source to target.
 
@@ -436,7 +438,7 @@ class CollectionMetadata:
 
         return self._clone_and_update(dimensions=new_dimensions)
 
-    def rename_dimension(self, source: str, target: str) -> 'CollectionMetadata':
+    def rename_dimension(self, source: str, target: str) -> CollectionMetadata:
         """
         Rename source dimension into target, preserving other properties
         """
@@ -447,7 +449,7 @@ class CollectionMetadata:
 
         return self._clone_and_update(dimensions=new_dimensions)
 
-    def reduce_dimension(self, dimension_name: str) -> 'CollectionMetadata':
+    def reduce_dimension(self, dimension_name: str) -> CollectionMetadata:
         """Create new metadata object by collapsing/reducing a dimension."""
         # TODO: option to keep reduced dimension (with a single value)?
         self.assert_valid_dimension(dimension_name)
@@ -455,7 +457,7 @@ class CollectionMetadata:
         dimensions = self._dimensions[:loc] + self._dimensions[loc + 1:]
         return self._clone_and_update(dimensions=dimensions)
 
-    def add_dimension(self, name: str, label: Union[str, float], type: str = None) -> 'CollectionMetadata':
+    def add_dimension(self, name: str, label: Union[str, float], type: str = None) -> CollectionMetadata:
         """Create new metadata object with added dimension"""
         if any(d.name == name for d in self._dimensions):
             raise DimensionAlreadyExistsException(f"Dimension with name {name!r} already exists")
@@ -469,7 +471,7 @@ class CollectionMetadata:
             dim = Dimension(type=type or "other", name=name)
         return self._clone_and_update(dimensions=self._dimensions + [dim])
 
-    def drop_dimension(self, name: str = None) -> 'CollectionMetadata':
+    def drop_dimension(self, name: str = None) -> CollectionMetadata:
         """Drop dimension with given name"""
         dimension_names = self.dimension_names()
         if name not in dimension_names:

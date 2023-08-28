@@ -1,6 +1,8 @@
 """
 This module provides a Connection object to manage and persist settings when interacting with the OpenEO API.
 """
+from __future__ import annotations
+
 import datetime
 import json
 import logging
@@ -306,7 +308,7 @@ class Connection(RestApiConnection):
             self._refresh_token_store = RefreshTokenStore()
         return self._refresh_token_store
 
-    def authenticate_basic(self, username: Optional[str] = None, password: Optional[str] = None) -> "Connection":
+    def authenticate_basic(self, username: Optional[str] = None, password: Optional[str] = None) -> Connection:
         """
         Authenticate a user to the backend using basic username and password.
 
@@ -431,7 +433,7 @@ class Connection(RestApiConnection):
         store_refresh_token: bool = False,
         fallback_refresh_token_to_store: Optional[str] = None,
         oidc_auth_renewer: Optional[OidcAuthenticator] = None,
-    ) -> "Connection":
+    ) -> Connection:
         """
         Authenticate through OIDC and set up bearer token (based on OIDC access_token) for further requests.
         """
@@ -465,7 +467,7 @@ class Connection(RestApiConnection):
         server_address: Optional[Tuple[str, int]] = None,
         webbrowser_open: Optional[Callable] = None,
         store_refresh_token=False,
-    ) -> "Connection":
+    ) -> Connection:
         """
         OpenID Connect Authorization Code Flow (with PKCE).
 
@@ -489,7 +491,7 @@ class Connection(RestApiConnection):
         client_id: Optional[str] = None,
         client_secret: Optional[str] = None,
         provider_id: Optional[str] = None,
-    ) -> 'Connection':
+    ) -> Connection:
         """
         Authenticate with :ref:`OIDC Client Credentials flow <authenticate_oidc_client_credentials>`
 
@@ -528,7 +530,7 @@ class Connection(RestApiConnection):
         client_secret: Optional[str] = None,
         provider_id: Optional[str] = None,
         store_refresh_token: bool = False,
-    ) -> "Connection":
+    ) -> Connection:
         """
         OpenId Connect Resource Owner Password Credentials
         """
@@ -549,7 +551,7 @@ class Connection(RestApiConnection):
         provider_id: Optional[str] = None,
         *,
         store_refresh_token: bool = False,
-    ) -> "Connection":
+    ) -> Connection:
         """
         Authenticate with :ref:`OIDC Refresh Token flow <authenticate_oidc_client_credentials>`
 
@@ -594,7 +596,7 @@ class Connection(RestApiConnection):
         use_pkce: Optional[bool] = None,
         max_poll_time: float = OidcDeviceAuthenticator.DEFAULT_MAX_POLL_TIME,
         **kwargs,
-    ) -> "Connection":
+    ) -> Connection:
         """
         Authenticate with the :ref:`OIDC Device Code flow <authenticate_oidc_device>`
 
@@ -1311,7 +1313,7 @@ class Connection(RestApiConnection):
         cube.metadata = metadata
         return cube
 
-    def load_ml_model(self, id: Union[str, BatchJob]) -> "MlModel":
+    def load_ml_model(self, id: Union[str, BatchJob]) -> MlModel:
         """
         Loads a machine learning model from a STAC Item.
 
