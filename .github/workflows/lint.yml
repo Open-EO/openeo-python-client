@@ -1,6 +1,7 @@
 
 name: Lint
 on: [push, pull_request]
+concurrency: ci-${{ github.ref }}
 jobs:
   build:
     runs-on: ubuntu-latest
