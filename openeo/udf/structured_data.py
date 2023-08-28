@@ -4,6 +4,7 @@
 
 # Note: this module was initially developed under the ``openeo-udf`` project (https://github.com/Open-EO/openeo-udf)
 
+from __future__ import annotations
 
 import builtins
 from typing import Union
@@ -38,7 +39,7 @@ class StructuredData:
         )
 
     @classmethod
-    def from_dict(cls, data: dict) -> "StructuredData":
+    def from_dict(cls, data: dict) -> StructuredData:
         return cls(
             data=data["data"],
             description=data.get("description"),

@@ -2,9 +2,11 @@
 Functionality and tools to process openEO processes.
 For example: parse a bunch of JSON descriptions and generate Python (stub) functions.
 """
+from __future__ import annotations
+
 import json
 from pathlib import Path
-from typing import List, Union, Iterator
+from typing import Iterator, List, Union
 
 import requests
 
@@ -16,7 +18,7 @@ class Schema:
         self.schema = schema
 
     @classmethod
-    def from_dict(cls, data: dict) -> 'Schema':
+    def from_dict(cls, data: dict) -> Schema:
         return cls(schema=data)
 
 
@@ -34,7 +36,7 @@ class Parameter:
         self.optional = optional
 
     @classmethod
-    def from_dict(cls, data: dict) -> 'Parameter':
+    def from_dict(cls, data: dict) -> Parameter:
         return cls(
             name=data["name"], description=data["description"], schema=Schema.from_dict(data["schema"]),
             default=data.get("default", cls.NO_DEFAULT), optional=data.get("optional", False)
@@ -52,7 +54,7 @@ class Returns:
         self.schema = schema
 
     @classmethod
-    def from_dict(cls, data: dict) -> 'Returns':
+    def from_dict(cls, data: dict) -> Returns:
         return cls(description=data["description"], schema=Schema.from_dict(data["schema"]))
 
 
@@ -71,7 +73,7 @@ class Process:
         # TODO: more properties?
 
     @classmethod
-    def from_dict(cls, data: dict) -> 'Process':
+    def from_dict(cls, data: dict) -> Process:
         """Construct openEO process from dictionary values"""
         return cls(
             id=data["id"],
@@ -82,17 +84,17 @@ class Process:
         )
 
     @classmethod
-    def from_json(cls, data: str) -> 'Process':
+    def from_json(cls, data: str) -> Process:
         """Parse openEO process JSON description."""
         return cls.from_dict(json.loads(data))
 
     @classmethod
-    def from_json_url(cls, url: str) -> 'Process':
+    def from_json_url(cls, url: str) -> Process:
         """Parse openEO process JSON description from given URL."""
         return cls.from_dict(requests.get(url).json())
 
     @classmethod
-    def from_json_file(cls, path: Union[str, Path]) -> 'Process':
+    def from_json_file(cls, path: Union[str, Path]) -> Process:
         """Parse openEO process JSON description file."""
         with Path(path).open("r") as f:
             return cls.from_json(f.read())

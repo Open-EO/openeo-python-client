@@ -2,6 +2,8 @@
 Helpers for data conversions between Python ecosystem data types and openEO data structures.
 """
 
+from __future__ import annotations
+
 import typing
 
 import numpy as np
@@ -94,28 +96,28 @@ def timeseries_json_to_pandas(timeseries: dict, index: str = "date", auto_collap
 
 
 @deprecated("Use :py:meth:`XarrayDataCube.from_file` instead.", version="0.7.0")
-def datacube_from_file(filename, fmt='netcdf') -> "XarrayDataCube":
+def datacube_from_file(filename, fmt="netcdf") -> XarrayDataCube:
     from openeo.udf.xarraydatacube import XarrayDataCube
     return XarrayDataCube.from_file(path=filename, fmt=fmt)
 
 
 @deprecated("Use :py:meth:`XarrayDataCube.save_to_file` instead.", version="0.7.0")
-def datacube_to_file(datacube: "XarrayDataCube", filename, fmt='netcdf'):
+def datacube_to_file(datacube: XarrayDataCube, filename, fmt="netcdf"):
     return datacube.save_to_file(path=filename, fmt=fmt)
 
 
 @deprecated("Use :py:meth:`XarrayIO.to_json_file` instead", version="0.7.0")
-def _save_DataArray_to_JSON(filename, array: "xarray.DataArray"):
+def _save_DataArray_to_JSON(filename, array: xarray.DataArray):
     from openeo.udf.xarraydatacube import XarrayIO
     return XarrayIO.to_json_file(array=array, path=filename)
 
 
 @deprecated("Use :py:meth:`XarrayIO.to_netcdf_file` instead", version="0.7.0")
-def _save_DataArray_to_NetCDF(filename, array: "xarray.DataArray"):
+def _save_DataArray_to_NetCDF(filename, array: xarray.DataArray):
     from openeo.udf.xarraydatacube import XarrayIO
     return XarrayIO.to_netcdf_file(array=array, path=filename)
 
 
 @deprecated("Use :py:meth:`XarrayDataCube.plot` instead.", version="0.7.0")
-def datacube_plot(datacube: "XarrayDataCube", *args, **kwargs):
+def datacube_plot(datacube: XarrayDataCube, *args, **kwargs):
     datacube.plot(*args, **kwargs)

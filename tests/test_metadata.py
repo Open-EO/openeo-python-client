@@ -1,4 +1,5 @@
-import contextlib
+from __future__ import annotations
+
 from typing import List
 
 import pytest
@@ -551,7 +552,7 @@ def test_metadata_subclass():
 
         def _clone_and_update(
                 self, metadata: dict = None, dimensions: List[Dimension] = None, bbox=None, **kwargs
-        ) -> 'MyCollectionMetadata':
+        ) -> MyCollectionMetadata:
             return super()._clone_and_update(metadata=metadata, dimensions=dimensions, bbox=bbox or self.bbox, **kwargs)
 
         def filter_bbox(self, bbox):

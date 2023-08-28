@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import typing
 from typing import List, Optional, Union
 
@@ -12,7 +14,7 @@ if typing.TYPE_CHECKING:
 class Service:
     """Represents a secondary web service in openeo."""
 
-    def __init__(self, service_id: str, connection: 'Connection'):
+    def __init__(self, service_id: str, connection: Connection):
         # Unique identifier of the secondary web service (string)
         self.service_id = service_id
         self.connection = connection

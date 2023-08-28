@@ -4,6 +4,7 @@
 
 # Note: this module was initially developed under the ``openeo-udf`` project (https://github.com/Open-EO/openeo-udf)
 
+from __future__ import annotations
 
 import collections
 import json
@@ -81,7 +82,7 @@ class XarrayDataCube:
         })
 
     @classmethod
-    def from_dict(cls, xdc_dict: dict) -> "XarrayDataCube":
+    def from_dict(cls, xdc_dict: dict) -> XarrayDataCube:
         """
         Create a :py:class:`XarrayDataCube` from a Python dictionary that was created from
         the JSON definition of the data cube
@@ -120,7 +121,7 @@ class XarrayDataCube:
             raise ValueError("Can not guess format of {p}".format(p=path))
 
     @classmethod
-    def from_file(cls, path: Union[str, Path], fmt=None, **kwargs) -> "XarrayDataCube":
+    def from_file(cls, path: Union[str, Path], fmt=None, **kwargs) -> XarrayDataCube:
         """
         Load data file as :py:class:`XarrayDataCube` in memory
 

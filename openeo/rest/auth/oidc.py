@@ -3,6 +3,8 @@ OpenID Connect related functionality and helpers.
 
 """
 
+from __future__ import annotations
+
 import base64
 import contextlib
 import enum
@@ -272,7 +274,7 @@ class OidcProviderInfo:
         self.default_clients = default_clients
 
     @classmethod
-    def from_dict(cls, data: dict) -> "OidcProviderInfo":
+    def from_dict(cls, data: dict) -> OidcProviderInfo:
         return cls(
             provider_id=data["id"], title=data["title"],
             issuer=data["issuer"],

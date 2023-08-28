@@ -2,6 +2,9 @@
 
 Functionality for abstracting, building, manipulating and processing openEO process graphs.
 """
+
+from __future__ import annotations
+
 import abc
 import collections
 import json
@@ -78,7 +81,7 @@ class _FromNodeMixin(abc.ABC):
     """Mixin for classes that want to hook into the generation of a "from_node" reference."""
 
     @abc.abstractmethod
-    def from_node(self) -> "PGNode":
+    def from_node(self) -> PGNode:
         # TODO: "from_node" is a bit a confusing name:
         #       it refers to the "from_node" node reference in openEO process graphs,
         #       but as a method name here it reads like "construct from PGNode",
@@ -203,7 +206,7 @@ class PGNode(_FromNodeMixin, FlatGraphableMixin):
             raise ValueError(value)
 
     @staticmethod
-    def from_flat_graph(flat_graph: dict, parameters: Optional[dict] = None) -> 'PGNode':
+    def from_flat_graph(flat_graph: dict, parameters: Optional[dict] = None) -> PGNode:
         """Unflatten a given flat dict representation of a process graph and return result node."""
         return PGNodeGraphUnflattener.unflatten(flat_graph=flat_graph, parameters=parameters)
 
@@ -259,7 +262,7 @@ class ReduceNode(PGNode):
     def reducer_process_graph(self) -> PGNode:
         return self.arguments["reducer"]["process_graph"]
 
-    def clone_with_new_reducer(self, reducer: PGNode) -> 'ReduceNode':
+    def clone_with_new_reducer(self, reducer: PGNode) -> ReduceNode:
         """Copy/clone this reduce node: keep input reference, but use new reducer"""
         return ReduceNode(
             data=self.arguments["data"]["from_node"],

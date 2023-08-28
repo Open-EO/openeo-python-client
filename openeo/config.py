@@ -4,13 +4,15 @@ openEO client configuration (e.g. through config files)
 
 """
 
+from __future__ import annotations
+
 import logging
 import os
 import platform
 from configparser import ConfigParser
 from copy import deepcopy
 from pathlib import Path
-from typing import Union, Any, Sequence, Iterator, Optional, List
+from typing import Any, Iterator, List, Optional, Sequence, Union
 
 from openeo.util import in_interactive_mode
 
@@ -116,13 +118,13 @@ class ClientConfig:
         # TODO: option to cast/convert to certain type?
         return self._config.get(self._key(key), default)
 
-    def load_ini_file(self, path: Union[str, Path]) -> "ClientConfig":
+    def load_ini_file(self, path: Union[str, Path]) -> ClientConfig:
         cp = ConfigParser()
         read_ok = cp.read(path)
         self._sources.extend(read_ok)
         return self.load_config_parser(cp)
 
-    def load_config_parser(self, parser: ConfigParser) -> "ClientConfig":
+    def load_config_parser(self, parser: ConfigParser) -> ClientConfig:
         for section in parser.sections():
             for option, value in parser.items(section=section):
                 self._set(key=(section, option), value=value)
