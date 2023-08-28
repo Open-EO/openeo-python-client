@@ -6,7 +6,7 @@ on:
   push:
     branches: [ master ]
 
-concurrency: ci-${{ github.ref }}
+concurrency: docs-${{ github.ref }}
 
 jobs:
   build:
