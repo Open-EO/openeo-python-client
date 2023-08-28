@@ -15,36 +15,57 @@ import pathlib
 import typing
 import warnings
 from builtins import staticmethod
-from typing import List, Dict, Union, Tuple, Optional, Any, Iterable
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 import shapely.geometry
 import shapely.geometry.base
-from shapely.geometry import Polygon, MultiPolygon, mapping
+from shapely.geometry import MultiPolygon, Polygon, mapping
 
 import openeo
 import openeo.processes
 from openeo.api.process import Parameter
 from openeo.internal.documentation import openeo_process
 from openeo.internal.graph_building import PGNode, ReduceNode, _FromNodeMixin
-from openeo.internal.processes.builder import get_parameter_names, convert_callable_to_pgnode
-from openeo.internal.warnings import legacy_alias, UserDeprecationWarning, deprecated
 from openeo.internal.jupyter import in_jupyter_context
-from openeo.metadata import CollectionMetadata, Band, BandDimension, TemporalDimension, SpatialDimension
+from openeo.internal.processes.builder import (
+    convert_callable_to_pgnode,
+    get_parameter_names,
+)
+from openeo.internal.warnings import UserDeprecationWarning, deprecated, legacy_alias
+from openeo.metadata import (
+    Band,
+    BandDimension,
+    CollectionMetadata,
+    SpatialDimension,
+    TemporalDimension,
+)
 from openeo.processes import ProcessBuilder
-from openeo.rest import BandMathException, OperatorException, OpenEoClientException
-from openeo.rest._datacube import _ProcessGraphAbstraction, THIS, UDF, build_child_callback
+from openeo.rest import BandMathException, OpenEoClientException, OperatorException
+from openeo.rest._datacube import (
+    THIS,
+    UDF,
+    _ProcessGraphAbstraction,
+    build_child_callback,
+)
 from openeo.rest.job import BatchJob
 from openeo.rest.mlmodel import MlModel
 from openeo.rest.service import Service
 from openeo.rest.udp import RESTUserDefinedProcess
 from openeo.rest.vectorcube import VectorCube
-from openeo.util import get_temporal_extent, dict_no_none, rfc3339, guess_format, normalize_crs
+from openeo.util import (
+    dict_no_none,
+    get_temporal_extent,
+    guess_format,
+    normalize_crs,
+    rfc3339,
+)
 
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).
-    from openeo.rest.connection import Connection
     import xarray
+
+    from openeo.rest.connection import Connection
     from openeo.udf import XarrayDataCube
 
 

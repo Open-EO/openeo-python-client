@@ -20,7 +20,6 @@ import sys
 from pathlib import Path
 from typing import List, NamedTuple
 
-
 _log = logging.getLogger(__name__)
 _ROOT_DIR = Path(__file__).parent
 

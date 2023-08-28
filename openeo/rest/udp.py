@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import typing
-from typing import List, Union, Optional
+from typing import List, Optional, Union
 
 from openeo.api.process import Parameter
 from openeo.internal.graph_building import as_flat_graph

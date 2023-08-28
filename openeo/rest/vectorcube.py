@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import pathlib
 import typing
-from typing import List, Optional, Union, Tuple, Callable
+from typing import Callable, List, Optional, Tuple, Union
 
 import shapely.geometry.base
 
@@ -13,10 +13,15 @@ from openeo.internal.documentation import openeo_process
 from openeo.internal.graph_building import PGNode
 from openeo.internal.warnings import legacy_alias
 from openeo.metadata import CollectionMetadata, Dimension
-from openeo.rest._datacube import THIS, UDF, _ProcessGraphAbstraction, build_child_callback
+from openeo.rest._datacube import (
+    THIS,
+    UDF,
+    _ProcessGraphAbstraction,
+    build_child_callback,
+)
 from openeo.rest.job import BatchJob
 from openeo.rest.mlmodel import MlModel
-from openeo.util import dict_no_none, guess_format, to_bbox_dict, InvalidBBoxException
+from openeo.util import InvalidBBoxException, dict_no_none, guess_format, to_bbox_dict
 
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).

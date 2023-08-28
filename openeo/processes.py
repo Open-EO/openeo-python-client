@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import builtins
 
-from openeo.internal.processes.builder import ProcessBuilderBase, UNSET
 from openeo.internal.documentation import openeo_process
+from openeo.internal.processes.builder import UNSET, ProcessBuilderBase
 
 
 class ProcessBuilder(ProcessBuilderBase):

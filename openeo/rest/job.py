@@ -12,7 +12,12 @@ import requests
 
 from openeo.api.logs import LogEntry, log_level_name, normalize_log_level
 from openeo.internal.documentation import openeo_endpoint
-from openeo.internal.jupyter import VisualDict, VisualList, render_component, render_error
+from openeo.internal.jupyter import (
+    VisualDict,
+    VisualList,
+    render_component,
+    render_error,
+)
 from openeo.internal.warnings import deprecated, legacy_alias
 from openeo.rest import JobFailedException, OpenEoApiError, OpenEoClientException
 from openeo.util import ensure_dir

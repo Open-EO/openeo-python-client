@@ -1,9 +1,9 @@
 import inspect
 import logging
 import warnings
-from typing import Union, Callable, List, Optional, Any, Dict
+from typing import Any, Callable, Dict, List, Optional, Union
 
-from openeo.internal.graph_building import PGNode, _FromNodeMixin, FlatGraphableMixin
+from openeo.internal.graph_building import FlatGraphableMixin, PGNode, _FromNodeMixin
 from openeo.rest import OpenEoClientException
 
 UNSET = object()

@@ -13,7 +13,10 @@ import requests
 import openeo.processes
 from openeo.internal.graph_building import FlatGraphableMixin, PGNode, _FromNodeMixin
 from openeo.internal.jupyter import render_component
-from openeo.internal.processes.builder import convert_callable_to_pgnode, get_parameter_names
+from openeo.internal.processes.builder import (
+    convert_callable_to_pgnode,
+    get_parameter_names,
+)
 from openeo.internal.warnings import UserDeprecationWarning
 from openeo.rest import OpenEoClientException
 from openeo.util import dict_no_none, str_truncate

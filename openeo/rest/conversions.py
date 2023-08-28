@@ -13,8 +13,9 @@ from openeo.internal.warnings import deprecated
 
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).
-    from openeo.udf import XarrayDataCube
     import xarray
+
+    from openeo.udf import XarrayDataCube
 
 
 class InvalidTimeSeriesException(ValueError):

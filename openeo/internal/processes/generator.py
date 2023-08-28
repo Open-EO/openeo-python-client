@@ -4,7 +4,7 @@ import keyword
 import sys
 import textwrap
 from pathlib import Path
-from typing import Union, List, Iterator, Optional
+from typing import Iterator, List, Optional, Union
 
 from openeo.internal.processes.parse import Process, parse_all_from_dir
 

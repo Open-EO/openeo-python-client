@@ -3,7 +3,7 @@ from typing import Dict, List
 
 import numpy as np
 
-from openeo.processes import ProcessBuilder, array_modify, array_create
+from openeo.processes import ProcessBuilder, array_create, array_modify
 from openeo.rest.datacube import DataCube
 
 try:

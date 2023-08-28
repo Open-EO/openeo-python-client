@@ -12,44 +12,60 @@ import sys
 import warnings
 from collections import OrderedDict
 from pathlib import Path, PurePosixPath
-from typing import Dict, List, Tuple, Union, Callable, Optional, Any, Iterator, Iterable
+from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple, Union
 
 import requests
-from requests import Response
-from requests.auth import HTTPBasicAuth, AuthBase
 import shapely.geometry.base
+from requests import Response
+from requests.auth import AuthBase, HTTPBasicAuth
 
 import openeo
 from openeo.capabilities import ApiVersionException, ComparableVersion
-from openeo.config import get_config_option, config_log
+from openeo.config import config_log, get_config_option
 from openeo.internal.documentation import openeo_process
-from openeo.internal.graph_building import PGNode, as_flat_graph, FlatGraphableMixin
+from openeo.internal.graph_building import FlatGraphableMixin, PGNode, as_flat_graph
 from openeo.internal.jupyter import VisualDict, VisualList
 from openeo.internal.processes.builder import ProcessBuilderBase
-from openeo.internal.warnings import legacy_alias, deprecated
-from openeo.metadata import CollectionMetadata, SpatialDimension, TemporalDimension, BandDimension, Band
-from openeo.rest import OpenEoClientException, OpenEoApiError, OpenEoRestError
+from openeo.internal.warnings import deprecated, legacy_alias
+from openeo.metadata import (
+    Band,
+    BandDimension,
+    CollectionMetadata,
+    SpatialDimension,
+    TemporalDimension,
+)
+from openeo.rest import OpenEoApiError, OpenEoClientException, OpenEoRestError
 from openeo.rest._datacube import build_child_callback
-from openeo.rest.auth.auth import NullAuth, BearerAuth, BasicBearerAuth, OidcBearerAuth
-from openeo.rest.auth.config import RefreshTokenStore, AuthConfig
-from openeo.rest.auth.oidc import OidcClientCredentialsAuthenticator, OidcAuthCodePkceAuthenticator, \
-    OidcClientInfo, OidcAuthenticator, OidcRefreshTokenAuthenticator, OidcResourceOwnerPasswordAuthenticator, \
-    OidcDeviceAuthenticator, OidcProviderInfo, OidcException, DefaultOidcClientGrant, GrantsChecker
+from openeo.rest.auth.auth import BasicBearerAuth, BearerAuth, NullAuth, OidcBearerAuth
+from openeo.rest.auth.config import AuthConfig, RefreshTokenStore
+from openeo.rest.auth.oidc import (
+    DefaultOidcClientGrant,
+    GrantsChecker,
+    OidcAuthCodePkceAuthenticator,
+    OidcAuthenticator,
+    OidcClientCredentialsAuthenticator,
+    OidcClientInfo,
+    OidcDeviceAuthenticator,
+    OidcException,
+    OidcProviderInfo,
+    OidcRefreshTokenAuthenticator,
+    OidcResourceOwnerPasswordAuthenticator,
+)
 from openeo.rest.datacube import DataCube
-from openeo.rest.mlmodel import MlModel
-from openeo.rest.userfile import UserFile
 from openeo.rest.job import BatchJob, RESTJob
+from openeo.rest.mlmodel import MlModel
 from openeo.rest.rest_capabilities import RESTCapabilities
 from openeo.rest.service import Service
-from openeo.rest.udp import RESTUserDefinedProcess, Parameter
+from openeo.rest.udp import Parameter, RESTUserDefinedProcess
+from openeo.rest.userfile import UserFile
 from openeo.rest.vectorcube import VectorCube
 from openeo.util import (
-    ensure_list,
-    dict_no_none,
-    rfc3339,
-    load_json_resource,
-    LazyLoadCache,
     ContextTimer,
+    LazyLoadCache,
+    dict_no_none,
+    ensure_list,
+    load_json_resource,
+    rfc3339,
     str_truncate,
     url_join,
 )

@@ -10,13 +10,13 @@ import collections
 import json
 import typing
 from pathlib import Path
-from typing import Union, Optional
+from typing import Optional, Union
 
 import numpy
 import xarray
 
 from openeo.udf import OpenEoUdfException
-from openeo.util import dict_no_none, deep_get
+from openeo.util import deep_get, dict_no_none
 
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).

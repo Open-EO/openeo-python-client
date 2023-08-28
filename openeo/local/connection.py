@@ -11,9 +11,19 @@ from openeo_processes_dask.process_implementations.cubes import load_stac
 
 from openeo.internal.graph_building import PGNode, as_flat_graph
 from openeo.internal.jupyter import VisualDict, VisualList
-from openeo.local.collections import _get_geotiff_metadata, _get_local_collections, _get_netcdf_zarr_metadata
+from openeo.local.collections import (
+    _get_geotiff_metadata,
+    _get_local_collections,
+    _get_netcdf_zarr_metadata,
+)
 from openeo.local.processing import PROCESS_REGISTRY
-from openeo.metadata import Band, BandDimension, CollectionMetadata, SpatialDimension, TemporalDimension
+from openeo.metadata import (
+    Band,
+    BandDimension,
+    CollectionMetadata,
+    SpatialDimension,
+    TemporalDimension,
+)
 from openeo.rest.datacube import DataCube
 
 _log = logging.getLogger(__name__)
