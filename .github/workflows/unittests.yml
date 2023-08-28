@@ -1,6 +1,18 @@
 
 name: Unit tests
-on: [push, pull_request]
+on:
+  push:
+    paths:
+      - 'setup.py'
+      - 'pyproject.toml'
+      - 'openeo/**'
+      - 'tests/**'
+  pull_request:
+    paths:
+      - 'setup.py'
+      - 'pyproject.toml'
+      - 'openeo/**'
+      - 'tests/**'
 concurrency: ci-${{ github.ref }}
 jobs:
   build:
