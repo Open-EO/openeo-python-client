@@ -1,7 +1,8 @@
 import logging
+
 import openeo
-from openeo.rest.job import RESTJob
 from openeo.auth.auth_bearer import BearerAuth
+from openeo.rest.job import RESTJob
 
 logging.basicConfig(level=logging.DEBUG)
 

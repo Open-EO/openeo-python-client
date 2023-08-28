@@ -5,6 +5,7 @@ import pytest
 import openeo
 from openeo.api.process import Parameter
 from openeo.rest.udp import RESTUserDefinedProcess, build_process_dict
+
 from .. import load_json_resource
 
 API_URL = "https://oeo.test"

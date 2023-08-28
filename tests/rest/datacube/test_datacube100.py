@@ -8,8 +8,8 @@ import copy
 import io
 import json
 import pathlib
-import sys
 import re
+import sys
 import textwrap
 from typing import Optional
 
@@ -27,10 +27,11 @@ from openeo.internal.process_graph_visitor import ProcessGraphVisitException
 from openeo.internal.warnings import UserDeprecationWarning
 from openeo.rest import OpenEoClientException
 from openeo.rest.connection import Connection
-from openeo.rest.datacube import THIS, DataCube, ProcessBuilder, UDF
+from openeo.rest.datacube import THIS, UDF, DataCube, ProcessBuilder
 from openeo.rest.vectorcube import VectorCube
-from .conftest import API_URL, setup_collection_metadata, DEFAULT_S2_METADATA
+
 from ... import load_json_resource
+from .conftest import API_URL, DEFAULT_S2_METADATA, setup_collection_metadata
 
 basic_geometry_types = [
     (
@@ -2393,7 +2394,7 @@ def test_unflatten_dimension(con100):
 
 def test_merge_if(con100):
     """https://github.com/Open-EO/openeo-python-client/issues/275"""
-    from openeo.processes import if_, eq
+    from openeo.processes import eq, if_
 
     s1 = con100.load_collection("S2")
     s2 = con100.load_collection("SENTINEL2_RADIOMETRY_10M")

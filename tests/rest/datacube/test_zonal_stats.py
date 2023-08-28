@@ -4,8 +4,9 @@ import shapely.geometry
 import openeo.processes
 from openeo.api.process import Parameter
 from openeo.capabilities import ComparableVersion
-from .. import get_execute_graph
+
 from ... import load_json_resource
+from .. import get_execute_graph
 
 
 def test_polygon_timeseries_polygon(connection, api_version):

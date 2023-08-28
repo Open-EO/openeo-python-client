@@ -2,6 +2,7 @@ import pytest
 
 from openeo import BatchJob
 from openeo.rest.mlmodel import MlModel
+
 from .conftest import API_URL
 
 FEATURE_COLLECTION_1 = {

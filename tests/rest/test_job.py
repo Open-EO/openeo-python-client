@@ -11,6 +11,7 @@ import openeo
 import openeo.rest.job
 from openeo.rest import JobFailedException, OpenEoClientException
 from openeo.rest.job import BatchJob, ResultAsset
+
 from .test_connection import _credentials_basic_handler
 
 API_URL = "https://oeo.test"

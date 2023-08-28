@@ -3,7 +3,10 @@ import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal, assert_series_equal
 
-from openeo.rest.conversions import timeseries_json_to_pandas, InvalidTimeSeriesException
+from openeo.rest.conversions import (
+    InvalidTimeSeriesException,
+    timeseries_json_to_pandas,
+)
 
 DATE1 = "2019-01-11T11:11:11Z"
 DATE2 = "2019-02-22T22:22:22Z"

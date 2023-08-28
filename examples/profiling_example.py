@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-from pathlib import Path
-import openeo
+import pstats
 import tarfile
 import tempfile
-import pstats
+from pathlib import Path
 
+import openeo
 
 if __name__ == '__main__':
 

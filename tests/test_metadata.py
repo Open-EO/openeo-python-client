@@ -4,8 +4,16 @@ from typing import List
 
 import pytest
 
-from openeo.metadata import CollectionMetadata, Band, SpatialDimension, Dimension, TemporalDimension, BandDimension, \
-    MetadataException, DimensionAlreadyExistsException
+from openeo.metadata import (
+    Band,
+    BandDimension,
+    CollectionMetadata,
+    Dimension,
+    DimensionAlreadyExistsException,
+    MetadataException,
+    SpatialDimension,
+    TemporalDimension,
+)
 
 
 def test_metadata_get():

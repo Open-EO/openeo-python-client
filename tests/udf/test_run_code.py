@@ -7,8 +7,15 @@ import pytest
 import xarray
 
 from openeo.udf import UdfData, XarrayDataCube
-from openeo.udf.run_code import run_udf_code, _get_annotation_str, _annotation_is_pandas_series, \
-    _annotation_is_udf_datacube, _annotation_is_udf_data, execute_local_udf
+from openeo.udf.run_code import (
+    _annotation_is_pandas_series,
+    _annotation_is_udf_data,
+    _annotation_is_udf_datacube,
+    _get_annotation_str,
+    execute_local_udf,
+    run_udf_code,
+)
+
 from .test_xarraydatacube import _build_xdc
 
 UDF_CODE_PATH = Path(__file__).parent / "udf_code"

@@ -5,7 +5,12 @@ import pytest
 
 import openeo.processes
 from openeo.api.process import Parameter
-from openeo.internal.graph_building import FlatGraphNodeIdGenerator, PGNode, PGNodeGraphUnflattener, ReduceNode
+from openeo.internal.graph_building import (
+    FlatGraphNodeIdGenerator,
+    PGNode,
+    PGNodeGraphUnflattener,
+    ReduceNode,
+)
 from openeo.internal.process_graph_visitor import ProcessGraphVisitException
 
 

@@ -10,8 +10,9 @@ import pytest
 
 import openeo
 from openeo.rest import BandMathException
-from .. import get_download_graph
+
 from ... import load_json_resource
+from .. import get_download_graph
 from .test_datacube import _get_leaf_node
 
 

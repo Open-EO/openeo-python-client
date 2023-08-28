@@ -1,5 +1,5 @@
-import logging
 import json
+import logging
 import platform
 import re
 from unittest import mock
@@ -7,7 +7,12 @@ from unittest import mock
 import pytest
 
 import openeo.rest.auth.config
-from openeo.rest.auth.config import RefreshTokenStore, AuthConfig, PrivateJsonFile, get_file_mode
+from openeo.rest.auth.config import (
+    AuthConfig,
+    PrivateJsonFile,
+    RefreshTokenStore,
+    get_file_mode,
+)
 
 
 class TestPrivateJsonFile:

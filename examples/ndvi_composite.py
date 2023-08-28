@@ -1,8 +1,9 @@
 import os
 from pathlib import Path
 
-import openeo
 from skimage.morphology import selem
+
+import openeo
 
 connection = openeo.connect("https://openeo-dev.vito.be")
 bbox = {"west": 4.996033, "south": 51.258922, "east": 5.091603, "north": 51.282696}
@@ -75,6 +76,7 @@ def test_composite_by_udf():
 
 from openeo.rest.datacube import DataCube
 
+
 def test_debug_udf():
     """
     Shows how to run your UDF locally for testing. This method uses the same code as the backend, and can be used to check validity of your UDF.
@@ -85,6 +87,7 @@ def test_debug_udf():
     DataCube.execute_local_udf(compositing_udf, 'masked.nc', fmt='netcdf')
 
 from examples.udf.median_composite import apply_datacube
+
 
 def test_debug_udf_direct_invoke():
     """

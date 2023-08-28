@@ -1,5 +1,5 @@
 from openeo.internal.graph_building import PGNode
-from openeo.rest._datacube import build_child_callback, UDF
+from openeo.rest._datacube import UDF, build_child_callback
 
 
 def test_build_child_callback_str():

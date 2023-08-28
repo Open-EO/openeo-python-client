@@ -1,5 +1,5 @@
-import xarray
 import numpy as np
+import xarray
 
 from openeo.udf import XarrayDataCube
 

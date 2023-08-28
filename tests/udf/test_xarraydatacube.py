@@ -1,5 +1,6 @@
 import itertools
-from typing import Union, Optional, List, Tuple, Iterator, NamedTuple
+from typing import Iterator, List, NamedTuple, Optional, Tuple, Union
+
 import numpy
 import pytest
 import xarray

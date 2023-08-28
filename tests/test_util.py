@@ -3,8 +3,8 @@ import json
 import logging
 import os
 import pathlib
-import sys
 import re
+import sys
 import unittest.mock as mock
 from typing import List, Union
 
@@ -17,12 +17,12 @@ from openeo.util import (
     BBoxDict,
     ContextTimer,
     DeepKeyError,
+    InvalidBBoxException,
     LazyLoadCache,
     Rfc3339,
     SimpleProgressBar,
     TimingLogger,
     clip,
-    normalize_crs,
     deep_get,
     deep_set,
     dict_no_none,
@@ -30,14 +30,14 @@ from openeo.util import (
     ensure_list,
     first_not_none,
     get_temporal_extent,
-    string_to_temporal_extent,
     guess_format,
+    normalize_crs,
     repr_truncate,
     rfc3339,
     str_truncate,
+    string_to_temporal_extent,
     to_bbox_dict,
     url_join,
-    InvalidBBoxException,
 )
 
 

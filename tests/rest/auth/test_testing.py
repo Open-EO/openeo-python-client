@@ -1,7 +1,7 @@
 from openeo.rest.auth.oidc import (
-    OidcProviderInfo,
-    OidcClientInfo,
     OidcClientCredentialsAuthenticator,
+    OidcClientInfo,
+    OidcProviderInfo,
 )
 from openeo.rest.auth.testing import OidcMock
 

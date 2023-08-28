@@ -4,12 +4,12 @@ from pathlib import Path
 import pytest
 import shapely.geometry
 
+import openeo.processes
 from openeo.api.process import Parameter
 from openeo.internal.graph_building import PGNode
 from openeo.rest._testing import DummyBackend
 from openeo.rest.vectorcube import VectorCube
 from openeo.util import InvalidBBoxException
-import openeo.processes
 
 
 @pytest.fixture

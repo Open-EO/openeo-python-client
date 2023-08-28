@@ -1,7 +1,11 @@
 from io import StringIO
 from textwrap import dedent
 
-from openeo.internal.processes.generator import PythonRenderer, generate_process_py, collect_processes
+from openeo.internal.processes.generator import (
+    PythonRenderer,
+    collect_processes,
+    generate_process_py,
+)
 from openeo.internal.processes.parse import Process
 from tests import get_test_resource
 

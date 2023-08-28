@@ -1,9 +1,12 @@
-from unittest.mock import MagicMock, call, ANY
+from unittest.mock import ANY, MagicMock, call
 
 import pytest
 
-from openeo.internal.process_graph_visitor import ProcessGraphVisitor, ProcessGraphUnflattener, \
-    ProcessGraphVisitException
+from openeo.internal.process_graph_visitor import (
+    ProcessGraphUnflattener,
+    ProcessGraphVisitException,
+    ProcessGraphVisitor,
+)
 
 
 def test_visit_node():
