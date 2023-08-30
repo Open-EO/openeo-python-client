@@ -513,7 +513,7 @@ class TimingLogger:
         self.title = title
         if isinstance(logger, str):
             logger = logging.getLogger(logger)
-        if isinstance(logger, logging.Logger):
+        if isinstance(logger, (logging.Logger, logging.LoggerAdapter)):
             self._log = logger.info
         elif callable(logger):
             self._log = logger
