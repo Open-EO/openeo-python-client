@@ -327,9 +327,12 @@ class DataCube(_ProcessGraphAbstraction):
                 >>> cube.filter_bbox(bbox_param)
                 >>> cube.filter_bbox(bbox=bbox_param)
 
-            - With a CRS other than EPSG 4326 (**see also parameters: crs**)::
+            - With a CRS other than EPSG 4326::
 
-                >>> cube.filter_bbox(west=652000, east=672000, north=5161000, south=5181000, crs=32632)
+                >>> cube.filter_bbox(
+                    ... west=652000, east=672000, north=5161000, south=5181000,
+                    ... crs=32632
+                    ... )
 
             - Deprecated: positional arguments are also supported,
               but follow a non-standard order for legacy reasons::
@@ -337,17 +340,16 @@ class DataCube(_ProcessGraphAbstraction):
                 >>> west, east, north, south = 3, 4, 52, 51
                 >>> cube.filter_bbox(west, east, north, south)
 
-        :param crs: data structure that encodes a CRS, typically just an int or string value.
-            If the ``pyproj`` library is available, everything supported by it is allowed.
+        :param crs: value that encodes a coordinate reference system, typically just an int (EPSG code) or string (authority string).
 
-            Integers always refer to the EPSG code that has that number assigned.
-            A string that contains only an integer it is treated the same way.
+            Integers always refer to the corresponding EPSG code.
+            A string that contains only an integer is interpreted as that same integer EPSG code.
 
-            You can also specify EPSG codes as a formatted string, "EPSG:number".
+            You can also specify EPSG codes as an authority string, such as "EPSG:4326".
             For example, the following string and int values all specify to the same CRS:
             ``"EPSG:4326"``, ``"4326"``, and the integer ``4326``.
 
-            .. seealso:: `openEO Python Client documentation on openeo.util.normalize_crs  <api.html#openeo.util.normalize_crs>`_ for the most up to date information.
+            .. seealso:: openEO Python Client documentation on openeo.util.normalize_crs  :py:func:`openeo.util.normalize_crs` for the most up to date information.
         """
         if args and any(k is not None for k in (west, south, east, north, bbox)):
             raise ValueError("Don't mix positional arguments with keyword arguments.")
@@ -839,9 +841,8 @@ class DataCube(_ProcessGraphAbstraction):
         """
         Convert input to a geometry as "geojson" subtype object.
 
-        :param crs: data structure that encodes a CRS, typically just an int or string value.
-            If the ``pyproj`` library is available, everything supported by it is allowed.
-            .. seealso:: `openEO Python Client documentation on openeo.util.normalize_crs  <api.html#openeo.util.normalize_crs>`_ for the most up to date information.
+        :param crs: value that encodes a coordinate reference system, typically just an int (EPSG code) or string (authority string).
+            .. seealso:: openEO Python Client documentation on openeo.util.normalize_crs  :py:func:`openeo.util.normalize_crs` for the most up to date information.
 
         """
         if isinstance(geometry, (str, pathlib.Path)):
