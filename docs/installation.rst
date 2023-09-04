@@ -11,7 +11,7 @@ The package is a pure Python implementation and its dependencies are carefully c
 Basic install
 =============
 
-At least *Python 3.6* is recommended.
+At least *Python 3.7* is required (since version 0.23.0).
 Also, it is recommended to work in a some kind of *virtual environment* (``venv``, ``conda``, ...)
 to avoid polluting the base install of Python on your operating system
 or introducing conflicts with other applications.

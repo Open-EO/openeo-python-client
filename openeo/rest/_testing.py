@@ -1,5 +1,5 @@
 import re
-from typing import Union, Optional
+from typing import Optional, Union
 
 from openeo import Connection, DataCube
 from openeo.rest.vectorcube import VectorCube

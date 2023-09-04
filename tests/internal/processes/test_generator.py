@@ -1,7 +1,11 @@
 from io import StringIO
 from textwrap import dedent
 
-from openeo.internal.processes.generator import PythonRenderer, generate_process_py, collect_processes
+from openeo.internal.processes.generator import (
+    PythonRenderer,
+    collect_processes,
+    generate_process_py,
+)
 from openeo.internal.processes.parse import Process
 from tests import get_test_resource
 
@@ -225,7 +229,7 @@ def test_generate_process_py():
     generate_process_py(processes, output=output)
     lines = output.getvalue().split("\n")
     assert "class ProcessBuilder(ProcessBuilderBase):" in lines
-    assert "    def incr(self) -> 'ProcessBuilder':" in lines
-    assert "    def add(self, y) -> 'ProcessBuilder':" in lines
+    assert "    def incr(self) -> ProcessBuilder:" in lines
+    assert "    def add(self, y) -> ProcessBuilder:" in lines
     assert "def incr(x) -> ProcessBuilder:" in lines
     assert "def add(x, y) -> ProcessBuilder:" in lines

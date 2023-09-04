@@ -1,6 +1,4 @@
 import json
-import multiprocessing
-import platform
 import threading
 from unittest import mock
 
@@ -11,19 +9,14 @@ from unittest import mock
 #   httpretty avoids this specific problem because it mocks at the socket level,
 #   But I would rather not have two dependencies with almost the same goal.
 import httpretty
-
-# Alias to avoid conflicting names in httpretty.
-from httpretty.core import httpretty as corehttpretty
-
 import pandas as pd
 import pytest
 import requests
 import shapely.geometry.point as shpt
 
-
 import openeo
-from openeo.extra.job_management import MultiBackendJobManager, MAX_RETRIES
 from openeo import BatchJob
+from openeo.extra.job_management import MAX_RETRIES, MultiBackendJobManager
 
 
 class TestMultiBackendJobManager:
@@ -363,12 +356,10 @@ class TestMultiBackendJobManager:
 
         # First fail the max times the connection should retry, then succeed. after that
         response_list = [
-            corehttpretty.Response(
-                f"Simulate error HTTP {http_error_status}", status=http_error_status
-            )
+            httpretty.Response(f"Simulate error HTTP {http_error_status}", status=http_error_status)
         ] * MAX_RETRIES
         response_list += [
-            corehttpretty.Response(
+            httpretty.Response(
                 body=json.dumps(
                     {
                         "id": job_id,
@@ -439,7 +430,7 @@ class TestMultiBackendJobManager:
         # in running mode at one point.
         # Namely, we want to check that it flags the job stopped with an error.
         response_list = [
-            corehttpretty.Response(
+            httpretty.Response(
                 body=json.dumps(
                     {
                         "id": job_id,
@@ -449,11 +440,9 @@ class TestMultiBackendJobManager:
                 )
             )
         ]
-        response_list += [
-            corehttpretty.Response(
-                f"Simulate error HTTP {http_error_status}", status=http_error_status
-            )
-        ] * (MAX_RETRIES + 1)
+        response_list += [httpretty.Response(f"Simulate error HTTP {http_error_status}", status=http_error_status)] * (
+            MAX_RETRIES + 1
+        )
 
         httpretty.register_uri(
             "GET", f"{backend}/jobs/{job_id}", responses=response_list

@@ -1,4 +1,4 @@
-from openeo.internal.processes.parse import Parameter, Schema, Returns, Process
+from openeo.internal.processes.parse import Parameter, Process, Returns, Schema
 
 
 def test_schema():

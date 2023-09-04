@@ -4,7 +4,7 @@ import keyword
 import sys
 import textwrap
 from pathlib import Path
-from typing import Union, List, Iterator, Optional
+from typing import Iterator, List, Optional, Union
 
 from openeo.internal.processes.parse import Process, parse_all_from_dir
 
@@ -112,7 +112,10 @@ def collect_processes(sources: List[Union[Path, str]]) -> List[Process]:
 def generate_process_py(processes: List[Process], output=sys.stdout, argv=None):
     oo_src = textwrap.dedent(
         """
+        from __future__ import annotations
+
         import builtins
+
         from openeo.internal.processes.builder import ProcessBuilderBase, UNSET
         from openeo.internal.documentation import openeo_process
 
@@ -125,47 +128,47 @@ def generate_process_py(processes: List[Process], output=sys.stdout, argv=None):
             _ITERATION_LIMIT = 100
 
             @openeo_process(process_id="add", mode="operator")
-            def __add__(self, other) -> 'ProcessBuilder':
+            def __add__(self, other) -> ProcessBuilder:
                 return self.add(other)
 
             @openeo_process(process_id="add", mode="operator")
-            def __radd__(self, other) -> 'ProcessBuilder':
+            def __radd__(self, other) -> ProcessBuilder:
                 return add(other, self)
 
             @openeo_process(process_id="subtract", mode="operator")
-            def __sub__(self, other) -> 'ProcessBuilder':
+            def __sub__(self, other) -> ProcessBuilder:
                 return self.subtract(other)
 
             @openeo_process(process_id="subtract", mode="operator")
-            def __rsub__(self, other) -> 'ProcessBuilder':
+            def __rsub__(self, other) -> ProcessBuilder:
                 return subtract(other, self)
 
             @openeo_process(process_id="multiply", mode="operator")
-            def __mul__(self, other) -> 'ProcessBuilder':
+            def __mul__(self, other) -> ProcessBuilder:
                 return self.multiply(other)
 
             @openeo_process(process_id="multiply", mode="operator")
-            def __rmul__(self, other) -> 'ProcessBuilder':
+            def __rmul__(self, other) -> ProcessBuilder:
                 return multiply(other, self)
 
             @openeo_process(process_id="divide", mode="operator")
-            def __truediv__(self, other) -> 'ProcessBuilder':
+            def __truediv__(self, other) -> ProcessBuilder:
                 return self.divide(other)
 
             @openeo_process(process_id="divide", mode="operator")
-            def __rtruediv__(self, other) -> 'ProcessBuilder':
+            def __rtruediv__(self, other) -> ProcessBuilder:
                 return divide(other, self)
 
             @openeo_process(process_id="multiply", mode="operator")
-            def __neg__(self) -> 'ProcessBuilder':
+            def __neg__(self) -> ProcessBuilder:
                 return self.multiply(-1)
 
             @openeo_process(process_id="power", mode="operator")
-            def __pow__(self, other) -> 'ProcessBuilder':
+            def __pow__(self, other) -> ProcessBuilder:
                 return self.power(other)
 
             @openeo_process(process_id="array_element", mode="operator")
-            def __getitem__(self, key) -> 'ProcessBuilder':
+            def __getitem__(self, key) -> ProcessBuilder:
                 if isinstance(key, builtins.int):
                     if key > self._ITERATION_LIMIT:
                         raise RuntimeError(
@@ -178,27 +181,27 @@ def generate_process_py(processes: List[Process], output=sys.stdout, argv=None):
                     return self.array_element(label=key)
 
             @openeo_process(process_id="eq", mode="operator")
-            def __eq__(self, other) -> 'ProcessBuilder':
+            def __eq__(self, other) -> ProcessBuilder:
                 return eq(self, other)
 
             @openeo_process(process_id="neq", mode="operator")
-            def __ne__(self, other) -> 'ProcessBuilder':
+            def __ne__(self, other) -> ProcessBuilder:
                 return neq(self, other)
 
             @openeo_process(process_id="lt", mode="operator")
-            def __lt__(self, other) -> 'ProcessBuilder':
+            def __lt__(self, other) -> ProcessBuilder:
                 return lt(self, other)
 
             @openeo_process(process_id="lte", mode="operator")
-            def __le__(self, other) -> 'ProcessBuilder':
+            def __le__(self, other) -> ProcessBuilder:
                 return lte(self, other)
 
             @openeo_process(process_id="ge", mode="operator")
-            def __ge__(self, other) -> 'ProcessBuilder':
+            def __ge__(self, other) -> ProcessBuilder:
                 return gte(self, other)
 
             @openeo_process(process_id="gt", mode="operator")
-            def __gt__(self, other) -> 'ProcessBuilder':
+            def __gt__(self, other) -> ProcessBuilder:
                 return gt(self, other)
 
     """
@@ -223,7 +226,7 @@ def generate_process_py(processes: List[Process], output=sys.stdout, argv=None):
         oo_mode=True,
         body_template="return {safe_name}({args})",
         optional_default="UNSET",
-        return_type_hint="'ProcessBuilder'",
+        return_type_hint="ProcessBuilder",
         decorator="@openeo_process",
     )
     for p in processes:

@@ -3,8 +3,9 @@
 """
 
 # Note: this module was initially developed under the ``openeo-udf`` project (https://github.com/Open-EO/openeo-udf)
+from __future__ import annotations
 
-from typing import Optional, Union, Any, List
+from typing import Any, List, Optional, Union
 
 import pandas
 import shapely.geometry
@@ -93,7 +94,7 @@ class FeatureCollection:
         return data
 
     @classmethod
-    def from_dict(cls, data: dict) -> "FeatureCollection":
+    def from_dict(cls, data: dict) -> FeatureCollection:
         """
         Create a feature collection from a python dictionary that was created from
         the JSON definition of the FeatureCollection

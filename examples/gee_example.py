@@ -1,6 +1,7 @@
+import logging
+
 import openeo
 from openeo.internal.graph_building import PGNode
-import logging
 
 logging.basicConfig(level=logging.INFO)
 

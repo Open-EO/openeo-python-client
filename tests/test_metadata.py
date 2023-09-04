@@ -1,10 +1,19 @@
-import contextlib
+from __future__ import annotations
+
 from typing import List
 
 import pytest
 
-from openeo.metadata import CollectionMetadata, Band, SpatialDimension, Dimension, TemporalDimension, BandDimension, \
-    MetadataException, DimensionAlreadyExistsException
+from openeo.metadata import (
+    Band,
+    BandDimension,
+    CollectionMetadata,
+    Dimension,
+    DimensionAlreadyExistsException,
+    MetadataException,
+    SpatialDimension,
+    TemporalDimension,
+)
 
 
 def test_metadata_get():
@@ -25,6 +34,11 @@ def test_metadata_extent():
         "extent": {"spatial": {"xmin": 4, "xmax": 10}}
     })
     assert metadata.extent == {"spatial": {"xmin": 4, "xmax": 10}}
+
+
+def test_band_minimal():
+    band = Band("red")
+    assert band.name == "red"
 
 
 def test_band_dimension():
@@ -546,7 +560,7 @@ def test_metadata_subclass():
 
         def _clone_and_update(
                 self, metadata: dict = None, dimensions: List[Dimension] = None, bbox=None, **kwargs
-        ) -> 'MyCollectionMetadata':
+        ) -> MyCollectionMetadata:
             return super()._clone_and_update(metadata=metadata, dimensions=dimensions, bbox=bbox or self.bbox, **kwargs)
 
         def filter_bbox(self, bbox):

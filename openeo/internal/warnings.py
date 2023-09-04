@@ -2,6 +2,7 @@ import functools
 import inspect
 import warnings
 from typing import Callable, Optional
+
 from deprecated.sphinx import deprecated as _deprecated
 
 

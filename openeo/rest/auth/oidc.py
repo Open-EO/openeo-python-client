@@ -3,6 +3,8 @@ OpenID Connect related functionality and helpers.
 
 """
 
+from __future__ import annotations
+
 import base64
 import contextlib
 import enum
@@ -12,7 +14,6 @@ import http.server
 import inspect
 import json
 import logging
-import math
 import random
 import string
 import threading
@@ -20,9 +21,8 @@ import time
 import urllib.parse
 import warnings
 import webbrowser
-from collections import namedtuple
 from queue import Empty, Queue
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Callable, List, NamedTuple, Optional, Tuple, Union
 
 import requests
 
@@ -200,11 +200,12 @@ class OidcException(OpenEoClientException):
     pass
 
 
-# Container for result of access_token request.
-AccessTokenResult = namedtuple(
-    typename="AccessTokenResult",
-    field_names=["access_token", "id_token", "refresh_token"]
-)
+class AccessTokenResult(NamedTuple):
+    """Container for result of access_token request."""
+
+    access_token: str
+    id_token: Optional[str] = None
+    refresh_token: Optional[str] = None
 
 
 def jwt_decode(token: str) -> Tuple[dict, dict]:
@@ -273,7 +274,7 @@ class OidcProviderInfo:
         self.default_clients = default_clients
 
     @classmethod
-    def from_dict(cls, data: dict) -> "OidcProviderInfo":
+    def from_dict(cls, data: dict) -> OidcProviderInfo:
         return cls(
             provider_id=data["id"], title=data["title"],
             issuer=data["issuer"],
@@ -451,7 +452,11 @@ class PkceCode:
         return base64.urlsafe_b64encode(data).decode('ascii').replace('=', '')
 
 
-AuthCodeResult = namedtuple("AuthCodeResult", ["auth_code", "nonce", "code_verifier", "redirect_uri"])
+class AuthCodeResult(NamedTuple):
+    auth_code: str
+    nonce: str
+    code_verifier: str
+    redirect_uri: str
 
 
 class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
@@ -664,10 +669,12 @@ class OidcRefreshTokenAuthenticator(OidcAuthenticator):
         return data
 
 
-VerificationInfo = namedtuple(
-    "VerificationInfo",
-    ["verification_uri", "verification_uri_complete", "device_code", "user_code", "interval"]
-)
+class VerificationInfo(NamedTuple):
+    verification_uri: str
+    verification_uri_complete: Optional[str]
+    device_code: str
+    user_code: str
+    interval: int
 
 
 def _like_print(display: Callable) -> Callable:

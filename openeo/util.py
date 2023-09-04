@@ -1,7 +1,11 @@
 """
 Various utilities and helpers.
 """
-# TODO: split this kitchen-sink in thematic submodules
+
+# TODO #465 split this kitchen-sink in thematic submodules
+
+from __future__ import annotations
+
 import datetime as dt
 import functools
 import json
@@ -281,7 +285,157 @@ def get_temporal_extent(*args,
     elif extent:
         assert start_date is None and end_date is None
         start_date, end_date = extent
+    if start_date and not end_date and isinstance(start_date, str):
+        start_date, end_date = string_to_temporal_extent(start_date)
     return convertor(start_date) if start_date else None, convertor(end_date) if end_date else None
+
+
+def string_to_temporal_extent(
+    start_date: Union[str, dt.datetime, dt.date]
+) -> Tuple[Union[dt.date, dt.datetime, str], Union[dt.date, dt.datetime, None]]:
+    """Convert a string into a date range when it is an abbreviation for an entire year or month.
+
+    The result is a 2-tuple ``(start, end)`` that represents the period as a
+    half-open interval, where the end date is not included in the period.
+
+    The intent of this function is to only convert values into a periods
+    when they are clearly abbreviations, and in all other cases leave the original
+    start_date as it was, because there can be too many complications otherwise.
+
+    The reason being that calling functions, e.g. ``get_temporal_extent``,
+    can allow you to specifying both a start date **and** end date, but either date
+    can be ``None``. What such an open-ended interval means depends very much on
+    what the calling function/method is meant to do, so the caller should really
+    handle that themselves.
+
+    When we don't convert, the return value is the tuple ``(start_date, None)``
+    using the original parameter value start_date, unprocessed.
+
+    :param start_date:
+
+        - Typically a string that represents either a year, a year + month, a day,
+            or a datetime, and it always indicates the *beginning* of that period.
+        - Other data types allowed are a ``datetime.date`` and ``datetime.datetime``,
+            and in that case we return the tuple ``(start_date, None)`` where
+            ``start_date`` is our original input parameter ``start_date`` as-is.
+            Similarly, strings that represent a date or datetime are not processed
+            any further and the return value is also ``(start_date, None)``.
+        - Any other type raises a TypeError.
+
+        - Allowed string formats are:
+            - For year: "yyyy"
+            - For year + month: "yyyy-mm"
+                Some other separators than "-" technically work but they are discouraged.
+            - For date and datetime you must follow the RFC 3339 format. See also: class ``Rfc3339``
+
+    :return:
+        The result is a 2-tuple of the form ``(start, end)`` that represents
+        the period as a half-open interval, where the end date is not included,
+        i.e. end is the first day that is no longer part of the time slot.
+
+        When start_date was indeed an abbreviation and thus was converted to
+        a period, then the element types will be ``(datetime.date, datetime.date)``
+
+        If no conversion happened we return the original start_date wrapped in a
+        2-tuple:  ``(start_date, None)`` so the type is the same as the input's type.
+
+    :raises TypeError:
+        when start_date is neither of the following types:
+        str, datetime.date, datetime.datetime
+
+    :raises ValueError:
+        when start_date was a string but not recognized as either a year,
+        a month, a date, or datetime.
+
+    Examples
+    --------
+
+    >>> import datetime
+    >>>
+    >>> # 1. Year: use all data from the start of 2021 to the end of 2021.
+    >>> string_to_temporal_extent("2021")
+    (datetime.date(2021, 1, 1), datetime.date(2022, 1, 1))
+    >>>
+    >>> # 2. Year + month: all data from the start of August 2022 to the end of August 2022.
+    >>> string_to_temporal_extent("2022-08")
+    (datetime.date(2022, 8, 1), datetime.date(2022, 9, 1))
+    >>>
+    >>> # 3. We received a full date 2022-08-15:
+    >>> # In this case we should not process start_date. The calling function/method must
+    >>> # handle end date, depending on what an interval with an open end means for the caller.
+    >>> # See for example how ``get_temporal_extent`` handles this.
+    >>> string_to_temporal_extent("2022-08-15")
+    ('2022-08-15', None)
+    >>>
+    >>> # 4. Similar to 3), but with a datetime.date instead of a string containing a date.
+    >>> string_to_temporal_extent(datetime.date(2022, 8, 15))
+    (datetime.date(2022, 8, 15), None)
+    >>>
+    >>> # 5. Similar to 3) & 4), but with a datetime.datetime instance.
+    >>> string_to_temporal_extent(datetime.datetime(2022, 8, 15, 0, 0))
+    (datetime.datetime(2022, 8, 15, 0, 0), None)
+    """
+    supported_types = (str, dt.date, dt.datetime)
+    if not isinstance(start_date, supported_types):
+        raise TypeError(
+            "Value of start_date must be one of the following types:"
+            + "str, datetime.date, datetime.datetime"
+            + f"but it is {type(start_date)}, value={start_date}"
+        )
+
+    # Skip it if the string represents a day or if it is not even a string
+    # If it is a day, we want to let the upstream function handle that case
+    # because a day could be either a start date or an end date.
+    if not isinstance(start_date, str):
+        return start_date, None
+
+    # Using a separate and stricter regular expressions to detect day, month,
+    # or year. Having a regex that only matches one type of period makes it
+    # easier to check it is effectively only a year, or only a month,
+    # but not a day. Datetime strings are more complex so we use rfc3339 to
+    # check whether or not it represents a datetime.
+    regex_day = re.compile(r"^(\d{4})[:/_-](\d{2})[:/_-](\d{2})$")
+    regex_month = re.compile(r"^(\d{4})[:/_-](\d{2})$")
+    regex_year = re.compile(r"^\d{4}$")
+
+    try:
+        rfc3339.parse_datetime(start_date)
+        is_date_time = True
+    except ValueError as exc:
+        is_date_time = False
+
+    match_day = regex_day.match(start_date)
+    match_month = regex_month.match(start_date)
+    match_year = regex_year.match(start_date)
+
+    if is_date_time or match_day:
+        return start_date, None
+
+    if not (match_year or match_month):
+        raise ValueError(
+            f"The value of start_date='{start_date}' does not represent any of: "
+            + "a year ('yyyy'), a year + month ('yyyy-dd'), a date, or a datetime."
+        )
+
+    if match_month:
+        year_start = int(match_month.group(1))
+        month_start = int(match_month.group(2))
+        if month_start == 12:
+            year_end = year_start + 1
+            month_end = 1
+        else:
+            month_end = month_start + 1
+            year_end = year_start
+    else:
+        year_start = int(start_date)
+        year_end = year_start + 1
+        month_start = 1
+        month_end = 1
+
+    date_start = dt.date(year_start, month_start, 1)
+    date_end = dt.date(year_end, month_end, 1)
+
+    return date_start, date_end
 
 
 class ContextTimer:
@@ -318,7 +472,7 @@ class ContextTimer:
             # Currently elapsed inside context.
             return self._clock() - self.start
 
-    def __enter__(self) -> 'ContextTimer':
+    def __enter__(self) -> ContextTimer:
         self.start = self._clock()
         return self
 
@@ -359,7 +513,7 @@ class TimingLogger:
         self.title = title
         if isinstance(logger, str):
             logger = logging.getLogger(logger)
-        if isinstance(logger, logging.Logger):
+        if isinstance(logger, (logging.Logger, logging.LoggerAdapter)):
             self._log = logger.info
         elif callable(logger):
             self._log = logger
@@ -559,7 +713,7 @@ class BBoxDict(dict):
     # TODO: provide west, south, east, north, crs as @properties? Read-only or read-write?
 
     @classmethod
-    def from_any(cls, x: Any, *, crs: Optional[str] = None) -> 'BBoxDict':
+    def from_any(cls, x: Any, *, crs: Optional[str] = None) -> BBoxDict:
         if isinstance(x, dict):
             if crs and "crs" in x and crs != x["crs"]:
                 raise InvalidBBoxException(f"Two CRS values specified: {crs} and {x['crs']}")
@@ -573,7 +727,7 @@ class BBoxDict(dict):
             raise InvalidBBoxException(f"Can not construct BBoxDict from {x!r}")
 
     @classmethod
-    def from_dict(cls, data: dict) -> 'BBoxDict':
+    def from_dict(cls, data: dict) -> BBoxDict:
         """Build from dictionary with at least keys "west", "south", "east", and "north"."""
         expected_fields = {"west", "south", "east", "north"}
         # TODO: also support upper case fields?
@@ -587,7 +741,7 @@ class BBoxDict(dict):
         return cls(west=data["west"], south=data["south"], east=data["east"], north=data["north"], crs=data.get("crs"))
 
     @classmethod
-    def from_sequence(cls, seq: Union[list, tuple], crs: Optional[str] = None) -> 'BBoxDict':
+    def from_sequence(cls, seq: Union[list, tuple], crs: Optional[str] = None) -> BBoxDict:
         """Build from sequence of 4 bounds (west, south, east and north)."""
         if len(seq) != 4:
             raise InvalidBBoxException(f"Expected sequence with 4 items, but got {len(seq)}.")

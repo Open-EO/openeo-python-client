@@ -1,4 +1,4 @@
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 
 # Load the openeo version info.
 #
@@ -27,7 +27,7 @@ tests_require = [
     "geopandas",
     "flake8>=5.0.0",
     "time_machine",
-    "pyproj",  # Pyproj is an optional, best-effort runtime dependency # TODO #460 set a high enough minimum version when py3.6 support can be dropped
+    "pyproj>=3.2.0",  # Pyproj is an optional, best-effort runtime dependency
 ]
 
 docs_require = [
@@ -60,7 +60,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/Open-EO/openeo-python-client",
-    python_requires=">=3.6",
+    python_requires=">=3.7",
     packages=find_packages(include=["openeo*"]),
     include_package_data=True,
     tests_require=tests_require,
@@ -73,6 +73,7 @@ setup(
         "pandas>0.20.0",
         "deprecated>=1.2.12",
         'oschmod>=0.3.12; sys_platform == "win32"',
+        "importlib_resources; python_version<'3.9'",
     ],
     extras_require={
         "tests": tests_require,
@@ -88,7 +89,6 @@ setup(
         "console_scripts": ["openeo-auth=openeo.rest.auth.cli:main"],
     },
     classifiers=[
-        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",

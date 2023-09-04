@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import json
 import pathlib
 import typing
-from typing import List, Optional, Union, Tuple, Callable
+from typing import Callable, List, Optional, Tuple, Union
 
 import shapely.geometry.base
 
@@ -11,10 +13,15 @@ from openeo.internal.documentation import openeo_process
 from openeo.internal.graph_building import PGNode
 from openeo.internal.warnings import legacy_alias
 from openeo.metadata import CollectionMetadata, Dimension
-from openeo.rest._datacube import THIS, UDF, _ProcessGraphAbstraction, build_child_callback
+from openeo.rest._datacube import (
+    THIS,
+    UDF,
+    _ProcessGraphAbstraction,
+    build_child_callback,
+)
 from openeo.rest.job import BatchJob
 from openeo.rest.mlmodel import MlModel
-from openeo.util import dict_no_none, guess_format, to_bbox_dict, InvalidBBoxException
+from openeo.util import InvalidBBoxException, dict_no_none, guess_format, to_bbox_dict
 
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).
@@ -30,7 +37,7 @@ class VectorCube(_ProcessGraphAbstraction):
     A geometry is specified in a 'coordinate reference system'. https://www.w3.org/TR/sdw-bp/#dfn-coordinate-reference-system-(crs)
     """
 
-    def __init__(self, graph: PGNode, connection: 'Connection', metadata: CollectionMetadata = None):
+    def __init__(self, graph: PGNode, connection: Connection, metadata: CollectionMetadata = None):
         super().__init__(pgnode=graph, connection=connection)
         self.metadata = metadata or self._build_metadata()
 
@@ -51,7 +58,7 @@ class VectorCube(_ProcessGraphAbstraction):
         metadata: Optional[CollectionMetadata] = None,
         namespace: Optional[str] = None,
         **kwargs,
-    ) -> "VectorCube":
+    ) -> VectorCube:
         """
         Generic helper to create a new DataCube by applying a process.
 
@@ -66,10 +73,10 @@ class VectorCube(_ProcessGraphAbstraction):
     @openeo_process
     def load_geojson(
         cls,
-        connection: "openeo.Connection",
+        connection: Connection,
         data: Union[dict, str, pathlib.Path, shapely.geometry.base.BaseGeometry, Parameter],
         properties: Optional[List[str]] = None,
-    ) -> "VectorCube":
+    ) -> VectorCube:
         """
         Converts GeoJSON data as defined by RFC 7946 into a vector data cube.
 
@@ -115,9 +122,7 @@ class VectorCube(_ProcessGraphAbstraction):
 
     @classmethod
     @openeo_process
-    def load_url(
-        cls, connection: "openeo.Connection", url: str, format: str, options: Optional[dict] = None
-    ) -> "VectorCube":
+    def load_url(cls, connection: Connection, url: str, format: str, options: Optional[dict] = None) -> VectorCube:
         """
         Loads a file from a URL
 
@@ -144,7 +149,7 @@ class VectorCube(_ProcessGraphAbstraction):
         runtime: Optional[str] = None,
         version: Optional[str] = None,
         context: Optional[dict] = None,
-    ) -> "VectorCube":
+    ) -> VectorCube:
         """
         Run a UDF on the vector cube.
 
@@ -194,7 +199,7 @@ class VectorCube(_ProcessGraphAbstraction):
         self,
         format: Optional[str] = None,
         options: Optional[dict] = None,
-    ) -> "VectorCube":
+    ) -> VectorCube:
         """
         Make sure there is a (final) `save_result` node in the process graph.
         If there is already one: check if it is consistent with the given format/options (if any)
@@ -328,7 +333,7 @@ class VectorCube(_ProcessGraphAbstraction):
     send_job = legacy_alias(create_job, name="send_job", since="0.10.0")
 
     @openeo_process
-    def filter_bands(self, bands: List[str]) -> "VectorCube":
+    def filter_bands(self, bands: List[str]) -> VectorCube:
         """
         .. versionadded:: 0.22.0
         """
@@ -348,7 +353,7 @@ class VectorCube(_ProcessGraphAbstraction):
         north: Optional[float] = None,
         extent: Optional[Union[dict, List[float], Tuple[float, float, float, float], Parameter]] = None,
         crs: Optional[int] = None,
-    ) -> "VectorCube":
+    ) -> VectorCube:
         """
         .. versionadded:: 0.22.0
         """
@@ -370,7 +375,7 @@ class VectorCube(_ProcessGraphAbstraction):
     @openeo_process
     def filter_labels(
         self, condition: Union[PGNode, Callable], dimension: str, context: Optional[dict] = None
-    ) -> "VectorCube":
+    ) -> VectorCube:
         """
         .. versionadded:: 0.22.0
         """
@@ -384,7 +389,7 @@ class VectorCube(_ProcessGraphAbstraction):
     @openeo_process
     def filter_vector(
         self, geometries: Union["VectorCube", shapely.geometry.base.BaseGeometry, dict], relation: str = "intersects"
-    ) -> "VectorCube":
+    ) -> VectorCube:
         """
         .. versionadded:: 0.22.0
         """
@@ -488,7 +493,7 @@ class VectorCube(_ProcessGraphAbstraction):
         dimension: str,
         target_dimension: Optional[str] = None,
         context: Optional[dict] = None,
-    ) -> "VectorCube":
+    ) -> VectorCube:
         """
         Applies a process to all values along a dimension of a data cube.
         For example, if the temporal dimension is specified the process will work on the values of a time series.

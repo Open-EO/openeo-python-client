@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import typing
-from typing import List, Union, Optional
+from typing import List, Optional, Union
 
 from openeo.api.process import Parameter
 from openeo.internal.graph_building import as_flat_graph
@@ -60,7 +62,8 @@ class RESTUserDefinedProcess:
     """
     Wrapper for a user-defined process stored (or to be stored) on an openEO back-end
     """
-    def __init__(self, user_defined_process_id: str, connection: 'Connection'):
+
+    def __init__(self, user_defined_process_id: str, connection: Connection):
         self.user_defined_process_id = user_defined_process_id
         self._connection = connection
 

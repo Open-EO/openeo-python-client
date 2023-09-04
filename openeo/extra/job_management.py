@@ -1,11 +1,10 @@
-import collections
 import contextlib
 import datetime
 import json
 import logging
 import time
 from pathlib import Path
-from typing import Callable, Dict, Optional, Union
+from typing import Callable, Dict, NamedTuple, Optional, Union
 
 import pandas as pd
 import requests
@@ -20,8 +19,13 @@ from openeo.util import deep_get
 _log = logging.getLogger(__name__)
 
 
-# Container for backend info/settings
-_Backend = collections.namedtuple("_Backend", ["get_connection", "parallel_jobs"])
+class _Backend(NamedTuple):
+    """Container for backend info/settings"""
+
+    # callable to create a backend connection
+    get_connection: Callable[[], Connection]
+    # Maximum number of jobs to allow in parallel on a backend
+    parallel_jobs: int
 
 
 MAX_RETRIES = 5

@@ -1,6 +1,8 @@
 """
 This module provides a Connection object to manage and persist settings when interacting with the OpenEO API.
 """
+from __future__ import annotations
+
 import datetime
 import json
 import logging
@@ -10,44 +12,60 @@ import sys
 import warnings
 from collections import OrderedDict
 from pathlib import Path, PurePosixPath
-from typing import Dict, List, Tuple, Union, Callable, Optional, Any, Iterator, Iterable
+from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple, Union
 
 import requests
-from requests import Response
-from requests.auth import HTTPBasicAuth, AuthBase
 import shapely.geometry.base
+from requests import Response
+from requests.auth import AuthBase, HTTPBasicAuth
 
 import openeo
 from openeo.capabilities import ApiVersionException, ComparableVersion
-from openeo.config import get_config_option, config_log
+from openeo.config import config_log, get_config_option
 from openeo.internal.documentation import openeo_process
-from openeo.internal.graph_building import PGNode, as_flat_graph, FlatGraphableMixin
+from openeo.internal.graph_building import FlatGraphableMixin, PGNode, as_flat_graph
 from openeo.internal.jupyter import VisualDict, VisualList
 from openeo.internal.processes.builder import ProcessBuilderBase
-from openeo.internal.warnings import legacy_alias, deprecated
-from openeo.metadata import CollectionMetadata, SpatialDimension, TemporalDimension, BandDimension, Band
-from openeo.rest import OpenEoClientException, OpenEoApiError, OpenEoRestError
+from openeo.internal.warnings import deprecated, legacy_alias
+from openeo.metadata import (
+    Band,
+    BandDimension,
+    CollectionMetadata,
+    SpatialDimension,
+    TemporalDimension,
+)
+from openeo.rest import OpenEoApiError, OpenEoClientException, OpenEoRestError
 from openeo.rest._datacube import build_child_callback
-from openeo.rest.auth.auth import NullAuth, BearerAuth, BasicBearerAuth, OidcBearerAuth
-from openeo.rest.auth.config import RefreshTokenStore, AuthConfig
-from openeo.rest.auth.oidc import OidcClientCredentialsAuthenticator, OidcAuthCodePkceAuthenticator, \
-    OidcClientInfo, OidcAuthenticator, OidcRefreshTokenAuthenticator, OidcResourceOwnerPasswordAuthenticator, \
-    OidcDeviceAuthenticator, OidcProviderInfo, OidcException, DefaultOidcClientGrant, GrantsChecker
+from openeo.rest.auth.auth import BasicBearerAuth, BearerAuth, NullAuth, OidcBearerAuth
+from openeo.rest.auth.config import AuthConfig, RefreshTokenStore
+from openeo.rest.auth.oidc import (
+    DefaultOidcClientGrant,
+    GrantsChecker,
+    OidcAuthCodePkceAuthenticator,
+    OidcAuthenticator,
+    OidcClientCredentialsAuthenticator,
+    OidcClientInfo,
+    OidcDeviceAuthenticator,
+    OidcException,
+    OidcProviderInfo,
+    OidcRefreshTokenAuthenticator,
+    OidcResourceOwnerPasswordAuthenticator,
+)
 from openeo.rest.datacube import DataCube
-from openeo.rest.mlmodel import MlModel
-from openeo.rest.userfile import UserFile
 from openeo.rest.job import BatchJob, RESTJob
+from openeo.rest.mlmodel import MlModel
 from openeo.rest.rest_capabilities import RESTCapabilities
 from openeo.rest.service import Service
-from openeo.rest.udp import RESTUserDefinedProcess, Parameter
+from openeo.rest.udp import Parameter, RESTUserDefinedProcess
+from openeo.rest.userfile import UserFile
 from openeo.rest.vectorcube import VectorCube
 from openeo.util import (
-    ensure_list,
-    dict_no_none,
-    rfc3339,
-    load_json_resource,
-    LazyLoadCache,
     ContextTimer,
+    LazyLoadCache,
+    dict_no_none,
+    ensure_list,
+    load_json_resource,
+    rfc3339,
     str_truncate,
     url_join,
 )
@@ -306,7 +324,7 @@ class Connection(RestApiConnection):
             self._refresh_token_store = RefreshTokenStore()
         return self._refresh_token_store
 
-    def authenticate_basic(self, username: Optional[str] = None, password: Optional[str] = None) -> "Connection":
+    def authenticate_basic(self, username: Optional[str] = None, password: Optional[str] = None) -> Connection:
         """
         Authenticate a user to the backend using basic username and password.
 
@@ -431,7 +449,7 @@ class Connection(RestApiConnection):
         store_refresh_token: bool = False,
         fallback_refresh_token_to_store: Optional[str] = None,
         oidc_auth_renewer: Optional[OidcAuthenticator] = None,
-    ) -> "Connection":
+    ) -> Connection:
         """
         Authenticate through OIDC and set up bearer token (based on OIDC access_token) for further requests.
         """
@@ -465,7 +483,7 @@ class Connection(RestApiConnection):
         server_address: Optional[Tuple[str, int]] = None,
         webbrowser_open: Optional[Callable] = None,
         store_refresh_token=False,
-    ) -> "Connection":
+    ) -> Connection:
         """
         OpenID Connect Authorization Code Flow (with PKCE).
 
@@ -489,7 +507,7 @@ class Connection(RestApiConnection):
         client_id: Optional[str] = None,
         client_secret: Optional[str] = None,
         provider_id: Optional[str] = None,
-    ) -> 'Connection':
+    ) -> Connection:
         """
         Authenticate with :ref:`OIDC Client Credentials flow <authenticate_oidc_client_credentials>`
 
@@ -528,7 +546,7 @@ class Connection(RestApiConnection):
         client_secret: Optional[str] = None,
         provider_id: Optional[str] = None,
         store_refresh_token: bool = False,
-    ) -> "Connection":
+    ) -> Connection:
         """
         OpenId Connect Resource Owner Password Credentials
         """
@@ -549,7 +567,7 @@ class Connection(RestApiConnection):
         provider_id: Optional[str] = None,
         *,
         store_refresh_token: bool = False,
-    ) -> "Connection":
+    ) -> Connection:
         """
         Authenticate with :ref:`OIDC Refresh Token flow <authenticate_oidc_client_credentials>`
 
@@ -594,7 +612,7 @@ class Connection(RestApiConnection):
         use_pkce: Optional[bool] = None,
         max_poll_time: float = OidcDeviceAuthenticator.DEFAULT_MAX_POLL_TIME,
         **kwargs,
-    ) -> "Connection":
+    ) -> Connection:
         """
         Authenticate with the :ref:`OIDC Device Code flow <authenticate_oidc_device>`
 
@@ -1160,12 +1178,15 @@ class Connection(RestApiConnection):
         :return: a :py:class:`DataCube`
         """
         # TODO: add check that back-end supports `load_result` process?
-        metadata = CollectionMetadata({}, dimensions=[
-            SpatialDimension(name="x", extent=[]),
-            SpatialDimension(name="y", extent=[]),
-            TemporalDimension(name='t', extent=[]),
-            BandDimension(name="bands", bands=[Band("unknown")]),
-        ])
+        metadata = CollectionMetadata(
+            {},
+            dimensions=[
+                SpatialDimension(name="x", extent=[]),
+                SpatialDimension(name="y", extent=[]),
+                TemporalDimension(name="t", extent=[]),
+                BandDimension(name="bands", bands=[Band(name="unknown")]),
+            ],
+        )
         cube = self.datacube_from_process(
             process_id="load_result",
             id=id,
@@ -1289,7 +1310,7 @@ class Connection(RestApiConnection):
                 SpatialDimension(name="x", extent=[]),
                 SpatialDimension(name="y", extent=[]),
                 TemporalDimension(name="t", extent=[]),
-                BandDimension(name="bands", bands=[Band("unknown")]),
+                BandDimension(name="bands", bands=[Band(name="unknown")]),
             ],
         )
         arguments = {"url": url}
@@ -1308,7 +1329,7 @@ class Connection(RestApiConnection):
         cube.metadata = metadata
         return cube
 
-    def load_ml_model(self, id: Union[str, BatchJob]) -> "MlModel":
+    def load_ml_model(self, id: Union[str, BatchJob]) -> MlModel:
         """
         Loads a machine learning model from a STAC Item.
 

@@ -3,8 +3,8 @@ import json
 import logging
 import os
 import pathlib
-import sys
 import re
+import sys
 import unittest.mock as mock
 from typing import List, Union
 
@@ -17,12 +17,12 @@ from openeo.util import (
     BBoxDict,
     ContextTimer,
     DeepKeyError,
+    InvalidBBoxException,
     LazyLoadCache,
     Rfc3339,
     SimpleProgressBar,
     TimingLogger,
     clip,
-    normalize_crs,
     deep_get,
     deep_set,
     dict_no_none,
@@ -31,12 +31,13 @@ from openeo.util import (
     first_not_none,
     get_temporal_extent,
     guess_format,
+    normalize_crs,
     repr_truncate,
     rfc3339,
     str_truncate,
+    string_to_temporal_extent,
     to_bbox_dict,
     url_join,
-    InvalidBBoxException,
 )
 
 
@@ -392,7 +393,10 @@ def test_get_temporal_extent():
     assert get_temporal_extent(start_date="2019-03-15", end_date="2019-10-11") == ("2019-03-15", "2019-10-11")
     assert get_temporal_extent(start_date="2019-03-15") == ("2019-03-15", None)
     assert get_temporal_extent(end_date="2019-10-11") == (None, "2019-10-11")
-
+    assert get_temporal_extent(start_date="2019") == ("2019-01-01", "2020-01-01")
+    assert get_temporal_extent(start_date="2019-01") == ("2019-01-01", "2019-02-01")
+    assert get_temporal_extent(start_date="2019-11") == ("2019-11-01", "2019-12-01")
+    assert get_temporal_extent(start_date="2019-12") == ("2019-12-01", "2020-01-01")
 
 def test_context_timer_basic():
     with mock.patch.object(ContextTimer, "_clock", new=_fake_clock([3, 5, 8, 13])):
@@ -946,7 +950,7 @@ PROJCRS["WGS 84 / UTM zone 31N",
     def test_normalize_crs_succeeds_with_correct_crses(self, epsg_input, expected):
         """Happy path, values that are allowed"""
         if isinstance(epsg_input, str) and epsg_input.isnumeric() and pyproj.__version__ < ComparableVersion("3.3.1"):
-            # TODO #460 this skip is only necessary for python 3.6 and lower
+            # TODO drop this skip once support for python 3.7 is dropped (pyproj 3.3.0 requires at least python 3.8)
             pytest.skip("pyproj below 3.3.1 does not support int-like strings")
 
         assert normalize_crs(epsg_input) == expected
@@ -984,11 +988,6 @@ PROJCRS["WGS 84 / UTM zone 31N",
             in caplog.text
         )
 
-    @pytest.mark.skipif(
-        # TODO #460 this skip is only necessary for python 3.6 and lower
-        pyproj.__version__ < ComparableVersion("3.1.0"),
-        reason="WKT2 format support requires pyproj 3.1.0 or higher",
-    )
     def test_normalize_crs_succeeds_with_wkt2_input(self):
         """Test can handle WKT2 strings.
 
@@ -1070,7 +1069,7 @@ PROJCRS["WGS 84 / UTM zone 31N",
     }
 
     @pytest.mark.skipif(
-        # TODO #460 this skip is only necessary for python 3.6 and lower
+        # TODO drop this skip once support for python 3.7 is dropped (pyproj 3.3.0 requires at least python 3.8)
         pyproj.__version__ < ComparableVersion("3.3.0"),
         reason="PROJJSON format support requires pyproj 3.3.0 or higher",
     )
@@ -1110,3 +1109,62 @@ PROJCRS["WGS 84 / UTM zone 31N",
     def test_normalize_crs_handles_incorrect_crs(self, epsg_input, use_pyproj):
         with pytest.raises(ValueError):
             normalize_crs(epsg_input, use_pyproj=use_pyproj)
+
+
+@pytest.mark.parametrize(
+    ["date_input", "expected_start", "expected_end"],
+    [
+        ("2023", dt.date(2023, 1, 1), dt.date(2024, 1, 1)),
+        ("1999", dt.date(1999, 1, 1), dt.date(2000, 1, 1)),
+        ("2023-03", dt.date(2023, 3, 1), dt.date(2023, 4, 1)),
+        ("2023/03", dt.date(2023, 3, 1), dt.date(2023, 4, 1)),
+        ("2023-01", dt.date(2023, 1, 1), dt.date(2023, 2, 1)),
+        ("2023/01", dt.date(2023, 1, 1), dt.date(2023, 2, 1)),
+        ("2022-12", dt.date(2022, 12, 1), dt.date(2023, 1, 1)),
+        ("2022/12", dt.date(2022, 12, 1), dt.date(2023, 1, 1)),
+        ("2022-11", dt.date(2022, 11, 1), dt.date(2022, 12, 1)),
+        ("2022/11", dt.date(2022, 11, 1), dt.date(2022, 12, 1)),
+        ("2022-12-31", "2022-12-31", None),
+        ("2022/12/31", "2022/12/31", None),
+        ("2022-11-30", "2022-11-30", None),
+        ("2022/11/30", "2022/11/30", None),
+        ("2022-12-31T12:33:05Z", "2022-12-31T12:33:05Z", None),
+        (dt.date(2022, 11, 1), dt.date(2022, 11, 1), None),
+        (dt.datetime(2022, 11, 1, 15, 30, 00), dt.datetime(2022, 11, 1, 15, 30, 00), None),
+    ],
+)
+def test_string_to_temporal_extent(date_input: str, expected_start: dt.date, expected_end: dt.date):
+    actual_start, actual_end = string_to_temporal_extent(date_input)
+    assert actual_start == expected_start
+    assert actual_end == expected_end
+
+
+@pytest.mark.parametrize(
+    "date_input",
+    [
+        "foobar",
+        "20-22-12-31",
+        "2022/12/31/aa1/bb/cc",
+        "20-2--12",
+        "2021-2--12",
+        "2021-1-1-",
+        "2021-2-",
+        "-2021-2",
+    ],
+)
+def test_string_to_temporal_extent_raises_valueerror(date_input: Union[str, dt.date, dt.datetime]):
+    with pytest.raises(ValueError):
+        string_to_temporal_extent(date_input)
+
+
+@pytest.mark.parametrize(
+    "date_input",
+    [
+        2000,
+        {},
+        (),
+    ],
+)
+def test_string_to_temporal_extent_raises_typeerror(date_input: any):
+    with pytest.raises(TypeError):
+        string_to_temporal_extent(date_input)

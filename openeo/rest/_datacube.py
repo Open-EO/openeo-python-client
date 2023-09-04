@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import pathlib
 import re
@@ -11,7 +13,10 @@ import requests
 import openeo.processes
 from openeo.internal.graph_building import FlatGraphableMixin, PGNode, _FromNodeMixin
 from openeo.internal.jupyter import render_component
-from openeo.internal.processes.builder import convert_callable_to_pgnode, get_parameter_names
+from openeo.internal.processes.builder import (
+    convert_callable_to_pgnode,
+    get_parameter_names,
+)
 from openeo.internal.warnings import UserDeprecationWarning
 from openeo.rest import OpenEoClientException
 from openeo.util import dict_no_none, str_truncate
@@ -33,7 +38,7 @@ class _ProcessGraphAbstraction(_FromNodeMixin, FlatGraphableMixin):
     raster data cubes, vector cubes, ML models, ...
     """
 
-    def __init__(self, pgnode: PGNode, connection: "Connection"):
+    def __init__(self, pgnode: PGNode, connection: Connection):
         self._pg = pgnode
         self._connection = connection
 
@@ -60,7 +65,7 @@ class _ProcessGraphAbstraction(_FromNodeMixin, FlatGraphableMixin):
         return self._connection.capabilities().api_version_check
 
     @property
-    def connection(self) -> "Connection":
+    def connection(self) -> Connection:
         return self._connection
 
     def result_node(self) -> PGNode:
@@ -162,7 +167,7 @@ class UDF:
     def __repr__(self):
         return f"<{type(self).__name__} runtime={self._runtime!r} code={str_truncate(self.code, width=200)!r}>"
 
-    def get_runtime(self, connection: "openeo.Connection") -> str:
+    def get_runtime(self, connection: Connection) -> str:
         return self._runtime or self._guess_runtime(connection=connection)
 
     @classmethod
@@ -172,7 +177,7 @@ class UDF:
         runtime: Optional[str] = None,
         version: Optional[str] = None,
         context: Optional[dict] = None,
-    ) -> "UDF":
+    ) -> UDF:
         """
         Load a UDF from a local file.
 
@@ -197,7 +202,7 @@ class UDF:
         runtime: Optional[str] = None,
         version: Optional[str] = None,
         context: Optional[dict] = None,
-    ) -> "UDF":
+    ) -> UDF:
         """
         Load a UDF from a URL.
 
@@ -216,7 +221,7 @@ class UDF:
             code=code, runtime=runtime, version=version, context=context, _source=url
         )
 
-    def _guess_runtime(self, connection: "openeo.Connection") -> str:
+    def _guess_runtime(self, connection: Connection) -> str:
         """Guess UDF runtime from UDF source (path) or source code."""
         # First, guess UDF language
         language = None
@@ -250,9 +255,7 @@ class UDF:
             ".r": "R",
         }.get(suffix.lower())
 
-    def get_run_udf_callback(
-        self, connection: "openeo.Connection", data_parameter: str = "data"
-    ) -> PGNode:
+    def get_run_udf_callback(self, connection: Connection, data_parameter: str = "data") -> PGNode:
         """
         For internal use: construct `run_udf` node to be used as callback in `apply`, `reduce_dimension`, ...
         """

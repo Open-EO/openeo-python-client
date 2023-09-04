@@ -3,7 +3,7 @@ import sys
 
 import pytest
 
-from openeo.internal.warnings import legacy_alias, UserDeprecationWarning, deprecated
+from openeo.internal.warnings import UserDeprecationWarning, deprecated, legacy_alias
 
 
 def test_user_deprecation_warning(pytester):

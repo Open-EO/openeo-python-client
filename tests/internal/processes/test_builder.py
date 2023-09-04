@@ -7,7 +7,11 @@ import pytest
 
 import openeo.processes
 from openeo.internal.graph_building import PGNode
-from openeo.internal.processes.builder import ProcessBuilderBase, convert_callable_to_pgnode, get_parameter_names
+from openeo.internal.processes.builder import (
+    ProcessBuilderBase,
+    convert_callable_to_pgnode,
+    get_parameter_names,
+)
 from openeo.rest import OpenEoClientException
 
 

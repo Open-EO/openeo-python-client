@@ -1,6 +1,6 @@
 import pytest
 
-from openeo.capabilities import ComparableVersion, ApiVersionException
+from openeo.capabilities import ApiVersionException, ComparableVersion
 
 
 class TestComparableVersion:

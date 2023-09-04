@@ -4,7 +4,7 @@ import xarray
 from geopandas import GeoDataFrame
 from shapely.geometry import Point
 
-from openeo.udf import StructuredData, UdfData, XarrayDataCube, FeatureCollection
+from openeo.udf import FeatureCollection, StructuredData, UdfData, XarrayDataCube
 
 
 def test_structured_data_list():

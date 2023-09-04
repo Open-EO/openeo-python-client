@@ -12,9 +12,8 @@ class BaseOpenEoException(Exception):
 
 
 from openeo._version import __version__
-
-from openeo.rest.datacube import DataCube, UDF
-from openeo.rest.connection import connect, session, Connection
+from openeo.rest.connection import Connection, connect, session
+from openeo.rest.datacube import UDF, DataCube
 from openeo.rest.job import BatchJob, RESTJob
 
 

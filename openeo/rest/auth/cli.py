@@ -8,7 +8,7 @@ from getpass import getpass
 from pathlib import Path
 from typing import List, Tuple
 
-from openeo import connect, Connection
+from openeo import Connection, connect
 from openeo.capabilities import ApiVersionException
 from openeo.rest.auth.config import AuthConfig, RefreshTokenStore
 from openeo.rest.auth.oidc import OidcProviderInfo

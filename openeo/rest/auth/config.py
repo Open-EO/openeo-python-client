@@ -8,15 +8,15 @@ from local config files.
 
 import json
 import logging
-import stat
 import platform
+import stat
 from datetime import datetime
 from pathlib import Path
-from typing import Union, Tuple, Dict
+from typing import Dict, Tuple, Union
 
 from openeo import __version__
 from openeo.config import get_user_config_dir, get_user_data_dir
-from openeo.util import rfc3339, deep_get, deep_set
+from openeo.util import deep_get, deep_set, rfc3339
 
 try:
     # Use oschmod when available (fall back to POSIX-only functionality from stdlib otherwise)
