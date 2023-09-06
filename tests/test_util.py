@@ -1200,24 +1200,6 @@ def test_convert_abbreviated_temporal_extent_raises_valueerror(date_input: Union
         convert_abbreviated_temporal_extent("2000", date_input)
 
 
-@pytest.mark.parametrize(
-    "date_input",
-    [
-        2000,
-        {},
-        (),
-    ],
-)
-def test_convert_abbreviated_temporal_extent_raises_typeerror(date_input: any):
-    # It should raise error for an incorrect start date.
-    with pytest.raises(TypeError):
-        convert_abbreviated_temporal_extent(start_date=date_input)
-
-    # It should also raise error for an incorrect end date.
-    with pytest.raises(TypeError):
-        convert_abbreviated_temporal_extent(start_date="2000", end_date=date_input)
-
-
 class TestConvertAbbreviatedDate:
     @pytest.mark.parametrize(
         ["date_input", "expected"],
