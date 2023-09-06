@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Allow specifying temporal extent more easily for entire year or month ([#421](https://github.com/Open-EO/openeo-python-client/issues/421))
+
+- Allow shorthand format for temporal extent to specify entire year or month ([#421](https://github.com/Open-EO/openeo-python-client/issues/421))
 
 - Support parameterized `bands` in `load_collection` ([#471](https://github.com/Open-EO/openeo-python-client/issues/471))
 
