@@ -385,6 +385,7 @@ def test_ensure_dir_pathlib(tmp_path):
 
 
 def test_get_temporal_extent():
+    assert get_temporal_extent("2019-03-15") == ("2019-03-15", None)
     assert get_temporal_extent("2019-03-15", "2019-10-11") == ("2019-03-15", "2019-10-11")
     assert get_temporal_extent(["2019-03-15", "2019-10-11"]) == ("2019-03-15", "2019-10-11")
     assert get_temporal_extent(("2019-03-15", "2019-10-11")) == ("2019-03-15", "2019-10-11")
@@ -399,6 +400,49 @@ def test_get_temporal_extent():
     assert get_temporal_extent(start_date="2019-01") == ("2019-01-01", "2019-02-01")
     assert get_temporal_extent(start_date="2019-11") == ("2019-11-01", "2019-12-01")
     assert get_temporal_extent(start_date="2019-12") == ("2019-12-01", "2020-01-01")
+
+
+def test_get_temporal_extent_with_abbreviated_dates():
+    assert get_temporal_extent("2019") == ("2019-01-01", "2020-01-01")
+    assert get_temporal_extent("2019-03") == ("2019-03-01", "2019-04-01")
+    assert get_temporal_extent("2019", "2019") == ("2019-01-01", "2020-01-01")
+    assert get_temporal_extent("2019", "2021") == ("2019-01-01", "2022-01-01")
+    assert get_temporal_extent("2019-03", "2019-03") == ("2019-03-01", "2019-04-01")
+    assert get_temporal_extent("2019-03", "2019-04") == ("2019-03-01", "2019-05-01")
+    assert get_temporal_extent("2019-03", "2021-06") == ("2019-03-01", "2021-07-01")
+    assert get_temporal_extent("2019-03", "2021-06-12") == ("2019-03-01", "2021-06-12")
+    assert get_temporal_extent((None, "2019")) == (None, "2020-01-01")
+    assert get_temporal_extent((None, "2019-10")) == (None, "2019-11-01")
+    assert get_temporal_extent((None, "2019-10-11")) == (None, "2019-10-11")
+
+    assert get_temporal_extent(extent=["2019", None]) == ("2019-01-01", "2020-01-01")
+    assert get_temporal_extent(extent=["2019", "2019"]) == ("2019-01-01", "2020-01-01")
+    assert get_temporal_extent(extent=["2019-03", None]) == ("2019-03-01", "2019-04-01")
+    assert get_temporal_extent(extent=["2019-03", "2019-03"]) == ("2019-03-01", "2019-04-01")
+    assert get_temporal_extent(extent=["2019", "2019"]) == ("2019-01-01", "2020-01-01")
+    assert get_temporal_extent(extent=["2019", "2021"]) == ("2019-01-01", "2022-01-01")
+    assert get_temporal_extent(extent=["2019-03", "2019-03"]) == ("2019-03-01", "2019-04-01")
+    assert get_temporal_extent(extent=["2019-03", "2019-04"]) == ("2019-03-01", "2019-05-01")
+    assert get_temporal_extent(extent=["2019-03", "2021-06"]) == ("2019-03-01", "2021-07-01")
+    assert get_temporal_extent(extent=["2019-03", "2021-06-12"]) == ("2019-03-01", "2021-06-12")
+    assert get_temporal_extent(extent=[None, "2019"]) == (None, "2020-01-01")
+    assert get_temporal_extent(extent=[None, "2019-10"]) == (None, "2019-11-01")
+    assert get_temporal_extent(extent=[None, "2019-10-11"]) == (None, "2019-10-11")
+
+    assert get_temporal_extent(start_date="2019") == ("2019-01-01", "2020-01-01")
+    assert get_temporal_extent(start_date="2019", end_date="2019") == ("2019-01-01", "2020-01-01")
+    assert get_temporal_extent(start_date="2019-03") == ("2019-03-01", "2019-04-01")
+    assert get_temporal_extent(start_date="2019-03", end_date="2019-03") == ("2019-03-01", "2019-04-01")
+    assert get_temporal_extent(start_date="2019", end_date="2019") == ("2019-01-01", "2020-01-01")
+    assert get_temporal_extent(start_date="2019", end_date="2021") == ("2019-01-01", "2022-01-01")
+    assert get_temporal_extent(start_date="2019-03", end_date="2019-03") == ("2019-03-01", "2019-04-01")
+    assert get_temporal_extent(start_date="2019-03", end_date="2019-04") == ("2019-03-01", "2019-05-01")
+    assert get_temporal_extent(start_date="2019-03", end_date="2021-06") == ("2019-03-01", "2021-07-01")
+    assert get_temporal_extent(start_date="2019-03", end_date="2021-06-12") == ("2019-03-01", "2021-06-12")
+    assert get_temporal_extent(end_date="2019") == (None, "2020-01-01")
+    assert get_temporal_extent(end_date="2019-10") == (None, "2019-11-01")
+    assert get_temporal_extent(end_date="2019-10-11") == (None, "2019-10-11")
+
 
 def test_context_timer_basic():
     with mock.patch.object(ContextTimer, "_clock", new=_fake_clock([3, 5, 8, 13])):
