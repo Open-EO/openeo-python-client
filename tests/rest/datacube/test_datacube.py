@@ -152,6 +152,25 @@ def test_filter_temporal_extent_with_date_abbreviations(s2cube: DataCube, extent
 
 
 @pytest.mark.parametrize(
+    ["start_date_in", "expected"],
+    [
+        ("2016", ["2016-01-01", "2017-01-01"]),
+        ("2016-01", ["2016-01-01", "2016-02-01"]),
+        ("2016-04", ["2016-04-01", "2016-05-01"]),
+        ("2016-12", ["2016-12-01", "2017-01-01"]),
+    ],
+)
+def test_filter_temporal_extent_with_date_abbreviations_as_single_positional_arg(
+    s2cube: DataCube, start_date_in, expected
+):
+    """Test the shortest way to define the extent, as a single positional arg"""
+    im = s2cube.filter_temporal(start_date_in)
+    graph = _get_leaf_node(im)
+    assert graph["process_id"] == "filter_temporal"
+    assert graph["arguments"]["extent"] == expected
+
+
+@pytest.mark.parametrize(
     "extent,expected",
     [
         # test regular extents
