@@ -7,6 +7,7 @@ Various utilities and helpers.
 from __future__ import annotations
 
 import datetime as dt
+from enum import Enum
 import functools
 import json
 import logging
@@ -15,7 +16,7 @@ import sys
 import time
 from collections import OrderedDict
 from pathlib import Path
-from typing import Any, Callable, Optional, Tuple, Union
+from typing import Any, Callable, List, Optional, Tuple, Union
 from urllib.parse import urljoin
 
 import requests
@@ -285,15 +286,47 @@ def get_temporal_extent(*args,
     elif extent:
         assert start_date is None and end_date is None
         start_date, end_date = extent
-    if start_date and not end_date and isinstance(start_date, str):
-        start_date, end_date = string_to_temporal_extent(start_date)
+    start_date, end_date = convert_abbreviated_temporal_extent(start_date, end_date)
     return convertor(start_date) if start_date else None, convertor(end_date) if end_date else None
 
 
-def string_to_temporal_extent(
-    start_date: Union[str, dt.datetime, dt.date]
+class _TypeOfDateString(Enum):
+    """Enum that denotes which kind of date an string represents.
+
+    This is an internal helper class, not intended to be public.
+    """
+
+    INVALID = 0
+    YEAR = 1
+    MONTH = 2
+    DAY = 3
+    DATETIME = 4
+
+
+#
+# Regular expressions used in several temporal extent functions for dealing with
+# abbreviated dates, to convert a shorthand for a year or a month.
+#
+_REGEX_DAY = re.compile(r"^(\d{4})[:/_-](\d{2})[:/_-](\d{2})$")
+_REGEX_MONTH = re.compile(r"^(\d{4})[:/_-](\d{2})$")
+_REGEX_YEAR = re.compile(r"^\d{4}$")
+
+
+def _validate_param_is_allowed_date_type(value, param_name: str, supported_types: Tuple[type]):
+    """Helper to enforce that only allowed types are uses as a date."""
+    supported_types = supported_types or (str, dt.date, dt.datetime)
+    if not isinstance(value, supported_types):
+        raise TypeError(
+            f"Value of {param_name} must be one of the following types:"
+            + "str, datetime.date, datetime.datetime"
+            + f"but it is {type(value)}, value={value}"
+        )
+
+
+def convert_abbreviated_temporal_extent(
+    start_date: Union[str, dt.datetime, dt.date], end_date: Optional[Union[str, dt.datetime, dt.date]] = None
 ) -> Tuple[Union[dt.date, dt.datetime, str], Union[dt.date, dt.datetime, None]]:
-    """Convert a string into a date range when it is an abbreviation for an entire year or month.
+    """Convert strings representing entire years or months into a normalized date range.
 
     The result is a 2-tuple ``(start, end)`` that represents the period as a
     half-open interval, where the end date is not included in the period.
@@ -375,13 +408,80 @@ def string_to_temporal_extent(
     >>> string_to_temporal_extent(datetime.datetime(2022, 8, 15, 0, 0))
     (datetime.datetime(2022, 8, 15, 0, 0), None)
     """
+
     supported_types = (str, dt.date, dt.datetime)
-    if not isinstance(start_date, supported_types):
-        raise TypeError(
-            "Value of start_date must be one of the following types:"
-            + "str, datetime.date, datetime.datetime"
-            + f"but it is {type(start_date)}, value={start_date}"
-        )
+    start_date_converted = None
+    end_date_converted = None
+
+    # 1) Enforce correct types of inputs so there are less edge cases to worry about.
+    # 2) Only strings can be abbreviated dates. We don't touch it if it is any other type.
+    if start_date is not None:
+        _validate_param_is_allowed_date_type(start_date, "start_date", supported_types)
+        if isinstance(start_date, str):
+            start_date_converted = _convert_abbreviated_date(start_date)
+    if end_date is not None:
+        _validate_param_is_allowed_date_type(end_date, "end_date", supported_types)
+        if isinstance(end_date, str):
+            end_date_converted = _convert_abbreviated_date(end_date)
+
+    if not (start_date or end_date):
+        return None, None
+
+    # If an end date was specified we should use it, and convert it when it is an abbreviation.
+    # When only a start was specified, we derive the end date from the start date.
+    if end_date:
+        # If it is not a type dt.date then it was not converted, and then we return the original value.
+        if isinstance(end_date_converted, dt.date):
+            end_date_result = _get_end_of_time_slot(end_date)
+        else:
+            end_date_result = end_date
+        # The start date may or may not be specified, and it may or may not be converted.
+        # if it was not an abbreviation it will not be converted.
+        return start_date_converted or start_date, end_date_result
+
+    # Only the start date was specified.
+    if isinstance(start_date_converted, dt.date):
+        # start_date was converted => derive end date from it.
+        result_end_date = _get_end_of_time_slot(start_date)
+        return start_date_converted, result_end_date
+    else:
+        # start_date was not abbreviated: should not derive the end date from start.
+        return start_date, None
+
+
+def _get_end_of_time_slot(date: str) -> dt.date:
+    """Calculate the end of a left-closed period: the first day after a year or month."""
+    type_start_date = _type_of_date_string(date)
+    date_converted = _convert_abbreviated_date(date)
+    if type_start_date == _TypeOfDateString.YEAR:
+        return dt.date(date_converted.year + 1, 1, 1)
+    elif type_start_date == _TypeOfDateString.MONTH:
+        if date_converted.month == 12:
+            return dt.date(date_converted.year + 1, 1, 1)
+        else:
+            return dt.date(date_converted.year, date_converted.month + 1, 1)
+    else:
+        # Don't convert
+        return None
+
+
+def _string_to_temporal_extent_old(
+    start_date: Union[str, dt.datetime, dt.date], end_date: Optional[Union[str, dt.datetime, dt.date]] = None
+) -> Tuple[Union[dt.date, dt.datetime, str], Union[dt.date, dt.datetime, None]]:
+    """Convert a string into a date range when it is an abbreviation for an entire year or month."""
+
+    supported_types = (str, dt.date, dt.datetime)
+
+    def check_date_type(value, param_name):
+        if not isinstance(start_date, supported_types):
+            raise TypeError(
+                f"Value of {param_name} must be one of the following types:"
+                + "str, datetime.date, datetime.datetime"
+                + f"but it is {type(value)}, value={value}"
+            )
+
+    check_date_type(start_date, "start_date")
+    check_date_type(end_date, "end_date")
 
     # Skip it if the string represents a day or if it is not even a string
     # If it is a day, we want to let the upstream function handle that case
@@ -436,6 +536,179 @@ def string_to_temporal_extent(
     date_end = dt.date(year_end, month_end, 1)
 
     return date_start, date_end
+
+
+def _convert_abbreviated_date(
+    date: str,
+) -> Union[dt.date, str]:
+    """Helper function to convert a string into a date when it is an abbreviation for an entire year or month.
+
+    The intent of this function is to only convert values into a datetime.date
+    when they are clearly abbreviations, and in all other cases return the original
+    value of date, because there can be too many complications otherwise.
+
+    Keep in mind that this function is called indirectly in a lot of places,
+    via ``get_temporal_extent``.
+
+    :param date:
+
+        - Typically a string that represents either a year, a year + month, a day,
+            or a datetime, and it always indicates the *beginning* of that period.
+        - Other data types allowed are a ``datetime.date`` and ``datetime.datetime``,
+            and in that case we return the tuple ``(start_date, None)`` where
+            ``start_date`` is our original input parameter ``start_date`` as-is.
+            Similarly, strings that represent a date or datetime are not processed
+            any further and the return value is also ``(start_date, None)``.
+        - Any other type raises a TypeError.
+
+        - Allowed string formats are:
+            - For year: "yyyy"
+            - For year + month: "yyyy-mm"
+                Some other separators than "-" technically work but they are discouraged.
+            - For date and datetime you must follow the RFC 3339 format. See also: class ``Rfc3339``
+
+    :return:
+        If it was a string representing a year or a month:
+        a datetime.date that represents the first day of that year or month.
+
+        If it was not a string (date or datetime) or the string represents a
+        day, or a datetime than the original string will be returned.
+
+    :raises TypeError:
+        when start_date is neither of the following types:
+        str, datetime.date, datetime.datetime
+
+    :raises ValueError:
+        when start_date was a string but not recognized as either a year,
+        a month, a date, or datetime.
+
+    Examples
+    --------
+
+    >>> import datetime
+    >>>
+    >>> # 1. Year: use all data from the start of 2021 to the end of 2021.
+    >>> string_to_date("2021")
+    datetime.date(2021, 1, 1)
+    >>>
+    >>> # 2. Year + month: all data from the start of August 2022 to the end of August 2022.
+    >>> string_to_date("2022-08")
+    datetime.date(2022, 8, 1)
+    >>>
+    >>> # 3. We received a full date 2022-08-15:
+    >>> # In this case we should not process start_date. The calling function/method must
+    >>> # handle end date, depending on what an interval with an open end means for the caller.
+    >>> # See for example how ``get_temporal_extent`` handles this.
+    >>> string_to_date("2022-08-15")
+    '2022-08-15'
+    >>>
+    >>> # 4. Similar to 3), but with a datetime.date instead of a string containing a date.
+    >>> string_to_date(datetime.date(2022, 8, 15))
+    datetime.date(2022, 8, 15)
+    >>>
+    >>> # 5. Similar to 3) & 4), but with a datetime.datetime instance.
+    >>> string_to_date(datetime.datetime(2022, 8, 15, 0, 0))
+    datetime.datetime(2022, 8, 15, 0, 0)
+    """
+    if not isinstance(date, str):
+        raise TypeError("date must be a string")
+
+    type_of_date = _type_of_date_string(date)
+    if type_of_date == _TypeOfDateString.INVALID:
+        raise ValueError(
+            f"The value of date='{date}' does not represent any of: "
+            + "a year ('yyyy'), a year + month ('yyyy-dd'), a date, or a datetime."
+        )
+
+    if type_of_date in [_TypeOfDateString.DATETIME, _TypeOfDateString.DAY]:
+        # TODO: maybe convert it using rfc3339, now that we have a more solid logic?
+        # return rfc3339.parse_date_or_datetime(date)
+        return date
+
+    if type_of_date == _TypeOfDateString.MONTH:
+        match_month = _REGEX_MONTH.match(date)
+        year = int(match_month.group(1))
+        month = int(match_month.group(2))
+    else:
+        year = int(date)
+        month = 1
+
+    return dt.date(year, month, 1)
+
+
+def _string_to_date_old(
+    date: Union[str, dt.datetime, dt.date],
+) -> Union[dt.date, dt.datetime, str]:
+    """Helper function to convert a string into a date when it is an abbreviation for an entire year or month."""
+    if not isinstance(date, str):
+        raise TypeError("date must be a string")
+
+    try:
+        rfc3339.parse_datetime(date)
+        is_date_time = True
+    except ValueError:
+        is_date_time = False
+
+    # Using a separate and stricter regular expressions to detect day, month,
+    # or year. Having a regex that only matches one type of period makes it
+    # easier to check it is effectively only a year, or only a month,
+    # but not a day. Datetime strings are more complex so we use rfc3339 to
+    # check whether or not it represents a datetime.
+    match_day = _REGEX_DAY.match(date)
+    match_month = _REGEX_MONTH.match(date)
+    match_year = _REGEX_YEAR.match(date)
+
+    if is_date_time or match_day:
+        return date
+
+    if not (match_year or match_month):
+        raise ValueError(
+            f"The value of date='{date}' does not represent any of: "
+            + "a year ('yyyy'), a year + month ('yyyy-dd'), a date, or a datetime."
+        )
+
+    if match_month:
+        year = int(match_month.group(1))
+        month = int(match_month.group(2))
+    else:
+        year = int(date)
+        month = 1
+
+    return dt.date(year, month, 1)
+
+
+def _type_of_date_string(date: str) -> _TypeOfDateString:
+    """Returns which type of (abbreviated) date the string represents."""
+
+    if not isinstance(date, str):
+        raise TypeError("date must be a string")
+
+    try:
+        rfc3339.parse_datetime(date)
+        return _TypeOfDateString.DATETIME
+    except ValueError:
+        pass
+
+    # Using a separate and stricter regular expressions to detect day, month,
+    # or year. Having a regex that only matches one type of period makes it
+    # easier to check it is effectively only a year, or only a month,
+    # but not a day. Datetime strings are more complex so we use rfc3339 to
+    # check whether or not it represents a datetime.
+    match_day = _REGEX_DAY.match(date)
+    match_month = _REGEX_MONTH.match(date)
+    match_year = _REGEX_YEAR.match(date)
+
+    if match_day:
+        return _TypeOfDateString.DAY
+
+    # TODO: check if we can simplify logic, but there may be issues that regex for year and month both get triggered here.
+    #   It will be important in which order you check the matches.
+    if not (match_year or match_month):
+        return _TypeOfDateString.INVALID
+    elif match_month:
+        return _TypeOfDateString.MONTH
+
+    return _TypeOfDateString.YEAR
 
 
 class ContextTimer:

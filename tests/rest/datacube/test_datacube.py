@@ -75,7 +75,6 @@ def test_filter_temporal_extent(s2cube):
     assert graph['process_id'] == 'filter_temporal'
     assert graph['arguments']['extent'] == ["2016-01-01", "2016-03-10"]
 
-
 @pytest.mark.parametrize("args,kwargs,extent", [
     ((), {}, [None, None]),
     (("2016-01-01",), {}, ["2016-01-01", None]),
@@ -101,6 +100,43 @@ def test_filter_temporal_generic(s2cube, args, kwargs, extent):
     graph = _get_leaf_node(im)
     assert graph['process_id'] == 'filter_temporal'
     assert graph['arguments']['extent'] == extent
+
+
+@pytest.mark.parametrize(
+    ["extent_in", "expected"],
+    [
+        (["2016", None], ["2016-01-01", "2017-01-01"]),
+        (["2016-01", None], ["2016-01-01", "2016-02-01"]),
+        (["2016-04", None], ["2016-04-01", "2016-05-01"]),
+        (["2016-12", None], ["2016-12-01", "2017-01-01"]),
+    ],
+)
+def test_filter_temporal_extent_with_date_abbreviations(s2cube: DataCube, extent_in, expected):
+    im = s2cube.filter_temporal(extent=extent_in)
+    graph = _get_leaf_node(im)
+    assert graph["process_id"] == "filter_temporal"
+    assert graph["arguments"]["extent"] == expected
+
+
+@pytest.mark.parametrize(
+    "extent,expected",
+    [
+        # test regular extents
+        (("2016-01-01", None), ["2016-01-01", None]),
+        (("2016-01-01", "2016-03-10"), ["2016-01-01", "2016-03-10"]),
+        ((None, "2016-03-10"), [None, "2016-03-10"]),
+        (["2016-01-01", None], ["2016-01-01", None]),
+        # test the date abbreviations
+        (["2016", None], ["2016-01-01", "2017-01-01"]),
+        (["2016-02", None], ["2016-02-01", "2016-03-01"]),
+        (["2016", "2016"], ["2016-01-01", "2017-01-01"]),
+        (["2016-02", "2016-02"], ["2016-02-01", "2016-03-01"]),
+    ],
+)
+def test_load_collection_filter_temporal(connection, api_version, extent, expected):
+    cube: DataCube = connection.load_collection("S2", temporal_extent=extent)
+    flat_graph = cube.flat_graph()
+    assert flat_graph["loadcollection1"]["arguments"]["temporal_extent"] == expected
 
 
 def test_load_collection_bands_name(connection, api_version):
