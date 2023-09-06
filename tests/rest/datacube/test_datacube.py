@@ -128,6 +128,20 @@ def test_filter_temporal_generic(s2cube, args, kwargs, extent):
         (["2016-01", None], ["2016-01-01", "2016-02-01"]),
         (["2016-04", None], ["2016-04-01", "2016-05-01"]),
         (["2016-12", None], ["2016-12-01", "2017-01-01"]),
+        (["2016", "2016"], ["2016-01-01", "2017-01-01"]),
+        (["2016", "2017"], ["2016-01-01", "2018-01-01"]),
+        (["2016", "2023"], ["2016-01-01", "2024-01-01"]),
+        (["2016-01", "2016-01"], ["2016-01-01", "2016-02-01"]),
+        (["2016-03", "2016-04"], ["2016-03-01", "2016-05-01"]),
+        (["2016-03", "2016-12"], ["2016-03-01", "2017-01-01"]),
+        (["2016-03", "2018-05"], ["2016-03-01", "2018-06-01"]),
+        (["2016-03", "2018-12"], ["2016-03-01", "2019-01-01"]),
+        (["2016", "2016-01"], ["2016-01-01", "2016-02-01"]),
+        (["2016", "2016-04"], ["2016-01-01", "2016-05-01"]),
+        (["2016", "2016-12"], ["2016-01-01", "2017-01-01"]),
+        ([None, "2016-01"], [None, "2016-02-01"]),
+        ([None, "2016-04"], [None, "2016-05-01"]),
+        ([None, "2016-12"], [None, "2017-01-01"]),
     ],
 )
 def test_filter_temporal_extent_with_date_abbreviations(s2cube: DataCube, extent_in, expected):
@@ -150,6 +164,10 @@ def test_filter_temporal_extent_with_date_abbreviations(s2cube: DataCube, extent
         (["2016-02", None], ["2016-02-01", "2016-03-01"]),
         (["2016", "2016"], ["2016-01-01", "2017-01-01"]),
         (["2016-02", "2016-02"], ["2016-02-01", "2016-03-01"]),
+        (["2016", "2017"], ["2016-01-01", "2018-01-01"]),
+        (["2016-02", "2016-08"], ["2016-02-01", "2016-09-01"]),
+        ([None, "2016"], [None, "2017-01-01"]),
+        ([None, "2016-02"], [None, "2016-03-01"]),
     ],
 )
 def test_load_collection_filter_temporal(connection, api_version, extent, expected):
@@ -294,6 +312,32 @@ def test_filter_bbox_default_handling(s2cube, kwargs, expected):
     graph = _get_leaf_node(im)
     assert graph["process_id"] == "filter_bbox"
     assert graph["arguments"]["extent"] == dict(west=3, east=4, south=8, north=9, **expected)
+
+
+@pytest.mark.parametrize(
+    "extent,expected",
+    [
+        # test regular extents
+        (("2016-01-01", None), ["2016-01-01", None]),
+        (("2016-01-01", "2016-03-10"), ["2016-01-01", "2016-03-10"]),
+        ((None, "2016-03-10"), [None, "2016-03-10"]),
+        (["2016-01-01", None], ["2016-01-01", None]),
+        # test the date abbreviations
+        (["2016", None], ["2016-01-01", "2017-01-01"]),
+        (["2016-02", None], ["2016-02-01", "2016-03-01"]),
+        (["2016", "2016"], ["2016-01-01", "2017-01-01"]),
+        (["2016-02", "2016-02"], ["2016-02-01", "2016-03-01"]),
+        (["2016", "2017"], ["2016-01-01", "2018-01-01"]),
+        (["2016-02", "2016-08"], ["2016-02-01", "2016-09-01"]),
+        ([None, "2016"], [None, "2017-01-01"]),
+        ([None, "2016-02"], [None, "2016-03-01"]),
+    ],
+)
+def test_filter_temporal(s2cube, api_version, extent, expected):
+    cube: DataCube = s2cube.filter_temporal(extent[0], extent[1])
+    flat_graph = cube.flat_graph()
+    assert flat_graph["filtertemporal1"]["arguments"]["extent"] == expected
+
 
 
 def test_max_time(s2cube, api_version):
