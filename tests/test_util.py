@@ -35,7 +35,7 @@ from openeo.util import (
     repr_truncate,
     rfc3339,
     str_truncate,
-    convert_abbreviated_temporal_extent,
+    _convert_abbreviated_temporal_extent,
     _convert_abbreviated_date,
     _type_of_date_string,
     _TypeOfDateString,
@@ -1137,7 +1137,7 @@ class ConvertAbbreviatedTemporalExtent:
         ],
     )
     def test_convert_abbreviated_temporal_extent(self, date_input: str, expected_start: dt.date, expected_end: dt.date):
-        actual_start, actual_end = convert_abbreviated_temporal_extent(date_input)
+        actual_start, actual_end = _convert_abbreviated_temporal_extent(date_input)
         assert actual_start == expected_start
         assert actual_end == expected_end
 
@@ -1164,7 +1164,7 @@ class ConvertAbbreviatedTemporalExtent:
         ],
     )
     def test_convert_abbreviated_temporal_extent_with_only_end(self, end_date: str, expected_end: dt.date):
-        actual_start, actual_end = convert_abbreviated_temporal_extent(None, end_date)
+        actual_start, actual_end = _convert_abbreviated_temporal_extent(None, end_date)
         assert actual_end == expected_end
         assert actual_start is None
 
@@ -1211,7 +1211,7 @@ class ConvertAbbreviatedTemporalExtent:
     def test_convert_abbreviated_temporal_extent_with_start_and_end(
         self, start_date: str, end_date: str, expected_start: dt.date, expected_end: dt.date
     ):
-        actual_start, actual_end = convert_abbreviated_temporal_extent(start_date, end_date)
+        actual_start, actual_end = _convert_abbreviated_temporal_extent(start_date, end_date)
         assert actual_start == expected_start
         assert actual_end == expected_end
 
@@ -1226,7 +1226,7 @@ class ConvertAbbreviatedTemporalExtent:
         self, start_date: str, end_date: str
     ):
         with pytest.raises(Exception):
-            convert_abbreviated_temporal_extent(start_date, end_date)
+            _convert_abbreviated_temporal_extent(start_date, end_date)
 
 
 @pytest.mark.parametrize(
@@ -1245,11 +1245,11 @@ class ConvertAbbreviatedTemporalExtent:
 def test_convert_abbreviated_temporal_extent_raises_valueerror(date_input: Union[str, dt.date, dt.datetime]):
     # It should raise error for an incorrect start date.
     with pytest.raises(ValueError):
-        convert_abbreviated_temporal_extent(date_input)
+        _convert_abbreviated_temporal_extent(date_input)
 
     # It should also raise error for an incorrect end date.
     with pytest.raises(ValueError):
-        convert_abbreviated_temporal_extent("2000", date_input)
+        _convert_abbreviated_temporal_extent("2000", date_input)
 
 
 class TestConvertAbbreviatedDate:
