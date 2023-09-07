@@ -326,13 +326,15 @@ def _convert_abbreviated_temporal_extent(start_date: Any, end_date: Any = None) 
     In all other cases leave the original start_date or end_date as it was.
 
     Keep in mind that this function is called by ``get_temporal_extent``,
-    and that in general both the start date **and** end date can be None.
-    But this is something that the calling function should handle, because we
-    cannot know what the missing end means in every context, that is the
-    caller's job.
+    and that in general the start date and end date can be None, though usually
+    not at the same time.
+    Because we cannot know what the missing start or end means in every context,
+    it is the calling function's job to handle that.
+    We only handle the case where we know the end date is implicitly determined
+    by the start date because the start date is a shorthand for a year or a month.
 
     Also ``get_temporal_extent`` uses a callable to convert the dates, in order
-    to deal with things like ProcessGraph parameters etc.
+    to deal with things like ProcessGraph parameters.
     That means we need to accept those other types but we must return those
     values unchanged.
 
@@ -456,7 +458,7 @@ def _convert_abbreviated_date(
             or a datetime, and it always indicates the *beginning* of that period.
         - Strings that represent a day or a datetime are not processed.
             In that case we return the original value of ``date`` unchanged.
-        - Any other type raises a TypeError.
+        - Any other type than str raises a TypeError.
 
         - Allowed string formats are:
             - For year: "yyyy"
