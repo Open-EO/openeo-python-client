@@ -285,7 +285,10 @@ def get_temporal_extent(*args,
             raise ValueError('Unable to handle {a!r} as a date range'.format(a=args))
     elif extent:
         assert start_date is None and end_date is None
-        start_date, end_date = extent
+        if isinstance(extent, str):
+            start_date, end_date = extent, None
+        else:
+            start_date, end_date = extent
     start_date, end_date = _convert_abbreviated_temporal_extent(start_date, end_date)
     return convertor(start_date) if start_date else None, convertor(end_date) if end_date else None
 

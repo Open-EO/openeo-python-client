@@ -103,7 +103,7 @@ def test_filter_temporal_generic(s2cube, args, kwargs, extent):
 
 
 @pytest.mark.parametrize(
-    ["extent_in", "expected"],
+    ["extent", "expected"],
     [
         (["2016", None], ["2016-01-01", "2017-01-01"]),
         (["2016-01", None], ["2016-01-01", "2016-02-01"]),
@@ -125,15 +125,16 @@ def test_filter_temporal_generic(s2cube, args, kwargs, extent):
         ([None, "2016-12"], [None, "2017-01-01"]),
     ],
 )
-def test_filter_temporal_extent_with_date_abbreviations(s2cube: DataCube, extent_in, expected):
-    im = s2cube.filter_temporal(extent=extent_in)
+def test_filter_temporal_extent_with_shorthand_date(s2cube: DataCube, extent, expected):
+    """Verify it supports shorthand dates that represent years or months."""
+    im = s2cube.filter_temporal(extent=extent)
     graph = _get_leaf_node(im)
     assert graph["process_id"] == "filter_temporal"
     assert graph["arguments"]["extent"] == expected
 
 
 @pytest.mark.parametrize(
-    ["start_date_in", "expected"],
+    ["start_date", "expected"],
     [
         ("2016", ["2016-01-01", "2017-01-01"]),
         ("2016-01", ["2016-01-01", "2016-02-01"]),
@@ -141,11 +142,26 @@ def test_filter_temporal_extent_with_date_abbreviations(s2cube: DataCube, extent
         ("2016-12", ["2016-12-01", "2017-01-01"]),
     ],
 )
-def test_filter_temporal_extent_with_date_abbreviations_as_single_positional_arg(
-    s2cube: DataCube, start_date_in, expected
-):
-    """Test the shortest way to define the extent, as a single positional arg"""
-    im = s2cube.filter_temporal(start_date_in)
+def test_filter_temporal_extent_with_shorthand_date_as_single_positional_arg(s2cube: DataCube, start_date, expected):
+    """Verify it supports the shortest way to define the extent: as a single positional arg."""
+    im = s2cube.filter_temporal(start_date)
+    graph = _get_leaf_node(im)
+    assert graph["process_id"] == "filter_temporal"
+    assert graph["arguments"]["extent"] == expected
+
+
+@pytest.mark.parametrize(
+    ["start_date", "expected"],
+    [
+        ("2016", ["2016-01-01", "2017-01-01"]),
+        ("2016-01", ["2016-01-01", "2016-02-01"]),
+        ("2016-04", ["2016-04-01", "2016-05-01"]),
+        ("2016-12", ["2016-12-01", "2017-01-01"]),
+    ],
+)
+def test_filter_temporal_extent_with_shorthand_date_as_start_date(s2cube: DataCube, start_date, expected):
+    """Verify it supports shorthand dates via the keyword argument start_date."""
+    im = s2cube.filter_temporal(start_date=start_date)
     graph = _get_leaf_node(im)
     assert graph["process_id"] == "filter_temporal"
     assert graph["arguments"]["extent"] == expected
@@ -154,12 +170,25 @@ def test_filter_temporal_extent_with_date_abbreviations_as_single_positional_arg
 @pytest.mark.parametrize(
     "extent,expected",
     [
-        # test regular extents
         (("2016-01-01", None), ["2016-01-01", None]),
         (("2016-01-01", "2016-03-10"), ["2016-01-01", "2016-03-10"]),
         ((None, "2016-03-10"), [None, "2016-03-10"]),
         (["2016-01-01", None], ["2016-01-01", None]),
-        # test the date abbreviations
+    ],
+)
+def test_load_collection_filter_temporal(connection, api_version, extent, expected):
+    cube: DataCube = connection.load_collection("S2", temporal_extent=extent)
+    flat_graph = cube.flat_graph()
+    assert flat_graph["loadcollection1"]["arguments"]["temporal_extent"] == expected
+
+
+@pytest.mark.parametrize(
+    "extent,expected",
+    [
+        # Test that the simplest/shortest syntax works: temporal_extent="2016"
+        ("2016", ["2016-01-01", "2017-01-01"]),
+        ("2016-02", ["2016-02-01", "2016-03-01"]),
+        # Test date abbreviations using tuples for the extent
         (["2016", None], ["2016-01-01", "2017-01-01"]),
         (["2016-02", None], ["2016-02-01", "2016-03-01"]),
         (["2016", "2016"], ["2016-01-01", "2017-01-01"]),
@@ -170,7 +199,10 @@ def test_filter_temporal_extent_with_date_abbreviations_as_single_positional_arg
         ([None, "2016-02"], [None, "2016-03-01"]),
     ],
 )
-def test_load_collection_filter_temporal(connection, api_version, extent, expected):
+def test_load_collection_filter_temporal_with_shorthand_date_string(connection, api_version, extent, expected):
+    """Verify it supports abbreviated date strings.
+    For example: temporal_extent="2016"
+    """
     cube: DataCube = connection.load_collection("S2", temporal_extent=extent)
     flat_graph = cube.flat_graph()
     assert flat_graph["loadcollection1"]["arguments"]["temporal_extent"] == expected
@@ -322,11 +354,44 @@ def test_filter_bbox_default_handling(s2cube, kwargs, expected):
         ([None, "2016-02"], [None, "2016-03-01"]),
     ],
 )
-def test_filter_temporal(s2cube, api_version, extent, expected):
-    cube: DataCube = s2cube.filter_temporal(extent[0], extent[1])
-    flat_graph = cube.flat_graph()
-    assert flat_graph["filtertemporal1"]["arguments"]["extent"] == expected
+def test_filter_temporal(s2cube: DataCube, api_version, extent, expected):
+    # First test it via positional args
+    cube_pos_args: DataCube = s2cube.filter_temporal(extent[0], extent[1])
+    flat_graph_pos_args = cube_pos_args.flat_graph()
+    assert flat_graph_pos_args["filtertemporal1"]["arguments"]["extent"] == expected
 
+    # Using start_date and end_date should give identical result
+    cube_start_end: DataCube = s2cube.filter_temporal(start_date=extent[0], end_date=extent[1])
+    flat_graph_start_end = cube_start_end.flat_graph()
+    assert flat_graph_start_end["filtertemporal1"]["arguments"]["extent"] == expected
+
+    # And using the extent parameter should also do exactly the same.
+    cube_extent: DataCube = s2cube.filter_temporal(extent=extent)
+    flat_graph_extent = cube_extent.flat_graph()
+    assert flat_graph_extent["filtertemporal1"]["arguments"]["extent"] == expected
+
+
+@pytest.mark.parametrize(
+    "extent,expected",
+    [
+        ("2016", ["2016-01-01", "2017-01-01"]),
+        ("2016-02", ["2016-02-01", "2016-03-01"]),
+        ("2016-02-03", ["2016-02-03", None]),
+    ],
+)
+def test_filter_temporal_with_one_abbreviated_date_string(s2cube: DataCube, api_version, extent, expected):
+    """It should support the simplest way to provide a shorthand date string for a year or month, without a tuple."""
+
+    # 1) It must work with just one positional argument, which isn't a tuple but a string
+    cube_pos_arg: DataCube = s2cube.filter_temporal(extent)
+    flat_graph_pos_arg = cube_pos_arg.flat_graph()
+    assert flat_graph_pos_arg["filtertemporal1"]["arguments"]["extent"] == expected
+
+    # 2) It must also work with just the keyword argument `extent` when extent
+    # receives a string instead of a tuple.
+    flat_graph_extent: DataCube = s2cube.filter_temporal(extent=extent)
+    flat_graph_extent = flat_graph_extent.flat_graph()
+    assert flat_graph_extent["filtertemporal1"]["arguments"]["extent"] == expected
 
 
 def test_max_time(s2cube, api_version):
