@@ -53,7 +53,7 @@ def apply_udf_data(data: UdfData):
     pass
 
 
-def apply_metadata(input_metadata:CollectionMetadata, context:dict) -> CollectionMetadata:
+def apply_metadata(metadata:CollectionMetadata, context:dict) -> CollectionMetadata:
     """
     .. warning::
         This signature is not yet fully standardized and subject to change.
@@ -67,7 +67,7 @@ def apply_metadata(input_metadata:CollectionMetadata, context:dict) -> Collectio
     This function does not need to be provided when using the UDF in combination with processes that by design have a clear
     effect on cube metadata, such as :py:meth:`~openeo.rest.datacube.DataCube.reduce_dimension()`
 
-    :param input_metadata: the collection metadata of the input data cube
+    :param metadata: the collection metadata of the input data cube
     :param context: A dictionary containing user context.
 
     :return: output metadata: the expected metadata of the cube, after applying the udf
@@ -76,8 +76,8 @@ def apply_metadata(input_metadata:CollectionMetadata, context:dict) -> Collectio
     --------
 
     An example for a UDF that is applied on the 'bands' dimension, and returns a new set of bands with different labels.
-    >>> def apply_metadata(input_metadata:CollectionMetadata, context:dict) -> CollectionMetadata:
-    >>>     return input_metadata.rename_labels("bands",target=["computed_band_1","computed_band_2"])
+    >>> def apply_metadata(metadata:CollectionMetadata, context:dict) -> CollectionMetadata:
+    >>>     return metadata.rename_labels("bands",target=["computed_band_1","computed_band_2"])
     >>>
 
     """
