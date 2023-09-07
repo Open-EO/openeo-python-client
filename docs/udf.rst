@@ -277,6 +277,19 @@ instead of the original digital number range (thousands):
 .. image:: _static/images/udf/apply-rescaled-histogram.png
 
 
+UDF's that transform cube metadata
+==================================
+In some cases, a UDF can have impact on the metadata of a cube, but this can not always
+be easily inferred by process graph evaluation logic without running the actual
+(expensive) UDF code. This limits the possibilities to validate process graphs,
+or for instance make an estimate of the size of a datacube after applying a UDF.
+
+To provide evaluation logic with this information, the user should implement the
+:py:meth:`~openeo.udf.udf_signatures.apply_metadata()` function as part of the UDF.
+Please refer to the documentation of that function for more information.
+
+
+
 Illustration of data chunking in ``apply`` with a  UDF
 ========================================================
 
