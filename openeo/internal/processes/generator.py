@@ -41,9 +41,7 @@ class PythonRenderer:
             th=" -> {t}".format(t=self.return_type_hint) if self.return_type_hint else ""
         )
 
-        call_args = ", ".join(
-            ["{p}={a}".format(p=p, a=a) for (p, a) in zip(self._par_names(process), self._arg_names(process))]
-        )
+        call_args = ", ".join(self._call_args(process))
         body = self.indent + self.body_template.format(
             id=process.id, safe_name=self._safe_name(process.id), args=call_args
         )
@@ -67,9 +65,19 @@ class PythonRenderer:
     def _arg_names(self, process: Process) -> List[str]:
         """Names of the arguments in the python function"""
         arg_names = self._par_names(process)
-        if self.oo_mode:
-            arg_names = [n if i > 0 else "self" for i, n in enumerate(arg_names)] or ["self"]
+        if self.oo_mode and arg_names:
+            arg_names[0] = "self"
         return arg_names
+
+    def _call_args(self, process: Process) -> Iterator[str]:
+        for parameter, par_name, arg_name in zip(
+            process.parameters, self._par_names(process), self._arg_names(process)
+        ):
+            arg_expression = arg_name
+            if parameter.schema.is_process_graph():
+                parent_parameters = [p["name"] for p in parameter.schema.schema["parameters"]]
+                arg_expression = f"build_child_callback({arg_expression}, parent_parameters={parent_parameters})"
+            yield f"{par_name}={arg_expression}"
 
     def _def_arguments(self, process: Process) -> Iterator[str]:
         # TODO: add argument type hints?
@@ -118,6 +126,7 @@ def generate_process_py(processes: List[Process], output=sys.stdout, argv=None):
 
         from openeo.internal.processes.builder import ProcessBuilderBase, UNSET
         from openeo.internal.documentation import openeo_process
+        from openeo.rest._datacube import build_child_callback
 
 
         class ProcessBuilder(ProcessBuilderBase):

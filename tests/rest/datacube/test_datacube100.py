@@ -3110,3 +3110,48 @@ class TestUDF:
         expected["runudf1"]["arguments"]["runtime"] = "Py"
         expected["runudf1"]["arguments"]["version"] = "v4"
         assert post_processed.flat_graph() == expected
+
+
+def test_to_json_with_if_and_udf(con100):
+    """https://github.com/Open-EO/openeo-python-client/issues/470"""
+    cube = con100.load_collection("S2")
+    cube = openeo.processes.if_(True, cube, cube)
+    cube = cube.apply(openeo.UDF("def foo(): pass"))
+
+    flat = cube.flat_graph()
+    assert flat == {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
+        },
+        "if1": {
+            "process_id": "if",
+            "arguments": {
+                "accept": {"from_node": "loadcollection1"},
+                "reject": {"from_node": "loadcollection1"},
+                "value": True,
+            },
+        },
+        "apply1": {
+            "process_id": "apply",
+            "arguments": {
+                "data": {"from_node": "if1"},
+                "process": {
+                    "process_graph": {
+                        "runudf1": {
+                            "arguments": {
+                                "data": {"from_parameter": "x"},
+                                "runtime": "Python",
+                                "udf": "def " "foo(): " "pass",
+                            },
+                            "process_id": "run_udf",
+                            "result": True,
+                        }
+                    }
+                },
+            },
+            "result": True,
+        },
+    }
+
+    assert 'process_id": "run_udf"' in cube.to_json()

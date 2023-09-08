@@ -1,3 +1,4 @@
+import re
 from io import StringIO
 from textwrap import dedent
 
@@ -193,6 +194,49 @@ def test_render_keyword():
             return or_(x=self, y=y)''')
 
 
+def test_render_process_graph_callback():
+    process = Process.from_dict(
+        {
+            "id": "apply",
+            "description": "Apply",
+            "summary": "Apply",
+            "parameters": [
+                {
+                    "name": "data",
+                    "description": "Data cube",
+                    "schema": {"type": "object", "subtype": "raster-cube"},
+                },
+                {
+                    "name": "process",
+                    "description": "Process",
+                    "schema": {
+                        "type": "object",
+                        "subtype": "process-graph",
+                        "parameters": [{"name": "data", "schema": {"type": "array"}}],
+                    },
+                },
+            ],
+            "returns": {"description": "Data cube", "schema": {"type": "object", "subtype": "raster-cube"}},
+        }
+    )
+
+    renderer = PythonRenderer(optional_default="UNSET")
+    src = renderer.render_process(process)
+    assert src == dedent(
+        '''\
+        def apply(data, process):
+            """
+            Apply
+
+            :param data: Data cube
+            :param process: Process
+
+            :return: Data cube
+            """
+            return _process('apply', data=data, process=build_child_callback(process, parent_parameters=['data']))'''
+    )
+
+
 def test_collect_processes_basic(tmp_path):
     processes = collect_processes(sources=[get_test_resource("data/processes/1.0")])
     assert [p.id for p in processes] == ["add", "cos"]
@@ -227,9 +271,25 @@ def test_generate_process_py():
 
     output = StringIO()
     generate_process_py(processes, output=output)
-    lines = output.getvalue().split("\n")
-    assert "class ProcessBuilder(ProcessBuilderBase):" in lines
-    assert "    def incr(self) -> ProcessBuilder:" in lines
-    assert "    def add(self, y) -> ProcessBuilder:" in lines
-    assert "def incr(x) -> ProcessBuilder:" in lines
-    assert "def add(x, y) -> ProcessBuilder:" in lines
+    content = output.getvalue()
+    assert "\nclass ProcessBuilder(ProcessBuilderBase):\n" in content
+    assert re.search(
+        '\n    def incr\\(self\\) -> ProcessBuilder:\n        """[^"]*"""\n        return incr\\(x=self\\)\n',
+        content,
+        flags=re.DOTALL,
+    )
+    assert re.search(
+        '\n    def add\\(self, y\\) -> ProcessBuilder:\n        """[^"]*"""\n        return add\\(x=self, y=y\\)\n',
+        content,
+        flags=re.DOTALL,
+    )
+    assert re.search(
+        '\ndef incr\\(x\\) -> ProcessBuilder:\n    """[^"]*"""\n    return _process\\(\'incr\', x=x\\)\n',
+        content,
+        flags=re.DOTALL,
+    )
+    assert re.search(
+        '\ndef add\\(x, y\\) -> ProcessBuilder:\n    """[^"]*"""\n    return _process\\(\'add\', x=x, y=y\\)\n',
+        content,
+        flags=re.DOTALL,
+    )
