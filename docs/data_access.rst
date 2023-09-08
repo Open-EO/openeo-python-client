@@ -83,8 +83,10 @@ By default these latitude and longitude values are expressed in the standard Coo
 
 .. code-block:: python
 
-    spatial_extent={"west": 5.14, "south": 51.17, "east": 5.17, "north": 51.19},
+    spatial_extent={"west": 5.14, "south": 51.17, "east": 5.17, "north": 51.19}
 
+
+.. _filtering-on-temporal-extent-section:
 
 Filtering on temporal extent
 ############################
@@ -128,6 +130,10 @@ Note however that we also have a shorthand notation that make it easier to speci
 Tip: shorthand notation for temporal extent of a year or a months
 #################################################################
 
+.. note::
+
+    Extent handling based on year/month is available since version 0.23.0.
+
 For the temporal extent we allow a shorthand notation that allows you to select an entire year or an entire month without needing to specify a tuple with  the start date and end date.
 In this case you just give it one string with the year, or the month.
 The format for months is "yyyy-mm".
@@ -136,7 +142,7 @@ Examples or shorthand temporal extents:
 
 .. code-block:: python
 
-    # process all data for the year 2021
+    # Process all data for the year 2021:
     sentinel2_cube = connection.load_collection(
         "SENTINEL2_L2A",
         spatial_extent={"west": 5.14, "south": 51.17, "east": 5.17, "north": 51.19},
@@ -146,7 +152,7 @@ Examples or shorthand temporal extents:
 
 .. code-block:: python
 
-    # process all data for the month of september in 2021
+    # Process all data for the month of september in 2021:
     sentinel2_cube = connection.load_collection(
         "SENTINEL2_L2A",
         spatial_extent={"west": 5.14, "south": 51.17, "east": 5.17, "north": 51.19},
@@ -166,7 +172,7 @@ Therefor, 2024-01-01 is the first day that is no longer part of the time slot yo
 
 .. code-block:: python
 
-    # process all data for the years 2021 up to, and including, 2023
+    # Process all data for the years 2021 up to, and including, 2023:
     sentinel2_cube = connection.load_collection(
         "SENTINEL2_L2A",
         spatial_extent={"west": 5.14, "south": 51.17, "east": 5.17, "north": 51.19},
