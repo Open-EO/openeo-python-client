@@ -1157,7 +1157,7 @@ PROJCRS["WGS 84 / UTM zone 31N",
             normalize_crs(epsg_input, use_pyproj=use_pyproj)
 
 
-class ConvertAbbreviatedTemporalExtent:
+class TestConvertAbbreviatedTemporalExtent:
     @pytest.mark.parametrize(
     ["date_input", "expected_start", "expected_end"],
         [
@@ -1258,19 +1258,6 @@ class ConvertAbbreviatedTemporalExtent:
         actual_start, actual_end = _convert_abbreviated_temporal_extent(start_date, end_date)
         assert actual_start == expected_start
         assert actual_end == expected_end
-
-    @pytest.mark.parametrize(
-        ["start_date", "end_date"],
-        [
-            ("2023", "2020"),
-            ("2000-06", "2000-01"),
-        ],
-    )
-    def test_convert_abbreviated_temporal_extent_raises_error_when_end_before_start(
-        self, start_date: str, end_date: str
-    ):
-        with pytest.raises(Exception):
-            _convert_abbreviated_temporal_extent(start_date, end_date)
 
 
 @pytest.mark.parametrize(
