@@ -260,6 +260,10 @@ class DataCube(_ProcessGraphAbstraction):
         """
         Limit the DataCube to a certain date range, which can be specified in several ways:
 
+        .. seealso::
+
+            openEO Python Client documentation about filtering on temporal extent: :ref:`filtering-on-temporal-extent-section`
+
         >>> im.filter_temporal("2019-07-01", "2019-08-01")
         >>> im.filter_temporal(["2019-07-01", "2019-08-01"])
         >>> im.filter_temporal(extent=["2019-07-01", "2019-08-01"])
