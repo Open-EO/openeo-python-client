@@ -22,16 +22,11 @@ import shapely.geometry
 import shapely.geometry.base
 from shapely.geometry import MultiPolygon, Polygon, mapping
 
-import openeo
-import openeo.processes
 from openeo.api.process import Parameter
 from openeo.internal.documentation import openeo_process
 from openeo.internal.graph_building import PGNode, ReduceNode, _FromNodeMixin
 from openeo.internal.jupyter import in_jupyter_context
-from openeo.internal.processes.builder import (
-    convert_callable_to_pgnode,
-    get_parameter_names,
-)
+from openeo.internal.processes.builder import ProcessBuilderBase
 from openeo.internal.warnings import UserDeprecationWarning, deprecated, legacy_alias
 from openeo.metadata import (
     Band,
@@ -40,7 +35,6 @@ from openeo.metadata import (
     SpatialDimension,
     TemporalDimension,
 )
-from openeo.processes import ProcessBuilder
 from openeo.rest import BandMathException, OpenEoClientException, OperatorException
 from openeo.rest._datacube import (
     THIS,
@@ -253,7 +247,7 @@ class DataCube(_ProcessGraphAbstraction):
                 # TODO: can this be generalized through _FromNodeMixin?
                 if isinstance(d, Parameter) or isinstance(d, PGNode):
                     return d
-                elif isinstance(d, ProcessBuilder):
+                elif isinstance(d, ProcessBuilderBase):
                     return d.pgnode
                 else:
                     return rfc3339.normalize(d)
@@ -2308,8 +2302,9 @@ class DataCube(_ProcessGraphAbstraction):
         """
         if not isinstance(model, MlModel):
             model = MlModel.load_ml_model(connection=self.connection, id=model)
-        from openeo.processes import predict_random_forest
-        reducer = lambda data, context: predict_random_forest(data=data, model=context)
+        reducer = PGNode(
+            process_id="predict_random_forest", data={"from_parameter": "data"}, model={"from_parameter": "context"}
+        )
         return self.reduce_dimension(dimension=dimension, reducer=reducer, context=model)
 
     @openeo_process
