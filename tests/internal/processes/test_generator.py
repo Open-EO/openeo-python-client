@@ -237,6 +237,59 @@ def test_render_process_graph_callback():
     )
 
 
+def test_render_process_graph_callback_wrapping():
+    process = Process.from_dict(
+        {
+            "id": "apply_dimension",
+            "description": "Apply",
+            "summary": "Apply",
+            "parameters": [
+                {
+                    "name": "data",
+                    "description": "Data cube",
+                    "schema": {"type": "object", "subtype": "raster-cube"},
+                },
+                {
+                    "name": "dimension",
+                    "description": "Dimension",
+                    "schema": {"type": "string"},
+                },
+                {
+                    "name": "process",
+                    "description": "Process",
+                    "schema": {
+                        "type": "object",
+                        "subtype": "process-graph",
+                        "parameters": [{"name": "data", "schema": {"type": "array"}}],
+                    },
+                },
+            ],
+            "returns": {"description": "Data cube", "schema": {"type": "object", "subtype": "raster-cube"}},
+        }
+    )
+
+    renderer = PythonRenderer(optional_default="UNSET")
+    src = renderer.render_process(process, width=80)
+    assert src == dedent(
+        '''\
+        def apply_dimension(data, dimension, process):
+            """
+            Apply
+
+            :param data: Data cube
+            :param dimension: Dimension
+            :param process: Process
+
+            :return: Data cube
+            """
+            return _process('apply_dimension', 
+                data=data,
+                dimension=dimension,
+                process=build_child_callback(process, parent_parameters=['data'])
+            )'''
+    )
+
+
 def test_collect_processes_basic(tmp_path):
     processes = collect_processes(sources=[get_test_resource("data/processes/1.0")])
     assert [p.id for p in processes] == ["add", "cos"]

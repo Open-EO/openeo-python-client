@@ -42,6 +42,11 @@ class PythonRenderer:
         )
 
         call_args = ", ".join(self._call_args(process))
+        if len(call_args) > width:
+            # TODO: also include `id` placeholder in `self.body_format`
+            call_args = (
+                "\n" + ",\n".join(self.indent + self.indent + a for a in self._call_args(process)) + "\n" + self.indent
+            )
         body = self.indent + self.body_template.format(
             id=process.id, safe_name=self._safe_name(process.id), args=call_args
         )
