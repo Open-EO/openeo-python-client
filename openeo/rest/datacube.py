@@ -23,6 +23,7 @@ import shapely.geometry.base
 from shapely.geometry import MultiPolygon, Polygon, mapping
 
 from openeo.api.process import Parameter
+from openeo.dates import get_temporal_extent
 from openeo.internal.documentation import openeo_process
 from openeo.internal.graph_building import PGNode, ReduceNode, _FromNodeMixin
 from openeo.internal.jupyter import in_jupyter_context
@@ -46,11 +47,11 @@ from openeo.rest.udp import RESTUserDefinedProcess
 from openeo.rest.vectorcube import VectorCube
 from openeo.util import (
     dict_no_none,
-    get_temporal_extent,
     guess_format,
     normalize_crs,
     rfc3339,
 )
+
 
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).
