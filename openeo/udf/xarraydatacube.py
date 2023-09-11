@@ -164,7 +164,7 @@ class XarrayDataCube:
             show_axeslabels: bool = False,
             fontsize: float = 10.,
             oversample: float = 1,
-            cmap: Union[str, 'matplotlib.colors.ColorMap'] = 'RdYlBu_r',
+            cmap: Union[str, 'matplotlib.colors.Colormap'] = 'RdYlBu_r',
             cbartext: str = None,
             to_file: str = None,
             to_show: bool = True
