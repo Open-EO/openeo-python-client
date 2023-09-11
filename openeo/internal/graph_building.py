@@ -48,7 +48,14 @@ class FlatGraphableMixin(metaclass=abc.ABCMeta):
         pg = {"process_graph": self.flat_graph()}
         return json.dumps(pg, indent=indent, separators=separators)
 
-    def print_json(self, *, file=None, indent: Union[int, None] = 2, separators: Optional[Tuple[str, str]] = None):
+    def print_json(
+        self,
+        *,
+        file=None,
+        indent: Union[int, None] = 2,
+        separators: Optional[Tuple[str, str]] = None,
+        end: str = "\n",
+    ):
         """
         Print interoperable JSON representation of the process graph.
 
@@ -61,8 +68,12 @@ class FlatGraphableMixin(metaclass=abc.ABCMeta):
             Or a path (string or pathlib.Path) to a file to write to.
         :param indent: JSON indentation level.
         :param separators: (optional) tuple of item/key separators.
+        :param end: additional string to be printed at the end (newline by default).
 
         .. versionadded:: 0.12.0
+
+        .. versionadded:: 0.23.0
+            added the ``end`` argument.
         """
         pg = {"process_graph": self.flat_graph()}
         if isinstance(file, (str, Path)):
@@ -73,8 +84,8 @@ class FlatGraphableMixin(metaclass=abc.ABCMeta):
             file_ctx = nullcontext(enter_result=file or sys.stdout)
         with file_ctx as f:
             json.dump(pg, f, indent=indent, separators=separators)
-            if indent is not None:
-                f.write("\n")
+            if end:
+                f.write(end)
 
 
 class _FromNodeMixin(abc.ABC):

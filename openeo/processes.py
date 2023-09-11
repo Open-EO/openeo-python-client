@@ -3,14 +3,15 @@
 # It is automatically generated.
 # Used command line arguments:
 #    openeo/internal/processes/generator.py specs/openeo-processes specs/openeo-processes/proposals --output openeo/processes.py
-# Generated on 2023-08-28
+# Generated on 2023-09-08
 
 from __future__ import annotations
 
 import builtins
 
+from openeo.internal.processes.builder import ProcessBuilderBase, UNSET
 from openeo.internal.documentation import openeo_process
-from openeo.internal.processes.builder import UNSET, ProcessBuilderBase
+from openeo.rest._datacube import build_child_callback
 
 
 class ProcessBuilder(ProcessBuilderBase):
@@ -174,7 +175,13 @@ class ProcessBuilder(ProcessBuilderBase):
             added as a new dimension with a dimension name derived from `target_dimension` by adding the suffix
             `_meta`. The new dimension has the dimension labels `total_count` and `valid_count`.
         """
-        return aggregate_spatial(data=self, geometries=geometries, reducer=reducer, target_dimension=target_dimension, context=context)
+        return aggregate_spatial(
+            data=self,
+            geometries=geometries,
+            reducer=build_child_callback(reducer, parent_parameters=['data', 'context']),
+            target_dimension=target_dimension,
+            context=context
+        )
 
     @openeo_process
     def aggregate_spatial_window(self, reducer, size, boundary=UNSET, align=UNSET, context=UNSET) -> ProcessBuilder:
@@ -203,7 +210,14 @@ class ProcessBuilder(ProcessBuilderBase):
             dimension labels will be set to the coordinate at the center of the window. The other dimension
             properties (name, type and reference system) remain unchanged.
         """
-        return aggregate_spatial_window(data=self, reducer=reducer, size=size, boundary=boundary, align=align, context=context)
+        return aggregate_spatial_window(
+            data=self,
+            reducer=build_child_callback(reducer, parent_parameters=['data', 'context']),
+            size=size,
+            boundary=boundary,
+            align=align,
+            context=context
+        )
 
     @openeo_process
     def aggregate_temporal(self, intervals, reducer, labels=UNSET, dimension=UNSET, context=UNSET) -> ProcessBuilder:
@@ -237,7 +251,14 @@ class ProcessBuilder(ProcessBuilderBase):
             reference system and resolution) remain unchanged, except for the resolution and dimension labels of
             the given temporal dimension.
         """
-        return aggregate_temporal(data=self, intervals=intervals, reducer=reducer, labels=labels, dimension=dimension, context=context)
+        return aggregate_temporal(
+            data=self,
+            intervals=intervals,
+            reducer=build_child_callback(reducer, parent_parameters=['data', 'context']),
+            labels=labels,
+            dimension=dimension,
+            context=context
+        )
 
     @openeo_process
     def aggregate_temporal_period(self, period, reducer, dimension=UNSET, context=UNSET) -> ProcessBuilder:
@@ -282,7 +303,13 @@ class ProcessBuilder(ProcessBuilderBase):
             contrast, if `period` is set to `day` and the source data cube has just one dimension label
             `2020-01-05`, the process returns a data cube with just a single dimension label (`2020-005`).
         """
-        return aggregate_temporal_period(data=self, period=period, reducer=reducer, dimension=dimension, context=context)
+        return aggregate_temporal_period(
+            data=self,
+            period=period,
+            reducer=build_child_callback(reducer, parent_parameters=['data', 'context']),
+            dimension=dimension,
+            context=context
+        )
 
     @openeo_process
     def all(self, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -374,7 +401,7 @@ class ProcessBuilder(ProcessBuilderBase):
         :return: A data cube with the newly computed values and the same dimensions. The dimension properties
             (name, type, labels, reference system and resolution) remain unchanged.
         """
-        return apply(data=self, process=process, context=context)
+        return apply(data=self, process=build_child_callback(process, parent_parameters=['x', 'context']), context=context)
 
     @openeo_process
     def apply_dimension(self, process, dimension, target_dimension=UNSET, context=UNSET) -> ProcessBuilder:
@@ -411,7 +438,13 @@ class ProcessBuilder(ProcessBuilderBase):
             dimension labels are incrementing integers starting from zero, - the resolution changes, and - the
             reference system is undefined.
         """
-        return apply_dimension(data=self, process=process, dimension=dimension, target_dimension=target_dimension, context=context)
+        return apply_dimension(
+            data=self,
+            process=build_child_callback(process, parent_parameters=['data', 'context']),
+            dimension=dimension,
+            target_dimension=target_dimension,
+            context=context
+        )
 
     @openeo_process
     def apply_kernel(self, kernel, factor=UNSET, border=UNSET, replace_invalid=UNSET) -> ProcessBuilder:
@@ -462,7 +495,13 @@ class ProcessBuilder(ProcessBuilderBase):
         :return: A data cube with the newly computed values and the same dimensions. The dimension properties
             (name, type, labels, reference system and resolution) remain unchanged.
         """
-        return apply_neighborhood(data=self, process=process, size=size, overlap=overlap, context=context)
+        return apply_neighborhood(
+            data=self,
+            process=build_child_callback(process, parent_parameters=['data', 'context']),
+            size=size,
+            overlap=overlap,
+            context=context
+        )
 
     @openeo_process
     def arccos(self) -> ProcessBuilder:
@@ -544,7 +583,14 @@ class ProcessBuilder(ProcessBuilderBase):
             A band with DEM-based local incidence angles in degrees.  The data returned is CARD4L compliant with
             corresponding metadata.
         """
-        return ard_normalized_radar_backscatter(data=self, elevation_model=elevation_model, contributing_area=contributing_area, ellipsoid_incidence_angle=ellipsoid_incidence_angle, noise_removal=noise_removal, options=options)
+        return ard_normalized_radar_backscatter(
+            data=self,
+            elevation_model=elevation_model,
+            contributing_area=contributing_area,
+            ellipsoid_incidence_angle=ellipsoid_incidence_angle,
+            noise_removal=noise_removal,
+            options=options
+        )
 
     @openeo_process
     def ard_surface_reflectance(self, atmospheric_correction_method, cloud_detection_method, elevation_model=UNSET, atmospheric_correction_options=UNSET, cloud_detection_options=UNSET) -> ProcessBuilder:
@@ -592,7 +638,14 @@ class ProcessBuilder(ProcessBuilderBase):
             Contains coefficients used for terrain illumination correction are provided for each pixel.  The data
             returned is CARD4L compliant with corresponding metadata.
         """
-        return ard_surface_reflectance(data=self, atmospheric_correction_method=atmospheric_correction_method, cloud_detection_method=cloud_detection_method, elevation_model=elevation_model, atmospheric_correction_options=atmospheric_correction_options, cloud_detection_options=cloud_detection_options)
+        return ard_surface_reflectance(
+            data=self,
+            atmospheric_correction_method=atmospheric_correction_method,
+            cloud_detection_method=cloud_detection_method,
+            elevation_model=elevation_model,
+            atmospheric_correction_options=atmospheric_correction_options,
+            cloud_detection_options=cloud_detection_options
+        )
 
     @openeo_process
     def array_append(self, value, label=UNSET) -> ProcessBuilder:
@@ -623,7 +676,11 @@ class ProcessBuilder(ProcessBuilderBase):
         :return: An array with the newly computed values. The number of elements are the same as for the
             original array.
         """
-        return array_apply(data=self, process=process, context=context)
+        return array_apply(
+            data=self,
+            process=build_child_callback(process, parent_parameters=['x', 'index', 'label', 'context']),
+            context=context
+        )
 
     @openeo_process
     def array_concat(self, array2) -> ProcessBuilder:
@@ -703,7 +760,11 @@ class ProcessBuilder(ProcessBuilderBase):
         :return: An array filtered by the specified condition. The number of elements are less than or equal
             compared to the original array.
         """
-        return array_filter(data=self, condition=condition, context=context)
+        return array_filter(
+            data=self,
+            condition=build_child_callback(condition, parent_parameters=['x', 'index', 'label', 'context']),
+            context=context
+        )
 
     @openeo_process
     def array_find(self, value, reverse=UNSET) -> ProcessBuilder:
@@ -1194,7 +1255,12 @@ class ProcessBuilder(ProcessBuilderBase):
             system and resolution) remain unchanged, except that the given dimension has less (or the same)
             dimension labels.
         """
-        return filter_labels(data=self, condition=condition, dimension=dimension, context=context)
+        return filter_labels(
+            data=self,
+            condition=build_child_callback(condition, parent_parameters=['value', 'context']),
+            dimension=dimension,
+            context=context
+        )
 
     @openeo_process
     def filter_spatial(self, geometries) -> ProcessBuilder:
@@ -1289,7 +1355,12 @@ class ProcessBuilder(ProcessBuilderBase):
 
         :return: A data cube with the optimal values for the parameters.
         """
-        return fit_curve(data=self, parameters=parameters, function=function, dimension=dimension)
+        return fit_curve(
+            data=self,
+            parameters=parameters,
+            function=build_child_callback(function, parent_parameters=['x', 'parameters']),
+            dimension=dimension
+        )
 
     @openeo_process
     def fit_regr_random_forest(self, target, max_variables, num_trees=UNSET, seed=UNSET) -> ProcessBuilder:
@@ -1744,7 +1815,12 @@ class ProcessBuilder(ProcessBuilderBase):
         :return: The merged data cube. See the process description for details regarding the dimensions and
             dimension properties (name, type, labels, reference system and resolution).
         """
-        return merge_cubes(cube1=self, cube2=cube2, overlap_resolver=overlap_resolver, context=context)
+        return merge_cubes(
+            cube1=self,
+            cube2=cube2,
+            overlap_resolver=build_child_callback(overlap_resolver, parent_parameters=['x', 'y', 'context']),
+            context=context
+        )
 
     @openeo_process
     def min(self, ignore_nodata=UNSET) -> ProcessBuilder:
@@ -1927,7 +2003,13 @@ class ProcessBuilder(ProcessBuilderBase):
 
         :return: A data cube with the predicted values.
         """
-        return predict_curve(data=self, parameters=parameters, function=function, dimension=dimension, labels=labels)
+        return predict_curve(
+            data=self,
+            parameters=parameters,
+            function=build_child_callback(function, parent_parameters=['x', 'parameters']),
+            dimension=dimension,
+            labels=labels
+        )
 
     @openeo_process
     def predict_random_forest(self, model) -> ProcessBuilder:
@@ -2007,7 +2089,12 @@ class ProcessBuilder(ProcessBuilderBase):
             dimensions decreases by one. The dimension properties (name, type, labels, reference system and
             resolution) for all other dimensions remain unchanged.
         """
-        return reduce_dimension(data=self, reducer=reducer, dimension=dimension, context=context)
+        return reduce_dimension(
+            data=self,
+            reducer=build_child_callback(reducer, parent_parameters=['data', 'context']),
+            dimension=dimension,
+            context=context
+        )
 
     @openeo_process
     def reduce_spatial(self, reducer, context=UNSET) -> ProcessBuilder:
@@ -2024,7 +2111,7 @@ class ProcessBuilder(ProcessBuilderBase):
             the number of dimensions decreases by two. The dimension properties (name, type, labels, reference
             system and resolution) for all other dimensions remain unchanged.
         """
-        return reduce_spatial(data=self, reducer=reducer, context=context)
+        return reduce_spatial(data=self, reducer=build_child_callback(reducer, parent_parameters=['data', 'context']), context=context)
 
     @openeo_process
     def rename_dimension(self, source, target) -> ProcessBuilder:
@@ -2228,7 +2315,17 @@ class ProcessBuilder(ProcessBuilderBase):
         :return: Backscatter values corresponding to the chosen parametrization. The values are given in linear
             scale.
         """
-        return sar_backscatter(data=self, coefficient=coefficient, elevation_model=elevation_model, mask=mask, contributing_area=contributing_area, local_incidence_angle=local_incidence_angle, ellipsoid_incidence_angle=ellipsoid_incidence_angle, noise_removal=noise_removal, options=options)
+        return sar_backscatter(
+            data=self,
+            coefficient=coefficient,
+            elevation_model=elevation_model,
+            mask=mask,
+            contributing_area=contributing_area,
+            local_incidence_angle=local_incidence_angle,
+            ellipsoid_incidence_angle=ellipsoid_incidence_angle,
+            noise_removal=noise_removal,
+            options=options
+        )
 
     @openeo_process
     def save_ml_model(self, options=UNSET) -> ProcessBuilder:
@@ -2645,7 +2742,13 @@ def aggregate_spatial(data, geometries, reducer, target_dimension=UNSET, context
         added as a new dimension with a dimension name derived from `target_dimension` by adding the suffix
         `_meta`. The new dimension has the dimension labels `total_count` and `valid_count`.
     """
-    return _process('aggregate_spatial', data=data, geometries=geometries, reducer=reducer, target_dimension=target_dimension, context=context)
+    return _process('aggregate_spatial', 
+        data=data,
+        geometries=geometries,
+        reducer=build_child_callback(reducer, parent_parameters=['data', 'context']),
+        target_dimension=target_dimension,
+        context=context
+    )
 
 
 @openeo_process
@@ -2675,7 +2778,14 @@ def aggregate_spatial_window(data, reducer, size, boundary=UNSET, align=UNSET, c
         labels will be set to the coordinate at the center of the window. The other dimension properties (name,
         type and reference system) remain unchanged.
     """
-    return _process('aggregate_spatial_window', data=data, reducer=reducer, size=size, boundary=boundary, align=align, context=context)
+    return _process('aggregate_spatial_window', 
+        data=data,
+        reducer=build_child_callback(reducer, parent_parameters=['data', 'context']),
+        size=size,
+        boundary=boundary,
+        align=align,
+        context=context
+    )
 
 
 @openeo_process
@@ -2709,7 +2819,14 @@ def aggregate_temporal(data, intervals, reducer, labels=UNSET, dimension=UNSET, 
         system and resolution) remain unchanged, except for the resolution and dimension labels of the given
         temporal dimension.
     """
-    return _process('aggregate_temporal', data=data, intervals=intervals, reducer=reducer, labels=labels, dimension=dimension, context=context)
+    return _process('aggregate_temporal', 
+        data=data,
+        intervals=intervals,
+        reducer=build_child_callback(reducer, parent_parameters=['data', 'context']),
+        labels=labels,
+        dimension=dimension,
+        context=context
+    )
 
 
 @openeo_process
@@ -2754,7 +2871,13 @@ def aggregate_temporal_period(data, period, reducer, dimension=UNSET, context=UN
         the source data cube has just one dimension label `2020-01-05`, the process returns a data cube with just a
         single dimension label (`2020-005`).
     """
-    return _process('aggregate_temporal_period', data=data, period=period, reducer=reducer, dimension=dimension, context=context)
+    return _process('aggregate_temporal_period', 
+        data=data,
+        period=period,
+        reducer=build_child_callback(reducer, parent_parameters=['data', 'context']),
+        dimension=dimension,
+        context=context
+    )
 
 
 @openeo_process
@@ -2850,7 +2973,7 @@ def apply(data, process, context=UNSET) -> ProcessBuilder:
     :return: A data cube with the newly computed values and the same dimensions. The dimension properties
         (name, type, labels, reference system and resolution) remain unchanged.
     """
-    return _process('apply', data=data, process=process, context=context)
+    return _process('apply', data=data, process=build_child_callback(process, parent_parameters=['x', 'context']), context=context)
 
 
 @openeo_process
@@ -2886,7 +3009,13 @@ def apply_dimension(data, process, dimension, target_dimension=UNSET, context=UN
         to the number of values computed by the process, - the dimension labels are incrementing integers starting
         from zero, - the resolution changes, and - the reference system is undefined.
     """
-    return _process('apply_dimension', data=data, process=process, dimension=dimension, target_dimension=target_dimension, context=context)
+    return _process('apply_dimension', 
+        data=data,
+        process=build_child_callback(process, parent_parameters=['data', 'context']),
+        dimension=dimension,
+        target_dimension=target_dimension,
+        context=context
+    )
 
 
 @openeo_process
@@ -2938,7 +3067,13 @@ def apply_neighborhood(data, process, size, overlap=UNSET, context=UNSET) -> Pro
     :return: A data cube with the newly computed values and the same dimensions. The dimension properties
         (name, type, labels, reference system and resolution) remain unchanged.
     """
-    return _process('apply_neighborhood', data=data, process=process, size=size, overlap=overlap, context=context)
+    return _process('apply_neighborhood', 
+        data=data,
+        process=build_child_callback(process, parent_parameters=['data', 'context']),
+        size=size,
+        overlap=overlap,
+        context=context
+    )
 
 
 @openeo_process
@@ -3026,7 +3161,14 @@ def ard_normalized_radar_backscatter(data, elevation_model=UNSET, contributing_a
         DEM-based local incidence angles in degrees.  The data returned is CARD4L compliant with corresponding
         metadata.
     """
-    return _process('ard_normalized_radar_backscatter', data=data, elevation_model=elevation_model, contributing_area=contributing_area, ellipsoid_incidence_angle=ellipsoid_incidence_angle, noise_removal=noise_removal, options=options)
+    return _process('ard_normalized_radar_backscatter', 
+        data=data,
+        elevation_model=elevation_model,
+        contributing_area=contributing_area,
+        ellipsoid_incidence_angle=ellipsoid_incidence_angle,
+        noise_removal=noise_removal,
+        options=options
+    )
 
 
 @openeo_process
@@ -3074,7 +3216,14 @@ def ard_surface_reflectance(data, atmospheric_correction_method, cloud_detection
         (optional): Contains coefficients used for terrain illumination correction are provided for each pixel.
         The data returned is CARD4L compliant with corresponding metadata.
     """
-    return _process('ard_surface_reflectance', data=data, atmospheric_correction_method=atmospheric_correction_method, cloud_detection_method=cloud_detection_method, elevation_model=elevation_model, atmospheric_correction_options=atmospheric_correction_options, cloud_detection_options=cloud_detection_options)
+    return _process('ard_surface_reflectance', 
+        data=data,
+        atmospheric_correction_method=atmospheric_correction_method,
+        cloud_detection_method=cloud_detection_method,
+        elevation_model=elevation_model,
+        atmospheric_correction_options=atmospheric_correction_options,
+        cloud_detection_options=cloud_detection_options
+    )
 
 
 @openeo_process
@@ -3107,7 +3256,11 @@ def array_apply(data, process, context=UNSET) -> ProcessBuilder:
     :return: An array with the newly computed values. The number of elements are the same as for the original
         array.
     """
-    return _process('array_apply', data=data, process=process, context=context)
+    return _process('array_apply', 
+        data=data,
+        process=build_child_callback(process, parent_parameters=['x', 'index', 'label', 'context']),
+        context=context
+    )
 
 
 @openeo_process
@@ -3193,7 +3346,11 @@ def array_filter(data, condition, context=UNSET) -> ProcessBuilder:
     :return: An array filtered by the specified condition. The number of elements are less than or equal
         compared to the original array.
     """
-    return _process('array_filter', data=data, condition=condition, context=context)
+    return _process('array_filter', 
+        data=data,
+        condition=build_child_callback(condition, parent_parameters=['x', 'index', 'label', 'context']),
+        context=context
+    )
 
 
 @openeo_process
@@ -3707,7 +3864,12 @@ def filter_labels(data, condition, dimension, context=UNSET) -> ProcessBuilder:
         system and resolution) remain unchanged, except that the given dimension has less (or the same) dimension
         labels.
     """
-    return _process('filter_labels', data=data, condition=condition, dimension=dimension, context=context)
+    return _process('filter_labels', 
+        data=data,
+        condition=build_child_callback(condition, parent_parameters=['value', 'context']),
+        dimension=dimension,
+        context=context
+    )
 
 
 @openeo_process
@@ -3806,7 +3968,12 @@ def fit_curve(data, parameters, function, dimension) -> ProcessBuilder:
 
     :return: A data cube with the optimal values for the parameters.
     """
-    return _process('fit_curve', data=data, parameters=parameters, function=function, dimension=dimension)
+    return _process('fit_curve', 
+        data=data,
+        parameters=parameters,
+        function=build_child_callback(function, parent_parameters=['x', 'parameters']),
+        dimension=dimension
+    )
 
 
 @openeo_process
@@ -4278,7 +4445,12 @@ def merge_cubes(cube1, cube2, overlap_resolver=UNSET, context=UNSET) -> ProcessB
     :return: The merged data cube. See the process description for details regarding the dimensions and
         dimension properties (name, type, labels, reference system and resolution).
     """
-    return _process('merge_cubes', cube1=cube1, cube2=cube2, overlap_resolver=overlap_resolver, context=context)
+    return _process('merge_cubes', 
+        cube1=cube1,
+        cube2=cube2,
+        overlap_resolver=build_child_callback(overlap_resolver, parent_parameters=['x', 'y', 'context']),
+        context=context
+    )
 
 
 @openeo_process
@@ -4473,7 +4645,13 @@ def predict_curve(data, parameters, function, dimension, labels=UNSET) -> Proces
 
     :return: A data cube with the predicted values.
     """
-    return _process('predict_curve', data=data, parameters=parameters, function=function, dimension=dimension, labels=labels)
+    return _process('predict_curve', 
+        data=data,
+        parameters=parameters,
+        function=build_child_callback(function, parent_parameters=['x', 'parameters']),
+        dimension=dimension,
+        labels=labels
+    )
 
 
 @openeo_process
@@ -4556,7 +4734,12 @@ def reduce_dimension(data, reducer, dimension, context=UNSET) -> ProcessBuilder:
         dimensions decreases by one. The dimension properties (name, type, labels, reference system and resolution)
         for all other dimensions remain unchanged.
     """
-    return _process('reduce_dimension', data=data, reducer=reducer, dimension=dimension, context=context)
+    return _process('reduce_dimension', 
+        data=data,
+        reducer=build_child_callback(reducer, parent_parameters=['data', 'context']),
+        dimension=dimension,
+        context=context
+    )
 
 
 @openeo_process
@@ -4574,7 +4757,7 @@ def reduce_spatial(data, reducer, context=UNSET) -> ProcessBuilder:
         number of dimensions decreases by two. The dimension properties (name, type, labels, reference system and
         resolution) for all other dimensions remain unchanged.
     """
-    return _process('reduce_spatial', data=data, reducer=reducer, context=context)
+    return _process('reduce_spatial', data=data, reducer=build_child_callback(reducer, parent_parameters=['data', 'context']), context=context)
 
 
 @openeo_process
@@ -4782,7 +4965,17 @@ def sar_backscatter(data, coefficient=UNSET, elevation_model=UNSET, mask=UNSET, 
     :return: Backscatter values corresponding to the chosen parametrization. The values are given in linear
         scale.
     """
-    return _process('sar_backscatter', data=data, coefficient=coefficient, elevation_model=elevation_model, mask=mask, contributing_area=contributing_area, local_incidence_angle=local_incidence_angle, ellipsoid_incidence_angle=ellipsoid_incidence_angle, noise_removal=noise_removal, options=options)
+    return _process('sar_backscatter', 
+        data=data,
+        coefficient=coefficient,
+        elevation_model=elevation_model,
+        mask=mask,
+        contributing_area=contributing_area,
+        local_incidence_angle=local_incidence_angle,
+        ellipsoid_incidence_angle=ellipsoid_incidence_angle,
+        noise_removal=noise_removal,
+        options=options
+    )
 
 
 @openeo_process

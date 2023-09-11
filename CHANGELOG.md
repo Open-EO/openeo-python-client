@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Support handling of "callback" parameters in `openeo.processes` callables ([#470](https://github.com/Open-EO/openeo-python-client/issues/470))
 
 
 ## [0.22.0] - 2023-08-09

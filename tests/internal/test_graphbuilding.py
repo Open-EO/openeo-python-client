@@ -298,7 +298,7 @@ def test_pgnode_parameter_print_json():
     pg.print_json(file=out, indent=None)
     assert (
         out.getvalue()
-        == '{"process_graph": {"add1": {"process_id": "add", "arguments": {"x": {"from_parameter": "a"}, "y": 42}, "result": true}}}'
+        == '{"process_graph": {"add1": {"process_id": "add", "arguments": {"x": {"from_parameter": "a"}, "y": 42}, "result": true}}}\n'
     )
 
 

@@ -10,7 +10,6 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import requests
 
-import openeo.processes
 from openeo.internal.graph_building import FlatGraphableMixin, PGNode, _FromNodeMixin
 from openeo.internal.jupyter import render_component
 from openeo.internal.processes.builder import (
@@ -129,6 +128,8 @@ class UDF:
         See :ref:`old_udf_api` for more background about the changes.
     """
 
+    # TODO: eliminate dependency on `openeo.rest.connection` and move to somewhere under `openeo.internal`?
+
     __slots__ = ["code", "_runtime", "version", "context", "_source"]
 
     def __init__(
@@ -167,7 +168,7 @@ class UDF:
     def __repr__(self):
         return f"<{type(self).__name__} runtime={self._runtime!r} code={str_truncate(self.code, width=200)!r}>"
 
-    def get_runtime(self, connection: Connection) -> str:
+    def get_runtime(self, connection: Optional[Connection] = None) -> str:
         return self._runtime or self._guess_runtime(connection=connection)
 
     @classmethod
@@ -221,7 +222,7 @@ class UDF:
             code=code, runtime=runtime, version=version, context=context, _source=url
         )
 
-    def _guess_runtime(self, connection: Connection) -> str:
+    def _guess_runtime(self, connection: Optional[Connection] = None) -> str:
         """Guess UDF runtime from UDF source (path) or source code."""
         # First, guess UDF language
         language = None
@@ -240,14 +241,14 @@ class UDF:
             # TODO: detection heuristics for R and other languages?
         if not language:
             raise OpenEoClientException("Failed to detect language of UDF code.")
-        # Find runtime for language
-        runtimes = {k.lower(): k for k in connection.list_udf_runtimes().keys()}
-        if language.lower() in runtimes:
-            return runtimes[language.lower()]
-        else:
-            raise OpenEoClientException(
-                f"Failed to match UDF language {language!r} with a runtime ({runtimes})"
-            )
+        runtime = language
+        if connection:
+            # Some additional best-effort validation/normalization of the runtime
+            # TODO: this just does some case-normalization, just drop that all together to eliminate
+            #       the dependency on a connection object. See https://github.com/Open-EO/openeo-api/issues/510
+            runtimes = {k.lower(): k for k in connection.list_udf_runtimes().keys()}
+            runtime = runtimes.get(runtime.lower(), runtime)
+        return runtime
 
     def _guess_runtime_from_suffix(self, suffix: str) -> Union[str]:
         return {
@@ -255,7 +256,7 @@ class UDF:
             ".r": "R",
         }.get(suffix.lower())
 
-    def get_run_udf_callback(self, connection: Connection, data_parameter: str = "data") -> PGNode:
+    def get_run_udf_callback(self, connection: Optional[Connection] = None, data_parameter: str = "data") -> PGNode:
         """
         For internal use: construct `run_udf` node to be used as callback in `apply`, `reduce_dimension`, ...
         """
@@ -272,7 +273,7 @@ class UDF:
 def build_child_callback(
     process: Union[str, PGNode, typing.Callable, UDF],
     parent_parameters: List[str],
-    connection: Optional["openeo.Connection"] = None,
+    connection: Optional[Connection] = None,
 ) -> dict:
     """
     Build a "callback" process: a user defined process that is used by another process (such
@@ -280,15 +281,20 @@ def build_child_callback(
 
     :param process: process id string, PGNode or callable that uses the ProcessBuilder mechanism to build a process
     :param parent_parameters: list of parameter names defined for child process
+    :param connection: optional connection object to improve runtime validation for UDFs
     :return:
     """
     # TODO: move this to more generic process graph building utility module
     # TODO: autodetect the parameters defined by parent process?
+    # TODO: eliminate need for connection object (also see `UDF._guess_runtime`)
+    # TODO: when `openeo.rest` deps are gone: move this helper to somewhere under `openeo.internal`
     if isinstance(process, PGNode):
         # Assume this is already a valid callback process
         pg = process
     elif isinstance(process, str):
         # Assume given reducer is a simple predefined reduce process_id
+        # TODO: avoid local import (workaround for circular import issue)
+        import openeo.processes
         if process in openeo.processes.__dict__:
             process_params = get_parameter_names(openeo.processes.__dict__[process])
             # TODO: switch to "Callable" handling here
@@ -307,6 +313,8 @@ def build_child_callback(
         pg = convert_callable_to_pgnode(process, parent_parameters=parent_parameters)
     elif isinstance(process, UDF):
         pg = process.get_run_udf_callback(connection=connection, data_parameter=parent_parameters[0])
+    elif isinstance(process, dict) and isinstance(process.get("process_graph"), PGNode):
+        pg = process["process_graph"]
     else:
         raise ValueError(process)
 

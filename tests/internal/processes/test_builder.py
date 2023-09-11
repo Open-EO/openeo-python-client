@@ -51,7 +51,7 @@ def test_process_builder_process_print_json():
     builder.print_json(file=out, indent=None)
     assert (
         out.getvalue()
-        == '{"process_graph": {"foo1": {"process_id": "foo", "arguments": {"color": "blue"}, "result": true}}}'
+        == '{"process_graph": {"foo1": {"process_id": "foo", "arguments": {"color": "blue"}, "result": true}}}\n'
     )
 
 

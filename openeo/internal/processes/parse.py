@@ -21,6 +21,14 @@ class Schema:
     def from_dict(cls, data: dict) -> Schema:
         return cls(schema=data)
 
+    def is_process_graph(self) -> bool:
+        """Is this a  {"type": "object", "subtype": "process-graph"} schema?"""
+        return (
+            isinstance(self.schema, dict)
+            and self.schema.get("type") == "object"
+            and self.schema.get("subtype") == "process-graph"
+        )
+
 
 class Parameter:
     """openEO process parameter"""

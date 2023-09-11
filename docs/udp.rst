@@ -87,7 +87,7 @@ It allows you to document your parameters, define the data type(s) you expect
 The openEO Python client lets you define parameters as
 :class:`~openeo.api.process.Parameter` instances.
 In general you have to specify at least the parameter name,
-a description and a schema.
+a description and a schema (to declare the expected parameter type).
 The "fahrenheit" parameter from the example above can be defined like this::
 
     from openeo.api.process import Parameter
@@ -98,28 +98,64 @@ The "fahrenheit" parameter from the example above can be defined like this::
         schema={"type": "number"}
     )
 
+To simplify working with parameter schemas, the :class:`~openeo.api.process.Parameter` class
+provides a couple of helpers to create common types of parameters.
+In the example above, the "fahrenheit" parameter (a number) can also be created more compactly
+with the :py:meth:`Parameter.number() <openeo.api.process.Parameter.number>` helper::
 
-Parameter schema
------------------
+    fahrenheit_param = Parameter.number(
+        name="fahrenheit", description="Degrees Fahrenheit"
+    )
 
-The "schema" argument defines the data type of values that will be passed for this parameter.
-It is based on `JSON Schema draft-07 <https://json-schema.org/>`_,
-which defines the usual suspects:
+Some useful parameter helpers (class methods of the :py:class:`~openeo.api.process.Parameter` class):
 
-- ``{"type": "string"}`` for strings
-- ``{"type": "integer"}`` for integers
-- ``{"type": "number"}`` for general numeric types (integers and floats)
-- ``{"type": "boolean"}`` for booleans
+-   :py:meth:`Parameter.string() <openeo.api.process.Parameter.string>`
+    to create a string parameter,
+    e.g. to parameterize the collection id in a ``load_collection`` call in your UDP.
+-   :py:meth:`Parameter.integer() <openeo.api.process.Parameter.integer>`,
+    :py:meth:`Parameter.number() <openeo.api.process.Parameter.number>`,
+    and :py:meth:`Parameter.boolean() <openeo.api.process.Parameter.boolean>`
+    to create integer, floating point, or boolean parameters respectively.
+-   :py:meth:`Parameter.array() <openeo.api.process.Parameter.array>`
+    to create an array parameter,
+    e.g. to parameterize the a band selection  in a ``load_collection`` call in your UDP.
+-   :py:meth:`Parameter.datacube() <openeo.api.process.Parameter.datacube>`
+    (or its legacy, deprecated cousin :py:meth:`Parameter.raster_cube() <openeo.api.process.Parameter.raster_cube>`)
+    to create a data cube parameter.
 
-Apart from these basic primitives, one can also define arrays with ``{"type": "array"}``,
-or even specify the expected type of the array items, e.g. an array of integers as follows::
+Consult the documentation of these helper class methods for additional features.
+For example, declaring a default value for an integer parameter::
+
+    size_param = Parameter.integer(
+        name="size", description="Kernel size", default=4
+    )
+
+
+
+More advanced parameter schemas
+--------------------------------
+
+While the helper class methods of :py:class:`~openeo.api.process.Parameter` (discussed above)
+cover the most common parameter usage,
+you also might need to declare some parameters with a more special or specific schema.
+You can do that through the ``schema`` argument
+of the basic :py:class:`~openeo.api.process.Parameter()` constructor.
+This "schema" argument follows the `JSON Schema draft-07 <https://json-schema.org/>`_ specification,
+which we will briefly illustrate here.
+
+Basic primitives can be declared through a (required) "type" field, for example:
+``{"type": "string"}`` for strings, ``{"type": "integer"}`` for integers, etc.
+
+Likewise, arrays can be defined with a minimal ``{"type": "array"}``.
+In addition, the expected type of the array items can also be specified,
+e.g. an array of integers::
 
     {
         "type": "array",
         "items": {"type": "integer"}
     }
 
-Another more complex type is ``{"type": "object"}`` for parameters
+Another, more complex type is ``{"type": "object"}`` for parameters
 that are like Python dictionaries (or mappings).
 For example, to define a bounding box parameter
 that should contain certain fields with certain type::
@@ -138,41 +174,17 @@ that should contain certain fields with certain type::
 Check the documentation and examples of `JSON Schema draft-07 <https://json-schema.org/>`_
 for even more features.
 
-On top of these generic types, openEO defines a couple of custom types,
-most notably the **data cube** type::
+On top of these generic types, the openEO API also defines a couple of custom (sub)types
+in the `openeo-processes project <https://github.com/Open-EO/openeo-processes>`_
+(see the ``meta/subtype-schemas.json`` listing).
+For example, the schema of an openEO data cube is::
 
     {
         "type": "object",
-        "subtype": "raster-cube"
+        "subtype": "datacube"
     }
 
 
-Schema-specific helpers
-````````````````````````
-
-The openEO Python client defines some helper functions
-to create parameters with a given schema in a compact way.
-For example, the "fahrenheit" parameter, which is of type "number",
-can be created with the :func:`~openeo.api.process.Parameter.number` helper::
-
-    fahrenheit_param = Parameter.number(
-        name="fahrenheit", description="Degrees Fahrenheit"
-    )
-
-Very often you will need a "raster-cube" type parameter,
-easily created with the :func:`~openeo.api.process.Parameter.raster_cube` helper::
-
-    cube_param = Parameter.raster_cube()
-
-
-Another example of an integer parameter with a default value::
-
-    size_param = Parameter.integer(
-        name="size", description="Kernel size", default=4
-    )
-
-
-How you have to use these parameter instances will be explained below.
 
 .. _build_and_store_udp:
 
