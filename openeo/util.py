@@ -690,6 +690,11 @@ class BBoxDict(dict):
     Dictionary based helper to easily create/work with bounding box dictionaries
     (having keys "west", "south", "east", "north", and optionally "crs").
 
+    :param crs: value describing the coordinate reference system.
+        Typically just an int (interpreted as EPSG code, e.g. ``4326``)
+        or a string (handled as authority string, e.g. ``"EPSG:4326"``).
+        See :py:func:`openeo.util.normalize_crs` for more details about additional normalization that is applied to this argument.
+
     .. versionadded:: 0.10.1
     """
 
@@ -798,24 +803,33 @@ class SimpleProgressBar:
 
 def normalize_crs(crs: Any, *, use_pyproj: bool = True) -> Union[None, int, str]:
     """
-    Normalize given data structure (typically just an int or string)
-    that encodes a CRS (Coordinate Reference System) to an EPSG (int) code or WKT2 CRS string.
+    Normalize the given value (describing a CRS or Coordinate Reference System)
+    to an openEO compatible EPSG code (int) or WKT2 CRS string.
 
-    Behavior and data structure support depends on the availability of the ``pyproj`` library:
+    At minimum, the following input values are handled:
 
-    -   If the ``pyproj`` library is available: use that to do parsing and conversion.
-        This means that anything that is supported by ``pyproj.CRS.from_user_input`` is allowed.
+    -   an integer value (e.g. ``4326``) is interpreted as an EPSG code
+    -   a string that just contains an integer (e.g. ``"4326"``)
+        or with and additional ``"EPSG:"`` prefix (e.g. ``"EPSG:4326"``)
+        will also be interpreted as an EPSG value
+
+    Additional support and behavior depends on the availability of the ``pyproj`` library:
+
+    -   When available, it will be used for parsing and validation:
+        everything supported by `pyproj.CRS.from_user_input <https://pyproj4.github.io/pyproj/dev/api/crs/crs.html#pyproj.crs.CRS.from_user_input>`_ is allowed.
         See the ``pyproj`` docs for more details.
     -   Otherwise, some best effort validation is done:
-        EPSG looking int/str values will be parsed as such, other strings will be assumed to be WKT2 already.
+        EPSG looking integer or string values will be parsed as such as discussed above.
+        Other strings will be assumed to be WKT2 already.
         Other data structures will not be accepted.
 
-    :param crs: data structure that encodes a CRS, typically just an int or string value.
-        If the ``pyproj`` library is available, everything supported by it is allowed
+    :param crs: value that encodes a coordinate reference system, typically just an int (EPSG code) or string (authority string).
+        If the ``pyproj`` library is available, everything supported by it is allowed.
+
     :param use_pyproj: whether ``pyproj`` should be leveraged at all
         (mainly useful for testing the "no pyproj available" code path)
 
-    :return: EPSG code as int, or WKT2 string. Or None if input was empty .
+    :return: EPSG code as int, or WKT2 string. Or None if input was empty.
 
     :raises ValueError:
         When the given CRS data can not be parsed/converted/normalized.
