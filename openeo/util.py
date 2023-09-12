@@ -690,17 +690,10 @@ class BBoxDict(dict):
     Dictionary based helper to easily create/work with bounding box dictionaries
     (having keys "west", "south", "east", "north", and optionally "crs").
 
-    crs:
-        value that encodes a coordinate reference system, typically just an int (EPSG code) or string (authority string).
-
-        Integers always refer to the corresponding EPSG code.
-        A string that contains only an integer is interpreted as that same integer EPSG code.
-
-        You can also specify EPSG codes as an authority string, such as "EPSG:4326".
-        For example, the following string and int values all specify to the same CRS:
-        ``"EPSG:4326"``, ``"4326"``, and the integer ``4326``.
-
-        .. seealso:: openEO Python Client documentation on openeo.util.normalize_crs  :py:func:`openeo.util.normalize_crs` for the most up to date information.
+    :param crs: value describing the coordinate reference system.
+        Typically just an int (interpreted as EPSG code, e.g. ``4326``)
+        or a string (handled as authority string, e.g. ``"EPSG:4326"``).
+        See :py:func:`openeo.util.normalize_crs` for more details about additional normalization that is applied to this argument.
 
     .. versionadded:: 0.10.1
     """
@@ -810,24 +803,25 @@ class SimpleProgressBar:
 
 def normalize_crs(crs: Any, *, use_pyproj: bool = True) -> Union[None, int, str]:
     """
-    Normalize given data structure (typically just an int or string)
-    that encodes a CRS (Coordinate Reference System) to an EPSG (int) code or WKT2 CRS string.
+    Normalize the given value (describing a CRS or Coordinate Reference System)
+    to an openEO compatible EPSG code (int) or WKT2 CRS string.
 
-    Behavior and data structure support depends on the availability of the ``pyproj`` library:
+    At minimum, the following input values are handled:
 
-    -   If the ``pyproj`` library is available: use that to do parsing and conversion.
-        This means that everything supported by `pyproj.CRS.from_user_input <https://pyproj4.github.io/pyproj/dev/api/crs/crs.html#pyproj.crs.CRS.from_user_input>`_ is allowed.
+    -   an integer value (e.g. ``4326``) is interpreted as an EPSG code
+    -   a string that just contains an integer (e.g. ``"4326"``)
+        or with and additional ``"EPSG:"`` prefix (e.g. ``"EPSG:4326"``)
+        will also be interpreted as an EPSG value
+
+    Additional support and behavior depends on the availability of the ``pyproj`` library:
+
+    -   When available, it will be used for parsing and validation:
+        everything supported by `pyproj.CRS.from_user_input <https://pyproj4.github.io/pyproj/dev/api/crs/crs.html#pyproj.crs.CRS.from_user_input>`_ is allowed.
         See the ``pyproj`` docs for more details.
     -   Otherwise, some best effort validation is done:
-        EPSG looking int/str values will be parsed as such, other strings will be assumed to be WKT2 already.
+        EPSG looking integer or string values will be parsed as such as discussed above.
+        Other strings will be assumed to be WKT2 already.
         Other data structures will not be accepted.
-
-        Integers always refer to the corresponding EPSG code.
-        A string that contains only an integer is interpreted as that same integer EPSG code.
-
-        You can also specify EPSG codes as an authority string, such as "EPSG:4326".
-        For example, the following string and int values all specify to the same CRS:
-        ``"EPSG:4326"``, ``"4326"``, and the integer ``4326``.
 
     :param crs: value that encodes a coordinate reference system, typically just an int (EPSG code) or string (authority string).
         If the ``pyproj`` library is available, everything supported by it is allowed.

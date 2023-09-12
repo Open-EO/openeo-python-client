@@ -15,7 +15,7 @@ import pathlib
 import typing
 import warnings
 from builtins import staticmethod
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union, Sequence
 
 import numpy as np
 import shapely.geometry
@@ -287,12 +287,16 @@ class DataCube(_ProcessGraphAbstraction):
 
     @openeo_process
     def filter_bbox(
-            self,
-            *args,
-            west=None, south=None, east=None, north=None,
-            crs=None,
-            base=None, height=None,
-            bbox=None
+        self,
+        *args,
+        west: Optional[float] = None,
+        south: Optional[float] = None,
+        east: Optional[float] = None,
+        north: Optional[float] = None,
+        crs: Optional[Union[int, str]] = None,
+        base: Optional[float] = None,
+        height: Optional[float] = None,
+        bbox: Optional[Sequence[float]] = None,
     ) -> DataCube:
         """
         Limits the data cube to the specified bounding box.
@@ -330,9 +334,9 @@ class DataCube(_ProcessGraphAbstraction):
             - With a CRS other than EPSG 4326::
 
                 >>> cube.filter_bbox(
-                    ... west=652000, east=672000, north=5161000, south=5181000,
-                    ... crs=32632
-                    ... )
+                ... west=652000, east=672000, north=5161000, south=5181000,
+                ... crs=32632
+                ... )
 
             - Deprecated: positional arguments are also supported,
               but follow a non-standard order for legacy reasons::
@@ -340,16 +344,10 @@ class DataCube(_ProcessGraphAbstraction):
                 >>> west, east, north, south = 3, 4, 52, 51
                 >>> cube.filter_bbox(west, east, north, south)
 
-        :param crs: value that encodes a coordinate reference system, typically just an int (EPSG code) or string (authority string).
-
-            Integers always refer to the corresponding EPSG code.
-            A string that contains only an integer is interpreted as that same integer EPSG code.
-
-            You can also specify EPSG codes as an authority string, such as "EPSG:4326".
-            For example, the following string and int values all specify to the same CRS:
-            ``"EPSG:4326"``, ``"4326"``, and the integer ``4326``.
-
-            .. seealso:: openEO Python Client documentation on openeo.util.normalize_crs  :py:func:`openeo.util.normalize_crs` for the most up to date information.
+        :param crs: value describing the coordinate reference system.
+            Typically just an int (interpreted as EPSG code, e.g. ``4326``)
+            or a string (handled as authority string, e.g. ``"EPSG:4326"``).
+            See :py:func:`openeo.util.normalize_crs` for more details about additional normalization that is applied to this argument.
         """
         if args and any(k is not None for k in (west, south, east, north, bbox)):
             raise ValueError("Don't mix positional arguments with keyword arguments.")
@@ -841,9 +839,8 @@ class DataCube(_ProcessGraphAbstraction):
         """
         Convert input to a geometry as "geojson" subtype object.
 
-        :param crs: value that encodes a coordinate reference system, typically just an int (EPSG code) or string (authority string).
-            .. seealso:: openEO Python Client documentation on openeo.util.normalize_crs  :py:func:`openeo.util.normalize_crs` for the most up to date information.
-
+        :param crs: value that encodes a coordinate reference system.
+            See :py:func:`openeo.util.normalize_crs` for more details about additional normalization that is applied to this argument.
         """
         if isinstance(geometry, (str, pathlib.Path)):
             # Assumption: `geometry` is path to polygon is a path to vector file at backend.
@@ -892,7 +889,7 @@ class DataCube(_ProcessGraphAbstraction):
         ],
         reducer: Union[str, typing.Callable, PGNode],
         target_dimension: Optional[str] = None,
-        crs: Optional[str] = None,
+        crs: Optional[Union[int, str]] = None,
         context: Optional[dict] = None,
         # TODO arguments: target dimension, context
     ) -> VectorCube:
@@ -918,7 +915,9 @@ class DataCube(_ProcessGraphAbstraction):
 
         :param target_dimension: The new dimension name to be used for storing the results.
         :param crs: The spatial reference system of the provided polygon.
-            By default longitude-latitude (EPSG:4326) is assumed.
+            By default, longitude-latitude (EPSG:4326) is assumed.
+            See :py:func:`openeo.util.normalize_crs` for more details about additional normalization that is applied to this argument.
+
         :param context: Additional data to be passed to the reducer process.
 
             .. note:: this ``crs`` argument is a non-standard/experimental feature, only supported by specific back-ends.
