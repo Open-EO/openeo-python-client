@@ -92,7 +92,6 @@ the openEO Python client will hide this normally).
 The important point here is the parameter reference ``{"from_parameter": "collection_id"}`` or 
 ``{"from_parameter": "aoi"}`` in the above process graph.
 When we call this user-defined process we will have to provide a value.
-For example with  degrees Fahrenheit (again in openEO JSON format here)
 
 .. code-block:: json
     {
@@ -151,7 +150,7 @@ Building and storing user-defined process
 There are a couple of ways to build and store user-defined processes:
 
 - using predefined :ref:`process functions <create_udp_through_process_functions>`
-- :ref:`parameterized building of a data cube <create_udp_parameterized_cube>`
+- :ref:`parameterized building of a datacube <create_udp_parameterized_cube>`
 - :ref:`directly from a well-formatted dictionary <create_udp_from_dict>` process graph representation
 
 
@@ -179,7 +178,7 @@ Some useful parameter helpers (class methods of the :py:class:`~openeo.api.proce
     e.g. to parameterize the a band selection  in a ``load_collection`` call in your UDP.
 -   :py:meth:`Parameter.datacube() <openeo.api.process.Parameter.datacube>`
     (or its legacy, deprecated cousin :py:meth:`Parameter.raster_cube() <openeo.api.process.Parameter.raster_cube>`)
-    to create a data cube parameter.
+    to create a datacube parameter.
 
 Consult the documentation of these helper class methods for additional features.
 
@@ -241,7 +240,7 @@ For example, as defined for the ``download_subset``
         "subtype": "collection-id",
     }
     
-Additionally, the schema of an openEO data cube is:
+Additionally, the schema of an openEO datacube is:
 
 .. code-block:: json
     {
@@ -259,7 +258,7 @@ Building, saving and storing user-defined process
 There are a couple of ways to build and store user-defined processes:
 
 - using predefined :ref:`process functions <create_udp_through_process_functions>`
-- :ref:`parameterized building of a data cube <create_udp_parameterized_cube>`
+- :ref:`parameterized building of a datacube <create_udp_parameterized_cube>`
 - :ref:`directly from a well-formatted dictionary <create_udp_from_dict>` process graph representation
 
 
@@ -347,3 +346,165 @@ or :meth:`~openeo.rest.datacube.DataCube.print_json()` method:
     	 }
     }
 
+.. _create_udp_parameterized_cube:
+
+From a parameterized datacube
+-------------------------------
+
+It's also possible to work with a :class:`~openeo.rest.datacube.DataCube` directly
+and parameterize it.
+
+Let's create, as a simple but functional example, a custom ``load_collection``
+with hardcoded collection id and band name
+and a parameterized spatial extent (with default):
+
+
+.. code-block:: python
+    #define the parameters
+    spatial_extent = Parameter(
+        name="bbox",
+        schema="object",
+        default={"west": 3.7, "south": 51.03, "east": 3.75, "north": 51.05}
+    )
+    temporal_interval = Parameter(
+        name="temporal_interval",
+        description="The date range to load.",
+        schema={"type": "array", "subtype": "temporal-interval"},
+        default=["2018-06-15", "2018-06-27"]
+    )
+    #define the datacube
+    datacube = connection.load_collection(
+        "SENTINEL2_L2A",
+        spatial_extent=spatial_extent,
+        temporal_extent=temporal_interval
+    )
+
+Note how we just can pass :class:`~openeo.api.process.Parameter` objects as arguments
+while building a :class:`~openeo.rest.datacube.DataCube`.
+
+.. note::
+
+    Not all :class:`~openeo.rest.datacube.DataCube` methods/processes properly support
+    :class:`~openeo.api.process.Parameter` arguments.
+    Please submit a bug report when you encounter missing or wrong parameterization support.
+
+We can now store this as a user-defined process called "Hello_openEO" on the back-end::
+
+.. code-block:: python
+    connection.save_user_defined_process(
+        "Hello_openEO",
+        datacube,
+        parameters=[spatial_extent,temporal_interval]
+    )
+
+If you want to inspect its openEO-style process graph representation,
+use the :meth:`~openeo.rest.datacube.DataCube.to_json()`
+or :meth:`~openeo.rest.datacube.DataCube.print_json()` method::
+
+.. code-block:: python
+    datacube.print_json()
+    
+.. code-block:: json   
+    {
+      "loadcollection1": {
+        "process_id": "load_collection",
+        "arguments": {
+          "id": "SENTINEL2_L2A",
+          "bands": [
+            "B04"
+          ],
+          "spatial_extent": {
+            "from_parameter": "bbox"
+          },
+          "temporal_extent": {
+            "from_parameter": "temporal_interval"
+          }
+        },
+        "result": true
+      }
+    }
+
+.. _create_udp_from_dict:
+
+Using a predefined dictionary
+------------------------------
+
+In some (advanced) situation, you might already have
+the process graph in dictionary format
+(or JSON format, which is very close and easy to transform).
+Another developer already prepared it for you,
+or you prefer to fine-tune process graphs in a JSON editor.
+It is very straightforward to submit this as a user-defined process.
+
+
+Say we start from the following Python dictionary,
+
+.. code-block:: python
+    datacube =     {
+      "loadcollection1": {
+        "process_id": "load_collection",
+        "arguments": {
+          "id": "SENTINEL2_L2A",
+          "bands": [
+            "B04"
+          ],
+          "spatial_extent": {
+            "from_parameter": "bbox"
+          },
+          "temporal_extent": {
+            "from_parameter": "temporal_interval"
+          }
+        },
+        "result": true
+      }
+    }
+
+We can store this directly, taking into account that we have to defined 
+the bbox and temporal_interval as a parameters as done earlier. Then,
+pass datacube directly to :py:meth:`~openeo.rest.connection.Connection.save_user_defined_process`.
+
+Store to a file
+---------------
+
+Some use cases might require storing the user-defined process in,
+for example, a JSON file instead of storing it directly on a back-end.
+Use :py:func:`~openeo.rest.udp.build_process_dict` to build a dictionary
+compatible with the "process graph with metadata" format of the openEO API
+and dump it in JSON format to a file:
+
+.. code-block:: python
+    import json
+    from openeo.rest.udp import build_process_dict
+
+    spec = build_process_dict(
+        process_id="Hello openEO",
+        process_graph=datacube,
+        parameters=[spatial_extent,temporal_interval]
+    )
+
+    with open("Hello_openEO.json", "w") as f:
+        json.dump(spec, f, indent=2)
+
+
+.. _evaluate_udp:
+
+Evaluate user-defined processes
+================================
+
+Let's evaluate the user-defined processes we defined.
+
+Because there is no pre-defined
+wrapper function for our user-defined process, we use the
+generic :func:`openeo.processes.process` function to build a simple
+process graph that calls our ``Hello_openEO`` process:
+
+.. code-block:: python
+    pg = openeo.processes.process("Hello_openEO", temporal_interval=["2018-06-15", "2018-06-27"], bbox={"west": 3.7, "south": 51.03, "east": 3.75, "north": 51.05})
+
+Alternatively, we can also use :func:`~openeo.rest.connection.Connection.datacube_from_process`
+to construct a :class:`~openeo.rest.datacube.DataCube` object
+which we can process further and download::
+
+    datacube = connection.datacube_from_process("Hello_openEO", temporal_interval=["2018-06-15", "2018-06-27"], bbox={"west": 3.7, "south": 51.03, "east": 3.75, "north": 51.05})
+
+See :ref:`datacube_from_process` for more information on :func:`~openeo.rest.connection.Connection.datacube_from_process`.
