@@ -259,8 +259,6 @@ def test_add_bands(connection, api_version):
 
 
 def test_add_bands_different_collection(connection, api_version):
-    if api_version == "0.4.0":
-        pytest.skip("0.4.0 generates invalid result")
     b4 = connection.load_collection("S2").band("B04")
     b3 = connection.load_collection("SENTINEL2_RADIOMETRY_10M").band("B02")
     with pytest.raises(BandMathException):
@@ -305,8 +303,6 @@ def test_merge_cubes_or(connection, api_version):
 
 
 def test_merge_cubes_multiple(connection, api_version):
-    if api_version == "0.4.0":
-        pytest.skip("doesn't work in 0.4.0")
     s2 = connection.load_collection("S2")
     b1 = s2.band("B02")
     b1 = b1.linear_scale_range(0, 1, 0, 2)

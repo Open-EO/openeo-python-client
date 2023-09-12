@@ -119,10 +119,7 @@ def test_load_collection_bands_single_band(connection, api_version):
 def test_load_collection_bands_common_name(connection, api_version):
     im = connection.load_collection("S2", bands=["nir", "red"])
     expected = load_json_resource('data/{v}/load_collection_bands.json'.format(v=api_version))
-    if api_version < ComparableVersion("1.0.0"):
-        expected["loadcollection1"]["arguments"]["bands"] = ["B08", "B04"]
-    else:
-        expected["loadcollection1"]["arguments"]["bands"] = ["nir", "red"]
+    expected["loadcollection1"]["arguments"]["bands"] = ["nir", "red"]
     assert im.flat_graph() == expected
 
 
@@ -158,11 +155,7 @@ def test_filter_bands_single_band(s2cube, api_version):
 def test_filter_bands_common_name(s2cube, api_version):
     im = s2cube.filter_bands(["nir", "red"])
     expected = load_json_resource('data/{v}/filter_bands.json'.format(v=api_version))
-    if api_version < ComparableVersion("1.0.0"):
-        expected["filterbands1"]["arguments"]["bands"] = []
-        expected["filterbands1"]["arguments"]["common_names"] = ["nir", "red"]
-    else:
-        expected["filterbands1"]["arguments"]["bands"] = ["nir", "red"]
+    expected["filterbands1"]["arguments"]["bands"] = ["nir", "red"]
     assert im.flat_graph() == expected
 
 
@@ -233,21 +226,17 @@ def test_filter_bbox_default_handling(s2cube, kwargs, expected):
 def test_max_time(s2cube, api_version):
     im = s2cube.max_time()
     graph = _get_leaf_node(im, force_flat=True)
-    assert graph["process_id"] == "reduce" if api_version == '0.4.0' else 'reduce_dimension'
-    assert graph["arguments"]["data"] == {'from_node': 'loadcollection1'}
+    assert graph["process_id"] == "reduce_dimension"
+    assert graph["arguments"]["data"] == {"from_node": "loadcollection1"}
     assert graph["arguments"]["dimension"] == "t"
-    if api_version == '0.4.0':
-        callback = graph["arguments"]["reducer"]["callback"]["r1"]
-        assert callback == {'arguments': {'data': {'from_argument': 'data'}}, 'process_id': 'max', 'result': True}
-    else:
-        callback = graph["arguments"]["reducer"]["process_graph"]["max1"]
-        assert callback == {'arguments': {'data': {'from_parameter': 'data'}}, 'process_id': 'max', 'result': True}
+    callback = graph["arguments"]["reducer"]["process_graph"]["max1"]
+    assert callback == {"arguments": {"data": {"from_parameter": "data"}}, "process_id": "max", "result": True}
 
 
 def test_reduce_temporal_udf(s2cube, api_version):
     im = s2cube.reduce_temporal_udf("my custom code")
     graph = _get_leaf_node(im)
-    assert graph["process_id"] == "reduce" if api_version == '0.4.0' else 'reduce_dimension'
+    assert graph["process_id"] == "reduce_dimension"
     assert "data" in graph["arguments"]
     assert graph["arguments"]["dimension"] == "t"
 
@@ -256,20 +245,13 @@ def test_ndvi(s2cube, api_version):
     im = s2cube.ndvi()
     graph = _get_leaf_node(im)
     assert graph["process_id"] == "ndvi"
-    if api_version == '0.4.0':
-        assert graph["arguments"] == {'data': {'from_node': 'loadcollection1'}, 'name': 'ndvi'}
-    else:
-        assert graph["arguments"] == {'data': {'from_node': 'loadcollection1'}}
+    assert graph["arguments"] == {"data": {"from_node": "loadcollection1"}}
 
 
 def test_mask_polygon(s2cube, api_version):
     polygon = shapely.geometry.Polygon([[0, 0], [1.9, 0], [1.9, 1.9], [0, 1.9]])
-    if api_version < ComparableVersion("1.0.0"):
-        expected_proces_id = "mask"
-        im = s2cube.mask(polygon)
-    else:
-        expected_proces_id = "mask_polygon"
-        im = s2cube.mask_polygon(mask=polygon)
+    expected_proces_id = "mask_polygon"
+    im = s2cube.mask_polygon(mask=polygon)
     graph = _get_leaf_node(im)
     assert graph["process_id"] == expected_proces_id
     assert graph["arguments"] == {
@@ -283,23 +265,16 @@ def test_mask_polygon(s2cube, api_version):
 
 def test_mask_raster(s2cube, connection, api_version):
     mask = connection.load_collection("MASK")
-    if api_version == '0.4.0':
-        im = s2cube.mask(rastermask=mask, replacement=102)
-    else:
-        im = s2cube.mask(mask=mask, replacement=102)
+    im = s2cube.mask(mask=mask, replacement=102)
     graph = _get_leaf_node(im)
     assert graph == {
         "process_id": "mask",
         "arguments": {
-            "data": {
-                "from_node": "loadcollection1"
-            },
-            "mask": {
-                "from_node": "loadcollection3" if api_version == '0.4.0' else "loadcollection2"
-            },
-            "replacement": 102
+            "data": {"from_node": "loadcollection1"},
+            "mask": {"from_node": "loadcollection2"},
+            "replacement": 102,
         },
-        "result": False if api_version == '0.4.0' else True
+        "result": True,
     }
 
 
@@ -420,7 +395,7 @@ def test_download_format_guessing(
 
     def result_callback(request, context):
         post_data = request.json()
-        pg = (post_data["process"] if api_version >= ComparableVersion("1.0.0") else post_data)["process_graph"]
+        pg = post_data["process"]["process_graph"]
         assert pg["saveresult1"]["arguments"]["format"] == expected_format
         return b"data"
 
@@ -440,7 +415,7 @@ def test_download_bytes(connection, requests_mock, api_version, format, expected
 
     def result_callback(request, context):
         post_data = request.json()
-        pg = (post_data["process"] if api_version >= ComparableVersion("1.0.0") else post_data)["process_graph"]
+        pg = post_data["process"]["process_graph"]
         assert pg["saveresult1"]["arguments"]["format"] == expected_format
         return b"data"
 
