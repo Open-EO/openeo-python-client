@@ -46,25 +46,21 @@ so that anyone can use it to download their choice of collection availble in ope
 defined area of interest. 
 
 .. code-block:: python
-
-datacube = connection.load_collection(
-            collection_id = collection_param
-            )
+    datacube = connection.load_collection(
+                collection_id = collection_param
+                )
 
 
 Nevertheless, based on our application we can also define area of interest, 
 temporal extent or even bands as parameter as shown below:
 
 .. code-block:: python
-
-datacube = connection.load_collection(
-            collection_id = collection,
-            temporal_extent = temporal_interval
-            spatial_extent = aoi,
-            bands = bands
-            )
-
-
+    datacube = connection.load_collection(
+                collection_id = collection,
+                temporal_extent = temporal_interval
+                spatial_extent = aoi,
+                bands = bands
+                )
 
 
 Moreover, you have the flexibility to pre-define any of these 
@@ -80,46 +76,274 @@ the openEO Python client will hide this normally).
 
 
 .. code-block:: json
-
-{
-    "loadcollection1": {
-    "process_id": "load_collection",
-    "arguments": {
-        "id": {
-        "from_parameter": "collection"
-        },
-        "spatial_extent": {
-        "from_parameter": "aoi"
-        },
-        "temporal_extent": {
-        "from_parameter": "temporal_interval"
-        },
-        "bands": {
-        "from_parameter": "bands"
+    {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {
+                "id": {
+                "from_parameter": "collection_id"
+                }
+            },
+            "result": true
         }
-    },
-    "result": true
     }
-}
 
 
-The important point here is the parameter reference ``{"from_parameter": "collection"}`` or 
+The important point here is the parameter reference ``{"from_parameter": "collection_id"}`` or 
 ``{"from_parameter": "aoi"}`` in the above process graph.
 When we call this user-defined process we will have to provide a value.
 For example with  degrees Fahrenheit (again in openEO JSON format here)
 
 .. code-block:: json
+    {
+        "process_id": "download_subset",
+        "arguments": {
+            "collection_id": "SENTINEL2_L2A"
+        },
+        "result": true
+    }
 
-{
-    "process_id": "download_subset",
-    "arguments": {
-        "bbox": {
-            "west": 5.09,
-            "south": 51.18,
-            "east": 5.15,
-            "north": 51.21
+Declaring Parameters
+---------------------
+
+It's good style to declare what parameters your user-defined process expects and supports.
+It allows you to document your parameters, define the data type(s) you expect
+(the "schema" in openEO-speak) and define default values.
+
+The openEO Python client lets you define parameters as
+:class:`~openeo.api.process.Parameter` instances.
+In general you have to specify at least the parameter name,
+a description and a schema (to declare the expected parameter type).
+
+The ``collection_id`` parameters from the above example can be defined like this:
+
+.. code-block:: python
+    collection = Parameter(
+                name="collection_id",
+                description="The openEO collecion_id. ",
+                schema={"type": "string", "subtype": "collection-id", "enum": ["SENTINEL2_L2A"]},
+                optional="true",
+                default="SENTINEL2_L2A",
+    )
+
+
+
+########################### Have to find what is the option for subtype for following example
+
+
+To simplify working with parameter schemas, the :class:`~openeo.api.process.Parameter` class
+provides a couple of helpers to create common types of parameters.
+
+In the example above, the "collection_id" parameter (a string) can also be created more compactly
+with the :py:meth:`Parameter.string() <openeo.api.process.Parameter.string>` helper.
+
+.. code-block:: python
+    collection = Parameter.string(
+                name = "collection_id",
+                description = "The interested openEO collecion_id.",
+                default = "SENTINEL2_L2A"
+    )
+.. _build_and_store_udp:
+
+Building and storing user-defined process
+=============================================
+
+There are a couple of ways to build and store user-defined processes:
+
+- using predefined :ref:`process functions <create_udp_through_process_functions>`
+- :ref:`parameterized building of a data cube <create_udp_parameterized_cube>`
+- :ref:`directly from a well-formatted dictionary <create_udp_from_dict>` process graph representation
+
+
+
+.. _create_udp_through_process_functions:
+
+Through "process functions"
+----------------------------
+
+The openEO Python Client Library defines the
+official processes in the :py:mod:`openeo.processes` module,
+which can be used to build a process graph as follows::
+
+Some useful parameter helpers (class methods of the :py:class:`~openeo.api.process.Parameter` class):
+
+-   :py:meth:`Parameter.string() <openeo.api.process.Parameter.string>`
+    to create a string parameter,
+    e.g. to parameterize the collection id in a ``load_collection`` call in your UDP.
+-   :py:meth:`Parameter.integer() <openeo.api.process.Parameter.integer>`,
+    :py:meth:`Parameter.number() <openeo.api.process.Parameter.number>`,
+    and :py:meth:`Parameter.boolean() <openeo.api.process.Parameter.boolean>`
+    to create integer, floating point, or boolean parameters respectively.
+-   :py:meth:`Parameter.array() <openeo.api.process.Parameter.array>`
+    to create an array parameter,
+    e.g. to parameterize the a band selection  in a ``load_collection`` call in your UDP.
+-   :py:meth:`Parameter.datacube() <openeo.api.process.Parameter.datacube>`
+    (or its legacy, deprecated cousin :py:meth:`Parameter.raster_cube() <openeo.api.process.Parameter.raster_cube>`)
+    to create a data cube parameter.
+
+Consult the documentation of these helper class methods for additional features.
+
+
+
+More advanced parameter schemas
+--------------------------------
+
+While the helper class methods of :py:class:`~openeo.api.process.Parameter` (discussed above)
+cover the most common parameter usage,
+you also might need to declare some parameters with a more special or specific schema.
+You can do that through the ``schema`` argument
+of the basic :py:class:`~openeo.api.process.Parameter()` constructor.
+This "schema" argument follows the `JSON Schema draft-07 <https://json-schema.org/>`_ specification,
+which we will briefly illustrate here.
+
+Basic primitives can be declared through a (required) "type" field, for example:
+``{"type": "string"}`` for strings, ``{"type": "integer"}`` for integers, etc.
+
+Likewise, arrays can be defined with a minimal ``{"type": "array"}``.
+In addition, the expected type of the array items can also be specified,
+e.g. an array of integers:
+
+.. code-block:: json
+    {
+        "type": "array",
+        "items": {"type": "integer"}
+    }
+
+Another, more complex type is ``{"type": "object"}`` for parameters
+that are like Python dictionaries (or mappings).
+For example, to define a bounding box parameter
+that should contain certain fields with certain type::
+
+.. code-block:: json
+    {
+        "type": "object",
+        "properties": {
+            "west": {"type": "number"},
+            "south": {"type": "number"},
+            "east": {"type": "number"},
+            "north": {"type": "number"},
+            "crs": {"type": "string"}
         }
-    },
-    "result": true
-}
+    }
+
+Check the documentation and examples of `JSON Schema draft-07 <https://json-schema.org/>`_
+for even more features.
+
+On top of these generic types, the openEO API also defines a couple of custom (sub)types
+in the `openeo-processes project <https://github.com/Open-EO/openeo-processes>`_
+(see the ``meta/subtype-schemas.json`` listing).
+
+For example, as defined for the ``download_subset``
+
+.. code-block:: python
+    schema = {
+        "type": "string",
+        "subtype": "collection-id",
+    }
+    
+Additionally, the schema of an openEO data cube is:
+
+.. code-block:: json
+    {
+        "type": "object",
+        "subtype": "datacube"
+    }
+
+
+
+.. _build_and_store_udp:
+
+Building, saving and storing user-defined process
+=============================================
+
+There are a couple of ways to build and store user-defined processes:
+
+- using predefined :ref:`process functions <create_udp_through_process_functions>`
+- :ref:`parameterized building of a data cube <create_udp_parameterized_cube>`
+- :ref:`directly from a well-formatted dictionary <create_udp_from_dict>` process graph representation
+
+
+
+.. _create_udp_through_process_functions:
+
+Build and save using "process functions"
+----------------------------
+
+The openEO Python Client Library defines the
+official processes in the :py:mod:`openeo.processes` module,
+which can be used to build a process graph as follows:
+
+.. code-block:: python
+    import openeo
+    from openeo.api.process import Parameter
+
+    # setup the connection
+    connection = openeo.connect("openeo.cloud").authenticate_oidc()
+
+    # define the input parameter
+    collection = Parameter(
+                name="collection_id",
+                description="The openEO collection ID. ",
+                schema={"type": "string", "subtype": "collection-id", "enum": ["SENTINEL2_L2A"]},
+                optional="true",
+                default="SENTINEL2_L2A",
+            )
+
+    # define the process
+    datacube = connection.load_collection(
+                collection,
+                temporal_extent=["2018-06-15", "2018-06-27"],
+                spatial_extent={
+                    "west": 5.09,
+                    "south": 51.18,
+                    "east": 5.15,
+                    "north": 51.21,
+                    "crs": 4326,
+                },
+            )
+
+    # Store user-defined process in openEO back-end.
+    connection.save_user_defined_process(
+                user_defined_process_id = "Hello_openEO",
+                process_graph = datacube,
+                parameters = [collection],
+                public = "true",
+            )
+
+
+In the above example the ``datacube`` object encapsulates our entire process. Whereas,
+if your task includes multiples processes, the final datacube should be passed.
+Thus, we can pass datacube directly to :py:meth:`~openeo.rest.connection.Connection.save_user_defined_process`.
+
+Furthermore, If you want to inspect its openEO-style process graph representation,
+use the :meth:`~openeo.rest.datacube.DataCube.to_json()`
+or :meth:`~openeo.rest.datacube.DataCube.print_json()` method:
+
+.. code-block:: python
+    datacube.print_json()
+.. code-block:: json
+    {
+    "process_graph": {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {
+                "id": {
+                "from_parameter": "collection_id"
+                },
+                "spatial_extent": {
+                "west": 5.09,
+                "south": 51.18,
+                "east": 5.15,
+                "north": 51.21,
+                "crs": 4326
+                },
+                "temporal_extent": [
+                "2018-06-15",
+                "2018-06-27"
+                ]
+            },
+            "result": true
+            }
+    	 }
+    }
 
