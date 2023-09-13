@@ -1,8 +1,9 @@
-from typing import List
+from typing import List, Optional
 
 import pytest
 
 import openeo
+from openeo.rest._testing import build_capabilities
 from openeo.rest.connection import Connection
 from openeo.rest.datacube import DataCube
 
@@ -26,9 +27,11 @@ DEFAULT_S2_METADATA = {
 }
 
 
-def _setup_connection(api_version, requests_mock) -> Connection:
+def _setup_connection(api_version, requests_mock, build_capabilities_kwargs: Optional[dict] = None) -> Connection:
     # TODO: make this more reusable?
-    requests_mock.get(API_URL + "/", json={"api_version": api_version})
+    requests_mock.get(
+        API_URL + "/", json=build_capabilities(api_version=api_version, **(build_capabilities_kwargs or {}))
+    )
     # Classic Sentinel2 collection
     requests_mock.get(API_URL + "/collections/SENTINEL2_RADIOMETRY_10M", json=DEFAULT_S2_METADATA)
     # Alias for quick tests
@@ -65,15 +68,21 @@ def setup_collection_metadata(requests_mock, cid: str, bands: List[str]):
 
 
 @pytest.fixture
+def support_udp() -> bool:
+    """Per-test overridable `build_capabilities_kwargs(udp=...)` value for connection fixtures"""
+    return False
+
+
+@pytest.fixture
 def connection(api_version, requests_mock) -> Connection:
     """Connection fixture to a backend of given version with some image collections."""
     return _setup_connection(api_version, requests_mock)
 
 
 @pytest.fixture
-def con100(requests_mock) -> Connection:
+def con100(requests_mock, support_udp) -> Connection:
     """Connection fixture to a 1.0.0 backend with some image collections."""
-    return _setup_connection("1.0.0", requests_mock)
+    return _setup_connection("1.0.0", requests_mock, build_capabilities_kwargs={"udp": support_udp})
 
 
 @pytest.fixture

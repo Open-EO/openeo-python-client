@@ -18,7 +18,8 @@ import openeo
 from openeo.capabilities import ApiVersionException, ComparableVersion
 from openeo.internal.compat import nullcontext
 from openeo.internal.graph_building import FlatGraphableMixin, PGNode
-from openeo.rest import OpenEoApiError, OpenEoClientException, OpenEoRestError
+from openeo.rest import CapabilitiesException, OpenEoApiError, OpenEoClientException, OpenEoRestError
+from openeo.rest._testing import build_capabilities
 from openeo.rest.auth.auth import BearerAuth, NullAuth
 from openeo.rest.auth.oidc import OidcException
 from openeo.rest.auth.testing import ABSENT, OidcMock
@@ -2656,80 +2657,101 @@ def test_execute_100(requests_mock, pg):
     ]
 
 
-def test_create_udp(requests_mock):
-    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
-    requests_mock.get(API_URL + "processes", json={"processes": [{"id": "add"}]})
-    conn = Connection(API_URL)
+class TestUserDefinedProcesses:
+    """Test for UDP features"""
 
-    new_udp = load_json_resource("data/1.0.0/udp_details.json")
+    def test_create_udp(self, requests_mock):
+        requests_mock.get(API_URL, json=build_capabilities(udp=True))
+        requests_mock.get(API_URL + "processes", json={"processes": [{"id": "add"}]})
+        conn = Connection(API_URL)
 
-    def check_body(request):
-        body = request.json()
-        assert body['process_graph'] == new_udp['process_graph']
-        assert body['parameters'] == new_udp['parameters']
-        assert body['public'] is False
-        return True
+        new_udp = load_json_resource("data/1.0.0/udp_details.json")
 
-    adapter = requests_mock.put(API_URL + "process_graphs/evi", additional_matcher=check_body)
+        def check_body(request):
+            body = request.json()
+            assert body["process_graph"] == new_udp["process_graph"]
+            assert body["parameters"] == new_udp["parameters"]
+            assert body["public"] is False
+            return True
 
-    conn.save_user_defined_process(
-        user_defined_process_id='evi',
-        process_graph=new_udp['process_graph'],
-        parameters=new_udp['parameters']
-    )
+        adapter = requests_mock.put(API_URL + "process_graphs/evi", additional_matcher=check_body)
 
-    assert adapter.called
+        conn.save_user_defined_process(
+            user_defined_process_id="evi", process_graph=new_udp["process_graph"], parameters=new_udp["parameters"]
+        )
+
+        assert adapter.called
+
+    def test_create_udp_public(self, requests_mock):
+        requests_mock.get(API_URL, json=build_capabilities(udp=True))
+        requests_mock.get(API_URL + "processes", json={"processes": [{"id": "add"}]})
+        conn = Connection(API_URL)
+
+        new_udp = load_json_resource("data/1.0.0/udp_details.json")
+
+        def check_body(request):
+            body = request.json()
+            assert body["process_graph"] == new_udp["process_graph"]
+            assert body["parameters"] == new_udp["parameters"]
+            assert body["public"] is True
+            return True
+
+        adapter = requests_mock.put(API_URL + "process_graphs/evi", additional_matcher=check_body)
+
+        conn.save_user_defined_process(
+            user_defined_process_id="evi",
+            process_graph=new_udp["process_graph"],
+            parameters=new_udp["parameters"],
+            public=True,
+        )
+
+        assert adapter.called
+
+    def test_create_udp_unsupported(self, requests_mock):
+        requests_mock.get(API_URL, json=build_capabilities(udp=False))
+        conn = Connection(API_URL)
+
+        new_udp = load_json_resource("data/1.0.0/udp_details.json")
+
+        with pytest.raises(CapabilitiesException, match="Backend does not support user-defined processes."):
+            _ = conn.save_user_defined_process(
+                user_defined_process_id="evi", process_graph=new_udp["process_graph"], parameters=new_udp["parameters"]
+            )
+
+    def test_list_udps(self, requests_mock):
+        requests_mock.get(API_URL, json=build_capabilities(udp=True))
+        conn = Connection(API_URL)
+
+        udp = load_json_resource("data/1.0.0/udp_details.json")
+
+        requests_mock.get(API_URL + "process_graphs", json={"processes": [udp]})
+
+        user_udps = conn.list_user_defined_processes()
+
+        assert len(user_udps) == 1
+        assert user_udps[0] == udp
 
 
-def test_create_public_udp(requests_mock):
-    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
-    requests_mock.get(API_URL + "processes", json={"processes": [{"id": "add"}]})
-    conn = Connection(API_URL)
-
-    new_udp = load_json_resource("data/1.0.0/udp_details.json")
-
-    def check_body(request):
-        body = request.json()
-        assert body['process_graph'] == new_udp['process_graph']
-        assert body['parameters'] == new_udp['parameters']
-        assert body['public'] is True
-        return True
-
-    adapter = requests_mock.put(API_URL + "process_graphs/evi", additional_matcher=check_body)
-
-    conn.save_user_defined_process(
-        user_defined_process_id='evi',
-        process_graph=new_udp['process_graph'],
-        parameters=new_udp['parameters'],
-        public=True
-    )
-
-    assert adapter.called
+    def test_list_udps_unsupported(self, requests_mock):
+        requests_mock.get(API_URL, json=build_capabilities(udp=False))
+        conn = Connection(API_URL)
+        with pytest.raises(CapabilitiesException, match="Backend does not support user-defined processes."):
+            _ = conn.list_user_defined_processes()
 
 
-def test_list_udps(requests_mock):
-    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
-    conn = Connection(API_URL)
+    def test_get_udp(self, requests_mock):
+        requests_mock.get(API_URL, json=build_capabilities(udp=True))
+        conn = Connection(API_URL)
 
-    udp = load_json_resource("data/1.0.0/udp_details.json")
+        udp = conn.user_defined_process("evi")
 
-    requests_mock.get(API_URL + "process_graphs", json={
-        'processes': [udp]
-    })
+        assert udp.user_defined_process_id == "evi"
 
-    user_udps = conn.list_user_defined_processes()
-
-    assert len(user_udps) == 1
-    assert user_udps[0] == udp
-
-
-def test_get_udp(requests_mock):
-    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
-    conn = Connection(API_URL)
-
-    udp = conn.user_defined_process('evi')
-
-    assert udp.user_defined_process_id == 'evi'
+    def test_get_udp_unsupported(self, requests_mock):
+        requests_mock.get(API_URL, json=build_capabilities(udp=False))
+        conn = Connection(API_URL)
+        with pytest.raises(CapabilitiesException, match="Backend does not support user-defined processes."):
+            _ = conn.user_defined_process("evi")
 
 
 def _gzip_compress(data: bytes) -> bytes:

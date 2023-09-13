@@ -6,6 +6,10 @@ class OpenEoClientException(BaseOpenEoException):
     pass
 
 
+class CapabilitiesException(OpenEoClientException):
+    """Back-end does not support certain openEO feature or endpoint."""
+
+
 class JobFailedException(OpenEoClientException):
     """A synchronous batch job failed. This exception references its corresponding job so the client can e.g.
     retrieve its logs.

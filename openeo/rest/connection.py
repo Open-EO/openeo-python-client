@@ -27,14 +27,8 @@ from openeo.internal.graph_building import FlatGraphableMixin, PGNode, as_flat_g
 from openeo.internal.jupyter import VisualDict, VisualList
 from openeo.internal.processes.builder import ProcessBuilderBase
 from openeo.internal.warnings import deprecated, legacy_alias
-from openeo.metadata import (
-    Band,
-    BandDimension,
-    CollectionMetadata,
-    SpatialDimension,
-    TemporalDimension,
-)
-from openeo.rest import OpenEoApiError, OpenEoClientException, OpenEoRestError
+from openeo.metadata import Band, BandDimension, CollectionMetadata, SpatialDimension, TemporalDimension
+from openeo.rest import CapabilitiesException, OpenEoApiError, OpenEoClientException, OpenEoRestError
 from openeo.rest._datacube import build_child_callback
 from openeo.rest.auth.auth import BasicBearerAuth, BearerAuth, NullAuth, OidcBearerAuth
 from openeo.rest.auth.config import AuthConfig, RefreshTokenStore
@@ -984,6 +978,15 @@ class Connection(RestApiConnection):
         jobs = resp["jobs"]
         return VisualList("data-table", data=jobs, parameters={'columns': 'jobs'})
 
+    def assert_user_defined_process_support(self):
+        """
+        Capabilities document based verification that back-end supports user-defined processes.
+
+        .. versionadded:: 0.23.0
+        """
+        if not self.capabilities().supports_endpoint("/process_graphs"):
+            raise CapabilitiesException("Backend does not support user-defined processes.")
+
     def save_user_defined_process(
             self, user_defined_process_id: str,
             process_graph: Union[dict, ProcessBuilderBase],
@@ -1011,6 +1014,7 @@ class Connection(RestApiConnection):
         :param links: A list of links.
         :return: a RESTUserDefinedProcess instance
         """
+        self.assert_user_defined_process_support()
         if user_defined_process_id in set(p["id"] for p in self.list_processes()):
             warnings.warn("Defining user-defined process {u!r} with same id as a pre-defined process".format(
                 u=user_defined_process_id))
@@ -1028,6 +1032,7 @@ class Connection(RestApiConnection):
         """
         Lists all user-defined processes of the authenticated user.
         """
+        self.assert_user_defined_process_support()
         data = self.get("/process_graphs", expected_status=200).json()["processes"]
         return VisualList("processes", data=data, parameters={'show-graph': True, 'provide-download': False})
 
