@@ -15,8 +15,9 @@ class ProcessGraphVisitor(ABC):
     Hierarchical Visitor for (nested) process graphs structures.
     """
 
-    def __init__(self):
+    def __init__(self, parameters = None):
         self.process_stack = []
+        self.parameters = parameters or {}
 
     @classmethod
     def dereference_from_node_arguments(cls, process_graph: dict) -> str:
@@ -85,10 +86,21 @@ class ProcessGraphVisitor(ABC):
         namespace = node.get("namespace", None)
         self._accept_process(process_id=pid, arguments=arguments, namespace=namespace)
 
+    @classmethod
+    def _resolve_known_parameters(cls,arguments,parameters):
+        copy = {}
+        for arg_id, value in sorted(arguments.items()):
+            copy[arg_id] = value
+            if isinstance(value,dict) and "from_parameter" in value:
+                if value["from_parameter"] in parameters:
+                    copy[arg_id] = parameters[value["from_parameter"]]
+        return copy
+
     def _accept_process(self, process_id: str, arguments: dict, namespace: Union[str, None]):
         self.process_stack.append(process_id)
-        self.enterProcess(process_id=process_id, arguments=arguments, namespace=namespace)
-        for arg_id, value in sorted(arguments.items()):
+        resolved_args = ProcessGraphVisitor._resolve_known_parameters(arguments,self.parameters)
+        self.enterProcess(process_id=process_id, arguments=resolved_args, namespace=namespace)
+        for arg_id, value in sorted(resolved_args.items()):
             if isinstance(value, list):
                 self.enterArray(argument_id=arg_id)
                 self._accept_argument_list(value)
@@ -99,7 +111,7 @@ class ProcessGraphVisitor(ABC):
                 self.leaveArgument(argument_id=arg_id, value=value)
             else:
                 self.constantArgument(argument_id=arg_id, value=value)
-        self.leaveProcess(process_id=process_id, arguments=arguments, namespace=namespace)
+        self.leaveProcess(process_id=process_id, arguments=resolved_args, namespace=namespace)
         assert self.process_stack.pop() == process_id
 
     def _accept_argument_list(self, elements: list):
