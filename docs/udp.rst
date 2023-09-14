@@ -255,6 +255,7 @@ In addition, the expected type of the array items can also be specified,
 e.g. an array of integers:
 
 .. code-block:: json
+
     {
         "type": "array",
         "items": {"type": "integer"}
@@ -264,8 +265,6 @@ Another, more complex type is ``{"type": "object"}`` for parameters
 that are like Python dictionaries (or mappings).
 For example, to define a bounding box parameter
 that should contain certain fields with certain type::
-
-.. code-block:: json
 
     {
         "type": "object",
@@ -287,7 +286,6 @@ in the `openeo-processes project <https://github.com/Open-EO/openeo-processes>`_
 
 For example, as defined for the ``EVI_timeseries``
 
-.. code-block:: python
     schema = {
         "type": "object",
         "subtype": "geojson"
@@ -326,7 +324,9 @@ The openEO Python Client Library defines the
 official processes in the :py:mod:`openeo.processes` module,
 which can be used to build a process graph as follows:
 
-from openeo.processes import subtract, divide
+.. code-block:: python
+
+    from openeo.processes import subtract, divide
     from openeo.api.process import Parameter
 
     # Define the input parameter.
@@ -447,9 +447,10 @@ while building a :class:`~openeo.rest.datacube.DataCube`.
     :class:`~openeo.api.process.Parameter` arguments.
     Please submit a bug report when you encounter missing or wrong parameterization support.
 
-We can now store this as a user-defined process called "Hello_openEO" on the back-end::
+We can now store this as a user-defined process called "Hello_openEO" on the back-end:
 
 .. code-block:: python         
+
     # Store user-defined process in openEO back-end.
     connection.save_user_defined_process(
         user_defined_process_id="EVI_timeseries",
@@ -460,7 +461,7 @@ We can now store this as a user-defined process called "Hello_openEO" on the bac
 
 If you want to inspect its openEO-style process graph representation,
 use the :meth:`~openeo.rest.datacube.DataCube.to_json()`
-or :meth:`~openeo.rest.datacube.DataCube.print_json()` method::
+or :meth:`~openeo.rest.datacube.DataCube.print_json()` method.
 
 .. code-block:: python
 
