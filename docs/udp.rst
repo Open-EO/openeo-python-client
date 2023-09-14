@@ -183,8 +183,8 @@ The ``feature`` parameter can be defined the same as the polygon.
 To simplify working with parameter schemas, the :class:`~openeo.api.process.Parameter` class
 provides a couple of helpers to create common types of parameters.
 
-In the example above, the "collection_id" parameter (a string) can also be created more compactly
-with the :py:meth:`Parameter.string() <openeo.api.process.Parameter.string>` helper.
+In the example above, the "temporal_interval" parameter (an array) can also be created more compactly
+with the :py:meth:`Parameter.array() <openeo.api.process.Parameter.array>` helper.
 
 .. code-block:: python
 
