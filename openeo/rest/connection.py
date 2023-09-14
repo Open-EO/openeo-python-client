@@ -1128,14 +1128,14 @@ class Connection(RestApiConnection):
 
     @openeo_process
     def load_collection(
-            self,
-            collection_id: str,
-            spatial_extent: Optional[Dict[str, float]] = None,
+        self,
+        collection_id: Union[str, Parameter],
+        spatial_extent: Optional[Dict[str, float]] = None,
         temporal_extent: Optional[List[Union[str, datetime.datetime, datetime.date]]] = None,
-        bands: Optional[List[str]] = None,
-            properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
-            max_cloud_cover: Optional[float] = None,
-            fetch_metadata=True,
+        bands: Union[None, List[str], Parameter] = None,
+        properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
+        max_cloud_cover: Optional[float] = None,
+        fetch_metadata=True,
     ) -> DataCube:
         """
         Load a DataCube by collection id.

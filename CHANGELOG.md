@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Support parameterized `bands` in `load_collection` ([#471](https://github.com/Open-EO/openeo-python-client/issues/471))
+
 ### Changed
 
 - Before doing user-defined process (UDP) listing/creation: verify that back-end supports that (through openEO capabilities document) to improve error message.

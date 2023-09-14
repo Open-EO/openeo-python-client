@@ -126,11 +126,11 @@ class DataCube(_ProcessGraphAbstraction):
     @openeo_process
     def load_collection(
         cls,
-        collection_id: str,
+        collection_id: Union[str, Parameter],
         connection: Connection = None,
         spatial_extent: Optional[Dict[str, float]] = None,
         temporal_extent: Optional[List[Union[str, datetime.datetime, datetime.date, PGNode]]] = None,
-        bands: Optional[List[str]] = None,
+        bands: Union[None, List[str], Parameter] = None,
         fetch_metadata=True,
         properties: Optional[Dict[str, Union[str, PGNode, typing.Callable]]] = None,
         max_cloud_cover: Optional[float] = None,
@@ -167,6 +167,8 @@ class DataCube(_ProcessGraphAbstraction):
         if bands:
             if isinstance(bands, str):
                 bands = [bands]
+            elif isinstance(bands, Parameter):
+                metadata = None
             if metadata:
                 bands = [b if isinstance(b, str) else metadata.band_dimension.band_name(b) for b in bands]
                 metadata = metadata.filter_bands(bands)

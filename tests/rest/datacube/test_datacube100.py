@@ -1646,6 +1646,39 @@ def test_load_collection_temporal_extent_process_builder_function(con100):
     assert im.flat_graph() == expected
 
 
+def test_load_collection_parameterized_collection_id(con100):
+    """https://github.com/Open-EO/openeo-python-client/issues/471"""
+    collection = Parameter(name="my_collection", schema={"type": "str"})
+    cube = con100.load_collection(collection)
+    assert get_download_graph(cube, drop_save_result=True) == {
+        "loadcollection1": {
+            "arguments": {
+                "id": {"from_parameter": "my_collection"},
+                "spatial_extent": None,
+                "temporal_extent": None,
+            },
+            "process_id": "load_collection",
+        },
+    }
+
+
+def test_load_collection_parameterized_bands(con100):
+    """https://github.com/Open-EO/openeo-python-client/issues/471"""
+    bands = Parameter(name="my_bands", schema={"type": "array", "items": {"type": "string"}})
+    cube = con100.load_collection("S2", bands=bands)
+    assert get_download_graph(cube, drop_save_result=True) == {
+        "loadcollection1": {
+            "arguments": {
+                "id": "S2",
+                "spatial_extent": None,
+                "temporal_extent": None,
+                "bands": {"from_parameter": "my_bands"},
+            },
+            "process_id": "load_collection",
+        },
+    }
+
+
 def test_apply_dimension_temporal_cumsum_with_target(con100):
     cumsum = con100.load_collection("S2").apply_dimension('cumsum', dimension="t", target_dimension="MyNewTime")
     actual_graph = cumsum.flat_graph()
