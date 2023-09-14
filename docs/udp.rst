@@ -25,7 +25,7 @@ This allows you to build your own *library of reusable building blocks*.
     See :ref:`user-defined-functions` for more information.
 
 A user-defined process can not only be constructed from
-pre-defined processes provided by the back-end,
+predefined processes provided by the back-end,
 but also other user-defined processes.
 
 Ultimately, the openEO API allows you to publicly expose your user-defined process,
@@ -43,7 +43,7 @@ It allows the user to perform specific tasks based on the provided inputs.
 
 For example, let us consider that we want to recalculate the EVI-timeseries
 as done in :ref:`example-use-case-evi-map-and-timeseries` but for a different area.
-Then we can either re-define the whole process or simply define it as a UDP ``EVI_timeseries``, 
+Then we can either redefine the whole process or simply define it as a UDP ``EVI_timeseries``, 
 that can be easily shared and reused without dealing with the entire workflow each time.
 
 
@@ -74,8 +74,8 @@ The resulting code block will appear as follows:
     )
 
 
-Additionally, based on our application we can also define collection,
-or even bands as parameter as shown below:
+Additionally, based on our application, we can also define the collection,
+or even bands as parameters as shown below:
 
 .. code-block:: python
     datacube = connection.load_collection(
@@ -86,15 +86,15 @@ or even bands as parameter as shown below:
             )
 
 
-Moreover, you have the flexibility to pre-define any of these 
-parmeters as constants, just as we did earlier.
+Moreover, you have the flexibility to predefine any of these 
+parameters as constants, just as we did earlier.
 
-As shown above, the one of the pre-defined process used here is 
+As shown above, one of the predefined processes used here is 
 ``load_collection``. 
 
-We can represent this in openEO's JSON based format as follows
+We can represent this in openEO's JSON-based format as follows
 (don't worry too much about the syntax details of this representation,
-the openEO Python client will hide this normally).
+the openEO Python client will hide this usually).
 
 
 .. code-block:: json
@@ -120,7 +120,7 @@ the openEO Python client will hide this normally).
 
 The important point here is the parameter reference ``{"from_parameter": "bbox"}``
 and ``{"from_parameter": "temporal_interval"}`` in the above process graph.
-When we call this UDP we will have to provide a value as shown below:
+When we call this UDP, we will have to provide a value as shown below:
 
 .. code-block:: json
     {
@@ -151,7 +151,7 @@ It allows you to document your parameters, define the data type(s) you expect
 
 The openEO Python client lets you define parameters as
 :class:`~openeo.api.process.Parameter` instances.
-In general you have to specify at least the parameter name,
+In general, you have to specify at least the parameter name,
 a description and a schema (to declare the expected parameter type).
 
 The ``bbox`` and the ``temporal_interval`` parameters from the above example can be defined like this:
@@ -169,7 +169,7 @@ The ``bbox`` and the ``temporal_interval`` parameters from the above example can
         schema = {"type": "object", "subtype": "geojson"}
     )
 
-The ``feature`` parameter can be defined same as the polygon. 
+The ``feature`` parameter can be defined the same as the polygon. 
 
 .. have_to_find_what_is_the_option_for_subtype_for_following_example:
 
@@ -552,7 +552,7 @@ Evaluate user-defined processes
 
 Let's evaluate the user-defined processes we defined.
 
-Because there is no pre-defined
+Because there is no predefined
 wrapper function for our user-defined process, we use the
 generic :func:`openeo.processes.process` function to build a simple
 process graph that calls our ``Hello_openEO`` process:
