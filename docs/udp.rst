@@ -41,33 +41,55 @@ User-defined processes are usually **parameterized**,
 meaning specific inputs might be needed when calling the process. 
 It allows the user to perform specific tasks based on the provided inputs.
 
-For example, let us consider that we want to define a UDP ``download_subset`` as a service, 
-so that anyone can use it to download their choice of collection availble in openEO for a 
-defined area of interest. 
+For example, let us consider that we want to recalculate the EVI-timeseries
+as done in :ref:`example-use-case-evi-map-and-timeseries` but for a different area.
+Then we can either re-define the whole process or simply define it as a UDP ``EVI_timeseries``, 
+that can be easily shared and reused without dealing with the entire workflow each time.
+
+
+So, let's define temporal_extent,spatial_extent, and 
+geometry/polygon used for pixel aggregation as parameters. 
+The resulting code block will appear as follows:
+.. code-block:: python
+    # Load data collection
+    sentinel2_cube = connection.load_collection(
+        "SENTINEL2_L2A",
+        spatial_extent = polygon,
+        temporal_extent = temporal_interval,
+        bands = ["B02", "B04", "B08", "SCL"],
+    )
+    # Extract spectral bands and calculate EVI with the "band math" feature
+    blue = sentinel2_cube.band("B02") * 0.0001
+    red = sentinel2_cube.band("B04") * 0.0001
+    nir = sentinel2_cube.band("B08") * 0.0001
+    evi = 2.5 * (nir - red) / (nir + 6.0 * red - 7.5 * blue + 1.0)
+
+    # Use the scene classification layer to mask out non-vegetation pixels
+    scl = sentinel2_cube.band("SCL")
+    evi_masked = evi.mask(scl != 4)
+
+    evi_aggregation = evi_masked.aggregate_spatial(
+        geometries = feature,
+        reducer = "mean",
+    )
+
+
+Additionally, based on our application we can also define collection,
+or even bands as parameter as shown below:
 
 .. code-block:: python
     datacube = connection.load_collection(
-                collection_id = collection_param
-                )
-
-
-Nevertheless, based on our application we can also define area of interest, 
-temporal extent or even bands as parameter as shown below:
-
-.. code-block:: python
-    datacube = connection.load_collection(
-                collection_id = collection,
-                temporal_extent = temporal_interval
-                spatial_extent = aoi,
-                bands = bands
-                )
+            collection_id = collection,
+            temporal_extent = temporal_interval
+            spatial_extent = polygon,
+            bands = bands
+            )
 
 
 Moreover, you have the flexibility to pre-define any of these 
-parmeters as fixed. Similar is the case if you want to define 
-as constant variable.
+parmeters as constants, just as we did earlier.
 
-As shown above, the only pre-defined process used here is 
+As shown above, the one of the pre-defined process used here is 
 ``load_collection``. 
 
 We can represent this in openEO's JSON based format as follows
@@ -76,36 +98,54 @@ the openEO Python client will hide this normally).
 
 
 .. code-block:: json
-    {
-        "loadcollection1": {
-            "process_id": "load_collection",
-            "arguments": {
-                "id": {
-                "from_parameter": "collection_id"
-                }
-            },
-            "result": true
+      {
+        "process_id": "load_collection",
+        "arguments": {
+          "bands": [
+            "B02",
+            "B04",
+            "B08",
+            "SCL"
+          ],
+          "id": "SENTINEL2_L2A",
+          "spatial_extent": {
+            "from_parameter": "bbox"
+          },
+          "temporal_extent": {
+            "from_parameter": "temporal_interval"
+          }
         }
-    }
+      }
 
 
-The important point here is the parameter reference ``{"from_parameter": "collection_id"}`` or 
-``{"from_parameter": "aoi"}`` in the above process graph.
-When we call this user-defined process we will have to provide a value.
+The important point here is the parameter reference ``{"from_parameter": "bbox"}``
+and ``{"from_parameter": "temporal_interval"}`` in the above process graph.
+When we call this UDP we will have to provide a value as shown below:
 
 .. code-block:: json
     {
-        "process_id": "download_subset",
+        "process_id": "EVI_timeseries",
         "arguments": {
-            "collection_id": "SENTINEL2_L2A"
+          "temporal_interval": [
+            "2022-09-01T00:00:00Z",
+            "2022-10-01T00:00:00Z"
+          ],
+          "bbox": {
+            "type": "Polygon",
+            "coordinates": [
+              [
+                ...
+              ]
+            ]
+          }
         },
         "result": true
-    }
+      }
 
 Declaring Parameters
 ---------------------
 
-It's good style to declare what parameters your user-defined process expects and supports.
+It's a good style to declare what parameters your user-defined process expects and supports.
 It allows you to document your parameters, define the data type(s) you expect
 (the "schema" in openEO-speak) and define default values.
 
@@ -114,20 +154,24 @@ The openEO Python client lets you define parameters as
 In general you have to specify at least the parameter name,
 a description and a schema (to declare the expected parameter type).
 
-The ``collection_id`` parameters from the above example can be defined like this:
+The ``bbox`` and the ``temporal_interval`` parameters from the above example can be defined like this:
 
 .. code-block:: python
-    collection = Parameter(
-                name="collection_id",
-                description="The openEO collecion_id. ",
-                schema={"type": "string", "subtype": "collection-id", "enum": ["SENTINEL2_L2A"]},
-                optional="true",
-                default="SENTINEL2_L2A",
+    temporal_interval = Parameter(
+        name = "temporal_interval",
+        description = "The date range to load.",
+        schema = {"type": "array", "subtype": "temporal-interval"},
+        default = ["2018-06-15", "2018-06-27"]
+    )
+    polygon = Parameter(
+        name = "bbox",
+        description = "The bounding box to load.",
+        schema = {"type": "object", "subtype": "geojson"}
     )
 
+The ``feature`` parameter can be defined same as the polygon. 
 
-
-########################### Have to find what is the option for subtype for following example
+.. have_to_find_what_is_the_option_for_subtype_for_following_example:
 
 
 To simplify working with parameter schemas, the :class:`~openeo.api.process.Parameter` class
@@ -137,11 +181,12 @@ In the example above, the "collection_id" parameter (a string) can also be creat
 with the :py:meth:`Parameter.string() <openeo.api.process.Parameter.string>` helper.
 
 .. code-block:: python
-    collection = Parameter.string(
-                name = "collection_id",
-                description = "The interested openEO collecion_id.",
-                default = "SENTINEL2_L2A"
+    polygon = Parameter.array(
+        name = "bbox",
+        description = "The bounding box to load.",
+        subtype: "geojson"
     )
+
 .. _build_and_store_udp:
 
 Building and storing user-defined process
@@ -232,13 +277,13 @@ On top of these generic types, the openEO API also defines a couple of custom (s
 in the `openeo-processes project <https://github.com/Open-EO/openeo-processes>`_
 (see the ``meta/subtype-schemas.json`` listing).
 
-For example, as defined for the ``download_subset``
+For example, as defined for the ``EVI_timeseries``
 
 .. code-block:: python
     schema = {
-        "type": "string",
-        "subtype": "collection-id",
-    }
+        "type": "object",
+        "subtype": "geojson"
+        }
     
 Additionally, the schema of an openEO datacube is:
 
@@ -272,78 +317,53 @@ The openEO Python Client Library defines the
 official processes in the :py:mod:`openeo.processes` module,
 which can be used to build a process graph as follows:
 
-.. code-block:: python
-    import openeo
+from openeo.processes import subtract, divide
     from openeo.api.process import Parameter
 
-    # setup the connection
-    connection = openeo.connect("openeo.cloud").authenticate_oidc()
+    # Define the input parameter.
+    f = Parameter.number("f", description="Degrees Fahrenheit.")
 
-    # define the input parameter
-    collection = Parameter(
-                name="collection_id",
-                description="The openEO collection ID. ",
-                schema={"type": "string", "subtype": "collection-id", "enum": ["SENTINEL2_L2A"]},
-                optional="true",
-                default="SENTINEL2_L2A",
-            )
-
-    # define the process
-    datacube = connection.load_collection(
-                collection,
-                temporal_extent=["2018-06-15", "2018-06-27"],
-                spatial_extent={
-                    "west": 5.09,
-                    "south": 51.18,
-                    "east": 5.15,
-                    "north": 51.21,
-                    "crs": 4326,
-                },
-            )
+    # Do the calculations, using the parameter and other values
+    fahrenheit_to_celsius = divide(x=subtract(x=f, y=32), y=1.8)
 
     # Store user-defined process in openEO back-end.
     connection.save_user_defined_process(
-                user_defined_process_id = "Hello_openEO",
-                process_graph = datacube,
-                parameters = [collection],
-                public = "true",
-            )
+        "fahrenheit_to_celsius",
+        fahrenheit_to_celsius,
+        parameters=[f]
+    )
 
 
-In the above example the ``datacube`` object encapsulates our entire process. Whereas,
-if your task includes multiples processes, the final datacube should be passed.
-Thus, we can pass datacube directly to :py:meth:`~openeo.rest.connection.Connection.save_user_defined_process`.
+The ``fahrenheit_to_celsius`` object encapsulates the subtract and divide calculations in a symbolic way.
+We can pass it directly to :py:meth:`~openeo.rest.connection.Connection.save_user_defined_process`.
 
-Furthermore, If you want to inspect its openEO-style process graph representation,
+If you want to inspect its openEO-style process graph representation,
 use the :meth:`~openeo.rest.datacube.DataCube.to_json()`
-or :meth:`~openeo.rest.datacube.DataCube.print_json()` method:
+or :meth:`~openeo.rest.datacube.DataCube.print_json()` method::
 
-.. code-block:: python
-    datacube.print_json()
-.. code-block:: json
+    >>> fahrenheit_to_celsius.print_json()
     {
-    "process_graph": {
-        "loadcollection1": {
-            "process_id": "load_collection",
-            "arguments": {
-                "id": {
-                "from_parameter": "collection_id"
-                },
-                "spatial_extent": {
-                "west": 5.09,
-                "south": 51.18,
-                "east": 5.15,
-                "north": 51.21,
-                "crs": 4326
-                },
-                "temporal_extent": [
-                "2018-06-15",
-                "2018-06-27"
-                ]
+      "process_graph": {
+        "subtract1": {
+          "process_id": "subtract",
+          "arguments": {
+            "x": {
+              "from_parameter": "f"
             },
-            "result": true
-            }
-    	 }
+            "y": 32
+          }
+        },
+        "divide1": {
+          "process_id": "divide",
+          "arguments": {
+            "x": {
+              "from_node": "subtract1"
+            },
+            "y": 1.8
+          },
+          "result": true
+        }
+      }
     }
 
 .. _create_udp_parameterized_cube:
@@ -354,30 +374,60 @@ From a parameterized datacube
 It's also possible to work with a :class:`~openeo.rest.datacube.DataCube` directly
 and parameterize it.
 
-Let's create, as a simple but functional example, a custom ``load_collection``
+Let's create, as a functional example, a custom ``load_collection``
 with hardcoded collection id and band name
-and a parameterized spatial extent (with default):
+and a parameterized spatial extent, temporal extent and feature:
 
 
 .. code-block:: python
-    #define the parameters
-    spatial_extent = Parameter(
-        name="bbox",
-        schema="object",
-        default={"west": 3.7, "south": 51.03, "east": 3.75, "north": 51.05}
-    )
+
+    import openeo
+    from openeo.api.process import Parameter
+
+    # setup the connection
+    connection = openeo.connect("openeo.vito.be").authenticate_oidc()
+
+    # define the input parameter
     temporal_interval = Parameter(
         name="temporal_interval",
         description="The date range to load.",
         schema={"type": "array", "subtype": "temporal-interval"},
-        default=["2018-06-15", "2018-06-27"]
+        default =["2018-06-15", "2018-06-27"]
     )
-    #define the datacube
-    datacube = connection.load_collection(
+    polygon = Parameter(
+        name="bbox",
+        description="The bounding box to load.",
+        schema={"type": "object", "subtype": "geojson"}
+    )
+    feature = Parameter(
+        name="feature",
+        description="Provide polygon as FeatureCollection for extracting the EVI (Enhanced Vegetation Index) timeseries for these regions.",
+        schema={"type": "object", "subtype": "geojson"}
+    )
+
+    # define the process
+
+    sentinel2_cube = connection.load_collection(
         "SENTINEL2_L2A",
-        spatial_extent=spatial_extent,
-        temporal_extent=temporal_interval
+        spatial_extent = polygon,
+        temporal_extent = temporal_interval,
+        bands = ["B02", "B04", "B08", "SCL"],
     )
+    # Extract spectral bands and calculate EVI with the "band math" feature
+    blue = sentinel2_cube.band("B02") * 0.0001
+    red = sentinel2_cube.band("B04") * 0.0001
+    nir = sentinel2_cube.band("B08") * 0.0001
+    evi = 2.5 * (nir - red) / (nir + 6.0 * red - 7.5 * blue + 1.0)
+
+    # Use the scene classification layer to mask out non-vegetation pixels
+    scl = sentinel2_cube.band("SCL")
+    evi_masked = evi.mask(scl != 4)
+
+    evi_aggregation = evi_masked.aggregate_spatial(
+        geometries = feature,
+        reducer = "mean",
+    )
+
 
 Note how we just can pass :class:`~openeo.api.process.Parameter` objects as arguments
 while building a :class:`~openeo.rest.datacube.DataCube`.
@@ -390,11 +440,13 @@ while building a :class:`~openeo.rest.datacube.DataCube`.
 
 We can now store this as a user-defined process called "Hello_openEO" on the back-end::
 
-.. code-block:: python
+.. code-block:: python         
+    # Store user-defined process in openEO back-end.
     connection.save_user_defined_process(
-        "Hello_openEO",
-        datacube,
-        parameters=[spatial_extent,temporal_interval]
+        user_defined_process_id="EVI_timeseries",
+        process_graph=evi_aggregation,
+        parameters=[temporal_interval,polygon,feature],
+        public="true",
     )
 
 If you want to inspect its openEO-style process graph representation,
@@ -406,22 +458,38 @@ or :meth:`~openeo.rest.datacube.DataCube.print_json()` method::
     
 .. code-block:: json   
     {
-      "loadcollection1": {
-        "process_id": "load_collection",
-        "arguments": {
-          "id": "SENTINEL2_L2A",
-          "bands": [
-            "B04"
-          ],
-          "spatial_extent": {
-            "from_parameter": "bbox"
-          },
-          "temporal_extent": {
-            "from_parameter": "temporal_interval"
-          }
-        },
-        "result": true
-      }
+        "process_graph": {
+            "loadcollection1": {
+                "process_id": "load_collection",
+                "arguments": {
+                "bands": [
+                    "B02",
+                    "B04",
+                    "B08",
+                    "SCL"
+                ],
+                "id": "SENTINEL2_L2A",
+                "spatial_extent": {
+                    "from_parameter": "bbox"
+                },
+                "temporal_extent": {
+                    "from_parameter": "temporal_interval"
+                }
+                }
+            },
+            "reducedimension1": {
+                ...
+            },
+            "reducedimension2": {
+                ...
+            },
+            "mask1": {
+                ...
+            },
+            "aggregatespatial1": {
+                ...
+            }
+        }
     }
 
 .. _create_udp_from_dict:
@@ -437,36 +505,27 @@ or you prefer to fine-tune process graphs in a JSON editor.
 It is very straightforward to submit this as a user-defined process.
 
 
-Say we start from the following Python dictionary,
+Say we start from the above Python dictionary saved as JSON,
+then you can simply use it using the following code and specifying the 
+needed parameters:
 
 .. code-block:: python
-    datacube =     {
-      "loadcollection1": {
-        "process_id": "load_collection",
-        "arguments": {
-          "id": "SENTINEL2_L2A",
-          "bands": [
-            "B04"
-          ],
-          "spatial_extent": {
-            "from_parameter": "bbox"
-          },
-          "temporal_extent": {
-            "from_parameter": "temporal_interval"
-          }
-        },
-        "result": true
-      }
-    }
+    shared_graph = connection.datacube_from_json(
+        'shared_process_graph.json',
+        parameters={
+            "temporal_interval": date,
+            "bbox": aoi
+        }
+    )
 
-We can store this directly, taking into account that we have to defined 
-the bbox and temporal_interval as a parameters as done earlier. Then,
-pass datacube directly to :py:meth:`~openeo.rest.connection.Connection.save_user_defined_process`.
+We can store this directly, taking into account that we have to define 
+the bbox and temporal_interval as a parameters as done earlier. 
+
 
 Store to a file
 ---------------
 
-Some use cases might require storing the user-defined process in,
+Some use cases might require storing the user-defined process,
 for example, a JSON file instead of storing it directly on a back-end.
 Use :py:func:`~openeo.rest.udp.build_process_dict` to build a dictionary
 compatible with the "process graph with metadata" format of the openEO API
@@ -477,9 +536,9 @@ and dump it in JSON format to a file:
     from openeo.rest.udp import build_process_dict
 
     spec = build_process_dict(
-        process_id="Hello openEO",
-        process_graph=datacube,
-        parameters=[spatial_extent,temporal_interval]
+        process_id = "EVI_timeseries",
+        process_graph = evi_aggregation,
+        parameters = [temporal_interval,polygon,feature]
     )
 
     with open("Hello_openEO.json", "w") as f:
@@ -499,12 +558,57 @@ generic :func:`openeo.processes.process` function to build a simple
 process graph that calls our ``Hello_openEO`` process:
 
 .. code-block:: python
-    pg = openeo.processes.process("Hello_openEO", temporal_interval=["2018-06-15", "2018-06-27"], bbox={"west": 3.7, "south": 51.03, "east": 3.75, "north": 51.05})
+    pg = openeo.processes.process(
+            "EVI_timeseries",
+            temporal_interval=["2018-06-15", "2018-06-27"],
+            bbox={"west": 3.7, "south": 51.03, "east": 3.75, "north": 51.05},
+            features = {"type": "FeatureCollection", "features": [
+                        {
+                            "type": "Feature", "properties": {},
+                            "geometry": {"type": "Polygon", "coordinates": [[
+                                [5.1417, 51.1785], [5.1414, 51.1772], [5.1444, 51.1768], [5.1443, 51.179], [5.1417, 51.1785]
+                            ]]}
+                        },
+                        {
+                            "type": "Feature", "properties": {},
+                            "geometry": {"type": "Polygon", "coordinates": [[
+                                [5.156, 51.1892], [5.155, 51.1855], [5.163, 51.1855], [5.163, 51.1891], [5.156, 51.1892]
+                            ]]}
+                        }
+                    ]}
+                )
 
 Alternatively, we can also use :func:`~openeo.rest.connection.Connection.datacube_from_process`
 to construct a :class:`~openeo.rest.datacube.DataCube` object
-which we can process further and download::
+which we can process further and download:
 
-    datacube = connection.datacube_from_process("Hello_openEO", temporal_interval=["2018-06-15", "2018-06-27"], bbox={"west": 3.7, "south": 51.03, "east": 3.75, "north": 51.05})
-
+.. code-block:: python
+    created_process = conn.datacube_from_process(
+        process_id = "EVI_timeseries",
+        temporal_interval = date,
+        box = bbox,
+        feature = aoi
+    )
 See :ref:`datacube_from_process` for more information on :func:`~openeo.rest.connection.Connection.datacube_from_process`.
+
+Additionally, if you wish to share your UDP with a wider audience,
+you can register it in the `openEO Algorithm Plaza <https://marketplace-portal.dataspace.copernicus.eu/catalogue>`_.
+The two main information you'll need to provide are the ``process_id`` and ``namespace``.
+The namespace is simply a unique identifier for your process,
+which you obtain as a link when using the save_process function.
+
+And if anyone wish to use your service they will execute the following code:
+
+.. code-block:: python
+    # the public url that I received when saving the above ``EVI_timeseries`` is:
+    public_url = "https://openeo.vito.be/openeo/1.1/processes/u:ecce9fea04b8c9c76ac76b45b6ba00c20f211bda4856c14aa4475b8e8ed433cd%40egi.eu/EVI_timeseries"
+
+    created_process = conn.datacube_from_process(
+        process_id = "EVI_timeseries",
+        namespace = public_url
+        temporal_interval = date,
+        box = bbox,
+        feature = aoi
+    )
+
+
