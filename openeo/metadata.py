@@ -231,14 +231,6 @@ class CollectionMetadata:
             if dim.type == "temporal":
                 self._temporal_dimension = dim
 
-    @classmethod
-    def get_or_create(cls, metadata: Union[dict, "CollectionMetadata", None]) -> CollectionMetadata:
-        """Get or create CollectionMetadata from given argument."""
-        if isinstance(metadata, cls):
-            return metadata
-        else:
-            return cls(metadata=metadata or {})
-
     def __eq__(self, o: Any) -> bool:
         return isinstance(o, CollectionMetadata) and self._dimensions == o._dimensions
 
@@ -348,15 +340,11 @@ class CollectionMetadata:
     def dimension_names(self) -> List[str]:
         return list(d.name for d in self._dimensions)
 
-    def assert_valid_dimension(self, dimension: str, just_warn: bool = False) -> str:
+    def assert_valid_dimension(self, dimension: str) -> str:
         """Make sure given dimension name is valid."""
         names = self.dimension_names()
         if dimension not in names:
-            msg = f"Invalid dimension {dimension!r}. Should be one of {names}"
-            if just_warn:
-                _log.warning(msg)
-            else:
-                raise ValueError(msg)
+            raise ValueError(f"Invalid dimension {dimension!r}. Should be one of {names}")
         return dimension
 
     def has_band_dimension(self) -> bool:
@@ -397,6 +385,7 @@ class CollectionMetadata:
         return self.band_dimension.common_names
 
     def get_band_index(self, band: Union[int, str]) -> int:
+        # TODO: eliminate this shortcut for smaller API surface
         return self.band_dimension.band_index(band)
 
     def filter_bands(self, band_names: List[Union[int, str]]) -> CollectionMetadata:
@@ -452,6 +441,8 @@ class CollectionMetadata:
     def reduce_dimension(self, dimension_name: str) -> CollectionMetadata:
         """Create new metadata object by collapsing/reducing a dimension."""
         # TODO: option to keep reduced dimension (with a single value)?
+        # TODO: rename argument to `name` for more internal consistency
+        # TODO: merge with drop_dimension (which does the same).
         self.assert_valid_dimension(dimension_name)
         loc = self.dimension_names().index(dimension_name)
         dimensions = self._dimensions[:loc] + self._dimensions[loc + 1:]

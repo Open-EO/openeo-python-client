@@ -366,3 +366,28 @@ def test_log3(con100):
         'data/1.0.0/bm_log.json',
         preprocess=lambda s: s.replace('"base": 10', '"base": 3')
     )
+
+
+def test_band_invalid_band_with_metadata(s2cube):
+    with pytest.raises(ValueError, match="Invalid band name/index 'banana'"):
+        _ = s2cube.band("banana")
+
+
+def test_band_invalid_band_no_metadata(s2cube_without_metadata):
+    cube = s2cube_without_metadata.band("banana")
+    assert get_download_graph(cube)["reducedimension1"] == {
+        "process_id": "reduce_dimension",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "dimension": "bands",
+            "reducer": {
+                "process_graph": {
+                    "arrayelement1": {
+                        "arguments": {"data": {"from_parameter": "data"}, "index": "banana"},
+                        "process_id": "array_element",
+                        "result": True,
+                    }
+                }
+            },
+        },
+    }

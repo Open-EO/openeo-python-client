@@ -15,7 +15,7 @@ import requests_mock
 import shapely.geometry
 
 import openeo
-from openeo.capabilities import ApiVersionException, ComparableVersion
+from openeo.capabilities import ApiVersionException
 from openeo.internal.compat import nullcontext
 from openeo.internal.graph_building import FlatGraphableMixin, PGNode
 from openeo.rest import CapabilitiesException, OpenEoApiError, OpenEoClientException, OpenEoRestError
@@ -2299,9 +2299,6 @@ def test_load_result(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     con = Connection(API_URL)
     cube = con.load_result("j0bi6")
-    assert cube.metadata.has_band_dimension()
-    assert cube.metadata.has_temporal_dimension()
-    assert len(cube.metadata.spatial_dimensions)==2
     assert cube.flat_graph() == {
         "loadresult1": {"process_id": "load_result", "arguments": {"id": "j0bi6"}, "result": True}
     }

@@ -88,3 +88,10 @@ def con100(requests_mock, support_udp) -> Connection:
 @pytest.fixture
 def s2cube(connection, api_version) -> DataCube:
     return connection.load_collection("S2")
+
+
+@pytest.fixture
+def s2cube_without_metadata(connection, api_version) -> DataCube:
+    cube = connection.load_collection("S2", fetch_metadata=None)
+    assert cube.metadata is None
+    return cube

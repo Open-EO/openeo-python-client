@@ -1183,15 +1183,6 @@ class Connection(RestApiConnection):
         :return: a :py:class:`DataCube`
         """
         # TODO: add check that back-end supports `load_result` process?
-        metadata = CollectionMetadata(
-            {},
-            dimensions=[
-                SpatialDimension(name="x", extent=[]),
-                SpatialDimension(name="y", extent=[]),
-                TemporalDimension(name="t", extent=[]),
-                BandDimension(name="bands", bands=[Band(name="unknown")]),
-            ],
-        )
         cube = self.datacube_from_process(
             process_id="load_result",
             id=id,
@@ -1201,7 +1192,6 @@ class Connection(RestApiConnection):
                 bands=bands,
             ),
         )
-        cube.metadata = metadata
         return cube
 
     @openeo_process
@@ -1309,15 +1299,6 @@ class Connection(RestApiConnection):
         """
         # TODO #425 move this implementation to `DataCube` and just forward here (like with `load_collection`)
         # TODO #425 detect actual metadata from URL
-        metadata = CollectionMetadata(
-            {},
-            dimensions=[
-                SpatialDimension(name="x", extent=[]),
-                SpatialDimension(name="y", extent=[]),
-                TemporalDimension(name="t", extent=[]),
-                BandDimension(name="bands", bands=[Band(name="unknown")]),
-            ],
-        )
         arguments = {"url": url}
         # TODO #425 more normalization/validation of extent/band parameters
         if spatial_extent:
@@ -1331,7 +1312,6 @@ class Connection(RestApiConnection):
                 prop: build_child_callback(pred, parent_parameters=["value"]) for prop, pred in properties.items()
             }
         cube = self.datacube_from_process(process_id="load_stac", **arguments)
-        cube.metadata = metadata
         return cube
 
     def load_ml_model(self, id: Union[str, BatchJob]) -> MlModel:

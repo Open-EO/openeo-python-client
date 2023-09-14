@@ -30,10 +30,7 @@ from openeo.internal.processes.builder import ProcessBuilderBase
 from openeo.internal.warnings import UserDeprecationWarning, deprecated, legacy_alias
 from openeo.metadata import (
     Band,
-    BandDimension,
     CollectionMetadata,
-    SpatialDimension,
-    TemporalDimension,
 )
 from openeo.rest import BandMathException, OpenEoClientException, OperatorException
 from openeo.rest._datacube import (
@@ -66,8 +63,6 @@ if typing.TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-
-
 class DataCube(_ProcessGraphAbstraction):
     """
     Class representing a openEO (raster) data cube.
@@ -79,9 +74,9 @@ class DataCube(_ProcessGraphAbstraction):
     # TODO: set this based on back-end or user preference?
     _DEFAULT_RASTER_FORMAT = "GTiff"
 
-    def __init__(self, graph: PGNode, connection: Connection, metadata: CollectionMetadata = None):
+    def __init__(self, graph: PGNode, connection: Connection, metadata: Optional[CollectionMetadata] = None):
         super().__init__(pgnode=graph, connection=connection)
-        self.metadata = CollectionMetadata.get_or_create(metadata)
+        self.metadata: Optional[CollectionMetadata] = metadata
 
     def process(
         self,
@@ -117,6 +112,15 @@ class DataCube(_ProcessGraphAbstraction):
         # TODO: cover more cases where metadata has to be altered
         # TODO: deprecate `process_with_node``: little added value over just calling DataCube() directly
         return DataCube(graph=pg, connection=self._connection, metadata=metadata or self.metadata)
+
+    def _do_metadata_normalization(self) -> bool:
+        """Do metadata-based normalization/validation of dimension names, band names, ..."""
+        return isinstance(self.metadata, CollectionMetadata)
+
+    def _assert_valid_dimension_name(self, name: str) -> str:
+        if self._do_metadata_normalization():
+            self.metadata.assert_valid_dimension(name)
+        return name
 
     @classmethod
     @openeo_process
@@ -157,17 +161,15 @@ class DataCube(_ProcessGraphAbstraction):
         }
         if isinstance(collection_id, Parameter):
             fetch_metadata = False
-        metadata = connection.collection_metadata(collection_id) if fetch_metadata else None
+        metadata: Optional[CollectionMetadata] = (
+            connection.collection_metadata(collection_id) if fetch_metadata else None
+        )
         if bands:
             if isinstance(bands, str):
                 bands = [bands]
             if metadata:
                 bands = [b if isinstance(b, str) else metadata.band_dimension.band_name(b) for b in bands]
                 metadata = metadata.filter_bands(bands)
-            else:
-                # Ensure minimal metadata with best effort band dimension guess (based on `bands` argument).
-                band_dimension = BandDimension("bands", bands=[Band(name=b) for b in bands])
-                metadata = CollectionMetadata({}, dimensions=[band_dimension])
             arguments['bands'] = bands
         if max_cloud_cover:
             properties = properties or {}
@@ -216,17 +218,7 @@ class DataCube(_ProcessGraphAbstraction):
                 'options': options
             }
         )
-
-        metadata = CollectionMetadata(
-            {},
-            dimensions=[
-                SpatialDimension(name="x", extent=[]),
-                SpatialDimension(name="y", extent=[]),
-                TemporalDimension(name="t", extent=[]),
-                BandDimension(name="bands", bands=[Band(name="unknown")]),
-            ],
-        )
-        return cls(graph=pg, connection=connection, metadata=metadata)
+        return cls(graph=pg, connection=connection)
 
     @classmethod
     def _get_temporal_extent(
@@ -437,13 +429,13 @@ class DataCube(_ProcessGraphAbstraction):
         """
         if isinstance(bands, str):
             bands = [bands]
-        bands = [self.metadata.band_dimension.band_name(b) for b in bands]
+        if self._do_metadata_normalization():
+            bands = [self.metadata.band_dimension.band_name(b) for b in bands]
         cube = self.process(
             process_id="filter_bands",
             arguments={"data": THIS, "bands": bands},
+            metadata=self.metadata.filter_bands(bands) if self.metadata else None,
         )
-        if cube.metadata:
-            cube.metadata = cube.metadata.filter_bands(bands)
         return cube
 
     band_filter = legacy_alias(filter_bands, "band_filter", since="0.1.0")
@@ -455,14 +447,14 @@ class DataCube(_ProcessGraphAbstraction):
         :param band: band name, band common name or band index.
         :return: a DataCube instance
         """
-        band_index = self.metadata.get_band_index(band)
-        return self.reduce_bands(reducer=PGNode(
-            process_id='array_element',
-            arguments={
-                'data': {'from_parameter': 'data'},
-                'index': band_index
-            },
-        ))
+        if self._do_metadata_normalization():
+            band = self.metadata.band_dimension.band_index(band)
+        return self.reduce_bands(
+            reducer=PGNode(
+                process_id="array_element",
+                arguments={"data": {"from_parameter": "data"}, "index": band},
+            )
+        )
 
     @openeo_process
     def resample_spatial(
@@ -1084,7 +1076,7 @@ class DataCube(_ProcessGraphAbstraction):
         arguments = {
             "data": THIS,
             "process": process,
-            "dimension": self.metadata.assert_valid_dimension(dimension),
+            "dimension": self._assert_valid_dimension_name(dimension),
         }
         if target_dimension is not None:
             arguments["target_dimension"] = target_dimension
@@ -1129,15 +1121,18 @@ class DataCube(_ProcessGraphAbstraction):
             process=reducer, parent_parameters=["data", "context"], connection=self.connection
         )
 
-        return self.process_with_node(ReduceNode(
-            process_id=process_id,
-            data=self,
-            reducer=reducer,
-            dimension=self.metadata.assert_valid_dimension(dimension),
-            context=context,
-            # TODO #123 is it (still) necessary to make "band" math a special case?
-            band_math_mode=band_math_mode
-        ), metadata=self.metadata.reduce_dimension(dimension_name=dimension))
+        return self.process_with_node(
+            ReduceNode(
+                process_id=process_id,
+                data=self,
+                reducer=reducer,
+                dimension=self._assert_valid_dimension_name(dimension),
+                context=context,
+                # TODO #123 is it (still) necessary to make "band" math a special case?
+                band_math_mode=band_math_mode,
+            ),
+            metadata=self.metadata.reduce_dimension(dimension_name=dimension) if self.metadata else None,
+        )
 
     # @openeo_process
     def chunk_polygon(
@@ -1189,7 +1184,11 @@ class DataCube(_ProcessGraphAbstraction):
 
         :param reducer: "child callback" function, see :ref:`callbackfunctions`
         """
-        return self.reduce_dimension(dimension=self.metadata.band_dimension.name, reducer=reducer, band_math_mode=True)
+        return self.reduce_dimension(
+            dimension=self.metadata.band_dimension.name if self.metadata else "bands",
+            reducer=reducer,
+            band_math_mode=True,
+        )
 
     def reduce_temporal(self, reducer: Union[str, PGNode, typing.Callable, UDF]) -> DataCube:
         """
@@ -1197,7 +1196,10 @@ class DataCube(_ProcessGraphAbstraction):
 
         :param reducer: "child callback" function, see :ref:`callbackfunctions`
         """
-        return self.reduce_dimension(dimension=self.metadata.temporal_dimension.name, reducer=reducer)
+        return self.reduce_dimension(
+            dimension=self.metadata.temporal_dimension.name if self.metadata else "t",
+            reducer=reducer,
+        )
 
     @deprecated(
         "Use :py:meth:`reduce_bands` with :py:class:`UDF <openeo.rest._datacube.UDF>` as reducer.",
@@ -1227,7 +1229,7 @@ class DataCube(_ProcessGraphAbstraction):
         return self.process(
             process_id="add_dimension",
             arguments=dict_no_none({"data": self, "name": name, "label": label, "type": type}),
-            metadata=self.metadata.add_dimension(name=name, label=label, type=type)
+            metadata=self.metadata.add_dimension(name=name, label=label, type=type) if self.metadata else None,
         )
 
     @openeo_process
@@ -1245,7 +1247,7 @@ class DataCube(_ProcessGraphAbstraction):
         return self.process(
             process_id="drop_dimension",
             arguments={"data": self, "name": name},
-            metadata=self.metadata.drop_dimension(name=name),
+            metadata=self.metadata.drop_dimension(name=name) if self.metadata else None,
         )
 
     @deprecated(
@@ -1500,9 +1502,12 @@ class DataCube(_ProcessGraphAbstraction):
 
         :return: a DataCube instance
         """
-        if target_band is None:
+        if self.metadata is None:
+            metadata = None
+        elif target_band is None:
             metadata = self.metadata.reduce_dimension(self.metadata.band_dimension.name)
         else:
+            # TODO: first drop "bands" dim and re-add it with single "ndvi" band
             metadata = self.metadata.append_band(Band(name=target_band, common_name="ndvi"))
         return self.process(
             process_id="ndvi",
@@ -1522,16 +1527,16 @@ class DataCube(_ProcessGraphAbstraction):
 
         :return: A new datacube with the dimension renamed.
         """
-        if target in self.metadata.dimension_names():
+        if self._do_metadata_normalization() and target in self.metadata.dimension_names():
             raise ValueError('Target dimension name conflicts with existing dimension: %s.' % target)
         return self.process(
             process_id="rename_dimension",
             arguments=dict_no_none(
                 data=THIS,
-                source=self.metadata.assert_valid_dimension(source),
+                source=self._assert_valid_dimension_name(source),
                 target=target,
             ),
-            metadata=self.metadata.rename_dimension(source, target),
+            metadata=self.metadata.rename_dimension(source, target) if self.metadata else None,
         )
 
     @openeo_process
@@ -1549,11 +1554,11 @@ class DataCube(_ProcessGraphAbstraction):
             process_id="rename_labels",
             arguments=dict_no_none(
                 data=THIS,
-                dimension=self.metadata.assert_valid_dimension(dimension),
+                dimension=self._assert_valid_dimension_name(dimension),
                 target=target,
                 source=source,
             ),
-            metadata=self.metadata.rename_labels(dimension, target, source),
+            metadata=self.metadata.rename_labels(dimension, target, source) if self.metadata else None,
         )
 
     @openeo_process(mode="apply")
@@ -1670,12 +1675,20 @@ class DataCube(_ProcessGraphAbstraction):
         arguments = {"cube1": self, "cube2": other}
         if overlap_resolver:
             arguments["overlap_resolver"] = build_child_callback(overlap_resolver, parent_parameters=["x", "y"])
-        # Minimal client side metadata merging
-        merged_metadata = self.metadata
-        if self.metadata.has_band_dimension() and isinstance(other, DataCube) and other.metadata.has_band_dimension():
+        if (
+            self.metadata
+            and self.metadata.has_band_dimension()
+            and isinstance(other, DataCube)
+            and other.metadata
+            and other.metadata.has_band_dimension()
+        ):
+            # Minimal client side metadata merging
+            merged_metadata = self.metadata
             for b in other.metadata.band_dimension.bands:
                 if b not in merged_metadata.bands:
                     merged_metadata = merged_metadata.append_band(b)
+        else:
+            merged_metadata = None
         # Overlapping bands without overlap resolver will give an error in the backend
         if context:
             arguments["context"] = context
@@ -1755,8 +1768,7 @@ class DataCube(_ProcessGraphAbstraction):
         :return: a :py:class:`~openeo.rest.vectorcube.VectorCube`
         """
         pg_node = PGNode(process_id="raster_to_vector", arguments={"data": self})
-        # TODO: properly update metadata (e.g. "geometry" dimension) related to #457
-        return VectorCube(pg_node, connection=self._connection, metadata=self.metadata)
+        return VectorCube(pg_node, connection=self._connection)
 
     ####VIEW methods #######
 
@@ -2330,9 +2342,10 @@ class DataCube(_ProcessGraphAbstraction):
 
         :param dimension: The name of the dimension to get the labels for.
         """
-        dimension_names = self.metadata.dimension_names()
-        if dimension_names and dimension not in dimension_names:
-            raise ValueError(f"Invalid dimension name {dimension!r}, should be one of {dimension_names}")
+        if self._do_metadata_normalization():
+            dimension_names = self.metadata.dimension_names()
+            if dimension_names and dimension not in dimension_names:
+                raise ValueError(f"Invalid dimension name {dimension!r}, should be one of {dimension_names}")
         return self.process(process_id="dimension_labels", arguments={"data": THIS, "dimension": dimension})
 
     @openeo_process

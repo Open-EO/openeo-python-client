@@ -7,7 +7,6 @@ from typing import Callable, List, Optional, Tuple, Union
 
 import shapely.geometry.base
 
-import openeo
 from openeo.api.process import Parameter
 from openeo.internal.documentation import openeo_process
 from openeo.internal.graph_building import PGNode
@@ -37,9 +36,9 @@ class VectorCube(_ProcessGraphAbstraction):
     A geometry is specified in a 'coordinate reference system'. https://www.w3.org/TR/sdw-bp/#dfn-coordinate-reference-system-(crs)
     """
 
-    def __init__(self, graph: PGNode, connection: Connection, metadata: CollectionMetadata = None):
+    def __init__(self, graph: PGNode, connection: Connection, metadata: Optional[CollectionMetadata] = None):
         super().__init__(pgnode=graph, connection=connection)
-        self.metadata = metadata or self._build_metadata()
+        self.metadata = metadata
 
     @classmethod
     def _build_metadata(cls, add_properties: bool = False) -> CollectionMetadata:
@@ -48,7 +47,7 @@ class VectorCube(_ProcessGraphAbstraction):
         dimensions = [Dimension(name="geometry", type="geometry")]
         if add_properties:
             dimensions.append(Dimension(name="properties", type="other"))
-        # TODO: use a more generic metadata container than "collection" metadata
+        # TODO #464: use a more generic metadata container than "collection" metadata
         return CollectionMetadata(metadata={}, dimensions=dimensions)
 
     def process(
@@ -533,8 +532,7 @@ class VectorCube(_ProcessGraphAbstraction):
             {
                 "data": THIS,
                 "process": process,
-                # TODO: drop `just_warn`?
-                "dimension": self.metadata.assert_valid_dimension(dimension, just_warn=True),
+                "dimension": dimension,
                 "target_dimension": target_dimension,
                 "context": context,
             }

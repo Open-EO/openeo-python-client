@@ -7,9 +7,9 @@ import collections
 import copy
 import io
 import json
+import logging
 import pathlib
 import re
-import sys
 import textwrap
 from typing import Optional
 
@@ -30,9 +30,9 @@ from openeo.rest import OpenEoClientException
 from openeo.rest._testing import build_capabilities
 from openeo.rest.connection import Connection
 from openeo.rest.datacube import THIS, UDF, DataCube
-from openeo.rest.vectorcube import VectorCube
 
 from ... import load_json_resource
+from .. import get_download_graph
 from .conftest import API_URL, DEFAULT_S2_METADATA, setup_collection_metadata
 
 basic_geometry_types = [
@@ -980,10 +980,9 @@ def test_ndvi_args(con100: Connection):
     assert ndvi.metadata.band_dimension.band_names == ["B02", "B03", "B04", "B08", "ndvii"]
 
 
-def test_rename_dimension(con100):
-    s2 = con100.load_collection("S2")
-    x = s2.rename_dimension(source="bands", target="ThisIsNotTheBandsDimension")
-    assert x.flat_graph() == {
+def test_rename_dimension(s2cube):
+    cube = s2cube.rename_dimension(source="bands", target="ThisIsNotTheBandsDimension")
+    assert cube.flat_graph() == {
         "loadcollection1": {
             "process_id": "load_collection",
             "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
@@ -994,6 +993,30 @@ def test_rename_dimension(con100):
                 "data": {"from_node": "loadcollection1"},
                 "source": "bands",
                 "target": "ThisIsNotTheBandsDimension",
+            },
+            "result": True,
+        },
+    }
+
+
+def test_rename_dimension_invalid_dimension_with_metadata(s2cube):
+    with pytest.raises(ValueError, match="Invalid dimension 'applepie'."):
+        _ = s2cube.rename_dimension(source="applepie", target="icecream")
+
+
+def test_rename_dimension_invalid_dimension_no_metadata(s2cube_without_metadata):
+    cube = s2cube_without_metadata.rename_dimension(source="applepie", target="icecream")
+    assert cube.flat_graph() == {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
+        },
+        "renamedimension1": {
+            "process_id": "rename_dimension",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "source": "applepie",
+                "target": "icecream",
             },
             "result": True,
         },
@@ -1151,29 +1174,70 @@ def test_reduce_dimension_context(con100):
         }}
 
 
-def test_reduce_bands(con100):
-    s2 = con100.load_collection("S2")
-    x = s2.reduce_bands(reducer="mean")
-    assert x.flat_graph() == {
-        'loadcollection1': {
-            'process_id': 'load_collection',
-            'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
-        },
-        'reducedimension1': {
-            'process_id': 'reduce_dimension',
-            'arguments': {
-                'data': {'from_node': 'loadcollection1'},
-                'dimension': 'bands',
-                'reducer': {'process_graph': {
-                    'mean1': {
-                        'process_id': 'mean',
-                        'arguments': {'data': {'from_parameter': 'data'}},
-                        'result': True
-                    }
-                }}
+def test_reduce_dimension_invalid_dimension_with_metadata(s2cube):
+    with pytest.raises(ValueError, match="ola"):
+        s2cube.reduce_dimension(dimension="olapola", reducer="mean")
+
+
+def test_reduce_dimension_invalid_dimension_no_metadata(s2cube_without_metadata):
+    cube = s2cube_without_metadata.reduce_dimension(dimension="olapola", reducer="mean")
+    assert get_download_graph(cube)["reducedimension1"] == {
+        "process_id": "reduce_dimension",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "dimension": "olapola",
+            "reducer": {
+                "process_graph": {
+                    "mean1": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}
+                }
             },
-            'result': True
-        }}
+        },
+    }
+    cube = cube.reduce_dimension(dimension="jamanee", reducer="max")
+    assert get_download_graph(cube)["reducedimension2"] == {
+        "process_id": "reduce_dimension",
+        "arguments": {
+            "data": {"from_node": "reducedimension1"},
+            "dimension": "jamanee",
+            "reducer": {
+                "process_graph": {
+                    "max1": {"process_id": "max", "arguments": {"data": {"from_parameter": "data"}}, "result": True}
+                }
+            },
+        },
+    }
+
+
+def test_reduce_bands(s2cube):
+    cube = s2cube.reduce_bands(reducer="mean")
+    assert get_download_graph(cube)["reducedimension1"] == {
+        "process_id": "reduce_dimension",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "dimension": "bands",
+            "reducer": {
+                "process_graph": {
+                    "mean1": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}
+                }
+            },
+        },
+    }
+
+
+def test_reduce_bands_no_metadata(s2cube_without_metadata):
+    cube = s2cube_without_metadata.reduce_bands(reducer="mean")
+    assert get_download_graph(cube)["reducedimension1"] == {
+        "process_id": "reduce_dimension",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "dimension": "bands",
+            "reducer": {
+                "process_graph": {
+                    "mean1": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}
+                }
+            },
+        },
+    }
 
 
 def test_reduce_bands_udf(con100):
@@ -1205,10 +1269,9 @@ def test_reduce_bands_udf(con100):
         }}
 
 
-def test_reduce_temporal(con100):
-    s2 = con100.load_collection("S2")
-    x = s2.reduce_temporal(reducer="mean")
-    assert x.flat_graph() == {
+def test_reduce_temporal(s2cube):
+    cube = s2cube.reduce_temporal(reducer="mean")
+    assert cube.flat_graph() == {
         'loadcollection1': {
             'process_id': 'load_collection',
             'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
@@ -1258,6 +1321,22 @@ def test_reduce_temporal_udf(con100):
             },
             'result': True
         }}
+
+
+def test_reduce_temporal_without_metadata(s2cube_without_metadata):
+    cube = s2cube_without_metadata.reduce_temporal(reducer="mean")
+    assert get_download_graph(cube)["reducedimension1"] == {
+        "process_id": "reduce_dimension",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "dimension": "t",
+            "reducer": {
+                "process_graph": {
+                    "mean1": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}
+                }
+            },
+        },
+    }
 
 
 def test_chunk_polygon_basic(con100: Connection):
@@ -1638,6 +1717,31 @@ def test_apply_dimension_modify_bands(con100):
     }
 
 
+
+def test_datacube_from_process_apply_dimension(con100, caplog, recwarn):
+    """https://github.com/Open-EO/openeo-python-client/issues/442"""
+    cube = con100.datacube_from_process("wibble")
+    cube = cube.apply_dimension(dimension="t", process="cumsum")
+    assert get_download_graph(cube)["applydimension1"] == {
+        "process_id": "apply_dimension",
+        "arguments": {
+            "data": {"from_node": "wibble1"},
+            "dimension": "t",
+            "process": {
+                "process_graph": {
+                    "cumsum1": {
+                        "arguments": {"data": {"from_parameter": "data"}},
+                        "process_id": "cumsum",
+                        "result": True,
+                    }
+                }
+            },
+        },
+    }
+    assert caplog.messages == []
+    assert recwarn.list == []
+
+
 def test_apply_neighborhood_context(con100):
     collection = con100.load_collection("S2")
     neighbors = collection.apply_neighborhood(
@@ -1985,6 +2089,14 @@ def test_datacube_from_process_namespace(con100):
     assert cube.flat_graph() == {
         "colorize1": {"process_id": "colorize", "namespace": "foo", "arguments": {"color": "red"}, "result": True}
     }
+
+
+def test_datacube_from_process_no_warnings(con100, caplog, recwarn):
+    """https://github.com/Open-EO/openeo-python-client/issues/442"""
+    caplog.set_level(logging.INFO)
+    _ = con100.datacube_from_process("colorize", color="red", size=4)
+    assert caplog.messages == []
+    assert recwarn.list == []
 
 
 class TestDataCubeFromFlatGraph:

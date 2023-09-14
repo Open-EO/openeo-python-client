@@ -13,7 +13,6 @@ import pytest
 import shapely
 import shapely.geometry
 
-from openeo.capabilities import ComparableVersion
 from openeo.rest import BandMathException
 from openeo.rest.datacube import DataCube
 
@@ -29,9 +28,29 @@ def test_apply_dimension_temporal_cumsum(s2cube, api_version):
     assert actual_graph == expected_graph
 
 
-def test_apply_dimension_invalid_dimension(s2cube):
+def test_apply_dimension_invalid_dimension_with_metadata(s2cube):
     with pytest.raises(ValueError, match="Invalid dimension"):
-        s2cube.apply_dimension('cumsum', dimension="olapola")
+        s2cube.apply_dimension("cumsum", dimension="olapola")
+
+
+def test_apply_dimension_invalid_dimension_no_metadata(s2cube_without_metadata):
+    cube = s2cube_without_metadata.apply_dimension("cumsum", dimension="olapola")
+    assert get_download_graph(cube)["applydimension1"] == {
+        "process_id": "apply_dimension",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "dimension": "olapola",
+            "process": {
+                "process_graph": {
+                    "cumsum1": {
+                        "arguments": {"data": {"from_parameter": "data"}},
+                        "process_id": "cumsum",
+                        "result": True,
+                    }
+                }
+            },
+        },
+    }
 
 
 def test_min_time(s2cube, api_version):
@@ -164,6 +183,24 @@ def test_filter_bands_index(s2cube, api_version):
     expected = load_json_resource('data/{v}/filter_bands.json'.format(v=api_version))
     expected["filterbands1"]["arguments"]["bands"] = ["B08", "B04"]
     assert im.flat_graph() == expected
+
+
+def test_filter_bands_invalid_bands_with_metadata(s2cube):
+    with pytest.raises(ValueError, match="Invalid band name/index 'apple'"):
+        _ = s2cube.filter_bands(["apple", "banana"])
+
+
+def test_filter_bands_invalid_bands_without_metadata(s2cube_without_metadata):
+    cube = s2cube_without_metadata.filter_bands(["apple", "banana"])
+    assert get_download_graph(cube)["filterbands1"] == {
+        "process_id": "filter_bands",
+        "arguments": {"data": {"from_node": "loadcollection1"}, "bands": ["apple", "banana"]},
+    }
+    cube = cube.filter_bands(["banana"])
+    assert get_download_graph(cube)["filterbands2"] == {
+        "process_id": "filter_bands",
+        "arguments": {"data": {"from_node": "filterbands1"}, "bands": ["banana"]},
+    }
 
 
 def test_filter_bbox_minimal(s2cube):
