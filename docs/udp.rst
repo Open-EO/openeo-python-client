@@ -50,7 +50,9 @@ that can be easily shared and reused without dealing with the entire workflow ea
 So, let's define temporal_extent,spatial_extent, and 
 geometry/polygon used for pixel aggregation as parameters. 
 The resulting code block will appear as follows:
+
 .. code-block:: python
+
     # Load data collection
     sentinel2_cube = connection.load_collection(
         "SENTINEL2_L2A",
@@ -78,6 +80,7 @@ Additionally, based on our application, we can also define the collection,
 or even bands as parameters as shown below:
 
 .. code-block:: python
+
     datacube = connection.load_collection(
             collection_id = collection,
             temporal_extent = temporal_interval
@@ -98,6 +101,7 @@ the openEO Python client will hide this usually).
 
 
 .. code-block:: json
+
       {
         "process_id": "load_collection",
         "arguments": {
@@ -123,6 +127,7 @@ and ``{"from_parameter": "temporal_interval"}`` in the above process graph.
 When we call this UDP, we will have to provide a value as shown below:
 
 .. code-block:: json
+
     {
         "process_id": "EVI_timeseries",
         "arguments": {
@@ -157,6 +162,7 @@ a description and a schema (to declare the expected parameter type).
 The ``bbox`` and the ``temporal_interval`` parameters from the above example can be defined like this:
 
 .. code-block:: python
+
     temporal_interval = Parameter(
         name = "temporal_interval",
         description = "The date range to load.",
@@ -181,6 +187,7 @@ In the example above, the "collection_id" parameter (a string) can also be creat
 with the :py:meth:`Parameter.string() <openeo.api.process.Parameter.string>` helper.
 
 .. code-block:: python
+
     polygon = Parameter.array(
         name = "bbox",
         description = "The bounding box to load.",
@@ -259,6 +266,7 @@ For example, to define a bounding box parameter
 that should contain certain fields with certain type::
 
 .. code-block:: json
+
     {
         "type": "object",
         "properties": {
@@ -288,6 +296,7 @@ For example, as defined for the ``EVI_timeseries``
 Additionally, the schema of an openEO datacube is:
 
 .. code-block:: json
+
     {
         "type": "object",
         "subtype": "datacube"
@@ -454,9 +463,11 @@ use the :meth:`~openeo.rest.datacube.DataCube.to_json()`
 or :meth:`~openeo.rest.datacube.DataCube.print_json()` method::
 
 .. code-block:: python
+
     datacube.print_json()
     
-.. code-block:: json   
+.. code-block:: json 
+
     {
         "process_graph": {
             "loadcollection1": {
@@ -510,6 +521,7 @@ then you can simply use it using the following code and specifying the
 needed parameters:
 
 .. code-block:: python
+
     shared_graph = connection.datacube_from_json(
         'shared_process_graph.json',
         parameters={
@@ -532,6 +544,7 @@ compatible with the "process graph with metadata" format of the openEO API
 and dump it in JSON format to a file:
 
 .. code-block:: python
+
     import json
     from openeo.rest.udp import build_process_dict
 
@@ -558,6 +571,7 @@ generic :func:`openeo.processes.process` function to build a simple
 process graph that calls our ``Hello_openEO`` process:
 
 .. code-block:: python
+
     pg = openeo.processes.process(
             "EVI_timeseries",
             temporal_interval=["2018-06-15", "2018-06-27"],
@@ -583,6 +597,7 @@ to construct a :class:`~openeo.rest.datacube.DataCube` object
 which we can process further and download:
 
 .. code-block:: python
+
     created_process = conn.datacube_from_process(
         process_id = "EVI_timeseries",
         temporal_interval = date,
@@ -600,6 +615,7 @@ which you obtain as a link when using the save_process function.
 And if anyone wish to use your service they will execute the following code:
 
 .. code-block:: python
+
     # the public url that I received when saving the above ``EVI_timeseries`` is:
     public_url = "https://openeo.vito.be/openeo/1.1/processes/u:ecce9fea04b8c9c76ac76b45b6ba00c20f211bda4856c14aa4475b8e8ed433cd%40egi.eu/EVI_timeseries"
 
