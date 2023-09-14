@@ -126,13 +126,13 @@ def test_visit_nodes_array():
 def test_visit_array_with_dereferenced_nodes():
     graph = {
         'arrayelement1': {
-            'arguments': {'data': {'from_argument': 'data'}, 'index': 2},
+            'arguments': {'data': {'from_argument': 'data'}, 'index': {"from_parameter":"index"}},
             'process_id': 'array_element',
             'result': False
         },
         'product1': {
             'process_id': 'product',
-            'arguments': {'data': [{'from_node': 'arrayelement1'}, -1]},
+            'arguments': {'data': [{'from_node': 'arrayelement1'}, -1,{"from_parameter":"multiplier"}]},
             'result': True
         }
     }
@@ -140,7 +140,7 @@ def test_visit_array_with_dereferenced_nodes():
     dereferenced = graph[top]
     assert dereferenced["arguments"]["data"][0]["arguments"]["data"]["from_argument"] == "data"
 
-    visitor = ProcessGraphVisitor()
+    visitor = ProcessGraphVisitor(parameters={"index":2,"multiplier":3})
     visitor.leaveProcess = MagicMock()
     visitor.enterArgument = MagicMock()
     visitor.enterArray = MagicMock()
@@ -149,7 +149,7 @@ def test_visit_array_with_dereferenced_nodes():
 
     visitor.accept_node(dereferenced)
     assert visitor.leaveProcess.call_args_list == [
-        call(process_id='array_element', arguments=ANY, namespace=None),
+        call(process_id='array_element', arguments={'data': {'from_argument': 'data'},'index':2}, namespace=None),
         call(process_id='product', arguments=ANY, namespace=None)
     ]
     assert visitor.enterArgument.call_args_list == [
@@ -161,12 +161,13 @@ def test_visit_array_with_dereferenced_nodes():
     assert visitor.arrayElementDone.call_args_list == [
         call({
             "process_id": "array_element",
-            "arguments": {"data": {"from_argument": "data"}, "index": 2},
+            "arguments": {"data": {"from_argument": "data"}, "index": {"from_parameter":"index"}},
             "result": False
         })
     ]
     assert visitor.constantArrayElement.call_args_list == [
-        call(-1)
+        call(-1),
+        call(3)
     ]
 
 

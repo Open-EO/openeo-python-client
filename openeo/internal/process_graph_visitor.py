@@ -116,6 +116,10 @@ class ProcessGraphVisitor(ABC):
 
     def _accept_argument_list(self, elements: list):
         for element in elements:
+            if isinstance(element,dict) and "from_parameter" in element:
+                if element["from_parameter"] in self.parameters:
+                    element = self.parameters[element["from_parameter"]]
+
             if isinstance(element, dict):
                 self._accept_argument_dict(element)
                 self.arrayElementDone(element)
