@@ -286,6 +286,8 @@ in the `openeo-processes project <https://github.com/Open-EO/openeo-processes>`_
 
 For example, as defined for the ``EVI_timeseries``
 
+.. code-block:: json
+
     schema = {
         "type": "object",
         "subtype": "geojson"
