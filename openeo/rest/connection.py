@@ -1142,13 +1142,8 @@ class Connection(RestApiConnection):
 
         :param collection_id: image collection identifier
         :param spatial_extent: limit data to specified bounding box or polygons
-        :param temporal_extent:
-            limit data to specified temporal interval
-
-            .. seealso::
-
-                openEO Python Client documentation about filtering on temporal extent: :ref:`filtering-on-temporal-extent-section`
-
+        :param temporal_extent: limit data to specified temporal interval.
+            See :ref:`filtering-on-temporal-extent-section` for more details on temporal extent handling and shorthand notations.
         :param bands: only add the specified bands
         :param properties: limit data by metadata property predicates
         :param max_cloud_cover: shortcut to set maximum cloud cover ("eo:cloud_cover" collection property)
@@ -1183,7 +1178,8 @@ class Connection(RestApiConnection):
 
         :param id: The id of a batch job with results.
         :param spatial_extent: limit data to specified bounding box or polygons
-        :param temporal_extent: limit data to specified temporal interval
+        :param temporal_extent: limit data to specified temporal interval.
+            See :ref:`filtering-on-temporal-extent-section` for more details on temporal extent handling and shorthand notations.
         :param bands: only add the specified bands
 
         :return: a :py:class:`DataCube`

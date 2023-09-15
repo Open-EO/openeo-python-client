@@ -130,13 +130,16 @@ We load an initial small spatio-temporal slice (a data cube) as follows:
 
 Note how we specify a the region of interest, a time range and a set of bands to load.
 
-You can find out more about how to use time rages, regions of interest and bands in the section:
-:ref:`data-reduction-section` of chapter :ref:`data_access_chapter`.
-
-.. note::
+.. important::
     By filtering as early as possible (directly in :py:meth:`~openeo.rest.connection.Connection.load_collection` in this case),
     we make sure the back-end only loads the data we are interested in
-    and avoid incurring unneeded costs.
+    for better performance and keeping the processing costs low.
+
+.. seealso::
+    See the chapter :ref:`data_access_chapter` for more details on data discovery,
+    general data loading (:ref:`data-loading-and-filtering`) and filtering
+    (e.g. :ref:`temporal-extent-handling`).
+
 
 The :py:meth:`~openeo.rest.connection.Connection.load_collection` method on the connection
 object created a :py:class:`~openeo.rest.datacube.DataCube` object (variable ``sentinel2_cube``).
