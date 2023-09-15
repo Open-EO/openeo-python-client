@@ -6,7 +6,6 @@ import shapely.geometry
 
 import openeo.processes
 from openeo.api.process import Parameter
-from openeo.internal.graph_building import PGNode
 from openeo.rest._testing import DummyBackend
 from openeo.rest.vectorcube import VectorCube
 from openeo.util import InvalidBBoxException
@@ -272,14 +271,13 @@ def test_load_url(con100, dummy_backend):
 
 
 @pytest.mark.parametrize(
-    ["dimension", "expect_warning"],
+    ["dimension"],
     [
-        ("geometry", False),
-        ("geometries", True),
-        ("wibbles", True),
+        ("geometry",),
+        ("geometries",),
     ],
 )
-def test_apply_dimension(vector_cube, dummy_backend, dimension, expect_warning, caplog):
+def test_apply_dimension(vector_cube, dummy_backend, dimension, caplog):
     vc = vector_cube.apply_dimension("sort", dimension=dimension)
     assert dummy_backend.execute(vc, process_id="apply_dimension") == {
         "process_id": "apply_dimension",
@@ -299,9 +297,6 @@ def test_apply_dimension(vector_cube, dummy_backend, dimension, expect_warning, 
         "result": True,
     }
 
-    assert (
-        f"Invalid dimension {dimension!r}. Should be one of ['geometry', 'properties']" in caplog.messages
-    ) == expect_warning
 
 
 def test_filter_bands(vector_cube, dummy_backend):

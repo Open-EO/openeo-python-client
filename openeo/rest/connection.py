@@ -27,14 +27,8 @@ from openeo.internal.graph_building import FlatGraphableMixin, PGNode, as_flat_g
 from openeo.internal.jupyter import VisualDict, VisualList
 from openeo.internal.processes.builder import ProcessBuilderBase
 from openeo.internal.warnings import deprecated, legacy_alias
-from openeo.metadata import (
-    Band,
-    BandDimension,
-    CollectionMetadata,
-    SpatialDimension,
-    TemporalDimension,
-)
-from openeo.rest import OpenEoApiError, OpenEoClientException, OpenEoRestError
+from openeo.metadata import Band, BandDimension, CollectionMetadata, SpatialDimension, TemporalDimension
+from openeo.rest import CapabilitiesException, OpenEoApiError, OpenEoClientException, OpenEoRestError
 from openeo.rest._datacube import build_child_callback
 from openeo.rest.auth.auth import BasicBearerAuth, BearerAuth, NullAuth, OidcBearerAuth
 from openeo.rest.auth.config import AuthConfig, RefreshTokenStore
@@ -984,6 +978,15 @@ class Connection(RestApiConnection):
         jobs = resp["jobs"]
         return VisualList("data-table", data=jobs, parameters={'columns': 'jobs'})
 
+    def assert_user_defined_process_support(self):
+        """
+        Capabilities document based verification that back-end supports user-defined processes.
+
+        .. versionadded:: 0.23.0
+        """
+        if not self.capabilities().supports_endpoint("/process_graphs"):
+            raise CapabilitiesException("Backend does not support user-defined processes.")
+
     def save_user_defined_process(
             self, user_defined_process_id: str,
             process_graph: Union[dict, ProcessBuilderBase],
@@ -1011,6 +1014,7 @@ class Connection(RestApiConnection):
         :param links: A list of links.
         :return: a RESTUserDefinedProcess instance
         """
+        self.assert_user_defined_process_support()
         if user_defined_process_id in set(p["id"] for p in self.list_processes()):
             warnings.warn("Defining user-defined process {u!r} with same id as a pre-defined process".format(
                 u=user_defined_process_id))
@@ -1028,6 +1032,7 @@ class Connection(RestApiConnection):
         """
         Lists all user-defined processes of the authenticated user.
         """
+        self.assert_user_defined_process_support()
         data = self.get("/process_graphs", expected_status=200).json()["processes"]
         return VisualList("processes", data=data, parameters={'show-graph': True, 'provide-download': False})
 
@@ -1123,14 +1128,14 @@ class Connection(RestApiConnection):
 
     @openeo_process
     def load_collection(
-            self,
-            collection_id: str,
-            spatial_extent: Optional[Dict[str, float]] = None,
+        self,
+        collection_id: Union[str, Parameter],
+        spatial_extent: Optional[Dict[str, float]] = None,
         temporal_extent: Optional[List[Union[str, datetime.datetime, datetime.date]]] = None,
-        bands: Optional[List[str]] = None,
-            properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
-            max_cloud_cover: Optional[float] = None,
-            fetch_metadata=True,
+        bands: Union[None, List[str], Parameter] = None,
+        properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
+        max_cloud_cover: Optional[float] = None,
+        fetch_metadata=True,
     ) -> DataCube:
         """
         Load a DataCube by collection id.
@@ -1180,15 +1185,6 @@ class Connection(RestApiConnection):
         :return: a :py:class:`DataCube`
         """
         # TODO: add check that back-end supports `load_result` process?
-        metadata = CollectionMetadata(
-            {},
-            dimensions=[
-                SpatialDimension(name="x", extent=[]),
-                SpatialDimension(name="y", extent=[]),
-                TemporalDimension(name="t", extent=[]),
-                BandDimension(name="bands", bands=[Band(name="unknown")]),
-            ],
-        )
         cube = self.datacube_from_process(
             process_id="load_result",
             id=id,
@@ -1198,7 +1194,6 @@ class Connection(RestApiConnection):
                 bands=bands,
             ),
         )
-        cube.metadata = metadata
         return cube
 
     @openeo_process
@@ -1306,15 +1301,6 @@ class Connection(RestApiConnection):
         """
         # TODO #425 move this implementation to `DataCube` and just forward here (like with `load_collection`)
         # TODO #425 detect actual metadata from URL
-        metadata = CollectionMetadata(
-            {},
-            dimensions=[
-                SpatialDimension(name="x", extent=[]),
-                SpatialDimension(name="y", extent=[]),
-                TemporalDimension(name="t", extent=[]),
-                BandDimension(name="bands", bands=[Band(name="unknown")]),
-            ],
-        )
         arguments = {"url": url}
         # TODO #425 more normalization/validation of extent/band parameters
         if spatial_extent:
@@ -1328,7 +1314,6 @@ class Connection(RestApiConnection):
                 prop: build_child_callback(pred, parent_parameters=["value"]) for prop, pred in properties.items()
             }
         cube = self.datacube_from_process(process_id="load_stac", **arguments)
-        cube.metadata = metadata
         return cube
 
     def load_ml_model(self, id: Union[str, BatchJob]) -> MlModel:

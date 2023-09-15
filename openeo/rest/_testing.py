@@ -123,3 +123,64 @@ class DummyBackend:
         """
         cube.execute()
         return self.get_pg(process_id=process_id)
+
+
+def build_capabilities(
+    *,
+    api_version: str = "1.0.0",
+    stac_version: str = "0.9.0",
+    basic_auth: bool = True,
+    oidc_auth: bool = True,
+    collections: bool = True,
+    processes: bool = True,
+    sync_processing: bool = True,
+    validation: bool = False,
+    batch_jobs: bool = True,
+    udp: bool = False,
+) -> dict:
+    """Build a dummy capabilities document for testing purposes."""
+
+    endpoints = []
+    if basic_auth:
+        endpoints.append({"path": "/credentials/basic", "methods": ["GET"]})
+    if oidc_auth:
+        endpoints.append({"path": "/credentials/oidc", "methods": ["GET"]})
+    if basic_auth or oidc_auth:
+        endpoints.append({"path": "/me", "methods": ["GET"]})
+
+    if collections:
+        endpoints.append({"path": "/collections", "methods": ["GET"]})
+        endpoints.append({"path": "/collections/{collection_id}", "methods": ["GET"]})
+    if processes:
+        endpoints.append({"path": "/processes", "methods": ["GET"]})
+    if sync_processing:
+        endpoints.append({"path": "/result", "methods": ["POST"]})
+    if validation:
+        endpoints.append({"path": "/validation", "methods": ["POST"]})
+    if batch_jobs:
+        endpoints.extend(
+            [
+                {"path": "/jobs", "methods": ["GET", "POST"]},
+                {"path": "/jobs/{job_id}", "methods": ["GET", "DELETE"]},
+                {"path": "/jobs/{job_id}/results", "methods": ["GET", "POST", "DELETE"]},
+                {"path": "/jobs/{job_id}/logs", "methods": ["GET"]},
+            ]
+        )
+    if udp:
+        endpoints.extend(
+            [
+                {"path": "/process_graphs", "methods": ["GET"]},
+                {"path": "/process_graphs/{process_graph_id", "methods": ["GET", "PUT", "DELETE"]},
+            ]
+        )
+
+    capabilities = {
+        "api_version": api_version,
+        "stac_version": stac_version,
+        "id": "dummy",
+        "title": "Dummy openEO back-end",
+        "description": "Dummy openeEO back-end",
+        "endpoints": endpoints,
+        "links": [],
+    }
+    return capabilities

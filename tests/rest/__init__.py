@@ -5,7 +5,7 @@ import mock
 from openeo.rest.datacube import DataCube
 
 
-def get_download_graph(cube: DataCube) -> dict:
+def get_download_graph(cube: DataCube, drop_save_result: bool = False) -> dict:
     """
     Do fake download of a cube and intercept the process graph
     :param cube: cube to download
@@ -17,6 +17,10 @@ def get_download_graph(cube: DataCube) -> dict:
         download.assert_called_once()
         args, kwargs = download.call_args
     actual_graph = _json_normalize(args[0])
+    if drop_save_result:
+        save_results_nodes = [k for k, v in actual_graph.items() if v["process_id"] == "save_result"]
+        assert len(save_results_nodes) == 1
+        del actual_graph[save_results_nodes[0]]
     return actual_graph
 
 

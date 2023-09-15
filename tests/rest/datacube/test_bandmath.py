@@ -259,8 +259,6 @@ def test_add_bands(connection, api_version):
 
 
 def test_add_bands_different_collection(connection, api_version):
-    if api_version == "0.4.0":
-        pytest.skip("0.4.0 generates invalid result")
     b4 = connection.load_collection("S2").band("B04")
     b3 = connection.load_collection("SENTINEL2_RADIOMETRY_10M").band("B02")
     with pytest.raises(BandMathException):
@@ -305,8 +303,6 @@ def test_merge_cubes_or(connection, api_version):
 
 
 def test_merge_cubes_multiple(connection, api_version):
-    if api_version == "0.4.0":
-        pytest.skip("doesn't work in 0.4.0")
     s2 = connection.load_collection("S2")
     b1 = s2.band("B02")
     b1 = b1.linear_scale_range(0, 1, 0, 2)
@@ -370,3 +366,28 @@ def test_log3(con100):
         'data/1.0.0/bm_log.json',
         preprocess=lambda s: s.replace('"base": 10', '"base": 3')
     )
+
+
+def test_band_invalid_band_with_metadata(s2cube):
+    with pytest.raises(ValueError, match="Invalid band name/index 'banana'"):
+        _ = s2cube.band("banana")
+
+
+def test_band_invalid_band_no_metadata(s2cube_without_metadata):
+    cube = s2cube_without_metadata.band("banana")
+    assert get_download_graph(cube)["reducedimension1"] == {
+        "process_id": "reduce_dimension",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "dimension": "bands",
+            "reducer": {
+                "process_graph": {
+                    "arrayelement1": {
+                        "arguments": {"data": {"from_parameter": "data"}, "index": "banana"},
+                        "process_id": "array_element",
+                        "result": True,
+                    }
+                }
+            },
+        },
+    }

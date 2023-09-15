@@ -1,8 +1,6 @@
 import contextlib
 import re
-import time
 import typing
-from typing import List
 from unittest import mock
 
 import pytest
