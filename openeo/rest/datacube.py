@@ -232,6 +232,7 @@ class DataCube(_ProcessGraphAbstraction):
             extent: Union[list, tuple, Parameter] = None
     ) -> Union[List[Union[str, None, Parameter]], Parameter]:
         """Parameter aware temporal_extent normalizer"""
+        # TODO: move this outside of DataCube class
         if len(args) == 1 and isinstance(args[0], Parameter):
             assert start_date is None and end_date is None and extent is None
             return args[0]
