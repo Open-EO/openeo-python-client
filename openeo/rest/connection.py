@@ -1190,7 +1190,7 @@ class Connection(RestApiConnection):
             id=id,
             **dict_no_none(
                 spatial_extent=spatial_extent,
-                temporal_extent=temporal_extent and DataCube._get_temporal_extent(temporal_extent),
+                temporal_extent=temporal_extent and DataCube._get_temporal_extent(extent=temporal_extent),
                 bands=bands,
             ),
         )
@@ -1306,7 +1306,7 @@ class Connection(RestApiConnection):
         if spatial_extent:
             arguments["spatial_extent"] = spatial_extent
         if temporal_extent:
-            arguments["temporal_extent"] = DataCube._get_temporal_extent(temporal_extent)
+            arguments["temporal_extent"] = DataCube._get_temporal_extent(extent=temporal_extent)
         if bands:
             arguments["bands"] = bands
         if properties:
