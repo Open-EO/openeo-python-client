@@ -1,16 +1,16 @@
 .. _data_access_chapter:
 
-
-========================
+########################
 Finding and loading data
-========================
+########################
 
-As illustrated in the basic concepts, most openEO scripts start with 'load_collection', but this skips the step of
+
+As illustrated in the basic concepts, most openEO scripts start with ``load_collection``, but this skips the step of
 actually finding out which collection to load. This section dives a bit deeper into finding the right data, and some more
 advanced data loading use cases.
 
 Data discovery
---------------
+==============
 
 To explore data in a given back-end, it is recommended to use a more visual tool like the openEO Hub
 (http://hub.openeo.org/). This shows available collections, and metadata in a user-friendly manner.
@@ -40,15 +40,9 @@ drastically improve your understanding of the dataset.
 
 Finally, licensing information is important to keep an eye on: not all data is free and open.
 
-Loading collections
--------------------
 
-Many examples already show the basic load_collection process, with filters on space, time and bands. In this section, we
-want to dive a bit into details, and more advanced cases.
-
-
-Exploring collections
-#####################
+Initial exploration of an openEO collection
+-------------------------------------------
 
 A common question from users is about very specific details of a collection, we'd like to list some examples and solutions here:
 
@@ -56,26 +50,52 @@ A common question from users is about very specific details of a collection, we'
 - Data availability, and available timestamps can be retrieved by computing average values for your area of interest. Just construct a polygon, and retrieve those statistics. For optical data, this can also be used to get an idea on cloud statistics.
 - Most collections have a native projection system, again a simple download will give you this information if its not clear from the metadata.
 
-.. _data-reduction-section:
+.. _data-loading-and-filtering:
 
-Data reduction
-##############
+Loading a data cube from a collection
+=====================================
 
-The purpose of the filters in load_collection is to reduce the amount of data that is loaded by the back-end. We
-recommend doing this, especially when experimenting with a script, as this can dramatically increase the response time for
-your calls. Gradually increasing the amount of data processed is recommended when tests on smaller areas are successful.
+Many examples already illustrate the basic openEO ``load_collection`` process through a :py:meth:`Connection.load_collection() <openeo.rest.connection.Connection.load_collection>` call,
+with filters on space, time and bands.
+For example:
 
-Next to specifying filters inside load_collection, there are also possibilities to filter at a later stage in your process graph.
-This can be very convenient, as you can avoid passing in all filtering parameters to the method that constructs a particular
-datacube.
+.. code-block:: python
 
-Another nice feature, is that processes that work on a vector feature, like aggregated statistics for a polygon, or masking
-by polygon can also be used by a back-end to apply a spatial filter. This way, you do not need to explicitly set these
-filters yourself.
+    cube = connection.load_collection(
+        "SENTINEL2_L2A",
+        spatial_extent={"west": 3.75, "east": 4.08, "south": 51.29, "north": 51.39},
+        temporal_extent=["2021-05-07", "2021-05-14"],
+        bands=["B04", "B03", "B02"],
+    )
 
 
-Filtering on spatial extent
-############################
+The purpose of these filters in ``load_collection`` is to reduce the amount of raw data that is loaded (and processed) by the back-end.
+This is essential to get a response to your processing request in reasonable time and keep processing costs low.
+It's recommended to start initial exploration with a small spatio-temporal extent
+and gradually increase the scope once initial tests work out.
+
+Next to specifying filters inside the ``load_collection`` process,
+there are also possibilities to filter with separate filter processes, e.g. at a later stage in your process graph.
+For most openEO back-ends, the following example snippet should be equivalent to the previous:
+
+.. code-block:: python
+
+    cube = connection.load_collection("SENTINEL2_L2A")
+    cube = cube.filter_bbox(west=3.75, east=4.08, south=51.29, north=51.39)
+    cube = cube.filter_temporal("2021-05-07", "2021-05-14")
+    cube = cube.filter_bands(["B04", "B03", "B02"])
+
+
+Another nice feature is that processes that work with geometries or vector features
+(e.g. aggregated statistics for a polygon, or masking by polygon)
+can also be used by a back-end to automatically infer an appropriate spatial extent.
+This way, you do not need to explicitly set these filters yourself.
+
+In the following sections, we want to dive a bit into details, and more advanced cases.
+
+
+Filter on spatial extent
+========================
 
 A spatial extent is a bounding box that specifies the minimum and and maximum longitude and latitude of the region of interest you want to process.
 
@@ -83,60 +103,66 @@ By default these latitude and longitude values are expressed in the standard Coo
 
 .. code-block:: python
 
-    spatial_extent={"west": 5.14, "south": 51.17, "east": 5.17, "north": 51.19}
+    connection.load_collection(
+        ...,
+        spatial_extent={"west": 5.14, "south": 51.17, "east": 5.17, "north": 51.19},
+
 
 
 .. _filtering-on-temporal-extent-section:
 
-Filtering on temporal extent
-############################
+Filter on temporal extent
+=========================
 
-Limiting the time range can greatly reduce the amount of data you have to process.
-So it is best to select an appropriate time range that is not much larger than the data you really need.
-And the same is true for limiting the spatial extent.
-
-As you have seen in previous examples, the temporal extent is specified as a pair containing a start date and end date, which are expressed as strings in the format ``"yyyy-mm-dd"``.
+Usually you don't need the complete time range provided by a collection
+and you should specify an appropriate time window to load
+as a ``temporal_extent`` pair containing a start and end date:
 
 .. code-block:: python
 
-    connection.load_collection("SENTINEL2_L2A",
-        spatial_extent={'west': 3.75, 'east': 4.08, 'south': 51.29, 'north': 51.39},
+    connection.load_collection(
+        ...,
         temporal_extent=["2021-05-07", "2021-05-14"],
-        bands=['B04', 'B03', 'B02'],
-        max_cloud_cover=80,
-    )
 
-When you have more granular data, for example hourly measurements, you can also specify datetimes.
-In that case we follow the RFC 3339 format to express datetime values.
+In most use cases, day-level granularity is enough and you can just express the dates as strings in the format ``"yyyy-mm-dd"``.
+You can also pass ``datetime.date`` objects (from Python standard library) if you already have your dates in that format.
 
-For example:
+.. note::
+    When you need finer, time-level granularity, the openEO API requires to provide date and time in RFC 3339 format.
+    For example for for 2020-03-17 at 12:34:56 in UTC::
 
-.. code-block:: python
-
-    # This means 2020-03-17 at 12:34:56 in UTC.
-    "2020-03-17T12:34:56Z"
+        "2020-03-17T12:34:56Z"
 
 
-Start date included, end date excluded
-######################################
+.. _left-closed-temporal-extent:
 
-Normally the time ranges in openEO are half-open intervals that are left-closed. In other words, the data from the start date will be included, but data from end date will be excluded from the data set.
+Left-closed intervals: start included, end excluded
+---------------------------------------------------
 
-Using half-open intervals makes sense for a time series because you don't want the start and end of each time slot to be counted twice, or have them overlap somehow.
+Time ranges in openEO processes like ``load_collection`` and ``filter_temporal`` are handled as left-closed ("half-open") temporal intervals:
+the start instant is included in the interval, but the end instant is excluded from the interval.
+For example, the interval defined by ``["2020-03-05", "2020-03-15"]`` covers observations from 2020-03-05 up to (and including) 2020-03-14,
+but does not include observations from 2020-03-15.
+
+While this looks not intuitive at first, working with half-open intervals avoids common and hard to discover pitfalls when combining multiple intervals,
+like unintended window overlaps or double counting observations at interval borders.
 
 Note however that we also have a shorthand notation that make it easier to specify an entire year or entire month, and that format deviates a bit from this rule, to make its use more convenient.
 
 
-Tip: shorthand notation for temporal extent of a year or a months
-#################################################################
+Tip: year/month shorthand notation
+----------------------------------
 
 .. note::
 
     Extent handling based on year/month is available since version 0.23.0.
 
-For the temporal extent we allow a shorthand notation that allows you to select an entire year or an entire month without needing to specify a tuple with  the start date and end date.
+The openEO Python Client Library supports some shorthand notations for the temporal extent,
+which come in handy if your desired temporal extent covers full years or months.
+
+that allows you to select an entire year or an entire month without needing to specify a tuple with the start date and end date.
 In this case you just give it one string with the year, or the month.
-The format for months is "yyyy-mm".
+The format for months is ``"yyyy-mm"``.
 
 Examples or shorthand temporal extents:
 
@@ -144,21 +170,15 @@ Examples or shorthand temporal extents:
 
     # Process all data for the year 2021:
     sentinel2_cube = connection.load_collection(
-        "SENTINEL2_L2A",
-        spatial_extent={"west": 5.14, "south": 51.17, "east": 5.17, "north": 51.19},
-        temporal_extent = "2021",
-        bands=["B02", "B04", "B08"]
-    )
+        ...,
+        temporal_extent="2021",
 
 .. code-block:: python
 
     # Process all data for the month of september in 2021:
     sentinel2_cube = connection.load_collection(
-        "SENTINEL2_L2A",
-        spatial_extent={"west": 5.14, "south": 51.17, "east": 5.17, "north": 51.19},
-        temporal_extent = "2021-09",
-        bands=["B02", "B04", "B08"]
-    )
+        ...,
+        temporal_extent="2021-09",
 
 You can also specify a range of years or months, for example:
 
@@ -206,8 +226,8 @@ Therefor, 2024-01-01 is the first day that is no longer part of the time slot yo
     It is not a "normal" specification where the date would be stated as a day for the start and the end.
     And since it already takes a shortcut, we might as well make its use as natural and convenient as possible.
 
-Filtering on properties
-#######################
+Filter on collection properties
+===============================
 
 Although openEO presents data in a data cube, a lot of collections are still backed by a product based catalog. This
 allows filtering on properties of that catalog.
@@ -251,7 +271,7 @@ standardization between catalogs of EO data.
 
 
 Handling large vector data sets
--------------------------------
+===============================
 
 For simple use cases, it is common to directly embed geometries (vector data) in your openEO process graph.
 Unfortunately, with large vector data sets this leads to very large process graphs

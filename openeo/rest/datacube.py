@@ -138,7 +138,8 @@ class DataCube(_ProcessGraphAbstraction):
         :param collection_id: image collection identifier
         :param connection: The connection to use to connect with the backend.
         :param spatial_extent: limit data to specified bounding box or polygons
-        :param temporal_extent: limit data to specified temporal interval
+        :param temporal_extent: limit data to specified temporal interval.
+            See :ref:`filtering-on-temporal-extent-section` for more details on temporal extent handling and shorthand notations.
         :param bands: only add the specified bands
         :param properties: limit data by metadata property predicates
         :param max_cloud_cover: shortcut to set maximum cloud cover ("eo:cloud_cover" collection property)
@@ -267,20 +268,16 @@ class DataCube(_ProcessGraphAbstraction):
         """
         Limit the DataCube to a certain date range, which can be specified in several ways:
 
-        .. seealso::
-
-            openEO Python Client documentation about filtering on temporal extent: :ref:`filtering-on-temporal-extent-section`
-
         >>> im.filter_temporal("2019-07-01", "2019-08-01")
         >>> im.filter_temporal(["2019-07-01", "2019-08-01"])
         >>> im.filter_temporal(extent=["2019-07-01", "2019-08-01"])
         >>> im.filter_temporal(start_date="2019-07-01", end_date="2019-08-01"])
 
+        See :ref:`filtering-on-temporal-extent-section` for more details on temporal extent handling and shorthand notations.
+
         :param start_date: start date of the filter (inclusive), as a string or date object
         :param end_date: end date of the filter (exclusive), as a string or date object
         :param extent: two element list/tuple start and end date of the filter
-
-        https://open-eo.github.io/openeo-api/processreference/#filter_temporal
         """
         return self.process(
             process_id='filter_temporal',
