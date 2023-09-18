@@ -182,7 +182,7 @@ def test_load_collection_filter_temporal(connection, api_version, extent, expect
         # Test that the simplest/shortest syntax works: temporal_extent="2016"
         ("2016", ["2016-01-01", "2017-01-01"]),
         ("2016-02", ["2016-02-01", "2016-03-01"]),
-        ("2016-02-03", ["2016-02-03", "2016-03-04"]),
+        ("2016-02-03", ["2016-02-03", "2016-02-04"]),
         # Test date abbreviations using tuples for the extent
         (["2016", None], ["2016-01-01", None]),
         (["2016-02", None], ["2016-02-01", None]),

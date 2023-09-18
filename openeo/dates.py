@@ -96,14 +96,17 @@ def _get_end_of_time_slot(date: str) -> Union[dt.date, str]:
         return date
 
     date_converted = _convert_abbreviated_date(date)
-    type_start_date = _type_of_date_string(date)
-    if type_start_date == _TypeOfDateString.YEAR:
+    granularity = _type_of_date_string(date)
+    if granularity == _TypeOfDateString.YEAR:
         return dt.date(date_converted.year + 1, 1, 1)
-    elif type_start_date == _TypeOfDateString.MONTH:
+    elif granularity == _TypeOfDateString.MONTH:
         if date_converted.month == 12:
             return dt.date(date_converted.year + 1, 1, 1)
         else:
             return dt.date(date_converted.year, date_converted.month + 1, 1)
+    elif granularity == _TypeOfDateString.DAY:
+        # TODO: also support day granularity in _convert_abbreviated_date so that we don't need ad-hoc parsing here
+        return dt.date(*(int(x) for x in _REGEX_DAY.match(date).group(1, 2, 3))) + dt.timedelta(days=1)
     else:
         # Don't convert: it is a day or datetime.
         return date
@@ -154,6 +157,7 @@ def _convert_abbreviated_date(
         )
 
     if type_of_date in [_TypeOfDateString.DATETIME, _TypeOfDateString.DAY]:
+        # TODO: also convert these to `date` or `datetime` for more internal consistency.
         return date
 
     if type_of_date == _TypeOfDateString.MONTH:
