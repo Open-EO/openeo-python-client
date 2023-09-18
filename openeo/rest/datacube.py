@@ -264,10 +264,10 @@ class DataCube(_ProcessGraphAbstraction):
         """
         Limit the DataCube to a certain date range, which can be specified in several ways:
 
-        >>> im.filter_temporal("2019-07-01", "2019-08-01")
-        >>> im.filter_temporal(["2019-07-01", "2019-08-01"])
-        >>> im.filter_temporal(extent=["2019-07-01", "2019-08-01"])
-        >>> im.filter_temporal(start_date="2019-07-01", end_date="2019-08-01"])
+        >>> cube.filter_temporal("2019-07-01", "2019-08-01")
+        >>> cube.filter_temporal(["2019-07-01", "2019-08-01"])
+        >>> cube.filter_temporal(extent=["2019-07-01", "2019-08-01"])
+        >>> cube.filter_temporal(start_date="2019-07-01", end_date="2019-08-01"])
 
         See :ref:`filtering-on-temporal-extent-section` for more details on temporal extent handling and shorthand notations.
 
