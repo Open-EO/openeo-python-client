@@ -255,10 +255,11 @@ class DataCube(_ProcessGraphAbstraction):
 
     @openeo_process
     def filter_temporal(
-            self, *args,
-            start_date: Union[str, datetime.datetime, datetime.date] = None,
-            end_date: Union[str, datetime.datetime, datetime.date] = None,
-            extent: Union[list, tuple] = None
+        self,
+        *args,
+        start_date: Union[str, datetime.datetime, datetime.date] = None,
+        end_date: Union[str, datetime.datetime, datetime.date] = None,
+        extent: Union[list, tuple, str] = None,
     ) -> DataCube:
         """
         Limit the DataCube to a certain date range, which can be specified in several ways:
