@@ -106,8 +106,7 @@ By default these latitude and longitude values are expressed in the standard Coo
     connection.load_collection(
         ...,
         spatial_extent={"west": 5.14, "south": 51.17, "east": 5.17, "north": 51.19},
-
-
+    )
 
 .. _filtering-on-temporal-extent-section:
 
@@ -123,15 +122,18 @@ as a ``temporal_extent`` pair containing a start and end date:
     connection.load_collection(
         ...,
         temporal_extent=["2021-05-07", "2021-05-14"],
+    )
 
 In most use cases, day-level granularity is enough and you can just express the dates as strings in the format ``"yyyy-mm-dd"``.
 You can also pass ``datetime.date`` objects (from Python standard library) if you already have your dates in that format.
 
 .. note::
-    When you need finer, time-level granularity, the openEO API requires to provide date and time in RFC 3339 format.
+    When you need finer, time-level granularity, you can pass ``datetime.datetime`` objects.
+    Or, when passed as a string, the openEO API requires date and time to be provided in RFC 3339 format.
     For example for for 2020-03-17 at 12:34:56 in UTC::
 
         "2020-03-17T12:34:56Z"
+
 
 
 .. _left-closed-temporal-extent:
@@ -141,13 +143,25 @@ Left-closed intervals: start included, end excluded
 
 Time ranges in openEO processes like ``load_collection`` and ``filter_temporal`` are handled as left-closed ("half-open") temporal intervals:
 the start instant is included in the interval, but the end instant is excluded from the interval.
-For example, the interval defined by ``["2020-03-05", "2020-03-15"]`` covers observations from 2020-03-05 up to (and including) 2020-03-14,
+
+For example, the interval defined by ``["2020-03-05", "2020-03-15"]`` covers observations
+from 2020-03-05 up to (and including) 2020-03-14 (just before midnight),
 but does not include observations from 2020-03-15.
 
-While this looks not intuitive at first, working with half-open intervals avoids common and hard to discover pitfalls when combining multiple intervals,
-like unintended window overlaps or double counting observations at interval borders.
+.. TODO: nicer diagram instead of this ASCII art
+.. code-block:: text
 
-Note however that we also have a shorthand notation that make it easier to specify an entire year or entire month, and that format deviates a bit from this rule, to make its use more convenient.
+              2020-03-05                             2020-03-14   2022-03-15
+    ________|____________|_________________________|____________|____________|_____
+
+            [--------------------------------------------------(O
+        including                                           excluding
+    2020-03-05 00:00:00.000                             2020-03-15 00:00:00.000
+
+
+While this might look unintuitive at first,
+working with half-open intervals avoids common and hard to discover pitfalls when combining multiple intervals,
+like unintended window overlaps or double counting observations at interval borders.
 
 
 Tip: year/month shorthand notation
@@ -155,76 +169,77 @@ Tip: year/month shorthand notation
 
 .. note::
 
-    Extent handling based on year/month is available since version 0.23.0.
+    Year/month shorthand notation handling is available since version 0.23.0.
+
+Rounding down periods to dates
+``````````````````````````````
 
 The openEO Python Client Library supports some shorthand notations for the temporal extent,
-which come in handy if your desired temporal extent covers full years or months.
+which come in handy if you work with year/month based temporal intervals.
+Date strings that only consist of a year or a month will be automatically
+"rounded down" to the first day of that period. For example::
 
-that allows you to select an entire year or an entire month without needing to specify a tuple with the start date and end date.
-In this case you just give it one string with the year, or the month.
-The format for months is ``"yyyy-mm"``.
+    "2023"    -> "2023-01-01"
+    "2023-08" -> "2023-08-01"
 
-Examples or shorthand temporal extents:
+This approach fits best with :ref:`left-closed interval handling <left-closed-temporal-extent>`.
 
-.. code-block:: python
-
-    # Process all data for the year 2021:
-    sentinel2_cube = connection.load_collection(
-        ...,
-        temporal_extent="2021",
+For example, the following two ``load_collection`` calls are equivalent:
 
 .. code-block:: python
 
-    # Process all data for the month of september in 2021:
-    sentinel2_cube = connection.load_collection(
-        ...,
-        temporal_extent="2021-09",
+    # Filter for observations in 2021 (left-closed interval).
+    connection.load_collection(temporal_extent=["2021", "2022"], ...)
+    # The above is shorthand for:
+    connection.load_collection(temporal_extent=["2021-01-01", "2022-01-01"], ...)
 
-You can also specify a range of years or months, for example:
-
-``temporal_extent = ["2021", "2023"]``
-
-And this is in fact equivalent with:
-``temporal_extent = ["2021-01_01", "2024-01-01"]``
-
-Note that in the latter expression, the end date is **excluded**.
-Therefor, 2024-01-01 is the first day that is no longer part of the time slot you want to process, and not 2023-12-31
+The same applies for :py:meth:`~openeo.rest.datacube.DataCube.filter_temporal()`,
+which has a couple of additional call forms.
+All these calls are equivalent:
 
 .. code-block:: python
 
-    # Process all data for the years 2021 up to, and including, 2023:
-    sentinel2_cube = connection.load_collection(
-        "SENTINEL2_L2A",
-        spatial_extent={"west": 5.14, "south": 51.17, "east": 5.17, "north": 51.19},
-        temporal_extent = ["2021", "2023"],
-        bands=["B02", "B04", "B08"]
-    )
+    # Filter for March, April and May (left-closed interval)
+    cube = cube.filter_temporal("2021-03", "2021-06")
+    cube = cube.filter_temporal(["2021-03", "2021-06"])
+    cube = cube.filter_temporal(start_date="2021-03", end_date="2021-06")
+    cube = cube.filter_temporal(extent=("2021-03", "2021-06"))
 
-.. note::
+    # The above are shorthand for:
+    cube = cube.filter_temporal("2021-03-01", "2022-06-01")
 
-    This expression:
-    ``temporal_extent = ["2021", "2023"]``
 
-    is equivalent with this one:
-    ``temporal_extent = ["2021-01_01", "2024-01-01"]``
+Single string extents
+``````````````````````
 
-    And note that in the later expression the end date is the first day that is no longer part of the data you want to process.
+Apart from rounding down year or month string, the openEO Python Client Library provides an additional
+``extent`` handling feature in methods like
+:py:meth:`Connection.load_collection(temporal_extent=...) <openeo.rest.connection.Connection.load_collection()>`
+and :py:meth:`DataCube.filter_temporal(extent=...) <openeo.rest.datacube.DataCube.filter_temporal>`.
+Normally, the ``extent`` argument should be a list or tuple containing start and end date,
+but if a single string is given, representing a year, month (or day) period,
+it is automatically expanded to the appropriate interval,
+again following the :ref:`left-closed interval principle <left-closed-temporal-extent>`.
+For example::
 
-    Normally the end of the temporal extend is not included in the data,
-    because the interval is left-closed to prevent overlaps.
-    At least, that is the case when you are specifying days and datetimes in full.
+    extent="2022"        ->  extent=("2022-01-01", "2023-01-01")
+    extent="2022-05"     ->  extent=("2022-05-01", "2022-06-01")
+    extent="2022-05-17"  ->  extent=("2022-05-17", "2022-05-18")
 
-    However, to make the use of ranges with years or months a little bit more natural,
-    we treat this type of range as a *closed* interval instead,
-    since that is what most people would expect in everyday language when we say things like
-    "2016 to 2018" or "from march 2022 to june 2022".
 
-    While that goes a bit against the normal convention, this makes it more convenient.
+The following snippet shows some examples of equivalent calls:
 
-    Just keep in mind that when you are specifying a year or a month,
-    that expression is really only an abbreviation of the real date range.
-    It is not a "normal" specification where the date would be stated as a day for the start and the end.
-    And since it already takes a shortcut, we might as well make its use as natural and convenient as possible.
+.. code-block:: python
+
+    connection.load_collection(temporal_extent="2022", ...)
+    # The above is shorthand for:
+    connection.load_collection(temporal_extent=("2022-01-01", "2023-01-01"), ...)
+
+
+    cube = cube.filter_temporal(extent="2021-03")
+    # The above are shorthand for:
+    cube = cube.filter_temporal(extent=("2021-03-01", "2022-04-01"))
+
 
 Filter on collection properties
 ===============================
