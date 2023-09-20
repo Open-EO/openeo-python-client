@@ -279,6 +279,8 @@ instead of the original digital number range (thousands):
 
 UDF's that transform cube metadata
 ==================================
+This is a new/experimental feature so may still be subject to change.
+
 In some cases, a UDF can have impact on the metadata of a cube, but this can not always
 be easily inferred by process graph evaluation logic without running the actual
 (expensive) UDF code. This limits the possibilities to validate process graphs,
@@ -288,6 +290,21 @@ To provide evaluation logic with this information, the user should implement the
 :py:meth:`~openeo.udf.udf_signatures.apply_metadata()` function as part of the UDF.
 Please refer to the documentation of that function for more information.
 
+.. literalinclude:: ../examples/udf/udf_modify_spatial.py
+    :language: python
+    :caption: Example of a UDF that adjusts spatial metadata ``udf_modify_spatial.py``
+    :name: spatial_udf
+
+To invoke a UDF like this, the apply_neighborhood method is most suitable:
+
+.. code-block:: python
+    udf_code = Path('udf_modify_spatial.py').read_text()
+    cube_updated = cube.apply_neighborhood(
+        lambda data: data.run_udf(udf=udf_code, runtime='Python-Jep', context=dict()),
+        size=[
+            {'dimension': 'x', 'value': 128, 'unit': 'px'},
+            {'dimension': 'y', 'value': 128, 'unit': 'px'}
+        ], overlap=[])
 
 
 Illustration of data chunking in ``apply`` with a  UDF
