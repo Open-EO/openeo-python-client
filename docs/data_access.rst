@@ -163,9 +163,10 @@ While this might look unintuitive at first,
 working with half-open intervals avoids common and hard to discover pitfalls when combining multiple intervals,
 like unintended window overlaps or double counting observations at interval borders.
 
+.. _date-shorthand-handling:
 
-Tip: year/month shorthand notation
-----------------------------------
+Year/month shorthand notation
+------------------------------
 
 .. note::
 
@@ -208,9 +209,10 @@ All these calls are equivalent:
     # The above are shorthand for:
     cube = cube.filter_temporal("2021-03-01", "2022-06-01")
 
+.. _single-string-temporal-extents:
 
-Single string extents
-``````````````````````
+Single string temporal extents
+``````````````````````````````
 
 Apart from rounding down year or month string, the openEO Python Client Library provides an additional
 ``extent`` handling feature in methods like

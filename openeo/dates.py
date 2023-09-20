@@ -10,13 +10,13 @@ from openeo.util import rfc3339
 
 def get_temporal_extent(
     *args,
-    start_date: Union[str, dt.datetime, dt.date, Any] = None,
-    end_date: Union[str, dt.datetime, dt.date, Any] = None,
-    extent: Union[list, tuple, str] = None,
+    start_date: Union[str, dt.date, None, Any] = None,
+    end_date: Union[str, dt.date, None, Any] = None,
+    extent: Union[list, tuple, str, None] = None,
     convertor=rfc3339.normalize,
 ) -> Tuple[Union[str, None], Union[str, None]]:
     """
-    Helper to derive a date extent from from various call forms:
+    Helper to derive a date extent from various call forms:
 
         >>> get_temporal_extent("2019-01-01")
         ("2019-01-01", None)

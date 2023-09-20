@@ -10,8 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Allow shorthand format for temporal extent to specify entire year or month ([#421](https://github.com/Open-EO/openeo-python-client/issues/421))
-
+- Support year/month shorthand date notations in temporal extent arguments of `Connection.load_collection`, `DataCube.filter_temporal` and related ([#421](https://github.com/Open-EO/openeo-python-client/issues/421))
 - Support parameterized `bands` in `load_collection` ([#471](https://github.com/Open-EO/openeo-python-client/issues/471))
 
 ### Changed

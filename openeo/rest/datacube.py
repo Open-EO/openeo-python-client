@@ -64,6 +64,10 @@ if typing.TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
+# Type annotation aliases
+InputDate = Union[str, datetime.date, Parameter, PGNode, ProcessBuilderBase, None]
+
+
 class DataCube(_ProcessGraphAbstraction):
     """
     Class representing a openEO (raster) data cube.
@@ -130,9 +134,9 @@ class DataCube(_ProcessGraphAbstraction):
         collection_id: Union[str, Parameter],
         connection: Connection = None,
         spatial_extent: Optional[Dict[str, float]] = None,
-        temporal_extent: Optional[List[Union[str, datetime.datetime, datetime.date, PGNode]]] = None,
+        temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
         bands: Union[None, List[str], Parameter] = None,
-        fetch_metadata=True,
+        fetch_metadata: bool = True,
         properties: Optional[Dict[str, Union[str, PGNode, typing.Callable]]] = None,
         max_cloud_cover: Optional[float] = None,
     ) -> DataCube:
@@ -143,15 +147,19 @@ class DataCube(_ProcessGraphAbstraction):
         :param connection: The connection to use to connect with the backend.
         :param spatial_extent: limit data to specified bounding box or polygons
         :param temporal_extent: limit data to specified temporal interval.
-            See :ref:`filtering-on-temporal-extent-section` for more details on temporal extent handling and shorthand notations.
+            Typically, just a two-item list or tuple containing start and end date.
+            See :ref:`filtering-on-temporal-extent-section` for more details on temporal extent handling and shorthand notation.
         :param bands: only add the specified bands
         :param properties: limit data by metadata property predicates
         :param max_cloud_cover: shortcut to set maximum cloud cover ("eo:cloud_cover" collection property)
         :return: new DataCube containing the collection
 
-        .. versionadded:: 0.13.0
+        .. versionchanged:: 0.13.0
             added the ``max_cloud_cover`` argument.
 
+        .. versionchanged:: 0.23.0
+            Argument ``temporal_extent``: add support for year/month shorthand notation
+            as discussed at :ref:`date-shorthand-handling`.
         """
         if temporal_extent:
             temporal_extent = cls._get_temporal_extent(extent=temporal_extent)
@@ -226,13 +234,15 @@ class DataCube(_ProcessGraphAbstraction):
 
     @classmethod
     def _get_temporal_extent(
-            cls, *args,
-            start_date: Union[str, datetime.datetime, datetime.date, Parameter] = None,
-            end_date: Union[str, datetime.datetime, datetime.date, Parameter] = None,
-            extent: Union[list, tuple, Parameter] = None
-    ) -> Union[List[Union[str, None, Parameter]], Parameter]:
+        cls,
+        *args,
+        start_date: InputDate = None,
+        end_date: InputDate = None,
+        extent: Union[Sequence[InputDate], Parameter, str, None] = None,
+    ) -> Union[List[Union[str, Parameter, PGNode, None]], Parameter]:
         """Parameter aware temporal_extent normalizer"""
         # TODO: move this outside of DataCube class
+        # TODO: return extent as tuple instead of list
         if len(args) == 1 and isinstance(args[0], Parameter):
             assert start_date is None and end_date is None and extent is None
             return args[0]
@@ -249,17 +259,17 @@ class DataCube(_ProcessGraphAbstraction):
                 else:
                     return rfc3339.normalize(d)
 
-            return list(get_temporal_extent(
-                *args, start_date=start_date, end_date=end_date, extent=extent, convertor=convertor
-            ))
+            return list(
+                get_temporal_extent(*args, start_date=start_date, end_date=end_date, extent=extent, convertor=convertor)
+            )
 
     @openeo_process
     def filter_temporal(
         self,
         *args,
-        start_date: Union[str, datetime.datetime, datetime.date] = None,
-        end_date: Union[str, datetime.datetime, datetime.date] = None,
-        extent: Union[list, tuple, str] = None,
+        start_date: InputDate = None,
+        end_date: InputDate = None,
+        extent: Union[Sequence[InputDate], Parameter, str, None] = None,
     ) -> DataCube:
         """
         Limit the DataCube to a certain date range, which can be specified in several ways:
@@ -269,11 +279,16 @@ class DataCube(_ProcessGraphAbstraction):
         >>> cube.filter_temporal(extent=["2019-07-01", "2019-08-01"])
         >>> cube.filter_temporal(start_date="2019-07-01", end_date="2019-08-01"])
 
-        See :ref:`filtering-on-temporal-extent-section` for more details on temporal extent handling and shorthand notations.
+        See :ref:`filtering-on-temporal-extent-section` for more details on temporal extent handling and shorthand notation.
 
         :param start_date: start date of the filter (inclusive), as a string or date object
         :param end_date: end date of the filter (exclusive), as a string or date object
-        :param extent: two element list/tuple start and end date of the filter
+        :param extent: temporal extent.
+            Typically, specified as a two-item list or tuple containing start and end date.
+
+        .. versionchanged:: 0.23.0
+            Arguments ``start_date``, ``end_date`` and ``extent``:
+            add support for year/month shorthand notation as discussed at :ref:`date-shorthand-handling`.
         """
         return self.process(
             process_id='filter_temporal',
