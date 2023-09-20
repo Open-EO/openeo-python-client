@@ -3,12 +3,7 @@ from typing import Union
 
 import pytest
 
-from openeo.dates import (
-    get_temporal_extent,
-    _convert_abbreviated_date,
-    _type_of_date_string,
-    _TypeOfDateString,
-)
+from openeo.dates import _convert_abbreviated_date, _type_of_date_string, _TypeOfDateString, get_temporal_extent
 
 
 class TestGetTemporalExtent:

@@ -160,7 +160,6 @@ def test_filter_temporal_extent_single_date_string(s2cube: DataCube, extent, exp
     assert graph["arguments"]["extent"] == expected
 
 
-
 @pytest.mark.parametrize(
     "extent,expected",
     [

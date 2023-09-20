@@ -15,7 +15,7 @@ import pathlib
 import typing
 import warnings
 from builtins import staticmethod
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union, Sequence
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import shapely.geometry
@@ -29,29 +29,15 @@ from openeo.internal.graph_building import PGNode, ReduceNode, _FromNodeMixin
 from openeo.internal.jupyter import in_jupyter_context
 from openeo.internal.processes.builder import ProcessBuilderBase
 from openeo.internal.warnings import UserDeprecationWarning, deprecated, legacy_alias
-from openeo.metadata import (
-    Band,
-    CollectionMetadata,
-)
+from openeo.metadata import Band, CollectionMetadata
 from openeo.rest import BandMathException, OpenEoClientException, OperatorException
-from openeo.rest._datacube import (
-    THIS,
-    UDF,
-    _ProcessGraphAbstraction,
-    build_child_callback,
-)
+from openeo.rest._datacube import THIS, UDF, _ProcessGraphAbstraction, build_child_callback
 from openeo.rest.job import BatchJob
 from openeo.rest.mlmodel import MlModel
 from openeo.rest.service import Service
 from openeo.rest.udp import RESTUserDefinedProcess
 from openeo.rest.vectorcube import VectorCube
-from openeo.util import (
-    dict_no_none,
-    guess_format,
-    normalize_crs,
-    rfc3339,
-)
-
+from openeo.util import dict_no_none, guess_format, normalize_crs, rfc3339
 
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).

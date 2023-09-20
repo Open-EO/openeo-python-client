@@ -7,7 +7,6 @@ Various utilities and helpers.
 from __future__ import annotations
 
 import datetime as dt
-from enum import Enum
 import functools
 import json
 import logging
@@ -15,6 +14,7 @@ import re
 import sys
 import time
 from collections import OrderedDict
+from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, List, Optional, Tuple, Union
 from urllib.parse import urljoin

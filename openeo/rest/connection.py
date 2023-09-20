@@ -12,7 +12,7 @@ import sys
 import warnings
 from collections import OrderedDict
 from pathlib import Path, PurePosixPath
-from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple, Union, Sequence
+from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Sequence, Tuple, Union
 
 import requests
 import shapely.geometry.base

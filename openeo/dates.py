@@ -3,7 +3,7 @@ from __future__ import annotations
 import datetime as dt
 import re
 from enum import Enum
-from typing import Union, Tuple, Any
+from typing import Any, Tuple, Union
 
 from openeo.util import rfc3339
 
