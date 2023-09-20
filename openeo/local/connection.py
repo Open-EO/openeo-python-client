@@ -220,7 +220,7 @@ class LocalConnection():
         if spatial_extent is not None:
             arguments["spatial_extent"] = spatial_extent
         if temporal_extent is not None:
-            arguments["temporal_extent"] = DataCube._get_temporal_extent(temporal_extent)
+            arguments["temporal_extent"] = DataCube._get_temporal_extent(extent=temporal_extent)
         if bands is not None:
             arguments["bands"] = bands
         if properties is not None:
