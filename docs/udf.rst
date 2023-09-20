@@ -298,6 +298,7 @@ Please refer to the documentation of that function for more information.
 To invoke a UDF like this, the apply_neighborhood method is most suitable:
 
 .. code-block:: python
+
     udf_code = Path('udf_modify_spatial.py').read_text()
     cube_updated = cube.apply_neighborhood(
         lambda data: data.run_udf(udf=udf_code, runtime='Python-Jep', context=dict()),
