@@ -287,7 +287,7 @@ for example:
     cube.apply("absolute")
 
     # Reduce a cube along the temporal dimension by taking the maximum value
-    cube.reduce_dimension("max", dimension="t")
+    cube.reduce_dimension(reducer="max", dimension="t")
 
 This approach is only possible if the desired transformation is available
 as a single process. If not, use one of the methods below.
