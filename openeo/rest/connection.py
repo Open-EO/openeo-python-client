@@ -12,7 +12,7 @@ import sys
 import warnings
 from collections import OrderedDict
 from pathlib import Path, PurePosixPath
-from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Sequence, Tuple, Union
 
 import requests
 import shapely.geometry.base
@@ -45,7 +45,7 @@ from openeo.rest.auth.oidc import (
     OidcRefreshTokenAuthenticator,
     OidcResourceOwnerPasswordAuthenticator,
 )
-from openeo.rest.datacube import DataCube
+from openeo.rest.datacube import DataCube, InputDate
 from openeo.rest.job import BatchJob, RESTJob
 from openeo.rest.mlmodel import MlModel
 from openeo.rest.rest_capabilities import RESTCapabilities
@@ -1131,7 +1131,7 @@ class Connection(RestApiConnection):
         self,
         collection_id: Union[str, Parameter],
         spatial_extent: Optional[Dict[str, float]] = None,
-        temporal_extent: Optional[List[Union[str, datetime.datetime, datetime.date]]] = None,
+        temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
         bands: Union[None, List[str], Parameter] = None,
         properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
         max_cloud_cover: Optional[float] = None,
@@ -1142,7 +1142,9 @@ class Connection(RestApiConnection):
 
         :param collection_id: image collection identifier
         :param spatial_extent: limit data to specified bounding box or polygons
-        :param temporal_extent: limit data to specified temporal interval
+        :param temporal_extent: limit data to specified temporal interval.
+            Typically, just a two-item list or tuple containing start and end date.
+            See :ref:`filtering-on-temporal-extent-section` for more details on temporal extent handling and shorthand notation.
         :param bands: only add the specified bands
         :param properties: limit data by metadata property predicates
         :param max_cloud_cover: shortcut to set maximum cloud cover ("eo:cloud_cover" collection property)
@@ -1150,13 +1152,21 @@ class Connection(RestApiConnection):
 
         .. versionadded:: 0.13.0
             added the ``max_cloud_cover`` argument.
+
+        .. versionchanged:: 0.23.0
+            Argument ``temporal_extent``: add support for year/month shorthand notation
+            as discussed at :ref:`date-shorthand-handling`.
         """
         return DataCube.load_collection(
-                collection_id=collection_id, connection=self,
-                spatial_extent=spatial_extent, temporal_extent=temporal_extent, bands=bands, properties=properties,
-                max_cloud_cover=max_cloud_cover,
-                fetch_metadata=fetch_metadata,
-            )
+            collection_id=collection_id,
+            connection=self,
+            spatial_extent=spatial_extent,
+            temporal_extent=temporal_extent,
+            bands=bands,
+            properties=properties,
+            max_cloud_cover=max_cloud_cover,
+            fetch_metadata=fetch_metadata,
+        )
 
     # TODO: remove this #100 #134 0.4.10
     imagecollection = legacy_alias(
@@ -1165,11 +1175,11 @@ class Connection(RestApiConnection):
 
     @openeo_process
     def load_result(
-            self,
-            id: str,
-            spatial_extent: Optional[Dict[str, float]] = None,
-            temporal_extent: Optional[List[Union[str, datetime.datetime, datetime.date]]] = None,
-            bands: Optional[List[str]] = None,
+        self,
+        id: str,
+        spatial_extent: Optional[Dict[str, float]] = None,
+        temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
+        bands: Optional[List[str]] = None,
     ) -> DataCube:
         """
         Loads batch job results by job id from the server-side user workspace.
@@ -1177,10 +1187,16 @@ class Connection(RestApiConnection):
 
         :param id: The id of a batch job with results.
         :param spatial_extent: limit data to specified bounding box or polygons
-        :param temporal_extent: limit data to specified temporal interval
+        :param temporal_extent: limit data to specified temporal interval.
+            Typically, just a two-item list or tuple containing start and end date.
+            See :ref:`filtering-on-temporal-extent-section` for more details on temporal extent handling and shorthand notation.
         :param bands: only add the specified bands
 
         :return: a :py:class:`DataCube`
+
+        .. versionchanged:: 0.23.0
+            Argument ``temporal_extent``: add support for year/month shorthand notation
+            as discussed at :ref:`date-shorthand-handling`.
         """
         # TODO: add check that back-end supports `load_result` process?
         cube = self.datacube_from_process(
@@ -1188,7 +1204,7 @@ class Connection(RestApiConnection):
             id=id,
             **dict_no_none(
                 spatial_extent=spatial_extent,
-                temporal_extent=temporal_extent and DataCube._get_temporal_extent(temporal_extent),
+                temporal_extent=temporal_extent and DataCube._get_temporal_extent(extent=temporal_extent),
                 bands=bands,
             ),
         )
@@ -1199,7 +1215,7 @@ class Connection(RestApiConnection):
         self,
         url: str,
         spatial_extent: Optional[Dict[str, float]] = None,
-        temporal_extent: Optional[List[Union[str, datetime.datetime, datetime.date]]] = None,
+        temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
         bands: Optional[List[str]] = None,
         properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
     ) -> DataCube:
@@ -1296,6 +1312,10 @@ class Connection(RestApiConnection):
             This parameter is not supported for static STAC.
 
         .. versionadded:: 0.17.0
+
+        .. versionchanged:: 0.23.0
+            Argument ``temporal_extent``: add support for year/month shorthand notation
+            as discussed at :ref:`date-shorthand-handling`.
         """
         # TODO #425 move this implementation to `DataCube` and just forward here (like with `load_collection`)
         # TODO #425 detect actual metadata from URL
@@ -1304,7 +1324,7 @@ class Connection(RestApiConnection):
         if spatial_extent:
             arguments["spatial_extent"] = spatial_extent
         if temporal_extent:
-            arguments["temporal_extent"] = DataCube._get_temporal_extent(temporal_extent)
+            arguments["temporal_extent"] = DataCube._get_temporal_extent(extent=temporal_extent)
         if bands:
             arguments["bands"] = bands
         if properties:
