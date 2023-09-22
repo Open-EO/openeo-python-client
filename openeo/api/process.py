@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import Union
+from typing import Union, Optional
 
 
 class Parameter:
@@ -85,6 +85,27 @@ class Parameter:
         return cls(name=name, description=description, schema={"type": "boolean"}, default=default)
 
     @classmethod
-    def array(cls, name: str, description: str = None, default=_DEFAULT_UNDEFINED) -> Parameter:
-        """Helper to create a 'array' type parameter."""
-        return cls(name=name, description=description, schema={"type": "array"}, default=default)
+    def array(
+        cls,
+        name: str,
+        description: str = None,
+        default=_DEFAULT_UNDEFINED,
+        *,
+        item_schema: Optional[Union[str, dict]] = None,
+    ) -> Parameter:
+        """
+        Helper to create an 'array' type parameter.
+
+        :parameter item_schema: Schema of the array items given in JSON Schema style, e.g. ``{"type": "string"}``.
+            Simple schemas can also be specified as single string:
+            e.g. ``"string"`` will be expanded to ``{"type": "string"}``.
+
+        .. versionchanged:: 0.23.0
+            Added ``item_schema`` argument.
+        """
+        schema = {"type": "array"}
+        if item_schema:
+            if isinstance(item_schema, str):
+                item_schema = {"type": item_schema}
+            schema["items"] = item_schema
+        return cls(name=name, description=description, schema=schema, default=default)
