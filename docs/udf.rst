@@ -436,11 +436,11 @@ An example code can be found `here <https://github.com/Open-EO/openeo-python-cli
 Logging from the UDFs
 ==============================
 
-In some cases, you may want to log information from your user defined function, 
-for instance to provide debug information or to log warnings. You can use the :py:class:`~openeo.udf.debug.inspect` 
+In some cases, you may want to log information from your user defined function,
+for instance to provide debug information or to log warnings. You can use the :py:class:`~openeo.udf.debug.inspect`
 logging function to achieve this.
 
-For example, in the previous example of rescaling an RGB image(from SENTINEL2_L2A), suppose you 
+For example, in the previous example of rescaling an RGB image(from SENTINEL2_L2A), suppose you
 want to keep a log of array shape encountered within a UDF::
 
     # Create a UDF object from inline source code.
@@ -455,13 +455,14 @@ want to keep a log of array shape encountered within a UDF::
         return cube
     """)
 
-If you are using Jupyter Notebook, you can see the log entries using :py:class:`~openeo.rest.job.BatchJob.logs` 
+If you are using Jupyter Notebook, you can see the log entries using :py:class:`~openeo.rest.job.BatchJob.logs`
 as shown in the image:
 
 .. image:: _static/images/udf/logging_arrayshape.png
-Please note that this nice rendering only happens in Jupyter Notebook, while in plain python you will get a dict.
 
-Thus, an array of shape 3x256x256 was logged in on which rescaling was performed. [Please note that at this moment, 
+Please note that this nice rendering only happens in Jupyter Notebook, while in plain Python you will get a dict.
+
+Thus, an array of shape 3x256x256 was logged in on which rescaling was performed. [Please note that at this moment,
 this method is experimental and does not support all data types in ``data`` argument of :py:class:`~openeo.udf.debug.inspect`]
 
 
