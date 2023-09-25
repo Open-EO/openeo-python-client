@@ -116,30 +116,35 @@ Pre-commit for basic code quality checks
 ------------------------------------------
 
 We started using the `pre-commit <https://pre-commit.com/>`_ tool
-for basic code quality fine-tuning of new contributions.
-Note that the whole repository does not adhere yet to these new code styles rules at the moment,
-we're just gradually introducing it, piggybacking on new contributions and commits.
+for basic fine-tuning of code style and quality in new contributions.
 It's currently not enforced, but **enabling pre-commit is recommended** and appreciated
 when contributing code.
+
+.. note::
+
+    Note that the whole repository does not fully follow all code styles rules at the moment.
+    We're just gradually introducing it, piggybacking on new contributions and commits.
+
 
 Pre-commit set up
 """"""""""""""""""
 
--   Install the ``pre-commit`` command line tool:
+-   Install the general ``pre-commit`` command line tool:
 
     -   The simplest option is to install it directly in the *virtual environment*
         you are using for openEO Python client development (e.g. ``pip install pre-commit``).
     -   You can also install it *globally* on your system
         (e.g. using `pipx <https://pypa.github.io/pipx/>`_, conda, homebrew, ...)
         so you can use it across different projects.
--   Install the git hook scripts by running this in your local git clone:
+
+-   Install the project specific git hook scripts by running this in the root of your local git clone:
 
     .. code-block:: console
 
         pre-commit install
 
-    This will automatically install additional tools in a sandbox
-    to run the various checks defined in the ``.pre-commit-config.yaml`` configuration file.
+    This will automatically install additional scripts and tools in a sandbox
+    to run the various checks defined in the project's ``.pre-commit-config.yaml`` configuration file.
 
 Pre-commit usage
 """""""""""""""""
