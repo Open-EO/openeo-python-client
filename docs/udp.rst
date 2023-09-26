@@ -447,11 +447,9 @@ Here, let us consider that we want to recalculate the EVI-timeseries
 as done in :ref:`example-use-case-evi-map-and-timeseries` but for a different area.
 Therefore for future, instead of redefining the whole process, we simply 
 want to define it as a UDP ``EVI_timeseries``, that can be easily shared 
-and reused later without dealing with the entire workflow each time.
-
+and reused later without dealing with the entire workflow each tim:
 
 .. code-block:: python
-    :caption: EVI Timeseries UDP example
 
     import openeo
     from openeo.api.process import Parameter
@@ -527,7 +525,6 @@ Now, we can use use :func:`~openeo.rest.connection.Connection.datacube_from_proc
 to fetch the saved process for further use.
 
 .. code-block:: python
-    :linenos:
 
     date = ["2020-01-01", "2021-12-31"]
     bbox = {"west": 5.14, "south": 51.17, "east": 5.17, "north": 51.19}
