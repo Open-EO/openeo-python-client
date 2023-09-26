@@ -451,7 +451,6 @@ and reused later without dealing with the entire workflow each time.
 
 
 .. code-block:: python
-    :linenos:
     :caption: EVI Timeseries UDP example
 
     import openeo
