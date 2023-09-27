@@ -51,7 +51,7 @@ consisting of two simple mathematical operations
 
 We can represent this in openEO's JSON based format as follows
 (don't worry too much about the syntax details of this representation,
-the openEO Python client will hide this normally)::
+the openEO Python client will hide this usually)::
 
 
     {
@@ -464,7 +464,7 @@ and reused later without dealing with the entire workflow each tim:
         schema={"type": "array", "subtype": "temporal-interval"},
         default =["2018-06-15", "2018-06-27"]
     )
-    polygon = Parameter(
+    bbox = Parameter(
         name="bbox",
         description="The bounding box to load.",
         schema={"type": "object", "subtype": "geojson"},
@@ -492,7 +492,7 @@ and reused later without dealing with the entire workflow each tim:
     # Load raw collection data
     sentinel2_cube = connection.load_collection(
         "SENTINEL2_L2A",
-        spatial_extent = polygon,
+        spatial_extent = bbox,
         temporal_extent = temporal_interval,
         bands = ["B02", "B04", "B08", "SCL"],
     )
@@ -502,10 +502,6 @@ and reused later without dealing with the entire workflow each tim:
     red = sentinel2_cube.band("B04") * 0.0001
     nir = sentinel2_cube.band("B08") * 0.0001
     evi = 2.5 * (nir - red) / (nir + 6.0 * red - 7.5 * blue + 1.0)
-
-    # Use the scene classification layer to mask out non-vegetation pixels
-    scl = sentinel2_cube.band("SCL")
-    evi_masked = evi.mask(scl != 4)
 
     evi_aggregation = evi_masked.aggregate_spatial(
         geometries = feature,
@@ -517,7 +513,7 @@ and reused later without dealing with the entire workflow each tim:
     connection.save_user_defined_process(
         user_defined_process_id=process_name,
         process_graph=evi_aggregation,
-        parameters=[temporal_interval,polygon,feature],
+        parameters=[temporal_interval,bbox,feature],
         public="true",
     )
 
@@ -526,8 +522,9 @@ to fetch the saved process for further use.
 
 .. code-block:: python
 
-    date = ["2020-01-01", "2021-12-31"]
-    bbox = {"west": 5.14, "south": 51.17, "east": 5.17, "north": 51.19}
+    # pass the input parameters
+    dates = ["2020-01-01", "2021-12-31"]
+    box = {"west": 5.14, "south": 51.17, "east": 5.17, "north": 51.19}
     features = {
         "type": "FeatureCollection",
         "features": [
@@ -547,36 +544,20 @@ to fetch the saved process for further use.
                     ],
                 },
             },
-            {
-                "type": "Feature",
-                "properties": {},
-                "geometry": {
-                    "type": "Polygon",
-                    "coordinates": [
-                        [
-                            [5.156, 51.1892],
-                            [5.155, 51.1855],
-                            [5.163, 51.1855],
-                            [5.163, 51.1891],
-                            [5.156, 51.1892],
-                        ]
-                    ],
-                },
-            },
         ],
     }
 
     # load the saved process and pass the values to the paramters
     process = connection.datacube_from_process(
         process_id = "EVI_timeseries",
-        temporal_interval = date,
-        polygon = bbox,
+        temporal_interval = dates,
+        bbox = box,
         feature = features
     )
 
     #download the result
     process.download("evi-aggregation-udp.json")
 
-    This gives us the EVI timeseries dataframe as required.
 
-    .. image:: _static/images/basics/evi-timeseries.png
+Working Example: Download specific bands for specified collection
+=================================================================
