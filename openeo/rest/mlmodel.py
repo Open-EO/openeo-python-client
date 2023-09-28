@@ -75,7 +75,7 @@ class MlModel(_ProcessGraphAbstraction):
         :param out_format: (optional) Format of the job result.
         :param format_options: String Parameters for the job result format
         """
-        job = self.create_job(additional=job_options)
+        job = self.create_job(job_options=job_options)
         return job.run_synchronous(
             # TODO #135 support multi file result sets too
             outputfile=outputfile,
