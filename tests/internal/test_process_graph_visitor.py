@@ -1,15 +1,18 @@
-from unittest.mock import MagicMock, call, ANY
+from unittest.mock import ANY, MagicMock, call
 
 import pytest
 
-from openeo.internal.process_graph_visitor import ProcessGraphVisitor, ProcessGraphUnflattener, \
-    ProcessGraphVisitException
+from openeo.internal.process_graph_visitor import (
+    ProcessGraphUnflattener,
+    ProcessGraphVisitException,
+    ProcessGraphVisitor,
+)
 
 
 def test_visit_node():
     node = {
         "process_id": "cos",
-        "arguments": {"x": {"from_argument": "data"}}
+        "arguments": {"x": {"from_parameter": "data"}},
     }
     visitor = ProcessGraphVisitor()
     visitor.enterProcess = MagicMock()
@@ -17,16 +20,16 @@ def test_visit_node():
     visitor.accept_node(node)
 
     assert visitor.enterProcess.call_args_list == [
-        call(process_id="cos", arguments={"x": {"from_argument": "data"}}, namespace=None)
+        call(process_id="cos", arguments={"x": {"from_parameter": "data"}}, namespace=None)
     ]
-    assert visitor.enterArgument.call_args_list == [call(argument_id="x", value={"from_argument": "data"})]
+    assert visitor.enterArgument.call_args_list == [call(argument_id="x", value={"from_parameter": "data"})]
 
 
 def test_visit_node_namespaced():
     node = {
         "process_id": "cos",
         "namespace": "math",
-        "arguments": {"x": {"from_argument": "data"}}
+        "arguments": {"x": {"from_parameter": "data"}},
     }
     visitor = ProcessGraphVisitor()
     visitor.enterProcess = MagicMock()
@@ -34,20 +37,16 @@ def test_visit_node_namespaced():
     visitor.accept_node(node)
 
     assert visitor.enterProcess.call_args_list == [
-        call(process_id="cos", arguments={"x": {"from_argument": "data"}}, namespace="math")
+        call(process_id="cos", arguments={"x": {"from_parameter": "data"}}, namespace="math")
     ]
-    assert visitor.enterArgument.call_args_list == [call(argument_id="x", value={"from_argument": "data"})]
+    assert visitor.enterArgument.call_args_list == [call(argument_id="x", value={"from_parameter": "data"})]
 
 
 def test_visit_nodes():
     graph = {
         "abs": {
             "process_id": "abs",
-            "arguments": {
-                "data": {
-                    "from_argument": "data"
-                }
-            },
+            "arguments": {"data": {"from_parameter": "data"}},
         },
         "cos": {
             "process_id": "cos",
@@ -75,34 +74,23 @@ def test_visit_nodes():
     ]
     assert visitor.enterArgument.call_args_list == [
         call(argument_id="data", value=ANY),
-        call(argument_id="data", value={"from_argument": "data"}),
+        call(argument_id="data", value={"from_parameter": "data"}),
         call(argument_id='data2', value={'from_parameter': 'x'})
     ]
-    assert visitor.from_parameter.call_args_list == [
-        call("x")
-    ]
+    assert visitor.from_parameter.call_args_list == [call("data"), call("x")]
 
 
 def test_visit_nodes_array():
     graph = {
         "abs": {
-            "arguments": {
-                "data": [
-                    {"from_argument": "data"},
-                    10.0
-                ]
-            },
-            "process_id": "abs"
+            "arguments": {"data": [{"from_parameter": "data"}, 10.0]},
+            "process_id": "abs",
         },
         "cos": {
-            "arguments": {
-                "data": {
-                    "from_node": "abs"
-                }
-            },
+            "arguments": {"data": {"from_node": "abs"}},
             "process_id": "cos",
-            "result": True
-        }
+            "result": True,
+        },
     }
 
     visitor = ProcessGraphVisitor()
@@ -125,10 +113,10 @@ def test_visit_nodes_array():
 
 def test_visit_array_with_dereferenced_nodes():
     graph = {
-        'arrayelement1': {
-            'arguments': {'data': {'from_argument': 'data'}, 'index': 2},
-            'process_id': 'array_element',
-            'result': False
+        "arrayelement1": {
+            "arguments": {"data": {"from_parameter": "data"}, "index": 2},
+            "process_id": "array_element",
+            "result": False,
         },
         'product1': {
             'process_id': 'product',
@@ -138,7 +126,7 @@ def test_visit_array_with_dereferenced_nodes():
     }
     top = ProcessGraphVisitor.dereference_from_node_arguments(graph)
     dereferenced = graph[top]
-    assert dereferenced["arguments"]["data"][0]["arguments"]["data"]["from_argument"] == "data"
+    assert dereferenced["arguments"]["data"][0]["arguments"]["data"]["from_parameter"] == "data"
 
     visitor = ProcessGraphVisitor()
     visitor.leaveProcess = MagicMock()
@@ -152,22 +140,18 @@ def test_visit_array_with_dereferenced_nodes():
         call(process_id='array_element', arguments=ANY, namespace=None),
         call(process_id='product', arguments=ANY, namespace=None)
     ]
-    assert visitor.enterArgument.call_args_list == [
-        call(argument_id="data", value={'from_argument': 'data'})
-    ]
-    assert visitor.enterArray.call_args_list == [
-        call(argument_id="data")
-    ]
+    assert visitor.enterArgument.call_args_list == [call(argument_id="data", value={"from_parameter": "data"})]
+    assert visitor.enterArray.call_args_list == [call(argument_id="data")]
     assert visitor.arrayElementDone.call_args_list == [
-        call({
-            "process_id": "array_element",
-            "arguments": {"data": {"from_argument": "data"}, "index": 2},
-            "result": False
-        })
+        call(
+            {
+                "process_id": "array_element",
+                "arguments": {"data": {"from_parameter": "data"}, "index": 2},
+                "result": False,
+            }
+        )
     ]
-    assert visitor.constantArrayElement.call_args_list == [
-        call(-1)
-    ]
+    assert visitor.constantArrayElement.call_args_list == [call(-1)]
 
 
 def test_dereference_basic():

@@ -287,7 +287,7 @@ for example:
     cube.apply("absolute")
 
     # Reduce a cube along the temporal dimension by taking the maximum value
-    cube.reduce_dimension("max", dimension="t")
+    cube.reduce_dimension(reducer="max", dimension="t")
 
 This approach is only possible if the desired transformation is available
 as a single process. If not, use one of the methods below.
@@ -335,7 +335,7 @@ which can be used directly as callback:
     from openeo.processes import absolute, max
 
     cube.apply(absolute)
-    cube.reduce_dimension(max, dimension="t")
+    cube.reduce_dimension(reducer=max, dimension="t")
 
 
 The argument that will be passed to all these callback functions is
@@ -351,7 +351,7 @@ For example:
     def avg(data: ProcessBuilder):
         return data.mean()
 
-    cube.reduce_dimension(avg, dimension="t")
+    cube.reduce_dimension(reducer=avg, dimension="t")
 
 
 These methods also return :py:class:`ProcessBuilder <openeo.processes.ProcessBuilder>` objects,

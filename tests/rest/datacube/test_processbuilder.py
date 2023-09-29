@@ -6,6 +6,7 @@ import pytest
 import openeo.processes
 from openeo.internal.graph_building import PGNode
 from openeo.processes import ProcessBuilder
+
 from ... import load_json_resource
 
 
@@ -51,7 +52,7 @@ def test_apply_callback_chain_lambda_method(con100):
 
 def test_apply_callback_chain_lambda_functions(con100):
     im = con100.load_collection("S2")
-    from openeo.processes import absolute, cos, add
+    from openeo.processes import absolute, add, cos
     result = im.apply(lambda data: add(cos(absolute(data)), 1.23))
     assert result.flat_graph() == load_json_resource('data/1.0.0/apply_chain.json')
 
@@ -73,7 +74,7 @@ def test_apply_callback_chain_custom_function_methods(con100):
 
 
 def test_apply_callback_chain_custom_function_functions(con100):
-    from openeo.processes import absolute, cos, add
+    from openeo.processes import absolute, add, cos
 
     def transform(x: ProcessBuilder) -> ProcessBuilder:
         return add(cos(absolute(x)), y=1.23)
@@ -303,7 +304,7 @@ def test_apply_dimension_bandmath_lambda(con100):
 
 
 def test_apply_dimension_time_to_bands(con100):
-    from openeo.processes import array_concat, quantiles, sd, mean
+    from openeo.processes import array_concat, mean, quantiles, sd
     im = con100.load_collection("S2")
     res = im.apply_dimension(
         process=lambda d: array_concat(quantiles(d, [0.25, 0.5, 0.75]), [sd(d), mean(d)]),

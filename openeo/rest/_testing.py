@@ -1,6 +1,8 @@
 import re
+from typing import Optional, Union
 
-from openeo import Connection
+from openeo import Connection, DataCube
+from openeo.rest.vectorcube import VectorCube
 
 
 class DummyBackend:
@@ -91,8 +93,94 @@ class DummyBackend:
         assert len(self.batch_jobs) == 1
         return self.batch_jobs[max(self.batch_jobs.keys())]["pg"]
 
-    def get_pg(self) -> dict:
-        """Get one and only batch process graph (sync or batch)"""
+    def get_pg(self, process_id: Optional[str] = None) -> dict:
+        """
+        Get one and only batch process graph (sync or batch)
+
+        :param process_id: just return single process graph node with this process_id
+        :return: process graph (flat graph representation) or process graph node
+        """
         pgs = self.sync_requests + [b["pg"] for b in self.batch_jobs.values()]
         assert len(pgs) == 1
-        return pgs[0]
+        pg = pgs[0]
+        if process_id:
+            # Just return single node (by process_id)
+            found = [node for node in pg.values() if node.get("process_id") == process_id]
+            if len(found) != 1:
+                raise RuntimeError(
+                    f"Expected single process graph node with process_id {process_id!r}, but found {len(found)}: {found}"
+                )
+            return found[0]
+        return pg
+
+    def execute(self, cube: Union[DataCube, VectorCube], process_id: Optional[str] = None) -> dict:
+        """
+        Execute given cube (synchronously) and return observed process graph (or subset thereof).
+
+        :param cube: cube to execute on dummy back-end
+        :param process_id: just return single process graph node with this process_id
+        :return: process graph (flat graph representation) or process graph node
+        """
+        cube.execute()
+        return self.get_pg(process_id=process_id)
+
+
+def build_capabilities(
+    *,
+    api_version: str = "1.0.0",
+    stac_version: str = "0.9.0",
+    basic_auth: bool = True,
+    oidc_auth: bool = True,
+    collections: bool = True,
+    processes: bool = True,
+    sync_processing: bool = True,
+    validation: bool = False,
+    batch_jobs: bool = True,
+    udp: bool = False,
+) -> dict:
+    """Build a dummy capabilities document for testing purposes."""
+
+    endpoints = []
+    if basic_auth:
+        endpoints.append({"path": "/credentials/basic", "methods": ["GET"]})
+    if oidc_auth:
+        endpoints.append({"path": "/credentials/oidc", "methods": ["GET"]})
+    if basic_auth or oidc_auth:
+        endpoints.append({"path": "/me", "methods": ["GET"]})
+
+    if collections:
+        endpoints.append({"path": "/collections", "methods": ["GET"]})
+        endpoints.append({"path": "/collections/{collection_id}", "methods": ["GET"]})
+    if processes:
+        endpoints.append({"path": "/processes", "methods": ["GET"]})
+    if sync_processing:
+        endpoints.append({"path": "/result", "methods": ["POST"]})
+    if validation:
+        endpoints.append({"path": "/validation", "methods": ["POST"]})
+    if batch_jobs:
+        endpoints.extend(
+            [
+                {"path": "/jobs", "methods": ["GET", "POST"]},
+                {"path": "/jobs/{job_id}", "methods": ["GET", "DELETE"]},
+                {"path": "/jobs/{job_id}/results", "methods": ["GET", "POST", "DELETE"]},
+                {"path": "/jobs/{job_id}/logs", "methods": ["GET"]},
+            ]
+        )
+    if udp:
+        endpoints.extend(
+            [
+                {"path": "/process_graphs", "methods": ["GET"]},
+                {"path": "/process_graphs/{process_graph_id", "methods": ["GET", "PUT", "DELETE"]},
+            ]
+        )
+
+    capabilities = {
+        "api_version": api_version,
+        "stac_version": stac_version,
+        "id": "dummy",
+        "title": "Dummy openEO back-end",
+        "description": "Dummy openeEO back-end",
+        "endpoints": endpoints,
+        "links": [],
+    }
+    return capabilities

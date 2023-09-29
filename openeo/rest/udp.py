@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import typing
-from typing import List, Union, Optional
+from typing import List, Optional, Union
 
 from openeo.api.process import Parameter
 from openeo.internal.graph_building import as_flat_graph
@@ -60,9 +62,11 @@ class RESTUserDefinedProcess:
     """
     Wrapper for a user-defined process stored (or to be stored) on an openEO back-end
     """
-    def __init__(self, user_defined_process_id: str, connection: 'Connection'):
+
+    def __init__(self, user_defined_process_id: str, connection: Connection):
         self.user_defined_process_id = user_defined_process_id
         self._connection = connection
+        self._connection.assert_user_defined_process_support()
 
     def _repr_html_(self):
         process = self.describe()
@@ -90,7 +94,9 @@ class RESTUserDefinedProcess:
         # TODO: this "public" flag is not standardized yet EP-3609, https://github.com/Open-EO/openeo-api/issues/310
         process["public"] = public
 
-        self._connection.put(path="/process_graphs/{}".format(self.user_defined_process_id), json=process)
+        self._connection.put(
+            path="/process_graphs/{}".format(self.user_defined_process_id), json=process, expected_status=200
+        )
 
     @deprecated(
         "Use `store` instead. Method `update` is misleading: OpenEO API does not provide (partial) updates"

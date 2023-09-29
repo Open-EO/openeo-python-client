@@ -1,11 +1,11 @@
+from __future__ import annotations
+
 import logging
 import warnings
-from collections import namedtuple
-from typing import List, Union, Tuple, Callable, Any
+from typing import Any, Callable, List, NamedTuple, Optional, Tuple, Union
 
-from openeo.util import deep_get
 from openeo.internal.jupyter import render_component
-
+from openeo.util import deep_get
 
 _log = logging.getLogger(__name__)
 
@@ -34,11 +34,11 @@ class Dimension:
     def __eq__(self, other):
         return self.__class__ == other.__class__ and self.__dict__ == other.__dict__
 
-    def rename(self, name) -> 'Dimension':
+    def rename(self, name) -> Dimension:
         """Create new dimension with new name."""
         return Dimension(type=self.type, name=name)
 
-    def rename_labels(self, target, source) -> 'Dimension':
+    def rename_labels(self, target, source) -> Dimension:
         """
         Rename labels, if the type of dimension allows it.
 
@@ -69,7 +69,7 @@ class SpatialDimension(Dimension):
         self.crs = crs
         self.step = step
 
-    def rename(self, name) -> 'Dimension':
+    def rename(self, name) -> Dimension:
         return SpatialDimension(name=name, extent=self.extent, crs=self.crs, step=self.step)
 
 
@@ -78,13 +78,23 @@ class TemporalDimension(Dimension):
         super().__init__(type="temporal", name=name)
         self.extent = extent
 
-    def rename(self, name) -> 'Dimension':
+    def rename(self, name) -> Dimension:
         return TemporalDimension(name=name, extent=self.extent)
 
 
-# Simple container class for band metadata (incl. wavelength in micrometer)
-Band = namedtuple("Band", ["name", "common_name", "wavelength_um", "aliases", "gsd"])
-Band.__new__.__defaults__ = (None, None, None, None,)
+class Band(NamedTuple):
+    """
+    Simple container class for band metadata.
+    Based on https://github.com/stac-extensions/eo#band-object
+    """
+
+    name: str
+    common_name: Optional[str] = None
+    # wavelength in micrometer
+    wavelength_um: Optional[float] = None
+    aliases: Optional[List[str]] = None
+    # "openeo:gsd" field (https://github.com/Open-EO/openeo-stac-extensions#GSD-Object)
+    gsd: Optional[dict] = None
 
 
 class BandDimension(Dimension):
@@ -144,7 +154,7 @@ class BandDimension(Dimension):
             return self.band_names[band]
         raise ValueError("Invalid band name/index {b!r}. Valid names: {n!r}".format(b=band, n=self.band_names))
 
-    def filter_bands(self, bands: List[Union[int, str]]) -> 'BandDimension':
+    def filter_bands(self, bands: List[Union[int, str]]) -> BandDimension:
         """
         Construct new BandDimension with subset of bands,
         based on given band indices or (common) names
@@ -154,7 +164,7 @@ class BandDimension(Dimension):
             bands=[self.bands[self.band_index(b)] for b in bands]
         )
 
-    def append_band(self, band: Band) -> 'BandDimension':
+    def append_band(self, band: Band) -> BandDimension:
         """Create new BandDimension with appended band."""
         if band.name in self.band_names:
             raise ValueError("Duplicate band {b!r}".format(b=band))
@@ -164,7 +174,7 @@ class BandDimension(Dimension):
             bands=self.bands + [band]
         )
 
-    def rename_labels(self, target, source) -> 'Dimension':
+    def rename_labels(self, target, source) -> Dimension:
         if source:
             if len(target) != len(source):
                 raise ValueError(
@@ -175,10 +185,15 @@ class BandDimension(Dimension):
             for old_name, new_name in zip(source, target):
                 band_index = self.band_index(old_name)
                 the_band = new_bands[band_index]
-                new_bands[band_index] = Band(new_name, the_band.common_name, the_band.wavelength_um, the_band.aliases,
-                                             the_band.gsd)
+                new_bands[band_index] = Band(
+                    name=new_name,
+                    common_name=the_band.common_name,
+                    wavelength_um=the_band.wavelength_um,
+                    aliases=the_band.aliases,
+                    gsd=the_band.gsd,
+                )
         else:
-            new_bands = [Band(name=n, common_name=None, wavelength_um=None) for n in target]
+            new_bands = [Band(name=n) for n in target]
         return BandDimension(name=self.name, bands=new_bands)
 
 
@@ -216,20 +231,12 @@ class CollectionMetadata:
             if dim.type == "temporal":
                 self._temporal_dimension = dim
 
-    @classmethod
-    def get_or_create(cls, metadata: Union[dict, 'CollectionMetadata', None]) -> 'CollectionMetadata':
-        """Get or create CollectionMetadata from given argument."""
-        if isinstance(metadata, cls):
-            return metadata
-        else:
-            return cls(metadata=metadata or {})
-
     def __eq__(self, o: Any) -> bool:
         return isinstance(o, CollectionMetadata) and self._dimensions == o._dimensions
 
     def _clone_and_update(
             self, metadata: dict = None, dimensions: List[Dimension] = None, **kwargs
-    ) -> 'CollectionMetadata':
+    ) -> CollectionMetadata:
         """Create a new instance (of same class) with copied/updated fields."""
         cls = type(self)
         if dimensions == None:
@@ -273,7 +280,7 @@ class CollectionMetadata:
             elif dim_type == "temporal":
                 dimensions.append(TemporalDimension(name=name, extent=info.get("extent")))
             elif dim_type == "bands":
-                bands = [Band(b, None, None) for b in info.get("values", [])]
+                bands = [Band(name=b) for b in info.get("values", [])]
                 if not bands:
                     complain("No band names in dimension {d!r}".format(d=name))
                 dimensions.append(BandDimension(name=name, bands=bands))
@@ -289,8 +296,16 @@ class CollectionMetadata:
         )
         if eo_bands:
             # center_wavelength is in micrometer according to spec
-            bands_detailed = [Band(b['name'], b.get('common_name'), b.get('center_wavelength'), b.get('aliases'),
-                                   b.get('openeo:gsd')) for b in eo_bands]
+            bands_detailed = [
+                Band(
+                    name=b["name"],
+                    common_name=b.get("common_name"),
+                    wavelength_um=b.get("center_wavelength"),
+                    aliases=b.get("aliases"),
+                    gsd=b.get("openeo:gsd"),
+                )
+                for b in eo_bands
+            ]
             # Update band dimension with more detailed info
             band_dimensions = [d for d in dimensions if d.type == "bands"]
             if len(band_dimensions) == 1:
@@ -325,15 +340,11 @@ class CollectionMetadata:
     def dimension_names(self) -> List[str]:
         return list(d.name for d in self._dimensions)
 
-    def assert_valid_dimension(self, dimension: str, just_warn: bool = False) -> str:
+    def assert_valid_dimension(self, dimension: str) -> str:
         """Make sure given dimension name is valid."""
         names = self.dimension_names()
         if dimension not in names:
-            msg = f"Invalid dimension {dimension!r}. Should be one of {names}"
-            if just_warn:
-                _log.warning(msg)
-            else:
-                raise ValueError(msg)
+            raise ValueError(f"Invalid dimension {dimension!r}. Should be one of {names}")
         return dimension
 
     def has_band_dimension(self) -> bool:
@@ -374,9 +385,10 @@ class CollectionMetadata:
         return self.band_dimension.common_names
 
     def get_band_index(self, band: Union[int, str]) -> int:
+        # TODO: eliminate this shortcut for smaller API surface
         return self.band_dimension.band_index(band)
 
-    def filter_bands(self, band_names: List[Union[int, str]]) -> 'CollectionMetadata':
+    def filter_bands(self, band_names: List[Union[int, str]]) -> CollectionMetadata:
         """
         Create new `CollectionMetadata` with filtered band dimension
         :param band_names: list of band names/indices to keep
@@ -388,7 +400,7 @@ class CollectionMetadata:
             for d in self._dimensions
         ])
 
-    def append_band(self, band: Band) -> 'CollectionMetadata':
+    def append_band(self, band: Band) -> CollectionMetadata:
         """
         Create new `CollectionMetadata` with given band added to band dimension.
         """
@@ -398,7 +410,7 @@ class CollectionMetadata:
             for d in self._dimensions
         ])
 
-    def rename_labels(self, dimension: str, target: list, source: list = None) -> 'CollectionMetadata':
+    def rename_labels(self, dimension: str, target: list, source: list = None) -> CollectionMetadata:
         """
         Renames the labels of the specified dimension from source to target.
 
@@ -415,7 +427,7 @@ class CollectionMetadata:
 
         return self._clone_and_update(dimensions=new_dimensions)
 
-    def rename_dimension(self, source: str, target: str) -> 'CollectionMetadata':
+    def rename_dimension(self, source: str, target: str) -> CollectionMetadata:
         """
         Rename source dimension into target, preserving other properties
         """
@@ -426,20 +438,22 @@ class CollectionMetadata:
 
         return self._clone_and_update(dimensions=new_dimensions)
 
-    def reduce_dimension(self, dimension_name: str) -> 'CollectionMetadata':
+    def reduce_dimension(self, dimension_name: str) -> CollectionMetadata:
         """Create new metadata object by collapsing/reducing a dimension."""
         # TODO: option to keep reduced dimension (with a single value)?
+        # TODO: rename argument to `name` for more internal consistency
+        # TODO: merge with drop_dimension (which does the same).
         self.assert_valid_dimension(dimension_name)
         loc = self.dimension_names().index(dimension_name)
         dimensions = self._dimensions[:loc] + self._dimensions[loc + 1:]
         return self._clone_and_update(dimensions=dimensions)
 
-    def add_dimension(self, name: str, label: Union[str, float], type: str = None) -> 'CollectionMetadata':
+    def add_dimension(self, name: str, label: Union[str, float], type: str = None) -> CollectionMetadata:
         """Create new metadata object with added dimension"""
         if any(d.name == name for d in self._dimensions):
             raise DimensionAlreadyExistsException(f"Dimension with name {name!r} already exists")
         if type == "bands":
-            dim = BandDimension(name=name, bands=[Band(label, None, None)])
+            dim = BandDimension(name=name, bands=[Band(name=label)])
         elif type == "spatial":
             dim = SpatialDimension(name=name, extent=[label, label])
         elif type == "temporal":
@@ -448,7 +462,7 @@ class CollectionMetadata:
             dim = Dimension(type=type or "other", name=name)
         return self._clone_and_update(dimensions=self._dimensions + [dim])
 
-    def drop_dimension(self, name: str = None) -> 'CollectionMetadata':
+    def drop_dimension(self, name: str = None) -> CollectionMetadata:
         """Drop dimension with given name"""
         dimension_names = self.dimension_names()
         if name not in dimension_names:
@@ -460,4 +474,4 @@ class CollectionMetadata:
 
     def __str__(self) -> str:
         bands = self.band_names if self.has_band_dimension() else "no bands dimension"
-        return f"CollectionMetadata({self.extent} - {self.band_names} - {self.dimension_names()})"
+        return f"CollectionMetadata({self.extent} - {bands} - {self.dimension_names()})"

@@ -1,5 +1,6 @@
-import openeo
 import pytest
+
+import openeo
 
 API_URL = "https://oeo.net"
 

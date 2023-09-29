@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import logging
 import pathlib
 import typing
-from typing import Union, Optional
+from typing import Optional, Union
 
 from openeo.internal.documentation import openeo_process
 from openeo.internal.graph_building import PGNode
@@ -24,7 +26,8 @@ class MlModel(_ProcessGraphAbstraction):
 
     .. versionadded:: 0.10.0
     """
-    def __init__(self, graph: PGNode, connection: 'Connection'):
+
+    def __init__(self, graph: PGNode, connection: Connection):
         super().__init__(pgnode=graph, connection=connection)
 
     def save_ml_model(self, options: Optional[dict] = None):
@@ -41,7 +44,7 @@ class MlModel(_ProcessGraphAbstraction):
 
     @staticmethod
     @openeo_process
-    def load_ml_model(connection: "Connection", id: Union[str, BatchJob]) -> "MlModel":
+    def load_ml_model(connection: Connection, id: Union[str, BatchJob]) -> MlModel:
         """
         Loads a machine learning model from a STAC Item.
 
@@ -72,7 +75,7 @@ class MlModel(_ProcessGraphAbstraction):
         :param out_format: (optional) Format of the job result.
         :param format_options: String Parameters for the job result format
         """
-        job = self.create_job(additional=job_options)
+        job = self.create_job(job_options=job_options)
         return job.run_synchronous(
             # TODO #135 support multi file result sets too
             outputfile=outputfile,

@@ -7,12 +7,11 @@ Usage: run this script and redirect to rst file:
 
 """
 import datetime
+import importlib
 import sys
 from textwrap import dedent
-import importlib
 
 from openeo.internal.documentation import _process_registry
-
 
 # TODO: automate running of this tool. E.g. use https://nedbatchelder.com/code/cog
 # TODO: support operators properly (use `+` in docs instead of `__add__`)

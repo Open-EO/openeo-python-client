@@ -13,7 +13,6 @@ import pytest
 import shapely
 import shapely.geometry
 
-from openeo.capabilities import ComparableVersion
 from openeo.rest import BandMathException
 from openeo.rest.datacube import DataCube
 
@@ -29,9 +28,29 @@ def test_apply_dimension_temporal_cumsum(s2cube, api_version):
     assert actual_graph == expected_graph
 
 
-def test_apply_dimension_invalid_dimension(s2cube):
+def test_apply_dimension_invalid_dimension_with_metadata(s2cube):
     with pytest.raises(ValueError, match="Invalid dimension"):
-        s2cube.apply_dimension('cumsum', dimension="olapola")
+        s2cube.apply_dimension("cumsum", dimension="olapola")
+
+
+def test_apply_dimension_invalid_dimension_no_metadata(s2cube_without_metadata):
+    cube = s2cube_without_metadata.apply_dimension("cumsum", dimension="olapola")
+    assert get_download_graph(cube)["applydimension1"] == {
+        "process_id": "apply_dimension",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "dimension": "olapola",
+            "process": {
+                "process_graph": {
+                    "cumsum1": {
+                        "arguments": {"data": {"from_parameter": "data"}},
+                        "process_id": "cumsum",
+                        "result": True,
+                    }
+                }
+            },
+        },
+    }
 
 
 def test_min_time(s2cube, api_version):
@@ -54,22 +73,21 @@ def _get_leaf_node(cube, force_flat=True) -> dict:
         raise ValueError(repr(cube))
 
 
-
-def test_filter_temporal(s2cube):
+def test_filter_temporal_basic_positional_args(s2cube):
     im = s2cube.filter_temporal("2016-01-01", "2016-03-10")
     graph = _get_leaf_node(im)
     assert graph['process_id'] == 'filter_temporal'
     assert graph['arguments']['extent'] == ["2016-01-01", "2016-03-10"]
 
 
-def test_filter_temporal_start_end(s2cube):
+def test_filter_temporal_basic_start_end(s2cube):
     im = s2cube.filter_temporal(start_date="2016-01-01", end_date="2016-03-10")
     graph = _get_leaf_node(im)
     assert graph['process_id'] == 'filter_temporal'
     assert graph['arguments']['extent'] == ["2016-01-01", "2016-03-10"]
 
 
-def test_filter_temporal_extent(s2cube):
+def test_filter_temporal_basic_extent(s2cube):
     im = s2cube.filter_temporal(extent=("2016-01-01", "2016-03-10"))
     graph = _get_leaf_node(im)
     assert graph['process_id'] == 'filter_temporal'
@@ -103,6 +121,83 @@ def test_filter_temporal_generic(s2cube, args, kwargs, extent):
     assert graph['arguments']['extent'] == extent
 
 
+@pytest.mark.parametrize(
+    ["extent", "expected"],
+    [
+        (["2016", None], ["2016-01-01", None]),
+        (["2016-03", None], ["2016-03-01", None]),
+        (["2016", "2017"], ["2016-01-01", "2017-01-01"]),
+        (["2016-03", "2016-04"], ["2016-03-01", "2016-04-01"]),
+        (["2016-03", "2018-12"], ["2016-03-01", "2018-12-01"]),
+        (["2016", "2016-01"], ["2016-01-01", "2016-01-01"]),
+        (["2016", "2016-04"], ["2016-01-01", "2016-04-01"]),
+        ([None, "2016-04"], [None, "2016-04-01"]),
+    ],
+)
+def test_filter_temporal_extent_tuple_with_shorthand_dates(s2cube: DataCube, extent, expected):
+    """Verify it supports shorthand dates that represent years or months."""
+    im = s2cube.filter_temporal(extent=extent)
+    graph = _get_leaf_node(im)
+    assert graph["process_id"] == "filter_temporal"
+    assert graph["arguments"]["extent"] == expected
+
+
+@pytest.mark.parametrize(
+    ["extent", "expected"],
+    [
+        ("2016", ["2016-01-01", "2017-01-01"]),
+        ("2016-01", ["2016-01-01", "2016-02-01"]),
+        ("2016-04", ["2016-04-01", "2016-05-01"]),
+        ("2016-12", ["2016-12-01", "2017-01-01"]),
+        ("2016-04-11", ["2016-12-01", "2017-01-01"]),
+    ],
+)
+def test_filter_temporal_extent_single_date_string(s2cube: DataCube, extent, expected):
+    """Verify it supports single string extent."""
+    im = s2cube.filter_temporal(extent=extent)
+    graph = _get_leaf_node(im)
+    assert graph["process_id"] == "filter_temporal"
+    assert graph["arguments"]["extent"] == expected
+
+
+@pytest.mark.parametrize(
+    "extent,expected",
+    [
+        (("2016-01-01", None), ["2016-01-01", None]),
+        (("2016-01-01", "2016-03-10"), ["2016-01-01", "2016-03-10"]),
+        ((None, "2016-03-10"), [None, "2016-03-10"]),
+        (["2016-01-01", None], ["2016-01-01", None]),
+    ],
+)
+def test_load_collection_filter_temporal(connection, api_version, extent, expected):
+    cube: DataCube = connection.load_collection("S2", temporal_extent=extent)
+    flat_graph = cube.flat_graph()
+    assert flat_graph["loadcollection1"]["arguments"]["temporal_extent"] == expected
+
+
+@pytest.mark.parametrize(
+    "extent,expected",
+    [
+        # Test that the simplest/shortest syntax works: temporal_extent="2016"
+        ("2016", ["2016-01-01", "2017-01-01"]),
+        ("2016-02", ["2016-02-01", "2016-03-01"]),
+        ("2016-02-03", ["2016-02-03", "2016-02-04"]),
+        # Test date abbreviations using tuples for the extent
+        (["2016", None], ["2016-01-01", None]),
+        (["2016-02", None], ["2016-02-01", None]),
+        (["2016", "2017"], ["2016-01-01", "2017-01-01"]),
+        (["2016-02", "2016-08"], ["2016-02-01", "2016-08-01"]),
+        ([None, "2016"], [None, "2016-01-01"]),
+        ([None, "2016-02"], [None, "2016-02-01"]),
+    ],
+)
+def test_load_collection_temporal_extent_with_shorthand_date_strings(connection, api_version, extent, expected):
+    """Verify it supports abbreviated date strings."""
+    cube: DataCube = connection.load_collection("S2", temporal_extent=extent)
+    flat_graph = cube.flat_graph()
+    assert flat_graph["loadcollection1"]["arguments"]["temporal_extent"] == expected
+
+
 def test_load_collection_bands_name(connection, api_version):
     im = connection.load_collection("S2", bands=["B08", "B04"])
     expected = load_json_resource('data/{v}/load_collection_bands.json'.format(v=api_version))
@@ -119,10 +214,7 @@ def test_load_collection_bands_single_band(connection, api_version):
 def test_load_collection_bands_common_name(connection, api_version):
     im = connection.load_collection("S2", bands=["nir", "red"])
     expected = load_json_resource('data/{v}/load_collection_bands.json'.format(v=api_version))
-    if api_version < ComparableVersion("1.0.0"):
-        expected["loadcollection1"]["arguments"]["bands"] = ["B08", "B04"]
-    else:
-        expected["loadcollection1"]["arguments"]["bands"] = ["nir", "red"]
+    expected["loadcollection1"]["arguments"]["bands"] = ["nir", "red"]
     assert im.flat_graph() == expected
 
 
@@ -158,11 +250,7 @@ def test_filter_bands_single_band(s2cube, api_version):
 def test_filter_bands_common_name(s2cube, api_version):
     im = s2cube.filter_bands(["nir", "red"])
     expected = load_json_resource('data/{v}/filter_bands.json'.format(v=api_version))
-    if api_version < ComparableVersion("1.0.0"):
-        expected["filterbands1"]["arguments"]["bands"] = []
-        expected["filterbands1"]["arguments"]["common_names"] = ["nir", "red"]
-    else:
-        expected["filterbands1"]["arguments"]["bands"] = ["nir", "red"]
+    expected["filterbands1"]["arguments"]["bands"] = ["nir", "red"]
     assert im.flat_graph() == expected
 
 
@@ -171,6 +259,24 @@ def test_filter_bands_index(s2cube, api_version):
     expected = load_json_resource('data/{v}/filter_bands.json'.format(v=api_version))
     expected["filterbands1"]["arguments"]["bands"] = ["B08", "B04"]
     assert im.flat_graph() == expected
+
+
+def test_filter_bands_invalid_bands_with_metadata(s2cube):
+    with pytest.raises(ValueError, match="Invalid band name/index 'apple'"):
+        _ = s2cube.filter_bands(["apple", "banana"])
+
+
+def test_filter_bands_invalid_bands_without_metadata(s2cube_without_metadata):
+    cube = s2cube_without_metadata.filter_bands(["apple", "banana"])
+    assert get_download_graph(cube)["filterbands1"] == {
+        "process_id": "filter_bands",
+        "arguments": {"data": {"from_node": "loadcollection1"}, "bands": ["apple", "banana"]},
+    }
+    cube = cube.filter_bands(["banana"])
+    assert get_download_graph(cube)["filterbands2"] == {
+        "process_id": "filter_bands",
+        "arguments": {"data": {"from_node": "filterbands1"}, "bands": ["banana"]},
+    }
 
 
 def test_filter_bbox_minimal(s2cube):
@@ -230,24 +336,71 @@ def test_filter_bbox_default_handling(s2cube, kwargs, expected):
     assert graph["arguments"]["extent"] == dict(west=3, east=4, south=8, north=9, **expected)
 
 
+@pytest.mark.parametrize(
+    ["extent", "expected"],
+    [
+        # test regular extents
+        (("2016-01-01", None), ["2016-01-01", None]),
+        (("2016-01-01", "2016-03-10"), ["2016-01-01", "2016-03-10"]),
+        ((None, "2016-03-10"), [None, "2016-03-10"]),
+        (["2016-01-01", None], ["2016-01-01", None]),
+        # test the date abbreviations
+        (["2016", None], ["2016-01-01", None]),
+        (["2016-02", None], ["2016-02-01", None]),
+        (["2016", "2017"], ["2016-01-01", "2017-01-01"]),
+        (["2016-02", "2016-02"], ["2016-02-01", "2016-02-01"]),
+        (["2016", "2017"], ["2016-01-01", "2017-01-01"]),
+        (["2016-02", "2016-08"], ["2016-02-01", "2016-08-01"]),
+        ([None, "2016"], [None, "2016-01-01"]),
+        ([None, "2016-02"], [None, "2016-02-01"]),
+    ],
+)
+def test_filter_temporal_general(s2cube: DataCube, api_version, extent, expected):
+    # First test it via positional args
+    cube_pos_args: DataCube = s2cube.filter_temporal(extent[0], extent[1])
+    flat_graph_pos_args = cube_pos_args.flat_graph()
+    assert flat_graph_pos_args["filtertemporal1"]["arguments"]["extent"] == expected
+
+    # Using start_date and end_date should give identical result
+    cube_start_end: DataCube = s2cube.filter_temporal(start_date=extent[0], end_date=extent[1])
+    flat_graph_start_end = cube_start_end.flat_graph()
+    assert flat_graph_start_end["filtertemporal1"]["arguments"]["extent"] == expected
+
+    # And using the extent parameter should also do exactly the same.
+    cube_extent: DataCube = s2cube.filter_temporal(extent=extent)
+    flat_graph_extent = cube_extent.flat_graph()
+    assert flat_graph_extent["filtertemporal1"]["arguments"]["extent"] == expected
+
+
+@pytest.mark.parametrize(
+    ["extent", "expected"],
+    [
+        ("2016", ["2016-01-01", "2017-01-01"]),
+        ("2016-02", ["2016-02-01", "2016-03-01"]),
+        ("2016-12", ["2016-12-01", "2017-01-01"]),
+        ("2016-03-04", ["2016-03-04", "2016-03-05"]),
+    ],
+)
+def test_filter_temporal_extent_single_date_string(s2cube: DataCube, api_version, extent, expected):
+    cube_extent: DataCube = s2cube.filter_temporal(extent=extent)
+    flat_graph_extent = cube_extent.flat_graph()
+    assert flat_graph_extent["filtertemporal1"]["arguments"]["extent"] == expected
+
+
 def test_max_time(s2cube, api_version):
     im = s2cube.max_time()
     graph = _get_leaf_node(im, force_flat=True)
-    assert graph["process_id"] == "reduce" if api_version == '0.4.0' else 'reduce_dimension'
-    assert graph["arguments"]["data"] == {'from_node': 'loadcollection1'}
+    assert graph["process_id"] == "reduce_dimension"
+    assert graph["arguments"]["data"] == {"from_node": "loadcollection1"}
     assert graph["arguments"]["dimension"] == "t"
-    if api_version == '0.4.0':
-        callback = graph["arguments"]["reducer"]["callback"]["r1"]
-        assert callback == {'arguments': {'data': {'from_argument': 'data'}}, 'process_id': 'max', 'result': True}
-    else:
-        callback = graph["arguments"]["reducer"]["process_graph"]["max1"]
-        assert callback == {'arguments': {'data': {'from_parameter': 'data'}}, 'process_id': 'max', 'result': True}
+    callback = graph["arguments"]["reducer"]["process_graph"]["max1"]
+    assert callback == {"arguments": {"data": {"from_parameter": "data"}}, "process_id": "max", "result": True}
 
 
 def test_reduce_temporal_udf(s2cube, api_version):
     im = s2cube.reduce_temporal_udf("my custom code")
     graph = _get_leaf_node(im)
-    assert graph["process_id"] == "reduce" if api_version == '0.4.0' else 'reduce_dimension'
+    assert graph["process_id"] == "reduce_dimension"
     assert "data" in graph["arguments"]
     assert graph["arguments"]["dimension"] == "t"
 
@@ -256,20 +409,13 @@ def test_ndvi(s2cube, api_version):
     im = s2cube.ndvi()
     graph = _get_leaf_node(im)
     assert graph["process_id"] == "ndvi"
-    if api_version == '0.4.0':
-        assert graph["arguments"] == {'data': {'from_node': 'loadcollection1'}, 'name': 'ndvi'}
-    else:
-        assert graph["arguments"] == {'data': {'from_node': 'loadcollection1'}}
+    assert graph["arguments"] == {"data": {"from_node": "loadcollection1"}}
 
 
 def test_mask_polygon(s2cube, api_version):
     polygon = shapely.geometry.Polygon([[0, 0], [1.9, 0], [1.9, 1.9], [0, 1.9]])
-    if api_version < ComparableVersion("1.0.0"):
-        expected_proces_id = "mask"
-        im = s2cube.mask(polygon)
-    else:
-        expected_proces_id = "mask_polygon"
-        im = s2cube.mask_polygon(mask=polygon)
+    expected_proces_id = "mask_polygon"
+    im = s2cube.mask_polygon(mask=polygon)
     graph = _get_leaf_node(im)
     assert graph["process_id"] == expected_proces_id
     assert graph["arguments"] == {
@@ -283,23 +429,16 @@ def test_mask_polygon(s2cube, api_version):
 
 def test_mask_raster(s2cube, connection, api_version):
     mask = connection.load_collection("MASK")
-    if api_version == '0.4.0':
-        im = s2cube.mask(rastermask=mask, replacement=102)
-    else:
-        im = s2cube.mask(mask=mask, replacement=102)
+    im = s2cube.mask(mask=mask, replacement=102)
     graph = _get_leaf_node(im)
     assert graph == {
         "process_id": "mask",
         "arguments": {
-            "data": {
-                "from_node": "loadcollection1"
-            },
-            "mask": {
-                "from_node": "loadcollection3" if api_version == '0.4.0' else "loadcollection2"
-            },
-            "replacement": 102
+            "data": {"from_node": "loadcollection1"},
+            "mask": {"from_node": "loadcollection2"},
+            "replacement": 102,
         },
-        "result": False if api_version == '0.4.0' else True
+        "result": True,
     }
 
 
@@ -420,7 +559,7 @@ def test_download_format_guessing(
 
     def result_callback(request, context):
         post_data = request.json()
-        pg = (post_data["process"] if api_version >= ComparableVersion("1.0.0") else post_data)["process_graph"]
+        pg = post_data["process"]["process_graph"]
         assert pg["saveresult1"]["arguments"]["format"] == expected_format
         return b"data"
 
@@ -440,7 +579,7 @@ def test_download_bytes(connection, requests_mock, api_version, format, expected
 
     def result_callback(request, context):
         post_data = request.json()
-        pg = (post_data["process"] if api_version >= ComparableVersion("1.0.0") else post_data)["process_graph"]
+        pg = post_data["process"]["process_graph"]
         assert pg["saveresult1"]["arguments"]["format"] == expected_format
         return b"data"
 

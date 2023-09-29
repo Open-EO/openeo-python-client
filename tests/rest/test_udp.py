@@ -4,7 +4,9 @@ import pytest
 
 import openeo
 from openeo.api.process import Parameter
+from openeo.rest._testing import build_capabilities
 from openeo.rest.udp import RESTUserDefinedProcess, build_process_dict
+
 from .. import load_json_resource
 
 API_URL = "https://oeo.test"
@@ -12,7 +14,7 @@ API_URL = "https://oeo.test"
 
 @pytest.fixture
 def con100(requests_mock):
-    requests_mock.get(API_URL + "/", json={"api_version": "1.0.0"})
+    requests_mock.get(API_URL + "/", json=build_capabilities(udp=True))
     con = openeo.connect(API_URL)
     return con
 

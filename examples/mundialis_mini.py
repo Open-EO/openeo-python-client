@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import json
+
 import openeo
 
 backend_url = 'https://openeo.mundialis.de'

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 
 import logging
-import openeo
 import time
+
+import openeo
 
 logging.basicConfig(level=logging.INFO)
 

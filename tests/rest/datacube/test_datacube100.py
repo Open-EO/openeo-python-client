@@ -7,12 +7,13 @@ import collections
 import copy
 import io
 import json
+import logging
 import pathlib
-import sys
 import re
 import textwrap
 from typing import Optional
 
+import pyproj
 import pytest
 import requests
 import shapely.geometry
@@ -20,15 +21,19 @@ import shapely.geometry
 import openeo.metadata
 import openeo.processes
 from openeo.api.process import Parameter
+from openeo.capabilities import ComparableVersion
 from openeo.internal.graph_building import PGNode
 from openeo.internal.process_graph_visitor import ProcessGraphVisitException
 from openeo.internal.warnings import UserDeprecationWarning
+from openeo.processes import ProcessBuilder
 from openeo.rest import OpenEoClientException
+from openeo.rest._testing import build_capabilities
 from openeo.rest.connection import Connection
-from openeo.rest.datacube import THIS, DataCube, ProcessBuilder, UDF
-from openeo.rest.vectorcube import VectorCube
-from .conftest import API_URL, setup_collection_metadata, DEFAULT_S2_METADATA
+from openeo.rest.datacube import THIS, UDF, DataCube
+
 from ... import load_json_resource
+from .. import get_download_graph
+from .conftest import API_URL, DEFAULT_S2_METADATA, setup_collection_metadata
 
 basic_geometry_types = [
     (
@@ -182,12 +187,21 @@ PROJJSON_FOR_EPSG23631 = {
 }
 
 
-CRS_VALUES_SUPPORTED_FOR_ALL_PYTHON_VERSIONS = [
-    "EPSG:32631",
-    "32631",
-    32631,
-    "+proj=utm +zone=31 +datum=WGS84 +units=m +no_defs",  # is also EPSG:32631, in proj format
-]
+def _get_normalizable_crs_inputs():
+    """
+    Dynamic (proj version based) generation of supported CRS inputs (to normalize).
+    :return:
+    """
+    yield "EPSG:32631"
+    yield 32631
+    if pyproj.__version__ >= ComparableVersion("3.3.1"):
+        # TODO drop this skip once support for python 3.7 is dropped (pyproj 3.3.0 requires at least python 3.8)
+        # pyproj below 3.3.1 does not support int-like strings
+        yield "32631"
+    yield "+proj=utm +zone=31 +datum=WGS84 +units=m +no_defs"  # is also EPSG:32631, in proj format
+    if pyproj.__version__ >= ComparableVersion("3.1.0"):
+        # WKT2 format support requires pyproj 3.1.0 or higher
+        yield WKT2_FOR_EPSG23631
 
 
 def _get_leaf_node(cube: DataCube) -> dict:
@@ -405,7 +419,7 @@ def test_aggregate_spatial_types(con100: Connection, polygon, expected_geometrie
     }
 
 
-@pytest.mark.parametrize("crs", CRS_VALUES_SUPPORTED_FOR_ALL_PYTHON_VERSIONS)
+@pytest.mark.parametrize("crs", _get_normalizable_crs_inputs())
 def test_aggregate_spatial_with_crs(con100: Connection, recwarn, crs: str):
     img = con100.load_collection("S2")
     polygon = shapely.geometry.box(0, 0, 1, 1)
@@ -430,36 +444,10 @@ def test_aggregate_spatial_with_crs(con100: Connection, recwarn, crs: str):
     }
 
 
-@pytest.mark.skipif(sys.version_info < (3, 7), reason="WKT2 format not supported by pyproj 3.0 / python 3.6")
-def test_aggregate_spatial_with_crs_as_wkt(con100: Connection, recwarn):
-    """Separate test coverage for WKT, so we can skip it for Python3.6"""
-    crs = WKT2_FOR_EPSG23631
-    img = con100.load_collection("S2")
-    polygon = shapely.geometry.box(0, 0, 1, 1)
-    masked = img.aggregate_spatial(geometries=polygon, reducer="mean", crs=crs)
-    warnings = [str(w.message) for w in recwarn]
-    assert f"Geometry with non-Lon-Lat CRS {crs!r} is only supported by specific back-ends." in warnings
-    assert sorted(masked.flat_graph().keys()) == ["aggregatespatial1", "loadcollection1"]
-    assert masked.flat_graph()["aggregatespatial1"] == {
-        "process_id": "aggregate_spatial",
-        "arguments": {
-            "data": {"from_node": "loadcollection1"},
-            "geometries": {
-                "type": "Polygon",
-                "coordinates": (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),),
-                "crs": {"properties": {"name": "EPSG:32631"}, "type": "name"},
-            },
-            "reducer": {
-                "process_graph": {
-                    "mean1": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}
-                }
-            },
-        },
-        "result": True,
-    }
-
-
-@pytest.mark.skipif(sys.version_info < (3, 8), reason="PROJJSON format not supported by pyproj 3.2 / python < v3.8")
+@pytest.mark.skipif(
+    pyproj.__version__ < ComparableVersion("3.3.0"),
+    reason="PROJJSON format support requires pyproj 3.3.0 or higher",
+)
 @pytest.mark.parametrize("crs", [PROJJSON_FOR_EPSG23631, json.dumps(PROJJSON_FOR_EPSG23631)])
 def test_aggregate_spatial_with_crs_as_projjson(con100: Connection, recwarn, crs):
     """Separate test coverage for PROJJSON, so we can skip it for Python versions below 3.8"""
@@ -686,7 +674,7 @@ def test_mask_polygon_types(con100: Connection, polygon, expected_mask):
     }
 
 
-@pytest.mark.parametrize("crs", CRS_VALUES_SUPPORTED_FOR_ALL_PYTHON_VERSIONS)
+@pytest.mark.parametrize("crs", _get_normalizable_crs_inputs())
 def test_mask_polygon_with_crs(con100: Connection, recwarn, crs: str):
     img = con100.load_collection("S2")
     polygon = shapely.geometry.box(0, 0, 1, 1)
@@ -709,31 +697,10 @@ def test_mask_polygon_with_crs(con100: Connection, recwarn, crs: str):
     }
 
 
-@pytest.mark.skipif(sys.version_info < (3, 7), reason="WKT2 format not supported by pyproj 3.0 / python 3.6")
-def test_mask_polygon_with_crs_as_wkt(con100: Connection, recwarn):
-    """Separate test coverage for WKT, so we can skip it for Python3.6"""
-    crs = WKT2_FOR_EPSG23631
-    img = con100.load_collection("S2")
-    polygon = shapely.geometry.box(0, 0, 1, 1)
-    masked = img.mask_polygon(mask=polygon, srs=crs)
-    warnings = [str(w.message) for w in recwarn]
-    assert f"Geometry with non-Lon-Lat CRS {crs!r} is only supported by specific back-ends." in warnings
-    assert sorted(masked.flat_graph().keys()) == ["loadcollection1", "maskpolygon1"]
-    assert masked.flat_graph()["maskpolygon1"] == {
-        "process_id": "mask_polygon",
-        "arguments": {
-            "data": {"from_node": "loadcollection1"},
-            "mask": {
-                "type": "Polygon", "coordinates": (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),),
-                # All listed test inputs for crs should be converted to "EPSG:32631"
-                "crs": {"type": "name", "properties": {"name": "EPSG:32631"}},
-            },
-        },
-        "result": True,
-    }
-
-
-@pytest.mark.skipif(sys.version_info < (3, 8), reason="PROJJSON format not supported by pyproj 3.2 / python < v3.8")
+@pytest.mark.skipif(
+    pyproj.__version__ < ComparableVersion("3.3.0"),
+    reason="PROJJSON format support requires pyproj 3.3.0 or higher",
+)
 @pytest.mark.parametrize("crs", [PROJJSON_FOR_EPSG23631, json.dumps(PROJJSON_FOR_EPSG23631)])
 def test_mask_polygon_with_crs_as_projjson(con100: Connection, recwarn, crs):
     """Separate test coverage for PROJJSON, so we can skip it for Python versions below 3.8"""
@@ -1013,10 +980,9 @@ def test_ndvi_args(con100: Connection):
     assert ndvi.metadata.band_dimension.band_names == ["B02", "B03", "B04", "B08", "ndvii"]
 
 
-def test_rename_dimension(con100):
-    s2 = con100.load_collection("S2")
-    x = s2.rename_dimension(source="bands", target="ThisIsNotTheBandsDimension")
-    assert x.flat_graph() == {
+def test_rename_dimension(s2cube):
+    cube = s2cube.rename_dimension(source="bands", target="ThisIsNotTheBandsDimension")
+    assert cube.flat_graph() == {
         "loadcollection1": {
             "process_id": "load_collection",
             "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
@@ -1027,6 +993,30 @@ def test_rename_dimension(con100):
                 "data": {"from_node": "loadcollection1"},
                 "source": "bands",
                 "target": "ThisIsNotTheBandsDimension",
+            },
+            "result": True,
+        },
+    }
+
+
+def test_rename_dimension_invalid_dimension_with_metadata(s2cube):
+    with pytest.raises(ValueError, match="Invalid dimension 'applepie'."):
+        _ = s2cube.rename_dimension(source="applepie", target="icecream")
+
+
+def test_rename_dimension_invalid_dimension_no_metadata(s2cube_without_metadata):
+    cube = s2cube_without_metadata.rename_dimension(source="applepie", target="icecream")
+    assert cube.flat_graph() == {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
+        },
+        "renamedimension1": {
+            "process_id": "rename_dimension",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "source": "applepie",
+                "target": "icecream",
             },
             "result": True,
         },
@@ -1184,29 +1174,70 @@ def test_reduce_dimension_context(con100):
         }}
 
 
-def test_reduce_bands(con100):
-    s2 = con100.load_collection("S2")
-    x = s2.reduce_bands(reducer="mean")
-    assert x.flat_graph() == {
-        'loadcollection1': {
-            'process_id': 'load_collection',
-            'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
-        },
-        'reducedimension1': {
-            'process_id': 'reduce_dimension',
-            'arguments': {
-                'data': {'from_node': 'loadcollection1'},
-                'dimension': 'bands',
-                'reducer': {'process_graph': {
-                    'mean1': {
-                        'process_id': 'mean',
-                        'arguments': {'data': {'from_parameter': 'data'}},
-                        'result': True
-                    }
-                }}
+def test_reduce_dimension_invalid_dimension_with_metadata(s2cube):
+    with pytest.raises(ValueError, match="ola"):
+        s2cube.reduce_dimension(dimension="olapola", reducer="mean")
+
+
+def test_reduce_dimension_invalid_dimension_no_metadata(s2cube_without_metadata):
+    cube = s2cube_without_metadata.reduce_dimension(dimension="olapola", reducer="mean")
+    assert get_download_graph(cube)["reducedimension1"] == {
+        "process_id": "reduce_dimension",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "dimension": "olapola",
+            "reducer": {
+                "process_graph": {
+                    "mean1": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}
+                }
             },
-            'result': True
-        }}
+        },
+    }
+    cube = cube.reduce_dimension(dimension="jamanee", reducer="max")
+    assert get_download_graph(cube)["reducedimension2"] == {
+        "process_id": "reduce_dimension",
+        "arguments": {
+            "data": {"from_node": "reducedimension1"},
+            "dimension": "jamanee",
+            "reducer": {
+                "process_graph": {
+                    "max1": {"process_id": "max", "arguments": {"data": {"from_parameter": "data"}}, "result": True}
+                }
+            },
+        },
+    }
+
+
+def test_reduce_bands(s2cube):
+    cube = s2cube.reduce_bands(reducer="mean")
+    assert get_download_graph(cube)["reducedimension1"] == {
+        "process_id": "reduce_dimension",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "dimension": "bands",
+            "reducer": {
+                "process_graph": {
+                    "mean1": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}
+                }
+            },
+        },
+    }
+
+
+def test_reduce_bands_no_metadata(s2cube_without_metadata):
+    cube = s2cube_without_metadata.reduce_bands(reducer="mean")
+    assert get_download_graph(cube)["reducedimension1"] == {
+        "process_id": "reduce_dimension",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "dimension": "bands",
+            "reducer": {
+                "process_graph": {
+                    "mean1": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}
+                }
+            },
+        },
+    }
 
 
 def test_reduce_bands_udf(con100):
@@ -1238,10 +1269,9 @@ def test_reduce_bands_udf(con100):
         }}
 
 
-def test_reduce_temporal(con100):
-    s2 = con100.load_collection("S2")
-    x = s2.reduce_temporal(reducer="mean")
-    assert x.flat_graph() == {
+def test_reduce_temporal(s2cube):
+    cube = s2cube.reduce_temporal(reducer="mean")
+    assert cube.flat_graph() == {
         'loadcollection1': {
             'process_id': 'load_collection',
             'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
@@ -1291,6 +1321,22 @@ def test_reduce_temporal_udf(con100):
             },
             'result': True
         }}
+
+
+def test_reduce_temporal_without_metadata(s2cube_without_metadata):
+    cube = s2cube_without_metadata.reduce_temporal(reducer="mean")
+    assert get_download_graph(cube)["reducedimension1"] == {
+        "process_id": "reduce_dimension",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "dimension": "t",
+            "reducer": {
+                "process_graph": {
+                    "mean1": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}
+                }
+            },
+        },
+    }
 
 
 def test_chunk_polygon_basic(con100: Connection):
@@ -1600,6 +1646,39 @@ def test_load_collection_temporal_extent_process_builder_function(con100):
     assert im.flat_graph() == expected
 
 
+def test_load_collection_parameterized_collection_id(con100):
+    """https://github.com/Open-EO/openeo-python-client/issues/471"""
+    collection = Parameter(name="my_collection", schema={"type": "str"})
+    cube = con100.load_collection(collection)
+    assert get_download_graph(cube, drop_save_result=True) == {
+        "loadcollection1": {
+            "arguments": {
+                "id": {"from_parameter": "my_collection"},
+                "spatial_extent": None,
+                "temporal_extent": None,
+            },
+            "process_id": "load_collection",
+        },
+    }
+
+
+def test_load_collection_parameterized_bands(con100):
+    """https://github.com/Open-EO/openeo-python-client/issues/471"""
+    bands = Parameter(name="my_bands", schema={"type": "array", "items": {"type": "string"}})
+    cube = con100.load_collection("S2", bands=bands)
+    assert get_download_graph(cube, drop_save_result=True) == {
+        "loadcollection1": {
+            "arguments": {
+                "id": "S2",
+                "spatial_extent": None,
+                "temporal_extent": None,
+                "bands": {"from_parameter": "my_bands"},
+            },
+            "process_id": "load_collection",
+        },
+    }
+
+
 def test_apply_dimension_temporal_cumsum_with_target(con100):
     cumsum = con100.load_collection("S2").apply_dimension('cumsum', dimension="t", target_dimension="MyNewTime")
     actual_graph = cumsum.flat_graph()
@@ -1669,6 +1748,31 @@ def test_apply_dimension_modify_bands(con100):
             "result": True
         },
     }
+
+
+
+def test_datacube_from_process_apply_dimension(con100, caplog, recwarn):
+    """https://github.com/Open-EO/openeo-python-client/issues/442"""
+    cube = con100.datacube_from_process("wibble")
+    cube = cube.apply_dimension(dimension="t", process="cumsum")
+    assert get_download_graph(cube)["applydimension1"] == {
+        "process_id": "apply_dimension",
+        "arguments": {
+            "data": {"from_node": "wibble1"},
+            "dimension": "t",
+            "process": {
+                "process_graph": {
+                    "cumsum1": {
+                        "arguments": {"data": {"from_parameter": "data"}},
+                        "process_id": "cumsum",
+                        "result": True,
+                    }
+                }
+            },
+        },
+    }
+    assert caplog.messages == []
+    assert recwarn.list == []
 
 
 def test_apply_neighborhood_context(con100):
@@ -1827,7 +1931,9 @@ def test_custom_process_arguments_namespacd(con100: Connection):
     assert res.flat_graph() == expected
 
 
+@pytest.mark.parametrize("support_udp", [True])
 def test_save_user_defined_process(con100, requests_mock):
+    requests_mock.get(API_URL + "/", json=build_capabilities(udp=True))
     requests_mock.get(API_URL + "/processes", json={"processes": [{"id": "add"}]})
 
     expected_body = load_json_resource("data/1.0.0/save_user_defined_process.json")
@@ -1849,7 +1955,9 @@ def test_save_user_defined_process(con100, requests_mock):
     assert adapter.called
 
 
+@pytest.mark.parametrize("support_udp", [True])
 def test_save_user_defined_process_public(con100, requests_mock):
+    requests_mock.get(API_URL + "/", json=build_capabilities(udp=True))
     requests_mock.get(API_URL + "/processes", json={"processes": [{"id": "add"}]})
 
     expected_body = load_json_resource("data/1.0.0/save_user_defined_process.json")
@@ -2014,6 +2122,14 @@ def test_datacube_from_process_namespace(con100):
     assert cube.flat_graph() == {
         "colorize1": {"process_id": "colorize", "namespace": "foo", "arguments": {"color": "red"}, "result": True}
     }
+
+
+def test_datacube_from_process_no_warnings(con100, caplog, recwarn):
+    """https://github.com/Open-EO/openeo-python-client/issues/442"""
+    caplog.set_level(logging.INFO)
+    _ = con100.datacube_from_process("colorize", color="red", size=4)
+    assert caplog.messages == []
+    assert recwarn.list == []
 
 
 class TestDataCubeFromFlatGraph:
@@ -2429,7 +2545,7 @@ def test_unflatten_dimension(con100):
 
 def test_merge_if(con100):
     """https://github.com/Open-EO/openeo-python-client/issues/275"""
-    from openeo.processes import if_, eq
+    from openeo.processes import eq, if_
 
     s1 = con100.load_collection("S2")
     s2 = con100.load_collection("SENTINEL2_RADIOMETRY_10M")
@@ -3145,3 +3261,48 @@ class TestUDF:
         expected["runudf1"]["arguments"]["runtime"] = "Py"
         expected["runudf1"]["arguments"]["version"] = "v4"
         assert post_processed.flat_graph() == expected
+
+
+def test_to_json_with_if_and_udf(con100):
+    """https://github.com/Open-EO/openeo-python-client/issues/470"""
+    cube = con100.load_collection("S2")
+    cube = openeo.processes.if_(True, cube, cube)
+    cube = cube.apply(openeo.UDF("def foo(): pass"))
+
+    flat = cube.flat_graph()
+    assert flat == {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
+        },
+        "if1": {
+            "process_id": "if",
+            "arguments": {
+                "accept": {"from_node": "loadcollection1"},
+                "reject": {"from_node": "loadcollection1"},
+                "value": True,
+            },
+        },
+        "apply1": {
+            "process_id": "apply",
+            "arguments": {
+                "data": {"from_node": "if1"},
+                "process": {
+                    "process_graph": {
+                        "runudf1": {
+                            "arguments": {
+                                "data": {"from_parameter": "x"},
+                                "runtime": "Python",
+                                "udf": "def " "foo(): " "pass",
+                            },
+                            "process_id": "run_udf",
+                            "result": True,
+                        }
+                    }
+                },
+            },
+            "result": True,
+        },
+    }
+
+    assert 'process_id": "run_udf"' in cube.to_json()

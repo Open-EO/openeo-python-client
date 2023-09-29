@@ -97,6 +97,17 @@ def test_parameter_array():
         "name": "bands", "description": "bands", "schema": {"type": "array"}, "optional": True,
         "default": ["red", "green", "blue"]
     }
+    assert Parameter.array("bands", item_schema="string").to_dict() == {
+        "name": "bands",
+        "description": "bands",
+        "schema": {"type": "array", "items": {"type": "string"}},
+    }
+    assert Parameter.array("bands", item_schema={"type": "string"}).to_dict() == {
+        "name": "bands",
+        "description": "bands",
+        "schema": {"type": "array", "items": {"type": "string"}},
+    }
+
 
 
 @pytest.mark.parametrize(["kwargs", "expected"], [

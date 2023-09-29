@@ -1,6 +1,8 @@
 """
 This module provides a Connection object to manage and persist settings when interacting with the OpenEO API.
 """
+from __future__ import annotations
+
 import datetime
 import json
 import logging
@@ -10,43 +12,54 @@ import sys
 import warnings
 from collections import OrderedDict
 from pathlib import Path, PurePosixPath
-from typing import Dict, List, Tuple, Union, Callable, Optional, Any, Iterator, Iterable
+from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Sequence, Tuple, Union
 
 import requests
-from requests import Response
-from requests.auth import HTTPBasicAuth, AuthBase
 import shapely.geometry.base
+from requests import Response
+from requests.auth import AuthBase, HTTPBasicAuth
 
 import openeo
 from openeo.capabilities import ApiVersionException, ComparableVersion
-from openeo.config import get_config_option, config_log
+from openeo.config import config_log, get_config_option
 from openeo.internal.documentation import openeo_process
-from openeo.internal.graph_building import PGNode, as_flat_graph, FlatGraphableMixin
+from openeo.internal.graph_building import FlatGraphableMixin, PGNode, as_flat_graph
 from openeo.internal.jupyter import VisualDict, VisualList
 from openeo.internal.processes.builder import ProcessBuilderBase
-from openeo.internal.warnings import legacy_alias, deprecated
-from openeo.metadata import CollectionMetadata, SpatialDimension, TemporalDimension, BandDimension, Band
-from openeo.rest import OpenEoClientException, OpenEoApiError, OpenEoRestError
-from openeo.rest.auth.auth import NullAuth, BearerAuth, BasicBearerAuth, OidcBearerAuth
-from openeo.rest.auth.config import RefreshTokenStore, AuthConfig
-from openeo.rest.auth.oidc import OidcClientCredentialsAuthenticator, OidcAuthCodePkceAuthenticator, \
-    OidcClientInfo, OidcAuthenticator, OidcRefreshTokenAuthenticator, OidcResourceOwnerPasswordAuthenticator, \
-    OidcDeviceAuthenticator, OidcProviderInfo, OidcException, DefaultOidcClientGrant, GrantsChecker
-from openeo.rest.datacube import DataCube
-from openeo.rest.mlmodel import MlModel
-from openeo.rest.userfile import UserFile
+from openeo.internal.warnings import deprecated, legacy_alias
+from openeo.metadata import Band, BandDimension, CollectionMetadata, SpatialDimension, TemporalDimension
+from openeo.rest import CapabilitiesException, OpenEoApiError, OpenEoClientException, OpenEoRestError
+from openeo.rest._datacube import build_child_callback
+from openeo.rest.auth.auth import BasicBearerAuth, BearerAuth, NullAuth, OidcBearerAuth
+from openeo.rest.auth.config import AuthConfig, RefreshTokenStore
+from openeo.rest.auth.oidc import (
+    DefaultOidcClientGrant,
+    GrantsChecker,
+    OidcAuthCodePkceAuthenticator,
+    OidcAuthenticator,
+    OidcClientCredentialsAuthenticator,
+    OidcClientInfo,
+    OidcDeviceAuthenticator,
+    OidcException,
+    OidcProviderInfo,
+    OidcRefreshTokenAuthenticator,
+    OidcResourceOwnerPasswordAuthenticator,
+)
+from openeo.rest.datacube import DataCube, InputDate
 from openeo.rest.job import BatchJob, RESTJob
+from openeo.rest.mlmodel import MlModel
 from openeo.rest.rest_capabilities import RESTCapabilities
 from openeo.rest.service import Service
-from openeo.rest.udp import RESTUserDefinedProcess, Parameter
+from openeo.rest.udp import Parameter, RESTUserDefinedProcess
+from openeo.rest.userfile import UserFile
 from openeo.rest.vectorcube import VectorCube
 from openeo.util import (
-    ensure_list,
-    dict_no_none,
-    rfc3339,
-    load_json_resource,
-    LazyLoadCache,
     ContextTimer,
+    LazyLoadCache,
+    dict_no_none,
+    ensure_list,
+    load_json_resource,
+    rfc3339,
     str_truncate,
     url_join,
 )
@@ -305,7 +318,7 @@ class Connection(RestApiConnection):
             self._refresh_token_store = RefreshTokenStore()
         return self._refresh_token_store
 
-    def authenticate_basic(self, username: Optional[str] = None, password: Optional[str] = None) -> "Connection":
+    def authenticate_basic(self, username: Optional[str] = None, password: Optional[str] = None) -> Connection:
         """
         Authenticate a user to the backend using basic username and password.
 
@@ -430,7 +443,7 @@ class Connection(RestApiConnection):
         store_refresh_token: bool = False,
         fallback_refresh_token_to_store: Optional[str] = None,
         oidc_auth_renewer: Optional[OidcAuthenticator] = None,
-    ) -> "Connection":
+    ) -> Connection:
         """
         Authenticate through OIDC and set up bearer token (based on OIDC access_token) for further requests.
         """
@@ -464,7 +477,7 @@ class Connection(RestApiConnection):
         server_address: Optional[Tuple[str, int]] = None,
         webbrowser_open: Optional[Callable] = None,
         store_refresh_token=False,
-    ) -> "Connection":
+    ) -> Connection:
         """
         OpenID Connect Authorization Code Flow (with PKCE).
 
@@ -488,7 +501,7 @@ class Connection(RestApiConnection):
         client_id: Optional[str] = None,
         client_secret: Optional[str] = None,
         provider_id: Optional[str] = None,
-    ) -> 'Connection':
+    ) -> Connection:
         """
         Authenticate with :ref:`OIDC Client Credentials flow <authenticate_oidc_client_credentials>`
 
@@ -527,7 +540,7 @@ class Connection(RestApiConnection):
         client_secret: Optional[str] = None,
         provider_id: Optional[str] = None,
         store_refresh_token: bool = False,
-    ) -> "Connection":
+    ) -> Connection:
         """
         OpenId Connect Resource Owner Password Credentials
         """
@@ -548,7 +561,7 @@ class Connection(RestApiConnection):
         provider_id: Optional[str] = None,
         *,
         store_refresh_token: bool = False,
-    ) -> "Connection":
+    ) -> Connection:
         """
         Authenticate with :ref:`OIDC Refresh Token flow <authenticate_oidc_client_credentials>`
 
@@ -593,7 +606,7 @@ class Connection(RestApiConnection):
         use_pkce: Optional[bool] = None,
         max_poll_time: float = OidcDeviceAuthenticator.DEFAULT_MAX_POLL_TIME,
         **kwargs,
-    ) -> "Connection":
+    ) -> Connection:
         """
         Authenticate with the :ref:`OIDC Device Code flow <authenticate_oidc_device>`
 
@@ -965,6 +978,15 @@ class Connection(RestApiConnection):
         jobs = resp["jobs"]
         return VisualList("data-table", data=jobs, parameters={'columns': 'jobs'})
 
+    def assert_user_defined_process_support(self):
+        """
+        Capabilities document based verification that back-end supports user-defined processes.
+
+        .. versionadded:: 0.23.0
+        """
+        if not self.capabilities().supports_endpoint("/process_graphs"):
+            raise CapabilitiesException("Backend does not support user-defined processes.")
+
     def save_user_defined_process(
             self, user_defined_process_id: str,
             process_graph: Union[dict, ProcessBuilderBase],
@@ -992,6 +1014,7 @@ class Connection(RestApiConnection):
         :param links: A list of links.
         :return: a RESTUserDefinedProcess instance
         """
+        self.assert_user_defined_process_support()
         if user_defined_process_id in set(p["id"] for p in self.list_processes()):
             warnings.warn("Defining user-defined process {u!r} with same id as a pre-defined process".format(
                 u=user_defined_process_id))
@@ -1009,6 +1032,7 @@ class Connection(RestApiConnection):
         """
         Lists all user-defined processes of the authenticated user.
         """
+        self.assert_user_defined_process_support()
         data = self.get("/process_graphs", expected_status=200).json()["processes"]
         return VisualList("processes", data=data, parameters={'show-graph': True, 'provide-download': False})
 
@@ -1104,21 +1128,23 @@ class Connection(RestApiConnection):
 
     @openeo_process
     def load_collection(
-            self,
-            collection_id: str,
-            spatial_extent: Optional[Dict[str, float]] = None,
-        temporal_extent: Optional[List[Union[str, datetime.datetime, datetime.date]]] = None,
-        bands: Optional[List[str]] = None,
-            properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
-            max_cloud_cover: Optional[float] = None,
-            fetch_metadata=True,
+        self,
+        collection_id: Union[str, Parameter],
+        spatial_extent: Optional[Dict[str, float]] = None,
+        temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
+        bands: Union[None, List[str], Parameter] = None,
+        properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
+        max_cloud_cover: Optional[float] = None,
+        fetch_metadata=True,
     ) -> DataCube:
         """
         Load a DataCube by collection id.
 
         :param collection_id: image collection identifier
         :param spatial_extent: limit data to specified bounding box or polygons
-        :param temporal_extent: limit data to specified temporal interval
+        :param temporal_extent: limit data to specified temporal interval.
+            Typically, just a two-item list or tuple containing start and end date.
+            See :ref:`filtering-on-temporal-extent-section` for more details on temporal extent handling and shorthand notation.
         :param bands: only add the specified bands
         :param properties: limit data by metadata property predicates
         :param max_cloud_cover: shortcut to set maximum cloud cover ("eo:cloud_cover" collection property)
@@ -1126,13 +1152,21 @@ class Connection(RestApiConnection):
 
         .. versionadded:: 0.13.0
             added the ``max_cloud_cover`` argument.
+
+        .. versionchanged:: 0.23.0
+            Argument ``temporal_extent``: add support for year/month shorthand notation
+            as discussed at :ref:`date-shorthand-handling`.
         """
         return DataCube.load_collection(
-                collection_id=collection_id, connection=self,
-                spatial_extent=spatial_extent, temporal_extent=temporal_extent, bands=bands, properties=properties,
-                max_cloud_cover=max_cloud_cover,
-                fetch_metadata=fetch_metadata,
-            )
+            collection_id=collection_id,
+            connection=self,
+            spatial_extent=spatial_extent,
+            temporal_extent=temporal_extent,
+            bands=bands,
+            properties=properties,
+            max_cloud_cover=max_cloud_cover,
+            fetch_metadata=fetch_metadata,
+        )
 
     # TODO: remove this #100 #134 0.4.10
     imagecollection = legacy_alias(
@@ -1141,11 +1175,11 @@ class Connection(RestApiConnection):
 
     @openeo_process
     def load_result(
-            self,
-            id: str,
-            spatial_extent: Optional[Dict[str, float]] = None,
-            temporal_extent: Optional[List[Union[str, datetime.datetime, datetime.date]]] = None,
-            bands: Optional[List[str]] = None,
+        self,
+        id: str,
+        spatial_extent: Optional[Dict[str, float]] = None,
+        temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
+        bands: Optional[List[str]] = None,
     ) -> DataCube:
         """
         Loads batch job results by job id from the server-side user workspace.
@@ -1153,28 +1187,27 @@ class Connection(RestApiConnection):
 
         :param id: The id of a batch job with results.
         :param spatial_extent: limit data to specified bounding box or polygons
-        :param temporal_extent: limit data to specified temporal interval
+        :param temporal_extent: limit data to specified temporal interval.
+            Typically, just a two-item list or tuple containing start and end date.
+            See :ref:`filtering-on-temporal-extent-section` for more details on temporal extent handling and shorthand notation.
         :param bands: only add the specified bands
 
         :return: a :py:class:`DataCube`
+
+        .. versionchanged:: 0.23.0
+            Argument ``temporal_extent``: add support for year/month shorthand notation
+            as discussed at :ref:`date-shorthand-handling`.
         """
         # TODO: add check that back-end supports `load_result` process?
-        metadata = CollectionMetadata({}, dimensions=[
-            SpatialDimension(name="x", extent=[]),
-            SpatialDimension(name="y", extent=[]),
-            TemporalDimension(name='t', extent=[]),
-            BandDimension(name="bands", bands=[Band("unknown")]),
-        ])
         cube = self.datacube_from_process(
             process_id="load_result",
             id=id,
             **dict_no_none(
                 spatial_extent=spatial_extent,
-                temporal_extent=temporal_extent and DataCube._get_temporal_extent(temporal_extent),
+                temporal_extent=temporal_extent and DataCube._get_temporal_extent(extent=temporal_extent),
                 bands=bands,
             ),
         )
-        cube.metadata = metadata
         return cube
 
     @openeo_process
@@ -1182,9 +1215,9 @@ class Connection(RestApiConnection):
         self,
         url: str,
         spatial_extent: Optional[Dict[str, float]] = None,
-        temporal_extent: Optional[List[Union[str, datetime.datetime, datetime.date]]] = None,
+        temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
         bands: Optional[List[str]] = None,
-        properties: Optional[dict] = None,
+        properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
     ) -> DataCube:
         """
         Loads data from a static STAC catalog or a STAC API Collection and returns the data as a processable :py:class:`DataCube`.
@@ -1279,32 +1312,29 @@ class Connection(RestApiConnection):
             This parameter is not supported for static STAC.
 
         .. versionadded:: 0.17.0
+
+        .. versionchanged:: 0.23.0
+            Argument ``temporal_extent``: add support for year/month shorthand notation
+            as discussed at :ref:`date-shorthand-handling`.
         """
-        # TODO: detect actual metadata from URL
-        metadata = CollectionMetadata(
-            {},
-            dimensions=[
-                SpatialDimension(name="x", extent=[]),
-                SpatialDimension(name="y", extent=[]),
-                TemporalDimension(name="t", extent=[]),
-                BandDimension(name="bands", bands=[Band("unknown")]),
-            ],
-        )
+        # TODO #425 move this implementation to `DataCube` and just forward here (like with `load_collection`)
+        # TODO #425 detect actual metadata from URL
         arguments = {"url": url}
-        # TODO: more normalization/validation of extent/band parameters and `properties`
+        # TODO #425 more normalization/validation of extent/band parameters
         if spatial_extent:
             arguments["spatial_extent"] = spatial_extent
         if temporal_extent:
-            arguments["temporal_extent"] = DataCube._get_temporal_extent(temporal_extent)
+            arguments["temporal_extent"] = DataCube._get_temporal_extent(extent=temporal_extent)
         if bands:
             arguments["bands"] = bands
         if properties:
-            arguments["properties"] = properties
+            arguments["properties"] = {
+                prop: build_child_callback(pred, parent_parameters=["value"]) for prop, pred in properties.items()
+            }
         cube = self.datacube_from_process(process_id="load_stac", **arguments)
-        cube.metadata = metadata
         return cube
 
-    def load_ml_model(self, id: Union[str, BatchJob]) -> "MlModel":
+    def load_ml_model(self, id: Union[str, BatchJob]) -> MlModel:
         """
         Loads a machine learning model from a STAC Item.
 

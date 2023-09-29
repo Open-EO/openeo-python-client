@@ -20,7 +20,6 @@ from openeo.config import (
     get_user_data_dir,
 )
 
-
 DATA_ROOT_DIR = Path(__file__).parent / "data"
 
 

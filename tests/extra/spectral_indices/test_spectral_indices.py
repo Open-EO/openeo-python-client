@@ -2,11 +2,11 @@ from typing import List, Union
 
 from openeo.extra.spectral_indices import (
     append_and_rescale_indices,
-    compute_and_rescale_indices,
-    compute_indices,
-    append_indices,
-    compute_index,
     append_index,
+    append_indices,
+    compute_and_rescale_indices,
+    compute_index,
+    compute_indices,
     list_indices,
     load_indices,
 )

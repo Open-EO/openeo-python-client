@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import typing
 from pathlib import Path, PurePosixPath
 from typing import Any, Dict, Optional, Union
@@ -18,7 +20,7 @@ class UserFile:
         self,
         path: Union[str, PurePosixPath, None],
         *,
-        connection: "Connection",
+        connection: Connection,
         metadata: Optional[dict] = None,
     ):
         if path:
@@ -35,7 +37,7 @@ class UserFile:
         self.connection = connection
 
     @classmethod
-    def from_metadata(cls, metadata: dict, connection: "Connection") -> "UserFile":
+    def from_metadata(cls, metadata: dict, connection: Connection) -> UserFile:
         """Build :py:class:`UserFile` from a workspace file metadata dictionary."""
         return cls(path=None, connection=connection, metadata=metadata)
 
@@ -69,7 +71,7 @@ class UserFile:
 
         return target
 
-    def upload(self, source: Union[Path, str]) -> "UserFile":
+    def upload(self, source: Union[Path, str]) -> UserFile:
         """
         Uploads a local file to the path corresponding to this :py:class:`UserFile` in the user workspace
         and returns new :py:class:`UserFile` of newly uploaded file.

@@ -5,7 +5,12 @@ import pytest
 
 import openeo.processes
 from openeo.api.process import Parameter
-from openeo.internal.graph_building import FlatGraphNodeIdGenerator, PGNode, PGNodeGraphUnflattener, ReduceNode
+from openeo.internal.graph_building import (
+    FlatGraphNodeIdGenerator,
+    PGNode,
+    PGNodeGraphUnflattener,
+    ReduceNode,
+)
 from openeo.internal.process_graph_visitor import ProcessGraphVisitException
 
 
@@ -160,28 +165,34 @@ def test_build_and_flatten_namespace():
 
 def test_pgnode_to_dict_subprocess_graphs():
     load_collection = PGNode("load_collection", collection_id="S2")
-    band2 = PGNode("array_element", data={"from_argument": "data"}, index=2)
+    band2 = PGNode("array_element", data={"from_parameter": "data"}, index=2)
     band2_plus3 = PGNode("add", x={"from_node": band2}, y=2)
-    graph = ReduceNode(data=load_collection, reducer=band2_plus3, dimension='bands')
+    graph = ReduceNode(data=load_collection, reducer=band2_plus3, dimension="bands")
 
     assert graph.to_dict() == {
-        'process_id': 'reduce_dimension',
-        'arguments': {
-            'data': {'from_node': {
-                'process_id': 'load_collection',
-                'arguments': {'collection_id': 'S2'},
-            }},
-            'dimension': 'bands',
-            'reducer': {'process_graph': {
-                'process_id': 'add',
-                'arguments': {
-                    'x': {"from_node": {
-                        'process_id': 'array_element',
-                        'arguments': {'data': {'from_argument': 'data'}, 'index': 2},
-                    }},
-                    'y': 2
-                },
-            }}
+        "process_id": "reduce_dimension",
+        "arguments": {
+            "data": {
+                "from_node": {
+                    "process_id": "load_collection",
+                    "arguments": {"collection_id": "S2"},
+                }
+            },
+            "dimension": "bands",
+            "reducer": {
+                "process_graph": {
+                    "process_id": "add",
+                    "arguments": {
+                        "x": {
+                            "from_node": {
+                                "process_id": "array_element",
+                                "arguments": {"data": {"from_parameter": "data"}, "index": 2},
+                            }
+                        },
+                        "y": 2,
+                    },
+                }
+            },
         },
     }
     assert graph.flat_graph() == {
@@ -190,24 +201,23 @@ def test_pgnode_to_dict_subprocess_graphs():
             'arguments': {'collection_id': 'S2'},
         },
         "reducedimension1": {
-            'process_id': 'reduce_dimension',
-            'arguments': {
-                'data': {'from_node': "loadcollection1"},
-                'dimension': 'bands',
-                'reducer': {'process_graph': {
-                    "arrayelement1": {
-                        'process_id': 'array_element',
-                        'arguments': {'data': {'from_argument': 'data'}, 'index': 2},
-                    },
-                    "add1": {
-                        'process_id': 'add',
-                        'arguments': {
-                            'x': {"from_node": "arrayelement1"},
-                            'y': 2
+            "process_id": "reduce_dimension",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "dimension": "bands",
+                "reducer": {
+                    "process_graph": {
+                        "arrayelement1": {
+                            "process_id": "array_element",
+                            "arguments": {"data": {"from_parameter": "data"}, "index": 2},
                         },
-                        'result': True,
-                    }}
-                }
+                        "add1": {
+                            "process_id": "add",
+                            "arguments": {"x": {"from_node": "arrayelement1"}, "y": 2},
+                            "result": True,
+                        },
+                    }
+                },
             },
             "result": True,
         }
@@ -293,7 +303,7 @@ def test_pgnode_parameter_print_json():
     pg.print_json(file=out, indent=None)
     assert (
         out.getvalue()
-        == '{"process_graph": {"add1": {"process_id": "add", "arguments": {"x": {"from_parameter": "a"}, "y": 42}, "result": true}}}'
+        == '{"process_graph": {"add1": {"process_id": "add", "arguments": {"x": {"from_parameter": "a"}, "y": 42}, "result": true}}}\n'
     )
 
 

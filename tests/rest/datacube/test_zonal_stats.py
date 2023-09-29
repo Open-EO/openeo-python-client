@@ -4,8 +4,9 @@ import shapely.geometry
 import openeo.processes
 from openeo.api.process import Parameter
 from openeo.capabilities import ComparableVersion
-from .. import get_execute_graph
+
 from ... import load_json_resource
+from .. import get_execute_graph
 
 
 def test_polygon_timeseries_polygon(connection, api_version):
@@ -21,8 +22,6 @@ def test_polygon_timeseries_polygon(connection, api_version):
 
 @pytest.mark.parametrize("reducer", ["mean", openeo.processes.mean, lambda x: x.mean()])
 def test_aggregate_spatial(connection, api_version, reducer):
-    if api_version < ComparableVersion("1.0.0"):
-        pytest.skip()
     polygon = shapely.geometry.shape(load_json_resource("data/polygon.json"))
     res = (
         connection.load_collection("S2")
@@ -43,8 +42,6 @@ def test_polygon_timeseries_path(connection, api_version):
 
 @pytest.mark.parametrize("reducer", ["mean", openeo.processes.mean, lambda x: x.mean()])
 def test_aggregate_spatial_read_vector(connection, api_version, reducer):
-    if api_version < ComparableVersion("1.0.0"):
-        pytest.skip()
     res = (
         connection.load_collection("S2")
             .filter_bbox(3, 6, 52, 50)
@@ -54,8 +51,6 @@ def test_aggregate_spatial_read_vector(connection, api_version, reducer):
 
 
 def test_aggregate_spatial_parameter_polygon(connection, api_version):
-    if api_version < ComparableVersion("1.0.0"):
-        pytest.skip()
     geometries = Parameter("polygon")
     res = (
         connection.load_collection("S2")

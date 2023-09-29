@@ -1,8 +1,8 @@
-import openeo
 import logging
-from openeo.auth.auth_bearer import BearerAuth
 import time
 
+import openeo
+from openeo.auth.auth_bearer import BearerAuth
 
 logging.basicConfig(level=logging.INFO)
 

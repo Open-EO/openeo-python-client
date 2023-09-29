@@ -1,18 +1,25 @@
+from __future__ import annotations
+
 import datetime
 import json
 import logging
 import time
 import typing
 from pathlib import Path
-from typing import List, Union, Dict, Optional
+from typing import Dict, List, Optional, Union
 
 import requests
 
-from openeo.api.logs import LogEntry, normalize_log_level, log_level_name
+from openeo.api.logs import LogEntry, log_level_name, normalize_log_level
 from openeo.internal.documentation import openeo_endpoint
-from openeo.internal.jupyter import render_component, render_error, VisualDict, VisualList
+from openeo.internal.jupyter import (
+    VisualDict,
+    VisualList,
+    render_component,
+    render_error,
+)
 from openeo.internal.warnings import deprecated, legacy_alias
-from openeo.rest import OpenEoClientException, JobFailedException, OpenEoApiError
+from openeo.rest import JobFailedException, OpenEoApiError, OpenEoClientException
 from openeo.util import ensure_dir
 
 if typing.TYPE_CHECKING:
@@ -35,7 +42,7 @@ class BatchJob:
 
     # TODO #425 method to bootstrap `load_stac` directly from a BatchJob object
 
-    def __init__(self, job_id: str, connection: 'Connection'):
+    def __init__(self, job_id: str, connection: Connection):
         self.job_id = job_id
         """Unique identifier of the batch job (string)."""
 
@@ -94,7 +101,7 @@ class BatchJob:
     estimate_job = legacy_alias(estimate, since="0.20.0", mode="soft")
 
     @openeo_endpoint("POST /jobs/{job_id}/results")
-    def start(self) -> "BatchJob":
+    def start(self) -> BatchJob:
         """
         Start this batch job.
 
@@ -160,7 +167,7 @@ class BatchJob:
     def get_result(self):
         return _Result(self)
 
-    def get_results(self) -> "JobResults":
+    def get_results(self) -> JobResults:
         """
         Get handle to batch job results for result metadata inspection or downloading resulting assets.
 
@@ -221,7 +228,7 @@ class BatchJob:
     def run_synchronous(
             self, outputfile: Union[str, Path, None] = None,
             print=print, max_poll_interval=60, connection_retry_interval=30
-    ) -> 'BatchJob':
+    ) -> BatchJob:
         """Start the job, wait for it to finish and download result"""
         self.start_and_wait(
             print=print, max_poll_interval=max_poll_interval, connection_retry_interval=connection_retry_interval
@@ -233,7 +240,7 @@ class BatchJob:
 
     def start_and_wait(
             self, print=print, max_poll_interval: int = 60, connection_retry_interval: int = 30, soft_error_max=10
-    ) -> "BatchJob":
+    ) -> BatchJob:
         """
         Start the batch job, poll its status and wait till it finishes (or fails)
 

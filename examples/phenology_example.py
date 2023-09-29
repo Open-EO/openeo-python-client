@@ -1,10 +1,11 @@
-from shapely.geometry import Polygon
-
-import openeo
 import logging
 import os
 from pathlib import Path
+
 import pandas as pd
+from shapely.geometry import Polygon
+
+import openeo
 
 #enable logging in requests library
 logging.basicConfig(level=logging.DEBUG)

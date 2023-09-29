@@ -4,18 +4,19 @@
 
 # Note: this module was initially developed under the ``openeo-udf`` project (https://github.com/Open-EO/openeo-udf)
 
+from __future__ import annotations
 
 import collections
 import json
 import typing
 from pathlib import Path
-from typing import Union, Optional
+from typing import Optional, Union
 
 import numpy
 import xarray
 
 from openeo.udf import OpenEoUdfException
-from openeo.util import dict_no_none, deep_get
+from openeo.util import deep_get, dict_no_none
 
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).
@@ -81,7 +82,7 @@ class XarrayDataCube:
         })
 
     @classmethod
-    def from_dict(cls, xdc_dict: dict) -> "XarrayDataCube":
+    def from_dict(cls, xdc_dict: dict) -> XarrayDataCube:
         """
         Create a :py:class:`XarrayDataCube` from a Python dictionary that was created from
         the JSON definition of the data cube
@@ -120,7 +121,7 @@ class XarrayDataCube:
             raise ValueError("Can not guess format of {p}".format(p=path))
 
     @classmethod
-    def from_file(cls, path: Union[str, Path], fmt=None, **kwargs) -> "XarrayDataCube":
+    def from_file(cls, path: Union[str, Path], fmt=None, **kwargs) -> XarrayDataCube:
         """
         Load data file as :py:class:`XarrayDataCube` in memory
 
@@ -163,7 +164,7 @@ class XarrayDataCube:
             show_axeslabels: bool = False,
             fontsize: float = 10.,
             oversample: float = 1,
-            cmap: Union[str, 'matplotlib.colors.ColorMap'] = 'RdYlBu_r',
+            cmap: Union[str, 'matplotlib.colors.Colormap'] = 'RdYlBu_r',
             cbartext: str = None,
             to_file: str = None,
             to_show: bool = True

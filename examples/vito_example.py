@@ -1,6 +1,7 @@
-import openeo
-import logging
 import json
+import logging
+
+import openeo
 
 logging.basicConfig(level=logging.INFO)
 
