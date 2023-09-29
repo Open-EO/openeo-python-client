@@ -1146,8 +1146,6 @@ class DataCube(_ProcessGraphAbstraction):
         self,
         reducer: Union[str, typing.Callable, UDF, PGNode],
         context: Optional[dict] = None,
-        process_id="reduce_spatial",
-        band_math_mode: bool = False,
     ) -> "DataCube":
         """
         Add a reduce process with given reducer callback along the spatial dimensions
@@ -1173,7 +1171,7 @@ class DataCube(_ProcessGraphAbstraction):
         )
 
         return self.process_with_node(
-            PGNode(process_id=process_id, data=self, reducer=reducer, context=context),
+            PGNode(process_id="reduce_spatial", data=self, reducer=reducer, context=context),
             metadata=self.metadata.reduce_spatial(),
         )
 
