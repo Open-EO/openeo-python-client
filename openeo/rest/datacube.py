@@ -1168,7 +1168,9 @@ class DataCube(_ProcessGraphAbstraction):
 
         :param context: Additional data to be passed to the process.
         """
-        reducer = self._get_callback(process=reducer, parent_parameters=["data", "context"], connection=self.connection)
+        reducer = build_child_callback(
+            process=reducer, parent_parameters=["data", "context"], connection=self.connection
+        )
 
         return self.process_with_node(
             PGNode(process_id=process_id, data=self, reducer=reducer, context=context),
