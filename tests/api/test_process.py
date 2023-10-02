@@ -61,6 +61,22 @@ def test_parameter_string():
     }
 
 
+def test_parameter_string_subtype():
+    assert Parameter.string("cid", subtype="collection-id").to_dict() == {
+        "name": "cid",
+        "description": "cid",
+        "schema": {"type": "string", "subtype": "collection-id"},
+    }
+
+
+def test_parameter_string_format():
+    assert Parameter.string("date", subtype="date", format="date").to_dict() == {
+        "name": "date",
+        "description": "date",
+        "schema": {"type": "string", "subtype": "date", "format": "date"},
+    }
+
+
 def test_parameter_integer():
     assert Parameter.integer("iterations").to_dict() == {
         "name": "iterations", "description": "iterations", "schema": {"type": "integer"}
