@@ -4,7 +4,7 @@ import typing
 from typing import List, Optional, Union
 
 from openeo.api.process import Parameter
-from openeo.internal.graph_building import as_flat_graph
+from openeo.internal.graph_building import as_flat_graph, FlatGraphableMixin
 from openeo.internal.jupyter import render_component
 from openeo.internal.processes.builder import ProcessBuilderBase
 from openeo.internal.warnings import deprecated
@@ -16,15 +16,15 @@ if typing.TYPE_CHECKING:
 
 
 def build_process_dict(
-        process_graph: Union[dict, ProcessBuilderBase],
-        process_id: Optional[str] = None,
-        summary: Optional[str] = None,
-        description: Optional[str] = None,
-        parameters: Optional[List[Union[Parameter, dict]]] = None,
-        returns: Optional[dict] = None,
-        categories: Optional[List[str]] = None,
-        examples: Optional[List[dict]] = None,
-        links: Optional[List[dict]] = None,
+    process_graph: Union[dict, FlatGraphableMixin],
+    process_id: Optional[str] = None,
+    summary: Optional[str] = None,
+    description: Optional[str] = None,
+    parameters: Optional[List[Union[Parameter, dict]]] = None,
+    returns: Optional[dict] = None,
+    categories: Optional[List[str]] = None,
+    examples: Optional[List[dict]] = None,
+    links: Optional[List[dict]] = None,
 ) -> dict:
     """
     Build a dictionary describing a process with metadaa (`process_graph`, `parameters`, `description`, ...)
@@ -73,16 +73,16 @@ class RESTUserDefinedProcess:
         return render_component('process', data=process, parameters = {'show-graph': True, 'provide-download': False})
 
     def store(
-            self,
-            process_graph: Union[dict, ProcessBuilderBase],
-            parameters: List[Union[Parameter, dict]] = None,
-            public: bool = False,
-            summary: Optional[str] = None,
-            description: Optional[str] = None,
-            returns: Optional[dict] = None,
-            categories: Optional[List[str]] = None,
-            examples: Optional[List[dict]] = None,
-            links: Optional[List[dict]] = None,
+        self,
+        process_graph: Union[dict, FlatGraphableMixin],
+        parameters: Optional[List[Union[Parameter, dict]]] = None,
+        public: bool = False,
+        summary: Optional[str] = None,
+        description: Optional[str] = None,
+        returns: Optional[dict] = None,
+        categories: Optional[List[str]] = None,
+        examples: Optional[List[dict]] = None,
+        links: Optional[List[dict]] = None,
     ):
         """Store a process graph and its metadata on the backend as a user-defined process"""
         process = build_process_dict(
