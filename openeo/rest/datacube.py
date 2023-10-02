@@ -1169,9 +1169,11 @@ class DataCube(_ProcessGraphAbstraction):
         reducer = build_child_callback(
             process=reducer, parent_parameters=["data", "context"], connection=self.connection
         )
-
-        return self.process_with_node(
-            PGNode(process_id="reduce_spatial", data=self, reducer=reducer, context=context),
+        return self.process(
+            process_id="reduce_spatial",
+            data=self,
+            reducer=reducer,
+            context=context,
             metadata=self.metadata.reduce_spatial(),
         )
 
