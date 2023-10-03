@@ -1506,7 +1506,7 @@ class Connection(RestApiConnection):
         graph: Union[dict, FlatGraphableMixin, str, Path],
         outputfile: Union[Path, str, None] = None,
         timeout: Optional[int] = None,
-        validate: bool = VALIDATE_PROCESS_GRAPH_BY_DEFAULT,
+        validate: Optional[bool] = VALIDATE_PROCESS_GRAPH_BY_DEFAULT,
     ) -> Union[None, bytes]:
         """
         Downloads the result of a process graph synchronously,
@@ -1541,7 +1541,7 @@ class Connection(RestApiConnection):
         self,
         process_graph: Union[dict, str, Path],
         timeout: Optional[int] = None,
-        validate: bool = VALIDATE_PROCESS_GRAPH_BY_DEFAULT,
+        validate: Optional[bool] = VALIDATE_PROCESS_GRAPH_BY_DEFAULT,
     ):
         """
         Execute a process graph synchronously and return the result (assumed to be JSON).
@@ -1570,7 +1570,7 @@ class Connection(RestApiConnection):
         plan: Optional[str] = None,
         budget: Optional[float] = None,
         additional: Optional[dict] = None,
-        validate: bool = VALIDATE_PROCESS_GRAPH_BY_DEFAULT,
+        validate: Optional[bool] = VALIDATE_PROCESS_GRAPH_BY_DEFAULT,
     ) -> BatchJob:
         """
         Create a new job from given process graph on the back-end.
