@@ -72,6 +72,11 @@ DEFAULT_TIMEOUT = 20 * 60
 DEFAULT_TIMEOUT_SYNCHRONOUS_EXECUTE = 30 * 60
 
 
+# TODO: remove temporary constant that is intended for refactoring
+# constant for refactoring to switch default validation of process graph on or off.
+VALIDATE_PROCESS_GRAPH_BY_DEFAULT = True
+
+
 class RestApiConnection:
     """Base connection class implementing generic REST API request functionality"""
 
@@ -1052,7 +1057,14 @@ class Connection(RestApiConnection):
         :param process_graph: (flat) dict representing process graph
         :return: list of errors (dictionaries with "code" and "message" fields)
         """
-        request = {"process_graph": process_graph}
+        # TODO: sometimes process_graph is already in the graph. Should we really *always* add it?
+        #   Was getting errors in some new unit tests because of the double process_graph but
+        #   perhaps the error is really not here but somewhere else that adds process_graph
+        #   when it should not? Still needs to be confirmed.
+        if "process_graph" not in process_graph:
+            request = {"process_graph": process_graph}
+        else:
+            request = process_graph
         return self.post(path="/validation", json=request, expected_status=200).json()["errors"]
 
     @property
@@ -1474,12 +1486,27 @@ class Connection(RestApiConnection):
         result["process"] = process_graph
         return result
 
+    def _warn_if_process_graph_invalid(self, process_graph: Union[dict, FlatGraphableMixin, str, Path]):
+        if not self.capabilities().supports_endpoint("/validation", "POST"):
+            return
+
+        graph = as_flat_graph(process_graph)
+        if "process_graph" not in graph:
+            graph = {"process_graph": graph}
+
+        validation_errors = self.validate_process_graph(process_graph=graph)
+        if validation_errors:
+            _log.warning(
+                "Process graph is not valid. Validation errors:\n" + "\n".join(e["message"] for e in validation_errors)
+            )
+
     # TODO: unify `download` and `execute` better: e.g. `download` always writes to disk, `execute` returns result (raw or as JSON decoded dict)
     def download(
         self,
         graph: Union[dict, FlatGraphableMixin, str, Path],
         outputfile: Union[Path, str, None] = None,
         timeout: Optional[int] = None,
+        validate: bool = VALIDATE_PROCESS_GRAPH_BY_DEFAULT,
     ) -> Union[None, bytes]:
         """
         Downloads the result of a process graph synchronously,
@@ -1491,6 +1518,9 @@ class Connection(RestApiConnection):
         :param outputfile: output file
         :param timeout: timeout to wait for response
         """
+        if validate:
+            self._warn_if_process_graph_invalid(process_graph=graph)
+
         request = self._build_request_with_process_graph(process_graph=graph)
         response = self.post(
             path="/result",
@@ -1511,6 +1541,7 @@ class Connection(RestApiConnection):
         self,
         process_graph: Union[dict, str, Path],
         timeout: Optional[int] = None,
+        validate: bool = VALIDATE_PROCESS_GRAPH_BY_DEFAULT,
     ):
         """
         Execute a process graph synchronously and return the result (assumed to be JSON).
@@ -1519,6 +1550,9 @@ class Connection(RestApiConnection):
             or as local file path or URL
         :return: parsed JSON response
         """
+        if validate:
+            self._warn_if_process_graph_invalid(process_graph=process_graph)
+
         req = self._build_request_with_process_graph(process_graph=process_graph)
         return self.post(
             path="/result",
@@ -1536,6 +1570,7 @@ class Connection(RestApiConnection):
         plan: Optional[str] = None,
         budget: Optional[float] = None,
         additional: Optional[dict] = None,
+        validate: bool = VALIDATE_PROCESS_GRAPH_BY_DEFAULT,
     ) -> BatchJob:
         """
         Create a new job from given process graph on the back-end.
@@ -1550,6 +1585,10 @@ class Connection(RestApiConnection):
         :return: Created job
         """
         # TODO move all this (BatchJob factory) logic to BatchJob?
+
+        if validate:
+            self._warn_if_process_graph_invalid(process_graph=process_graph)
+
         req = self._build_request_with_process_graph(
             process_graph=process_graph,
             **dict_no_none(title=title, description=description, plan=plan, budget=budget)

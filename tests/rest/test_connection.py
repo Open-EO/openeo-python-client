@@ -30,6 +30,7 @@ from openeo.rest.connection import (
     RestApiConnection,
     connect,
     paginate,
+    VALIDATE_PROCESS_GRAPH_BY_DEFAULT,
 )
 from openeo.rest.vectorcube import VectorCube
 from openeo.util import ContextTimer
@@ -3179,10 +3180,26 @@ class TestExecute:
     PG_JSON_1 = '{"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": true}}'
     PG_JSON_2 = '{"process_graph": {"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": true}}}'
 
+    PG_INVALID_DICT_INNER = {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
+            "result": True,
+        }
+    }
+    PG_INVALID_DICT_OUTER = {"process_graph": PG_INVALID_DICT_INNER}
+    PG_INVALID_INNER = json.dumps(PG_INVALID_DICT_INNER)
+    PG_INVALID_OUTER = json.dumps(PG_INVALID_DICT_OUTER)
+
     # Dummy `POST /result` handlers
     def _post_result_handler_tiff(self, response: requests.Request, context):
         pg = response.json()["process"]["process_graph"]
         assert pg == {"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}}
+        return b"TIFF data"
+
+    def _post_result_handler_tiff_invalid_pg(self, response: requests.Request, context):
+        pg = response.json()["process"]["process_graph"]
+        assert pg == self.PG_INVALID_DICT_INNER
         return b"TIFF data"
 
     def _post_result_handler_json(self, response: requests.Request, context):
@@ -3190,9 +3207,20 @@ class TestExecute:
         assert pg == {"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}}
         return {"answer": 8}
 
+    def _post_result_handler_json_invalid_pg(self, response: requests.Request, context):
+        pg = response.json()["process"]["process_graph"]
+        assert pg == self.PG_INVALID_DICT_INNER
+        return {"answer": 8}
+
     def _post_jobs_handler_json(self, response: requests.Request, context):
         pg = response.json()["process"]["process_graph"]
         assert pg == {"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}}
+        context.headers["OpenEO-Identifier"] = "j-123"
+        return b""
+
+    def _post_jobs_handler_json_invalid_pg(self, response: requests.Request, context):
+        pg = response.json()["process"]["process_graph"]
+        assert pg == self.PG_INVALID_DICT_INNER
         context.headers["OpenEO-Identifier"] = "j-123"
         return b""
 
@@ -3206,6 +3234,28 @@ class TestExecute:
         conn.download(pg_json, outputfile=output)
         assert output.read_bytes() == b"TIFF data"
 
+    @pytest.mark.parametrize("pg_json", [PG_INVALID_INNER, PG_INVALID_OUTER])
+    def test_download_pg_json_with_invalid_pg(
+        self, requests_mock, connection_with_pgvalidation, tmp_path, pg_json: str, caplog
+    ):
+        caplog.set_level(logging.WARNING)
+        requests_mock.post(API_URL + "result", content=self._post_result_handler_tiff_invalid_pg)
+
+        validation_errors = [{"code": "Invalid", "message": "Invalid process graph"}]
+
+        def validation(request, context):
+            assert request.json() == self.PG_INVALID_DICT_OUTER
+            return {"errors": validation_errors}
+
+        m = requests_mock.post(API_URL + "validation", json=validation)
+
+        output = tmp_path / "result.tiff"
+        connection_with_pgvalidation.download(pg_json, outputfile=output, validate=True)
+
+        assert output.read_bytes() == b"TIFF data"
+        assert caplog.messages == ["Process graph is not valid. Validation errors:\nInvalid process graph"]
+        assert m.call_count == 1
+
     @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
     def test_execute_pg_json(self, requests_mock, pg_json: str):
         requests_mock.get(API_URL, json={"api_version": "1.0.0"})
@@ -3215,6 +3265,24 @@ class TestExecute:
         result = conn.execute(pg_json)
         assert result == {"answer": 8}
 
+    @pytest.mark.parametrize("pg_json", [PG_INVALID_INNER, PG_INVALID_OUTER])
+    def test_execute_pg_json_with_invalid_pg(self, requests_mock, connection_with_pgvalidation, pg_json: str, caplog):
+        caplog.set_level(logging.WARNING)
+        requests_mock.post(API_URL + "result", json=self._post_result_handler_json_invalid_pg)
+
+        validation_errors = [{"code": "Invalid", "message": "Invalid process graph"}]
+
+        def validation(request, context):
+            assert request.json() == self.PG_INVALID_DICT_OUTER
+            return {"errors": validation_errors}
+
+        m = requests_mock.post(API_URL + "validation", json=validation)
+
+        result = connection_with_pgvalidation.execute(pg_json, validate=True)
+        assert result == {"answer": 8}
+        assert caplog.messages == ["Process graph is not valid. Validation errors:\nInvalid process graph"]
+        assert m.call_count == 1
+
     @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
     def test_create_job_pg_json(self, requests_mock, pg_json: str):
         requests_mock.get(API_URL, json={"api_version": "1.0.0"})
@@ -3223,6 +3291,26 @@ class TestExecute:
         conn = Connection(API_URL)
         job = conn.create_job(pg_json)
         assert job.job_id == "j-123"
+
+    @pytest.mark.parametrize("pg_json", [PG_INVALID_INNER, PG_INVALID_OUTER])
+    def test_create_job_pg_json_with_invalid_pg(
+        self, requests_mock, connection_with_pgvalidation, pg_json: str, caplog
+    ):
+        caplog.set_level(logging.WARNING)
+        requests_mock.post(API_URL + "jobs", status_code=201, content=self._post_jobs_handler_json_invalid_pg)
+
+        validation_errors = [{"code": "Invalid", "message": "Invalid process graph"}]
+
+        def validation(request, context):
+            assert request.json() == self.PG_INVALID_DICT_OUTER
+            return {"errors": validation_errors}
+
+        m = requests_mock.post(API_URL + "validation", json=validation)
+
+        job = connection_with_pgvalidation.create_job(pg_json, validate=True)
+        assert job.job_id == "j-123"
+        assert caplog.messages == ["Process graph is not valid. Validation errors:\nInvalid process graph"]
+        assert m.call_count == 1
 
     @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
     @pytest.mark.parametrize("path_factory", [str, Path])
@@ -3237,6 +3325,31 @@ class TestExecute:
         output = tmp_path / "result.tiff"
         conn.download(json_file, outputfile=output)
         assert output.read_bytes() == b"TIFF data"
+
+    @pytest.mark.parametrize("pg_json", [PG_INVALID_INNER, PG_INVALID_OUTER])
+    @pytest.mark.parametrize("path_factory", [str, Path])
+    def test_download_pg_json_file_with_invalid_pg(
+        self, requests_mock, connection_with_pgvalidation, tmp_path, pg_json: str, path_factory, caplog
+    ):
+        caplog.set_level(logging.WARNING)
+        requests_mock.post(API_URL + "result", content=self._post_result_handler_tiff_invalid_pg)
+
+        validation_errors = [{"code": "Invalid", "message": "Invalid process graph"}]
+
+        def validation(request, context):
+            assert request.json() == self.PG_INVALID_DICT_OUTER
+            return {"errors": validation_errors}
+
+        m = requests_mock.post(API_URL + "validation", json=validation)
+
+        json_file = tmp_path / "input.json"
+        json_file.write_text(pg_json)
+        json_file = path_factory(json_file)
+
+        output = tmp_path / "result.tiff"
+        connection_with_pgvalidation.download(json_file, outputfile=output, validate=True)
+        assert caplog.messages == ["Process graph is not valid. Validation errors:\nInvalid process graph"]
+        assert m.call_count == 1
 
     @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
     @pytest.mark.parametrize("path_factory", [str, Path])
