@@ -2,13 +2,18 @@ import re
 from pathlib import Path
 
 import pytest
+import requests
 import shapely.geometry
 
 import openeo.processes
 from openeo.api.process import Parameter
+from openeo.rest.connection import Connection
 from openeo.rest._testing import DummyBackend
 from openeo.rest.vectorcube import VectorCube
 from openeo.util import InvalidBBoxException
+
+
+API_URL = "https://oeo.test"
 
 
 @pytest.fixture
@@ -476,3 +481,106 @@ def test_filter_vector_shapely(vector_cube, dummy_backend, geometries):
             "result": True,
         },
     }
+
+
+class TestProcessGraphValidation:
+    JOB_ID = "j-123"
+    PROCESS_GRAPH_DICT = {
+        "loadgeojson1": {
+            "process_id": "load_geojson",
+            "arguments": {
+                "data": {
+                    "type": "Point",
+                    "coordinates": [1, 2],
+                },
+                "properties": [],
+            },
+            "result": True,
+        }
+    }
+
+    @pytest.fixture
+    def vector_cube_pgval(self, connection_with_pgvalidation_datacube) -> VectorCube:
+        """Dummy vector cube"""
+        return connection_with_pgvalidation_datacube.load_geojson({"type": "Point", "coordinates": [1, 2]})
+
+    def _post_jobs_handler_json(self, response: requests.Request, context):
+        context.headers["OpenEO-Identifier"] = self.JOB_ID
+        return b""
+
+    def _post_result_handler_json(self, response: requests.Request, context):
+        pg = response.json()["process"]["process_graph"]
+        assert pg == self.PROCESS_GRAPH_DICT
+        return b'{"answer": 8}'
+
+    @pytest.mark.parametrize("validate", [True, False])
+    def test_create_job_with_pg_validation(
+        self,
+        requests_mock,
+        vector_cube_pgval: VectorCube,
+        validate,
+    ):
+        """The DataCube should pass through request for the validation to the
+        connection and the validation endpoint should only be called when
+        validation was requested.
+        """
+        m = requests_mock.post(API_URL + "/validation", json={"errors": []})
+
+        requests_mock.post(API_URL + "/jobs", status_code=201, content=self._post_jobs_handler_json)
+        vector_cube_pgval.create_job(validate=validate)
+
+        # Validation should be called if and only if it was requested
+        expected_call_count = 1 if validate else 0
+        assert m.call_count == expected_call_count
+
+    @pytest.mark.parametrize("validate", [True, False])
+    def test_execute_with_pg_validation(
+        self,
+        requests_mock,
+        vector_cube_pgval: VectorCube,
+        validate,
+    ):
+        """The DataCube should pass through request for the validation to the
+        connection and the validation endpoint should only be called when
+        validation was requested.
+        """
+        m = requests_mock.post(API_URL + "/validation", json={"errors": []})
+        requests_mock.post(API_URL + "/jobs", status_code=201, content=self._post_jobs_handler_json)
+        requests_mock.post(API_URL + "/result", content=self._post_result_handler_json)
+
+        vector_cube_pgval.execute(validate=validate)
+
+        # Validation should be called if and only if it was requested
+        expected_call_count = 1 if validate else 0
+        assert m.call_count == expected_call_count
+
+    @pytest.mark.parametrize("validate", [True, False])
+    def test_execute_batch_with_pg_validation(
+        self,
+        requests_mock,
+        vector_cube_pgval: VectorCube,
+        validate,
+    ):
+        """The DataCube should pass through request for the validation to the
+        connection and the validation endpoint should only be called when
+        validation was requested.
+        """
+        m = requests_mock.post(API_URL + "/validation", json={"errors": []})
+        requests_mock.post(API_URL + "/jobs", status_code=201, content=self._post_jobs_handler_json)
+        requests_mock.post(API_URL + f"/jobs/{self.JOB_ID}/results", status_code=202)
+        job_metadata = {
+            "id": self.JOB_ID,
+            "title": f"Job {self.JOB_ID,}",
+            "description": f"Job {self.JOB_ID,}",
+            "process": self.PROCESS_GRAPH_DICT,
+            "status": "finished",
+            "created": "2017-01-01T09:32:12Z",
+            "links": [],
+        }
+        requests_mock.get(API_URL + f"/jobs/{self.JOB_ID}", status_code=200, json=job_metadata)
+
+        vector_cube_pgval.execute_batch(validate=validate)
+
+        # Validation should be called if and only if it was requested
+        expected_call_count = 1 if validate else 0
+        assert m.call_count == expected_call_count
