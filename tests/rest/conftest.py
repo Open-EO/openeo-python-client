@@ -91,31 +91,8 @@ def dummy_backend(requests_mock, con100) -> DummyBackend:
     yield DummyBackend(requests_mock=requests_mock, connection=con100)
 
 
-def _setup_connection(api_version, requests_mock, build_capabilities_kwargs: Optional[dict] = None) -> Connection:
-    # TODO: make this more reusable?
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, **(build_capabilities_kwargs or {})))
-    requests_mock.get(
-        API_URL + "file_formats",
-        json={
-            "output": {
-                "GTiff": {"gis_data_types": ["raster"]},
-                "netCDF": {"gis_data_types": ["raster"]},
-                "csv": {"gis_data_types": ["table"]},
-            }
-        },
-    )
-    requests_mock.get(
-        API_URL + "udf_runtimes",
-        json={
-            "Python": {"type": "language", "default": "3", "versions": {"3": {"libraries": {}}}},
-            "R": {"type": "language", "default": "4", "versions": {"4": {"libraries": {}}}},
-        },
-    )
-
-    return openeo.connect(API_URL)
-
-
 @pytest.fixture
 def connection_with_pgvalidation(api_version, requests_mock) -> Connection:
-    """Connection fixture to a backend of given version with some image collections."""
-    return _setup_connection(api_version, requests_mock, build_capabilities_kwargs={"validation": True})
+    """Connection fixture to a backend that supports validation of the process graph."""
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, validation=True))
+    return openeo.connect(API_URL)
