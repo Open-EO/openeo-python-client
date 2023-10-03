@@ -86,6 +86,12 @@ def con100(requests_mock, support_udp) -> Connection:
 
 
 @pytest.fixture
+def connection_with_pgvalidation_datacube(api_version, requests_mock) -> Connection:
+    """Connection fixture to a backend that supports validation of the process graph."""
+    return _setup_connection("1.0.0", requests_mock, build_capabilities_kwargs={"udp": support_udp, "validation": True})
+
+
+@pytest.fixture
 def s2cube(connection, api_version) -> DataCube:
     return connection.load_collection("S2")
 
