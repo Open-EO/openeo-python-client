@@ -49,6 +49,10 @@ if typing.TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+# TODO: remove temporary constant that is intended for refactoring
+# constant for refactoring to switch default validation of process graph on or off.
+VALIDATE_PROCESS_GRAPH_BY_DEFAULT = True
+
 
 # Type annotation aliases
 InputDate = Union[str, datetime.date, Parameter, PGNode, ProcessBuilderBase, None]
@@ -1981,6 +1985,7 @@ class DataCube(_ProcessGraphAbstraction):
         outputfile: Optional[Union[str, pathlib.Path]] = None,
         format: Optional[str] = None,
         options: Optional[dict] = None,
+        validate: Optional[bool] = VALIDATE_PROCESS_GRAPH_BY_DEFAULT,
     ) -> Union[None, bytes]:
         """
         Execute synchronously and download the raster data cube, e.g. as GeoTIFF.
@@ -1997,7 +2002,7 @@ class DataCube(_ProcessGraphAbstraction):
             # TODO #401/#449 don't guess/override format if there is already a save_result with format?
             format = guess_format(outputfile)
         cube = self._ensure_save_result(format=format, options=options)
-        return self._connection.download(cube.flat_graph(), outputfile)
+        return self._connection.download(cube.flat_graph(), outputfile, validate=validate)
 
     def validate(self) -> List[dict]:
         """
@@ -2098,6 +2103,7 @@ class DataCube(_ProcessGraphAbstraction):
         max_poll_interval: float = 60,
         connection_retry_interval: float = 30,
         job_options: Optional[dict] = None,
+        validate: Optional[bool] = VALIDATE_PROCESS_GRAPH_BY_DEFAULT,
         # TODO: avoid `format_options` as keyword arguments
         **format_options,
     ) -> BatchJob:
@@ -2117,9 +2123,7 @@ class DataCube(_ProcessGraphAbstraction):
             # TODO #401/#449 don't guess/override format if there is already a save_result with format?
             out_format = guess_format(outputfile)
 
-        job = self.create_job(
-            out_format=out_format, job_options=job_options, **format_options
-        )
+        job = self.create_job(out_format=out_format, job_options=job_options, validate=validate, **format_options)
         return job.run_synchronous(
             outputfile=outputfile,
             print=print, max_poll_interval=max_poll_interval, connection_retry_interval=connection_retry_interval
@@ -2134,6 +2138,7 @@ class DataCube(_ProcessGraphAbstraction):
         plan: Optional[str] = None,
         budget: Optional[float] = None,
         job_options: Optional[dict] = None,
+        validate: Optional[bool] = VALIDATE_PROCESS_GRAPH_BY_DEFAULT,
         # TODO: avoid `format_options` as keyword arguments
         **format_options,
     ) -> BatchJob:
@@ -2163,6 +2168,7 @@ class DataCube(_ProcessGraphAbstraction):
             description=description,
             plan=plan,
             budget=budget,
+            validate=validate,
             additional=job_options,
         )
 
@@ -2198,9 +2204,9 @@ class DataCube(_ProcessGraphAbstraction):
             returns=returns, categories=categories, examples=examples, links=links,
         )
 
-    def execute(self) -> dict:
+    def execute(self, validate: bool = VALIDATE_PROCESS_GRAPH_BY_DEFAULT) -> dict:
         """Executes the process graph of the imagery. """
-        return self._connection.execute(self.flat_graph())
+        return self._connection.execute(self.flat_graph(), validate=validate)
 
     @staticmethod
     @deprecated(reason="Use :py:func:`openeo.udf.run_code.execute_local_udf` instead", version="0.7.0")
