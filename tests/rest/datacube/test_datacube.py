@@ -823,21 +823,13 @@ class TestProcessGraphValidation:
         return connection_with_pgvalidation_datacube.datacube_from_json(self.PROCESS_GRAPH_STRING)
 
     def _post_jobs_handler_json(self, response: requests.Request, context):
-        # pg = response.json()["process"]["process_graph"]
-        # assert pg == {"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}}
         context.headers["OpenEO-Identifier"] = self.JOB_ID
         return b""
 
     def _post_result_handler_json(self, response: requests.Request, context):
         pg = response.json()["process"]["process_graph"]
-        # assert pg == {"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}}
         assert pg == self.PROCESS_GRAPH_DICT
         return b'{"answer": 8}'
-
-    def _post_result_handler_tiff(self, response: requests.Request, context):
-        pg = response.json()["process"]["process_graph"]
-        assert pg == self.PROCESS_GRAPH_DICT
-        return b"TIFF data"
 
     @pytest.mark.parametrize("validate", [True, False])
     def test_create_job_with_pg_validation(
