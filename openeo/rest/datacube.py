@@ -49,10 +49,6 @@ if typing.TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-# TODO: remove temporary constant that is intended for refactoring
-# constant for refactoring to switch default validation of process graph on or off.
-VALIDATE_PROCESS_GRAPH_BY_DEFAULT = True
-
 
 # Type annotation aliases
 InputDate = Union[str, datetime.date, Parameter, PGNode, ProcessBuilderBase, None]
@@ -1985,7 +1981,7 @@ class DataCube(_ProcessGraphAbstraction):
         outputfile: Optional[Union[str, pathlib.Path]] = None,
         format: Optional[str] = None,
         options: Optional[dict] = None,
-        validate: Optional[bool] = VALIDATE_PROCESS_GRAPH_BY_DEFAULT,
+        validate: Optional[bool] = True,
     ) -> Union[None, bytes]:
         """
         Execute synchronously and download the raster data cube, e.g. as GeoTIFF.
@@ -2103,7 +2099,7 @@ class DataCube(_ProcessGraphAbstraction):
         max_poll_interval: float = 60,
         connection_retry_interval: float = 30,
         job_options: Optional[dict] = None,
-        validate: Optional[bool] = VALIDATE_PROCESS_GRAPH_BY_DEFAULT,
+        validate: Optional[bool] = True,
         # TODO: avoid `format_options` as keyword arguments
         **format_options,
     ) -> BatchJob:
@@ -2138,7 +2134,7 @@ class DataCube(_ProcessGraphAbstraction):
         plan: Optional[str] = None,
         budget: Optional[float] = None,
         job_options: Optional[dict] = None,
-        validate: Optional[bool] = VALIDATE_PROCESS_GRAPH_BY_DEFAULT,
+        validate: Optional[bool] = True,
         # TODO: avoid `format_options` as keyword arguments
         **format_options,
     ) -> BatchJob:
@@ -2204,7 +2200,7 @@ class DataCube(_ProcessGraphAbstraction):
             returns=returns, categories=categories, examples=examples, links=links,
         )
 
-    def execute(self, validate: bool = VALIDATE_PROCESS_GRAPH_BY_DEFAULT) -> dict:
+    def execute(self, validate: Optional[bool] = True) -> dict:
         """Executes the process graph of the imagery. """
         return self._connection.execute(self.flat_graph(), validate=validate)
 

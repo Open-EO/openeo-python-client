@@ -30,7 +30,6 @@ from openeo.rest.connection import (
     RestApiConnection,
     connect,
     paginate,
-    VALIDATE_PROCESS_GRAPH_BY_DEFAULT,
 )
 from openeo.rest.vectorcube import VectorCube
 from openeo.util import ContextTimer
