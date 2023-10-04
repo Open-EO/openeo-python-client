@@ -226,7 +226,7 @@ class VectorCube(_ProcessGraphAbstraction):
             cube = self.save_result(format=format or "GeoJSON", options=options)
         return cube
 
-    def execute(self, validate: Optional[bool] = True) -> dict:
+    def execute(self, validate: bool = True) -> dict:
         """Executes the process graph of the imagery."""
         return self._connection.execute(self.flat_graph(), validate=validate)
 
@@ -235,7 +235,7 @@ class VectorCube(_ProcessGraphAbstraction):
         outputfile: Optional[Union[str, pathlib.Path]] = None,
         format: Optional[str] = None,
         options: Optional[dict] = None,
-        validate: Optional[bool] = True,
+        validate: bool = True,
     ) -> Union[None, bytes]:
         """
         Execute synchronously and download the vector cube.
@@ -267,7 +267,7 @@ class VectorCube(_ProcessGraphAbstraction):
         max_poll_interval: float = 60,
         connection_retry_interval: float = 30,
         job_options: Optional[dict] = None,
-        validate: Optional[bool] = True,
+        validate: bool = True,
         # TODO: avoid using kwargs as format options
         **format_options,
     ) -> BatchJob:
@@ -305,7 +305,7 @@ class VectorCube(_ProcessGraphAbstraction):
         plan: Optional[str] = None,
         budget: Optional[float] = None,
         job_options: Optional[dict] = None,
-        validate: Optional[bool] = True,
+        validate: bool = True,
         **format_options,
     ) -> BatchJob:
         """

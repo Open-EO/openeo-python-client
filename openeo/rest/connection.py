@@ -1052,15 +1052,8 @@ class Connection(RestApiConnection):
         :param process_graph: (flat) dict representing process graph
         :return: list of errors (dictionaries with "code" and "message" fields)
         """
-        # TODO: sometimes process_graph is already in the graph. Should we really *always* add it?
-        #   Was getting errors in some new unit tests because of the double process_graph but
-        #   perhaps the error is really not here but somewhere else that adds process_graph
-        #   when it should not? Still needs to be confirmed.
-        if "process_graph" not in process_graph:
-            request = {"process_graph": process_graph}
-        else:
-            request = process_graph
-        return self.post(path="/validation", json=request, expected_status=200).json()["errors"]
+        graph = self._build_request_with_process_graph(process_graph)["process"]
+        return self.post(path="/validation", json=graph, expected_status=200).json()["errors"]
 
     @property
     def _api_version(self) -> ComparableVersion:
@@ -1482,18 +1475,23 @@ class Connection(RestApiConnection):
         return result
 
     def _warn_if_process_graph_invalid(self, process_graph: Union[dict, FlatGraphableMixin, str, Path]):
-        if not self.capabilities().supports_endpoint("/validation", "POST"):
-            return
+        # At present, the intention is that a failed validation does not block
+        # the job from running, it is only reported as a warning.
+        # Therefor we also want to continue when something *else* goes wrong
+        # *during* the validation.
+        try:
+            if not self.capabilities().supports_endpoint("/validation", "POST"):
+                return
 
-        graph = as_flat_graph(process_graph)
-        if "process_graph" not in graph:
-            graph = {"process_graph": graph}
-
-        validation_errors = self.validate_process_graph(process_graph=graph)
-        if validation_errors:
-            _log.warning(
-                "Process graph is not valid. Validation errors:\n" + "\n".join(e["message"] for e in validation_errors)
-            )
+            graph = self._build_request_with_process_graph(process_graph)["process"]
+            validation_errors = self.validate_process_graph(process_graph=graph)
+            if validation_errors:
+                _log.warning(
+                    "Process graph is not valid. Validation errors:\n"
+                    + "\n".join(e["message"] for e in validation_errors)
+                )
+        except Exception:
+            _log.warning("Could not validate the process graph", exc_info=True)
 
     # TODO: unify `download` and `execute` better: e.g. `download` always writes to disk, `execute` returns result (raw or as JSON decoded dict)
     def download(
@@ -1501,7 +1499,7 @@ class Connection(RestApiConnection):
         graph: Union[dict, FlatGraphableMixin, str, Path],
         outputfile: Union[Path, str, None] = None,
         timeout: Optional[int] = None,
-        validate: Optional[bool] = True,
+        validate: bool = True,
     ) -> Union[None, bytes]:
         """
         Downloads the result of a process graph synchronously,
@@ -1536,7 +1534,7 @@ class Connection(RestApiConnection):
         self,
         process_graph: Union[dict, str, Path],
         timeout: Optional[int] = None,
-        validate: Optional[bool] = True,
+        validate: bool = True,
     ):
         """
         Execute a process graph synchronously and return the result (assumed to be JSON).
@@ -1565,7 +1563,7 @@ class Connection(RestApiConnection):
         plan: Optional[str] = None,
         budget: Optional[float] = None,
         additional: Optional[dict] = None,
-        validate: Optional[bool] = True,
+        validate: bool = True,
     ) -> BatchJob:
         """
         Create a new job from given process graph on the back-end.

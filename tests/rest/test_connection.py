@@ -3255,6 +3255,28 @@ class TestExecute:
         assert caplog.messages == ["Process graph is not valid. Validation errors:\nInvalid process graph"]
         assert m.call_count == 1
 
+    @pytest.mark.parametrize("pg_json", [PG_INVALID_INNER, PG_INVALID_OUTER])
+    def test_download_pg_json_handles_other_exception_during_validation_gracefully(
+        self, requests_mock, connection_with_pgvalidation, tmp_path, pg_json: str, caplog
+    ):
+        caplog.set_level(logging.WARNING)
+        requests_mock.post(API_URL + "result", content=self._post_result_handler_tiff_invalid_pg)
+
+        exception_message = "Testing for errors that are not due to invalid graphs."
+
+        def validation(request, context):
+            raise Exception(exception_message)
+
+        m = requests_mock.post(API_URL + "validation", json=validation)
+
+        output = tmp_path / "result.tiff"
+        connection_with_pgvalidation.download(pg_json, outputfile=output, validate=True)
+
+        assert output.read_bytes() == b"TIFF data"
+        assert caplog.messages[0].startswith("Could not validate the process graph")
+        assert caplog.text.endswith(exception_message + "\n")
+        assert m.call_count == 1
+
     @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
     def test_execute_pg_json(self, requests_mock, pg_json: str):
         requests_mock.get(API_URL, json={"api_version": "1.0.0"})
