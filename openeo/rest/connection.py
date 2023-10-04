@@ -72,11 +72,6 @@ DEFAULT_TIMEOUT = 20 * 60
 DEFAULT_TIMEOUT_SYNCHRONOUS_EXECUTE = 30 * 60
 
 
-# TODO: remove temporary constant that is intended for refactoring
-# constant for refactoring to switch default validation of process graph on or off.
-VALIDATE_PROCESS_GRAPH_BY_DEFAULT = True
-
-
 class RestApiConnection:
     """Base connection class implementing generic REST API request functionality"""
 
@@ -1506,7 +1501,7 @@ class Connection(RestApiConnection):
         graph: Union[dict, FlatGraphableMixin, str, Path],
         outputfile: Union[Path, str, None] = None,
         timeout: Optional[int] = None,
-        validate: Optional[bool] = VALIDATE_PROCESS_GRAPH_BY_DEFAULT,
+        validate: Optional[bool] = True,
     ) -> Union[None, bytes]:
         """
         Downloads the result of a process graph synchronously,
@@ -1541,7 +1536,7 @@ class Connection(RestApiConnection):
         self,
         process_graph: Union[dict, str, Path],
         timeout: Optional[int] = None,
-        validate: Optional[bool] = VALIDATE_PROCESS_GRAPH_BY_DEFAULT,
+        validate: Optional[bool] = True,
     ):
         """
         Execute a process graph synchronously and return the result (assumed to be JSON).
@@ -1570,7 +1565,7 @@ class Connection(RestApiConnection):
         plan: Optional[str] = None,
         budget: Optional[float] = None,
         additional: Optional[dict] = None,
-        validate: Optional[bool] = VALIDATE_PROCESS_GRAPH_BY_DEFAULT,
+        validate: Optional[bool] = True,
     ) -> BatchJob:
         """
         Create a new job from given process graph on the back-end.

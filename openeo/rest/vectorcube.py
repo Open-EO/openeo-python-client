@@ -27,11 +27,6 @@ if typing.TYPE_CHECKING:
     from openeo import Connection
 
 
-# TODO: remove temporary constant that is intended for refactoring
-# constant for refactoring to switch default validation of process graph on or off.
-VALIDATE_PROCESS_GRAPH_BY_DEFAULT = False
-
-
 class VectorCube(_ProcessGraphAbstraction):
     """
     A Vector Cube, or 'Vector Collection' is a data structure containing 'Features':
@@ -231,7 +226,7 @@ class VectorCube(_ProcessGraphAbstraction):
             cube = self.save_result(format=format or "GeoJSON", options=options)
         return cube
 
-    def execute(self, validate: Optional[bool] = VALIDATE_PROCESS_GRAPH_BY_DEFAULT) -> dict:
+    def execute(self, validate: Optional[bool] = True) -> dict:
         """Executes the process graph of the imagery."""
         return self._connection.execute(self.flat_graph(), validate=validate)
 
@@ -240,7 +235,7 @@ class VectorCube(_ProcessGraphAbstraction):
         outputfile: Optional[Union[str, pathlib.Path]] = None,
         format: Optional[str] = None,
         options: Optional[dict] = None,
-        validate: Optional[bool] = VALIDATE_PROCESS_GRAPH_BY_DEFAULT,
+        validate: Optional[bool] = True,
     ) -> Union[None, bytes]:
         """
         Execute synchronously and download the vector cube.
@@ -272,7 +267,7 @@ class VectorCube(_ProcessGraphAbstraction):
         max_poll_interval: float = 60,
         connection_retry_interval: float = 30,
         job_options: Optional[dict] = None,
-        validate: Optional[bool] = VALIDATE_PROCESS_GRAPH_BY_DEFAULT,
+        validate: Optional[bool] = True,
         # TODO: avoid using kwargs as format options
         **format_options,
     ) -> BatchJob:
@@ -310,7 +305,7 @@ class VectorCube(_ProcessGraphAbstraction):
         plan: Optional[str] = None,
         budget: Optional[float] = None,
         job_options: Optional[dict] = None,
-        validate: Optional[bool] = VALIDATE_PROCESS_GRAPH_BY_DEFAULT,
+        validate: Optional[bool] = True,
         **format_options,
     ) -> BatchJob:
         """
