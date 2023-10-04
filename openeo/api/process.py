@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import Union, Optional
+from typing import Union, Optional, List
 
 
 class Parameter:
@@ -61,13 +61,24 @@ class Parameter:
         return cls(name=name, description=description, schema={"type": "object", "subtype": "datacube"})
 
     @classmethod
-    def string(cls, name: str, description: str = None, default=_DEFAULT_UNDEFINED, values=None) -> Parameter:
+    def string(
+        cls,
+        name: str,
+        description: str = None,
+        default=_DEFAULT_UNDEFINED,
+        values: Optional[List[str]] = None,
+        subtype: Optional[str] = None,
+        format: Optional[str] = None,
+    ) -> Parameter:
         """Helper to create a 'string' type parameter."""
         schema = {"type": "string"}
         if values is not None:
             schema["enum"] = values
+        if subtype:
+            schema["subtype"] = subtype
+        if format:
+            schema["format"] = format
         return cls(name=name, description=description, schema=schema, default=default)
-
 
     @classmethod
     def integer(cls, name: str, description: str = None, default=_DEFAULT_UNDEFINED) -> Parameter:
