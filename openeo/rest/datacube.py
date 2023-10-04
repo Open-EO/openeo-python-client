@@ -1141,6 +1141,42 @@ class DataCube(_ProcessGraphAbstraction):
             metadata=self.metadata.reduce_dimension(dimension_name=dimension) if self.metadata else None,
         )
 
+    @openeo_process
+    def reduce_spatial(
+        self,
+        reducer: Union[str, typing.Callable, UDF, PGNode],
+        context: Optional[dict] = None,
+    ) -> "DataCube":
+        """
+        Add a reduce process with given reducer callback along the spatial dimensions
+
+        :param reducer: the "child callback":
+            the name of a single openEO process,
+            or a callback function as discussed in :ref:`callbackfunctions`,
+            or a :py:class:`UDF <openeo.rest._datacube.UDF>` instance.
+
+            The callback should correspond to a process that
+            receives an array of numerical values
+            and returns a single numerical value.
+            For example:
+
+            -   ``"mean"`` (string)
+            -   :py:func:`absolute <openeo.processes.max>` (:ref:`predefined openEO process function <openeo_processes_functions>`)
+            -   ``lambda data: data.min()`` (function or lambda)
+
+        :param context: Additional data to be passed to the process.
+        """
+        reducer = build_child_callback(
+            process=reducer, parent_parameters=["data", "context"], connection=self.connection
+        )
+        return self.process(
+            process_id="reduce_spatial",
+            data=self,
+            reducer=reducer,
+            context=context,
+            metadata=self.metadata.reduce_spatial(),
+        )
+
     # @openeo_process
     def chunk_polygon(
         self,

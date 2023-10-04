@@ -1253,44 +1253,77 @@ def test_reduce_bands_udf(con100):
             "arguments": {
                 "data": {"from_node": "loadcollection1"},
                 "dimension": "bands",
-                "reducer": {"process_graph": {
-                    "runudf1": {
-                        "process_id": "run_udf",
-                        "arguments": {
-                            "data": {"from_parameter": "data"},
-                            "udf": "def apply(x):\n    return x",
-                            "runtime": "Python",
-                        },
-                        "result": True
+                "reducer": {
+                    "process_graph": {
+                        "runudf1": {
+                            "process_id": "run_udf",
+                            "arguments": {
+                                "data": {"from_parameter": "data"},
+                                "udf": "def apply(x):\n    return x",
+                                "runtime": "Python",
+                            },
+                            "result": True,
+                        }
                     }
-                }}
+                },
             },
-            "result": True
-        }}
+            "result": True,
+        },
+    }
 
 
 def test_reduce_temporal(s2cube):
     cube = s2cube.reduce_temporal(reducer="mean")
     assert cube.flat_graph() == {
-        'loadcollection1': {
-            'process_id': 'load_collection',
-            'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
         },
-        'reducedimension1': {
-            'process_id': 'reduce_dimension',
-            'arguments': {
-                'data': {'from_node': 'loadcollection1'},
-                'dimension': 't',
-                'reducer': {'process_graph': {
-                    'mean1': {
-                        'process_id': 'mean',
-                        'arguments': {'data': {'from_parameter': 'data'}},
-                        'result': True
+        "reducedimension1": {
+            "process_id": "reduce_dimension",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "dimension": "t",
+                "reducer": {
+                    "process_graph": {
+                        "mean1": {
+                            "process_id": "mean",
+                            "arguments": {"data": {"from_parameter": "data"}},
+                            "result": True,
+                        }
                     }
-                }}
+                },
             },
-            'result': True
-        }}
+            "result": True,
+        },
+    }
+
+
+def test_reduce_spatial(s2cube):
+    cube = s2cube.reduce_spatial(reducer="mean")
+    assert cube.flat_graph() == {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
+        },
+        "reducespatial1": {
+            "process_id": "reduce_spatial",
+            "arguments": {
+                "context": None,
+                "data": {"from_node": "loadcollection1"},
+                "reducer": {
+                    "process_graph": {
+                        "mean1": {
+                            "process_id": "mean",
+                            "arguments": {"data": {"from_parameter": "data"}},
+                            "result": True,
+                        }
+                    }
+                },
+            },
+            "result": True,
+        },
+    }
 
 
 def test_reduce_temporal_udf(con100):
@@ -1298,26 +1331,28 @@ def test_reduce_temporal_udf(con100):
     x = s2.reduce_temporal(reducer=openeo.UDF("def apply(x):\n    return x"))
 
     assert x.flat_graph() == {
-        'loadcollection1': {
-            'process_id': 'load_collection',
-            'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
         },
-        'reducedimension1': {
-            'process_id': 'reduce_dimension',
-            'arguments': {
-                'data': {'from_node': 'loadcollection1'},
-                'dimension': 't',
-                "reducer": {"process_graph": {
-                    "runudf1": {
-                        "process_id": "run_udf",
-                        "arguments": {
-                            "data": {"from_parameter": "data"},
-                            "udf": "def apply(x):\n    return x",
-                            "runtime": "Python",
-                        },
-                        "result": True
+        "reducedimension1": {
+            "process_id": "reduce_dimension",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "dimension": "t",
+                "reducer": {
+                    "process_graph": {
+                        "runudf1": {
+                            "process_id": "run_udf",
+                            "arguments": {
+                                "data": {"from_parameter": "data"},
+                                "udf": "def apply(x):\n    return x",
+                                "runtime": "Python",
+                            },
+                            "result": True,
+                        }
                     }
-                }}
+                },
             },
             'result': True
         }}

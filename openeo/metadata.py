@@ -448,6 +448,11 @@ class CollectionMetadata:
         dimensions = self._dimensions[:loc] + self._dimensions[loc + 1:]
         return self._clone_and_update(dimensions=dimensions)
 
+    def reduce_spatial(self) -> CollectionMetadata:
+        """Create new metadata object by reducing the spatial dimensions."""
+        dimensions = [d for d in self._dimensions if not isinstance(d, SpatialDimension)]
+        return self._clone_and_update(dimensions=dimensions)
+
     def add_dimension(self, name: str, label: Union[str, float], type: str = None) -> CollectionMetadata:
         """Create new metadata object with added dimension"""
         if any(d.name == name for d in self._dimensions):
