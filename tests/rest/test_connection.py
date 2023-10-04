@@ -3259,12 +3259,17 @@ class TestExecute:
     def test_download_pg_json_handles_other_exception_during_validation_gracefully(
         self, requests_mock, connection_with_pgvalidation, tmp_path, pg_json: str, caplog
     ):
+        """Verify the job won't be blocked if errors occur during validation that are
+        not related to the validity of the graph, e.g. the HTTP request itself fails, etc.
+        Because we don't want to break the existing workflows.
+        """
         caplog.set_level(logging.WARNING)
         requests_mock.post(API_URL + "result", content=self._post_result_handler_tiff_invalid_pg)
 
-        exception_message = "Testing for errors that are not due to invalid graphs."
+        exception_message = "Exception to test for errors that are not due to invalid graphs."
 
         def validation(request, context):
+            # Simulate some random error during the request.
             raise Exception(exception_message)
 
         m = requests_mock.post(API_URL + "validation", json=validation)
@@ -3273,9 +3278,10 @@ class TestExecute:
         connection_with_pgvalidation.download(pg_json, outputfile=output, validate=True)
 
         assert output.read_bytes() == b"TIFF data"
+        assert m.call_count == 1
+        # We still want to see those warnings in the logs though:
         assert caplog.messages[0].startswith("Could not validate the process graph")
         assert caplog.text.endswith(exception_message + "\n")
-        assert m.call_count == 1
 
     @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
     def test_execute_pg_json(self, requests_mock, pg_json: str):
