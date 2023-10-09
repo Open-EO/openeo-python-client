@@ -760,7 +760,19 @@ class _JupyterDeviceCodePollUi(_BasicDeviceCodePollUi):
         if status:
             self.set_status(status)
         progress_bar = self._progress_bar.get(fraction=1.0 - self.elapsed() / self.timeout)
-        self._progress_display.update({"text/html": f"<code>{progress_bar}</code> {self._status}"}, raw=True)
+        icon = self._status_icon(self._status)
+        self._progress_display.update({"text/html": f"<code>{progress_bar}</code> {icon} {self._status}"}, raw=True)
+
+    def _status_icon(self, status: str) -> str:
+        status = status.lower()
+        if "polling" in status or "pending" in status:
+            return "\u231B"  # Hourglass
+        elif "success" in status:
+            return "\u2705"  # Green check mark
+        elif "timed out" in status:
+            return "\u274C"  # Red  cross mark
+        else:
+            return ""
 
     def close(self):
         pass
