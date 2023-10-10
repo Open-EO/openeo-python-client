@@ -5,6 +5,7 @@ import re
 from abc import ABC
 from typing import Tuple, Union
 
+
 # TODO Is this base class (still) useful?
 
 
@@ -53,6 +54,10 @@ class Capabilities(ABC):
         pass
 
 
+# Type annotation aliases
+_VersionTuple = Tuple[Union[int, str], ...]
+
+
 class ComparableVersion:
     """
     Helper to compare a version (e.g. API version) against another (threshold) version
@@ -98,7 +103,7 @@ class ComparableVersion:
             raise ValueError(version)
 
     @classmethod
-    def _parse(cls, version_string: str) -> Tuple[Union[int, str], ...]:
+    def _parse(cls, version_string: str) -> _VersionTuple:
         components = [
             x for x in cls._component_re.split(version_string)
             if x and x != '.'
@@ -109,7 +114,7 @@ class ComparableVersion:
         return tuple(components)
 
     @property
-    def parts(self) -> Tuple[Union[int, str], ...]:
+    def parts(self) -> _VersionTuple:
         """Version components as a tuple"""
         return self._version
 
@@ -125,20 +130,36 @@ class ComparableVersion:
     def to_string(self):
         return str(self)
 
-    def __eq__(self, other: Union[str, 'ComparableVersion']):
-        return self._version == ComparableVersion(other)._version
+    @staticmethod
+    def _pad(a: Union[str, ComparableVersion], b: Union[str, ComparableVersion]) -> Tuple[_VersionTuple, _VersionTuple]:
+        """Pad version tuples with zero/empty to get same length for intuitive comparison"""
+        a = ComparableVersion(a)._version
+        b = ComparableVersion(b)._version
+        if len(a) > len(b):
+            b = b + tuple(0 if isinstance(x, int) else "" for x in a[len(b) :])
+        elif len(b) > len(a):
+            a = a + tuple(0 if isinstance(x, int) else "" for x in b[len(a) :])
+        return a, b
 
-    def __ge__(self, other: Union[str, 'ComparableVersion']):
-        return self._version >= ComparableVersion(other)._version
+    def __eq__(self, other: Union[str, ComparableVersion]) -> bool:
+        a, b = self._pad(self, other)
+        return a == b
 
-    def __gt__(self, other: Union[str, 'ComparableVersion']):
-        return self._version > ComparableVersion(other)._version
+    def __ge__(self, other: Union[str, ComparableVersion]) -> bool:
+        a, b = self._pad(self, other)
+        return a >= b
 
-    def __le__(self, other: Union[str, 'ComparableVersion']):
-        return self._version <= ComparableVersion(other)._version
+    def __gt__(self, other: Union[str, ComparableVersion]) -> bool:
+        a, b = self._pad(self, other)
+        return a > b
 
-    def __lt__(self, other: Union[str, 'ComparableVersion']):
-        return self._version < ComparableVersion(other)._version
+    def __le__(self, other: Union[str, ComparableVersion]) -> bool:
+        a, b = self._pad(self, other)
+        return a <= b
+
+    def __lt__(self, other: Union[str, ComparableVersion]) -> bool:
+        a, b = self._pad(self, other)
+        return a < b
 
     def equals(self, other: Union[str, 'ComparableVersion']):
         return self == other

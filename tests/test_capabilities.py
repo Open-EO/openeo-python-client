@@ -158,3 +158,82 @@ class TestComparableVersion:
             ComparableVersion((2, 4, 6)),
             ComparableVersion("1.2.3"),
         }
+
+    def test_padding_basic(self):
+        assert ComparableVersion("1.0.0") == "1"
+        assert ComparableVersion("1.0.0") == "1.0"
+        assert ComparableVersion("1.0.0") == "1.0.0"
+        assert ComparableVersion("1.0.0") == "1.0.0.0"
+
+        assert ComparableVersion("1.2.3") != "1"
+        assert ComparableVersion("1.2.3") != "1.2"
+        assert ComparableVersion("1.2.3") != "1.2.3.4"
+
+        assert ComparableVersion("1.2.3") > "1"
+        assert ComparableVersion("1.2.3") > "1.2"
+        assert ComparableVersion("1.2.3") > "1.2.2"
+
+        assert ComparableVersion("1.2.3") >= "1"
+        assert ComparableVersion("1.2.3") >= "1.2"
+        assert ComparableVersion("1.2.3") >= "1.2.3"
+        assert ComparableVersion("1.2.3") >= "1.2.3.0"
+
+        assert ComparableVersion("1.2.3") < "2"
+        assert ComparableVersion("1.2.3") < "1.9"
+        assert ComparableVersion("1.2.3") < "1.2.9"
+        assert ComparableVersion("1.2.3") < "1.2.3.1"
+
+        assert ComparableVersion("1.2.3") <= "2"
+        assert ComparableVersion("1.2.3") <= "1.9"
+        assert ComparableVersion("1.2.3") <= "1.2.9"
+        assert ComparableVersion("1.2.3") <= "1.2.3"
+        assert ComparableVersion("1.2.3") <= "1.2.3.1"
+        assert ComparableVersion("1.2.3") <= "1.2.3.0"
+
+    def test_padding_string(self):
+        assert ComparableVersion("1b3") == "1.b.3"
+        assert ComparableVersion("1b3") == "1.b.3.0"
+        assert ComparableVersion("1b3rc") == "1.b.3.rc.0"
+
+        assert ComparableVersion("1b3") != "1"
+        assert ComparableVersion("1b3") != "1.b"
+        assert ComparableVersion("1b3") != "1.b.2"
+        assert ComparableVersion("1b3") != "1.a.3"
+
+        assert ComparableVersion("1b3") > "1"
+        assert ComparableVersion("1b3") > "1.a"
+        assert ComparableVersion("1b3") > "1.b.2"
+        assert ComparableVersion("1b3") > "1.b.2.rc"
+        assert ComparableVersion("1b3.rc") > "1.b.3"
+
+        assert ComparableVersion("1b3") >= "1"
+        assert ComparableVersion("1b3") >= "1.a"
+        assert ComparableVersion("1b3") >= "1.b.2"
+        assert ComparableVersion("1b3") >= "1.b.3"
+        assert ComparableVersion("1b3") >= "1.b.3.0"
+        assert ComparableVersion("1b3.rc") >= "1.b.3"
+        assert ComparableVersion("1b3.rc") >= "1.b.3.rc.0"
+
+        assert ComparableVersion("1b3") < "2"
+        assert ComparableVersion("1b3") < "1.c"
+        assert ComparableVersion("1b3") < "1.b.4"
+        assert ComparableVersion("1b3") < "1.b.3.dev"
+
+        assert ComparableVersion("1b3") <= "2"
+        assert ComparableVersion("1b3") <= "1.c"
+        assert ComparableVersion("1b3") <= "1.b.4"
+        assert ComparableVersion("1b3") <= "1.b.3"
+        assert ComparableVersion("1b3") <= "1.b.3.dev"
+
+    def test_padding_at_least(self):
+        assert ComparableVersion("1.0").at_least("1.0.0")
+        assert ComparableVersion("1.0").at_least("1.0")
+        assert ComparableVersion("1.0").at_least("1")
+        assert ComparableVersion("1.0.0").at_least("1")
+
+    def test_padding_or_higher(self):
+        assert ComparableVersion("1.0").or_higher("1")
+        assert ComparableVersion("1.0").or_higher("1.0")
+        assert ComparableVersion("1.0").or_higher("1.0.0")
+        assert ComparableVersion("1.0.0").or_higher("1")
+        assert ComparableVersion("1.0.0").or_higher("1.0")
