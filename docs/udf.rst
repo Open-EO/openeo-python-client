@@ -321,12 +321,35 @@ TODO
 Example: ``reduce_dimension`` with a UDF
 ========================================
 
-TODO
+The key element for a UDF invoked in the context of `reduce_dimension` is that it should actually return
+an XArray DataArray _without_ the dimension that is specified to be reduced.
+
+So a reduce over time would receive a DataArray with `bands,t,y,x` dimensions, and return one with only `bands,y,x`.
+
 
 Example: ``apply_neighborhood`` with a UDF
 ===========================================
 
-TODO
+The apply_neighborhood process is generally used when working with complex AI models that require a
+spatiotemporal input stack with a fixed size. It supports the ability to specify overlap, to ensure that the model
+has sufficient border information to generate a spatially coherent output across chunks of the raster data cube.
+
+In the example below, the UDF will receive chunks of 128x128 pixels: 112 is the chunk size, while 2 times 8 pixels of
+overlap on each side of the chunk results in 128.
+
+The time and band dimensions are not specified, which means that all values along these dimensions are passed into
+the datacube.
+
+
+.. code-block:: python
+
+    output_cube = inputs_cube.apply_neighborhood(my_udf, size=[
+            {'dimension': 'x', 'value': 112, 'unit': 'px'},
+            {'dimension': 'y', 'value': 112, 'unit': 'px'}
+        ], overlap=[
+            {'dimension': 'x', 'value': 8, 'unit': 'px'},
+            {'dimension': 'y', 'value': 8, 'unit': 'px'}
+        ])
 
 Example: Smoothing timeseries with a user defined function (UDF)
 ==================================================================
@@ -382,6 +405,20 @@ For example::
     execute_local_udf(smoothing_udf, 'test_input.nc', fmt='netcdf')
 
 Note: this algorithm's primary purpose is to aid client side development of UDFs using small datasets. It is not designed for large jobs.
+
+UDF dependency management
+=========================
+
+Most UDF's have dependencies, because they often are used to run complex algorithms. Typical dependencies like numpy and
+XArray can be assumed to be available, but others may be more specific for you.
+
+This part is probably the least standardized in the definition of UDF's, and may be backend specific.
+We include some general pointers here:
+
+- Python dependencies can be packaged fairly easily by zipping a Python virtual environment.
+- For some dependencies, it can be important that the Python major version of the virtual environment is the same as the one used by the backend.
+- Python allows you to dynamically append (or prepend) libraries to the search path: `sys.path.append("unzipped_virtualenv_location")`
+
 
 
 Profile a process server-side

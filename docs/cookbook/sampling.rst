@@ -2,20 +2,19 @@
 Dataset sampling
 ----------------
 
-EXPERIMENTAL
-
 Tested on:
 
 - Terrascope
+- Copernicus Dataspace Ecosystem
 
 A number of use cases do not require a full datacube to be computed,
 but rather want to extract a result at specific locations.
 Examples include extracting training data for model calibration, or computing the result for
 areas where validation data is available.
 
-Sampling a datacube in openEO currently requires polygons as sampling features. Other types of geometry, like lines
-and points, should be converted into polygons first by applying a buffering operation. Using the spatial resolution
-of the datacube as buffer size can be a way to approximate sampling at a point.
+Sampling can be done for points or polygons:
+- point extractions basically result in a 'vector cube', so can be exported into tabular formats.
+- polygon extractions  can be stored to an individual netCDF per polygon so in this case the output is a sparse raster cube.
 
 To indicate to openEO that we only want to compute the datacube for certain polygon features, we use the
 :func:`~openeo.rest.datacube.DataCube.filter_spatial` method.
@@ -43,3 +42,19 @@ Combining all of this, results in the following sample code::
 
 Sampling only works for batch jobs, because it results in multiple output files, which can not be conveniently transferred
 in a synchronous call.
+
+Performance & scalability
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+It's important to note that dataset sampling is not necessarily a cheap operation, since creation of a sparse datacube still
+may require accessing a large number of raw EO assets. Backends of course can and should optimize to restrict processing
+to a minimum, but the size of the required input datasets is often a determining factor for cost and performance rather
+than the size of the output dataset.
+
+Sampling at scale
+~~~~~~~~~~~~~~~~~
+
+When doing large scale (e.g. continental) sampling, it is usually not possible or impractical to run it as a single openEO
+batch job. The recommendation here is to apply a spatial grouping to your sampling locations, with a single group covering
+an area of around 100x100km. The optimal size of a group may be backend dependant. Also remember that when working with
+data in the UTM projection, you may want to avoid covering multiple UTM zones in a single group.
