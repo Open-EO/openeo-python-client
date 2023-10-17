@@ -260,6 +260,7 @@ class Connection(RestApiConnection):
         refresh_token_store: Optional[RefreshTokenStore] = None,
         slow_response_threshold: Optional[float] = None,
         oidc_auth_renewer: Optional[OidcAuthenticator] = None,
+        auto_validate: bool = True,
     ):
         """
         Constructor of Connection, authenticates user.
@@ -282,6 +283,7 @@ class Connection(RestApiConnection):
         self._auth_config = auth_config
         self._refresh_token_store = refresh_token_store
         self._oidc_auth_renewer = oidc_auth_renewer
+        self._auto_validate = auto_validate
 
     @classmethod
     def version_discovery(
@@ -1052,8 +1054,8 @@ class Connection(RestApiConnection):
         :param process_graph: (flat) dict representing process graph
         :return: list of errors (dictionaries with "code" and "message" fields)
         """
-        graph = self._build_request_with_process_graph(process_graph)["process"]
-        return self.post(path="/validation", json=graph, expected_status=200).json()["errors"]
+        pg_with_metadata = self._build_request_with_process_graph(process_graph)["process"]
+        return self.post(path="/validation", json=pg_with_metadata, expected_status=200).json()["errors"]
 
     @property
     def _api_version(self) -> ComparableVersion:
@@ -1393,8 +1395,9 @@ class Connection(RestApiConnection):
 
     def create_service(self, graph: dict, type: str, **kwargs) -> Service:
         # TODO: type hint for graph: is it a nested or a flat one?
-        req = self._build_request_with_process_graph(process_graph=graph, type=type, **kwargs)
-        response = self.post(path="/services", json=req, expected_status=201)
+        pg_with_metadata = self._build_request_with_process_graph(process_graph=graph, type=type, **kwargs)
+        self._preflight_validation(pg_with_metadata=pg_with_metadata)
+        response = self.post(path="/services", json=pg_with_metadata, expected_status=201)
         service_id = response.headers.get("OpenEO-Identifier")
         return Service(service_id, self)
 
@@ -1463,35 +1466,47 @@ class Connection(RestApiConnection):
     def _build_request_with_process_graph(self, process_graph: Union[dict, FlatGraphableMixin, Any], **kwargs) -> dict:
         """
         Prepare a json payload with a process graph to submit to /result, /services, /jobs, ...
-        :param process_graph: flat dict representing a process graph
+        :param process_graph: flat dict representing a "process graph with metadata" ({"process": {"process_graph": ...}, ...})
         """
         # TODO: make this a more general helper (like `as_flat_graph`)
         result = kwargs
         process_graph = as_flat_graph(process_graph)
         if "process_graph" not in process_graph:
             process_graph = {"process_graph": process_graph}
-        # TODO: also check if `process_graph` already has "process" key (i.e. is a "process graph with metadata already)
+        # TODO: also check if `process_graph` already has "process" key (i.e. is a "process graph with metadata" already)
         result["process"] = process_graph
         return result
 
-    def _warn_if_process_graph_invalid(self, process_graph: Union[dict, FlatGraphableMixin, str, Path]):
-        # At present, the intention is that a failed validation does not block
-        # the job from running, it is only reported as a warning.
-        # Therefor we also want to continue when something *else* goes wrong
-        # *during* the validation.
-        try:
-            if not self.capabilities().supports_endpoint("/validation", "POST"):
-                return
+    def _preflight_validation(self, pg_with_metadata: dict, *, validate: Optional[bool] = None):
+        """
+        Preflight validation of process graph to execute.
 
-            graph = self._build_request_with_process_graph(process_graph)["process"]
-            validation_errors = self.validate_process_graph(process_graph=graph)
-            if validation_errors:
-                _log.warning(
-                    "Process graph is not valid. Validation errors:\n"
-                    + "\n".join(e["message"] for e in validation_errors)
-                )
-        except Exception:
-            _log.warning("Could not validate the process graph", exc_info=True)
+        :param pg_with_metadata: flat dict representation of process graph with metadata,
+            e.g. as produced by `_build_request_with_process_graph`
+        :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
+            (overruling the connection's ``auto_validate`` setting).
+
+        :return:
+        """
+        if validate is None:
+            validate = self._auto_validate
+        if validate and self.capabilities().supports_endpoint("/validation", "POST"):
+            # At present, the intention is that a failed validation does not block
+            # the job from running, it is only reported as a warning.
+            # Therefor we also want to continue when something *else* goes wrong
+            # *during* the validation.
+            try:
+                resp = self.post(path="/validation", json=pg_with_metadata["process"], expected_status=200)
+                validation_errors = resp.json()["errors"]
+                if validation_errors:
+                    _log.warning(
+                        "Preflight process graph validation raised: "
+                        + (" ".join(f"[{e.get('code')}] {e.get('message')}" for e in validation_errors))
+                    )
+            except Exception as e:
+                _log.error(f"Preflight process graph validation failed: {e}", exc_info=True)
+
+        # TODO: additional validation and sanity checks: e.g. is there a result node, are all process_ids valid, ...?
 
     # TODO: unify `download` and `execute` better: e.g. `download` always writes to disk, `execute` returns result (raw or as JSON decoded dict)
     def download(
@@ -1499,7 +1514,7 @@ class Connection(RestApiConnection):
         graph: Union[dict, FlatGraphableMixin, str, Path],
         outputfile: Union[Path, str, None] = None,
         timeout: Optional[int] = None,
-        validate: bool = True,
+        validate: Optional[bool] = None,
     ) -> Union[None, bytes]:
         """
         Downloads the result of a process graph synchronously,
@@ -1510,14 +1525,14 @@ class Connection(RestApiConnection):
             or as local file path or URL
         :param outputfile: output file
         :param timeout: timeout to wait for response
+        :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
+            (overruling the connection's ``auto_validate`` setting).
         """
-        if validate:
-            self._warn_if_process_graph_invalid(process_graph=graph)
-
-        request = self._build_request_with_process_graph(process_graph=graph)
+        pg_with_metadata = self._build_request_with_process_graph(process_graph=graph)
+        self._preflight_validation(pg_with_metadata=pg_with_metadata, validate=validate)
         response = self.post(
             path="/result",
-            json=request,
+            json=pg_with_metadata,
             expected_status=200,
             stream=True,
             timeout=timeout or DEFAULT_TIMEOUT_SYNCHRONOUS_EXECUTE,
@@ -1534,22 +1549,23 @@ class Connection(RestApiConnection):
         self,
         process_graph: Union[dict, str, Path],
         timeout: Optional[int] = None,
-        validate: bool = True,
+        validate: Optional[bool] = None,
     ):
         """
         Execute a process graph synchronously and return the result (assumed to be JSON).
 
         :param process_graph: (flat) dict representing a process graph, or process graph as raw JSON string,
             or as local file path or URL
+        :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
+            (overruling the connection's ``auto_validate`` setting).
+
         :return: parsed JSON response
         """
-        if validate:
-            self._warn_if_process_graph_invalid(process_graph=process_graph)
-
-        req = self._build_request_with_process_graph(process_graph=process_graph)
+        pg_with_metadata = self._build_request_with_process_graph(process_graph=process_graph)
+        self._preflight_validation(pg_with_metadata=pg_with_metadata, validate=validate)
         return self.post(
             path="/result",
-            json=req,
+            json=pg_with_metadata,
             expected_status=200,
             timeout=timeout or DEFAULT_TIMEOUT_SYNCHRONOUS_EXECUTE,
         ).json()
@@ -1563,7 +1579,7 @@ class Connection(RestApiConnection):
         plan: Optional[str] = None,
         budget: Optional[float] = None,
         additional: Optional[dict] = None,
-        validate: bool = True,
+        validate: Optional[bool] = None,
     ) -> BatchJob:
         """
         Create a new job from given process graph on the back-end.
@@ -1575,22 +1591,22 @@ class Connection(RestApiConnection):
         :param plan: billing plan
         :param budget: maximum cost the request is allowed to produce
         :param additional: additional job options to pass to the backend
+        :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
+            (overruling the connection's ``auto_validate`` setting).
         :return: Created job
         """
         # TODO move all this (BatchJob factory) logic to BatchJob?
 
-        if validate:
-            self._warn_if_process_graph_invalid(process_graph=process_graph)
-
-        req = self._build_request_with_process_graph(
+        pg_with_metadata = self._build_request_with_process_graph(
             process_graph=process_graph,
             **dict_no_none(title=title, description=description, plan=plan, budget=budget)
         )
         if additional:
             # TODO: get rid of this non-standard field? https://github.com/Open-EO/openeo-api/issues/276
-            req["job_options"] = additional
+            pg_with_metadata["job_options"] = additional
 
-        response = self.post("/jobs", json=req, expected_status=201)
+        self._preflight_validation(pg_with_metadata=pg_with_metadata, validate=validate)
+        response = self.post("/jobs", json=pg_with_metadata, expected_status=201)
 
         job_id = None
         if "openeo-identifier" in response.headers:
@@ -1668,8 +1684,8 @@ class Connection(RestApiConnection):
         cmd += ["-H", "Content-Type: application/json"]
         if isinstance(self.auth, BearerAuth):
             cmd += ["-H", f"Authorization: Bearer {'...' if obfuscate_auth else self.auth.bearer}"]
-        post_data = self._build_request_with_process_graph(data)
-        post_json = json.dumps(post_data, separators=(',', ':'))
+        pg_with_metadata = self._build_request_with_process_graph(data)
+        post_json = json.dumps(pg_with_metadata, separators=(",", ":"))
         cmd += ["--data", post_json]
         cmd += [self.build_url(path)]
         return " ".join(shlex.quote(c) for c in cmd)
@@ -1689,17 +1705,20 @@ class Connection(RestApiConnection):
 
 
 def connect(
-        url: Optional[str] = None,
-        auth_type: Optional[str] = None, auth_options: Optional[dict] = None,
-        session: Optional[requests.Session] = None,
-        default_timeout: Optional[int] = None,
+    url: Optional[str] = None,
+    *,
+    auth_type: Optional[str] = None,
+    auth_options: Optional[dict] = None,
+    session: Optional[requests.Session] = None,
+    default_timeout: Optional[int] = None,
+    auto_validate: bool = True,
 ) -> Connection:
     """
     This method is the entry point to OpenEO.
     You typically create one connection object in your script or application
     and re-use it for all calls to that backend.
 
-    If the backend requires authentication, you can pass authentication data directly to this function
+    If the backend requires authentication, you can pass authentication data directly to this function,
     but it could be easier to authenticate as follows:
 
         >>> # For basic authentication
@@ -1711,7 +1730,10 @@ def connect(
     :param auth_type: Which authentication to use: None, "basic" or "oidc" (for OpenID Connect)
     :param auth_options: Options/arguments specific to the authentication type
     :param default_timeout: default timeout (in seconds) for requests
-    :rtype: openeo.connections.Connection
+    :param auto_validate: toggle to automatically validate process graphs before execution
+
+    .. versionadded:: 0.24.0
+        added ``auto_validate`` argument
     """
 
     def _config_log(message):
@@ -1736,7 +1758,7 @@ def connect(
 
     if not url:
         raise OpenEoClientException("No openEO back-end URL given or known to connect to.")
-    connection = Connection(url, session=session, default_timeout=default_timeout)
+    connection = Connection(url, session=session, default_timeout=default_timeout, auto_validate=auto_validate)
 
     auth_type = auth_type.lower() if isinstance(auth_type, str) else auth_type
     if auth_type in {None, False, 'null', 'none'}:

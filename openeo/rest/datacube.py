@@ -1981,7 +1981,8 @@ class DataCube(_ProcessGraphAbstraction):
         outputfile: Optional[Union[str, pathlib.Path]] = None,
         format: Optional[str] = None,
         options: Optional[dict] = None,
-        validate: bool = True,
+        *,
+        validate: Optional[bool] = None,
     ) -> Union[None, bytes]:
         """
         Execute synchronously and download the raster data cube, e.g. as GeoTIFF.
@@ -1992,6 +1993,8 @@ class DataCube(_ProcessGraphAbstraction):
         :param outputfile: Optional, an output file if the result needs to be stored on disk.
         :param format: Optional, an output format supported by the backend.
         :param options: Optional, file format options
+        :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
+            (overruling the connection's ``auto_validate`` setting).
         :return: None if the result is stored to disk, or a bytes object returned by the backend.
         """
         if format is None and outputfile:
@@ -2099,7 +2102,7 @@ class DataCube(_ProcessGraphAbstraction):
         max_poll_interval: float = 60,
         connection_retry_interval: float = 30,
         job_options: Optional[dict] = None,
-        validate: bool = True,
+        validate: Optional[bool] = None,
         # TODO: avoid `format_options` as keyword arguments
         **format_options,
     ) -> BatchJob:
@@ -2112,6 +2115,8 @@ class DataCube(_ProcessGraphAbstraction):
         :param outputfile: The path of a file to which a result can be written
         :param out_format: (optional) File format to use for the job result.
         :param job_options:
+        :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
+            (overruling the connection's ``auto_validate`` setting).
         """
         if "format" in format_options and not out_format:
             out_format = format_options["format"]  # align with 'download' call arg name
@@ -2134,7 +2139,7 @@ class DataCube(_ProcessGraphAbstraction):
         plan: Optional[str] = None,
         budget: Optional[float] = None,
         job_options: Optional[dict] = None,
-        validate: bool = True,
+        validate: Optional[bool] = None,
         # TODO: avoid `format_options` as keyword arguments
         **format_options,
     ) -> BatchJob:
@@ -2152,6 +2157,9 @@ class DataCube(_ProcessGraphAbstraction):
         :param plan: billing plan
         :param budget: maximum cost the request is allowed to produce
         :param job_options: custom job options.
+        :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
+            (overruling the connection's ``auto_validate`` setting).
+
         :return: Created job.
         """
         # TODO: add option to also automatically start the job?
@@ -2200,8 +2208,8 @@ class DataCube(_ProcessGraphAbstraction):
             returns=returns, categories=categories, examples=examples, links=links,
         )
 
-    def execute(self, validate: bool = True) -> dict:
-        """Executes the process graph of the imagery. """
+    def execute(self, *, validate: Optional[bool] = None) -> dict:
+        """Executes the process graph."""
         return self._connection.execute(self.flat_graph(), validate=validate)
 
     @staticmethod
