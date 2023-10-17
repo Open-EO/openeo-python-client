@@ -1483,7 +1483,9 @@ class Connection(RestApiConnection):
 
         :param pg_with_metadata: flat dict representation of process graph with metadata,
             e.g. as produced by `_build_request_with_process_graph`
-        :param validate: optional toggle to force/prevent validation with `/validation` endpoint
+        :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
+            (overruling the connection's ``auto_validate`` setting).
+
         :return:
         """
         if validate is None:
@@ -1523,6 +1525,8 @@ class Connection(RestApiConnection):
             or as local file path or URL
         :param outputfile: output file
         :param timeout: timeout to wait for response
+        :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
+            (overruling the connection's ``auto_validate`` setting).
         """
         pg_with_metadata = self._build_request_with_process_graph(process_graph=graph)
         self._preflight_validation(pg_with_metadata=pg_with_metadata, validate=validate)
@@ -1552,6 +1556,9 @@ class Connection(RestApiConnection):
 
         :param process_graph: (flat) dict representing a process graph, or process graph as raw JSON string,
             or as local file path or URL
+        :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
+            (overruling the connection's ``auto_validate`` setting).
+
         :return: parsed JSON response
         """
         pg_with_metadata = self._build_request_with_process_graph(process_graph=process_graph)
@@ -1572,7 +1579,7 @@ class Connection(RestApiConnection):
         plan: Optional[str] = None,
         budget: Optional[float] = None,
         additional: Optional[dict] = None,
-        validate: Optional[bool] = True,
+        validate: Optional[bool] = None,
     ) -> BatchJob:
         """
         Create a new job from given process graph on the back-end.
@@ -1584,6 +1591,8 @@ class Connection(RestApiConnection):
         :param plan: billing plan
         :param budget: maximum cost the request is allowed to produce
         :param additional: additional job options to pass to the backend
+        :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
+            (overruling the connection's ``auto_validate`` setting).
         :return: Created job
         """
         # TODO move all this (BatchJob factory) logic to BatchJob?
