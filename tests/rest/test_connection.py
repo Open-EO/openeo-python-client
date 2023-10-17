@@ -32,7 +32,7 @@ from openeo.rest.connection import (
     paginate,
 )
 from openeo.rest.vectorcube import VectorCube
-from openeo.util import ContextTimer
+from openeo.util import ContextTimer, dict_no_none
 
 from .. import load_json_resource
 from .auth.test_cli import auth_config, refresh_token_store
@@ -3174,266 +3174,257 @@ def test_vectorcube_from_paths(requests_mock):
     }
 
 
-class TestExecute:
+class TestExecuteFromJsonResources:
+    """
+    Tests for executing process graphs directly from JSON resources (JSON dumps, files, URLs, ...)
+    """
     # Dummy process graphs
     PG_JSON_1 = '{"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": true}}'
+    PG_DICT_1 = {"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}}
     PG_JSON_2 = '{"process_graph": {"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": true}}}'
 
-    PG_INVALID_DICT_INNER = {
-        "loadcollection1": {
-            "process_id": "load_collection",
-            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
-            "result": True,
-        }
-    }
-    PG_INVALID_DICT_OUTER = {"process_graph": PG_INVALID_DICT_INNER}
-    PG_INVALID_INNER = json.dumps(PG_INVALID_DICT_INNER)
-    PG_INVALID_OUTER = json.dumps(PG_INVALID_DICT_OUTER)
-
-    # Dummy `POST /result` handlers
-    def _post_result_handler_tiff(self, response: requests.Request, context):
-        pg = response.json()["process"]["process_graph"]
-        assert pg == {"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}}
-        return b"TIFF data"
-
-    def _post_result_handler_tiff_invalid_pg(self, response: requests.Request, context):
-        pg = response.json()["process"]["process_graph"]
-        assert pg == self.PG_INVALID_DICT_INNER
-        return b"TIFF data"
-
-    def _post_result_handler_json(self, response: requests.Request, context):
-        pg = response.json()["process"]["process_graph"]
-        assert pg == {"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}}
-        return {"answer": 8}
-
-    def _post_result_handler_json_invalid_pg(self, response: requests.Request, context):
-        pg = response.json()["process"]["process_graph"]
-        assert pg == self.PG_INVALID_DICT_INNER
-        return {"answer": 8}
-
-    def _post_jobs_handler_json(self, response: requests.Request, context):
-        pg = response.json()["process"]["process_graph"]
-        assert pg == {"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}}
-        context.headers["OpenEO-Identifier"] = "j-123"
-        return b""
-
-    def _post_jobs_handler_json_invalid_pg(self, response: requests.Request, context):
-        pg = response.json()["process"]["process_graph"]
-        assert pg == self.PG_INVALID_DICT_INNER
-        context.headers["OpenEO-Identifier"] = "j-123"
-        return b""
+    @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
+    def test_download_pg_json(self, dummy_backend, connection, tmp_path, pg_json: str):
+        output = tmp_path / "result.tiff"
+        connection.download(pg_json, outputfile=output)
+        assert output.read_bytes() == b'{"what?": "Result data"}'
+        assert dummy_backend.get_sync_pg() == self.PG_DICT_1
 
     @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
-    def test_download_pg_json(self, requests_mock, tmp_path, pg_json: str):
-        requests_mock.get(API_URL, json={"api_version": "1.0.0"})
-        requests_mock.post(API_URL + "result", content=self._post_result_handler_tiff)
+    def test_execute_pg_json(self, dummy_backend, connection, pg_json: str):
+        dummy_backend.next_result = {"answer": 8}
+        result = connection.execute(pg_json)
+        assert result == {"answer": 8}
+        assert dummy_backend.get_sync_pg() == self.PG_DICT_1
 
-        conn = Connection(API_URL)
+    @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
+    def test_create_job_pg_json(self, dummy_backend, connection, pg_json: str):
+        job = connection.create_job(pg_json)
+        assert job.job_id == "job-000"
+        assert dummy_backend.get_batch_pg() == self.PG_DICT_1
+
+    @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
+    @pytest.mark.parametrize("path_factory", [str, Path])
+    def test_download_pg_json_file(self, dummy_backend, connection, tmp_path, pg_json: str, path_factory):
+        json_file = tmp_path / "input.json"
+        json_file.write_text(pg_json)
+        json_file = path_factory(json_file)
+
         output = tmp_path / "result.tiff"
-        conn.download(pg_json, outputfile=output)
-        assert output.read_bytes() == b"TIFF data"
+        connection.download(json_file, outputfile=output)
+        assert output.read_bytes() == b'{"what?": "Result data"}'
+        assert dummy_backend.get_sync_pg() == self.PG_DICT_1
 
-    @pytest.mark.parametrize("pg_json", [PG_INVALID_INNER, PG_INVALID_OUTER])
-    def test_download_pg_json_with_invalid_pg(
-        self, requests_mock, connection_with_pgvalidation, tmp_path, pg_json: str, caplog
+    @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
+    @pytest.mark.parametrize("path_factory", [str, Path])
+    def test_execute_pg_json_file(self, dummy_backend, connection, pg_json: str, tmp_path, path_factory):
+        dummy_backend.next_result = {"answer": 8}
+
+        json_file = tmp_path / "input.json"
+        json_file.write_text(pg_json)
+        json_file = path_factory(json_file)
+
+        result = connection.execute(json_file)
+        assert result == {"answer": 8}
+        assert dummy_backend.get_sync_pg() == self.PG_DICT_1
+
+    @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
+    @pytest.mark.parametrize("path_factory", [str, Path])
+    def test_create_job_pg_json_file(self, dummy_backend, connection, pg_json: str, tmp_path, path_factory):
+        json_file = tmp_path / "input.json"
+        json_file.write_text(pg_json)
+        json_file = path_factory(json_file)
+
+        job = connection.create_job(json_file)
+        assert job.job_id == "job-000"
+        assert dummy_backend.get_batch_pg() == self.PG_DICT_1
+
+    @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
+    def test_download_pg_json_url(self, dummy_backend, connection, requests_mock, tmp_path, pg_json: str):
+        url = "https://jsonbin.test/pg.json"
+        requests_mock.get(url, text=pg_json)
+
+        output = tmp_path / "result.tiff"
+        connection.download(url, outputfile=output)
+        assert output.read_bytes() == b'{"what?": "Result data"}'
+        assert dummy_backend.get_sync_pg() == self.PG_DICT_1
+
+    @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
+    def test_execute_pg_json_url(self, dummy_backend, connection, requests_mock, pg_json: str):
+        dummy_backend.next_result = {"answer": 8}
+
+        url = "https://jsonbin.test/pg.json"
+        requests_mock.get(url, text=pg_json)
+
+        result = connection.execute(url)
+        assert result == {"answer": 8}
+        assert dummy_backend.get_sync_pg() == self.PG_DICT_1
+
+    @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
+    def test_create_job_pg_json_url(self, dummy_backend, connection, requests_mock, pg_json: str):
+        url = "https://jsonbin.test/pg.json"
+        requests_mock.get(url, text=pg_json)
+
+        job = connection.create_job(url)
+        assert job.job_id == "job-000"
+        assert dummy_backend.get_batch_pg() == self.PG_DICT_1
+
+
+class TestExecuteWithValidation:
+    # Dummy process graphs
+    PG_DICT_1 = {"add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}}
+
+    @pytest.fixture(params=[False, True])
+    def auto_validate(self, request) -> bool:
+        """Fixture to parametrize auto_validate setting."""
+        return request.param
+
+    @pytest.fixture
+    def connection(self, api_version, requests_mock, api_capabilities, auto_validate) -> Connection:
+        requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, **api_capabilities))
+        con = Connection(API_URL, **dict_no_none(auto_validate=auto_validate))
+        return con
+
+    @pytest.mark.parametrize(
+        ["api_capabilities", "auto_validate", "validate", "validation_expected"],
+        [
+            # No validation supported by backend: don't attempt to validate
+            ({}, None, None, False),
+            ({}, True, True, False),
+            # Validation supported by backend, default behavior -> validate
+            ({"validation": True}, None, None, True),
+            # (Validation supported by backend) no explicit validation enabled: follow auto_validate setting
+            ({"validation": True}, True, None, True),
+            ({"validation": True}, False, None, False),
+            # (Validation supported by backend) follow explicit `validate` toggle regardless of auto_validate
+            ({"validation": True}, False, True, True),
+            ({"validation": True}, True, False, False),
+        ],
+    )
+    def test_download_validation(
+        self,
+        dummy_backend,
+        connection,
+        tmp_path,
+        caplog,
+        api_capabilities,
+        validate,
+        validation_expected,
     ):
         caplog.set_level(logging.WARNING)
-        requests_mock.post(API_URL + "result", content=self._post_result_handler_tiff_invalid_pg)
-
-        validation_errors = [{"code": "Invalid", "message": "Invalid process graph"}]
-
-        def validation(request, context):
-            assert request.json() == self.PG_INVALID_DICT_OUTER
-            return {"errors": validation_errors}
-
-        m = requests_mock.post(API_URL + "validation", json=validation)
+        dummy_backend.next_result = b"TIFF data"
+        dummy_backend.next_validation_errors = [
+            {"code": "OddSupport", "message": "Odd values are not supported."},
+            {"code": "ComplexityOverflow", "message": "Too complex."},
+        ]
 
         output = tmp_path / "result.tiff"
-        connection_with_pgvalidation.download(pg_json, outputfile=output, validate=True)
-
+        connection.download(self.PG_DICT_1, outputfile=output, **dict_no_none(validate=validate))
         assert output.read_bytes() == b"TIFF data"
-        assert caplog.messages == ["Preflight process graph validation raised: [Invalid] Invalid process graph"]
-        assert m.call_count == 1
+        assert dummy_backend.get_sync_pg() == self.PG_DICT_1
 
-    @pytest.mark.parametrize("pg_json", [PG_INVALID_INNER, PG_INVALID_OUTER])
-    def test_download_pg_json_handles_other_exception_during_validation_gracefully(
-        self, requests_mock, connection_with_pgvalidation, tmp_path, pg_json: str, caplog
+        if validation_expected:
+            assert caplog.messages == [
+                "Preflight process graph validation raised: [OddSupport] Odd values are not supported. [ComplexityOverflow] Too complex."
+            ]
+            assert dummy_backend.validation_requests == [self.PG_DICT_1]
+        else:
+            assert caplog.messages == []
+            assert dummy_backend.validation_requests == []
+
+    @pytest.mark.parametrize(
+        ["api_capabilities", "auto_validate"],
+        [
+            ({"validation": True}, True),
+        ],
+    )
+    def test_download_validation_broken(
+        self, dummy_backend, connection, requests_mock, tmp_path, caplog, api_capabilities
     ):
-        """Verify the job won't be blocked if errors occur during validation that are
+        """
+        Verify the job won't be blocked if errors occur during validation that are
         not related to the validity of the graph, e.g. the HTTP request itself fails, etc.
         Because we don't want to break the existing workflows.
         """
         caplog.set_level(logging.WARNING)
-        requests_mock.post(API_URL + "result", content=self._post_result_handler_tiff_invalid_pg)
+        dummy_backend.next_result = b"TIFF data"
 
-        exception_message = "Exception to test for errors that are not due to invalid graphs."
-
-        def validation(request, context):
-            # Simulate some random error during the request.
-            raise Exception(exception_message)
-
-        m = requests_mock.post(API_URL + "validation", json=validation)
+        # Simulate server side error during the request.
+        m = requests_mock.post(API_URL + "validation", json={"code": "Internal", "message": "Nope!"}, status_code=500)
 
         output = tmp_path / "result.tiff"
-        connection_with_pgvalidation.download(pg_json, outputfile=output, validate=True)
-
+        connection.download(self.PG_DICT_1, outputfile=output, validate=True)
         assert output.read_bytes() == b"TIFF data"
-        assert m.call_count == 1
+
         # We still want to see those warnings in the logs though:
-        assert caplog.messages[0].startswith("Preflight process graph validation failed")
-        assert caplog.text.endswith(exception_message + "\n")
-
-    @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
-    def test_execute_pg_json(self, requests_mock, pg_json: str):
-        requests_mock.get(API_URL, json={"api_version": "1.0.0"})
-        requests_mock.post(API_URL + "result", json=self._post_result_handler_json)
-
-        conn = Connection(API_URL)
-        result = conn.execute(pg_json)
-        assert result == {"answer": 8}
-
-    @pytest.mark.parametrize("pg_json", [PG_INVALID_INNER, PG_INVALID_OUTER])
-    def test_execute_pg_json_with_invalid_pg(self, requests_mock, connection_with_pgvalidation, pg_json: str, caplog):
-        caplog.set_level(logging.WARNING)
-        requests_mock.post(API_URL + "result", json=self._post_result_handler_json_invalid_pg)
-
-        validation_errors = [{"code": "Invalid", "message": "Invalid process graph"}]
-
-        def validation(request, context):
-            assert request.json() == self.PG_INVALID_DICT_OUTER
-            return {"errors": validation_errors}
-
-        m = requests_mock.post(API_URL + "validation", json=validation)
-
-        result = connection_with_pgvalidation.execute(pg_json, validate=True)
-        assert result == {"answer": 8}
-        assert caplog.messages == ["Preflight process graph validation raised: [Invalid] Invalid process graph"]
+        assert caplog.messages == ["Preflight process graph validation failed: [500] Internal: Nope!"]
         assert m.call_count == 1
 
-    @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
-    def test_create_job_pg_json(self, requests_mock, pg_json: str):
-        requests_mock.get(API_URL, json={"api_version": "1.0.0"})
-        requests_mock.post(API_URL + "jobs", status_code=201, content=self._post_jobs_handler_json)
-
-        conn = Connection(API_URL)
-        job = conn.create_job(pg_json)
-        assert job.job_id == "j-123"
-
-    @pytest.mark.parametrize("pg_json", [PG_INVALID_INNER, PG_INVALID_OUTER])
-    def test_create_job_pg_json_with_invalid_pg(
-        self, requests_mock, connection_with_pgvalidation, pg_json: str, caplog
+    @pytest.mark.parametrize(
+        ["api_capabilities", "auto_validate", "validate", "validation_expected"],
+        [
+            # No validation supported by backend: don't attempt to validate
+            ({}, None, None, False),
+            ({}, True, True, False),
+            # Validation supported by backend, default behavior -> validate
+            ({"validation": True}, None, None, True),
+            # (Validation supported by backend) no explicit validation enabled: follow auto_validate setting
+            ({"validation": True}, True, None, True),
+            ({"validation": True}, False, None, False),
+            # (Validation supported by backend) follow explicit `validate` toggle regardless of auto_validate
+            ({"validation": True}, False, True, True),
+            ({"validation": True}, True, False, False),
+        ],
+    )
+    def test_execute_validation(
+        self, dummy_backend, connection, caplog, api_capabilities, validate, validation_expected
     ):
         caplog.set_level(logging.WARNING)
-        requests_mock.post(API_URL + "jobs", status_code=201, content=self._post_jobs_handler_json_invalid_pg)
+        dummy_backend.next_result = {"answer": 8}
+        dummy_backend.next_validation_errors = [{"code": "OddSupport", "message": "Odd values are not supported."}]
 
-        validation_errors = [{"code": "Invalid", "message": "Invalid process graph"}]
+        result = connection.execute(self.PG_DICT_1, **dict_no_none(validate=validate))
+        assert result == {"answer": 8}
+        if validation_expected:
+            assert caplog.messages == [
+                "Preflight process graph validation raised: [OddSupport] Odd values are not supported."
+            ]
+            assert dummy_backend.validation_requests == [self.PG_DICT_1]
+        else:
+            assert caplog.messages == []
+            assert dummy_backend.validation_requests == []
 
-        def validation(request, context):
-            assert request.json() == self.PG_INVALID_DICT_OUTER
-            return {"errors": validation_errors}
-
-        m = requests_mock.post(API_URL + "validation", json=validation)
-
-        job = connection_with_pgvalidation.create_job(pg_json, validate=True)
-        assert job.job_id == "j-123"
-        assert caplog.messages == ["Preflight process graph validation raised: [Invalid] Invalid process graph"]
-        assert m.call_count == 1
-
-    @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
-    @pytest.mark.parametrize("path_factory", [str, Path])
-    def test_download_pg_json_file(self, requests_mock, tmp_path, pg_json: str, path_factory):
-        requests_mock.get(API_URL, json={"api_version": "1.0.0"})
-        requests_mock.post(API_URL + "result", content=self._post_result_handler_tiff)
-        json_file = tmp_path / "input.json"
-        json_file.write_text(pg_json)
-        json_file = path_factory(json_file)
-
-        conn = Connection(API_URL)
-        output = tmp_path / "result.tiff"
-        conn.download(json_file, outputfile=output)
-        assert output.read_bytes() == b"TIFF data"
-
-    @pytest.mark.parametrize("pg_json", [PG_INVALID_INNER, PG_INVALID_OUTER])
-    @pytest.mark.parametrize("path_factory", [str, Path])
-    def test_download_pg_json_file_with_invalid_pg(
-        self, requests_mock, connection_with_pgvalidation, tmp_path, pg_json: str, path_factory, caplog
+    @pytest.mark.parametrize(
+        ["api_capabilities", "auto_validate", "validate", "validation_expected"],
+        [
+            # No validation supported by backend: don't attempt to validate
+            ({}, None, None, False),
+            ({}, True, True, False),
+            # Validation supported by backend, default behavior -> validate
+            ({"validation": True}, None, None, True),
+            # (Validation supported by backend) no explicit validation enabled: follow auto_validate setting
+            ({"validation": True}, True, None, True),
+            ({"validation": True}, False, None, False),
+            # (Validation supported by backend) follow explicit `validate` toggle regardless of auto_validate
+            ({"validation": True}, False, True, True),
+            ({"validation": True}, True, False, False),
+        ],
+    )
+    def test_create_job_validation(
+        self, dummy_backend, connection, caplog, api_capabilities, validate, validation_expected
     ):
         caplog.set_level(logging.WARNING)
-        requests_mock.post(API_URL + "result", content=self._post_result_handler_tiff_invalid_pg)
+        dummy_backend.next_validation_errors = [{"code": "OddSupport", "message": "Odd values are not supported."}]
 
-        validation_errors = [{"code": "Invalid", "message": "Invalid process graph"}]
+        job = connection.create_job(self.PG_DICT_1, **dict_no_none(validate=validate))
+        assert job.job_id == "job-000"
+        assert dummy_backend.get_batch_pg() == self.PG_DICT_1
 
-        def validation(request, context):
-            assert request.json() == self.PG_INVALID_DICT_OUTER
-            return {"errors": validation_errors}
-
-        m = requests_mock.post(API_URL + "validation", json=validation)
-
-        json_file = tmp_path / "input.json"
-        json_file.write_text(pg_json)
-        json_file = path_factory(json_file)
-
-        output = tmp_path / "result.tiff"
-        connection_with_pgvalidation.download(json_file, outputfile=output, validate=True)
-        assert caplog.messages == ["Preflight process graph validation raised: [Invalid] Invalid process graph"]
-        assert m.call_count == 1
-
-    @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
-    @pytest.mark.parametrize("path_factory", [str, Path])
-    def test_execute_pg_json_file(self, requests_mock, pg_json: str, tmp_path, path_factory):
-        requests_mock.get(API_URL, json={"api_version": "1.0.0"})
-        requests_mock.post(API_URL + "result", json=self._post_result_handler_json)
-        json_file = tmp_path / "input.json"
-        json_file.write_text(pg_json)
-        json_file = path_factory(json_file)
-
-        conn = Connection(API_URL)
-        result = conn.execute(json_file)
-        assert result == {"answer": 8}
-
-    @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
-    @pytest.mark.parametrize("path_factory", [str, Path])
-    def test_create_job_pg_json_file(self, requests_mock, pg_json: str, tmp_path, path_factory):
-        requests_mock.get(API_URL, json={"api_version": "1.0.0"})
-        requests_mock.post(API_URL + "jobs", status_code=201, content=self._post_jobs_handler_json)
-        json_file = tmp_path / "input.json"
-        json_file.write_text(pg_json)
-        json_file = path_factory(json_file)
-
-        conn = Connection(API_URL)
-        job = conn.create_job(json_file)
-        assert job.job_id == "j-123"
-
-    @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
-    def test_download_pg_json_url(self, requests_mock, tmp_path, pg_json: str):
-        requests_mock.get(API_URL, json={"api_version": "1.0.0"})
-        requests_mock.post(API_URL + "result", content=self._post_result_handler_tiff)
-        url = "https://jsonbin.test/pg.json"
-        requests_mock.get(url, text=pg_json)
-
-        conn = Connection(API_URL)
-        output = tmp_path / "result.tiff"
-        conn.download(url, outputfile=output)
-        assert output.read_bytes() == b"TIFF data"
-
-    @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
-    def test_execute_pg_json_url(self, requests_mock, pg_json: str):
-        requests_mock.get(API_URL, json={"api_version": "1.0.0"})
-        requests_mock.post(API_URL + "result", json=self._post_result_handler_json)
-        url = "https://jsonbin.test/pg.json"
-        requests_mock.get(url, text=pg_json)
-
-        conn = Connection(API_URL)
-        result = conn.execute(url)
-        assert result == {"answer": 8}
-
-    @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
-    def test_create_job_pg_json_url(self, requests_mock, pg_json: str):
-        requests_mock.get(API_URL, json={"api_version": "1.0.0"})
-        requests_mock.post(API_URL + "jobs", status_code=201, content=self._post_jobs_handler_json)
-        url = "https://jsonbin.test/pg.json"
-        requests_mock.get(url, text=pg_json)
-
-        conn = Connection(API_URL)
-        job = conn.create_job(url)
-        assert job.job_id == "j-123"
+        if validation_expected:
+            assert caplog.messages == [
+                "Preflight process graph validation raised: [OddSupport] Odd values are not supported."
+            ]
+            assert dummy_backend.validation_requests == [self.PG_DICT_1]
+        else:
+            assert caplog.messages == []
+            assert dummy_backend.validation_requests == []
