@@ -1,13 +1,11 @@
 import contextlib
 import re
 import typing
-from typing import List, Optional
 from unittest import mock
 
 import pytest
 import time_machine
 
-import openeo
 from openeo.rest._testing import DummyBackend, build_capabilities
 from openeo.rest.connection import Connection
 
@@ -73,15 +71,28 @@ def oidc_device_code_flow_checker(time_machine, simple_time, fast_sleep, capsys)
 
 
 @pytest.fixture
-def con100(requests_mock):
-    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+def api_capabilities() -> dict:
+    """Fixture to be overridden for customizing the capabilities doc used by connection fixtures."""
+    return {}
+
+
+@pytest.fixture
+def connection(api_version, requests_mock, api_capabilities) -> Connection:
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, **api_capabilities))
     con = Connection(API_URL)
     return con
 
 
 @pytest.fixture
-def con120(requests_mock):
-    requests_mock.get(API_URL, json={"api_version": "1.2.0"})
+def con100(requests_mock, api_capabilities):
+    requests_mock.get(API_URL, json=build_capabilities(api_version="1.0.0", **api_capabilities))
+    con = Connection(API_URL)
+    return con
+
+
+@pytest.fixture
+def con120(requests_mock, api_capabilities):
+    requests_mock.get(API_URL, json=build_capabilities(api_version="1.2.0", **api_capabilities))
     con = Connection(API_URL)
     return con
 
@@ -89,10 +100,3 @@ def con120(requests_mock):
 @pytest.fixture
 def dummy_backend(requests_mock, con100) -> DummyBackend:
     yield DummyBackend(requests_mock=requests_mock, connection=con100)
-
-
-@pytest.fixture
-def connection_with_pgvalidation(api_version, requests_mock) -> Connection:
-    """Connection fixture to a backend that supports validation of the process graph."""
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, validation=True))
-    return openeo.connect(API_URL)
