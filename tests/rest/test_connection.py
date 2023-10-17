@@ -3252,7 +3252,7 @@ class TestExecute:
         connection_with_pgvalidation.download(pg_json, outputfile=output, validate=True)
 
         assert output.read_bytes() == b"TIFF data"
-        assert caplog.messages == ["Process graph is not valid. Validation errors:\nInvalid process graph"]
+        assert caplog.messages == ["Preflight process graph validation raised: [Invalid] Invalid process graph"]
         assert m.call_count == 1
 
     @pytest.mark.parametrize("pg_json", [PG_INVALID_INNER, PG_INVALID_OUTER])
@@ -3280,7 +3280,7 @@ class TestExecute:
         assert output.read_bytes() == b"TIFF data"
         assert m.call_count == 1
         # We still want to see those warnings in the logs though:
-        assert caplog.messages[0].startswith("Could not validate the process graph")
+        assert caplog.messages[0].startswith("Preflight process graph validation failed")
         assert caplog.text.endswith(exception_message + "\n")
 
     @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
@@ -3307,7 +3307,7 @@ class TestExecute:
 
         result = connection_with_pgvalidation.execute(pg_json, validate=True)
         assert result == {"answer": 8}
-        assert caplog.messages == ["Process graph is not valid. Validation errors:\nInvalid process graph"]
+        assert caplog.messages == ["Preflight process graph validation raised: [Invalid] Invalid process graph"]
         assert m.call_count == 1
 
     @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
@@ -3336,7 +3336,7 @@ class TestExecute:
 
         job = connection_with_pgvalidation.create_job(pg_json, validate=True)
         assert job.job_id == "j-123"
-        assert caplog.messages == ["Process graph is not valid. Validation errors:\nInvalid process graph"]
+        assert caplog.messages == ["Preflight process graph validation raised: [Invalid] Invalid process graph"]
         assert m.call_count == 1
 
     @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])
@@ -3375,7 +3375,7 @@ class TestExecute:
 
         output = tmp_path / "result.tiff"
         connection_with_pgvalidation.download(json_file, outputfile=output, validate=True)
-        assert caplog.messages == ["Process graph is not valid. Validation errors:\nInvalid process graph"]
+        assert caplog.messages == ["Preflight process graph validation raised: [Invalid] Invalid process graph"]
         assert m.call_count == 1
 
     @pytest.mark.parametrize("pg_json", [PG_JSON_1, PG_JSON_2])

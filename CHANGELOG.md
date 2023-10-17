@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Automatically validate process graph before download/execute/execute_batch and log warning when invalid ([#404](https://github.com/Open-EO/openeo-python-client/issues/404))
+- Added option (enabled by default) to automatically validate a process graph before execution. Validation issues just trigger warnings for now. ([#404](https://github.com/Open-EO/openeo-python-client/issues/404))
 
 ### Changed
 
