@@ -853,7 +853,6 @@ class TestDataCubeValidation:
     def dummy_backend_setup(self, dummy_backend):
         dummy_backend.next_validation_errors = [{"code": "NoAdd", "message": "Don't add numbers"}]
 
-
     # Reusable list of (fixture) parameterization
     # of ["api_capabilities", "auto_validate", "validate", "validation_expected"]
     _VALIDATION_PARAMETER_SETS = [
