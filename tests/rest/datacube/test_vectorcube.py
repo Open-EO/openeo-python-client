@@ -1,3 +1,4 @@
+import json
 import re
 from pathlib import Path
 
@@ -553,7 +554,7 @@ class TestVectorCubeValidation:
 
         output = tmp_path / "result.geojson"
         vector_cube.download(outputfile=output, **dict_no_none(validate=validate))
-        assert output.read_bytes() == b'{"type": "Point", "coordinates": [1, 2]}'
+        assert json.loads(output.read_text()) == {"type": "Point", "coordinates": [1, 2]}
         assert dummy_backend.get_sync_pg() == self._PG_GEOJSON_SAVE
 
         if validation_expected:
