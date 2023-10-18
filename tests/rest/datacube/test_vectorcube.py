@@ -607,6 +607,7 @@ class TestVectorCubeValidation:
             assert dummy_backend.validation_requests == []
             assert caplog.messages == []
 
+    @pytest.mark.parametrize("api_capabilities", [{"validation": True}])
     def test_vectorcube_create_job_validation_broken(self, dummy_backend, connection, requests_mock, caplog):
         """Test resilience against broken validation response."""
         requests_mock.post(
