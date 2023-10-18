@@ -536,7 +536,6 @@ class TestVectorCubeValidation:
         # (Validation supported by backend) follow explicit `validate` toggle regardless of auto_validate
         ({"validation": True}, False, True, True),
         ({"validation": True}, True, False, False),
-        # TODO: add case with broken validation
     ]
 
     @pytest.mark.parametrize(
@@ -607,6 +606,19 @@ class TestVectorCubeValidation:
         else:
             assert dummy_backend.validation_requests == []
             assert caplog.messages == []
+
+    def test_vectorcube_create_job_validation_broken(self, dummy_backend, connection, requests_mock, caplog):
+        """Test resilience against broken validation response."""
+        requests_mock.post(
+            connection.build_url("/validation"), status_code=500, json={"code": "Internal", "message": "nope!"}
+        )
+        vector_cube = VectorCube.load_geojson(connection=connection, data={"type": "Point", "coordinates": [1, 2]})
+
+        job = vector_cube.create_job(validate=True)
+        assert job.job_id == "job-000"
+        assert dummy_backend.get_batch_pg() == self._PG_GEOJSON_SAVE
+
+        assert caplog.messages == ["Preflight process graph validation failed: [500] Internal: nope!"]
 
     @pytest.mark.parametrize(
         ["api_capabilities", "auto_validate", "validate", "validation_expected"],

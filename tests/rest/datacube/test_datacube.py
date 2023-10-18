@@ -865,7 +865,6 @@ class TestDataCubeValidation:
         # (Validation supported by backend) follow explicit `validate` toggle regardless of auto_validate
         ({"validation": True}, False, True, True),
         ({"validation": True}, True, False, False),
-        # TODO: add case with broken validation
     ]
 
     @pytest.mark.parametrize(
@@ -890,6 +889,22 @@ class TestDataCubeValidation:
         else:
             assert dummy_backend.validation_requests == []
             assert caplog.messages == []
+
+    @pytest.mark.parametrize("api_capabilities", [{"validation": True}])
+    def test_cube_download_validation_broken(self, dummy_backend, connection, requests_mock, caplog, tmp_path):
+        """Test resilience against broken validation response."""
+        requests_mock.post(
+            connection.build_url("/validation"), status_code=500, json={"code": "Internal", "message": "nope!"}
+        )
+
+        cube = connection.load_collection("S2")
+
+        output = tmp_path / "result.tiff"
+        cube.download(outputfile=output, validate=True)
+        assert output.read_bytes() == b'{"what?": "Result data"}'
+        assert dummy_backend.get_sync_pg() == self._PG_S2_SAVE
+
+        assert caplog.messages == ["Preflight process graph validation failed: [500] Internal: nope!"]
 
     @pytest.mark.parametrize(
         ["api_capabilities", "auto_validate", "validate", "validation_expected"],
@@ -935,6 +950,20 @@ class TestDataCubeValidation:
         else:
             assert dummy_backend.validation_requests == []
             assert caplog.messages == []
+
+    @pytest.mark.parametrize("api_capabilities", [{"validation": True}])
+    def test_cube_create_job_validation_broken(self, dummy_backend, connection, requests_mock, caplog, tmp_path):
+        """Test resilience against broken validation response."""
+        requests_mock.post(
+            connection.build_url("/validation"), status_code=500, json={"code": "Internal", "message": "nope!"}
+        )
+
+        cube = connection.load_collection("S2")
+        job = cube.create_job(validate=True)
+        assert job.job_id == "job-000"
+        assert dummy_backend.get_batch_pg() == self._PG_S2_SAVE
+
+        assert caplog.messages == ["Preflight process graph validation failed: [500] Internal: nope!"]
 
     @pytest.mark.parametrize(
         ["api_capabilities", "auto_validate", "validate", "validation_expected"],
