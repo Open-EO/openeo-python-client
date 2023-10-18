@@ -72,7 +72,10 @@ def oidc_device_code_flow_checker(time_machine, simple_time, fast_sleep, capsys)
 
 @pytest.fixture
 def api_capabilities() -> dict:
-    """Fixture to be overridden for customizing the capabilities doc used by connection fixtures."""
+    """
+    Fixture to be overridden for customizing the capabilities doc used by connection fixtures.
+    To be used as kwargs for `build_capabilities`
+    """
     return {}
 
 

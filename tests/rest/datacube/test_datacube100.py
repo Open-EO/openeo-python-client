@@ -1931,7 +1931,8 @@ def test_custom_process_arguments_namespacd(con100: Connection):
     assert res.flat_graph() == expected
 
 
-@pytest.mark.parametrize("api_capabilities", [{"support_udp": True}])
+
+@pytest.mark.parametrize("api_capabilities", [{"udp": True}])
 def test_save_user_defined_process(con100, requests_mock):
     requests_mock.get(API_URL + "/processes", json={"processes": [{"id": "add"}]})
 
@@ -1954,7 +1955,7 @@ def test_save_user_defined_process(con100, requests_mock):
     assert adapter.called
 
 
-@pytest.mark.parametrize("api_capabilities", [{"support_udp": True}])
+@pytest.mark.parametrize("api_capabilities", [{"udp": True}])
 def test_save_user_defined_process_public(con100, requests_mock):
     requests_mock.get(API_URL + "/processes", json={"processes": [{"id": "add"}]})
 
