@@ -67,28 +67,18 @@ def setup_collection_metadata(requests_mock, cid: str, bands: List[str]):
     })
 
 
-@pytest.fixture
-def support_udp() -> bool:
-    """Per-test overridable `build_capabilities_kwargs(udp=...)` value for connection fixtures"""
-    return False
-
 
 @pytest.fixture
-def connection(api_version, requests_mock) -> Connection:
+def connection(api_version, requests_mock, api_capabilities) -> Connection:
     """Connection fixture to a backend of given version with some image collections."""
-    return _setup_connection(api_version, requests_mock)
+    return _setup_connection(api_version, requests_mock, build_capabilities_kwargs=api_capabilities)
 
 
 @pytest.fixture
-def con100(requests_mock, support_udp) -> Connection:
+def con100(requests_mock, api_capabilities) -> Connection:
     """Connection fixture to a 1.0.0 backend with some image collections."""
-    return _setup_connection("1.0.0", requests_mock, build_capabilities_kwargs={"udp": support_udp})
+    return _setup_connection("1.0.0", requests_mock, build_capabilities_kwargs=api_capabilities)
 
-
-@pytest.fixture
-def connection_with_pgvalidation_datacube(api_version, requests_mock) -> Connection:
-    """Connection fixture to a backend that supports validation of the process graph."""
-    return _setup_connection("1.0.0", requests_mock, build_capabilities_kwargs={"udp": support_udp, "validation": True})
 
 
 @pytest.fixture

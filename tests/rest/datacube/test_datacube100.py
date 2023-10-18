@@ -27,7 +27,6 @@ from openeo.internal.process_graph_visitor import ProcessGraphVisitException
 from openeo.internal.warnings import UserDeprecationWarning
 from openeo.processes import ProcessBuilder
 from openeo.rest import OpenEoClientException
-from openeo.rest._testing import build_capabilities
 from openeo.rest.connection import Connection
 from openeo.rest.datacube import THIS, UDF, DataCube
 
@@ -1966,9 +1965,9 @@ def test_custom_process_arguments_namespacd(con100: Connection):
     assert res.flat_graph() == expected
 
 
-@pytest.mark.parametrize("support_udp", [True])
+
+@pytest.mark.parametrize("api_capabilities", [{"udp": True}])
 def test_save_user_defined_process(con100, requests_mock):
-    requests_mock.get(API_URL + "/", json=build_capabilities(udp=True))
     requests_mock.get(API_URL + "/processes", json={"processes": [{"id": "add"}]})
 
     expected_body = load_json_resource("data/1.0.0/save_user_defined_process.json")
@@ -1990,9 +1989,8 @@ def test_save_user_defined_process(con100, requests_mock):
     assert adapter.called
 
 
-@pytest.mark.parametrize("support_udp", [True])
+@pytest.mark.parametrize("api_capabilities", [{"udp": True}])
 def test_save_user_defined_process_public(con100, requests_mock):
-    requests_mock.get(API_URL + "/", json=build_capabilities(udp=True))
     requests_mock.get(API_URL + "/processes", json={"processes": [{"id": "add"}]})
 
     expected_body = load_json_resource("data/1.0.0/save_user_defined_process.json")

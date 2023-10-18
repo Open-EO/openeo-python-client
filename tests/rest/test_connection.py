@@ -3285,21 +3285,25 @@ class TestExecuteWithValidation:
         con = Connection(API_URL, **dict_no_none(auto_validate=auto_validate))
         return con
 
+    # Reusable list of (fixture) parameterization
+    # of ["api_capabilities", "auto_validate", "validate", "validation_expected"]
+    _VALIDATION_PARAMETER_SETS = [
+        # No validation supported by backend: don't attempt to validate
+        ({}, None, None, False),
+        ({}, True, True, False),
+        # Validation supported by backend, default behavior -> validate
+        ({"validation": True}, None, None, True),
+        # (Validation supported by backend) no explicit validation enabled: follow auto_validate setting
+        ({"validation": True}, True, None, True),
+        ({"validation": True}, False, None, False),
+        # (Validation supported by backend) follow explicit `validate` toggle regardless of auto_validate
+        ({"validation": True}, False, True, True),
+        ({"validation": True}, True, False, False),
+    ]
+
     @pytest.mark.parametrize(
         ["api_capabilities", "auto_validate", "validate", "validation_expected"],
-        [
-            # No validation supported by backend: don't attempt to validate
-            ({}, None, None, False),
-            ({}, True, True, False),
-            # Validation supported by backend, default behavior -> validate
-            ({"validation": True}, None, None, True),
-            # (Validation supported by backend) no explicit validation enabled: follow auto_validate setting
-            ({"validation": True}, True, None, True),
-            ({"validation": True}, False, None, False),
-            # (Validation supported by backend) follow explicit `validate` toggle regardless of auto_validate
-            ({"validation": True}, False, True, True),
-            ({"validation": True}, True, False, False),
-        ],
+        _VALIDATION_PARAMETER_SETS,
     )
     def test_download_validation(
         self,
@@ -3362,19 +3366,7 @@ class TestExecuteWithValidation:
 
     @pytest.mark.parametrize(
         ["api_capabilities", "auto_validate", "validate", "validation_expected"],
-        [
-            # No validation supported by backend: don't attempt to validate
-            ({}, None, None, False),
-            ({}, True, True, False),
-            # Validation supported by backend, default behavior -> validate
-            ({"validation": True}, None, None, True),
-            # (Validation supported by backend) no explicit validation enabled: follow auto_validate setting
-            ({"validation": True}, True, None, True),
-            ({"validation": True}, False, None, False),
-            # (Validation supported by backend) follow explicit `validate` toggle regardless of auto_validate
-            ({"validation": True}, False, True, True),
-            ({"validation": True}, True, False, False),
-        ],
+        _VALIDATION_PARAMETER_SETS,
     )
     def test_execute_validation(
         self, dummy_backend, connection, caplog, api_capabilities, validate, validation_expected
@@ -3396,19 +3388,7 @@ class TestExecuteWithValidation:
 
     @pytest.mark.parametrize(
         ["api_capabilities", "auto_validate", "validate", "validation_expected"],
-        [
-            # No validation supported by backend: don't attempt to validate
-            ({}, None, None, False),
-            ({}, True, True, False),
-            # Validation supported by backend, default behavior -> validate
-            ({"validation": True}, None, None, True),
-            # (Validation supported by backend) no explicit validation enabled: follow auto_validate setting
-            ({"validation": True}, True, None, True),
-            ({"validation": True}, False, None, False),
-            # (Validation supported by backend) follow explicit `validate` toggle regardless of auto_validate
-            ({"validation": True}, False, True, True),
-            ({"validation": True}, True, False, False),
-        ],
+        _VALIDATION_PARAMETER_SETS,
     )
     def test_create_job_validation(
         self, dummy_backend, connection, caplog, api_capabilities, validate, validation_expected

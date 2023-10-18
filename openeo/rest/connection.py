@@ -1568,7 +1568,7 @@ class Connection(RestApiConnection):
             json=pg_with_metadata,
             expected_status=200,
             timeout=timeout or DEFAULT_TIMEOUT_SYNCHRONOUS_EXECUTE,
-        ).json()
+        ).json()  # TODO: only do JSON decoding when mimetype is actually JSON?
 
     def create_job(
         self,

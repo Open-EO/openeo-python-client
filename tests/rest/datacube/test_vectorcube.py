@@ -1,17 +1,16 @@
+import json
 import re
 from pathlib import Path
 
 import pytest
-import requests
 import shapely.geometry
 
 import openeo.processes
 from openeo.api.process import Parameter
+from openeo.rest._testing import DummyBackend, build_capabilities
 from openeo.rest.connection import Connection
-from openeo.rest._testing import DummyBackend
 from openeo.rest.vectorcube import VectorCube
-from openeo.util import InvalidBBoxException
-
+from openeo.util import InvalidBBoxException, dict_no_none
 
 API_URL = "https://oeo.test"
 
@@ -483,104 +482,165 @@ def test_filter_vector_shapely(vector_cube, dummy_backend, geometries):
     }
 
 
-class TestProcessGraphValidation:
-    JOB_ID = "j-123"
-    PROCESS_GRAPH_DICT = {
+class TestVectorCubeValidation:
+    """
+    Test (auto) validation of vector cube execution with `download`, `execute`, ...
+    """
+
+    _PG_GEOJSON = {
         "loadgeojson1": {
             "process_id": "load_geojson",
-            "arguments": {
-                "data": {
-                    "type": "Point",
-                    "coordinates": [1, 2],
-                },
-                "properties": [],
-            },
+            "arguments": {"data": {"type": "Point", "coordinates": [1, 2]}, "properties": []},
             "result": True,
-        }
+        },
+    }
+    _PG_GEOJSON_SAVE = {
+        "loadgeojson1": {
+            "process_id": "load_geojson",
+            "arguments": {"data": {"type": "Point", "coordinates": [1, 2]}, "properties": []},
+        },
+        "saveresult1": {
+            "process_id": "save_result",
+            "arguments": {"data": {"from_node": "loadgeojson1"}, "format": "GeoJSON", "options": {}},
+            "result": True,
+        },
     }
 
+    @pytest.fixture(params=[False, True])
+    def auto_validate(self, request) -> bool:
+        """Fixture to parametrize auto_validate setting."""
+        return request.param
+
     @pytest.fixture
-    def vector_cube_pgval(self, connection_with_pgvalidation_datacube) -> VectorCube:
-        """Dummy vector cube"""
-        return connection_with_pgvalidation_datacube.load_geojson({"type": "Point", "coordinates": [1, 2]})
+    def connection(self, api_version, requests_mock, api_capabilities, auto_validate) -> Connection:
+        requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, **api_capabilities))
+        con = Connection(API_URL, **dict_no_none(auto_validate=auto_validate))
+        return con
 
-    def _post_jobs_handler_json(self, response: requests.Request, context):
-        context.headers["OpenEO-Identifier"] = self.JOB_ID
-        return b""
+    @pytest.fixture(autouse=True)
+    def dummy_backend_setup(self, dummy_backend):
+        dummy_backend.next_result = {"type": "Point", "coordinates": [1, 2]}
+        dummy_backend.next_validation_errors = [{"code": "NoPoints", "message": "Don't use points."}]
 
-    def _post_result_handler_json(self, response: requests.Request, context):
-        pg = response.json()["process"]["process_graph"]
-        assert pg == self.PROCESS_GRAPH_DICT
-        return b'{"answer": 8}'
+    # Reusable list of (fixture) parameterization
+    # of ["api_capabilities", "auto_validate", "validate", "validation_expected"]
+    _VALIDATION_PARAMETER_SETS = [
+        # No validation supported by backend: don't attempt to validate
+        ({}, None, None, False),
+        ({}, True, True, False),
+        # Validation supported by backend, default behavior -> validate
+        ({"validation": True}, None, None, True),
+        # (Validation supported by backend) no explicit validation enabled: follow auto_validate setting
+        ({"validation": True}, True, None, True),
+        ({"validation": True}, False, None, False),
+        # (Validation supported by backend) follow explicit `validate` toggle regardless of auto_validate
+        ({"validation": True}, False, True, True),
+        ({"validation": True}, True, False, False),
+    ]
 
-    @pytest.mark.parametrize("validate", [True, False])
-    def test_create_job_with_pg_validation(
-        self,
-        requests_mock,
-        vector_cube_pgval: VectorCube,
-        validate,
+    @pytest.mark.parametrize(
+        ["api_capabilities", "auto_validate", "validate", "validation_expected"],
+        _VALIDATION_PARAMETER_SETS,
+    )
+    def test_vectorcube_download_validation(
+        self, dummy_backend, connection, validate, validation_expected, caplog, tmp_path
     ):
         """The DataCube should pass through request for the validation to the
         connection and the validation endpoint should only be called when
         validation was requested.
         """
-        m = requests_mock.post(API_URL + "/validation", json={"errors": []})
+        vector_cube = VectorCube.load_geojson(connection=connection, data={"type": "Point", "coordinates": [1, 2]})
 
-        requests_mock.post(API_URL + "/jobs", status_code=201, content=self._post_jobs_handler_json)
-        vector_cube_pgval.create_job(validate=validate)
+        output = tmp_path / "result.geojson"
+        vector_cube.download(outputfile=output, **dict_no_none(validate=validate))
+        assert json.loads(output.read_text()) == {"type": "Point", "coordinates": [1, 2]}
+        assert dummy_backend.get_sync_pg() == self._PG_GEOJSON_SAVE
 
-        # Validation should be called if and only if it was requested
-        expected_call_count = 1 if validate else 0
-        assert m.call_count == expected_call_count
+        if validation_expected:
+            assert dummy_backend.validation_requests == [self._PG_GEOJSON_SAVE]
+            assert caplog.messages == ["Preflight process graph validation raised: [NoPoints] Don't use points."]
+        else:
+            assert dummy_backend.validation_requests == []
+            assert caplog.messages == []
 
-    @pytest.mark.parametrize("validate", [True, False])
-    def test_execute_with_pg_validation(
-        self,
-        requests_mock,
-        vector_cube_pgval: VectorCube,
-        validate,
+    @pytest.mark.parametrize(
+        ["api_capabilities", "auto_validate", "validate", "validation_expected"],
+        _VALIDATION_PARAMETER_SETS,
+    )
+    def test_vectorcube_execute_validation(self, dummy_backend, connection, validate, validation_expected, caplog):
+        """The DataCube should pass through request for the validation to the
+        connection and the validation endpoint should only be called when
+        validation was requested.
+        """
+        vector_cube = VectorCube.load_geojson(connection=connection, data={"type": "Point", "coordinates": [1, 2]})
+
+        res = vector_cube.execute(**dict_no_none(validate=validate))
+        assert res == {"type": "Point", "coordinates": [1, 2]}
+        assert dummy_backend.get_sync_pg() == self._PG_GEOJSON
+
+        if validation_expected:
+            assert dummy_backend.validation_requests == [self._PG_GEOJSON]
+            assert caplog.messages == ["Preflight process graph validation raised: [NoPoints] Don't use points."]
+        else:
+            assert dummy_backend.validation_requests == []
+            assert caplog.messages == []
+
+    @pytest.mark.parametrize(
+        ["api_capabilities", "auto_validate", "validate", "validation_expected"],
+        _VALIDATION_PARAMETER_SETS,
+    )
+    def test_vectorcube_create_job_validation(self, dummy_backend, connection, validate, validation_expected, caplog):
+        """The DataCube should pass through request for the validation to the
+        connection and the validation endpoint should only be called when
+        validation was requested.
+        """
+        vector_cube = VectorCube.load_geojson(connection=connection, data={"type": "Point", "coordinates": [1, 2]})
+
+        job = vector_cube.create_job(**dict_no_none(validate=validate))
+        assert job.job_id == "job-000"
+        assert dummy_backend.get_batch_pg() == self._PG_GEOJSON_SAVE
+
+        if validation_expected:
+            assert dummy_backend.validation_requests == [self._PG_GEOJSON_SAVE]
+            assert caplog.messages == ["Preflight process graph validation raised: [NoPoints] Don't use points."]
+        else:
+            assert dummy_backend.validation_requests == []
+            assert caplog.messages == []
+
+    @pytest.mark.parametrize("api_capabilities", [{"validation": True}])
+    def test_vectorcube_create_job_validation_broken(self, dummy_backend, connection, requests_mock, caplog):
+        """Test resilience against broken validation response."""
+        requests_mock.post(
+            connection.build_url("/validation"), status_code=500, json={"code": "Internal", "message": "nope!"}
+        )
+        vector_cube = VectorCube.load_geojson(connection=connection, data={"type": "Point", "coordinates": [1, 2]})
+
+        job = vector_cube.create_job(validate=True)
+        assert job.job_id == "job-000"
+        assert dummy_backend.get_batch_pg() == self._PG_GEOJSON_SAVE
+
+        assert caplog.messages == ["Preflight process graph validation failed: [500] Internal: nope!"]
+
+    @pytest.mark.parametrize(
+        ["api_capabilities", "auto_validate", "validate", "validation_expected"],
+        _VALIDATION_PARAMETER_SETS,
+    )
+    def test_vectorcube_execute_batch_validation(
+        self, dummy_backend, connection, validate, validation_expected, caplog
     ):
         """The DataCube should pass through request for the validation to the
         connection and the validation endpoint should only be called when
         validation was requested.
         """
-        m = requests_mock.post(API_URL + "/validation", json={"errors": []})
-        requests_mock.post(API_URL + "/jobs", status_code=201, content=self._post_jobs_handler_json)
-        requests_mock.post(API_URL + "/result", content=self._post_result_handler_json)
+        vector_cube = VectorCube.load_geojson(connection=connection, data={"type": "Point", "coordinates": [1, 2]})
 
-        vector_cube_pgval.execute(validate=validate)
+        job = vector_cube.execute_batch(**dict_no_none(validate=validate))
+        assert job.job_id == "job-000"
+        assert dummy_backend.get_batch_pg() == self._PG_GEOJSON_SAVE
 
-        # Validation should be called if and only if it was requested
-        expected_call_count = 1 if validate else 0
-        assert m.call_count == expected_call_count
-
-    @pytest.mark.parametrize("validate", [True, False])
-    def test_execute_batch_with_pg_validation(
-        self,
-        requests_mock,
-        vector_cube_pgval: VectorCube,
-        validate,
-    ):
-        """The DataCube should pass through request for the validation to the
-        connection and the validation endpoint should only be called when
-        validation was requested.
-        """
-        m = requests_mock.post(API_URL + "/validation", json={"errors": []})
-        requests_mock.post(API_URL + "/jobs", status_code=201, content=self._post_jobs_handler_json)
-        requests_mock.post(API_URL + f"/jobs/{self.JOB_ID}/results", status_code=202)
-        job_metadata = {
-            "id": self.JOB_ID,
-            "title": f"Job {self.JOB_ID,}",
-            "description": f"Job {self.JOB_ID,}",
-            "process": self.PROCESS_GRAPH_DICT,
-            "status": "finished",
-            "created": "2017-01-01T09:32:12Z",
-            "links": [],
-        }
-        requests_mock.get(API_URL + f"/jobs/{self.JOB_ID}", status_code=200, json=job_metadata)
-
-        vector_cube_pgval.execute_batch(validate=validate)
-
-        # Validation should be called if and only if it was requested
-        expected_call_count = 1 if validate else 0
-        assert m.call_count == expected_call_count
+        if validation_expected:
+            assert dummy_backend.validation_requests == [self._PG_GEOJSON_SAVE]
+            assert caplog.messages == ["Preflight process graph validation raised: [NoPoints] Don't use points."]
+        else:
+            assert dummy_backend.validation_requests == []
+            assert caplog.messages == []
