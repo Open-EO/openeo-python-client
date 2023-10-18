@@ -94,6 +94,7 @@ class RESTUserDefinedProcess:
         # TODO: this "public" flag is not standardized yet EP-3609, https://github.com/Open-EO/openeo-api/issues/310
         process["public"] = public
 
+        self._connection._preflight_validation(pg_with_metadata=process)
         self._connection.put(
             path="/process_graphs/{}".format(self.user_defined_process_id), json=process, expected_status=200
         )

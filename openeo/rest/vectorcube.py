@@ -226,15 +226,17 @@ class VectorCube(_ProcessGraphAbstraction):
             cube = self.save_result(format=format or "GeoJSON", options=options)
         return cube
 
-    def execute(self) -> dict:
-        """Executes the process graph of the imagery."""
-        return self._connection.execute(self.flat_graph())
+    def execute(self, *, validate: Optional[bool] = None) -> dict:
+        """Executes the process graph."""
+        return self._connection.execute(self.flat_graph(), validate=validate)
 
     def download(
         self,
         outputfile: Optional[Union[str, pathlib.Path]] = None,
         format: Optional[str] = None,
         options: Optional[dict] = None,
+        *,
+        validate: Optional[bool] = None,
     ) -> Union[None, bytes]:
         """
         Execute synchronously and download the vector cube.
@@ -245,7 +247,8 @@ class VectorCube(_ProcessGraphAbstraction):
         :param outputfile: (optional) output file to store the result to
         :param format: (optional) output format to use.
         :param options: (optional) additional output format options.
-        :return:
+        :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
+            (overruling the connection's ``auto_validate`` setting).
 
         .. versionchanged:: 0.21.0
             When not specified explicitly, output format is guessed from output file extension.
@@ -256,16 +259,18 @@ class VectorCube(_ProcessGraphAbstraction):
         if format is None and outputfile:
             format = guess_format(outputfile)
         cube = self._ensure_save_result(format=format, options=options)
-        return self._connection.download(cube.flat_graph(), outputfile)
+        return self._connection.download(cube.flat_graph(), outputfile=outputfile, validate=validate)
 
     def execute_batch(
         self,
         outputfile: Optional[Union[str, pathlib.Path]] = None,
         out_format: Optional[str] = None,
+        *,
         print=print,
         max_poll_interval: float = 60,
         connection_retry_interval: float = 30,
         job_options: Optional[dict] = None,
+        validate: Optional[bool] = None,
         # TODO: avoid using kwargs as format options
         **format_options,
     ) -> BatchJob:
@@ -279,6 +284,8 @@ class VectorCube(_ProcessGraphAbstraction):
         :param outputfile: The path of a file to which a result can be written
         :param out_format: (optional) output format to use.
         :param format_options: (optional) additional output format options
+        :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
+            (overruling the connection's ``auto_validate`` setting).
 
         .. versionchanged:: 0.21.0
             When not specified explicitly, output format is guessed from output file extension.
@@ -287,7 +294,7 @@ class VectorCube(_ProcessGraphAbstraction):
             # TODO #401/#449 don't guess/override format if there is already a save_result with format?
             out_format = guess_format(outputfile)
 
-        job = self.create_job(out_format, job_options=job_options, **format_options)
+        job = self.create_job(out_format, job_options=job_options, validate=validate, **format_options)
         return job.run_synchronous(
             # TODO #135 support multi file result sets too
             outputfile=outputfile,
@@ -303,6 +310,7 @@ class VectorCube(_ProcessGraphAbstraction):
         plan: Optional[str] = None,
         budget: Optional[float] = None,
         job_options: Optional[dict] = None,
+        validate: Optional[bool] = None,
         **format_options,
     ) -> BatchJob:
         """
@@ -315,6 +323,9 @@ class VectorCube(_ProcessGraphAbstraction):
         :param budget: maximum cost the request is allowed to produce
         :param job_options: A dictionary containing (custom) job options
         :param format_options: String Parameters for the job result format
+        :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
+            (overruling the connection's ``auto_validate`` setting).
+
         :return: Created job.
         """
         # TODO: avoid using all kwargs as format_options
@@ -327,6 +338,7 @@ class VectorCube(_ProcessGraphAbstraction):
             plan=plan,
             budget=budget,
             additional=job_options,
+            validate=validate,
         )
 
     send_job = legacy_alias(create_job, name="send_job", since="0.10.0")

@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `DataCube.reduce_spatial()`
+- Added option (enabled by default) to automatically validate a process graph before execution. Validation issues just trigger warnings for now. ([#404](https://github.com/Open-EO/openeo-python-client/issues/404))
 
 ### Changed
 

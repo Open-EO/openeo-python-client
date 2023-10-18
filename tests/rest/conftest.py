@@ -6,7 +6,7 @@ from unittest import mock
 import pytest
 import time_machine
 
-from openeo.rest._testing import DummyBackend
+from openeo.rest._testing import DummyBackend, build_capabilities
 from openeo.rest.connection import Connection
 
 API_URL = "https://oeo.test/"
@@ -71,15 +71,31 @@ def oidc_device_code_flow_checker(time_machine, simple_time, fast_sleep, capsys)
 
 
 @pytest.fixture
-def con100(requests_mock):
-    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+def api_capabilities() -> dict:
+    """
+    Fixture to be overridden for customizing the capabilities doc used by connection fixtures.
+    To be used as kwargs for `build_capabilities`
+    """
+    return {}
+
+
+@pytest.fixture
+def connection(api_version, requests_mock, api_capabilities) -> Connection:
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, **api_capabilities))
     con = Connection(API_URL)
     return con
 
 
 @pytest.fixture
-def con120(requests_mock):
-    requests_mock.get(API_URL, json={"api_version": "1.2.0"})
+def con100(requests_mock, api_capabilities):
+    requests_mock.get(API_URL, json=build_capabilities(api_version="1.0.0", **api_capabilities))
+    con = Connection(API_URL)
+    return con
+
+
+@pytest.fixture
+def con120(requests_mock, api_capabilities):
+    requests_mock.get(API_URL, json=build_capabilities(api_version="1.2.0", **api_capabilities))
     con = Connection(API_URL)
     return con
 
