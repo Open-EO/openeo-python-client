@@ -27,7 +27,6 @@ from openeo.internal.process_graph_visitor import ProcessGraphVisitException
 from openeo.internal.warnings import UserDeprecationWarning
 from openeo.processes import ProcessBuilder
 from openeo.rest import OpenEoClientException
-from openeo.rest._testing import build_capabilities
 from openeo.rest.connection import Connection
 from openeo.rest.datacube import THIS, UDF, DataCube
 

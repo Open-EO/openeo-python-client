@@ -2,7 +2,6 @@ import re
 from pathlib import Path
 
 import pytest
-import requests
 import shapely.geometry
 
 import openeo.processes

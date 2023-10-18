@@ -4,14 +4,12 @@ General cube method tests against both
 - 1.0.0-style DataCube
 
 """
-import json
 import pathlib
 from datetime import date, datetime
 from unittest import mock
 
 import numpy as np
 import pytest
-import requests
 import shapely
 import shapely.geometry
 
