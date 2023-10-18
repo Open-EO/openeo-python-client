@@ -61,6 +61,12 @@ BAND_MAPPING_SENTINEL2 = {
     "B11": "S1",
     "B12": "S2",
 }
+BAND_MAPPING_SENTINEL1 = {
+    "HH": "HH",
+    "HV": "HV",
+    "VH": "VH",
+    "VV": "VV",
+}
 
 
 def _get_expression_map(cube: DataCube, x: ProcessBuilder) -> Dict[str, ProcessBuilder]:
@@ -78,6 +84,8 @@ def _get_expression_map(cube: DataCube, x: ProcessBuilder) -> Dict[str, ProcessB
         band_mapping = BAND_MAPPING_PROBAV
     elif "TERRASCOPE_S2" in collection_id or "SENTINEL2" in collection_id:
         band_mapping = BAND_MAPPING_SENTINEL2
+    elif "SENTINEL1" in collection_id:
+        band_mapping = BAND_MAPPING_SENTINEL1
     else:
         raise ValueError(f"Could not detect supported satellite platform from {collection_id!r} for index computation")
 
