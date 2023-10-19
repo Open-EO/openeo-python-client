@@ -326,7 +326,9 @@ class OidcClientInfo:
     Simple container holding basic info of an OIDC client
     """
 
-    def __init__(self, client_id: str, provider: OidcProviderInfo, client_secret: str = None):
+    __slots__ = ["client_id", "provider", "client_secret"]
+
+    def __init__(self, client_id: str, provider: OidcProviderInfo, client_secret: Optional[str] = None):
         self.client_id = client_id
         self.provider = provider
         self.client_secret = client_secret

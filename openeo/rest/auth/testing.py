@@ -60,11 +60,10 @@ class OidcMock:
         self.state = state or {}
         self.scopes_supported = scopes_supported or ["openid", "email", "profile"]
         self.support_verification_uri_complete = support_verification_uri_complete
+        self.mocks = {}
 
-        oidc_discovery_url = oidc_discovery_url or url_join(
-            oidc_issuer, "/.well-known/openid-configuration"
-        )
-        self.requests_mock.get(
+        oidc_discovery_url = oidc_discovery_url or url_join(oidc_issuer, "/.well-known/openid-configuration")
+        self.mocks["oidc_discovery"] = self.requests_mock.get(
             oidc_discovery_url,
             text=json.dumps(
                 dict_no_none(
@@ -79,10 +78,10 @@ class OidcMock:
                 )
             ),
         )
-        self.requests_mock.post(self.token_endpoint, text=self.token_callback)
+        self.mocks["token_endpoint"] = self.requests_mock.post(self.token_endpoint, text=self.token_callback)
 
         if self.device_code_endpoint:
-            self.requests_mock.post(
+            self.mocks["device_code_endpoint"] = self.requests_mock.post(
                 self.device_code_endpoint, text=self.device_code_callback
             )
 
