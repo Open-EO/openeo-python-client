@@ -46,6 +46,7 @@ from openeo.rest.auth.oidc import (
     OidcResourceOwnerPasswordAuthenticator,
 )
 from openeo.rest.datacube import DataCube, InputDate
+from openeo.rest.http import requests_with_retry
 from openeo.rest.job import BatchJob, RESTJob
 from openeo.rest.mlmodel import MlModel
 from openeo.rest.rest_capabilities import RESTCapabilities
@@ -85,7 +86,8 @@ class RestApiConnection:
     ):
         self._root_url = root_url
         self.auth = auth or NullAuth()
-        self.session = session or requests.Session()
+        # TODO: #441 [WIP] Add requests_with_retry here to the session?
+        self.session = session or requests_with_retry()
         self.default_timeout = default_timeout or DEFAULT_TIMEOUT
         self.default_headers = {
             "User-Agent": "openeo-python-client/{cv} {py}/{pv} {pl}".format(
