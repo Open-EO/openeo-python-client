@@ -203,13 +203,13 @@ def execute_local_udf(udf: Union[str, openeo.UDF], datacube: Union[str, xarray.D
         d = XarrayDataCube(datacube)
     else:
         raise ValueError(datacube)
+    d_array = d.get_array()
+    expected_order = ("t", "bands", "y", "x")
+    dims = [d for d in expected_order if d in d_array.dims]
+
     # TODO: skip going through XarrayDataCube above, we only need xarray.DataArray here anyway.
     # datacube's data is to be float and x,y not provided
-    d = XarrayDataCube(d.get_array()
-                       .astype(numpy.float64)
-                       .drop(labels='x')
-                       .drop(labels='y')
-                       )
+    d = XarrayDataCube(d_array.transpose(*dims).astype(numpy.float64).drop(labels="x").drop(labels="y"))
     # wrap to udf_data
     udf_data = UdfData(datacube_list=[d])
 

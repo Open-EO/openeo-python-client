@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Enforce `XarrayDataCube` dimension order in `execute_local_udf()` to (t, bands, y, x) to improve UDF interoperability with existing back-end implementations.```
+
 ### Removed
 
 ### Fixed
