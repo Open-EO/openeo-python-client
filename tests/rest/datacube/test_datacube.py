@@ -14,7 +14,10 @@ import shapely
 import shapely.geometry
 
 from openeo.rest import BandMathException
+from openeo.rest._testing import build_capabilities
+from openeo.rest.connection import Connection
 from openeo.rest.datacube import DataCube
+from openeo.util import dict_no_none
 
 from ... import load_json_resource
 from .. import get_download_graph
@@ -807,3 +810,178 @@ class TestExecuteBatch:
             },
             "result": True,
         }
+
+
+class TestDataCubeValidation:
+    """
+    Test (auto) validation of datacube execution with `download`, `execute`, ...
+    """
+
+    _PG_S2 = {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
+            "result": True,
+        },
+    }
+    _PG_S2_SAVE = {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
+        },
+        "saveresult1": {
+            "process_id": "save_result",
+            "arguments": {"data": {"from_node": "loadcollection1"}, "format": "GTiff", "options": {}},
+            "result": True,
+        },
+    }
+
+    @pytest.fixture(params=[False, True])
+    def auto_validate(self, request) -> bool:
+        """Fixture to parametrize auto_validate setting."""
+        return request.param
+
+    @pytest.fixture
+    def connection(self, api_version, requests_mock, api_capabilities, auto_validate) -> Connection:
+        requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, **api_capabilities))
+        con = Connection(API_URL, **dict_no_none(auto_validate=auto_validate))
+        return con
+
+    @pytest.fixture(autouse=True)
+    def dummy_backend_setup(self, dummy_backend):
+        dummy_backend.next_validation_errors = [{"code": "NoAdd", "message": "Don't add numbers"}]
+
+    # Reusable list of (fixture) parameterization
+    # of ["api_capabilities", "auto_validate", "validate", "validation_expected"]
+    _VALIDATION_PARAMETER_SETS = [
+        # No validation supported by backend: don't attempt to validate
+        ({}, None, None, False),
+        ({}, True, True, False),
+        # Validation supported by backend, default behavior -> validate
+        ({"validation": True}, None, None, True),
+        # (Validation supported by backend) no explicit validation enabled: follow auto_validate setting
+        ({"validation": True}, True, None, True),
+        ({"validation": True}, False, None, False),
+        # (Validation supported by backend) follow explicit `validate` toggle regardless of auto_validate
+        ({"validation": True}, False, True, True),
+        ({"validation": True}, True, False, False),
+    ]
+
+    @pytest.mark.parametrize(
+        ["api_capabilities", "auto_validate", "validate", "validation_expected"],
+        _VALIDATION_PARAMETER_SETS,
+    )
+    def test_cube_download_validation(self, dummy_backend, connection, validate, validation_expected, caplog, tmp_path):
+        """The DataCube should pass through request for the validation to the
+        connection and the validation endpoint should only be called when
+        validation was requested.
+        """
+        cube = connection.load_collection("S2")
+
+        output = tmp_path / "result.tiff"
+        cube.download(outputfile=output, **dict_no_none(validate=validate))
+        assert output.read_bytes() == b'{"what?": "Result data"}'
+        assert dummy_backend.get_sync_pg() == self._PG_S2_SAVE
+
+        if validation_expected:
+            assert dummy_backend.validation_requests == [self._PG_S2_SAVE]
+            assert caplog.messages == ["Preflight process graph validation raised: [NoAdd] Don't add numbers"]
+        else:
+            assert dummy_backend.validation_requests == []
+            assert caplog.messages == []
+
+    @pytest.mark.parametrize("api_capabilities", [{"validation": True}])
+    def test_cube_download_validation_broken(self, dummy_backend, connection, requests_mock, caplog, tmp_path):
+        """Test resilience against broken validation response."""
+        requests_mock.post(
+            connection.build_url("/validation"), status_code=500, json={"code": "Internal", "message": "nope!"}
+        )
+
+        cube = connection.load_collection("S2")
+
+        output = tmp_path / "result.tiff"
+        cube.download(outputfile=output, validate=True)
+        assert output.read_bytes() == b'{"what?": "Result data"}'
+        assert dummy_backend.get_sync_pg() == self._PG_S2_SAVE
+
+        assert caplog.messages == ["Preflight process graph validation failed: [500] Internal: nope!"]
+
+    @pytest.mark.parametrize(
+        ["api_capabilities", "auto_validate", "validate", "validation_expected"],
+        _VALIDATION_PARAMETER_SETS,
+    )
+    def test_cube_execute_validation(self, dummy_backend, connection, validate, validation_expected, caplog):
+        """The DataCube should pass through request for the validation to the
+        connection and the validation endpoint should only be called when
+        validation was requested.
+        """
+        cube = connection.load_collection("S2")
+
+        res = cube.execute(**dict_no_none(validate=validate))
+        assert res == {"what?": "Result data"}
+        assert dummy_backend.get_sync_pg() == self._PG_S2
+
+        if validation_expected:
+            assert dummy_backend.validation_requests == [self._PG_S2]
+            assert caplog.messages == ["Preflight process graph validation raised: [NoAdd] Don't add numbers"]
+        else:
+            assert dummy_backend.validation_requests == []
+            assert caplog.messages == []
+
+    @pytest.mark.parametrize(
+        ["api_capabilities", "auto_validate", "validate", "validation_expected"],
+        _VALIDATION_PARAMETER_SETS,
+    )
+    def test_cube_create_job_validation(
+        self, dummy_backend, connection: Connection, validate, validation_expected, caplog
+    ):
+        """The DataCube should pass through request for the validation to the
+        connection and the validation endpoint should only be called when
+        validation was requested.
+        """
+        cube = connection.load_collection("S2")
+        job = cube.create_job(**dict_no_none(validate=validate))
+        assert job.job_id == "job-000"
+        assert dummy_backend.get_batch_pg() == self._PG_S2_SAVE
+
+        if validation_expected:
+            assert dummy_backend.validation_requests == [self._PG_S2_SAVE]
+            assert caplog.messages == ["Preflight process graph validation raised: [NoAdd] Don't add numbers"]
+        else:
+            assert dummy_backend.validation_requests == []
+            assert caplog.messages == []
+
+    @pytest.mark.parametrize("api_capabilities", [{"validation": True}])
+    def test_cube_create_job_validation_broken(self, dummy_backend, connection, requests_mock, caplog, tmp_path):
+        """Test resilience against broken validation response."""
+        requests_mock.post(
+            connection.build_url("/validation"), status_code=500, json={"code": "Internal", "message": "nope!"}
+        )
+
+        cube = connection.load_collection("S2")
+        job = cube.create_job(validate=True)
+        assert job.job_id == "job-000"
+        assert dummy_backend.get_batch_pg() == self._PG_S2_SAVE
+
+        assert caplog.messages == ["Preflight process graph validation failed: [500] Internal: nope!"]
+
+    @pytest.mark.parametrize(
+        ["api_capabilities", "auto_validate", "validate", "validation_expected"],
+        _VALIDATION_PARAMETER_SETS,
+    )
+    def test_cube_execute_batch_validation(self, dummy_backend, connection, validate, validation_expected, caplog):
+        """The DataCube should pass through request for the validation to the
+        connection and the validation endpoint should only be called when
+        validation was requested.
+        """
+        cube = connection.load_collection("S2")
+        job = cube.execute_batch(**dict_no_none(validate=validate))
+        assert job.job_id == "job-000"
+        assert dummy_backend.get_batch_pg() == self._PG_S2_SAVE
+
+        if validation_expected:
+            assert dummy_backend.validation_requests == [self._PG_S2_SAVE]
+            assert caplog.messages == ["Preflight process graph validation raised: [NoAdd] Don't add numbers"]
+        else:
+            assert dummy_backend.validation_requests == []
+            assert caplog.messages == []

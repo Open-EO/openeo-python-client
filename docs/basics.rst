@@ -100,6 +100,8 @@ and the back-end will be able to identify you in subsequent requests.
 
 
 
+.. _basic_example_evi_map_and_timeseries:
+
 Example use case: EVI map and timeseries
 =========================================
 

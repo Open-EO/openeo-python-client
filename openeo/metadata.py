@@ -54,8 +54,11 @@ class SpatialDimension(Dimension):
     DEFAULT_CRS = 4326
 
     def __init__(
-            self, name: str, extent: Union[Tuple[float, float], List[float]],
-            crs: Union[str, int, dict] = DEFAULT_CRS, step=None
+        self,
+        name: str,
+        extent: Union[Tuple[float, float], List[float]],
+        crs: Union[str, int, dict] = DEFAULT_CRS,
+        step=None,
     ):
         """
 
@@ -98,7 +101,6 @@ class Band(NamedTuple):
 
 
 class BandDimension(Dimension):
-
     def __init__(self, name: str, bands: List[Band]):
         super().__init__(type="bands", name=name)
         self.bands = bands
@@ -178,8 +180,8 @@ class BandDimension(Dimension):
         if source:
             if len(target) != len(source):
                 raise ValueError(
-                    'In rename_labels, `target` and `source` should have same number of labels, '
-                    'but got: `target` {t} and `source` {s}'.format(t=target, s=source)
+                    "In rename_labels, `target` and `source` should have same number of labels, "
+                    "but got: `target` {t} and `source` {s}".format(t=target, s=source)
                 )
             new_bands = self.bands.copy()
             for old_name, new_name in zip(source, target):
@@ -235,7 +237,7 @@ class CollectionMetadata:
         return isinstance(o, CollectionMetadata) and self._dimensions == o._dimensions
 
     def _clone_and_update(
-            self, metadata: dict = None, dimensions: List[Dimension] = None, **kwargs
+        self, metadata: dict = None, dimensions: List[Dimension] = None, **kwargs
     ) -> CollectionMetadata:
         """Create a new instance (of same class) with copied/updated fields."""
         cls = type(self)
@@ -263,9 +265,9 @@ class CollectionMetadata:
 
         # Dimension info is in `cube:dimensions` (or 0.4-style `properties/cube:dimensions`)
         cube_dimensions = (
-                deep_get(spec, 'cube:dimensions', default=None)
-                or deep_get(spec, 'properties', 'cube:dimensions', default=None)
-                or {}
+            deep_get(spec, "cube:dimensions", default=None)
+            or deep_get(spec, "properties", "cube:dimensions", default=None)
+            or {}
         )
         if not cube_dimensions:
             complain("No cube:dimensions metadata")
@@ -273,10 +275,14 @@ class CollectionMetadata:
         for name, info in cube_dimensions.items():
             dim_type = info.get("type")
             if dim_type == "spatial":
-                dimensions.append(SpatialDimension(
-                    name=name, extent=info.get("extent"),
-                    crs=info.get("reference_system", SpatialDimension.DEFAULT_CRS), step=info.get("step", None)
-                ))
+                dimensions.append(
+                    SpatialDimension(
+                        name=name,
+                        extent=info.get("extent"),
+                        crs=info.get("reference_system", SpatialDimension.DEFAULT_CRS),
+                        step=info.get("step", None),
+                    )
+                )
             elif dim_type == "temporal":
                 dimensions.append(TemporalDimension(name=name, extent=info.get("extent")))
             elif dim_type == "bands":
@@ -290,9 +296,9 @@ class CollectionMetadata:
 
         # Detailed band information: `summaries/[eo|raster]:bands` (and 0.4 style `properties/eo:bands`)
         eo_bands = (
-                deep_get(spec, "summaries", "eo:bands", default=None)
-                or deep_get(spec, "summaries", "raster:bands", default=None)
-                or deep_get(spec, "properties", "eo:bands", default=None)
+            deep_get(spec, "summaries", "eo:bands", default=None)
+            or deep_get(spec, "summaries", "raster:bands", default=None)
+            or deep_get(spec, "properties", "eo:bands", default=None)
         )
         if eo_bands:
             # center_wavelength is in micrometer according to spec
@@ -335,7 +341,7 @@ class CollectionMetadata:
     def extent(self) -> dict:
         # TODO: is this currently used and relevant?
         # TODO: check against extent metadata in dimensions
-        return self._orig_metadata.get('extent')
+        return self._orig_metadata.get("extent")
 
     def dimension_names(self) -> List[str]:
         return list(d.name for d in self._dimensions)
@@ -475,7 +481,7 @@ class CollectionMetadata:
         return self._clone_and_update(dimensions=[d for d in self._dimensions if not d.name == name])
 
     def _repr_html_(self):
-        return render_component('collection', data=self._orig_metadata)
+        return render_component("collection", data=self._orig_metadata)
 
     def __str__(self) -> str:
         bands = self.band_names if self.has_band_dimension() else "no bands dimension"

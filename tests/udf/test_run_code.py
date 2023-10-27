@@ -238,18 +238,15 @@ def test_execute_local_udf_basic():
     assert isinstance(res, UdfData)
     result = res.get_datacube_list()[0].get_array()
 
-    assert result.shape == (3, 1, 5, 6)
+    assert result.shape == (3, 1, 6, 5)
     expected = xarray.DataArray(
-        [
-            [_ndvi(0, 100), _ndvi(1, 101)],
-            [_ndvi(10, 110), _ndvi(11, 111)]
-        ],
-        dims=["x", "y"],
+        [[_ndvi(0, 100), _ndvi(10, 110)], [_ndvi(1, 101), _ndvi(11, 111)]],
+        dims=["y", "x"],
         coords={"t": numpy.datetime64("2020-08-01"), "bands": "ndvi"}
     )
     xarray.testing.assert_equal(result[0, 0, 0:2, 0:2], expected)
 
-    assert result[2, 0, 3, 4] == _ndvi(2034, 2134)
+    assert result[2, 0, 4, 3] == _ndvi(2034, 2134)
 
 
 def test_run_local_udf_from_file_json(tmp_path):
@@ -266,18 +263,15 @@ def test_run_local_udf_from_file_json(tmp_path):
     assert isinstance(res, UdfData)
     result = res.get_datacube_list()[0].get_array()
 
-    assert result.shape == (3, 1, 5, 6)
+    assert result.shape == (3, 1, 6, 5)
     expected = xarray.DataArray(
-        [
-            [_ndvi(0, 100), _ndvi(1, 101)],
-            [_ndvi(10, 110), _ndvi(11, 111)]
-        ],
-        dims=["x", "y"],
+        [[_ndvi(0, 100), _ndvi(10, 110)], [_ndvi(1, 101), _ndvi(11, 111)]],
+        dims=["y", "x"],
         coords={"t": numpy.datetime64("2020-08-01"), "bands": "ndvi"}
     )
     xarray.testing.assert_equal(result[0, 0, 0:2, 0:2], expected)
 
-    assert result[2, 0, 3, 4] == _ndvi(2034, 2134)
+    assert result[2, 0, 4, 3] == _ndvi(2034, 2134)
 
 
 def test_run_local_udf_from_file_netcdf(tmp_path):
@@ -294,15 +288,12 @@ def test_run_local_udf_from_file_netcdf(tmp_path):
     assert isinstance(res, UdfData)
     result = res.get_datacube_list()[0].get_array()
 
-    assert result.shape == (3, 1, 5, 6)
+    assert result.shape == (3, 1, 6, 5)
     expected = xarray.DataArray(
-        [
-            [_ndvi(0, 100), _ndvi(1, 101)],
-            [_ndvi(10, 110), _ndvi(11, 111)]
-        ],
-        dims=["x", "y"],
+        [[_ndvi(0, 100), _ndvi(10, 110)], [_ndvi(1, 101), _ndvi(11, 111)]],
+        dims=["y", "x"],
         coords={"t": numpy.datetime64("2020-08-01"), "bands": "ndvi"}
     )
     xarray.testing.assert_equal(result[0, 0, 0:2, 0:2], expected)
 
-    assert result[2, 0, 3, 4] == _ndvi(2034, 2134)
+    assert result[2, 0, 4, 3] == _ndvi(2034, 2134)

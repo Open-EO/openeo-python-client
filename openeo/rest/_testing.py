@@ -1,3 +1,4 @@
+import json
 import re
 from typing import Optional, Union
 
@@ -11,6 +12,15 @@ class DummyBackend:
     and allows inspection of posted process graphs
     """
 
+    __slots__ = (
+        "connection",
+        "sync_requests",
+        "batch_jobs",
+        "validation_requests",
+        "next_result",
+        "next_validation_errors",
+    )
+
     # Default result (can serve both as JSON or binary data)
     DEFAULT_RESULT = b'{"what?": "Result data"}'
 
@@ -18,9 +28,17 @@ class DummyBackend:
         self.connection = connection
         self.sync_requests = []
         self.batch_jobs = {}
+        self.validation_requests = []
         self.next_result = self.DEFAULT_RESULT
-        requests_mock.post(connection.build_url("/result"), content=self._handle_post_result)
-        requests_mock.post(connection.build_url("/jobs"), content=self._handle_post_jobs)
+        self.next_validation_errors = []
+        requests_mock.post(
+            connection.build_url("/result"),
+            content=self._handle_post_result,
+        )
+        requests_mock.post(
+            connection.build_url("/jobs"),
+            content=self._handle_post_jobs,
+        )
         requests_mock.post(
             re.compile(connection.build_url(r"/jobs/(job-\d+)/results$")), content=self._handle_post_job_results
         )
@@ -32,12 +50,19 @@ class DummyBackend:
             re.compile(connection.build_url("/jobs/(.*?)/results/result.data$")),
             content=self._handle_get_job_result_asset,
         )
+        requests_mock.post(connection.build_url("/validation"), json=self._handle_post_validation)
 
     def _handle_post_result(self, request, context):
         """handler of `POST /result` (synchronous execute)"""
         pg = request.json()["process"]["process_graph"]
         self.sync_requests.append(pg)
-        return self.next_result
+        result = self.next_result
+        if isinstance(result, (dict, list)):
+            result = json.dumps(result).encode("utf-8")
+        elif isinstance(result, str):
+            result = result.encode("utf-8")
+        assert isinstance(result, bytes)
+        return result
 
     def _handle_post_jobs(self, request, context):
         """handler of `POST /jobs` (create batch job)"""
@@ -82,6 +107,12 @@ class DummyBackend:
         job_id = self._get_job_id(request)
         assert self.batch_jobs[job_id]["status"] == "finished"
         return self.next_result
+
+    def _handle_post_validation(self, request, context):
+        """Handler of `POST /validation` (validate process graph)."""
+        pg = request.json()["process_graph"]
+        self.validation_requests.append(pg)
+        return {"errors": self.next_validation_errors}
 
     def get_sync_pg(self) -> dict:
         """Get one and only synchronous process graph"""

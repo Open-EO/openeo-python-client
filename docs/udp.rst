@@ -51,7 +51,7 @@ consisting of two simple mathematical operations
 
 We can represent this in openEO's JSON based format as follows
 (don't worry too much about the syntax details of this representation,
-the openEO Python client will hide this normally)::
+the openEO Python client will hide this usually)::
 
 
     {
@@ -433,3 +433,82 @@ which we can process further and download::
     cube.download("fancy.tiff", format="GTiff")
 
 See :ref:`datacube_from_process` for more information on :func:`~openeo.rest.connection.Connection.datacube_from_process`.
+
+
+.. _udp_example_evi:
+
+UDP Example: EVI timeseries
+==========================================
+
+In this UDP example, we'll build a reusable UDP ``evi_timeseries``
+to calculate the EVI timeseries for a given geometry.
+It's a simplified version of the EVI workflow laid out in :ref:`basic_example_evi_map_and_timeseries`,
+focussing on the UDP-specific aspects: defining and using parameters;
+building, storing, and finally executing the UDP.
+
+.. code-block:: python
+
+    import openeo
+    from openeo.api.process import Parameter
+
+    # Create connection to openEO back-end
+    connection = openeo.connect("...").authenticate_oidc()
+
+    # Declare the UDP parameters
+    temporal_extent = Parameter(
+        name="temporal_extent",
+        description="The date range to calculate the EVI for.",
+        schema={"type": "array", "subtype": "temporal-interval"},
+        default =["2018-06-15", "2018-06-27"]
+    )
+    geometry = Parameter(
+        name="geometry",
+        description="The geometry (a single (multi)polygon or a feature collection of (multi)polygons) of to calculate the EVI for.",
+        schema={"type": "object", "subtype": "geojson"}
+    )
+
+    # Load raw SENTINEL2_L2A data
+    sentinel2_cube = connection.load_collection(
+        "SENTINEL2_L2A",
+        temporal_extent=temporal_extent,
+        bands=["B02", "B04", "B08"],
+    )
+
+    # Extract spectral bands and calculate EVI with the "band math" feature
+    blue = sentinel2_cube.band("B02") * 0.0001
+    red = sentinel2_cube.band("B04") * 0.0001
+    nir = sentinel2_cube.band("B08") * 0.0001
+    evi = 2.5 * (nir - red) / (nir + 6.0 * red - 7.5 * blue + 1.0)
+
+    evi_aggregation = evi.aggregate_spatial(
+        geometries=geometry,
+        reducer="mean",
+    )
+
+    # Store the parameterized user-defined process at openEO back-end.
+    process_id = "evi_timeseries"
+    connection.save_user_defined_process(
+        user_defined_process_id=process_id,
+        process_graph=evi_aggregation,
+        parameters=[temporal_interval, geometry],
+    )
+
+When this UDP ``evi_timeseries`` is successfully stored on the back-end,
+we can use it through :func:`~openeo.rest.connection.Connection.datacube_from_process`
+to get the EVI timeseries of a desired geometry and time window:
+
+.. code-block:: python
+
+    time_window = ["2020-01-01", "2021-12-31"]
+    geometry = {
+        "type": "Polygon",
+        "coordinates": [[[5.1793, 51.2498], [5.1787, 51.2467], [5.1852, 51.2450], [5.1867, 51.2453], [5.1873, 51.2491], [5.1793, 51.2498]]],
+      }
+
+    evi_timeseries = connection.datacube_from_process(
+        process_id="evi_timeseries",
+        temporal_extent=time_window,
+        geometry=geometry,
+    )
+
+    evi_timeseries.download("evi-aggregation.json")
