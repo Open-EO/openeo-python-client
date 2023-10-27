@@ -134,7 +134,7 @@ class Rfc3339:
     def parse_date(self, x: Union[str, None]) -> Union[dt.date, None]:
         """Parse given string as RFC3339 date."""
         if isinstance(x, str):
-            return dt.datetime.strptime(x, '%Y-%m-%d').date()
+            return dt.datetime.strptime(x, "%Y-%m-%d").date()
         elif x is None and self._propagate_none:
             return None
         raise ValueError(x)
@@ -265,6 +265,7 @@ class ContextTimer:
         print(timer.elapsed())
 
     """
+
     __slots__ = ["start", "end"]
 
     # Function that returns current time in seconds (overridable for unit tests)
@@ -423,8 +424,13 @@ def guess_format(filename: Union[str, Path]) -> str:
     extension = str(filename).rsplit(".", 1)[-1].lower()
 
     format_map = {
-        "gtiff": "GTiff", "geotiff": "GTiff", "geotif": "GTiff", "tiff": "GTiff", "tif": "GTiff",
-        "nc": "netCDF", "netcdf": "netCDF",
+        "gtiff": "GTiff",
+        "geotiff": "GTiff",
+        "geotif": "GTiff",
+        "tiff": "GTiff",
+        "tif": "GTiff",
+        "nc": "netCDF",
+        "netcdf": "netCDF",
         "geojson": "GeoJSON",
     }
 

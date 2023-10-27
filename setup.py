@@ -22,7 +22,9 @@ tests_require = [
     "mock",
     "requests-mock>=1.8.0",
     "httpretty>=1.1.4",
-    "netCDF4",  # e.g. for writing/loading NetCDF data with xarray
+    # Conditional netCDF4 constraint: no more py3.7 wheels since 1.6.5 (#489)
+    "netCDF4<1.6.5 ; python_version <= '3.7'",
+    "netCDF4 ; python_version > '3.7'",
     "matplotlib",
     "geopandas",
     "flake8>=5.0.0",

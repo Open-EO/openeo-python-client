@@ -22,22 +22,22 @@ DEFAULT_APP_NAME = "openeo-python-client"
 
 
 def _get_user_dir(
-        app_name=DEFAULT_APP_NAME,
-        xdg_env_var='XDG_CONFIG_HOME',
-        win_env_var='APPDATA',
-        fallback='~/.config',
-        win_fallback='~\\AppData\\Roaming',
-        macos_fallback='~/Library/Preferences',
-        auto_create=True,
+    app_name=DEFAULT_APP_NAME,
+    xdg_env_var="XDG_CONFIG_HOME",
+    win_env_var="APPDATA",
+    fallback="~/.config",
+    win_fallback="~\\AppData\\Roaming",
+    macos_fallback="~/Library/Preferences",
+    auto_create=True,
 ) -> Path:
     """
     Get platform specific config/data/cache folder
     """
     # Platform specific root locations (from highest priority to lowest)
     env = os.environ
-    if platform.system() == 'Windows':
+    if platform.system() == "Windows":
         roots = [env.get(win_env_var), win_fallback, fallback]
-    elif platform.system() == 'Darwin':
+    elif platform.system() == "Darwin":
         roots = [env.get(xdg_env_var), macos_fallback, fallback]
     else:
         # Assume unix
@@ -73,9 +73,12 @@ def get_user_config_dir(app_name=DEFAULT_APP_NAME, auto_create=True) -> Path:
     """
     return _get_user_dir(
         app_name=app_name,
-        xdg_env_var='XDG_CONFIG_HOME', win_env_var='APPDATA',
-        fallback='~/.config', win_fallback='~\\AppData\\Roaming', macos_fallback='~/Library/Preferences',
-        auto_create=auto_create
+        xdg_env_var="XDG_CONFIG_HOME",
+        win_env_var="APPDATA",
+        fallback="~/.config",
+        win_fallback="~\\AppData\\Roaming",
+        macos_fallback="~/Library/Preferences",
+        auto_create=auto_create,
     )
 
 
@@ -85,9 +88,12 @@ def get_user_data_dir(app_name=DEFAULT_APP_NAME, auto_create=True) -> Path:
     """
     return _get_user_dir(
         app_name=app_name,
-        xdg_env_var='XDG_DATA_HOME', win_env_var='APPDATA',
-        fallback='~/.local/share', win_fallback='~\\AppData\\Roaming', macos_fallback='~/Library',
-        auto_create=auto_create
+        xdg_env_var="XDG_DATA_HOME",
+        win_env_var="APPDATA",
+        fallback="~/.local/share",
+        win_fallback="~\\AppData\\Roaming",
+        macos_fallback="~/Library",
+        auto_create=auto_create,
     )
 
 
@@ -142,7 +148,6 @@ class ClientConfig:
 
 
 class ConfigLoader:
-
     @classmethod
     def config_locations(cls) -> Iterator[Path]:
         """Config location candidates"""
