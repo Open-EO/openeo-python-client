@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Fixed dimension ordering in execute_local_udf to (t, bands, y, x). Previously, this was usually (t, bands, x, y).
+
 ### Removed
 
 ### Fixed
