@@ -10,18 +10,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Removed
+
+### Fixed
+
+
+## [0.24.0] - 2023-10-27
+
+### Added
+
 - Add `DataCube.reduce_spatial()`
-- Added option (enabled by default) to automatically validate a process graph before execution. Validation issues just trigger warnings for now. ([#404](https://github.com/Open-EO/openeo-python-client/issues/404))
+- Added option (enabled by default) to automatically validate a process graph before execution.
+  Validation issues just trigger warnings for now. ([#404](https://github.com/Open-EO/openeo-python-client/issues/404))
 - Added "Sentinel1" band mapping support to "Awesome Spectral Indices" wrapper ([#484](https://github.com/Open-EO/openeo-python-client/issues/484))
 - Run tests in GitHub Actions against Python 3.12 as well
 
 ### Changed
 
-- Enforce `XarrayDataCube` dimension order in `execute_local_udf()` to (t, bands, y, x) to improve UDF interoperability with existing back-end implementations.```
-
-### Removed
-
-### Fixed
+- Enforce `XarrayDataCube` dimension order in `execute_local_udf()` to (t, bands, y, x)
+  to improve UDF interoperability with existing back-end implementations.
 
 
 ## [0.23.0] - 2023-10-02
