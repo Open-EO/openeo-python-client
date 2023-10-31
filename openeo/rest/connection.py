@@ -178,7 +178,7 @@ class RestApiConnection:
         except Exception:
             # Parsing of error info went wrong: let's see if we can still extract some helpful information.
             text = response.text
-            _log.warning("Failed to parse API error response: {s} {t!r}".format(s=status_code, t=text))
+            _log.warning(f"Failed to parse API error response: [{status_code}] {text!r} (headers: {response.headers})")
             if status_code == 502 and "Proxy Error" in text:
                 msg = "Received 502 Proxy Error." \
                       " This typically happens if an OpenEO request takes too long and is killed." \
