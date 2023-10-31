@@ -1,3 +1,5 @@
+from typing import Optional
+
 from openeo import BaseOpenEoException
 
 
@@ -34,19 +36,57 @@ class OpenEoRestError(OpenEoClientException):
     pass
 
 
-class OpenEoApiError(OpenEoRestError):
+class OpenEoApiPlainError(OpenEoRestError):
     """
-    Error returned by OpenEO API according to https://open-eo.github.io/openeo-api/errors/
+    Base class for openEO API error responses, not necessarily following the openEO API specification
+    (e.g. not properly JSON encoded, missing required fields, ...)
+
+    :param message: the direct error message from the response
+    :param http_status_code: the HTTP status code of the response
+    :param error_message: the error message to show when the exception is rendered
+        (by default a combination of the HTTP status code and the message)
+
+    .. versionadded:: 0.25.0
     """
 
-    def __init__(self, http_status_code: int = None,
-                 code: str = 'unknown', message: str = 'unknown error', id: str = None, url: str = None):
+    __slots__ = ("http_status_code", "message")
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        http_status_code: Optional[int] = None,
+        error_message: Optional[str] = None,
+    ):
+        super().__init__(error_message or f"[{http_status_code}] {message}")
+        self.http_status_code = http_status_code
+        self.message = message
+
+
+class OpenEoApiError(OpenEoApiPlainError):
+    """
+    Exception for API error responses following the openEO API specification
+    (https://api.openeo.org/#section/API-Principles/Error-Handling):
+    JSON-encoded body, some expected fields like "code" and "message", ...
+    """
+
+    __slots__ = ("http_status_code", "code", "message", "id", "url")
+
+    def __init__(
+        self,
+        http_status_code: Optional[int] = None,
+        code: str = "unknown",
+        message: str = "unknown error",
+        id: Optional[str] = None,
+        url: Optional[str] = None,
+    ):
+        super().__init__(
+            message=message,
+            http_status_code=http_status_code,
+            error_message=f"[{http_status_code}] {code}: {message}" + (f" (ref: {id})" if id else ""),
+        )
         self.http_status_code = http_status_code
         self.code = code
         self.message = message
         self.id = id
         self.url = url
-        msg = "[{s}] {c}: {m}".format(s=self.http_status_code, c=self.code, m=self.message)
-        if self.id:
-            msg += " (ref: {i})".format(i=self.id)
-        super().__init__(msg)

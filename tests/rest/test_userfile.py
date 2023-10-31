@@ -4,7 +4,7 @@ from pathlib import PurePosixPath
 import pytest
 
 import openeo
-from openeo.rest import OpenEoApiError
+from openeo.rest import OpenEoApiError, OpenEoApiPlainError
 from openeo.rest.userfile import UserFile
 
 API_URL = "https://oeo.test"
@@ -108,7 +108,7 @@ class TestUserFile:
             API_URL + "/files/foo.txt", status_code=status_code
         )
 
-        with pytest.raises(OpenEoApiError, match=rf"\[{status_code}\]"):
+        with pytest.raises(OpenEoApiPlainError, match=rf"\[{status_code}\]"):
             f.upload(source)
 
         assert upload_mock.call_count == 1
@@ -165,7 +165,7 @@ class TestUserFile:
             API_URL + "/files/foo.txt", status_code=status_code
         )
 
-        with pytest.raises(OpenEoApiError, match=rf"\[{status_code}\]"):
+        with pytest.raises(OpenEoApiPlainError, match=rf"\[{status_code}\]"):
             con100.upload_file(source=source)
 
         assert upload_mock.call_count == 1

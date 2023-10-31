@@ -28,7 +28,13 @@ from openeo.internal.jupyter import VisualDict, VisualList
 from openeo.internal.processes.builder import ProcessBuilderBase
 from openeo.internal.warnings import deprecated, legacy_alias
 from openeo.metadata import Band, BandDimension, CollectionMetadata, SpatialDimension, TemporalDimension
-from openeo.rest import CapabilitiesException, OpenEoApiError, OpenEoClientException, OpenEoRestError
+from openeo.rest import (
+    CapabilitiesException,
+    OpenEoApiError,
+    OpenEoClientException,
+    OpenEoRestError,
+    OpenEoApiPlainError,
+)
 from openeo.rest._datacube import build_child_callback
 from openeo.rest.auth.auth import BasicBearerAuth, BearerAuth, NullAuth, OidcBearerAuth
 from openeo.rest.auth.config import AuthConfig, RefreshTokenStore
@@ -178,14 +184,15 @@ class RestApiConnection:
         except Exception:
             # Parsing of error info went wrong: let's see if we can still extract some helpful information.
             text = response.text
+            error_message = None
             _log.warning(f"Failed to parse API error response: [{status_code}] {text!r} (headers: {response.headers})")
             if status_code == 502 and "Proxy Error" in text:
-                msg = "Received 502 Proxy Error." \
-                      " This typically happens if an OpenEO request takes too long and is killed." \
-                      " Consider using batch jobs instead of doing synchronous processing."
-                exception = OpenEoApiError(http_status_code=status_code, message=msg)
-            else:
-                exception = OpenEoApiError(http_status_code=status_code, message=text)
+                error_message = (
+                    "Received 502 Proxy Error."
+                    " This typically happens when a synchronous openEO processing request takes too long and is aborted."
+                    " Consider using a batch job instead."
+                )
+            exception = OpenEoApiPlainError(message=text, http_status_code=status_code, error_message=error_message)
         raise exception
 
     def get(self, path: str, stream: bool = False, auth: Optional[AuthBase] = None, **kwargs) -> Response:

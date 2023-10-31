@@ -18,7 +18,13 @@ import openeo
 from openeo.capabilities import ApiVersionException
 from openeo.internal.compat import nullcontext
 from openeo.internal.graph_building import FlatGraphableMixin, PGNode
-from openeo.rest import CapabilitiesException, OpenEoApiError, OpenEoClientException, OpenEoRestError
+from openeo.rest import (
+    CapabilitiesException,
+    OpenEoApiError,
+    OpenEoClientException,
+    OpenEoRestError,
+    OpenEoApiPlainError,
+)
 from openeo.rest._testing import build_capabilities
 from openeo.rest.auth.auth import BearerAuth, NullAuth
 from openeo.rest.auth.oidc import OidcException
@@ -137,7 +143,7 @@ The proxy server could not handle the request <em><a href="/openeo/0.4.0/result"
 Reason: <strong>Error reading from remote server</strong></p></p>
 </body></html>""")
     conn = RestApiConnection(API_URL)
-    with pytest.raises(OpenEoApiError, match="Consider.*batch jobs.*instead.*synchronous"):
+    with pytest.raises(OpenEoApiPlainError, match="Consider.*batch job.*instead"):
         conn.get("/bar")
 
 
@@ -513,14 +519,11 @@ def test_api_error_non_json(requests_mock):
     requests_mock.get("https://oeo.test/", json={"api_version": "1.0.0"})
     conn = Connection(API_URL)
     requests_mock.get('https://oeo.test/collections/foobar', status_code=500, text="olapola")
-    with pytest.raises(OpenEoApiError) as exc_info:
+    with pytest.raises(OpenEoApiPlainError) as exc_info:
         conn.describe_collection("foobar")
     exc = exc_info.value
     assert exc.http_status_code == 500
-    assert exc.code == "unknown"
     assert exc.message == "olapola"
-    assert exc.id is None
-    assert exc.url is None
 
 
 def _credentials_basic_handler(username, password, access_token="w3lc0m3"):

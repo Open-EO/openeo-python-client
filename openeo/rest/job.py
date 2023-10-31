@@ -19,7 +19,7 @@ from openeo.internal.jupyter import (
     render_error,
 )
 from openeo.internal.warnings import deprecated, legacy_alias
-from openeo.rest import JobFailedException, OpenEoApiError, OpenEoClientException
+from openeo.rest import JobFailedException, OpenEoApiError, OpenEoClientException, OpenEoApiPlainError
 from openeo.util import ensure_dir
 
 if typing.TYPE_CHECKING:
@@ -287,7 +287,7 @@ class BatchJob:
             except requests.ConnectionError as e:
                 soft_error("Connection error while polling job status: {e}".format(e=e))
                 continue
-            except OpenEoApiError as e:
+            except OpenEoApiPlainError as e:
                 if e.http_status_code in [502, 503]:
                     soft_error("Service availability error while polling job status: {e}".format(e=e))
                     continue

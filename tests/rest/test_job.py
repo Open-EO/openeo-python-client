@@ -158,7 +158,7 @@ def test_execute_batch_with_error(con100, requests_mock, tmpdir):
     ),
     (
             {"status_code": 503, "text": "service unavailable"},
-            "Service availability error while polling job status: [503] unknown: service unavailable",
+            "Service availability error while polling job status: [503] service unavailable",
     ),
     (
             {
@@ -169,7 +169,7 @@ def test_execute_batch_with_error(con100, requests_mock, tmpdir):
     ),
     (
             {"status_code": 502, "text": "Bad Gateway"},
-            "Service availability error while polling job status: [502] unknown: Bad Gateway",
+            "Service availability error while polling job status: [502] Bad Gateway",
     ),
 ])
 def test_execute_batch_with_soft_errors(con100, requests_mock, tmpdir, error_response, expected):
@@ -231,7 +231,7 @@ def test_execute_batch_with_soft_errors(con100, requests_mock, tmpdir, error_res
     ),
     (
             {"status_code": 503, "text": "service unavailable"},
-            "Service availability error while polling job status: [503] unknown: service unavailable",
+            "Service availability error while polling job status: [503] service unavailable",
     ),
     (
             {
@@ -242,7 +242,7 @@ def test_execute_batch_with_soft_errors(con100, requests_mock, tmpdir, error_res
     ),
     (
             {"status_code": 502, "text": "Bad Gateway"},
-            "Service availability error while polling job status: [502] unknown: Bad Gateway",
+            "Service availability error while polling job status: [502] Bad Gateway",
     ),
 ])
 def test_execute_batch_with_excessive_soft_errors(con100, requests_mock, tmpdir, error_response, expected):
