@@ -12,13 +12,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+### Removed
+
+### Fixed
+
+
+## [0.25.0] - 2023-11-02
+
+### Changed
+
 - Introduce `OpenEoApiPlainError` for API error responses that are not well-formed
   for better distinction with properly formed API error responses (`OpenEoApiError`).
   ([#491](https://github.com/Open-EO/openeo-python-client/issues/491)).
 
-### Removed
-
 ### Fixed
+
+- Fix missing `validate` support in `LocalConnection.execute` ([#493](https://github.com/Open-EO/openeo-python-client/pull/493))
 
 
 ## [0.24.0] - 2023-10-27
