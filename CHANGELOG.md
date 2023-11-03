@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Support new UDF signature: `def apply_datacube(cube: DataArray, context: dict) -> DataArray`
+  ([#310](https://github.com/Open-EO/openeo-python-client/issues/310))
+
 ### Changed
 
 ### Removed
