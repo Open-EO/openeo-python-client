@@ -82,6 +82,11 @@ def _annotation_is_udf_datacube(annotation) -> bool:
         'openeo_udf.api.datacube.DataCube',  # Legacy `openeo_udf` annotation
     }
 
+def _annotation_is_data_array(annotation) -> bool:
+    return annotation is xarray.DataArray or _get_annotation_str(annotation) in {
+        _get_annotation_str(xarray.DataArray)
+    }
+
 
 def _annotation_is_udf_data(annotation) -> bool:
     return annotation is UdfData or _get_annotation_str(annotation) in {
@@ -174,6 +179,21 @@ def run_udf_code(code: str, data: UdfData) -> UdfData:
             # TODO: also support calls without user context?
             result_cube = func(cube=data.get_datacube_list()[0], context=data.user_context)
             data.set_datacube_list([result_cube])
+            return data
+        elif (
+                fn_name in ['apply_datacube']
+                and 'cube' in params and 'context' in params
+                and _annotation_is_data_array(params["cube"].annotation)
+                and _annotation_is_data_array(sig.return_annotation)
+        ):
+            _log.info("Found datacube mapping UDF `{n}` {f!r}".format(n=fn_name, f=func))
+            if len(data.get_datacube_list()) != 1:
+                raise ValueError("The provided UDF expects exactly one datacube, but {c} were provided.".format(
+                    c=len(data.get_datacube_list())
+                ))
+            # TODO: also support calls without user context?
+            result_cube: xarray.DataArray = func(cube=data.get_datacube_list()[0].get_array(), context=data.user_context)
+            data.set_datacube_list([XarrayDataCube(result_cube)])
             return data
         elif len(params) == 1 and _annotation_is_udf_data(first_param.annotation):
             _log.info("Found generic UDF `{n}` {f!r}".format(n=fn_name, f=func))
