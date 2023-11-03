@@ -226,13 +226,16 @@ def test_run_udf_code_apply_timeseries_tb():
 def _ndvi(red, nir):
     return (nir - red) / (nir + red)
 
-
-def test_execute_local_udf_basic():
+@pytest.mark.parametrize(["udf_file"], [
+    ("ndvi01.py",),
+    ("ndvi03.py",),
+])
+def test_execute_local_udf_basic(udf_file):
     xdc = _build_xdc(
         ts=[numpy.datetime64('2020-08-01'), numpy.datetime64('2020-08-11'), numpy.datetime64('2020-08-21')],
         bands=['bandzero', 'bandone'], xs=[10., 11., 12., 13., 14.], ys=[20., 21., 22., 23., 24., 25.]
     )
-    udf_code = _get_udf_code("ndvi01.py")
+    udf_code = _get_udf_code(udf_file)
     res = execute_local_udf(udf_code, xdc)
 
     assert isinstance(res, UdfData)
