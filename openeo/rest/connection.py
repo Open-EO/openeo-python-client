@@ -1511,7 +1511,7 @@ class Connection(RestApiConnection):
                         + (" ".join(f"[{e.get('code')}] {e.get('message')}" for e in validation_errors))
                     )
             except Exception as e:
-                _log.error(f"Preflight process graph validation failed: {e}", exc_info=True)
+                _log.error(f"Preflight process graph validation failed: {e}")
 
         # TODO: additional validation and sanity checks: e.g. is there a result node, are all process_ids valid, ...?
 
