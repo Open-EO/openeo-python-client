@@ -257,9 +257,11 @@ class LocalConnection():
         """
         Loads all available UDF runtimes.
 
-        :return: data_dict: Dict All available UDF runtimes
+        :return: All available UDF runtimes
         """
-        runtimes = {"Python": "Python"}
+        runtimes = {
+            "Python": {"title": "Python 3", "type": "language", "versions": {"3": {"libraries": {}}}, "default": "3"}
+        }
         return VisualDict("udf-runtimes", data=runtimes)
 
     def execute(self, process_graph: Union[dict, str, Path], validate: Optional[bool] = None) -> xr.DataArray:
