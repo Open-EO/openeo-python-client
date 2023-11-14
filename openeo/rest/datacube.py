@@ -151,6 +151,9 @@ class DataCube(_ProcessGraphAbstraction):
         .. versionchanged:: 0.23.0
             Argument ``temporal_extent``: add support for year/month shorthand notation
             as discussed at :ref:`date-shorthand-handling`.
+
+        .. versionchanged:: 0.26.0
+            Add :py:func:`~openeo.rest.graph_building.collection_property` support to ``properties`` argument.
         """
         if temporal_extent:
             temporal_extent = cls._get_temporal_extent(extent=temporal_extent)

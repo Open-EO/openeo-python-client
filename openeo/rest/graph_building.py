@@ -70,7 +70,7 @@ def collection_property(name: str) -> CollectionProperty:
 
     .. versionadded:: 0.26.0
 
-    :param name: name of the property to filter on
+    :param name: name of the collection property to filter on
     :return: an object that supports operators like ``<=``, ``==`` to easily build simple property filters.
     """
     return CollectionProperty(name=name)
