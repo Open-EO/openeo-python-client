@@ -11,6 +11,15 @@ from openeo.processes import ProcessBuilder
 
 
 class CollectionProperty(_FromNodeMixin):
+    """
+    Helper object to easily create simple collection metadata property filters
+    to be used with :py:meth:`Connection.load_collection() <openeo.rest.connection.Connection.load_collection>`.
+
+    .. note:: This class should not be used directly by end user code.
+        Use the :py:func:`~openeo.rest.graph_building.collection_property` factory instead.
+
+    .. warning:: this is an experimental feature, naming might change.
+    """
     def __init__(self, name: str, _builder: Optional[ProcessBuilder] = None):
         self.name = name
         self._builder = _builder or ProcessBuilder(pgnode={"from_parameter": "value"})
@@ -39,11 +48,15 @@ class CollectionProperty(_FromNodeMixin):
 
 def collection_property(name: str) -> CollectionProperty:
     """
-    Helper to easily create simple a `load_collection` property filter.
+    Helper to easily create simple collection metadata property filters
+    to be used with :py:meth:`Connection.load_collection() <openeo.rest.connection.Connection.load_collection>`.
 
     Usage example:
 
     .. code-block:: python
+
+        from openeo import collection_property
+        ...
 
         connection.load_collection(
             ...
@@ -53,7 +66,11 @@ def collection_property(name: str) -> CollectionProperty:
             ]
         )
 
+    .. warning:: this is an experimental feature, naming might change.
+
+    .. versionadded:: 0.26.0
+
     :param name: name of the property to filter on
-    :return: an object which supports operators like ``<=``, ``==`` to build a simple property filter.
+    :return: an object that supports operators like ``<=``, ``==`` to easily build simple property filters.
     """
     return CollectionProperty(name=name)

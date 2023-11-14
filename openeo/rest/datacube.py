@@ -125,7 +125,7 @@ class DataCube(_ProcessGraphAbstraction):
         temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
         bands: Union[None, List[str], Parameter] = None,
         fetch_metadata: bool = True,
-        properties: Optional[Dict[str, Union[str, PGNode, typing.Callable]]] = None,
+        properties: Union[None, Dict[str, Union[str, PGNode, typing.Callable]], List[CollectionProperty]] = None,
         max_cloud_cover: Optional[float] = None,
     ) -> DataCube:
         """
@@ -137,8 +137,9 @@ class DataCube(_ProcessGraphAbstraction):
         :param temporal_extent: limit data to specified temporal interval.
             Typically, just a two-item list or tuple containing start and end date.
             See :ref:`filtering-on-temporal-extent-section` for more details on temporal extent handling and shorthand notation.
-        :param bands: only add the specified bands
-        :param properties: limit data by metadata property predicates
+        :param bands: only add the specified bands.
+        :param properties: limit data by metadata property predicates.
+            See :py:func:`~openeo.rest.graph_building.collection_property` for easy construction of such predicates.
         :param max_cloud_cover: shortcut to set maximum cloud cover ("eo:cloud_cover" collection property)
         :return: new DataCube containing the collection
 
@@ -171,13 +172,15 @@ class DataCube(_ProcessGraphAbstraction):
                 bands = [b if isinstance(b, str) else metadata.band_dimension.band_name(b) for b in bands]
                 metadata = metadata.filter_bands(bands)
             arguments['bands'] = bands
+
+        if isinstance(properties, list):
+            # TODO: warn about items that are not CollectionProperty objects instead of silently dropping them.
+            properties = {p.name: p.from_node() for p in properties if isinstance(p, CollectionProperty)}
+        elif properties is None:
+            properties = {}
         if max_cloud_cover:
-            properties = properties or {}
             properties["eo:cloud_cover"] = lambda v: v <= max_cloud_cover
         if properties:
-            if isinstance(properties, list):
-                # TODO: warn about list items that are not expected CollectionProperty
-                properties = {p.name: p.from_node() for p in properties if isinstance(p, CollectionProperty)}
             summaries = metadata and metadata.get("summaries") or {}
             undefined_properties = set(properties.keys()).difference(summaries.keys())
             if undefined_properties:
@@ -189,6 +192,7 @@ class DataCube(_ProcessGraphAbstraction):
             arguments["properties"] = {
                 prop: build_child_callback(pred, parent_parameters=["value"]) for prop, pred in properties.items()
             }
+
         pg = PGNode(
             process_id='load_collection',
             arguments=arguments
