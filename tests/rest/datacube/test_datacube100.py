@@ -38,30 +38,35 @@ from .conftest import API_URL, DEFAULT_S2_METADATA, setup_collection_metadata
 basic_geometry_types = [
     (
         shapely.geometry.box(0, 0, 1, 1),
-        {"type": "Polygon", "coordinates": (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),)},
+        {"type": "Polygon", "coordinates": [[[1.0, 0.0], [1.0, 1.0], [0.0, 1.0], [0.0, 0.0], [1.0, 0.0]]]},
     ),
     (
-        {"type": "Polygon", "coordinates": (((1, 0), (1, 1), (0, 1), (0, 0), (1, 0)),)},
-        {"type": "Polygon", "coordinates": (((1, 0), (1, 1), (0, 1), (0, 0), (1, 0)),)},
+        {"type": "Polygon", "coordinates": [[[1, 0], [1, 1], [0, 1], [0, 0], [1, 0]]]},
+        {"type": "Polygon", "coordinates": [[[1, 0], [1, 1], [0, 1], [0, 0], [1, 0]]]},
     ),
     (
         shapely.geometry.MultiPolygon([shapely.geometry.box(0, 0, 1, 1)]),
-        {"type": "MultiPolygon", "coordinates": [(((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),)]},
+        {"type": "MultiPolygon", "coordinates": [[[[1.0, 0.0], [1.0, 1.0], [0.0, 1.0], [0.0, 0.0], [1.0, 0.0]]]]},
     ),
     (
         shapely.geometry.GeometryCollection([shapely.geometry.box(0, 0, 1, 1)]),
-        {"type": "GeometryCollection", "geometries": [
-            {"type": "Polygon", "coordinates": (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),)}
-        ]},
+        {
+            "type": "GeometryCollection",
+            "geometries": [
+                {"type": "Polygon", "coordinates": [[[1.0, 0.0], [1.0, 1.0], [0.0, 1.0], [0.0, 0.0], [1.0, 0.0]]]}
+            ],
+        },
     ),
     (
         {
-            "type": "Feature", "properties": {},
-            "geometry": {"type": "Polygon", "coordinates": (((1, 0), (1, 1), (0, 1), (0, 0), (1, 0)),)},
+            "type": "Feature",
+            "properties": {},
+            "geometry": {"type": "Polygon", "coordinates": [[[1, 0], [1, 1], [0, 1], [0, 0], [1, 0]]]},
         },
         {
-            "type": "Feature", "properties": {},
-            "geometry": {"type": "Polygon", "coordinates": (((1, 0), (1, 1), (0, 1), (0, 0), (1, 0)),)},
+            "type": "Feature",
+            "properties": {},
+            "geometry": {"type": "Polygon", "coordinates": [[[1, 0], [1, 1], [0, 1], [0, 0], [1, 0]]]},
         },
     ),
 ]
@@ -206,6 +211,7 @@ def _get_normalizable_crs_inputs():
 
 def _get_leaf_node(cube: DataCube) -> dict:
     """Get leaf node (node with result=True), supporting old and new style of graph building."""
+    # TODO replace this with get_download_graph
     flat_graph = cube.flat_graph()
     (node,) = [n for n in flat_graph.values() if n.get("result")]
     return node
@@ -661,16 +667,13 @@ def test_mask_polygon_basic(con100: Connection):
 
 @pytest.mark.parametrize(["polygon", "expected_mask"], basic_geometry_types)
 def test_mask_polygon_types(con100: Connection, polygon, expected_mask):
-    img = con100.load_collection("S2")
-    masked = img.mask_polygon(mask=polygon)
-    assert sorted(masked.flat_graph().keys()) == ["loadcollection1", "maskpolygon1"]
-    assert masked.flat_graph()["maskpolygon1"] == {
-        "process_id": "mask_polygon",
-        "arguments": {
-            "data": {"from_node": "loadcollection1"},
-            "mask": expected_mask
-        },
-        "result": True
+    cube = con100.load_collection("S2")
+    masked = cube.mask_polygon(mask=polygon)
+    assert get_download_graph(masked, drop_save_result=True, drop_load_collection=True) == {
+        "maskpolygon1": {
+            "process_id": "mask_polygon",
+            "arguments": {"data": {"from_node": "loadcollection1"}, "mask": expected_mask},
+        }
     }
 
 
@@ -1375,112 +1378,286 @@ def test_reduce_temporal_without_metadata(s2cube_without_metadata):
 
 
 def test_chunk_polygon_basic(con100: Connection):
-    img = con100.load_collection("S2")
+    cube = con100.load_collection("S2")
     polygon: shapely.geometry.Polygon = shapely.geometry.box(0, 0, 1, 1)
     process = lambda data: data.run_udf(udf="myfancycode", runtime="Python")
-    result = img.chunk_polygon(chunks=polygon, process=process)
-    assert sorted(result.flat_graph().keys()) == ['chunkpolygon1', 'loadcollection1']
-    assert result.flat_graph()["chunkpolygon1"] == {
-        'process_id': 'chunk_polygon',
-        'arguments': {
-            'chunks': {
-                'type': 'Polygon',
-                'coordinates': (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),)
-            },
-            'data': {'from_node': 'loadcollection1'},
-            'process': {
-                'process_graph': {
-                    'runudf1': {
-                        'process_id': 'run_udf',
-                        'arguments': {'data': {'from_parameter': 'data'}, 'runtime': 'Python', 'udf': 'myfancycode'},
-                        'result': True
+    with pytest.warns(UserDeprecationWarning, match="Use `apply_polygon`"):
+        result = cube.chunk_polygon(chunks=polygon, process=process)
+    assert get_download_graph(result, drop_save_result=True, drop_load_collection=True) == {
+        "chunkpolygon1": {
+            "process_id": "chunk_polygon",
+            "arguments": {
+                "chunks": {
+                    "type": "Polygon",
+                    "coordinates": [[[1.0, 0.0], [1.0, 1.0], [0.0, 1.0], [0.0, 0.0], [1.0, 0.0]]],
+                },
+                "data": {"from_node": "loadcollection1"},
+                "process": {
+                    "process_graph": {
+                        "runudf1": {
+                            "process_id": "run_udf",
+                            "arguments": {
+                                "data": {"from_parameter": "data"},
+                                "runtime": "Python",
+                                "udf": "myfancycode",
+                            },
+                            "result": True,
+                        }
                     }
-                }
-            }
-        },
-        'result': True}
+                },
+            },
+        }
+    }
 
 
 @pytest.mark.parametrize(["polygon", "expected_chunks"], basic_geometry_types)
 def test_chunk_polygon_types(con100: Connection, polygon, expected_chunks):
-    img = con100.load_collection("S2")
-    process = lambda data: data.run_udf(udf="myfancycode", runtime="Python")
-    result = img.chunk_polygon(chunks=polygon, process=process)
-    assert sorted(result.flat_graph().keys()) == ['chunkpolygon1', 'loadcollection1']
-    assert result.flat_graph()["chunkpolygon1"] == {
-        'process_id': 'chunk_polygon',
-        'arguments': {
-            'chunks': expected_chunks,
-            'data': {'from_node': 'loadcollection1'},
-            'process': {
-                'process_graph': {
-                    'runudf1': {
-                        'process_id': 'run_udf',
-                        'arguments': {'data': {'from_parameter': 'data'}, 'runtime': 'Python', 'udf': 'myfancycode'},
-                        'result': True
+    cube = con100.load_collection("S2")
+    process = UDF(code="myfancycode", runtime="Python")
+    with pytest.warns(UserDeprecationWarning, match="Use `apply_polygon`"):
+        result = cube.chunk_polygon(chunks=polygon, process=process)
+    assert get_download_graph(result, drop_save_result=True, drop_load_collection=True) == {
+        "chunkpolygon1": {
+            "process_id": "chunk_polygon",
+            "arguments": {
+                "chunks": expected_chunks,
+                "data": {"from_node": "loadcollection1"},
+                "process": {
+                    "process_graph": {
+                        "runudf1": {
+                            "process_id": "run_udf",
+                            "arguments": {
+                                "data": {"from_parameter": "data"},
+                                "runtime": "Python",
+                                "udf": "myfancycode",
+                            },
+                            "result": True,
+                        }
                     }
-                }
-            }
-        },
-        'result': True}
+                },
+            },
+        }
+    }
 
 
 def test_chunk_polygon_parameter(con100: Connection):
-    img = con100.load_collection("S2")
+    cube = con100.load_collection("S2")
     polygon = Parameter(name="shape", schema="object")
     process = lambda data: data.run_udf(udf="myfancycode", runtime="Python")
-    result = img.chunk_polygon(chunks=polygon, process=process)
-    assert sorted(result.flat_graph().keys()) == ['chunkpolygon1', 'loadcollection1']
-    assert result.flat_graph()["chunkpolygon1"] == {
-        'process_id': 'chunk_polygon',
-        'arguments': {
-            'chunks': {"from_parameter": "shape"},
-            'data': {'from_node': 'loadcollection1'},
-            'process': {
-                'process_graph': {
-                    'runudf1': {
-                        'process_id': 'run_udf',
-                        'arguments': {'data': {'from_parameter': 'data'}, 'runtime': 'Python', 'udf': 'myfancycode'},
-                        'result': True
+    with pytest.warns(UserDeprecationWarning, match="Use `apply_polygon`"):
+        result = cube.chunk_polygon(chunks=polygon, process=process)
+    assert get_download_graph(result, drop_save_result=True, drop_load_collection=True) == {
+        "chunkpolygon1": {
+            "process_id": "chunk_polygon",
+            "arguments": {
+                "chunks": {"from_parameter": "shape"},
+                "data": {"from_node": "loadcollection1"},
+                "process": {
+                    "process_graph": {
+                        "runudf1": {
+                            "process_id": "run_udf",
+                            "arguments": {
+                                "data": {"from_parameter": "data"},
+                                "runtime": "Python",
+                                "udf": "myfancycode",
+                            },
+                            "result": True,
+                        }
                     }
-                }
-            }
-        },
-        'result': True}
+                },
+            },
+        }
+    }
 
 
 def test_chunk_polygon_path(con100: Connection):
-    img = con100.load_collection("S2")
+    cube = con100.load_collection("S2")
     process = lambda data: data.run_udf(udf="myfancycode", runtime="Python")
-    result = img.chunk_polygon(chunks="path/to/polygon.json", process=process)
-    assert sorted(result.flat_graph().keys()) == ['chunkpolygon1', 'loadcollection1', 'readvector1']
-    assert result.flat_graph()["chunkpolygon1"]['arguments']['chunks'] == {"from_node": "readvector1"}
-    assert result.flat_graph()["readvector1"] == {
-        "process_id": "read_vector",
-        "arguments": {"filename": "path/to/polygon.json"},
+    with pytest.warns(UserDeprecationWarning, match="Use `apply_polygon`"):
+        result = cube.chunk_polygon(chunks="path/to/polygon.json", process=process)
+    assert get_download_graph(result, drop_save_result=True, drop_load_collection=True) == {
+        "readvector1": {"process_id": "read_vector", "arguments": {"filename": "path/to/polygon.json"}},
+        "chunkpolygon1": {
+            "process_id": "chunk_polygon",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "chunks": {"from_node": "readvector1"},
+                "process": {
+                    "process_graph": {
+                        "runudf1": {
+                            "process_id": "run_udf",
+                            "arguments": {
+                                "data": {"from_parameter": "data"},
+                                "runtime": "Python",
+                                "udf": "myfancycode",
+                            },
+                            "result": True,
+                        }
+                    }
+                },
+            },
+        },
     }
 
 
 def test_chunk_polygon_context(con100: Connection):
-    img = con100.load_collection("S2")
+    cube = con100.load_collection("S2")
     polygon = shapely.geometry.Polygon([(0, 0), (1, 0), (0, 1), (0, 0)])
     process = lambda data: data.run_udf(udf="myfancycode", runtime="Python")
-    result = img.chunk_polygon(chunks=polygon, process=process, context={"foo": 4})
-    assert result.flat_graph()["chunkpolygon1"] == {
-        'process_id': 'chunk_polygon',
-        'arguments': {
-            'data': {'from_node': 'loadcollection1'},
-            'chunks': {'type': 'Polygon', 'coordinates': (((0, 0), (1, 0), (0, 1), (0, 0)),)},
-            'process': {'process_graph': {
-                'runudf1': {
-                    'process_id': 'run_udf',
-                    'arguments': {'data': {'from_parameter': 'data'}, 'runtime': 'Python', 'udf': 'myfancycode'},
-                    'result': True
+    with pytest.warns(UserDeprecationWarning, match="Use `apply_polygon`"):
+        result = cube.chunk_polygon(chunks=polygon, process=process, context={"foo": 4})
+    assert get_download_graph(result, drop_save_result=True, drop_load_collection=True) == {
+        "chunkpolygon1": {
+            "process_id": "chunk_polygon",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "chunks": {"type": "Polygon", "coordinates": [[[0, 0], [1, 0], [0, 1], [0, 0]]]},
+                "process": {
+                    "process_graph": {
+                        "runudf1": {
+                            "process_id": "run_udf",
+                            "arguments": {
+                                "data": {"from_parameter": "data"},
+                                "runtime": "Python",
+                                "udf": "myfancycode",
+                            },
+                            "result": True,
+                        }
+                    }
+                },
+                "context": {"foo": 4},
+            },
+        }
+    }
+
+
+def test_apply_polygon_basic(con100: Connection):
+    cube = con100.load_collection("S2")
+    polygons: shapely.geometry.Polygon = shapely.geometry.box(0, 0, 1, 1)
+    process = UDF(code="myfancycode", runtime="Python")
+    result = cube.apply_polygon(polygons=polygons, process=process)
+    assert get_download_graph(result)["applypolygon1"] == {
+        "process_id": "apply_polygon",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "polygons": {
+                "type": "Polygon",
+                "coordinates": [[[1.0, 0.0], [1.0, 1.0], [0.0, 1.0], [0.0, 0.0], [1.0, 0.0]]],
+            },
+            "process": {
+                "process_graph": {
+                    "runudf1": {
+                        "process_id": "run_udf",
+                        "arguments": {"data": {"from_parameter": "data"}, "runtime": "Python", "udf": "myfancycode"},
+                        "result": True,
+                    }
                 }
-            }},
+            },
+        },
+    }
+
+
+@pytest.mark.parametrize(["polygons", "expected_polygons"], basic_geometry_types)
+def test_apply_polygon_types(con100: Connection, polygons, expected_polygons):
+    if isinstance(polygons, shapely.geometry.GeometryCollection):
+        pytest.skip("apply_polygon does not support GeometryCollection")
+    cube = con100.load_collection("S2")
+    process = UDF(code="myfancycode", runtime="Python")
+    result = cube.apply_polygon(polygons=polygons, process=process)
+    assert get_download_graph(result)["applypolygon1"] == {
+        "process_id": "apply_polygon",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "polygons": expected_polygons,
+            "process": {
+                "process_graph": {
+                    "runudf1": {
+                        "process_id": "run_udf",
+                        "arguments": {"data": {"from_parameter": "data"}, "runtime": "Python", "udf": "myfancycode"},
+                        "result": True,
+                    }
+                }
+            },
+        },
+    }
+
+
+def test_apply_polygon_parameter(con100: Connection):
+    cube = con100.load_collection("S2")
+    polygons = Parameter(name="shapes", schema="object")
+    process = UDF(code="myfancycode", runtime="Python")
+    result = cube.apply_polygon(polygons=polygons, process=process)
+    assert get_download_graph(result)["applypolygon1"] == {
+        "process_id": "apply_polygon",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "polygons": {"from_parameter": "shapes"},
+            "process": {
+                "process_graph": {
+                    "runudf1": {
+                        "process_id": "run_udf",
+                        "arguments": {"data": {"from_parameter": "data"}, "runtime": "Python", "udf": "myfancycode"},
+                        "result": True,
+                    }
+                }
+            },
+        },
+    }
+
+
+def test_apply_polygon_path(con100: Connection):
+    cube = con100.load_collection("S2")
+    process = UDF(code="myfancycode", runtime="Python")
+    result = cube.apply_polygon(polygons="path/to/polygon.json", process=process)
+    assert get_download_graph(result, drop_save_result=True, drop_load_collection=True) == {
+        "readvector1": {
+            "process_id": "read_vector",
+            "arguments": {"filename": "path/to/polygon.json"},
+        },
+        "applypolygon1": {
+            "process_id": "apply_polygon",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "polygons": {"from_node": "readvector1"},
+                "process": {
+                    "process_graph": {
+                        "runudf1": {
+                            "process_id": "run_udf",
+                            "arguments": {
+                                "data": {"from_parameter": "data"},
+                                "runtime": "Python",
+                                "udf": "myfancycode",
+                            },
+                            "result": True,
+                        }
+                    }
+                },
+            },
+        },
+    }
+
+
+def test_apply_polygon_context(con100: Connection):
+    cube = con100.load_collection("S2")
+    polygons = shapely.geometry.Polygon([(0, 0), (1, 0), (0, 1), (0, 0)])
+    process = UDF(code="myfancycode", runtime="Python")
+    result = cube.apply_polygon(polygons=polygons, process=process, context={"foo": 4})
+    assert get_download_graph(result)["applypolygon1"] == {
+        "process_id": "apply_polygon",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "polygons": {"type": "Polygon", "coordinates": [[[0, 0], [1, 0], [0, 1], [0, 0]]]},
+            "process": {
+                "process_graph": {
+                    "runudf1": {
+                        "process_id": "run_udf",
+                        "arguments": {"data": {"from_parameter": "data"}, "runtime": "Python", "udf": "myfancycode"},
+                        "result": True,
+                    }
+                }
+            },
             "context": {"foo": 4},
         },
-        'result': True,
     }
 
 

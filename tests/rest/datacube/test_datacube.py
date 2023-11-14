@@ -65,6 +65,7 @@ def test_min_time(s2cube, api_version):
 
 def _get_leaf_node(cube, force_flat=True) -> dict:
     """Get leaf node (node with result=True), supporting old and new style of graph building."""
+    # TODO: replace this with get_download_graph
     if isinstance(cube, DataCube):
         if force_flat:
             flat_graph = cube.flat_graph()

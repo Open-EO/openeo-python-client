@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([#310](https://github.com/Open-EO/openeo-python-client/issues/310))
 - Add `collection_property()` helper to easily build collection metadata property filters for `Connection.load_collection()`
   ([#331](https://github.com/Open-EO/openeo-python-client/pull/331))
+- Add `DataCube.apply_polygon()` (standardized version of experimental `chunk_polygon`) ([#424](https://github.com/Open-EO/openeo-python-client/issues/424))
 
 ### Changed
 

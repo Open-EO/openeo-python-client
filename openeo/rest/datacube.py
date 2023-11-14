@@ -1193,11 +1193,11 @@ class DataCube(_ProcessGraphAbstraction):
             metadata=self.metadata.reduce_spatial(),
         )
 
-    # @openeo_process
+    @deprecated("Use :py:meth:`apply_polygon`.", version="0.26.0")
     def chunk_polygon(
         self,
         chunks: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter, VectorCube],
-        process: Union[str, PGNode, typing.Callable],
+        process: Union[str, PGNode, typing.Callable, UDF],
         mask_value: float = None,
         context: Optional[dict] = None,
     ) -> DataCube:
@@ -1230,6 +1230,45 @@ class DataCube(_ProcessGraphAbstraction):
             process_id="chunk_polygon",
             data=THIS,
             chunks=chunks,
+            process=process,
+            arguments=dict_no_none(
+                mask_value=mask_value,
+                context=context,
+            ),
+        )
+
+    @openeo_process
+    def apply_polygon(
+        self,
+        polygons: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter, VectorCube],
+        process: Union[str, PGNode, typing.Callable, UDF],
+        mask_value: Optional[float] = None,
+        context: Optional[dict] = None,
+    ) -> DataCube:
+        """
+        Apply a process to segments of the data cube that are defined by the given polygons.
+        For each polygon provided, all pixels for which the point at the pixel center intersects
+        with the polygon (as defined in the Simple Features standard by the OGC) are collected into sub data cubes.
+        If a pixel is part of multiple of the provided polygons (e.g., when the polygons overlap),
+        the GeometriesOverlap exception is thrown.
+        Each sub data cube is passed individually to the given process.
+
+        .. warning:: experimental process: not generally supported, API subject to change.
+
+        :param polygons: Polygons, provided as a shapely geometry, a GeoJSON-style dictionary,
+            a public GeoJSON URL, or a path (that is valid for the back-end) to a GeoJSON file.
+        :param process: "child callback" function, see :ref:`callbackfunctions`
+        :param mask_value: The value used for pixels outside the polygon.
+        :param context: Additional data to be passed to the process.
+        """
+        process = build_child_callback(process, parent_parameters=["data"], connection=self.connection)
+        valid_geojson_types = ["Polygon", "MultiPolygon", "Feature", "FeatureCollection"]
+        polygons = self._get_geometry_argument(polygons, valid_geojson_types=valid_geojson_types)
+        mask_value = float(mask_value) if mask_value is not None else None
+        return self.process(
+            process_id="apply_polygon",
+            data=THIS,
+            polygons=polygons,
             process=process,
             arguments=dict_no_none(
                 mask_value=mask_value,
