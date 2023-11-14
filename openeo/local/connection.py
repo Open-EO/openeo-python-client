@@ -253,6 +253,15 @@ class LocalConnection():
         cube.metadata = metadata
         return cube
 
+    def list_udf_runtimes(self) -> dict:
+        """
+        Loads all available UDF runtimes.
+
+        :return: data_dict: Dict All available UDF runtimes
+        """
+        runtimes = {"Python": "Python"}
+        return VisualDict("udf-runtimes", data=runtimes)
+
     def execute(self, process_graph: Union[dict, str, Path], validate: Optional[bool] = None) -> xr.DataArray:
         """
         Execute locally the process graph and return the result as an xarray.DataArray.
