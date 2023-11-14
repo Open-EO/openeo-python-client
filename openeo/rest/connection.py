@@ -1143,7 +1143,9 @@ class Connection(RestApiConnection):
         spatial_extent: Optional[Dict[str, float]] = None,
         temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
         bands: Union[None, List[str], Parameter] = None,
-        properties: Union[None, Dict[str, Union[str, PGNode, Callable]], List[CollectionProperty]] = None,
+        properties: Union[
+            None, Dict[str, Union[str, PGNode, Callable]], List[CollectionProperty], CollectionProperty
+        ] = None,
         max_cloud_cover: Optional[float] = None,
         fetch_metadata=True,
     ) -> DataCube:

@@ -3,7 +3,7 @@ Public openEO process graph building utilities
 '''''''''''''''''''''''''''''''''''''''''''''''
 
 """
-
+from __future__ import annotations
 from typing import Optional
 
 from openeo.internal.graph_building import PGNode, _FromNodeMixin
@@ -27,22 +27,22 @@ class CollectionProperty(_FromNodeMixin):
     def from_node(self) -> PGNode:
         return self._builder.from_node()
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> CollectionProperty:
         return CollectionProperty(self.name, _builder=self._builder == other)
 
-    def __ne__(self, other):
+    def __ne__(self, other) -> CollectionProperty:
         return CollectionProperty(self.name, _builder=self._builder != other)
 
-    def __gt__(self, other):
+    def __gt__(self, other) -> CollectionProperty:
         return CollectionProperty(self.name, _builder=self._builder > other)
 
-    def __ge__(self, other):
+    def __ge__(self, other) -> CollectionProperty:
         return CollectionProperty(self.name, _builder=self._builder >= other)
 
-    def __lt__(self, other):
+    def __lt__(self, other) -> CollectionProperty:
         return CollectionProperty(self.name, _builder=self._builder < other)
 
-    def __le__(self, other):
+    def __le__(self, other) -> CollectionProperty:
         return CollectionProperty(self.name, _builder=self._builder <= other)
 
 

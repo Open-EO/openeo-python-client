@@ -125,7 +125,9 @@ class DataCube(_ProcessGraphAbstraction):
         temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
         bands: Union[None, List[str], Parameter] = None,
         fetch_metadata: bool = True,
-        properties: Union[None, Dict[str, Union[str, PGNode, typing.Callable]], List[CollectionProperty]] = None,
+        properties: Union[
+            None, Dict[str, Union[str, PGNode, typing.Callable]], List[CollectionProperty], CollectionProperty
+        ] = None,
         max_cloud_cover: Optional[float] = None,
     ) -> DataCube:
         """
@@ -176,6 +178,8 @@ class DataCube(_ProcessGraphAbstraction):
         if isinstance(properties, list):
             # TODO: warn about items that are not CollectionProperty objects instead of silently dropping them.
             properties = {p.name: p.from_node() for p in properties if isinstance(p, CollectionProperty)}
+        if isinstance(properties, CollectionProperty):
+            properties = {properties.name: properties.from_node()}
         elif properties is None:
             properties = {}
         if max_cloud_cover:
