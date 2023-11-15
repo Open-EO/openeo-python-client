@@ -70,7 +70,7 @@ BAND_MAPPING_SENTINEL1 = {
 
 
 def _get_expression_map(cube: DataCube, x: ProcessBuilder) -> Dict[str, ProcessBuilder]:
-    """Build mapping of formula variable names to `array_element` nodes."""
+    """Build mapping of ASI formula variable names to `array_element` nodes."""
     # TODO: more robust way of figuring out the satellite platform?
     collection_id = cube.metadata.get("id").upper()
     # TODO: See if we can use common band names from collections instead of hardcoded mapping
@@ -89,6 +89,7 @@ def _get_expression_map(cube: DataCube, x: ProcessBuilder) -> Dict[str, ProcessB
     else:
         raise ValueError(f"Could not detect supported satellite platform from {collection_id!r} for index computation")
 
+    # TODO: get rid of this ugly "0" replace hack (looks like asking for trouble)
     cube_bands = [band.replace("0", "").upper() for band in cube.metadata.band_names]
     # TODO: use `label` parameter from `array_element` to avoid index based band references.
     return {band_mapping[b]: x.array_element(i) for i, b in enumerate(cube_bands) if b in band_mapping}
@@ -100,13 +101,29 @@ def load_indices() -> Dict[str, dict]:
 
     for path in [
         "resources/awesome-spectral-indices/spectral-indices-dict.json",
+        # TODO Deprecate extra-indices-dict.json as a whole
+        #      and provide an alternative mechanism to work with custom indices
         "resources/extra-indices-dict.json",
     ]:
         with importlib_resources.files("openeo.extra.spectral_indices") / path as resource_path:
             data = json.loads(resource_path.read_text(encoding="utf8"))
+            overwrites = set(specs.keys()).intersection(data["SpectralIndices"].keys())
+            if overwrites:
+                raise RuntimeError(f"Duplicate spectral indices: {overwrites} from {path}")
             specs.update(data["SpectralIndices"])
 
     return specs
+
+
+def load_constants() -> Dict[str, float]:
+    """Load constants defined by Awesome Spectral Indices."""
+    # TODO: encapsulate all this json loading in a single registry class?
+    with importlib_resources.files(
+        "openeo.extra.spectral_indices"
+    ) / "resources/awesome-spectral-indices/constants.json" as resource_path:
+        data = json.loads(resource_path.read_text(encoding="utf8"))
+
+    return {k: v["default"] for k, v in data.items() if isinstance(v["default"], (int, float))}
 
 
 def list_indices() -> List[str]:
@@ -158,10 +175,13 @@ def _callback(x: ProcessBuilder, index_dict: dict, datacube: DataCube, index_spe
     index_values = []
     x_res = x
 
-    idx_data = _get_expression_map(datacube, x)
+    eval_globals = {
+        **load_constants(),
+        **_get_expression_map(datacube, x),
+    }
     # TODO: user might want to control order of indices, which is tricky through a dictionary.
     for index, params in index_dict["indices"].items():
-        index_result = eval(index_specs[index]["formula"], idx_data)
+        index_result = eval(index_specs[index]["formula"], eval_globals)
         if params["input_range"] is not None:
             index_result = index_result.linear_scale_range(*params["input_range"], *params["output_range"])
         index_values.append(index_result)
