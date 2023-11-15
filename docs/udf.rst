@@ -470,8 +470,10 @@ An example code can be found `here <https://github.com/Open-EO/openeo-python-cli
 
 
 
-Logging from the UDFs
-==============================
+.. _udf_logging_with_inspect:
+
+Logging from a UDF
+=====================
 
 In some cases, you may want to log information from your user defined function,
 for instance to provide debug information or to log warnings. You can use the :py:class:`~openeo.udf.debug.inspect`
