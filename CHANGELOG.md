@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- Remove custom spectral indices "NDGI", "NDMI" and "S2WI" from "extra-indices-dict.json"
+  that were shadowing the official definitions from Awesome Spectral Indices ([#501](https://github.com/Open-EO/openeo-python-client/issues/501))
+
 ### Fixed
 
 - Initial support for "spectral indices" that use constants defined by Awesome Spectral Indices ([#501](https://github.com/Open-EO/openeo-python-client/issues/501))

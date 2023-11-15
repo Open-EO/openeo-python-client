@@ -15,32 +15,6 @@
             "short_name": "ANIR",
             "type": "vegetation"
         },
-        "NDGI": {
-            "bands": [
-                "G",
-                "R"
-            ],
-            "contributor": "vito",
-            "date_of_addition": "2021-10-27",
-            "formula": "(G - R) / (G + R)",
-            "long_name": "Normalized Difference Glacier Index",
-            "reference": "https://www.researchgate.net/publication/248978081_ASTER_ratio_indices_for_supraglacial_terrain_mapping",
-            "short_name": "NDGI",
-            "type": "glacier"
-        },
-        "NDMI": {
-            "bands": [
-                "N",
-                "S1"
-            ],
-            "contributor": "vito",
-            "date_of_addition": "2021-10-27",
-            "formula": "(N - S1) / (N + S1)",
-            "long_name": "Normalized Difference Moisture Index",
-            "reference": "https://rdrr.io/cran/LSRS/man/NDMI.html",
-            "short_name": "NDMI",
-            "type": "moisture"
-        },
         "NDRE1": {
             "bands": [
                 "N",
@@ -105,20 +79,6 @@
             "long_name": "Brightness index B08",
             "reference": "https://digifed.org/",
             "short_name": "BI_B08",
-            "type": "soil"
-        },
-        "S2WI": {
-            "bands": [
-                "RE4",
-                "S1",
-                "S2"
-            ],
-            "contributor": "vito",
-            "date_of_addition": "2022-01-27",
-            "formula": "(RE4-S1-S2)/(RE4+S1+S2)",
-            "long_name": "Sentinel-2 soil moisture index",
-            "reference": "https://digifed.org/",
-            "short_name": "S2WI",
             "type": "soil"
         },
         "LSWI_B12": {

@@ -101,10 +101,15 @@ def load_indices() -> Dict[str, dict]:
 
     for path in [
         "resources/awesome-spectral-indices/spectral-indices-dict.json",
+        # TODO Deprecate extra-indices-dict.json as a whole
+        #      and provide an alternative mechanism to work with custom indices
         "resources/extra-indices-dict.json",
     ]:
         with importlib_resources.files("openeo.extra.spectral_indices") / path as resource_path:
             data = json.loads(resource_path.read_text(encoding="utf8"))
+            overwrites = set(specs.keys()).intersection(data["SpectralIndices"].keys())
+            if overwrites:
+                raise RuntimeError(f"Duplicate spectral indices: {overwrites} from {path}")
             specs.update(data["SpectralIndices"])
 
     return specs
