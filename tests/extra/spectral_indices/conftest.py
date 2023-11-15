@@ -38,6 +38,20 @@ def _setup_connection(api_version, requests_mock) -> Connection:
             "summaries": {"eo:bands": [dict_no_none(name=n, common_name=c) for n, c in sentinel2_bands]},
         },
     )
+    # SENTINEL2-like collection but with a different ID
+    requests_mock.get(
+        API_URL + "/collections/NELITENS2",
+        json={
+            "id": "NELITENS2",
+            "cube:dimensions": {
+                "x": {"type": "spatial"},
+                "y": {"type": "spatial"},
+                "t": {"type": "temporal"},
+                "bands": {"type": "bands", "values": [n for n, _ in sentinel2_bands]},
+            },
+            "summaries": {"eo:bands": [dict_no_none(name=n, common_name=c) for n, c in sentinel2_bands]},
+        },
+    )
 
     # TODO: add other collections: Landsat, Modis, ProbaV, ...
 

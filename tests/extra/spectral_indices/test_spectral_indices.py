@@ -1,5 +1,7 @@
 from typing import List, Union
 
+import pytest
+
 from openeo.extra.spectral_indices import (
     append_and_rescale_indices,
     append_index,
@@ -42,7 +44,7 @@ def test_load_constants():
 
 
 def test_compute_and_rescale_indices(con):
-    cube = con.load_collection("Sentinel2")
+    cube = con.load_collection("SENTINEL2")
 
     index_dict = {
         "collection": {"input_range": [0, 8000], "output_range": [0, 250]},
@@ -152,7 +154,7 @@ def test_compute_and_rescale_indices(con):
 
 
 def test_append_and_rescale_indices(con):
-    cube = con.load_collection("Sentinel2")
+    cube = con.load_collection("SENTINEL2")
 
     index_dict = {
         "collection": {"input_range": [0, 8000], "output_range": [0, 250]},
@@ -274,7 +276,7 @@ def test_append_and_rescale_indices(con):
 
 
 def test_compute_indices(con):
-    cube = con.load_collection("Sentinel2")
+    cube = con.load_collection("SENTINEL2")
 
     index_list = ["NDVI", "NDMI", "NDRE1"]
     indices = compute_indices(cube, index_list)
@@ -341,7 +343,7 @@ def test_compute_indices(con):
 
 
 def test_append_indices(con):
-    cube = con.load_collection("Sentinel2")
+    cube = con.load_collection("SENTINEL2")
 
     index_list = ["NDVI", "NDMI", "NDRE1"]
     indices = append_indices(cube, index_list)
@@ -412,7 +414,7 @@ def test_append_indices(con):
 
 
 def test_compute_ndvi(con):
-    cube = con.load_collection("Sentinel2")
+    cube = con.load_collection("SENTINEL2")
     indices = compute_index(cube, index="NDVI")
     (apply_dim,) = _extract_process_nodes(indices, "apply_dimension")
     assert apply_dim["arguments"]["process"]["process_graph"] == {
@@ -446,8 +448,47 @@ def test_compute_ndvi(con):
     }
 
 
+@pytest.mark.parametrize("platform", ["Sentinel2", "SENTINEL2"])
+def test_compute_ndvi_explicit_platform(con, platform):
+    cube = con.load_collection("NELITENS2")
+    with pytest.raises(ValueError, match="Unknown satellite platform"):
+        _ = compute_index(cube, index="NDVI")
+
+    indices = compute_index(cube, index="NDVI", platform=platform)
+    (apply_dim,) = _extract_process_nodes(indices, "apply_dimension")
+    assert apply_dim["arguments"]["process"]["process_graph"] == {
+        # band at 7: NIR
+        "arrayelement1": {
+            "process_id": "array_element",
+            "arguments": {"data": {"from_parameter": "data"}, "index": 7},
+        },
+        # band at 3: RED
+        "arrayelement2": {
+            "process_id": "array_element",
+            "arguments": {"data": {"from_parameter": "data"}, "index": 3},
+        },
+        "subtract1": {
+            "process_id": "subtract",
+            "arguments": {"x": {"from_node": "arrayelement1"}, "y": {"from_node": "arrayelement2"}},
+        },
+        "add1": {
+            "process_id": "add",
+            "arguments": {"x": {"from_node": "arrayelement1"}, "y": {"from_node": "arrayelement2"}},
+        },
+        "divide1": {
+            "process_id": "divide",
+            "arguments": {"x": {"from_node": "subtract1"}, "y": {"from_node": "add1"}},
+        },
+        "arraycreate1": {
+            "process_id": "array_create",
+            "arguments": {"data": [{"from_node": "divide1"}]},
+            "result": True,
+        },
+    }
+
+
 def test_compute_evi(con):
-    cube = con.load_collection("Sentinel2")
+    cube = con.load_collection("SENTINEL2")
     indices = compute_index(cube, index="EVI")
     (apply_dim,) = _extract_process_nodes(indices, "apply_dimension")
     assert apply_dim["arguments"]["process"]["process_graph"] == {
@@ -507,7 +548,7 @@ def test_compute_evi(con):
 
 
 def test_append_ndvi(con):
-    cube = con.load_collection("Sentinel2")
+    cube = con.load_collection("SENTINEL2")
     indices = append_index(cube, index="NDVI")
     (apply_dim,) = _extract_process_nodes(indices, "apply_dimension")
     assert apply_dim["arguments"]["process"]["process_graph"] == {

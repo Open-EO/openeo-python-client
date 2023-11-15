@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `collection_property()` helper to easily build collection metadata property filters for `Connection.load_collection()`
   ([#331](https://github.com/Open-EO/openeo-python-client/pull/331))
 - Add `DataCube.apply_polygon()` (standardized version of experimental `chunk_polygon`) ([#424](https://github.com/Open-EO/openeo-python-client/issues/424))
+- Awesome Spectral Indices support: allow explicitly specifying the satellite platform for band name mapping
+  (e.g. "Sentinel2" or "LANDSAT8") if cube metadata lacks info ([#485](https://github.com/Open-EO/openeo-python-client/issues/485), [#501](https://github.com/Open-EO/openeo-python-client/issues/501))
 
 ### Changed
 

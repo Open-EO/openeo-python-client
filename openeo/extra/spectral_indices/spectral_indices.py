@@ -1,5 +1,5 @@
 import json
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import numpy as np
 
@@ -69,28 +69,28 @@ BAND_MAPPING_SENTINEL1 = {
 }
 
 
-def _get_expression_map(cube: DataCube, x: ProcessBuilder) -> Dict[str, ProcessBuilder]:
+def _get_expression_map(x: ProcessBuilder, platform: str, band_names: List[str]) -> Dict[str, ProcessBuilder]:
     """Build mapping of ASI formula variable names to `array_element` nodes."""
-    # TODO: more robust way of figuring out the satellite platform?
-    collection_id = cube.metadata.get("id").upper()
+    platform = platform.upper()
     # TODO: See if we can use common band names from collections instead of hardcoded mapping
-    if "LANDSAT8" in collection_id:
+    if "LANDSAT8" in platform:
         band_mapping = BAND_MAPPING_LANDSAT8
-    elif "LANDSAT" in collection_id:
+    elif "LANDSAT" in platform:
         band_mapping = BAND_MAPPING_LANDSAT457
-    elif "MODIS" in collection_id:
+    elif "MODIS" in platform:
         band_mapping = BAND_MAPPING_MODIS
-    elif "PROBAV" in collection_id:
+    elif "PROBAV" in platform:
         band_mapping = BAND_MAPPING_PROBAV
-    elif "TERRASCOPE_S2" in collection_id or "SENTINEL2" in collection_id:
+    elif "TERRASCOPE_S2" in platform or "SENTINEL2" in platform:
         band_mapping = BAND_MAPPING_SENTINEL2
-    elif "SENTINEL1" in collection_id:
+    elif "SENTINEL1" in platform:
         band_mapping = BAND_MAPPING_SENTINEL1
     else:
-        raise ValueError(f"Could not detect supported satellite platform from {collection_id!r} for index computation")
+        # TODO: better error message: provide options?
+        raise ValueError(f"Unknown satellite platform {platform!r} (to determine band name mapping)")
 
     # TODO: get rid of this ugly "0" replace hack (looks like asking for trouble)
-    cube_bands = [band.replace("0", "").upper() for band in cube.metadata.band_names]
+    cube_bands = [band.replace("0", "").upper() for band in band_names]
     # TODO: use `label` parameter from `array_element` to avoid index based band references.
     return {band_mapping[b]: x.array_element(i) for i, b in enumerate(cube_bands) if b in band_mapping}
 
@@ -171,13 +171,15 @@ def _check_validity_index_dict(index_dict: dict, index_specs: dict):
         _check_params(index, params)
 
 
-def _callback(x: ProcessBuilder, index_dict: dict, datacube: DataCube, index_specs, append) -> ProcessBuilder:
+def _callback(
+    x: ProcessBuilder, index_dict: dict, index_specs: dict, append: bool, band_names: List[str], platform: str
+) -> ProcessBuilder:
     index_values = []
     x_res = x
 
     eval_globals = {
         **load_constants(),
-        **_get_expression_map(datacube, x),
+        **_get_expression_map(x, band_names=band_names, platform=platform),
     }
     # TODO: user might want to control order of indices, which is tricky through a dictionary.
     for index, params in index_dict["indices"].items():
@@ -190,12 +192,14 @@ def _callback(x: ProcessBuilder, index_dict: dict, datacube: DataCube, index_spe
             *index_dict["collection"]["input_range"], *index_dict["collection"]["output_range"]
         )
     if append:
-        return array_modify(data=x_res, values=index_values, index=len(datacube.metadata.band_names))
+        return array_modify(data=x_res, values=index_values, index=len(band_names))
     else:
         return array_create(data=index_values)
 
 
-def compute_and_rescale_indices(datacube: DataCube, index_dict: dict, append=False) -> DataCube:
+def compute_and_rescale_indices(
+    datacube: DataCube, index_dict: dict, append: bool = False, platform: Optional[str] = None
+) -> DataCube:
     """
     Computes a list of indices from a data cube
 
@@ -221,6 +225,9 @@ def compute_and_rescale_indices(datacube: DataCube, index_dict: dict, append=Fal
 
         See `list_indices()` for supported indices.
 
+    :param platform: optionally specify the satellite platform (to determine band name mapping)
+        if the given data cube has no or an unhandled (collection) id in its metadata
+
     :return: the datacube with the indices attached as bands
 
     .. warning:: this "rescaled" index helper uses an experimental API (e.g. `index_dict` argument) that is subject to change.
@@ -229,7 +236,15 @@ def compute_and_rescale_indices(datacube: DataCube, index_dict: dict, append=Fal
 
     _check_validity_index_dict(index_dict, index_specs)
     res = datacube.apply_dimension(
-        dimension="bands", process=lambda x: _callback(x, index_dict, datacube, index_specs, append)
+        dimension="bands",
+        process=lambda x: _callback(
+            x,
+            index_dict=index_dict,
+            index_specs=index_specs,
+            append=append,
+            band_names=datacube.metadata.band_names,
+            platform=platform or datacube.metadata.get("id"),
+        ),
     )
     if append:
         return res.rename_labels("bands", target=datacube.metadata.band_names + list(index_dict["indices"].keys()))
@@ -237,7 +252,7 @@ def compute_and_rescale_indices(datacube: DataCube, index_dict: dict, append=Fal
         return res.rename_labels("bands", target=list(index_dict["indices"].keys()))
 
 
-def append_and_rescale_indices(datacube: DataCube, index_dict: dict) -> DataCube:
+def append_and_rescale_indices(datacube: DataCube, index_dict: dict, platform: Optional[str] = None) -> DataCube:
     """
     Computes a list of indices from a datacube and appends them to the existing datacube
 
@@ -261,19 +276,28 @@ def append_and_rescale_indices(datacube: DataCube, index_dict: dict) -> DataCube
 
         See `list_indices()` for supported indices.
 
+    :param platform: optionally specify the satellite platform (to determine band name mapping)
+        if the given data cube has no or an unhandled (collection) id in its metadata
+
+
     :return: data cube with appended indices
 
     .. warning:: this "rescaled" index helper uses an experimental API (e.g. `index_dict` argument) that is subject to change.
     """
-    return compute_and_rescale_indices(datacube=datacube, index_dict=index_dict, append=True)
+    return compute_and_rescale_indices(datacube=datacube, index_dict=index_dict, append=True, platform=platform)
 
 
-def compute_indices(datacube: DataCube, indices: List[str], append: bool = False) -> DataCube:
+def compute_indices(
+    datacube: DataCube, indices: List[str], append: bool = False, platform: Optional[str] = None
+) -> DataCube:
     """
     Compute multiple spectral indices from the given data cube.
 
     :param datacube: input data cube
     :param indices: list of names of the indices to compute and append. See `list_indices()` for supported indices.
+    :param platform: optionally specify the satellite platform (to determine band name mapping)
+        if the given data cube has no or an unhandled (collection) id in its metadata
+
     :return: data cube containing the indices as bands
     """
     # TODO: it's bit weird to have to specify all these None's in this structure
@@ -284,39 +308,48 @@ def compute_indices(datacube: DataCube, indices: List[str], append: bool = False
         },
         "indices": {index: {"input_range": None, "output_range": None} for index in indices},
     }
-    return compute_and_rescale_indices(datacube=datacube, index_dict=index_dict, append=append)
+    return compute_and_rescale_indices(datacube=datacube, index_dict=index_dict, append=append, platform=platform)
 
 
-def append_indices(datacube: DataCube, indices: List[str]) -> DataCube:
+def append_indices(datacube: DataCube, indices: List[str], platform: Optional[str] = None) -> DataCube:
     """
     Compute multiple spectral indices and append them to the given data cube.
 
     :param datacube: input data cube
     :param indices: list of names of the indices to compute and append. See `list_indices()` for supported indices.
+    :param platform: optionally specify the satellite platform (to determine band name mapping)
+        if the given data cube has no or an unhandled (collection) id in its metadata
+
     :return: data cube with appended indices
     """
 
-    return compute_indices(datacube=datacube, indices=indices, append=True)
+    return compute_indices(datacube=datacube, indices=indices, append=True, platform=platform)
 
 
-def compute_index(datacube: DataCube, index: str) -> DataCube:
+def compute_index(datacube: DataCube, index: str, platform: Optional[str] = None) -> DataCube:
     """
     Compute a single spectral index from a data cube.
 
     :param datacube: input data cube
     :param index: name of the index to compute. See `list_indices()` for supported indices.
+    :param platform: optionally specify the satellite platform (to determine band name mapping)
+        if the given data cube has no or an unhandled (collection) id in its metadata
+
     :return: data cube containing the index as band
     """
     # TODO: option to compute the index with `reduce_dimension` instead of `apply_dimension`?
-    return compute_indices(datacube=datacube, indices=[index], append=False)
+    return compute_indices(datacube=datacube, indices=[index], append=False, platform=platform)
 
 
-def append_index(datacube: DataCube, index: str) -> DataCube:
+def append_index(datacube: DataCube, index: str, platform: Optional[str] = None) -> DataCube:
     """
     Compute a single spectral index and append it to the given data cube.
 
     :param cube: input data cube
     :param index: name of the index to compute and append. See `list_indices()` for supported indices.
+    :param platform: optionally specify the satellite platform (to determine band name mapping)
+        if the given data cube has no or an unhandled (collection) id in its metadata
+
     :return: data cube with appended index
     """
-    return compute_indices(datacube=datacube, indices=[index], append=True)
+    return compute_indices(datacube=datacube, indices=[index], append=True, platform=platform)
