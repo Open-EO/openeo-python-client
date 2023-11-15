@@ -72,11 +72,26 @@ div.admonition,
 .py div.versionadded,
 .py div.versionchanged,
 .py div.deprecated {
-    padding: 1em;
+    padding: 0.5em 1em;
     border-style: solid;
     border-width: 0 0 0 0.5rem;
     border-color: #cccccc;
     background-color: #f3f5f7;
+}
+
+div.admonition :first-child,
+.py div.versionadded :first-child,
+.py div.versionchanged :first-child,
+.py div.deprecated  :first-child {
+    margin-top: 0;
+}
+
+
+div.admonition :last-child,
+.py div.versionadded :last-child,
+.py div.versionchanged :last-child,
+.py div.deprecated  :last-child {
+    margin-bottom: 0;
 }
 
 div.admonition p.admonition-title {
