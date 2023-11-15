@@ -9,6 +9,7 @@ from openeo.extra.spectral_indices import (
     compute_indices,
     list_indices,
     load_indices,
+    load_constants,
 )
 from openeo.rest.datacube import DataCube
 
@@ -33,6 +34,11 @@ def test_list_indices():
     assert "NDVI" in indices
     assert "NDWI" in indices
     assert "ANIR" in indices
+
+
+def test_load_constants():
+    constants = load_constants()
+    assert constants["g"] == 2.5
 
 
 def test_compute_and_rescale_indices(con):
@@ -405,17 +411,17 @@ def test_append_indices(con):
     }
 
 
-def test_compute_index(con):
+def test_compute_ndvi(con):
     cube = con.load_collection("Sentinel2")
-
-    index = "NDVI"
-    indices = compute_index(cube, index)
+    indices = compute_index(cube, index="NDVI")
     (apply_dim,) = _extract_process_nodes(indices, "apply_dimension")
     assert apply_dim["arguments"]["process"]["process_graph"] == {
+        # band at 7: NIR
         "arrayelement1": {
             "process_id": "array_element",
             "arguments": {"data": {"from_parameter": "data"}, "index": 7},
         },
+        # band at 3: RED
         "arrayelement2": {
             "process_id": "array_element",
             "arguments": {"data": {"from_parameter": "data"}, "index": 3},
@@ -434,21 +440,75 @@ def test_compute_index(con):
         },
         "arraycreate1": {
             "process_id": "array_create",
-            "arguments": {
-                "data": [
-                    {"from_node": "divide1"},
-                ]
-            },
+            "arguments": {"data": [{"from_node": "divide1"}]},
             "result": True,
         },
     }
 
 
-def test_append_index(con):
+def test_compute_evi(con):
     cube = con.load_collection("Sentinel2")
+    indices = compute_index(cube, index="EVI")
+    (apply_dim,) = _extract_process_nodes(indices, "apply_dimension")
+    assert apply_dim["arguments"]["process"]["process_graph"] == {
+        # band at 7: NIR
+        "arrayelement1": {
+            "process_id": "array_element",
+            "arguments": {"data": {"from_parameter": "data"}, "index": 7},
+        },
+        # band at 3: RED
+        "arrayelement2": {
+            "process_id": "array_element",
+            "arguments": {"data": {"from_parameter": "data"}, "index": 3},
+        },
+        # band at 1: BLUE
+        "arrayelement3": {
+            "process_id": "array_element",
+            "arguments": {"data": {"from_parameter": "data"}, "index": 1},
+        },
+        "subtract1": {
+            "process_id": "subtract",
+            "arguments": {"x": {"from_node": "arrayelement1"}, "y": {"from_node": "arrayelement2"}},
+        },
+        "add1": {
+            "process_id": "add",
+            "arguments": {"x": {"from_node": "arrayelement1"}, "y": {"from_node": "multiply2"}},
+        },
+        "add2": {
+            "process_id": "add",
+            "arguments": {"x": {"from_node": "subtract2"}, "y": 1.0},
+        },
+        "divide1": {
+            "process_id": "divide",
+            "arguments": {"x": {"from_node": "multiply1"}, "y": {"from_node": "add2"}},
+        },
+        "multiply1": {
+            "process_id": "multiply",
+            "arguments": {"x": 2.5, "y": {"from_node": "subtract1"}},
+        },
+        "multiply2": {
+            "process_id": "multiply",
+            "arguments": {"x": 6.0, "y": {"from_node": "arrayelement2"}},
+        },
+        "multiply3": {
+            "process_id": "multiply",
+            "arguments": {"x": 7.5, "y": {"from_node": "arrayelement3"}},
+        },
+        "subtract2": {
+            "process_id": "subtract",
+            "arguments": {"x": {"from_node": "add1"}, "y": {"from_node": "multiply3"}},
+        },
+        "arraycreate1": {
+            "process_id": "array_create",
+            "arguments": {"data": [{"from_node": "divide1"}]},
+            "result": True,
+        },
+    }
 
-    index = "NDVI"
-    indices = append_index(cube, index)
+
+def test_append_ndvi(con):
+    cube = con.load_collection("Sentinel2")
+    indices = append_index(cube, index="NDVI")
     (apply_dim,) = _extract_process_nodes(indices, "apply_dimension")
     assert apply_dim["arguments"]["process"]["process_graph"] == {
         "arrayelement1": {

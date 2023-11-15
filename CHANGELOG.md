@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Initial support for "spectral indices" that use constants defined by Awesome Spectral Indices ([#501](https://github.com/Open-EO/openeo-python-client/issues/501))
+
 
 ## [0.25.0] - 2023-11-02
 
