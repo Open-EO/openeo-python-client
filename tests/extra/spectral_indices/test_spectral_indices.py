@@ -13,6 +13,7 @@ from openeo.extra.spectral_indices import (
     load_indices,
     load_constants,
 )
+from openeo.extra.spectral_indices.spectral_indices import _BandMapping, BandMappingException
 from openeo.rest.datacube import DataCube
 
 
@@ -43,8 +44,115 @@ def test_load_constants():
     assert constants["g"] == 2.5
 
 
-def test_compute_and_rescale_indices(con):
-    cube = con.load_collection("SENTINEL2")
+class TestBandMapping:
+    def test_get_platforms(self):
+        band_mapping = _BandMapping()
+        assert band_mapping.get_platforms() == {
+            "landsat4",
+            "landsat5",
+            "landsat7",
+            "landsat8",
+            "landsat9",
+            "modis",
+            "planetscope",
+            "sentinel1",
+            "sentinel2",
+            "sentinel2a",
+            "sentinel2b",
+            "wv2",
+            "wv3",
+        }
+
+    def test_guess_platform(self):
+        band_mapping = _BandMapping()
+        assert band_mapping.guess_platform("SENTINEL2") == "sentinel2"
+        assert band_mapping.guess_platform("SENTINEL2_L2A") == "sentinel2"
+        assert band_mapping.guess_platform("SENTINEL1_GRD") == "sentinel1"
+        assert band_mapping.guess_platform("Landsat4") == "landsat4"
+        assert band_mapping.guess_platform("LANDSAT8-9_L2") == "landsat8"
+        assert band_mapping.guess_platform("boa_landsat_8") == "landsat8"
+
+    @pytest.mark.parametrize("platform", ["Landsat4", "Landsat5", "Landsat7"])
+    def test_variable_to_band_map_landsat457(self, platform):
+        band_mapping = _BandMapping()
+        assert band_mapping.variable_to_band_name_map(platform) == {
+            "B": "B1",
+            "G": "B2",
+            "N": "B4",
+            "R": "B3",
+            "S1": "B5",
+            "S2": "B7",
+            "T": "B6",
+        }
+
+    def test_variable_to_band_map_landsat8(self):
+        band_mapping = _BandMapping()
+        assert band_mapping.variable_to_band_name_map("LANDSAT8") == {
+            "A": "B1",
+            "B": "B2",
+            "G": "B3",
+            "N": "B5",
+            "R": "B4",
+            "S1": "B6",
+            "S2": "B7",
+            "T1": "B10",
+            "T2": "B11",
+        }
+
+    def test_variable_to_band_map_modis(self):
+        band_mapping = _BandMapping()
+        assert band_mapping.variable_to_band_name_map("MODIS") == {
+            "B": "B3",
+            "G": "B4",
+            "G1": "B11",
+            "N": "B2",
+            "R": "B1",
+            "S1": "B6",
+            "S2": "B7",
+        }
+
+    def test_variable_to_band_map_sentinel2(self):
+        band_mapping = _BandMapping()
+        assert band_mapping.variable_to_band_name_map("Sentinel2") == {
+            "A": "B1",
+            "B": "B2",
+            "G": "B3",
+            "N": "B8",
+            "N2": "B8A",
+            "R": "B4",
+            "RE1": "B5",
+            "RE2": "B6",
+            "RE3": "B7",
+            "S1": "B11",
+            "S2": "B12",
+            "WV": "B9",
+        }
+
+    def test_variable_to_band_map_sentinel1(self):
+        band_mapping = _BandMapping()
+        assert band_mapping.variable_to_band_name_map("Sentinel1") == {
+            "HH": "HH",
+            "HV": "HV",
+            "VH": "VH",
+            "VV": "VV",
+        }
+
+    def test_actual_band_name_to_variable_map_sentinel2(self):
+        band_mapping = _BandMapping()
+        assert band_mapping.actual_band_name_to_variable_map(
+            platform="sentinel2", band_names=["B02", "B03", "B04", "B08"]
+        ) == {"B02": "B", "B03": "G", "B04": "R", "B08": "N"}
+
+    def test_actual_band_name_to_variable_map_landsat8(self):
+        band_mapping = _BandMapping()
+        assert band_mapping.actual_band_name_to_variable_map(
+            platform="LANDSAT8", band_names=["B2", "B3", "B4", "B5"]
+        ) == {"B2": "B", "B3": "G", "B4": "R", "B5": "N"}
+
+
+@pytest.mark.parametrize("collection_id", ["SENTINEL2", "FOO_SENTINEL2_L2A"])
+def test_compute_and_rescale_indices(con, collection_id):
+    cube = con.load_collection(collection_id)
 
     index_dict = {
         "collection": {"input_range": [0, 8000], "output_range": [0, 250]},
@@ -153,8 +261,9 @@ def test_compute_and_rescale_indices(con):
     }
 
 
-def test_append_and_rescale_indices(con):
-    cube = con.load_collection("SENTINEL2")
+@pytest.mark.parametrize("collection_id", ["SENTINEL2", "FOO_SENTINEL2_L2A"])
+def test_append_and_rescale_indices(con, collection_id):
+    cube = con.load_collection(collection_id)
 
     index_dict = {
         "collection": {"input_range": [0, 8000], "output_range": [0, 250]},
@@ -275,8 +384,9 @@ def test_append_and_rescale_indices(con):
     }
 
 
-def test_compute_indices(con):
-    cube = con.load_collection("SENTINEL2")
+@pytest.mark.parametrize("collection_id", ["SENTINEL2", "FOO_SENTINEL2_L2A"])
+def test_compute_indices(con, collection_id):
+    cube = con.load_collection(collection_id)
 
     index_list = ["NDVI", "NDMI", "NDRE1"]
     indices = compute_indices(cube, index_list)
@@ -342,8 +452,9 @@ def test_compute_indices(con):
     }
 
 
-def test_append_indices(con):
-    cube = con.load_collection("SENTINEL2")
+@pytest.mark.parametrize("collection_id", ["SENTINEL2", "FOO_SENTINEL2_L2A"])
+def test_append_indices(con, collection_id):
+    cube = con.load_collection(collection_id)
 
     index_list = ["NDVI", "NDMI", "NDRE1"]
     indices = append_indices(cube, index_list)
@@ -413,17 +524,16 @@ def test_append_indices(con):
     }
 
 
-def test_compute_ndvi(con):
-    cube = con.load_collection("SENTINEL2")
+@pytest.mark.parametrize(["collection_id", "nir_index"], [("SENTINEL2", 7), ("FOO_SENTINEL2_L2A", 7), ("LANDSAT8", 4)])
+def test_compute_ndvi(con, collection_id, nir_index):
+    cube = con.load_collection(collection_id)
     indices = compute_index(cube, index="NDVI")
     (apply_dim,) = _extract_process_nodes(indices, "apply_dimension")
     assert apply_dim["arguments"]["process"]["process_graph"] == {
-        # band at 7: NIR
         "arrayelement1": {
             "process_id": "array_element",
-            "arguments": {"data": {"from_parameter": "data"}, "index": 7},
+            "arguments": {"data": {"from_parameter": "data"}, "index": nir_index},
         },
-        # band at 3: RED
         "arrayelement2": {
             "process_id": "array_element",
             "arguments": {"data": {"from_parameter": "data"}, "index": 3},
@@ -448,21 +558,26 @@ def test_compute_ndvi(con):
     }
 
 
-@pytest.mark.parametrize("platform", ["Sentinel2", "SENTINEL2"])
-def test_compute_ndvi_explicit_platform(con, platform):
-    cube = con.load_collection("NELITENS2")
-    with pytest.raises(ValueError, match="Unknown satellite platform"):
+@pytest.mark.parametrize(
+    ["collection_id", "platform", "nir_index"],
+    [
+        ("NELITENS2", "Sentinel2", 7),
+        ("NELITENS2", "SENTINEL2", 7),
+        ("SANDLAT8", "landsat8", 4),
+    ],
+)
+def test_compute_ndvi_explicit_platform(con, collection_id, platform, nir_index):
+    cube = con.load_collection(collection_id)
+    with pytest.raises(BandMappingException, match=f"Unable to guess satellite platform from id '{collection_id}'"):
         _ = compute_index(cube, index="NDVI")
 
     indices = compute_index(cube, index="NDVI", platform=platform)
     (apply_dim,) = _extract_process_nodes(indices, "apply_dimension")
     assert apply_dim["arguments"]["process"]["process_graph"] == {
-        # band at 7: NIR
         "arrayelement1": {
             "process_id": "array_element",
-            "arguments": {"data": {"from_parameter": "data"}, "index": 7},
+            "arguments": {"data": {"from_parameter": "data"}, "index": nir_index},
         },
-        # band at 3: RED
         "arrayelement2": {
             "process_id": "array_element",
             "arguments": {"data": {"from_parameter": "data"}, "index": 3},
@@ -487,8 +602,53 @@ def test_compute_ndvi_explicit_platform(con, platform):
     }
 
 
-def test_compute_evi(con):
-    cube = con.load_collection("SENTINEL2")
+@pytest.mark.parametrize(
+    ["collection_id", "band_to_var", "nir_index"],
+    [
+        ("ZENDIMEL2", {"Z2-B04": "R", "Z2-B08": "N"}, 7),
+        ("ZENDIMEL2", {"Z2-B02": "B", "Z2-B03": "G", "Z2-B04": "R", "Z2-B08": "N"}, 7),
+        ("ZANDLAD8", {"Z8-B4": "R", "Z8-B5": "N"}, 4),
+    ],
+)
+def test_compute_ndvi_explicit_band_to_var(con, collection_id, band_to_var, nir_index):
+    cube = con.load_collection(collection_id)
+    with pytest.raises(BandMappingException, match=f"Unable to guess satellite platform from id '{collection_id}'"):
+        _ = compute_index(cube, index="NDVI")
+
+    indices = compute_index(cube, index="NDVI", band_to_var=band_to_var)
+    (apply_dim,) = _extract_process_nodes(indices, "apply_dimension")
+    assert apply_dim["arguments"]["process"]["process_graph"] == {
+        "arrayelement1": {
+            "process_id": "array_element",
+            "arguments": {"data": {"from_parameter": "data"}, "index": nir_index},
+        },
+        "arrayelement2": {
+            "process_id": "array_element",
+            "arguments": {"data": {"from_parameter": "data"}, "index": 3},
+        },
+        "subtract1": {
+            "process_id": "subtract",
+            "arguments": {"x": {"from_node": "arrayelement1"}, "y": {"from_node": "arrayelement2"}},
+        },
+        "add1": {
+            "process_id": "add",
+            "arguments": {"x": {"from_node": "arrayelement1"}, "y": {"from_node": "arrayelement2"}},
+        },
+        "divide1": {
+            "process_id": "divide",
+            "arguments": {"x": {"from_node": "subtract1"}, "y": {"from_node": "add1"}},
+        },
+        "arraycreate1": {
+            "process_id": "array_create",
+            "arguments": {"data": [{"from_node": "divide1"}]},
+            "result": True,
+        },
+    }
+
+
+@pytest.mark.parametrize("collection_id", ["SENTINEL2", "FOO_SENTINEL2_L2A"])
+def test_compute_evi(con, collection_id):
+    cube = con.load_collection(collection_id)
     indices = compute_index(cube, index="EVI")
     (apply_dim,) = _extract_process_nodes(indices, "apply_dimension")
     assert apply_dim["arguments"]["process"]["process_graph"] == {
@@ -547,8 +707,9 @@ def test_compute_evi(con):
     }
 
 
-def test_append_ndvi(con):
-    cube = con.load_collection("SENTINEL2")
+@pytest.mark.parametrize("collection_id", ["SENTINEL2", "FOO_SENTINEL2_L2A"])
+def test_append_ndvi(con, collection_id):
+    cube = con.load_collection(collection_id)
     indices = append_index(cube, index="NDVI")
     (apply_dim,) = _extract_process_nodes(indices, "apply_dimension")
     assert apply_dim["arguments"]["process"]["process_graph"] == {
