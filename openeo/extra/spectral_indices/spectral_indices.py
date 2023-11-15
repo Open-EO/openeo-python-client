@@ -226,11 +226,15 @@ def compute_and_rescale_indices(
         See `list_indices()` for supported indices.
 
     :param platform: optionally specify the satellite platform (to determine band name mapping)
-        if the given data cube has no or an unhandled (collection) id in its metadata
+        if the given data cube has no or an unhandled collection id in its metadata.
 
     :return: the datacube with the indices attached as bands
 
     .. warning:: this "rescaled" index helper uses an experimental API (e.g. `index_dict` argument) that is subject to change.
+
+    .. versionadded:: 0.26.0
+        Added `platform` parameter.
+
     """
     index_specs = load_indices()
 
@@ -277,12 +281,14 @@ def append_and_rescale_indices(datacube: DataCube, index_dict: dict, platform: O
         See `list_indices()` for supported indices.
 
     :param platform: optionally specify the satellite platform (to determine band name mapping)
-        if the given data cube has no or an unhandled (collection) id in its metadata
-
+        if the given data cube has no or an unhandled collection id in its metadata.
 
     :return: data cube with appended indices
 
     .. warning:: this "rescaled" index helper uses an experimental API (e.g. `index_dict` argument) that is subject to change.
+
+    .. versionadded:: 0.26.0
+        Added `platform` parameter.
     """
     return compute_and_rescale_indices(datacube=datacube, index_dict=index_dict, append=True, platform=platform)
 
@@ -296,9 +302,12 @@ def compute_indices(
     :param datacube: input data cube
     :param indices: list of names of the indices to compute and append. See `list_indices()` for supported indices.
     :param platform: optionally specify the satellite platform (to determine band name mapping)
-        if the given data cube has no or an unhandled (collection) id in its metadata
+        if the given data cube has no or an unhandled collection id in its metadata.
 
     :return: data cube containing the indices as bands
+
+    .. versionadded:: 0.26.0
+        Added `platform` parameter.
     """
     # TODO: it's bit weird to have to specify all these None's in this structure
     index_dict = {
@@ -318,9 +327,12 @@ def append_indices(datacube: DataCube, indices: List[str], platform: Optional[st
     :param datacube: input data cube
     :param indices: list of names of the indices to compute and append. See `list_indices()` for supported indices.
     :param platform: optionally specify the satellite platform (to determine band name mapping)
-        if the given data cube has no or an unhandled (collection) id in its metadata
+        if the given data cube has no or an unhandled collection id in its metadata.
 
     :return: data cube with appended indices
+
+    .. versionadded:: 0.26.0
+        Added `platform` parameter.
     """
 
     return compute_indices(datacube=datacube, indices=indices, append=True, platform=platform)
@@ -333,9 +345,12 @@ def compute_index(datacube: DataCube, index: str, platform: Optional[str] = None
     :param datacube: input data cube
     :param index: name of the index to compute. See `list_indices()` for supported indices.
     :param platform: optionally specify the satellite platform (to determine band name mapping)
-        if the given data cube has no or an unhandled (collection) id in its metadata
+        if the given data cube has no or an unhandled collection id in its metadata.
 
     :return: data cube containing the index as band
+
+    .. versionadded:: 0.26.0
+        Added `platform` parameter.
     """
     # TODO: option to compute the index with `reduce_dimension` instead of `apply_dimension`?
     return compute_indices(datacube=datacube, indices=[index], append=False, platform=platform)
@@ -348,8 +363,11 @@ def append_index(datacube: DataCube, index: str, platform: Optional[str] = None)
     :param cube: input data cube
     :param index: name of the index to compute and append. See `list_indices()` for supported indices.
     :param platform: optionally specify the satellite platform (to determine band name mapping)
-        if the given data cube has no or an unhandled (collection) id in its metadata
+        if the given data cube has no or an unhandled collection id in its metadata.
 
     :return: data cube with appended index
+
+    .. versionadded:: 0.26.0
+        Added `platform` parameter.
     """
     return compute_indices(datacube=datacube, indices=[index], append=True, platform=platform)
