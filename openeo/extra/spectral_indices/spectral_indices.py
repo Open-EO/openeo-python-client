@@ -219,7 +219,7 @@ def compute_and_rescale_indices(
     index_dict: dict,
     *,
     append: bool = False,
-    band_to_var: Optional[Dict[str, str]] = None,
+    variable_map: Optional[Dict[str, str]] = None,
     platform: Optional[str] = None,
 ) -> DataCube:
     """
@@ -249,25 +249,28 @@ def compute_and_rescale_indices(
 
     :param append: append the indices as bands to the given data cube
         instead of creating a new cube with only the calculated indices
-    :param band_to_var: (optional) mapping from actual cube band names to variable names used in
-        Awesome Spectral Indices formulas. To be specified if the given data cube has non-standard band names,
+    :param variable_map: (optional) mapping from Awesome Spectral Indices formula variable to actual cube band names.
+        To be specified if the given data cube has non-standard band names,
         or the satellite platform can not be recognized from the data cube metadata.
+        See :ref:`spectral_indices_manual_band_mapping` for more information.
     :param platform: optionally specify the satellite platform (to determine band name mapping)
         if the given data cube has no or an unhandled collection id in its metadata.
+        See :ref:`spectral_indices_manual_band_mapping` for more information.
 
     :return: the datacube with the indices attached as bands
 
     .. warning:: this "rescaled" index helper uses an experimental API (e.g. `index_dict` argument) that is subject to change.
 
     .. versionadded:: 0.26.0
-        Added `band_to_var` and `platform` arguments.
+        Added `variable_map` and `platform` arguments.
 
     """
     index_specs = load_indices()
 
     _check_validity_index_dict(index_dict, index_specs)
 
-    if band_to_var is None:
+    if variable_map is None:
+        # Automatic band mapping
         band_mapping = _BandMapping()
         if platform is None:
             if datacube.metadata and datacube.metadata.get("id"):
@@ -277,6 +280,8 @@ def compute_and_rescale_indices(
         band_to_var = band_mapping.actual_band_name_to_variable_map(
             platform=platform, band_names=datacube.metadata.band_names
         )
+    else:
+        band_to_var = {b: v for v, b in variable_map.items()}
 
     res = datacube.apply_dimension(
         dimension="bands",
@@ -299,7 +304,7 @@ def append_and_rescale_indices(
     datacube: DataCube,
     index_dict: dict,
     *,
-    band_to_var: Optional[Dict[str, str]] = None,
+    variable_map: Optional[Dict[str, str]] = None,
     platform: Optional[str] = None,
 ) -> DataCube:
     """
@@ -325,21 +330,23 @@ def append_and_rescale_indices(
 
         See `list_indices()` for supported indices.
 
-    :param band_to_var: (optional) mapping from actual cube band names to variable names used in
-        Awesome Spectral Indices formulas. To be specified if the given data cube has non-standard band names,
+    :param variable_map: (optional) mapping from Awesome Spectral Indices formula variable to actual cube band names.
+        To be specified if the given data cube has non-standard band names,
         or the satellite platform can not be recognized from the data cube metadata.
+        See :ref:`spectral_indices_manual_band_mapping` for more information.
     :param platform: optionally specify the satellite platform (to determine band name mapping)
         if the given data cube has no or an unhandled collection id in its metadata.
+        See :ref:`spectral_indices_manual_band_mapping` for more information.
 
     :return: data cube with appended indices
 
     .. warning:: this "rescaled" index helper uses an experimental API (e.g. `index_dict` argument) that is subject to change.
 
     .. versionadded:: 0.26.0
-        Added `band_to_var` and `platform` arguments.
+        Added `variable_map` and `platform` arguments.
     """
     return compute_and_rescale_indices(
-        datacube=datacube, index_dict=index_dict, append=True, band_to_var=band_to_var, platform=platform
+        datacube=datacube, index_dict=index_dict, append=True, variable_map=variable_map, platform=platform
     )
 
 
@@ -348,7 +355,7 @@ def compute_indices(
     indices: List[str],
     *,
     append: bool = False,
-    band_to_var: Optional[Dict[str, str]] = None,
+    variable_map: Optional[Dict[str, str]] = None,
     platform: Optional[str] = None,
 ) -> DataCube:
     """
@@ -358,16 +365,18 @@ def compute_indices(
     :param indices: list of names of the indices to compute and append. See `list_indices()` for supported indices.
     :param append: append the indices as bands to the given data cube
         instead of creating a new cube with only the calculated indices
-    :param band_to_var: (optional) mapping from actual cube band names to variable names used in
-        Awesome Spectral Indices formulas. To be specified if the given data cube has non-standard band names,
+    :param variable_map: (optional) mapping from Awesome Spectral Indices formula variable to actual cube band names.
+        To be specified if the given data cube has non-standard band names,
         or the satellite platform can not be recognized from the data cube metadata.
+        See :ref:`spectral_indices_manual_band_mapping` for more information.
     :param platform: optionally specify the satellite platform (to determine band name mapping)
         if the given data cube has no or an unhandled collection id in its metadata.
+        See :ref:`spectral_indices_manual_band_mapping` for more information.
 
     :return: data cube containing the indices as bands
 
     .. versionadded:: 0.26.0
-        Added `band_to_var` and `platform` arguments.
+        Added `variable_map` and `platform` arguments.
     """
     # TODO: it's bit weird to have to specify all these None's in this structure
     index_dict = {
@@ -378,7 +387,7 @@ def compute_indices(
         "indices": {index: {"input_range": None, "output_range": None} for index in indices},
     }
     return compute_and_rescale_indices(
-        datacube=datacube, index_dict=index_dict, append=append, band_to_var=band_to_var, platform=platform
+        datacube=datacube, index_dict=index_dict, append=append, variable_map=variable_map, platform=platform
     )
 
 
@@ -386,7 +395,7 @@ def append_indices(
     datacube: DataCube,
     indices: List[str],
     *,
-    band_to_var: Optional[Dict[str, str]] = None,
+    variable_map: Optional[Dict[str, str]] = None,
     platform: Optional[str] = None,
 ) -> DataCube:
     """
@@ -394,61 +403,73 @@ def append_indices(
 
     :param datacube: input data cube
     :param indices: list of names of the indices to compute and append. See `list_indices()` for supported indices.
-    :param band_to_var: (optional) mapping from actual cube band names to variable names used in
-        Awesome Spectral Indices formulas. To be specified if the given data cube has non-standard band names,
+    :param variable_map: (optional) mapping from Awesome Spectral Indices formula variable to actual cube band names.
+        To be specified if the given data cube has non-standard band names,
         or the satellite platform can not be recognized from the data cube metadata.
+        See :ref:`spectral_indices_manual_band_mapping` for more information.
     :param platform: optionally specify the satellite platform (to determine band name mapping)
         if the given data cube has no or an unhandled collection id in its metadata.
+        See :ref:`spectral_indices_manual_band_mapping` for more information.
 
     :return: data cube with appended indices
 
     .. versionadded:: 0.26.0
-        Added `band_to_var` and `platform` arguments.
+        Added `variable_map` and `platform` arguments.
     """
 
-    return compute_indices(datacube=datacube, indices=indices, append=True, band_to_var=band_to_var, platform=platform)
+    return compute_indices(
+        datacube=datacube, indices=indices, append=True, variable_map=variable_map, platform=platform
+    )
 
 
 def compute_index(
-    datacube: DataCube, index: str, *, band_to_var: Optional[Dict[str, str]] = None, platform: Optional[str] = None
+    datacube: DataCube, index: str, *, variable_map: Optional[Dict[str, str]] = None, platform: Optional[str] = None
 ) -> DataCube:
     """
     Compute a single spectral index from a data cube.
 
     :param datacube: input data cube
     :param index: name of the index to compute. See `list_indices()` for supported indices.
-    :param band_to_var: (optional) mapping from actual cube band names to variable names used in
-        Awesome Spectral Indices formulas. To be specified if the given data cube has non-standard band names,
+    :param variable_map: (optional) mapping from Awesome Spectral Indices formula variable to actual cube band names.
+        To be specified if the given data cube has non-standard band names,
         or the satellite platform can not be recognized from the data cube metadata.
+        See :ref:`spectral_indices_manual_band_mapping` for more information.
     :param platform: optionally specify the satellite platform (to determine band name mapping)
         if the given data cube has no or an unhandled collection id in its metadata.
+        See :ref:`spectral_indices_manual_band_mapping` for more information.
 
     :return: data cube containing the index as band
 
     .. versionadded:: 0.26.0
-        Added `band_to_var` and `platform` arguments.
+        Added `variable_map` and `platform` arguments.
     """
     # TODO: option to compute the index with `reduce_dimension` instead of `apply_dimension`?
-    return compute_indices(datacube=datacube, indices=[index], append=False, band_to_var=band_to_var, platform=platform)
+    return compute_indices(
+        datacube=datacube, indices=[index], append=False, variable_map=variable_map, platform=platform
+    )
 
 
 def append_index(
-    datacube: DataCube, index: str, *, band_to_var: Optional[Dict[str, str]] = None, platform: Optional[str] = None
+    datacube: DataCube, index: str, *, variable_map: Optional[Dict[str, str]] = None, platform: Optional[str] = None
 ) -> DataCube:
     """
     Compute a single spectral index and append it to the given data cube.
 
     :param cube: input data cube
     :param index: name of the index to compute and append. See `list_indices()` for supported indices.
-    :param band_to_var: (optional) mapping from actual cube band names to variable names used in
-        Awesome Spectral Indices formulas. To be specified if the given data cube has non-standard band names,
+    :param variable_map: (optional) mapping from Awesome Spectral Indices formula variable to actual cube band names.
+        To be specified if the given data cube has non-standard band names,
         or the satellite platform can not be recognized from the data cube metadata.
+        See :ref:`spectral_indices_manual_band_mapping` for more information.
     :param platform: optionally specify the satellite platform (to determine band name mapping)
         if the given data cube has no or an unhandled collection id in its metadata.
+        See :ref:`spectral_indices_manual_band_mapping` for more information.
 
     :return: data cube with appended index
 
     .. versionadded:: 0.26.0
-        Added `band_to_var` and `platform` arguments.
+        Added `variable_map` and `platform` arguments.
     """
-    return compute_indices(datacube=datacube, indices=[index], append=True, band_to_var=band_to_var, platform=platform)
+    return compute_indices(
+        datacube=datacube, indices=[index], append=True, variable_map=variable_map, platform=platform
+    )

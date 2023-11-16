@@ -26,7 +26,7 @@ like "B" for blue, "R" for red, "N" for near-infrared, "WV" for water vapour, et
             "formula": "(N - R)/(N + R)",
             "long_name": "Normalized Difference Vegetation Index",
 
-Obviously, these variables have to be mapped properly on the band names of your cube.
+Obviously, these formula variables have to be mapped properly to the band names of your cube.
 
 Automatic band mapping
 -----------------------
@@ -40,6 +40,10 @@ this mapping will be handled automatically, e.g.:
 
     cube = connection.load_collection("SENTINEL2_L2A", ...)
     indices = compute_indices(cube, indices=["NDVI", "NDMI"])
+
+
+
+.. _spectral_indices_manual_band_mapping:
 
 Manual band mapping
 --------------------
@@ -66,15 +70,15 @@ possible to explicitly specify the band name to spectral index variable name map
     indices = compute_indices(
         cube,
         indices=["NDVI", "NDMI"],
-        band_to_var={
-            "S2-red": "R",
-            "S2-nir": "N",
-            "S2-swir": "S1",
+        variable_map={
+            "R": "S2-red",
+            "N": "S2-nir",
+            "S1": "S2-swir",
         },
     )
 
 .. versionadded:: 0.26.0
-    Function arguments ``platform`` and ``band_to_var`` to fine-tune the band mapping.
+    Function arguments ``platform`` and ``variable_map`` to fine-tune the band mapping.
 
 
 API

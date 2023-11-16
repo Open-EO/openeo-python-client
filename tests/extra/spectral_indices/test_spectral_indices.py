@@ -603,19 +603,19 @@ def test_compute_ndvi_explicit_platform(con, collection_id, platform, nir_index)
 
 
 @pytest.mark.parametrize(
-    ["collection_id", "band_to_var", "nir_index"],
+    ["collection_id", "variable_map", "nir_index"],
     [
-        ("ZENDIMEL2", {"Z2-B04": "R", "Z2-B08": "N"}, 7),
-        ("ZENDIMEL2", {"Z2-B02": "B", "Z2-B03": "G", "Z2-B04": "R", "Z2-B08": "N"}, 7),
-        ("ZANDLAD8", {"Z8-B4": "R", "Z8-B5": "N"}, 4),
+        ("ZENDIMEL2", {"R": "Z2-B04", "N": "Z2-B08"}, 7),
+        ("ZENDIMEL2", {"B": "Z2-B02", "G": "Z2-B03", "R": "Z2-B04", "N": "Z2-B08"}, 7),
+        ("ZANDLAD8", {"R": "Z8-B4", "N": "Z8-B5"}, 4),
     ],
 )
-def test_compute_ndvi_explicit_band_to_var(con, collection_id, band_to_var, nir_index):
+def test_compute_ndvi_explicit_variable_map(con, collection_id, variable_map, nir_index):
     cube = con.load_collection(collection_id)
     with pytest.raises(BandMappingException, match=f"Unable to guess satellite platform from id '{collection_id}'"):
         _ = compute_index(cube, index="NDVI")
 
-    indices = compute_index(cube, index="NDVI", band_to_var=band_to_var)
+    indices = compute_index(cube, index="NDVI", variable_map=variable_map)
     (apply_dim,) = _extract_process_nodes(indices, "apply_dimension")
     assert apply_dim["arguments"]["process"]["process_graph"] == {
         "arrayelement1": {
