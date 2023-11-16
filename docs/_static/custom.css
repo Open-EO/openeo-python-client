@@ -69,7 +69,7 @@ div.sphinxsidebar .toctree-l1 a {
 
 
 div.admonition,
-.py div.versionadded,
+div.versionadded,
 .py div.versionchanged,
 .py div.deprecated {
     padding: 0.5em 1em;
@@ -80,7 +80,7 @@ div.admonition,
 }
 
 div.admonition :first-child,
-.py div.versionadded :first-child,
+div.versionadded :first-child,
 .py div.versionchanged :first-child,
 .py div.deprecated  :first-child {
     margin-top: 0;
@@ -88,7 +88,7 @@ div.admonition :first-child,
 
 
 div.admonition :last-child,
-.py div.versionadded :last-child,
+div.versionadded :last-child,
 .py div.versionchanged :last-child,
 .py div.deprecated  :last-child {
     margin-bottom: 0;
@@ -104,7 +104,7 @@ div.admonition.note,
 div.admonition.tip,
 div.admonition.seealso,
 div.admonition.hint,
-.py div.versionadded,
+div.versionadded,
 .py div.versionchanged {
     border-left-color: #42b983;
 }
