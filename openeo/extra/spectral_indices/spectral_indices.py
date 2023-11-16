@@ -1,8 +1,9 @@
+import functools
 import json
-from typing import Dict, List, Optional
+import re
+from typing import Dict, List, Optional, Set
 
-import numpy as np
-
+from openeo import BaseOpenEoException
 from openeo.processes import ProcessBuilder, array_create, array_modify
 from openeo.rest.datacube import DataCube
 
@@ -12,96 +13,15 @@ except ImportError:
     import importlib.resources as importlib_resources
 
 
-BAND_MAPPING_LANDSAT457 = {
-    "B1": "B",
-    "B2": "G",
-    "B3": "R",
-    "B4": "N",
-    "B5": "S1",
-    "B6": "T1",
-    "B7": "S2",
-}
-BAND_MAPPING_LANDSAT8 = {
-    "B1": "A",
-    "B2": "B",
-    "B3": "G",
-    "B4": "R",
-    "B5": "N",
-    "B6": "S1",
-    "B7": "S2",
-    "B10": "T1",
-    "B11": "T2",
-}
-BAND_MAPPING_MODIS = {
-    "B3": "B",
-    "B4": "G",
-    "B1": "R",
-    "B2": "N",
-    "B5": np.nan,
-    "B6": "S1",
-    "B7": "S2",
-}
-BAND_MAPPING_PROBAV = {
-    "BLUE": "B",
-    "RED": "R",
-    "NIR": "N",
-    "SWIR": "S1",
-}
-BAND_MAPPING_SENTINEL2 = {
-    "B1": "A",
-    "B2": "B",
-    "B3": "G",
-    "B4": "R",
-    "B5": "RE1",
-    "B6": "RE2",
-    "B7": "RE3",
-    "B8": "N",
-    "B8A": "RE4",
-    "B9": "WV",
-    "B11": "S1",
-    "B12": "S2",
-}
-BAND_MAPPING_SENTINEL1 = {
-    "HH": "HH",
-    "HV": "HV",
-    "VH": "VH",
-    "VV": "VV",
-}
-
-
-def _get_expression_map(x: ProcessBuilder, platform: str, band_names: List[str]) -> Dict[str, ProcessBuilder]:
-    """Build mapping of ASI formula variable names to `array_element` nodes."""
-    platform = platform.upper()
-    # TODO: See if we can use common band names from collections instead of hardcoded mapping
-    if "LANDSAT8" in platform:
-        band_mapping = BAND_MAPPING_LANDSAT8
-    elif "LANDSAT" in platform:
-        band_mapping = BAND_MAPPING_LANDSAT457
-    elif "MODIS" in platform:
-        band_mapping = BAND_MAPPING_MODIS
-    elif "PROBAV" in platform:
-        band_mapping = BAND_MAPPING_PROBAV
-    elif "TERRASCOPE_S2" in platform or "SENTINEL2" in platform:
-        band_mapping = BAND_MAPPING_SENTINEL2
-    elif "SENTINEL1" in platform:
-        band_mapping = BAND_MAPPING_SENTINEL1
-    else:
-        # TODO: better error message: provide options?
-        raise ValueError(f"Unknown satellite platform {platform!r} (to determine band name mapping)")
-
-    # TODO: get rid of this ugly "0" replace hack (looks like asking for trouble)
-    cube_bands = [band.replace("0", "").upper() for band in band_names]
-    # TODO: use `label` parameter from `array_element` to avoid index based band references.
-    return {band_mapping[b]: x.array_element(i) for i, b in enumerate(cube_bands) if b in band_mapping}
-
-
+@functools.lru_cache(maxsize=1)
 def load_indices() -> Dict[str, dict]:
     """Load set of supported spectral indices."""
+    # TODO: encapsulate all this json loading in a single Awesome Spectral Indices registry class?
     specs = {}
 
     for path in [
         "resources/awesome-spectral-indices/spectral-indices-dict.json",
-        # TODO Deprecate extra-indices-dict.json as a whole
+        # TODO #506 Deprecate extra-indices-dict.json as a whole
         #      and provide an alternative mechanism to work with custom indices
         "resources/extra-indices-dict.json",
     ]:
@@ -115,15 +35,105 @@ def load_indices() -> Dict[str, dict]:
     return specs
 
 
+@functools.lru_cache(maxsize=1)
 def load_constants() -> Dict[str, float]:
     """Load constants defined by Awesome Spectral Indices."""
-    # TODO: encapsulate all this json loading in a single registry class?
+    # TODO: encapsulate all this json loading in a single Awesome Spectral Indices registry class?
     with importlib_resources.files(
         "openeo.extra.spectral_indices"
     ) / "resources/awesome-spectral-indices/constants.json" as resource_path:
         data = json.loads(resource_path.read_text(encoding="utf8"))
 
     return {k: v["default"] for k, v in data.items() if isinstance(v["default"], (int, float))}
+
+
+@functools.lru_cache(maxsize=1)
+def _load_bands() -> Dict[str, dict]:
+    """Load band name mapping defined by Awesome Spectral Indices."""
+    # TODO: encapsulate all this json loading in a single Awesome Spectral Indices registry class?
+    with importlib_resources.files(
+        "openeo.extra.spectral_indices"
+    ) / "resources/awesome-spectral-indices/bands.json" as resource_path:
+        data = json.loads(resource_path.read_text(encoding="utf8"))
+    return data
+
+
+class BandMappingException(BaseOpenEoException):
+    """Failure to determine band-variable mapping."""
+
+
+class _BandMapping:
+    """
+    Helper class to extract mappings between band names and variable names used in Awesome Spectral Indices formulas.
+    """
+
+    _EXTRA = {
+        "sentinel1": {"HH": "HH", "HV": "HV", "VH": "VH", "VV": "VV"},
+    }
+
+    def __init__(self):
+        # Load bands.json from Awesome Spectral Indices
+        self._band_data = _load_bands()
+
+    @staticmethod
+    def _normalize_platform(platform: str) -> str:
+        platform = platform.lower().replace("-", "").replace(" ", "")
+        if platform in {"sentinel2a", "sentinel2b"}:
+            platform = "sentinel2"
+        return platform
+
+    @staticmethod
+    def _normalize_band_name(band_name: str) -> str:
+        band_name = band_name.upper()
+        # Normalize band names like "B01" to "B1"
+        band_name = re.sub(r"^B0+(\d+)$", r"B\1", band_name)
+        return band_name
+
+    @functools.lru_cache(maxsize=1)
+    def get_platforms(self) -> Set[str]:
+        """Get list of supported (normalized) satellite platforms."""
+        platforms = {p for var_data in self._band_data.values() for p in var_data.get("platforms", {}).keys()}
+        platforms.update(self._EXTRA.keys())
+        platforms.update({self._normalize_platform(p) for p in platforms})
+        return platforms
+
+    def guess_platform(self, name: str) -> str:
+        """Guess platform from given collection id or name."""
+        # First check original id, then retry with removed separators as last resort.
+        for haystack in [name.lower(), re.sub("[_ -]", "", name.lower())]:
+            for platform in sorted(self.get_platforms(), key=len, reverse=True):
+                if platform in haystack:
+                    return platform
+        raise BandMappingException(f"Unable to guess satellite platform from id {name!r}.")
+
+    def variable_to_band_name_map(self, platform: str) -> Dict[str, str]:
+        """
+        Build mapping from Awesome Spectral Indices variable names to (normalized) band names for given satellite platform.
+        """
+        platform_normalized = self._normalize_platform(platform)
+        if platform_normalized in self._EXTRA:
+            return self._EXTRA[platform_normalized]
+
+        var_to_band = {
+            var: pf_data["band"]
+            for var, var_data in self._band_data.items()
+            for pf, pf_data in var_data.get("platforms", {}).items()
+            if self._normalize_platform(pf) == platform_normalized
+        }
+        if not var_to_band:
+            raise BandMappingException(f"Empty band mapping derived for satellite platform {platform!r}")
+        return var_to_band
+
+    def actual_band_name_to_variable_map(self, platform: str, band_names: List[str]) -> Dict[str, str]:
+        """Build mapping from actual band names (as given) to Awesome Spectral Indices variable names."""
+        var_to_band = self.variable_to_band_name_map(platform=platform)
+        band_to_var = {
+            band_name: var
+            for var, normalized_band_name in var_to_band.items()
+            for band_name in band_names
+            if self._normalize_band_name(band_name) == normalized_band_name
+        }
+        return band_to_var
 
 
 def list_indices() -> List[str]:
@@ -172,14 +182,21 @@ def _check_validity_index_dict(index_dict: dict, index_specs: dict):
 
 
 def _callback(
-    x: ProcessBuilder, index_dict: dict, index_specs: dict, append: bool, band_names: List[str], platform: str
+    x: ProcessBuilder,
+    index_dict: dict,
+    index_specs: dict,
+    append: bool,
+    band_names: List[str],
+    band_to_var: Dict[str, str],
 ) -> ProcessBuilder:
     index_values = []
     x_res = x
 
+    # TODO: use `label` parameter of `array_element` to avoid index based band references
+    variables = {band_to_var[bn]: x.array_element(i) for i, bn in enumerate(band_names) if bn in band_to_var}
     eval_globals = {
         **load_constants(),
-        **_get_expression_map(x, band_names=band_names, platform=platform),
+        **variables,
     }
     # TODO: user might want to control order of indices, which is tricky through a dictionary.
     for index, params in index_dict["indices"].items():
@@ -198,7 +215,12 @@ def _callback(
 
 
 def compute_and_rescale_indices(
-    datacube: DataCube, index_dict: dict, append: bool = False, platform: Optional[str] = None
+    datacube: DataCube,
+    index_dict: dict,
+    *,
+    append: bool = False,
+    variable_map: Optional[Dict[str, str]] = None,
+    platform: Optional[str] = None,
 ) -> DataCube:
     """
     Computes a list of indices from a data cube
@@ -225,20 +247,42 @@ def compute_and_rescale_indices(
 
         See `list_indices()` for supported indices.
 
+    :param append: append the indices as bands to the given data cube
+        instead of creating a new cube with only the calculated indices
+    :param variable_map: (optional) mapping from Awesome Spectral Indices formula variable to actual cube band names.
+        To be specified if the given data cube has non-standard band names,
+        or the satellite platform can not be recognized from the data cube metadata.
+        See :ref:`spectral_indices_manual_band_mapping` for more information.
     :param platform: optionally specify the satellite platform (to determine band name mapping)
         if the given data cube has no or an unhandled collection id in its metadata.
+        See :ref:`spectral_indices_manual_band_mapping` for more information.
 
     :return: the datacube with the indices attached as bands
 
     .. warning:: this "rescaled" index helper uses an experimental API (e.g. `index_dict` argument) that is subject to change.
 
     .. versionadded:: 0.26.0
-        Added `platform` parameter.
+        Added `variable_map` and `platform` arguments.
 
     """
     index_specs = load_indices()
 
     _check_validity_index_dict(index_dict, index_specs)
+
+    if variable_map is None:
+        # Automatic band mapping
+        band_mapping = _BandMapping()
+        if platform is None:
+            if datacube.metadata and datacube.metadata.get("id"):
+                platform = band_mapping.guess_platform(name=datacube.metadata.get("id"))
+            else:
+                raise BandMappingException("Unable to determine satellite platform from data cube metadata")
+        band_to_var = band_mapping.actual_band_name_to_variable_map(
+            platform=platform, band_names=datacube.metadata.band_names
+        )
+    else:
+        band_to_var = {b: v for v, b in variable_map.items()}
+
     res = datacube.apply_dimension(
         dimension="bands",
         process=lambda x: _callback(
@@ -247,7 +291,7 @@ def compute_and_rescale_indices(
             index_specs=index_specs,
             append=append,
             band_names=datacube.metadata.band_names,
-            platform=platform or datacube.metadata.get("id"),
+            band_to_var=band_to_var,
         ),
     )
     if append:
@@ -256,7 +300,13 @@ def compute_and_rescale_indices(
         return res.rename_labels("bands", target=list(index_dict["indices"].keys()))
 
 
-def append_and_rescale_indices(datacube: DataCube, index_dict: dict, platform: Optional[str] = None) -> DataCube:
+def append_and_rescale_indices(
+    datacube: DataCube,
+    index_dict: dict,
+    *,
+    variable_map: Optional[Dict[str, str]] = None,
+    platform: Optional[str] = None,
+) -> DataCube:
     """
     Computes a list of indices from a datacube and appends them to the existing datacube
 
@@ -280,34 +330,53 @@ def append_and_rescale_indices(datacube: DataCube, index_dict: dict, platform: O
 
         See `list_indices()` for supported indices.
 
+    :param variable_map: (optional) mapping from Awesome Spectral Indices formula variable to actual cube band names.
+        To be specified if the given data cube has non-standard band names,
+        or the satellite platform can not be recognized from the data cube metadata.
+        See :ref:`spectral_indices_manual_band_mapping` for more information.
     :param platform: optionally specify the satellite platform (to determine band name mapping)
         if the given data cube has no or an unhandled collection id in its metadata.
+        See :ref:`spectral_indices_manual_band_mapping` for more information.
 
     :return: data cube with appended indices
 
     .. warning:: this "rescaled" index helper uses an experimental API (e.g. `index_dict` argument) that is subject to change.
 
     .. versionadded:: 0.26.0
-        Added `platform` parameter.
+        Added `variable_map` and `platform` arguments.
     """
-    return compute_and_rescale_indices(datacube=datacube, index_dict=index_dict, append=True, platform=platform)
+    return compute_and_rescale_indices(
+        datacube=datacube, index_dict=index_dict, append=True, variable_map=variable_map, platform=platform
+    )
 
 
 def compute_indices(
-    datacube: DataCube, indices: List[str], append: bool = False, platform: Optional[str] = None
+    datacube: DataCube,
+    indices: List[str],
+    *,
+    append: bool = False,
+    variable_map: Optional[Dict[str, str]] = None,
+    platform: Optional[str] = None,
 ) -> DataCube:
     """
     Compute multiple spectral indices from the given data cube.
 
     :param datacube: input data cube
     :param indices: list of names of the indices to compute and append. See `list_indices()` for supported indices.
+    :param append: append the indices as bands to the given data cube
+        instead of creating a new cube with only the calculated indices
+    :param variable_map: (optional) mapping from Awesome Spectral Indices formula variable to actual cube band names.
+        To be specified if the given data cube has non-standard band names,
+        or the satellite platform can not be recognized from the data cube metadata.
+        See :ref:`spectral_indices_manual_band_mapping` for more information.
     :param platform: optionally specify the satellite platform (to determine band name mapping)
         if the given data cube has no or an unhandled collection id in its metadata.
+        See :ref:`spectral_indices_manual_band_mapping` for more information.
 
     :return: data cube containing the indices as bands
 
     .. versionadded:: 0.26.0
-        Added `platform` parameter.
+        Added `variable_map` and `platform` arguments.
     """
     # TODO: it's bit weird to have to specify all these None's in this structure
     index_dict = {
@@ -317,57 +386,90 @@ def compute_indices(
         },
         "indices": {index: {"input_range": None, "output_range": None} for index in indices},
     }
-    return compute_and_rescale_indices(datacube=datacube, index_dict=index_dict, append=append, platform=platform)
+    return compute_and_rescale_indices(
+        datacube=datacube, index_dict=index_dict, append=append, variable_map=variable_map, platform=platform
+    )
 
 
-def append_indices(datacube: DataCube, indices: List[str], platform: Optional[str] = None) -> DataCube:
+def append_indices(
+    datacube: DataCube,
+    indices: List[str],
+    *,
+    variable_map: Optional[Dict[str, str]] = None,
+    platform: Optional[str] = None,
+) -> DataCube:
     """
     Compute multiple spectral indices and append them to the given data cube.
 
     :param datacube: input data cube
     :param indices: list of names of the indices to compute and append. See `list_indices()` for supported indices.
+    :param variable_map: (optional) mapping from Awesome Spectral Indices formula variable to actual cube band names.
+        To be specified if the given data cube has non-standard band names,
+        or the satellite platform can not be recognized from the data cube metadata.
+        See :ref:`spectral_indices_manual_band_mapping` for more information.
     :param platform: optionally specify the satellite platform (to determine band name mapping)
         if the given data cube has no or an unhandled collection id in its metadata.
+        See :ref:`spectral_indices_manual_band_mapping` for more information.
 
     :return: data cube with appended indices
 
     .. versionadded:: 0.26.0
-        Added `platform` parameter.
+        Added `variable_map` and `platform` arguments.
     """
 
-    return compute_indices(datacube=datacube, indices=indices, append=True, platform=platform)
+    return compute_indices(
+        datacube=datacube, indices=indices, append=True, variable_map=variable_map, platform=platform
+    )
 
 
-def compute_index(datacube: DataCube, index: str, platform: Optional[str] = None) -> DataCube:
+def compute_index(
+    datacube: DataCube, index: str, *, variable_map: Optional[Dict[str, str]] = None, platform: Optional[str] = None
+) -> DataCube:
     """
     Compute a single spectral index from a data cube.
 
     :param datacube: input data cube
     :param index: name of the index to compute. See `list_indices()` for supported indices.
+    :param variable_map: (optional) mapping from Awesome Spectral Indices formula variable to actual cube band names.
+        To be specified if the given data cube has non-standard band names,
+        or the satellite platform can not be recognized from the data cube metadata.
+        See :ref:`spectral_indices_manual_band_mapping` for more information.
     :param platform: optionally specify the satellite platform (to determine band name mapping)
         if the given data cube has no or an unhandled collection id in its metadata.
+        See :ref:`spectral_indices_manual_band_mapping` for more information.
 
     :return: data cube containing the index as band
 
     .. versionadded:: 0.26.0
-        Added `platform` parameter.
+        Added `variable_map` and `platform` arguments.
     """
     # TODO: option to compute the index with `reduce_dimension` instead of `apply_dimension`?
-    return compute_indices(datacube=datacube, indices=[index], append=False, platform=platform)
+    return compute_indices(
+        datacube=datacube, indices=[index], append=False, variable_map=variable_map, platform=platform
+    )
 
 
-def append_index(datacube: DataCube, index: str, platform: Optional[str] = None) -> DataCube:
+def append_index(
+    datacube: DataCube, index: str, *, variable_map: Optional[Dict[str, str]] = None, platform: Optional[str] = None
+) -> DataCube:
     """
     Compute a single spectral index and append it to the given data cube.
 
     :param cube: input data cube
     :param index: name of the index to compute and append. See `list_indices()` for supported indices.
+    :param variable_map: (optional) mapping from Awesome Spectral Indices formula variable to actual cube band names.
+        To be specified if the given data cube has non-standard band names,
+        or the satellite platform can not be recognized from the data cube metadata.
+        See :ref:`spectral_indices_manual_band_mapping` for more information.
     :param platform: optionally specify the satellite platform (to determine band name mapping)
         if the given data cube has no or an unhandled collection id in its metadata.
+        See :ref:`spectral_indices_manual_band_mapping` for more information.
 
     :return: data cube with appended index
 
     .. versionadded:: 0.26.0
-        Added `platform` parameter.
+        Added `variable_map` and `platform` arguments.
     """
-    return compute_indices(datacube=datacube, indices=[index], append=True, platform=platform)
+    return compute_indices(
+        datacube=datacube, indices=[index], append=True, variable_map=variable_map, platform=platform
+    )
