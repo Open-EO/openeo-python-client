@@ -3447,7 +3447,6 @@ class TestUDF:
                         "arguments": {
                             "data": {"from_parameter": "data"},
                             "runtime": "Python",
-                            "version": "latest",
                             "udf": "def foo(x):\n    return x\n",
                         },
                         "result": True,
