@@ -249,29 +249,49 @@ Filter on collection properties
 Although openEO presents data in a data cube, a lot of collections are still backed by a product based catalog. This
 allows filtering on properties of that catalog.
 
-One example is filtering on the relative orbit number of SAR data. This example shows how that can be achieved::
-
-    connection.load_collection(
-        "SENTINEL1_GRD",
-        spatial_extent={"west": 16.1, "east": 16.6, "north": 48.6, "south": 47.2},
-        temporal_extent=["2018-01-01", "2019-01-01"],
-        properties={
-            "relativeOrbitNumber": lambda x: x==116
-        }
-    )
-
-A similar and very useful example is to pre-filter Sentinel-2 products on cloud cover.
+A very common use case is to pre-filter Sentinel-2 products on cloud cover.
 This avoids loading clouded data unnecessarily and increases performance.
 :py:meth:`Connection.load_collection() <openeo.rest.connection.Connection.load_collection>` provides
 a dedicated ``max_cloud_cover`` argument (shortcut for the ``eo:cloud_cover`` property) for that:
 
 .. code-block:: python
+    :emphasize-lines: 4
 
-    connection.load_collection("SENTINEL2_L2A",
-        spatial_extent={'west': 3.75, 'east': 4.08, 'south': 51.29, 'north': 51.39},
-        temporal_extent=["2021-05-07", "2021-05-14"],
-        bands=['B04', 'B03', 'B02'],
+    connection.load_collection(
+        "SENTINEL2_L2A",
+        ...,
         max_cloud_cover=80,
+    )
+
+For more general cases, you can use the ``properties`` argument to filter on any collection property.
+For example, to filter on the relative orbit number of SAR data:
+
+.. code-block:: python
+    :emphasize-lines: 4-6
+
+    connection.load_collection(
+        "SENTINEL1_GRD",
+        ...,
+        properties={
+            "relativeOrbitNumber": lambda x: x==116
+        },
+    )
+
+Version 0.26.0 of the openEO Python Client Library adds
+:py:func:`~openeo.rest.graph_building.collection_property`
+which makes defining such property filters more user-friendly by avoiding the ``lambda`` construct:
+
+.. code-block:: python
+    :emphasize-lines: 6-8
+
+    import openeo
+
+    connection.load_collection(
+        "SENTINEL1_GRD",
+        ...,
+        properties=[
+            openeo.collection_property("relativeOrbitNumber") == 116,
+        ],
     )
 
 Note that property names follow STAC metadata conventions, but some collections can have different names.
