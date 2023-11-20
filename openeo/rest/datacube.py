@@ -1025,7 +1025,7 @@ class DataCube(_ProcessGraphAbstraction):
         runtime=None,
         # TODO: drop None default of process (when `code` and `runtime` args can be dropped)
         process: Union[str, typing.Callable, UDF, PGNode] = None,
-        version="latest",
+        version: Optional[str] = None,
         # TODO: dimension has no default (per spec)?
         dimension: str = "t",
         target_dimension: Optional[str] = None,
@@ -1084,13 +1084,19 @@ class DataCube(_ProcessGraphAbstraction):
 
         """
         # TODO #137 #181 #312 remove support for code/runtime/version
-        if runtime or (isinstance(code, str) and "\n" in code):
-            warnings.warn(
-                "Specifying UDF code through `code`, `runtime` and `version` arguments is deprecated. "
-                "Instead create an `openeo.UDF` object and pass that to the `process` argument.",
-                category=UserDeprecationWarning, stacklevel=2
-            )
-            process = UDF(code=code, runtime=runtime, version=version, context=context)
+        if runtime or (isinstance(code, str) and "\n" in code) or version:
+            if process:
+                raise ValueError(
+                    "Cannot specify `process` argument together with deprecated `code`/`runtime`/`version` arguments."
+                )
+            else:
+                warnings.warn(
+                    "Specifying UDF code through `code`, `runtime` and `version` arguments is deprecated. "
+                    "Instead create an `openeo.UDF` object and pass that to the `process` argument.",
+                    category=UserDeprecationWarning,
+                    stacklevel=2,
+                )
+                process = UDF(code=code, runtime=runtime, version=version, context=context)
         else:
             process = process or code
         process = build_child_callback(
