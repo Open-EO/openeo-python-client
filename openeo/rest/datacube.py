@@ -121,7 +121,7 @@ class DataCube(_ProcessGraphAbstraction):
         cls,
         collection_id: Union[str, Parameter],
         connection: Connection = None,
-        spatial_extent: Optional[Dict[str, float]] = None,
+        spatial_extent: Union[Dict[str, float], Parameter, None] = None,
         temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
         bands: Union[None, List[str], Parameter] = None,
         fetch_metadata: bool = True,
@@ -157,6 +157,13 @@ class DataCube(_ProcessGraphAbstraction):
         """
         if temporal_extent:
             temporal_extent = cls._get_temporal_extent(extent=temporal_extent)
+
+        if isinstance(spatial_extent, Parameter):
+            if spatial_extent.schema.get("type") != "object":
+                warnings.warn(
+                    "Unexpected parameterized `spatial_extent` in `load_collection`:"
+                    f" expected schema with type 'object' but got {spatial_extent.schema!r}."
+                )
         arguments = {
             'id': collection_id,
             # TODO: spatial_extent could also be a "geojson" subtype object, so we might want to allow (and convert) shapely shapes as well here.
@@ -250,11 +257,13 @@ class DataCube(_ProcessGraphAbstraction):
             return args[0]
         elif len(args) == 0 and isinstance(extent, Parameter):
             assert start_date is None and end_date is None
+            # TODO: warn about unexpected parameter schema
             return extent
         else:
             def convertor(d: Any) -> Any:
                 # TODO: can this be generalized through _FromNodeMixin?
                 if isinstance(d, Parameter) or isinstance(d, PGNode):
+                    # TODO: warn about unexpected parameter schema
                     return d
                 elif isinstance(d, ProcessBuilderBase):
                     return d.pgnode
@@ -385,6 +394,11 @@ class DataCube(_ProcessGraphAbstraction):
                 raise ValueError(args)
 
         if isinstance(bbox, Parameter):
+            if bbox.schema.get("type") != "object":
+                warnings.warn(
+                    "Unexpected parameterized `extent` in `filter_bbox`:"
+                    f" expected schema with type 'object' but got {bbox.schema!r}."
+                )
             extent = bbox
         else:
             if bbox:

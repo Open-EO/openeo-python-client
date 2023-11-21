@@ -267,6 +267,32 @@ def test_filter_bbox_parameter(con100: Connection):
     assert _get_leaf_node(cube) == expected
 
 
+def test_filter_bbox_parameter_invalid_schema(con100: Connection):
+    expected = {
+        "process_id": "filter_bbox",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "extent": {"from_parameter": "my_bbox"},
+        },
+        "result": True,
+    }
+    bbox_param = Parameter(name="my_bbox", schema={"type": "string"})
+
+    with pytest.warns(
+        UserWarning,
+        match="Unexpected parameterized `extent` in `filter_bbox`: expected schema with type 'object' but got {'type': 'string'}.",
+    ):
+        cube = con100.load_collection("S2").filter_bbox(bbox_param)
+    assert _get_leaf_node(cube) == expected
+
+    with pytest.warns(
+        UserWarning,
+        match="Unexpected parameterized `extent` in `filter_bbox`: expected schema with type 'object' but got {'type': 'string'}.",
+    ):
+        cube = con100.load_collection("S2").filter_bbox(bbox=bbox_param)
+    assert _get_leaf_node(cube) == expected
+
+
 @pytest.mark.parametrize(["args", "expected"], [
     ((3, 4, 52, 51,), {"west": 3, "south": 51, "east": 4, "north": 52}),
     ((3, 4, 52, 51, 4326,), {"west": 3, "south": 51, "east": 4, "north": 52, "crs": 4326}),
