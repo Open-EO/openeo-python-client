@@ -125,6 +125,26 @@ def test_parameter_array():
     }
 
 
+def test_parameter_object():
+    assert Parameter.object("bbox").to_dict() == {"name": "bbox", "description": "bbox", "schema": {"type": "object"}}
+    assert Parameter.object("bbox", description="Spatial").to_dict() == {
+        "name": "bbox",
+        "description": "Spatial",
+        "schema": {"type": "object"},
+    }
+    assert Parameter.object("bbox", default={"west": 4}).to_dict() == {
+        "name": "bbox",
+        "description": "bbox",
+        "schema": {"type": "object"},
+        "optional": True,
+        "default": {"west": 4},
+    }
+    assert Parameter.object("cube", subtype="datacube").to_dict() == {
+        "name": "cube",
+        "description": "cube",
+        "schema": {"type": "object", "subtype": "datacube"},
+    }
+
 
 @pytest.mark.parametrize(["kwargs", "expected"], [
     ({"name": "x"}, {"name": "x", "description": "x", "schema": {}}),

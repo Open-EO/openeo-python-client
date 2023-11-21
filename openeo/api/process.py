@@ -107,7 +107,7 @@ class Parameter:
         """
         Helper to create an 'array' type parameter.
 
-        :parameter item_schema: Schema of the array items given in JSON Schema style, e.g. ``{"type": "string"}``.
+        :param item_schema: Schema of the array items given in JSON Schema style, e.g. ``{"type": "string"}``.
             Simple schemas can also be specified as single string:
             e.g. ``"string"`` will be expanded to ``{"type": "string"}``.
 
@@ -119,4 +119,20 @@ class Parameter:
             if isinstance(item_schema, str):
                 item_schema = {"type": item_schema}
             schema["items"] = item_schema
+        return cls(name=name, description=description, schema=schema, default=default)
+
+    @classmethod
+    def object(
+        cls, name: str, description: Optional[str] = None, default=_DEFAULT_UNDEFINED, *, subtype: Optional[str] = None
+    ) -> Parameter:
+        """
+        Helper to create an 'object' type parameter
+
+        :param subtype: subtype of the 'object' schema
+
+        .. versionadded:: 0.26.0
+        """
+        schema = {"type": "object"}
+        if subtype:
+            schema["subtype"] = subtype
         return cls(name=name, description=description, schema=schema, default=default)
