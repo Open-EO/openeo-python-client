@@ -756,7 +756,7 @@ class Connection(RestApiConnection):
             # Initial request attempt
             return _request()
         except OpenEoApiError as api_exc:
-            if api_exc.http_status_code == 403 and api_exc.code == "TokenInvalid":
+            if api_exc.http_status_code in {401, 403} and api_exc.code == "TokenInvalid":
                 # Auth token expired: can we refresh?
                 if isinstance(self.auth, OidcBearerAuth) and self._oidc_auth_renewer:
                     msg = f"OIDC access token expired ({api_exc.http_status_code} {api_exc.code})."

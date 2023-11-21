@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Follow the official band mapping from Awesome Spectral Indices better.
   Allow manually specifying the desired band mapping.
   ([#485](https://github.com/Open-EO/openeo-python-client/issues/485), [#501](https://github.com/Open-EO/openeo-python-client/issues/501))
+- Also attempt to automatically refresh OIDC access token on a `401 TokenInvalid` response (in addition to `403 TokenInvalid`) ([#508](https://github.com/Open-EO/openeo-python-client/issues/508))
+
 
 ### Changed
 
