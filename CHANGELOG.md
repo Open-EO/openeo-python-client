@@ -5,8 +5,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-
 ## [Unreleased]
+
+### Added
+
+### Changed
+
+### Removed
+
+### Fixed
+
+
+## [0.26.0] - 2023-11-27 - "SRR6" release
 
 ### Added
 
@@ -22,8 +32,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([#485](https://github.com/Open-EO/openeo-python-client/issues/485), [#501](https://github.com/Open-EO/openeo-python-client/issues/501))
 - Also attempt to automatically refresh OIDC access token on a `401 TokenInvalid` response (in addition to `403 TokenInvalid`) ([#508](https://github.com/Open-EO/openeo-python-client/issues/508))
 - Add `Parameter.object()` factory for `object` type parameters
-
-### Changed
 
 ### Removed
 
