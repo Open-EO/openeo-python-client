@@ -200,7 +200,7 @@ Prerequisites
     `openeo project on pypi.org <https://pypi.org/project/openeo/>`_
 -   The Python virtual environment you work in has the latest versions
     of the ``twine`` package installed.
-    If you plan to build the wheel yourself (instead of letting Jenkins do this),
+    If you plan to build the wheel yourself (instead of letting GitHub or Jenkins do this),
     you also need recent enough versions of the ``setuptools`` and ``wheel`` packages.
 
 Important files
@@ -218,7 +218,7 @@ Important files
     segment (e.g. ``a1`` for alpha releases, ``b1`` for beta releases, etc)
     to avoid collision with final releases. For example::
 
-        __version__ = '0.4.7a1'
+        __version__ = '0.8.0a1'
 
     As discussed below, this pre-release suffix should
     only be removed during the release procedure
@@ -234,7 +234,9 @@ Procedure
 ---------
 
 These are the steps to create and publish a new release of the ``openeo`` package.
-To be as concrete as possible, we will assume that we are about to release version ``0.4.7``.
+To avoid the confusion with ad-hoc injection of some abstract version placeholder
+that has to be replaced properly,
+we will use a concrete version ``0.8.0`` in the examples below.
 
 0.  Make sure you are working on **latest master branch**,
     without uncommitted changes and all tests are properly passing.
@@ -242,12 +244,12 @@ To be as concrete as possible, we will assume that we are about to release versi
 #.  Create release commit:
 
     A.  **Drop the pre-release suffix** from the version string in ``openeo/_version.py``
-        so that it just a "final" semantic versioning string, e.g. ``0.4.7``
+        so that it just a "final" semantic versioning string, e.g. ``0.8.0``
 
     B.  **Update CHANGELOG.md**: rename the "Unreleased" section title
         to contain version and date, e.g.::
 
-            ## [0.4.7] - 2020-12-15
+            ## [0.8.0] - 2020-12-15
 
         remove empty subsections
         and start a new "Unreleased" section above it, like::
@@ -263,16 +265,16 @@ To be as concrete as possible, we will assume that we are about to release versi
             ### Fixed
 
 
-    C.  **Commit** these changes in git with a commit message like ``Release 0.4.7``
+    C.  **Commit** these changes in git with a commit message like ``Release 0.8.0``
         and **push** to GitHub::
 
             git add openeo/_version.py CHANGELOG.md
-            git commit -m 'Release 0.4.7'
+            git commit -m 'Release 0.8.0'
             git push origin master
 
 #.  Optional, but recommended: wait for **VITO Jenkins** to build this updated master
     (trigger it manually if necessary),
-    so that a build of a final, non-alpha release ``0.4.7``
+    so that a build of a final, non-alpha release ``0.8.0``
     is properly uploaded to **VITO artifactory**.
 
 #.  Create release on `PyPI <https://pypi.org/>`_:
@@ -282,18 +284,18 @@ To be as concrete as possible, we will assume that we are about to release versi
         -   *Preferably, the path of least surprise*: build wheel through GitHub Actions.
             Go to workflow `"Build wheel" <https://github.com/Open-EO/openeo-python-client/actions/workflows/build-wheel.yml>`_,
             manually trigger a build with "Run workflow" button, wait for it to finish successfully,
-            download generated ``artifact.zip``, and finally: unzip it to obtain ``openeo-0.4.7-py3-none-any.whl``
+            download generated ``artifact.zip``, and finally: unzip it to obtain ``openeo-0.8.0-py3-none-any.whl``
 
         -   *Or, if you know what you are doing* and you're sure you have a clean
             local checkout, you can also build it locally::
 
                 python setup.py bdist_wheel
 
-            This should create ``dist/openeo-0.4.7-py3-none-any.whl``
+            This should create ``dist/openeo-0.8.0-py3-none-any.whl``
 
     B.  **Upload** this wheel to `PyPI <https://pypi.org/project/openeo/>`_::
 
-            python -m twine upload openeo-0.4.7-py3-none-any.whl
+            python -m twine upload openeo-0.8.0-py3-none-any.whl
 
         Check the `release history on PyPI <https://pypi.org/project/openeo/#history>`_
         to verify the twine upload.
@@ -305,23 +307,23 @@ To be as concrete as possible, we will assume that we are about to release versi
 
 #.  Create a **git version tag** and push it to GitHub::
 
-        git tag v0.4.7
-        git push origin v0.4.7
+        git tag v0.8.0
+        git push origin v0.8.0
 
 #.  Create a **release in GitHub**:
     Go to `https://github.com/Open-EO/openeo-python-client/releases/new <https://github.com/Open-EO/openeo-python-client/releases/new>`_,
-    Enter ``v0.4.7`` under "tag",
-    enter title: ``openEO Python Client v0.4.7``,
+    Enter ``v0.8.0`` under "tag",
+    enter title: ``openEO Python Client v0.8.0``,
     use the corresponding ``CHANGELOG.md`` section as description
     and publish it
     (no need to attach binaries).
 
-#.  **Bump version** in ``openeo/_version.py``,
+#.  **Bump the version** in ``openeo/_version.py``, (usually the "minor" level)
     and append a pre-release "a1" suffix again, for example::
 
-        __version__ = '0.4.8a1'
+        __version__ = '0.9.0a1'
 
-    Commit this (e.g. with message ``_version.py: bump to 0.4.8a1``)
+    Commit this (e.g. with message ``_version.py: bump to 0.9.0a1``)
     and push to GitHub.
 
 #.  Update `conda-forge package <https://github.com/conda-forge/openeo-feedstock>`_ too
