@@ -388,9 +388,17 @@ class VectorCube(_ProcessGraphAbstraction):
         self, condition: Union[PGNode, Callable], dimension: str, context: Optional[dict] = None
     ) -> VectorCube:
         """
+        Filters the dimension labels in the data cube for the given dimension.
+        Only the dimension labels that match the specified condition are preserved,
+        all other labels with their corresponding data get removed.
+
+        :param condition: the "child callback" which will be given a single label value (number or string)
+            and returns a boolean expressing if the label should be preserved.
+            Also see :ref:`callbackfunctions`.
+        :param dimension: The name of the dimension to filter on.
+
         .. versionadded:: 0.22.0
         """
-        # TODO #459 docs
         condition = build_child_callback(condition, parent_parameters=["value"])
         return self.process(
             process_id="filter_labels",

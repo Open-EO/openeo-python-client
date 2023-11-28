@@ -2223,6 +2223,29 @@ def test_filter_spatial_callback(con100):
     }
 
 
+def test_filter_labels_callback(con100):
+    cube = con100.load_collection("S2")
+    cube = cube.filter_labels(condition=lambda t: t.text_contains("-02-2"), dimension="t")
+    assert get_download_graph(cube, drop_save_result=True, drop_load_collection=True) == {
+        "filterlabels1": {
+            "process_id": "filter_labels",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "condition": {
+                    "process_graph": {
+                        "textcontains1": {
+                            "process_id": "text_contains",
+                            "arguments": {"data": {"from_parameter": "value"}, "pattern": "-02-2"},
+                            "result": True,
+                        }
+                    }
+                },
+                "dimension": "t",
+            },
+        },
+    }
+
+
 def test_custom_process_kwargs_datacube(con100: Connection):
     img = con100.load_collection("S2")
     res = img.process(process_id="foo", data=img, bar=123)

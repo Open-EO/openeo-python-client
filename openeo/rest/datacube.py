@@ -15,7 +15,7 @@ import pathlib
 import typing
 import warnings
 from builtins import staticmethod
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union, Callable
 
 import numpy as np
 import shapely.geometry
@@ -474,6 +474,28 @@ class DataCube(_ProcessGraphAbstraction):
             metadata=self.metadata.filter_bands(bands) if self.metadata else None,
         )
         return cube
+
+    @openeo_process
+    def filter_labels(
+        self, condition: Union[PGNode, Callable], dimension: str, context: Optional[dict] = None
+    ) -> DataCube:
+        """
+        Filters the dimension labels in the data cube for the given dimension.
+        Only the dimension labels that match the specified condition are preserved,
+        all other labels with their corresponding data get removed.
+
+        :param condition: the "child callback" which will be given a single label value (number or string)
+            and returns a boolean expressing if the label should be preserved.
+            Also see :ref:`callbackfunctions`.
+        :param dimension: The name of the dimension to filter on.
+
+        .. versionadded:: 0.27.0
+        """
+        condition = build_child_callback(condition, parent_parameters=["value"])
+        return self.process(
+            process_id="filter_labels",
+            arguments=dict_no_none(data=THIS, condition=condition, dimension=dimension, context=context),
+        )
 
     band_filter = legacy_alias(filter_bands, "band_filter", since="0.1.0")
 
