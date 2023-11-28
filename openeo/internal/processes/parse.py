@@ -5,6 +5,7 @@ For example: parse a bunch of JSON descriptions and generate Python (stub) funct
 from __future__ import annotations
 
 import json
+import typing
 from pathlib import Path
 from typing import Iterator, List, Union
 
@@ -66,19 +67,15 @@ class Returns:
         return cls(description=data["description"], schema=Schema.from_dict(data["schema"]))
 
 
-class Process:
+class Process(typing.NamedTuple):
     """An openEO process"""
 
-    def __init__(
-            self, id: str, parameters: List[Parameter], returns: Returns,
-            description: str = "", summary: str = ""
-    ):
-        self.id = id
-        self.description = description
-        self.parameters = parameters
-        self.returns = returns
-        self.summary = summary
-        # TODO: more properties?
+    id: str
+    parameters: List[Parameter]
+    returns: Returns
+    description: str = ""
+    summary: str = ""
+    # TODO: more properties?
 
     @classmethod
     def from_dict(cls, data: dict) -> Process:

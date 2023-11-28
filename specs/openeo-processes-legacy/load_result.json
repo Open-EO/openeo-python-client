@@ -1,0 +1,212 @@
+{
+    "id": "load_result",
+    "summary": "Load batch job results",
+    "description": "Loads batch job results and returns them as a processable data cube. A batch job result can be loaded by ID or URL:\n\n* **ID**: The identifier for a finished batch job. The job must have been submitted by the authenticated user on the back-end currently connected to.\n* **URL**: The URL to the STAC metadata for a batch job result. This is usually a signed URL that is provided by some back-ends since openEO API version 1.1.0 through the `canonical` link relation in the batch job result metadata.\n\nIf supported by the underlying metadata and file format, the data that is added to the data cube can be restricted with the parameters `spatial_extent`, `temporal_extent` and `bands`. If no data is available for the given extents, a `NoDataAvailable` exception is thrown.\n\n**Remarks:**\n\n* The bands (and all dimensions that specify nominal dimension labels) are expected to be ordered as specified in the metadata if the `bands` parameter is set to `null`.\n* If no additional parameter is specified this would imply that the whole data set is expected to be loaded. Due to the large size of many data sets, this is not recommended and may be optimized by back-ends to only load the data that is actually required after evaluating subsequent processes such as filters. This means that the values should be processed only after the data has been limited to the required extent and as a consequence also to a manageable size.",
+    "categories": [
+        "cubes",
+        "import"
+    ],
+    "experimental": true,
+    "parameters": [
+        {
+            "name": "id",
+            "description": "The id of a batch job with results.",
+            "schema": [
+                {
+                    "title": "ID",
+                    "type": "string",
+                    "subtype": "job-id",
+                    "pattern": "^[\\w\\-\\.~]+$"
+                },
+                {
+                    "title": "URL",
+                    "type": "string",
+                    "format": "uri",
+                    "subtype": "uri",
+                    "pattern": "^https?://"
+                }
+            ]
+        },
+        {
+            "name": "spatial_extent",
+            "description": "Limits the data to load from the batch job result to the specified bounding box or polygons.\n\n* For raster data, the process loads the pixel into the data cube if the point at the pixel center intersects with the bounding box or any of the polygons (as defined in the Simple Features standard by the OGC).\n* For vector data, the process loads the geometry into the data cube of the geometry is fully within the bounding box or any of the polygons (as defined in the Simple Features standard by the OGC). Empty geometries may only be in the data cube if no spatial extent has been provided.\n\nThe GeoJSON can be one of the following feature types:\n\n* A `Polygon` or `MultiPolygon` geometry,\n* a `Feature` with a `Polygon` or `MultiPolygon` geometry, or\n* a `FeatureCollection` containing at least one `Feature` with `Polygon` or `MultiPolygon` geometries.\n\nSet this parameter to `null` to set no limit for the spatial extent. Be careful with this when loading large datasets! It is recommended to use this parameter instead of using ``filter_bbox()`` or ``filter_spatial()`` directly after loading unbounded data.",
+            "schema": [
+                {
+                    "title": "Bounding Box",
+                    "type": "object",
+                    "subtype": "bounding-box",
+                    "required": [
+                        "west",
+                        "south",
+                        "east",
+                        "north"
+                    ],
+                    "properties": {
+                        "west": {
+                            "description": "West (lower left corner, coordinate axis 1).",
+                            "type": "number"
+                        },
+                        "south": {
+                            "description": "South (lower left corner, coordinate axis 2).",
+                            "type": "number"
+                        },
+                        "east": {
+                            "description": "East (upper right corner, coordinate axis 1).",
+                            "type": "number"
+                        },
+                        "north": {
+                            "description": "North (upper right corner, coordinate axis 2).",
+                            "type": "number"
+                        },
+                        "base": {
+                            "description": "Base (optional, lower left corner, coordinate axis 3).",
+                            "type": [
+                                "number",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "height": {
+                            "description": "Height (optional, upper right corner, coordinate axis 3).",
+                            "type": [
+                                "number",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "crs": {
+                            "description": "Coordinate reference system of the extent, specified as as [EPSG code](http://www.epsg-registry.org/) or [WKT2 CRS string](http://docs.opengeospatial.org/is/18-010r7/18-010r7.html). Defaults to `4326` (EPSG code 4326) unless the client explicitly requests a different coordinate reference system.",
+                            "anyOf": [
+                                {
+                                    "title": "EPSG Code",
+                                    "type": "integer",
+                                    "subtype": "epsg-code",
+                                    "minimum": 1000,
+                                    "examples": [
+                                        3857
+                                    ]
+                                },
+                                {
+                                    "title": "WKT2",
+                                    "type": "string",
+                                    "subtype": "wkt2-definition"
+                                }
+                            ],
+                            "default": 4326
+                        }
+                    }
+                },
+                {
+                    "title": "GeoJSON",
+                    "description": "Limits the data cube to the bounding box of the given geometries. For raster data, all pixels inside the bounding box that do not intersect with any of the polygons will be set to no data (`null`).\n\nThe GeoJSON type `GeometryCollection` is not supported. Empty geometries are ignored.",
+                    "type": "object",
+                    "subtype": "geojson"
+                },
+                {
+                    "title": "Vector data cube",
+                    "description": "Limits the data cube to the bounding box of the given geometries in the vector data cube. All pixels inside the bounding box that do not intersect with any of the polygons will be set to no data (`null`). Empty geometries are ignored.",
+                    "type": "object",
+                    "subtype": "datacube",
+                    "dimensions": [
+                        {
+                            "type": "geometry"
+                        }
+                    ]
+                },
+                {
+                    "title": "No filter",
+                    "description": "Don't filter spatially. All data is included in the data cube.",
+                    "type": "null"
+                }
+            ],
+            "default": null,
+            "optional": true
+        },
+        {
+            "name": "temporal_extent",
+            "description": "Limits the data to load from the batch job result to the specified left-closed temporal interval. Applies to all temporal dimensions. The interval has to be specified as an array with exactly two elements:\n\n1. The first element is the start of the temporal interval. The specified instance in time is **included** in the interval.\n2. The second element is the end of the temporal interval. The specified instance in time is **excluded** from the interval.\n\nThe specified temporal strings follow [RFC 3339](https://www.rfc-editor.org/rfc/rfc3339.html). Also supports open intervals by setting one of the boundaries to `null`, but never both.\n\nSet this parameter to `null` to set no limit for the temporal extent. Be careful with this when loading large datasets! It is recommended to use this parameter instead of using ``filter_temporal()`` directly after loading unbounded data.",
+            "schema": [
+                {
+                    "type": "array",
+                    "subtype": "temporal-interval",
+                    "minItems": 2,
+                    "maxItems": 2,
+                    "items": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time",
+                                "subtype": "date-time"
+                            },
+                            {
+                                "type": "string",
+                                "format": "date",
+                                "subtype": "date"
+                            },
+                            {
+                                "type": "string",
+                                "subtype": "year",
+                                "minLength": 4,
+                                "maxLength": 4,
+                                "pattern": "^\\d{4}$"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "examples": [
+                        [
+                            "2015-01-01T00:00:00Z",
+                            "2016-01-01T00:00:00Z"
+                        ],
+                        [
+                            "2015-01-01",
+                            "2016-01-01"
+                        ]
+                    ]
+                },
+                {
+                    "title": "No filter",
+                    "description": "Don't filter temporally. All data is included in the data cube.",
+                    "type": "null"
+                }
+            ],
+            "default": null,
+            "optional": true
+        },
+        {
+            "name": "bands",
+            "description": "Only adds the specified bands into the data cube so that bands that don't match the list of band names are not available. Applies to all dimensions of type `bands`.\n\nEither the unique band name (metadata field `name` in bands) or one of the common band names (metadata field `common_name` in bands) can be specified. If the unique band name and the common name conflict, the unique band name has a higher priority.\n\nThe order of the specified array defines the order of the bands in the data cube. If multiple bands match a common name, all matched bands are included in the original order.\n\nIt is recommended to use this parameter instead of using ``filter_bands()`` directly after loading unbounded data.",
+            "schema": [
+                {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "string",
+                        "subtype": "band-name"
+                    }
+                },
+                {
+                    "title": "No filter",
+                    "description": "Don't filter bands. All bands are included in the data cube.",
+                    "type": "null"
+                }
+            ],
+            "default": null,
+            "optional": true
+        }
+    ],
+    "returns": {
+        "description": "A data cube for further processing.",
+        "schema": {
+            "type": "object",
+            "subtype": "datacube"
+        }
+    },
+    "exceptions": {
+        "NoDataAvailable": {
+            "message": "There is no data available for the given extents."
+        }
+    }
+}

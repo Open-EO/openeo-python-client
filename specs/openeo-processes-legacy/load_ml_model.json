@@ -1,0 +1,53 @@
+{
+    "id": "load_ml_model",
+    "summary": "Load a ML model",
+    "description": "Loads a machine learning model from a STAC Item.\n\nSuch a model could be trained and saved as part of a previous batch job with processes such as  ``fit_regr_random_forest()`` and ``save_ml_model()``.",
+    "categories": [
+        "machine learning",
+        "import"
+    ],
+    "experimental": true,
+    "parameters": [
+        {
+            "name": "id",
+            "description": "The STAC Item to load the machine learning model from. The STAC Item must implement the `ml-model` extension.",
+            "schema": [
+                {
+                    "title": "URL",
+                    "type": "string",
+                    "format": "uri",
+                    "subtype": "uri",
+                    "pattern": "^https?://"
+                },
+                {
+                    "title": "Batch Job ID",
+                    "description": "Loading a model by batch job ID is possible only if a single model has been saved by the job. Otherwise, you have to load a specific model from a batch job by URL.",
+                    "type": "string",
+                    "subtype": "job-id",
+                    "pattern": "^[\\w\\-\\.~]+$"
+                },
+                {
+                    "title": "User-uploaded File",
+                    "type": "string",
+                    "subtype": "file-path",
+                    "pattern": "^[^\r\n\\:'\"]+$"
+                }
+            ]
+        }
+    ],
+    "returns": {
+        "description": "A machine learning model to be used with machine learning processes such as ``predict_random_forest()``.",
+        "schema": {
+            "type": "object",
+            "subtype": "ml-model"
+        }
+    },
+    "links": [
+        {
+            "href": "https://github.com/stac-extensions/ml-model",
+            "title": "STAC ml-model extension",
+            "type": "text/html",
+            "rel": "about"
+        }
+    ]
+}

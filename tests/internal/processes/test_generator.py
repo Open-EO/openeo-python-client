@@ -1,6 +1,9 @@
 import re
+import shutil
 from io import StringIO
 from textwrap import dedent
+
+import pytest
 
 from openeo.internal.processes.generator import (
     PythonRenderer,
@@ -282,7 +285,7 @@ def test_render_process_graph_callback_wrapping():
 
             :return: Data cube
             """
-            return _process('apply_dimension', 
+            return _process('apply_dimension',
                 data=data,
                 dimension=dimension,
                 process=build_child_callback(process, parent_parameters=['data'])
@@ -301,6 +304,13 @@ def test_collect_processes_multiple_sources(tmp_path):
         get_test_resource("data/processes/1.0/add.json"),
     ])
     assert [p.id for p in processes] == ["add", "cos"]
+
+
+def test_collect_processes_duplicates(tmp_path):
+    shutil.copy(get_test_resource("data/processes/1.0/cos.json"), tmp_path / "foo.json")
+    shutil.copy(get_test_resource("data/processes/1.0/cos.json"), tmp_path / "bar.json")
+    with pytest.raises(Exception, match="Duplicate source for process 'cos'"):
+        _ = collect_processes(sources=[tmp_path])
 
 
 def test_generate_process_py():

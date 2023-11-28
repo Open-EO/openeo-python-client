@@ -112,14 +112,17 @@ class PythonRenderer:
 
 
 def collect_processes(sources: List[Union[Path, str]]) -> List[Process]:
-    processes = []
+    processes = {}
     for src in [Path(s) for s in sources]:
         if src.is_dir():
-            processes.extend(parse_all_from_dir(src))
+            to_add = parse_all_from_dir(src)
         else:
-            processes.append(Process.from_json_file(src))
-    processes.sort(key=lambda p: p.id)
-    return processes
+            to_add = [Process.from_json_file(src)]
+        for p in to_add:
+            if p.id in processes:
+                raise Exception(f"Duplicate source for process {p.id!r}")
+            processes[p.id] = p
+    return sorted(processes.values(), key=lambda p: p.id)
 
 
 def generate_process_py(processes: List[Process], output=sys.stdout, argv=None):

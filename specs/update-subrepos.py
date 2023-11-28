@@ -37,7 +37,7 @@ def main():
     subrepos = [
         SubRepo(
             url="https://github.com/Open-EO/openeo-processes.git",
-            rev="ca9e31094b863233d88459b6cf2a37416bc90d4e",
+            rev="2.0.0-rc.1",
             path="openeo-processes",
         )
     ]
@@ -81,6 +81,7 @@ def ensure_subrepo(subrepo: SubRepo):
         raise RuntimeError(f"{path} exists but does not look like a git repo")
 
     # Checkout to desired revision
+    run_command(["git", "fetch"], cwd=path)
     run_command(["git", "checkout", subrepo.rev], cwd=path)
     run_command(["git", "log", "-1"], cwd=path)
     run_command(["git", "submodule", "update", "--init", "--recursive"], cwd=path)

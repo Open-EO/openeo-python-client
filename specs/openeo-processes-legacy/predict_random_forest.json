@@ -1,0 +1,42 @@
+{
+    "id": "predict_random_forest",
+    "summary": "Predict values based on a Random Forest model",
+    "description": "Applies a Random Forest machine learning model to an array and predict a value for it.",
+    "categories": [
+        "machine learning",
+        "reducer"
+    ],
+    "experimental": true,
+    "parameters": [
+        {
+            "name": "data",
+            "description": "An array of numbers.",
+            "schema": {
+                "type": "array",
+                "items": {
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                }
+            }
+        },
+        {
+            "name": "model",
+            "description": "A model object that can be trained with the processes ``fit_regr_random_forest()`` (regression) and ``fit_class_random_forest()`` (classification).",
+            "schema": {
+                "type": "object",
+                "subtype": "ml-model"
+            }
+        }
+    ],
+    "returns": {
+        "description": "The predicted value. Returns `null` if any of the given values in the array is a no-data value.",
+        "schema": {
+            "type": [
+                "number",
+                "null"
+            ]
+        }
+    }
+}
