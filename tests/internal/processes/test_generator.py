@@ -285,7 +285,7 @@ def test_render_process_graph_callback_wrapping():
 
             :return: Data cube
             """
-            return _process('apply_dimension',
+            return _process('apply_dimension', 
                 data=data,
                 dimension=dimension,
                 process=build_child_callback(process, parent_parameters=['data'])
