@@ -69,6 +69,7 @@ from openeo.util import (
     rfc3339,
     str_truncate,
     url_join,
+    repr_truncate,
 )
 
 _log = logging.getLogger(__name__)
@@ -178,7 +179,7 @@ class RestApiConnection:
             exception = OpenEoApiError(
                 http_status_code=status_code,
                 code=info.get("code", "unknown"),
-                message=info.get("message", "unknown error"),
+                message=info.get("message", f"unknown error ({repr_truncate(info, width=200)})"),
                 id=info.get("id"),
                 url=info.get("url"),
             )
