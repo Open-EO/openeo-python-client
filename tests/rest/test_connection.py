@@ -147,6 +147,21 @@ Reason: <strong>Error reading from remote server</strong></p></p>
         conn.get("/bar")
 
 
+def test_cdse_firewall_error(requests_mock):
+    """https://github.com/Open-EO/openeo-python-client/issues/512"""
+    requests_mock.get(
+        "https://oeo.test/bar",
+        status_code=403,
+        text='{"status": "error", "data": {"message": "This request was rejected due to a violation. Please consult with your administrator, and provide reference ID 128968"}}',
+    )
+    conn = RestApiConnection(API_URL)
+    with pytest.raises(
+        OpenEoApiPlainError,
+        match=r"\[403\] unknown: unknown error.*This request was rejected.*provide reference ID 128968",
+    ):
+        conn.get("/bar")
+
+
 @pytest.mark.parametrize(["root", "internals", "externals"], [
     (
             "https://openeo.test",
