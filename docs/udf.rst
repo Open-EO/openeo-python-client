@@ -25,6 +25,8 @@ using the openEO Python Client library:
 .. code-block:: python
     :caption: Basic UDF usage example snippet to rescale pixel values
 
+    import openeo
+
     # Build a UDF object from an inline string with Python source code.
     udf = openeo.UDF("""
     from openeo.udf import XarrayDataCube
@@ -34,6 +36,9 @@ using the openEO Python Client library:
         array.values = 0.0001 * array.values
         return cube
     """)
+
+    # Or load the UDF code from a separate file.
+    # udf = openeo.UDF.from_file("udf-code.py")
 
     # Apply the UDF to a cube.
     rescaled_cube = cube.apply(process=udf)
@@ -213,7 +218,7 @@ including creating the back-end connection, loading the initial data cube and do
 The UDF-specific part is highlighted.
 
 .. warning::
-    This implementation depends on :py:class:`openeo.UDF <openeo.rest.datacube.UDF>` improvements
+    This implementation depends on :py:class:`openeo.UDF <openeo.rest._datacube.UDF>` improvements
     that were introduced in version 0.13.0 of the openeo Python Client Library.
     If you are currently stuck with working with an older version,
     check :ref:`old_udf_api` for more information on the difference with the old API.
@@ -251,9 +256,9 @@ The UDF-specific part is highlighted.
 
     rescaled.download("apply-udf-scaling.nc")
 
-In line 15, we build an :py:class:`openeo.UDF <openeo.rest.datacube.UDF>` object
+In line 15, we build an :py:class:`openeo.UDF <openeo.rest._datacube.UDF>` object
 from an inline string with the UDF source code.
-This :py:class:`openeo.UDF <openeo.rest.datacube.UDF>` object encapsulates various aspects
+This :py:class:`openeo.UDF <openeo.rest._datacube.UDF>` object encapsulates various aspects
 that are necessary to create a ``run_udf`` node in the process graph,
 and we can pass it directly in line 25 as the ``process`` argument
 to :py:meth:`DataCube.apply() <openeo.rest.datacube.DataCube.apply>`.
@@ -264,7 +269,7 @@ to :py:meth:`DataCube.apply() <openeo.rest.datacube.DataCube.apply>`.
     it's often a good idea to **load the UDF code from a separate file**,
     which is easier to maintain in your preferred editor or IDE.
     You can do that directly with the
-    :py:meth:`openeo.UDF.from_file <openeo.rest.datacube.UDF.from_file>` method:
+    :py:meth:`openeo.UDF.from_file <openeo.rest._datacube.UDF.from_file>` method:
 
     .. code-block:: python
 
@@ -514,11 +519,11 @@ Prior to version 0.13.0 of the openEO Python Client Library,
 loading and working with UDFs was a bit inconsistent and cumbersome.
 
 - The old ``openeo.UDF()`` required an explicit ``runtime`` argument, which was usually ``"Python"``.
-  In the new :py:class:`openeo.UDF <openeo.rest.datacube.UDF>`, the ``runtime`` argument is optional,
+  In the new :py:class:`openeo.UDF <openeo.rest._datacube.UDF>`, the ``runtime`` argument is optional,
   and it will be auto-detected (from the source code or file extension) when not given.
 - The old ``openeo.UDF()`` required an explicit ``data`` argument, and figuring out the correct
   value (e.g. something like ``{"from_parameter": "x"}``) required good knowledge of the openEO API and processes.
-  With the new :py:class:`openeo.UDF <openeo.rest.datacube.UDF>` it is not necessary anymore to provide
+  With the new :py:class:`openeo.UDF <openeo.rest._datacube.UDF>` it is not necessary anymore to provide
   the ``data`` argument. In fact, while the ``data`` argument is only still there for compatibility reasons,
   it is unused and it will be removed in a future version.
   A deprecation warning will be triggered when ``data`` is given a value.
@@ -529,7 +534,7 @@ loading and working with UDFs was a bit inconsistent and cumbersome.
   only support a ``process`` argument with no dedicated arguments for UDFs.
 
   The goal is to improve uniformity across all these methods and use a generic ``process`` argument everywhere
-  (that also supports a :py:class:`openeo.UDF <openeo.rest.datacube.UDF>` object for UDF use cases).
+  (that also supports a :py:class:`openeo.UDF <openeo.rest._datacube.UDF>` object for UDF use cases).
   For now, the ``code``, ``runtime`` and ``version`` arguments are still present
   in :py:meth:`DataCube.apply_dimension() <openeo.rest.datacube.DataCube.apply_dimension>`
   as before, but usage is deprecated.
