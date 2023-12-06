@@ -508,12 +508,12 @@ class DataCube(_ProcessGraphAbstraction):
         """
         if self._do_metadata_normalization():
             band = self.metadata.band_dimension.band_index(band)
-        return self.reduce_bands(
-            reducer=PGNode(
-                process_id="array_element",
-                arguments={"data": {"from_parameter": "data"}, "index": band},
-            )
-        )
+        arguments = {"data": {"from_parameter": "data"}}
+        if isinstance(band, int):
+            arguments["index"] = band
+        else:
+            arguments["label"] = band
+        return self.reduce_bands(reducer=PGNode(process_id="array_element", arguments=arguments))
 
     @openeo_process
     def resample_spatial(

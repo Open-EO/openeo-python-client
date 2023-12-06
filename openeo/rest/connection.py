@@ -1148,7 +1148,7 @@ class Connection(RestApiConnection):
             None, Dict[str, Union[str, PGNode, Callable]], List[CollectionProperty], CollectionProperty
         ] = None,
         max_cloud_cover: Optional[float] = None,
-        fetch_metadata=True,
+        fetch_metadata: bool = True,
     ) -> DataCube:
         """
         Load a DataCube by collection id.

@@ -383,7 +383,7 @@ def test_band_invalid_band_no_metadata(s2cube_without_metadata):
             "reducer": {
                 "process_graph": {
                     "arrayelement1": {
-                        "arguments": {"data": {"from_parameter": "data"}, "index": "banana"},
+                        "arguments": {"data": {"from_parameter": "data"}, "label": "banana"},
                         "process_id": "array_element",
                         "result": True,
                     }

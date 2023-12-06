@@ -88,6 +88,6 @@ def s2cube(connection, api_version) -> DataCube:
 
 @pytest.fixture
 def s2cube_without_metadata(connection, api_version) -> DataCube:
-    cube = connection.load_collection("S2", fetch_metadata=None)
+    cube = connection.load_collection("S2", fetch_metadata=False)
     assert cube.metadata is None
     return cube

@@ -77,13 +77,13 @@ class LocalConnection():
         return CollectionMetadata(metadata=self.describe_collection(name))
 
     def load_collection(
-            self,
-            collection_id: str,
-            spatial_extent: Optional[Dict[str, float]] = None,
-            temporal_extent: Optional[List[Union[str, datetime.datetime, datetime.date]]] = None,
-            bands: Optional[List[str]] = None,
-            properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
-            fetch_metadata=True,
+        self,
+        collection_id: str,
+        spatial_extent: Optional[Dict[str, float]] = None,
+        temporal_extent: Optional[List[Union[str, datetime.datetime, datetime.date]]] = None,
+        bands: Optional[List[str]] = None,
+        properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
+        fetch_metadata: bool = True,
     ) -> DataCube:
         """
         Load a DataCube by collection id.
