@@ -38,9 +38,15 @@ class MultiBackendJobManager:
 
     .. code-block:: python
 
+        import logging
         import pandas as pd
         import openeo
         from openeo.extra.job_management import MultiBackendJobManager
+
+        logging.basicConfig(
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            level=logging.INFO
+        )
 
         manager = MultiBackendJobManager()
         manager.add_backend("foo", connection=openeo.connect("http://foo.test"))
