@@ -1056,7 +1056,7 @@ class Connection(RestApiConnection):
         """
         return RESTUserDefinedProcess(user_defined_process_id=user_defined_process_id, connection=self)
 
-    def validate_process_graph(self, process_graph: dict) -> List[dict]:
+    def validate_process_graph(self, process_graph: Union[dict, FlatGraphableMixin, Any]) -> List[dict]:
         """
         Validate a process graph without executing it.
 
