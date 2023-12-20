@@ -217,8 +217,8 @@ class DataCube(_ProcessGraphAbstraction):
         load_collection, name="create_collection", since="0.4.6"
     )
 
-    @deprecated(reason="Depends on non-standard process, replace with :py:meth:`openeo.rest.connection.Connection.load_stac` where possible.",version="0.25.0")
     @classmethod
+    @deprecated(reason="Depends on non-standard process, replace with :py:meth:`openeo.rest.connection.Connection.load_stac` where possible.",version="0.25.0")
     def load_disk_collection(cls, connection: Connection, file_format: str, glob_pattern: str, **options) -> DataCube:
         """
         Loads image data from disk as a DataCube.
