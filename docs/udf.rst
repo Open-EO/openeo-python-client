@@ -480,34 +480,38 @@ An example code can be found `here <https://github.com/Open-EO/openeo-python-cli
 Logging from a UDF
 =====================
 
-In some cases, you may want to log information from your user defined function,
-for instance to provide debug information or to log warnings. You can use the :py:class:`~openeo.udf.debug.inspect`
-logging function to achieve this.
+From time to time, when things are not working as expected,
+you may want to log some additional debug information from your UDF, inspect the data that is being processed,
+or log warnings.
+This can be done using the :py:class:`~openeo.udf.debug.inspect()` function.
 
-For example, in the previous example of rescaling an RGB image(from SENTINEL2_L2A), suppose you
-want to keep a log of array shape encountered within a UDF::
+For example: to discover the shape of the data cube chunk that you receive in your UDF function:
 
-    # Create a UDF object from inline source code.
-    udf = openeo.UDF("""
-    from openeo.udf import XarrayDataCube
-    from openeo.udf.debug import inspect
+.. code-block:: python
+    :caption: Sample UDF code with ``inspect()`` logging
+    :emphasize-lines: 1, 5
+
+    from openeo.udf import XarrayDataCube, inspect
 
     def apply_datacube(cube: XarrayDataCube, context: dict) -> XarrayDataCube:
         array = cube.get_array()
         inspect(data=[array.shape], message="UDF logging shape of my array")
         array.values = 0.0001 * array.values
         return cube
-    """)
 
-If you are using Jupyter Notebook, you can see the log entries using :py:class:`~openeo.rest.job.BatchJob.logs`
-as shown in the image:
+After the batch job is finished (or failed), you can find this information in the logs of the batch job.
+For example (as explained at :ref:`batch-job-logs`),
+use :py:class:`BatchJob.logs() <openeo.rest.job.BatchJob.logs>` in a Jupyter notebook session
+to retrieve and filter the logs interactively:
 
 .. image:: _static/images/udf/logging_arrayshape.png
 
-Please note that this nice rendering only happens in Jupyter Notebook, while in plain Python you will get a dict.
+Which reveals in this example a chunking shape of ``[3, 256, 256]``.
 
-Thus, an array of shape 3x256x256 was logged in on which rescaling was performed. [Please note that at this moment,
-this method is experimental and does not support all data types in ``data`` argument of :py:class:`~openeo.udf.debug.inspect`]
+.. note::
+
+    Not all kinds of data (types) are accepted/supported by the ``data`` argument of :py:class:`~openeo.udf.debug.inspect`,
+    so you might have to experiment a bit to make sure the desired debug information is logged as desired.
 
 
 .. _old_udf_api:

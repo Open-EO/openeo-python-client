@@ -259,6 +259,8 @@ Working from a :py:class:`~openeo.rest.datacube.DataCube` instance
 .. index:: batch job; logs
 
 
+.. _batch-job-logs:
+
 Batch job logs
 ===============
 
