@@ -130,6 +130,28 @@ def test_rest_api_expected_status_with_error(requests_mock):
         conn.get("/bar", check_error=False, expected_status=[302, 303])
 
 
+@pytest.mark.parametrize(
+    ["status_code", "text", "expected"],
+    [
+        (400, "Nope, no JSON here", "[400] Nope, no JSON here"),
+        (400, '{"code": "InvalidJSON", "message": "oops}}}}}}', '[400] {"code": "InvalidJSON", "message": "oops}}}}}}'),
+        (400, '{"status": "error", "msg": "Nope"}', '[400] {"status": "error", "msg": "Nope"}'),
+        (500, '{"status": "error", "msg": "Nope"}', '[500] {"status": "error", "msg": "Nope"}'),
+        (400, '{"status": "error", "code": "WrongColor"}', '[400] {"status": "error", "code": "WrongColor"}'),
+        (400, '{"code": "WrongColor", "message": "Nope"}', "[400] WrongColor: Nope"),
+        (400, '{"code": "WrongColor", "message": "Nope", "id": "r-123"}', "[400] WrongColor: Nope (ref: r-123)"),
+    ],
+)
+def test_error_response_format(requests_mock, status_code, text, expected):
+    requests_mock.get("https://oeo.test/bar", status_code=status_code, text=text)
+    conn = RestApiConnection(API_URL)
+    with pytest.raises(
+        OpenEoApiPlainError,
+        match=re.escape(expected) if isinstance(expected, str) else expected,
+    ):
+        conn.get("/bar")
+
+
 def test_502_proxy_error(requests_mock):
     """EP-3387"""
     requests_mock.get("https://oeo.test/bar", status_code=502, text="""<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
@@ -157,7 +179,7 @@ def test_cdse_firewall_error(requests_mock):
     conn = RestApiConnection(API_URL)
     with pytest.raises(
         OpenEoApiPlainError,
-        match=r"\[403\] unknown: unknown error.*This request was rejected.*provide reference ID 128968",
+        match=r"\[403\].*This request was rejected.*provide reference ID 128968",
     ):
         conn.get("/bar")
 

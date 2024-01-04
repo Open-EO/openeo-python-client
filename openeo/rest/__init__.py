@@ -74,9 +74,10 @@ class OpenEoApiError(OpenEoApiPlainError):
 
     def __init__(
         self,
-        http_status_code: Optional[int] = None,
-        code: str = "unknown",
-        message: str = "unknown error",
+        *,
+        http_status_code: int,
+        code: str,
+        message: str,
         id: Optional[str] = None,
         url: Optional[str] = None,
     ):

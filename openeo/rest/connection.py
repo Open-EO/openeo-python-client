@@ -176,28 +176,37 @@ class RestApiConnection:
         """Convert API error response to Python exception"""
         status_code = response.status_code
         try:
-            # Try parsing the error info according to spec and wrap it in an exception.
             info = response.json()
-            exception = OpenEoApiError(
-                http_status_code=status_code,
-                code=info.get("code", "unknown"),
-                message=info.get("message", f"unknown error ({repr_truncate(info, width=200)})"),
-                id=info.get("id"),
-                url=info.get("url"),
-            )
         except Exception:
-            # Parsing of error info went wrong: let's see if we can still extract some helpful information.
-            text = response.text
-            error_message = None
-            _log.warning(f"Failed to parse API error response: [{status_code}] {text!r} (headers: {response.headers})")
-            if status_code == 502 and "Proxy Error" in text:
-                error_message = (
-                    "Received 502 Proxy Error."
-                    " This typically happens when a synchronous openEO processing request takes too long and is aborted."
-                    " Consider using a batch job instead."
+            info = None
+
+        # Valid JSON object with "code" and "message" fields indicates a proper openEO API error.
+        if isinstance(info, dict):
+            error_code = info.get("code")
+            error_message = info.get("message")
+            if error_code and isinstance(error_code, str) and error_message and isinstance(error_message, str):
+                raise OpenEoApiError(
+                    http_status_code=status_code,
+                    code=error_code,
+                    message=error_message,
+                    id=info.get("id"),
+                    url=info.get("url"),
                 )
-            exception = OpenEoApiPlainError(message=text, http_status_code=status_code, error_message=error_message)
-        raise exception
+
+        # Failed to parse it as a compliant openEO API error: show body as-is in the exception.
+        text = response.text
+        error_message = None
+        _log.warning(f"Failed to parse API error response: [{status_code}] {text!r} (headers: {response.headers})")
+
+        # TODO: eliminate this VITO-backend specific error massaging?
+        if status_code == 502 and "Proxy Error" in text:
+            error_message = (
+                "Received 502 Proxy Error."
+                " This typically happens when a synchronous openEO processing request takes too long and is aborted."
+                " Consider using a batch job instead."
+            )
+
+        raise OpenEoApiPlainError(message=text, http_status_code=status_code, error_message=error_message)
 
     def get(self, path: str, stream: bool = False, auth: Optional[AuthBase] = None, **kwargs) -> Response:
         """
