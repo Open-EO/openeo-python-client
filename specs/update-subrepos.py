@@ -31,9 +31,7 @@ class SubRepo(NamedTuple):
 
 
 def main():
-    logging.basicConfig(
-        level=logging.INFO, format=">>> {message}", style="{", stream=sys.stdout
-    )
+    logging.basicConfig(level=logging.INFO, format=">>> {message}", style="{", stream=sys.stdout)
     subrepos = [
         SubRepo(
             url="https://github.com/Open-EO/openeo-processes.git",

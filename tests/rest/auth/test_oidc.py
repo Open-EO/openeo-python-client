@@ -40,23 +40,23 @@ def handle_request(handler_class, path: str):
 
         def __init__(self):
             # Pass the requested URL path in HTTP format.
-            self.rfile = BytesIO("GET {p} HTTP/1.1\r\n".format(p=path).encode('utf-8'))
+            self.rfile = BytesIO("GET {p} HTTP/1.1\r\n".format(p=path).encode("utf-8"))
             self.wfile = BytesIO()
 
         def makefile(self, mode, *args, **kwargs):
-            return {'rb': self.rfile, 'wb': self.wfile}[mode]
+            return {"rb": self.rfile, "wb": self.wfile}[mode]
 
         def sendall(self, bytes):
             self.wfile.write(bytes)
 
     request = Request()
-    handler_class(request=request, client_address=('0.0.0.0', 8910), server=None)
+    handler_class(request=request, client_address=("0.0.0.0", 8910), server=None)
 
 
 def test_queuing_request_handler():
     queue = Queue()
     handle_request(QueuingRequestHandler.with_queue(queue), path="/foo/bar")
-    assert list(drain_queue(queue)) == ['/foo/bar']
+    assert list(drain_queue(queue)) == ["/foo/bar"]
 
 
 @pytest.mark.slow
@@ -65,12 +65,12 @@ def test_http_server_thread():
     server_thread = HttpServerThread(RequestHandlerClass=QueuingRequestHandler.with_queue(queue))
     server_thread.start()
     port, host, fqdn = server_thread.server_address_info()
-    if host == '0.0.0.0':
-        host = '127.0.0.1'
-    url = 'http://{h}:{p}/foo/bar'.format(h=host, p=port)
+    if host == "0.0.0.0":
+        host = "127.0.0.1"
+    url = "http://{h}:{p}/foo/bar".format(h=host, p=port)
     response = requests.get(url)
     response.raise_for_status()
-    assert list(drain_queue(queue)) == ['/foo/bar']
+    assert list(drain_queue(queue)) == ["/foo/bar"]
     server_thread.shutdown()
     server_thread.join()
 
@@ -78,17 +78,18 @@ def test_http_server_thread():
 @pytest.mark.slow
 def test_http_server_thread_port():
     queue = Queue()
-    server_thread = HttpServerThread(RequestHandlerClass=QueuingRequestHandler.with_queue(queue),
-                                     server_address=('', 12345))
+    server_thread = HttpServerThread(
+        RequestHandlerClass=QueuingRequestHandler.with_queue(queue), server_address=("", 12345)
+    )
     server_thread.start()
     port, host, fqdn = server_thread.server_address_info()
-    if host == '0.0.0.0':
-        host = '127.0.0.1'
+    if host == "0.0.0.0":
+        host = "127.0.0.1"
     assert port == 12345
-    url = 'http://{h}:{p}/foo/bar'.format(h=host, p=port)
+    url = "http://{h}:{p}/foo/bar".format(h=host, p=port)
     response = requests.get(url)
     response.raise_for_status()
-    assert list(drain_queue(queue)) == ['/foo/bar']
+    assert list(drain_queue(queue)) == ["/foo/bar"]
     server_thread.shutdown()
     server_thread.join()
 
@@ -133,21 +134,20 @@ def test_provider_info_issuer_custom_requests_session():
 
 def test_provider_info_scopes(requests_mock):
     requests_mock.get(
-        "https://authit.test/.well-known/openid-configuration",
-        json={"scopes_supported": ["openid", "test"]}
+        "https://authit.test/.well-known/openid-configuration", json={"scopes_supported": ["openid", "test"]}
     )
     assert "openid" == OidcProviderInfo(issuer="https://authit.test").get_scopes_string()
     assert "openid" == OidcProviderInfo(issuer="https://authit.test", scopes=[]).get_scopes_string()
     assert "openid test" == OidcProviderInfo(issuer="https://authit.test", scopes=["test"]).get_scopes_string()
-    assert "openid test" == OidcProviderInfo(
-        issuer="https://authit.test", scopes=["openid", "test"]
-    ).get_scopes_string()
-    assert "openid test" == OidcProviderInfo(
-        issuer="https://authit.test", scopes=("openid", "test")
-    ).get_scopes_string()
-    assert "openid test" == OidcProviderInfo(
-        issuer="https://authit.test", scopes={"openid", "test"}
-    ).get_scopes_string()
+    assert (
+        "openid test" == OidcProviderInfo(issuer="https://authit.test", scopes=["openid", "test"]).get_scopes_string()
+    )
+    assert (
+        "openid test" == OidcProviderInfo(issuer="https://authit.test", scopes=("openid", "test")).get_scopes_string()
+    )
+    assert (
+        "openid test" == OidcProviderInfo(issuer="https://authit.test", scopes={"openid", "test"}).get_scopes_string()
+    )
 
 
 def test_provider_info_default_client_none(requests_mock):
@@ -159,10 +159,12 @@ def test_provider_info_default_client_none(requests_mock):
 
 def test_provider_info_default_client_available_list(requests_mock):
     requests_mock.get("https://authit.test/.well-known/openid-configuration", json={})
-    default_clients = [{
-        "id": "jak4l0v3-45lsdfe3d",
-        "grant_types": ["urn:ietf:params:oauth:grant-type:device_code+pkce", "refresh_token"]
-    }]
+    default_clients = [
+        {
+            "id": "jak4l0v3-45lsdfe3d",
+            "grant_types": ["urn:ietf:params:oauth:grant-type:device_code+pkce", "refresh_token"],
+        }
+    ]
     info = OidcProviderInfo(issuer="https://authit.test", default_clients=default_clients)
 
     # Alias for compactness
@@ -179,10 +181,12 @@ def test_provider_info_default_client_available_list(requests_mock):
 
 def test_provider_info_default_client_available_lambda(requests_mock):
     requests_mock.get("https://authit.test/.well-known/openid-configuration", json={})
-    default_clients = [{
-        "id": "jak4l0v3-45lsdfe3d",
-        "grant_types": ["urn:ietf:params:oauth:grant-type:device_code+pkce", "refresh_token"]
-    }]
+    default_clients = [
+        {
+            "id": "jak4l0v3-45lsdfe3d",
+            "grant_types": ["urn:ietf:params:oauth:grant-type:device_code+pkce", "refresh_token"],
+        }
+    ]
     info = OidcProviderInfo(issuer="https://authit.test", default_clients=default_clients)
 
     # Alias for compactness
@@ -191,27 +195,29 @@ def test_provider_info_default_client_available_lambda(requests_mock):
     assert info.get_default_client_id(grant_check=lambda grants: True) == "jak4l0v3-45lsdfe3d"
     assert info.get_default_client_id(grant_check=lambda grants: g.REFRESH_TOKEN in grants) == "jak4l0v3-45lsdfe3d"
     assert info.get_default_client_id(grant_check=lambda grants: g.DEVICE_CODE_PKCE in grants) == "jak4l0v3-45lsdfe3d"
-    assert info.get_default_client_id(
-        grant_check=lambda grants: g.DEVICE_CODE_PKCE in grants and g.REFRESH_TOKEN in grants
-    ) == "jak4l0v3-45lsdfe3d"
+    assert (
+        info.get_default_client_id(
+            grant_check=lambda grants: g.DEVICE_CODE_PKCE in grants and g.REFRESH_TOKEN in grants
+        )
+        == "jak4l0v3-45lsdfe3d"
+    )
 
     assert info.get_default_client_id(grant_check=lambda grants: False) is None
     assert info.get_default_client_id(grant_check=lambda grants: g.IMPLICIT in grants) is None
-    assert info.get_default_client_id(
-        grant_check=lambda grants: g.IMPLICIT in grants and g.REFRESH_TOKEN in grants
-    ) is None
+    assert (
+        info.get_default_client_id(grant_check=lambda grants: g.IMPLICIT in grants and g.REFRESH_TOKEN in grants)
+        is None
+    )
 
-    assert info.get_default_client_id(
-        grant_check=lambda grants: g.IMPLICIT in grants or g.REFRESH_TOKEN in grants
-    ) == "jak4l0v3-45lsdfe3d"
+    assert (
+        info.get_default_client_id(grant_check=lambda grants: g.IMPLICIT in grants or g.REFRESH_TOKEN in grants)
+        == "jak4l0v3-45lsdfe3d"
+    )
 
 
 def test_provider_info_default_client_invalid_grants(requests_mock, caplog):
     requests_mock.get("https://authit.test/.well-known/openid-configuration", json={})
-    default_clients = [{
-        "id": "jak4l0v3-45lsdfe3d",
-        "grant_types": ["refresh_token", "nope dis invalid"]
-    }]
+    default_clients = [{"id": "jak4l0v3-45lsdfe3d", "grant_types": ["refresh_token", "nope dis invalid"]}]
     info = OidcProviderInfo(issuer="https://authit.test", default_clients=default_clients)
 
     # Alias for compactness
@@ -223,14 +229,15 @@ def test_provider_info_default_client_invalid_grants(requests_mock, caplog):
 
 
 @pytest.mark.parametrize(
-    ["scopes_supported", "expected"], [
+    ["scopes_supported", "expected"],
+    [
         (["openid", "email"], "openid"),
         (["openid", "email", "offline_access"], "offline_access openid"),
-    ])
+    ],
+)
 def test_provider_info_get_scopes_string_refresh_token_offline_access(requests_mock, scopes_supported, expected):
     requests_mock.get(
-        "https://authit.test/.well-known/openid-configuration",
-        json={"scopes_supported": scopes_supported}
+        "https://authit.test/.well-known/openid-configuration", json={"scopes_supported": scopes_supported}
     )
     p = OidcProviderInfo(issuer="https://authit.test")
     assert p.get_scopes_string() == "openid"
@@ -266,18 +273,9 @@ def test_oidc_client_info_uses_device_flow_pkce_support(requests_mock):
         ],
     )
 
-    for client_id, expected in [
-        ("c1", False),
-        ("c2", False),
-        ("c3", True),
-        ("c4", True),
-        ("foo", False)
-    ]:
+    for client_id, expected in [("c1", False), ("c2", False), ("c3", True), ("c4", True), ("foo", False)]:
         client_info = OidcClientInfo(client_id=client_id, provider=provider)
         assert client_info.guess_device_flow_pkce_support() is expected
-
-
-
 
 
 @pytest.mark.slow
@@ -292,12 +290,11 @@ def test_oidc_auth_code_pkce_flow(requests_mock):
         expected_client_id=client_id,
         expected_fields={"scope": "openid testpkce"},
         oidc_issuer=oidc_issuer,
-        scopes_supported=["openid", "testpkce"]
+        scopes_supported=["openid", "testpkce"],
     )
     provider = OidcProviderInfo(issuer=oidc_issuer, scopes=["openid", "testpkce"])
     authenticator = OidcAuthCodePkceAuthenticator(
-        client_info=OidcClientInfo(client_id=client_id, provider=provider),
-        webbrowser_open=oidc_mock.webbrowser_open
+        client_info=OidcClientInfo(client_id=client_id, provider=provider), webbrowser_open=oidc_mock.webbrowser_open
     )
     # Do the Oauth/OpenID Connect flow
     tokens = authenticator.get_tokens()
@@ -334,7 +331,10 @@ def test_oidc_resource_owner_password_credentials_flow(requests_mock):
         expected_grant_type="password",
         expected_client_id=client_id,
         expected_fields={
-            "username": username, "password": password, "scope": "openid testpwd", "client_secret": client_secret
+            "username": username,
+            "password": password,
+            "scope": "openid testpwd",
+            "client_secret": client_secret,
         },
         oidc_issuer=oidc_issuer,
         scopes_supported=["openid", "testpwd"],
@@ -343,11 +343,11 @@ def test_oidc_resource_owner_password_credentials_flow(requests_mock):
 
     authenticator = OidcResourceOwnerPasswordAuthenticator(
         client_info=OidcClientInfo(client_id=client_id, provider=provider, client_secret=client_secret),
-        username=username, password=password,
+        username=username,
+        password=password,
     )
     tokens = authenticator.get_tokens()
     assert oidc_mock.state["access_token"] == tokens.access_token
-
 
 
 class DeviceCodePollDisplay:
@@ -559,43 +559,54 @@ def test_oidc_device_flow_without_pkce_nor_secret(
     assert re.search(r"authorization_pending.*slow_down.*Authorized successfully", caplog.text, flags=re.DOTALL)
 
 
-@pytest.mark.parametrize(["mode", "client_id", "use_pkce", "client_secret", "expected_fields"], [
-    (
+@pytest.mark.parametrize(
+    ["mode", "client_id", "use_pkce", "client_secret", "expected_fields"],
+    [
+        (
             "client_secret, no PKCE",
-            "myclient", False, "$3cr3t",
-            {"scope": "df openid", "client_secret": "$3cr3t", "code_challenge": ABSENT, "code_verifier": ABSENT}
-    ),
-    (
+            "myclient",
+            False,
+            "$3cr3t",
+            {"scope": "df openid", "client_secret": "$3cr3t", "code_challenge": ABSENT, "code_verifier": ABSENT},
+        ),
+        (
             "client_secret, auto PKCE",
-            "myclient", None, "$3cr3t",
-            {"scope": "df openid", "client_secret": "$3cr3t", "code_challenge": ABSENT, "code_verifier": ABSENT}
-    ),
-    (
-            "use PKCE",
-            "myclient", True, None,
-            {"scope": "df openid", "code_challenge": True, "code_verifier": True}
-    ),
-    (
+            "myclient",
+            None,
+            "$3cr3t",
+            {"scope": "df openid", "client_secret": "$3cr3t", "code_challenge": ABSENT, "code_verifier": ABSENT},
+        ),
+        ("use PKCE", "myclient", True, None, {"scope": "df openid", "code_challenge": True, "code_verifier": True}),
+        (
             "auto PKCE",
-            "myclient", None, None,
-            {"scope": "df openid", "code_challenge": ABSENT, "code_verifier": ABSENT}
-    ),
-    (
+            "myclient",
+            None,
+            None,
+            {"scope": "df openid", "code_challenge": ABSENT, "code_verifier": ABSENT},
+        ),
+        (
             "auto PKCE, default client with PKCE",
-            "default-with-pkce", None, None,
-            {"scope": "df openid", "code_challenge": True, "code_verifier": True}
-    ),
-    (
+            "default-with-pkce",
+            None,
+            None,
+            {"scope": "df openid", "code_challenge": True, "code_verifier": True},
+        ),
+        (
             "auto PKCE, default client no PKCE",
-            "default-no-pkce", None, None,
-            {"scope": "df openid", "code_challenge": ABSENT, "code_verifier": ABSENT}
-    ),
-    (
+            "default-no-pkce",
+            None,
+            None,
+            {"scope": "df openid", "code_challenge": ABSENT, "code_verifier": ABSENT},
+        ),
+        (
             "auto PKCE, default client with PKCE, and secret",
-            "default-with-pkce", None, "$3cr3t",
-            {"scope": "df openid", "client_secret": "$3cr3t", "code_challenge": ABSENT, "code_verifier": ABSENT}
-    ),
-])
+            "default-with-pkce",
+            None,
+            "$3cr3t",
+            {"scope": "df openid", "client_secret": "$3cr3t", "code_challenge": ABSENT, "code_verifier": ABSENT},
+        ),
+    ],
+)
 @pytest.mark.parametrize("support_verification_uri_complete", [False, True])
 def test_oidc_device_flow_auto_detect(
     requests_mock,
@@ -646,7 +657,7 @@ def test_oidc_device_flow_auto_detect(
     authenticator = OidcDeviceAuthenticator(
         client_info=OidcClientInfo(client_id=client_id, provider=provider, client_secret=client_secret),
         display=display,
-        use_pkce=use_pkce
+        use_pkce=use_pkce,
     )
 
     with caplog.at_level(logging.INFO):
@@ -692,12 +703,12 @@ def test_oidc_refresh_token_flow(requests_mock, caplog):
         expected_client_id=client_id,
         oidc_issuer=oidc_issuer,
         expected_fields={"scope": "openid", "client_secret": client_secret, "refresh_token": refresh_token},
-        scopes_supported=["openid"]
+        scopes_supported=["openid"],
     )
     provider = OidcProviderInfo(issuer=oidc_issuer)
     authenticator = OidcRefreshTokenAuthenticator(
         client_info=OidcClientInfo(client_id=client_id, provider=provider, client_secret=client_secret),
-        refresh_token=refresh_token
+        refresh_token=refresh_token,
     )
     tokens = authenticator.get_tokens()
     assert oidc_mock.state["access_token"] == tokens.access_token
@@ -713,12 +724,11 @@ def test_oidc_refresh_token_flow_no_secret(requests_mock, caplog):
         expected_client_id=client_id,
         oidc_issuer=oidc_issuer,
         expected_fields={"scope": "openid", "refresh_token": refresh_token},
-        scopes_supported=["openid"]
+        scopes_supported=["openid"],
     )
     provider = OidcProviderInfo(issuer=oidc_issuer)
     authenticator = OidcRefreshTokenAuthenticator(
-        client_info=OidcClientInfo(client_id=client_id, provider=provider),
-        refresh_token=refresh_token
+        client_info=OidcClientInfo(client_id=client_id, provider=provider), refresh_token=refresh_token
     )
     tokens = authenticator.get_tokens()
     assert oidc_mock.state["access_token"] == tokens.access_token
@@ -734,12 +744,11 @@ def test_oidc_refresh_token_invalid_token(requests_mock, caplog):
         expected_client_id=client_id,
         oidc_issuer=oidc_issuer,
         expected_fields={"scope": "openid", "refresh_token": "c0rr3ct.t0k3n"},
-        scopes_supported=["openid"]
+        scopes_supported=["openid"],
     )
     provider = OidcProviderInfo(issuer=oidc_issuer)
     authenticator = OidcRefreshTokenAuthenticator(
-        client_info=OidcClientInfo(client_id=client_id, provider=provider),
-        refresh_token=refresh_token
+        client_info=OidcClientInfo(client_id=client_id, provider=provider), refresh_token=refresh_token
     )
     with pytest.raises(OidcException, match="Failed to retrieve access token.*invalid refresh token"):
         tokens = authenticator.get_tokens()
@@ -779,9 +788,7 @@ def test_oidc_refresh_token_flow_custom_requests_session():
         requests_session=session,
     )
     authenticator = OidcRefreshTokenAuthenticator(
-        client_info=OidcClientInfo(
-            client_id=client_id, provider=provider, client_secret=client_secret
-        ),
+        client_info=OidcClientInfo(client_id=client_id, provider=provider, client_secret=client_secret),
         refresh_token=refresh_token,
         requests_session=session,
     )

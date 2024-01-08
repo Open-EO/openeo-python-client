@@ -23,7 +23,7 @@ def test_describe(con100, requests_mock):
     expected_details = load_json_resource("data/1.0.0/udp_details.json")
     requests_mock.get(API_URL + "/process_graphs/evi", json=expected_details)
 
-    udp = con100.user_defined_process(user_defined_process_id='evi')
+    udp = con100.user_defined_process(user_defined_process_id="evi")
     details = udp.describe()
 
     assert details == expected_details
@@ -35,7 +35,10 @@ def test_store_simple(con100, requests_mock):
     two = {
         "add": {
             "process_id": "add",
-            "arguments": {"x": 1, "y": 1, },
+            "arguments": {
+                "x": 1,
+                "y": 1,
+            },
             "result": True,
         }
     }
@@ -61,7 +64,10 @@ def test_store_full(con100, requests_mock):
     two = {
         "add": {
             "process_id": "add",
-            "arguments": {"x": 1, "y": 1, },
+            "arguments": {
+                "x": 1,
+                "y": 1,
+            },
             "result": True,
         }
     }
@@ -75,7 +81,9 @@ def test_store_full(con100, requests_mock):
             "description": "A description",
             "returns": {"schema": {"type": ["number", "null"]}},
             "categories": ["math", "simple"],
-            "examples": [{"arguments": {"x": 5, "y": 2.5}, "returns": 7.5}, ],
+            "examples": [
+                {"arguments": {"x": 5, "y": 2.5}, "returns": 7.5},
+            ],
             "links": [{"link1": "openeo.cloud", "link2": "openeo.vito.be"}],
         }
         return True
@@ -83,12 +91,15 @@ def test_store_full(con100, requests_mock):
     adapter = requests_mock.put(API_URL + "/process_graphs/two", additional_matcher=check_body)
 
     udp = con100.save_user_defined_process(
-        "two", two,
+        "two",
+        two,
         summary="A summary",
         description="A description",
         returns={"schema": {"type": ["number", "null"]}},
         categories=["math", "simple"],
-        examples=[{"arguments": {"x": 5, "y": 2.5}, "returns": 7.5}, ],
+        examples=[
+            {"arguments": {"x": 5, "y": 2.5}, "returns": 7.5},
+        ],
         links=[{"link1": "openeo.cloud", "link2": "openeo.vito.be"}],
     )
     assert isinstance(udp, RESTUserDefinedProcess)
@@ -97,15 +108,15 @@ def test_store_full(con100, requests_mock):
 
 def test_store_collision(con100, requests_mock):
     subtract = {
-        "minusy": {
-            "process_id": "multiply",
-            "arguments": {"x": {"from_parameter": "y"}, "y": -1}
-        },
+        "minusy": {"process_id": "multiply", "arguments": {"x": {"from_parameter": "y"}, "y": -1}},
         "add": {
             "process_id": "add",
-            "arguments": {"x": {"from_parameter": "x"}, "y": {"from_node": "minusy"}, },
+            "arguments": {
+                "x": {"from_parameter": "x"},
+                "y": {"from_node": "minusy"},
+            },
             "result": True,
-        }
+        },
     }
 
     def check_body(request):
@@ -114,7 +125,7 @@ def test_store_collision(con100, requests_mock):
             "process_graph": subtract,
             "parameters": [
                 {"name": "x", "description": "x", "schema": {"type": "number"}},
-                {"name": "y", "description": "y", "schema": {"type": "number"}}
+                {"name": "y", "description": "y", "schema": {"type": "number"}},
             ],
             "public": False,
         }
@@ -139,32 +150,49 @@ def test_store_collision(con100, requests_mock):
     assert len(recorder) == 1
 
 
-@pytest.mark.parametrize(["parameters", "expected_parameters"], [
-    (
+@pytest.mark.parametrize(
+    ["parameters", "expected_parameters"],
+    [
+        (
             [Parameter(name="data", description="A data cube.", schema="number")],
-            {"parameters": [{"name": "data", "description": "A data cube.", "schema": {"type": "number"}}]}
-    ),
-    (
+            {"parameters": [{"name": "data", "description": "A data cube.", "schema": {"type": "number"}}]},
+        ),
+        (
             [Parameter(name="data", description="A cube.", schema="number", default=42)],
-            {"parameters": [
-                {"name": "data", "description": "A cube.", "schema": {"type": "number"}, "optional": True,
-                 "default": 42}
-            ]}
-    ),
-    (
+            {
+                "parameters": [
+                    {
+                        "name": "data",
+                        "description": "A cube.",
+                        "schema": {"type": "number"},
+                        "optional": True,
+                        "default": 42,
+                    }
+                ]
+            },
+        ),
+        (
             [{"name": "data", "description": "A data cube.", "schema": {"type": "number"}}],
-            {"parameters": [{"name": "data", "description": "A data cube.", "schema": {"type": "number"}}]}
-    ),
-    (
+            {"parameters": [{"name": "data", "description": "A data cube.", "schema": {"type": "number"}}]},
+        ),
+        (
             [{"name": "data", "description": "A cube.", "schema": {"type": "number"}, "default": 42}],
-            {"parameters": [
-                {"name": "data", "description": "A cube.", "schema": {"type": "number"}, "optional": True,
-                 "default": 42}
-            ]}
-    ),
-    ([], {"parameters": []}),
-    (None, {}),
-])
+            {
+                "parameters": [
+                    {
+                        "name": "data",
+                        "description": "A cube.",
+                        "schema": {"type": "number"},
+                        "optional": True,
+                        "default": 42,
+                    }
+                ]
+            },
+        ),
+        ([], {"parameters": []}),
+        (None, {}),
+    ],
+)
 def test_store_with_parameter(con100, requests_mock, parameters, expected_parameters):
     requests_mock.get(API_URL + "/processes", json={"processes": [{"id": "add"}]})
 
@@ -190,9 +218,7 @@ def test_store_with_parameter(con100, requests_mock, parameters, expected_parame
 
     adapter = requests_mock.put(API_URL + "/process_graphs/increment", additional_matcher=check_body)
 
-    con100.save_user_defined_process(
-        "increment", increment, parameters=parameters
-    )
+    con100.save_user_defined_process("increment", increment, parameters=parameters)
 
     assert adapter.called
 
@@ -202,35 +228,35 @@ def test_update(con100, requests_mock):
 
     def check_body(request):
         body = request.json()
-        assert body['process_graph'] == updated_udp['process_graph']
-        assert body['parameters'] == updated_udp['parameters']
-        assert body['public'] is False
+        assert body["process_graph"] == updated_udp["process_graph"]
+        assert body["parameters"] == updated_udp["parameters"]
+        assert body["public"] is False
         return True
 
     adapter = requests_mock.put(API_URL + "/process_graphs/evi", additional_matcher=check_body)
 
-    udp = con100.user_defined_process(user_defined_process_id='evi')
+    udp = con100.user_defined_process(user_defined_process_id="evi")
 
-    udp.update(process_graph=updated_udp['process_graph'], parameters=updated_udp['parameters'])
+    udp.update(process_graph=updated_udp["process_graph"], parameters=updated_udp["parameters"])
 
     assert adapter.called
 
 
 def test_make_public(con100, requests_mock):
-    udp = con100.user_defined_process(user_defined_process_id='evi')
+    udp = con100.user_defined_process(user_defined_process_id="evi")
 
     def check_body(request):
         body = request.json()
-        assert body['process_graph'] == updated_udp['process_graph']
-        assert body['parameters'] == updated_udp['parameters']
-        assert body['public'] is True
+        assert body["process_graph"] == updated_udp["process_graph"]
+        assert body["parameters"] == updated_udp["parameters"]
+        assert body["public"] is True
         return True
 
     adapter = requests_mock.put(API_URL + "/process_graphs/evi", additional_matcher=check_body)
 
     updated_udp = load_json_resource("data/1.0.0/udp_details.json")
 
-    udp.update(process_graph=updated_udp['process_graph'], parameters=updated_udp['parameters'], public=True)
+    udp.update(process_graph=updated_udp["process_graph"], parameters=updated_udp["parameters"], public=True)
 
     assert adapter.called
 
@@ -238,7 +264,7 @@ def test_make_public(con100, requests_mock):
 def test_delete(con100, requests_mock):
     adapter = requests_mock.delete(API_URL + "/process_graphs/evi", status_code=204)
 
-    udp = con100.user_defined_process(user_defined_process_id='evi')
+    udp = con100.user_defined_process(user_defined_process_id="evi")
     udp.delete()
 
     assert adapter.called
@@ -263,7 +289,7 @@ def test_build_parameterized_cube_basic(con100, recwarn):
             "process_id": "filter_bbox",
             "arguments": {"data": {"from_node": "filtertemporal1"}, "extent": {"from_parameter": "bbox"}},
             "result": True,
-        }
+        },
     }
     assert recwarn.list == []
 
@@ -283,14 +309,14 @@ def test_build_parameterized_cube_single_date(con100):
             "process_id": "filter_temporal",
             "arguments": {
                 "data": {"from_node": "loadcollection1"},
-                "extent": [{"from_parameter": "date"}, {"from_parameter": "date"}]
+                "extent": [{"from_parameter": "date"}, {"from_parameter": "date"}],
             },
         },
         "filterbbox1": {
             "process_id": "filter_bbox",
             "arguments": {"data": {"from_node": "filtertemporal1"}, "extent": {"from_parameter": "bbox"}},
             "result": True,
-        }
+        },
     }
 
 
@@ -313,7 +339,7 @@ def test_build_parameterized_cube_start_date(con100, recwarn):
             "process_id": "filter_bbox",
             "arguments": {"data": {"from_node": "filtertemporal1"}, "extent": {"from_parameter": "bbox"}},
             "result": True,
-        }
+        },
     }
     assert recwarn.list == []
 
@@ -330,7 +356,7 @@ def test_build_parameterized_cube_load_collection(con100, recwarn):
             "arguments": {
                 "id": {"from_parameter": "layer"},
                 "temporal_extent": {"from_parameter": "dates"},
-                "spatial_extent": {"from_parameter": "bbox"}
+                "spatial_extent": {"from_parameter": "bbox"},
             },
             "result": True,
         }
@@ -395,7 +421,7 @@ def test_build_parameterized_cube_load_collection_band(con100):
                 "id": {"from_parameter": "layer"},
                 "temporal_extent": None,
                 "spatial_extent": None,
-                "bands": [{"from_parameter": "band8"}, {"from_parameter": "band12"}]
+                "bands": [{"from_parameter": "band8"}, {"from_parameter": "band12"}],
             },
             "result": True,
         }
@@ -422,26 +448,26 @@ def test_build_parameterized_cube_band_math(con100):
             "arguments": {
                 "data": {"from_node": "loadcollection1"},
                 "dimension": "bands",
-                "reducer": {"process_graph": {
-                    "arrayelement1": {
-                        "process_id": "array_element",
-                        "arguments": {"data": {"from_parameter": "data"}, "index": 0},
-                    },
-                    "arrayelement2": {
-                        "process_id": "array_element",
-                        "arguments": {"data": {"from_parameter": "data"}, "index": 1},
-                    },
-                    "multiply1": {
-                        "process_id": "multiply",
-                        "arguments": {
-                            "x": {"from_node": "arrayelement1"},
-                            "y": {"from_node": "arrayelement2"}},
-                        "result": True
+                "reducer": {
+                    "process_graph": {
+                        "arrayelement1": {
+                            "process_id": "array_element",
+                            "arguments": {"data": {"from_parameter": "data"}, "index": 0},
+                        },
+                        "arrayelement2": {
+                            "process_id": "array_element",
+                            "arguments": {"data": {"from_parameter": "data"}, "index": 1},
+                        },
+                        "multiply1": {
+                            "process_id": "multiply",
+                            "arguments": {"x": {"from_node": "arrayelement1"}, "y": {"from_node": "arrayelement2"}},
+                            "result": True,
+                        },
                     }
-                }}
+                },
             },
-            "result": True
-        }
+            "result": True,
+        },
     }
 
 
@@ -450,9 +476,11 @@ def test_build_process_dict_from_pg_dict():
         process_graph={
             "add": {"process_id": "add", "arguments": {"x": {"from_parameter": "data"}, "y": 1}, "result": True}
         },
-        process_id="increment", summary="Increment value", description="Add 1 to input.",
+        process_id="increment",
+        summary="Increment value",
+        description="Add 1 to input.",
         parameters=[Parameter.number(name="data")],
-        returns={"schema": {"type": "number"}}
+        returns={"schema": {"type": "number"}},
     )
     expected = {
         "id": "increment",
@@ -469,13 +497,16 @@ def test_build_process_dict_from_pg_dict():
 
 def test_build_process_dict_from_process(con100):
     from openeo.processes import add
+
     data = Parameter.number("data")
     proc = add(x=data, y=1)
     actual = build_process_dict(
         process_graph=proc,
-        process_id="increment", summary="Increment value", description="Add 1 to input.",
+        process_id="increment",
+        summary="Increment value",
+        description="Add 1 to input.",
         parameters=[data],
-        returns={"schema": {"type": "number"}}
+        returns={"schema": {"type": "number"}},
     )
     expected = {
         "id": "increment",
@@ -495,9 +526,11 @@ def test_build_process_dict_from_datacube(con100):
     cube = con100.datacube_from_process("add", x=data, y=1)
     actual = build_process_dict(
         process_graph=cube,
-        process_id="increment", summary="Increment value", description="Add 1 to input.",
+        process_id="increment",
+        summary="Increment value",
+        description="Add 1 to input.",
         parameters=[data],
-        returns={"schema": {"type": "number"}}
+        returns={"schema": {"type": "number"}},
     )
     expected = {
         "id": "increment",

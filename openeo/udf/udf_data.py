@@ -22,12 +22,12 @@ class UdfData:
     # TODO: original implementation in `openeo_udf` project had `server_context`: is it still useful to provide this?
 
     def __init__(
-            self,
-            proj: dict = None,
-            datacube_list: Optional[List[XarrayDataCube]] = None,
-            feature_collection_list: Optional[List[FeatureCollection]] = None,
-            structured_data_list: Optional[List[StructuredData]] = None,
-            user_context: Optional[dict] = None,
+        self,
+        proj: dict = None,
+        datacube_list: Optional[List[XarrayDataCube]] = None,
+        feature_collection_list: Optional[List[FeatureCollection]] = None,
+        structured_data_list: Optional[List[StructuredData]] = None,
+        user_context: Optional[dict] = None,
     ):
         """
         The constructor of the UDF argument class that stores all data required by the
@@ -46,8 +46,7 @@ class UdfData:
 
     def __repr__(self) -> str:
         fields = " ".join(
-            f"{f}:{getattr(self, f)!r}" for f in
-            ["datacube_list", "feature_collection_list", "structured_data_list"]
+            f"{f}:{getattr(self, f)!r}" for f in ["datacube_list", "feature_collection_list", "structured_data_list"]
         )
         return f"<{type(self).__name__} {fields}>"
 
@@ -103,12 +102,13 @@ class UdfData:
         a valid JSON representation
         """
         return {
-            "datacubes": [x.to_dict() for x in self.datacube_list] \
-                if self.datacube_list else None,
-            "feature_collection_list": [x.to_dict() for x in self.feature_collection_list] \
-                if self.feature_collection_list else None,
-            "structured_data_list": [x.to_dict() for x in self.structured_data_list] \
-                if self.structured_data_list else None,
+            "datacubes": [x.to_dict() for x in self.datacube_list] if self.datacube_list else None,
+            "feature_collection_list": [x.to_dict() for x in self.feature_collection_list]
+            if self.feature_collection_list
+            else None,
+            "structured_data_list": [x.to_dict() for x in self.structured_data_list]
+            if self.structured_data_list
+            else None,
             "proj": self.proj,
             "user_context": self.user_context,
         }
@@ -130,6 +130,6 @@ class UdfData:
             datacube_list=datacubes,
             feature_collection_list=feature_collection_list,
             structured_data_list=structured_data_list,
-            user_context=udf_dict.get("user_context")
+            user_context=udf_dict.get("user_context"),
         )
         return udf_data

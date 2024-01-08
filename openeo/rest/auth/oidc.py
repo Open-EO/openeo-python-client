@@ -41,14 +41,14 @@ class QueuingRequestHandler(http.server.BaseHTTPRequestHandler):
     """
 
     def __init__(self, *args, **kwargs):
-        self._queue = kwargs.pop('queue', None) or Queue()
+        self._queue = kwargs.pop("queue", None) or Queue()
         super().__init__(*args, **kwargs)
 
     def do_GET(self):
-        log.debug('{c} GET {p}'.format(c=self.__class__.__name__, p=self.path))
+        log.debug("{c} GET {p}".format(c=self.__class__.__name__, p=self.path))
         status, body, headers = self.queue(self.path)
         self.send_response(status)
-        self.send_header('Content-Length', str(len(body)))
+        self.send_header("Content-Length", str(len(body)))
         for k, v in headers.items():
             self.send_header(k, v)
         self.end_headers()
@@ -70,7 +70,8 @@ class QueuingRequestHandler(http.server.BaseHTTPRequestHandler):
 
 class OAuthRedirectRequestHandler(QueuingRequestHandler):
     """Request handler for OAuth redirects"""
-    PATH = '/callback'
+
+    PATH = "/callback"
 
     TEMPLATE = """
         <!doctype html><html>
@@ -83,7 +84,7 @@ class OAuthRedirectRequestHandler(QueuingRequestHandler):
     """
 
     def queue(self, path: str):
-        if path.startswith(self.PATH + '?'):
+        if path.startswith(self.PATH + "?"):
             super().queue(path)
             # TODO: auto-close browser tab/window?
             # TODO: make it a nicer page and bit more of metadata?
@@ -106,7 +107,7 @@ class HttpServerThread(threading.Thread):
         super().__init__(daemon=True)
         self._RequestHandlerClass = RequestHandlerClass
         # Server address ('', 0): listen on all ips and let OS pick a free port
-        self._server_address = server_address or ('', 0)
+        self._server_address = server_address or ("", 0)
         self._server = None
 
     def start(self):
@@ -155,8 +156,9 @@ def create_timer() -> Callable[[], float]:
     return elapsed
 
 
-def drain_queue(queue: Queue, initial_timeout: float = 10, item_minimum: int = 1, tail_timeout=5,
-                on_empty=lambda **kwargs: None):
+def drain_queue(
+    queue: Queue, initial_timeout: float = 10, item_minimum: int = 1, tail_timeout=5, on_empty=lambda **kwargs: None
+):
     """
     Drain the given queue, requiring at least a given number of items (within an initial timeout).
 
@@ -178,8 +180,9 @@ def drain_queue(queue: Queue, initial_timeout: float = 10, item_minimum: int = 1
             on_empty(elapsed=elapsed(), count=count)
 
         if elapsed() > initial_timeout and count < item_minimum:
-            raise TimeoutError("Items after initial {t} timeout: {c} (<{m})".format(
-                c=count, m=item_minimum, t=initial_timeout))
+            raise TimeoutError(
+                "Items after initial {t} timeout: {c} (<{m})".format(c=count, m=item_minimum, t=initial_timeout)
+            )
         if queue.empty() and count >= item_minimum:
             break
         if elapsed() > initial_timeout + tail_timeout:
@@ -215,10 +218,10 @@ def jwt_decode(token: str) -> Tuple[dict, dict]:
     """
 
     def _decode(data: str) -> dict:
-        decoded = base64.b64decode(data + '=' * (4 - len(data) % 4)).decode('ascii')
+        decoded = base64.b64decode(data + "=" * (4 - len(data) % 4)).decode("ascii")
         return json.loads(decoded)
 
-    header, payload, signature = token.split('.')
+    header, payload, signature = token.split(".")
     return _decode(header), _decode(payload)
 
 
@@ -226,6 +229,7 @@ class DefaultOidcClientGrant(enum.Enum):
     """
     Enum with possible values for "grant_types" field of default OIDC clients provided by backend.
     """
+
     IMPLICIT = "implicit"
     AUTH_CODE = "authorization_code"
     AUTH_CODE_PKCE = "authorization_code+pkce"
@@ -276,7 +280,8 @@ class OidcProviderInfo:
     @classmethod
     def from_dict(cls, data: dict) -> OidcProviderInfo:
         return cls(
-            provider_id=data["id"], title=data["title"],
+            provider_id=data["id"],
+            title=data["title"],
             issuer=data["issuer"],
             scopes=data.get("scopes"),
             default_clients=data.get("default_clients"),
@@ -348,6 +353,7 @@ class OidcAuthenticator:
     """
     Base class for OpenID Connect authentication flows.
     """
+
     grant_type = NotImplemented
 
     def __init__(
@@ -390,16 +396,20 @@ class OidcAuthenticator:
 
     def _do_token_post_request(self, post_data: dict) -> dict:
         """Do POST to token endpoint to get access token"""
-        token_endpoint = self._provider_config['token_endpoint']
-        log.info("Doing {g!r} token request {u!r} with post data fields {p!r} (client_id {c!r})".format(
-            g=self.grant_type, c=self.client_id, u=token_endpoint, p=list(post_data.keys()))
+        token_endpoint = self._provider_config["token_endpoint"]
+        log.info(
+            "Doing {g!r} token request {u!r} with post data fields {p!r} (client_id {c!r})".format(
+                g=self.grant_type, c=self.client_id, u=token_endpoint, p=list(post_data.keys())
+            )
         )
         resp = self._requests.post(url=token_endpoint, data=post_data)
         if resp.status_code != 200:
             # TODO: are other status_code values valid too?
-            raise OidcException("Failed to retrieve access token at {u!r}: {s} {r!r} {t!r}".format(
-                s=resp.status_code, r=resp.reason, u=resp.url, t=resp.text
-            ))
+            raise OidcException(
+                "Failed to retrieve access token at {u!r}: {s} {r!r} {t!r}".format(
+                    s=resp.status_code, r=resp.reason, u=resp.url, t=resp.text
+                )
+            )
 
         result = resp.json()
         log.debug("Token response with keys {k}".format(k=result.keys()))
@@ -410,7 +420,7 @@ class OidcAuthenticator:
         return AccessTokenResult(
             access_token=self._extract_token(data, "access_token"),
             id_token=self._extract_token(data, "id_token", expected_nonce=expected_nonce, allow_absent=True),
-            refresh_token=self._extract_token(data, "refresh_token", allow_absent=True)
+            refresh_token=self._extract_token(data, "refresh_token", allow_absent=True),
         )
 
     @staticmethod
@@ -427,7 +437,7 @@ class OidcAuthenticator:
         if expected_nonce:
             # TODO: verify the JWT properly?
             _, payload = jwt_decode(token)
-            if payload['nonce'] != expected_nonce:
+            if payload["nonce"] != expected_nonce:
                 raise OidcException("Invalid nonce in {k}".format(k=key))
         return token
 
@@ -439,6 +449,7 @@ class PkceCode:
     PKCE, pronounced "pixy", is short for "Proof Key for Code Exchange".
     Also see https://tools.ietf.org/html/rfc7636
     """
+
     __slots__ = ["code_verifier", "code_challenge", "code_challenge_method"]
 
     def __init__(self):
@@ -450,8 +461,8 @@ class PkceCode:
     @staticmethod
     def sha256_hash(code: str) -> str:
         """Apply SHA256 hash to code verifier to get code challenge"""
-        data = hashlib.sha256(code.encode('ascii')).digest()
-        return base64.urlsafe_b64encode(data).decode('ascii').replace('=', '')
+        data = hashlib.sha256(code.encode("ascii")).digest()
+        return base64.urlsafe_b64encode(data).decode("ascii").replace("=", "")
 
 
 class AuthCodeResult(NamedTuple):
@@ -514,8 +525,7 @@ class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
         callback_queue = Queue()
         RequestHandlerClass = OAuthRedirectRequestHandler.with_queue(callback_queue)
         http_server_thread = HttpServerThread(
-            RequestHandlerClass=RequestHandlerClass,
-            server_address=self._server_address
+            RequestHandlerClass=RequestHandlerClass, server_address=self._server_address
         )
         with http_server_thread:
             port, host, fqdn = http_server_thread.server_address_info()
@@ -524,22 +534,26 @@ class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
             #       running in a remotely hosted Jupyter setup.
             #       Maybe even FQDN will not resolve properly in the user's browser
             #       and we need additional means to get a working hostname?
-            redirect_uri = 'http://localhost:{p}'.format(f=fqdn, p=port) + OAuthRedirectRequestHandler.PATH
+            redirect_uri = "http://localhost:{p}".format(f=fqdn, p=port) + OAuthRedirectRequestHandler.PATH
             log.info("Using OAuth redirect URI {u!r}".format(u=redirect_uri))
 
             # Build authentication URL
             auth_url = "{endpoint}?{params}".format(
-                endpoint=self._provider_config['authorization_endpoint'],
-                params=urllib.parse.urlencode({
-                    "response_type": "code",
-                    "client_id": self.client_id,
-                    "scope": self._client_info.provider.get_scopes_string(request_refresh_token=request_refresh_token),
-                    "redirect_uri": redirect_uri,
-                    "state": state,
-                    "nonce": nonce,
-                    "code_challenge": pkce.code_challenge,
-                    "code_challenge_method": pkce.code_challenge_method,
-                })
+                endpoint=self._provider_config["authorization_endpoint"],
+                params=urllib.parse.urlencode(
+                    {
+                        "response_type": "code",
+                        "client_id": self.client_id,
+                        "scope": self._client_info.provider.get_scopes_string(
+                            request_refresh_token=request_refresh_token
+                        ),
+                        "redirect_uri": redirect_uri,
+                        "state": state,
+                        "nonce": nonce,
+                        "code_challenge": pkce.code_challenge,
+                        "code_challenge_method": pkce.code_challenge_method,
+                    }
+                ),
             )
             log.info("Sending user to auth URL {u!r}".format(u=auth_url))
             # Open browser window/tab with authentication URL
@@ -552,16 +566,18 @@ class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
                 log.info("Waiting for request to redirect URI (timeout {t}s)".format(t=self._authentication_timeout))
                 # TODO: When authentication fails (e.g. identity provider is down), this might hang the client
                 #       (e.g. jupyter notebook). Is there a way to abort this? use signals? handle "abort" request?
-                callbacks = list(drain_queue(
-                    callback_queue,
-                    initial_timeout=self._authentication_timeout,
-                    on_empty=lambda **kwargs: log.info(
-                        "No result yet (elapsed: {e:.2f}s)".format(e=kwargs.get("elapsed", 0))
+                callbacks = list(
+                    drain_queue(
+                        callback_queue,
+                        initial_timeout=self._authentication_timeout,
+                        on_empty=lambda **kwargs: log.info(
+                            "No result yet (elapsed: {e:.2f}s)".format(e=kwargs.get("elapsed", 0))
+                        ),
                     )
-                ))
+                )
             except TimeoutError:
-                raise OidcException("Timeout: no request to redirect URI after {t}s".format(
-                    t=self._authentication_timeout)
+                raise OidcException(
+                    "Timeout: no request to redirect URI after {t}s".format(t=self._authentication_timeout)
                 )
 
         if len(callbacks) != 1:
@@ -571,10 +587,10 @@ class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
         redirect_request = callbacks[0]
         log.debug("Parsing redirect request {r}".format(r=redirect_request))
         redirect_params = urllib.parse.parse_qs(urllib.parse.urlparse(redirect_request).query)
-        log.debug('Parsed redirect request: {p}'.format(p=redirect_params))
-        if 'state' not in redirect_params or redirect_params['state'] != [state]:
+        log.debug("Parsed redirect request: {p}".format(p=redirect_params))
+        if "state" not in redirect_params or redirect_params["state"] != [state]:
             raise OidcException("Invalid state")
-        if 'code' not in redirect_params:
+        if "code" not in redirect_params:
             raise OidcException("No auth code in redirect")
         auth_code = redirect_params["code"][0]
 
@@ -591,14 +607,16 @@ class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
         auth_code_result = self._get_auth_code(request_refresh_token=request_refresh_token)
 
         # Exchange authentication code for access token
-        result = self._do_token_post_request(post_data=dict_no_none(
-            grant_type=self.grant_type,
-            client_id=self.client_id,
-            client_secret=self.client_secret,
-            redirect_uri=auth_code_result.redirect_uri,
-            code=auth_code_result.auth_code,
-            code_verifier=auth_code_result.code_verifier,
-        ))
+        result = self._do_token_post_request(
+            post_data=dict_no_none(
+                grant_type=self.grant_type,
+                client_id=self.client_id,
+                client_secret=self.client_secret,
+                redirect_uri=auth_code_result.redirect_uri,
+                code=auth_code_result.auth_code,
+                code_verifier=auth_code_result.code_verifier,
+            )
+        )
 
         return self._get_access_token_result(result, expected_nonce=auth_code_result.nonce)
 
@@ -817,16 +835,18 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
         """Get verification URL and user code"""
         post_data = {
             "client_id": self.client_id,
-            "scope": self._client_info.provider.get_scopes_string(request_refresh_token=request_refresh_token)
+            "scope": self._client_info.provider.get_scopes_string(request_refresh_token=request_refresh_token),
         }
         if self._pkce:
-            post_data["code_challenge"] = self._pkce.code_challenge,
+            post_data["code_challenge"] = (self._pkce.code_challenge,)
             post_data["code_challenge_method"] = self._pkce.code_challenge_method
         resp = self._requests.post(url=self._device_code_url, data=post_data)
         if resp.status_code != 200:
-            raise OidcException("Failed to get verification URL and user code from {u!r}: {s} {r!r} {t!r}".format(
-                s=resp.status_code, r=resp.reason, u=resp.url, t=resp.text
-            ))
+            raise OidcException(
+                "Failed to get verification URL and user code from {u!r}: {s} {r!r} {t!r}".format(
+                    s=resp.status_code, r=resp.reason, u=resp.url, t=resp.text
+                )
+            )
         try:
             data = resp.json()
             verification_info = VerificationInfo(
@@ -848,11 +868,11 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
         verification_info = self._get_verification_info(request_refresh_token=request_refresh_token)
 
         # Poll token endpoint
-        token_endpoint = self._provider_config['token_endpoint']
+        token_endpoint = self._provider_config["token_endpoint"]
         post_data = {
             "client_id": self.client_id,
             "device_code": verification_info.device_code,
-            "grant_type": self.grant_type
+            "grant_type": self.grant_type,
         }
         if self._pkce:
             post_data["code_verifier"] = self._pkce.code_verifier

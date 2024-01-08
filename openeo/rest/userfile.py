@@ -28,9 +28,7 @@ class UserFile:
         elif metadata and metadata.get("path"):
             path = metadata.get("path")
         else:
-            raise ValueError(
-                "File path should be specified through `path` or `metadata` argument."
-            )
+            raise ValueError("File path should be specified through `path` or `metadata` argument.")
 
         self.path = PurePosixPath(path)
         self.metadata = metadata or {"path": path}
@@ -56,9 +54,7 @@ class UserFile:
              (in which case the file name advertised by backend will be used)
              or full file name. By default, the working directory will be used.
         """
-        response = self.connection.get(
-            self._get_endpoint(), expected_status=200, stream=True
-        )
+        response = self.connection.get(self._get_endpoint(), expected_status=200, stream=True)
 
         target = Path(target or Path.cwd())
         if target.is_dir():

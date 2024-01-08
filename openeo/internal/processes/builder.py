@@ -46,11 +46,7 @@ class ProcessBuilderBase(_FromNodeMixin, FlatGraphableMixin):
         :return: new ProcessBuilder instance
         """
         arguments = {**(arguments or {}), **kwargs}
-        arguments = {
-            k: _to_pgnode_data(v)
-            for k, v in arguments.items()
-            if v is not UNSET
-        }
+        arguments = {k: _to_pgnode_data(v) for k, v in arguments.items() if v is not UNSET}
         return cls(PGNode(process_id=process_id, arguments=arguments, namespace=namespace))
 
     def flat_graph(self) -> Dict[str, dict]:
@@ -66,7 +62,8 @@ def get_parameter_names(process: Callable) -> List[str]:
     """Get argument (aka parameter) names of given function/callable."""
     signature = inspect.signature(process)
     return [
-        p.name for p in signature.parameters.values()
+        p.name
+        for p in signature.parameters.values()
         if p.kind in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
     ]
 

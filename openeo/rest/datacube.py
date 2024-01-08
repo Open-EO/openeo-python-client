@@ -165,10 +165,10 @@ class DataCube(_ProcessGraphAbstraction):
                     f" expected schema with type 'object' but got {spatial_extent.schema!r}."
                 )
         arguments = {
-            'id': collection_id,
+            "id": collection_id,
             # TODO: spatial_extent could also be a "geojson" subtype object, so we might want to allow (and convert) shapely shapes as well here.
-            'spatial_extent': spatial_extent,
-            'temporal_extent': temporal_extent,
+            "spatial_extent": spatial_extent,
+            "temporal_extent": temporal_extent,
         }
         if isinstance(collection_id, Parameter):
             fetch_metadata = False
@@ -183,7 +183,7 @@ class DataCube(_ProcessGraphAbstraction):
             if metadata:
                 bands = [b if isinstance(b, str) else metadata.band_dimension.band_name(b) for b in bands]
                 metadata = metadata.filter_bands(bands)
-            arguments['bands'] = bands
+            arguments["bands"] = bands
 
         if isinstance(properties, list):
             # TODO: warn about items that are not CollectionProperty objects instead of silently dropping them.
@@ -207,18 +207,16 @@ class DataCube(_ProcessGraphAbstraction):
                 prop: build_child_callback(pred, parent_parameters=["value"]) for prop, pred in properties.items()
             }
 
-        pg = PGNode(
-            process_id='load_collection',
-            arguments=arguments
-        )
+        pg = PGNode(process_id="load_collection", arguments=arguments)
         return cls(graph=pg, connection=connection, metadata=metadata)
 
-    create_collection = legacy_alias(
-        load_collection, name="create_collection", since="0.4.6"
-    )
+    create_collection = legacy_alias(load_collection, name="create_collection", since="0.4.6")
 
     @classmethod
-    @deprecated(reason="Depends on non-standard process, replace with :py:meth:`openeo.rest.connection.Connection.load_stac` where possible.",version="0.25.0")
+    @deprecated(
+        reason="Depends on non-standard process, replace with :py:meth:`openeo.rest.connection.Connection.load_stac` where possible.",
+        version="0.25.0",
+    )
     def load_disk_collection(cls, connection: Connection, file_format: str, glob_pattern: str, **options) -> DataCube:
         """
         Loads image data from disk as a DataCube.
@@ -233,12 +231,8 @@ class DataCube(_ProcessGraphAbstraction):
         :return: the data as a DataCube
         """
         pg = PGNode(
-            process_id='load_disk_data',
-            arguments={
-                'format': file_format,
-                'glob_pattern': glob_pattern,
-                'options': options
-            }
+            process_id="load_disk_data",
+            arguments={"format": file_format, "glob_pattern": glob_pattern, "options": options},
         )
         return cls(graph=pg, connection=connection)
 
@@ -261,6 +255,7 @@ class DataCube(_ProcessGraphAbstraction):
             # TODO: warn about unexpected parameter schema
             return extent
         else:
+
             def convertor(d: Any) -> Any:
                 # TODO: can this be generalized through _FromNodeMixin?
                 if isinstance(d, Parameter) or isinstance(d, PGNode):
@@ -303,11 +298,11 @@ class DataCube(_ProcessGraphAbstraction):
             add support for year/month shorthand notation as discussed at :ref:`date-shorthand-handling`.
         """
         return self.process(
-            process_id='filter_temporal',
+            process_id="filter_temporal",
             arguments={
-                'data': THIS,
-                'extent': self._get_temporal_extent(*args, start_date=start_date, end_date=end_date, extent=extent)
-            }
+                "data": THIS,
+                "extent": self._get_temporal_extent(*args, start_date=start_date, end_date=end_date, extent=extent),
+            },
         )
 
     @openeo_process
@@ -383,13 +378,18 @@ class DataCube(_ProcessGraphAbstraction):
             if 4 <= len(args) <= 5:
                 # Handle old-style west-east-north-south order
                 # TODO remove handling of this legacy order?
-                warnings.warn("Deprecated argument order usage: `filter_bbox(west, east, north, south)`."
-                              " Use keyword arguments or tuple/list argument instead.")
+                warnings.warn(
+                    "Deprecated argument order usage: `filter_bbox(west, east, north, south)`."
+                    " Use keyword arguments or tuple/list argument instead."
+                )
                 west, east, north, south = args[:4]
                 if len(args) > 4:
                     crs = normalize_crs(args[4])
-            elif len(args) == 1 and (isinstance(args[0], (list, tuple)) and len(args[0]) == 4
-                                     or isinstance(args[0], (dict, shapely.geometry.base.BaseGeometry, Parameter))):
+            elif len(args) == 1 and (
+                isinstance(args[0], (list, tuple))
+                and len(args[0]) == 4
+                or isinstance(args[0], (dict, shapely.geometry.base.BaseGeometry, Parameter))
+            ):
                 bbox = args[0]
             else:
                 raise ValueError(args)
@@ -414,16 +414,10 @@ class DataCube(_ProcessGraphAbstraction):
                 else:
                     raise ValueError(bbox)
 
-            extent = {'west': west, 'east': east, 'north': north, 'south': south}
+            extent = {"west": west, "east": east, "north": north, "south": south}
             extent.update(dict_no_none(crs=crs, base=base, height=height))
 
-        return self.process(
-            process_id='filter_bbox',
-            arguments={
-                'data': THIS,
-                'extent': extent
-            }
-        )
+        return self.process(process_id="filter_bbox", arguments={"data": THIS, "extent": extent})
 
     @openeo_process
     def filter_spatial(self, geometries) -> DataCube:
@@ -445,17 +439,17 @@ class DataCube(_ProcessGraphAbstraction):
             (or the same) dimension labels.
         """
         valid_geojson_types = [
-            "Point", "MultiPoint", "LineString", "MultiLineString",
-            "Polygon", "MultiPolygon", "GeometryCollection", "FeatureCollection"
+            "Point",
+            "MultiPoint",
+            "LineString",
+            "MultiLineString",
+            "Polygon",
+            "MultiPolygon",
+            "GeometryCollection",
+            "FeatureCollection",
         ]
         geometries = self._get_geometry_argument(geometries, valid_geojson_types=valid_geojson_types, crs=None)
-        return self.process(
-            process_id='filter_spatial',
-            arguments={
-                'data': THIS,
-                'geometries': geometries
-            }
-        )
+        return self.process(process_id="filter_spatial", arguments={"data": THIS, "geometries": geometries})
 
     @openeo_process
     def filter_bands(self, bands: Union[List[Union[str, int]], str]) -> DataCube:
@@ -518,16 +512,16 @@ class DataCube(_ProcessGraphAbstraction):
 
     @openeo_process
     def resample_spatial(
-            self, resolution: Union[float, Tuple[float, float]], projection: Union[int, str] = None,
-            method: str = 'near', align: str = 'upper-left'
+        self,
+        resolution: Union[float, Tuple[float, float]],
+        projection: Union[int, str] = None,
+        method: str = "near",
+        align: str = "upper-left",
     ) -> DataCube:
-        return self.process('resample_spatial', {
-            'data': THIS,
-            'resolution': resolution,
-            'projection': projection,
-            'method': method,
-            'align': align
-        })
+        return self.process(
+            "resample_spatial",
+            {"data": THIS, "resolution": resolution, "projection": projection, "method": method, "align": align},
+        )
 
     def resample_cube_spatial(self, target: DataCube, method: str = "near") -> DataCube:
         """
@@ -568,7 +562,7 @@ class DataCube(_ProcessGraphAbstraction):
         """
         return self.process(
             "resample_cube_temporal",
-            dict_no_none({"data": self, "target": target, "dimension": dimension, "valid_within": valid_within})
+            dict_no_none({"data": self, "target": target, "dimension": dimension, "valid_within": valid_within}),
         )
 
     def _operator_binary(self, operator: str, other: Union[DataCube, int, float], reverse=False) -> DataCube:
@@ -584,9 +578,7 @@ class DataCube(_ProcessGraphAbstraction):
                 return self._merge_operator_binary_cubes(operator, other)
             elif isinstance(other, (int, float)):
                 # "`apply` math" mode
-                return self._apply_operator(
-                    operator=operator, other=other, reverse=reverse
-                )
+                return self._apply_operator(operator=operator, other=other, reverse=reverse)
         raise OperatorException(
             f"Unsupported operator {operator!r} with `other` type {type(other)!r} (band math mode={band_math_mode})"
         )
@@ -783,9 +775,7 @@ class DataCube(_ProcessGraphAbstraction):
         y = other
         if reverse:
             x, y = y, x
-        return self.process_with_node(node.clone_with_new_reducer(
-            PGNode(process_id="power", base=x, p=y)
-        ))
+        return self.process_with_node(node.clone_with_new_reducer(PGNode(process_id="power", base=x, p=y)))
 
     @openeo_process(process_id="power", mode="operator")
     def power(self, p: float):
@@ -837,19 +827,17 @@ class DataCube(_ProcessGraphAbstraction):
     def _bandmath_operator_binary_scalar(self, operator: str, other: Union[int, float], reverse=False) -> DataCube:
         """Band math binary operator with scalar value (int or float) as right hand side argument"""
         node = self._get_bandmath_node()
-        x = {'from_node': node.reducer_process_graph()}
+        x = {"from_node": node.reducer_process_graph()}
         y = other
         if reverse:
             x, y = y, x
-        return self.process_with_node(node.clone_with_new_reducer(
-            PGNode(operator, x=x, y=y)
-        ))
+        return self.process_with_node(node.clone_with_new_reducer(PGNode(operator, x=x, y=y)))
 
     def _bandmath_operator_unary(self, operator: str, **kwargs) -> DataCube:
         node = self._get_bandmath_node()
-        return self.process_with_node(node.clone_with_new_reducer(
-            PGNode(operator, x={'from_node': node.reducer_process_graph()}, **kwargs)
-        ))
+        return self.process_with_node(
+            node.clone_with_new_reducer(PGNode(operator, x={"from_node": node.reducer_process_graph()}, **kwargs))
+        )
 
     def _in_bandmath_mode(self) -> bool:
         """So-called "band math" mode: current result node is reduce_dimension along "bands" dimension."""
@@ -867,13 +855,16 @@ class DataCube(_ProcessGraphAbstraction):
     ) -> DataCube:
         """Merge two cubes with given operator as overlap_resolver."""
         # TODO #123 reuse an existing merge_cubes process graph if it already exists?
-        return self.merge_cubes(other, overlap_resolver=PGNode(
-            process_id=operator,
-            arguments={
-                left_arg_name: {"from_parameter": "x"},
-                right_arg_name: {"from_parameter": "y"},
-            }
-        ))
+        return self.merge_cubes(
+            other,
+            overlap_resolver=PGNode(
+                process_id=operator,
+                arguments={
+                    left_arg_name: {"from_parameter": "x"},
+                    right_arg_name: {"from_parameter": "y"},
+                },
+            ),
+        )
 
     def _get_geometry_argument(
         self,
@@ -910,9 +901,9 @@ class DataCube(_ProcessGraphAbstraction):
             raise OpenEoClientException("Invalid geometry argument: {g!r}".format(g=geometry))
 
         if geometry.get("type") not in valid_geojson_types:
-            raise OpenEoClientException("Invalid geometry type {t!r}, must be one of {s}".format(
-                t=geometry.get("type"), s=valid_geojson_types
-            ))
+            raise OpenEoClientException(
+                "Invalid geometry type {t!r}, must be one of {s}".format(t=geometry.get("type"), s=valid_geojson_types)
+            )
         if crs:
             # TODO: don't warn when the crs is Lon-Lat like EPSG:4326?
             warnings.warn(f"Geometry with non-Lon-Lat CRS {crs!r} is only supported by specific back-ends.")
@@ -976,8 +967,15 @@ class DataCube(_ProcessGraphAbstraction):
                 See https://github.com/Open-EO/openeo-processes/issues/235 for details.
         """
         valid_geojson_types = [
-            "Point", "MultiPoint", "LineString", "MultiLineString",
-            "Polygon", "MultiPolygon", "GeometryCollection", "Feature", "FeatureCollection"
+            "Point",
+            "MultiPoint",
+            "LineString",
+            "MultiLineString",
+            "Polygon",
+            "MultiPolygon",
+            "GeometryCollection",
+            "Feature",
+            "FeatureCollection",
         ]
         geometries = self._get_geometry_argument(geometries, valid_geojson_types=valid_geojson_types, crs=crs)
         reducer = build_child_callback(reducer, parent_parameters=["data"])
@@ -987,9 +985,7 @@ class DataCube(_ProcessGraphAbstraction):
                 data=THIS,
                 geometries=geometries,
                 reducer=reducer,
-                arguments=dict_no_none(
-                    target_dimension=target_dimension, context=context
-                ),
+                arguments=dict_no_none(target_dimension=target_dimension, context=context),
             ),
             connection=self._connection,
             # TODO: metadata? And correct dimension of created vector cube? #457
@@ -1265,9 +1261,7 @@ class DataCube(_ProcessGraphAbstraction):
             "Feature",
             "FeatureCollection",
         ]
-        chunks = self._get_geometry_argument(
-            chunks, valid_geojson_types=valid_geojson_types
-        )
+        chunks = self._get_geometry_argument(chunks, valid_geojson_types=valid_geojson_types)
         mask_value = float(mask_value) if mask_value is not None else None
         return self.process(
             process_id="chunk_polygon",
@@ -1406,17 +1400,15 @@ class DataCube(_ProcessGraphAbstraction):
         # TODO #181 #312 drop this deprecated pattern
         return self.reduce_temporal(reducer=UDF(code=code, runtime=runtime, version=version))
 
-    reduce_tiles_over_time = legacy_alias(
-        reduce_temporal_udf, name="reduce_tiles_over_time", since="0.1.1"
-    )
+    reduce_tiles_over_time = legacy_alias(reduce_temporal_udf, name="reduce_tiles_over_time", since="0.1.1")
 
     @openeo_process
     def apply_neighborhood(
-            self,
-            process: Union[str, PGNode, typing.Callable, UDF],
-            size: List[Dict],
-            overlap: List[dict] = None,
-            context: Optional[dict] = None,
+        self,
+        process: Union[str, PGNode, typing.Callable, UDF],
+        size: List[Dict],
+        overlap: List[dict] = None,
+        context: Optional[dict] = None,
     ) -> DataCube:
         """
         Applies a focal process to a data cube.
@@ -1446,7 +1438,7 @@ class DataCube(_ProcessGraphAbstraction):
                 size=size,
                 overlap=overlap,
                 context=context,
-            )
+            ),
         )
 
     @openeo_process
@@ -1487,9 +1479,7 @@ class DataCube(_ProcessGraphAbstraction):
             ),
         )
 
-    reduce_temporal_simple = legacy_alias(
-        reduce_temporal, "reduce_temporal_simple", since="0.13.0"
-    )
+    reduce_temporal_simple = legacy_alias(reduce_temporal, "reduce_temporal_simple", since="0.13.0")
 
     @openeo_process(process_id="min", mode="reduce_dimension")
     def min_time(self) -> DataCube:
@@ -1587,11 +1577,11 @@ class DataCube(_ProcessGraphAbstraction):
 
     @openeo_process
     def aggregate_temporal_period(
-            self,
-            period: str,
-            reducer: Union[str, PGNode, typing.Callable],
-            dimension: Optional[str] = None,
-            context: Optional[Dict] = None,
+        self,
+        period: str,
+        reducer: Union[str, PGNode, typing.Callable],
+        dimension: Optional[str] = None,
+        context: Optional[Dict] = None,
     ) -> DataCube:
         """
         Computes a temporal aggregation based on calendar hierarchies such as years, months or seasons. For other calendar hierarchies aggregate_temporal can be used.
@@ -1652,9 +1642,7 @@ class DataCube(_ProcessGraphAbstraction):
             metadata = self.metadata.append_band(Band(name=target_band, common_name="ndvi"))
         return self.process(
             process_id="ndvi",
-            arguments=dict_no_none(
-                data=THIS, nir=nir, red=red, target_band=target_band
-            ),
+            arguments=dict_no_none(data=THIS, nir=nir, red=red, target_band=target_band),
             metadata=metadata,
         )
 
@@ -1669,7 +1657,7 @@ class DataCube(_ProcessGraphAbstraction):
         :return: A new datacube with the dimension renamed.
         """
         if self._do_metadata_normalization() and target in self.metadata.dimension_names():
-            raise ValueError('Target dimension name conflicts with existing dimension: %s.' % target)
+            raise ValueError("Target dimension name conflicts with existing dimension: %s." % target)
         return self.process(
             process_id="rename_dimension",
             arguments=dict_no_none(
@@ -1777,12 +1765,7 @@ class DataCube(_ProcessGraphAbstraction):
         mask = self._get_geometry_argument(mask, valid_geojson_types=valid_geojson_types, crs=srs)
         return self.process(
             process_id="mask_polygon",
-            arguments=dict_no_none(
-                data=THIS,
-                mask=mask,
-                replacement=replacement,
-                inside=inside
-            )
+            arguments=dict_no_none(data=THIS, mask=mask, replacement=replacement, inside=inside),
         )
 
     @openeo_process
@@ -1839,8 +1822,7 @@ class DataCube(_ProcessGraphAbstraction):
 
     @openeo_process
     def apply_kernel(
-            self, kernel: Union[np.ndarray, List[List[float]]], factor=1.0, border=0,
-            replace_invalid=0
+        self, kernel: Union[np.ndarray, List[List[float]]], factor=1.0, border=0, replace_invalid=0
     ) -> DataCube:
         """
         Applies a focal operation based on a weighted kernel to each value of the specified dimensions in the data cube.
@@ -1861,17 +1843,20 @@ class DataCube(_ProcessGraphAbstraction):
         :param replace_invalid: This parameter specifies the value to replace non-numerical or infinite numerical values with. By default, those values are replaced with zeroes.
         :return: A data cube with the newly computed values. The resolution, cardinality and the number of dimensions are the same as for the original data cube.
         """
-        return self.process('apply_kernel', {
-            'data': THIS,
-            'kernel': kernel.tolist() if isinstance(kernel, np.ndarray) else kernel,
-            'factor': factor,
-            'border': border,
-            'replace_invalid': replace_invalid
-        })
+        return self.process(
+            "apply_kernel",
+            {
+                "data": THIS,
+                "kernel": kernel.tolist() if isinstance(kernel, np.ndarray) else kernel,
+                "factor": factor,
+                "border": border,
+                "replace_invalid": replace_invalid,
+            },
+        )
 
     @openeo_process
     def resolution_merge(
-            self, high_resolution_bands: List[str], low_resolution_bands: List[str], method: str = None
+        self, high_resolution_bands: List[str], low_resolution_bands: List[str], method: str = None
     ) -> DataCube:
         """
         Resolution merging algorithms try to improve the spatial resolution of lower resolution bands
@@ -1891,13 +1876,15 @@ class DataCube(_ProcessGraphAbstraction):
         :param method: The method to use. The supported algorithms can vary between back-ends. Set to `null` (the default) to allow the back-end to choose, which will improve portability, but reduce reproducibility..
         :return: A datacube with the same bands and metadata as the input, but algorithmically increased spatial resolution for the selected bands.
         """
-        return self.process('resolution_merge', {
-            'data': THIS,
-            'high_resolution_bands': high_resolution_bands,
-            'low_resolution_bands': low_resolution_bands,
-            'method': method,
-
-        })
+        return self.process(
+            "resolution_merge",
+            {
+                "data": THIS,
+                "high_resolution_bands": high_resolution_bands,
+                "low_resolution_bands": low_resolution_bands,
+                "method": method,
+            },
+        )
 
     def raster_to_vector(self) -> VectorCube:
         """
@@ -1913,12 +1900,8 @@ class DataCube(_ProcessGraphAbstraction):
 
     ####VIEW methods #######
 
-    @deprecated(
-        "Use :py:meth:`aggregate_spatial` with reducer ``'mean'``.", version="0.10.0"
-    )
-    def polygonal_mean_timeseries(
-        self, polygon: Union[Polygon, MultiPolygon, str]
-    ) -> VectorCube:
+    @deprecated("Use :py:meth:`aggregate_spatial` with reducer ``'mean'``.", version="0.10.0")
+    def polygonal_mean_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> VectorCube:
         """
         Extract a mean time series for the given (multi)polygon. Its points are
         expected to be in the EPSG:4326 coordinate
@@ -1932,9 +1915,7 @@ class DataCube(_ProcessGraphAbstraction):
         "Use :py:meth:`aggregate_spatial` with reducer ``'histogram'``.",
         version="0.10.0",
     )
-    def polygonal_histogram_timeseries(
-        self, polygon: Union[Polygon, MultiPolygon, str]
-    ) -> VectorCube:
+    def polygonal_histogram_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> VectorCube:
         """
         Extract a histogram time series for the given (multi)polygon. Its points are
         expected to be in the EPSG:4326 coordinate
@@ -1944,12 +1925,8 @@ class DataCube(_ProcessGraphAbstraction):
         """
         return self.aggregate_spatial(geometries=polygon, reducer="histogram")
 
-    @deprecated(
-        "Use :py:meth:`aggregate_spatial` with reducer ``'median'``.", version="0.10.0"
-    )
-    def polygonal_median_timeseries(
-        self, polygon: Union[Polygon, MultiPolygon, str]
-    ) -> VectorCube:
+    @deprecated("Use :py:meth:`aggregate_spatial` with reducer ``'median'``.", version="0.10.0")
+    def polygonal_median_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> VectorCube:
         """
         Extract a median time series for the given (multi)polygon. Its points are
         expected to be in the EPSG:4326 coordinate
@@ -1959,12 +1936,8 @@ class DataCube(_ProcessGraphAbstraction):
         """
         return self.aggregate_spatial(geometries=polygon, reducer="median")
 
-    @deprecated(
-        "Use :py:meth:`aggregate_spatial` with reducer ``'sd'``.", version="0.10.0"
-    )
-    def polygonal_standarddeviation_timeseries(
-        self, polygon: Union[Polygon, MultiPolygon, str]
-    ) -> VectorCube:
+    @deprecated("Use :py:meth:`aggregate_spatial` with reducer ``'sd'``.", version="0.10.0")
+    def polygonal_standarddeviation_timeseries(self, polygon: Union[Polygon, MultiPolygon, str]) -> VectorCube:
         """
         Extract a time series of standard deviations for the given (multi)polygon. Its points are
         expected to be in the EPSG:4326 coordinate
@@ -1976,8 +1949,12 @@ class DataCube(_ProcessGraphAbstraction):
 
     @openeo_process
     def ard_surface_reflectance(
-            self, atmospheric_correction_method: str, cloud_detection_method: str, elevation_model: str = None,
-            atmospheric_correction_options: dict = None, cloud_detection_options: dict = None,
+        self,
+        atmospheric_correction_method: str,
+        cloud_detection_method: str,
+        elevation_model: str = None,
+        atmospheric_correction_options: dict = None,
+        cloud_detection_options: dict = None,
     ) -> DataCube:
         """
         Computes CARD4L compliant surface reflectance values from optical input.
@@ -1989,14 +1966,17 @@ class DataCube(_ProcessGraphAbstraction):
         :param cloud_detection_options: Proprietary options for the cloud detection method.
         :return: Data cube containing bottom of atmosphere reflectances with atmospheric disturbances like clouds and cloud shadows removed. The data returned is CARD4L compliant and contains metadata.
         """
-        return self.process('ard_surface_reflectance', {
-            'data': THIS,
-            'atmospheric_correction_method': atmospheric_correction_method,
-            'cloud_detection_method': cloud_detection_method,
-            'elevation_model': elevation_model,
-            'atmospheric_correction_options': atmospheric_correction_options or {},
-            'cloud_detection_options': cloud_detection_options or {},
-        })
+        return self.process(
+            "ard_surface_reflectance",
+            {
+                "data": THIS,
+                "atmospheric_correction_method": atmospheric_correction_method,
+                "cloud_detection_method": cloud_detection_method,
+                "elevation_model": elevation_model,
+                "atmospheric_correction_options": atmospheric_correction_options or {},
+                "cloud_detection_options": cloud_detection_options or {},
+            },
+        )
 
     @openeo_process
     def atmospheric_correction(self, method: str = None, elevation_model: str = None, options: dict = None) -> DataCube:
@@ -2011,12 +1991,15 @@ class DataCube(_ProcessGraphAbstraction):
         :param options: Proprietary options for the atmospheric correction method.
         :return: datacube with bottom of atmosphere reflectances
         """
-        return self.process('atmospheric_correction', {
-            'data': THIS,
-            'method': method,
-            'elevation_model': elevation_model,
-            'options': options or {},
-        })
+        return self.process(
+            "atmospheric_correction",
+            {
+                "data": THIS,
+                "method": method,
+                "elevation_model": elevation_model,
+                "options": options or {},
+            },
+        )
 
     @openeo_process
     def save_result(
@@ -2034,8 +2017,8 @@ class DataCube(_ProcessGraphAbstraction):
                 "data": THIS,
                 "format": format,
                 # TODO: leave out options if unset?
-                "options": options or {}
-            }
+                "options": options or {},
+            },
         )
 
     def _ensure_save_result(
@@ -2059,9 +2042,7 @@ class DataCube(_ProcessGraphAbstraction):
             # check if it is consistent with given format/options (if any)
             args = result_node.arguments
             if format is not None and format.lower() != args["format"].lower():
-                raise ValueError(
-                    f"Existing `save_result` node with different format {args['format']!r} != {format!r}"
-                )
+                raise ValueError(f"Existing `save_result` node with different format {args['format']!r} != {format!r}")
             if options is not None and options != args["options"]:
                 raise ValueError(
                     f"Existing `save_result` node with different options {args['options']!r} != {options!r}"
@@ -2069,9 +2050,7 @@ class DataCube(_ProcessGraphAbstraction):
             cube = self
         else:
             # No `save_result` node yet: automatically add it.
-            cube = self.save_result(
-                format=format or self._DEFAULT_RASTER_FORMAT, options=options
-            )
+            cube = self.save_result(format=format or self._DEFAULT_RASTER_FORMAT, options=options)
         return cube
 
     def download(
@@ -2225,7 +2204,9 @@ class DataCube(_ProcessGraphAbstraction):
         job = self.create_job(out_format=out_format, job_options=job_options, validate=validate, **format_options)
         return job.run_synchronous(
             outputfile=outputfile,
-            print=print, max_poll_interval=max_poll_interval, connection_retry_interval=connection_retry_interval
+            print=print,
+            max_poll_interval=max_poll_interval,
+            connection_retry_interval=connection_retry_interval,
         )
 
     def create_job(
@@ -2277,15 +2258,15 @@ class DataCube(_ProcessGraphAbstraction):
     send_job = legacy_alias(create_job, name="send_job", since="0.10.0")
 
     def save_user_defined_process(
-            self,
-            user_defined_process_id: str,
-            public: bool = False,
-            summary: Optional[str] = None,
-            description: Optional[str] = None,
-            returns: Optional[dict] = None,
-            categories: Optional[List[str]] = None,
-            examples: Optional[List[dict]] = None,
-            links: Optional[List[dict]] = None,
+        self,
+        user_defined_process_id: str,
+        public: bool = False,
+        summary: Optional[str] = None,
+        description: Optional[str] = None,
+        returns: Optional[dict] = None,
+        categories: Optional[List[str]] = None,
+        examples: Optional[List[dict]] = None,
+        links: Optional[List[dict]] = None,
     ) -> RESTUserDefinedProcess:
         """
         Saves this process graph in the backend as a user-defined process for the authenticated user.
@@ -2302,8 +2283,14 @@ class DataCube(_ProcessGraphAbstraction):
         """
         return self._connection.save_user_defined_process(
             user_defined_process_id=user_defined_process_id,
-            process_graph=self.flat_graph(), public=public, summary=summary, description=description,
-            returns=returns, categories=categories, examples=examples, links=links,
+            process_graph=self.flat_graph(),
+            public=public,
+            summary=summary,
+            description=description,
+            returns=returns,
+            categories=categories,
+            examples=examples,
+            links=links,
         )
 
     def execute(self, *, validate: Optional[bool] = None) -> dict:
@@ -2312,14 +2299,18 @@ class DataCube(_ProcessGraphAbstraction):
 
     @staticmethod
     @deprecated(reason="Use :py:func:`openeo.udf.run_code.execute_local_udf` instead", version="0.7.0")
-    def execute_local_udf(udf: str, datacube: Union[str, 'xarray.DataArray', 'XarrayDataCube'] = None, fmt='netcdf'):
+    def execute_local_udf(udf: str, datacube: Union[str, "xarray.DataArray", "XarrayDataCube"] = None, fmt="netcdf"):
         import openeo.udf.run_code
+
         return openeo.udf.run_code.execute_local_udf(udf=udf, datacube=datacube, fmt=fmt)
 
     @openeo_process
     def ard_normalized_radar_backscatter(
-            self, elevation_model: str = None, contributing_area=False,
-            ellipsoid_incidence_angle: bool = False, noise_removal: bool = True
+        self,
+        elevation_model: str = None,
+        contributing_area=False,
+        ellipsoid_incidence_angle: bool = False,
+        noise_removal: bool = True,
     ) -> DataCube:
         """
         Computes CARD4L compliant backscatter (gamma0) from SAR input.
@@ -2337,25 +2328,28 @@ class DataCube(_ProcessGraphAbstraction):
 
         :return: Backscatter values expressed as gamma0. The data returned is CARD4L compliant and contains metadata. By default, the backscatter values are given in linear scale.
         """
-        return self.process(process_id="ard_normalized_radar_backscatter", arguments={
-            "data": THIS,
-            "elevation_model": elevation_model,
-            "contributing_area": contributing_area,
-            "ellipsoid_incidence_angle": ellipsoid_incidence_angle,
-            "noise_removal": noise_removal
-        })
+        return self.process(
+            process_id="ard_normalized_radar_backscatter",
+            arguments={
+                "data": THIS,
+                "elevation_model": elevation_model,
+                "contributing_area": contributing_area,
+                "ellipsoid_incidence_angle": ellipsoid_incidence_angle,
+                "noise_removal": noise_removal,
+            },
+        )
 
     @openeo_process
     def sar_backscatter(
-            self,
-            coefficient: Union[str, None] = "gamma0-terrain",
-            elevation_model: Union[str, None] = None,
-            mask: bool = False,
-            contributing_area: bool = False,
-            local_incidence_angle: bool = False,
-            ellipsoid_incidence_angle: bool = False,
-            noise_removal: bool = True,
-            options: Optional[dict] = None
+        self,
+        coefficient: Union[str, None] = "gamma0-terrain",
+        elevation_model: Union[str, None] = None,
+        mask: bool = False,
+        contributing_area: bool = False,
+        local_incidence_angle: bool = False,
+        ellipsoid_incidence_angle: bool = False,
+        noise_removal: bool = True,
+        options: Optional[dict] = None,
     ) -> DataCube:
         """
         Computes backscatter from SAR input.
@@ -2391,12 +2385,19 @@ class DataCube(_ProcessGraphAbstraction):
         .. versionchanged:: 0.4.10 replace `orthorectify` and `rtc` arguments with `coefficient`.
         """
         coefficient_options = [
-            "beta0", "sigma0-ellipsoid", "sigma0-terrain", "gamma0-ellipsoid", "gamma0-terrain", None
+            "beta0",
+            "sigma0-ellipsoid",
+            "sigma0-terrain",
+            "gamma0-ellipsoid",
+            "gamma0-terrain",
+            None,
         ]
         if coefficient not in coefficient_options:
-            raise OpenEoClientException("Invalid `sar_backscatter` coefficient {c!r}. Should be one of {o}".format(
-                c=coefficient, o=coefficient_options
-            ))
+            raise OpenEoClientException(
+                "Invalid `sar_backscatter` coefficient {c!r}. Should be one of {o}".format(
+                    c=coefficient, o=coefficient_options
+                )
+            )
         arguments = {
             "data": THIS,
             "coefficient": coefficient,
@@ -2439,8 +2440,7 @@ class DataCube(_ProcessGraphAbstraction):
 
     @openeo_process
     def predict_curve(
-            self, parameters: list, function: Union[str, PGNode, typing.Callable], dimension: str,
-            labels=None
+        self, parameters: list, function: Union[str, PGNode, typing.Callable], dimension: str, labels=None
     ):
         """
         Predict values using a model function and pre-computed parameters.

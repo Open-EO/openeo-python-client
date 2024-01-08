@@ -113,9 +113,12 @@ def test_add_basic_auth_input_username(auth_config):
 
 def test_add_oidc_simple(auth_config, requests_mock):
     requests_mock.get("https://oeo.test/", json={"api_version": "1.0.0"})
-    requests_mock.get("https://oeo.test/credentials/oidc", json={
-        "providers": [{"id": "authit", "issuer": "https://authit.test", "title": "Auth It", "scopes": ["openid"]}]
-    })
+    requests_mock.get(
+        "https://oeo.test/credentials/oidc",
+        json={
+            "providers": [{"id": "authit", "issuer": "https://authit.test", "title": "Auth It", "scopes": ["openid"]}]
+        },
+    )
     requests_mock.get("https://authit.test/.well-known/openid-configuration", json={"issuer": "https://authit.test"})
     client_id, client_secret = "z3-cl13nt", "z3-z3cr3t-y6y6"
     with mock_secret_input(client_secret):
@@ -127,9 +130,12 @@ def test_add_oidc_simple(auth_config, requests_mock):
 
 def test_add_oidc_no_secret(auth_config, requests_mock):
     requests_mock.get("https://oeo.test/", json={"api_version": "1.0.0"})
-    requests_mock.get("https://oeo.test/credentials/oidc", json={
-        "providers": [{"id": "authit", "issuer": "https://authit.test", "title": "Auth It", "scopes": ["openid"]}]
-    })
+    requests_mock.get(
+        "https://oeo.test/credentials/oidc",
+        json={
+            "providers": [{"id": "authit", "issuer": "https://authit.test", "title": "Auth It", "scopes": ["openid"]}]
+        },
+    )
     requests_mock.get("https://authit.test/.well-known/openid-configuration", json={"issuer": "https://authit.test"})
     client_id = "z3-cl13nt"
     cli.main(["add-oidc", "https://oeo.test", "--client-id", client_id, "--no-client-secret"])
@@ -140,15 +146,25 @@ def test_add_oidc_no_secret(auth_config, requests_mock):
 
 def test_add_oidc_use_default_client(auth_config, requests_mock, caplog):
     requests_mock.get("https://oeo.test/", json={"api_version": "1.0.0"})
-    requests_mock.get("https://oeo.test/credentials/oidc", json={
-        "providers": [{
-            "id": "authit", "issuer": "https://authit.test", "title": "Auth It", "scopes": ["openid"],
-            "default_clients": [{
-                "id": "d3f6ul7cl13n7",
-                "grant_types": ["urn:ietf:params:oauth:grant-type:device_code+pkce", "refresh_token"],
-            }]
-        }]
-    })
+    requests_mock.get(
+        "https://oeo.test/credentials/oidc",
+        json={
+            "providers": [
+                {
+                    "id": "authit",
+                    "issuer": "https://authit.test",
+                    "title": "Auth It",
+                    "scopes": ["openid"],
+                    "default_clients": [
+                        {
+                            "id": "d3f6ul7cl13n7",
+                            "grant_types": ["urn:ietf:params:oauth:grant-type:device_code+pkce", "refresh_token"],
+                        }
+                    ],
+                }
+            ]
+        },
+    )
     requests_mock.get("https://authit.test/.well-known/openid-configuration", json={"issuer": "https://authit.test"})
     cli.main(["add-oidc", "https://oeo.test", "--use-default-client"])
 
@@ -160,11 +176,19 @@ def test_add_oidc_use_default_client(auth_config, requests_mock, caplog):
 
 def test_add_oidc_use_default_client_no_default(auth_config, requests_mock, caplog):
     requests_mock.get("https://oeo.test/", json={"api_version": "1.0.0"})
-    requests_mock.get("https://oeo.test/credentials/oidc", json={
-        "providers": [{
-            "id": "authit", "issuer": "https://authit.test", "title": "Auth It", "scopes": ["openid"],
-        }]
-    })
+    requests_mock.get(
+        "https://oeo.test/credentials/oidc",
+        json={
+            "providers": [
+                {
+                    "id": "authit",
+                    "issuer": "https://authit.test",
+                    "title": "Auth It",
+                    "scopes": ["openid"],
+                }
+            ]
+        },
+    )
     requests_mock.get("https://authit.test/.well-known/openid-configuration", json={"issuer": "https://authit.test"})
     cli.main(["add-oidc", "https://oeo.test", "--use-default-client"])
 
@@ -176,15 +200,25 @@ def test_add_oidc_use_default_client_no_default(auth_config, requests_mock, capl
 
 def test_add_oidc_default_client_interactive(auth_config, requests_mock, capsys):
     requests_mock.get("https://oeo.test/", json={"api_version": "1.0.0"})
-    requests_mock.get("https://oeo.test/credentials/oidc", json={
-        "providers": [{
-            "id": "authit", "issuer": "https://authit.test", "title": "Auth It", "scopes": ["openid"],
-            "default_clients": [{
-                "id": "d3f6ul7cl13n7",
-                "grant_types": ["urn:ietf:params:oauth:grant-type:device_code+pkce", "refresh_token"]
-            }]
-        }]
-    })
+    requests_mock.get(
+        "https://oeo.test/credentials/oidc",
+        json={
+            "providers": [
+                {
+                    "id": "authit",
+                    "issuer": "https://authit.test",
+                    "title": "Auth It",
+                    "scopes": ["openid"],
+                    "default_clients": [
+                        {
+                            "id": "d3f6ul7cl13n7",
+                            "grant_types": ["urn:ietf:params:oauth:grant-type:device_code+pkce", "refresh_token"],
+                        }
+                    ],
+                }
+            ]
+        },
+    )
     requests_mock.get("https://authit.test/.well-known/openid-configuration", json={"issuer": "https://authit.test"})
     with mock_input("") as input:
         cli.main(["add-oidc", "https://oeo.test"])
@@ -199,15 +233,25 @@ def test_add_oidc_default_client_interactive(auth_config, requests_mock, capsys)
 
 def test_add_oidc_use_default_client_overwrite(auth_config, requests_mock, caplog):
     requests_mock.get("https://oeo.test/", json={"api_version": "1.0.0"})
-    requests_mock.get("https://oeo.test/credentials/oidc", json={
-        "providers": [{
-            "id": "authit", "issuer": "https://authit.test", "title": "Auth It", "scopes": ["openid"],
-            "default_clients": [{
-                "id": "d3f6ul7cl13n7",
-                "grant_types": ["urn:ietf:params:oauth:grant-type:device_code+pkce", "refresh_token"]
-            }]
-        }]
-    })
+    requests_mock.get(
+        "https://oeo.test/credentials/oidc",
+        json={
+            "providers": [
+                {
+                    "id": "authit",
+                    "issuer": "https://authit.test",
+                    "title": "Auth It",
+                    "scopes": ["openid"],
+                    "default_clients": [
+                        {
+                            "id": "d3f6ul7cl13n7",
+                            "grant_types": ["urn:ietf:params:oauth:grant-type:device_code+pkce", "refresh_token"],
+                        }
+                    ],
+                }
+            ]
+        },
+    )
     requests_mock.get("https://authit.test/.well-known/openid-configuration", json={"issuer": "https://authit.test"})
 
     client_id, client_secret = "z3-cl13nt", "z3-z3cr3t-y6y6"
@@ -235,10 +279,15 @@ def test_add_oidc_04(auth_config, requests_mock):
 
 def test_add_oidc_multiple_providers(auth_config, requests_mock, capsys):
     requests_mock.get("https://oeo.test/", json={"api_version": "1.0.0"})
-    requests_mock.get("https://oeo.test/credentials/oidc", json={"providers": [
-        {"id": "authit", "issuer": "https://authit.test", "title": "Auth It", "scopes": ["openid"]},
-        {"id": "youauth", "issuer": "https://youauth.test", "title": "YouAuth", "scopes": ["openid"]}
-    ]})
+    requests_mock.get(
+        "https://oeo.test/credentials/oidc",
+        json={
+            "providers": [
+                {"id": "authit", "issuer": "https://authit.test", "title": "Auth It", "scopes": ["openid"]},
+                {"id": "youauth", "issuer": "https://youauth.test", "title": "YouAuth", "scopes": ["openid"]},
+            ]
+        },
+    )
     requests_mock.get("https://authit.test/.well-known/openid-configuration", json={"issuer": "https://authit.test"})
     requests_mock.get("https://youauth.test/.well-known/openid-configuration", json={"issuer": "https://youauth.test"})
     client_id, client_secret = "z3-cl13nt", "z3-z3cr3t-y6y6"
@@ -264,10 +313,15 @@ def test_add_oidc_no_providers(auth_config, requests_mock, capsys):
 
 def test_add_oidc_interactive(auth_config, requests_mock, capsys):
     requests_mock.get("https://oeo.test/", json={"api_version": "1.0.0"})
-    requests_mock.get("https://oeo.test/credentials/oidc", json={"providers": [
-        {"id": "authit", "issuer": "https://authit.test", "title": "Auth It", "scopes": ["openid"]},
-        {"id": "youauth", "issuer": "https://youauth.test", "title": "YouAuth", "scopes": ["openid"]}
-    ]})
+    requests_mock.get(
+        "https://oeo.test/credentials/oidc",
+        json={
+            "providers": [
+                {"id": "authit", "issuer": "https://authit.test", "title": "Auth It", "scopes": ["openid"]},
+                {"id": "youauth", "issuer": "https://youauth.test", "title": "YouAuth", "scopes": ["openid"]},
+            ]
+        },
+    )
     requests_mock.get("https://authit.test/.well-known/openid-configuration", json={"issuer": "https://authit.test"})
     requests_mock.get("https://youauth.test/.well-known/openid-configuration", json={"issuer": "https://youauth.test"})
     client_id, client_secret = "z3-cl13nt", "z3-z3cr3t-y6y6"
@@ -279,9 +333,10 @@ def test_add_oidc_interactive(auth_config, requests_mock, capsys):
     out = capsys.readouterr().out
     expected = [
         "Backend 'https://oeo.test' has multiple OpenID Connect providers.",
-        "[1] Auth It", "[2] YouAuth",
+        "[1] Auth It",
+        "[2] YouAuth",
         "Using provider ID 'authit'",
-        "Using client ID 'z3-cl13nt'"
+        "Using client ID 'z3-cl13nt'",
     ]
     for e in expected:
         assert e in out
@@ -289,10 +344,15 @@ def test_add_oidc_interactive(auth_config, requests_mock, capsys):
 
 def test_oidc_auth_device_flow(auth_config, refresh_token_store, requests_mock, capsys, oidc_device_code_flow_checker):
     requests_mock.get("https://oeo.test/", json={"api_version": "1.0.0"})
-    requests_mock.get("https://oeo.test/credentials/oidc", json={"providers": [
-        {"id": "authit", "issuer": "https://authit.test", "title": "Auth It", "scopes": ["openid"]},
-        {"id": "youauth", "issuer": "https://youauth.test", "title": "YouAuth", "scopes": ["openid"]}
-    ]})
+    requests_mock.get(
+        "https://oeo.test/credentials/oidc",
+        json={
+            "providers": [
+                {"id": "authit", "issuer": "https://authit.test", "title": "Auth It", "scopes": ["openid"]},
+                {"id": "youauth", "issuer": "https://youauth.test", "title": "YouAuth", "scopes": ["openid"]},
+            ]
+        },
+    )
 
     client_id, client_secret = "z3-cl13nt", "z3-z3cr3t-y6y6"
     auth_config.set_oidc_client_config("https://oeo.test", "authit", client_id, client_secret)
@@ -304,7 +364,7 @@ def test_oidc_auth_device_flow(auth_config, refresh_token_store, requests_mock, 
         oidc_issuer="https://authit.test",
         expected_fields={"scope": "openid", "client_secret": client_secret},
         state={"device_code_callback_timeline": ["authorization_pending", "great success"]},
-        scopes_supported=["openid"]
+        scopes_supported=["openid"],
     )
 
     with oidc_device_code_flow_checker(url=f"{oidc_mock.oidc_issuer}/dc", check_capsys=False):
@@ -333,16 +393,26 @@ def test_oidc_auth_device_flow_default_client(
     """Test device flow with default client (which uses PKCE instead of secret)."""
     default_client_id = "d3f6u17cl13n7"
     requests_mock.get("https://oeo.test/", json={"api_version": "1.0.0"})
-    requests_mock.get("https://oeo.test/credentials/oidc", json={"providers": [
-        {
-            "id": "authit", "issuer": "https://authit.test", "title": "Auth It", "scopes": ["openid"],
-            "default_clients": [{
-                "id": default_client_id,
-                "grant_types": ["urn:ietf:params:oauth:grant-type:device_code+pkce", "refresh_token"],
-            }]
+    requests_mock.get(
+        "https://oeo.test/credentials/oidc",
+        json={
+            "providers": [
+                {
+                    "id": "authit",
+                    "issuer": "https://authit.test",
+                    "title": "Auth It",
+                    "scopes": ["openid"],
+                    "default_clients": [
+                        {
+                            "id": default_client_id,
+                            "grant_types": ["urn:ietf:params:oauth:grant-type:device_code+pkce", "refresh_token"],
+                        }
+                    ],
+                },
+                {"id": "youauth", "issuer": "https://youauth.test", "title": "YouAuth", "scopes": ["openid"]},
+            ]
         },
-        {"id": "youauth", "issuer": "https://youauth.test", "title": "YouAuth", "scopes": ["openid"]}
-    ]})
+    )
 
     auth_config.set_oidc_client_config("https://oeo.test", "authit", client_id=None, client_secret=None)
 
@@ -353,7 +423,7 @@ def test_oidc_auth_device_flow_default_client(
         oidc_issuer="https://authit.test",
         expected_fields={"scope": "openid", "code_verifier": True, "code_challenge": True},
         state={"device_code_callback_timeline": ["authorization_pending", "great success"]},
-        scopes_supported=["openid"]
+        scopes_supported=["openid"],
     )
 
     with oidc_device_code_flow_checker(url=f"{oidc_mock.oidc_issuer}/dc", check_capsys=False):
@@ -383,16 +453,26 @@ def test_oidc_auth_device_flow_no_config_all_defaults(
     """Test device flow with default client (which uses PKCE instead of secret)."""
     default_client_id = "d3f6u17cl13n7"
     requests_mock.get("https://oeo.test/", json={"api_version": "1.0.0"})
-    requests_mock.get("https://oeo.test/credentials/oidc", json={"providers": [
-        {
-            "id": "authit", "issuer": "https://authit.test", "title": "Auth It", "scopes": ["openid"],
-            "default_clients": [{
-                "id": default_client_id,
-                "grant_types": ["urn:ietf:params:oauth:grant-type:device_code+pkce", "refresh_token"],
-            }]
+    requests_mock.get(
+        "https://oeo.test/credentials/oidc",
+        json={
+            "providers": [
+                {
+                    "id": "authit",
+                    "issuer": "https://authit.test",
+                    "title": "Auth It",
+                    "scopes": ["openid"],
+                    "default_clients": [
+                        {
+                            "id": default_client_id,
+                            "grant_types": ["urn:ietf:params:oauth:grant-type:device_code+pkce", "refresh_token"],
+                        }
+                    ],
+                },
+                {"id": "youauth", "issuer": "https://youauth.test", "title": "YouAuth", "scopes": ["openid"]},
+            ]
         },
-        {"id": "youauth", "issuer": "https://youauth.test", "title": "YouAuth", "scopes": ["openid"]}
-    ]})
+    )
 
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
@@ -401,7 +481,7 @@ def test_oidc_auth_device_flow_no_config_all_defaults(
         oidc_issuer="https://authit.test",
         expected_fields={"scope": "openid", "code_verifier": True, "code_challenge": True},
         state={"device_code_callback_timeline": ["authorization_pending", "great success"]},
-        scopes_supported=["openid"]
+        scopes_supported=["openid"],
     )
 
     with oidc_device_code_flow_checker(url=f"{oidc_mock.oidc_issuer}/dc", check_capsys=False):
@@ -431,14 +511,19 @@ def test_oidc_auth_device_flow_no_config_all_defaults(
 @pytest.mark.slow
 def test_oidc_auth_auth_code_flow(auth_config, refresh_token_store, requests_mock, capsys):
     requests_mock.get("https://oeo.test/", json={"api_version": "1.0.0"})
-    requests_mock.get("https://oeo.test/credentials/oidc", json={"providers": [
-        {"id": "authit", "issuer": "https://authit.test", "title": "Auth It", "scopes": ["openid"]},
-        {"id": "youauth", "issuer": "https://youauth.test", "title": "YouAuth", "scopes": ["openid"]}
-    ]})
+    requests_mock.get(
+        "https://oeo.test/credentials/oidc",
+        json={
+            "providers": [
+                {"id": "authit", "issuer": "https://authit.test", "title": "Auth It", "scopes": ["openid"]},
+                {"id": "youauth", "issuer": "https://youauth.test", "title": "YouAuth", "scopes": ["openid"]},
+            ]
+        },
+    )
 
     client_id, client_secret = "z3-cl13nt", "z3-z3cr3t-y6y6"
     auth_config.set_oidc_client_config("https://oeo.test", "authit", client_id, client_secret)
-    auth_config.set_oidc_client_config("https://oeo.test", "youauth", client_id + '-tw00', client_secret + '-tw00')
+    auth_config.set_oidc_client_config("https://oeo.test", "youauth", client_id + "-tw00", client_secret + "-tw00")
 
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
@@ -446,7 +531,7 @@ def test_oidc_auth_auth_code_flow(auth_config, refresh_token_store, requests_moc
         expected_client_id=client_id,
         expected_fields={"scope": "openid"},
         oidc_issuer="https://authit.test",
-        scopes_supported=["openid"]
+        scopes_supported=["openid"],
     )
 
     with mock_input("1"), mock.patch.object(cli, "_webbrowser_open", new=oidc_mock.webbrowser_open):

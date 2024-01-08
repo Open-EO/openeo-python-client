@@ -79,7 +79,7 @@ def execute(
         json.dumps(connection.describe_collection(image_collection), indent=2),
     )
     cube = connection.load_collection(collection_id=image_collection, bands=all_bands)
-    cube = cube.filter_bbox( **bbox)
+    cube = cube.filter_bbox(**bbox)
     cube = cube.filter_temporal(extent=temporal_extent)
 
     logger.info("cube.to_json: \n%s\n", cube.to_json())
@@ -142,5 +142,5 @@ if __name__ == "__main__":
     # py3_process_wrapper.py out_dir /tmp user eopen ...
     kwargs = {var: value for var, value in list(zip(*[sys.argv[i + 1 :: 2] for i in (0, 1)]))}
     logger.debug("kwargs from sys.argv: \n %s", kwargs)
-    #print(execute(**kwargs))
+    # print(execute(**kwargs))
     example()

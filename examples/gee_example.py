@@ -26,10 +26,12 @@ print(cap.list_features())
 print(cap.currency())
 print(cap.list_plans())
 
-datacube = con.load_collection("COPERNICUS/S2",
-                               spatial_extent={"west": 16.138916, "south": 48.138600, "east": 16.524124, "north": 48.320647},
-                               temporal_extent=["2017-01-01T00:00:00Z", "2017-01-31T23:59:59Z"],
-                               bands=["B4", "B8"])
+datacube = con.load_collection(
+    "COPERNICUS/S2",
+    spatial_extent={"west": 16.138916, "south": 48.138600, "east": 16.524124, "north": 48.320647},
+    temporal_extent=["2017-01-01T00:00:00Z", "2017-01-31T23:59:59Z"],
+    bands=["B4", "B8"],
+)
 
 # Defining complex reducer
 red = PGNode("array_element", arguments={"data": {"from_parameter": "data"}, "label": "B4"})
@@ -43,7 +45,9 @@ print(datacube.to_json())
 datacube = datacube.min_time(dimension="t")
 
 # defining linear scale range for apply process
-lin_scale = PGNode("linear_scale_range", arguments={"x": {"from_parameter": "x"}, "inputMin": -1, "inputMax": 1, "outputMax": 255})
+lin_scale = PGNode(
+    "linear_scale_range", arguments={"x": {"from_parameter": "x"}, "inputMin": -1, "inputMax": 1, "outputMax": 255}
+)
 
 datacube = datacube.apply(lin_scale)
 datacube = datacube.save_result(format="PNG")

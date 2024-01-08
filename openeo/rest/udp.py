@@ -48,13 +48,10 @@ def build_process_dict(
         returns=returns,
         categories=categories,
         examples=examples,
-        links=links
+        links=links,
     )
     if parameters is not None:
-        process["parameters"] = [
-            (p if isinstance(p, Parameter) else Parameter(**p)).to_dict()
-            for p in parameters
-        ]
+        process["parameters"] = [(p if isinstance(p, Parameter) else Parameter(**p)).to_dict() for p in parameters]
     return process
 
 
@@ -70,7 +67,7 @@ class RESTUserDefinedProcess:
 
     def _repr_html_(self):
         process = self.describe()
-        return render_component('process', data=process, parameters = {'show-graph': True, 'provide-download': False})
+        return render_component("process", data=process, parameters={"show-graph": True, "provide-download": False})
 
     def store(
         self,
@@ -86,9 +83,14 @@ class RESTUserDefinedProcess:
     ):
         """Store a process graph and its metadata on the backend as a user-defined process"""
         process = build_process_dict(
-            process_graph=process_graph, parameters=parameters,
-            summary=summary, description=description, returns=returns,
-            categories=categories, examples=examples, links=links,
+            process_graph=process_graph,
+            parameters=parameters,
+            summary=summary,
+            description=description,
+            returns=returns,
+            categories=categories,
+            examples=examples,
+            links=links,
         )
 
         # TODO: this "public" flag is not standardized yet EP-3609, https://github.com/Open-EO/openeo-api/issues/310
@@ -102,13 +104,19 @@ class RESTUserDefinedProcess:
     @deprecated(
         "Use `store` instead. Method `update` is misleading: OpenEO API does not provide (partial) updates"
         " of user-defined processes, only fully overwriting 'store' operations.",
-        version="0.4.11")
+        version="0.4.11",
+    )
     def update(
-            self, process_graph: Union[dict, ProcessBuilderBase], parameters: List[Union[Parameter, dict]] = None,
-            public: bool = False, summary: str = None, description: str = None
+        self,
+        process_graph: Union[dict, ProcessBuilderBase],
+        parameters: List[Union[Parameter, dict]] = None,
+        public: bool = False,
+        summary: str = None,
+        description: str = None,
     ):
-        self.store(process_graph=process_graph, parameters=parameters, public=public, summary=summary,
-                   description=description)
+        self.store(
+            process_graph=process_graph, parameters=parameters, public=public, summary=summary, description=description
+        )
 
     def describe(self) -> dict:
         """Get metadata of this user-defined process."""

@@ -83,8 +83,7 @@ def execute(
     outputs = ast.literal_eval(last_line)
     if not isinstance(outputs, dict):
         raise ValueError(
-            "Output of python3 wrapper is not a dictionary of outputs, "
-            "received type %s." % outputs.__class__
+            "Output of python3 wrapper is not a dictionary of outputs, " "received type %s." % outputs.__class__
         )
     else:
         logger.info("Parsed outputs: \n%s", outputs)

@@ -28,25 +28,18 @@ _OIDC_FLOW_CHOICES = [
 
 
 def main(argv=None):
-    root_parser = argparse.ArgumentParser(
-        description="Tool to manage openEO related authentication and configuration."
-    )
+    root_parser = argparse.ArgumentParser(description="Tool to manage openEO related authentication and configuration.")
     root_parser.add_argument(
-        "--verbose", "-v", action="count", default=0,
-        help="Increase logging verbosity. Can be given multiple times."
+        "--verbose", "-v", action="count", default=0, help="Increase logging verbosity. Can be given multiple times."
     )
     root_subparsers = root_parser.add_subparsers(title="Subcommands", dest="subparser_name")
 
     # Command: paths
-    paths_parser = root_subparsers.add_parser(
-        "paths", help="Show paths to config/token files."
-    )
+    paths_parser = root_subparsers.add_parser("paths", help="Show paths to config/token files.")
     paths_parser.set_defaults(func=main_paths)
 
     # Command: config-dump
-    config_dump_parser = root_subparsers.add_parser(
-        "config-dump", help="Dump config file.", aliases=["config"]
-    )
+    config_dump_parser = root_subparsers.add_parser("config-dump", help="Dump config file.", aliases=["config"])
     config_dump_parser.set_defaults(func=main_config_dump)
     config_dump_parser.add_argument("--show-secrets", action="store_true", help="Don't redact secrets in the dump.")
 
@@ -58,39 +51,37 @@ def main(argv=None):
     token_dump_parser.add_argument("--show-secrets", action="store_true", help="Don't redact secrets in the dump.")
 
     # Command: token-clear
-    token_clear_parser = root_subparsers.add_parser(
-        "token-clear", help="Remove OpenID Connect refresh tokens file."
-    )
+    token_clear_parser = root_subparsers.add_parser("token-clear", help="Remove OpenID Connect refresh tokens file.")
     token_clear_parser.set_defaults(func=main_token_clear)
     token_clear_parser.add_argument("--force", "-f", action="store_true", help="Remove without asking confirmation.")
 
     # Command: add-basic
-    add_basic_parser = root_subparsers.add_parser(
-        "add-basic", help="Add or update config entry for basic auth."
-    )
+    add_basic_parser = root_subparsers.add_parser("add-basic", help="Add or update config entry for basic auth.")
     add_basic_parser.set_defaults(func=main_add_basic)
     add_basic_parser.add_argument("backend", help="OpenEO Backend URL.")
     add_basic_parser.add_argument("--username", help="Basic auth username.")
     add_basic_parser.add_argument(
-        "--no-try", dest="try_auth", action="store_false",
-        help="Don't try out the credentials against the backend, just store them."
+        "--no-try",
+        dest="try_auth",
+        action="store_false",
+        help="Don't try out the credentials against the backend, just store them.",
     )
 
     # Command: add-oidc
-    add_oidc_parser = root_subparsers.add_parser(
-        "add-oidc", help="Add or update config entry for OpenID Connect."
-    )
+    add_oidc_parser = root_subparsers.add_parser("add-oidc", help="Add or update config entry for OpenID Connect.")
     add_oidc_parser.set_defaults(func=main_add_oidc)
     add_oidc_parser.add_argument("backend", help="OpenEO Backend URL.")
     add_oidc_parser.add_argument("--provider-id", help="Provider ID to use.")
     add_oidc_parser.add_argument("--client-id", help="Client ID to use.")
     add_oidc_parser.add_argument(
-        "--no-client-secret", dest="ask_client_secret", default=True, action="store_false",
-        help="Don't ask for secret (because client does not need one)."
+        "--no-client-secret",
+        dest="ask_client_secret",
+        default=True,
+        action="store_false",
+        help="Don't ask for secret (because client does not need one).",
     )
     add_oidc_parser.add_argument(
-        "--use-default-client", action="store_true",
-        help="Use default client (as provided by backend)."
+        "--use-default-client", action="store_true", help="Use default client (as provided by backend)."
     )
 
     # Command: oidc-auth
@@ -101,8 +92,7 @@ def main(argv=None):
     oidc_auth_parser.add_argument("backend", help="OpenEO Backend URL.")
     oidc_auth_parser.add_argument("--provider-id", help="Provider ID to use.")
     oidc_auth_parser.add_argument(
-        "--flow", choices=_OIDC_FLOW_CHOICES, default="device",
-        help="OpenID Connect flow to use (default: device)."
+        "--flow", choices=_OIDC_FLOW_CHOICES, default="device", help="OpenID Connect flow to use (default: device)."
     )
     oidc_auth_parser.add_argument(
         "--timeout", type=int, default=60, help="Timeout in seconds to wait for (user) response."
@@ -265,12 +255,12 @@ def main_add_oidc(args):
         else:
             provider_id = _interactive_choice(
                 title="Backend {b!r} has multiple OpenID Connect providers.".format(b=backend),
-                options=[(p.id, "{t} (issuer {s})".format(t=p.title, s=p.issuer)) for p in providers.values()]
+                options=[(p.id, "{t} (issuer {s})".format(t=p.title, s=p.issuer)) for p in providers.values()],
             )
     if provider_id not in providers:
-        raise CliToolException("Invalid provider ID {p!r}. Should be one of {o}.".format(
-            p=provider_id, o=list(providers.keys())
-        ))
+        raise CliToolException(
+            "Invalid provider ID {p!r}. Should be one of {o}.".format(p=provider_id, o=list(providers.keys()))
+        )
     provider = providers[provider_id]
     print("Using provider ID {p!r} (issuer {i!r})".format(p=provider_id, i=provider.issuer))
 
@@ -296,8 +286,11 @@ def main_add_oidc(args):
             client_secret = None
 
     config.set_oidc_client_config(
-        backend=backend, provider_id=provider_id, client_id=client_id, client_secret=client_secret,
-        issuer=provider.issuer
+        backend=backend,
+        provider_id=provider_id,
+        client_id=client_id,
+        client_secret=client_secret,
+        issuer=provider.issuer,
     )
     print("Saved client information to {p!r}".format(p=str(config.path)))
 
@@ -332,14 +325,15 @@ def main_oidc_auth(args):
             provider_id = _interactive_choice(
                 title="Multiple OpenID Connect providers available for backend {b!r}".format(b=backend),
                 options=sorted(
-                    (k, "{k}: issuer {s}".format(k=k, s=v.get("issuer", "n/a")))
-                    for k, v in provider_configs.items()
-                )
+                    (k, "{k}: issuer {s}".format(k=k, s=v.get("issuer", "n/a"))) for k, v in provider_configs.items()
+                ),
             )
     if not (provider_id is None or provider_id in provider_configs):
-        raise CliToolException("Invalid provider ID {p!r}. Should be `None` or one of {o}.".format(
-            p=provider_id, o=list(provider_configs.keys())
-        ))
+        raise CliToolException(
+            "Invalid provider ID {p!r}. Should be `None` or one of {o}.".format(
+                p=provider_id, o=list(provider_configs.keys())
+            )
+        )
     print("Using provider ID {p!r}.".format(p=provider_id))
 
     # Get client id and secret
@@ -353,22 +347,23 @@ def main_oidc_auth(args):
     con = Connection(backend, refresh_token_store=refresh_token_store)
     if oidc_flow == "auth-code":
         print("Starting OpenID Connect authorization code flow:")
-        print("a browser window should open allowing you to log in with the identity provider\n"
-              "and grant access to the client {c!r} (timeout: {t}s).".format(c=client_id, t=timeout))
+        print(
+            "a browser window should open allowing you to log in with the identity provider\n"
+            "and grant access to the client {c!r} (timeout: {t}s).".format(c=client_id, t=timeout)
+        )
         con.authenticate_oidc_authorization_code(
-            client_id=client_id, client_secret=client_secret,
+            client_id=client_id,
+            client_secret=client_secret,
             provider_id=provider_id,
             timeout=timeout,
             store_refresh_token=True,
-            webbrowser_open=_webbrowser_open
+            webbrowser_open=_webbrowser_open,
         )
         print("The OpenID Connect authorization code flow was successful.")
     elif oidc_flow == "device":
         print("Starting OpenID Connect device flow.")
         con.authenticate_oidc_device(
-            client_id=client_id, client_secret=client_secret,
-            provider_id=provider_id,
-            store_refresh_token=True
+            client_id=client_id, client_secret=client_secret, provider_id=provider_id, store_refresh_token=True
         )
         print("The OpenID Connect device flow was successful.")
     else:
@@ -377,5 +372,5 @@ def main_oidc_auth(args):
     print("Stored refresh token in {p!r}".format(p=str(refresh_token_store.path)))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -49,12 +49,12 @@ class BatchJob:
         self.connection = connection
 
     def __repr__(self):
-        return '<{c} job_id={i!r}>'.format(c=self.__class__.__name__, i=self.job_id)
+        return "<{c} job_id={i!r}>".format(c=self.__class__.__name__, i=self.job_id)
 
     def _repr_html_(self):
         data = self.describe()
         currency = self.connection.capabilities().currency()
-        return render_component('job', data=data, parameters={'currency': currency})
+        return render_component("job", data=data, parameters={"currency": currency})
 
     @openeo_endpoint("GET /jobs/{job_id}")
     def describe(self) -> dict:
@@ -92,11 +92,9 @@ class BatchJob:
     @openeo_endpoint("GET /jobs/{job_id}/estimate")
     def estimate(self):
         """Calculate time/cost estimate for a job."""
-        data = self.connection.get(
-            f"/jobs/{self.job_id}/estimate", expected_status=200
-        ).json()
+        data = self.connection.get(f"/jobs/{self.job_id}/estimate", expected_status=200).json()
         currency = self.connection.capabilities().currency()
-        return VisualDict('job-estimate', data=data, parameters={'currency': currency})
+        return VisualDict("job-estimate", data=data, parameters={"currency": currency})
 
     estimate_job = legacy_alias(estimate, since="0.20.0", mode="soft")
 
@@ -151,7 +149,8 @@ class BatchJob:
 
     @deprecated(
         "Instead use :py:meth:`BatchJob.get_results` and the more flexible download functionality of :py:class:`JobResults`",
-        version="0.4.10")
+        version="0.4.10",
+    )
     def download_results(self, target: Union[str, Path] = None) -> Dict[Path, dict]:
         """
         Download all job result files into given folder (current working dir by default).
@@ -175,9 +174,7 @@ class BatchJob:
         """
         return JobResults(job=self)
 
-    def logs(
-        self, offset: Optional[str] = None, level: Optional[Union[str, int]] = None
-    ) -> List[LogEntry]:
+    def logs(self, offset: Optional[str] = None, level: Optional[Union[str, int]] = None) -> List[LogEntry]:
         """Retrieve job logs.
 
         :param offset: The last identifier (property ``id`` of a LogEntry) the client has received.
@@ -216,18 +213,13 @@ class BatchJob:
         # support the minimum log level parameter.
         if level is not None:
             log_level = normalize_log_level(level)
-            logs = (
-                log
-                for log in logs
-                if normalize_log_level(log.get("level")) >= log_level
-            )
+            logs = (log for log in logs if normalize_log_level(log.get("level")) >= log_level)
 
         entries = [LogEntry(log) for log in logs]
         return VisualList("logs", data=entries)
 
     def run_synchronous(
-            self, outputfile: Union[str, Path, None] = None,
-            print=print, max_poll_interval=60, connection_retry_interval=30
+        self, outputfile: Union[str, Path, None] = None, print=print, max_poll_interval=60, connection_retry_interval=30
     ) -> BatchJob:
         """Start the job, wait for it to finish and download result"""
         self.start_and_wait(
@@ -239,7 +231,7 @@ class BatchJob:
         return self
 
     def start_and_wait(
-            self, print=print, max_poll_interval: int = 60, connection_retry_interval: int = 30, soft_error_max=10
+        self, print=print, max_poll_interval: int = 60, connection_retry_interval: int = 30, soft_error_max=10
     ) -> BatchJob:
         """
         Start the batch job, poll its status and wait till it finishes (or fails)
@@ -295,9 +287,9 @@ class BatchJob:
                     raise
 
             status = job_info.get("status", "N/A")
-            progress = '{p}%'.format(p=job_info["progress"]) if "progress" in job_info else "N/A"
+            progress = "{p}%".format(p=job_info["progress"]) if "progress" in job_info else "N/A"
             print_status("{s} (progress {p})".format(s=status, p=progress))
-            if status not in ('submitted', 'created', 'queued', 'running'):
+            if status not in ("submitted", "created", "queued", "running"):
                 break
 
             # Sleep for next poll (and adaptively make polling less frequent)
@@ -408,16 +400,14 @@ class JobResults:
     def _repr_html_(self):
         try:
             response = self.get_metadata()
-            return render_component("batch-job-result", data = response)
+            return render_component("batch-job-result", data=response)
         except OpenEoApiError as error:
             return render_error(error)
 
     def get_metadata(self, force=False) -> dict:
         """Get batch job results metadata (parsed JSON)"""
         if self._results is None or force:
-            self._results = self._job.connection.get(
-                self._job.get_results_metadata_url(), expected_status=200
-            ).json()
+            self._results = self._job.connection.get(self._job.get_results_metadata_url(), expected_status=200).json()
         return self._results
 
     # TODO: provide methods for `stac_version`, `id`, `geometry`, `properties`, `links`, ...?
@@ -433,8 +423,7 @@ class JobResults:
         if not assets:
             logger.warning("No assets found in job result metadata.")
         return [
-            ResultAsset(job=self._job, name=name, href=asset["href"], metadata=asset)
-            for name, asset in assets.items()
+            ResultAsset(job=self._job, name=name, href=asset["href"], metadata=asset) for name, asset in assets.items()
         ]
 
     def get_asset(self, name: str = None) -> ResultAsset:
@@ -449,16 +438,14 @@ class JobResults:
             if len(assets) == 1:
                 return assets[0]
             else:
-                raise MultipleAssetException("Multiple result assets for job {j}: {a}".format(
-                    j=self._job.job_id, a=[a.name for a in assets]
-                ))
+                raise MultipleAssetException(
+                    "Multiple result assets for job {j}: {a}".format(j=self._job.job_id, a=[a.name for a in assets])
+                )
         else:
             try:
                 return next(a for a in assets if a.name == name)
             except StopIteration:
-                raise OpenEoClientException(
-                    "No asset {n!r} in: {a}".format(n=name, a=[a.name for a in assets])
-                )
+                raise OpenEoClientException("No asset {n!r} in: {a}".format(n=name, a=[a.name for a in assets]))
 
     def download_file(self, target: Union[Path, str] = None, name: str = None) -> Path:
         """
@@ -475,7 +462,8 @@ class JobResults:
             return self.get_asset(name=name).download(target=target)
         except MultipleAssetException:
             raise OpenEoClientException(
-                "Can not use `download_file` with multiple assets. Use `download_files` instead.")
+                "Can not use `download_file` with multiple assets. Use `download_files` instead."
+            )
 
     def download_files(self, target: Union[Path, str] = None, include_stac_metadata: bool = True) -> List[Path]:
         """

@@ -16,19 +16,20 @@ def main():
     bbox = polygon.bounds
 
     result = (
-        conn
-            .load_collection("TERRASCOPE_S2_TOC_V2",
-                             temporal_extent = ["2020-01-01", "2020-03-10"],
-                             spatial_extent=dict(zip(["west", "south", "east", "north"], bbox)),
-                             bands=["B04","B08"])
-            .ndvi()
-            .polygonal_mean_timeseries(polygon)
-            .execute()
+        conn.load_collection(
+            "TERRASCOPE_S2_TOC_V2",
+            temporal_extent=["2020-01-01", "2020-03-10"],
+            spatial_extent=dict(zip(["west", "south", "east", "north"], bbox)),
+            bands=["B04", "B08"],
+        )
+        .ndvi()
+        .polygonal_mean_timeseries(polygon)
+        .execute()
     )
 
     pprint(timeseries_json_to_pandas(result))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     main()

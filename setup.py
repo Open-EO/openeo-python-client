@@ -81,9 +81,7 @@ setup(
         "tests": tests_require,
         "dev": tests_require + docs_require,
         "docs": docs_require,
-        "oschmod": [  # install oschmod even when platform is not Windows, e.g. for testing in CI.
-            "oschmod>=0.3.12"
-        ],
+        "oschmod": ["oschmod>=0.3.12"],  # install oschmod even when platform is not Windows, e.g. for testing in CI.
         "localprocessing": localprocessing_require,
         "jupyter": jupyter_require,
     },

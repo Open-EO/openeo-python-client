@@ -31,9 +31,11 @@ _log = logging.getLogger(__name__)
 def _build_default_execution_context():
     # TODO: is it really necessary to "pre-load" these modules? Isn't user going to import them explicitly in their script anyway?
     context = {
-        "numpy": numpy, "np": numpy,
+        "numpy": numpy,
+        "np": numpy,
         "xarray": xarray,
-        "pandas": pandas, "pd": pandas,
+        "pandas": pandas,
+        "pd": pandas,
         "shapely": shapely,
         "math": math,
         "UdfData": UdfData,
@@ -44,7 +46,6 @@ def _build_default_execution_context():
         # "SpatialExtent": SpatialExtent,  # TODO?
         # "MachineLearnModel": MachineLearnModelConfig, # TODO?
     }
-
 
     return context
 
@@ -79,19 +80,18 @@ def _annotation_is_pandas_series(annotation) -> bool:
 def _annotation_is_udf_datacube(annotation) -> bool:
     return annotation is XarrayDataCube or _get_annotation_str(annotation) in {
         _get_annotation_str(XarrayDataCube),
-        'openeo_udf.api.datacube.DataCube',  # Legacy `openeo_udf` annotation
+        "openeo_udf.api.datacube.DataCube",  # Legacy `openeo_udf` annotation
     }
 
+
 def _annotation_is_data_array(annotation) -> bool:
-    return annotation is xarray.DataArray or _get_annotation_str(annotation) in {
-        _get_annotation_str(xarray.DataArray)
-    }
+    return annotation is xarray.DataArray or _get_annotation_str(annotation) in {_get_annotation_str(xarray.DataArray)}
 
 
 def _annotation_is_udf_data(annotation) -> bool:
     return annotation is UdfData or _get_annotation_str(annotation) in {
         _get_annotation_str(UdfData),
-        'openeo_udf.api.udf_data.UdfData'  # Legacy `openeo_udf` annotation
+        "openeo_udf.api.udf_data.UdfData",  # Legacy `openeo_udf` annotation
     }
 
 
@@ -121,10 +121,7 @@ def _apply_timeseries_xarray(array: xarray.DataArray, callback: Callable[[Series
     return xarray.DataArray(applied, coords=array.coords, dims=array.dims, name=array.name)
 
 
-def apply_timeseries_generic(
-        udf_data: UdfData,
-        callback: Callable[[Series, dict], Series]
-) -> UdfData:
+def apply_timeseries_generic(udf_data: UdfData, callback: Callable[[Series, dict], Series]) -> UdfData:
     """
     Implements the UDF contract by calling a user provided time series transformation function.
 
@@ -149,7 +146,7 @@ def run_udf_code(code: str, data: UdfData) -> UdfData:
     module = load_module_from_string(code)
     functions = ((k, v) for (k, v) in module.items() if callable(v))
 
-    for (fn_name, func) in functions:
+    for fn_name, func in functions:
         try:
             sig = inspect.signature(func)
         except ValueError:
@@ -158,41 +155,50 @@ def run_udf_code(code: str, data: UdfData) -> UdfData:
         first_param = next(iter(params.values()), None)
 
         if (
-                fn_name == 'apply_timeseries'
-                and 'series' in params and 'context' in params
-                and _annotation_is_pandas_series(params["series"].annotation)
-                and _annotation_is_pandas_series(sig.return_annotation)
+            fn_name == "apply_timeseries"
+            and "series" in params
+            and "context" in params
+            and _annotation_is_pandas_series(params["series"].annotation)
+            and _annotation_is_pandas_series(sig.return_annotation)
         ):
             _log.info("Found timeseries mapping UDF `{n}` {f!r}".format(n=fn_name, f=func))
             return apply_timeseries_generic(data, func)
         elif (
-                fn_name in ['apply_hypercube', 'apply_datacube']
-                and 'cube' in params and 'context' in params
-                and _annotation_is_udf_datacube(params["cube"].annotation)
-                and _annotation_is_udf_datacube(sig.return_annotation)
+            fn_name in ["apply_hypercube", "apply_datacube"]
+            and "cube" in params
+            and "context" in params
+            and _annotation_is_udf_datacube(params["cube"].annotation)
+            and _annotation_is_udf_datacube(sig.return_annotation)
         ):
             _log.info("Found datacube mapping UDF `{n}` {f!r}".format(n=fn_name, f=func))
             if len(data.get_datacube_list()) != 1:
-                raise ValueError("The provided UDF expects exactly one datacube, but {c} were provided.".format(
-                    c=len(data.get_datacube_list())
-                ))
+                raise ValueError(
+                    "The provided UDF expects exactly one datacube, but {c} were provided.".format(
+                        c=len(data.get_datacube_list())
+                    )
+                )
             # TODO: also support calls without user context?
             result_cube = func(cube=data.get_datacube_list()[0], context=data.user_context)
             data.set_datacube_list([result_cube])
             return data
         elif (
-                fn_name in ['apply_datacube']
-                and 'cube' in params and 'context' in params
-                and _annotation_is_data_array(params["cube"].annotation)
-                and _annotation_is_data_array(sig.return_annotation)
+            fn_name in ["apply_datacube"]
+            and "cube" in params
+            and "context" in params
+            and _annotation_is_data_array(params["cube"].annotation)
+            and _annotation_is_data_array(sig.return_annotation)
         ):
             _log.info("Found datacube mapping UDF `{n}` {f!r}".format(n=fn_name, f=func))
             if len(data.get_datacube_list()) != 1:
-                raise ValueError("The provided UDF expects exactly one datacube, but {c} were provided.".format(
-                    c=len(data.get_datacube_list())
-                ))
+                raise ValueError(
+                    "The provided UDF expects exactly one datacube, but {c} were provided.".format(
+                        c=len(data.get_datacube_list())
+                    )
+                )
             # TODO: also support calls without user context?
-            result_cube: xarray.DataArray = func(cube=data.get_datacube_list()[0].get_array(), context=data.user_context)
+            result_cube: xarray.DataArray = func(
+                cube=data.get_datacube_list()[0].get_array(), context=data.user_context
+            )
             data.set_datacube_list([XarrayDataCube(result_cube)])
             return data
         elif len(params) == 1 and _annotation_is_udf_data(first_param.annotation):
@@ -203,7 +209,9 @@ def run_udf_code(code: str, data: UdfData) -> UdfData:
     raise OpenEoUdfException("No UDF found.")
 
 
-def execute_local_udf(udf: Union[str, openeo.UDF], datacube: Union[str, xarray.DataArray, XarrayDataCube], fmt='netcdf'):
+def execute_local_udf(
+    udf: Union[str, openeo.UDF], datacube: Union[str, xarray.DataArray, XarrayDataCube], fmt="netcdf"
+):
     """
     Locally executes an user defined function on a previously downloaded datacube.
 

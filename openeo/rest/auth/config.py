@@ -160,7 +160,11 @@ class AuthConfig(PrivateJsonFile):
 
     def set_basic_auth(self, backend: str, username: str, password: Union[str, None]):
         data = self.load()
-        keys = ("backends", _normalize_url(backend), "basic",)
+        keys = (
+            "backends",
+            _normalize_url(backend),
+            "basic",
+        )
         # TODO: support multiple basic auth credentials? (pick latest by default for example)
         deep_set(data, *keys, "date", value=utcnow_rfc3339())
         deep_set(data, *keys, "username", value=username)
@@ -186,8 +190,12 @@ class AuthConfig(PrivateJsonFile):
         return client_id, client_secret
 
     def set_oidc_client_config(
-            self, backend: str, provider_id: str,
-            client_id: Union[str, None], client_secret: Union[str, None] = None, issuer: Union[str, None] = None
+        self,
+        backend: str,
+        provider_id: str,
+        client_id: Union[str, None],
+        client_secret: Union[str, None] = None,
+        issuer: Union[str, None] = None,
     ):
         data = self.load()
         keys = ("backends", _normalize_url(backend), "oidc", "providers", provider_id)
@@ -217,8 +225,13 @@ class RefreshTokenStore(PrivateJsonFile):
     def set_refresh_token(self, issuer: str, client_id: str, refresh_token: str):
         data = self.load()
         log.info("Storing refresh token for issuer {i!r} (client {c!r})".format(i=issuer, c=client_id))
-        deep_set(data, _normalize_url(issuer), client_id, value={
-            "date": utcnow_rfc3339(),
-            "refresh_token": refresh_token,
-        })
+        deep_set(
+            data,
+            _normalize_url(issuer),
+            client_id,
+            value={
+                "date": utcnow_rfc3339(),
+                "refresh_token": refresh_token,
+            },
+        )
         self._write(data)

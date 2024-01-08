@@ -20,31 +20,39 @@ class Service:
         self.connection = connection
 
     def __repr__(self):
-        return '<{c} service_id={i!r}>'.format(c=self.__class__.__name__, i=self.service_id)
+        return "<{c} service_id={i!r}>".format(c=self.__class__.__name__, i=self.service_id)
 
     def _repr_html_(self):
         data = self.describe_service()
         currency = self.connection.capabilities().currency()
-        return VisualDict('service', data = data, parameters = {'currency': currency})
+        return VisualDict("service", data=data, parameters={"currency": currency})
 
     def describe_service(self):
-        """ Get all information about a secondary web service."""
+        """Get all information about a secondary web service."""
         # GET /services/{service_id}
         return self.connection.get("/services/{}".format(self.service_id), expected_status=200).json()
 
-    def update_service(self, process_graph=None, title=None, description=None, enabled=None, configuration=None, plan=None, budget=None, additional=None):
-        """ Update a secondary web service."""
+    def update_service(
+        self,
+        process_graph=None,
+        title=None,
+        description=None,
+        enabled=None,
+        configuration=None,
+        plan=None,
+        budget=None,
+        additional=None,
+    ):
+        """Update a secondary web service."""
         # PATCH /services/{service_id}
         raise NotImplementedError
 
     def delete_service(self):
-        """ Delete a secondary web service."""
+        """Delete a secondary web service."""
         # DELETE /services/{service_id}
         self.connection.delete("/services/{}".format(self.service_id), expected_status=204)
 
-    def logs(
-        self, offset: Optional[str] = None, level: Optional[Union[str, int]] = None
-    ) -> List[LogEntry]:
+    def logs(self, offset: Optional[str] = None, level: Optional[Union[str, int]] = None) -> List[LogEntry]:
         """Retrieve service logs."""
         url = f"/service/{self.service_id}/logs"
         params = {}

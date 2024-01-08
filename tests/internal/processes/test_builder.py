@@ -70,7 +70,6 @@ def test_get_parameter_names():
 
 
 class TestConvertCallableToPgnode:
-
     def test_simple_lambda(self):
         result = convert_callable_to_pgnode(lambda x: x + 5)
         assert isinstance(result, PGNode)
@@ -102,7 +101,6 @@ class TestConvertCallableToPgnode:
         }
 
     def test_no_parent_parameter_info(self, recwarn):
-
         def my_callback(data, condition=False, context=None):
             return data.count(condition=condition, context=context)
 
@@ -116,7 +114,8 @@ class TestConvertCallableToPgnode:
                     "condition": {"from_parameter": "condition"},
                     "context": {"from_parameter": "context"},
                 },
-                "result": True}
+                "result": True,
+            }
         }
 
         assert re.search(
@@ -138,7 +137,8 @@ class TestConvertCallableToPgnode:
                     "condition": False,
                     "context": None,
                 },
-                "result": True}
+                "result": True,
+            }
         }
 
         result = convert_callable_to_pgnode(callback, parent_parameters=["data", "context"])
@@ -151,7 +151,8 @@ class TestConvertCallableToPgnode:
                     "condition": False,
                     "context": {"from_parameter": "context"},
                 },
-                "result": True}
+                "result": True,
+            }
         }
 
     def test_naming_mismatch_fallback(self):
@@ -164,34 +165,44 @@ class TestConvertCallableToPgnode:
             "add1": {"process_id": "add", "arguments": {"x": {"from_parameter": "data"}, "y": 1}, "result": True}
         }
 
-    @pytest.mark.parametrize(["callback", "parent_parameters", "expected"], [
-        (lambda: openeo.processes.pi(), [], {"pi1": {"process_id": "pi", "arguments": {}, "result": True}}),
-        (lambda: openeo.processes.pi(), ["data"], {"pi1": {"process_id": "pi", "arguments": {}, "result": True}}),
-        (lambda x=0: openeo.processes.pi(), ["data"], {"pi1": {"process_id": "pi", "arguments": {}, "result": True}}),
-        (lambda x=0: openeo.processes.pi(), [], {"pi1": {"process_id": "pi", "arguments": {}, "result": True}}),
-    ])
+    @pytest.mark.parametrize(
+        ["callback", "parent_parameters", "expected"],
+        [
+            (lambda: openeo.processes.pi(), [], {"pi1": {"process_id": "pi", "arguments": {}, "result": True}}),
+            (lambda: openeo.processes.pi(), ["data"], {"pi1": {"process_id": "pi", "arguments": {}, "result": True}}),
+            (
+                lambda x=0: openeo.processes.pi(),
+                ["data"],
+                {"pi1": {"process_id": "pi", "arguments": {}, "result": True}},
+            ),
+            (lambda x=0: openeo.processes.pi(), [], {"pi1": {"process_id": "pi", "arguments": {}, "result": True}}),
+        ],
+    )
     def test_zero_params(self, callback, parent_parameters, expected):
         result = convert_callable_to_pgnode(callback, parent_parameters=parent_parameters)
         assert isinstance(result, PGNode)
         assert result.flat_graph() == expected
 
-    @pytest.mark.parametrize(["callback", "parent_parameters", "expected"], [
-        (
+    @pytest.mark.parametrize(
+        ["callback", "parent_parameters", "expected"],
+        [
+            (
                 lambda x: x + 1,
                 ["data"],
                 {"add1": {"process_id": "add", "arguments": {"x": {"from_parameter": "data"}, "y": 1}, "result": True}},
-        ),
-        (
+            ),
+            (
                 lambda x, y=5: x + y,
                 ["data"],
                 {"add1": {"process_id": "add", "arguments": {"x": {"from_parameter": "data"}, "y": 5}, "result": True}},
-        ),
-        (
+            ),
+            (
                 lambda x: x + 1,
                 ["data", "other", "context"],
                 {"add1": {"process_id": "add", "arguments": {"x": {"from_parameter": "data"}, "y": 1}, "result": True}},
-        ),
-    ])
+            ),
+        ],
+    )
     def test_one_parameter(self, callback, parent_parameters, expected):
         result = convert_callable_to_pgnode(callback, parent_parameters=parent_parameters)
         assert isinstance(result, PGNode)
@@ -218,26 +229,41 @@ class TestConvertCallableToPgnode:
             }
         }
 
-    @pytest.mark.parametrize(["callback", "expected"], [
-        (lambda data: data.sum(), {
-            "sum1": {
-                "process_id": "sum",
-                "arguments": {"data": [{"from_parameter": "x"}, {"from_parameter": "y"}]},
-                "result": True,
-            }
-        }),
-        (lambda values: values.sum(), {
-            "sum1": {
-                "process_id": "sum",
-                "arguments": {"data": [{"from_parameter": "x"}, {"from_parameter": "y"}]},
-                "result": True,
-            }
-        }),
-        (lambda data, offset=1: data.sum() + offset, {
-            "sum1": {"process_id": "sum", "arguments": {"data": [{"from_parameter": "x"}, {"from_parameter": "y"}]}},
-            "add1": {"process_id": "add", "arguments": {"x": {"from_node": "sum1"}, "y": 1}, "result": True}
-        }),
-    ])
+    @pytest.mark.parametrize(
+        ["callback", "expected"],
+        [
+            (
+                lambda data: data.sum(),
+                {
+                    "sum1": {
+                        "process_id": "sum",
+                        "arguments": {"data": [{"from_parameter": "x"}, {"from_parameter": "y"}]},
+                        "result": True,
+                    }
+                },
+            ),
+            (
+                lambda values: values.sum(),
+                {
+                    "sum1": {
+                        "process_id": "sum",
+                        "arguments": {"data": [{"from_parameter": "x"}, {"from_parameter": "y"}]},
+                        "result": True,
+                    }
+                },
+            ),
+            (
+                lambda data, offset=1: data.sum() + offset,
+                {
+                    "sum1": {
+                        "process_id": "sum",
+                        "arguments": {"data": [{"from_parameter": "x"}, {"from_parameter": "y"}]},
+                    },
+                    "add1": {"process_id": "add", "arguments": {"x": {"from_node": "sum1"}, "y": 1}, "result": True},
+                },
+            ),
+        ],
+    )
     def test_xy_adapter_simple(self, callback, expected):
         result = convert_callable_to_pgnode(callback, parent_parameters=["x", "y"])
         assert isinstance(result, PGNode)

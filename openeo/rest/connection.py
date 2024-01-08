@@ -98,8 +98,9 @@ class RestApiConnection:
         self.default_headers = {
             "User-Agent": "openeo-python-client/{cv} {py}/{pv} {pl}".format(
                 cv=openeo.client_version(),
-                py=sys.implementation.name, pv=".".join(map(str, sys.version_info[:3])),
-                pl=sys.platform
+                py=sys.implementation.name,
+                pv=".".join(map(str, sys.version_info[:3])),
+                pl=sys.platform,
             )
         }
         self.slow_response_threshold = slow_response_threshold
@@ -121,7 +122,7 @@ class RestApiConnection:
     def _is_external(self, url: str) -> bool:
         """Check if given url is external (not under root url)"""
         root = self.root_url.rstrip("/")
-        return not (url == root or url.startswith(root + '/'))
+        return not (url == root or url.startswith(root + "/"))
 
     def request(
         self,
@@ -140,8 +141,10 @@ class RestApiConnection:
         auth = auth or (self.auth if not self._is_external(url) else None)
         slow_response_threshold = kwargs.pop("slow_response_threshold", self.slow_response_threshold)
         if _log.isEnabledFor(logging.DEBUG):
-            _log.debug("Request `{m} {u}` with headers {h}, auth {a}, kwargs {k}".format(
-                m=method.upper(), u=url, h=headers and headers.keys(), a=type(auth).__name__, k=list(kwargs.keys()))
+            _log.debug(
+                "Request `{m} {u}` with headers {h}, auth {a}, kwargs {k}".format(
+                    m=method.upper(), u=url, h=headers and headers.keys(), a=type(auth).__name__, k=list(kwargs.keys())
+                )
             )
         with ContextTimer() as timer:
             resp = self.session.request(
@@ -150,13 +153,14 @@ class RestApiConnection:
                 headers=self._merged_headers(headers),
                 auth=auth,
                 timeout=kwargs.pop("timeout", self.default_timeout),
-                **kwargs
+                **kwargs,
             )
         if slow_response_threshold and timer.elapsed() > slow_response_threshold:
-            _log.warning("Slow response: `{m} {u}` took {e:.2f}s (>{t:.2f}s)".format(
-                m=method.upper(), u=str_truncate(url, width=64),
-                e=timer.elapsed(), t=slow_response_threshold
-            ))
+            _log.warning(
+                "Slow response: `{m} {u}` took {e:.2f}s (>{t:.2f}s)".format(
+                    m=method.upper(), u=str_truncate(url, width=64), e=timer.elapsed(), t=slow_response_threshold
+                )
+            )
         if _log.isEnabledFor(logging.DEBUG):
             _log.debug(
                 f"openEO request `{resp.request.method} {resp.request.path_url}` -> response {resp.status_code} headers {resp.headers!r}"
@@ -167,8 +171,10 @@ class RestApiConnection:
         if check_error and status >= 400 and status not in expected_status:
             self._raise_api_error(resp)
         if expected_status and status not in expected_status:
-            raise OpenEoRestError("Got status code {s!r} for `{m} {p}` (expected {e!r}) with body {body}".format(
-                m=method.upper(), p=path, s=status, e=expected_status, body=resp.text)
+            raise OpenEoRestError(
+                "Got status code {s!r} for `{m} {p}` (expected {e!r}) with body {body}".format(
+                    m=method.upper(), p=path, s=status, e=expected_status, body=resp.text
+                )
             )
         return resp
 
@@ -292,7 +298,9 @@ class Connection(RestApiConnection):
         self._orig_url = url
         super().__init__(
             root_url=self.version_discovery(url, session=session, timeout=default_timeout),
-            auth=auth, session=session, default_timeout=default_timeout,
+            auth=auth,
+            session=session,
+            default_timeout=default_timeout,
             slow_response_threshold=slow_response_threshold,
         )
         self._capabilities_cache = LazyLoadCache()
@@ -325,7 +333,7 @@ class Connection(RestApiConnection):
             production_versions = [v for v in supported_versions if v.get("production", True)]
             highest_version = max(production_versions or supported_versions, key=lambda v: v["api_version"])
             _log.debug("Highest supported version available in backend: %s" % highest_version)
-            return highest_version['url']
+            return highest_version["url"]
         except Exception:
             # Be very lenient about failing on the well-known URI strategy.
             return url
@@ -355,9 +363,9 @@ class Connection(RestApiConnection):
                 raise OpenEoClientException("No username/password given or found.")
 
         resp = self.get(
-            '/credentials/basic',
+            "/credentials/basic",
             # /credentials/basic is the only endpoint that expects a Basic HTTP auth
-            auth=HTTPBasicAuth(username, password)
+            auth=HTTPBasicAuth(username, password),
         ).json()
         # Switch to bearer based authentication in further requests.
         self.auth = BasicBearerAuth(access_token=resp["access_token"])
@@ -394,15 +402,11 @@ class Connection(RestApiConnection):
             provider = providers[provider_id]
         elif len(providers) == 1:
             provider_id, provider = providers.popitem()
-            _log.info(
-                f"No OIDC provider given, but only one available: {provider_id!r}. Using that one."
-            )
+            _log.info(f"No OIDC provider given, but only one available: {provider_id!r}. Using that one.")
         else:
             # Check if there is a single provider in the config to use.
             backend = self._orig_url
-            provider_configs = self._get_auth_config().get_oidc_provider_configs(
-                backend=backend
-            )
+            provider_configs = self._get_auth_config().get_oidc_provider_configs(backend=backend)
             intersection = set(provider_configs.keys()).intersection(providers.keys())
             if len(intersection) == 1:
                 provider_id = intersection.pop()
@@ -412,9 +416,7 @@ class Connection(RestApiConnection):
                 )
             else:
                 provider_id, provider = providers.popitem(last=False)
-                _log.info(
-                    f"No OIDC provider given. Using first provider {provider_id!r} as advertised by backend."
-                )
+                _log.info(f"No OIDC provider given. Using first provider {provider_id!r} as advertised by backend.")
         provider = OidcProviderInfo.from_dict(provider)
         return provider_id, provider
 
@@ -447,9 +449,9 @@ class Connection(RestApiConnection):
             _log.debug("No client_id given: checking default clients in backend's provider info")
             client_id = provider.get_default_client_id(grant_check=default_client_grant_check)
             if client_id:
-                _log.info("Using default client_id {c!r} from OIDC provider {p!r} info.".format(
-                    c=client_id, p=provider_id
-                ))
+                _log.info(
+                    "Using default client_id {c!r} from OIDC provider {p!r} info.".format(c=client_id, p=provider_id)
+                )
         if client_id is None:
             raise OpenEoClientException("No client_id found.")
 
@@ -477,7 +479,7 @@ class Connection(RestApiConnection):
                 self._get_refresh_token_store().set_refresh_token(
                     issuer=authenticator.provider_info.issuer,
                     client_id=authenticator.client_id,
-                    refresh_token=refresh_token
+                    refresh_token=refresh_token,
                 )
                 if not oidc_auth_renewer:
                     oidc_auth_renewer = OidcRefreshTokenAuthenticator(
@@ -509,12 +511,13 @@ class Connection(RestApiConnection):
             or Client Credentials flow with :py:meth:`authenticate_oidc_client_credentials`.
         """
         provider_id, client_info = self._get_oidc_provider_and_client_info(
-            provider_id=provider_id, client_id=client_id, client_secret=client_secret,
+            provider_id=provider_id,
+            client_id=client_id,
+            client_secret=client_secret,
             default_client_grant_check=[DefaultOidcClientGrant.AUTH_CODE_PKCE],
         )
         authenticator = OidcAuthCodePkceAuthenticator(
-            client_info=client_info,
-            webbrowser_open=webbrowser_open, timeout=timeout, server_address=server_address
+            client_info=client_info, webbrowser_open=webbrowser_open, timeout=timeout, server_address=server_address
         )
         return self._authenticate_oidc(authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token)
 
@@ -597,14 +600,15 @@ class Connection(RestApiConnection):
         .. versionchanged:: 0.19.0 Support fallback provider id through environment variable ``OPENEO_AUTH_PROVIDER_ID``.
         """
         provider_id, client_info = self._get_oidc_provider_and_client_info(
-            provider_id=provider_id, client_id=client_id, client_secret=client_secret,
+            provider_id=provider_id,
+            client_id=client_id,
+            client_secret=client_secret,
             default_client_grant_check=[DefaultOidcClientGrant.REFRESH_TOKEN],
         )
 
         if refresh_token is None:
             refresh_token = self._get_refresh_token_store().get_refresh_token(
-                issuer=client_info.provider.issuer,
-                client_id=client_info.client_id
+                issuer=client_info.provider.issuer, client_id=client_info.client_id
             )
             if refresh_token is None:
                 raise OpenEoClientException("No refresh token given or found")
@@ -649,7 +653,9 @@ class Connection(RestApiConnection):
         """
         _g = DefaultOidcClientGrant  # alias for compactness
         provider_id, client_info = self._get_oidc_provider_and_client_info(
-            provider_id=provider_id, client_id=client_id, client_secret=client_secret,
+            provider_id=provider_id,
+            client_id=client_id,
+            client_secret=client_secret,
             default_client_grant_check=(lambda grants: _g.DEVICE_CODE in grants or _g.DEVICE_CODE_PKCE in grants),
         )
         authenticator = OidcDeviceAuthenticator(
@@ -706,16 +712,17 @@ class Connection(RestApiConnection):
 
         _g = DefaultOidcClientGrant  # alias for compactness
         provider_id, client_info = self._get_oidc_provider_and_client_info(
-            provider_id=provider_id, client_id=client_id, client_secret=client_secret,
+            provider_id=provider_id,
+            client_id=client_id,
+            client_secret=client_secret,
             default_client_grant_check=lambda grants: (
-                    _g.REFRESH_TOKEN in grants and (_g.DEVICE_CODE in grants or _g.DEVICE_CODE_PKCE in grants)
-            )
+                _g.REFRESH_TOKEN in grants and (_g.DEVICE_CODE in grants or _g.DEVICE_CODE_PKCE in grants)
+            ),
         )
 
         # Try refresh token first.
         refresh_token = self._get_refresh_token_store().get_refresh_token(
-            issuer=client_info.provider.issuer,
-            client_id=client_info.client_id
+            issuer=client_info.provider.issuer, client_id=client_info.client_id
         )
         if refresh_token:
             try:
@@ -760,8 +767,13 @@ class Connection(RestApiConnection):
         # Do request, but with retry when access token has expired and refresh token is available.
         def _request():
             return super(Connection, self).request(
-                method=method, path=path, headers=headers, auth=auth,
-                check_error=check_error, expected_status=expected_status, **kwargs,
+                method=method,
+                path=path,
+                headers=headers,
+                auth=auth,
+                check_error=check_error,
+                expected_status=expected_status,
+                **kwargs,
             )
 
         try:
@@ -793,7 +805,7 @@ class Connection(RestApiConnection):
         """
         Describes the currently authenticated user account.
         """
-        return self.get('/me', expected_status=200).json()
+        return self.get("/me", expected_status=200).json()
 
     @deprecated("use :py:meth:`list_jobs` instead", version="0.4.10")
     def user_jobs(self) -> List[dict]:
@@ -812,7 +824,7 @@ class Connection(RestApiConnection):
         :return: list of dictionaries with basic collection metadata.
         """
         # TODO: add caching #383
-        data = self.get('/collections', expected_status=200).json()["collections"]
+        data = self.get("/collections", expected_status=200).json()["collections"]
         return VisualList("collections", data=data)
 
     def list_collection_ids(self) -> List[str]:
@@ -826,7 +838,7 @@ class Connection(RestApiConnection):
 
         :return: list of collection ids
         """
-        return [collection['id'] for collection in self.list_collections() if 'id' in collection]
+        return [collection["id"] for collection in self.list_collections() if "id" in collection]
 
     def capabilities(self) -> RESTCapabilities:
         """
@@ -834,7 +846,7 @@ class Connection(RestApiConnection):
         """
         return self._capabilities_cache.get(
             "capabilities",
-            load=lambda: RESTCapabilities(data=self.get('/', expected_status=200).json(), url=self._orig_url)
+            load=lambda: RESTCapabilities(data=self.get("/", expected_status=200).json(), url=self._orig_url),
         )
 
     def list_input_formats(self) -> dict:
@@ -843,17 +855,14 @@ class Connection(RestApiConnection):
     def list_output_formats(self) -> dict:
         return self.list_file_formats().get("output", {})
 
-    list_file_types = legacy_alias(
-        list_output_formats, "list_file_types", since="0.4.6"
-    )
+    list_file_types = legacy_alias(list_output_formats, "list_file_types", since="0.4.6")
 
     def list_file_formats(self) -> dict:
         """
         Get available input and output formats
         """
         formats = self._capabilities_cache.get(
-            key="file_formats",
-            load=lambda: self.get('/file_formats', expected_status=200).json()
+            key="file_formats", load=lambda: self.get("/file_formats", expected_status=200).json()
         )
         return VisualDict("file-formats", data=formats)
 
@@ -864,8 +873,7 @@ class Connection(RestApiConnection):
         :return: data_dict: Dict All available service types
         """
         types = self._capabilities_cache.get(
-            key="service_types",
-            load=lambda: self.get('/service_types', expected_status=200).json()
+            key="service_types", load=lambda: self.get("/service_types", expected_status=200).json()
         )
         return VisualDict("service-types", data=types)
 
@@ -876,8 +884,7 @@ class Connection(RestApiConnection):
         :return: data_dict: Dict All available UDF runtimes
         """
         runtimes = self._capabilities_cache.get(
-            key="udf_runtimes",
-            load=lambda: self.get('/udf_runtimes', expected_status=200).json()
+            key="udf_runtimes", load=lambda: self.get("/udf_runtimes", expected_status=200).json()
         )
         return VisualDict("udf-runtimes", data=runtimes)
 
@@ -888,8 +895,8 @@ class Connection(RestApiConnection):
         :return: data_dict: Dict All available services
         """
         # TODO return parsed service objects
-        services = self.get('/services', expected_status=200).json()["services"]
-        return VisualList("data-table", data=services, parameters={'columns': 'services'})
+        services = self.get("/services", expected_status=200).json()["services"]
+        return VisualList("data-table", data=services, parameters={"columns": "services"})
 
     def describe_collection(self, collection_id: str) -> dict:
         """
@@ -935,16 +942,23 @@ class Connection(RestApiConnection):
 
         :return: data_list: List A list of items
         """
-        url = '/collections/{}/items'.format(name)
+        url = "/collections/{}/items".format(name)
         params = {}
         if spatial_extent:
             params["bbox"] = ",".join(str(c) for c in spatial_extent)
         if temporal_extent:
             params["datetime"] = "/".join(".." if t is None else rfc3339.normalize(t) for t in temporal_extent)
         if limit is not None and limit > 0:
-            params['limit'] = limit
+            params["limit"] = limit
 
-        return paginate(self, url, params, lambda response, page: VisualDict("items", data = response, parameters = {'show-map': True, 'heading': 'Page {} - Items'.format(page)}))
+        return paginate(
+            self,
+            url,
+            params,
+            lambda response, page: VisualDict(
+                "items", data=response, parameters={"show-map": True, "heading": "Page {} - Items".format(page)}
+            ),
+        )
 
     def collection_metadata(self, name) -> CollectionMetadata:
         # TODO: duplication with `Connection.describe_collection`: deprecate one or the other?
@@ -962,11 +976,11 @@ class Connection(RestApiConnection):
         if namespace is None:
             processes = self._capabilities_cache.get(
                 key=("processes", "backend"),
-                load=lambda: self.get('/processes', expected_status=200).json()["processes"]
+                load=lambda: self.get("/processes", expected_status=200).json()["processes"],
             )
         else:
-            processes = self.get('/processes/' + namespace, expected_status=200).json()["processes"]
-        return VisualList("processes", data=processes, parameters={'show-graph': True, 'provide-download': False})
+            processes = self.get("/processes/" + namespace, expected_status=200).json()["processes"]
+        return VisualList("processes", data=processes, parameters={"show-graph": True, "provide-download": False})
 
     def describe_process(self, id: str, namespace: Optional[str] = None) -> dict:
         """
@@ -981,7 +995,7 @@ class Connection(RestApiConnection):
         processes = self.list_processes(namespace)
         for process in processes:
             if process["id"] == id:
-                return VisualDict("process", data=process, parameters={'show-graph': True, 'provide-download': False})
+                return VisualDict("process", data=process, parameters={"show-graph": True, "provide-download": False})
 
         raise OpenEoClientException("Process does not exist.")
 
@@ -992,13 +1006,15 @@ class Connection(RestApiConnection):
         :return: job_list: Dict of all jobs of the user.
         """
         # TODO: Parse the result so that there get Job classes returned?
-        resp = self.get('/jobs', expected_status=200).json()
+        resp = self.get("/jobs", expected_status=200).json()
         if resp.get("federation:missing"):
-            _log.warning("Partial user job listing due to missing federation components: {c}".format(
-                c=",".join(resp["federation:missing"])
-            ))
+            _log.warning(
+                "Partial user job listing due to missing federation components: {c}".format(
+                    c=",".join(resp["federation:missing"])
+                )
+            )
         jobs = resp["jobs"]
-        return VisualList("data-table", data=jobs, parameters={'columns': 'jobs'})
+        return VisualList("data-table", data=jobs, parameters={"columns": "jobs"})
 
     def assert_user_defined_process_support(self):
         """
@@ -1010,16 +1026,17 @@ class Connection(RestApiConnection):
             raise CapabilitiesException("Backend does not support user-defined processes.")
 
     def save_user_defined_process(
-            self, user_defined_process_id: str,
-            process_graph: Union[dict, ProcessBuilderBase],
-            parameters: List[Union[dict, Parameter]] = None,
-            public: bool = False,
-            summary: Optional[str] = None,
-            description: Optional[str] = None,
-            returns: Optional[dict] = None,
-            categories: Optional[List[str]] = None,
-            examples: Optional[List[dict]] = None,
-            links: Optional[List[dict]] = None,
+        self,
+        user_defined_process_id: str,
+        process_graph: Union[dict, ProcessBuilderBase],
+        parameters: List[Union[dict, Parameter]] = None,
+        public: bool = False,
+        summary: Optional[str] = None,
+        description: Optional[str] = None,
+        returns: Optional[dict] = None,
+        categories: Optional[List[str]] = None,
+        examples: Optional[List[dict]] = None,
+        links: Optional[List[dict]] = None,
     ) -> RESTUserDefinedProcess:
         """
         Store a process graph and its metadata on the backend as a user-defined process for the authenticated user.
@@ -1038,15 +1055,24 @@ class Connection(RestApiConnection):
         """
         self.assert_user_defined_process_support()
         if user_defined_process_id in set(p["id"] for p in self.list_processes()):
-            warnings.warn("Defining user-defined process {u!r} with same id as a pre-defined process".format(
-                u=user_defined_process_id))
+            warnings.warn(
+                "Defining user-defined process {u!r} with same id as a pre-defined process".format(
+                    u=user_defined_process_id
+                )
+            )
         if not parameters:
             warnings.warn("Defining user-defined process {u!r} without parameters".format(u=user_defined_process_id))
         udp = RESTUserDefinedProcess(user_defined_process_id=user_defined_process_id, connection=self)
         udp.store(
-            process_graph=process_graph, parameters=parameters, public=public,
-            summary=summary, description=description,
-            returns=returns, categories=categories, examples=examples, links=links
+            process_graph=process_graph,
+            parameters=parameters,
+            public=public,
+            summary=summary,
+            description=description,
+            returns=returns,
+            categories=categories,
+            examples=examples,
+            links=links,
         )
         return udp
 
@@ -1056,7 +1082,7 @@ class Connection(RestApiConnection):
         """
         self.assert_user_defined_process_support()
         data = self.get("/process_graphs", expected_status=200).json()["processes"]
-        return VisualList("processes", data=data, parameters={'show-graph': True, 'provide-download': False})
+        return VisualList("processes", data=data, parameters={"show-graph": True, "provide-download": False})
 
     def user_defined_process(self, user_defined_process_id: str) -> RESTUserDefinedProcess:
         """
@@ -1082,9 +1108,7 @@ class Connection(RestApiConnection):
         # TODO make this a public property (it's also useful outside the Connection class)
         return self.capabilities().api_version_check
 
-    def vectorcube_from_paths(
-        self, paths: List[str], format: str, options: dict = {}
-    ) -> VectorCube:
+    def vectorcube_from_paths(self, paths: List[str], format: str, options: dict = {}) -> VectorCube:
         """
         Loads one or more files referenced by url or path that is accessible by the backend.
 
@@ -1197,9 +1221,7 @@ class Connection(RestApiConnection):
         )
 
     # TODO: remove this #100 #134 0.4.10
-    imagecollection = legacy_alias(
-        load_collection, name="imagecollection", since="0.4.10"
-    )
+    imagecollection = legacy_alias(load_collection, name="imagecollection", since="0.4.10")
 
     @openeo_process
     def load_result(
@@ -1453,13 +1475,11 @@ class Connection(RestApiConnection):
 
         :return: List of the user-uploaded files.
         """
-        files = self.get('/files', expected_status=200).json()['files']
+        files = self.get("/files", expected_status=200).json()["files"]
         files = [UserFile.from_metadata(metadata=f, connection=self) for f in files]
-        return VisualList("data-table", data=files, parameters={'columns': 'files'})
+        return VisualList("data-table", data=files, parameters={"columns": "files"})
 
-    def get_file(
-        self, path: Union[str, PurePosixPath], metadata: Optional[dict] = None
-    ) -> UserFile:
+    def get_file(self, path: Union[str, PurePosixPath], metadata: Optional[dict] = None) -> UserFile:
         """
         Gets a handle to a user-uploaded file in the user workspace on the back-end.
 
@@ -1624,8 +1644,7 @@ class Connection(RestApiConnection):
         # TODO move all this (BatchJob factory) logic to BatchJob?
 
         pg_with_metadata = self._build_request_with_process_graph(
-            process_graph=process_graph,
-            **dict_no_none(title=title, description=description, plan=plan, budget=budget)
+            process_graph=process_graph, **dict_no_none(title=title, description=description, plan=plan, budget=budget)
         )
         if additional:
             # TODO: get rid of this non-standard field? https://github.com/Open-EO/openeo-api/issues/276
@@ -1636,10 +1655,10 @@ class Connection(RestApiConnection):
 
         job_id = None
         if "openeo-identifier" in response.headers:
-            job_id = response.headers['openeo-identifier'].strip()
+            job_id = response.headers["openeo-identifier"].strip()
         elif "location" in response.headers:
             _log.warning("Backend did not explicitly respond with job id, will guess it from redirect URL.")
-            job_id = response.headers['location'].split("/")[-1]
+            job_id = response.headers["location"].split("/")[-1]
         if not job_id:
             raise OpenEoClientException("Job creation response did not contain a valid job id")
         return BatchJob(job_id=job_id, connection=self)
@@ -1668,10 +1687,9 @@ class Connection(RestApiConnection):
 
     @deprecated(
         reason="Depends on non-standard process, replace with :py:meth:`openeo.rest.connection.Connection.load_stac` where possible.",
-        version="0.25.0")
-    def load_disk_collection(
-        self, format: str, glob_pattern: str, options: Optional[dict] = None
-    ) -> DataCube:
+        version="0.25.0",
+    )
+    def load_disk_collection(self, format: str, glob_pattern: str, options: Optional[dict] = None) -> DataCube:
         """
         Loads image data from disk as a :py:class:`DataCube`.
 
@@ -1682,9 +1700,7 @@ class Connection(RestApiConnection):
         :param glob_pattern: a glob pattern that matches the files to load from disk
         :param options: options specific to the file format
         """
-        return DataCube.load_disk_collection(
-            self, format, glob_pattern, **(options or {})
-        )
+        return DataCube.load_disk_collection(self, format, glob_pattern, **(options or {}))
 
     def as_curl(
         self,
@@ -1728,11 +1744,13 @@ class Connection(RestApiConnection):
         return {
             "client": openeo.client_version(),
             "api": capabilities.api_version(),
-            "backend": dict_no_none({
-                "root_url": self.root_url,
-                "version": capabilities.get("backend_version"),
-                "processing:software": capabilities.get("processing:software"),
-            }),
+            "backend": dict_no_none(
+                {
+                    "root_url": self.root_url,
+                    "version": capabilities.get("backend_version"),
+                    "processing:software": capabilities.get("processing:software"),
+                }
+            ),
         }
 
 
@@ -1793,7 +1811,7 @@ def connect(
     connection = Connection(url, session=session, default_timeout=default_timeout, auto_validate=auto_validate)
 
     auth_type = auth_type.lower() if isinstance(auth_type, str) else auth_type
-    if auth_type in {None, False, 'null', 'none'}:
+    if auth_type in {None, False, "null", "none"}:
         pass
     elif auth_type == "basic":
         connection.authenticate_basic(**(auth_options or {}))

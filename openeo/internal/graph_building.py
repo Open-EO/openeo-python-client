@@ -202,7 +202,7 @@ class PGNode(_FromNodeMixin, FlatGraphableMixin):
         return GraphFlattener().flatten(node=self)
 
     @staticmethod
-    def to_process_graph_argument(value: Union['PGNode', str, dict]) -> dict:
+    def to_process_graph_argument(value: Union["PGNode", str, dict]) -> dict:
         """
         Normalize given argument properly to a "process_graph" argument
         to be used as reducer/subprocess for processes like
@@ -249,13 +249,13 @@ class ReduceNode(PGNode):
     """
 
     def __init__(
-            self,
-            data: _FromNodeMixin,
-            reducer: Union[PGNode, str, dict],
-            dimension: str,
-            context=None,
-            process_id="reduce_dimension",
-            band_math_mode: bool = False,
+        self,
+        data: _FromNodeMixin,
+        reducer: Union[PGNode, str, dict],
+        dimension: str,
+        context=None,
+        process_id="reduce_dimension",
+        band_math_mode: bool = False,
     ):
         assert process_id in ("reduce_dimension", "reduce_dimension_binary")
         arguments = {
@@ -299,11 +299,10 @@ class FlatGraphNodeIdGenerator:
     def generate(self, process_id: str):
         """Generate new key for given process id."""
         self._counters[process_id] += 1
-        return "{p}{c}".format(p=process_id.replace('_', ''), c=self._counters[process_id])
+        return "{p}{c}".format(p=process_id.replace("_", ""), c=self._counters[process_id])
 
 
 class GraphFlattener(ProcessGraphVisitor):
-
     def __init__(self, node_id_generator: FlatGraphNodeIdGenerator = None):
         super().__init__()
         self._node_id_generator = node_id_generator or FlatGraphNodeIdGenerator()
@@ -408,7 +407,7 @@ class PGNodeGraphUnflattener(ProcessGraphUnflattener):
         return PGNode(
             process_id=node["process_id"],
             arguments=self._process_value(value=node["arguments"]),
-            namespace=node.get("namespace")
+            namespace=node.get("namespace"),
         )
 
     def _process_from_node(self, key: str, node: dict) -> PGNode:

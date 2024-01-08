@@ -219,29 +219,33 @@ def _get_leaf_node(cube: DataCube) -> dict:
 
 def test_datacube_flat_graph(con100):
     s2cube = con100.load_collection("S2")
-    assert s2cube.flat_graph() == {'loadcollection1': {
-        'process_id': 'load_collection',
-        'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
-        'result': True
-    }}
+    assert s2cube.flat_graph() == {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
+            "result": True,
+        }
+    }
 
 
-@pytest.mark.parametrize(["kwargs", "expected"], [
-    ({"west": 3, "south": 51, "east": 4, "north": 52}, {"west": 3, "south": 51, "east": 4, "north": 52}),
-    (
+@pytest.mark.parametrize(
+    ["kwargs", "expected"],
+    [
+        ({"west": 3, "south": 51, "east": 4, "north": 52}, {"west": 3, "south": 51, "east": 4, "north": 52}),
+        (
             {"west": 3, "south": 51, "east": 4, "north": 52, "crs": 4326},
-            {"west": 3, "south": 51, "east": 4, "north": 52, "crs": 4326}
-    ),
-    ({"bbox": [3, 51, 4, 52]}, {"west": 3, "south": 51, "east": 4, "north": 52}),
-    ({"bbox": (3, 51, 4, 52)}, {"west": 3, "south": 51, "east": 4, "north": 52}),
-    ({"bbox": shapely.geometry.box(3, 51, 4, 52)}, {"west": 3, "south": 51, "east": 4, "north": 52}),
-    ({"bbox": {"west": 3, "south": 51, "east": 4, "north": 52}}, {"west": 3, "south": 51, "east": 4, "north": 52}),
-    (
+            {"west": 3, "south": 51, "east": 4, "north": 52, "crs": 4326},
+        ),
+        ({"bbox": [3, 51, 4, 52]}, {"west": 3, "south": 51, "east": 4, "north": 52}),
+        ({"bbox": (3, 51, 4, 52)}, {"west": 3, "south": 51, "east": 4, "north": 52}),
+        ({"bbox": shapely.geometry.box(3, 51, 4, 52)}, {"west": 3, "south": 51, "east": 4, "north": 52}),
+        ({"bbox": {"west": 3, "south": 51, "east": 4, "north": 52}}, {"west": 3, "south": 51, "east": 4, "north": 52}),
+        (
             {"bbox": {"west": 3, "south": 51, "east": 4, "north": 52, "crs": 4326}},
-            {"west": 3, "south": 51, "east": 4, "north": 52, "crs": 4326}
-    ),
-
-])
+            {"west": 3, "south": 51, "east": 4, "north": 52, "crs": 4326},
+        ),
+    ],
+)
 def test_filter_bbox_kwargs(con100: Connection, kwargs, expected):
     cube = con100.load_collection("S2").filter_bbox(**kwargs)
     node = _get_leaf_node(cube)
@@ -293,19 +297,38 @@ def test_filter_bbox_parameter_invalid_schema(con100: Connection):
     assert _get_leaf_node(cube) == expected
 
 
-@pytest.mark.parametrize(["args", "expected"], [
-    ((3, 4, 52, 51,), {"west": 3, "south": 51, "east": 4, "north": 52}),
-    ((3, 4, 52, 51, 4326,), {"west": 3, "south": 51, "east": 4, "north": 52, "crs": 4326}),
-    (([3, 51, 4, 52],), {"west": 3, "south": 51, "east": 4, "north": 52}),
-    (((3, 51, 4, 52),), {"west": 3, "south": 51, "east": 4, "north": 52}),
-    (({"west": 3, "south": 51, "east": 4, "north": 52},), {"west": 3, "south": 51, "east": 4, "north": 52}),
-    (
+@pytest.mark.parametrize(
+    ["args", "expected"],
+    [
+        (
+            (
+                3,
+                4,
+                52,
+                51,
+            ),
+            {"west": 3, "south": 51, "east": 4, "north": 52},
+        ),
+        (
+            (
+                3,
+                4,
+                52,
+                51,
+                4326,
+            ),
+            {"west": 3, "south": 51, "east": 4, "north": 52, "crs": 4326},
+        ),
+        (([3, 51, 4, 52],), {"west": 3, "south": 51, "east": 4, "north": 52}),
+        (((3, 51, 4, 52),), {"west": 3, "south": 51, "east": 4, "north": 52}),
+        (({"west": 3, "south": 51, "east": 4, "north": 52},), {"west": 3, "south": 51, "east": 4, "north": 52}),
+        (
             ({"west": 3, "south": 51, "east": 4, "north": 52, "crs": 4326},),
-            {"west": 3, "south": 51, "east": 4, "north": 52, "crs": 4326}
-    ),
-    ((shapely.geometry.box(3, 51, 4, 52),), {"west": 3, "south": 51, "east": 4, "north": 52}),
-
-])
+            {"west": 3, "south": 51, "east": 4, "north": 52, "crs": 4326},
+        ),
+        ((shapely.geometry.box(3, 51, 4, 52),), {"west": 3, "south": 51, "east": 4, "north": 52}),
+    ],
+)
 def test_filter_bbox_positional_args(con100: Connection, args, expected):
     cube = con100.load_collection("S2").filter_bbox(*args)
     node = _get_leaf_node(cube)
@@ -321,21 +344,33 @@ def test_filter_bbox_legacy_positional_args(con100: Connection):
     assert node["arguments"]["extent"] == {"west": 3, "south": 51, "east": 4, "north": 52}
 
 
-@pytest.mark.parametrize(["args", "kwargs", "expected"], [
-    ((3, 4, 52, 51,), {"crs": 4326}, {"west": 3, "south": 51, "east": 4, "north": 52, "crs": 4326}),
-    (([3, 51, 4, 52],), {"crs": 4326}, {"west": 3, "south": 51, "east": 4, "north": 52, "crs": 4326}),
-    (((3, 51, 4, 52),), {"crs": 4326}, {"west": 3, "south": 51, "east": 4, "north": 52, "crs": 4326}),
-    (
+@pytest.mark.parametrize(
+    ["args", "kwargs", "expected"],
+    [
+        (
+            (
+                3,
+                4,
+                52,
+                51,
+            ),
+            {"crs": 4326},
+            {"west": 3, "south": 51, "east": 4, "north": 52, "crs": 4326},
+        ),
+        (([3, 51, 4, 52],), {"crs": 4326}, {"west": 3, "south": 51, "east": 4, "north": 52, "crs": 4326}),
+        (((3, 51, 4, 52),), {"crs": 4326}, {"west": 3, "south": 51, "east": 4, "north": 52, "crs": 4326}),
+        (
             ({"west": 3, "south": 51, "east": 4, "north": 52},),
             {"crs": 4326},
-            {"west": 3, "south": 51, "east": 4, "north": 52, "crs": 4326}
-    ),
-    (
+            {"west": 3, "south": 51, "east": 4, "north": 52, "crs": 4326},
+        ),
+        (
             (shapely.geometry.box(3, 51, 4, 52),),
             {"crs": 4326},
-            {"west": 3, "south": 51, "east": 4, "north": 52, "crs": 4326}
-    ),
-])
+            {"west": 3, "south": 51, "east": 4, "north": 52, "crs": 4326},
+        ),
+    ],
+)
 def test_filter_bbox_args_and_kwargs(con100: Connection, args, kwargs, expected):
     cube = con100.load_collection("S2").filter_bbox(*args, **kwargs)
     node = _get_leaf_node(cube)
@@ -343,11 +378,27 @@ def test_filter_bbox_args_and_kwargs(con100: Connection, args, kwargs, expected)
     assert node["arguments"]["extent"] == expected
 
 
-@pytest.mark.parametrize(["args", "kwargs", "expected"], [
-    ((3, 4, 52, 51,), {"west": 2}, "Don't mix positional arguments with keyword arguments"),
-    (([3, 51, 4, 52],), {"west": 2}, "Don't mix positional arguments with keyword arguments"),
-    ((), {"west": 2, "bbox": [3, 51, 4, 52]}, "Don't mix `bbox` with `west`/`south`/`east`/`north` keyword arguments"),
-])
+@pytest.mark.parametrize(
+    ["args", "kwargs", "expected"],
+    [
+        (
+            (
+                3,
+                4,
+                52,
+                51,
+            ),
+            {"west": 2},
+            "Don't mix positional arguments with keyword arguments",
+        ),
+        (([3, 51, 4, 52],), {"west": 2}, "Don't mix positional arguments with keyword arguments"),
+        (
+            (),
+            {"west": 2, "bbox": [3, 51, 4, 52]},
+            "Don't mix `bbox` with `west`/`south`/`east`/`north` keyword arguments",
+        ),
+    ],
+)
 def test_filter_bbox_args_and_kwargs_conflict(con100: Connection, args, kwargs, expected):
     with pytest.raises(ValueError, match=expected):
         con100.load_collection("S2").filter_bbox(*args, **kwargs)
@@ -365,9 +416,9 @@ def test_filter_spatial(con100: Connection, recwarn):
             "geometries": {
                 "type": "Polygon",
                 "coordinates": (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),),
-            }
+            },
         },
-        "result": True
+        "result": True,
     }
 
 
@@ -384,56 +435,64 @@ def test_aggregate_spatial_basic(con100: Connection):
                 "type": "Polygon",
                 "coordinates": (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),),
             },
-            "reducer": {"process_graph": {
-                "mean1": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}
-            }}
+            "reducer": {
+                "process_graph": {
+                    "mean1": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}
+                }
+            },
         },
-        "result": True
+        "result": True,
     }
 
 
-@pytest.mark.parametrize(["polygon", "expected_geometries"], [
-    (
+@pytest.mark.parametrize(
+    ["polygon", "expected_geometries"],
+    [
+        (
             shapely.geometry.box(0, 0, 1, 1),
             {"type": "Polygon", "coordinates": (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),)},
-    ),
-    (
+        ),
+        (
             {"type": "Polygon", "coordinates": (((1, 0), (1, 1), (0, 1), (0, 0), (1, 0)),)},
             {"type": "Polygon", "coordinates": (((1, 0), (1, 1), (0, 1), (0, 0), (1, 0)),)},
-    ),
-    (
+        ),
+        (
             shapely.geometry.MultiPolygon([shapely.geometry.box(0, 0, 1, 1)]),
             {"type": "MultiPolygon", "coordinates": [(((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),)]},
-    ),
-    (
+        ),
+        (
             shapely.geometry.GeometryCollection([shapely.geometry.box(0, 0, 1, 1)]),
-            {"type": "GeometryCollection", "geometries": [
-                {"type": "Polygon", "coordinates": (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),)}
-            ]},
-    ),
-    (
+            {
+                "type": "GeometryCollection",
+                "geometries": [
+                    {"type": "Polygon", "coordinates": (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),)}
+                ],
+            },
+        ),
+        (
             {
                 "type": "FeatureCollection",
                 "features": [
                     {
-                        "type": "Feature", "properties": {},
+                        "type": "Feature",
+                        "properties": {},
                         "geometry": {"type": "Polygon", "coordinates": (((1, 0), (1, 1), (0, 1), (0, 0), (1, 0)),)},
                     },
-
-                ]
+                ],
             },
             {
                 "type": "FeatureCollection",
                 "features": [
                     {
-                        "type": "Feature", "properties": {},
+                        "type": "Feature",
+                        "properties": {},
                         "geometry": {"type": "Polygon", "coordinates": (((1, 0), (1, 1), (0, 1), (0, 0), (1, 0)),)},
                     },
-
-                ]
+                ],
             },
-    ),
-])
+        ),
+    ],
+)
 def test_aggregate_spatial_types(con100: Connection, polygon, expected_geometries):
     img = con100.load_collection("S2")
     masked = img.aggregate_spatial(geometries=polygon, reducer="mean")
@@ -443,11 +502,13 @@ def test_aggregate_spatial_types(con100: Connection, polygon, expected_geometrie
         "arguments": {
             "data": {"from_node": "loadcollection1"},
             "geometries": expected_geometries,
-            "reducer": {"process_graph": {
-                "mean1": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}
-            }}
+            "reducer": {
+                "process_graph": {
+                    "mean1": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}
+                }
+            },
         },
-        "result": True
+        "result": True,
     }
 
 
@@ -468,11 +529,13 @@ def test_aggregate_spatial_with_crs(con100: Connection, recwarn, crs: str):
                 "coordinates": (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),),
                 "crs": {"properties": {"name": "EPSG:32631"}, "type": "name"},
             },
-            "reducer": {"process_graph": {
-                "mean1": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}
-            }}
+            "reducer": {
+                "process_graph": {
+                    "mean1": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}
+                }
+            },
         },
-        "result": True
+        "result": True,
     }
 
 
@@ -543,12 +606,14 @@ def test_aggregate_spatial_target_dimension(con100: Connection):
                 "type": "Polygon",
                 "coordinates": (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),),
             },
-            "reducer": {"process_graph": {
-                "mean1": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}
-            }},
+            "reducer": {
+                "process_graph": {
+                    "mean1": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}
+                }
+            },
             "target_dimension": "agg",
         },
-        "result": True
+        "result": True,
     }
 
 
@@ -562,18 +627,23 @@ def test_aggregate_spatial_context(con100: Connection):
             "type": "Polygon",
             "coordinates": (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),),
         },
-        "reducer": {"process_graph": {
-            "mean1": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}
-        }},
+        "reducer": {
+            "process_graph": {
+                "mean1": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}
+            }
+        },
         "context": {"foo": "bar"},
     }
 
 
-@pytest.mark.parametrize("get_geometries", [
-    lambda c: PGNode("load_vector", url="https://geo.test/features.json"),
-    lambda c: openeo.processes.process("load_vector", url="https://geo.test/features.json"),
-    lambda c: c.datacube_from_process("load_vector", url="https://geo.test/features.json"),
-])
+@pytest.mark.parametrize(
+    "get_geometries",
+    [
+        lambda c: PGNode("load_vector", url="https://geo.test/features.json"),
+        lambda c: openeo.processes.process("load_vector", url="https://geo.test/features.json"),
+        lambda c: c.datacube_from_process("load_vector", url="https://geo.test/features.json"),
+    ],
+)
 def test_aggregate_spatial_geometry_from_node(con100: Connection, get_geometries):
     cube = con100.load_collection("S2")
     geometries = get_geometries(con100)
@@ -592,9 +662,15 @@ def test_aggregate_spatial_geometry_from_node(con100: Connection, get_geometries
             "arguments": {
                 "data": {"from_node": "loadcollection1"},
                 "geometries": {"from_node": "loadvector1"},
-                "reducer": {"process_graph": {
-                    "mean1": {"process_id": "mean", "arguments": {"data": {"from_parameter": "data"}}, "result": True}
-                }},
+                "reducer": {
+                    "process_graph": {
+                        "mean1": {
+                            "process_id": "mean",
+                            "arguments": {"data": {"from_parameter": "data"}},
+                            "result": True,
+                        }
+                    }
+                },
             },
             "result": True,
         },
@@ -642,14 +718,18 @@ def test_aggregate_temporal(con100: Connection):
         "arguments": {
             "data": {"from_node": "loadcollection1"},
             "intervals": [["2015-01-01", "2016-01-01"], ["2016-01-01", "2017-01-01"]],
-            "reducer": {"process_graph": {"median1": {
-                "arguments": {"data": {"from_parameter": "data"}},
-                "process_id": "median",
-                "result": True,
-            }}},
+            "reducer": {
+                "process_graph": {
+                    "median1": {
+                        "arguments": {"data": {"from_parameter": "data"}},
+                        "process_id": "median",
+                        "result": True,
+                    }
+                }
+            },
             "context": {"bla": "bla"},
         },
-        "result": True
+        "result": True,
     }
 
 
@@ -662,14 +742,18 @@ def test_aggregate_temporal_period(con100: Connection):
         "arguments": {
             "data": {"from_node": "loadcollection1"},
             "period": "dekad",
-            "reducer": {"process_graph": {"median1": {
-                "arguments": {"data": {"from_parameter": "data"}},
-                "process_id": "median",
-                "result": True,
-            }}},
+            "reducer": {
+                "process_graph": {
+                    "median1": {
+                        "arguments": {"data": {"from_parameter": "data"}},
+                        "process_id": "median",
+                        "result": True,
+                    }
+                }
+            },
             "context": {"bla": "bla"},
         },
-        "result": True
+        "result": True,
     }
 
 
@@ -685,9 +769,9 @@ def test_mask_polygon_basic(con100: Connection):
             "mask": {
                 "type": "Polygon",
                 "coordinates": (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),),
-            }
+            },
         },
-        "result": True
+        "result": True,
     }
 
 
@@ -787,11 +871,14 @@ def test_mask_polygon_path(con100: Connection):
     }
 
 
-@pytest.mark.parametrize("get_geometries", [
-    lambda c: PGNode("load_vector", url="https://geo.test/features.json"),
-    lambda c: openeo.processes.process("load_vector", url="https://geo.test/features.json"),
-    lambda c: c.datacube_from_process("load_vector", url="https://geo.test/features.json"),
-])
+@pytest.mark.parametrize(
+    "get_geometries",
+    [
+        lambda c: PGNode("load_vector", url="https://geo.test/features.json"),
+        lambda c: openeo.processes.process("load_vector", url="https://geo.test/features.json"),
+        lambda c: c.datacube_from_process("load_vector", url="https://geo.test/features.json"),
+    ],
+)
 def test_mask_polygon_from_node(con100: Connection, get_geometries):
     cube = con100.load_collection("S2")
     geometries = get_geometries(con100)
@@ -1095,25 +1182,28 @@ def test_reduce_dimension(con100):
     s2 = con100.load_collection("S2")
     x = s2.reduce_dimension(dimension="bands", reducer="mean")
     assert x.flat_graph() == {
-        'loadcollection1': {
-            'process_id': 'load_collection',
-            'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
         },
-        'reducedimension1': {
-            'process_id': 'reduce_dimension',
-            'arguments': {
-                'data': {'from_node': 'loadcollection1'},
-                'dimension': 'bands',
-                'reducer': {'process_graph': {
-                    'mean1': {
-                        'process_id': 'mean',
-                        'arguments': {'data': {'from_parameter': 'data'}},
-                        'result': True
+        "reducedimension1": {
+            "process_id": "reduce_dimension",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "dimension": "bands",
+                "reducer": {
+                    "process_graph": {
+                        "mean1": {
+                            "process_id": "mean",
+                            "arguments": {"data": {"from_parameter": "data"}},
+                            "result": True,
+                        }
                     }
-                }}
+                },
             },
-            'result': True
-        }}
+            "result": True,
+        },
+    }
 
 
 def test_reduce_dimension_binary(con100):
@@ -1124,35 +1214,41 @@ def test_reduce_dimension_binary(con100):
     )
     x = s2.reduce_dimension(dimension="bands", reducer=reducer, process_id="reduce_dimension_binary")
     assert x.flat_graph() == {
-        'loadcollection1': {
-            'process_id': 'load_collection',
-            'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
         },
-        'reducedimensionbinary1': {
-            'process_id': 'reduce_dimension_binary',
-            'arguments': {
-                'data': {'from_node': 'loadcollection1'},
-                'dimension': 'bands',
-                'reducer': {'process_graph': {
-                    'add1': {
-                        'process_id': 'add',
-                        'arguments': {'x': {'from_parameter': 'x'}, 'y': {'from_parameter': 'y'}},
-                        'result': True
+        "reducedimensionbinary1": {
+            "process_id": "reduce_dimension_binary",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "dimension": "bands",
+                "reducer": {
+                    "process_graph": {
+                        "add1": {
+                            "process_id": "add",
+                            "arguments": {"x": {"from_parameter": "x"}, "y": {"from_parameter": "y"}},
+                            "result": True,
+                        }
                     }
-                }}
+                },
             },
-            'result': True
-        }}
+            "result": True,
+        },
+    }
 
 
 def test_reduce_dimension_name(con100, requests_mock):
-    requests_mock.get(API_URL + "/collections/S22", json={
-        "cube:dimensions": {
-            "color": {"type": "bands", "values": ["cyan", "magenta", "yellow", "black"]},
-            "alpha": {"type": "spatial"},
-            "date": {"type": "temporal"}
-        }
-    })
+    requests_mock.get(
+        API_URL + "/collections/S22",
+        json={
+            "cube:dimensions": {
+                "color": {"type": "bands", "values": ["cyan", "magenta", "yellow", "black"]},
+                "alpha": {"type": "spatial"},
+                "date": {"type": "temporal"},
+            }
+        },
+    )
     s22 = con100.load_collection("S22")
 
     for dim in ["color", "alpha", "date"]:
@@ -1160,17 +1256,15 @@ def test_reduce_dimension_name(con100, requests_mock):
         assert cube.flat_graph()["reducedimension1"] == {
             "process_id": "reduce_dimension",
             "arguments": {
-                'data': {'from_node': 'loadcollection1'},
-                'dimension': dim,
-                'reducer': {'process_graph': {
-                    'sum1': {
-                        'process_id': 'sum',
-                        'arguments': {'data': {'from_parameter': 'data'}},
-                        'result': True
+                "data": {"from_node": "loadcollection1"},
+                "dimension": dim,
+                "reducer": {
+                    "process_graph": {
+                        "sum1": {"process_id": "sum", "arguments": {"data": {"from_parameter": "data"}}, "result": True}
                     }
-                }}
+                },
             },
-            'result': True
+            "result": True,
         }
 
     with pytest.raises(ValueError, match="Invalid dimension 'wut'"):
@@ -1181,26 +1275,29 @@ def test_reduce_dimension_context(con100):
     s2 = con100.load_collection("S2")
     x = s2.reduce_dimension(dimension="bands", reducer="mean", context=123)
     assert x.flat_graph() == {
-        'loadcollection1': {
-            'process_id': 'load_collection',
-            'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
         },
-        'reducedimension1': {
-            'process_id': 'reduce_dimension',
-            'arguments': {
-                'data': {'from_node': 'loadcollection1'},
-                'dimension': 'bands',
-                'reducer': {'process_graph': {
-                    'mean1': {
-                        'process_id': 'mean',
-                        'arguments': {'data': {'from_parameter': 'data'}},
-                        'result': True
+        "reducedimension1": {
+            "process_id": "reduce_dimension",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "dimension": "bands",
+                "reducer": {
+                    "process_graph": {
+                        "mean1": {
+                            "process_id": "mean",
+                            "arguments": {"data": {"from_parameter": "data"}},
+                            "result": True,
+                        }
                     }
-                }},
+                },
                 "context": 123,
             },
-            'result': True
-        }}
+            "result": True,
+        },
+    }
 
 
 def test_reduce_dimension_invalid_dimension_with_metadata(s2cube):
@@ -1383,8 +1480,9 @@ def test_reduce_temporal_udf(con100):
                     }
                 },
             },
-            'result': True
-        }}
+            "result": True,
+        },
+    }
 
 
 def test_reduce_temporal_without_metadata(s2cube_without_metadata):
@@ -1688,28 +1786,26 @@ def test_apply_polygon_context(con100: Connection):
 
 
 def test_metadata_load_collection_100(con100, requests_mock):
-    requests_mock.get(API_URL + "/collections/SENTINEL2", json={
-        "cube:dimensions": {
-            "bands": {"type": "bands", "values": ["B2", "B3"]}
+    requests_mock.get(
+        API_URL + "/collections/SENTINEL2",
+        json={
+            "cube:dimensions": {"bands": {"type": "bands", "values": ["B2", "B3"]}},
+            "summaries": {
+                "eo:bands": [
+                    {"name": "B2", "common_name": "blue"},
+                    {"name": "B3", "common_name": "green"},
+                ]
+            },
         },
-        "summaries": {
-            "eo:bands": [
-                {"name": "B2", "common_name": "blue"},
-                {"name": "B3", "common_name": "green"},
-            ]
-        }
-    })
-    im = con100.load_collection('SENTINEL2')
-    assert im.metadata.bands == [
-        openeo.metadata.Band("B2", "blue", None),
-        openeo.metadata.Band("B3", "green", None)
-    ]
+    )
+    im = con100.load_collection("SENTINEL2")
+    assert im.metadata.bands == [openeo.metadata.Band("B2", "blue", None), openeo.metadata.Band("B3", "green", None)]
 
 
 def test_apply_absolute_pgnode(con100):
     im = con100.load_collection("S2")
     result = im.apply(PGNode(process_id="absolute", arguments={"x": {"from_parameter": "x"}}))
-    expected_graph = load_json_resource('data/1.0.0/apply_absolute.json')
+    expected_graph = load_json_resource("data/1.0.0/apply_absolute.json")
     assert result.flat_graph() == expected_graph
 
 
@@ -1720,13 +1816,15 @@ def test_apply_absolute(con100):
         "process_id": "apply",
         "arguments": {
             "data": {"from_node": "loadcollection1"},
-            "process": {"process_graph": {
-                "absolute1": {
-                    "process_id": "absolute",
-                    "arguments": {"x": {"from_parameter": "x"}},
-                    "result": True
-                },
-            }},
+            "process": {
+                "process_graph": {
+                    "absolute1": {
+                        "process_id": "absolute",
+                        "arguments": {"x": {"from_parameter": "x"}},
+                        "result": True,
+                    },
+                }
+            },
         },
         "result": True,
     }
@@ -1739,13 +1837,15 @@ def test_apply_absolute_context(con100):
         "process_id": "apply",
         "arguments": {
             "data": {"from_node": "loadcollection1"},
-            "process": {"process_graph": {
-                "absolute1": {
-                    "process_id": "absolute",
-                    "arguments": {"x": {"from_parameter": "x"}},
-                    "result": True
-                },
-            }},
+            "process": {
+                "process_graph": {
+                    "absolute1": {
+                        "process_id": "absolute",
+                        "arguments": {"x": {"from_parameter": "x"}},
+                        "result": True,
+                    },
+                }
+            },
             "context": {"foo": 867},
         },
         "result": True,
@@ -1788,13 +1888,15 @@ def test_load_collection_max_cloud_cover(con100):
         max_cloud_cover=75,
     )
     assert im.flat_graph()["loadcollection1"]["arguments"]["properties"] == {
-        'eo:cloud_cover': {'process_graph': {
-            'lte1': {
-                'process_id': 'lte',
-                'arguments': {'x': {'from_parameter': 'value'}, 'y': 75},
-                'result': True,
+        "eo:cloud_cover": {
+            "process_graph": {
+                "lte1": {
+                    "process_id": "lte",
+                    "arguments": {"x": {"from_parameter": "value"}, "y": 75},
+                    "result": True,
+                }
             }
-        }},
+        },
     }
 
 
@@ -1807,31 +1909,43 @@ def test_load_collection_max_cloud_cover_with_other_properties(con100):
         max_cloud_cover=75,
     )
     assert im.flat_graph()["loadcollection1"]["arguments"]["properties"] == {
-        'eo:cloud_cover': {'process_graph': {
-            'lte1': {
-                'process_id': 'lte',
-                'arguments': {'x': {'from_parameter': 'value'}, 'y': 75},
-                'result': True,
+        "eo:cloud_cover": {
+            "process_graph": {
+                "lte1": {
+                    "process_id": "lte",
+                    "arguments": {"x": {"from_parameter": "value"}, "y": 75},
+                    "result": True,
+                }
             }
-        }},
-        "platform": {"process_graph": {
-            "eq1": {
-                "process_id": "eq",
-                "arguments": {"x": {"from_parameter": "value"}, "y": "Sentinel-2B"},
-                "result": True
+        },
+        "platform": {
+            "process_graph": {
+                "eq1": {
+                    "process_id": "eq",
+                    "arguments": {"x": {"from_parameter": "value"}, "y": "Sentinel-2B"},
+                    "result": True,
+                }
             }
-        }}
+        },
     }
 
 
-@pytest.mark.parametrize(["extra_summaries", "max_cloud_cover", "expect_warning"], [
-    ({}, None, False),
-    ({}, 75, True),
-    ({"eo:cloud_cover": {"min": 0, "max": 100}}, None, False),
-    ({"eo:cloud_cover": {"min": 0, "max": 100}}, 75, False),
-])
+@pytest.mark.parametrize(
+    ["extra_summaries", "max_cloud_cover", "expect_warning"],
+    [
+        ({}, None, False),
+        ({}, 75, True),
+        ({"eo:cloud_cover": {"min": 0, "max": 100}}, None, False),
+        ({"eo:cloud_cover": {"min": 0, "max": 100}}, 75, False),
+    ],
+)
 def test_load_collection_max_cloud_cover_summaries_warning(
-        con100, requests_mock, recwarn, extra_summaries, max_cloud_cover, expect_warning,
+    con100,
+    requests_mock,
+    recwarn,
+    extra_summaries,
+    max_cloud_cover,
+    expect_warning,
 ):
     s2_metadata = copy.deepcopy(DEFAULT_S2_METADATA)
     s2_metadata["summaries"].update(extra_summaries)
@@ -1985,7 +2099,8 @@ def test_load_collection_temporal_extent_process_builder_function(con100):
     assert im.flat_graph() == expected
 
     im = con100.load_collection(
-        "S2", temporal_extent=[date_shift(Parameter("start_date"), -2, unit="days"), "2019-01-01"],
+        "S2",
+        temporal_extent=[date_shift(Parameter("start_date"), -2, unit="days"), "2019-01-01"],
     )
     assert im.flat_graph() == expected
 
@@ -2024,25 +2139,27 @@ def test_load_collection_parameterized_bands(con100):
 
 
 def test_apply_dimension_temporal_cumsum_with_target(con100):
-    cumsum = con100.load_collection("S2").apply_dimension('cumsum', dimension="t", target_dimension="MyNewTime")
+    cumsum = con100.load_collection("S2").apply_dimension("cumsum", dimension="t", target_dimension="MyNewTime")
     actual_graph = cumsum.flat_graph()
-    expected_graph = load_json_resource('data/1.0.0/apply_dimension_temporal_cumsum.json')
-    expected_graph['applydimension1']['arguments']['target_dimension'] = 'MyNewTime'
-    expected_graph['applydimension1']['result'] = True
-    del expected_graph['saveresult1']
+    expected_graph = load_json_resource("data/1.0.0/apply_dimension_temporal_cumsum.json")
+    expected_graph["applydimension1"]["arguments"]["target_dimension"] = "MyNewTime"
+    expected_graph["applydimension1"]["result"] = True
+    del expected_graph["saveresult1"]
     assert actual_graph == expected_graph
 
 
 def test_apply_dimension_temporal_cumsum_context(con100):
-    cumsum = con100.load_collection("S2").apply_dimension('cumsum', dimension="t", context={"foo": 867})
+    cumsum = con100.load_collection("S2").apply_dimension("cumsum", dimension="t", context={"foo": 867})
     actual_graph = cumsum.flat_graph()
     assert actual_graph["applydimension1"]["arguments"] == {
-        'data': {'from_node': 'loadcollection1'},
-        'process': {'process_graph': {
-            'cumsum1': {'process_id': 'cumsum', 'arguments': {'data': {'from_parameter': 'data'}}, 'result': True}
-        }},
-        'dimension': 't',
-        'context': {'foo': 867},
+        "data": {"from_node": "loadcollection1"},
+        "process": {
+            "process_graph": {
+                "cumsum1": {"process_id": "cumsum", "arguments": {"data": {"from_parameter": "data"}}, "result": True}
+            }
+        },
+        "dimension": "t",
+        "context": {"foo": 867},
     }
 
 
@@ -2059,40 +2176,42 @@ def test_apply_dimension_modify_bands(con100):
     assert actual_graph == {
         "loadcollection1": {
             "process_id": "load_collection",
-            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None}
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
         },
         "applydimension1": {
             "process_id": "apply_dimension",
             "arguments": {
                 "data": {"from_node": "loadcollection1"},
                 "dimension": "bands",
-                "process": {"process_graph": {
-                    "arrayelement1": {
-                        "process_id": "array_element",
-                        "arguments": {"data": {"from_parameter": "data"}, "index": 0},
-                    },
-                    "arrayelement2": {
-                        "process_id": "array_element",
-                        "arguments": {"data": {"from_parameter": "data"}, "index": 1},
-                    },
-                    "subtract1": {
-                        "process_id": "subtract",
-                        "arguments": {"x": {"from_node": "arrayelement1"}, "y": {"from_node": "arrayelement2"}},
-                    },
-                    "arraymodify1": {
-                        "process_id": "array_modify",
-                        "arguments": {
-                            "data": {"from_parameter": "data"}, "index": 0,
-                            "values": {"from_node": "subtract1"}
+                "process": {
+                    "process_graph": {
+                        "arrayelement1": {
+                            "process_id": "array_element",
+                            "arguments": {"data": {"from_parameter": "data"}, "index": 0},
                         },
-                        "result": True
-                    },
-                }}
+                        "arrayelement2": {
+                            "process_id": "array_element",
+                            "arguments": {"data": {"from_parameter": "data"}, "index": 1},
+                        },
+                        "subtract1": {
+                            "process_id": "subtract",
+                            "arguments": {"x": {"from_node": "arrayelement1"}, "y": {"from_node": "arrayelement2"}},
+                        },
+                        "arraymodify1": {
+                            "process_id": "array_modify",
+                            "arguments": {
+                                "data": {"from_parameter": "data"},
+                                "index": 0,
+                                "values": {"from_node": "subtract1"},
+                            },
+                            "result": True,
+                        },
+                    }
+                },
             },
-            "result": True
+            "result": True,
         },
     }
-
 
 
 def test_datacube_from_process_apply_dimension(con100, caplog, recwarn):
@@ -2131,16 +2250,21 @@ def test_apply_neighborhood_context(con100):
         "process_id": "apply_neighborhood",
         "arguments": {
             "data": {"from_node": "loadcollection1"},
-            "process": {"process_graph": {"mean1": {
-                "process_id": "mean",
-                "arguments": {"data": {"from_parameter": "data"}},
-                "result": True,
-            }}},
+            "process": {
+                "process_graph": {
+                    "mean1": {
+                        "process_id": "mean",
+                        "arguments": {"data": {"from_parameter": "data"}},
+                        "result": True,
+                    }
+                }
+            },
             "size": [{"dimension": "x", "unit": "px", "value": 128}, {"dimension": "y", "unit": "px", "value": 128}],
             "overlap": [{"dimension": "t", "value": "P10d"}],
             "context": {"foo": 867},
         },
-        "result": True}
+        "result": True,
+    }
 
 
 def test_apply_neighborhood_udf(con100):
@@ -2154,15 +2278,20 @@ def test_apply_neighborhood_udf(con100):
         "process_id": "apply_neighborhood",
         "arguments": {
             "data": {"from_node": "loadcollection1"},
-            "process": {"process_graph": {"runudf1": {
-                "process_id": "run_udf",
-                "arguments": {"udf": "myfancycode", "data": {"from_parameter": "data"}, "runtime": "Python"},
-                "result": True,
-            }}},
+            "process": {
+                "process_graph": {
+                    "runudf1": {
+                        "process_id": "run_udf",
+                        "arguments": {"udf": "myfancycode", "data": {"from_parameter": "data"}, "runtime": "Python"},
+                        "result": True,
+                    }
+                }
+            },
             "size": [{"dimension": "x", "unit": "px", "value": 128}, {"dimension": "y", "unit": "px", "value": 128}],
             "overlap": [{"dimension": "t", "value": "P10d"}],
         },
-        "result": True}
+        "result": True,
+    }
 
 
 def test_filter_spatial_callback(con100):
@@ -2176,50 +2305,38 @@ def test_filter_spatial_callback(con100):
 
     feature_collection = {
         "type": "FeatureCollection",
-        "features": [{
-            "type": "Feature",
-            "geometry": {
-                "type": "Point",
-                "coordinates": [125.6, 10.1]
-            }
-        }]
+        "features": [{"type": "Feature", "geometry": {"type": "Point", "coordinates": [125.6, 10.1]}}],
     }
     from openeo.processes import run_udf
+
     udf_code = "def transform_point_into_bbox(data:UdfData): blabla"
     feature_collection_processed = run_udf(data=feature_collection, udf=udf_code, runtime="Python")
 
-    filtered_collection = collection.process("filter_spatial", {
-        "data": THIS,
-        "geometries": feature_collection_processed
-    })
+    filtered_collection = collection.process(
+        "filter_spatial", {"data": THIS, "geometries": feature_collection_processed}
+    )
 
     assert filtered_collection.flat_graph() == {
-        'filterspatial1': {
-            'arguments': {
-                'data': {'from_node': 'loadcollection1'},
-                'geometries': {'from_node': 'runudf1'}
-            },
-            'process_id': 'filter_spatial',
-            'result': True
+        "filterspatial1": {
+            "arguments": {"data": {"from_node": "loadcollection1"}, "geometries": {"from_node": "runudf1"}},
+            "process_id": "filter_spatial",
+            "result": True,
         },
-        'loadcollection1': {
-            'arguments': {
-                'id': 'S2',
-                'spatial_extent': None,
-                'temporal_extent': None
-            },
-            'process_id': 'load_collection'
+        "loadcollection1": {
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
+            "process_id": "load_collection",
         },
-        'runudf1': {
-            'arguments': {
-                'data': {
-                    'features': [{'geometry': {'coordinates': [125.6, 10.1], 'type': 'Point'}, 'type': 'Feature'}],
-                    'type': 'FeatureCollection'
+        "runudf1": {
+            "arguments": {
+                "data": {
+                    "features": [{"geometry": {"coordinates": [125.6, 10.1], "type": "Point"}, "type": "Feature"}],
+                    "type": "FeatureCollection",
                 },
-                'runtime': 'Python',
-                'udf': 'def transform_point_into_bbox(data:UdfData): blabla'
+                "runtime": "Python",
+                "udf": "def transform_point_into_bbox(data:UdfData): blabla",
             },
-            'process_id': 'run_udf'}
+            "process_id": "run_udf",
+        },
     }
 
 
@@ -2249,54 +2366,53 @@ def test_filter_labels_callback(con100):
 def test_custom_process_kwargs_datacube(con100: Connection):
     img = con100.load_collection("S2")
     res = img.process(process_id="foo", data=img, bar=123)
-    expected = load_json_resource('data/1.0.0/process_foo.json')
+    expected = load_json_resource("data/1.0.0/process_foo.json")
     assert res.flat_graph() == expected
 
 
 def test_custom_process_kwargs_datacube_pg(con100: Connection):
     img = con100.load_collection("S2")
     res = img.process(process_id="foo", data=img._pg, bar=123)
-    expected = load_json_resource('data/1.0.0/process_foo.json')
+    expected = load_json_resource("data/1.0.0/process_foo.json")
     assert res.flat_graph() == expected
 
 
 def test_custom_process_kwargs_this(con100: Connection):
     res = con100.load_collection("S2").process(process_id="foo", data=THIS, bar=123)
-    expected = load_json_resource('data/1.0.0/process_foo.json')
+    expected = load_json_resource("data/1.0.0/process_foo.json")
     assert res.flat_graph() == expected
 
 
 def test_custom_process_kwargs_namespaced(con100: Connection):
     res = con100.load_collection("S2").process(process_id="foo", data=THIS, bar=123, namespace="bar")
-    expected = load_json_resource('data/1.0.0/process_foo_namespaced.json')
+    expected = load_json_resource("data/1.0.0/process_foo_namespaced.json")
     assert res.flat_graph() == expected
 
 
 def test_custom_process_arguments_datacube(con100: Connection):
     img = con100.load_collection("S2")
     res = img.process(process_id="foo", arguments={"data": img, "bar": 123})
-    expected = load_json_resource('data/1.0.0/process_foo.json')
+    expected = load_json_resource("data/1.0.0/process_foo.json")
     assert res.flat_graph() == expected
 
 
 def test_custom_process_arguments_datacube_pg(con100: Connection):
     img = con100.load_collection("S2")
     res = img.process(process_id="foo", arguments={"data": img._pg, "bar": 123})
-    expected = load_json_resource('data/1.0.0/process_foo.json')
+    expected = load_json_resource("data/1.0.0/process_foo.json")
     assert res.flat_graph() == expected
 
 
 def test_custom_process_arguments_this(con100: Connection):
     res = con100.load_collection("S2").process(process_id="foo", arguments={"data": THIS, "bar": 123})
-    expected = load_json_resource('data/1.0.0/process_foo.json')
+    expected = load_json_resource("data/1.0.0/process_foo.json")
     assert res.flat_graph() == expected
 
 
 def test_custom_process_arguments_namespacd(con100: Connection):
     res = con100.load_collection("S2").process(process_id="foo", arguments={"data": THIS, "bar": 123}, namespace="bar")
-    expected = load_json_resource('data/1.0.0/process_foo_namespaced.json')
+    expected = load_json_resource("data/1.0.0/process_foo_namespaced.json")
     assert res.flat_graph() == expected
-
 
 
 @pytest.mark.parametrize("api_capabilities", [{"udp": True}])
@@ -2307,17 +2423,19 @@ def test_save_user_defined_process(con100, requests_mock):
 
     def check_body(request):
         body = request.json()
-        assert body['process_graph'] == expected_body['process_graph']
-        assert not body.get('public', False)
+        assert body["process_graph"] == expected_body["process_graph"]
+        assert not body.get("public", False)
         return True
 
     adapter = requests_mock.put(API_URL + "/process_graphs/my_udp", additional_matcher=check_body)
 
-    collection = con100.load_collection("S2") \
-        .filter_bbox(west=16.1, east=16.6, north=48.6, south=47.2) \
+    collection = (
+        con100.load_collection("S2")
+        .filter_bbox(west=16.1, east=16.6, north=48.6, south=47.2)
         .filter_temporal(start_date="2018-01-01", end_date="2019-01-01")
+    )
 
-    collection.save_user_defined_process(user_defined_process_id='my_udp')
+    collection.save_user_defined_process(user_defined_process_id="my_udp")
 
     assert adapter.called
 
@@ -2330,28 +2448,33 @@ def test_save_user_defined_process_public(con100, requests_mock):
 
     def check_body(request):
         body = request.json()
-        assert body['process_graph'] == expected_body['process_graph']
-        assert body['public']
+        assert body["process_graph"] == expected_body["process_graph"]
+        assert body["public"]
         return True
 
     adapter = requests_mock.put(API_URL + "/process_graphs/my_udp", additional_matcher=check_body)
 
-    collection = con100.load_collection("S2") \
-        .filter_bbox(west=16.1, east=16.6, north=48.6, south=47.2) \
+    collection = (
+        con100.load_collection("S2")
+        .filter_bbox(west=16.1, east=16.6, north=48.6, south=47.2)
         .filter_temporal(start_date="2018-01-01", end_date="2019-01-01")
+    )
 
-    collection.save_user_defined_process(user_defined_process_id='my_udp', public=True)
+    collection.save_user_defined_process(user_defined_process_id="my_udp", public=True)
 
     assert adapter.called
 
 
 def test_save_result_format(con100, requests_mock):
-    requests_mock.get(API_URL + "/file_formats", json={
-        "output": {
-            "GTiff": {"gis_data_types": ["raster"]},
-            "PNG": {"gis_data_types": ["raster"]},
-        }
-    })
+    requests_mock.get(
+        API_URL + "/file_formats",
+        json={
+            "output": {
+                "GTiff": {"gis_data_types": ["raster"]},
+                "PNG": {"gis_data_types": ["raster"]},
+            }
+        },
+    )
 
     cube = con100.load_collection("S2")
     with pytest.raises(ValueError):
@@ -2361,7 +2484,8 @@ def test_save_result_format(con100, requests_mock):
     cube.save_result(format="pNg")
 
 
-EXPECTED_JSON_EXPORT_S2_NDVI = textwrap.dedent('''\
+EXPECTED_JSON_EXPORT_S2_NDVI = textwrap.dedent(
+    """\
   {
     "process_graph": {
       "loadcollection1": {
@@ -2382,7 +2506,8 @@ EXPECTED_JSON_EXPORT_S2_NDVI = textwrap.dedent('''\
         "result": true
       }
     }
-  }''')
+  }"""
+)
 
 
 def test_to_json(con100):
@@ -2499,14 +2624,13 @@ def test_datacube_from_process_no_warnings(con100, caplog, recwarn):
 
 
 class TestDataCubeFromFlatGraph:
-
     def test_datacube_from_flat_graph_minimal(self, con100):
         flat_graph = {"1+2": {"process_id": "add", "arguments": {"x": 1, "y": 2}, "result": True}}
         cube = con100.datacube_from_flat_graph(flat_graph)
         assert cube.flat_graph() == {"add1": {"process_id": "add", "arguments": {"x": 1, "y": 2}, "result": True}}
 
     def test_datacube_from_json_minimal_string(self, con100):
-        udp_json = '''{"1+2": {"process_id": "add", "arguments": {"x": 1, "y": 2}, "result": true}}'''
+        udp_json = """{"1+2": {"process_id": "add", "arguments": {"x": 1, "y": 2}, "result": true}}"""
         cube = con100.datacube_from_json(udp_json)
         assert cube.flat_graph() == {"add1": {"process_id": "add", "arguments": {"x": 1, "y": 2}, "result": True}}
 
@@ -2514,7 +2638,7 @@ class TestDataCubeFromFlatGraph:
     def test_datacube_from_json_minimal_file(self, con100, tmp_path, path_factory):
         path = tmp_path / "pg.json"
         with path.open("w") as f:
-            f.write('''{"1+2": {"process_id": "add", "arguments": {"x": 1, "y": 2}, "result": true}}''')
+            f.write("""{"1+2": {"process_id": "add", "arguments": {"x": 1, "y": 2}, "result": true}}""")
         cube = con100.datacube_from_json(path_factory(path))
         assert cube.flat_graph() == {"add1": {"process_id": "add", "arguments": {"x": 1, "y": 2}, "result": True}}
 
@@ -2528,7 +2652,7 @@ class TestDataCubeFromFlatGraph:
         flat_graph = {
             "id": "one-plus-two",
             "summary": "One plus two as a service",
-            "process_graph": {"1+2": {"process_id": "add", "arguments": {"x": 1, "y": 2}, "result": True}}
+            "process_graph": {"1+2": {"process_id": "add", "arguments": {"x": 1, "y": 2}, "result": True}},
         }
         cube = con100.datacube_from_flat_graph(flat_graph)
         assert cube.flat_graph() == {"add1": {"process_id": "add", "arguments": {"x": 1, "y": 2}, "result": True}}
@@ -2548,7 +2672,7 @@ class TestDataCubeFromFlatGraph:
             "blur": {
                 "process_id": "apply_kernel",
                 "arguments": {"data": {"from_parameter": "cube"}, "kernel": {"from_node": "kernel"}},
-                "result": True
+                "result": True,
             },
         }
         input_cube = con100.load_collection("S2")
@@ -2556,13 +2680,13 @@ class TestDataCubeFromFlatGraph:
         assert cube.flat_graph() == {
             "loadcollection1": {
                 "process_id": "load_collection",
-                "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None}
+                "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
             },
             "constant1": {"process_id": "constant", "arguments": {"x": [[1, 2, 1], [2, 5, 2], [1, 2, 1]]}},
             "applykernel1": {
                 "process_id": "apply_kernel",
                 "arguments": {"data": {"from_node": "loadcollection1"}, "kernel": {"from_node": "constant1"}},
-                "result": True
+                "result": True,
             },
         }
 
@@ -2579,7 +2703,9 @@ class TestDataCubeFromFlatGraph:
         assert cube.flat_graph() == {
             "subtract1": {"process_id": "subtract", "arguments": {"x": 86, "y": 32}},
             "divide1": {
-                "process_id": "divide", "arguments": {"x": {"from_node": "subtract1"}, "y": 1.8}, "result": True
+                "process_id": "divide",
+                "arguments": {"x": {"from_node": "subtract1"}, "y": 1.8},
+                "result": True,
             },
         }
 
@@ -2589,9 +2715,11 @@ class TestDataCubeFromFlatGraph:
         }
         cube = con100.datacube_from_flat_graph(flat_graph, parameters={"f": Parameter("warmth")})
         assert cube.flat_graph() == {
-            "subtract1": {"process_id": "subtract", "arguments": {
-                "x": {"from_parameter": "warmth"}, "y": 32
-            }, "result": True},
+            "subtract1": {
+                "process_id": "subtract",
+                "arguments": {"x": {"from_parameter": "warmth"}, "y": 32},
+                "result": True,
+            },
         }
 
     def test_parameter_substitution_no_params(self, con100):
@@ -2608,11 +2736,14 @@ class TestDataCubeFromFlatGraph:
         with pytest.raises(ProcessGraphVisitException, match="No substitution value for parameter 'f'"):
             _ = con100.datacube_from_flat_graph(flat_graph, parameters={"something else": 42})
 
-    @pytest.mark.parametrize(["kwargs", "expected"], [
-        ({}, 100),
-        ({"parameters": {}}, 100),
-        ({"parameters": {"f": 86}}, 86),
-    ])
+    @pytest.mark.parametrize(
+        ["kwargs", "expected"],
+        [
+            ({}, 100),
+            ({"parameters": {}}, 100),
+            ({"parameters": {"f": 86}}, 86),
+        ],
+    )
     def test_parameter_substitution_default(self, con100, kwargs, expected):
         flat_graph = {
             "id": "fahrenheit_to_celsius",
@@ -2626,7 +2757,9 @@ class TestDataCubeFromFlatGraph:
         assert cube.flat_graph() == {
             "subtract1": {"process_id": "subtract", "arguments": {"x": expected, "y": 32}},
             "divide1": {
-                "process_id": "divide", "arguments": {"x": {"from_node": "subtract1"}, "y": 1.8}, "result": True
+                "process_id": "divide",
+                "arguments": {"x": {"from_node": "subtract1"}, "y": 1.8},
+                "result": True,
             },
         }
 
@@ -2636,12 +2769,17 @@ class TestDataCubeFromFlatGraph:
                 "process_id": "load_collection",
                 "arguments": {
                     "id": "SENTINEL2_L1C_SENTINELHUB",
-                    "properties": {"eo:cloud_cover": {"process_graph": {
-                        "lte1": {
-                            "process_id": "lte",
-                            "arguments": {"x": {"from_parameter": "value"}, "y": 70},
-                            "result": True},
-                    }}},
+                    "properties": {
+                        "eo:cloud_cover": {
+                            "process_graph": {
+                                "lte1": {
+                                    "process_id": "lte",
+                                    "arguments": {"x": {"from_parameter": "value"}, "y": 70},
+                                    "result": True,
+                                },
+                            }
+                        }
+                    },
                 },
                 "result": True,
             },
@@ -2661,16 +2799,18 @@ class TestDataCubeFromFlatGraph:
                 "arguments": {
                     "data": {"from_node": "loadcollection1"},
                     "dimension": "t",
-                    "reducer": {"process_graph": {
-                        "mean1": {
-                            "process_id": "mean",
-                            "arguments": {"data": {"from_parameter": "data"}},
-                            "result": True,
-                        },
-                    }}
+                    "reducer": {
+                        "process_graph": {
+                            "mean1": {
+                                "process_id": "mean",
+                                "arguments": {"data": {"from_parameter": "data"}},
+                                "result": True,
+                            },
+                        }
+                    },
                 },
                 "result": True,
-            }
+            },
         }
         cube = con100.datacube_from_flat_graph(flat_graph)
         assert isinstance(cube, DataCube)
@@ -2688,14 +2828,14 @@ def test_send_nan_json(con100, requests_mock):
 def test_dimension_labels(con100):
     cube = con100.load_collection("S2").dimension_labels("bands")
     assert cube.flat_graph() == {
-        'loadcollection1': {
-            'process_id': 'load_collection',
-            'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
         },
-        'dimensionlabels1': {
-            'process_id': 'dimension_labels',
-            'arguments': {'data': {'from_node': 'loadcollection1'}, 'dimension': 'bands'},
-            'result': True
+        "dimensionlabels1": {
+            "process_id": "dimension_labels",
+            "arguments": {"data": {"from_node": "loadcollection1"}, "dimension": "bands"},
+            "result": True,
         },
     }
 
@@ -2759,39 +2899,39 @@ def test_fit_curve_callback(con100: Connection):
     img = con100.load_collection("S2")
     res = img.fit_curve(parameters=[0, 0], function=model, dimension="t")
     expected = {
-        'loadcollection1': {
-            'process_id': 'load_collection',
-            'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
         },
-        'fitcurve1': {
-            'process_id': 'fit_curve',
-            'arguments': {
-                'data': {'from_node': 'loadcollection1'},
-                'parameters': [0, 0],
-                'function': {
-                    'process_graph': {
-                        'arrayelement1': {
-                            'process_id': 'array_element',
-                            'arguments': {'data': {'from_parameter': 'parameters'}, 'index': 0},
+        "fitcurve1": {
+            "process_id": "fit_curve",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "parameters": [0, 0],
+                "function": {
+                    "process_graph": {
+                        "arrayelement1": {
+                            "process_id": "array_element",
+                            "arguments": {"data": {"from_parameter": "parameters"}, "index": 0},
                         },
-                        'arrayelement2': {
-                            'process_id': 'array_element',
-                            'arguments': {'data': {'from_parameter': 'parameters'}, 'index': 1},
+                        "arrayelement2": {
+                            "process_id": "array_element",
+                            "arguments": {"data": {"from_parameter": "parameters"}, "index": 1},
                         },
-                        'multiply1': {
-                            'process_id': 'multiply',
-                            'arguments': {'x': {'from_node': 'arrayelement2'}, 'y': {'from_parameter': 'x'}},
+                        "multiply1": {
+                            "process_id": "multiply",
+                            "arguments": {"x": {"from_node": "arrayelement2"}, "y": {"from_parameter": "x"}},
                         },
-                        'add1': {
-                            'process_id': 'add',
-                            'arguments': {'x': {'from_node': 'arrayelement1'}, 'y': {'from_node': 'multiply1'}},
-                            'result': True
+                        "add1": {
+                            "process_id": "add",
+                            "arguments": {"x": {"from_node": "arrayelement1"}, "y": {"from_node": "multiply1"}},
+                            "result": True,
                         },
                     }
                 },
-                'dimension': 't',
+                "dimension": "t",
             },
-            'result': True
+            "result": True,
         },
     }
     assert res.flat_graph() == expected
@@ -2799,50 +2939,51 @@ def test_fit_curve_callback(con100: Connection):
 
 def test_predict_curve_callback(con100: Connection):
     from openeo.processes import array_element, cos
+
     def model(x, parameters):
         return array_element(parameters, 0) * cos(array_element(parameters, 1) * x)
 
     img = con100.load_collection("S2")
     res = img.predict_curve(parameters=[0, 0], function=model, dimension="t")
     expected = {
-        'loadcollection1': {
-            'process_id': 'load_collection',
-            'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
         },
-        'predictcurve1': {
-            'process_id': 'predict_curve',
-            'arguments': {
-                'data': {'from_node': 'loadcollection1'},
-                'parameters': [0, 0],
-                'function': {
-                    'process_graph': {
-                        'arrayelement1': {
-                            'process_id': 'array_element',
-                            'arguments': {'data': {'from_parameter': 'parameters'}, 'index': 0},
+        "predictcurve1": {
+            "process_id": "predict_curve",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "parameters": [0, 0],
+                "function": {
+                    "process_graph": {
+                        "arrayelement1": {
+                            "process_id": "array_element",
+                            "arguments": {"data": {"from_parameter": "parameters"}, "index": 0},
                         },
-                        'arrayelement2': {
-                            'process_id': 'array_element',
-                            'arguments': {'data': {'from_parameter': 'parameters'}, 'index': 1},
+                        "arrayelement2": {
+                            "process_id": "array_element",
+                            "arguments": {"data": {"from_parameter": "parameters"}, "index": 1},
                         },
-                        'multiply1': {
-                            'process_id': 'multiply',
-                            'arguments': {'x': {'from_node': 'arrayelement2'}, 'y': {'from_parameter': 'x'}},
+                        "multiply1": {
+                            "process_id": "multiply",
+                            "arguments": {"x": {"from_node": "arrayelement2"}, "y": {"from_parameter": "x"}},
                         },
-                        'cos1': {
-                            'process_id': 'cos',
-                            'arguments': {'x': {'from_node': "multiply1"}},
+                        "cos1": {
+                            "process_id": "cos",
+                            "arguments": {"x": {"from_node": "multiply1"}},
                         },
-                        'multiply2': {
-                            'process_id': 'multiply',
-                            'arguments': {'x': {'from_node': 'arrayelement1'}, 'y': {'from_node': 'cos1'}},
-                            'result': True
+                        "multiply2": {
+                            "process_id": "multiply",
+                            "arguments": {"x": {"from_node": "arrayelement1"}, "y": {"from_node": "cos1"}},
+                            "result": True,
                         },
                     }
                 },
-                'dimension': 't',
-                'labels': None,
+                "dimension": "t",
+                "labels": None,
             },
-            'result': True
+            "result": True,
         },
     }
     assert res.flat_graph() == expected
@@ -2850,13 +2991,15 @@ def test_predict_curve_callback(con100: Connection):
 
 def test_validation(con100, requests_mock):
     def validation(request, context):
-        assert request.json() == {"process_graph": {
-            'loadcollection1': {
-                'process_id': 'load_collection',
-                'arguments': {'id': 'S2', 'spatial_extent': None, 'temporal_extent': None},
-                'result': True,
+        assert request.json() == {
+            "process_graph": {
+                "loadcollection1": {
+                    "process_id": "load_collection",
+                    "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
+                    "result": True,
+                }
             }
-        }}
+        }
         return {"errors": [{"code": "Invalid", "message": "Invalid process graph"}]}
 
     m = requests_mock.post(API_URL + "/validation", json=validation)
@@ -2873,18 +3016,22 @@ def test_flatten_dimensions(con100):
     assert _get_leaf_node(cube) == {
         "process_id": "flatten_dimensions",
         "arguments": {
-            "data": {"from_node": "loadcollection1"}, "dimensions": ["t", "bands"], "target_dimension": "features"
+            "data": {"from_node": "loadcollection1"},
+            "dimensions": ["t", "bands"],
+            "target_dimension": "features",
         },
-        "result": True
+        "result": True,
     }
     cube = s2.flatten_dimensions(dimensions=["t", "bands"], target_dimension="features", label_separator="+")
     assert _get_leaf_node(cube) == {
         "process_id": "flatten_dimensions",
         "arguments": {
-            "data": {"from_node": "loadcollection1"}, "dimensions": ["t", "bands"], "target_dimension": "features",
+            "data": {"from_node": "loadcollection1"},
+            "dimensions": ["t", "bands"],
+            "target_dimension": "features",
             "label_separator": "+",
         },
-        "result": True
+        "result": True,
     }
 
 
@@ -2894,18 +3041,22 @@ def test_unflatten_dimension(con100):
     assert _get_leaf_node(cube) == {
         "process_id": "unflatten_dimension",
         "arguments": {
-            "data": {"from_node": "loadcollection1"}, "dimension": "features", "target_dimensions": ["t", "bands"],
+            "data": {"from_node": "loadcollection1"},
+            "dimension": "features",
+            "target_dimensions": ["t", "bands"],
         },
-        "result": True
+        "result": True,
     }
     cube = s2.unflatten_dimension(dimension="features", target_dimensions=["t", "bands"], label_separator="+")
     assert _get_leaf_node(cube) == {
         "process_id": "unflatten_dimension",
         "arguments": {
-            "data": {"from_node": "loadcollection1"}, "dimension": "features", "target_dimensions": ["t", "bands"],
+            "data": {"from_node": "loadcollection1"},
+            "dimension": "features",
+            "target_dimensions": ["t", "bands"],
             "label_separator": "+",
         },
-        "result": True
+        "result": True,
     }
 
 
@@ -2932,7 +3083,9 @@ def test_merge_if(con100):
             "process_id": "if",
             "arguments": {
                 "value": {"from_node": "eq1"},
-                "accept": {"from_node": "loadcollection1"}, "reject": {"from_node": "loadcollection2"}},
+                "accept": {"from_node": "loadcollection1"},
+                "reject": {"from_node": "loadcollection2"},
+            },
         },
         "mergecubes1": {
             "process_id": "merge_cubes",
@@ -2974,20 +3127,23 @@ def test_update_arguments_priority(con100):
     }
 
 
-@pytest.mark.parametrize(["math", "process", "args"], [
-    (lambda c: c + 1, "add", {"x": {"from_parameter": "x"}, "y": 1}),
-    (lambda c: 1 + c, "add", {"x": 1, "y": {"from_parameter": "x"}}),
-    (lambda c: c - 1.2, "subtract", {"x": {"from_parameter": "x"}, "y": 1.2}),
-    (lambda c: 1.2 - c, "subtract", {"x": 1.2, "y": {"from_parameter": "x"}}),
-    (lambda c: c * 2.5, "multiply", {"x": {"from_parameter": "x"}, "y": 2.5}),
-    (lambda c: 2.5 * c, "multiply", {"x": 2.5, "y": {"from_parameter": "x"}}),
-    (lambda c: c / 3, "divide", {"x": {"from_parameter": "x"}, "y": 3}),
-    (lambda c: 3 / c, "divide", {"x": 3, "y": {"from_parameter": "x"}}),
-    (lambda c: c > 4, "gt", {"x": {"from_parameter": "x"}, "y": 4}),
-    (lambda c: 4 > c, "lt", {"x": {"from_parameter": "x"}, "y": 4}),
-    (lambda c: c == 4, "eq", {"x": {"from_parameter": "x"}, "y": 4}),
-    (lambda c: 4 == c, "eq", {"x": {"from_parameter": "x"}, "y": 4}),
-])
+@pytest.mark.parametrize(
+    ["math", "process", "args"],
+    [
+        (lambda c: c + 1, "add", {"x": {"from_parameter": "x"}, "y": 1}),
+        (lambda c: 1 + c, "add", {"x": 1, "y": {"from_parameter": "x"}}),
+        (lambda c: c - 1.2, "subtract", {"x": {"from_parameter": "x"}, "y": 1.2}),
+        (lambda c: 1.2 - c, "subtract", {"x": 1.2, "y": {"from_parameter": "x"}}),
+        (lambda c: c * 2.5, "multiply", {"x": {"from_parameter": "x"}, "y": 2.5}),
+        (lambda c: 2.5 * c, "multiply", {"x": 2.5, "y": {"from_parameter": "x"}}),
+        (lambda c: c / 3, "divide", {"x": {"from_parameter": "x"}, "y": 3}),
+        (lambda c: 3 / c, "divide", {"x": 3, "y": {"from_parameter": "x"}}),
+        (lambda c: c > 4, "gt", {"x": {"from_parameter": "x"}, "y": 4}),
+        (lambda c: 4 > c, "lt", {"x": {"from_parameter": "x"}, "y": 4}),
+        (lambda c: c == 4, "eq", {"x": {"from_parameter": "x"}, "y": 4}),
+        (lambda c: 4 == c, "eq", {"x": {"from_parameter": "x"}, "y": 4}),
+    ],
+)
 def test_apply_math_simple(con100, math, process, args):
     """https://github.com/Open-EO/openeo-python-client/issues/323"""
     cube = con100.load_collection("S2")
@@ -2998,13 +3154,15 @@ def test_apply_math_simple(con100, math, process, args):
         "process_id": "apply",
         "arguments": {
             "data": {"from_node": "loadcollection1"},
-            "process": {"process_graph": {
-                f"{process}1": {
-                    "process_id": process,
-                    "arguments": args,
-                    "result": True,
+            "process": {
+                "process_graph": {
+                    f"{process}1": {
+                        "process_id": process,
+                        "arguments": args,
+                        "result": True,
+                    }
                 }
-            }}
+            },
         },
         "result": True,
     }
@@ -3175,9 +3333,7 @@ def test_apply_append_math_keep_context(con100):
             {"format": "GTiff"},
             "result.nc",
             {},
-            ValueError(
-                "Existing `save_result` node with different format 'GTiff' != 'netCDF'"
-            ),
+            ValueError("Existing `save_result` node with different format 'GTiff' != 'netCDF'"),
         ),
         ({}, "result.tiff", {"format": "GTiff"}, b"this is GTiff data"),
         ({}, "result.nc", {"format": "netCDF"}, b"this is netCDF data"),
@@ -3198,9 +3354,7 @@ def test_apply_append_math_keep_context(con100):
             {"format": "netCDF"},
             "result.json",
             {"format": "JSON"},
-            ValueError(
-                "Existing `save_result` node with different format 'netCDF' != 'JSON'"
-            ),
+            ValueError("Existing `save_result` node with different format 'netCDF' != 'JSON'"),
         ),
         ({"options": {}}, "result.tiff", {}, b"this is GTiff data"),
         (
@@ -3213,9 +3367,7 @@ def test_apply_append_math_keep_context(con100):
             {"options": {"colormap": "jet"}},
             "result.tiff",
             {"options": {"quality": "low"}},
-            ValueError(
-                "Existing `save_result` node with different options {'colormap': 'jet'} != {'quality': 'low'}"
-            ),
+            ValueError("Existing `save_result` node with different options {'colormap': 'jet'} != {'quality': 'low'}"),
         ),
     ],
 )
@@ -3253,20 +3405,27 @@ def test_save_result_and_download(
 
 
 class TestBatchJob:
-    _EXPECTED_SIMPLE_S2_JOB = {"process": {"process_graph": {
-        "loadcollection1": {
-            "process_id": "load_collection",
-            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None}
-        },
-        "saveresult1": {
-            "process_id": "save_result",
-            "arguments": {"data": {"from_node": "loadcollection1"}, "format": "GTiff", "options": {}},
-            "result": True,
+    _EXPECTED_SIMPLE_S2_JOB = {
+        "process": {
+            "process_graph": {
+                "loadcollection1": {
+                    "process_id": "load_collection",
+                    "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
+                },
+                "saveresult1": {
+                    "process_id": "save_result",
+                    "arguments": {"data": {"from_node": "loadcollection1"}, "format": "GTiff", "options": {}},
+                    "result": True,
+                },
+            }
         }
-    }}}
+    }
 
     def _get_handler_post_jobs(
-            self, expected_post_data: Optional[dict] = None, job_id: str = "myj0b1", add_header=True,
+        self,
+        expected_post_data: Optional[dict] = None,
+        job_id: str = "myj0b1",
+        add_header=True,
     ):
         """Create `POST /jobs` handler"""
         expected_post_data = expected_post_data or self._EXPECTED_SIMPLE_S2_JOB
@@ -3285,10 +3444,13 @@ class TestBatchJob:
         job = cube.create_job(out_format="GTiff")
         assert job.job_id == "myj0b1"
 
-    @pytest.mark.parametrize(["add_header", "job_id"], [
-        (True, "  "),
-        (False, None),
-    ])
+    @pytest.mark.parametrize(
+        ["add_header", "job_id"],
+        [
+            (True, "  "),
+            (False, None),
+        ],
+    )
     def test_create_job_invalid_header(self, con100, requests_mock, add_header, job_id):
         requests_mock.post(API_URL + "/jobs", json=self._get_handler_post_jobs(job_id=job_id, add_header=add_header))
         cube = con100.load_collection("S2")
@@ -3306,7 +3468,6 @@ class TestBatchJob:
 
 
 class TestUDF:
-
     def test_apply_udf_basic(self, con100):
         udf = UDF("print('hello world')", runtime="Python")
         cube = con100.load_collection("S2")
@@ -3322,15 +3483,17 @@ class TestUDF:
                 "arguments": {
                     "data": {"from_node": "loadcollection1"},
                     "process": {
-                        "process_graph": {"runudf1": {
-                            "process_id": "run_udf",
-                            "arguments": {
-                                "data": {"from_parameter": "x"},
-                                "runtime": "Python",
-                                "udf": "print('hello world')",
-                            },
-                            "result": True,
-                        }},
+                        "process_graph": {
+                            "runudf1": {
+                                "process_id": "run_udf",
+                                "arguments": {
+                                    "data": {"from_parameter": "x"},
+                                    "runtime": "Python",
+                                    "udf": "print('hello world')",
+                                },
+                                "result": True,
+                            }
+                        },
                     },
                 },
                 "result": True,
@@ -3343,23 +3506,28 @@ class TestUDF:
         res = cube.apply(udf)
 
         assert res.flat_graph()["apply1"]["arguments"]["process"] == {
-            "process_graph": {"runudf1": {
-                "process_id": "run_udf",
-                "arguments": {
-                    "data": {"from_parameter": "x"},
-                    "runtime": "Python",
-                    "udf": "def foo(x):\n    return x\n",
-                },
-                "result": True,
-            }},
+            "process_graph": {
+                "runudf1": {
+                    "process_id": "run_udf",
+                    "arguments": {
+                        "data": {"from_parameter": "x"},
+                        "runtime": "Python",
+                        "udf": "def foo(x):\n    return x\n",
+                    },
+                    "result": True,
+                }
+            },
         }
 
-    @pytest.mark.parametrize(["filename", "udf_code", "expected_runtime"], [
-        ("udf-code.py", "def foo(x):\n    return x\n", "Python"),
-        ("udf-code.py", "# just empty, but at least with `.py` suffix\n", "Python"),
-        ("udf-code-py.txt", "def foo(x):\n    return x\n", "Python"),
-        ("udf-code.r", "# R code here\n", "R"),
-    ])
+    @pytest.mark.parametrize(
+        ["filename", "udf_code", "expected_runtime"],
+        [
+            ("udf-code.py", "def foo(x):\n    return x\n", "Python"),
+            ("udf-code.py", "# just empty, but at least with `.py` suffix\n", "Python"),
+            ("udf-code-py.txt", "def foo(x):\n    return x\n", "Python"),
+            ("udf-code.r", "# R code here\n", "R"),
+        ],
+    )
     def test_apply_udf_load_from_file(self, con100, tmp_path, filename, udf_code, expected_runtime):
         path = tmp_path / filename
         path.write_text(udf_code)
@@ -3369,25 +3537,30 @@ class TestUDF:
         res = cube.apply(udf)
 
         assert res.flat_graph()["apply1"]["arguments"]["process"] == {
-            "process_graph": {"runudf1": {
-                "process_id": "run_udf",
-                "arguments": {
-                    "data": {"from_parameter": "x"},
-                    "runtime": expected_runtime,
-                    "udf": udf_code,
-                },
-                "result": True,
-            }},
+            "process_graph": {
+                "runudf1": {
+                    "process_id": "run_udf",
+                    "arguments": {
+                        "data": {"from_parameter": "x"},
+                        "runtime": expected_runtime,
+                        "udf": udf_code,
+                    },
+                    "result": True,
+                }
+            },
         }
 
-    @pytest.mark.parametrize(["url", "udf_code", "expected_runtime"], [
-        ("http://example.com/udf-code.py", "def foo(x):\n    return x\n", "Python"),
-        ("http://example.com/udf-code.py", "# just empty, but at least with `.py` suffix\n", "Python"),
-        ("http://example.com/udf-code.py&ref=test", "# just empty, but at least with `.py` suffix\n", "Python"),
-        ("http://example.com/udf-code.py#test", "# just empty, but at least with `.py` suffix\n", "Python"),
-        ("http://example.com/udf-code-py.txt", "def foo(x):\n    return x\n", "Python"),
-        ("http://example.com/udf-code.r", "# R code here\n", "R"),
-    ])
+    @pytest.mark.parametrize(
+        ["url", "udf_code", "expected_runtime"],
+        [
+            ("http://example.com/udf-code.py", "def foo(x):\n    return x\n", "Python"),
+            ("http://example.com/udf-code.py", "# just empty, but at least with `.py` suffix\n", "Python"),
+            ("http://example.com/udf-code.py&ref=test", "# just empty, but at least with `.py` suffix\n", "Python"),
+            ("http://example.com/udf-code.py#test", "# just empty, but at least with `.py` suffix\n", "Python"),
+            ("http://example.com/udf-code-py.txt", "def foo(x):\n    return x\n", "Python"),
+            ("http://example.com/udf-code.r", "# R code here\n", "R"),
+        ],
+    )
     def test_apply_udf_load_from_url(self, con100, requests_mock, url, udf_code, expected_runtime):
         requests_mock.get(url, text=udf_code)
 
@@ -3395,21 +3568,26 @@ class TestUDF:
         cube = con100.load_collection("S2")
         res = cube.apply(udf)
         assert res.flat_graph()["apply1"]["arguments"]["process"] == {
-            "process_graph": {"runudf1": {
-                "process_id": "run_udf",
-                "arguments": {
-                    "data": {"from_parameter": "x"},
-                    "runtime": expected_runtime,
-                    "udf": udf_code,
-                },
-                "result": True,
-            }},
+            "process_graph": {
+                "runudf1": {
+                    "process_id": "run_udf",
+                    "arguments": {
+                        "data": {"from_parameter": "x"},
+                        "runtime": expected_runtime,
+                        "udf": udf_code,
+                    },
+                    "result": True,
+                }
+            },
         }
 
-    @pytest.mark.parametrize(["kwargs"], [
-        ({"version": "3.8"},),
-        ({"context": {"color": "red"}},),
-    ])
+    @pytest.mark.parametrize(
+        ["kwargs"],
+        [
+            ({"version": "3.8"},),
+            ({"context": {"color": "red"}},),
+        ],
+    )
     def test_apply_udf_version_and_context(self, con100, kwargs):
         udf = UDF("def foo(x):\n    return x\n", **kwargs)
         cube = con100.load_collection("S2")
@@ -3422,11 +3600,13 @@ class TestUDF:
         }
         expected_args.update(kwargs)
         assert res.flat_graph()["apply1"]["arguments"]["process"] == {
-            "process_graph": {"runudf1": {
-                "process_id": "run_udf",
-                "arguments": expected_args,
-                "result": True,
-            }},
+            "process_graph": {
+                "runudf1": {
+                    "process_id": "run_udf",
+                    "arguments": expected_args,
+                    "result": True,
+                }
+            },
         }
 
     def test_simple_apply_udf(self, con100):
@@ -3439,15 +3619,17 @@ class TestUDF:
             "arguments": {
                 "data": {"from_node": "loadcollection1"},
                 "process": {
-                    "process_graph": {"runudf1": {
-                        "process_id": "run_udf",
-                        "arguments": {
-                            "data": {"from_parameter": "x"},
-                            "runtime": "Python",
-                            "udf": "def foo(x):\n    return x\n",
-                        },
-                        "result": True,
-                    }},
+                    "process_graph": {
+                        "runudf1": {
+                            "process_id": "run_udf",
+                            "arguments": {
+                                "data": {"from_parameter": "x"},
+                                "runtime": "Python",
+                                "udf": "def foo(x):\n    return x\n",
+                            },
+                            "result": True,
+                        }
+                    },
                 },
             },
             "result": True,
@@ -3464,15 +3646,17 @@ class TestUDF:
                 "data": {"from_node": "loadcollection1"},
                 "dimension": "t",
                 "process": {
-                    "process_graph": {"runudf1": {
-                        "process_id": "run_udf",
-                        "arguments": {
-                            "data": {"from_parameter": "data"},
-                            "runtime": "Python",
-                            "udf": "def foo(x):\n    return x\n",
-                        },
-                        "result": True,
-                    }},
+                    "process_graph": {
+                        "runudf1": {
+                            "process_id": "run_udf",
+                            "arguments": {
+                                "data": {"from_parameter": "data"},
+                                "runtime": "Python",
+                                "udf": "def foo(x):\n    return x\n",
+                            },
+                            "result": True,
+                        }
+                    },
                 },
             },
             "result": True,
@@ -3491,15 +3675,17 @@ class TestUDF:
                 "data": {"from_node": "loadcollection1"},
                 "dimension": "t",
                 "process": {
-                    "process_graph": {"runudf1": {
-                        "process_id": "run_udf",
-                        "arguments": {
-                            "data": {"from_parameter": "data"},
-                            "runtime": "Python",
-                            "udf": "def foo(x):\n    return x\n",
-                        },
-                        "result": True,
-                    }},
+                    "process_graph": {
+                        "runudf1": {
+                            "process_id": "run_udf",
+                            "arguments": {
+                                "data": {"from_parameter": "data"},
+                                "runtime": "Python",
+                                "udf": "def foo(x):\n    return x\n",
+                            },
+                            "result": True,
+                        }
+                    },
                 },
             },
             "result": True,
@@ -3516,15 +3702,17 @@ class TestUDF:
                 "data": {"from_node": "loadcollection1"},
                 "dimension": "t",
                 "reducer": {
-                    "process_graph": {"runudf1": {
-                        "process_id": "run_udf",
-                        "arguments": {
-                            "data": {"from_parameter": "data"},
-                            "runtime": "Python",
-                            "udf": "def foo(x):\n    return x\n",
-                        },
-                        "result": True,
-                    }},
+                    "process_graph": {
+                        "runudf1": {
+                            "process_id": "run_udf",
+                            "arguments": {
+                                "data": {"from_parameter": "data"},
+                                "runtime": "Python",
+                                "udf": "def foo(x):\n    return x\n",
+                            },
+                            "result": True,
+                        }
+                    },
                 },
             },
             "result": True,
@@ -3541,15 +3729,17 @@ class TestUDF:
                 "data": {"from_node": "loadcollection1"},
                 "size": 27,
                 "process": {
-                    "process_graph": {"runudf1": {
-                        "process_id": "run_udf",
-                        "arguments": {
-                            "data": {"from_parameter": "data"},
-                            "runtime": "Python",
-                            "udf": "def foo(x):\n    return x\n",
-                        },
-                        "result": True,
-                    }},
+                    "process_graph": {
+                        "runudf1": {
+                            "process_id": "run_udf",
+                            "arguments": {
+                                "data": {"from_parameter": "data"},
+                                "runtime": "Python",
+                                "udf": "def foo(x):\n    return x\n",
+                            },
+                            "result": True,
+                        }
+                    },
                 },
             },
             "result": True,
@@ -3566,9 +3756,7 @@ class TestUDF:
         aggregated = cube.aggregate_spatial(geometries=geometries, reducer="mean")
 
         udf = "def foo(x):\n    return x\n"
-        post_processed = aggregated.process(
-            "run_udf", data=aggregated, udf=udf, runtime="Python"
-        )
+        post_processed = aggregated.process("run_udf", data=aggregated, udf=udf, runtime="Python")
 
         expected = load_json_resource("data/1.0.0/run_udf_on_vector_data_cube.json")
         assert post_processed.flat_graph() == expected
@@ -3584,9 +3772,7 @@ class TestUDF:
         aggregated = cube.aggregate_spatial(geometries=geometries, reducer="mean")
 
         udf = "def foo(x):\n    return x\n"
-        post_processed = openeo.processes.run_udf(
-            data=aggregated, udf=udf, runtime="Python"
-        )
+        post_processed = openeo.processes.run_udf(data=aggregated, udf=udf, runtime="Python")
 
         expected = load_json_resource("data/1.0.0/run_udf_on_vector_data_cube.json")
         assert post_processed.flat_graph() == expected

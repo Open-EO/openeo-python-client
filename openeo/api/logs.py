@@ -52,9 +52,7 @@ class LogEntry(dict):
     # TODO: add properties for "code", "time", "path", "links" and "data" with sensible defaults?
 
 
-def normalize_log_level(
-    log_level: Union[int, str, None], default: int = logging.DEBUG
-) -> int:
+def normalize_log_level(log_level: Union[int, str, None], default: int = logging.DEBUG) -> int:
     """
     Helper function to convert a openEO API log level (e.g. string "error")
     to the integer constants defined in Python's standard library ``logging`` module (e.g. ``logging.ERROR``).
@@ -86,9 +84,7 @@ def normalize_log_level(
     elif log_level is None:
         return default
     else:
-        raise TypeError(
-            f"Value for log_level is not an int or str: type={type(log_level)}, value={log_level!r}"
-        )
+        raise TypeError(f"Value for log_level is not an int or str: type={type(log_level)}, value={log_level!r}")
 
 
 def log_level_name(log_level: Union[int, str, None]) -> str:

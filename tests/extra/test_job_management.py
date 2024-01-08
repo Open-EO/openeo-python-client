@@ -70,9 +70,7 @@ class TestMultiBackendJobManager:
                 # It also needs the job results endpoint, though that can be a dummy implementation.
                 # When the job is finished the system tries to download the results and that is what
                 # needs this endpoint.
-                requests_mock.get(
-                    f"{backend}/jobs/{job_id}/results", json={"links": []}
-                )
+                requests_mock.get(f"{backend}/jobs/{job_id}/results", json={"links": []})
 
         mock_job_status("job-2018", queued=1, running=2)
         mock_job_status("job-2019", queued=2, running=3)
@@ -243,7 +241,6 @@ class TestMultiBackendJobManager:
         metadata_path = manager.get_job_metadata_path(job_id="job-2021")
         assert metadata_path.exists()
 
-
     def test_on_error_log(self, tmp_path, requests_mock):
         backend = "http://foo.test"
         requests_mock.get(backend, json={"api_version": "1.1.0"})
@@ -256,9 +253,7 @@ class TestMultiBackendJobManager:
                 "message": "Test that error handling works",
             }
         ]
-        requests_mock.get(
-            f"{backend}/jobs/{job_id}/logs", json={"logs": errors_log_lines}
-        )
+        requests_mock.get(f"{backend}/jobs/{job_id}/logs", json={"logs": errors_log_lines})
 
         root_dir = tmp_path / "job_mgr_root"
         manager = MultiBackendJobManager(root_dir=root_dir)
@@ -328,9 +323,7 @@ class TestMultiBackendJobManager:
 
     @httpretty.activate(allow_net_connect=False, verbose=True)
     @pytest.mark.parametrize("http_error_status", [502, 503, 504])
-    def test_is_resilient_to_backend_failures(
-        self, tmp_path, http_error_status, sleep_mock
-    ):
+    def test_is_resilient_to_backend_failures(self, tmp_path, http_error_status, sleep_mock):
         """
         Our job should still succeed when the backend request succeeds eventually,
         after first failing the maximum allowed number of retries.
@@ -350,9 +343,7 @@ class TestMultiBackendJobManager:
         backend = "http://foo.test"
         job_id = "job-2018"
 
-        httpretty.register_uri(
-            "GET", backend, body=json.dumps({"api_version": "1.1.0"})
-        )
+        httpretty.register_uri("GET", backend, body=json.dumps({"api_version": "1.1.0"}))
 
         # First fail the max times the connection should retry, then succeed. after that
         response_list = [
@@ -369,9 +360,7 @@ class TestMultiBackendJobManager:
                 )
             )
         ]
-        httpretty.register_uri(
-            "GET", f"{backend}/jobs/{job_id}", responses=response_list
-        )
+        httpretty.register_uri("GET", f"{backend}/jobs/{job_id}", responses=response_list)
 
         root_dir = tmp_path / "job_mgr_root"
         manager = MultiBackendJobManager(root_dir=root_dir)
@@ -401,9 +390,7 @@ class TestMultiBackendJobManager:
 
     @httpretty.activate(allow_net_connect=False, verbose=True)
     @pytest.mark.parametrize("http_error_status", [502, 503, 504])
-    def test_resilient_backend_reports_error_when_max_retries_exceeded(
-        self, tmp_path, http_error_status, sleep_mock
-    ):
+    def test_resilient_backend_reports_error_when_max_retries_exceeded(self, tmp_path, http_error_status, sleep_mock):
         """We should get a RetryError when the backend request fails more times than the maximum allowed number of retries.
 
         Goal of the test is only to see that retrying is effectively executed.
@@ -421,9 +408,7 @@ class TestMultiBackendJobManager:
         backend = "http://foo.test"
         job_id = "job-2018"
 
-        httpretty.register_uri(
-            "GET", backend, body=json.dumps({"api_version": "1.1.0"})
-        )
+        httpretty.register_uri("GET", backend, body=json.dumps({"api_version": "1.1.0"}))
 
         # Fail one more time than the max allow retries.
         # But do add one successful request at the start, to simulate that the job was
@@ -444,9 +429,7 @@ class TestMultiBackendJobManager:
             MAX_RETRIES + 1
         )
 
-        httpretty.register_uri(
-            "GET", f"{backend}/jobs/{job_id}", responses=response_list
-        )
+        httpretty.register_uri("GET", f"{backend}/jobs/{job_id}", responses=response_list)
 
         root_dir = tmp_path / "job_mgr_root"
         manager = MultiBackendJobManager(root_dir=root_dir)

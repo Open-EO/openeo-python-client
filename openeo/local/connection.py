@@ -29,12 +29,12 @@ from openeo.rest.datacube import DataCube
 _log = logging.getLogger(__name__)
 
 
-class LocalConnection():
+class LocalConnection:
     """
     Connection to no backend, for local processing.
     """
 
-    def __init__(self,local_collections_path: Union[str,List]):
+    def __init__(self, local_collections_path: Union[str, List]):
         """
         Constructor of LocalConnection.
 
@@ -66,9 +66,9 @@ class LocalConnection():
         :return: collection metadata.
         """
         local_collection = Path(collection_id)
-        if '.nc' in local_collection.suffixes or '.zarr' in local_collection.suffixes:
+        if ".nc" in local_collection.suffixes or ".zarr" in local_collection.suffixes:
             data = _get_netcdf_zarr_metadata(local_collection)
-        elif '.tif' in local_collection.suffixes or '.tiff' in local_collection.suffixes:
+        elif ".tif" in local_collection.suffixes or ".tiff" in local_collection.suffixes:
             data = _get_geotiff_metadata(local_collection)
         return VisualDict("collection", data=data)
 
@@ -96,8 +96,12 @@ class LocalConnection():
         :return: a datacube containing the requested data
         """
         return DataCube.load_collection(
-            collection_id=collection_id, connection=self,
-            spatial_extent=spatial_extent, temporal_extent=temporal_extent, bands=bands, properties=properties,
+            collection_id=collection_id,
+            connection=self,
+            spatial_extent=spatial_extent,
+            temporal_extent=temporal_extent,
+            bands=bands,
+            properties=properties,
             fetch_metadata=fetch_metadata,
         )
 

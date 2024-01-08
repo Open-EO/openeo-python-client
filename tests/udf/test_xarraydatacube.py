@@ -33,18 +33,20 @@ def test_xarraydatacube_from_dict_minimal():
 
 def test_xarraydatacube_to_dict():
     array = xarray.DataArray(
-        numpy.zeros(shape=(2, 3)), coords={'x': [1, 2], 'y': [1, 2, 3]}, dims=('x', 'y'),
+        numpy.zeros(shape=(2, 3)),
+        coords={"x": [1, 2], "y": [1, 2, 3]},
+        dims=("x", "y"),
         name="testdata",
         attrs={"description": "This is an xarray with two dimensions"},
     )
     xdc = XarrayDataCube(array=array)
     assert xdc.to_dict() == {
         "id": "testdata",
-        "description": 'This is an xarray with two dimensions',
+        "description": "This is an xarray with two dimensions",
         "data": [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
         "dimensions": [
-            {'name': 'x', 'coordinates': [1, 2]},
-            {'name': 'y', 'coordinates': [1, 2, 3]},
+            {"name": "x", "coordinates": [1, 2]},
+            {"name": "y", "coordinates": [1, 2, 3]},
         ],
     }
 
@@ -52,11 +54,11 @@ def test_xarraydatacube_to_dict():
 def test_xarray_datacube_from_dict():
     d = {
         "id": "testdata",
-        "description": 'This is an xarray with two dimensions',
+        "description": "This is an xarray with two dimensions",
         "data": [[0.0, 1.0, 2.0], [3.0, 4.0, 5.0]],
         "dimensions": [
-            {'name': 'x', 'coordinates': [1, 2]},
-            {'name': 'y', 'coordinates': [1, 2, 3]},
+            {"name": "x", "coordinates": [1, 2]},
+            {"name": "y", "coordinates": [1, 2, 3]},
         ],
     }
     xdc = XarrayDataCube.from_dict(d)
@@ -89,54 +91,44 @@ def _build_xdc(
 
 def test_build_xdc():
     xarray.testing.assert_equal(
-        _build_xdc(ts=2).array,
-        xarray.DataArray(data=numpy.array([0, 1]), dims=["t"], coords={})
+        _build_xdc(ts=2).array, xarray.DataArray(data=numpy.array([0, 1]), dims=["t"], coords={})
     )
     xarray.testing.assert_equal(
         _build_xdc(ts=[2019, 2020]).array,
-        xarray.DataArray(data=numpy.array([0, 1]), dims=["t"], coords={"t": [2019, 2020]})
+        xarray.DataArray(data=numpy.array([0, 1]), dims=["t"], coords={"t": [2019, 2020]}),
     )
     xarray.testing.assert_equal(
         _build_xdc(xs=[1, 2, 3]).array,
-        xarray.DataArray(data=numpy.array([0, 1, 2]), dims=["x"], coords={"x": [1, 2, 3]})
+        xarray.DataArray(data=numpy.array([0, 1, 2]), dims=["x"], coords={"x": [1, 2, 3]}),
     )
     xarray.testing.assert_equal(
         _build_xdc(ts=2, xs=3).array,
-        xarray.DataArray(
-            data=numpy.array([[0, 1, 2], [10, 11, 12]]),
-            dims=["t", "x"], coords={}
-        )
+        xarray.DataArray(data=numpy.array([[0, 1, 2], [10, 11, 12]]), dims=["t", "x"], coords={}),
     )
     xarray.testing.assert_equal(
         _build_xdc(ts=[2019, 2020], xs=5).array,
         xarray.DataArray(
-            data=numpy.array([[0, 1, 2, 3, 4], [10, 11, 12, 13, 14]]),
-            dims=["t", "x"], coords={"t": [2019, 2020]}
-        )
+            data=numpy.array([[0, 1, 2, 3, 4], [10, 11, 12, 13, 14]]), dims=["t", "x"], coords={"t": [2019, 2020]}
+        ),
     )
     xarray.testing.assert_equal(
         _build_xdc(ts=[2019, 2020], xs=[1, 2, 3]).array,
         xarray.DataArray(
-            data=numpy.array([[0, 1, 2], [10, 11, 12]]),
-            dims=["t", "x"], coords={"t": [2019, 2020], "x": [1, 2, 3]}
-        )
+            data=numpy.array([[0, 1, 2], [10, 11, 12]]), dims=["t", "x"], coords={"t": [2019, 2020], "x": [1, 2, 3]}
+        ),
     )
     xarray.testing.assert_equal(
         _build_xdc(ts=[2019, 2020], bands=["a", "b"], xs=[1, 2, 3], ys=[20, 30]).array,
         xarray.DataArray(
-            data=numpy.array([
+            data=numpy.array(
                 [
-                    [[0, 1], [10, 11], [20, 21]],
-                    [[100, 101], [110, 111], [120, 121]]
-                ],
-                [
-                    [[1000, 1001], [1010, 1011], [1020, 1021]],
-                    [[1100, 1101], [1110, 1111], [1120, 1121]]
-                ],
-            ]),
+                    [[[0, 1], [10, 11], [20, 21]], [[100, 101], [110, 111], [120, 121]]],
+                    [[[1000, 1001], [1010, 1011], [1020, 1021]], [[1100, 1101], [1110, 1111], [1120, 1121]]],
+                ]
+            ),
             dims=["t", "bands", "x", "y"],
-            coords={"t": [2019, 2020], "bands": ["a", "b"], "x": [1, 2, 3], "y": [20, 30]}
-        )
+            coords={"t": [2019, 2020], "bands": ["a", "b"], "x": [1, 2, 3], "y": [20, 30]},
+        ),
     )
 
 
@@ -150,9 +142,7 @@ def _get_netcdf_engines() -> List[str]:
     if hasattr(xarray.backends, "list_engines"):
         # xarray 0.17 or higher provides xarray.backends.list_engines
         netcdf_engines = [
-            name
-            for name, engine in xarray.backends.list_engines().items()
-            if engine.guess_can_open("dummy.nc")
+            name for name, engine in xarray.backends.list_engines().items() if engine.guess_can_open("dummy.nc")
         ]
     else:
         # Poor man's hardcoded fallback
@@ -173,45 +163,40 @@ def _roundtrips() -> Iterator[_SaveLoadRoundTrip]:
             # Only test scipy engine against itself
             continue
         yield pytest.param(
-            _SaveLoadRoundTrip(
-                format="netcdf", save_kwargs={"engine": e1}, load_kwargs={"engine": e2}
-            ),
+            _SaveLoadRoundTrip(format="netcdf", save_kwargs={"engine": e1}, load_kwargs={"engine": e2}),
             id=f"netcdf-{e1}-{e2}",
         )
 
 
-def _assert_equal_after_save_and_load(
-    xdc: XarrayDataCube, tmp_path, roundtrip: _SaveLoadRoundTrip
-) -> XarrayDataCube:
+def _assert_equal_after_save_and_load(xdc: XarrayDataCube, tmp_path, roundtrip: _SaveLoadRoundTrip) -> XarrayDataCube:
     path = tmp_path / ("cube." + roundtrip.format)
     xdc.save_to_file(path=path, fmt=roundtrip.format, **roundtrip.save_kwargs)
-    result = XarrayDataCube.from_file(
-        path=path, fmt=roundtrip.format, **roundtrip.load_kwargs
-    )
+    result = XarrayDataCube.from_file(path=path, fmt=roundtrip.format, **roundtrip.load_kwargs)
     xarray.testing.assert_equal(xdc.array, result.array)
     return result
 
 
 @pytest.mark.parametrize("roundtrip", _roundtrips())
 def test_save_load_full(roundtrip, tmp_path):
-    xdc = _build_xdc(
-        ts=[2019, 2020, 2021], bands=["a", "b"], xs=[2, 3, 4, 5], ys=[5, 6, 7, 8, 9]
-    )
+    xdc = _build_xdc(ts=[2019, 2020, 2021], bands=["a", "b"], xs=[2, 3, 4, 5], ys=[5, 6, 7, 8, 9])
     assert xdc.array.shape == (3, 2, 4, 5)
     _assert_equal_after_save_and_load(xdc, tmp_path, roundtrip=roundtrip)
 
 
-@pytest.mark.parametrize(["filename", "save_format", "load_format"], [
-    ("cube.nc", None, None),
-    ("cube.NC", None, None),
-    ("cube.NetCDF", None, None),
-    ("cube.nc", None, "netcdf"),
-    ("cube.nc", "netcdf", None),
-    ("cube.json", None, None),
-    ("cube.JSON", None, None),
-    ("cube.json", "json", None),
-    ("cube.json", None, "json"),
-])
+@pytest.mark.parametrize(
+    ["filename", "save_format", "load_format"],
+    [
+        ("cube.nc", None, None),
+        ("cube.NC", None, None),
+        ("cube.NetCDF", None, None),
+        ("cube.nc", None, "netcdf"),
+        ("cube.nc", "netcdf", None),
+        ("cube.json", None, None),
+        ("cube.JSON", None, None),
+        ("cube.json", "json", None),
+        ("cube.json", None, "json"),
+    ],
+)
 def test_save_load_guess_format(filename, save_format, load_format, tmp_path):
     xdc = _build_xdc(ts=[2019, 2020, 2021], bands=["a", "b"], xs=[2, 3, 4, 5], ys=[5, 6, 7, 8, 9])
     assert xdc.array.shape == (3, 2, 4, 5)
@@ -287,7 +272,10 @@ def test_save_load_no_xy_labels(roundtrip, tmp_path):
 
 @pytest.mark.parametrize("roundtrip", _roundtrips())
 def test_save_load_no_xy_dim(roundtrip, tmp_path):
-    xdc = _build_xdc(ts=[2019, 2020, 2021], bands=["a", "b"], )
+    xdc = _build_xdc(
+        ts=[2019, 2020, 2021],
+        bands=["a", "b"],
+    )
     assert xdc.array.shape == (3, 2)
     _assert_equal_after_save_and_load(xdc, tmp_path, roundtrip=roundtrip)
 
@@ -314,7 +302,7 @@ def test_save_load_dtype_float64(roundtrip, tmp_path):
 def test_datacube_plot(tmp_path):
     import matplotlib.pyplot as plt  # TODO: mandatory dev dependency or optional?
 
-    ts = [numpy.datetime64('2020-08-01'), numpy.datetime64('2020-08-11'), numpy.datetime64('2020-08-21')]
+    ts = [numpy.datetime64("2020-08-01"), numpy.datetime64("2020-08-11"), numpy.datetime64("2020-08-21")]
     xdc = _build_xdc(ts=ts, bands=["a", "b"], xs=100, ys=100)
     path = tmp_path / "test.png"
     xdc.plot("title", oversample=1.2, cbartext="some\nvalue", to_file=path, to_show=False)
@@ -328,7 +316,6 @@ def test_datacube_plot(tmp_path):
 
 
 class TestXarrayIO:
-
     def test_from_netcdf_file_simple(self, tmp_path):
         ds = xarray.Dataset(
             {
@@ -339,7 +326,7 @@ class TestXarrayIO:
                 "t": ["2020", "2021", "2022"],
                 "x": range(4, 8),
                 "y": range(5, 10),
-            }
+            },
         )
         path = tmp_path / "dataset.nc"
         ds.to_netcdf(path)
@@ -361,7 +348,7 @@ class TestXarrayIO:
                 "t": ["2020", "2021", "2022"],
                 "version": ["v1", "v2"],
                 "x": range(4, 8),
-            }
+            },
         )
         path = tmp_path / "dataset.nc"
         ds.to_netcdf(path)
@@ -385,7 +372,7 @@ class TestXarrayIO:
                 "t": ["2020", "2021", "2022"],
                 "x": range(4, 8),
                 "y": range(5, 10),
-            }
+            },
         )
         path = tmp_path / "dataset.nc"
         ds.to_netcdf(path)

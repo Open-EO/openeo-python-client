@@ -21,15 +21,10 @@ def test_timeseries_json_to_pandas_basic():
         DATE2: [[7, 8, 9], [10, 11, 12]],
     }
     df = timeseries_json_to_pandas(timeseries)
-    expected = pd.DataFrame(data=[
-        [1, 2, 3, 4, 5, 6],
-        [7, 8, 9, 10, 11, 12]
-    ],
+    expected = pd.DataFrame(
+        data=[[1, 2, 3, 4, 5, 6], [7, 8, 9, 10, 11, 12]],
         index=pd.Index([DATE1, DATE2], name="date"),
-        columns=pd.MultiIndex.from_tuples(
-            [(0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2)],
-            names=("polygon", "band")
-        )
+        columns=pd.MultiIndex.from_tuples([(0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2)], names=("polygon", "band")),
     )
     assert_frame_equal(df, expected)
 
@@ -41,67 +36,65 @@ def test_timeseries_json_to_pandas_index_polygon():
         DATE2: [[7, 8, 9], [10, 11, 12]],
     }
     df = timeseries_json_to_pandas(timeseries, index="polygon")
-    expected = pd.DataFrame(data=[
-        [1, 2, 3, 7, 8, 9],
-        [4, 5, 6, 10, 11, 12]
-    ],
+    expected = pd.DataFrame(
+        data=[[1, 2, 3, 7, 8, 9], [4, 5, 6, 10, 11, 12]],
         index=pd.Index([0, 1], name="polygon"),
         columns=pd.MultiIndex.from_tuples(
-            [(DATE1, 0), (DATE1, 1), (DATE1, 2),
-             (DATE2, 0), (DATE2, 1), (DATE2, 2)],
-            names=("date", "band")
-        )
+            [(DATE1, 0), (DATE1, 1), (DATE1, 2), (DATE2, 0), (DATE2, 1), (DATE2, 2)], names=("date", "band")
+        ),
     )
     assert_frame_equal(df, expected)
 
 
-@pytest.mark.parametrize(["timeseries", "index", "with_auto_collapse", "without_auto_collapse"], [
-    (
+@pytest.mark.parametrize(
+    ["timeseries", "index", "with_auto_collapse", "without_auto_collapse"],
+    [
+        (
             # 2 dates, 2 polygons, 1 band. With date index
             {DATE1: [[1], [4]], DATE2: [[7], [10]]},
             "date",
             pd.DataFrame(
                 data=[[1, 4], [7, 10]],
                 index=pd.Index([DATE1, DATE2], name="date"),
-                columns=pd.Index([0, 1], name="polygon")
+                columns=pd.Index([0, 1], name="polygon"),
             ),
             pd.DataFrame(
                 data=[[1, 4], [7, 10]],
                 index=pd.Index([DATE1, DATE2], name="date"),
-                columns=pd.MultiIndex.from_tuples([(0, 0), (1, 0)], names=("polygon", "band"))
+                columns=pd.MultiIndex.from_tuples([(0, 0), (1, 0)], names=("polygon", "band")),
             ),
-    ),
-    (
+        ),
+        (
             # 2 dates, 2 polygons, 1 band. With polygon index
             {DATE1: [[1], [4]], DATE2: [[7], [10]]},
             "polygon",
             pd.DataFrame(
                 data=[[1, 7], [4, 10]],
                 index=pd.Index([0, 1], name="polygon"),
-                columns=pd.Index([DATE1, DATE2], name="date")
+                columns=pd.Index([DATE1, DATE2], name="date"),
             ),
             pd.DataFrame(
                 data=[[1, 7], [4, 10]],
                 index=pd.Index([0, 1], name="polygon"),
-                columns=pd.MultiIndex.from_tuples([(DATE1, 0), (DATE2, 0)], names=("date", "band"))
+                columns=pd.MultiIndex.from_tuples([(DATE1, 0), (DATE2, 0)], names=("date", "band")),
             ),
-    ),
-    (
+        ),
+        (
             # 2 dates, 1 polygon, 3 bands. With date index
             {DATE1: [[1, 2, 3]], DATE2: [[7, 8, 9]]},
             "date",
             pd.DataFrame(
                 data=[[1, 2, 3], [7, 8, 9]],
                 index=pd.Index([DATE1, DATE2], name="date"),
-                columns=pd.Index([0, 1, 2], name="band")
+                columns=pd.Index([0, 1, 2], name="band"),
             ),
             pd.DataFrame(
                 data=[[1, 2, 3], [7, 8, 9]],
                 index=pd.Index([DATE1, DATE2], name="date"),
-                columns=pd.MultiIndex.from_tuples([(0, 0), (0, 1), (0, 2)], names=("polygon", "band"))
+                columns=pd.MultiIndex.from_tuples([(0, 0), (0, 1), (0, 2)], names=("polygon", "band")),
             ),
-    ),
-    (
+        ),
+        (
             # 2 dates, 1 polygon, 1 band.
             {DATE1: [[1]], DATE2: [[7]]},
             "date",
@@ -112,10 +105,11 @@ def test_timeseries_json_to_pandas_index_polygon():
             pd.DataFrame(
                 data=[[1], [7]],
                 index=pd.Index([DATE1, DATE2], name="date"),
-                columns=pd.MultiIndex.from_tuples([(0, 0)], names=("polygon", "band"))
+                columns=pd.MultiIndex.from_tuples([(0, 0)], names=("polygon", "band")),
             ),
-    ),
-])
+        ),
+    ],
+)
 def test_timeseries_json_to_pandas_auto_collapse(timeseries, index, with_auto_collapse, without_auto_collapse):
     df = timeseries_json_to_pandas(timeseries, index=index, auto_collapse=True)
     if isinstance(with_auto_collapse, pd.Series):
@@ -134,30 +128,31 @@ def test_timeseries_json_to_pandas_none_nan_empty_handling():
         DATE4: [[], [7, 8]],
     }
     df = timeseries_json_to_pandas(timeseries)
-    expected = pd.DataFrame(data=[
-        [1, 2, 3, 4],
-        [5, 6, np.nan, np.nan],
-        [np.nan, np.nan, np.nan, np.nan],
-        [np.nan, np.nan, 7, 8],
-    ],
+    expected = pd.DataFrame(
+        data=[
+            [1, 2, 3, 4],
+            [5, 6, np.nan, np.nan],
+            [np.nan, np.nan, np.nan, np.nan],
+            [np.nan, np.nan, 7, 8],
+        ],
         dtype=float,
         index=pd.Index([DATE1, DATE2, DATE3, DATE4], name="date"),
-        columns=pd.MultiIndex.from_tuples(
-            [(0, 0), (0, 1), (1, 0), (1, 1)],
-            names=("polygon", "band")
-        )
+        columns=pd.MultiIndex.from_tuples([(0, 0), (0, 1), (1, 0), (1, 1)], names=("polygon", "band")),
     )
     assert_frame_equal(df, expected)
 
 
-@pytest.mark.parametrize(["error", "ts"], [
-    ("Empty data set", {}),
-    ("No polygon data for each date", {DATE1: [], DATE2: []}),
-    ("No polygon data for some dates", {DATE1: [], DATE2: [[1, 2], [3, 4]]}),
-    ("Inconsistent polygon counts", {DATE1: [[1, 2]], DATE2: [[3, 4], [5, 6]]}),
-    ("Zero bands everywhere", {DATE1: [[], []], DATE2: [[], []]}),
-    ("Inconsistent band counts", {DATE1: [[1, 2], [3]], DATE2: [[4, 5, 6], []]}),
-])
+@pytest.mark.parametrize(
+    ["error", "ts"],
+    [
+        ("Empty data set", {}),
+        ("No polygon data for each date", {DATE1: [], DATE2: []}),
+        ("No polygon data for some dates", {DATE1: [], DATE2: [[1, 2], [3, 4]]}),
+        ("Inconsistent polygon counts", {DATE1: [[1, 2]], DATE2: [[3, 4], [5, 6]]}),
+        ("Zero bands everywhere", {DATE1: [[], []], DATE2: [[], []]}),
+        ("Inconsistent band counts", {DATE1: [[1, 2], [3]], DATE2: [[4, 5, 6], []]}),
+    ],
+)
 def test_timeseries_json_to_pandas_invalid_polygon_and_band_counts(error, ts):
     with pytest.raises(InvalidTimeSeriesException, match=error):
         timeseries_json_to_pandas(ts)

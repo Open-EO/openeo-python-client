@@ -10,10 +10,12 @@ GEE_DRIVER_URL = "https://earthengine.openeo.org/v1.0"
 con = openeo.connect(GEE_DRIVER_URL)
 con.authenticate_basic()
 
-datacube = con.load_collection("COPERNICUS/S1_GRD",
-                               spatial_extent={"west": 16.06, "south": 48.10, "east": 16.65, "north": 48.31},
-                               temporal_extent=["2017-03-01", "2017-06-01"],
-                               bands=["VV"])
+datacube = con.load_collection(
+    "COPERNICUS/S1_GRD",
+    spatial_extent={"west": 16.06, "south": 48.10, "east": 16.65, "north": 48.31},
+    temporal_extent=["2017-03-01", "2017-06-01"],
+    bands=["VV"],
+)
 march = datacube.filter_temporal("2017-03-01", "2017-04-01")
 april = datacube.filter_temporal("2017-04-01", "2017-05-01")
 may = datacube.filter_temporal("2017-05-01", "2017-06-01")
@@ -40,8 +42,8 @@ print(datacube.to_json())
 # Send Job to backend
 job = datacube.create_job()
 job.start_and_wait().download_results()
-#print(job.job_id)
-#print(job.start_job())
-#print(job.describe_job())
-#time.sleep(5)
-#print(job.download_results("/tmp/"))
+# print(job.job_id)
+# print(job.start_job())
+# print(job.describe_job())
+# time.sleep(5)
+# print(job.download_results("/tmp/"))

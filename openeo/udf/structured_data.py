@@ -40,8 +40,4 @@ class StructuredData:
 
     @classmethod
     def from_dict(cls, data: dict) -> StructuredData:
-        return cls(
-            data=data["data"],
-            description=data.get("description"),
-            type=data.get("type")
-        )
+        return cls(data=data["data"], description=data.get("description"), type=data.get("type"))

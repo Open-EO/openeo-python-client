@@ -68,18 +68,17 @@ class XarrayDataCube:
         ... }
         """
         xd = self._array.to_dict()
-        return dict_no_none({
-            "id": xd.get("name"),
-            "data": xd.get("data"),
-            "description": deep_get(xd, "attrs", "description", default=None),
-            "dimensions": [
-                dict_no_none(
-                    name=dim,
-                    coordinates=deep_get(xd, "coords", dim, "data", default=None)
-                )
-                for dim in xd.get("dims", [])
-            ]
-        })
+        return dict_no_none(
+            {
+                "id": xd.get("name"),
+                "data": xd.get("data"),
+                "description": deep_get(xd, "attrs", "description", default=None),
+                "dimensions": [
+                    dict_no_none(name=dim, coordinates=deep_get(xd, "coords", dim, "data", default=None))
+                    for dim in xd.get("dims", [])
+                ],
+            }
+        )
 
     @classmethod
     def from_dict(cls, xdc_dict: dict) -> XarrayDataCube:
@@ -132,9 +131,9 @@ class XarrayDataCube:
         :return: loaded data cube
         """
         fmt = fmt or cls._guess_format(path)
-        if fmt.lower() == 'netcdf':
+        if fmt.lower() == "netcdf":
             return cls(array=XarrayIO.from_netcdf_file(path=path, **kwargs))
-        elif fmt.lower() == 'json':
+        elif fmt.lower() == "json":
             return cls(array=XarrayIO.from_json_file(path=path))
         else:
             raise ValueError("invalid format {f}".format(f=fmt))
@@ -148,26 +147,26 @@ class XarrayDataCube:
             (will be auto-detected when not specified)
         """
         fmt = fmt or self._guess_format(path)
-        if fmt.lower() == 'netcdf':
+        if fmt.lower() == "netcdf":
             XarrayIO.to_netcdf_file(array=self.get_array(), path=path, **kwargs)
-        elif fmt.lower() == 'json':
+        elif fmt.lower() == "json":
             XarrayIO.to_json_file(array=self.get_array(), path=path)
         else:
             raise ValueError(fmt)
 
     def plot(
-            self,
-            title: str = None,
-            limits=None,
-            show_bandnames: bool = True,
-            show_dates: bool = True,
-            show_axeslabels: bool = False,
-            fontsize: float = 10.,
-            oversample: float = 1,
-            cmap: Union[str, 'matplotlib.colors.Colormap'] = 'RdYlBu_r',
-            cbartext: str = None,
-            to_file: str = None,
-            to_show: bool = True
+        self,
+        title: str = None,
+        limits=None,
+        show_bandnames: bool = True,
+        show_dates: bool = True,
+        show_axeslabels: bool = False,
+        fontsize: float = 10.0,
+        oversample: float = 1,
+        cmap: Union[str, "matplotlib.colors.Colormap"] = "RdYlBu_r",
+        cbartext: str = None,
+        to_file: str = None,
+        to_show: bool = True,
     ):
         """
         Visualize a :py:class:`XarrayDataCube` with matplotlib
@@ -198,17 +197,17 @@ class XarrayDataCube:
             vmax = limits[1]
 
         # fill bands and t if missing
-        if 'bands' not in data.dims:
-            data = data.expand_dims(dim={'bands': ['band0']})
-        if 't' not in data.dims:
-            data = data.expand_dims(dim={'t': [numpy.datetime64('today')]})
-        if 'bands' not in data.coords:
-            data['bands'] = ['band0']
-        if 't' not in data.coords:
-            data['t'] = [numpy.datetime64('today')]
+        if "bands" not in data.dims:
+            data = data.expand_dims(dim={"bands": ["band0"]})
+        if "t" not in data.dims:
+            data = data.expand_dims(dim={"t": [numpy.datetime64("today")]})
+        if "bands" not in data.coords:
+            data["bands"] = ["band0"]
+        if "t" not in data.coords:
+            data["t"] = [numpy.datetime64("today")]
 
         # align with plot
-        data = data.transpose('t', 'bands', 'y', 'x')
+        data = data.transpose("t", "bands", "y", "x")
         dpi = 100
         xres = len(data.x) / dpi
         yres = len(data.y) / dpi
@@ -219,8 +218,16 @@ class XarrayDataCube:
         ncol = data.shape[1]
 
         fig = pyplot.figure(figsize=((ncol + frame) * xres * 1.1, (nrow + frame) * yres), dpi=int(dpi * oversample))
-        gs = pyplot.GridSpec(nrow, ncol, wspace=0., hspace=0., top=nrow / (nrow + frame), bottom=0.,
-                             left=frame / (ncol + frame), right=1.)
+        gs = pyplot.GridSpec(
+            nrow,
+            ncol,
+            wspace=0.0,
+            hspace=0.0,
+            top=nrow / (nrow + frame),
+            bottom=0.0,
+            left=frame / (ncol + frame),
+            right=1.0,
+        )
 
         xmin = data.x.min()
         xmax = data.x.max()
@@ -228,9 +235,9 @@ class XarrayDataCube:
         ymax = data.y.max()
 
         # flip around if incorrect, this is in harmony with origin='lower'
-        if (data.x[0] > data.x[-1]):
+        if data.x[0] > data.x[-1]:
             data = data.reindex(x=list(reversed(data.x)))
-        if (data.y[0] > data.y[-1]):
+        if data.y[0] > data.y[-1]:
             data = data.reindex(y=list(reversed(data.y)))
 
         extent = (data.x[0], data.x[-1], data.y[0], data.y[-1])
@@ -241,7 +248,7 @@ class XarrayDataCube:
                 ax = pyplot.subplot(gs[i, j])
                 ax.set_xlim(xmin, xmax)
                 ax.set_ylim(ymin, ymax)
-                img = ax.imshow(im, vmin=vmin, vmax=vmax, cmap=cmap, origin='lower', extent=extent)
+                img = ax.imshow(im, vmin=vmin, vmax=vmax, cmap=cmap, origin="lower", extent=extent)
                 ax.xaxis.set_tick_params(labelsize=fs)
                 ax.yaxis.set_tick_params(labelsize=fs)
                 if not show_axeslabels:
@@ -249,15 +256,31 @@ class XarrayDataCube:
                     ax.set_xticklabels([])
                     ax.set_yticklabels([])
                 if show_bandnames:
-                    if i == 0: ax.text(0.5, 1.08, data.bands.values[j] + " (" + str(data.dtype) + ")", size=fs,
-                                       va="center",
-                                       ha="center", transform=ax.transAxes)
+                    if i == 0:
+                        ax.text(
+                            0.5,
+                            1.08,
+                            data.bands.values[j] + " (" + str(data.dtype) + ")",
+                            size=fs,
+                            va="center",
+                            ha="center",
+                            transform=ax.transAxes,
+                        )
                 if show_dates:
-                    if j == 0: ax.text(-0.08, 0.5, data.t.dt.strftime("%Y-%m-%d").values[i], size=fs, va="center",
-                                       ha="center", rotation=90, transform=ax.transAxes)
+                    if j == 0:
+                        ax.text(
+                            -0.08,
+                            0.5,
+                            data.t.dt.strftime("%Y-%m-%d").values[i],
+                            size=fs,
+                            va="center",
+                            ha="center",
+                            rotation=90,
+                            transform=ax.transAxes,
+                        )
 
         if title is not None:
-            fig.text(0., 1., title.split('/')[-1], size=fs, va="top", ha="left", weight='bold')
+            fig.text(0.0, 1.0, title.split("/")[-1], size=fs, va="top", ha="left", weight="bold")
 
         cbar_ax = fig.add_axes([0.01, 0.1, 0.04, 0.5])
         if cbartext is not None:
@@ -289,28 +312,32 @@ class XarrayIO:
 
     @classmethod
     def from_json(cls, d: dict) -> xarray.DataArray:
-        d['data'] = numpy.array(d['data'], dtype=numpy.dtype(d['attrs']['dtype']))
-        for k, v in d['coords'].items():
+        d["data"] = numpy.array(d["data"], dtype=numpy.dtype(d["attrs"]["dtype"]))
+        for k, v in d["coords"].items():
             # prepare coordinate
-            d['coords'][k]['data'] = numpy.array(v['data'], dtype=v['attrs']['dtype'])
+            d["coords"][k]["data"] = numpy.array(v["data"], dtype=v["attrs"]["dtype"])
             # remove dtype and shape, because that is included for helping the user
-            if d['coords'][k].get('attrs', None) is not None:
-                d['coords'][k]['attrs'].pop('dtype', None)
-                d['coords'][k]['attrs'].pop('shape', None)
+            if d["coords"][k].get("attrs", None) is not None:
+                d["coords"][k]["attrs"].pop("dtype", None)
+                d["coords"][k]["attrs"].pop("shape", None)
 
         # remove dtype and shape, because that is included for helping the user
-        if d.get('attrs', None) is not None:
-            d['attrs'].pop('dtype', None)
-            d['attrs'].pop('shape', None)
+        if d.get("attrs", None) is not None:
+            d["attrs"].pop("dtype", None)
+            d["attrs"].pop("shape", None)
         # convert to xarray
         r = xarray.DataArray.from_dict(d)
 
         # build dimension list in proper order
-        dims = list(filter(lambda i: i != 't' and i != 'bands' and i != 'x' and i != 'y', r.dims))
-        if 't' in r.dims: dims += ['t']
-        if 'bands' in r.dims: dims += ['bands']
-        if 'x' in r.dims: dims += ['x']
-        if 'y' in r.dims: dims += ['y']
+        dims = list(filter(lambda i: i != "t" and i != "bands" and i != "x" and i != "y", r.dims))
+        if "t" in r.dims:
+            dims += ["t"]
+        if "bands" in r.dims:
+            dims += ["bands"]
+        if "x" in r.dims:
+            dims += ["x"]
+        if "y" in r.dims:
+            dims += ["y"]
         # return the resulting data array
         return r.transpose(*dims)
 
@@ -323,7 +350,7 @@ class XarrayIO:
         band_vars = [k for k, v in ds.data_vars.items() if v.dtype.kind in {"b", "i", "u", "f"} and len(v.dims) > 0]
         ds = ds[band_vars]
 
-        r = ds.to_array(dim='bands')
+        r = ds.to_array(dim="bands")
 
         # Reorder dims to proper order (t-bands-x-y at the end)
         expected_order = ("t", "bands", "x", "y")
@@ -336,27 +363,28 @@ class XarrayIO:
         # to deserialized json
         jsonarray = array.to_dict()
         # add attributes that needed for re-creating xarray from json
-        jsonarray['attrs']['dtype'] = str(array.values.dtype)
-        jsonarray['attrs']['shape'] = list(array.values.shape)
+        jsonarray["attrs"]["dtype"] = str(array.values.dtype)
+        jsonarray["attrs"]["shape"] = list(array.values.shape)
         for i in array.coords.values():
-            jsonarray['coords'][i.name]['attrs']['dtype'] = str(i.dtype)
-            jsonarray['coords'][i.name]['attrs']['shape'] = list(i.shape)
+            jsonarray["coords"][i.name]["attrs"]["dtype"] = str(i.dtype)
+            jsonarray["coords"][i.name]["attrs"]["shape"] = list(i.shape)
         # custom print so resulting json file is humanly easy to read
         # TODO: make this human friendly JSON format optional and allow compact JSON too.
         with Path(path).open("w") as f:
+
             def custom_print(data_structure, indent=1):
                 f.write("{\n")
                 needs_comma = False
                 for key, value in data_structure.items():
                     if needs_comma:
-                        f.write(',\n')
+                        f.write(",\n")
                     needs_comma = True
-                    f.write('  ' * indent + json.dumps(key) + ':')
+                    f.write("  " * indent + json.dumps(key) + ":")
                     if isinstance(value, dict):
                         custom_print(value, indent + 1)
                     else:
-                        json.dump(value, f, default=str, separators=(',', ':'))
-                f.write('\n' + '  ' * (indent - 1) + "}")
+                        json.dump(value, f, default=str, separators=(",", ":"))
+                f.write("\n" + "  " * (indent - 1) + "}")
 
             custom_print(jsonarray)
 
@@ -365,15 +393,15 @@ class XarrayIO:
         # temp reference to avoid modifying the original array
         result = array
         # rearrange in a basic way because older xarray versions have a bug and ellipsis don't work in xarray.transpose()
-        if result.dims[-2] == 'x' and result.dims[-1] == 'y':
+        if result.dims[-2] == "x" and result.dims[-1] == "y":
             l = list(result.dims[:-2])
-            result = result.transpose(*(l + ['y', 'x']))
+            result = result.transpose(*(l + ["y", "x"]))
         # turn it into a dataset where each band becomes a variable
-        if not 'bands' in result.dims:
-            result = result.expand_dims(dim=collections.OrderedDict({'bands': ['band_0']}))
+        if not "bands" in result.dims:
+            result = result.expand_dims(dim=collections.OrderedDict({"bands": ["band_0"]}))
         else:
-            if not 'bands' in result.coords:
-                labels = ['band_' + str(i) for i in range(result.shape[result.dims.index('bands')])]
+            if not "bands" in result.coords:
+                labels = ["band_" + str(i) for i in range(result.shape[result.dims.index("bands")])]
                 result = result.assign_coords(bands=labels)
-        result = result.to_dataset('bands')
+        result = result.to_dataset("bands")
         result.to_netcdf(path, engine=engine)

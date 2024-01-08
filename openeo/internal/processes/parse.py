@@ -33,6 +33,7 @@ class Schema:
 
 class Parameter:
     """openEO process parameter"""
+
     # TODO unify with openeo.api.process.Parameter?
 
     NO_DEFAULT = object()
@@ -47,8 +48,11 @@ class Parameter:
     @classmethod
     def from_dict(cls, data: dict) -> Parameter:
         return cls(
-            name=data["name"], description=data["description"], schema=Schema.from_dict(data["schema"]),
-            default=data.get("default", cls.NO_DEFAULT), optional=data.get("optional", False)
+            name=data["name"],
+            description=data["description"],
+            schema=Schema.from_dict(data["schema"]),
+            default=data.get("default", cls.NO_DEFAULT),
+            optional=data.get("optional", False),
         )
 
     def has_default(self):

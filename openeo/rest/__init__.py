@@ -5,6 +5,7 @@ from openeo import BaseOpenEoException
 
 class OpenEoClientException(BaseOpenEoException):
     """Base class for OpenEO client exceptions"""
+
     pass
 
 
@@ -24,11 +25,13 @@ class JobFailedException(OpenEoClientException):
 
 class OperatorException(OpenEoClientException):
     """Invalid (mathematical) operator usage."""
+
     pass
 
 
 class BandMathException(OperatorException):
     """Invalid "band math" usage."""
+
     pass
 
 

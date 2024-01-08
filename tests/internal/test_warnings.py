@@ -7,11 +7,13 @@ from openeo.internal.warnings import UserDeprecationWarning, deprecated, legacy_
 
 
 def test_user_deprecation_warning(pytester):
-    pytester.makepyfile(myscript="""
+    pytester.makepyfile(
+        myscript="""
         from openeo.internal.warnings import test_warnings
         test_warnings()
         test_warnings(2)
-    """)
+    """
+    )
 
     result = pytester.runpython("myscript.py")
     stderr = "\n".join(result.errlines)
@@ -177,7 +179,6 @@ def test_legacy_alias_method_soft(recwarn):
 
 def test_deprecated_decorator():
     class Foo:
-
         @deprecated("Use `add` instead", version="1.2.3")
         def plus1(self, x):
             return x + 1

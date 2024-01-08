@@ -104,9 +104,7 @@ class TestUserFile:
         source.write_text("hello world\n")
         f = UserFile("foo.txt", connection=con100)
 
-        upload_mock = requests_mock.put(
-            API_URL + "/files/foo.txt", status_code=status_code
-        )
+        upload_mock = requests_mock.put(API_URL + "/files/foo.txt", status_code=status_code)
 
         with pytest.raises(OpenEoApiPlainError, match=rf"\[{status_code}\]"):
             f.upload(source)
@@ -121,9 +119,7 @@ class TestUserFile:
             ("data/foo.txt", "data/foo.txt"),
         ],
     )
-    def test_connection_upload(
-        self, con100, tmp_path, requests_mock, target, expected_target
-    ):
+    def test_connection_upload(self, con100, tmp_path, requests_mock, target, expected_target):
         source = tmp_path / "to-upload.txt"
         source.write_bytes(b"hello world\n")
 
@@ -142,9 +138,7 @@ class TestUserFile:
                 "modified": "2018-01-03T10:55:29Z",
             }
 
-        upload_mock = requests_mock.put(
-            API_URL + f"/files/{expected_target}", json=put_files
-        )
+        upload_mock = requests_mock.put(API_URL + f"/files/{expected_target}", json=put_files)
 
         f = con100.upload_file(source, target=target)
         assert upload_mock.call_count == 1
@@ -161,9 +155,7 @@ class TestUserFile:
         source = tmp_path / "foo.txt"
         source.write_text("hello world\n")
 
-        upload_mock = requests_mock.put(
-            API_URL + "/files/foo.txt", status_code=status_code
-        )
+        upload_mock = requests_mock.put(API_URL + "/files/foo.txt", status_code=status_code)
 
         with pytest.raises(OpenEoApiPlainError, match=rf"\[{status_code}\]"):
             con100.upload_file(source=source)
@@ -178,15 +170,11 @@ class TestUserFile:
             ("data/bar.txt", "data/bar.txt"),
         ],
     )
-    def test_download(
-        self, con100, tmp_path, requests_mock, target, expected, monkeypatch
-    ):
+    def test_download(self, con100, tmp_path, requests_mock, target, expected, monkeypatch):
         monkeypatch.chdir(tmp_path)
         (tmp_path / "data").mkdir(parents=True, exist_ok=True)
 
-        download_mock = requests_mock.get(
-            API_URL + "/files/foo.txt", content=b"hello world\n"
-        )
+        download_mock = requests_mock.get(API_URL + "/files/foo.txt", content=b"hello world\n")
 
         if target is not None:
             target = tmp_path / target

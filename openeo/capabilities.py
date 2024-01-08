@@ -16,7 +16,7 @@ class Capabilities(ABC):
         pass
 
     def version(self):
-        """ Get openEO version. DEPRECATED: use api_version instead"""
+        """Get openEO version. DEPRECATED: use api_version instead"""
         # Field: version
         # TODO: raise deprecation warning here?
         return self.api_version()
@@ -34,22 +34,22 @@ class Capabilities(ABC):
         return ComparableVersion(api_version)
 
     def list_features(self):
-        """ List all supported features / endpoints."""
+        """List all supported features / endpoints."""
         # Field: endpoints
         pass
 
     def has_features(self, method_name):
-        """ Check whether a feature / endpoint is supported."""
+        """Check whether a feature / endpoint is supported."""
         # Field: endpoints > ...
         pass
 
     def currency(self):
-        """ Get default billing currency."""
+        """Get default billing currency."""
         # Field: billing > currency
         pass
 
     def list_plans(self):
-        """ List all billing plans."""
+        """List all billing plans."""
         # Field: billing > plans
         pass
 
@@ -90,9 +90,9 @@ class ComparableVersion:
     or alphabetic strings (compared lexically), e.g.: 1.5.1, 1.5.2b2, 161, 8.02, 2g6, 2.2beta29.
     """
 
-    _component_re = re.compile(r'(\d+ | [a-zA-Z]+ | \.)', re.VERBOSE)
+    _component_re = re.compile(r"(\d+ | [a-zA-Z]+ | \.)", re.VERBOSE)
 
-    def __init__(self, version: Union[str, 'ComparableVersion', tuple]):
+    def __init__(self, version: Union[str, "ComparableVersion", tuple]):
         if isinstance(version, ComparableVersion):
             self._version = version._version
         elif isinstance(version, tuple):
@@ -104,10 +104,7 @@ class ComparableVersion:
 
     @classmethod
     def _parse(cls, version_string: str) -> _VersionTuple:
-        components = [
-            x for x in cls._component_re.split(version_string)
-            if x and x != '.'
-        ]
+        components = [x for x in cls._component_re.split(version_string) if x and x != "."]
         for i, obj in enumerate(components):
             with contextlib.suppress(ValueError):
                 components[i] = int(obj)
@@ -119,7 +116,7 @@ class ComparableVersion:
         return self._version
 
     def __repr__(self):
-        return '{c}({v!r})'.format(c=type(self).__name__, v=self._version)
+        return "{c}({v!r})".format(c=type(self).__name__, v=self._version)
 
     def __str__(self):
         return ".".join(map(str, self._version))
@@ -161,49 +158,47 @@ class ComparableVersion:
         a, b = self._pad(self, other)
         return a < b
 
-    def equals(self, other: Union[str, 'ComparableVersion']):
+    def equals(self, other: Union[str, "ComparableVersion"]):
         return self == other
 
     # Right hand side referencing expressions.
-    def at_least(self, other: Union[str, 'ComparableVersion']):
+    def at_least(self, other: Union[str, "ComparableVersion"]):
         """Self is at equal or higher than other."""
         return self >= other
 
-    def above(self, other: Union[str, 'ComparableVersion']):
+    def above(self, other: Union[str, "ComparableVersion"]):
         """Self is higher than other."""
         return self > other
 
-    def at_most(self, other: Union[str, 'ComparableVersion']):
+    def at_most(self, other: Union[str, "ComparableVersion"]):
         """Self is equal or lower than other."""
         return self <= other
 
-    def below(self, other: Union[str, 'ComparableVersion']):
+    def below(self, other: Union[str, "ComparableVersion"]):
         """Self is lower than other."""
         return self < other
 
     # Left hand side referencing expressions.
-    def or_higher(self, other: Union[str, 'ComparableVersion']):
+    def or_higher(self, other: Union[str, "ComparableVersion"]):
         """Other is equal or higher than self."""
         return ComparableVersion(other) >= self
 
-    def or_lower(self, other: Union[str, 'ComparableVersion']):
+    def or_lower(self, other: Union[str, "ComparableVersion"]):
         """Other is equal or lower than self"""
         return ComparableVersion(other) <= self
 
-    def accept_lower(self, other: Union[str, 'ComparableVersion']):
+    def accept_lower(self, other: Union[str, "ComparableVersion"]):
         """Other is lower than self."""
         return ComparableVersion(other) < self
 
-    def accept_higher(self, other: Union[str, 'ComparableVersion']):
+    def accept_higher(self, other: Union[str, "ComparableVersion"]):
         """Other is higher than self."""
         return ComparableVersion(other) > self
 
     def require_at_least(self, other: Union[str, "ComparableVersion"]):
         """Raise exception if self is not at least other."""
         if not self.at_least(other):
-            raise ApiVersionException(
-                f"openEO API version should be at least {other!s}, but got {self!s}."
-            )
+            raise ApiVersionException(f"openEO API version should be at least {other!s}, but got {self!s}.")
 
 
 class ApiVersionException(RuntimeError):

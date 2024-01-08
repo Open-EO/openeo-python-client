@@ -17,14 +17,15 @@ OUTPUT_FILE = "/tmp/openeo_eodc_output.tiff"
 # TODO: Deprecated: release-0.0.2, Update to 0.3.1 version
 # TODO update example
 # Connect with EODC backend
-session = openeo.connect(EODC_DRIVER_URL,auth_type=BearerAuth, auth_options={"username": EODC_USER, "password": EODC_PWD})
+session = openeo.connect(
+    EODC_DRIVER_URL, auth_type=BearerAuth, auth_options={"username": EODC_USER, "password": EODC_PWD}
+)
 
 
 s2a_prd_msil1c = session.image("s2a_prd_msil1c")
 logging.debug(s2a_prd_msil1c.to_json(indent=None))
 
-timeseries = s2a_prd_msil1c.filter_bbox(west=652000, east=672000, north=5161000,
-                                              south=5181000, crs=32632)
+timeseries = s2a_prd_msil1c.filter_bbox(west=652000, east=672000, north=5161000, south=5181000, crs=32632)
 logging.debug(timeseries.to_json(indent=None))
 
 timeseries = timeseries.filter_temporal("2017-01-01", "2017-01-08")

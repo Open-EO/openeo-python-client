@@ -13,7 +13,7 @@ OUTPUT_FILE = "/tmp/openeo_vito_output.png"
 
 con = openeo.connect(VITO_DRIVER_URL).authenticate_oidc()
 
-#Test Connection
+# Test Connection
 print(con.list_processes())
 print(con.list_collections())
 print(con.describe_collection("CGLS_LAI300_V1_GLOBAL"))
