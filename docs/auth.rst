@@ -521,7 +521,7 @@ before a **long-running script or application** finishes its whole workflow.
 Luckily, OpenID Connect also includes usage of *refresh tokens*,
 which have a much longer expiry and allow request a new access token
 to re-authenticate the connection.
-Since version 0.10.1, te openEO Python Client Library will automatically
+Since version 0.10.1, the openEO Python Client Library will automatically
 attempt to re-authenticate a connection when access token expiry is detected
 and valid refresh tokens are available.
 
