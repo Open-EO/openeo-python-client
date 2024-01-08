@@ -439,7 +439,7 @@ def job_with_2_assets(con100, requests_mock, tmp_path) -> BatchJob:
 def test_download_result(job_with_1_asset: BatchJob, tmp_path):
     job = job_with_1_asset
     target = tmp_path / "result.tiff"
-    res = job.download_result(target)
+    res = job.download_result(target, chunk_size=1024)
     assert res == target
     with target.open("rb") as f:
         assert f.read() == TIFF_CONTENT
@@ -448,7 +448,7 @@ def test_download_result(job_with_1_asset: BatchJob, tmp_path):
 def test_get_results_download_file(job_with_1_asset: BatchJob, tmp_path):
     job = job_with_1_asset
     target = tmp_path / "result.tiff"
-    res = job.get_results().download_file(target)
+    res = job.get_results().download_file(target, chunk_size=1024)
     assert res == target
     with target.open("rb") as f:
         assert f.read() == TIFF_CONTENT
@@ -545,7 +545,7 @@ def test_get_results_download_files(job_with_2_assets: BatchJob, tmp_path):
         '2.tiff': {'href': 'https://oeo.test/dl/jjr2.tiff', 'type': 'image/tiff; application=geotiff'},
     }
 
-    downloads = results.download_files(target)
+    downloads = results.download_files(target, chunk_size=1024)
     assert set(downloads) == {target / "1.tiff", target / "2.tiff", target / "job-results.json"}
     assert set(p.name for p in target.iterdir()) == {"1.tiff", "2.tiff", "job-results.json"}
     assert (target / "1.tiff").read_bytes() == TIFF_CONTENT

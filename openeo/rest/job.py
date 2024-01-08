@@ -139,15 +139,19 @@ class BatchJob:
         """Get batch job results metadata."""
         return self.get_results().get_metadata()
 
-    def download_result(self, target: Union[str, Path] = None) -> Path:
+    def download_result(self, target: Union[str, Path] = None, chunk_size: Optional[int] = None) -> Path:
         """
         Download single job result to the target file path or into folder (current working dir by default).
 
         Fails if there are multiple result files.
 
         :param target: String or path where the file should be downloaded to.
+        :param chunk_size: the number of bytes to read into memory. This is not necessarily the length of each item
+            returned as decoding can take place. A value of None should function differently depending on the value
+            of stream, but at 2024-01-08 this is not the case: data is always returned as a single chunk. More info
+            here: https://github.com/psf/requests/issues/5536
         """
-        return self.get_results().download_file(target=target)
+        return self.get_results().download_file(target=target, chunk_size=chunk_size)
 
     @deprecated(
         "Instead use :py:meth:`BatchJob.get_results` and the more flexible download functionality of :py:class:`JobResults`",
@@ -351,13 +355,17 @@ class ResultAsset:
             n=self.name, t=self.metadata.get("type", "unknown"), h=self.href
         )
 
-    def download(self, target: Optional[Union[Path, str]] = None, chunk_size=None) -> Path:
+    def download(self, target: Optional[Union[Path, str]] = None, chunk_size: Optional[int] = None) -> Path:
         """
         Download asset to given location
 
         :param target: download target path. Can be an existing folder
             (in which case the filename advertised by backend will be used)
             or full file name. By default, the working directory will be used.
+        :param chunk_size: the number of bytes to read into memory. This is not necessarily the length of each item
+            returned as decoding can take place. A value of None should function differently depending on the value
+            of stream, but at 2024-01-08 this is not the case: data is always returned as a single chunk. More info
+            here: https://github.com/psf/requests/issues/5536
         """
         target = Path(target or Path.cwd())
         if target.is_dir():
@@ -460,7 +468,9 @@ class JobResults:
                     "No asset {n!r} in: {a}".format(n=name, a=[a.name for a in assets])
                 )
 
-    def download_file(self, target: Union[Path, str] = None, name: str = None) -> Path:
+    def download_file(
+        self, target: Union[Path, str] = None, name: str = None, chunk_size: Optional[int] = None
+    ) -> Path:
         """
         Download single asset. Can be used when there is only one asset in the
         :py:class:`JobResults`, or when the desired asset name is given explicitly.
@@ -469,20 +479,31 @@ class JobResults:
             (in which case the filename advertised by backend will be used)
             or full file name. By default, the working directory will be used.
         :param name: asset name to download (not required when there is only one asset)
+        :param chunk_size: the number of bytes to read into memory. This is not necessarily the length of each item
+            returned as decoding can take place. A value of None should function differently depending on the value
+            of stream, but at 2024-01-08 this is not the case: data is always returned as a single chunk. More info
+            here: https://github.com/psf/requests/issues/5536
         :return: path of downloaded asset
         """
         try:
-            return self.get_asset(name=name).download(target=target)
+            return self.get_asset(name=name).download(target=target, chunk_size=chunk_size)
         except MultipleAssetException:
             raise OpenEoClientException(
-                "Can not use `download_file` with multiple assets. Use `download_files` instead.")
+                "Can not use `download_file` with multiple assets. Use `download_files` instead."
+            )
 
-    def download_files(self, target: Union[Path, str] = None, include_stac_metadata: bool = True) -> List[Path]:
+    def download_files(
+        self, target: Union[Path, str] = None, include_stac_metadata: bool = True, chunk_size: Optional[int] = None
+    ) -> List[Path]:
         """
         Download all assets to given folder.
 
         :param target: path to folder to download to (must be a folder if it already exists)
         :param include_stac_metadata: whether to download the job result metadata as a STAC (JSON) file.
+        :param chunk_size: the number of bytes to read into memory. This is not necessarily the length of each item
+            returned as decoding can take place. A value of None should function differently depending on the value
+            of stream, but at 2024-01-08 this is not the case: data is always returned as a single chunk. More info
+            here: https://github.com/psf/requests/issues/5536
         :return: list of paths to the downloaded assets.
         """
         target = Path(target or Path.cwd())
@@ -490,7 +511,7 @@ class JobResults:
             raise OpenEoClientException(f"Target argument {target} exists but isn't a folder.")
         ensure_dir(target)
 
-        downloaded = [a.download(target) for a in self.get_assets()]
+        downloaded = [a.download(target, chunk_size=chunk_size) for a in self.get_assets()]
 
         if include_stac_metadata:
             # TODO #184: convention for metadata file name?
