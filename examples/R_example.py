@@ -14,25 +14,25 @@ OUTPUT_FILE = "/tmp/openeo_R_output.png"
 user = "test"
 password = "test"
 
-#connect with GEE backend
-#session = openeo.session("nobody", GEE_DRIVER_URL)
+# connect with GEE backend
+# session = openeo.session("nobody", GEE_DRIVER_URL)
 
 # TODO: update examples
 con = openeo.connect(GEE_DRIVER_URL, auth_type=BearerAuth, auth_options={"username": user, "password": password})
 
-#Test Connection
-#print(con.list_processes())
-#print(con.list_collections())
-#print(con.describe_collection("sentinel2_subset"))
+# Test Connection
+# print(con.list_processes())
+# print(con.list_collections())
+# print(con.describe_collection("sentinel2_subset"))
 
 
 # Test Capabilities
-#cap = con.capabilities
+# cap = con.capabilities
 
-#print(cap.version())
-#print(cap.list_features())
-#print(cap.currency())
-#print(cap.list_plans())
+# print(cap.version())
+# print(cap.list_features())
+# print(cap.currency())
+# print(cap.list_plans())
 
 # Test Processes
 
@@ -53,5 +53,5 @@ print(pg.to_json())
 job = pg.create_job()
 print(job.job_id)
 print(job.start_job())
-print (job.describe_job())
+print(job.describe_job())
 job.download_results("/tmp/testfile")

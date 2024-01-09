@@ -30,6 +30,7 @@ class _Backend(NamedTuple):
 
 MAX_RETRIES = 5
 
+
 class MultiBackendJobManager:
     """
     Tracker for multiple jobs on multiple backends.
@@ -69,9 +70,7 @@ class MultiBackendJobManager:
     .. versionadded:: 0.14.0
     """
 
-    def __init__(
-        self, poll_sleep: int = 60, root_dir: Optional[Union[str, Path]] = "."
-    ):
+    def __init__(self, poll_sleep: int = 60, root_dir: Optional[Union[str, Path]] = "."):
         """Create a MultiBackendJobManager.
 
         :param poll_sleep:
@@ -119,9 +118,7 @@ class MultiBackendJobManager:
             c = connection
             connection = lambda: c
         assert callable(connection)
-        self.backends[name] = _Backend(
-            get_connection=connection, parallel_jobs=parallel_jobs
-        )
+        self.backends[name] = _Backend(get_connection=connection, parallel_jobs=parallel_jobs)
 
     def _get_connection(self, backend_name: str, resilient: bool = True) -> Connection:
         """Get a connection for the backend and optionally make it resilient (adds retry behavior)
@@ -187,9 +184,7 @@ class MultiBackendJobManager:
             ("duration", None),
             ("backend_name", None),
         ]
-        new_columns = {
-            col: val for (col, val) in required_with_default if col not in df.columns
-        }
+        new_columns = {col: val for (col, val) in required_with_default if col not in df.columns}
         df = df.assign(**new_columns)
         # Workaround for loading of geopandas "geometry" column.
         if "geometry" in df.columns and df["geometry"].dtype.name != "geometry":
@@ -272,19 +267,13 @@ class MultiBackendJobManager:
 
             if len(df[df.status == "not_started"]) > 0:
                 # Check number of jobs running at each backend
-                running = df[
-                    (df.status == "created")
-                    | (df.status == "queued")
-                    | (df.status == "running")
-                ]
+                running = df[(df.status == "created") | (df.status == "queued") | (df.status == "running")]
                 per_backend = running.groupby("backend_name").size().to_dict()
                 _log.info(f"Running per backend: {per_backend}")
                 for backend_name in self.backends:
                     backend_load = per_backend.get(backend_name, 0)
                     if backend_load < self.backends[backend_name].parallel_jobs:
-                        to_add = (
-                            self.backends[backend_name].parallel_jobs - backend_load
-                        )
+                        to_add = self.backends[backend_name].parallel_jobs - backend_load
                         to_launch = df[df.status == "not_started"].iloc[0:to_add]
                         for i in to_launch.index:
                             self._launch_job(start_job, df, i, backend_name)
@@ -408,11 +397,7 @@ class MultiBackendJobManager:
 
     def _update_statuses(self, df: pd.DataFrame):
         """Update status (and stats) of running jobs (in place)."""
-        active = df.loc[
-            (df.status == "created")
-            | (df.status == "queued")
-            | (df.status == "running")
-        ]
+        active = df.loc[(df.status == "created") | (df.status == "queued") | (df.status == "running")]
         for i in active.index:
             job_id = df.loc[i, "id"]
             backend_name = df.loc[i, "backend_name"]
@@ -421,9 +406,7 @@ class MultiBackendJobManager:
                 con = self._get_connection(backend_name)
                 the_job = con.job(job_id)
                 job_metadata = the_job.describe()
-                _log.info(
-                    f"Status of job {job_id!r} (on backend {backend_name}) is {job_metadata['status']!r}"
-                )
+                _log.info(f"Status of job {job_id!r} (on backend {backend_name}) is {job_metadata['status']!r}")
                 if job_metadata["status"] == "finished":
                     self.on_job_done(the_job, df.loc[i])
                 if df.loc[i, "status"] != "error" and job_metadata["status"] == "error":

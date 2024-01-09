@@ -45,19 +45,12 @@ def test_pgnode_equality():
 
 def test_pgnode_to_dict():
     pg = PGNode(process_id="load_collection", arguments={"collection_id": "S2"})
-    assert pg.to_dict() == {
-        "process_id": "load_collection",
-        "arguments": {"collection_id": "S2"}
-    }
+    assert pg.to_dict() == {"process_id": "load_collection", "arguments": {"collection_id": "S2"}}
 
 
 def test_pgnode_to_dict_namespace():
     pg = PGNode(process_id="load_collection", arguments={"collection_id": "S2"}, namespace="bar")
-    assert pg.to_dict() == {
-        "process_id": "load_collection",
-        "namespace": "bar",
-        "arguments": {"collection_id": "S2"}
-    }
+    assert pg.to_dict() == {"process_id": "load_collection", "namespace": "bar", "arguments": {"collection_id": "S2"}}
 
 
 def test_pgnode_to_dict_nested():
@@ -65,20 +58,19 @@ def test_pgnode_to_dict_nested():
         process_id="filter_bands",
         arguments={
             "bands": [1, 2, 3],
-            "data": {"from_node": PGNode(
-                process_id="load_collection",
-                arguments={"collection_id": "S2"}
-            )}
-        }
+            "data": {"from_node": PGNode(process_id="load_collection", arguments={"collection_id": "S2"})},
+        },
     )
     assert pg.to_dict() == {
-        'process_id': 'filter_bands',
-        'arguments': {
-            'bands': [1, 2, 3],
-            'data': {'from_node': {
-                'process_id': 'load_collection',
-                'arguments': {'collection_id': 'S2'},
-            }}
+        "process_id": "filter_bands",
+        "arguments": {
+            "bands": [1, 2, 3],
+            "data": {
+                "from_node": {
+                    "process_id": "load_collection",
+                    "arguments": {"collection_id": "S2"},
+                }
+            },
         },
     }
 
@@ -131,7 +123,7 @@ def test_pgnode_normalize_pgnode_args():
         "arguments": {
             "x": {"from_node": {"process_id": "bar", "arguments": {"color": "red"}}},
             "y": {"from_node": {"process_id": "xev", "arguments": {"color": "green"}}},
-        }
+        },
     }
 
 
@@ -197,8 +189,8 @@ def test_pgnode_to_dict_subprocess_graphs():
     }
     assert graph.flat_graph() == {
         "loadcollection1": {
-            'process_id': 'load_collection',
-            'arguments': {'collection_id': 'S2'},
+            "process_id": "load_collection",
+            "arguments": {"collection_id": "S2"},
         },
         "reducedimension1": {
             "process_id": "reduce_dimension",
@@ -220,7 +212,7 @@ def test_pgnode_to_dict_subprocess_graphs():
                 },
             },
             "result": True,
-        }
+        },
     }
 
 
@@ -228,14 +220,16 @@ def test_reduce_node():
     a = PGNode("load_collection", collection_id="S2")
     graph = ReduceNode(a, reducer="mean", dimension="time")
     assert graph.to_dict() == {
-        'process_id': 'reduce_dimension',
-        'arguments': {
-            'data': {'from_node': {
-                'process_id': 'load_collection',
-                'arguments': {'collection_id': 'S2'},
-            }},
-            'reducer': 'mean',
-            'dimension': 'time',
+        "process_id": "reduce_dimension",
+        "arguments": {
+            "data": {
+                "from_node": {
+                    "process_id": "load_collection",
+                    "arguments": {"collection_id": "S2"},
+                }
+            },
+            "reducer": "mean",
+            "dimension": "time",
         },
     }
 
@@ -244,14 +238,16 @@ def test_reduce_node_context():
     a = PGNode("load_collection", collection_id="S2")
     graph = ReduceNode(a, reducer="mean", dimension="time", context=123)
     assert graph.to_dict() == {
-        'process_id': 'reduce_dimension',
-        'arguments': {
-            'data': {'from_node': {
-                'process_id': 'load_collection',
-                'arguments': {'collection_id': 'S2'},
-            }},
-            'reducer': 'mean',
-            'dimension': 'time',
+        "process_id": "reduce_dimension",
+        "arguments": {
+            "data": {
+                "from_node": {
+                    "process_id": "load_collection",
+                    "arguments": {"collection_id": "S2"},
+                }
+            },
+            "reducer": "mean",
+            "dimension": "time",
             "context": 123,
         },
     }
@@ -262,20 +258,21 @@ def test_reduce_node_process_graph():
     a = PGNode("load_collection", collection_id="S2")
     graph = ReduceNode(a, reducer=reduce_pg, dimension="time")
     assert graph.to_dict() == {
-        'process_id': 'reduce_dimension',
-        'arguments': {
-            'data': {'from_node': {
-                'process_id': 'load_collection',
-                'arguments': {'collection_id': 'S2'},
-            }},
-            'reducer': {"process_graph": {
-                "process_id": "array_element",
-                "arguments": {
-                    "data": {"from_parameter": "data"},
-                    "index": 3
+        "process_id": "reduce_dimension",
+        "arguments": {
+            "data": {
+                "from_node": {
+                    "process_id": "load_collection",
+                    "arguments": {"collection_id": "S2"},
                 }
-            }},
-            'dimension': 'time',
+            },
+            "reducer": {
+                "process_graph": {
+                    "process_id": "array_element",
+                    "arguments": {"data": {"from_parameter": "data"}, "index": 3},
+                }
+            },
+            "dimension": "time",
         },
     }
 
@@ -283,11 +280,7 @@ def test_reduce_node_process_graph():
 def test_pgnode_parameter_basic():
     pg = openeo.processes.add(x=Parameter.number("a", description="A."), y=42)
     assert pg.flat_graph() == {
-        "add1": {
-            "process_id": "add",
-            "arguments": {"x": {"from_parameter": "a"}, "y": 42},
-            "result": True
-        }
+        "add1": {"process_id": "add", "arguments": {"x": {"from_parameter": "a"}, "y": 42}, "result": True}
     }
 
 
@@ -309,6 +302,7 @@ def test_pgnode_parameter_print_json():
 
 def test_pgnode_parameter_fahrenheit():
     from openeo.processes import divide, subtract
+
     pg = divide(x=subtract(x=Parameter.number("f", description="Fahrenheit"), y=32), y=1.8)
     assert pg.flat_graph() == {
         "subtract1": {"process_id": "subtract", "arguments": {"x": {"from_parameter": "f"}, "y": 32}},
@@ -317,7 +311,6 @@ def test_pgnode_parameter_fahrenheit():
 
 
 class TestPGNodeGraphUnflattener:
-
     def test_minimal(self):
         flat_graph = {
             "add12": {"process_id": "add", "arguments": {"x": 1, "y": 2}, "result": True},
@@ -346,7 +339,7 @@ class TestPGNodeGraphUnflattener:
             "add1": {
                 "process_id": "add",
                 "arguments": {"x": {"from_node": "value1"}, "y": {"from_node": "value1"}},
-                "result": True
+                "result": True,
             },
         }
         result: PGNode = PGNodeGraphUnflattener.unflatten(flat_graph)

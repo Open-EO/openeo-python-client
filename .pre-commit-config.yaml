@@ -14,3 +14,7 @@ repos:
     rev: 1.7.1
     hooks:
       - id: darker
+        args: [--isort]
+        additional_dependencies:
+          - black==23.12.1
+          - isort==5.13.2

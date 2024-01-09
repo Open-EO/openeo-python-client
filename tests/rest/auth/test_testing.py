@@ -30,6 +30,4 @@ class TestOidcMock:
         authenticator = OidcClientCredentialsAuthenticator(client_info=client_info)
         authenticator.get_tokens()
 
-        assert [r.url for r in oidc_mock.get_request_history("/token")] == [
-            "https://oidc.test/token"
-        ]
+        assert [r.url for r in oidc_mock.get_request_history("/token")] == ["https://oidc.test/token"]

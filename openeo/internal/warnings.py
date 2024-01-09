@@ -23,6 +23,7 @@ class UserDeprecationWarning(Warning):
     This custom warning class can be used as drop in replacement for `DeprecationWarning`,
     where the deprecation warning should be visible by default.
     """
+
     pass
 
 
@@ -30,8 +31,7 @@ def test_warnings(stacklevel=1):
     """Trigger some warnings (for test contexts)."""
     for warning in [UserWarning, DeprecationWarning, UserDeprecationWarning]:
         warnings.warn(
-            f"This is a {warning.__name__} (stacklevel {stacklevel})",
-            category=warning, stacklevel=stacklevel
+            f"This is a {warning.__name__} (stacklevel {stacklevel})", category=warning, stacklevel=stacklevel
         )
 
 

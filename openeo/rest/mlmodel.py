@@ -36,10 +36,7 @@ class MlModel(_ProcessGraphAbstraction):
 
         :param options: Additional parameters to create the file(s).
         """
-        pgnode = PGNode(
-            process_id="save_ml_model",
-            arguments={"data": self, "options": options or {}}
-        )
+        pgnode = PGNode(process_id="save_ml_model", arguments={"data": self, "options": options or {}})
         return MlModel(graph=pgnode, connection=self._connection)
 
     @staticmethod
@@ -59,10 +56,12 @@ class MlModel(_ProcessGraphAbstraction):
         return MlModel(graph=PGNode(process_id="load_ml_model", id=id), connection=connection)
 
     def execute_batch(
-            self,
-            outputfile: Union[str, pathlib.Path],
-            print=print, max_poll_interval=60, connection_retry_interval=30,
-            job_options=None,
+        self,
+        outputfile: Union[str, pathlib.Path],
+        print=print,
+        max_poll_interval=60,
+        connection_retry_interval=30,
+        job_options=None,
     ) -> BatchJob:
         """
         Evaluate the process graph by creating a batch job, and retrieving the results when it is finished.
@@ -79,7 +78,9 @@ class MlModel(_ProcessGraphAbstraction):
         return job.run_synchronous(
             # TODO #135 support multi file result sets too
             outputfile=outputfile,
-            print=print, max_poll_interval=max_poll_interval, connection_retry_interval=connection_retry_interval
+            print=print,
+            max_poll_interval=max_poll_interval,
+            connection_retry_interval=connection_retry_interval,
         )
 
     def create_job(

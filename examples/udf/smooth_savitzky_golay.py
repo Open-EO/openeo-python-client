@@ -11,8 +11,6 @@ def apply_datacube(cube: XarrayDataCube, context: dict) -> XarrayDataCube:
     datacube with a temporal dimension 't' as input.
     """
     array: xarray.DataArray = cube.get_array()
-    filled = array.interpolate_na(dim='t')
+    filled = array.interpolate_na(dim="t")
     smoothed_array = savgol_filter(filled.values, 5, 2, axis=0)
-    return XarrayDataCube(
-        array=xarray.DataArray(smoothed_array, dims=array.dims, coords=array.coords)
-    )
+    return XarrayDataCube(array=xarray.DataArray(smoothed_array, dims=array.dims, coords=array.coords))

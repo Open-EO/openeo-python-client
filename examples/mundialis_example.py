@@ -7,9 +7,9 @@ import openeo
 
 logging.basicConfig(level=logging.INFO)
 
-backend_url = 'https://openeo.mundialis.de'
+backend_url = "https://openeo.mundialis.de"
 
-collection_id = 'utm32n.openeo_bolzano.strds.openeo_bolzano_S2'
+collection_id = "utm32n.openeo_bolzano.strds.openeo_bolzano_S2"
 
 outfile = "/tmp/openeo_mundialis_output.png"
 

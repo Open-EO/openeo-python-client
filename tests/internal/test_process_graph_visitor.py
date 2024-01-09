@@ -50,16 +50,9 @@ def test_visit_nodes():
         },
         "cos": {
             "process_id": "cos",
-            "arguments": {
-                "data": {
-                    "from_node": "abs"
-                },
-                "data2": {
-                    "from_parameter": "x"
-                }
-            },
-            "result": True
-        }
+            "arguments": {"data": {"from_node": "abs"}, "data2": {"from_parameter": "x"}},
+            "result": True,
+        },
     }
     visitor = ProcessGraphVisitor()
     visitor.leaveProcess = MagicMock()
@@ -75,7 +68,7 @@ def test_visit_nodes():
     assert visitor.enterArgument.call_args_list == [
         call(argument_id="data", value=ANY),
         call(argument_id="data", value={"from_parameter": "data"}),
-        call(argument_id='data2', value={'from_parameter': 'x'})
+        call(argument_id="data2", value={"from_parameter": "x"}),
     ]
     assert visitor.from_parameter.call_args_list == [call("data"), call("x")]
 
@@ -100,15 +93,11 @@ def test_visit_nodes_array():
 
     visitor.accept_process_graph(graph)
     assert visitor.leaveProcess.call_args_list == [
-        call(process_id='abs', arguments=ANY, namespace=None),
-        call(process_id='cos', arguments=ANY, namespace=None)
+        call(process_id="abs", arguments=ANY, namespace=None),
+        call(process_id="cos", arguments=ANY, namespace=None),
     ]
-    assert visitor.enterArgument.call_args_list == [
-        call(argument_id="data", value=ANY)
-    ]
-    assert visitor.enterArray.call_args_list == [
-        call(argument_id="data")
-    ]
+    assert visitor.enterArgument.call_args_list == [call(argument_id="data", value=ANY)]
+    assert visitor.enterArray.call_args_list == [call(argument_id="data")]
 
 
 def test_visit_array_with_dereferenced_nodes():
@@ -118,11 +107,11 @@ def test_visit_array_with_dereferenced_nodes():
             "process_id": "array_element",
             "result": False,
         },
-        'product1': {
-            'process_id': 'product',
-            'arguments': {'data': [{'from_node': 'arrayelement1'}, -1]},
-            'result': True
-        }
+        "product1": {
+            "process_id": "product",
+            "arguments": {"data": [{"from_node": "arrayelement1"}, -1]},
+            "result": True,
+        },
     }
     top = ProcessGraphVisitor.dereference_from_node_arguments(graph)
     dereferenced = graph[top]
@@ -137,8 +126,8 @@ def test_visit_array_with_dereferenced_nodes():
 
     visitor.accept_node(dereferenced)
     assert visitor.leaveProcess.call_args_list == [
-        call(process_id='array_element', arguments=ANY, namespace=None),
-        call(process_id='product', arguments=ANY, namespace=None)
+        call(process_id="array_element", arguments=ANY, namespace=None),
+        call(process_id="product", arguments=ANY, namespace=None),
     ]
     assert visitor.enterArgument.call_args_list == [call(argument_id="data", value={"from_parameter": "data"})]
     assert visitor.enterArray.call_args_list == [call(argument_id="data")]
@@ -157,25 +146,9 @@ def test_visit_array_with_dereferenced_nodes():
 def test_dereference_basic():
     graph = {
         "node1": {},
-        "node2": {
-            "arguments": {
-                "data1": {
-                    "from_node": "node1"
-                },
-                "data2": {
-                    "from_node": "node3"
-                }
-            },
-            "result": True
-        },
-        "node3": {
-            "arguments": {
-                "data": {
-                    "from_node": "node4"
-                }
-            }
-        },
-        "node4": {}
+        "node2": {"arguments": {"data1": {"from_node": "node1"}, "data2": {"from_node": "node3"}}, "result": True},
+        "node3": {"arguments": {"data": {"from_node": "node4"}}},
+        "node4": {},
     }
     result = ProcessGraphVisitor.dereference_from_node_arguments(graph)
 
@@ -188,21 +161,23 @@ def test_dereference_basic():
         "node2": {
             "arguments": {
                 "data1": {"from_node": "node1", "node": {}},
-                "data2": {"from_node": "node3", "node": {
-                    "arguments": {
-                        "data": {"from_node": "node4", "node": {}},
-                    }
-                }},
+                "data2": {
+                    "from_node": "node3",
+                    "node": {
+                        "arguments": {
+                            "data": {"from_node": "node4", "node": {}},
+                        }
+                    },
+                },
             },
-            "result": True
+            "result": True,
         },
         "node3": {
             "arguments": {
                 "data": {"from_node": "node4", "node": {}},
             }
         },
-        "node4": {}
-
+        "node4": {},
     }
 
 
@@ -249,7 +224,7 @@ def test_dereference_dict_arg():
                 }
             },
             "result": True,
-        }
+        },
     }
     result = ProcessGraphVisitor.dereference_from_node_arguments(graph)
     assert result == "bbox"
@@ -271,38 +246,22 @@ def test_dereference_dict_arg():
                 }
             },
             "result": True,
-        }
+        },
     }
 
 
 def test_dereference_no_result_node():
     with pytest.raises(ProcessGraphVisitException, match="No result node in process graph"):
-        ProcessGraphVisitor.dereference_from_node_arguments({
-            "node1": {},
-            "node2": {}
-        })
+        ProcessGraphVisitor.dereference_from_node_arguments({"node1": {}, "node2": {}})
 
 
 def test_dereference_multiple_result_node():
     with pytest.raises(ProcessGraphVisitException, match="Multiple result nodes"):
-        ProcessGraphVisitor.dereference_from_node_arguments({
-            "node1": {"result": True},
-            "node2": {"result": True}
-        })
+        ProcessGraphVisitor.dereference_from_node_arguments({"node1": {"result": True}, "node2": {"result": True}})
 
 
 def test_dereference_invalid_node():
-    graph = {
-        "node1": {},
-        "node2": {
-            "arguments": {
-                "data": {
-                    "from_node": "node3"
-                }
-            },
-            "result": True
-        }
-    }
+    graph = {"node1": {}, "node2": {"arguments": {"data": {"from_node": "node3"}}, "result": True}}
     with pytest.raises(ProcessGraphVisitException, match="not in process graph"):
         ProcessGraphVisitor.dereference_from_node_arguments(graph)
 
@@ -313,13 +272,13 @@ def test_dereference_cycle():
             "arguments": {
                 "data": {"from_node": "node2"},
             },
-            "result": True
+            "result": True,
         },
         "node2": {
             "arguments": {
                 "data": {"from_node": "node1"},
             }
-        }
+        },
     }
     ProcessGraphVisitor.dereference_from_node_arguments(graph)
     assert graph["node1"]["arguments"]["data"]["node"] is graph["node2"]
@@ -358,12 +317,13 @@ class TestProcessGraphUnflattener:
                                 "node": {
                                     "process_id": "add",
                                     "arguments": {"x": 1, "y": 2},
-                                }
+                                },
                             },
                             "y": 3,
-                        }
-                    }},
-                "y": 4
+                        },
+                    },
+                },
+                "y": 4,
             },
             "result": True,
         }
@@ -405,7 +365,7 @@ class TestProcessGraphUnflattener:
                     }
                 },
                 "result": True,
-            }
+            },
         }
         result = ProcessGraphUnflattener.unflatten(graph)
         assert result == {
@@ -443,11 +403,7 @@ class TestProcessGraphUnflattener:
 
     def test_dereference_invalid_node(self):
         graph = {
-            "add12": {
-                "process_id": "add",
-                "arguments": {"x": {"from_node": "meh"}, "y": 2},
-                "result": True
-            },
+            "add12": {"process_id": "add", "arguments": {"x": {"from_node": "meh"}, "y": 2}, "result": True},
         }
         with pytest.raises(ProcessGraphVisitException, match="not found in process graph"):
             _ = ProcessGraphUnflattener.unflatten(graph)
@@ -456,13 +412,17 @@ class TestProcessGraphUnflattener:
         graph = {
             "node1": {
                 "process_id": "increment",
-                "arguments": {"data": {"from_node": "node2"}, },
-                "result": True
+                "arguments": {
+                    "data": {"from_node": "node2"},
+                },
+                "result": True,
             },
             "node2": {
                 "process_id": "increment",
-                "arguments": {"data": {"from_node": "node1"}, }
-            }
+                "arguments": {
+                    "data": {"from_node": "node1"},
+                },
+            },
         }
         with pytest.raises(ProcessGraphVisitException, match="Cycle in process graph"):
             _ = ProcessGraphUnflattener.unflatten(graph)

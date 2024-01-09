@@ -36,8 +36,9 @@ class ProcessGraphVisitor(ABC):
 
         def resolve_from_node(process_graph, node, from_node):
             if from_node not in process_graph:
-                raise ProcessGraphVisitException('from_node {f!r} (referenced by {n!r}) not in process graph.'.format(
-                    f=from_node, n=node))
+                raise ProcessGraphVisitException(
+                    "from_node {f!r} (referenced by {n!r}) not in process graph.".format(f=from_node, n=node)
+                )
             return process_graph[from_node]
 
         result_node = None
@@ -58,7 +59,7 @@ class ProcessGraphVisitor(ABC):
                 elif isinstance(arg, list):
                     for i, element in enumerate(arg):
                         if isinstance(element, dict) and "from_node" in element:
-                            arg[i] = resolve_from_node(process_graph, node, element['from_node'])
+                            arg[i] = resolve_from_node(process_graph, node, element["from_node"])
 
         if result_node is None:
             dump = json.dumps(process_graph, indent=2)
@@ -82,8 +83,8 @@ class ProcessGraphVisitor(ABC):
         self.accept_node(node)
 
     def accept_node(self, node: dict):
-        pid = node['process_id']
-        arguments = node.get('arguments', {})
+        pid = node["process_id"]
+        arguments = node.get("arguments", {})
         namespace = node.get("namespace", None)
         self._accept_process(process_id=pid, arguments=arguments, namespace=namespace)
 
@@ -113,22 +114,22 @@ class ProcessGraphVisitor(ABC):
                 self.constantArrayElement(element)
 
     def _accept_argument_dict(self, value: dict):
-        if 'node' in value and 'from_node' in value:
+        if "node" in value and "from_node" in value:
             # TODO: this looks bit weird (or at least very specific).
-            self.accept_node(value['node'])
+            self.accept_node(value["node"])
         elif value.get("from_node"):
-            self.accept_node(value['from_node'])
+            self.accept_node(value["from_node"])
         elif "process_id" in value:
             self.accept_node(value)
         elif "from_parameter" in value:
-            self.from_parameter(value['from_parameter'])
+            self.from_parameter(value["from_parameter"])
         else:
             self._accept_dict(value)
 
     def _accept_dict(self, value: dict):
         pass
 
-    def from_parameter(self,parameter_id:str):
+    def from_parameter(self, parameter_id: str):
         pass
 
     def enterProcess(self, process_id: str, arguments: dict, namespace: Union[str, None]):
@@ -174,7 +175,8 @@ def find_result_node(flat_graph: dict) -> Tuple[str, dict]:
     else:
         keys = [k for (k, n) in result_nodes]
         raise ProcessGraphVisitException(
-            "Found multiple result nodes in flat process graph: {keys!r}".format(keys=keys))
+            "Found multiple result nodes in flat process graph: {keys!r}".format(keys=keys)
+        )
 
 
 class ProcessGraphUnflattener:
@@ -219,7 +221,7 @@ class ProcessGraphUnflattener:
         return dict(
             process_id=node["process_id"],
             arguments=self._process_value(value=node["arguments"]),
-            **{k: node[k] for k in ["namespace", "description", "result"] if k in node}
+            **{k: node[k] for k in ["namespace", "description", "result"] if k in node},
         )
 
     def _process_from_node(self, key: str, node: dict) -> Any:
@@ -228,10 +230,7 @@ class ProcessGraphUnflattener:
         """
         # Default/original implementation: keep "from_node" key and add resolved node under "node" key.
         # TODO: just return `self.get_node(key=key)`
-        return {
-            "from_node": key,
-            "node": self.get_node(key=key)
-        }
+        return {"from_node": key, "node": self.get_node(key=key)}
 
     def _process_from_parameter(self, name: str) -> Any:
         """

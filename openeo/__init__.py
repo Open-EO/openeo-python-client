@@ -3,8 +3,8 @@
 
 """
 
-__title__ = 'openeo'
-__author__ = 'Jeroen Dries'
+__title__ = "openeo"
+__author__ = "Jeroen Dries"
 
 
 class BaseOpenEoException(Exception):
@@ -21,6 +21,7 @@ from openeo.rest.job import BatchJob, RESTJob
 def client_version() -> str:
     try:
         import importlib.metadata
+
         return importlib.metadata.version("openeo")
     except Exception:
         return __version__

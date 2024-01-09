@@ -11,6 +11,4 @@ class TestCapabilities:
         assert RESTCapabilities({}).list_plans() == []
         assert RESTCapabilities({"billing": None}).list_plans() == []
         assert RESTCapabilities({"billing": {"plans": []}}).list_plans() == []
-        assert RESTCapabilities(
-            {"billing": {"plans": [{"name": "free"}]}}
-        ).list_plans() == [{"name": "free"}]
+        assert RESTCapabilities({"billing": {"plans": [{"name": "free"}]}}).list_plans() == [{"name": "free"}]

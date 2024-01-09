@@ -5,10 +5,12 @@ from openeo.internal.graph_building import PGNode
 con = openeo.connect("https://earthengine.openeo.org/v1.0")
 con.authenticate_basic()
 
-datacube = con.load_collection("COPERNICUS/S1_GRD",
-                               spatial_extent={"west": 16.06, "south": 48.1, "east": 16.65, "north": 48.31},
-                               temporal_extent=["2017-03-01", "2017-04-01"],
-                               bands=["VV", "VH"])
+datacube = con.load_collection(
+    "COPERNICUS/S1_GRD",
+    spatial_extent={"west": 16.06, "south": 48.1, "east": 16.65, "north": 48.31},
+    temporal_extent=["2017-03-01", "2017-04-01"],
+    bands=["VV", "VH"],
+)
 
 mean = datacube.mean_time()
 
@@ -22,8 +24,10 @@ datacube = mean.reduce_dimension(dimension="bands", reducer=reducer)
 
 blue = datacube.add_dimension(name="bands", label="B", type="bands")
 
-lin_scale = PGNode("linear_scale_range", arguments={"x": {"from_parameter": "x"},
-                                                    "inputMin": -5, "inputMax": 0, "outputMin": 0, "outputMax": 255})
+lin_scale = PGNode(
+    "linear_scale_range",
+    arguments={"x": {"from_parameter": "x"}, "inputMin": -5, "inputMax": 0, "outputMin": 0, "outputMax": 255},
+)
 
 blue = blue.apply(lin_scale)
 # G
@@ -31,8 +35,10 @@ blue = blue.apply(lin_scale)
 green = mean.filter_bands(["VH"])
 green = green.rename_labels(dimension="bands", target=["G"])
 
-lin_scale = PGNode("linear_scale_range", arguments={"x": {"from_parameter": "x"},
-                                                    "inputMin": -26, "inputMax": -11, "outputMin": 0, "outputMax": 255})
+lin_scale = PGNode(
+    "linear_scale_range",
+    arguments={"x": {"from_parameter": "x"}, "inputMin": -26, "inputMax": -11, "outputMin": 0, "outputMax": 255},
+)
 
 green = green.apply(lin_scale)
 # R
@@ -40,8 +46,10 @@ green = green.apply(lin_scale)
 red = mean.filter_bands(["VV"])
 red = red.rename_labels(dimension="bands", target=["R"])
 
-lin_scale = PGNode("linear_scale_range", arguments={"x": {"from_parameter": "x"},
-                                                    "inputMin": -20, "inputMax": -5, "outputMin": 0, "outputMax": 255})
+lin_scale = PGNode(
+    "linear_scale_range",
+    arguments={"x": {"from_parameter": "x"}, "inputMin": -20, "inputMax": -5, "outputMin": 0, "outputMax": 255},
+)
 
 red = red.apply(lin_scale)
 # RGB

@@ -77,9 +77,7 @@ class TestRfc3339:
         assert "2020-03-17T12:34:56Z" == rfc3339.datetime("2020_03_17_12_34_56")
         assert "2020-03-17T12:34:56Z" == rfc3339.datetime("2020-03-17T12:34:56Z")
         assert "2020-03-17T00:00:00Z" == rfc3339.datetime(dt.date(2020, 3, 17))
-        assert "2020-03-17T12:34:56Z" == rfc3339.datetime(
-            dt.datetime(2020, 3, 17, 12, 34, 56)
-        )
+        assert "2020-03-17T12:34:56Z" == rfc3339.datetime(dt.datetime(2020, 3, 17, 12, 34, 56))
         assert "2020-03-17T00:00:00Z" == rfc3339.datetime((2020, 3, 17))
         assert "2020-03-17T00:00:00Z" == rfc3339.datetime([2020, 3, 17])
         assert "2020-03-17T00:00:00Z" == rfc3339.datetime(2020, 3, 17)
@@ -87,21 +85,11 @@ class TestRfc3339:
         assert "2020-03-17T12:34:56Z" == rfc3339.datetime([2020, 3, 17, 12, 34, 56])
         assert "2020-03-17T12:34:56Z" == rfc3339.datetime(2020, 3, 17, 12, 34, 56)
         assert "2020-03-17T12:34:00Z" == rfc3339.datetime(2020, 3, 17, 12, 34)
-        assert "2020-03-17T12:34:56Z" == rfc3339.datetime(
-            (2020, "3", 17, "12", "34", 56)
-        )
-        assert "2020-09-17T12:34:56Z" == rfc3339.datetime(
-            [2020, "09", 17, "12", "34", 56]
-        )
-        assert "2020-09-17T12:34:56Z" == rfc3339.datetime(
-            2020, "09", "17", "12", "34", 56
-        )
-        assert "2020-03-17T12:34:56Z" == rfc3339.datetime(
-            dt.datetime(2020, 3, 17, 12, 34, 56, tzinfo=None)
-        )
-        assert "2020-03-17T12:34:56Z" == rfc3339.datetime(
-            dt.datetime(2020, 3, 17, 12, 34, 56, tzinfo=dt.timezone.utc)
-        )
+        assert "2020-03-17T12:34:56Z" == rfc3339.datetime((2020, "3", 17, "12", "34", 56))
+        assert "2020-09-17T12:34:56Z" == rfc3339.datetime([2020, "09", 17, "12", "34", 56])
+        assert "2020-09-17T12:34:56Z" == rfc3339.datetime(2020, "09", "17", "12", "34", 56)
+        assert "2020-03-17T12:34:56Z" == rfc3339.datetime(dt.datetime(2020, 3, 17, 12, 34, 56, tzinfo=None))
+        assert "2020-03-17T12:34:56Z" == rfc3339.datetime(dt.datetime(2020, 3, 17, 12, 34, 56, tzinfo=dt.timezone.utc))
         assert "2020-03-17T12:34:56Z" == rfc3339.datetime(
             dt.datetime(
                 *(2020, 3, 17, 12, 34, 56),
@@ -121,19 +109,11 @@ class TestRfc3339:
         assert "2020-03-17T12:34:00Z" == rfc3339.normalize("2020/03/17/12/34")
         assert "2020-03-17T12:34:56Z" == rfc3339.normalize("2020_03_17_12_34_56")
         assert "2020-03-17T12:34:56Z" == rfc3339.normalize("2020-03-17T12:34:56Z")
-        assert "2020-03-17T12:34:56Z" == rfc3339.normalize(
-            "2020-03-17T12:34:56.44546546Z"
-        )
+        assert "2020-03-17T12:34:56Z" == rfc3339.normalize("2020-03-17T12:34:56.44546546Z")
         assert "2020-03-17" == rfc3339.normalize(dt.date(2020, 3, 17))
-        assert "2020-03-17T12:34:56Z" == rfc3339.normalize(
-            dt.datetime(2020, 3, 17, 12, 34, 56)
-        )
-        assert "2020-03-17T12:34:56Z" == rfc3339.normalize(
-            dt.datetime(2020, 3, 17, 12, 34, 56, tzinfo=None)
-        )
-        assert "2020-03-17T12:34:56Z" == rfc3339.normalize(
-            dt.datetime(2020, 3, 17, 12, 34, 56, tzinfo=dt.timezone.utc)
-        )
+        assert "2020-03-17T12:34:56Z" == rfc3339.normalize(dt.datetime(2020, 3, 17, 12, 34, 56))
+        assert "2020-03-17T12:34:56Z" == rfc3339.normalize(dt.datetime(2020, 3, 17, 12, 34, 56, tzinfo=None))
+        assert "2020-03-17T12:34:56Z" == rfc3339.normalize(dt.datetime(2020, 3, 17, 12, 34, 56, tzinfo=dt.timezone.utc))
         assert "2020-03-17T12:34:56Z" == rfc3339.normalize(
             dt.datetime(
                 *(2020, 3, 17, 12, 34, 56),
@@ -148,15 +128,9 @@ class TestRfc3339:
         assert "2020-03-17T12:34:56Z" == rfc3339.normalize(2020, 3, 17, 12, 34, 56)
         assert "2020-03-17T12:00:00Z" == rfc3339.normalize(2020, 3, 17, 12)
         assert "2020-03-17T12:34:00Z" == rfc3339.normalize(2020, 3, 17, 12, 34)
-        assert "2020-03-17T12:34:56Z" == rfc3339.normalize(
-            (2020, "3", 17, "12", "34", 56)
-        )
-        assert "2020-09-17T12:34:56Z" == rfc3339.normalize(
-            [2020, "09", 17, "12", "34", 56]
-        )
-        assert "2020-09-17T12:34:56Z" == rfc3339.normalize(
-            2020, "09", "17", "12", "34", 56
-        )
+        assert "2020-03-17T12:34:56Z" == rfc3339.normalize((2020, "3", 17, "12", "34", 56))
+        assert "2020-09-17T12:34:56Z" == rfc3339.normalize([2020, "09", 17, "12", "34", 56])
+        assert "2020-09-17T12:34:56Z" == rfc3339.normalize(2020, "09", "17", "12", "34", 56)
 
     def test_datetime_dont_propagate_none(self):
         formatter = Rfc3339(propagate_none=False)
@@ -321,16 +295,19 @@ def test_dict_no_none_args():
     assert dict_no_none({"a": 3, "b": None, "c": "foo"}) == {"a": 3, "c": "foo"}
 
 
-@pytest.mark.parametrize(['input', 'expected'], [
-    ((123,), 123),
-    ((1, 2, 3), 1),
-    ((0, 2, 3), 0),
-    ((0.0, 2, 3), 0.0),
-    ((None, 2, 3), 2),
-    ((None, 'foo', 3), 'foo'),
-    ((None, None, 3), 3),
-    ((None, [], [1, 2]), []),
-])
+@pytest.mark.parametrize(
+    ["input", "expected"],
+    [
+        ((123,), 123),
+        ((1, 2, 3), 1),
+        ((0, 2, 3), 0),
+        ((0.0, 2, 3), 0.0),
+        ((None, 2, 3), 2),
+        ((None, "foo", 3), "foo"),
+        ((None, None, 3), 3),
+        ((None, [], [1, 2]), []),
+    ],
+)
 def test_first_not_none(input, expected):
     assert expected == first_not_none(*input)
 
@@ -344,15 +321,18 @@ def test_first_not_none_failures():
         first_not_none(None, None)
 
 
-@pytest.mark.parametrize(["input", "expected"], [
-    (None, [None]),
-    (123, [123]),
-    ("abc", ["a", "b", "c"]),
-    ([1, 2, "three"], [1, 2, "three"]),
-    ((1, 2, "three"), [1, 2, "three"]),
-    ({1: "a", 2: "b"}, [1, 2]),
-    ({1, 2, 3, 3, 2}, [1, 2, 3]),
-])
+@pytest.mark.parametrize(
+    ["input", "expected"],
+    [
+        (None, [None]),
+        (123, [123]),
+        ("abc", ["a", "b", "c"]),
+        ([1, 2, "three"], [1, 2, "three"]),
+        ((1, 2, "three"), [1, 2, "three"]),
+        ({1: "a", 2: "b"}, [1, 2]),
+        ({1, 2, 3, 3, 2}, [1, 2, 3]),
+    ],
+)
 def test_ensure_list(input, expected):
     assert ensure_list(input) == expected
 
@@ -410,12 +390,15 @@ def test_timing_logger_basic(caplog):
     with TimingLogger("Testing"):
         logging.info("Hello world")
 
-    pattern = re.compile(r'''
+    pattern = re.compile(
+        r"""
         .*Testing.+start.+\d{4}-\d{2}-\d{2}\ \d{2}:\d{2}:\d{2}.*\n
         .*Hello\ world.*\n
         .*Testing.*end.+\d{4}-\d{2}-\d{2}\ \d{2}:\d{2}:\d{2}.*elapsed.+[0-9.]+\n
         .*
-        ''', re.VERBOSE | re.DOTALL)
+        """,
+        re.VERBOSE | re.DOTALL,
+    )
     assert pattern.match(caplog.text)
 
 
@@ -431,9 +414,7 @@ class _Logger:
 
 def _fake_clock(times: List[Union[int, dt.datetime]] = None):
     # Trick to have a "time" function that returns different times in subsequent calls
-    times = times or [
-        dt.datetime(2020, 3, 4, 5 + x, 2 * x, 1 + 3 * x, 1000) for x in range(0, 12)
-    ]
+    times = times or [dt.datetime(2020, 3, 4, 5 + x, 2 * x, 1 + 3 * x, 1000) for x in range(0, 12)]
     return iter(times).__next__
 
 
@@ -453,7 +434,7 @@ def test_timing_logger_custom():
     assert logger.logs == [
         "Testing: start 2019-12-12 10:10:10.010000",
         "Hello world",
-        "Testing: end 2019-12-12 11:12:13.014141, elapsed 1:02:03.004141"
+        "Testing: end 2019-12-12 11:12:13.014141, elapsed 1:02:03.004141",
     ]
 
 
@@ -492,7 +473,7 @@ def test_timing_logger_fail():
 
     assert logger.logs == [
         "Testing: start 2019-12-12 10:10:10.010000",
-        "Testing: fail 2019-12-12 11:12:13.014141, elapsed 1:02:03.004141"
+        "Testing: fail 2019-12-12 11:12:13.014141, elapsed 1:02:03.004141",
     ]
 
 
@@ -504,17 +485,17 @@ def test_timing_logger_decorator():
         logger("calculating {x} + {y}".format(x=x, y=y))
         return x + y
 
-    with mock.patch.object(TimingLogger, '_now', new=_fake_clock()):
+    with mock.patch.object(TimingLogger, "_now", new=_fake_clock()):
         fun(2, 3)
         fun(y=3, x=5)
 
     assert logger.logs == [
-        'Decorated: start 2020-03-04 05:00:01.001000',
-        'calculating 2 + 3',
-        'Decorated: end 2020-03-04 06:02:04.001000, elapsed 1:02:03',
-        'Decorated: start 2020-03-04 07:04:07.001000',
-        'calculating 5 + 3',
-        'Decorated: end 2020-03-04 08:06:10.001000, elapsed 1:02:03'
+        "Decorated: start 2020-03-04 05:00:01.001000",
+        "calculating 2 + 3",
+        "Decorated: end 2020-03-04 06:02:04.001000, elapsed 1:02:03",
+        "Decorated: start 2020-03-04 07:04:07.001000",
+        "calculating 5 + 3",
+        "Decorated: end 2020-03-04 08:06:10.001000, elapsed 1:02:03",
     ]
 
 
@@ -528,17 +509,17 @@ def test_timing_logger_method_decorator():
             return x + y
 
     f = Foo()
-    with mock.patch.object(TimingLogger, '_now', new=_fake_clock()):
+    with mock.patch.object(TimingLogger, "_now", new=_fake_clock()):
         f.fun(2, 3)
         f.fun(3, 5)
 
     assert logger.logs == [
-        'Decorated: start 2020-03-04 05:00:01.001000',
-        'calculating 2 + 3',
-        'Decorated: end 2020-03-04 06:02:04.001000, elapsed 1:02:03',
-        'Decorated: start 2020-03-04 07:04:07.001000',
-        'calculating 3 + 5',
-        'Decorated: end 2020-03-04 08:06:10.001000, elapsed 1:02:03'
+        "Decorated: start 2020-03-04 05:00:01.001000",
+        "calculating 2 + 3",
+        "Decorated: end 2020-03-04 06:02:04.001000, elapsed 1:02:03",
+        "Decorated: start 2020-03-04 07:04:07.001000",
+        "calculating 3 + 5",
+        "Decorated: end 2020-03-04 08:06:10.001000, elapsed 1:02:03",
     ]
 
 
@@ -565,10 +546,7 @@ def test_deep_get_dict():
 
 
 def test_deep_get_mixed():
-    d = {
-        "foo": (11, [222, 33], {"z": 42, -4: 44}),
-        "bar": [{"a": [5, 8]}, {"b": ("ar", 6, 8)}]
-    }
+    d = {"foo": (11, [222, 33], {"z": 42, -4: 44}), "bar": [{"a": [5, 8]}, {"b": ("ar", 6, 8)}]}
     assert deep_get(d, "foo", 0) == 11
     assert deep_get(d, "foo", 1) == [222, 33]
     assert deep_get(d, "foo", 1, 0) == 222
@@ -585,18 +563,21 @@ def test_deep_get_mixed():
         deep_get(d, "bar", 2, 22, 222)
 
 
-@pytest.mark.parametrize(["init", "keys", "expected"], [
-    ({}, ("foo",), {"foo": 42}),
-    ({}, ("foo", "bar", "baz"), {"foo": {"bar": {"baz": 42}}}),
-    ({"foo": {"x": "y"}}, ("foo", "bar"), {"foo": {"x": "y", "bar": 42}}),
-    ({"foo": {"x": "y"}}, ("foo", "bar", "baz"), {"foo": {"x": "y", "bar": {"baz": 42}}}),
-    ({"foo": [1, 2, 3]}, ("foo", 1), {"foo": [1, 42, 3]}),
-    ({"foo": {1: "a", 2: "b"}}, ("foo", 1), {"foo": {1: 42, 2: "b"}}),
-    ({"foo": [{"x": 1}, {"x": 2}, {"x": 3}]}, ("foo", 1, "x"), {"foo": [{"x": 1}, {"x": 42}, {"x": 3}]}),
-    ({"foo": ({"x": 1}, {"x": 2}, {"x": 3})}, ("foo", 1, "x"), {"foo": ({"x": 1}, {"x": 42}, {"x": 3})}),
-    ({"foo": [{"x": {}}, {"x": {}}]}, ("foo", 1, "x", "bar"), {"foo": [{"x": {}}, {"x": {"bar": 42}}]}),
-    ({"foo": [{"x": {}}, {"x": {}}]}, ("foo", 1, "x", "y", "z"), {"foo": [{"x": {}}, {"x": {"y": {"z": 42}}}]}),
-])
+@pytest.mark.parametrize(
+    ["init", "keys", "expected"],
+    [
+        ({}, ("foo",), {"foo": 42}),
+        ({}, ("foo", "bar", "baz"), {"foo": {"bar": {"baz": 42}}}),
+        ({"foo": {"x": "y"}}, ("foo", "bar"), {"foo": {"x": "y", "bar": 42}}),
+        ({"foo": {"x": "y"}}, ("foo", "bar", "baz"), {"foo": {"x": "y", "bar": {"baz": 42}}}),
+        ({"foo": [1, 2, 3]}, ("foo", 1), {"foo": [1, 42, 3]}),
+        ({"foo": {1: "a", 2: "b"}}, ("foo", 1), {"foo": {1: 42, 2: "b"}}),
+        ({"foo": [{"x": 1}, {"x": 2}, {"x": 3}]}, ("foo", 1, "x"), {"foo": [{"x": 1}, {"x": 42}, {"x": 3}]}),
+        ({"foo": ({"x": 1}, {"x": 2}, {"x": 3})}, ("foo", 1, "x"), {"foo": ({"x": 1}, {"x": 42}, {"x": 3})}),
+        ({"foo": [{"x": {}}, {"x": {}}]}, ("foo", 1, "x", "bar"), {"foo": [{"x": {}}, {"x": {"bar": 42}}]}),
+        ({"foo": [{"x": {}}, {"x": {}}]}, ("foo", 1, "x", "y", "z"), {"foo": [{"x": {}}, {"x": {"y": {"z": 42}}}]}),
+    ],
+)
 def test_deep_set_dict(init, keys, expected):
     d = init
     deep_set(d, *keys, value=42)
@@ -664,11 +645,10 @@ def test_repr_truncate_generic():
     assert repr_truncate([1, 2, 3, 4, 5], width=2) == ".."
 
     assert repr_truncate(["one", "two", "three"], width=10) == "['one',..."
-    assert repr_truncate(ValueError("That's not right"), width=22) == 'ValueError("That\'s ...'
+    assert repr_truncate(ValueError("That's not right"), width=22) == "ValueError(\"That's ..."
 
 
 class TestBBoxDict:
-
     def test_init(self):
         assert BBoxDict(west=1, south=2, east=3, north=4) == {"west": 1, "south": 2, "east": 3, "north": 4}
         assert BBoxDict(west=1, south=2, east=3, north=4, crs="EPSG:4326") == {
@@ -750,7 +730,10 @@ class TestBBoxDict:
 
     def test_to_bbox_dict_from_dict(self):
         assert to_bbox_dict({"west": 1, "south": 2, "east": 3, "north": 4}) == {
-            "west": 1, "south": 2, "east": 3, "north": 4
+            "west": 1,
+            "south": 2,
+            "east": 3,
+            "north": 4,
         }
         assert to_bbox_dict({"west": 1, "south": 2, "east": 3, "north": 4, "crs": 4326}) == {
             "west": 1,

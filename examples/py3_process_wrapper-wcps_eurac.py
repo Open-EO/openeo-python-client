@@ -78,11 +78,10 @@ def execute(
         json.dumps(connection.describe_collection(image_collection), indent=2),
     )
     cube = connection.load_collection(collection_id=image_collection, bands=all_bands)
-    cube = cube.filter_bbox( **bbox)
+    cube = cube.filter_bbox(**bbox)
     cube = cube.filter_temporal(extent=temporal_extent)
 
     logger.info("cube.to_json: \n%s\n", cube.to_json())
-
 
     logger.info("File Format: %s", band_format)
     logger.info(

@@ -8,13 +8,18 @@ class Parameter:
     """
     Wrapper for a process parameter, as used in predefined and user-defined processes.
     """
+
     # TODO unify with openeo.internal.processes.parse.Parameter?
 
     _DEFAULT_UNDEFINED = object()
 
     def __init__(
-            self, name: str, description: str = None, schema: Union[dict, str] = None,
-            default=_DEFAULT_UNDEFINED, optional=None
+        self,
+        name: str,
+        description: str = None,
+        schema: Union[dict, str] = None,
+        default=_DEFAULT_UNDEFINED,
+        optional=None,
     ):
         self.name = name
         if description is None:

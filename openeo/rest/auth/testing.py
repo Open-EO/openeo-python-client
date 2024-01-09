@@ -52,11 +52,7 @@ class OidcMock:
         self.expected_authorization_code = None
         self.authorization_endpoint = url_join(self.oidc_issuer, "/auth")
         self.token_endpoint = url_join(self.oidc_issuer, "/token")
-        self.device_code_endpoint = (
-            url_join(self.oidc_issuer, "/device_code")
-            if device_code_flow_support
-            else None
-        )
+        self.device_code_endpoint = url_join(self.oidc_issuer, "/device_code") if device_code_flow_support else None
         self.state = state or {}
         self.scopes_supported = scopes_supported or ["openid", "email", "profile"]
         self.support_verification_uri_complete = support_verification_uri_complete
@@ -103,9 +99,7 @@ class OidcMock:
             params={"state": params["state"], "code": self.expected_authorization_code},
         )
 
-    def token_callback(
-        self, request: requests_mock.request._RequestObjectProxy, context
-    ):
+    def token_callback(self, request: requests_mock.request._RequestObjectProxy, context):
         params = self._get_query_params(query=request.text)
         grant_type = params["grant_type"]
         self.grant_request_history.append({"grant_type": grant_type})
@@ -130,9 +124,7 @@ class OidcMock:
         """Fake code to token exchange by Oauth Provider"""
         assert params["client_id"] == self.expected_client_id
         assert params["grant_type"] == "authorization_code"
-        assert self.state["code_challenge"] == PkceCode.sha256_hash(
-            params["code_verifier"]
-        )
+        assert self.state["code_challenge"] == PkceCode.sha256_hash(params["code_verifier"])
         assert params["code"] == self.expected_authorization_code
         assert params["redirect_uri"] == self.state["redirect_uri"]
         return self._build_token_response()
@@ -153,9 +145,7 @@ class OidcMock:
         assert params["scope"] == self.expected_fields["scope"]
         return self._build_token_response()
 
-    def device_code_callback(
-        self, request: requests_mock.request._RequestObjectProxy, context
-    ):
+    def device_code_callback(self, request: requests_mock.request._RequestObjectProxy, context):
         params = self._get_query_params(query=request.text)
         assert params["client_id"] == self.expected_client_id
         assert params["scope"] == self.expected_fields["scope"]
@@ -194,10 +184,7 @@ class OidcMock:
             assert "client_secret" not in params
         expect_code_verifier = self.expected_fields.get("code_verifier")
         if expect_code_verifier in [True]:
-            assert (
-                PkceCode.sha256_hash(params["code_verifier"])
-                == self.state["code_challenge"]
-            )
+            assert PkceCode.sha256_hash(params["code_verifier"]) == self.state["code_challenge"]
             self.state["code_verifier"] = params["code_verifier"]
         elif expect_code_verifier in [False, None, ABSENT]:
             assert "code_verifier" not in params
@@ -226,9 +213,7 @@ class OidcMock:
             context.status_code = 401
             return json.dumps({"error": "invalid refresh token"})
         assert params["refresh_token"] == self.expected_fields["refresh_token"]
-        return self._build_token_response(
-            include_id_token=False, include_refresh_token=False
-        )
+        return self._build_token_response(include_id_token=False, include_refresh_token=False)
 
     @staticmethod
     def _get_query_params(*, url=None, query=None):
@@ -246,11 +231,7 @@ class OidcMock:
         """Poor man's JWT encoding (just for unit testing purposes)"""
 
         def encode(d):
-            return (
-                base64.urlsafe_b64encode(json.dumps(d).encode("ascii"))
-                .decode("ascii")
-                .replace("=", "")
-            )
+            return base64.urlsafe_b64encode(json.dumps(d).encode("ascii")).decode("ascii").replace("=", "")
 
         return ".".join([encode(header), encode(payload), signature])
 
@@ -279,16 +260,12 @@ class OidcMock:
                 # "offline_access" scope as suggested in spec
                 # (https://openid.net/specs/openid-connect-core-1_0.html#OfflineAccess)
                 # Implemented by Microsoft, EGI Check-in
-                include_refresh_token = "offline_access" in self.state.get(
-                    "scope", ""
-                ).split(" ")
+                include_refresh_token = "offline_access" in self.state.get("scope", "").split(" ")
             else:
                 # Google OAuth style: no support for "offline_access", return refresh token automatically?
                 include_refresh_token = True
         if include_refresh_token:
-            res["refresh_token"] = self._jwt_encode(
-                header={}, payload={"foo": "refresh", "_uuid": uuid.uuid4().hex}
-            )
+            res["refresh_token"] = self._jwt_encode(header={}, payload={"foo": "refresh", "_uuid": uuid.uuid4().hex})
         if include_id_token:
             res["id_token"] = access_token
         self.state.update(res)
@@ -312,6 +289,5 @@ class OidcMock:
         return [
             r
             for r in self.requests_mock.request_history
-            if (method is None or method.lower() == r.method.lower())
-            and (url is None or url == r.url)
+            if (method is None or method.lower() == r.method.lower()) and (url is None or url == r.url)
         ]

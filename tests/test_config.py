@@ -40,7 +40,6 @@ def test_get_user_data_dir():
 
 
 class TestClientConfig:
-
     def test_default(self):
         config = ClientConfig()
         assert config.dump() == {}
@@ -49,32 +48,32 @@ class TestClientConfig:
 
     def test_load_config_parser(self):
         cp = ConfigParser()
-        cp.read_string("""
+        cp.read_string(
+            """
             [Connection]
             default_backend = openeo.cloud
             [Foo.Bar]
             baz.xev = Yep
-        """)
+        """
+        )
         config = ClientConfig().load_config_parser(cp)
-        assert config.dump() == {
-            "connection.default_backend": "openeo.cloud",
-            "foo.bar.baz.xev": "Yep"
-        }
+        assert config.dump() == {"connection.default_backend": "openeo.cloud", "foo.bar.baz.xev": "Yep"}
         assert config.get("connection.default_backend") == "openeo.cloud"
 
     def test_load_ini_file(self, tmp_path):
         path = tmp_path / "openeo.ini"
-        path.write_text(textwrap.dedent("""
+        path.write_text(
+            textwrap.dedent(
+                """
             [Connection]
             default_backend = openeo.cloud
             [Foo.Bar]
             baz.xev = Yep
-        """))
+        """
+            )
+        )
         config = ClientConfig().load_ini_file(path)
-        assert config.dump() == {
-            "connection.default_backend": "openeo.cloud",
-            "foo.bar.baz.xev": "Yep"
-        }
+        assert config.dump() == {"connection.default_backend": "openeo.cloud", "foo.bar.baz.xev": "Yep"}
         assert config.get("connection.default_backend") == "openeo.cloud"
         assert config.get(("connection", "default_backend")) == "openeo.cloud"
         assert config.get(("Connection", "Default_Backend")) == "openeo.cloud"
@@ -96,12 +95,14 @@ def _create_config(path: Path, content: str = ""):
 
 
 class TestConfigLoader:
-
     def _create_config(self, path: Path, default_backend="openeo.test"):
-        return _create_config(path=path, content=f"""
+        return _create_config(
+            path=path,
+            content=f"""
             [Connection]
             default_backend = {default_backend}
-        """)
+        """,
+        )
 
     def test_load_from_OPENEO_CLIENT_CONFIGg(self, tmp_path):
         path = tmp_path / "my-openeo-conf.ini"
@@ -146,30 +147,39 @@ def test_get_config_caching(tmp_path):
         for i in [10, 20]:
             with reset_global_config():
                 for default_backend in [f"oeo{i + j}.test" for j in [1, 2]]:
-                    _create_config(path=tmp_path / "openeo-client-config.ini", content=f"""
+                    _create_config(
+                        path=tmp_path / "openeo-client-config.ini",
+                        content=f"""
                         [Connection]
                         default_backend = {default_backend}
-                    """)
+                    """,
+                    )
                     config = get_config()
                     assert config.get("connection.default_backend") == f"oeo{i + 1}.test"
                     assert get_config_option("connection.default_backend") == f"oeo{i + 1}.test"
 
 
-@pytest.mark.parametrize(["verbose", "force_interactive", "on_stdout"], [
-    ("print", False, True),
-    ("print", True, True),
-    ("auto", False, False),
-    ("auto", True, True),
-    ("off", False, False),
-    ("off", True, False),
-])
+@pytest.mark.parametrize(
+    ["verbose", "force_interactive", "on_stdout"],
+    [
+        ("print", False, True),
+        ("print", True, True),
+        ("auto", False, False),
+        ("auto", True, True),
+        ("off", False, False),
+        ("off", True, False),
+    ],
+)
 def test_get_config_verbose(tmp_path, caplog, capsys, verbose, force_interactive, on_stdout):
     caplog.set_level(logging.INFO)
     config_path = tmp_path / "openeo-client-config.ini"
-    _create_config(path=config_path, content=f"""
+    _create_config(
+        path=config_path,
+        content=f"""
         [General]
         verbose = {verbose}
-    """)
+    """,
+    )
     with reset_global_config(), working_dir(tmp_path), contextlib.ExitStack() as exit_stack:
         if force_interactive:
             exit_stack.enter_context(mock.patch("openeo.config.in_interactive_mode", new=lambda: True))

@@ -16,7 +16,6 @@ from openeo.rest.auth.config import (
 
 
 class TestPrivateJsonFile:
-
     def test_empty(self, tmp_path):
         private = PrivateJsonFile(tmp_path)
         assert private.get("foo") is None
@@ -49,13 +48,9 @@ class TestPrivateJsonFile:
         assert private.path.stat().st_mode & 0o077 > 0
 
         if platform.system() != "Windows":
-            with pytest.raises(
-                PermissionError, match="readable by others.*expected: 600"
-            ):
+            with pytest.raises(PermissionError, match="readable by others.*expected: 600"):
                 private.get("foo")
-            with pytest.raises(
-                PermissionError, match="readable by others.*expected: 600"
-            ):
+            with pytest.raises(PermissionError, match="readable by others.*expected: 600"):
                 private.set("foo", value="lol")
         else:
             regex = re.compile("readable by others.*expected: 600")
@@ -95,7 +90,6 @@ class TestPrivateJsonFile:
 
 
 class TestAuthConfig:
-
     def test_start_empty(self, tmp_path):
         config = AuthConfig(path=tmp_path)
         assert config.get_basic_auth("foo") == (None, None)
@@ -109,16 +103,19 @@ class TestAuthConfig:
         assert [p.name for p in tmp_path.iterdir()] == [AuthConfig.DEFAULT_FILENAME]
         with config.path.open("r") as f:
             data = json.load(f)
-        assert data["backends"] == {"oeo.test": {
-            "basic": {"date": "2020-06-08T11:18:27Z", "username": "John", "password": "j0hn123"}
-        }}
+        assert data["backends"] == {
+            "oeo.test": {"basic": {"date": "2020-06-08T11:18:27Z", "username": "John", "password": "j0hn123"}}
+        }
         assert config.get_basic_auth("oeo.test") == ("John", "j0hn123")
         assert config.get_basic_auth("oeo.test") == ("John", "j0hn123")
 
-    @pytest.mark.parametrize(["to_set", "to_get"], [
-        ("https://oeo.test", "https://oeo.test/"),
-        ("https://oeo.test/", "https://oeo.test"),
-    ])
+    @pytest.mark.parametrize(
+        ["to_set", "to_get"],
+        [
+            ("https://oeo.test", "https://oeo.test/"),
+            ("https://oeo.test/", "https://oeo.test"),
+        ],
+    )
     def test_basic_auth_url_normalization(self, tmp_path, to_set, to_get):
         config = AuthConfig(path=tmp_path)
         config.set_basic_auth(to_set, "John", "j0hn123")
@@ -133,18 +130,27 @@ class TestAuthConfig:
         assert [p.name for p in tmp_path.iterdir()] == [AuthConfig.DEFAULT_FILENAME]
         with config.path.open("r") as f:
             data = json.load(f)
-        assert data["backends"] == {"oeo.test": {"oidc": {"providers": {
-            "default": {"date": "2020-06-08T11:18:27Z", "client_id": "client123", "client_secret": "$6cr67"}
-        }}}}
+        assert data["backends"] == {
+            "oeo.test": {
+                "oidc": {
+                    "providers": {
+                        "default": {"date": "2020-06-08T11:18:27Z", "client_id": "client123", "client_secret": "$6cr67"}
+                    }
+                }
+            }
+        }
         assert config.get_oidc_client_configs("oeo.test", "default") == ("client123", "$6cr67")
         assert config.get_oidc_provider_configs("oeo.test") == {
             "default": {"date": "2020-06-08T11:18:27Z", "client_id": "client123", "client_secret": "$6cr67"}
         }
 
-    @pytest.mark.parametrize(["to_set", "to_get"], [
-        ("https://oeo.test", "https://oeo.test/"),
-        ("https://oeo.test/", "https://oeo.test"),
-    ])
+    @pytest.mark.parametrize(
+        ["to_set", "to_get"],
+        [
+            ("https://oeo.test", "https://oeo.test/"),
+            ("https://oeo.test/", "https://oeo.test"),
+        ],
+    )
     def test_oidc_backend_normalization(self, tmp_path, to_set, to_get):
         config = AuthConfig(path=tmp_path)
         with mock.patch.object(openeo.rest.auth.config, "utcnow_rfc3339", return_value="2020-06-08T11:18:27Z"):
@@ -165,20 +171,15 @@ class TestAuthConfig:
 
 
 class TestRefreshTokenStorage:
-
     def test_public_file(self, tmp_path, caplog):
         path = tmp_path / "refresh_tokens.json"
         with path.open("w") as f:
             json.dump({}, f)
         r = RefreshTokenStore(path=path)
         if platform.system() != "Windows":
-            with pytest.raises(
-                PermissionError, match="readable by others.*expected: 600"
-            ):
+            with pytest.raises(PermissionError, match="readable by others.*expected: 600"):
                 r.get_refresh_token("foo", "bar")
-            with pytest.raises(
-                PermissionError, match="readable by others.*expected: 600"
-            ):
+            with pytest.raises(PermissionError, match="readable by others.*expected: 600"):
                 r.set_refresh_token("foo", "bar", "imd6$3cr3t")
         else:
             regex = re.compile("readable by others.*expected: 600")

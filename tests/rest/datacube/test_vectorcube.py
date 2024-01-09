@@ -302,7 +302,6 @@ def test_apply_dimension(vector_cube, dummy_backend, dimension, caplog):
     }
 
 
-
 def test_filter_bands(vector_cube, dummy_backend):
     vc = vector_cube.filter_bands(["B01", "B02"])
     assert dummy_backend.execute(vc, process_id="filter_bands") == {

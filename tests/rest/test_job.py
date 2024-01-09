@@ -16,16 +16,14 @@ from .test_connection import _credentials_basic_handler
 
 API_URL = "https://oeo.test"
 
-TIFF_CONTENT = b'T1f7D6t6l0l' * 1000
-
+TIFF_CONTENT = b"T1f7D6t6l0l" * 1000
 
 
 @pytest.fixture
 def con100(requests_mock):
-    requests_mock.get(API_URL + "/", json={
-        "api_version": "1.0.0",
-        "endpoints": [{"path": "/credentials/basic", "methods": ["GET"]}]
-    })
+    requests_mock.get(
+        API_URL + "/", json={"api_version": "1.0.0", "endpoints": [{"path": "/credentials/basic", "methods": ["GET"]}]}
+    )
     con = openeo.connect(API_URL)
     return con
 
@@ -73,15 +71,14 @@ def test_execute_batch(con100, requests_mock, tmpdir):
         },
     )
     requests_mock.get(API_URL + "/jobs/f00ba5/files/output.tiff", text="tiffdata")
-    requests_mock.get(API_URL + "/jobs/f00ba5/logs", json={'logs': []})
+    requests_mock.get(API_URL + "/jobs/f00ba5/logs", json={"logs": []})
 
     path = tmpdir.join("tmp.tiff")
     log = []
 
     with fake_time():
         job = con100.load_collection("SENTINEL2").execute_batch(
-            outputfile=path, out_format="GTIFF",
-            max_poll_interval=.1, print=log.append
+            outputfile=path, out_format="GTIFF", max_poll_interval=0.1, print=log.append
         )
     assert job.status() == "finished"
 
@@ -127,8 +124,7 @@ def test_execute_batch_with_error(con100, requests_mock, tmpdir):
     try:
         with fake_time():
             con100.load_collection("SENTINEL2").execute_batch(
-                outputfile=path, out_format="GTIFF",
-                max_poll_interval=.1, print=log.append
+                outputfile=path, out_format="GTIFF", max_poll_interval=0.1, print=log.append
             )
         pytest.fail("execute_batch should fail")
     except JobFailedException as e:
@@ -151,27 +147,30 @@ def test_execute_batch_with_error(con100, requests_mock, tmpdir):
     ]
 
 
-@pytest.mark.parametrize(["error_response", "expected"], [
-    (
+@pytest.mark.parametrize(
+    ["error_response", "expected"],
+    [
+        (
             {"exc": requests.ConnectionError("time out")},
             "Connection error while polling job status: time out",
-    ),
-    (
+        ),
+        (
             {"status_code": 503, "text": "service unavailable"},
             "Service availability error while polling job status: [503] service unavailable",
-    ),
-    (
+        ),
+        (
             {
                 "status_code": 503,
-                "json": {"code": "OidcProviderUnavailable", "message": "OIDC Provider is unavailable"}
+                "json": {"code": "OidcProviderUnavailable", "message": "OIDC Provider is unavailable"},
             },
             "Service availability error while polling job status: [503] OidcProviderUnavailable: OIDC Provider is unavailable",
-    ),
-    (
+        ),
+        (
             {"status_code": 502, "text": "Bad Gateway"},
             "Service availability error while polling job status: [502] Bad Gateway",
-    ),
-])
+        ),
+    ],
+)
 def test_execute_batch_with_soft_errors(con100, requests_mock, tmpdir, error_response, expected):
     requests_mock.get(API_URL + "/file_formats", json={"output": {"GTiff": {"gis_data_types": ["raster"]}}})
     requests_mock.get(API_URL + "/collections/SENTINEL2", json={"foo": "bar"})
@@ -199,15 +198,14 @@ def test_execute_batch_with_soft_errors(con100, requests_mock, tmpdir, error_res
         },
     )
     requests_mock.get(API_URL + "/jobs/f00ba5/files/output.tiff", text="tiffdata")
-    requests_mock.get(API_URL + "/jobs/f00ba5/logs", json={'logs': []})
+    requests_mock.get(API_URL + "/jobs/f00ba5/logs", json={"logs": []})
 
     path = tmpdir.join("tmp.tiff")
     log = []
 
     with fake_time():
         job = con100.load_collection("SENTINEL2").execute_batch(
-            outputfile=path, out_format="GTIFF",
-            max_poll_interval=.1, print=log.append
+            outputfile=path, out_format="GTIFF", max_poll_interval=0.1, print=log.append
         )
     assert job.status() == "finished"
 
@@ -224,35 +222,38 @@ def test_execute_batch_with_soft_errors(con100, requests_mock, tmpdir, error_res
     assert job.logs() == []
 
 
-@pytest.mark.parametrize(["error_response", "expected"], [
-    (
+@pytest.mark.parametrize(
+    ["error_response", "expected"],
+    [
+        (
             {"exc": requests.ConnectionError("time out")},
             "Connection error while polling job status: time out",
-    ),
-    (
+        ),
+        (
             {"status_code": 503, "text": "service unavailable"},
             "Service availability error while polling job status: [503] service unavailable",
-    ),
-    (
+        ),
+        (
             {
                 "status_code": 503,
-                "json": {"code": "OidcProviderUnavailable", "message": "OIDC Provider is unavailable"}
+                "json": {"code": "OidcProviderUnavailable", "message": "OIDC Provider is unavailable"},
             },
             "Service availability error while polling job status: [503] OidcProviderUnavailable: OIDC Provider is unavailable",
-    ),
-    (
+        ),
+        (
             {"status_code": 502, "text": "Bad Gateway"},
             "Service availability error while polling job status: [502] Bad Gateway",
-    ),
-])
+        ),
+    ],
+)
 def test_execute_batch_with_excessive_soft_errors(con100, requests_mock, tmpdir, error_response, expected):
     requests_mock.get(API_URL + "/file_formats", json={"output": {"GTiff": {"gis_data_types": ["raster"]}}})
     requests_mock.get(API_URL + "/collections/SENTINEL2", json={"foo": "bar"})
     requests_mock.post(API_URL + "/jobs", status_code=201, headers={"OpenEO-Identifier": "f00ba5"})
     requests_mock.post(API_URL + "/jobs/f00ba5/results", status_code=202)
     responses = [
-        {'json': {"status": "queued"}},
-        {'json': {"status": "running", "progress": 15}},
+        {"json": {"status": "queued"}},
+        {"json": {"status": "running", "progress": 15}},
     ]
     responses.extend([error_response] * 20)
     requests_mock.get(API_URL + "/jobs/f00ba5", responses)
@@ -262,8 +263,7 @@ def test_execute_batch_with_excessive_soft_errors(con100, requests_mock, tmpdir,
 
     with fake_time(), pytest.raises(OpenEoClientException, match="Excessive soft errors"):
         con100.load_collection("SENTINEL2").execute_batch(
-            outputfile=path, out_format="GTIFF",
-            max_poll_interval=.1, print=log.append
+            outputfile=path, out_format="GTIFF", max_poll_interval=0.1, print=log.append
         )
 
     assert log[:7] == [
@@ -278,13 +278,10 @@ def test_execute_batch_with_excessive_soft_errors(con100, requests_mock, tmpdir,
 
 
 def test_get_job_logs(con100, requests_mock):
-    requests_mock.get(API_URL + "/jobs/f00ba5/logs", json={
-        'logs': [{
-            'id': "123abc",
-            'level': 'error',
-            'message': "error processing batch job"
-        }]
-    })
+    requests_mock.get(
+        API_URL + "/jobs/f00ba5/logs",
+        json={"logs": [{"id": "123abc", "level": "error", "message": "error processing batch job"}]},
+    )
 
     log_entries = con100.job("f00ba5").logs(offset="123abc")
 
@@ -347,9 +344,7 @@ def test_get_job_logs_returns_debug_loglevel_by_default(con100, requests_mock):
         ("debug", 4),
     ],
 )
-def test_get_job_logs_keeps_loglevel_that_is_higher_or_equal(
-    con100, requests_mock, log_level, exp_num_messages
-):
+def test_get_job_logs_keeps_loglevel_that_is_higher_or_equal(con100, requests_mock, log_level, exp_num_messages):
     requests_mock.get(
         API_URL + "/jobs/f00ba5/logs",
         json={
@@ -386,13 +381,13 @@ def test_create_job_100(con100, requests_mock):
     def check_request(request):
         assert request.json() == {
             "process": {"process_graph": {"foo1": {"process_id": "foo"}}},
-            "title": "Foo", "description": "just testing"
+            "title": "Foo",
+            "description": "just testing",
         }
         return True
 
     requests_mock.post(
-        API_URL + "/jobs",
-        status_code=201, headers={"OpenEO-Identifier": "f00ba5"}, additional_matcher=check_request
+        API_URL + "/jobs", status_code=201, headers={"OpenEO-Identifier": "f00ba5"}, additional_matcher=check_request
     )
     con100.create_job({"foo1": {"process_id": "foo"}}, title="Foo", description="just testing")
 
@@ -404,17 +399,19 @@ def test_get_results_metadata_url(con100):
 
 def test_get_results_metadata_url_full(con100):
     job = con100.job("job-456")
-    assert (
-        job.get_results_metadata_url(full=True)
-        == "https://oeo.test/jobs/job-456/results"
-    )
+    assert job.get_results_metadata_url(full=True) == "https://oeo.test/jobs/job-456/results"
 
 
 @pytest.fixture
 def job_with_1_asset(con100, requests_mock, tmp_path) -> BatchJob:
-    requests_mock.get(API_URL + "/jobs/jj1/results", json={"assets": {
-        "1.tiff": {"href": API_URL + "/dl/jjr1.tiff", "type": "image/tiff; application=geotiff"},
-    }})
+    requests_mock.get(
+        API_URL + "/jobs/jj1/results",
+        json={
+            "assets": {
+                "1.tiff": {"href": API_URL + "/dl/jjr1.tiff", "type": "image/tiff; application=geotiff"},
+            }
+        },
+    )
     requests_mock.get(API_URL + "/dl/jjr1.tiff", content=TIFF_CONTENT)
     job = BatchJob("jj1", connection=con100)
     return job
@@ -422,14 +419,17 @@ def job_with_1_asset(con100, requests_mock, tmp_path) -> BatchJob:
 
 @pytest.fixture
 def job_with_2_assets(con100, requests_mock, tmp_path) -> BatchJob:
-    requests_mock.get(API_URL + "/jobs/jj2/results", json={
-        # This is a STAC Item
-        "type": "Feature",
-        "assets": {
-            "1.tiff": {"href": API_URL + "/dl/jjr1.tiff", "type": "image/tiff; application=geotiff"},
-            "2.tiff": {"href": API_URL + "/dl/jjr2.tiff", "type": "image/tiff; application=geotiff"},
-        }
-    })
+    requests_mock.get(
+        API_URL + "/jobs/jj2/results",
+        json={
+            # This is a STAC Item
+            "type": "Feature",
+            "assets": {
+                "1.tiff": {"href": API_URL + "/dl/jjr1.tiff", "type": "image/tiff; application=geotiff"},
+                "2.tiff": {"href": API_URL + "/dl/jjr2.tiff", "type": "image/tiff; application=geotiff"},
+            },
+        },
+    )
     requests_mock.get(API_URL + "/dl/jjr1.tiff", content=TIFF_CONTENT)
     requests_mock.get(API_URL + "/dl/jjr2.tiff", content=TIFF_CONTENT)
     job = BatchJob("jj2", connection=con100)
@@ -508,8 +508,6 @@ def test_get_results_multiple_download_single_by_wrong_name(job_with_2_assets: B
         job.get_results().download_file(target, name="foobar.tiff")
 
 
-
-
 def test_download_results(job_with_2_assets: BatchJob, tmp_path):
     job = job_with_2_assets
     target = tmp_path / "folder"
@@ -526,10 +524,13 @@ def test_download_results(job_with_2_assets: BatchJob, tmp_path):
 
 def test_list_results(job_with_2_assets: BatchJob, tmp_path):
     job = job_with_2_assets
-    assert job.list_results() == {"type": "Feature", 'assets': {
-        '1.tiff': {'href': 'https://oeo.test/dl/jjr1.tiff', 'type': 'image/tiff; application=geotiff'},
-        '2.tiff': {'href': 'https://oeo.test/dl/jjr2.tiff', 'type': 'image/tiff; application=geotiff'}
-    }}
+    assert job.list_results() == {
+        "type": "Feature",
+        "assets": {
+            "1.tiff": {"href": "https://oeo.test/dl/jjr1.tiff", "type": "image/tiff; application=geotiff"},
+            "2.tiff": {"href": "https://oeo.test/dl/jjr2.tiff", "type": "image/tiff; application=geotiff"},
+        },
+    }
 
 
 def test_get_results_download_files(job_with_2_assets: BatchJob, tmp_path):
@@ -541,8 +542,8 @@ def test_get_results_download_files(job_with_2_assets: BatchJob, tmp_path):
 
     assets = job.get_results().get_assets()
     assert {a.name: a.metadata for a in assets} == {
-        '1.tiff': {'href': 'https://oeo.test/dl/jjr1.tiff', 'type': 'image/tiff; application=geotiff'},
-        '2.tiff': {'href': 'https://oeo.test/dl/jjr2.tiff', 'type': 'image/tiff; application=geotiff'},
+        "1.tiff": {"href": "https://oeo.test/dl/jjr1.tiff", "type": "image/tiff; application=geotiff"},
+        "2.tiff": {"href": "https://oeo.test/dl/jjr2.tiff", "type": "image/tiff; application=geotiff"},
     }
 
     downloads = results.download_files(target)
@@ -552,8 +553,8 @@ def test_get_results_download_files(job_with_2_assets: BatchJob, tmp_path):
     job_results_metadata = json.loads((target / "job-results.json").read_text())
     assert job_results_metadata["type"] == "Feature"
     assert job_results_metadata["assets"] == {
-        '1.tiff': {'href': 'https://oeo.test/dl/jjr1.tiff', 'type': 'image/tiff; application=geotiff'},
-        '2.tiff': {'href': 'https://oeo.test/dl/jjr2.tiff', 'type': 'image/tiff; application=geotiff'},
+        "1.tiff": {"href": "https://oeo.test/dl/jjr1.tiff", "type": "image/tiff; application=geotiff"},
+        "2.tiff": {"href": "https://oeo.test/dl/jjr2.tiff", "type": "image/tiff; application=geotiff"},
     }
 
 
@@ -571,17 +572,17 @@ def test_get_results_download_files_new_folder(job_with_2_assets: BatchJob, tmp_
     job_results_metadata = json.loads((target / "job-results.json").read_text())
     assert job_results_metadata["type"] == "Feature"
     assert job_results_metadata["assets"] == {
-        '1.tiff': {'href': 'https://oeo.test/dl/jjr1.tiff', 'type': 'image/tiff; application=geotiff'},
-        '2.tiff': {'href': 'https://oeo.test/dl/jjr2.tiff', 'type': 'image/tiff; application=geotiff'},
+        "1.tiff": {"href": "https://oeo.test/dl/jjr1.tiff", "type": "image/tiff; application=geotiff"},
+        "2.tiff": {"href": "https://oeo.test/dl/jjr2.tiff", "type": "image/tiff; application=geotiff"},
     }
 
 
-@pytest.mark.parametrize(["include_stac_metadata", "expected"], [
-    (True, {"1.tiff", "2.tiff", "job-results.json"}),
-    (False, {"1.tiff", "2.tiff"})
-])
+@pytest.mark.parametrize(
+    ["include_stac_metadata", "expected"],
+    [(True, {"1.tiff", "2.tiff", "job-results.json"}), (False, {"1.tiff", "2.tiff"})],
+)
 def test_get_results_download_files_include_stac_metadata(
-        job_with_2_assets: BatchJob, tmp_path, include_stac_metadata, expected
+    job_with_2_assets: BatchJob, tmp_path, include_stac_metadata, expected
 ):
     results = job_with_2_assets.get_results()
     target = tmp_path / "folder"
@@ -596,7 +597,7 @@ def test_result_asset_download_file(con100, requests_mock, tmp_path):
     requests_mock.get(href, content=TIFF_CONTENT)
 
     job = BatchJob("jj", connection=con100)
-    asset = ResultAsset(job, name="1.tiff", href=href, metadata={'type': 'image/tiff; application=geotiff'})
+    asset = ResultAsset(job, name="1.tiff", href=href, metadata={"type": "image/tiff; application=geotiff"})
     target = tmp_path / "res.tiff"
     path = asset.download(target)
 
@@ -647,14 +648,16 @@ def test_result_asset_load_bytes(con100, requests_mock):
 def test_get_results_download_file_other_domain(con100, requests_mock, tmp_path):
     """https://github.com/Open-EO/openeo-python-client/issues/201"""
     secret = "!secret token!"
-    requests_mock.get(API_URL + '/credentials/basic', json={"access_token": secret})
+    requests_mock.get(API_URL + "/credentials/basic", json={"access_token": secret})
 
     def get_results(request, context):
         assert "auth" in repr(request.headers).lower()
         assert secret in repr(request.headers)
-        return {"assets": {
-            "1.tiff": {"href": "https://evilcorp.test/dl/jjr1.tiff", "type": "image/tiff; application=geotiff"},
-        }}
+        return {
+            "assets": {
+                "1.tiff": {"href": "https://evilcorp.test/dl/jjr1.tiff", "type": "image/tiff; application=geotiff"},
+            }
+        }
 
     def download_tiff(request, context):
         assert "auth" not in repr(request.headers).lower()
@@ -679,9 +682,7 @@ def test_list_jobs(con100, requests_mock):
     access_token = "6cc35!"
     requests_mock.get(
         API_URL + "/credentials/basic",
-        text=_credentials_basic_handler(
-            username=username, password=password, access_token=access_token
-        ),
+        text=_credentials_basic_handler(username=username, password=password, access_token=access_token),
     )
 
     def get_jobs(request, context):

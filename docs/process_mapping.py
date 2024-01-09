@@ -18,7 +18,9 @@ from openeo.internal.documentation import _process_registry
 
 
 def main():
-    print(dedent(f"""
+    print(
+        dedent(
+            f"""
         ..
             !Warning! This is an auto-generated file.
             Do not edit directly.
@@ -37,7 +39,9 @@ def main():
 
             *   - openEO process
                 - openEO Python Client Method
-    """))
+    """
+        )
+    )
     # Import some submodules to make sure `_process_registry` is populated
     for mod in [
         "openeo.rest.datacube",
@@ -49,10 +53,7 @@ def main():
 
     for process_id in sorted(_process_registry.keys()):
         functions = [x[0] for x in _process_registry[process_id]]
-        refs = [
-            f":py:meth:`{f.__qualname__}() <{f.__module__}.{f.__qualname__}>`"
-            for f in functions
-        ]
+        refs = [f":py:meth:`{f.__qualname__}() <{f.__module__}.{f.__qualname__}>`" for f in functions]
 
         print(f"    *   - `{process_id} <https://processes.openeo.org/#{process_id}>`_")
         print(f"        -", ", ".join(refs))

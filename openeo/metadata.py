@@ -27,8 +27,7 @@ class Dimension:
 
     def __repr__(self):
         return "{c}({f})".format(
-            c=self.__class__.__name__,
-            f=", ".join("{k!s}={v!r}".format(k=k, v=v) for (k, v) in self.__dict__.items())
+            c=self.__class__.__name__, f=", ".join("{k!s}={v!r}".format(k=k, v=v) for (k, v) in self.__dict__.items())
         )
 
     def __eq__(self, other):
@@ -161,20 +160,14 @@ class BandDimension(Dimension):
         Construct new BandDimension with subset of bands,
         based on given band indices or (common) names
         """
-        return BandDimension(
-            name=self.name,
-            bands=[self.bands[self.band_index(b)] for b in bands]
-        )
+        return BandDimension(name=self.name, bands=[self.bands[self.band_index(b)] for b in bands])
 
     def append_band(self, band: Band) -> BandDimension:
         """Create new BandDimension with appended band."""
         if band.name in self.band_names:
             raise ValueError("Duplicate band {b!r}".format(b=band))
 
-        return BandDimension(
-            name=self.name,
-            bands=self.bands + [band]
-        )
+        return BandDimension(name=self.name, bands=self.bands + [band])
 
     def rename_labels(self, target, source) -> Dimension:
         if source:
@@ -401,20 +394,18 @@ class CollectionMetadata:
         :return:
         """
         assert self.band_dimension
-        return self._clone_and_update(dimensions=[
-            d.filter_bands(band_names) if isinstance(d, BandDimension) else d
-            for d in self._dimensions
-        ])
+        return self._clone_and_update(
+            dimensions=[d.filter_bands(band_names) if isinstance(d, BandDimension) else d for d in self._dimensions]
+        )
 
     def append_band(self, band: Band) -> CollectionMetadata:
         """
         Create new `CollectionMetadata` with given band added to band dimension.
         """
         assert self.band_dimension
-        return self._clone_and_update(dimensions=[
-            d.append_band(band) if isinstance(d, BandDimension) else d
-            for d in self._dimensions
-        ])
+        return self._clone_and_update(
+            dimensions=[d.append_band(band) if isinstance(d, BandDimension) else d for d in self._dimensions]
+        )
 
     def rename_labels(self, dimension: str, target: list, source: list = None) -> CollectionMetadata:
         """
@@ -451,7 +442,7 @@ class CollectionMetadata:
         # TODO: merge with drop_dimension (which does the same).
         self.assert_valid_dimension(dimension_name)
         loc = self.dimension_names().index(dimension_name)
-        dimensions = self._dimensions[:loc] + self._dimensions[loc + 1:]
+        dimensions = self._dimensions[:loc] + self._dimensions[loc + 1 :]
         return self._clone_and_update(dimensions=dimensions)
 
     def reduce_spatial(self) -> CollectionMetadata:

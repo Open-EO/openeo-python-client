@@ -21,14 +21,17 @@ from .test_xarraydatacube import _build_xdc
 UDF_CODE_PATH = Path(__file__).parent / "udf_code"
 
 
-@pytest.mark.parametrize(["annotation", "expected"], [
-    ("str", "str"),
-    (pandas.Series, "pandas.core.series.Series"),
-    (XarrayDataCube, "openeo.udf.xarraydatacube.XarrayDataCube"),
-    (UdfData, "openeo.udf.udf_data.UdfData"),
-    (str, "str"),
-    (list, "list"),
-])
+@pytest.mark.parametrize(
+    ["annotation", "expected"],
+    [
+        ("str", "str"),
+        (pandas.Series, "pandas.core.series.Series"),
+        (XarrayDataCube, "openeo.udf.xarraydatacube.XarrayDataCube"),
+        (UdfData, "openeo.udf.udf_data.UdfData"),
+        (str, "str"),
+        (list, "list"),
+    ],
+)
 def test_get_annotation_str(annotation, expected):
     assert _get_annotation_str(annotation) == expected
 
@@ -56,18 +59,19 @@ def _get_udf_code(filename: str):
 
 
 def _build_txy_data(
-        ts: list, xs: list, ys: list, name: str,
-        offset=0, t_factor=100, x_factor=10, y_factor=1
+    ts: list, xs: list, ys: list, name: str, offset=0, t_factor=100, x_factor=10, y_factor=1
 ) -> XarrayDataCube:
     """Build `XarrayDataCube` with given t, x and y labels"""
-    t, x, y = numpy.ogrid[0:len(ts), 0:len(xs), 0:len(ys)]
+    t, x, y = numpy.ogrid[0 : len(ts), 0 : len(xs), 0 : len(ys)]
     a = offset + t_factor * t + x_factor * x + y_factor * y
-    return XarrayDataCube(xarray.DataArray(
-        data=a,
-        coords={"t": ts, "x": xs, "y": ys},
-        dims=['t', 'x', 'y'],
-        name=name,
-    ))
+    return XarrayDataCube(
+        xarray.DataArray(
+            data=a,
+            coords={"t": ts, "x": xs, "y": ys},
+            dims=["t", "x", "y"],
+            name=name,
+        )
+    )
 
 
 def test_run_udf_code_map_fabs():
@@ -77,7 +81,7 @@ def test_run_udf_code_map_fabs():
     result = run_udf_code(code=udf_code, data=udf_data)
 
     assert list(xdc.array[0, :2, :].values.ravel()) == [0, 1, 2, -10, -9, -8]
-    output, = result.get_datacube_list()
+    (output,) = result.get_datacube_list()
     assert output.id == "temp_fabs"
     assert output.array.name == "temp_fabs"
     assert output.array.shape == (3, 3, 3)
@@ -116,11 +120,11 @@ def test_run_udf_code_reduce_time_min_median_max():
 
     assert y.id == "temp_median"
     assert y.array.shape == (2, 3)
-    assert list(y.array.values.ravel()) == [102., 103., 104., 112., 113., 114.]
+    assert list(y.array.values.ravel()) == [102.0, 103.0, 104.0, 112.0, 113.0, 114.0]
 
     assert z.id == "temp_max"
     assert z.array.shape == (2, 3)
-    assert list(z.array.values.ravel()) == [202., 203., 204., 212., 213., 214.]
+    assert list(z.array.values.ravel()) == [202.0, 203.0, 204.0, 212.0, 213.0, 214.0]
 
 
 def test_run_udf_code_ndvi():
@@ -132,7 +136,7 @@ def test_run_udf_code_ndvi():
 
     print(nir.array)
     print(red.array)
-    n, = result.get_datacube_list()
+    (n,) = result.get_datacube_list()
     assert n.id == "NDVI"
     assert n.array.shape == (1, 2, 3)
 
@@ -140,8 +144,12 @@ def test_run_udf_code_ndvi():
         return (nir - red) / (nir + red)
 
     assert list(n.array.values.ravel()) == [
-        ndvi(2, 4), ndvi(3, 5), ndvi(4, 6),
-        ndvi(12, 14), ndvi(13, 15), ndvi(14, 16)
+        ndvi(2, 4),
+        ndvi(3, 5),
+        ndvi(4, 6),
+        ndvi(12, 14),
+        ndvi(13, 15),
+        ndvi(14, 16),
     ]
 
 
@@ -151,20 +159,22 @@ def test_run_udf_code_statistics():
     udf_data = UdfData(datacube_list=[xdc])
     result = run_udf_code(code=udf_code, data=udf_data)
 
-    structured, = result.structured_data_list
+    (structured,) = result.structured_data_list
     assert structured.to_dict() == {
         "data": {"temp": {"min": 2, "mean": 58, "max": 114, "sum": 696}},
         "type": "dict",
-        "description": "Statistical data sum, min, max and mean for each raster collection cube as dict"
+        "description": "Statistical data sum, min, max and mean for each raster collection cube as dict",
     }
 
 
 def test_run_udf_code_apply_timeseries_txy():
-    udf_code = textwrap.dedent("""
+    udf_code = textwrap.dedent(
+        """
         import pandas as pd
         def apply_timeseries(series: pd.Series, context: dict) -> pd.Series:
             return series - series.mean()
-    """)
+    """
+    )
     a = _build_txy_data(ts=[2018, 2019, 2020, 2021], xs=[2, 3], ys=[10, 20, 30], name="temp", t_factor=2)
     b = _build_txy_data(ts=[2018, 2019, 2020, 2021], xs=[2, 3], ys=[10, 20, 30], name="prec", t_factor=10)
     udf_data = UdfData(datacube_list=[a, b])
@@ -173,67 +183,75 @@ def test_run_udf_code_apply_timeseries_txy():
     aa, bb = result.get_datacube_list()
     assert isinstance(aa, XarrayDataCube)
     expected_dims = [
-        {'name': 't', 'coordinates': [2018, 2019, 2020, 2021]},
-        {'name': 'x', 'coordinates': [2, 3]},
-        {'name': 'y', 'coordinates': [10, 20, 30]}
+        {"name": "t", "coordinates": [2018, 2019, 2020, 2021]},
+        {"name": "x", "coordinates": [2, 3]},
+        {"name": "y", "coordinates": [10, 20, 30]},
     ]
     assert aa.to_dict() == {
-        'id': 'temp',
-        'data': [
+        "id": "temp",
+        "data": [
             [[-3, -3, -3], [-3, -3, -3]],
             [[-1, -1, -1], [-1, -1, -1]],
             [[1, 1, 1], [1, 1, 1]],
             [[3, 3, 3], [3, 3, 3]],
         ],
-        'dimensions': expected_dims,
+        "dimensions": expected_dims,
     }
     assert isinstance(bb, XarrayDataCube)
     assert bb.to_dict() == {
-        'id': 'prec',
-        'data': [
+        "id": "prec",
+        "data": [
             [[-15, -15, -15], [-15, -15, -15]],
             [[-5, -5, -5], [-5, -5, -5]],
             [[5, 5, 5], [5, 5, 5]],
-            [[15, 15, 15], [15, 15, 15]]
+            [[15, 15, 15], [15, 15, 15]],
         ],
-        'dimensions': expected_dims,
+        "dimensions": expected_dims,
     }
 
 
 def test_run_udf_code_apply_timeseries_tb():
-    udf_code = textwrap.dedent("""
+    udf_code = textwrap.dedent(
+        """
         import pandas as pd
         def apply_timeseries(series: pd.Series, context: dict) -> pd.Series:
             return series - series.mean()
-    """)
+    """
+    )
 
     xdc = _build_xdc(ts=[2018, 2019, 2020, 2021], bands=["red", "green", "blue"])
     udf_data = UdfData(datacube_list=[xdc])
     result = run_udf_code(code=udf_code, data=udf_data)
 
-    aa, = result.get_datacube_list()
+    (aa,) = result.get_datacube_list()
     assert isinstance(aa, XarrayDataCube)
     expected_dims = [
-        {'name': 't', 'coordinates': [2018, 2019, 2020, 2021]},
-        {'name': 'bands', 'coordinates': ["red", "green", "blue"]},
+        {"name": "t", "coordinates": [2018, 2019, 2020, 2021]},
+        {"name": "bands", "coordinates": ["red", "green", "blue"]},
     ]
     assert aa.to_dict() == {
-        'data': [[-15, -15, -15], [-5, -5, -5], [5, 5, 5], [15, 15, 15]],
-        'dimensions': expected_dims,
+        "data": [[-15, -15, -15], [-5, -5, -5], [5, 5, 5], [15, 15, 15]],
+        "dimensions": expected_dims,
     }
 
 
 def _ndvi(red, nir):
     return (nir - red) / (nir + red)
 
-@pytest.mark.parametrize(["udf_file"], [
-    ("ndvi01.py",),
-    ("ndvi03.py",),
-])
+
+@pytest.mark.parametrize(
+    ["udf_file"],
+    [
+        ("ndvi01.py",),
+        ("ndvi03.py",),
+    ],
+)
 def test_execute_local_udf_basic(udf_file):
     xdc = _build_xdc(
-        ts=[numpy.datetime64('2020-08-01'), numpy.datetime64('2020-08-11'), numpy.datetime64('2020-08-21')],
-        bands=['bandzero', 'bandone'], xs=[10., 11., 12., 13., 14.], ys=[20., 21., 22., 23., 24., 25.]
+        ts=[numpy.datetime64("2020-08-01"), numpy.datetime64("2020-08-11"), numpy.datetime64("2020-08-21")],
+        bands=["bandzero", "bandone"],
+        xs=[10.0, 11.0, 12.0, 13.0, 14.0],
+        ys=[20.0, 21.0, 22.0, 23.0, 24.0, 25.0],
     )
     udf_code = _get_udf_code(udf_file)
     res = execute_local_udf(udf_code, xdc)
@@ -245,7 +263,7 @@ def test_execute_local_udf_basic(udf_file):
     expected = xarray.DataArray(
         [[_ndvi(0, 100), _ndvi(10, 110)], [_ndvi(1, 101), _ndvi(11, 111)]],
         dims=["y", "x"],
-        coords={"t": numpy.datetime64("2020-08-01"), "bands": "ndvi"}
+        coords={"t": numpy.datetime64("2020-08-01"), "bands": "ndvi"},
     )
     xarray.testing.assert_equal(result[0, 0, 0:2, 0:2], expected)
 
@@ -255,8 +273,10 @@ def test_execute_local_udf_basic(udf_file):
 def test_run_local_udf_from_file_json(tmp_path):
     udf_code = _get_udf_code("ndvi01.py")
     xdc = _build_xdc(
-        ts=[numpy.datetime64('2020-08-01'), numpy.datetime64('2020-08-11'), numpy.datetime64('2020-08-21')],
-        bands=['bandzero', 'bandone'], xs=[10., 11., 12., 13., 14.], ys=[20., 21., 22., 23., 24., 25.]
+        ts=[numpy.datetime64("2020-08-01"), numpy.datetime64("2020-08-11"), numpy.datetime64("2020-08-21")],
+        bands=["bandzero", "bandone"],
+        xs=[10.0, 11.0, 12.0, 13.0, 14.0],
+        ys=[20.0, 21.0, 22.0, 23.0, 24.0, 25.0],
     )
     data_path = tmp_path / "data.json"
     xdc.save_to_file(path=data_path, fmt="json")
@@ -270,7 +290,7 @@ def test_run_local_udf_from_file_json(tmp_path):
     expected = xarray.DataArray(
         [[_ndvi(0, 100), _ndvi(10, 110)], [_ndvi(1, 101), _ndvi(11, 111)]],
         dims=["y", "x"],
-        coords={"t": numpy.datetime64("2020-08-01"), "bands": "ndvi"}
+        coords={"t": numpy.datetime64("2020-08-01"), "bands": "ndvi"},
     )
     xarray.testing.assert_equal(result[0, 0, 0:2, 0:2], expected)
 
@@ -280,8 +300,10 @@ def test_run_local_udf_from_file_json(tmp_path):
 def test_run_local_udf_from_file_netcdf(tmp_path):
     udf_code = _get_udf_code("ndvi01.py")
     xdc = _build_xdc(
-        ts=[numpy.datetime64('2020-08-01'), numpy.datetime64('2020-08-11'), numpy.datetime64('2020-08-21')],
-        bands=['bandzero', 'bandone'], xs=[10., 11., 12., 13., 14.], ys=[20., 21., 22., 23., 24., 25.]
+        ts=[numpy.datetime64("2020-08-01"), numpy.datetime64("2020-08-11"), numpy.datetime64("2020-08-21")],
+        bands=["bandzero", "bandone"],
+        xs=[10.0, 11.0, 12.0, 13.0, 14.0],
+        ys=[20.0, 21.0, 22.0, 23.0, 24.0, 25.0],
     )
     data_path = tmp_path / "data.nc"
     xdc.save_to_file(path=data_path, fmt="netcdf")
@@ -295,7 +317,7 @@ def test_run_local_udf_from_file_netcdf(tmp_path):
     expected = xarray.DataArray(
         [[_ndvi(0, 100), _ndvi(10, 110)], [_ndvi(1, 101), _ndvi(11, 111)]],
         dims=["y", "x"],
-        coords={"t": numpy.datetime64("2020-08-01"), "bands": "ndvi"}
+        coords={"t": numpy.datetime64("2020-08-01"), "bands": "ndvi"},
     )
     xarray.testing.assert_equal(result[0, 0, 0:2, 0:2], expected)
 

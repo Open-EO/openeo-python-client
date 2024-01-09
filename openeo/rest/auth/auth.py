@@ -21,6 +21,7 @@ class OpenEoApiAuthBase(AuthBase):
 
 class NullAuth(OpenEoApiAuthBase):
     """No authentication"""
+
     pass
 
 
@@ -35,7 +36,7 @@ class BearerAuth(OpenEoApiAuthBase):
 
     def __call__(self, req: Request) -> Request:
         # Add bearer authorization header.
-        req.headers['Authorization'] = "Bearer {b}".format(b=self.bearer)
+        req.headers["Authorization"] = "Bearer {b}".format(b=self.bearer)
         return req
 
 
@@ -43,11 +44,11 @@ class BasicBearerAuth(BearerAuth):
     """Bearer token for Basic Auth (openEO API 1.0.0 style)"""
 
     def __init__(self, access_token: str):
-        super().__init__(bearer='basic//{t}'.format(t=access_token))
+        super().__init__(bearer="basic//{t}".format(t=access_token))
 
 
 class OidcBearerAuth(BearerAuth):
     """Bearer token for OIDC Auth (openEO API 1.0.0 style)"""
 
     def __init__(self, provider_id: str, access_token: str):
-        super().__init__(bearer='oidc/{p}/{t}'.format(p=provider_id, t=access_token))
+        super().__init__(bearer="oidc/{p}/{t}".format(p=provider_id, t=access_token))

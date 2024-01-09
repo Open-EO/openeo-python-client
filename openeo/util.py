@@ -61,14 +61,18 @@ class Rfc3339:
 
     Also see https://tools.ietf.org/html/rfc3339#section-5.6
     """
+
     # TODO: currently we hard code timezone 'Z' for simplicity. Add real time zone support?
-    _FMT_DATE = '%Y-%m-%d'
-    _FMT_TIME = '%H:%M:%SZ'
+    _FMT_DATE = "%Y-%m-%d"
+    _FMT_TIME = "%H:%M:%SZ"
     _FMT_DATETIME = _FMT_DATE + "T" + _FMT_TIME
 
-    _regex_datetime = re.compile(r"""
+    _regex_datetime = re.compile(
+        r"""
         ^(?P<Y>\d{4})[:/_-](?P<m>\d{2})[:/_-](?P<d>\d{2})[T :/_-]?
-        (?:(?P<H>\d{2})[:/_-](?P<M>\d{2})(?:[:/_-](?P<S>\d{2}))?)?""", re.VERBOSE)
+        (?:(?P<H>\d{2})[:/_-](?P<M>\d{2})(?:[:/_-](?P<S>\d{2}))?)?""",
+        re.VERBOSE,
+    )
 
     def __init__(self, propagate_none: bool = False):
         self._propagate_none = propagate_none
@@ -139,9 +143,7 @@ class Rfc3339:
             return None
         raise ValueError(x)
 
-    def parse_datetime(
-        self, x: Union[str, None], with_timezone: bool = False
-    ) -> Union[dt.datetime, None]:
+    def parse_datetime(self, x: Union[str, None], with_timezone: bool = False) -> Union[dt.datetime, None]:
         """Parse given string as RFC3339 date-time."""
         if isinstance(x, str):
             # TODO: Also support parsing other timezones than UTC (Z)
@@ -219,11 +221,7 @@ def dict_no_none(*args, **kwargs) -> dict:
     """
     Helper to build a dict containing given key-value pairs where the value is not None.
     """
-    return {
-        k: v
-        for k, v in dict(*args, **kwargs).items()
-        if v is not None
-    }
+    return {k: v for k, v in dict(*args, **kwargs).items() if v is not None}
 
 
 def first_not_none(*args):
@@ -344,11 +342,11 @@ class TimingLogger:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.end_time = self._now()
         self.elapsed = self.end_time - self.start_time
-        self._log("{t}: {s} {e}, elapsed {d}".format(
-            t=self.title,
-            s="fail" if exc_type else "end",
-            e=self.end_time, d=self.elapsed
-        ))
+        self._log(
+            "{t}: {s} {e}, elapsed {d}".format(
+                t=self.title, s="fail" if exc_type else "end", e=self.end_time, d=self.elapsed
+            )
+        )
 
     def __call__(self, f: Callable):
         """
@@ -481,7 +479,7 @@ def str_truncate(text: str, width: int = 64, ellipsis: str = "...") -> str:
         return text
     if len(ellipsis) > width:
         ellipsis = ellipsis[:width]
-    return text[:max(0, (width - len(ellipsis)))] + ellipsis
+    return text[: max(0, (width - len(ellipsis)))] + ellipsis
 
 
 def repr_truncate(obj: Any, width: int = 64, ellipsis: str = "...") -> str:

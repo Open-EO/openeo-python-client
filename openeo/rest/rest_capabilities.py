@@ -20,19 +20,19 @@ class RESTCapabilities(Capabilities):
         return deep_get(self.capabilities, *keys, default=default)
 
     def api_version(self) -> str:
-        """ Get openEO version."""
-        if 'api_version' in self.capabilities:
-            return self.capabilities.get('api_version')
+        """Get openEO version."""
+        if "api_version" in self.capabilities:
+            return self.capabilities.get("api_version")
         else:
             # Legacy/deprecated
-            return self.capabilities.get('version')
+            return self.capabilities.get("version")
 
     def list_features(self):
-        """ List all supported features / endpoints."""
-        return self.capabilities.get('endpoints')
+        """List all supported features / endpoints."""
+        return self.capabilities.get("endpoints")
 
     def has_features(self, method_name):
-        """ Check whether a feature / endpoint is supported."""
+        """Check whether a feature / endpoint is supported."""
         # Field: endpoints > ... TODO
         pass
 
@@ -51,4 +51,4 @@ class RESTCapabilities(Capabilities):
         return self.deep_get("billing", "plans", default=[])
 
     def _repr_html_(self):
-        return render_component("capabilities", data = self.capabilities, parameters = {"url": self.url})
+        return render_component("capabilities", data=self.capabilities, parameters={"url": self.url})

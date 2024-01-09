@@ -14,6 +14,7 @@ import shapely.geometry
 try:
     from geopandas import GeoDataFrame
 except ImportError:
+
     class GeoDataFrame:
         pass
 
@@ -25,11 +26,11 @@ class FeatureCollection:
     """
 
     def __init__(
-            self,
-            id: str,
-            data: GeoDataFrame,
-            start_times: Optional[Union[pandas.DatetimeIndex, List[str]]] = None,
-            end_times: Optional[Union[pandas.DatetimeIndex, List[str]]] = None
+        self,
+        id: str,
+        data: GeoDataFrame,
+        start_times: Optional[Union[pandas.DatetimeIndex, List[str]]] = None,
+        end_times: Optional[Union[pandas.DatetimeIndex, List[str]]] = None,
     ):
         """
         Constructor of the  of a vector collection

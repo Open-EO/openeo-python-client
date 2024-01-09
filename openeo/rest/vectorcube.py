@@ -178,7 +178,9 @@ class VectorCube(_ProcessGraphAbstraction):
                 raise ValueError("Argument `runtime` must be specified")
         return self.process(
             process_id="run_udf",
-            data=self, udf=udf, runtime=runtime,
+            data=self,
+            udf=udf,
+            runtime=runtime,
             arguments=dict_no_none({"version": version, "context": context}),
         )
 
@@ -298,7 +300,9 @@ class VectorCube(_ProcessGraphAbstraction):
         return job.run_synchronous(
             # TODO #135 support multi file result sets too
             outputfile=outputfile,
-            print=print, max_poll_interval=max_poll_interval, connection_retry_interval=connection_retry_interval
+            print=print,
+            max_poll_interval=max_poll_interval,
+            connection_retry_interval=connection_retry_interval,
         )
 
     def create_job(

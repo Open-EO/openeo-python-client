@@ -34,4 +34,8 @@ def hyper_ndvi(udf_data: UdfData):
     ndvi.name = "NDVI"
 
     hc = XarrayDataCube(array=ndvi)
-    udf_data.set_datacube_list([hc, ])
+    udf_data.set_datacube_list(
+        [
+            hc,
+        ]
+    )
