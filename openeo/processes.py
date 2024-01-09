@@ -3,7 +3,7 @@
 # It is automatically generated.
 # Used command line arguments:
 #    openeo/internal/processes/generator.py specs/openeo-processes specs/openeo-processes/proposals specs/openeo-processes-legacy --output openeo/processes.py
-# Generated on 2023-11-28
+# Generated on 2024-01-09
 
 from __future__ import annotations
 
@@ -1942,7 +1942,7 @@ class ProcessBuilder(ProcessBuilderBase):
         return merge_cubes(
             cube1=self,
             cube2=cube2,
-            overlap_resolver=build_child_callback(overlap_resolver, parent_parameters=['x', 'y', 'context']),
+            overlap_resolver=(build_child_callback(overlap_resolver, parent_parameters=['x', 'y', 'context']) if overlap_resolver not in [None, UNSET] else overlap_resolver),
             context=context
         )
 
@@ -4707,7 +4707,7 @@ def merge_cubes(cube1, cube2, overlap_resolver=UNSET, context=UNSET) -> ProcessB
     return _process('merge_cubes', 
         cube1=cube1,
         cube2=cube2,
-        overlap_resolver=build_child_callback(overlap_resolver, parent_parameters=['x', 'y', 'context']),
+        overlap_resolver=(build_child_callback(overlap_resolver, parent_parameters=['x', 'y', 'context']) if overlap_resolver not in [None, UNSET] else overlap_resolver),
         context=context
     )
 

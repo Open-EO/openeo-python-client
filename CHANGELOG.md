@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fix band name support in `DataCube.band()` when no metadata is available ([#515](https://github.com/Open-EO/openeo-python-client/issues/515))
+- Support optional child callbacks in generated `openeo.processes`, e.g. `merge_cubes` ([#522]((https://github.com/Open-EO/openeo-python-client/issues/522)))
 
 
 ## [0.26.0] - 2023-11-27 - "SRR6" release

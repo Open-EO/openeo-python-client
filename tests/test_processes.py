@@ -77,3 +77,25 @@ def test_apply_udf():
             "result": True,
         }
     }
+
+
+def test_merge_cubes_no_overlap_resolver():
+    res = openeo.processes.merge_cubes(cube1="dummy1", cube2="dummy2")
+    assert res.flat_graph() == {
+        "mergecubes1": {
+            "process_id": "merge_cubes",
+            "arguments": {"cube1": "dummy1", "cube2": "dummy2"},
+            "result": True,
+        }
+    }
+
+
+def test_merge_cubes_overlap_resolver_none():
+    res = openeo.processes.merge_cubes(cube1="dummy1", cube2="dummy2", overlap_resolver=None)
+    assert res.flat_graph() == {
+        "mergecubes1": {
+            "process_id": "merge_cubes",
+            "arguments": {"cube1": "dummy1", "cube2": "dummy2", "overlap_resolver": None},
+            "result": True,
+        }
+    }

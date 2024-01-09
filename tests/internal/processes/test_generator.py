@@ -293,6 +293,53 @@ def test_render_process_graph_callback_wrapping():
     )
 
 
+def test_render_process_graph_optional_callback():
+    process = Process.from_dict(
+        {
+            "id": "apply",
+            "description": "Apply",
+            "summary": "Apply",
+            "parameters": [
+                {
+                    "name": "data",
+                    "description": "Data cube",
+                    "schema": {"type": "object", "subtype": "raster-cube"},
+                },
+                {
+                    "name": "process",
+                    "description": "Process",
+                    "schema": {
+                        "type": "object",
+                        "subtype": "process-graph",
+                        "parameters": [{"name": "data", "schema": {"type": "array"}}],
+                    },
+                    "optional": True,
+                },
+            ],
+            "returns": {"description": "Data cube", "schema": {"type": "object", "subtype": "raster-cube"}},
+        }
+    )
+
+    renderer = PythonRenderer(optional_default="UNSET")
+    src = renderer.render_process(process)
+    assert src == dedent(
+        '''\
+        def apply(data, process=UNSET):
+            """
+            Apply
+
+            :param data: Data cube
+            :param process: Process
+
+            :return: Data cube
+            """
+            return _process('apply', 
+                data=data,
+                process=(build_child_callback(process, parent_parameters=['data']) if process not in [None, UNSET] else process)
+            )'''
+    )
+
+
 def test_collect_processes_basic(tmp_path):
     processes = collect_processes(sources=[get_test_resource("data/processes/1.0")])
     assert [p.id for p in processes] == ["add", "cos"]

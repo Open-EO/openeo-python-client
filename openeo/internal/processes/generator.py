@@ -82,6 +82,8 @@ class PythonRenderer:
             if parameter.schema.is_process_graph():
                 parent_parameters = [p["name"] for p in parameter.schema.schema["parameters"]]
                 arg_expression = f"build_child_callback({arg_expression}, parent_parameters={parent_parameters})"
+                if parameter.optional:
+                    arg_expression = f"({arg_expression} if {arg_name} not in [None, {self.optional_default}] else {arg_name})"
             yield f"{par_name}={arg_expression}"
 
     def _def_arguments(self, process: Process) -> Iterator[str]:
