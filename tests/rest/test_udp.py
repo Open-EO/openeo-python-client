@@ -14,7 +14,7 @@ API_URL = "https://oeo.test"
 
 @pytest.fixture
 def con100(requests_mock):
-    requests_mock.get(API_URL + "/", json=build_capabilities(udp=True))
+    requests_mock.get(API_URL + "/", json=build_capabilities(udp=True, validation=True))
     con = openeo.connect(API_URL)
     return con
 
@@ -195,6 +195,43 @@ def test_store_with_parameter(con100, requests_mock, parameters, expected_parame
     )
 
     assert adapter.called
+
+
+def test_store_with_validation(con100, requests_mock, caplog):
+    requests_mock.get(API_URL + "/processes", json={"processes": [{"id": "add"}]})
+    validation_mock = requests_mock.post(
+        API_URL + "/validation", json={"errors": [{"code": "TooComplex", "message": "Nope"}]}
+    )
+
+    two = {
+        "add": {
+            "process_id": "add",
+            "arguments": {
+                "x": 1,
+                "y": 1,
+            },
+            "result": True,
+        }
+    }
+
+    def check_body(request):
+        body = request.json()
+        assert body == {
+            "process_graph": two,
+            "public": False,
+        }
+        return True
+
+    udp_mock = requests_mock.put(API_URL + "/process_graphs/two", additional_matcher=check_body)
+
+    udp = con100.save_user_defined_process("two", two)
+    assert isinstance(udp, RESTUserDefinedProcess)
+
+    assert udp_mock.called
+    assert validation_mock.called
+    assert [(r.levelname, r.getMessage()) for r in caplog.records] == [
+        ("WARNING", "Preflight process graph validation raised: [TooComplex] Nope")
+    ]
 
 
 def test_update(con100, requests_mock):
