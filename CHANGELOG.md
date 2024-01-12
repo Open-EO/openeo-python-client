@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Removed
+
+### Fixed
+
+
+## [0.27.0] - 2024-01-12
+
+### Added
+
 - Add `DataCube.filter_labels()`
 
 ### Changed
@@ -19,8 +30,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is preserved but deprecated. ([#424](https://github.com/Open-EO/openeo-python-client/issues/424))
 - Show more informative error message on `403 Forbidden` errors from CDSE firewall ([#512](https://github.com/Open-EO/openeo-python-client/issues/512))
 - Handle API error responses more strict and avoid hiding possibly important information in JSON-formatted but non-compliant error responses.
-
-### Removed
 
 ### Fixed
 
