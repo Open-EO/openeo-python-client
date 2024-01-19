@@ -110,7 +110,7 @@ class OidcMock:
         grant_type = params["grant_type"]
         self.grant_request_history.append({"grant_type": grant_type})
         if self.expected_grant_type:
-            assert grant_type == self.expected_grant_type
+            assert grant_type == self.expected_grant_type, f"{grant_type} != {self.expected_grant_type}"
         callback = {
             "authorization_code": self.token_callback_authorization_code,
             "client_credentials": self.token_callback_client_credentials,

@@ -2350,6 +2350,57 @@ def test_authenticate_oidc_auto_renew_expired_access_token_initial_client_creden
     assert "Failed to obtain new access token (grant 'client_credentials')" in caplog.text
 
 
+def test_authenticate_oidc_default_client_handling_and_refresh_token_support(
+    requests_mock, refresh_token_store, oidc_device_code_flow_checker
+):
+    """
+    https://github.com/Open-EO/openeo-python-client/issues/530
+    """
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    issuer = "https://oidc.test"
+    requests_mock.get(
+        API_URL + "credentials/oidc",
+        json={
+            "providers": [
+                {
+                    "id": "oi",
+                    "issuer": issuer,
+                    "title": "example",
+                    "scopes": ["openid"],
+                    "default_clients": [
+                        # TODO: parameterize with/without PKCE
+                        {"id": "client_123", "grant_types": ["urn:ietf:params:oauth:grant-type:device_code+pkce"]}
+                    ],
+                }
+            ]
+        },
+    )
+    oidc_mock = OidcMock(
+        requests_mock=requests_mock,
+        expected_client_id="client_123",
+        expected_grant_type="urn:ietf:params:oauth:grant-type:device_code",
+        oidc_issuer=issuer,
+        expected_fields={
+            "scope": "openid",
+            "code_verifier": True,
+            "code_challenge": True,
+        },
+    )
+
+    # With all this set up, kick off the openid connect flow
+    conn = Connection(API_URL, refresh_token_store=refresh_token_store)
+    assert isinstance(conn.auth, NullAuth)
+    oidc_mock.state["device_code_callback_timeline"] = ["great success"]
+    with oidc_device_code_flow_checker():
+        # TODO: parameterize store_refresh_token
+        conn.authenticate_oidc(store_refresh_token=False)
+    assert isinstance(conn.auth, BearerAuth)
+    assert conn.auth.bearer == "oidc/oi/" + oidc_mock.state["access_token"]
+    assert [r["grant_type"] for r in oidc_mock.grant_request_history] == [
+        "urn:ietf:params:oauth:grant-type:device_code"
+    ]
+
+
 def test_load_collection_arguments_100(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     conn = Connection(API_URL)

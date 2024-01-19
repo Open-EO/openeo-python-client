@@ -705,11 +705,19 @@ class Connection(RestApiConnection):
             raise ValueError(f"Unhandled auth method {auth_method}")
 
         _g = DefaultOidcClientGrant  # alias for compactness
-        provider_id, client_info = self._get_oidc_provider_and_client_info(
-            provider_id=provider_id, client_id=client_id, client_secret=client_secret,
-            default_client_grant_check=lambda grants: (
-                    _g.REFRESH_TOKEN in grants and (_g.DEVICE_CODE in grants or _g.DEVICE_CODE_PKCE in grants)
+        # TODO: need for dedicated `use_refresh_token` option instead of `store_refresh_token` here,
+        #       for better distinction of intention?
+        if store_refresh_token:
+            default_client_grant_check = lambda grants: (
+                _g.REFRESH_TOKEN in grants and (_g.DEVICE_CODE in grants or _g.DEVICE_CODE_PKCE in grants)
             )
+        else:
+            default_client_grant_check = lambda grants: (_g.DEVICE_CODE in grants or _g.DEVICE_CODE_PKCE in grants)
+        provider_id, client_info = self._get_oidc_provider_and_client_info(
+            provider_id=provider_id,
+            client_id=client_id,
+            client_secret=client_secret,
+            default_client_grant_check=default_client_grant_check,
         )
 
         # Try refresh token first.
