@@ -1576,6 +1576,7 @@ class Connection(RestApiConnection):
         process_graph: Union[dict, str, Path],
         timeout: Optional[int] = None,
         validate: Optional[bool] = None,
+        auto_decode: bool = True,
     ):
         """
         Execute a process graph synchronously and return the result. If the result is a JSON object, it will be parsed.
@@ -1584,6 +1585,7 @@ class Connection(RestApiConnection):
             or as local file path or URL
         :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
+        :param auto_decode: Boolean flag to enable/disable automatic JSON decoding of the response. Defaults to True.
 
         :return: if possible parsed JSON response, otherwise raw response
         """
@@ -1595,9 +1597,13 @@ class Connection(RestApiConnection):
             expected_status=200,
             timeout=timeout or DEFAULT_TIMEOUT_SYNCHRONOUS_EXECUTE,
         )
-        try:
-            return response.json()
-        except requests.exceptions.JSONDecodeError:
+        if auto_decode:
+            try:
+                return response.json()
+            except requests.exceptions.JSONDecodeError:
+                _log.warning("Failed to decode response as JSON, returning raw response.")
+                return response
+        else:
             return response
 
     def create_job(
