@@ -10,6 +10,7 @@ from unittest import mock
 
 import numpy as np
 import pytest
+from requests import JSONDecodeError
 import shapely
 import shapely.geometry
 
@@ -545,6 +546,33 @@ def test_download_pathlib(connection, requests_mock, tmp_path):
     connection.load_collection("S2").download(pathlib.Path(str(path)), format="GTIFF")
     assert path.read_bytes() == b"tiffdata"
 
+
+def test_execute_json_decode(connection, requests_mock):
+    requests_mock.get(API_URL + "/collections/S2", json={})
+    requests_mock.post(API_URL + "/result", content=b'{"foo": "bar"}')
+    result = connection.load_collection("S2").execute(auto_decode=True)
+    assert result == {"foo": "bar"}
+
+
+def test_execute_decode_error(connection, requests_mock):
+    requests_mock.get(API_URL + "/collections/S2", json={})
+    requests_mock.post(API_URL + "/result", content=b"tiffdata")
+    with pytest.raises(JSONDecodeError):
+        connection.load_collection("S2").execute(auto_decode=True)
+
+
+def test_execute_json_raw(connection, requests_mock):
+    requests_mock.get(API_URL + "/collections/S2", json={})
+    requests_mock.post(API_URL + "/result", content=b'{"foo": "bar"}')
+    result = connection.load_collection("S2").execute(auto_decode=False)
+    assert result.content == b'{"foo": "bar"}'
+
+
+def test_execute_tiff_raw(connection, requests_mock):
+    requests_mock.get(API_URL + "/collections/S2", json={})
+    requests_mock.post(API_URL + "/result", content=b"tiffdata")
+    result = connection.load_collection("S2").execute(auto_decode=False)
+    assert result.content == b"tiffdata"
 
 @pytest.mark.parametrize(["filename", "expected_format"], [
     ("result.tiff", "GTiff"),
