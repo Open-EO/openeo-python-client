@@ -1601,8 +1601,10 @@ class Connection(RestApiConnection):
             try:
                 return response.json()
             except requests.exceptions.JSONDecodeError:
-                _log.warning("Failed to decode response as JSON, returning raw response.")
-                return response
+                _log.warning(
+                    "Failed to decode response as JSON. For other data types use `download` method instead of `execute`."
+                )
+                raise
         else:
             return response
 

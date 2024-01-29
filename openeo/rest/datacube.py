@@ -2306,9 +2306,9 @@ class DataCube(_ProcessGraphAbstraction):
             returns=returns, categories=categories, examples=examples, links=links,
         )
 
-    def execute(self, *, validate: Optional[bool] = None) -> dict:
+    def execute(self, *, validate: Optional[bool] = None, auto_decode: bool = True) -> dict:
         """Executes the process graph."""
-        return self._connection.execute(self.flat_graph(), validate=validate)
+        return self._connection.execute(self.flat_graph(), validate=validate, auto_decode=auto_decode)
 
     @staticmethod
     @deprecated(reason="Use :py:func:`openeo.udf.run_code.execute_local_udf` instead", version="0.7.0")
