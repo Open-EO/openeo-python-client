@@ -2307,7 +2307,15 @@ class DataCube(_ProcessGraphAbstraction):
         )
 
     def execute(self, *, validate: Optional[bool] = None, auto_decode: bool = True) -> dict:
-        """Executes the process graph."""
+        """
+        Execute a process graph synchronously and return the result. If the result is a JSON object, it will be parsed.
+
+        :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
+            (overruling the connection's ``auto_validate`` setting).
+        :param auto_decode: Boolean flag to enable/disable automatic JSON decoding of the response. Defaults to True.
+
+        :return: if possible parsed JSON response, otherwise raw response
+        """
         return self._connection.execute(self.flat_graph(), validate=validate, auto_decode=auto_decode)
 
     @staticmethod
