@@ -10,6 +10,7 @@ from unittest import mock
 
 import numpy as np
 import pytest
+import requests
 import shapely
 import shapely.geometry
 
@@ -564,7 +565,7 @@ def test_execute_json_raw(connection, requests_mock):
     requests_mock.get(API_URL + "/collections/S2", json={})
     requests_mock.post(API_URL + "/result", content=b'{"foo": "bar"}')
     result = connection.load_collection("S2").execute(auto_decode=False)
-    # TODO assert isinstance requests.Response
+    assert isinstance(result, requests.Response)
     assert result.content == b'{"foo": "bar"}'
 
 
