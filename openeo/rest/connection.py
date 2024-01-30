@@ -1600,11 +1600,10 @@ class Connection(RestApiConnection):
         if auto_decode:
             try:
                 return response.json()
-            except requests.exceptions.JSONDecodeError:
-                _log.warning(
+            except requests.exceptions.JSONDecodeError as e:
+                raise OpenEoClientException(
                     "Failed to decode response as JSON. For other data types use `download` method instead of `execute`."
-                )
-                raise
+                ) from e
         else:
             return response
 

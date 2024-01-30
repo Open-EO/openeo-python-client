@@ -10,11 +10,10 @@ from unittest import mock
 
 import numpy as np
 import pytest
-from requests import JSONDecodeError
 import shapely
 import shapely.geometry
 
-from openeo.rest import BandMathException
+from openeo.rest import BandMathException, OpenEoClientException
 from openeo.rest._testing import build_capabilities
 from openeo.rest.connection import Connection
 from openeo.rest.datacube import DataCube
@@ -557,14 +556,16 @@ def test_execute_json_decode(connection, requests_mock):
 def test_execute_decode_error(connection, requests_mock):
     requests_mock.get(API_URL + "/collections/S2", json={})
     requests_mock.post(API_URL + "/result", content=b"tiffdata")
-    with pytest.raises(JSONDecodeError):
+    with pytest.raises(OpenEoClientException):
         connection.load_collection("S2").execute(auto_decode=True)
+        # TODO check if the message is correct (bevat deze woorden)
 
 
 def test_execute_json_raw(connection, requests_mock):
     requests_mock.get(API_URL + "/collections/S2", json={})
     requests_mock.post(API_URL + "/result", content=b'{"foo": "bar"}')
     result = connection.load_collection("S2").execute(auto_decode=False)
+    # TODO assert isinstance requests.Response
     assert result.content == b'{"foo": "bar"}'
 
 
