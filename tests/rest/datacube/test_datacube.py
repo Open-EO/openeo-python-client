@@ -556,9 +556,8 @@ def test_execute_json_decode(connection, requests_mock):
 def test_execute_decode_error(connection, requests_mock):
     requests_mock.get(API_URL + "/collections/S2", json={})
     requests_mock.post(API_URL + "/result", content=b"tiffdata")
-    with pytest.raises(OpenEoClientException):
+    with pytest.raises(OpenEoClientException, match="Failed to decode response as JSON.*$"):
         connection.load_collection("S2").execute(auto_decode=True)
-        # TODO check if the message is correct (bevat deze woorden)
 
 
 def test_execute_json_raw(connection, requests_mock):
