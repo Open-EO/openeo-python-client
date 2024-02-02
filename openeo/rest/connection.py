@@ -1577,7 +1577,7 @@ class Connection(RestApiConnection):
         timeout: Optional[int] = None,
         validate: Optional[bool] = None,
         auto_decode: bool = True,
-    ):
+    ) -> Union[dict, requests.Response]:
         """
         Execute a process graph synchronously and return the result. If the result is a JSON object, it will be parsed.
 
@@ -1587,7 +1587,7 @@ class Connection(RestApiConnection):
             (overruling the connection's ``auto_validate`` setting).
         :param auto_decode: Boolean flag to enable/disable automatic JSON decoding of the response. Defaults to True.
 
-        :return: if possible parsed JSON response, otherwise raw response
+        :return: parsed JSON response as a dict if auto_decode is True, otherwise response object
         """
         pg_with_metadata = self._build_request_with_process_graph(process_graph=process_graph)
         self._preflight_validation(pg_with_metadata=pg_with_metadata, validate=validate)

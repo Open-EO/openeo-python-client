@@ -18,6 +18,7 @@ from builtins import staticmethod
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union, Callable
 
 import numpy as np
+import requests
 import shapely.geometry
 import shapely.geometry.base
 from shapely.geometry import MultiPolygon, Polygon, mapping
@@ -2306,7 +2307,7 @@ class DataCube(_ProcessGraphAbstraction):
             returns=returns, categories=categories, examples=examples, links=links,
         )
 
-    def execute(self, *, validate: Optional[bool] = None, auto_decode: bool = True) -> dict:
+    def execute(self, *, validate: Optional[bool] = None, auto_decode: bool = True) -> Union[dict, requests.Response]:
         """
         Execute a process graph synchronously and return the result. If the result is a JSON object, it will be parsed.
 
@@ -2314,7 +2315,7 @@ class DataCube(_ProcessGraphAbstraction):
             (overruling the connection's ``auto_validate`` setting).
         :param auto_decode: Boolean flag to enable/disable automatic JSON decoding of the response. Defaults to True.
 
-        :return: if possible parsed JSON response, otherwise raw response
+        :return: parsed JSON response as a dict if auto_decode is True, otherwise response object
         """
         return self._connection.execute(self.flat_graph(), validate=validate, auto_decode=auto_decode)
 

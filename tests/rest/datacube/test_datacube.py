@@ -573,6 +573,7 @@ def test_execute_tiff_raw(connection, requests_mock):
     requests_mock.get(API_URL + "/collections/S2", json={})
     requests_mock.post(API_URL + "/result", content=b"tiffdata")
     result = connection.load_collection("S2").execute(auto_decode=False)
+    assert isinstance(result, requests.Response)
     assert result.content == b"tiffdata"
 
 @pytest.mark.parametrize(["filename", "expected_format"], [
