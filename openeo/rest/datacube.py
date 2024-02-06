@@ -18,6 +18,7 @@ from builtins import staticmethod
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union, Callable
 
 import numpy as np
+import requests
 import shapely.geometry
 import shapely.geometry.base
 from shapely.geometry import MultiPolygon, Polygon, mapping
@@ -2306,9 +2307,17 @@ class DataCube(_ProcessGraphAbstraction):
             returns=returns, categories=categories, examples=examples, links=links,
         )
 
-    def execute(self, *, validate: Optional[bool] = None) -> dict:
-        """Executes the process graph."""
-        return self._connection.execute(self.flat_graph(), validate=validate)
+    def execute(self, *, validate: Optional[bool] = None, auto_decode: bool = True) -> Union[dict, requests.Response]:
+        """
+        Execute a process graph synchronously and return the result. If the result is a JSON object, it will be parsed.
+
+        :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
+            (overruling the connection's ``auto_validate`` setting).
+        :param auto_decode: Boolean flag to enable/disable automatic JSON decoding of the response. Defaults to True.
+
+        :return: parsed JSON response as a dict if auto_decode is True, otherwise response object
+        """
+        return self._connection.execute(self.flat_graph(), validate=validate, auto_decode=auto_decode)
 
     @staticmethod
     @deprecated(reason="Use :py:func:`openeo.udf.run_code.execute_local_udf` instead", version="0.7.0")

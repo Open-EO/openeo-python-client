@@ -1576,25 +1576,36 @@ class Connection(RestApiConnection):
         process_graph: Union[dict, str, Path],
         timeout: Optional[int] = None,
         validate: Optional[bool] = None,
-    ):
+        auto_decode: bool = True,
+    ) -> Union[dict, requests.Response]:
         """
-        Execute a process graph synchronously and return the result (assumed to be JSON).
+        Execute a process graph synchronously and return the result. If the result is a JSON object, it will be parsed.
 
         :param process_graph: (flat) dict representing a process graph, or process graph as raw JSON string,
             or as local file path or URL
         :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
+        :param auto_decode: Boolean flag to enable/disable automatic JSON decoding of the response. Defaults to True.
 
-        :return: parsed JSON response
+        :return: parsed JSON response as a dict if auto_decode is True, otherwise response object
         """
         pg_with_metadata = self._build_request_with_process_graph(process_graph=process_graph)
         self._preflight_validation(pg_with_metadata=pg_with_metadata, validate=validate)
-        return self.post(
+        response = self.post(
             path="/result",
             json=pg_with_metadata,
             expected_status=200,
             timeout=timeout or DEFAULT_TIMEOUT_SYNCHRONOUS_EXECUTE,
-        ).json()  # TODO: only do JSON decoding when mimetype is actually JSON?
+        )
+        if auto_decode:
+            try:
+                return response.json()
+            except requests.exceptions.JSONDecodeError as e:
+                raise OpenEoClientException(
+                    "Failed to decode response as JSON. For other data types use `download` method instead of `execute`."
+                ) from e
+        else:
+            return response
 
     def create_job(
         self,
