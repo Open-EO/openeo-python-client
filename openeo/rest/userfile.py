@@ -66,7 +66,7 @@ class UserFile:
         ensure_dir(target.parent)
 
         with target.open(mode="wb") as f:
-            for chunk in response.iter_content(chunk_size=None):
+            for chunk in response.iter_content(chunk_size=10000000):
                 f.write(chunk)
 
         return target

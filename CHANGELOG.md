@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 ### Changed
-
+- Changed default `chunk_size` of various `download` functions from None to 10MB. This should improve download speed of large files.
 ### Removed
 
 ### Fixed

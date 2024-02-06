@@ -351,13 +351,14 @@ class ResultAsset:
             n=self.name, t=self.metadata.get("type", "unknown"), h=self.href
         )
 
-    def download(self, target: Optional[Union[Path, str]] = None, chunk_size=None) -> Path:
+    def download(self, target: Optional[Union[Path, str]] = None, chunk_size=10000000) -> Path:
         """
         Download asset to given location
 
         :param target: download target path. Can be an existing folder
             (in which case the filename advertised by backend will be used)
             or full file name. By default, the working directory will be used.
+        :param chunk_size: size of chunks to download (in bytes). Default is 10MB
         """
         target = Path(target or Path.cwd())
         if target.is_dir():
