@@ -5,6 +5,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any, Dict, Optional, Union
 
 from openeo.util import ensure_dir
+from openeo.rest import DEFAULT_DOWNLOAD_CHUNK_SIZE
 
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).
@@ -66,7 +67,7 @@ class UserFile:
         ensure_dir(target.parent)
 
         with target.open(mode="wb") as f:
-            for chunk in response.iter_content(chunk_size=10000000):
+            for chunk in response.iter_content(chunk_size=DEFAULT_DOWNLOAD_CHUNK_SIZE):
                 f.write(chunk)
 
         return target

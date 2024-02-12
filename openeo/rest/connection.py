@@ -51,6 +51,7 @@ from openeo.rest.auth.oidc import (
     OidcRefreshTokenAuthenticator,
     OidcResourceOwnerPasswordAuthenticator,
 )
+from openeo.rest import DEFAULT_DOWNLOAD_CHUNK_SIZE
 from openeo.rest.datacube import DataCube, InputDate
 from openeo.rest.graph_building import CollectionProperty
 from openeo.rest.job import BatchJob, RESTJob
@@ -1566,7 +1567,7 @@ class Connection(RestApiConnection):
 
         if outputfile is not None:
             with Path(outputfile).open(mode="wb") as f:
-                for chunk in response.iter_content(chunk_size=10000000):
+                for chunk in response.iter_content(chunk_size=DEFAULT_DOWNLOAD_CHUNK_SIZE):
                     f.write(chunk)
         else:
             return response.content
