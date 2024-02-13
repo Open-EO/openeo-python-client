@@ -264,7 +264,9 @@ class LocalConnection():
         }
         return VisualDict("udf-runtimes", data=runtimes)
 
-    def execute(self, process_graph: Union[dict, str, Path], validate: Optional[bool] = None) -> xr.DataArray:
+    def execute(
+        self, process_graph: Union[dict, str, Path], validate: Optional[bool] = None, auto_decode: bool = None
+    ) -> xr.DataArray:
         """
         Execute locally the process graph and return the result as an xarray.DataArray.
 
