@@ -1,10 +1,6 @@
 
 # Dataset sampling
 
-Tested on:
-
-- Terrascope
-- Copernicus Dataspace Ecosystem
 
 A number of use cases do not require a full datacube to be computed,
 but rather want to extract a result at specific locations.
@@ -16,6 +12,7 @@ on relatively small areas, of for instance up to 512x512 pixels (but often much 
 When extracting larger areas, it is recommended to look into running a separate job per 'sample'.
 
 Sampling can be done for points or polygons:
+
 - point extractions basically result in a 'vector cube', so can be exported into tabular formats.
 - polygon extractions  can be stored to an individual netCDF per polygon so in this case the output is a sparse raster cube.
 
@@ -30,7 +27,7 @@ Combining all of this, results in the following sample code:
 
 ```python
 s2_bands = auth_connection.load_collection(
-    "TERRASCOPE_S2_TOC_V2",
+    "SENTINEL2_L2A",
     bands=["B04"],
     temporal_extent=["2020-05-01", "2020-06-01"],
 )
