@@ -11,6 +11,10 @@ but rather want to extract a result at specific locations.
 Examples include extracting training data for model calibration, or computing the result for
 areas where validation data is available.
 
+An important constraint is that most implementations assume that sampling is an operation 
+on relatively small areas, of for instance up to 512x512 pixels (but often much smaller). 
+When extracting larger areas, it is recommended to look into running a separate job per 'sample'.
+
 Sampling can be done for points or polygons:
 - point extractions basically result in a 'vector cube', so can be exported into tabular formats.
 - polygon extractions  can be stored to an individual netCDF per polygon so in this case the output is a sparse raster cube.
