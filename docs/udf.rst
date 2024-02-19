@@ -29,11 +29,10 @@ using the openEO Python Client library:
 
     # Build a UDF object from an inline string with Python source code.
     udf = openeo.UDF("""
-    from openeo.udf import XarrayDataCube
+    import xarray
 
-    def apply_datacube(cube: XarrayDataCube, context: dict) -> XarrayDataCube:
-        array = cube.get_array()
-        array.values = 0.0001 * array.values
+    def apply_datacube(cube: xarray.DataArray, context: dict) -> xarray.DataArray:
+        cube.values = 0.0001 * cube.values
         return cube
     """)
 
@@ -188,27 +187,20 @@ The UDF code is this short script (the part that does the actual value rescaling
     :caption: ``udf-code.py``
     :emphasize-lines: 5
 
-    from openeo.udf import XarrayDataCube
+    import xarray
 
-    def apply_datacube(cube: XarrayDataCube, context: dict) -> XarrayDataCube:
-        array = cube.get_array()
-        array.values = 0.0001 * array.values
+    def apply_datacube(cube: xarray.DataArray, context: dict) -> xarray.DataArray:
+        cube.values = 0.0001 * cube.values
         return cube
 
 Some details about this UDF script:
 
-- line 1: We import :py:class:`~openeo.udf.xarraydatacube.XarrayDataCube` to use as type annotation of the UDF function.
+- line 1: We import `xarray` as we use this as exchange format.
 - line 3: We define a function named ``apply_datacube``,
-  which receives and returns a :py:class:`~openeo.udf.xarraydatacube.XarrayDataCube` instance.
+  which receives and returns a :py:class:`~xarray.DataArray` instance.
   We follow here the :py:meth:`~openeo.udf.udf_signatures.apply_datacube()` UDF function signature.
-- line 4: ``cube`` (a :py:class:`~openeo.udf.xarraydatacube.XarrayDataCube` object) is a thin wrapper
-  around the data of the chunk we are currently processing.
-  We use :py:meth:`~openeo.udf.xarraydatacube.XarrayDataCube.get_array()` to get this data,
-  which is an ``xarray.DataArray`` object.
-- line 5: Because our scaling operation is so simple, we can transform the ``xarray.DataArray`` values in-place.
-- line 6: Consequently, because the values were updated in-place,
-  we don't have to build a new :py:class:`~openeo.udf.xarraydatacube.XarrayDataCube` object
-  and can just return the (in-place updated) ``cube`` object again.
+- line 4: Because our scaling operation is so simple, we can transform the ``xarray.DataArray`` values in-place.
+- line 5: Consequently, because the values were updated in-place, we can return the same xarray object.
 
 Workflow script
 ----------------
@@ -243,11 +235,10 @@ The UDF-specific part is highlighted.
 
     # Create a UDF object from inline source code.
     udf = openeo.UDF("""
-    from openeo.udf import XarrayDataCube
+    import xarray
 
-    def apply_datacube(cube: XarrayDataCube, context: dict) -> XarrayDataCube:
-        array = cube.get_array()
-        array.values = 0.0001 * array.values
+    def apply_datacube(cube: xarray.DataArray, context: dict) -> xarray.DataArray:
+        cube.values = 0.0001 * cube.values
         return cube
     """)
 
@@ -491,12 +482,12 @@ For example: to discover the shape of the data cube chunk that you receive in yo
     :caption: Sample UDF code with ``inspect()`` logging
     :emphasize-lines: 1, 5
 
-    from openeo.udf import XarrayDataCube, inspect
+    from openeo.udf import inspect
+    import xarray
 
-    def apply_datacube(cube: XarrayDataCube, context: dict) -> XarrayDataCube:
-        array = cube.get_array()
-        inspect(data=[array.shape], message="UDF logging shape of my array")
-        array.values = 0.0001 * array.values
+    def apply_datacube(cube: xarray.DataArray, context: dict) -> xarray.DataArray:
+        inspect(data=[cube.shape], message="UDF logging shape of my cube")
+        cube.values = 0.0001 * cube.values
         return cube
 
 After the batch job is finished (or failed), you can find this information in the logs of the batch job.
