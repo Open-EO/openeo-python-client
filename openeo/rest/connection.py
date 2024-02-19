@@ -1574,6 +1574,7 @@ class Connection(RestApiConnection):
     def execute(
         self,
         process_graph: Union[dict, str, Path],
+        *,
         timeout: Optional[int] = None,
         validate: Optional[bool] = None,
         auto_decode: bool = True,

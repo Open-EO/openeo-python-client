@@ -265,7 +265,11 @@ class LocalConnection():
         return VisualDict("udf-runtimes", data=runtimes)
 
     def execute(
-        self, process_graph: Union[dict, str, Path], validate: Optional[bool] = None, auto_decode: bool = None
+        self,
+        process_graph: Union[dict, str, Path],
+        *,
+        validate: Optional[bool] = None,
+        auto_decode: bool = True,
     ) -> xr.DataArray:
         """
         Execute locally the process graph and return the result as an xarray.DataArray.
@@ -273,5 +277,9 @@ class LocalConnection():
         :param process_graph: (flat) dict representing a process graph, or process graph as raw JSON string,
         :return: a datacube containing the requested data
         """
+        if validate:
+            raise ValueError("LocalConnection does not support process graph validation")
+        if auto_decode is not True:
+            raise ValueError("LocalConnection requires auto_decode=True")
         process_graph = as_flat_graph(process_graph)
         return OpenEOProcessGraph(process_graph).to_callable(PROCESS_REGISTRY)()
