@@ -1540,8 +1540,10 @@ class Connection(RestApiConnection):
         self,
         graph: Union[dict, FlatGraphableMixin, str, Path],
         outputfile: Union[Path, str, None] = None,
+        *,
         timeout: Optional[int] = None,
         validate: Optional[bool] = None,
+        chunk_size: int = DEFAULT_DOWNLOAD_CHUNK_SIZE,
     ) -> Union[None, bytes]:
         """
         Downloads the result of a process graph synchronously,
@@ -1554,6 +1556,7 @@ class Connection(RestApiConnection):
         :param timeout: timeout to wait for response
         :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
+        :param chunk_size: chunk size for streaming response.
         """
         pg_with_metadata = self._build_request_with_process_graph(process_graph=graph)
         self._preflight_validation(pg_with_metadata=pg_with_metadata, validate=validate)
@@ -1567,7 +1570,7 @@ class Connection(RestApiConnection):
 
         if outputfile is not None:
             with Path(outputfile).open(mode="wb") as f:
-                for chunk in response.iter_content(chunk_size=DEFAULT_DOWNLOAD_CHUNK_SIZE):
+                for chunk in response.iter_content(chunk_size=chunk_size):
                     f.write(chunk)
         else:
             return response.content
