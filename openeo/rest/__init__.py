@@ -3,7 +3,7 @@ from typing import Optional
 from openeo import BaseOpenEoException
 
 # TODO: get from config file
-DEFAULT_DOWNLOAD_CHUNK_SIZE = 10000000  # 10MB
+DEFAULT_DOWNLOAD_CHUNK_SIZE = 10_000_000  # 10MB
 
 
 class OpenEoClientException(BaseOpenEoException):
