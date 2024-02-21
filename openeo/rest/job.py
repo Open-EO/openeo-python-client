@@ -19,7 +19,13 @@ from openeo.internal.jupyter import (
     render_error,
 )
 from openeo.internal.warnings import deprecated, legacy_alias
-from openeo.rest import JobFailedException, OpenEoApiError, OpenEoClientException, OpenEoApiPlainError
+from openeo.rest import (
+    JobFailedException,
+    OpenEoApiError,
+    OpenEoClientException,
+    OpenEoApiPlainError,
+    DEFAULT_DOWNLOAD_CHUNK_SIZE,
+)
 from openeo.util import ensure_dir
 
 if typing.TYPE_CHECKING:
@@ -351,13 +357,16 @@ class ResultAsset:
             n=self.name, t=self.metadata.get("type", "unknown"), h=self.href
         )
 
-    def download(self, target: Optional[Union[Path, str]] = None, chunk_size=None) -> Path:
+    def download(
+        self, target: Optional[Union[Path, str]] = None, *, chunk_size: int = DEFAULT_DOWNLOAD_CHUNK_SIZE
+    ) -> Path:
         """
         Download asset to given location
 
         :param target: download target path. Can be an existing folder
             (in which case the filename advertised by backend will be used)
             or full file name. By default, the working directory will be used.
+        :param chunk_size: chunk size for streaming response.
         """
         target = Path(target or Path.cwd())
         if target.is_dir():
