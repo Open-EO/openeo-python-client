@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import warnings
-from typing import Any, Callable, List, NamedTuple, Optional, Tuple, Union, Self
+from typing import Any, Callable, List, NamedTuple, Optional, Tuple, Union
 
 from openeo.internal.jupyter import render_component
 from openeo.util import deep_get
