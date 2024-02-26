@@ -202,19 +202,23 @@ class BandDimension(Dimension):
 class CubeMetadata:
     """
     Interface for metadata of a data cube.
-    allows interaction with the cube dimensions and their labels (if available).
+
+    Allows interaction with the cube dimensions and their labels (if available).
     """
 
-    def __init__(self, metadata: dict, dimensions: List[Dimension] = None):
+    def __init__(self, dimensions: List[Dimension] = None):
         # Original collection metadata (actual cube metadata might be altered through processes)
-        self._orig_metadata = metadata
-
-        if dimensions == None:
-            self._dimensions = self._parse_dimensions(self._orig_metadata)
-        else:
-            self._dimensions = dimensions
+        self._dimensions = None
         self._band_dimension = None
         self._temporal_dimension = None
+
+        if dimensions is not None:
+            self.set_dimensions(dimensions=dimensions)
+
+    def set_dimensions(self, dimensions: List[Dimension]):
+        if dimensions == None:
+            raise ValueError("Dimensions can not be None.")
+        self._dimensions = dimensions
         for dim in self._dimensions:
             # TODO: here we blindly pick last bands or temporal dimension if multiple. Let user choose?
             # TODO: add spacial dimension handling?
@@ -228,25 +232,12 @@ class CubeMetadata:
     def __eq__(self, o: Any) -> bool:
         return isinstance(o, type(self)) and self._dimensions == o._dimensions
 
-    def _clone_and_update(
-        self, metadata: dict = None, dimensions: List[Dimension] = None, **kwargs
-    ) -> CubeMetadata:  # python >= 3.11: -> Self to be more correct for subclasses
+    def _clone_and_update(self, dimensions: List[Dimension] = None, **kwargs) -> CubeMetadata:
         """Create a new instance (of same class) with copied/updated fields."""
-        # TODO: do we want to keep the type the same or force it to be CubeMetadata?
-        # this method is e.g. used by reduce_dimension, which should return a CubeMetadata
-        # If adjusted, name should be changed to e.g. _create_updated
-        # Alternative is to use an optional argument to specify the class to use
         cls = type(self)
         if dimensions == None:
             dimensions = self._dimensions
-        return cls(metadata=metadata or self._orig_metadata, dimensions=dimensions, **kwargs)
-
-    @classmethod
-    def _parse_dimensions(**kwargs):
-        pass
-
-    def get(self, *args, default=None):
-        return deep_get(self._orig_metadata, *args, default=default)
+        return cls(dimensions=dimensions, **kwargs)
 
     def dimension_names(self) -> List[str]:
         return list(d.name for d in self._dimensions)
@@ -390,7 +381,7 @@ class CubeMetadata:
 
 class CollectionMetadata(CubeMetadata):
     """
-    Wrapper for Image Collection metadata.
+    Wrapper for EO Data Collection metadata.
 
     Simplifies getting values from deeply nested mappings,
     allows additional parsing and normalizing compatibility issues.
@@ -402,7 +393,13 @@ class CollectionMetadata(CubeMetadata):
     """
 
     def __init__(self, metadata: dict, dimensions: List[Dimension] = None):
-        super().__init__(metadata=metadata, dimensions=dimensions)
+        super().__init__(dimensions=dimensions)
+
+        self._orig_metadata = metadata
+
+        if dimensions == None:
+            dimensions = self._parse_dimensions(self._orig_metadata)
+            self.set_dimensions(dimensions=dimensions)
 
     @classmethod
     def _parse_dimensions(cls, spec: dict, complain: Callable[[str], None] = warnings.warn) -> List[Dimension]:
@@ -492,6 +489,24 @@ class CollectionMetadata(CubeMetadata):
                 complain("Multiple dimensions of type 'bands'")
 
         return dimensions
+
+    def _clone_and_update(
+        self, metadata: dict = None, dimensions: List[Dimension] = None, **kwargs
+    ) -> CollectionMetadata:
+        """
+        Create a new instance (of same class) with copied/updated fields.
+
+        This overrides the method in `CubeMetadata` to keep the original metadata.
+        """
+        cls = type(self)
+        if metadata == None:
+            metadata = self._orig_metadata
+        if dimensions == None:
+            dimensions = self._dimensions
+        return cls(metadata=metadata, dimensions=dimensions, **kwargs)
+
+    def get(self, *args, default=None):
+        return deep_get(self._orig_metadata, *args, default=default)
 
     @property
     def extent(self) -> dict:
