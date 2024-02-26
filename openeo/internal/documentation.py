@@ -12,7 +12,7 @@ from typing import Callable, Optional, Tuple, TypeVar
 _process_registry = collections.defaultdict(list)
 
 
-T = TypeVar("T")
+T = TypeVar("T", bound=Callable)
 
 
 def openeo_process(
