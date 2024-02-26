@@ -1,17 +1,23 @@
 """
 Utilities to build/automate/extend documentation
 """
+
 import collections
 import inspect
 import textwrap
 from functools import partial
-from typing import Callable, Optional, Tuple
+from typing import Callable, Optional, Tuple, TypeVar
 
 # TODO: give this a proper public API?
 _process_registry = collections.defaultdict(list)
 
 
-def openeo_process(f: Optional[Callable] = None, process_id: Optional[str] = None, mode: Optional[str] = None):
+T = TypeVar("T")
+
+
+def openeo_process(
+    f: Optional[T] = None, process_id: Optional[str] = None, mode: Optional[str] = None
+) -> T:
     """
     Decorator for function or method to associate it with a standard openEO process
 
