@@ -213,10 +213,10 @@ class CubeMetadata:
         self._temporal_dimension = None
 
         if dimensions is not None:
-            self.set_dimensions(dimensions=dimensions)
+            self._set_dimensions(dimensions=dimensions)
 
-    def set_dimensions(self, dimensions: List[Dimension]):
-        if dimensions == None:
+    def _set_dimensions(self, dimensions: List[Dimension]):
+        if dimensions is None:
             raise ValueError("Dimensions can not be None.")
         self._dimensions = dimensions
         for dim in self._dimensions:
@@ -235,7 +235,7 @@ class CubeMetadata:
     def _clone_and_update(self, dimensions: List[Dimension] = None, **kwargs) -> CubeMetadata:
         """Create a new instance (of same class) with copied/updated fields."""
         cls = type(self)
-        if dimensions == None:
+        if dimensions is None:
             dimensions = self._dimensions
         return cls(dimensions=dimensions, **kwargs)
 
@@ -397,9 +397,9 @@ class CollectionMetadata(CubeMetadata):
 
         self._orig_metadata = metadata
 
-        if dimensions == None:
+        if dimensions is None:
             dimensions = self._parse_dimensions(self._orig_metadata)
-            self.set_dimensions(dimensions=dimensions)
+            self._set_dimensions(dimensions=dimensions)
 
     @classmethod
     def _parse_dimensions(cls, spec: dict, complain: Callable[[str], None] = warnings.warn) -> List[Dimension]:
@@ -499,9 +499,9 @@ class CollectionMetadata(CubeMetadata):
         This overrides the method in `CubeMetadata` to keep the original metadata.
         """
         cls = type(self)
-        if metadata == None:
+        if metadata is None:
             metadata = self._orig_metadata
-        if dimensions == None:
+        if dimensions is None:
             dimensions = self._dimensions
         return cls(metadata=metadata, dimensions=dimensions, **kwargs)
 
