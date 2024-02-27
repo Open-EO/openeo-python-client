@@ -213,21 +213,16 @@ class CubeMetadata:
         self._temporal_dimension = None
 
         if dimensions is not None:
-            self._set_dimensions(dimensions=dimensions)
-
-    def _set_dimensions(self, dimensions: List[Dimension]):
-        if dimensions is None:
-            raise ValueError("Dimensions can not be None.")
-        self._dimensions = dimensions
-        for dim in self._dimensions:
-            # TODO: here we blindly pick last bands or temporal dimension if multiple. Let user choose?
-            # TODO: add spacial dimension handling?
-            if dim.type == "bands":
-                # TODO: add check and/or cast to BandDimension
-                self._band_dimension = dim
-            if dim.type == "temporal":
-                # TODO: add check and/or cast to TemporalDimension
-                self._temporal_dimension = dim
+            self._dimensions = dimensions
+            for dim in self._dimensions:
+                # TODO: here we blindly pick last bands or temporal dimension if multiple. Let user choose?
+                # TODO: add spacial dimension handling?
+                if dim.type == "bands":
+                    # TODO: add check and/or cast to BandDimension
+                    self._band_dimension = dim
+                if dim.type == "temporal":
+                    # TODO: add check and/or cast to TemporalDimension
+                    self._temporal_dimension = dim
 
     def __eq__(self, o: Any) -> bool:
         return isinstance(o, type(self)) and self._dimensions == o._dimensions
@@ -393,13 +388,11 @@ class CollectionMetadata(CubeMetadata):
     """
 
     def __init__(self, metadata: dict, dimensions: List[Dimension] = None):
-        super().__init__(dimensions=dimensions)
-
         self._orig_metadata = metadata
-
         if dimensions is None:
             dimensions = self._parse_dimensions(self._orig_metadata)
-            self._set_dimensions(dimensions=dimensions)
+
+        super().__init__(dimensions=dimensions)
 
     @classmethod
     def _parse_dimensions(cls, spec: dict, complain: Callable[[str], None] = warnings.warn) -> List[Dimension]:
