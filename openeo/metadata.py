@@ -84,6 +84,10 @@ class TemporalDimension(Dimension):
     def rename(self, name) -> Dimension:
         return TemporalDimension(name=name, extent=self.extent)
 
+    def rename_labels(self, target, source) -> Dimension:
+        # TODO should we check if the extend has changed with the new labels?
+        return TemporalDimension(name=self.name, extent=self.extent)
+
 
 class Band(NamedTuple):
     """
@@ -198,6 +202,8 @@ class BandDimension(Dimension):
             new_bands = [Band(name=n) for n in target]
         return BandDimension(name=self.name, bands=new_bands)
 
+    def rename(self, name) -> Dimension:
+        return BandDimension(name=name, bands=self.bands)
 
 class CubeMetadata:
     """
@@ -218,11 +224,15 @@ class CubeMetadata:
                 # TODO: here we blindly pick last bands or temporal dimension if multiple. Let user choose?
                 # TODO: add spacial dimension handling?
                 if dim.type == "bands":
-                    # TODO: add check and/or cast to BandDimension
-                    self._band_dimension = dim
+                    if isinstance(dim, BandDimension):
+                        self._band_dimension = dim
+                    else:
+                        raise MetadataException("Invalid band dimension {d!r}".format(d=dim))
                 if dim.type == "temporal":
-                    # TODO: add check and/or cast to TemporalDimension
-                    self._temporal_dimension = dim
+                    if isinstance(dim, TemporalDimension):
+                        self._temporal_dimension = dim
+                    else:
+                        raise MetadataException("Invalid temporal dimension {d!r}".format(d=dim))
 
     def __eq__(self, o: Any) -> bool:
         return isinstance(o, type(self)) and self._dimensions == o._dimensions
