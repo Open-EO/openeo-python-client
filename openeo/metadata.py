@@ -214,12 +214,11 @@ class CubeMetadata:
 
     def __init__(self, dimensions: Optional[List[Dimension]] = None):
         # Original collection metadata (actual cube metadata might be altered through processes)
-        self._dimensions = None
+        self._dimensions = dimensions
         self._band_dimension = None
         self._temporal_dimension = None
 
         if dimensions is not None:
-            self._dimensions = dimensions
             for dim in self._dimensions:
                 # TODO: here we blindly pick last bands or temporal dimension if multiple. Let user choose?
                 # TODO: add spacial dimension handling?
