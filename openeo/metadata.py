@@ -85,7 +85,7 @@ class TemporalDimension(Dimension):
         return TemporalDimension(name=name, extent=self.extent)
 
     def rename_labels(self, target, source) -> Dimension:
-        # TODO should we check if the extend has changed with the new labels?
+        # TODO should we check if the extent has changed with the new labels?
         return TemporalDimension(name=self.name, extent=self.extent)
 
 
@@ -212,7 +212,7 @@ class CubeMetadata:
     Allows interaction with the cube dimensions and their labels (if available).
     """
 
-    def __init__(self, dimensions: List[Dimension] = None):
+    def __init__(self, dimensions: Optional[List[Dimension]] = None):
         # Original collection metadata (actual cube metadata might be altered through processes)
         self._dimensions = None
         self._band_dimension = None
@@ -237,7 +237,7 @@ class CubeMetadata:
     def __eq__(self, o: Any) -> bool:
         return isinstance(o, type(self)) and self._dimensions == o._dimensions
 
-    def _clone_and_update(self, dimensions: List[Dimension] = None, **kwargs) -> CubeMetadata:
+    def _clone_and_update(self, dimensions: Optional[List[Dimension]] = None, **kwargs) -> CubeMetadata:
         """Create a new instance (of same class) with copied/updated fields."""
         cls = type(self)
         if dimensions is None:
