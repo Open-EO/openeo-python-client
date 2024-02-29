@@ -84,6 +84,10 @@ class TemporalDimension(Dimension):
     def rename(self, name) -> Dimension:
         return TemporalDimension(name=name, extent=self.extent)
 
+    def rename_labels(self, target, source) -> Dimension:
+        # TODO should we check if the extent has changed with the new labels?
+        return TemporalDimension(name=self.name, extent=self.extent)
+
 
 class Band(NamedTuple):
     """
@@ -198,10 +202,190 @@ class BandDimension(Dimension):
             new_bands = [Band(name=n) for n in target]
         return BandDimension(name=self.name, bands=new_bands)
 
+    def rename(self, name) -> Dimension:
+        return BandDimension(name=name, bands=self.bands)
 
-class CollectionMetadata:
+class CubeMetadata:
     """
-    Wrapper for Image Collection metadata.
+    Interface for metadata of a data cube.
+
+    Allows interaction with the cube dimensions and their labels (if available).
+    """
+
+    def __init__(self, dimensions: Optional[List[Dimension]] = None):
+        # Original collection metadata (actual cube metadata might be altered through processes)
+        self._dimensions = dimensions
+        self._band_dimension = None
+        self._temporal_dimension = None
+
+        if dimensions is not None:
+            for dim in self._dimensions:
+                # TODO: here we blindly pick last bands or temporal dimension if multiple. Let user choose?
+                # TODO: add spacial dimension handling?
+                if dim.type == "bands":
+                    if isinstance(dim, BandDimension):
+                        self._band_dimension = dim
+                    else:
+                        raise MetadataException("Invalid band dimension {d!r}".format(d=dim))
+                if dim.type == "temporal":
+                    if isinstance(dim, TemporalDimension):
+                        self._temporal_dimension = dim
+                    else:
+                        raise MetadataException("Invalid temporal dimension {d!r}".format(d=dim))
+
+    def __eq__(self, o: Any) -> bool:
+        return isinstance(o, type(self)) and self._dimensions == o._dimensions
+
+    def _clone_and_update(self, dimensions: Optional[List[Dimension]] = None, **kwargs) -> CubeMetadata:
+        """Create a new instance (of same class) with copied/updated fields."""
+        cls = type(self)
+        if dimensions is None:
+            dimensions = self._dimensions
+        return cls(dimensions=dimensions, **kwargs)
+
+    def dimension_names(self) -> List[str]:
+        return list(d.name for d in self._dimensions)
+
+    def assert_valid_dimension(self, dimension: str) -> str:
+        """Make sure given dimension name is valid."""
+        names = self.dimension_names()
+        if dimension not in names:
+            raise ValueError(f"Invalid dimension {dimension!r}. Should be one of {names}")
+        return dimension
+
+    def has_band_dimension(self) -> bool:
+        return isinstance(self._band_dimension, BandDimension)
+
+    @property
+    def band_dimension(self) -> BandDimension:
+        """Dimension corresponding to spectral/logic/thematic "bands"."""
+        if not self.has_band_dimension():
+            raise MetadataException("No band dimension")
+        return self._band_dimension
+
+    def has_temporal_dimension(self) -> bool:
+        return isinstance(self._temporal_dimension, TemporalDimension)
+
+    @property
+    def temporal_dimension(self) -> TemporalDimension:
+        if not self.has_temporal_dimension():
+            raise MetadataException("No temporal dimension")
+        return self._temporal_dimension
+
+    @property
+    def spatial_dimensions(self) -> List[SpatialDimension]:
+        return [d for d in self._dimensions if isinstance(d, SpatialDimension)]
+
+    @property
+    def bands(self) -> List[Band]:
+        """Get band metadata as list of Band metadata tuples"""
+        return self.band_dimension.bands
+
+    @property
+    def band_names(self) -> List[str]:
+        """Get band names of band dimension"""
+        return self.band_dimension.band_names
+
+    @property
+    def band_common_names(self) -> List[str]:
+        return self.band_dimension.common_names
+
+    def get_band_index(self, band: Union[int, str]) -> int:
+        # TODO: eliminate this shortcut for smaller API surface
+        return self.band_dimension.band_index(band)
+
+    def filter_bands(self, band_names: List[Union[int, str]]) -> CubeMetadata:
+        """
+        Create new `CubeMetadata` with filtered band dimension
+        :param band_names: list of band names/indices to keep
+        :return:
+        """
+        assert self.band_dimension
+        return self._clone_and_update(
+            dimensions=[d.filter_bands(band_names) if isinstance(d, BandDimension) else d for d in self._dimensions]
+        )
+
+    def append_band(self, band: Band) -> CubeMetadata:
+        """
+        Create new `CubeMetadata` with given band added to band dimension.
+        """
+        assert self.band_dimension
+        return self._clone_and_update(
+            dimensions=[d.append_band(band) if isinstance(d, BandDimension) else d for d in self._dimensions]
+        )
+
+    def rename_labels(self, dimension: str, target: list, source: list = None) -> CubeMetadata:
+        """
+        Renames the labels of the specified dimension from source to target.
+
+        :param dimension: Dimension name
+        :param target: The new names for the labels.
+        :param source: The names of the labels as they are currently in the data cube.
+
+        :return: Updated metadata
+        """
+        self.assert_valid_dimension(dimension)
+        loc = self.dimension_names().index(dimension)
+        new_dimensions = self._dimensions.copy()
+        new_dimensions[loc] = new_dimensions[loc].rename_labels(target, source)
+
+        return self._clone_and_update(dimensions=new_dimensions)
+
+    def rename_dimension(self, source: str, target: str) -> CubeMetadata:
+        """
+        Rename source dimension into target, preserving other properties
+        """
+        self.assert_valid_dimension(source)
+        loc = self.dimension_names().index(source)
+        new_dimensions = self._dimensions.copy()
+        new_dimensions[loc] = new_dimensions[loc].rename(target)
+
+        return self._clone_and_update(dimensions=new_dimensions)
+
+    def reduce_dimension(self, dimension_name: str) -> CubeMetadata:
+        """Create new CubeMetadata object by collapsing/reducing a dimension."""
+        # TODO: option to keep reduced dimension (with a single value)?
+        # TODO: rename argument to `name` for more internal consistency
+        # TODO: merge with drop_dimension (which does the same).
+        self.assert_valid_dimension(dimension_name)
+        loc = self.dimension_names().index(dimension_name)
+        dimensions = self._dimensions[:loc] + self._dimensions[loc + 1 :]
+        return self._clone_and_update(dimensions=dimensions)
+
+    def reduce_spatial(self) -> CubeMetadata:
+        """Create new CubeMetadata object by reducing the spatial dimensions."""
+        dimensions = [d for d in self._dimensions if not isinstance(d, SpatialDimension)]
+        return self._clone_and_update(dimensions=dimensions)
+
+    def add_dimension(self, name: str, label: Union[str, float], type: str = None) -> CubeMetadata:
+        """Create new CubeMetadata object with added dimension"""
+        if any(d.name == name for d in self._dimensions):
+            raise DimensionAlreadyExistsException(f"Dimension with name {name!r} already exists")
+        if type == "bands":
+            dim = BandDimension(name=name, bands=[Band(name=label)])
+        elif type == "spatial":
+            dim = SpatialDimension(name=name, extent=[label, label])
+        elif type == "temporal":
+            dim = TemporalDimension(name=name, extent=[label, label])
+        else:
+            dim = Dimension(type=type or "other", name=name)
+        return self._clone_and_update(dimensions=self._dimensions + [dim])
+
+    def drop_dimension(self, name: str = None) -> CubeMetadata:
+        """Create new CubeMetadata object without dropped dimension with given name"""
+        dimension_names = self.dimension_names()
+        if name not in dimension_names:
+            raise ValueError("No dimension named {n!r} (valid names: {ns!r})".format(n=name, ns=dimension_names))
+        return self._clone_and_update(dimensions=[d for d in self._dimensions if not d.name == name])
+
+    def __str__(self) -> str:
+        bands = self.band_names if self.has_band_dimension() else "no bands dimension"
+        return f"CubeMetadata({bands} - {self.dimension_names()})"
+
+
+class CollectionMetadata(CubeMetadata):
+    """
+    Wrapper for EO Data Collection metadata.
 
     Simplifies getting values from deeply nested mappings,
     allows additional parsing and normalizing compatibility issues.
@@ -212,38 +396,12 @@ class CollectionMetadata:
 
     """
 
-    # TODO: "CollectionMetadata" is also used as "cube metadata" where the link to original collection
-    #       might be lost (if any). Better separation between rich EO raster collection metadata and
-    #       essential cube metadata? E.g.: also thing of vector cubes.
-
     def __init__(self, metadata: dict, dimensions: List[Dimension] = None):
-        # Original collection metadata (actual cube metadata might be altered through processes)
         self._orig_metadata = metadata
+        if dimensions is None:
+            dimensions = self._parse_dimensions(self._orig_metadata)
 
-        if dimensions == None:
-            self._dimensions = self._parse_dimensions(self._orig_metadata)
-        else:
-            self._dimensions = dimensions
-        self._band_dimension = None
-        self._temporal_dimension = None
-        for dim in self._dimensions:
-            # TODO: here we blindly pick last bands or temporal dimension if multiple. Let user choose?
-            if dim.type == "bands":
-                self._band_dimension = dim
-            if dim.type == "temporal":
-                self._temporal_dimension = dim
-
-    def __eq__(self, o: Any) -> bool:
-        return isinstance(o, CollectionMetadata) and self._dimensions == o._dimensions
-
-    def _clone_and_update(
-        self, metadata: dict = None, dimensions: List[Dimension] = None, **kwargs
-    ) -> CollectionMetadata:
-        """Create a new instance (of same class) with copied/updated fields."""
-        cls = type(self)
-        if dimensions == None:
-            dimensions = self._dimensions
-        return cls(metadata=metadata or self._orig_metadata, dimensions=dimensions, **kwargs)
+        super().__init__(dimensions=dimensions)
 
     @classmethod
     def _parse_dimensions(cls, spec: dict, complain: Callable[[str], None] = warnings.warn) -> List[Dimension]:
@@ -334,6 +492,21 @@ class CollectionMetadata:
 
         return dimensions
 
+    def _clone_and_update(
+        self, metadata: dict = None, dimensions: List[Dimension] = None, **kwargs
+    ) -> CollectionMetadata:
+        """
+        Create a new instance (of same class) with copied/updated fields.
+
+        This overrides the method in `CubeMetadata` to keep the original metadata.
+        """
+        cls = type(self)
+        if metadata is None:
+            metadata = self._orig_metadata
+        if dimensions is None:
+            dimensions = self._dimensions
+        return cls(metadata=metadata, dimensions=dimensions, **kwargs)
+
     def get(self, *args, default=None):
         return deep_get(self._orig_metadata, *args, default=default)
 
@@ -342,143 +515,6 @@ class CollectionMetadata:
         # TODO: is this currently used and relevant?
         # TODO: check against extent metadata in dimensions
         return self._orig_metadata.get("extent")
-
-    def dimension_names(self) -> List[str]:
-        return list(d.name for d in self._dimensions)
-
-    def assert_valid_dimension(self, dimension: str) -> str:
-        """Make sure given dimension name is valid."""
-        names = self.dimension_names()
-        if dimension not in names:
-            raise ValueError(f"Invalid dimension {dimension!r}. Should be one of {names}")
-        return dimension
-
-    def has_band_dimension(self) -> bool:
-        return isinstance(self._band_dimension, BandDimension)
-
-    @property
-    def band_dimension(self) -> BandDimension:
-        """Dimension corresponding to spectral/logic/thematic "bands"."""
-        if not self.has_band_dimension():
-            raise MetadataException("No band dimension")
-        return self._band_dimension
-
-    def has_temporal_dimension(self) -> bool:
-        return isinstance(self._temporal_dimension, TemporalDimension)
-
-    @property
-    def temporal_dimension(self) -> TemporalDimension:
-        if not self.has_temporal_dimension():
-            raise MetadataException("No temporal dimension")
-        return self._temporal_dimension
-
-    @property
-    def spatial_dimensions(self) -> List[SpatialDimension]:
-        return [d for d in self._dimensions if isinstance(d, SpatialDimension)]
-
-    @property
-    def bands(self) -> List[Band]:
-        """Get band metadata as list of Band metadata tuples"""
-        return self.band_dimension.bands
-
-    @property
-    def band_names(self) -> List[str]:
-        """Get band names of band dimension"""
-        return self.band_dimension.band_names
-
-    @property
-    def band_common_names(self) -> List[str]:
-        return self.band_dimension.common_names
-
-    def get_band_index(self, band: Union[int, str]) -> int:
-        # TODO: eliminate this shortcut for smaller API surface
-        return self.band_dimension.band_index(band)
-
-    def filter_bands(self, band_names: List[Union[int, str]]) -> CollectionMetadata:
-        """
-        Create new `CollectionMetadata` with filtered band dimension
-        :param band_names: list of band names/indices to keep
-        :return:
-        """
-        assert self.band_dimension
-        return self._clone_and_update(dimensions=[
-            d.filter_bands(band_names) if isinstance(d, BandDimension) else d
-            for d in self._dimensions
-        ])
-
-    def append_band(self, band: Band) -> CollectionMetadata:
-        """
-        Create new `CollectionMetadata` with given band added to band dimension.
-        """
-        assert self.band_dimension
-        return self._clone_and_update(dimensions=[
-            d.append_band(band) if isinstance(d, BandDimension) else d
-            for d in self._dimensions
-        ])
-
-    def rename_labels(self, dimension: str, target: list, source: list = None) -> CollectionMetadata:
-        """
-        Renames the labels of the specified dimension from source to target.
-
-        :param dimension: Dimension name
-        :param target: The new names for the labels.
-        :param source: The names of the labels as they are currently in the data cube.
-
-        :return: Updated metadata
-        """
-        self.assert_valid_dimension(dimension)
-        loc = self.dimension_names().index(dimension)
-        new_dimensions = self._dimensions.copy()
-        new_dimensions[loc] = new_dimensions[loc].rename_labels(target, source)
-
-        return self._clone_and_update(dimensions=new_dimensions)
-
-    def rename_dimension(self, source: str, target: str) -> CollectionMetadata:
-        """
-        Rename source dimension into target, preserving other properties
-        """
-        self.assert_valid_dimension(source)
-        loc = self.dimension_names().index(source)
-        new_dimensions = self._dimensions.copy()
-        new_dimensions[loc] = new_dimensions[loc].rename(target)
-
-        return self._clone_and_update(dimensions=new_dimensions)
-
-    def reduce_dimension(self, dimension_name: str) -> CollectionMetadata:
-        """Create new metadata object by collapsing/reducing a dimension."""
-        # TODO: option to keep reduced dimension (with a single value)?
-        # TODO: rename argument to `name` for more internal consistency
-        # TODO: merge with drop_dimension (which does the same).
-        self.assert_valid_dimension(dimension_name)
-        loc = self.dimension_names().index(dimension_name)
-        dimensions = self._dimensions[:loc] + self._dimensions[loc + 1:]
-        return self._clone_and_update(dimensions=dimensions)
-
-    def reduce_spatial(self) -> CollectionMetadata:
-        """Create new metadata object by reducing the spatial dimensions."""
-        dimensions = [d for d in self._dimensions if not isinstance(d, SpatialDimension)]
-        return self._clone_and_update(dimensions=dimensions)
-
-    def add_dimension(self, name: str, label: Union[str, float], type: str = None) -> CollectionMetadata:
-        """Create new metadata object with added dimension"""
-        if any(d.name == name for d in self._dimensions):
-            raise DimensionAlreadyExistsException(f"Dimension with name {name!r} already exists")
-        if type == "bands":
-            dim = BandDimension(name=name, bands=[Band(name=label)])
-        elif type == "spatial":
-            dim = SpatialDimension(name=name, extent=[label, label])
-        elif type == "temporal":
-            dim = TemporalDimension(name=name, extent=[label, label])
-        else:
-            dim = Dimension(type=type or "other", name=name)
-        return self._clone_and_update(dimensions=self._dimensions + [dim])
-
-    def drop_dimension(self, name: str = None) -> CollectionMetadata:
-        """Drop dimension with given name"""
-        dimension_names = self.dimension_names()
-        if name not in dimension_names:
-            raise ValueError("No dimension named {n!r} (valid names: {ns!r})".format(n=name, ns=dimension_names))
-        return self._clone_and_update(dimensions=[d for d in self._dimensions if not d.name == name])
 
     def _repr_html_(self):
         return render_component("collection", data=self._orig_metadata)
