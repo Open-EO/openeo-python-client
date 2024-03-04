@@ -7,6 +7,7 @@ import datetime
 import json
 import logging
 import os
+import pystac
 import shlex
 import sys
 import warnings
@@ -27,7 +28,7 @@ from openeo.internal.graph_building import FlatGraphableMixin, PGNode, as_flat_g
 from openeo.internal.jupyter import VisualDict, VisualList
 from openeo.internal.processes.builder import ProcessBuilderBase
 from openeo.internal.warnings import deprecated, legacy_alias
-from openeo.metadata import Band, BandDimension, CollectionMetadata, SpatialDimension, TemporalDimension
+from openeo.metadata import Band, BandDimension, CollectionMetadata, CubeMetadata, SpatialDimension, TemporalDimension
 from openeo.rest import (
     CapabilitiesException,
     OpenEoApiError,
@@ -1149,6 +1150,39 @@ class Connection(RestApiConnection):
         """
         return self.datacube_from_flat_graph(load_json_resource(src), parameters=parameters)
 
+    def metadata_from_stac(self, url: str) -> CubeMetadata:
+        """
+        Reads the band metadata a static STAC catalog or a STAC API Collection and returns it as a :py:class:`CubeMetadata`
+
+        :param url: The URL to a static STAC catalog (STAC Item, STAC Collection, or STAC Catalog) or a specific STAC API Collection
+        :return: A :py:class:`CubeMetadata` containing the DataCube band metadata from the url.
+        """
+        collection = pystac.read_file(href=url)
+
+        def get_band_names(itm: pystac.Item, asst: pystac.Asset) -> List[Band]:
+            return [Band(eo_band["name"]) for eo_band in asst.extra_fields["eo:bands"]]
+
+        def is_band_asset(asset: pystac.Asset) -> bool:
+            return "eo:bands" in asset.extra_fields
+
+        band_names = []
+        for itm in collection.get_items():
+            band_assets = {
+                asset_id: asset
+                for asset_id, asset in dict(sorted(itm.get_assets().items())).items()
+                if is_band_asset(asset)
+            }
+
+            for asset_id, asset in band_assets.items():
+                asset_band_names = get_band_names(itm, asset)
+                for asset_band_name in asset_band_names:
+                    if asset_band_name not in band_names:
+                        band_names.append(asset_band_name)
+
+        band_dimension = BandDimension(name="bands", bands=band_names)
+        metadata = CubeMetadata(dimensions=[band_dimension])
+        return metadata
+
     @openeo_process
     def load_collection(
         self,
@@ -1247,6 +1281,7 @@ class Connection(RestApiConnection):
         temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
         bands: Optional[List[str]] = None,
         properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
+        get_metadata: Optional[bool] = False,
     ) -> DataCube:
         """
         Loads data from a static STAC catalog or a STAC API Collection and returns the data as a processable :py:class:`DataCube`.
@@ -1340,6 +1375,9 @@ class Connection(RestApiConnection):
             The value must be a condition (user-defined process) to be evaluated against a STAC API.
             This parameter is not supported for static STAC.
 
+        :param get_metadata:
+            Specify whether to also load the band name metadata from the URL.
+
         .. versionadded:: 0.17.0
 
         .. versionchanged:: 0.23.0
@@ -1361,6 +1399,8 @@ class Connection(RestApiConnection):
                 prop: build_child_callback(pred, parent_parameters=["value"]) for prop, pred in properties.items()
             }
         cube = self.datacube_from_process(process_id="load_stac", **arguments)
+        if get_metadata:
+            cube.metadata = self.metadata_from_stac(url)
         return cube
 
     def load_ml_model(self, id: Union[str, BatchJob]) -> MlModel:
