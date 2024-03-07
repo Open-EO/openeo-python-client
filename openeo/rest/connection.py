@@ -1419,8 +1419,10 @@ class Connection(RestApiConnection):
                 prop: build_child_callback(pred, parent_parameters=["value"]) for prop, pred in properties.items()
             }
         cube = self.datacube_from_process(process_id="load_stac", **arguments)
-
-        cube.metadata = self.metadata_from_stac(url)
+        try:
+            cube.metadata = self.metadata_from_stac(url)
+        except:
+            print("Python client could not read band metadata.")
         return cube
 
     def load_ml_model(self, id: Union[str, BatchJob]) -> MlModel:
