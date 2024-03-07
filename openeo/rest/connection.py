@@ -1421,8 +1421,8 @@ class Connection(RestApiConnection):
         cube = self.datacube_from_process(process_id="load_stac", **arguments)
         try:
             cube.metadata = self.metadata_from_stac(url)
-        except:
-            print("Python client could not read band metadata.")
+        except Exception:
+            _log.warning("Python client could not read band metadata from URL.")
         return cube
 
     def load_ml_model(self, id: Union[str, BatchJob]) -> MlModel:
