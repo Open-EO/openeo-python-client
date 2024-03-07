@@ -1157,27 +1157,51 @@ class Connection(RestApiConnection):
         :param url: The URL to a static STAC catalog (STAC Item, STAC Collection, or STAC Catalog) or a specific STAC API Collection
         :return: A :py:class:`CubeMetadata` containing the DataCube band metadata from the url.
         """
-        collection = pystac.read_file(href=url)
 
-        def get_band_names(itm: pystac.Item, asst: pystac.Asset) -> List[Band]:
+        def get_band_names(asst: pystac.Asset) -> List[Band]:
             return [Band(eo_band["name"]) for eo_band in asst.extra_fields["eo:bands"]]
 
         def is_band_asset(asset: pystac.Asset) -> bool:
             return "eo:bands" in asset.extra_fields
 
-        band_names = []
-        for itm in collection.get_items():
-            band_assets = {
-                asset_id: asset
-                for asset_id, asset in dict(sorted(itm.get_assets().items())).items()
-                if is_band_asset(asset)
-            }
+        stac_object = pystac.read_file(href=url)
 
-            for asset_id, asset in band_assets.items():
-                asset_band_names = get_band_names(itm, asset)
-                for asset_band_name in asset_band_names:
-                    if asset_band_name not in band_names:
-                        band_names.append(asset_band_name)
+        band_names = []
+        collection = None
+
+        if isinstance(stac_object, pystac.Item):
+            item = stac_object
+            if "eo:bands" in item.properties:
+                eo_bands_location = item.properties
+            elif item.get_collection() is not None:
+                collection = item.get_collection()
+                eo_bands_location = item.get_collection().summaries.lists
+            else:
+                eo_bands_location = {}
+            band_names = [Band(b["name"]) for b in eo_bands_location.get("eo:bands", [])]
+
+        elif isinstance(stac_object, pystac.Collection):
+            collection = stac_object
+            band_names = [Band(b["name"]) for b in collection.summaries.lists.get("eo:bands", [])]
+
+            # Summaries is not a required field in a STAC collection, so also check the assets
+            for itm in collection.get_items():
+                band_assets = {
+                    asset_id: asset
+                    for asset_id, asset in dict(sorted(itm.get_assets().items())).items()
+                    if is_band_asset(asset)
+                }
+
+                for asset in band_assets.values():
+                    asset_band_names = get_band_names(asset)
+                    for asset_band_name in asset_band_names:
+                        if asset_band_name not in band_names:
+                            band_names.append(asset_band_name)
+
+        else:
+            assert isinstance(stac_object, pystac.Catalog)
+            catalog = stac_object
+            band_names = [Band(b["name"]) for b in catalog.extra_fields.get("summaries", {}).get("eo:bands", [])]
 
         band_dimension = BandDimension(name="bands", bands=band_names)
         metadata = CubeMetadata(dimensions=[band_dimension])
@@ -1281,7 +1305,6 @@ class Connection(RestApiConnection):
         temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
         bands: Optional[List[str]] = None,
         properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
-        get_metadata: Optional[bool] = False,
     ) -> DataCube:
         """
         Loads data from a static STAC catalog or a STAC API Collection and returns the data as a processable :py:class:`DataCube`.
@@ -1375,9 +1398,6 @@ class Connection(RestApiConnection):
             The value must be a condition (user-defined process) to be evaluated against a STAC API.
             This parameter is not supported for static STAC.
 
-        :param get_metadata:
-            Specify whether to also load the band name metadata from the URL.
-
         .. versionadded:: 0.17.0
 
         .. versionchanged:: 0.23.0
@@ -1399,8 +1419,8 @@ class Connection(RestApiConnection):
                 prop: build_child_callback(pred, parent_parameters=["value"]) for prop, pred in properties.items()
             }
         cube = self.datacube_from_process(process_id="load_stac", **arguments)
-        if get_metadata:
-            cube.metadata = self.metadata_from_stac(url)
+
+        cube.metadata = self.metadata_from_stac(url)
         return cube
 
     def load_ml_model(self, id: Union[str, BatchJob]) -> MlModel:
