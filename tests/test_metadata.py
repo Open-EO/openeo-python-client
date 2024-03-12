@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import List
 
+import json
 import pytest
 
 from openeo.metadata import (
@@ -14,6 +15,7 @@ from openeo.metadata import (
     MetadataException,
     SpatialDimension,
     TemporalDimension,
+    metadata_from_stac,
 )
 
 
@@ -782,3 +784,25 @@ def test_cubemetadata_subclass():
     assert isinstance(new, MyCubeMetadata)
     assert orig.bbox is None
     assert new.bbox == (1, 2, 3, 4)
+
+
+def test_metadata_from_stac(tmp_path):
+    collection_json = {
+        "type": "Collection",
+        "id": "test-collection",
+        "stac_version": "1.0.0",
+        "description": "Test collection",
+        "links": [],
+        "title": "Test Collection",
+        "extent": {
+            "spatial": {"bbox": [[-180.0, -90.0, 180.0, 90.0]]},
+            "temporal": {"interval": [["2020-01-01T00:00:00Z", "2020-01-10T00:00:00Z"]]},
+        },
+        "license": "proprietary",
+        "summaries": {"eo:bands": [{"name": "B01"}, {"name": "B02"}]},
+    }
+
+    path = tmp_path / "collection.json"
+    path.write_text(json.dumps(collection_json))
+    metadata = metadata_from_stac(path)
+    assert metadata.band_names == ["B01", "B02"]
