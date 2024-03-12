@@ -30,6 +30,7 @@ tests_require = [
     "flake8>=5.0.0",
     "time_machine",
     "pyproj>=3.2.0",  # Pyproj is an optional, best-effort runtime dependency
+    "pystac"
 ]
 
 docs_require = [
