@@ -567,11 +567,7 @@ def metadata_from_stac(url: str) -> CubeMetadata:
 
         # Summaries is not a required field in a STAC collection, so also check the assets
         for itm in collection.get_items():
-            band_assets = {
-                asset_id: asset
-                for asset_id, asset in dict(sorted(itm.get_assets().items())).items()
-                if is_band_asset(asset)
-            }
+            band_assets = {asset_id: asset for asset_id, asset in itm.get_assets().items() if is_band_asset(asset)}
 
             for asset in band_assets.values():
                 asset_bands = get_band_metadata(asset.extra_fields)
