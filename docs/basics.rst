@@ -439,6 +439,12 @@ This gives us finally our EVI timeseries dataframe:
 Computing multiple statistics
 =============================
 
+.. warning::
+    This is an experimental feature of the GeoPySpark openEO back-end,
+    it may not be supported by other back-ends,
+    and is subject to change.
+    See `Open-EO/openeo-geopyspark-driver#726 <https://github.com/Open-EO/openeo-geopyspark-driver/issues/726>`_ for further discussion,
+
 The same method also allows the computation of multiple statistics at once. This does rely
 on 'callbacks' to construct a result with multiple statistics.
 The use of such more complex processes is further explained in :ref:`callbackfunctions`.
