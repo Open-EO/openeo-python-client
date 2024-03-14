@@ -786,44 +786,51 @@ def test_cubemetadata_subclass():
     assert new.bbox == (1, 2, 3, 4)
 
 
-collection_json = {
-    "type": "Collection",
-    "id": "test-collection",
-    "stac_version": "1.0.0",
-    "description": "Test collection",
-    "links": [],
-    "title": "Test Collection",
-    "extent": {
-        "spatial": {"bbox": [[-180.0, -90.0, 180.0, 90.0]]},
-        "temporal": {"interval": [["2020-01-01T00:00:00Z", "2020-01-10T00:00:00Z"]]},
-    },
-    "license": "proprietary",
-    "summaries": {"eo:bands": [{"name": "B01"}, {"name": "B02"}]},
-}
-
-catalog_json = {
-    "type": "Catalog",
-    "id": "test-catalog",
-    "stac_version": "1.0.0",
-    "description": "Test Catalog",
-    "links": [],
-}
-
-item_json = {
-    "type": "Feature",
-    "stac_version": "1.0.0",
-    "id": "test-item",
-    "properties": {"datetime": "2020-05-22T00:00:00Z", "eo:bands": [{"name": "SCL"}, {"name": "B08"}]},
-    "geometry": {"coordinates": [[[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]]], "type": "Polygon"},
-    "links": [],
-    "assets": {},
-    "bbox": [0, 1, 0, 1],
-    "stac_extensions": [],
-}
-
-
 @pytest.mark.parametrize(
-    "test_stac, expected", [(collection_json, ["B01", "B02"]), (catalog_json, []), (item_json, ["SCL", "B08"])]
+    "test_stac, expected",
+    [
+        (
+            {
+                "type": "Collection",
+                "id": "test-collection",
+                "stac_version": "1.0.0",
+                "description": "Test collection",
+                "links": [],
+                "title": "Test Collection",
+                "extent": {
+                    "spatial": {"bbox": [[-180.0, -90.0, 180.0, 90.0]]},
+                    "temporal": {"interval": [["2020-01-01T00:00:00Z", "2020-01-10T00:00:00Z"]]},
+                },
+                "license": "proprietary",
+                "summaries": {"eo:bands": [{"name": "B01"}, {"name": "B02"}]},
+            },
+            ["B01", "B02"],
+        ),
+        (
+            {
+                "type": "Catalog",
+                "id": "test-catalog",
+                "stac_version": "1.0.0",
+                "description": "Test Catalog",
+                "links": [],
+            },
+            [],
+        ),
+        (
+            {
+                "type": "Feature",
+                "stac_version": "1.0.0",
+                "id": "test-item",
+                "properties": {"datetime": "2020-05-22T00:00:00Z", "eo:bands": [{"name": "SCL"}, {"name": "B08"}]},
+                "geometry": {"coordinates": [[[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]]], "type": "Polygon"},
+                "links": [],
+                "assets": {},
+                "bbox": [0, 1, 0, 1],
+                "stac_extensions": [],
+            },
+            ["SCL", "B08"],
+        ),
+    ],
 )
 def test_metadata_from_stac(tmp_path, test_stac, expected):
 
