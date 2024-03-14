@@ -533,15 +533,21 @@ def metadata_from_stac(url: str) -> CubeMetadata:
     :return: A :py:class:`CubeMetadata` containing the DataCube band metadata from the url.
     """
 
-    def get_band_names(asst: pystac.Asset) -> List[Band]:
-        return [Band(eo_band["name"]) for eo_band in asst.extra_fields["eo:bands"]]
+    def get_band_metadata(eo_bands_location: dict) -> List[Band]:
+        return [
+            Band(name=band["name"], common_name=band.get("common_name"), wavelength_um=band.get("center_wavelength"))
+            for band in eo_bands_location.get("eo:bands", [])
+        ]
+
+    def get_band_names(bands: List[Band]) -> List[str]:
+        return [band.name for band in bands]
 
     def is_band_asset(asset: pystac.Asset) -> bool:
         return "eo:bands" in asset.extra_fields
 
     stac_object = pystac.read_file(href=url)
 
-    band_names = []
+    bands = []
     collection = None
 
     if isinstance(stac_object, pystac.Item):
@@ -553,11 +559,11 @@ def metadata_from_stac(url: str) -> CubeMetadata:
             eo_bands_location = item.get_collection().summaries.lists
         else:
             eo_bands_location = {}
-        band_names = [Band(b["name"]) for b in eo_bands_location.get("eo:bands", [])]
+        bands = get_band_metadata(eo_bands_location)
 
     elif isinstance(stac_object, pystac.Collection):
         collection = stac_object
-        band_names = [Band(b["name"]) for b in collection.summaries.lists.get("eo:bands", [])]
+        bands = get_band_metadata(collection.summaries.lists)
 
         # Summaries is not a required field in a STAC collection, so also check the assets
         for itm in collection.get_items():
@@ -568,16 +574,16 @@ def metadata_from_stac(url: str) -> CubeMetadata:
             }
 
             for asset in band_assets.values():
-                asset_band_names = get_band_names(asset)
-                for asset_band_name in asset_band_names:
-                    if asset_band_name not in band_names:
-                        band_names.append(asset_band_name)
+                asset_bands = get_band_metadata(asset.extra_fields)
+                for asset_band in asset_bands:
+                    if asset_band.name not in get_band_names(bands):
+                        bands.append(asset_band)
 
     else:
         assert isinstance(stac_object, pystac.Catalog)
         catalog = stac_object
-        band_names = [Band(b["name"]) for b in catalog.extra_fields.get("summaries", {}).get("eo:bands", [])]
+        bands = get_band_metadata(catalog.extra_fields.get("summaries", {}))
 
-    band_dimension = BandDimension(name="bands", bands=band_names)
+    band_dimension = BandDimension(name="bands", bands=bands)
     metadata = CubeMetadata(dimensions=[band_dimension])
     return metadata
