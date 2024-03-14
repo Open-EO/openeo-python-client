@@ -1371,7 +1371,7 @@ class Connection(RestApiConnection):
         try:
             cube.metadata = metadata_from_stac(url)
         except Exception:
-            _log.warning("Python client could not read band metadata from URL.")
+            _log.warning(f"Failed to extract cube metadata from STAC URL {url}", exc_info=True)
         return cube
 
     def load_ml_model(self, id: Union[str, BatchJob]) -> MlModel:
