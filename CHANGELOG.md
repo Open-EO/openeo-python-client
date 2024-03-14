@@ -10,9 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 ### Changed
+
 - Changed default `chunk_size` of various `download` functions from None to 10MB. This improves the handling of large downloads and reduces memory usage. ([#528](https://github.com/Open-EO/openeo-python-client/issues/528))
 - `Connection.execute()` and `DataCube.execute()` now have a `auto_decode` argument. If set to True (default) the response will be decoded as a JSON and throw an exception if this fails, if set to False the raw `requests.Response` object will be returned. ([#499](https://github.com/Open-EO/openeo-python-client/issues/499))
 - Introduced superclass `CubeMetadata` for `CollectionMetadata` for essential metadata handling (just dimensions for now) without collection-specific STAC metadata parsing. ([#464](https://github.com/Open-EO/openeo-python-client/issues/464))
+- Preserve geo-referenced `x` and `y` coordinates in `execute_local_udf` ([#549](https://github.com/Open-EO/openeo-python-client/issues/549))
+
 ### Removed
 
 ### Fixed

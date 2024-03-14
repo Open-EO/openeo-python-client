@@ -29,6 +29,8 @@ class XarrayDataCube:
     providing a basic "DataCube" interface for openEO UDF usage around multi-dimensional data.
     """
 
+    # TODO #472 This class, just wrapping an array.DataArray, seems to make things more complicated/confusing than necessary.
+
     def __init__(self, array: xarray.DataArray):
         if not isinstance(array, xarray.DataArray):
             raise OpenEoUdfException("Argument data must be of type xarray.DataArray")

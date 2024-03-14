@@ -245,7 +245,7 @@ def test_execute_local_udf_basic(udf_file):
     expected = xarray.DataArray(
         [[_ndvi(0, 100), _ndvi(10, 110)], [_ndvi(1, 101), _ndvi(11, 111)]],
         dims=["y", "x"],
-        coords={"t": numpy.datetime64("2020-08-01"), "bands": "ndvi"}
+        coords={"t": numpy.datetime64("2020-08-01"), "bands": "ndvi", "x": [10.0, 11.0], "y": [20.0, 21.0]},
     )
     xarray.testing.assert_equal(result[0, 0, 0:2, 0:2], expected)
 
@@ -270,7 +270,7 @@ def test_run_local_udf_from_file_json(tmp_path):
     expected = xarray.DataArray(
         [[_ndvi(0, 100), _ndvi(10, 110)], [_ndvi(1, 101), _ndvi(11, 111)]],
         dims=["y", "x"],
-        coords={"t": numpy.datetime64("2020-08-01"), "bands": "ndvi"}
+        coords={"t": numpy.datetime64("2020-08-01"), "bands": "ndvi", "x": [10.0, 11.0], "y": [20.0, 21.0]},
     )
     xarray.testing.assert_equal(result[0, 0, 0:2, 0:2], expected)
 
@@ -295,7 +295,7 @@ def test_run_local_udf_from_file_netcdf(tmp_path):
     expected = xarray.DataArray(
         [[_ndvi(0, 100), _ndvi(10, 110)], [_ndvi(1, 101), _ndvi(11, 111)]],
         dims=["y", "x"],
-        coords={"t": numpy.datetime64("2020-08-01"), "bands": "ndvi"}
+        coords={"t": numpy.datetime64("2020-08-01"), "bands": "ndvi", "x": [10.0, 11.0], "y": [20.0, 21.0]},
     )
     xarray.testing.assert_equal(result[0, 0, 0:2, 0:2], expected)
 

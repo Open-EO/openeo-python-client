@@ -227,9 +227,12 @@ def execute_local_udf(udf: Union[str, openeo.UDF], datacube: Union[str, xarray.D
     expected_order = ("t", "bands", "y", "x")
     dims = [d for d in expected_order if d in d_array.dims]
 
-    # TODO: skip going through XarrayDataCube above, we only need xarray.DataArray here anyway.
-    # datacube's data is to be float and x,y not provided
-    d = XarrayDataCube(d_array.transpose(*dims).astype(numpy.float64).drop(labels="x").drop(labels="y"))
+    # TODO #472: skip going through XarrayDataCube above, we only need xarray.DataArray here anyway.
+    d = XarrayDataCube(
+        d_array.transpose(*dims)
+        # TODO: this float conversion was in original implementation (0962e00e03) but is that actually necessary?
+        .astype(numpy.float64)
+    )
     # wrap to udf_data
     udf_data = UdfData(datacube_list=[d])
 
