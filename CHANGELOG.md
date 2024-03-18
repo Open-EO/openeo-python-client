@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Introduced superclass `CubeMetadata` for `CollectionMetadata` for essential metadata handling (just dimensions for now) without collection-specific STAC metadata parsing. ([#464](https://github.com/Open-EO/openeo-python-client/issues/464))
+- Added `VectorCube.vector_to_raster()` ([#550](https://github.com/Open-EO/openeo-python-client/issues/550))
 
 ### Changed
 

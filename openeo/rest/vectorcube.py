@@ -567,6 +567,8 @@ class VectorCube(_ProcessGraphAbstraction):
         .. warning:: experimental process: not generally supported, API subject to change.
 
         :return: a :py:class:`~openeo.rest.datacube.DataCube`
+
+        .. versionadded:: 0.28.0
         """
         from openeo.rest.datacube import DataCube
 
