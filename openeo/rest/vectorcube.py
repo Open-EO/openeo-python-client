@@ -7,6 +7,7 @@ from typing import Callable, List, Optional, Tuple, Union
 
 import shapely.geometry.base
 
+import openeo.rest.datacube
 from openeo.api.process import Parameter
 from openeo.internal.documentation import openeo_process
 from openeo.internal.graph_building import PGNode
@@ -59,7 +60,7 @@ class VectorCube(_ProcessGraphAbstraction):
         **kwargs,
     ) -> VectorCube:
         """
-        Generic helper to create a new DataCube by applying a process.
+        Generic helper to create a new VectorCube by applying a process.
 
         :param process_id: process id of the process.
         :param args: argument dictionary for the process.
@@ -559,7 +560,7 @@ class VectorCube(_ProcessGraphAbstraction):
         )
         return self.process(process_id="apply_dimension", arguments=arguments)
 
-    def vector_to_raster(self, target_data_cube):
+    def vector_to_raster(self, target) -> openeo.rest.datacube.DataCube:
         """
         Converts this vector cube into a :py:class:`~openeo.rest.datacube.DataCube`.
         The bounding polygon of homogenous areas of pixels is constructed.
@@ -570,7 +571,21 @@ class VectorCube(_ProcessGraphAbstraction):
 
         .. versionadded:: 0.28.0
         """
-        from openeo.rest.datacube import DataCube
+        # TODO: this parameter sniffing is a temporary workaround until
+        #       the `target` parameter name rename has fully settled
+        #       https://github.com/Open-EO/openeo-python-driver/issues/274
+        #       After that has settled, it is still useful to verify assumptions about this non-standard process.
+        try:
+            process_spec = self.connection.describe_process("vector_to_raster")
+            target_parameter = process_spec["parameters"][1]["name"]
+            assert "target" in target_parameter
+        except Exception:
+            target_parameter = "target"
 
-        pg_node = PGNode(process_id="vector_to_raster", arguments={"data": self, "target_data_cube": target_data_cube})
-        return DataCube(pg_node, connection=self._connection, metadata=self.metadata)
+        pg_node = PGNode(
+            process_id="vector_to_raster",
+            arguments={"data": self, target_parameter: target},
+        )
+        # TODO: the correct metadata has to be passed here:
+        #       replace "geometry" dimension with spatial dimensions of the target cube
+        return openeo.rest.datacube.DataCube(pg_node, connection=self._connection, metadata=self.metadata)

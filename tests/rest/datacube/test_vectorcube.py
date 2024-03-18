@@ -646,7 +646,30 @@ class TestVectorCubeValidation:
             assert caplog.messages == []
 
 
-def test_vector_to_raster(s2cube, vector_cube):
+@pytest.mark.parametrize(
+    ["target_parameter", "expected_target_parameter"],
+    [
+        (None, "target"),
+        ("target_data_cube", "target_data_cube"),
+        ("target", "target"),
+    ],
+)
+def test_vector_to_raster(s2cube, vector_cube, requests_mock, target_parameter, expected_target_parameter):
+    if target_parameter:
+        requests_mock.get(
+            API_URL + "/processes",
+            json={
+                "processes": [
+                    {
+                        "id": "vector_to_raster",
+                        "parameters": [
+                            {"name": "data"},
+                            {"name": target_parameter},
+                        ],
+                    }
+                ]
+            },
+        )
     raster_cube = vector_cube.vector_to_raster(s2cube)
     assert raster_cube.flat_graph() == {
         "loadgeojson1": {
@@ -659,7 +682,10 @@ def test_vector_to_raster(s2cube, vector_cube):
         },
         "vectortoraster1": {
             "process_id": "vector_to_raster",
-            "arguments": {"data": {"from_node": "loadgeojson1"}, "target_data_cube": {"from_node": "loadcollection1"}},
+            "arguments": {
+                "data": {"from_node": "loadgeojson1"},
+                expected_target_parameter: {"from_node": "loadcollection1"},
+            },
             "result": True,
         },
     }
