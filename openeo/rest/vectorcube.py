@@ -560,16 +560,17 @@ class VectorCube(_ProcessGraphAbstraction):
         )
         return self.process(process_id="apply_dimension", arguments=arguments)
 
-    def vector_to_raster(self, target) -> openeo.rest.datacube.DataCube:
+    def vector_to_raster(self, target: openeo.rest.datacube.DataCube) -> openeo.rest.datacube.DataCube:
         """
-        Converts this vector cube into a :py:class:`~openeo.rest.datacube.DataCube`.
+        Converts this vector cube (:py:class:`VectorCube`) into a raster data cube (:py:class:`~openeo.rest.datacube.DataCube`).
         The bounding polygon of homogenous areas of pixels is constructed.
 
-        .. warning:: experimental process: not generally supported, API subject to change.
+        :param target: a reference raster data cube to adopt the CRS/projection/resolution from.
 
-        :return: a :py:class:`~openeo.rest.datacube.DataCube`
+        .. warning:: ``vector_to_raster`` is an experimental, non-standard process. It is not widely supported, and its API is subject to change.
 
         .. versionadded:: 0.28.0
+
         """
         # TODO: this parameter sniffing is a temporary workaround until
         #       the `target` parameter name rename has fully settled
