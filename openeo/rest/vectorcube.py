@@ -558,3 +558,17 @@ class VectorCube(_ProcessGraphAbstraction):
             }
         )
         return self.process(process_id="apply_dimension", arguments=arguments)
+
+    def vector_to_raster(self, target_data_cube):
+        """
+        Converts this vector cube into a :py:class:`~openeo.rest.datacube.DataCube`.
+        The bounding polygon of homogenous areas of pixels is constructed.
+
+        .. warning:: experimental process: not generally supported, API subject to change.
+
+        :return: a :py:class:`~openeo.rest.datacube.DataCube`
+        """
+        from openeo.rest.datacube import DataCube
+
+        pg_node = PGNode(process_id="vector_to_raster", arguments={"data": self, "target_data_cube": target_data_cube})
+        return DataCube(pg_node, connection=self._connection, metadata=self.metadata)

@@ -644,3 +644,22 @@ class TestVectorCubeValidation:
         else:
             assert dummy_backend.validation_requests == []
             assert caplog.messages == []
+
+
+def test_vector_to_raster(s2cube, vector_cube):
+    raster_cube = vector_cube.vector_to_raster(s2cube)
+    assert raster_cube.flat_graph() == {
+        "loadgeojson1": {
+            "process_id": "load_geojson",
+            "arguments": {"data": {"type": "Point", "coordinates": [1, 2]}, "properties": []},
+        },
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
+        },
+        "vectortoraster1": {
+            "process_id": "vector_to_raster",
+            "arguments": {"data": {"from_node": "loadgeojson1"}, "target_data_cube": {"from_node": "loadcollection1"}},
+            "result": True,
+        },
+    }
