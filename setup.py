@@ -73,6 +73,7 @@ setup(
         "numpy>=1.17.0",
         "xarray>=0.12.3",
         "pandas>0.20.0",
+        "pystac",
         "deprecated>=1.2.12",
         'oschmod>=0.3.12; sys_platform == "win32"',
         "importlib_resources; python_version<'3.9'",

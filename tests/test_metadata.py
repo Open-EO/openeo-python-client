@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import List
 
+import json
 import pytest
 
 from openeo.metadata import (
@@ -14,6 +15,7 @@ from openeo.metadata import (
     MetadataException,
     SpatialDimension,
     TemporalDimension,
+    metadata_from_stac,
 )
 
 
@@ -782,3 +784,57 @@ def test_cubemetadata_subclass():
     assert isinstance(new, MyCubeMetadata)
     assert orig.bbox is None
     assert new.bbox == (1, 2, 3, 4)
+
+
+@pytest.mark.parametrize(
+    "test_stac, expected",
+    [
+        (
+            {
+                "type": "Collection",
+                "id": "test-collection",
+                "stac_version": "1.0.0",
+                "description": "Test collection",
+                "links": [],
+                "title": "Test Collection",
+                "extent": {
+                    "spatial": {"bbox": [[-180.0, -90.0, 180.0, 90.0]]},
+                    "temporal": {"interval": [["2020-01-01T00:00:00Z", "2020-01-10T00:00:00Z"]]},
+                },
+                "license": "proprietary",
+                "summaries": {"eo:bands": [{"name": "B01"}, {"name": "B02"}]},
+            },
+            ["B01", "B02"],
+        ),
+        (
+            {
+                "type": "Catalog",
+                "id": "test-catalog",
+                "stac_version": "1.0.0",
+                "description": "Test Catalog",
+                "links": [],
+            },
+            [],
+        ),
+        (
+            {
+                "type": "Feature",
+                "stac_version": "1.0.0",
+                "id": "test-item",
+                "properties": {"datetime": "2020-05-22T00:00:00Z", "eo:bands": [{"name": "SCL"}, {"name": "B08"}]},
+                "geometry": {"coordinates": [[[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]]], "type": "Polygon"},
+                "links": [],
+                "assets": {},
+                "bbox": [0, 1, 0, 1],
+                "stac_extensions": [],
+            },
+            ["SCL", "B08"],
+        ),
+    ],
+)
+def test_metadata_from_stac(tmp_path, test_stac, expected):
+
+    path = tmp_path / "stac.json"
+    path.write_text(json.dumps(test_stac))
+    metadata = metadata_from_stac(path)
+    assert metadata.band_names == expected

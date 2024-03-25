@@ -27,7 +27,14 @@ from openeo.internal.graph_building import FlatGraphableMixin, PGNode, as_flat_g
 from openeo.internal.jupyter import VisualDict, VisualList
 from openeo.internal.processes.builder import ProcessBuilderBase
 from openeo.internal.warnings import deprecated, legacy_alias
-from openeo.metadata import Band, BandDimension, CollectionMetadata, SpatialDimension, TemporalDimension
+from openeo.metadata import (
+    Band,
+    BandDimension,
+    CollectionMetadata,
+    SpatialDimension,
+    TemporalDimension,
+    metadata_from_stac,
+)
 from openeo.rest import (
     CapabilitiesException,
     OpenEoApiError,
@@ -1361,6 +1368,10 @@ class Connection(RestApiConnection):
                 prop: build_child_callback(pred, parent_parameters=["value"]) for prop, pred in properties.items()
             }
         cube = self.datacube_from_process(process_id="load_stac", **arguments)
+        try:
+            cube.metadata = metadata_from_stac(url)
+        except Exception:
+            _log.warning(f"Failed to extract cube metadata from STAC URL {url}", exc_info=True)
         return cube
 
     def load_ml_model(self, id: Union[str, BatchJob]) -> MlModel:
