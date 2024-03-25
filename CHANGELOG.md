@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Start depending on `pystac`, initially for better `load_stac` support ([#133](https://github.com/Open-EO/openeo-python-client/issues/133), [#527](https://github.com/Open-EO/openeo-python-client/issues/527))
+
 ### Changed
 
 ### Removed
