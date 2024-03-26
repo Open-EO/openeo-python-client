@@ -534,6 +534,7 @@ def metadata_from_stac(url: str) -> CubeMetadata:
     """
 
     def get_band_metadata(eo_bands_location: dict) -> List[Band]:
+        # TODO: return None iso empty list when no metadata?
         return [
             Band(name=band["name"], common_name=band.get("common_name"), wavelength_um=band.get("center_wavelength"))
             for band in eo_bands_location.get("eo:bands", [])
@@ -547,15 +548,12 @@ def metadata_from_stac(url: str) -> CubeMetadata:
 
     stac_object = pystac.read_file(href=url)
 
-    bands = []
-    collection = None
-
     if isinstance(stac_object, pystac.Item):
         item = stac_object
         if "eo:bands" in item.properties:
             eo_bands_location = item.properties
         elif item.get_collection() is not None:
-            collection = item.get_collection()
+            # TODO: Also do asset based band detection (like below)?
             eo_bands_location = item.get_collection().summaries.lists
         else:
             eo_bands_location = {}
@@ -574,12 +572,13 @@ def metadata_from_stac(url: str) -> CubeMetadata:
                 for asset_band in asset_bands:
                     if asset_band.name not in get_band_names(bands):
                         bands.append(asset_band)
-
-    else:
-        assert isinstance(stac_object, pystac.Catalog)
+    elif isinstance(stac_object, pystac.Catalog):
         catalog = stac_object
         bands = get_band_metadata(catalog.extra_fields.get("summaries", {}))
+    else:
+        raise ValueError(stac_object)
 
+    # TODO: conditionally include band dimension when there was actual indication of band metadata?
     band_dimension = BandDimension(name="bands", bands=bands)
     metadata = CubeMetadata(dimensions=[band_dimension])
     return metadata

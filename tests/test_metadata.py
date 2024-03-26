@@ -806,6 +806,7 @@ def test_cubemetadata_subclass():
             },
             ["B01", "B02"],
         ),
+        # TODO: test asset handling in collection?
         (
             {
                 "type": "Catalog",
@@ -830,6 +831,7 @@ def test_cubemetadata_subclass():
             },
             ["SCL", "B08"],
         ),
+        # TODO: test asset handling in item?
     ],
 )
 def test_metadata_from_stac(tmp_path, test_stac, expected):
