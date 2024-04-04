@@ -26,7 +26,7 @@ except ImportError:
     oschmod = None
 
 
-_PRIVATE_PERMS = stat.S_IRUSR | stat.S_IWUSR
+PRIVATE_PERMISSIONS = stat.S_IRUSR | stat.S_IWUSR
 
 log = logging.getLogger(__name__)
 
@@ -51,7 +51,7 @@ def assert_private_file(path: Path):
     mode = get_file_mode(path)
     if (mode & stat.S_IRWXG) or (mode & stat.S_IRWXO):
         message = "File {p} could be readable by others: mode {a:o} (expected: {e:o}).".format(
-            p=path, a=mode & (stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO), e=_PRIVATE_PERMS
+            p=path, a=mode & (stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO), e=PRIVATE_PERMISSIONS
         )
         if platform.system() == "Windows":
             log.info(message)
@@ -100,8 +100,11 @@ class PrivateJsonFile:
         assert_private_file(self._path)
         log.debug("Loading private JSON file {p}".format(p=self._path))
         # TODO: add file locking to avoid race conditions?
-        with self._path.open("r", encoding="utf8") as f:
-            return json.load(f)
+        try:
+            with self._path.open("r", encoding="utf8") as f:
+                return json.load(f)
+        except Exception as e:
+            raise RuntimeError(f"Failed to load {type(self).__name__} from {self._path!r}: {e!r}") from e
 
     def _write(self, data: dict):
         """Write whole data to file."""
@@ -109,7 +112,7 @@ class PrivateJsonFile:
         # TODO: add file locking to avoid race conditions?
         with self._path.open("w", encoding="utf8") as f:
             json.dump(data, f, indent=2)
-        set_file_mode(self._path, mode=_PRIVATE_PERMS)
+        set_file_mode(self._path, mode=PRIVATE_PERMISSIONS)
         assert_private_file(self._path)
 
     def get(self, *keys, default=None) -> Union[dict, str, int]:

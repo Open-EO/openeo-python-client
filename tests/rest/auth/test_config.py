@@ -12,6 +12,8 @@ from openeo.rest.auth.config import (
     PrivateJsonFile,
     RefreshTokenStore,
     get_file_mode,
+    set_file_mode,
+    PRIVATE_PERMISSIONS,
 )
 
 
@@ -34,7 +36,7 @@ class TestPrivateJsonFile:
         assert private.path.exists()
         assert [p.name for p in tmp_path.iterdir()] == ["my_data.secret"]
 
-    def test_permissions(self, tmp_path):
+    def test_permissions_on_create(self, tmp_path):
         private = PrivateJsonFile(tmp_path)
         assert not private.path.exists()
         private.set("foo", "bar", value=42)
@@ -42,20 +44,18 @@ class TestPrivateJsonFile:
         st_mode = get_file_mode(private.path)
         assert st_mode & 0o777 == 0o600
 
-    def test_wrong_permissions(self, tmp_path, caplog):
-        private = PrivateJsonFile(tmp_path)
-        with private.path.open("w") as f:
+    def test_wrong_permissions_on_load(self, tmp_path, caplog):
+        path = tmp_path / "my_data.secret"
+        with path.open("w") as f:
             json.dump({"foo": "bar"}, f)
-        assert private.path.stat().st_mode & 0o077 > 0
+        assert path.stat().st_mode & 0o077 > 0
+
+        private = PrivateJsonFile(path)
 
         if platform.system() != "Windows":
-            with pytest.raises(
-                PermissionError, match="readable by others.*expected: 600"
-            ):
+            with pytest.raises(PermissionError, match="readable by others.*expected: 600"):
                 private.get("foo")
-            with pytest.raises(
-                PermissionError, match="readable by others.*expected: 600"
-            ):
+            with pytest.raises(PermissionError, match="readable by others.*expected: 600"):
                 private.set("foo", value="lol")
         else:
             regex = re.compile("readable by others.*expected: 600")
@@ -92,6 +92,18 @@ class TestPrivateJsonFile:
         assert private.path.exists()
         private.remove()
         assert not private.path.exists()
+
+    def test_load_corrupt_content(self, tmp_path):
+        path = tmp_path / "my_data.secret"
+        path.write_text("{\nInvalid JSON here!")
+        set_file_mode(path, mode=PRIVATE_PERMISSIONS)
+
+        private = PrivateJsonFile(path=path)
+        with pytest.raises(
+            RuntimeError, match=r"Failed to load PrivateJsonFile from .*my_data\.secret.*JSONDecodeError.*line 2"
+        ):
+            private.load()
+
 
 
 class TestAuthConfig:
