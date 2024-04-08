@@ -546,32 +546,47 @@ def metadata_from_stac(url: str) -> CubeMetadata:
     def is_band_asset(asset: pystac.Asset) -> bool:
         return "eo:bands" in asset.extra_fields
 
+    def bands_from_collection(collection: pystac.Collection) -> List[Band]:
+        # First check if the item_asset extension is present, if so, we can use that to get the band metadata
+        if pystac.extensions.item_assets.ItemAssetsExtension.has_extension(collection):
+            bands = []
+            for item_asset in pystac.extensions.item_assets.ItemAssetsExtension(collection).item_assets.values():
+                item_asset_bands = get_band_metadata(item_asset.properties)
+                for item_asset_band in item_asset_bands:
+                    if item_asset_band.name not in get_band_names(bands):
+                        bands.append(item_asset_band)
+        # Else, check if the summaries extension is present, if so, we can use that to get the band metadata
+        else:
+            bands = get_band_metadata(collection.summaries.lists)
+
+        # If the ItemAssetsExtension and Summaries are not present, we need to look at the assets
+        if not bands:
+            for itm in collection.get_items():
+                band_assets = {asset_id: asset for asset_id, asset in itm.get_assets().items() if is_band_asset(asset)}
+
+                for asset in band_assets.values():
+                    asset_bands = get_band_metadata(asset.extra_fields)
+                    for asset_band in asset_bands:
+                        if asset_band.name not in get_band_names(bands):
+                            bands.append(asset_band)
+        return bands
+
     stac_object = pystac.read_file(href=url)
 
     if isinstance(stac_object, pystac.Item):
         item = stac_object
         if "eo:bands" in item.properties:
-            eo_bands_location = item.properties
+            bands = get_band_metadata(item.properties)
         elif item.get_collection() is not None:
-            # TODO: Also do asset based band detection (like below)?
-            eo_bands_location = item.get_collection().summaries.lists
+            collection = item.get_collection()
+            bands = bands_from_collection(collection)
         else:
-            eo_bands_location = {}
-        bands = get_band_metadata(eo_bands_location)
+            bands = []
 
     elif isinstance(stac_object, pystac.Collection):
         collection = stac_object
-        bands = get_band_metadata(collection.summaries.lists)
+        bands = bands_from_collection(collection)
 
-        # Summaries is not a required field in a STAC collection, so also check the assets
-        for itm in collection.get_items():
-            band_assets = {asset_id: asset for asset_id, asset in itm.get_assets().items() if is_band_asset(asset)}
-
-            for asset in band_assets.values():
-                asset_bands = get_band_metadata(asset.extra_fields)
-                for asset_band in asset_bands:
-                    if asset_band.name not in get_band_names(bands):
-                        bands.append(asset_band)
     elif isinstance(stac_object, pystac.Catalog):
         catalog = stac_object
         bands = get_band_metadata(catalog.extra_fields.get("summaries", {}))
