@@ -15,9 +15,7 @@ _process_registry = collections.defaultdict(list)
 T = TypeVar("T", bound=Callable)
 
 
-def openeo_process(
-    f: Optional[T] = None, process_id: Optional[str] = None, mode: Optional[str] = None
-) -> T:
+def openeo_process(f: Optional[T] = None, process_id: Optional[str] = None, mode: Optional[str] = None) -> T:
     """
     Decorator for function or method to associate it with a standard openEO process
 

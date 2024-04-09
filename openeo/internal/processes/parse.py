@@ -2,6 +2,7 @@
 Functionality and tools to process openEO processes.
 For example: parse a bunch of JSON descriptions and generate Python (stub) functions.
 """
+
 from __future__ import annotations
 
 import json
@@ -33,6 +34,7 @@ class Schema:
 
 class Parameter:
     """openEO process parameter"""
+
     # TODO unify with openeo.api.process.Parameter?
 
     NO_DEFAULT = object()
@@ -47,8 +49,11 @@ class Parameter:
     @classmethod
     def from_dict(cls, data: dict) -> Parameter:
         return cls(
-            name=data["name"], description=data["description"], schema=Schema.from_dict(data["schema"]),
-            default=data.get("default", cls.NO_DEFAULT), optional=data.get("optional", False)
+            name=data["name"],
+            description=data["description"],
+            schema=Schema.from_dict(data["schema"]),
+            default=data.get("default", cls.NO_DEFAULT),
+            optional=data.get("optional", False),
         )
 
     def has_default(self):
