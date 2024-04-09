@@ -319,7 +319,7 @@ def test_oidc_auth_device_flow(auth_config, refresh_token_store, requests_mock, 
         "Using client ID 'z3-cl13nt'",
         f"Visit https://authit.test/dc and enter user code '{user_code}' to authenticate.",
         "[#####################################] Authorization pending                   \r[#####################################] Polling                                 \r",
-        "[####################################-] Authorized successfully                 \r\n",
+        "Authorized successfully                                                         \r\n"
         "The OpenID Connect device flow was successful.",
         "Stored refresh token in {p!r}".format(p=str(refresh_token_store.path)),
     ]
@@ -369,7 +369,7 @@ def test_oidc_auth_device_flow_default_client(
         "Will try to use default client.",
         f"Visit https://authit.test/dc and enter user code '{user_code}' to authenticate.",
         "[#####################################] Authorization pending                   \r[#####################################] Polling                                 \r",
-        "[####################################-] Authorized successfully                 \r\n",
+        "Authorized successfully                                                         \r\n",
         "The OpenID Connect device flow was successful.",
         "Stored refresh token in {p!r}".format(p=str(refresh_token_store.path)),
     ]
@@ -418,7 +418,7 @@ def test_oidc_auth_device_flow_no_config_all_defaults(
         "Will try to use default client.",
         f"Visit https://authit.test/dc and enter user code '{user_code}' to authenticate.",
         "[#####################################] Authorization pending                   \r[#####################################] Polling                                 \r",
-        "[####################################-] Authorized successfully                 \r\n",
+        "Authorized successfully                                                         \r\n",
         "The OpenID Connect device flow was successful.",
         "Stored refresh token in {p!r}".format(p=str(refresh_token_store.path)),
     ]

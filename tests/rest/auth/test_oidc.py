@@ -407,7 +407,7 @@ def test_oidc_device_flow_with_client_secret(requests_mock, caplog, support_veri
 
     assert display.lines[-3:] == [
         (1011, "[#################--------------------] Polling                                 ", "\r"),
-        (1011, "[#################--------------------] Authorized successfully                 ", "\r"),
+        (1011, "Authorized successfully                                                         ", "\r"),
         (1011, "", "\n"),
     ]
 
@@ -475,7 +475,7 @@ def test_oidc_device_flow_with_pkce(requests_mock, caplog, support_verification_
 
     assert display.lines[-3:] == [
         (1016, "[###########################----------] Polling                                 ", "\r"),
-        (1016, "[###########################----------] Authorized successfully                 ", "\r"),
+        (1016, "Authorized successfully                                                         ", "\r"),
         (1016, "", "\n"),
     ]
 
@@ -552,7 +552,7 @@ def test_oidc_device_flow_without_pkce_nor_secret(
 
     assert display.lines[-3:] == [
         (1043.5, "[##########################-----------] Polling                                 ", "\r"),
-        (1043.5, "[##########################-----------] Authorized successfully                 ", "\r"),
+        (1043.5, "Authorized successfully                                                         ", "\r"),
         (1043.5, "", "\n"),
     ]
 
@@ -674,7 +674,7 @@ def test_oidc_device_flow_auto_detect(
 
     assert display.lines[-3:] == [
         (1033, "[#################################----] Polling                                 ", "\r"),
-        (1033, "[#################################----] Authorized successfully                 ", "\r"),
+        (1033, "Authorized successfully                                                         ", "\r"),
         (1033, "", "\n"),
     ]
 

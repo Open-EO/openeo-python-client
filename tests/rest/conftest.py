@@ -64,7 +64,7 @@ def oidc_device_code_flow_checker(time_machine, simple_time, fast_sleep, capsys)
             stdout, _ = capsys.readouterr()
             assert f"Visit {url} and enter" in stdout
             assert re.search(r"\[#+-*\] Authorization pending *\r\[#+-*\] Polling *\r", stdout)
-            assert re.search(r"\[#+-*\] Authorized successfully *\r\n", stdout)
+            assert re.search(r"Authorized successfully *\r\n", stdout)
         assert time_machine.coordinates.time() - start >= elapsed
 
     return assert_oidc_device_code_flow

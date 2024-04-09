@@ -737,11 +737,13 @@ class _BasicDeviceCodePollUi:
     def set_status(self, status: str):
         self._status = status
 
-    def show_progress(self, status: Optional[str] = None):
+    def show_progress(self, status: Optional[str] = None, include_bar: bool = True):
         if status:
             self.set_status(status)
-        progress_bar = self._progress_bar.get(fraction=1.0 - self.elapsed() / self.timeout)
-        text = f"{progress_bar} {self._status}"
+        text = self._status
+        if include_bar:
+            progress_bar = self._progress_bar.get(fraction=1.0 - self.elapsed() / self.timeout)
+            text = f"{progress_bar} {text}"
         self._display(f"{text[:self._max_width]: <{self._max_width}s}", end="\r")
 
     def close(self):
@@ -775,13 +777,15 @@ class _JupyterDeviceCodePollUi(_BasicDeviceCodePollUi):
     def show_instructions(self, info: VerificationInfo) -> None:
         self._instructions_display.update({"text/html": self._instructions(info=info)}, raw=True)
 
-    def show_progress(self, status: Optional[str] = None):
-        # TODO Add emoticons to status?
+    def show_progress(self, status: Optional[str] = None, include_bar: bool = True):
         if status:
             self.set_status(status)
-        progress_bar = self._progress_bar.get(fraction=1.0 - self.elapsed() / self.timeout)
         icon = self._status_icon(self._status)
-        self._progress_display.update({"text/html": f"<code>{progress_bar}</code> {icon} {self._status}"}, raw=True)
+        text = f"{icon} {self._status}"
+        if include_bar:
+            progress_bar = self._progress_bar.get(fraction=1.0 - self.elapsed() / self.timeout)
+            text = f"<code>{progress_bar}</code> {text}"
+        self._progress_display.update({"text/html": text}, raw=True)
 
     def _status_icon(self, status: str) -> str:
         status = status.lower()
@@ -790,7 +794,7 @@ class _JupyterDeviceCodePollUi(_BasicDeviceCodePollUi):
         elif "success" in status:
             return "\u2705"  # Green check mark
         elif "timed out" in status:
-            return "\u274C"  # Red  cross mark
+            return "\u274C"  # Red cross mark
         else:
             return ""
 
@@ -906,8 +910,7 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
                     resp = self._requests.post(url=token_endpoint, data=post_data, timeout=5)
                     if resp.status_code == 200:
                         log.info(f"[{elapsed():5.1f}s] Authorized successfully.")
-                        poll_ui.show_progress(status="Authorized successfully")
-                        # TODO remove progress bar when authorized succesfully?
+                        poll_ui.show_progress(status="Authorized successfully", include_bar=False)
                         return self._get_access_token_result(data=resp.json())
                     else:
                         try:
@@ -927,5 +930,5 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
                             )
                     next_poll = elapsed() + poll_interval
 
-            poll_ui.show_progress(status="Timed out")
+            poll_ui.show_progress(status="Timed out", include_bar=False)
             raise OidcDeviceCodePollTimeout(f"Timeout ({self._max_poll_time:.1f}s) while polling for access token.")

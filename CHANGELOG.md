@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- OIDC device code flow: hide progress bar on completed (or timed out) authentication
+
 ### Removed
 
 ### Fixed
