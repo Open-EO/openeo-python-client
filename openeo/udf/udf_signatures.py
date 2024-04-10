@@ -8,9 +8,9 @@ is compatible with the calling context of the process graph in which it is used.
 
 from pandas import Series
 
+from openeo.metadata import CollectionMetadata
 from openeo.udf.udf_data import UdfData
 from openeo.udf.xarraydatacube import XarrayDataCube
-from openeo.metadata import CollectionMetadata
 
 
 def apply_timeseries(series: Series, context: dict) -> Series:

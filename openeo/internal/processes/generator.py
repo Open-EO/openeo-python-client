@@ -137,8 +137,8 @@ def generate_process_py(processes: List[Process], output=sys.stdout, argv=None):
 
         import builtins
 
-        from openeo.internal.processes.builder import ProcessBuilderBase, UNSET
         from openeo.internal.documentation import openeo_process
+        from openeo.internal.processes.builder import UNSET, ProcessBuilderBase
         from openeo.rest._datacube import build_child_callback
 
 

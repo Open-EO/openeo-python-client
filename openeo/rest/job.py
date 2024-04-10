@@ -20,11 +20,11 @@ from openeo.internal.jupyter import (
 )
 from openeo.internal.warnings import deprecated, legacy_alias
 from openeo.rest import (
+    DEFAULT_DOWNLOAD_CHUNK_SIZE,
     JobFailedException,
     OpenEoApiError,
-    OpenEoClientException,
     OpenEoApiPlainError,
-    DEFAULT_DOWNLOAD_CHUNK_SIZE,
+    OpenEoClientException,
 )
 from openeo.util import ensure_dir
 

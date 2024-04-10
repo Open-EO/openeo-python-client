@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import logging
-import pystac
 import warnings
 from typing import Any, Callable, List, NamedTuple, Optional, Tuple, Union
+
+import pystac
 
 from openeo.internal.jupyter import render_component
 from openeo.util import deep_get

@@ -4,8 +4,8 @@ import typing
 from pathlib import Path, PurePosixPath
 from typing import Any, Dict, Optional, Union
 
-from openeo.util import ensure_dir
 from openeo.rest import DEFAULT_DOWNLOAD_CHUNK_SIZE
+from openeo.util import ensure_dir
 
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).

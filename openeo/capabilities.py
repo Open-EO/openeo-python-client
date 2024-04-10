@@ -5,7 +5,6 @@ import re
 from abc import ABC
 from typing import Tuple, Union
 
-
 # TODO Is this base class (still) useful?
 
 

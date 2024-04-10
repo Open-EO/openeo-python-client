@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import Union, Optional, List
+from typing import List, Optional, Union
 
 
 class Parameter:

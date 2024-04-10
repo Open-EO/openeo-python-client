@@ -12,7 +12,18 @@ import sys
 import warnings
 from collections import OrderedDict
 from pathlib import Path, PurePosixPath
-from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Sequence, Tuple, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+)
 
 import requests
 import shapely.geometry.base
@@ -36,11 +47,12 @@ from openeo.metadata import (
     metadata_from_stac,
 )
 from openeo.rest import (
+    DEFAULT_DOWNLOAD_CHUNK_SIZE,
     CapabilitiesException,
     OpenEoApiError,
+    OpenEoApiPlainError,
     OpenEoClientException,
     OpenEoRestError,
-    OpenEoApiPlainError,
 )
 from openeo.rest._datacube import build_child_callback
 from openeo.rest.auth.auth import BasicBearerAuth, BearerAuth, NullAuth, OidcBearerAuth
@@ -58,7 +70,6 @@ from openeo.rest.auth.oidc import (
     OidcRefreshTokenAuthenticator,
     OidcResourceOwnerPasswordAuthenticator,
 )
-from openeo.rest import DEFAULT_DOWNLOAD_CHUNK_SIZE
 from openeo.rest.datacube import DataCube, InputDate
 from openeo.rest.graph_building import CollectionProperty
 from openeo.rest.job import BatchJob, RESTJob
@@ -74,10 +85,10 @@ from openeo.util import (
     dict_no_none,
     ensure_list,
     load_json_resource,
+    repr_truncate,
     rfc3339,
     str_truncate,
     url_join,
-    repr_truncate,
 )
 
 _log = logging.getLogger(__name__)

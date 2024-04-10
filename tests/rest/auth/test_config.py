@@ -8,12 +8,12 @@ import pytest
 
 import openeo.rest.auth.config
 from openeo.rest.auth.config import (
+    PRIVATE_PERMISSIONS,
     AuthConfig,
     PrivateJsonFile,
     RefreshTokenStore,
     get_file_mode,
     set_file_mode,
-    PRIVATE_PERMISSIONS,
 )
 
 

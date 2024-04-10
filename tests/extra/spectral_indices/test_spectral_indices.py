@@ -10,10 +10,13 @@ from openeo.extra.spectral_indices import (
     compute_index,
     compute_indices,
     list_indices,
-    load_indices,
     load_constants,
+    load_indices,
 )
-from openeo.extra.spectral_indices.spectral_indices import _BandMapping, BandMappingException
+from openeo.extra.spectral_indices.spectral_indices import (
+    BandMappingException,
+    _BandMapping,
+)
 from openeo.rest.datacube import DataCube
 
 

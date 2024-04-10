@@ -1,5 +1,6 @@
 from xarray import DataArray
 
+
 def apply_datacube(cube: DataArray, context: dict) -> DataArray:
     B4 = cube.loc[:, 'bandzero']
     B8 = cube.loc[:, 'bandone']

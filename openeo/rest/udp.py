@@ -4,7 +4,7 @@ import typing
 from typing import List, Optional, Union
 
 from openeo.api.process import Parameter
-from openeo.internal.graph_building import as_flat_graph, FlatGraphableMixin
+from openeo.internal.graph_building import FlatGraphableMixin, as_flat_graph
 from openeo.internal.jupyter import render_component
 from openeo.internal.processes.builder import ProcessBuilderBase
 from openeo.internal.warnings import deprecated

@@ -15,7 +15,6 @@ from openeo import BatchJob, Connection
 from openeo.rest import OpenEoApiError
 from openeo.util import deep_get
 
-
 _log = logging.getLogger(__name__)
 
 

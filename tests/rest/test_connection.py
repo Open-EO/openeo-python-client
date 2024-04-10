@@ -21,9 +21,9 @@ from openeo.internal.graph_building import FlatGraphableMixin, PGNode
 from openeo.rest import (
     CapabilitiesException,
     OpenEoApiError,
+    OpenEoApiPlainError,
     OpenEoClientException,
     OpenEoRestError,
-    OpenEoApiPlainError,
 )
 from openeo.rest._testing import build_capabilities
 from openeo.rest.auth.auth import BearerAuth, NullAuth

@@ -3,7 +3,6 @@ import pytest
 import openeo.processes
 from openeo.internal.graph_building import PGNode
 
-
 EXPECTED_123_APPLY_ABSOLUTE = {
     "apply1": {
         "process_id": "apply",

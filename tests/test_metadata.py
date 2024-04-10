@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import json
 from typing import List
 
-import json
 import pytest
 
 from openeo.metadata import (

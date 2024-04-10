@@ -15,7 +15,7 @@ import pathlib
 import typing
 import warnings
 from builtins import staticmethod
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union, Callable
+from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import requests
@@ -28,12 +28,27 @@ from openeo.dates import get_temporal_extent
 from openeo.internal.documentation import openeo_process
 from openeo.internal.graph_building import PGNode, ReduceNode, _FromNodeMixin
 from openeo.internal.jupyter import in_jupyter_context
-from openeo.internal.processes.builder import ProcessBuilderBase, convert_callable_to_pgnode, get_parameter_names
+from openeo.internal.processes.builder import (
+    ProcessBuilderBase,
+    convert_callable_to_pgnode,
+    get_parameter_names,
+)
 from openeo.internal.warnings import UserDeprecationWarning, deprecated, legacy_alias
-from openeo.metadata import Band, BandDimension, CollectionMetadata, SpatialDimension, TemporalDimension
+from openeo.metadata import (
+    Band,
+    BandDimension,
+    CollectionMetadata,
+    SpatialDimension,
+    TemporalDimension,
+)
 from openeo.processes import ProcessBuilder
 from openeo.rest import BandMathException, OpenEoClientException, OperatorException
-from openeo.rest._datacube import THIS, UDF, _ProcessGraphAbstraction, build_child_callback
+from openeo.rest._datacube import (
+    THIS,
+    UDF,
+    _ProcessGraphAbstraction,
+    build_child_callback,
+)
 from openeo.rest.graph_building import CollectionProperty
 from openeo.rest.job import BatchJob, RESTJob
 from openeo.rest.mlmodel import MlModel
