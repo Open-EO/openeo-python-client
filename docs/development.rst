@@ -334,8 +334,9 @@ we will use a concrete version ``0.8.0`` in the examples below.
     (typically in `recipe/meta.yaml <https://github.com/conda-forge/openeo-feedstock/blob/main/recipe/meta.yaml>`_)
     and merge.
 
-#.  Optionally: send a tweet about the release
-    or announce it in the `openEO Platform Forum <https://discuss.eodc.eu/c/openeo-platform/clients/18>`_.
+#.  Optionally: make a post about the new release
+    on the `openEO Platform Forum <https://discuss.eodc.eu/c/openeo-platform/clients/18>`_
+    or the `CDSE Forum <https://forum.dataspace.copernicus.eu/c/openeo/28>`_.
 
 Verification
 """""""""""""
