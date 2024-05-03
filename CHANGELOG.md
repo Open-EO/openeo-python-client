@@ -9,15 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Removed
+
+### Fixed
+
+
+## [0.29.0] - 2024-05-03
+
+### Added
+
 - Start depending on `pystac`, initially for better `load_stac` support ([#133](https://github.com/Open-EO/openeo-python-client/issues/133), [#527](https://github.com/Open-EO/openeo-python-client/issues/527))
 
 ### Changed
 
 - OIDC device code flow: hide progress bar on completed (or timed out) authentication
-
-### Removed
-
-### Fixed
 
 
 ## [0.28.0] - 2024-03-18
