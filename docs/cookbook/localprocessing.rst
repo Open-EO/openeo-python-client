@@ -23,6 +23,15 @@ Installation
 
    pip install openeo[localprocessing]
 
+Development
+-----------
+
+If you want to contribute implementing new processes in openeo-processes-dask, clone the repository with `--recurse-submodules` to also fetch the process specs:
+
+.. code:: bash
+
+    git clone --recurse-submodules git@github.com:Open-EO/openeo-processes-dask.git
+
 Usage
 -----
 
