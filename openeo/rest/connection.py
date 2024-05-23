@@ -1755,6 +1755,8 @@ class Connection(RestApiConnection):
         if isinstance(self.auth, BearerAuth):
             cmd += ["-H", f"Authorization: Bearer {'...' if obfuscate_auth else self.auth.bearer}"]
         pg_with_metadata = self._build_request_with_process_graph(data)
+        if path == "/validation":
+            pg_with_metadata = pg_with_metadata["process"]
         post_json = json.dumps(pg_with_metadata, separators=(",", ":"))
         cmd += ["--data", post_json]
         cmd += [self.build_url(path)]
