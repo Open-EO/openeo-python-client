@@ -1,16 +1,15 @@
 """
 
+Note: this module was initially developed under the ``openeo-udf`` project (https://github.com/Open-EO/openeo-udf)
 """
 
-# Note: this module was initially developed under the ``openeo-udf`` project (https://github.com/Open-EO/openeo-udf)
-
 import functools
-import importlib
 import inspect
 import logging
 import math
 import pathlib
-from typing import Callable, Union
+import re
+from typing import Callable, List, Union
 
 import numpy
 import pandas
@@ -20,6 +19,7 @@ from pandas import Series
 
 import openeo
 from openeo.udf import OpenEoUdfException
+from openeo.udf._compat import tomllib
 from openeo.udf.feature_collection import FeatureCollection
 from openeo.udf.structured_data import StructuredData
 from openeo.udf.udf_data import UdfData
@@ -242,3 +242,53 @@ def execute_local_udf(udf: Union[str, openeo.UDF], datacube: Union[str, xarray.D
     # run the udf through the same routine as it would have been parsed in the backend
     result = run_udf_code(udf, udf_data)
     return result
+
+
+def extract_udf_dependencies(code: str) -> Union[List[str], None]:
+    """
+    Extract dependencies from UDF code declared in a top-level comment block
+    following the `inline script metadata specification (PEP 508) <https://packaging.python.org/en/latest/specifications/inline-script-metadata>`_.
+
+    Example UDF snippet declaring expected dependencies as embedded metadata
+    in a comment block:
+
+    .. code-block:: python
+
+        # /// script
+        # dependencies = [
+        #     "xarray>=2024.1.1",
+        #     "eotools @ https://example.com/eotools-0.1.0.whl",
+        # ]
+        # ///
+        import xarray
+        import eotools
+
+        def apply_datacube(cube: xarray.DataArray, context: dict) -> xarray.DataArray:
+            ...
+
+    :param code: UDF code
+    :return: list of extracted dependencies
+
+    .. versionadded:: 0.30.0
+    """
+
+    # Extract "script" blocks
+    script_type = "script"
+    block_regex = re.compile(
+        r"^# /// (?P<type>[a-zA-Z0-9-]+)\s*$\s(?P<content>(^#(| .*)$\s)+)^# ///$", flags=re.MULTILINE
+    )
+    script_blocks = [
+        match.group("content") for match in block_regex.finditer(code) if match.group("type") == script_type
+    ]
+
+    if len(script_blocks) > 1:
+        raise ValueError(f"Multiple {script_type!r} blocks found in top-level comment")
+    elif len(script_blocks) == 0:
+        return None
+
+    # Extract dependencies from "script" block
+    content = "".join(
+        line[2:] if line.startswith("# ") else line[1:] for line in script_blocks[0].splitlines(keepends=True)
+    )
+
+    return tomllib.loads(content).get("dependencies")

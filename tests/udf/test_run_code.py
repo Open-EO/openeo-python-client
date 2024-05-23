@@ -1,5 +1,7 @@
+import importlib.util
 import textwrap
 from pathlib import Path
+from unittest import mock
 
 import numpy
 import pandas
@@ -7,12 +9,14 @@ import pytest
 import xarray
 
 from openeo.udf import UdfData, XarrayDataCube
+from openeo.udf._compat import FlimsyTomlParser
 from openeo.udf.run_code import (
     _annotation_is_pandas_series,
     _annotation_is_udf_data,
     _annotation_is_udf_datacube,
     _get_annotation_str,
     execute_local_udf,
+    extract_udf_dependencies,
     run_udf_code,
 )
 
@@ -300,3 +304,100 @@ def test_run_local_udf_from_file_netcdf(tmp_path):
     xarray.testing.assert_equal(result[0, 0, 0:2, 0:2], expected)
 
     assert result[2, 0, 4, 3] == _ndvi(2034, 2134)
+
+
+def _is_package_available(name: str) -> bool:
+    # TODO: move this to a more general test utility module.
+    return importlib.util.find_spec(name) is not None
+
+
+class TestExtractUdfDependencies:
+
+    # List of (udf_code, expected) tuples for extract_udf_dependencies tests
+    _EXTRACT_UDF_DEPENDENCIES_BASIC_USE_CASES = [
+        (
+            """
+            # No dependency declarations here
+            def foo(x):
+                return x+1
+            """,
+            None,
+        ),
+        (
+            """
+            # /// script
+            # dependencies = ["numpy", "pandas"]
+            # ///
+            def foo(x):
+                return x+1
+            """,
+            ["numpy", "pandas"],
+        ),
+        (
+            """
+            # /// script
+            # dependencies = [
+            #     "numpy>=1.2.3",  # Inline comment about numpy here
+            #     'pandas!=2.3.4',  # Note the single quotes and trailing comma
+            # ]
+            # other = "stuff"
+            # ///
+            def foo(x):
+                return x+1
+            """,
+            ["numpy>=1.2.3", "pandas!=2.3.4"],
+        ),
+    ]
+
+    @pytest.mark.parametrize(["udf_code", "expected"], _EXTRACT_UDF_DEPENDENCIES_BASIC_USE_CASES)
+    def test_extract_udf_dependencies_basic(self, udf_code, expected):
+        udf_code = textwrap.dedent(udf_code)
+        assert extract_udf_dependencies(udf_code) == expected
+
+    @pytest.fixture
+    def force_flimsy_toml_parser(self):
+        """Fixture to enforce the use of the FlimsyTomlParser while testing extract_udf_dependencies"""
+        with mock.patch("openeo.udf.run_code.tomllib", FlimsyTomlParser):
+            yield
+
+    def test_force_flimsy_toml_parser(self, force_flimsy_toml_parser):
+        """Test that `force_flimsy_toml_parser` is actually forcing the use of the FlimsyTomlParser"""
+        udf_code = textwrap.dedent(
+            """
+            # /// script
+            # dependencies = ["numpy", "pandas"]
+            # [tables]
+            # too = { hard = "to", parse = "this"}
+            # ///
+            """
+        )
+        with pytest.raises(FlimsyTomlParser.TomlParseError, match="Tables are not supported"):
+            _ = extract_udf_dependencies(udf_code)
+
+    @pytest.mark.parametrize(["udf_code", "expected"], _EXTRACT_UDF_DEPENDENCIES_BASIC_USE_CASES)
+    def test_extract_udf_dependencies_with_flimsy_toml_parser(self, udf_code, expected, force_flimsy_toml_parser):
+        udf_code = textwrap.dedent(udf_code)
+        assert extract_udf_dependencies(udf_code) == expected
+
+    @pytest.mark.skipif(
+        not (_is_package_available("tomllib") or _is_package_available("tomli")),
+        reason="Requires a full-fledged TOML parsing library like tomllib or tomli",
+    )
+    def test_extract_udf_dependencies_advanced(self):
+        """extract_udf_dependencies usage that requires full-fledged TOML parsing"""
+        udf_code = textwrap.dedent(
+            r"""
+            # /// script
+            # dependencies = [
+            #     'requests [security,tests] >= 2.8.1, == 2.8.* ; python_version < "2.7"',
+            #     "pip @ https://github.com/pypa/pip/archive/1.3.1.zip#sha1=da9234ee9982d4bbb3c72346a6de940a148ea686",
+            # ]
+            # ///
+            def foo(x):
+                return x+1
+            """
+        )
+        assert extract_udf_dependencies(udf_code) == [
+            'requests [security,tests] >= 2.8.1, == 2.8.* ; python_version < "2.7"',
+            "pip @ https://github.com/pypa/pip/archive/1.3.1.zip#sha1=da9234ee9982d4bbb3c72346a6de940a148ea686",
+        ]

@@ -116,7 +116,7 @@ openeo.udf
     :members: StructuredData
 
 .. automodule:: openeo.udf.run_code
-    :members: execute_local_udf
+    :members: execute_local_udf, extract_udf_dependencies
 
 .. automodule:: openeo.udf.debug
     :members: inspect
