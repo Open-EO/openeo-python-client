@@ -890,9 +890,9 @@ class Connection(RestApiConnection):
 
     def list_udf_runtimes(self) -> dict:
         """
-        Loads all available UDF runtimes.
+        List information about the available UDF runtimes.
 
-        :return: data_dict: Dict All available UDF runtimes
+        :return: A dictionary with metadata about each available UDF runtime.
         """
         runtimes = self._capabilities_cache.get(
             key="udf_runtimes",

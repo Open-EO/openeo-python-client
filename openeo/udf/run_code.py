@@ -18,6 +18,7 @@ import xarray
 from pandas import Series
 
 import openeo
+from openeo import UDF
 from openeo.udf import OpenEoUdfException
 from openeo.udf._compat import tomllib
 from openeo.udf.feature_collection import FeatureCollection
@@ -244,33 +245,35 @@ def execute_local_udf(udf: Union[str, openeo.UDF], datacube: Union[str, xarray.D
     return result
 
 
-def extract_udf_dependencies(code: str) -> Union[List[str], None]:
+def extract_udf_dependencies(udf: Union[str, UDF]) -> Union[List[str], None]:
     """
     Extract dependencies from UDF code declared in a top-level comment block
     following the `inline script metadata specification (PEP 508) <https://packaging.python.org/en/latest/specifications/inline-script-metadata>`_.
 
-    Example UDF snippet declaring expected dependencies as embedded metadata
+    Basic example UDF snippet declaring expected dependencies as embedded metadata
     in a comment block:
 
     .. code-block:: python
 
         # /// script
         # dependencies = [
-        #     "xarray>=2024.1.1",
-        #     "eotools @ https://example.com/eotools-0.1.0.whl",
+        #     "geojson",
         # ]
         # ///
-        import xarray
-        import eotools
+
+        import geojson
 
         def apply_datacube(cube: xarray.DataArray, context: dict) -> xarray.DataArray:
             ...
 
-    :param code: UDF code
-    :return: list of extracted dependencies
+    .. seealso:: :ref:`python-udf-dependency-declaration` for more in-depth information.
+
+    :param udf: UDF code as a string or :py:class:`~openeo.rest._datacube.UDF` object
+    :return: List of extracted dependencies or ``None`` when no valid metadata block with dependencies was found.
 
     .. versionadded:: 0.30.0
     """
+    udf_code = udf.code if isinstance(udf, UDF) else udf
 
     # Extract "script" blocks
     script_type = "script"
@@ -278,7 +281,7 @@ def extract_udf_dependencies(code: str) -> Union[List[str], None]:
         r"^# /// (?P<type>[a-zA-Z0-9-]+)\s*$\s(?P<content>(^#(| .*)$\s)+)^# ///$", flags=re.MULTILINE
     )
     script_blocks = [
-        match.group("content") for match in block_regex.finditer(code) if match.group("type") == script_type
+        match.group("content") for match in block_regex.finditer(udf_code) if match.group("type") == script_type
     ]
 
     if len(script_blocks) > 1:

@@ -8,6 +8,7 @@ import pandas
 import pytest
 import xarray
 
+from openeo import UDF
 from openeo.udf import UdfData, XarrayDataCube
 from openeo.udf._compat import FlimsyTomlParser
 from openeo.udf.run_code import (
@@ -353,6 +354,11 @@ class TestExtractUdfDependencies:
     def test_extract_udf_dependencies_basic(self, udf_code, expected):
         udf_code = textwrap.dedent(udf_code)
         assert extract_udf_dependencies(udf_code) == expected
+
+    @pytest.mark.parametrize(["udf_code", "expected"], _EXTRACT_UDF_DEPENDENCIES_BASIC_USE_CASES)
+    def test_extract_udf_dependencies_udf_object(self, udf_code, expected):
+        udf = UDF(code=textwrap.dedent(udf_code))
+        assert extract_udf_dependencies(udf) == expected
 
     @pytest.fixture
     def force_flimsy_toml_parser(self):

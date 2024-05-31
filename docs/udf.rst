@@ -200,7 +200,7 @@ Some details about this UDF script:
   which receives and returns a :py:class:`~xarray.DataArray` instance.
   We follow here the :py:meth:`~openeo.udf.udf_signatures.apply_datacube()` UDF function signature.
 - line 4: Because our scaling operation is so simple, we can transform the ``xarray.DataArray`` values in-place.
-- line 5: Consequently, because the values were updated in-place, we can return the same xarray object.
+- line 5: Consequently, because the values were updated in-place, we can return the same Xarray object.
 
 Workflow script
 ----------------
@@ -318,7 +318,7 @@ Example: ``reduce_dimension`` with a UDF
 ========================================
 
 The key element for a UDF invoked in the context of `reduce_dimension` is that it should actually return
-an XArray DataArray _without_ the dimension that is specified to be reduced.
+an Xarray DataArray _without_ the dimension that is specified to be reduced.
 
 So a reduce over time would receive a DataArray with `bands,t,y,x` dimensions, and return one with only `bands,y,x`.
 
@@ -405,15 +405,110 @@ Note: this algorithm's primary purpose is to aid client side development of UDFs
 UDF dependency management
 =========================
 
-Most UDF's have dependencies, because they often are used to run complex algorithms. Typical dependencies like numpy and
-XArray can be assumed to be available, but others may be more specific for you.
+UDFs usually have some dependencies on existing libraries, e.g. to implement complex algorithms.
+In case of Python UDFs, it can be assumed that common libraries like numpy and Xarray are readily available,
+not in the least because they underpin the Python UDF function signatures.
+More concretely, it is possible to inspect available libraries for the available UDF runtimes
+through :py:meth:`Connection.list_udf_runtimes()<openeo.rest.connection.Connection.list_udf_runtimes>`.
+For example, to list the available libraries for runtime "Python" (version "3"):
 
-This part is probably the least standardized in the definition of UDF's, and may be backend specific.
-We include some general pointers here:
+.. code-block:: pycon
 
-- Python dependencies can be packaged fairly easily by zipping a Python virtual environment.
+    >>> connection.list_udf_runtimes()["Python"]["versions"]["3"]["libraries"]
+    {'geopandas': {'version': '0.13.2'},
+     'numpy': {'version': '1.22.4'},
+     'xarray': {'version': '0.16.2'},
+     ...
+
+Managing and using additional dependencies or libraries that are not provided out-of-the-box by a backend
+is a more challenging problem and the practical details can vary between backends.
+
+
+.. _python-udf-dependency-declaration:
+Standard for declaring Python UDF dependencies
+-----------------------------------------------
+
+.. warning::
+
+    This is based on a fairly recent standard and it might not be supported by your chosen backend yet.
+
+`PEP 723 "Inline script metadata" <https://peps.python.org/pep-0723/>`_ defines a standard
+for *Python scripts* to declare dependencies inside a top-level comment block, like this:
+
+.. code-block:: python
+    :emphasize-lines: 1-5
+
+    # /// script
+    # dependencies = [
+    #   "geojson",
+    #   "fancy-eo-library",
+    # ]
+    # ///
+    #
+    # This openEO UDF script implements ...
+    # based on the fancy-eo-library ... using geosjon data ...
+
+    import geojson
+    import fancyeo
+
+    def apply_datacube(cube: xarray.DataArray, context: dict) -> xarray.DataArray:
+        ...
+
+Some considerations to make sure you have a valid metadata block:
+
+- Lines start with a single hash ``#`` and one space (the space can be omitted if the ``#`` is the only character on the line).
+- The metadata block starts with a line ``# /// script`` and ends with ``# ///``.
+- Between these delimiters you put the metadata fields in `TOML format <https://toml.io/en/>`_,
+  each line prefixed with ``#`` and a space.
+- Declare your UDF's dependencies in a ``dependencies`` field as a TOML array.
+  List each package on a separate line as shown above, or put them all on a single line.
+  It is also allowed to include comments, as long as the whole construct is valid TOML.
+- Each ``dependencies`` entry must be a valid `PEP 508 <https://peps.python.org/pep-0508/>`_ dependency specifier.
+  This practically means to use the package names (optionally with version constraints)
+  as expected by the ``pip install`` command.
+
+A more complex example to illustrate some more advanced aspects of the metadata block:
+
+.. code-block:: python
+
+    # /// script
+    # dependencies = [
+    #   # A comment about using at least version 2.5.0
+    #   'geojson>=2.5.0',  # An inline comment
+    #   # Note that TOML allows both single and double quotes for strings.
+    #
+    #   # Install a package "fancyeo" from a (ZIP) source archive URL.
+    #   "fancyeo @ https://github.com/fncy/fancyeo/archive/refs/tags/v3.2.0-alpha1.zip",
+    #   # Or from a wheel URL, including a content hash to be verified before installing.
+    #   "lousyeo @ https://example.com/lousyeo-6.6.6-py3-none-any.whl#sha1=4bbb3c72a9234ee998a6de940a148e346a",
+    #   # Note that the last entry may have a trailing comma.
+    # ]
+    # ///
+
+Use :py:func:`~openeo.udf.run_code.extract_udf_dependencies` to verify the parsing of the metadata block:
+
+.. code-block:: pycon
+
+    >>> from openeo.udf.run_code import extract_udf_dependencies
+    >>> extract_udf_dependencies(udf_code)
+    ['geojson>=2.5.0',
+     'fancyeo @ https://github.com/fncy/fancyeo/archive/refs/tags/v3.2.0-alpha1.zip',
+     'lousyeo @ https://example.com/lousyeo-6.6.6-py3-none-any.whl#sha1=4bbb3c72a9234ee998a6de940a148e346a']
+
+Note that this function won't necessarily raise exceptions for syntax errors in the metadata block.
+It might just fail to reliably detect the metadata block and skip it as regular comment lines.
+If no valid metadata block is found, ``None`` will be returned.
+
+Ad-hoc dependency handling
+---------------------------
+
+If dependency handling through standardized UDF declarations is not supported by the backend,
+there are still ways to manually handle additional dependencies in your UDF.
+The exact details can vary between backends, but we can give some general pointers here:
+
+- Multiple Python dependencies can be packaged fairly easily by zipping a Python virtual environment.
 - For some dependencies, it can be important that the Python major version of the virtual environment is the same as the one used by the backend.
-- Python allows you to dynamically append (or prepend) libraries to the search path: `sys.path.append("unzipped_virtualenv_location")`
+- Python allows you to dynamically append (or prepend) libraries to the search path: ``sys.path.append("unzipped_virtualenv_location")``
 
 
 
