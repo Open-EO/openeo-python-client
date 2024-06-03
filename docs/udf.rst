@@ -432,11 +432,30 @@ Standard for declaring Python UDF dependencies
 
     This is based on a fairly recent standard and it might not be supported by your chosen backend yet.
 
+
 `PEP 723 "Inline script metadata" <https://peps.python.org/pep-0723/>`_ defines a standard
-for *Python scripts* to declare dependencies inside a top-level comment block, like this:
+for *Python scripts* to declare dependencies inside a top-level comment block.
+If the openEO backend of your choice supports this standard, it is the preferred approach
+to declare the (``import``) dependencies of your Python UDF:
+
+- It avoids all the overhead for the UDF developer
+  to correctly and efficiently make desired dependencies available in the UDF.
+- It allows the openEO backend to optimize dependencies handling.
+
+.. warning::
+
+    An openEO backend might only support this automatic UDF dependency handling feature
+    in batch jobs (because of their isolated nature),
+    but not for synchronous processing requests.
+
+
+Declaration of UDF dependencies
+```````````````````````````````
+
+A basic example of how the UDF dependencies can be declared in top-level comment block of your Python UDF:
 
 .. code-block:: python
-    :emphasize-lines: 1-5
+    :emphasize-lines: 1-6
 
     # /// script
     # dependencies = [
@@ -485,7 +504,12 @@ A more complex example to illustrate some more advanced aspects of the metadata 
     # ]
     # ///
 
-Use :py:func:`~openeo.udf.run_code.extract_udf_dependencies` to verify the parsing of the metadata block:
+
+Verification
+````````````
+
+Use :py:func:`~openeo.udf.run_code.extract_udf_dependencies` to verify
+that your metadata block can be parsed correctly:
 
 .. code-block:: pycon
 
@@ -495,9 +519,12 @@ Use :py:func:`~openeo.udf.run_code.extract_udf_dependencies` to verify the parsi
      'fancyeo @ https://github.com/fncy/fancyeo/archive/refs/tags/v3.2.0-alpha1.zip',
      'lousyeo @ https://example.com/lousyeo-6.6.6-py3-none-any.whl#sha1=4bbb3c72a9234ee998a6de940a148e346a']
 
-Note that this function won't necessarily raise exceptions for syntax errors in the metadata block.
-It might just fail to reliably detect the metadata block and skip it as regular comment lines.
 If no valid metadata block is found, ``None`` will be returned.
+
+.. note::
+    This function won't necessarily raise exceptions for syntax errors in the metadata block.
+    It might just fail to reliably detect anything and skip it as regular comment lines.
+
 
 Ad-hoc dependency handling
 ---------------------------
