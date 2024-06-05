@@ -58,6 +58,6 @@ References:
 
     .. _target:
 
-- refer to the reference with:
+- refer to the reference with::
 
     :ref:`target`

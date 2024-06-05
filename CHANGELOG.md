@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `openeo.udf.run_code.extract_udf_dependencies()` to extract UDF dependency declarations from UDF code
   (related to [Open-EO/openeo-geopyspark-driver#237](https://github.com/Open-EO/openeo-geopyspark-driver/issues/237))
 - Document PEP 723 based Python UDF dependency declarations ([Open-EO/openeo-geopyspark-driver#237](https://github.com/Open-EO/openeo-geopyspark-driver/issues/237))
+- Added more `openeo.api.process.Parameter` helpers to easily create "bounding_box", "date", "datetime", "geojson" and "temporal_interval" parameters for UDP construction.
 
 ### Changed
 

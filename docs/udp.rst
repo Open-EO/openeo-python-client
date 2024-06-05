@@ -1,8 +1,8 @@
 .. _user-defined-processes:
 
-***********************
-User-Defined Processes
-***********************
+############################
+User-Defined Processes (UDP)
+############################
 
 
 Code reuse with user-defined processes
@@ -77,6 +77,8 @@ For example with 70 degrees Fahrenheit (again in openEO JSON format here)::
     }
 
 
+.. _udp-declaring-parameters:
+
 Declaring Parameters
 ---------------------
 
@@ -122,6 +124,17 @@ Some useful parameter helpers (class methods of the :py:class:`~openeo.api.proce
 -   :py:meth:`Parameter.datacube() <openeo.api.process.Parameter.datacube>`
     (or its legacy, deprecated cousin :py:meth:`Parameter.raster_cube() <openeo.api.process.Parameter.raster_cube>`)
     to create a data cube parameter.
+-   :py:meth:`Parameter.bounding_box() <openeo.api.process.Parameter.bounding_box>` to create
+    a parameter for specifying a spatial extent with "west", "south", "east", "north" bounds.
+-   :py:meth:`Parameter.date() <openeo.api.process.Parameter.date>` and
+    :py:meth:`Parameter.date_time() <openeo.api.process.Parameter.date_time>`
+    to create date or date+time parameters.
+-   :py:meth:`Parameter.temporal_interval() <openeo.api.process.Parameter.temporal_interval>` to create
+    a parameter for specifying a temporal interval with "start" and "end" dates.
+-   :py:meth:`Parameter.geojson() <openeo.api.process.Parameter.geojson>` to create
+    a parameter for specifying a GeoJSON geometry.
+
+
 
 Consult the documentation of these helper class methods for additional features.
 For example, declaring a default value for an integer parameter::
