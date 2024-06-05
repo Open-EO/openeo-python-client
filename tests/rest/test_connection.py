@@ -2555,6 +2555,52 @@ class TestLoadStac:
             }
         }
 
+    def test_load_stac_reduce_temporal(self, con120, tmp_path):
+        # TODO: reusable utility to create/generate a STAC resource for testing
+        #       (a file, but preferably a URL, but that requires urllib mocking)
+        stac_path = tmp_path / "stac.json"
+        stac_data = {
+            "type": "Collection",
+            "id": "test-collection",
+            "stac_version": "1.0.0",
+            "description": "Test collection",
+            "links": [],
+            "title": "Test Collection",
+            "extent": {
+                "spatial": {"bbox": [[-180.0, -90.0, 180.0, 90.0]]},
+                "temporal": {"interval": [["2020-01-01T00:00:00Z", "2020-01-10T00:00:00Z"]]},
+            },
+            "license": "proprietary",
+            "summaries": {"eo:bands": [{"name": "B01"}, {"name": "B02"}]},
+        }
+        stac_path.write_text(json.dumps(stac_data))
+
+        cube = con120.load_stac(str(stac_path))
+        reduced = cube.reduce_temporal("max")
+        assert reduced.flat_graph() == {
+            "loadstac1": {
+                "process_id": "load_stac",
+                "arguments": {"url": str(stac_path)},
+            },
+            "reducedimension1": {
+                "process_id": "reduce_dimension",
+                "arguments": {
+                    "data": {"from_node": "loadstac1"},
+                    "dimension": "t",
+                    "reducer": {
+                        "process_graph": {
+                            "max1": {
+                                "arguments": {"data": {"from_parameter": "data"}},
+                                "process_id": "max",
+                                "result": True,
+                            }
+                        }
+                    },
+                },
+                "result": True,
+            },
+        }
+
 
 @pytest.mark.parametrize(
     "data",

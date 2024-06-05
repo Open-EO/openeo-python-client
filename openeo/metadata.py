@@ -581,5 +581,8 @@ def metadata_from_stac(url: str) -> CubeMetadata:
 
     # TODO: conditionally include band dimension when there was actual indication of band metadata?
     band_dimension = BandDimension(name="bands", bands=bands)
-    metadata = CubeMetadata(dimensions=[band_dimension])
+    # TODO #567 get actual temporal extent information from metadata (if any)
+    # TODO #567 is it possible to derive the actual name of temporal dimension that the backend will use?
+    temporal_dimension = TemporalDimension(name="t", extent=[None, None])
+    metadata = CubeMetadata(dimensions=[band_dimension, temporal_dimension])
     return metadata

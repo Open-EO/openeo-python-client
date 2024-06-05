@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Initial fix for broken `DataCube.reduce_temporal()` after `load_stac` ([#568](https://github.com/Open-EO/openeo-python-client/pull/568))
+
 
 ## [0.29.0] - 2024-05-03
 
