@@ -76,7 +76,7 @@ Put the closing parenthesis on its own line.
     # This is better:
     s2_fapar = connection.load_collection(
         "TERRASCOPE_S2_FAPAR_V2",
-        spatial_extent={'west': 16.138916, 'east': 16.524124, 'south': 48.1386, 'north': 48.320647},
+        spatial_extent={"west": 16.138916, "east": 16.524124, "south": 48.1386, "north": 48.320647},
         temporal_extent=["2020-05-01", "2020-05-20"],
     )
 
