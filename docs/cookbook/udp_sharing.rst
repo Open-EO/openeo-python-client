@@ -105,21 +105,29 @@ Loading a published user-defined process as DataCube
 
 From the public URL of the user-defined process,
 it is also possible for another user to construct, fully client-side,
-a new :class:`~openeo.rest.datacube.DataCube`
-with :meth:`Connection.datacube_from_json <openeo.rest.connection.Connection.datacube_from_json>`.
+a new :py:class:`~openeo.rest.datacube.DataCube`
+with :py:meth:`Connection.datacube_from_json() <openeo.rest.connection.Connection.datacube_from_json>`.
 
 It is important to note that this approach is different from calling
 a user-defined process as described in :ref:`evaluate_udp` and :ref:`udp_sharing_call_url_namespace`.
-:meth:`Connection.datacube_from_json <openeo.rest.connection.Connection.datacube_from_json>`
+:py:meth:`Connection.datacube_from_json() <openeo.rest.connection.Connection.datacube_from_json>`
 breaks open the encapsulation of the user-defined process and "unrolls" the process graph inside
-into a new :class:`~openeo.rest.datacube.DataCube`.
+into a new :py:class:`~openeo.rest.datacube.DataCube`.
 This also implies that parameters defined in the user-defined process have to be provided when calling
-:meth:`Connection.datacube_from_json <openeo.rest.connection.Connection.datacube_from_json>` ::
+:py:meth:`Connection.datacube_from_json() <openeo.rest.connection.Connection.datacube_from_json>`:
 
+
+.. code-block:: python
+    :emphasize-lines: 4
 
     udp_url = "https://openeo.vito.be/openeo/1.0/processes/u:johndoe/fahrenheit_to_celsius"
-    cube = connection.datacube_from_json(udp_url, parameters={"f": 86})
+    cube = connection.datacube_from_json(
+        udp_url,
+        parameters={"f": 86},
+    )
     print(cube.execute())
     # Prints: 30.0
 
+Note that :py:meth:`Connection.datacube_from_json() <openeo.rest.connection.Connection.datacube_from_json>`
+not only supports loading UDPs from an URL but also from a raw JSON string or a local file path.
 For more information, also see :ref:`datacube_from_json`.

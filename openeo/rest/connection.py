@@ -1139,9 +1139,13 @@ class Connection(RestApiConnection):
         """
         Construct a :py:class:`DataCube` from a flat dictionary representation of a process graph.
 
+        .. seealso:: :ref:`datacube_from_json`, :py:meth:`~openeo.rest.connection.Connection.datacube_from_json`
+
         :param flat_graph: flat dictionary representation of a process graph
             or a process dictionary with such a flat process graph under a "process_graph" field
             (and optionally parameter metadata under a "parameters" field).
+        :param parameters: Optional dictionary mapping parameter names to parameter values
+            to use for parameters occurring in the process graph (e.g. as used in user-defined processes)
         :return: A :py:class:`DataCube` corresponding with the operations encoded in the process graph
         """
         parameters = parameters or {}
@@ -1162,7 +1166,11 @@ class Connection(RestApiConnection):
         """
         Construct a :py:class:`DataCube` from JSON resource containing (flat) process graph representation.
 
+        .. seealso:: :ref:`datacube_from_json`, :py:meth:`~openeo.rest.connection.Connection.datacube_from_flat_graph`
+
         :param src: raw JSON string, URL to JSON resource or path to local JSON file
+        :param parameters: Optional dictionary mapping parameter names to parameter values
+            to use for parameters occurring in the process graph (e.g. as used in user-defined processes)
         :return: A :py:class:`DataCube` corresponding with the operations encoded in the process graph
         """
         return self.datacube_from_flat_graph(load_json_resource(src), parameters=parameters)
