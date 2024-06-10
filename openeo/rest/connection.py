@@ -1385,6 +1385,37 @@ class Connection(RestApiConnection):
             _log.warning(f"Failed to extract cube metadata from STAC URL {url}", exc_info=True)
         return cube
 
+    def load_stac_from_job(
+        self,
+        job: BatchJob,
+        spatial_extent: Optional[Dict[str, float]] = None,
+        temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
+        bands: Optional[List[str]] = None,
+        properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
+    ) -> DataCube:
+        """
+        Wrapper for :py:meth:`load_stac` that loads the result of a previous job using the STAC collection of its results.
+
+        :param job: The batch job object that has successfully finished.
+        :param spatial_extent: limit data to specified bounding box or polygons
+        :param temporal_extent: limit data to specified temporal interval.
+        :param bands: only add the specified bands
+        :return: a :py:class:`DataCube`
+        """
+        assert job.status() == "finished", "Job must be finished to load STAC results."
+
+        stac_link = [link["href"] for link in job.get_results().get_metadata()["links"] if link["rel"] == "canonical"][
+            0
+        ]
+
+        return self.load_stac(
+            url=stac_link,
+            spatial_extent=spatial_extent,
+            temporal_extent=temporal_extent,
+            bands=bands,
+            properties=properties,
+        )
+
     def load_ml_model(self, id: Union[str, BatchJob]) -> MlModel:
         """
         Loads a machine learning model from a STAC Item.
