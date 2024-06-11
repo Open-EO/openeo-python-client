@@ -1387,7 +1387,7 @@ class Connection(RestApiConnection):
 
     def load_stac_from_job(
         self,
-        job: BatchJob,
+        job: Union[BatchJob, str],
         spatial_extent: Optional[Dict[str, float]] = None,
         temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
         bands: Optional[List[str]] = None,
@@ -1396,17 +1396,36 @@ class Connection(RestApiConnection):
         """
         Wrapper for :py:meth:`load_stac` that loads the result of a previous job using the STAC collection of its results.
 
-        :param job: The batch job object that has successfully finished.
+        :param job: The batch job object that has successfully finished, or a job id. When a job id is provided,
+            a job object is created using self as connection.
         :param spatial_extent: limit data to specified bounding box or polygons
         :param temporal_extent: limit data to specified temporal interval.
         :param bands: only add the specified bands
         :return: a :py:class:`DataCube`
         """
-        assert job.status() == "finished", "Job must be finished to load STAC results."
+        if isinstance(job, str):
+            job = BatchJob(job_id=job, connection=self)
+        elif not isinstance(job, BatchJob):
+            raise ValueError("job must be a BatchJob or job id")
 
-        stac_link = [link["href"] for link in job.get_results().get_metadata()["links"] if link["rel"] == "canonical"][
-            0
-        ]
+        try:
+            job_results = job.get_results()
+
+            canonical_links = [
+                link["href"] for link in job_results.get_metadata()["links"] if link["rel"] == "canonical"
+            ]
+            if len(canonical_links) == 0:
+                _log.warning("No canonical link found in job results metadata. Using job results URL instead.")
+                stac_link = job.get_results_metadata_url(full=True)
+            else:
+                if len(canonical_links) > 1:
+                    _log.warning(
+                        f"Multiple canonical links found in job results metadata: {canonical_links}. Picking first one."
+                    )
+                stac_link = canonical_links[0]
+        except OpenEoApiError as e:
+            _log.warning(f"Failed to get the canonical job results: {e!r}. Using job results URL instead.")
+            stac_link = job.get_results_metadata_url(full=True)
 
         return self.load_stac(
             url=stac_link,

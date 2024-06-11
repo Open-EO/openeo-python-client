@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Start depending on `pystac`, initially for better `load_stac` support ([#133](https://github.com/Open-EO/openeo-python-client/issues/133), [#527](https://github.com/Open-EO/openeo-python-client/issues/527))
+- Added `connection.load_stac_from_job()` to load the results from a job by using the STAC metadata. ([#566](https://github.com/Open-EO/openeo-python-client/issues/566))
 
 ### Changed
 
