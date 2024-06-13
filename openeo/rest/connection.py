@@ -1402,6 +1402,8 @@ class Connection(RestApiConnection):
         :param spatial_extent: limit data to specified bounding box or polygons
         :param temporal_extent: limit data to specified temporal interval.
         :param bands: limit data to the specified bands
+
+        .. versionadded:: 0.30.0
         """
         if isinstance(job, str):
             job = BatchJob(job_id=job, connection=self)
