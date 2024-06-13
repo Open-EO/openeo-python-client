@@ -2456,6 +2456,105 @@ class TestLoadStac:
             }
         }
 
+    def test_load_stac_from_job_canonical(self, con120, requests_mock):
+        requests_mock.get(
+            API_URL + "jobs/j0bi6/results",
+            json={
+                "links": [
+                    {
+                        "href": "https://wrong.test",
+                        "rel": "self",
+                    },
+                    {
+                        "href": "https://stac.test",
+                        "rel": "canonical",
+                    },
+                ]
+            },
+        )
+        job = con120.job("j0bi6")
+        cube = con120.load_stac_from_job(job)
+
+        fg = cube.flat_graph()
+        assert fg == {
+            "loadstac1": {
+                "process_id": "load_stac",
+                "arguments": {"url": "https://stac.test"},
+                "result": True,
+            }
+        }
+
+    def test_load_stac_from_job_unsigned(self, con120, requests_mock):
+        requests_mock.get(
+            API_URL + "jobs/j0bi6/results",
+            json={
+                "links": [
+                    {
+                        "href": "https://wrong.test",
+                        "rel": "self",
+                    },
+                ]
+            },
+        )
+        job = con120.job("j0bi6")
+        unsigned_link = job.get_results_metadata_url(full=True)
+
+        cube = con120.load_stac_from_job(job)
+        fg = cube.flat_graph()
+
+        assert fg == {
+            "loadstac1": {
+                "process_id": "load_stac",
+                "arguments": {"url": API_URL + "jobs/j0bi6/results"},
+                "result": True,
+            }
+        }
+
+    def test_load_stac_from_job_from_jobid(self, con120, requests_mock):
+        requests_mock.get(
+            API_URL + "jobs/j0bi6/results",
+            json={
+                "links": [
+                    {
+                        "href": "https://wrong.test",
+                        "rel": "self",
+                    },
+                    {
+                        "href": "https://stac.test",
+                        "rel": "canonical",
+                    },
+                ]
+            },
+        )
+        jobid = "j0bi6"
+        cube = con120.load_stac_from_job(jobid)
+
+        fg = cube.flat_graph()
+        assert fg == {
+            "loadstac1": {
+                "process_id": "load_stac",
+                "arguments": {"url": "https://stac.test"},
+                "result": True,
+            }
+        }
+
+    def test_load_stac_from_job_empty_result(self, con120, requests_mock):
+        requests_mock.get(
+            API_URL + "jobs/j0bi6/results",
+            json={"links": []},
+        )
+        jobid = "j0bi6"
+        cube = con120.load_stac_from_job(jobid)
+
+        fg = cube.flat_graph()
+        assert fg == {
+            "loadstac1": {
+                "process_id": "load_stac",
+                "arguments": {"url": API_URL + "jobs/j0bi6/results"},
+                "result": True,
+            }
+        }
+
 
 @pytest.mark.parametrize(
     "data",

@@ -1261,7 +1261,7 @@ class Connection(RestApiConnection):
     def load_stac(
         self,
         url: str,
-        spatial_extent: Optional[Dict[str, float]] = None,
+        spatial_extent: Union[Dict[str, float], Parameter, None] = None,
         temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
         bands: Optional[List[str]] = None,
         properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
@@ -1384,6 +1384,60 @@ class Connection(RestApiConnection):
         except Exception:
             _log.warning(f"Failed to extract cube metadata from STAC URL {url}", exc_info=True)
         return cube
+
+    def load_stac_from_job(
+        self,
+        job: Union[BatchJob, str],
+        spatial_extent: Union[Dict[str, float], Parameter, None] = None,
+        temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
+        bands: Optional[List[str]] = None,
+        properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
+    ) -> DataCube:
+        """
+        Wrapper for :py:meth:`load_stac` that loads the result of a previous job using the STAC collection of its results.
+
+        :param job: a :py:class:`~openeo.rest.job.BatchJob` or job id pointing to a finished job.
+            Note that the  :py:class:`~openeo.rest.job.BatchJob` approach allows to point
+            to a batch job on a different back-end.
+        :param spatial_extent: limit data to specified bounding box or polygons
+        :param temporal_extent: limit data to specified temporal interval.
+        :param bands: limit data to the specified bands
+
+        .. versionadded:: 0.30.0
+        """
+        if isinstance(job, str):
+            job = BatchJob(job_id=job, connection=self)
+        elif not isinstance(job, BatchJob):
+            raise ValueError("job must be a BatchJob or job id")
+
+        try:
+            job_results = job.get_results()
+
+            canonical_links = [
+                link["href"]
+                for link in job_results.get_metadata().get("links", [])
+                if link.get("rel") == "canonical" and "href" in link
+            ]
+            if len(canonical_links) == 0:
+                _log.warning("No canonical link found in job results metadata. Using job results URL instead.")
+                stac_link = job.get_results_metadata_url(full=True)
+            else:
+                if len(canonical_links) > 1:
+                    _log.warning(
+                        f"Multiple canonical links found in job results metadata: {canonical_links}. Picking first one."
+                    )
+                stac_link = canonical_links[0]
+        except OpenEoApiError as e:
+            _log.warning(f"Failed to get the canonical job results: {e!r}. Using job results URL instead.")
+            stac_link = job.get_results_metadata_url(full=True)
+
+        return self.load_stac(
+            url=stac_link,
+            spatial_extent=spatial_extent,
+            temporal_extent=temporal_extent,
+            bands=bands,
+            properties=properties,
+        )
 
     def load_ml_model(self, id: Union[str, BatchJob]) -> MlModel:
         """
