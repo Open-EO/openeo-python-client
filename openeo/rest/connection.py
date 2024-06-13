@@ -1261,7 +1261,7 @@ class Connection(RestApiConnection):
     def load_stac(
         self,
         url: str,
-        spatial_extent: Optional[Dict[str, float]] = None,
+        spatial_extent: Union[Dict[str, float], Parameter, None] = None,
         temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
         bands: Optional[List[str]] = None,
         properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
@@ -1388,7 +1388,7 @@ class Connection(RestApiConnection):
     def load_stac_from_job(
         self,
         job: Union[BatchJob, str],
-        spatial_extent: Optional[Dict[str, float]] = None,
+        spatial_extent: Union[Dict[str, float], Parameter, None] = None,
         temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
         bands: Optional[List[str]] = None,
         properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
@@ -1396,12 +1396,12 @@ class Connection(RestApiConnection):
         """
         Wrapper for :py:meth:`load_stac` that loads the result of a previous job using the STAC collection of its results.
 
-        :param job: The batch job object that has successfully finished, or a job id. When a job id is provided,
-            a job object is created using self as connection.
+        :param job: a :py:class:`~openeo.rest.job.BatchJob` or job id pointing to a finished job.
+            Note that the  :py:class:`~openeo.rest.job.BatchJob` approach allows to point
+            to a batch job on a different back-end.
         :param spatial_extent: limit data to specified bounding box or polygons
         :param temporal_extent: limit data to specified temporal interval.
-        :param bands: only add the specified bands
-        :return: a :py:class:`DataCube`
+        :param bands: limit data to the specified bands
         """
         if isinstance(job, str):
             job = BatchJob(job_id=job, connection=self)

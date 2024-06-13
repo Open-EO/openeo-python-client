@@ -2462,11 +2462,11 @@ class TestLoadStac:
             json={
                 "links": [
                     {
-                        "href": "https://wrong.link",
+                        "href": "https://wrong.test",
                         "rel": "self",
                     },
                     {
-                        "href": "https://stac.link",
+                        "href": "https://stac.test",
                         "rel": "canonical",
                     },
                 ]
@@ -2479,7 +2479,7 @@ class TestLoadStac:
         assert fg == {
             "loadstac1": {
                 "process_id": "load_stac",
-                "arguments": {"url": "https://stac.link"},
+                "arguments": {"url": "https://stac.test"},
                 "result": True,
             }
         }
@@ -2490,7 +2490,7 @@ class TestLoadStac:
             json={
                 "links": [
                     {
-                        "href": "https://wrong.link",
+                        "href": "https://wrong.test",
                         "rel": "self",
                     },
                 ]
@@ -2505,7 +2505,7 @@ class TestLoadStac:
         assert fg == {
             "loadstac1": {
                 "process_id": "load_stac",
-                "arguments": {"url": unsigned_link},
+                "arguments": {"url": API_URL + "jobs/j0bi6/results"},
                 "result": True,
             }
         }
@@ -2516,11 +2516,11 @@ class TestLoadStac:
             json={
                 "links": [
                     {
-                        "href": "https://wrong.link",
+                        "href": "https://wrong.test",
                         "rel": "self",
                     },
                     {
-                        "href": "https://stac.link",
+                        "href": "https://stac.test",
                         "rel": "canonical",
                     },
                 ]
@@ -2533,7 +2533,24 @@ class TestLoadStac:
         assert fg == {
             "loadstac1": {
                 "process_id": "load_stac",
-                "arguments": {"url": "https://stac.link"},
+                "arguments": {"url": "https://stac.test"},
+                "result": True,
+            }
+        }
+
+    def test_load_stac_from_job_empty_result(self, con120, requests_mock):
+        requests_mock.get(
+            API_URL + "jobs/j0bi6/results",
+            json={"links": []},
+        )
+        jobid = "j0bi6"
+        cube = con120.load_stac_from_job(jobid)
+
+        fg = cube.flat_graph()
+        assert fg == {
+            "loadstac1": {
+                "process_id": "load_stac",
+                "arguments": {"url": API_URL + "jobs/j0bi6/results"},
                 "result": True,
             }
         }
