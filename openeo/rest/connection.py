@@ -1412,7 +1412,9 @@ class Connection(RestApiConnection):
             job_results = job.get_results()
 
             canonical_links = [
-                link["href"] for link in job_results.get_metadata()["links"] if link["rel"] == "canonical"
+                link["href"]
+                for link in job_results.get_metadata().get("links", [])
+                if link.get("rel") == "canonical" and "href" in link
             ]
             if len(canonical_links) == 0:
                 _log.warning("No canonical link found in job results metadata. Using job results URL instead.")
