@@ -578,7 +578,7 @@ def metadata_from_stac(url: str) -> CubeMetadata:
                 for asset_band in asset_bands:
                     if asset_band.name not in get_band_names(bands):
                         bands.append(asset_band)
-        if collection.ext.has("item_assets"):
+        if _PYSTAC_1_9_EXTENSION_INTERFACE and collection.ext.has("item_assets"):
             # TODO #575 support unordered band names and avoid conversion to a list.
             bands = list(_StacMetadataParser().get_bands_from_item_assets(collection.ext.item_assets))
 
@@ -595,6 +595,11 @@ def metadata_from_stac(url: str) -> CubeMetadata:
     temporal_dimension = TemporalDimension(name="t", extent=[None, None])
     metadata = CubeMetadata(dimensions=[band_dimension, temporal_dimension])
     return metadata
+
+
+# Sniff for PySTAC extension API since version 1.9.0 (which is not available below Python 3.9)
+# TODO: remove this once support for Python 3.7 and 3.8 is dropped
+_PYSTAC_1_9_EXTENSION_INTERFACE = hasattr(pystac.Item, "ext")
 
 
 class _StacMetadataParser:
@@ -635,12 +640,13 @@ class _StacMetadataParser:
         self, item_asset: pystac.extensions.item_assets.AssetDefinition
     ) -> Union[List[Band], None]:
         """Get bands from a STAC 'item_assets' asset definition."""
-        if item_asset.ext.has("eo"):
+        if _PYSTAC_1_9_EXTENSION_INTERFACE and item_asset.ext.has("eo"):
             if item_asset.ext.eo.bands is not None:
                 return self.get_bands_from_eo_bands(item_asset.ext.eo.bands)
         elif "eo:bands" in item_asset.properties:
             # TODO: skip this in strict mode?
-            _log.warning("Extracting band info from 'eo:bands' metadata, but 'eo' STAC extension was not declared.")
+            if _PYSTAC_1_9_EXTENSION_INTERFACE:
+                _log.warning("Extracting band info from 'eo:bands' metadata, but 'eo' STAC extension was not declared.")
             return self.get_bands_from_eo_bands(item_asset.properties["eo:bands"])
 
     def get_bands_from_item_assets(
