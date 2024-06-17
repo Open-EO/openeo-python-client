@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import logging
 import warnings
-from typing import Any, Callable, List, NamedTuple, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, NamedTuple, Optional, Set, Tuple, Union
 
 import pystac
+import pystac.extensions.eo
+import pystac.extensions.item_assets
 
 from openeo.internal.jupyter import render_component
 from openeo.util import deep_get
@@ -107,6 +109,7 @@ class Band(NamedTuple):
 
 
 class BandDimension(Dimension):
+    # TODO #575 support unordered bands and avoid assumption that band order is known.
     def __init__(self, name: str, bands: List[Band]):
         super().__init__(type="bands", name=name)
         self.bands = bands
@@ -534,6 +537,8 @@ def metadata_from_stac(url: str) -> CubeMetadata:
     :return: A :py:class:`CubeMetadata` containing the DataCube band metadata from the url.
     """
 
+    # TODO move these nested functions and other logic to _StacMetadataParser
+
     def get_band_metadata(eo_bands_location: dict) -> List[Band]:
         # TODO: return None iso empty list when no metadata?
         return [
@@ -573,6 +578,10 @@ def metadata_from_stac(url: str) -> CubeMetadata:
                 for asset_band in asset_bands:
                     if asset_band.name not in get_band_names(bands):
                         bands.append(asset_band)
+        if collection.ext.has("item_assets"):
+            # TODO #575 support unordered band names and avoid conversion to a list.
+            bands = list(_StacMetadataParser().get_bands_from_item_assets(collection.ext.item_assets))
+
     elif isinstance(stac_object, pystac.Catalog):
         catalog = stac_object
         bands = get_band_metadata(catalog.extra_fields.get("summaries", {}))
@@ -586,3 +595,69 @@ def metadata_from_stac(url: str) -> CubeMetadata:
     temporal_dimension = TemporalDimension(name="t", extent=[None, None])
     metadata = CubeMetadata(dimensions=[band_dimension, temporal_dimension])
     return metadata
+
+
+class _StacMetadataParser:
+    """
+    Helper to extract openEO metadata from STAC metadata resource
+    """
+
+    def __init__(self):
+        # TODO: toggles for how to handle strictness, warnings, logging, etc
+        pass
+
+    def _get_band_from_eo_bands_item(self, eo_band: Union[dict, pystac.extensions.eo.Band]) -> Band:
+        if isinstance(eo_band, pystac.extensions.eo.Band):
+            return Band(
+                name=eo_band.name,
+                common_name=eo_band.common_name,
+                wavelength_um=eo_band.center_wavelength,
+            )
+        elif isinstance(eo_band, dict) and "name" in eo_band:
+            return Band(
+                name=eo_band["name"],
+                common_name=eo_band.get("common_name"),
+                wavelength_um=eo_band.get("center_wavelength"),
+            )
+        else:
+            raise ValueError(eo_band)
+
+    def get_bands_from_eo_bands(self, eo_bands: List[Union[dict, pystac.extensions.eo.Band]]) -> List[Band]:
+        """
+        Extract bands from STAC `eo:bands` array
+
+        :param eo_bands: List of band objects, as dict or `pystac.extensions.eo.Band` instances
+        """
+        # TODO: option to skip bands that failed to parse in some way?
+        return [self._get_band_from_eo_bands_item(band) for band in eo_bands]
+
+    def _get_bands_from_item_asset(
+        self, item_asset: pystac.extensions.item_assets.AssetDefinition
+    ) -> Union[List[Band], None]:
+        """Get bands from a STAC 'item_assets' asset definition."""
+        if item_asset.ext.has("eo"):
+            if item_asset.ext.eo.bands is not None:
+                return self.get_bands_from_eo_bands(item_asset.ext.eo.bands)
+        elif "eo:bands" in item_asset.properties:
+            # TODO: skip this in strict mode?
+            _log.warning("Extracting band info from 'eo:bands' metadata, but 'eo' STAC extension was not declared.")
+            return self.get_bands_from_eo_bands(item_asset.properties["eo:bands"])
+
+    def get_bands_from_item_assets(
+        self, item_assets: Dict[str, pystac.extensions.item_assets.AssetDefinition]
+    ) -> Set[Band]:
+        """
+        Get bands extracted from "item_assets" objects (defined by "item-assets" extension,
+        in combination with "eo" extension) at STAC Collection top-level,
+
+        Note that "item_assets" in STAC is a mapping, so the band order is undefined,
+        which is why we return a set of bands here.
+
+        :param item_assets: a STAC `item_assets` mapping
+        """
+        bands = set()
+        for item_asset in item_assets.values():
+            asset_bands = self._get_bands_from_item_asset(item_asset)
+            if asset_bands:
+                bands.update(asset_bands)
+        return bands

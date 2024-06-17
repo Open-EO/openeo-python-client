@@ -4,6 +4,7 @@ from unittest import mock
 
 import pytest
 
+from openeo.testing import TestDataLoader
 from openeo.util import ensure_dir
 
 pytest_plugins = "pytester"
@@ -25,3 +26,8 @@ def tmp_openeo_config_home(tmp_path):
     path = ensure_dir(Path(str(tmp_path)) / "openeo-conf")
     with mock.patch.dict("os.environ", {"OPENEO_CONFIG_HOME": str(path)}):
         yield path
+
+
+@pytest.fixture
+def test_data() -> TestDataLoader:
+    return TestDataLoader(root=Path(__file__).parent / "data")
