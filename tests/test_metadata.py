@@ -7,6 +7,7 @@ from typing import List, Union
 import pytest
 
 from openeo.metadata import (
+    _PYSTAC_1_9_EXTENSION_INTERFACE,
     Band,
     BandDimension,
     CollectionMetadata,
@@ -842,6 +843,7 @@ def test_metadata_from_stac(tmp_path, test_stac, expected):
     assert metadata.band_names == expected
 
 
+@pytest.mark.skipif(not _PYSTAC_1_9_EXTENSION_INTERFACE, reason="Requires PySTAC 1.9+ extension interface")
 @pytest.mark.parametrize("eo_extension_is_declared", [False, True])
 def test_metadata_from_stac_collection_bands_from_item_assets(test_data, tmp_path, eo_extension_is_declared, caplog):
     stac_data = test_data.load_json("stac/collections/agera5_daily01.json")
