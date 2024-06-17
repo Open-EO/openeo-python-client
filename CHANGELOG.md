@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Document PEP 723 based Python UDF dependency declarations ([Open-EO/openeo-geopyspark-driver#237](https://github.com/Open-EO/openeo-geopyspark-driver/issues/237))
 - Added more `openeo.api.process.Parameter` helpers to easily create "bounding_box", "date", "datetime", "geojson" and "temporal_interval" parameters for UDP construction.
 - Added convenience method `Connection.load_stac_from_job(job)` to easily load the results of a batch job with the `load_stac` process ([#566](https://github.com/Open-EO/openeo-python-client/issues/566))
+- `load_stac`/`metadata_from_stac`: add support for extracting band info from "item_assets" in collection metadata ([#573](https://github.com/Open-EO/openeo-python-client/issues/573))
+- Added initial `openeo.testing` submodule for reusable test utilities
 
 ### Changed
 

@@ -1,0 +1,82 @@
+{
+  "type": "Collection",
+  "id": "agera5_daily",
+  "stac_version": "1.0.0",
+  "description": "ERA5",
+  "links": [
+    {
+      "rel": "self",
+      "type": "application/json",
+      "href": "https://stac.test/collections/agera5_daily"
+    }
+  ],
+  "stac_extensions": [
+    "https://stac-extensions.github.io/item-assets/v1.0.0/schema.json",
+    "https://stac-extensions.github.io/eo/v1.1.0/schema.json"
+  ],
+  "item_assets": {
+    "2m_temperature_min": {
+      "type": "image/tiff; application=geotiff",
+      "title": "2m temperature min 24h",
+      "eo:bands": [
+        {
+          "name": "2m_temperature_min",
+          "description": "temperature 2m above ground (Kelvin)"
+        }
+      ]
+    },
+    "2m_temperature_max": {
+      "type": "image/tiff; application=geotiff",
+      "eo:bands": [
+        {
+          "name": "2m_temperature_max",
+          "description": "temperature 2m above ground (Kelvin)"
+        }
+      ]
+    },
+    "dewpoint_temperature_mean": {
+      "type": "image/tiff; application=geotiff",
+      "title": "2m dewpoint temperature",
+      "eo:bands": [
+        {
+          "name": "dewpoint_temperature_mean",
+          "description": "dewpoint temperature 2m above ground (Kelvin)"
+        }
+      ]
+    },
+    "vapour_pressure": {
+      "eo:bands": [
+        {
+          "name": "vapour_pressure"
+        }
+      ]
+    }
+  },
+  "title": "agERA5 data",
+  "extent": {
+    "spatial": {
+      "bbox": [
+        [
+          -180,
+          -90,
+          180,
+          90
+        ]
+      ]
+    },
+    "temporal": {
+      "interval": [
+        [
+          "2010-01-01T00:00:00Z",
+          "2024-06-12T00:00:00Z"
+        ]
+      ]
+    }
+  },
+  "keywords": [
+    "ERA5"
+  ],
+  "summaries": {},
+  "assets": {},
+  "license": "proprietary"
+}
