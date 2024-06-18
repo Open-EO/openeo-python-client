@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 import logging
 import warnings
 from typing import Any, Callable, Dict, List, NamedTuple, Optional, Set, Tuple, Union
@@ -637,7 +638,7 @@ class _StacMetadataParser:
         return [self._get_band_from_eo_bands_item(band) for band in eo_bands]
 
     def _get_bands_from_item_asset(
-        self, item_asset: pystac.extensions.item_assets.AssetDefinition
+        self, item_asset: pystac.extensions.item_assets.AssetDefinition, *, _warn: Callable[[str], None] = _log.warning
     ) -> Union[List[Band], None]:
         """Get bands from a STAC 'item_assets' asset definition."""
         if _PYSTAC_1_9_EXTENSION_INTERFACE and item_asset.ext.has("eo"):
@@ -646,7 +647,7 @@ class _StacMetadataParser:
         elif "eo:bands" in item_asset.properties:
             # TODO: skip this in strict mode?
             if _PYSTAC_1_9_EXTENSION_INTERFACE:
-                _log.warning("Extracting band info from 'eo:bands' metadata, but 'eo' STAC extension was not declared.")
+                _warn("Extracting band info from 'eo:bands' metadata, but 'eo' STAC extension was not declared.")
             return self.get_bands_from_eo_bands(item_asset.properties["eo:bands"])
 
     def get_bands_from_item_assets(
@@ -662,8 +663,10 @@ class _StacMetadataParser:
         :param item_assets: a STAC `item_assets` mapping
         """
         bands = set()
+        # Trick to just warn once per collection
+        _warn = functools.lru_cache()(_log.warning)
         for item_asset in item_assets.values():
-            asset_bands = self._get_bands_from_item_asset(item_asset)
+            asset_bands = self._get_bands_from_item_asset(item_asset, _warn=_warn)
             if asset_bands:
                 bands.update(asset_bands)
         return bands
