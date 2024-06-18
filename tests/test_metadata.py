@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import json
-from typing import List
+import re
+from typing import List, Union
 
 import pytest
 
 from openeo.metadata import (
+    _PYSTAC_1_9_EXTENSION_INTERFACE,
     Band,
     BandDimension,
     CollectionMetadata,
@@ -835,8 +837,38 @@ def test_cubemetadata_subclass():
     ],
 )
 def test_metadata_from_stac(tmp_path, test_stac, expected):
-
     path = tmp_path / "stac.json"
     path.write_text(json.dumps(test_stac))
     metadata = metadata_from_stac(path)
     assert metadata.band_names == expected
+
+
+@pytest.mark.skipif(not _PYSTAC_1_9_EXTENSION_INTERFACE, reason="Requires PySTAC 1.9+ extension interface")
+@pytest.mark.parametrize("eo_extension_is_declared", [False, True])
+def test_metadata_from_stac_collection_bands_from_item_assets(test_data, tmp_path, eo_extension_is_declared, caplog):
+    stac_data = test_data.load_json("stac/collections/agera5_daily01.json")
+    stac_data["stac_extensions"] = [
+        ext
+        for ext in stac_data["stac_extensions"]
+        if (not ext.startswith("https://stac-extensions.github.io/eo/") or eo_extension_is_declared)
+    ]
+    assert (
+        any(ext.startswith("https://stac-extensions.github.io/eo/") for ext in stac_data["stac_extensions"])
+        == eo_extension_is_declared
+    )
+    path = tmp_path / "stac.json"
+    path.write_text(json.dumps(stac_data))
+
+    metadata = metadata_from_stac(path)
+    assert sorted(metadata.band_names) == [
+        "2m_temperature_max",
+        "2m_temperature_min",
+        "dewpoint_temperature_mean",
+        "vapour_pressure",
+    ]
+
+    warn_count = sum(
+        "Extracting band info from 'eo:bands' metadata, but 'eo' STAC extension was not declared." in m
+        for m in caplog.messages
+    )
+    assert warn_count == (0 if eo_extension_is_declared else 1)
