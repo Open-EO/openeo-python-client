@@ -867,5 +867,8 @@ def test_metadata_from_stac_collection_bands_from_item_assets(test_data, tmp_pat
         "vapour_pressure",
     ]
 
-    if not eo_extension_is_declared:
-        assert "Extracting band info from 'eo:bands' metadata, but 'eo' STAC extension was not declared." in caplog.text
+    warn_count = sum(
+        "Extracting band info from 'eo:bands' metadata, but 'eo' STAC extension was not declared." in m
+        for m in caplog.messages
+    )
+    assert warn_count == (0 if eo_extension_is_declared else 1)
