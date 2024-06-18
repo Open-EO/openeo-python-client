@@ -20,15 +20,14 @@ from openeo.rest.connection import Connection
 from openeo.rest.datacube import DataCube
 from openeo.util import dict_no_none
 
-from ... import load_json_resource
 from .. import get_download_graph
 from .conftest import API_URL
 
 
-def test_apply_dimension_temporal_cumsum(s2cube, api_version):
+def test_apply_dimension_temporal_cumsum(s2cube, api_version, test_data):
     cumsum = s2cube.apply_dimension('cumsum', dimension="t")
     actual_graph = get_download_graph(cumsum)
-    expected_graph = load_json_resource('data/{v}/apply_dimension_temporal_cumsum.json'.format(v=api_version))
+    expected_graph = test_data.load_json("{v}/apply_dimension_temporal_cumsum.json".format(v=api_version))
     assert actual_graph == expected_graph
 
 
@@ -57,10 +56,10 @@ def test_apply_dimension_invalid_dimension_no_metadata(s2cube_without_metadata):
     }
 
 
-def test_min_time(s2cube, api_version):
+def test_min_time(s2cube, api_version, test_data):
     min_time = s2cube.min_time()
     actual_graph = get_download_graph(min_time)
-    expected_graph = load_json_resource('data/{v}/min_time.json'.format(v=api_version))
+    expected_graph = test_data.load_json("{v}/min_time.json".format(v=api_version))
     assert actual_graph == expected_graph
 
 
@@ -203,65 +202,65 @@ def test_load_collection_temporal_extent_with_shorthand_date_strings(connection,
     assert flat_graph["loadcollection1"]["arguments"]["temporal_extent"] == expected
 
 
-def test_load_collection_bands_name(connection, api_version):
+def test_load_collection_bands_name(connection, api_version, test_data):
     im = connection.load_collection("S2", bands=["B08", "B04"])
-    expected = load_json_resource('data/{v}/load_collection_bands.json'.format(v=api_version))
+    expected = test_data.load_json("{v}/load_collection_bands.json".format(v=api_version))
     assert im.flat_graph() == expected
 
 
-def test_load_collection_bands_single_band(connection, api_version):
+def test_load_collection_bands_single_band(connection, api_version, test_data):
     im = connection.load_collection("S2", bands="B08")
-    expected = load_json_resource('data/{v}/load_collection_bands.json'.format(v=api_version))
+    expected = test_data.load_json("{v}/load_collection_bands.json".format(v=api_version))
     expected["loadcollection1"]["arguments"]["bands"] = ["B08"]
     assert im.flat_graph() == expected
 
 
-def test_load_collection_bands_common_name(connection, api_version):
+def test_load_collection_bands_common_name(connection, api_version, test_data):
     im = connection.load_collection("S2", bands=["nir", "red"])
-    expected = load_json_resource('data/{v}/load_collection_bands.json'.format(v=api_version))
+    expected = test_data.load_json("{v}/load_collection_bands.json".format(v=api_version))
     expected["loadcollection1"]["arguments"]["bands"] = ["nir", "red"]
     assert im.flat_graph() == expected
 
 
-def test_load_collection_bands_band_index(connection, api_version):
+def test_load_collection_bands_band_index(connection, api_version, test_data):
     im = connection.load_collection("S2", bands=[3, 2])
-    expected = load_json_resource('data/{v}/load_collection_bands.json'.format(v=api_version))
+    expected = test_data.load_json("{v}/load_collection_bands.json".format(v=api_version))
     assert im.flat_graph() == expected
 
 
-def test_load_collection_bands_and_band_math(connection, api_version):
+def test_load_collection_bands_and_band_math(connection, api_version, test_data):
     cube = connection.load_collection("S2", bands=["B03", "B04"])
     b4 = cube.band("B04")
     b3 = cube.band("B03")
     x = b4 - b3
-    expected = load_json_resource('data/{v}/load_collection_bands_and_band_math.json'.format(v=api_version))
+    expected = test_data.load_json("{v}/load_collection_bands_and_band_math.json".format(v=api_version))
     assert x.flat_graph() == expected
 
 
-def test_filter_bands_name(s2cube, api_version):
+def test_filter_bands_name(s2cube, api_version, test_data):
     im = s2cube.filter_bands(["B08", "B04"])
-    expected = load_json_resource('data/{v}/filter_bands.json'.format(v=api_version))
+    expected = test_data.load_json("{v}/filter_bands.json".format(v=api_version))
     expected["filterbands1"]["arguments"]["bands"] = ["B08", "B04"]
     assert im.flat_graph() == expected
 
 
-def test_filter_bands_single_band(s2cube, api_version):
+def test_filter_bands_single_band(s2cube, api_version, test_data):
     im = s2cube.filter_bands("B08")
-    expected = load_json_resource('data/{v}/filter_bands.json'.format(v=api_version))
+    expected = test_data.load_json("{v}/filter_bands.json".format(v=api_version))
     expected["filterbands1"]["arguments"]["bands"] = ["B08"]
     assert im.flat_graph() == expected
 
 
-def test_filter_bands_common_name(s2cube, api_version):
+def test_filter_bands_common_name(s2cube, api_version, test_data):
     im = s2cube.filter_bands(["nir", "red"])
-    expected = load_json_resource('data/{v}/filter_bands.json'.format(v=api_version))
+    expected = test_data.load_json("{v}/filter_bands.json".format(v=api_version))
     expected["filterbands1"]["arguments"]["bands"] = ["nir", "red"]
     assert im.flat_graph() == expected
 
 
-def test_filter_bands_index(s2cube, api_version):
+def test_filter_bands_index(s2cube, api_version, test_data):
     im = s2cube.filter_bands([3, 2])
-    expected = load_json_resource('data/{v}/filter_bands.json'.format(v=api_version))
+    expected = test_data.load_json("{v}/filter_bands.json".format(v=api_version))
     expected["filterbands1"]["arguments"]["bands"] = ["B08", "B04"]
     assert im.flat_graph() == expected
 
@@ -470,15 +469,15 @@ def test_resample_spatial(s2cube):
     assert graph["arguments"]["projection"] == 4578
 
 
-def test_merge(s2cube, api_version):
+def test_merge(s2cube, api_version, test_data):
     merged = s2cube.ndvi().merge(s2cube)
-    expected_graph = load_json_resource('data/{v}/merge_ndvi_self.json'.format(v=api_version))
+    expected_graph = test_data.load_json("{v}/merge_ndvi_self.json".format(v=api_version))
     assert merged.flat_graph() == expected_graph
 
 
-def test_apply_absolute_str(s2cube, api_version):
+def test_apply_absolute_str(s2cube, api_version, test_data):
     result = s2cube.apply("absolute")
-    expected_graph = load_json_resource('data/{v}/apply_absolute.json'.format(v=api_version))
+    expected_graph = test_data.load_json("{v}/apply_absolute.json".format(v=api_version))
     assert result.flat_graph() == expected_graph
 
 
@@ -494,8 +493,8 @@ def test_subtract_dates_ep3129(s2cube, api_version):
         im2.subtract(im1)
 
 
-def test_tiled_viewing_service(s2cube, connection, requests_mock, api_version):
-    expected_graph = load_json_resource('data/{v}/tiled_viewing_service.json'.format(v=api_version))
+def test_tiled_viewing_service(s2cube, connection, requests_mock, api_version, test_data):
+    expected_graph = test_data.load_json("{v}/tiled_viewing_service.json".format(v=api_version))
 
     def check_request(request):
         assert request.json() == expected_graph

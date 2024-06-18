@@ -31,7 +31,6 @@ from openeo.rest import OpenEoClientException
 from openeo.rest.connection import Connection
 from openeo.rest.datacube import THIS, UDF, DataCube
 
-from ... import load_json_resource
 from .. import get_download_graph
 from .conftest import API_URL, DEFAULT_S2_METADATA, setup_collection_metadata
 
@@ -876,24 +875,24 @@ def test_merge_cubes_issue107(con100):
     }
 
 
-def test_merge_cubes_no_resolver(con100):
+def test_merge_cubes_no_resolver(con100, test_data):
     s2 = con100.load_collection("S2")
     mask = con100.load_collection("MASK")
     merged = s2.merge_cubes(mask)
     assert s2.metadata.band_names == ["B02", "B03", "B04", "B08"]
     assert mask.metadata.band_names == ["CLOUDS", "WATER"]
     assert merged.metadata.band_names == ["B02", "B03", "B04", "B08", "CLOUDS", "WATER"]
-    assert merged.flat_graph() == load_json_resource("data/1.0.0/merge_cubes_no_resolver.json")
+    assert merged.flat_graph() == test_data.load_json("1.0.0/merge_cubes_no_resolver.json")
 
 
-def test_merge_cubes_max_resolver(con100):
+def test_merge_cubes_max_resolver(con100, test_data):
     s2 = con100.load_collection("S2")
     mask = con100.load_collection("MASK")
     merged = s2.merge_cubes(mask, overlap_resolver="max")
     assert s2.metadata.band_names == ["B02", "B03", "B04", "B08"]
     assert mask.metadata.band_names == ["CLOUDS", "WATER"]
     assert merged.metadata.band_names == ["B02", "B03", "B04", "B08", "CLOUDS", "WATER"]
-    assert merged.flat_graph() == load_json_resource("data/1.0.0/merge_cubes_max.json")
+    assert merged.flat_graph() == test_data.load_json("1.0.0/merge_cubes_max.json")
 
 
 @pytest.mark.parametrize("overlap_resolver", [None, "max"])
@@ -1706,10 +1705,10 @@ def test_metadata_load_collection_100(con100, requests_mock):
     ]
 
 
-def test_apply_absolute_pgnode(con100):
+def test_apply_absolute_pgnode(con100, test_data):
     im = con100.load_collection("S2")
     result = im.apply(PGNode(process_id="absolute", arguments={"x": {"from_parameter": "x"}}))
-    expected_graph = load_json_resource('data/1.0.0/apply_absolute.json')
+    expected_graph = test_data.load_json("1.0.0/apply_absolute.json")
     assert result.flat_graph() == expected_graph
 
 
@@ -1752,7 +1751,7 @@ def test_apply_absolute_context(con100):
     }
 
 
-def test_load_collection_properties_process_builder_function(con100):
+def test_load_collection_properties_process_builder_function(con100, test_data):
     from openeo.processes import between, eq
 
     im = con100.load_collection(
@@ -1764,11 +1763,11 @@ def test_load_collection_properties_process_builder_function(con100):
             "platform": lambda x: eq(x=x, y="Sentinel-2B"),
         },
     )
-    expected = load_json_resource("data/1.0.0/load_collection_properties.json")
+    expected = test_data.load_json("1.0.0/load_collection_properties.json")
     assert im.flat_graph() == expected
 
 
-def test_load_collection_properties_process_builder_method_and_math(con100):
+def test_load_collection_properties_process_builder_method_and_math(con100, test_data):
     im = con100.load_collection(
         "S2",
         spatial_extent={"west": 16.1, "east": 16.6, "north": 48.6, "south": 47.2},
@@ -1778,7 +1777,7 @@ def test_load_collection_properties_process_builder_method_and_math(con100):
             "platform": lambda x: x == "Sentinel-2B",
         },
     )
-    expected = load_json_resource("data/1.0.0/load_collection_properties.json")
+    expected = test_data.load_json("1.0.0/load_collection_properties.json")
     assert im.flat_graph() == expected
 
 
@@ -2023,13 +2022,13 @@ def test_load_collection_parameterized_bands(con100):
     }
 
 
-def test_apply_dimension_temporal_cumsum_with_target(con100):
+def test_apply_dimension_temporal_cumsum_with_target(con100, test_data):
     cumsum = con100.load_collection("S2").apply_dimension('cumsum', dimension="t", target_dimension="MyNewTime")
     actual_graph = cumsum.flat_graph()
-    expected_graph = load_json_resource('data/1.0.0/apply_dimension_temporal_cumsum.json')
-    expected_graph['applydimension1']['arguments']['target_dimension'] = 'MyNewTime'
-    expected_graph['applydimension1']['result'] = True
-    del expected_graph['saveresult1']
+    expected_graph = test_data.load_json("1.0.0/apply_dimension_temporal_cumsum.json")
+    expected_graph["applydimension1"]["arguments"]["target_dimension"] = "MyNewTime"
+    expected_graph["applydimension1"]["result"] = True
+    del expected_graph["saveresult1"]
     assert actual_graph == expected_graph
 
 
@@ -2246,64 +2245,64 @@ def test_filter_labels_callback(con100):
     }
 
 
-def test_custom_process_kwargs_datacube(con100: Connection):
+def test_custom_process_kwargs_datacube(con100: Connection, test_data):
     img = con100.load_collection("S2")
     res = img.process(process_id="foo", data=img, bar=123)
-    expected = load_json_resource('data/1.0.0/process_foo.json')
+    expected = test_data.load_json("1.0.0/process_foo.json")
     assert res.flat_graph() == expected
 
 
-def test_custom_process_kwargs_datacube_pg(con100: Connection):
+def test_custom_process_kwargs_datacube_pg(con100: Connection, test_data):
     img = con100.load_collection("S2")
     res = img.process(process_id="foo", data=img._pg, bar=123)
-    expected = load_json_resource('data/1.0.0/process_foo.json')
+    expected = test_data.load_json("1.0.0/process_foo.json")
     assert res.flat_graph() == expected
 
 
-def test_custom_process_kwargs_this(con100: Connection):
+def test_custom_process_kwargs_this(con100: Connection, test_data):
     res = con100.load_collection("S2").process(process_id="foo", data=THIS, bar=123)
-    expected = load_json_resource('data/1.0.0/process_foo.json')
+    expected = test_data.load_json("1.0.0/process_foo.json")
     assert res.flat_graph() == expected
 
 
-def test_custom_process_kwargs_namespaced(con100: Connection):
+def test_custom_process_kwargs_namespaced(con100: Connection, test_data):
     res = con100.load_collection("S2").process(process_id="foo", data=THIS, bar=123, namespace="bar")
-    expected = load_json_resource('data/1.0.0/process_foo_namespaced.json')
+    expected = test_data.load_json("1.0.0/process_foo_namespaced.json")
     assert res.flat_graph() == expected
 
 
-def test_custom_process_arguments_datacube(con100: Connection):
+def test_custom_process_arguments_datacube(con100: Connection, test_data):
     img = con100.load_collection("S2")
     res = img.process(process_id="foo", arguments={"data": img, "bar": 123})
-    expected = load_json_resource('data/1.0.0/process_foo.json')
+    expected = test_data.load_json("1.0.0/process_foo.json")
     assert res.flat_graph() == expected
 
 
-def test_custom_process_arguments_datacube_pg(con100: Connection):
+def test_custom_process_arguments_datacube_pg(con100: Connection, test_data):
     img = con100.load_collection("S2")
     res = img.process(process_id="foo", arguments={"data": img._pg, "bar": 123})
-    expected = load_json_resource('data/1.0.0/process_foo.json')
+    expected = test_data.load_json("1.0.0/process_foo.json")
     assert res.flat_graph() == expected
 
 
-def test_custom_process_arguments_this(con100: Connection):
+def test_custom_process_arguments_this(con100: Connection, test_data):
     res = con100.load_collection("S2").process(process_id="foo", arguments={"data": THIS, "bar": 123})
-    expected = load_json_resource('data/1.0.0/process_foo.json')
+    expected = test_data.load_json("1.0.0/process_foo.json")
     assert res.flat_graph() == expected
 
 
-def test_custom_process_arguments_namespacd(con100: Connection):
+def test_custom_process_arguments_namespacd(con100: Connection, test_data):
     res = con100.load_collection("S2").process(process_id="foo", arguments={"data": THIS, "bar": 123}, namespace="bar")
-    expected = load_json_resource('data/1.0.0/process_foo_namespaced.json')
+    expected = test_data.load_json("1.0.0/process_foo_namespaced.json")
     assert res.flat_graph() == expected
 
 
 
 @pytest.mark.parametrize("api_capabilities", [{"udp": True}])
-def test_save_user_defined_process(con100, requests_mock):
+def test_save_user_defined_process(con100, requests_mock, test_data):
     requests_mock.get(API_URL + "/processes", json={"processes": [{"id": "add"}]})
 
-    expected_body = load_json_resource("data/1.0.0/save_user_defined_process.json")
+    expected_body = test_data.load_json("1.0.0/save_user_defined_process.json")
 
     def check_body(request):
         body = request.json()
@@ -2323,10 +2322,10 @@ def test_save_user_defined_process(con100, requests_mock):
 
 
 @pytest.mark.parametrize("api_capabilities", [{"udp": True}])
-def test_save_user_defined_process_public(con100, requests_mock):
+def test_save_user_defined_process_public(con100, requests_mock, test_data):
     requests_mock.get(API_URL + "/processes", json={"processes": [{"id": "add"}]})
 
-    expected_body = load_json_resource("data/1.0.0/save_user_defined_process.json")
+    expected_body = test_data.load_json("1.0.0/save_user_defined_process.json")
 
     def check_body(request):
         body = request.json()
@@ -3555,14 +3554,14 @@ class TestUDF:
             "result": True,
         }
 
-    def test_run_udf_on_vector_data_cube_generic_datacube_process(self, con100):
+    def test_run_udf_on_vector_data_cube_generic_datacube_process(self, con100, test_data):
         """
         https://github.com/Open-EO/openeo-python-client/issues/385 with usage pattern:
 
             res = aggregated.process("run_udf", data=aggregated, udf="...", ...)`
         """
         cube = con100.load_collection("S2")
-        geometries = load_json_resource("data/geojson/polygon01.json")
+        geometries = test_data.load_json("geojson/polygon01.json")
         aggregated = cube.aggregate_spatial(geometries=geometries, reducer="mean")
 
         udf = "def foo(x):\n    return x\n"
@@ -3570,17 +3569,17 @@ class TestUDF:
             "run_udf", data=aggregated, udf=udf, runtime="Python"
         )
 
-        expected = load_json_resource("data/1.0.0/run_udf_on_vector_data_cube.json")
+        expected = test_data.load_json("1.0.0/run_udf_on_vector_data_cube.json")
         assert post_processed.flat_graph() == expected
 
-    def test_run_udf_on_vector_data_cube_processes_builder(self, con100):
+    def test_run_udf_on_vector_data_cube_processes_builder(self, con100, test_data):
         """
         https://github.com/Open-EO/openeo-python-client/issues/385 with usage pattern:
 
             res = openeo.processes.run_udf(data=aggregated, udf="...", ...)`
         """
         cube = con100.load_collection("S2")
-        geometries = load_json_resource("data/geojson/polygon01.json")
+        geometries = test_data.load_json("geojson/polygon01.json")
         aggregated = cube.aggregate_spatial(geometries=geometries, reducer="mean")
 
         udf = "def foo(x):\n    return x\n"
@@ -3588,10 +3587,10 @@ class TestUDF:
             data=aggregated, udf=udf, runtime="Python"
         )
 
-        expected = load_json_resource("data/1.0.0/run_udf_on_vector_data_cube.json")
+        expected = test_data.load_json("1.0.0/run_udf_on_vector_data_cube.json")
         assert post_processed.flat_graph() == expected
 
-    def test_run_udf_on_vector_data_cube_udf_helper(self, con100):
+    def test_run_udf_on_vector_data_cube_udf_helper(self, con100, test_data):
         """
         https://github.com/Open-EO/openeo-python-client/issues/385 with usage pattern:
 
@@ -3599,16 +3598,16 @@ class TestUDF:
             res = aggregated.run_udf(udf)
         """
         cube = con100.load_collection("S2")
-        geometries = load_json_resource("data/geojson/polygon01.json")
+        geometries = test_data.load_json("geojson/polygon01.json")
         aggregated = cube.aggregate_spatial(geometries=geometries, reducer="mean")
 
         udf = UDF("def foo(x):\n    return x\n")
         post_processed = aggregated.run_udf(udf)
 
-        expected = load_json_resource("data/1.0.0/run_udf_on_vector_data_cube.json")
+        expected = test_data.load_json("1.0.0/run_udf_on_vector_data_cube.json")
         assert post_processed.flat_graph() == expected
 
-    def test_run_udf_on_vector_data_cube_udf_helper_with_overrides(self, con100):
+    def test_run_udf_on_vector_data_cube_udf_helper_with_overrides(self, con100, test_data):
         """
         https://github.com/Open-EO/openeo-python-client/issues/385 with usage pattern:
 
@@ -3616,13 +3615,13 @@ class TestUDF:
             res = aggregated.run_udf(udf, version="custom")
         """
         cube = con100.load_collection("S2")
-        geometries = load_json_resource("data/geojson/polygon01.json")
+        geometries = test_data.load_json("geojson/polygon01.json")
         aggregated = cube.aggregate_spatial(geometries=geometries, reducer="mean")
 
         udf = UDF("def foo(x):\n    return x\n")
         post_processed = aggregated.run_udf(udf, runtime="Py", version="v4")
 
-        expected = load_json_resource("data/1.0.0/run_udf_on_vector_data_cube.json")
+        expected = test_data.load_json("1.0.0/run_udf_on_vector_data_cube.json")
         expected["runudf1"]["arguments"]["runtime"] = "Py"
         expected["runudf1"]["arguments"]["version"] = "v4"
         assert post_processed.flat_graph() == expected

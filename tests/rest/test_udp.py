@@ -7,8 +7,6 @@ from openeo.api.process import Parameter
 from openeo.rest._testing import build_capabilities
 from openeo.rest.udp import RESTUserDefinedProcess, build_process_dict
 
-from .. import load_json_resource
-
 API_URL = "https://oeo.test"
 
 
@@ -19,8 +17,8 @@ def con100(requests_mock):
     return con
 
 
-def test_describe(con100, requests_mock):
-    expected_details = load_json_resource("data/1.0.0/udp_details.json")
+def test_describe(con100, requests_mock, test_data):
+    expected_details = test_data.load_json("1.0.0/udp_details.json")
     requests_mock.get(API_URL + "/process_graphs/evi", json=expected_details)
 
     udp = con100.user_defined_process(user_defined_process_id='evi')
@@ -234,8 +232,8 @@ def test_store_with_validation(con100, requests_mock, caplog):
     ]
 
 
-def test_update(con100, requests_mock):
-    updated_udp = load_json_resource("data/1.0.0/udp_details.json")
+def test_update(con100, requests_mock, test_data):
+    updated_udp = test_data.load_json("1.0.0/udp_details.json")
 
     def check_body(request):
         body = request.json()
@@ -253,7 +251,7 @@ def test_update(con100, requests_mock):
     assert adapter.called
 
 
-def test_make_public(con100, requests_mock):
+def test_make_public(con100, requests_mock, test_data):
     udp = con100.user_defined_process(user_defined_process_id='evi')
 
     def check_body(request):
@@ -265,7 +263,7 @@ def test_make_public(con100, requests_mock):
 
     adapter = requests_mock.put(API_URL + "/process_graphs/evi", additional_matcher=check_body)
 
-    updated_udp = load_json_resource("data/1.0.0/udp_details.json")
+    updated_udp = test_data.load_json("1.0.0/udp_details.json")
 
     udp.update(process_graph=updated_udp['process_graph'], parameters=updated_udp['parameters'], public=True)
 

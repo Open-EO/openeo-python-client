@@ -4,6 +4,8 @@ import mock
 
 from openeo.rest.datacube import DataCube
 
+# TODO: move (some of) these to openeo.testing?
+
 
 def get_download_graph(cube: DataCube, *, drop_save_result: bool = False, drop_load_collection: bool = False) -> dict:
     """
@@ -13,7 +15,6 @@ def get_download_graph(cube: DataCube, *, drop_save_result: bool = False, drop_l
     :param drop_load_collection: whether to drop the load_collection node
     :return:
     """
-    # TODO: move this to a testing utility module
     with mock.patch.object(cube.connection, 'download') as download:
         cube.download("out.geotiff", format="GTIFF")
         download.assert_called_once()

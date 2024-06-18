@@ -11,7 +11,6 @@ from openeo.internal.processes.generator import (
     generate_process_py,
 )
 from openeo.internal.processes.parse import Process
-from tests import get_test_resource
 
 
 def test_render_basic():
@@ -285,7 +284,7 @@ def test_render_process_graph_callback_wrapping():
 
             :return: Data cube
             """
-            return _process('apply_dimension', 
+            return _process('apply_dimension',
                 data=data,
                 dimension=dimension,
                 process=build_child_callback(process, parent_parameters=['data'])
@@ -333,29 +332,31 @@ def test_render_process_graph_optional_callback():
 
             :return: Data cube
             """
-            return _process('apply', 
+            return _process('apply',
                 data=data,
                 process=(build_child_callback(process, parent_parameters=['data']) if process not in [None, UNSET] else process)
             )'''
     )
 
 
-def test_collect_processes_basic(tmp_path):
-    processes = collect_processes(sources=[get_test_resource("data/processes/1.0")])
+def test_collect_processes_basic(tmp_path, test_data):
+    processes = collect_processes(sources=[test_data.get_path("processes/1.0")])
     assert [p.id for p in processes] == ["add", "cos"]
 
 
-def test_collect_processes_multiple_sources(tmp_path):
-    processes = collect_processes(sources=[
-        get_test_resource("data/processes/1.0/cos.json"),
-        get_test_resource("data/processes/1.0/add.json"),
-    ])
+def test_collect_processes_multiple_sources(tmp_path, test_data):
+    processes = collect_processes(
+        sources=[
+            test_data.get_path("processes/1.0/cos.json"),
+            test_data.get_path("processes/1.0/add.json"),
+        ]
+    )
     assert [p.id for p in processes] == ["add", "cos"]
 
 
-def test_collect_processes_duplicates(tmp_path):
-    shutil.copy(get_test_resource("data/processes/1.0/cos.json"), tmp_path / "foo.json")
-    shutil.copy(get_test_resource("data/processes/1.0/cos.json"), tmp_path / "bar.json")
+def test_collect_processes_duplicates(tmp_path, test_data):
+    shutil.copy(test_data.get_path("processes/1.0/cos.json"), tmp_path / "foo.json")
+    shutil.copy(test_data.get_path("processes/1.0/cos.json"), tmp_path / "bar.json")
     with pytest.raises(Exception, match="Duplicate source for process 'cos'"):
         _ = collect_processes(sources=[tmp_path])
 

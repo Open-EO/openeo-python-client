@@ -40,7 +40,6 @@ from openeo.rest.connection import (
 from openeo.rest.vectorcube import VectorCube
 from openeo.util import ContextTimer, dict_no_none
 
-from .. import load_json_resource
 from .auth.test_cli import auth_config, refresh_token_store
 
 API_URL = "https://oeo.test/"
@@ -2877,12 +2876,12 @@ def test_execute_100(requests_mock, pg):
 class TestUserDefinedProcesses:
     """Test for UDP features"""
 
-    def test_create_udp(self, requests_mock):
+    def test_create_udp(self, requests_mock, test_data):
         requests_mock.get(API_URL, json=build_capabilities(udp=True))
         requests_mock.get(API_URL + "processes", json={"processes": [{"id": "add"}]})
         conn = Connection(API_URL)
 
-        new_udp = load_json_resource("data/1.0.0/udp_details.json")
+        new_udp = test_data.load_json("1.0.0/udp_details.json")
 
         def check_body(request):
             body = request.json()
@@ -2899,12 +2898,12 @@ class TestUserDefinedProcesses:
 
         assert adapter.called
 
-    def test_create_udp_public(self, requests_mock):
+    def test_create_udp_public(self, requests_mock, test_data):
         requests_mock.get(API_URL, json=build_capabilities(udp=True))
         requests_mock.get(API_URL + "processes", json={"processes": [{"id": "add"}]})
         conn = Connection(API_URL)
 
-        new_udp = load_json_resource("data/1.0.0/udp_details.json")
+        new_udp = test_data.load_json("1.0.0/udp_details.json")
 
         def check_body(request):
             body = request.json()
@@ -2924,22 +2923,22 @@ class TestUserDefinedProcesses:
 
         assert adapter.called
 
-    def test_create_udp_unsupported(self, requests_mock):
+    def test_create_udp_unsupported(self, requests_mock, test_data):
         requests_mock.get(API_URL, json=build_capabilities(udp=False))
         conn = Connection(API_URL)
 
-        new_udp = load_json_resource("data/1.0.0/udp_details.json")
+        new_udp = test_data.load_json("1.0.0/udp_details.json")
 
         with pytest.raises(CapabilitiesException, match="Backend does not support user-defined processes."):
             _ = conn.save_user_defined_process(
                 user_defined_process_id="evi", process_graph=new_udp["process_graph"], parameters=new_udp["parameters"]
             )
 
-    def test_list_udps(self, requests_mock):
+    def test_list_udps(self, requests_mock, test_data):
         requests_mock.get(API_URL, json=build_capabilities(udp=True))
         conn = Connection(API_URL)
 
-        udp = load_json_resource("data/1.0.0/udp_details.json")
+        udp = test_data.load_json("1.0.0/udp_details.json")
 
         requests_mock.get(API_URL + "process_graphs", json={"processes": [udp]})
 
