@@ -412,11 +412,15 @@ class OidcAuthenticator:
             )
 
         result = resp.json()
-        log.debug("Token response with keys {k}".format(k=result.keys()))
         return result
 
     def _get_access_token_result(self, data: dict, expected_nonce: str = None) -> AccessTokenResult:
         """Parse JSON result from token request"""
+        redacted = {
+            k: v if k in ["expires_in", "refresh_expires_in", "token_type", "scope"] else "<redacted>"
+            for k, v in data.items()
+        }
+        log.debug(f"Extracting access token result from token response {redacted}")
         return AccessTokenResult(
             access_token=self._extract_token(data, "access_token"),
             id_token=self._extract_token(data, "id_token", expected_nonce=expected_nonce, allow_absent=True),
