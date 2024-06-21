@@ -98,9 +98,8 @@ with the ``predict_random_forest`` process on the raster data cube
 
 Thus, the training job results is inspected to fetch the trained models url::
 
-    from openeo.rest.job import JobResults
 
-    results : JobResults = training_job.get_results()
+    results = training_job.get_results()
     links = results.get_metadata()['links']
     ml_model_metadata_url = [link for link in links if 'ml_model_metadata.json' in link['href']][0]['href']
     print(ml_model_metadata_url)
@@ -108,8 +107,7 @@ Thus, the training job results is inspected to fetch the trained models url::
 
 Next, load the model from the URL::
 
-    from openeo.rest.mlmodel import MlModel
-    saved_model = MlModel.load_ml_model(connection=connection, id=ml_model_metadata_url)
+    model = connection.load_ml_model(id=ml_model_metadata_url)
 
 Technically, the openEO ``predict_random_forest`` process has to be used as a reducer function
 inside a ``reduce_dimension`` call, but the openEO Python client library makes it
@@ -117,8 +115,16 @@ a bit easier by providing a :py:meth:`~openeo.rest.datacube.DataCube.predict_ran
 directly on the :py:class:`~openeo.rest.datacube.DataCube` class, so that you can just do::
 
     predicted = cube.predict_random_forest(
-        model = saved_model,
+        model=saved_model,
         dimension="bands"
     )
 
     predicted.download("predicted.GTiff")
+
+We specified the model here by URL corresponding to the
+STAC Item that implements the ml-model extension,
+but it can also be specified in other ways:
+as :py:class:`~openeo.rest.job.BatchJob` instance,
+as job_id of training job(string),
+or as :py:class:`~openeo.rest.mlmodel.MlModel` instance (e.g. loaded through
+:py:meth:`~openeo.rest.connection.Connection.load_ml_model`).
