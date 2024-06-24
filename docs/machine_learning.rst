@@ -96,7 +96,7 @@ When the batch job finishes successfully, the trained model can then be used
 with the ``predict_random_forest`` process on the raster data cube
 (or another cube with the same band structure) to classify all the pixels.
 
-Thus, the training job results is inspected to fetch the trained models url::
+We inspect the result metadata of the training job to obtain the STAC Item URL of the trained model::
 
 
     results = training_job.get_results()
@@ -115,7 +115,7 @@ a bit easier by providing a :py:meth:`~openeo.rest.datacube.DataCube.predict_ran
 directly on the :py:class:`~openeo.rest.datacube.DataCube` class, so that you can just do::
 
     predicted = cube.predict_random_forest(
-        model=saved_model,
+        model=model,
         dimension="bands"
     )
 
@@ -125,6 +125,6 @@ We specified the model here by URL corresponding to the
 STAC Item that implements the ml-model extension,
 but it can also be specified in other ways:
 as :py:class:`~openeo.rest.job.BatchJob` instance,
-as job_id of training job(string),
+as job_id of training job (string),
 or as :py:class:`~openeo.rest.mlmodel.MlModel` instance (e.g. loaded through
 :py:meth:`~openeo.rest.connection.Connection.load_ml_model`).
