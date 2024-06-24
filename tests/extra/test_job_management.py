@@ -455,28 +455,3 @@ class TestJobTrackerStorage:
                 "backend_name",
             ]
         )
-
-    def test_normalize_df_converts_wkt_geometry_column(self):
-        df = pd.DataFrame(
-            {
-                "some_number": [3, 2],
-                "geometry": [
-                    "Point (100 200)",
-                    "Point (99 123)",
-                    # "MULTIPOINT(0 0,1 1)",
-                    # "LINESTRING(1.5 2.45,3.21 4)"
-                ],
-            }
-        )
-
-        df_normalized = JobTrackerStorage().normalize_df(df)
-
-        first_point = df_normalized.loc[0, "geometry"]
-        second_point = df_normalized.loc[1, "geometry"]
-
-        # The geometry columns should be converted so now it should contain
-        # Point objects from the module shapely.geometry.point
-        assert isinstance(first_point, shpt.Point)
-
-        assert first_point == shpt.Point(100, 200)
-        assert second_point == shpt.Point(99, 123)

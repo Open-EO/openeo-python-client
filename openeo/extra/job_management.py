@@ -425,6 +425,8 @@ def ignore_connection_errors(context: Optional[str] = None):
 
 
 class JobTrackerStorage:
+    # TODO: add support to store as Parquet file as well as CSV.
+    # TODO: add support to store to both PosixPath and URL.
     """
     Helper to manage the storage of batch job metadata.
     """
@@ -451,11 +453,8 @@ class JobTrackerStorage:
         ]
         new_columns = {col: val for (col, val) in required_with_default if col not in df.columns}
         df = df.assign(**new_columns)
-        # Workaround for loading of geopandas "geometry" column.
-        if "geometry" in df.columns and df["geometry"].dtype.name != "geometry":
-            df["geometry"] = df["geometry"].apply(shapely.wkt.loads)
-        return df
 
+        return df
     def resume_df(self, df: pd.DataFrame, output_file: Union[str, Path]) -> pd.DataFrame:
         """Resume job tracker from an existing CSV file if it exists.
 
