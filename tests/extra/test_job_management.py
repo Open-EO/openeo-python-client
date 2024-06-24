@@ -16,7 +16,11 @@ import shapely.geometry.point as shpt
 
 import openeo
 from openeo import BatchJob
-from openeo.extra.job_management import MAX_RETRIES, MultiBackendJobManager
+from openeo.extra.job_management import (
+    MAX_RETRIES,
+    JobTrackerStorage,
+    MultiBackendJobManager,
+)
 
 
 class TestMultiBackendJobManager:
@@ -277,54 +281,6 @@ class TestMultiBackendJobManager:
         contents = error_log_path.read_text()
         assert json.loads(contents) == errors_log_lines
 
-    def test_normalize_df_adds_required_columns(self):
-        df = pd.DataFrame(
-            {
-                "some_number": [3, 2, 1],
-            }
-        )
-
-        manager = MultiBackendJobManager()
-        df_normalized = manager._normalize_df(df)
-
-        assert set(df_normalized.columns) == set(
-            [
-                "some_number",
-                "status",
-                "id",
-                "start_time",
-                "cpu",
-                "memory",
-                "duration",
-                "backend_name",
-            ]
-        )
-
-    def test_normalize_df_converts_wkt_geometry_column(self):
-        df = pd.DataFrame(
-            {
-                "some_number": [3, 2],
-                "geometry": [
-                    "Point (100 200)",
-                    "Point (99 123)",
-                    # "MULTIPOINT(0 0,1 1)",
-                    # "LINESTRING(1.5 2.45,3.21 4)"
-                ],
-            }
-        )
-
-        manager = MultiBackendJobManager()
-        df_normalized = manager._normalize_df(df)
-
-        first_point = df_normalized.loc[0, "geometry"]
-        second_point = df_normalized.loc[1, "geometry"]
-
-        # The geometry columns should be converted so now it should contain
-        # Point objects from the module shapely.geometry.point
-        assert isinstance(first_point, shpt.Point)
-
-        assert first_point == shpt.Point(100, 200)
-        assert second_point == shpt.Point(99, 123)
 
     @httpretty.activate(allow_net_connect=False, verbose=True)
     @pytest.mark.parametrize("http_error_status", [502, 503, 504])
@@ -475,3 +431,52 @@ class TestMultiBackendJobManager:
         assert len(result) == 1
         assert set(result.status) == {"running"}
         assert set(result.backend_name) == {"foo"}
+
+
+class TestJobTrackerStorage:
+    def test_normalize_df_adds_required_columns(self):
+        df = pd.DataFrame(
+            {
+                "some_number": [3, 2, 1],
+            }
+        )
+
+        df_normalized = JobTrackerStorage().normalize_df(df)
+
+        assert set(df_normalized.columns) == set(
+            [
+                "some_number",
+                "status",
+                "id",
+                "start_time",
+                "cpu",
+                "memory",
+                "duration",
+                "backend_name",
+            ]
+        )
+
+    def test_normalize_df_converts_wkt_geometry_column(self):
+        df = pd.DataFrame(
+            {
+                "some_number": [3, 2],
+                "geometry": [
+                    "Point (100 200)",
+                    "Point (99 123)",
+                    # "MULTIPOINT(0 0,1 1)",
+                    # "LINESTRING(1.5 2.45,3.21 4)"
+                ],
+            }
+        )
+
+        df_normalized = JobTrackerStorage().normalize_df(df)
+
+        first_point = df_normalized.loc[0, "geometry"]
+        second_point = df_normalized.loc[1, "geometry"]
+
+        # The geometry columns should be converted so now it should contain
+        # Point objects from the module shapely.geometry.point
+        assert isinstance(first_point, shpt.Point)
+
+        assert first_point == shpt.Point(100, 200)
+        assert second_point == shpt.Point(99, 123)
