@@ -220,9 +220,9 @@ class MultiBackendJobManager:
         """
         # TODO: Defining start_jobs as a Protocol might make its usage more clear, and avoid complicated doctrings,
         #   but Protocols are only supported in Python 3.8 and higher.
-
-        df = JobTrackerStorage().resume_df(df, output_file)
-        df = JobTrackerStorage().normalize_df(df)
+        job_tracker_storage = JobTrackerStorage()
+        df = job_tracker_storage.resume_df(df, output_file)
+        df = job_tracker_storage.normalize_df(df)
 
         while (
             df[
@@ -237,7 +237,7 @@ class MultiBackendJobManager:
                 self._update_statuses(df)
             status_histogram = df.groupby("status").size().to_dict()
             _log.info(f"Status histogram: {status_histogram}")
-            JobTrackerStorage().persists(df, output_file)
+            job_tracker_storage.persists(df, output_file)
 
             if len(df[df.status == "not_started"]) > 0:
                 # Check number of jobs running at each backend
@@ -257,7 +257,7 @@ class MultiBackendJobManager:
                         to_launch = df[df.status == "not_started"].iloc[0:to_add]
                         for i in to_launch.index:
                             self._launch_job(start_job, df, i, backend_name)
-                            JobTrackerStorage().persists(df, output_file)
+                            job_tracker_storage.persists(df, output_file)
 
             time.sleep(self.poll_sleep)
 
@@ -478,4 +478,4 @@ class JobTrackerStorage:
         :param output_file: Path to the output CSV file.
         """
         df.to_csv(output_file, index=False)
-        _log.info(f"Wrote job metadata to {output_file.absolute()}")
+        _log.info(f"Wrote job metadata to {output_file}")
