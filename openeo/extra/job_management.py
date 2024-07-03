@@ -175,7 +175,27 @@ class MultiBackendJobManager:
         connection.session.mount("https://", HTTPAdapter(max_retries=retries))
         connection.session.mount("http://", HTTPAdapter(max_retries=retries))
 
+    def _normalize_df(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Ensure we have the required columns and the expected type for the geometry column.
 
+        :param df: The dataframe to normalize.
+        :return: a new dataframe that is normalized.
+        """
+
+        # check for some required columns.
+        required_with_default = [
+            ("status", "not_started"),
+            ("id", None),
+            ("start_time", None),
+            ("cpu", None),
+            ("memory", None),
+            ("duration", None),
+            ("backend_name", None),
+        ]
+        new_columns = {col: val for (col, val) in required_with_default if col not in df.columns}
+        df = df.assign(**new_columns)
+
+        return df
 
     def run_jobs(
         self,
@@ -220,9 +240,9 @@ class MultiBackendJobManager:
         """
         # TODO: Defining start_jobs as a Protocol might make its usage more clear, and avoid complicated doctrings,
         #   but Protocols are only supported in Python 3.8 and higher.
-        job_tracker_storage = JobTrackerStorage()
-        df = job_tracker_storage.resume_df(df, output_file)
-        df = job_tracker_storage.normalize_df(df)
+        job_tracker_storage = JobTrackerStorage(output_file)
+        df = job_tracker_storage.resume_df(df)
+        df = self._normalize_df(df)
 
         while (
             df[
@@ -237,7 +257,7 @@ class MultiBackendJobManager:
                 self._update_statuses(df)
             status_histogram = df.groupby("status").size().to_dict()
             _log.info(f"Status histogram: {status_histogram}")
-            job_tracker_storage.persists(df, output_file)
+            job_tracker_storage.persists(df)
 
             if len(df[df.status == "not_started"]) > 0:
                 # Check number of jobs running at each backend
@@ -257,7 +277,7 @@ class MultiBackendJobManager:
                         to_launch = df[df.status == "not_started"].iloc[0:to_add]
                         for i in to_launch.index:
                             self._launch_job(start_job, df, i, backend_name)
-                            job_tracker_storage.persists(df, output_file)
+                            job_tracker_storage.persists(df)
 
             time.sleep(self.poll_sleep)
 
@@ -431,51 +451,31 @@ class JobTrackerStorage:
     Helper to manage the storage of batch job metadata.
     """
 
-    def __init__(self):
-        pass
+    def __init__(self, output_file: Union[str, Path]):
+        self.output_file = output_file
 
-    def normalize_df(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Ensure we have the required columns and the expected type for the geometry column.
 
-        :param df: The dataframe to normalize.
-        :return: a new dataframe that is normalized.
-        """
-
-        # check for some required columns.
-        required_with_default = [
-            ("status", "not_started"),
-            ("id", None),
-            ("start_time", None),
-            ("cpu", None),
-            ("memory", None),
-            ("duration", None),
-            ("backend_name", None),
-        ]
-        new_columns = {col: val for (col, val) in required_with_default if col not in df.columns}
-        df = df.assign(**new_columns)
-
-        return df
-    def resume_df(self, df: pd.DataFrame, output_file: Union[str, Path]) -> pd.DataFrame:
+    def resume_df(self, df: pd.DataFrame) -> pd.DataFrame:
         """Resume job tracker from an existing CSV file if it exists.
 
         :param df: User input job dataframe. To be overwritten if output_file exists.
         :param output_file: Path to the output CSV file. If it exists, the job tracker will be resumed from it.
         :return: The resumed dataframe.
         """
-        output_file = Path(output_file)
-        if output_file.exists() and output_file.is_file():
+        output_path = Path(self.output_file)
+        if output_path.exists() and output_path.is_file():
             # Resume from existing CSV
-            _log.info(f"Resuming `run_jobs` from {output_file.absolute()}")
-            df = pd.read_csv(output_file)
+            _log.info(f"Resuming `run_jobs` from {output_path.absolute()}")
+            df = pd.read_csv(output_path)
             status_histogram = df.groupby("status").size().to_dict()
             _log.info(f"Status histogram: {status_histogram}")
         return df
 
-    def persists(self, df, output_file):
+    def persists(self, df):
         """Persist the dataframe to the output_file.
 
         :param df: The job tracker dataframe.
         :param output_file: Path to the output CSV file.
         """
-        df.to_csv(output_file, index=False)
-        _log.info(f"Wrote job metadata to {output_file}")
+        df.to_csv(self.output_file, index=False)
+        _log.info(f"Wrote job metadata to {self.output_file}")

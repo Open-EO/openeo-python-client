@@ -116,6 +116,28 @@ class TestMultiBackendJobManager:
         metadata_path = manager.get_job_metadata_path(job_id="job-2022")
         assert metadata_path.exists()
 
+    def test_normalize_df(self):
+        df = pd.DataFrame(
+            {
+                "some_number": [3, 2, 1],
+            }
+        )
+
+        df_normalized = MultiBackendJobManager()._normalize_df(df)
+
+        assert set(df_normalized.columns) == set(
+            [
+                "some_number",
+                "status",
+                "id",
+                "start_time",
+                "cpu",
+                "memory",
+                "duration",
+                "backend_name",
+            ]
+        )
+
     def test_manager_must_exit_when_all_jobs_done(self, tmp_path, requests_mock, sleep_mock):
         """Make sure the MultiBackendJobManager does not hang after all processes finish.
 
@@ -434,27 +456,6 @@ class TestMultiBackendJobManager:
 
 
 class TestJobTrackerStorage:
-    def test_normalize_df(self):
-        df = pd.DataFrame(
-            {
-                "some_number": [3, 2, 1],
-            }
-        )
-
-        df_normalized = JobTrackerStorage().normalize_df(df)
-
-        assert set(df_normalized.columns) == set(
-            [
-                "some_number",
-                "status",
-                "id",
-                "start_time",
-                "cpu",
-                "memory",
-                "duration",
-                "backend_name",
-            ]
-        )
 
     def test_resume_df_from_existing_path(self, tmp_path):
         existing_df = pd.DataFrame(
@@ -471,7 +472,7 @@ class TestJobTrackerStorage:
         )
         dir = tmp_path / "job_tracker.csv"
         existing_df.to_csv(dir, index=False)
-        df_resumed = JobTrackerStorage().resume_df(new_df, dir)
+        df_resumed = JobTrackerStorage(dir).resume_df(new_df)
         pd.testing.assert_frame_equal(existing_df, df_resumed)
 
     def test_resume_df_from_non_existing_path(self, tmp_path):
@@ -482,7 +483,7 @@ class TestJobTrackerStorage:
             }
         )
         dir = tmp_path / "non_existing_job_tracker.csv"
-        df_resumed = JobTrackerStorage().resume_df(new_df, dir)
+        df_resumed = JobTrackerStorage(dir).resume_df(new_df)
         pd.testing.assert_frame_equal(new_df, df_resumed)
 
     def test_persists(self, tmp_path):
@@ -491,6 +492,6 @@ class TestJobTrackerStorage:
                 "some_number": [3, 2, 1],
             }
         )
-
-        JobTrackerStorage().persists(df, tmp_path / "job_tracker.csv")
-        assert pd.read_csv(tmp_path / "job_tracker.csv").equals(df)
+        dir = tmp_path / "job_tracker.csv"
+        JobTrackerStorage(dir).persists(df)
+        assert pd.read_csv(dir).equals(df)
