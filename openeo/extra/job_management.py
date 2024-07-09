@@ -202,6 +202,7 @@ class MultiBackendJobManager:
         df: pd.DataFrame,
         start_job: Callable[[], BatchJob],
         output_file: Union[str, Path],
+        read_write_helper=None,
     ):
         """Runs jobs, specified in a dataframe, and tracks parameters.
 
@@ -236,11 +237,15 @@ class MultiBackendJobManager:
             Otherwise you will have an exception because :py:meth:`run_jobs` passes unknown parameters to ``start_job``.
 
         :param output_file:
-            Path to output file (CSV) containing the status and metadata of the jobs.
+            Path to output file containing the status and metadata of the jobs.
+
+        :param read_write_helper:
+            Helper to read and write the output file. If not provided, it will be inferred from the file extension.
+            It should have the following methods: read_file(file: Path) -> pd.DataFrame and write_file(df: pd.DataFrame, file: Path).
         """
         # TODO: Defining start_jobs as a Protocol might make its usage more clear, and avoid complicated doctrings,
         #   but Protocols are only supported in Python 3.8 and higher.
-        job_tracker_storage = JobDatabaseStorage(output_file)
+        job_tracker_storage = _JobDatabaseStorage(output_file, read_write_helper)
         df = job_tracker_storage.resume_df(df)
         df = self._normalize_df(df)
 
@@ -444,7 +449,7 @@ def ignore_connection_errors(context: Optional[str] = None):
         time.sleep(5)
 
 
-class JobDatabaseStorage:
+class _JobDatabaseStorage:
     # TODO: add support to store to both PosixPath and URL.
     """
     Helper to manage the storage of batch job metadata.
