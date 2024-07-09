@@ -240,7 +240,7 @@ class MultiBackendJobManager:
         """
         # TODO: Defining start_jobs as a Protocol might make its usage more clear, and avoid complicated doctrings,
         #   but Protocols are only supported in Python 3.8 and higher.
-        job_tracker_storage = JobTrackerStorage(output_file)
+        job_tracker_storage = JobDatabaseStorage(output_file)
         df = job_tracker_storage.resume_df(df)
         df = self._normalize_df(df)
 
@@ -444,38 +444,67 @@ def ignore_connection_errors(context: Optional[str] = None):
         time.sleep(5)
 
 
-class JobTrackerStorage:
-    # TODO: add support to store as Parquet file as well as CSV.
+class JobDatabaseStorage:
     # TODO: add support to store to both PosixPath and URL.
     """
     Helper to manage the storage of batch job metadata.
     """
 
     def __init__(self, output_file: Union[str, Path]):
+        """Create a JobDatabaseStorage.
+
+        :param output_file:
+            Path to the output CSV or Parquet file.
+
+        """
+
+        if isinstance(output_file, str):
+            output_file = Path(output_file)
+
         self.output_file = output_file
 
+        self.supported_formats = {
+            ".csv": (self._read_csv, self._write_csv),
+            ".parquet": (self._read_parquet, self._write_parquet),
+        }
+
+        if self.output_file.suffix not in self.supported_formats:
+            raise ValueError(f"Unsupported file format: {self.output_file.suffix}")
+
+        self.read_func, self.write_func = self.supported_formats[self.output_file.suffix]
+
+    def _read_csv(self, file: Path) -> pd.DataFrame:
+        return pd.read_csv(file)
+
+    def _write_csv(self, df: pd.DataFrame, file: Path):
+        df.to_csv(file, index=False)
+
+    def _read_parquet(self, file: Path) -> pd.DataFrame:
+        return pd.read_parquet(file)
+
+    def _write_parquet(self, df: pd.DataFrame, file: Path):
+        df.to_parquet(file, index=False)
 
     def resume_df(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Resume job tracker from an existing CSV file if it exists.
+        """Resume job tracker from an existing CSV or Parquet file if it exists.
 
         :param df: User input job dataframe. To be overwritten if output_file exists.
-        :param output_file: Path to the output CSV file. If it exists, the job tracker will be resumed from it.
+        :param output_file: Path to the output CSV or Parquet file. If it exists, the job tracker will be resumed from it.
         :return: The resumed dataframe.
         """
-        output_path = Path(self.output_file)
-        if output_path.exists() and output_path.is_file():
-            # Resume from existing CSV
-            _log.info(f"Resuming `run_jobs` from {output_path.absolute()}")
-            df = pd.read_csv(output_path)
+        if self.output_file.exists() and self.output_file.is_file():
+            # Resume from existing file
+            _log.info(f"Resuming `run_jobs` from {self.output_file.absolute()}")
+            df = self.read_func(self.output_file)
             status_histogram = df.groupby("status").size().to_dict()
             _log.info(f"Status histogram: {status_histogram}")
         return df
 
-    def persists(self, df):
+    def persists(self, df: pd.DataFrame):
         """Persist the dataframe to the output_file.
 
         :param df: The job tracker dataframe.
-        :param output_file: Path to the output CSV file.
+        :param output_file: Path to the output CSV or Parquet file.
         """
-        df.to_csv(self.output_file, index=False)
-        _log.info(f"Wrote job metadata to {self.output_file}")
+        self.write_func(df, self.output_file)
+        _log.info(f"Wrote job metadata to {self.output_file.absolute()}")
