@@ -450,40 +450,33 @@ class JobDatabaseStorage:
     Helper to manage the storage of batch job metadata.
     """
 
-    def __init__(self, output_file: Union[str, Path]):
+    def __init__(self, output_file: Union[str, Path], read_write_helper=None):
         """Create a JobDatabaseStorage.
 
         :param output_file:
             Path to the output CSV or Parquet file.
 
+        :param read_write_helper:
+            Helper to read and write the output file. If not provided, it will be inferred from the file extension.
+            It should have the following methods: read_file(file: Path) -> pd.DataFrame and write_file(df: pd.DataFrame, file: Path).
         """
 
         if isinstance(output_file, str):
             output_file = Path(output_file)
-
         self.output_file = output_file
 
-        self.supported_formats = {
-            ".csv": (self._read_csv, self._write_csv),
-            ".parquet": (self._read_parquet, self._write_parquet),
-        }
+        if read_write_helper is not None:
+            self.read_write_helper = read_write_helper
 
-        if self.output_file.suffix not in self.supported_formats:
-            raise ValueError(f"Unsupported file format: {self.output_file.suffix}")
-
-        self.read_func, self.write_func = self.supported_formats[self.output_file.suffix]
-
-    def _read_csv(self, file: Path) -> pd.DataFrame:
-        return pd.read_csv(file)
-
-    def _write_csv(self, df: pd.DataFrame, file: Path):
-        df.to_csv(file, index=False)
-
-    def _read_parquet(self, file: Path) -> pd.DataFrame:
-        return pd.read_parquet(file)
-
-    def _write_parquet(self, df: pd.DataFrame, file: Path):
-        df.to_parquet(file, index=False)
+        else:
+            if self.output_file.suffix == ".csv":
+                self.read_write_helper = _CSVReadWrite()
+            elif self.output_file.suffix == ".parquet":
+                self.read_write_helper = _ParquetReadWrite()
+            else:
+                raise ValueError(
+                    f"Unsupported file format: {self.output_file.suffix}. Supported formats are: .csv and .parquet. For other formats, please provide a custom read_write_helper."
+                )
 
     def resume_df(self, df: pd.DataFrame) -> pd.DataFrame:
         """Resume job tracker from an existing CSV or Parquet file if it exists.
@@ -495,7 +488,7 @@ class JobDatabaseStorage:
         if self.output_file.exists() and self.output_file.is_file():
             # Resume from existing file
             _log.info(f"Resuming `run_jobs` from {self.output_file.absolute()}")
-            df = self.read_func(self.output_file)
+            df = self.read_write_helper.read_file(self.output_file)
             status_histogram = df.groupby("status").size().to_dict()
             _log.info(f"Status histogram: {status_histogram}")
         return df
@@ -506,5 +499,29 @@ class JobDatabaseStorage:
         :param df: The job tracker dataframe.
         :param output_file: Path to the output CSV or Parquet file.
         """
-        self.write_func(df, self.output_file)
+        self.read_write_helper.write_file(df, self.output_file)
         _log.info(f"Wrote job metadata to {self.output_file.absolute()}")
+
+
+class _CSVReadWrite:
+    """
+    Helper to read and write CSV files with pandas.
+    """
+
+    def read_file(self, file: Path) -> pd.DataFrame:
+        return pd.read_csv(file)
+
+    def write_file(self, df: pd.DataFrame, file: Path):
+        df.to_csv(file, index=False)
+
+
+class _ParquetReadWrite:
+    """
+    Helper to read and write Parquet files with pandas.
+    """
+
+    def read_file(self, file: Path) -> pd.DataFrame:
+        return pd.read_parquet(file)
+
+    def write_file(self, df: pd.DataFrame, file: Path):
+        df.to_parquet(file, index=False)
