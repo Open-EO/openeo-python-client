@@ -18,8 +18,8 @@ import openeo
 from openeo import BatchJob
 from openeo.extra.job_management import (
     MAX_RETRIES,
-    JobDatabaseStorage,
     MultiBackendJobManager,
+    _JobDatabaseStorage,
 )
 
 
@@ -459,7 +459,7 @@ class TestJobDatabaseStorage:
 
     def test_error_when_wrong_suffix(self, tmp_path):
         with pytest.raises(ValueError):
-            JobDatabaseStorage(tmp_path / "job_tracker.txt")
+            _JobDatabaseStorage(tmp_path / "job_tracker.txt")
 
     def test_resume_df_from_existing_path_csv(self, tmp_path):
         existing_df = pd.DataFrame(
@@ -476,7 +476,7 @@ class TestJobDatabaseStorage:
         )
         dir = tmp_path / "job_tracker.csv"
         existing_df.to_csv(dir, index=False)
-        df_resumed = JobDatabaseStorage(dir).resume_df(new_df)
+        df_resumed = _JobDatabaseStorage(dir).resume_df(new_df)
         pd.testing.assert_frame_equal(existing_df, df_resumed)
 
     def test_resume_df_from_existing_path_parquet(self, tmp_path):
@@ -494,7 +494,7 @@ class TestJobDatabaseStorage:
         )
         dir = tmp_path / "job_tracker.parquet"
         existing_df.to_parquet(dir, index=False)
-        df_resumed = JobDatabaseStorage(dir).resume_df(new_df)
+        df_resumed = _JobDatabaseStorage(dir).resume_df(new_df)
         pd.testing.assert_frame_equal(existing_df, df_resumed)
 
     def test_resume_df_from_non_existing_path(self, tmp_path):
@@ -505,7 +505,7 @@ class TestJobDatabaseStorage:
             }
         )
         dir = tmp_path / "non_existing_job_tracker.csv"
-        df_resumed = JobDatabaseStorage(dir).resume_df(new_df)
+        df_resumed = _JobDatabaseStorage(dir).resume_df(new_df)
         pd.testing.assert_frame_equal(new_df, df_resumed)
 
     def test_persists_csv(self, tmp_path):
@@ -515,7 +515,7 @@ class TestJobDatabaseStorage:
             }
         )
         dir = tmp_path / "job_tracker.csv"
-        JobDatabaseStorage(dir).persists(df)
+        _JobDatabaseStorage(dir).persists(df)
         assert pd.read_csv(dir).equals(df)
 
     def test_persists_parquet(self, tmp_path):
@@ -525,5 +525,5 @@ class TestJobDatabaseStorage:
             }
         )
         dir = tmp_path / "job_tracker.parquet"
-        JobDatabaseStorage(dir).persists(df)
+        _JobDatabaseStorage(dir).persists(df)
         assert pd.read_parquet(dir).equals(df)
