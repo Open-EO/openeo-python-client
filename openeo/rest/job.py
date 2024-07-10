@@ -35,6 +35,9 @@ if typing.TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+DEFAULT_JOB_RESULTS_FILENAME = "job-results.json"
+
+
 class BatchJob:
     """
     Handle for an openEO batch job, allowing it to describe, start, cancel, inspect results, etc.
@@ -414,6 +417,9 @@ class JobResults:
     def __repr__(self):
         return "<JobResults for job {j!r}>".format(j=self._job.job_id)
 
+    def get_job_id(self) -> str:
+        return self._job.job_id
+
     def _repr_html_(self):
         try:
             response = self.get_metadata()
@@ -503,7 +509,7 @@ class JobResults:
 
         if include_stac_metadata:
             # TODO #184: convention for metadata file name?
-            metadata_file = target / "job-results.json"
+            metadata_file = target / DEFAULT_JOB_RESULTS_FILENAME
             # TODO #184: rewrite references to locally downloaded assets?
             metadata_file.write_text(json.dumps(self.get_metadata()))
             downloaded.append(metadata_file)

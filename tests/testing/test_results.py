@@ -1,34 +1,58 @@
+import contextlib
 import re
+from typing import Union
 
 import dirty_equals
 import numpy
 import pytest
 import xarray
 
-from openeo.testing.results import compare_xarray
+from openeo.testing.results import (
+    _compare_xarray_dataarray,
+    assert_job_results_allclose,
+    assert_xarray_allclose,
+    assert_xarray_dataarray_allclose,
+    assert_xarray_dataset_allclose,
+)
 
 
 class TestCompareXarray:
     def test_simple_defaults(self):
-        desired = xarray.DataArray([1, 2, 3])
+        expected = xarray.DataArray([1, 2, 3])
         actual = xarray.DataArray([1, 2, 3])
-        issues = compare_xarray(actual, desired)
+        issues = _compare_xarray_dataarray(actual, expected)
         assert issues == []
 
     @pytest.mark.parametrize(
-        ["actual", "expected"],
+        ["actual", "expected_issues"],
         [
-            (xarray.DataArray([1, 2, 3, 4]), ["Shape mismatch: (4,) != (3,)"]),
-            (xarray.DataArray([[1, 2, 3], [4, 5, 6]]), ["Shape mismatch: (2, 3) != (3,)"]),
-            (xarray.DataArray([[1], [2], [3]]), ["Shape mismatch: (3, 1) != (3,)"]),
+            (
+                xarray.DataArray([1, 2, 3, 4]),
+                [
+                    "Coordinates mismatch for dimension 'dim_0': [0 1 2 3] != [0 1 2]",
+                    "Shape mismatch: (4,) != (3,)",
+                ],
+            ),
+            (
+                xarray.DataArray([[1, 2, 3], [4, 5, 6]]),
+                [
+                    "Dimension mismatch: ('dim_0', 'dim_1') != ('dim_0',)",
+                    "Coordinates mismatch for dimension 'dim_0': [0 1] != [0 1 2]",
+                    "Shape mismatch: (2, 3) != (3,)",
+                ],
+            ),
+            (
+                xarray.DataArray([[1], [2], [3]]),
+                ["Dimension mismatch: ('dim_0', 'dim_1') != ('dim_0',)", "Shape mismatch: (3, 1) != (3,)"],
+            ),
         ],
     )
-    def test_simple_shape_mismatch(self, actual, expected):
-        desired = xarray.DataArray([1, 2, 3])
-        assert compare_xarray(actual=actual, desired=desired) == expected
+    def test_simple_shape_mismatch(self, actual, expected_issues):
+        expected = xarray.DataArray([1, 2, 3])
+        assert _compare_xarray_dataarray(actual=actual, expected=expected) == expected_issues
 
     @pytest.mark.parametrize(
-        ["actual", "rtol", "expected"],
+        ["actual", "rtol", "expected_issues"],
         [
             (xarray.DataArray([1, 2, 3.0000001]), 1e-6, []),
             (
@@ -36,7 +60,7 @@ class TestCompareXarray:
                 1e-6,
                 [
                     dirty_equals.IsStr(
-                        regex=r"Not equal to tolerance rtol=1e-06, atol=0\s.*Mismatched elements: 1 / 3\s.*Max absolute difference.*?: 1\.e-05\s.*",
+                        regex=r"Not equal to tolerance rtol=1e-06, atol=1e-06\s.*Mismatched elements: 1 / 3\s.*Max absolute difference.*?: 1\.e-05\s.*",
                         regex_flags=re.DOTALL,
                     )
                 ],
@@ -44,12 +68,12 @@ class TestCompareXarray:
             (xarray.DataArray([1, 2, 3.001]), 0.1, []),
         ],
     )
-    def test_simple_rtol(self, actual, rtol, expected):
-        desired = xarray.DataArray([1, 2, 3])
-        assert compare_xarray(actual=actual, desired=desired, rtol=rtol) == expected
+    def test_simple_rtol(self, actual, rtol, expected_issues):
+        expected = xarray.DataArray([1, 2, 3])
+        assert _compare_xarray_dataarray(actual=actual, expected=expected, rtol=rtol) == expected_issues
 
     @pytest.mark.parametrize(
-        ["actual", "atol", "expected"],
+        ["actual", "atol", "expected_issues"],
         [
             (xarray.DataArray([1, 2, 3.001]), 0.01, []),
             (
@@ -65,222 +89,197 @@ class TestCompareXarray:
             (xarray.DataArray([1, 2, 3.1]), 0.2, []),
         ],
     )
-    def test_simple_atol(self, actual, atol, expected):
-        desired = xarray.DataArray([1, 2, 3])
-        assert compare_xarray(actual=actual, desired=desired, rtol=0, atol=atol) == expected
+    def test_simple_atol(self, actual, atol, expected_issues):
+        expected = xarray.DataArray([1, 2, 3])
+        assert _compare_xarray_dataarray(actual=actual, expected=expected, rtol=0, atol=atol) == expected_issues
 
-    @pytest.mark.parametrize(
-        ["allowed_mismatch_fraction", "expected"],
-        [
-            (0.1, []),
-            (
-                0.01,
-                [
-                    "Fraction of mismatched elements is too large: 6.00% > 1.00%",
-                    dirty_equals.IsStr(
-                        regex=r"Not equal to tolerance rtol=1e-07, atol=0\s.*Mismatched elements: 6 / 100\s.*Max absolute difference.*?: 1\.\s.*",
-                        regex_flags=re.DOTALL,
-                    ),
-                ],
-            ),
-        ],
-    )
-    def test_allowed_mismatch_fraction(self, allowed_mismatch_fraction, expected):
-        desired = xarray.DataArray(numpy.ones((10, 10)))
-        actual = xarray.DataArray(numpy.ones((10, 10)))
-        actual[1:3, 1:4] = 2
-        assert (
-            compare_xarray(
-                actual=actual,
-                desired=desired,
-                allowed_mismatch_fraction=allowed_mismatch_fraction,
-            )
-            == expected
-        )
-
-    @pytest.mark.parametrize(
-        ["rtol", "allowed_mismatch_fraction", "allowed_mismatch_rtol", "expected"],
-        [
-            pytest.param(2, 0.01, 2, [], id="generous-rtols"),
-            pytest.param(0.11, 0.1, 0.2, [], id="just-below-radar"),
-            pytest.param(
-                0.01,
-                0.1,
-                0.5,
-                [
-                    dirty_equals.IsStr(
-                        regex=r"Not equal to tolerance rtol=0\.01, atol=0\s.*Mismatched elements: 16 / 100\s.*Max absolute difference.*?: 0\.1\s.*",
-                        regex_flags=re.DOTALL,
-                    )
-                ],
-                id="tight-rtol",
-            ),
-            pytest.param(
-                0.01,
-                0.01,
-                0.5,
-                [
-                    "Fraction of mismatched elements is too large: 6.00% > 1.00%",
-                    dirty_equals.IsStr(
-                        regex=r"Not equal to tolerance rtol=0\.01, atol=0\s.*Mismatched elements: 22 / 100\s.*Max absolute difference.*?: 1\.\s.*",
-                        regex_flags=re.DOTALL,
-                    ),
-                ],
-                id="tight-rtol-and-fraction",
-            ),
-            pytest.param(
-                2,
-                0.1,
-                0.01,
-                ["Fraction of mismatched elements is too large: 22.00% > 10.00%"],
-                id="tight-allowed-rtol",
-            ),
-            pytest.param(0.001, 0.3, 0.09, [], id="generous-allowed-rtol"),
-            pytest.param(0.2, 0.1, None, [], id="default-allowed-rtol-just-below-radar"),
-            pytest.param(
-                0.2,
-                0.01,
-                None,
-                [
-                    "Fraction of mismatched elements is too large: 6.00% > 1.00%",
-                    dirty_equals.IsStr(
-                        regex=r"Not equal to tolerance rtol=0\.2, atol=0\s.*Mismatched elements: 6 / 100\s.*Max absolute difference.*?: 1\.\s.*",
-                        regex_flags=re.DOTALL,
-                    ),
-                ],
-                id="default-allowed-rtol-with-small-allowed-fraction",
-            ),
-            pytest.param(
-                0.08,
-                0.1,
-                None,
-                [
-                    "Fraction of mismatched elements is too large: 22.00% > 10.00%",
-                    dirty_equals.IsStr(
-                        regex=r"Not equal to tolerance rtol=0\.08, atol=0\s.*Mismatched elements: 22 / 100\s.*Max absolute difference.*?: 1\.\s.*",
-                        regex_flags=re.DOTALL,
-                    ),
-                ],
-                id="default-allowed-rtol-with-tight-rtol",
-            ),
-        ],
-    )
-    def test_allowed_mismatch_fraction_with_rtol(
-        self, rtol, allowed_mismatch_fraction, allowed_mismatch_rtol, expected
-    ):
-        desired = xarray.DataArray(numpy.ones((10, 10)))
-        actual = xarray.DataArray(numpy.ones((10, 10)))
-        actual[1:3, 1:4] = 2
-        actual[5:9, 5:9] = 1.1
-        assert (
-            compare_xarray(
-                actual=actual,
-                desired=desired,
-                rtol=rtol,
-                atol=0,
-                allowed_mismatch_fraction=allowed_mismatch_fraction,
-                allowed_mismatch_rtol=allowed_mismatch_rtol,
-                allowed_mismatch_atol=0,
-            )
-            == expected
-        )
-
-    @pytest.mark.parametrize(
-        ["atol", "allowed_mismatch_fraction", "allowed_mismatch_atol", "expected"],
-        [
-            pytest.param(2, 0.01, 2, [], id="generous-atols"),
-            pytest.param(0.11, 0.1, 0.25, [], id="just-below-radar"),
-            pytest.param(
-                0.012,
-                0.1,
-                0.5,
-                [
-                    dirty_equals.IsStr(
-                        regex=r"Not equal to tolerance rtol=0, atol=0\.012\s.*Mismatched elements: 16 / 100\s.*Max absolute difference.*?: 0\.1\s.*",
-                        regex_flags=re.DOTALL,
-                    )
-                ],
-                id="tight-atol",
-            ),
-            pytest.param(
-                0.012,
-                0.01,
-                0.5,
-                [
-                    "Fraction of mismatched elements is too large: 6.00% > 1.00%",
-                    dirty_equals.IsStr(
-                        regex=r"Not equal to tolerance rtol=0, atol=0.012\s.*Mismatched elements: 22 / 100\s.*Max absolute difference.*?: 1\.\s.*",
-                        regex_flags=re.DOTALL,
-                    ),
-                ],
-                id="tight-atol-and-fraction",
-            ),
-            pytest.param(
-                2,
-                0.1,
-                0.01,
-                ["Fraction of mismatched elements is too large: 22.00% > 10.00%"],
-                id="tight-allowed-atol",
-            ),
-            pytest.param(0.001, 0.3, 0.09, [], id="generous-allowed-atol"),
-            pytest.param(0.2, 0.1, None, [], id="default-allowed-atol-just-below-radar"),
-            pytest.param(
-                0.2,
-                0.01,
-                None,
-                [
-                    "Fraction of mismatched elements is too large: 6.00% > 1.00%",
-                    dirty_equals.IsStr(
-                        regex=r"Not equal to tolerance rtol=0, atol=0\.2\s.*Mismatched elements: 6 / 100\s.*Max absolute difference.*?: 1\.\s.*",
-                        regex_flags=re.DOTALL,
-                    ),
-                ],
-                id="default-allowed-atol-with-small-allowed-fraction",
-            ),
-            pytest.param(
-                0.08,
-                0.1,
-                None,
-                [
-                    "Fraction of mismatched elements is too large: 22.00% > 10.00%",
-                    dirty_equals.IsStr(
-                        regex=r"Not equal to tolerance rtol=0, atol=0\.08\s.*Mismatched elements: 22 / 100\s.*Max absolute difference.*?: 1\.\s.*",
-                        regex_flags=re.DOTALL,
-                    ),
-                ],
-                id="default-allowed-rtol-with-tight-atol",
-            ),
-        ],
-    )
-    def test_allowed_mismatch_fraction_with_atol(
-        self, atol, allowed_mismatch_fraction, allowed_mismatch_atol, expected
-    ):
-        desired = xarray.DataArray(numpy.ones((10, 10)))
-        actual = xarray.DataArray(numpy.ones((10, 10)))
-        actual[1:3, 1:4] = 2
-        actual[5:9, 5:9] = 1.1
-        assert (
-            compare_xarray(
-                actual=actual,
-                desired=desired,
-                rtol=0,
-                atol=atol,
-                allowed_mismatch_fraction=allowed_mismatch_fraction,
-                allowed_mismatch_rtol=0,
-                allowed_mismatch_atol=allowed_mismatch_atol,
-            )
-            == expected
-        )
 
     def test_nan_handling(self):
-        desired = xarray.DataArray([1, 2, numpy.nan, 4, float("nan")])
+        expected = xarray.DataArray([1, 2, numpy.nan, 4, float("nan")])
         actual = xarray.DataArray([1, 2, numpy.nan, 4.001, float("nan")])
 
-        assert compare_xarray(actual, desired, rtol=0, atol=0.01) == []
-        assert compare_xarray(actual, desired, rtol=0, atol=0.0001) == [
+        assert _compare_xarray_dataarray(actual, expected, rtol=0, atol=0.01) == []
+        assert _compare_xarray_dataarray(actual, expected, rtol=0, atol=0.0001) == [
             dirty_equals.IsStr(
                 regex=r"Not equal to tolerance rtol=0, atol=0\.0001\s.*Mismatched elements: 1 / 5\s.*Max absolute difference.*?: 0\.001\s.*",
                 regex_flags=re.DOTALL,
             ),
         ]
-        assert compare_xarray(actual, desired, rtol=0, atol=0.0001, allowed_mismatch_fraction=0.21) == []
+
+
+@contextlib.contextmanager
+def raises_assertion_error_or_not(message: Union[None, str, re.Pattern]):
+    """
+    Helper to set up a context that expects:
+    - an AssertionError that matches a given message
+    - or no exception at all if no message is given
+    """
+    if message:
+        if isinstance(message, str):
+            message = re.compile(message, flags=re.DOTALL)
+        with pytest.raises(AssertionError, match=message):
+            yield
+    else:
+        yield
+
+
+class TestAsserts:
+    def test_assert_xarray_dataarray_allclose_minimal(self):
+        expected = xarray.DataArray([1, 2, 3])
+        actual = xarray.DataArray([1, 2, 3])
+        assert_xarray_dataarray_allclose(actual=actual, expected=expected)
+
+    def test_assert_xarray_dataarray_allclose_shape_mismatch(self):
+        expected = xarray.DataArray([1, 2, 3])
+        actual = xarray.DataArray([1, 2, 3, 4])
+        with raises_assertion_error_or_not(
+            r"Coordinates mismatch for dimension 'dim_0': \[0 1 2 3\] != \[0 1 2\].*Shape mismatch: \(4,\) != \(3,\)"
+        ):
+            assert_xarray_dataarray_allclose(actual=actual, expected=expected)
+
+    def test_assert_xarray_dataarray_allclose_coords_mismatch(self):
+        expected = xarray.DataArray([[1, 2, 3], [4, 5, 6]], coords=[("space", [11, 22]), ("time", [33, 44, 55])])
+        actual = xarray.DataArray([[1, 2, 3], [4, 5, 6]], coords=[("space", [11, 666]), ("time", [33, 44, 55])])
+        with raises_assertion_error_or_not(r"Coordinates mismatch for dimension 'space': \[ 11 666\] != \[11 22\]"):
+            assert_xarray_dataarray_allclose(actual=actual, expected=expected)
+
+    @pytest.mark.parametrize(
+        ["kwargs", "assertion_error"],
+        [
+            ({}, r".*Not equal to tolerance rtol=1e-06, atol=1e-06\s.*"),
+            ({"rtol": 0.01}, r".*Not equal to tolerance rtol=0\.01, atol=1e-06\s.*"),
+            ({"rtol": 0.1}, None),
+            ({"atol": 0.2}, r".*Not equal to tolerance rtol=1e-06, atol=0\.2\s.*"),
+            ({"atol": 0.3}, None),
+            ({"rtol": 0.01, "atol": 0.2}, None),
+        ],
+    )
+    def test_assert_xarray_dataarray_allclose_tolerance(self, kwargs, assertion_error):
+        expected = xarray.DataArray([1, 2, 3])
+        actual = xarray.DataArray([1, 2, 3.21])
+        with raises_assertion_error_or_not(message=assertion_error):
+            assert_xarray_dataarray_allclose(actual=actual, expected=expected, **kwargs)
+
+    def test_assert_xarray_dataset_allclose_minimal(self):
+        expected = xarray.Dataset({"a": xarray.DataArray([1, 2, 3])})
+        actual = xarray.Dataset({"a": xarray.DataArray([1, 2, 3])})
+        assert_xarray_dataset_allclose(actual=actual, expected=expected)
+
+    def test_assert_xarray_dataset_allclose_basic(self):
+        expected = xarray.Dataset(
+            {
+                "a": (["time"], [1, 2, 3]),
+                "b": (["time"], [4, 5, 6]),
+            },
+            coords={"time": [11, 22, 33]},
+        )
+        actual = xarray.Dataset(
+            {
+                "a": (["time"], [1, 2, 3]),
+                "b": (["time"], [4, 5, 6]),
+            },
+            coords={"time": [11, 22, 33]},
+        )
+        assert_xarray_dataset_allclose(actual=actual, expected=expected)
+
+    def test_assert_xarray_dataset_allclose_shape_mismatch(self):
+        expected = xarray.Dataset(
+            {
+                "a": (["time"], [1, 2, 3]),
+                "b": (["time"], [4, 5, 6]),
+            },
+            coords={"time": [11, 22, 33]},
+        )
+        actual = xarray.Dataset(
+            {
+                "a": (["time", "space"], [[1], [2], [3]]),
+                "b": (["time"], [4, 5, 6]),
+            },
+            coords={"time": [11, 22, 33], "space": [777]},
+        )
+        with raises_assertion_error_or_not(
+            r"Issues for variable 'a'.*Dimension mismatch: \('time', 'space'\) != \('time',\).*Shape mismatch: \(3, 1\) != \(3,\)"
+        ):
+            assert_xarray_dataset_allclose(actual=actual, expected=expected)
+
+    def test_assert_xarray_dataset_allclose_coords_mismatch(self):
+        expected = xarray.Dataset(
+            {
+                "a": (["time"], [1, 2, 3]),
+                "b": (["time"], [4, 5, 6]),
+            },
+            coords={"time": [11, 22, 33]},
+        )
+        actual = xarray.Dataset(
+            {
+                "a": (["time"], [1, 2, 3]),
+                "b": (["time"], [4, 5, 6]),
+            },
+            coords={"time": [11, 22, 666]},
+        )
+        with raises_assertion_error_or_not(
+            r"Issues for variable 'a':.*Coordinates mismatch for dimension 'time': \[ 11  22 666\] != \[11 22 33\]"
+        ):
+            assert_xarray_dataset_allclose(actual=actual, expected=expected)
+
+    @pytest.mark.parametrize(
+        ["kwargs", "assertion_error"],
+        [
+            ({}, r"Issues for variable 'b':.*Not equal to tolerance rtol=1e-06, atol=1e-06\s.*"),
+            ({"rtol": 0.01}, r"Issues for variable 'b':.*Not equal to tolerance rtol=0\.01, atol=1e-06\s.*"),
+            ({"rtol": 0.1}, None),
+            ({"atol": 0.2}, r"Issues for variable 'b':.*Not equal to tolerance rtol=1e-06, atol=0\.2\s.*"),
+            ({"atol": 0.3}, None),
+            ({"rtol": 0.01, "atol": 0.2}, None),
+        ],
+    )
+    def test_assert_xarray_dataset_allclose_tolerance(self, kwargs, assertion_error):
+        expected = xarray.Dataset(
+            {
+                "a": (["time"], [1, 2, 3]),
+                "b": (["time"], [4, 5, 6]),
+            },
+            coords={"time": [11, 22, 33]},
+        )
+        actual = xarray.Dataset(
+            {
+                "a": (["time"], [1, 2, 3]),
+                "b": (["time"], [4, 5, 6.23]),
+            },
+            coords={"time": [11, 22, 33]},
+        )
+        with raises_assertion_error_or_not(message=assertion_error):
+            assert_xarray_dataset_allclose(actual=actual, expected=expected, **kwargs)
+
+    def test_assert_job_results_allclose_minimal(self, tmp_path):
+        expected_dir = tmp_path / "expected"
+        actual_dir = tmp_path / "actual"
+        expected_dir.mkdir()
+        actual_dir.mkdir()
+        (expected_dir / "readme.md").write_text("Hello world")
+        (actual_dir / "readme.md").write_text("Wello Horld")
+        assert_job_results_allclose(actual=actual_dir, expected=expected_dir)
+
+    def test_assert_job_results_allclose_minimal_success(self, tmp_path):
+        expected_dir = tmp_path / "expected"
+        actual_dir = tmp_path / "actual"
+        expected_dir.mkdir()
+        actual_dir.mkdir()
+        ds = xarray.Dataset({"a": (["time"], [1, 2, 3])}, coords={"time": [11, 22, 33]})
+        ds.to_netcdf(expected_dir / "data.nc")
+        ds.to_netcdf(actual_dir / "data.nc")
+        assert_job_results_allclose(actual=actual_dir, expected=expected_dir)
+
+    def test_assert_job_results_allclose_basic_fail(self, tmp_path):
+        expected_dir = tmp_path / "expected"
+        actual_dir = tmp_path / "actual"
+        expected_dir.mkdir()
+        actual_dir.mkdir()
+        expected_ds = xarray.Dataset({"a": (["time"], [1, 2, 3])}, coords={"time": [11, 22, 33]})
+        expected_ds.to_netcdf(expected_dir / "data.nc")
+        actual_ds = xarray.Dataset({"a": (["time"], [1, 2, 3.21])}, coords={"time": [11, 22, 33]})
+        actual_ds.to_netcdf(actual_dir / "data.nc")
+        with raises_assertion_error_or_not(
+            r"Issues for file 'data.nc'.*Issues for variable 'a'.*Not equal to tolerance rtol=1e-06, atol=1e-06\s.*"
+        ):
+            assert_job_results_allclose(actual=actual_dir, expected=expected_dir)
