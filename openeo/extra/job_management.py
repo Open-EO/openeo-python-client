@@ -202,7 +202,6 @@ class MultiBackendJobManager:
         df: pd.DataFrame,
         start_job: Callable[[], BatchJob],
         output_file: Union[str, Path],
-        read_write_helper=None,
     ):
         """Runs jobs, specified in a dataframe, and tracks parameters.
 
@@ -238,15 +237,25 @@ class MultiBackendJobManager:
 
         :param output_file:
             Path to output file containing the status and metadata of the jobs.
-
-        :param read_write_helper:
-            Helper to read and write the output file. If not provided, it will be inferred from the file extension.
-            It should have the following methods: read_file(file: Path) -> pd.DataFrame and write_file(df: pd.DataFrame, file: Path).
         """
         # TODO: Defining start_jobs as a Protocol might make its usage more clear, and avoid complicated doctrings,
         #   but Protocols are only supported in Python 3.8 and higher.
-        job_tracker_storage = _JobDatabaseStorage(output_file, read_write_helper)
-        df = job_tracker_storage.resume_df(df)
+        output_file = Path(output_file)
+
+        if output_file.suffix.lower() == ".csv":
+            job_db = _CsvJobDatabase(output_file)
+        elif output_file.suffix.lower() == ".parquet":
+            job_db = _ParquetJobDatabase(output_file)
+        else:
+            raise ValueError(f"Unsupported output file type: {output_file}")
+
+        if output_file.exists() and output_file.is_file():
+            # Resume from existing db
+            _log.info(f"Resuming `run_jobs` from {output_file.absolute()}")
+            df = job_db.read()
+            status_histogram = df.groupby("status").size().to_dict()
+            _log.info(f"Status histogram: {status_histogram}")
+
         df = self._normalize_df(df)
 
         while (
@@ -262,7 +271,7 @@ class MultiBackendJobManager:
                 self._update_statuses(df)
             status_histogram = df.groupby("status").size().to_dict()
             _log.info(f"Status histogram: {status_histogram}")
-            job_tracker_storage.persists(df)
+            job_db.persist(df)
 
             if len(df[df.status == "not_started"]) > 0:
                 # Check number of jobs running at each backend
@@ -282,7 +291,7 @@ class MultiBackendJobManager:
                         to_launch = df[df.status == "not_started"].iloc[0:to_add]
                         for i in to_launch.index:
                             self._launch_job(start_job, df, i, backend_name)
-                            job_tracker_storage.persists(df)
+                            job_db.persist(df)
 
             time.sleep(self.poll_sleep)
 
@@ -449,84 +458,33 @@ def ignore_connection_errors(context: Optional[str] = None):
         time.sleep(5)
 
 
-class _JobDatabaseStorage:
-    # TODO: add support to store to both PosixPath and URL.
-    """
-    Helper to manage the storage of batch job metadata.
-    """
+class _JobDatabaseInterface:
+    def read(self) -> pd.DataFrame:
+        raise NotImplementedError()
 
-    def __init__(self, output_file: Union[str, Path], read_write_helper=None):
-        """Create a JobDatabaseStorage.
-
-        :param output_file:
-            Path to the output CSV or Parquet file.
-
-        :param read_write_helper:
-            Helper to read and write the output file. If not provided, it will be inferred from the file extension.
-            It should have the following methods: read_file(file: Path) -> pd.DataFrame and write_file(df: pd.DataFrame, file: Path).
-        """
-
-        if isinstance(output_file, str):
-            output_file = Path(output_file)
-        self.output_file = output_file
-
-        if read_write_helper is not None:
-            self.read_write_helper = read_write_helper
-
-        else:
-            if self.output_file.suffix == ".csv":
-                self.read_write_helper = _CSVReadWrite()
-            elif self.output_file.suffix == ".parquet":
-                self.read_write_helper = _ParquetReadWrite()
-            else:
-                raise ValueError(
-                    f"Unsupported file format: {self.output_file.suffix}. Supported formats are: .csv and .parquet. For other formats, please provide a custom read_write_helper."
-                )
-
-    def resume_df(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Resume job tracker from an existing CSV or Parquet file if it exists.
-
-        :param df: User input job dataframe. To be overwritten if output_file exists.
-        :param output_file: Path to the output CSV or Parquet file. If it exists, the job tracker will be resumed from it.
-        :return: The resumed dataframe.
-        """
-        if self.output_file.exists() and self.output_file.is_file():
-            # Resume from existing file
-            _log.info(f"Resuming `run_jobs` from {self.output_file.absolute()}")
-            df = self.read_write_helper.read_file(self.output_file)
-            status_histogram = df.groupby("status").size().to_dict()
-            _log.info(f"Status histogram: {status_histogram}")
-        return df
-
-    def persists(self, df: pd.DataFrame):
-        """Persist the dataframe to the output_file.
-
-        :param df: The job tracker dataframe.
-        :param output_file: Path to the output CSV or Parquet file.
-        """
-        self.read_write_helper.write_file(df, self.output_file)
-        _log.info(f"Wrote job metadata to {self.output_file.absolute()}")
+    def persist(self, df: pd.DataFrame):
+        raise NotImplementedError()
 
 
-class _CSVReadWrite:
-    """
-    Helper to read and write CSV files with pandas.
-    """
+class _CsvJobDatabase(_JobDatabaseInterface):
+    def __init__(self, path: Union[str, Path]):
+        self.path = Path(path)
 
-    def read_file(self, file: Path) -> pd.DataFrame:
-        return pd.read_csv(file)
+    def read(self) -> pd.DataFrame:
+        return pd.read_csv(self.path)
 
-    def write_file(self, df: pd.DataFrame, file: Path):
-        df.to_csv(file, index=False)
+    def persist(self, df: pd.DataFrame):
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        df.to_csv(self.path)
 
 
-class _ParquetReadWrite:
-    """
-    Helper to read and write Parquet files with pandas.
-    """
+class _ParquetJobDatabase(_JobDatabaseInterface):
+    def __init__(self, path: Union[str, Path]):
+        self.path = Path(path)
 
-    def read_file(self, file: Path) -> pd.DataFrame:
-        return pd.read_parquet(file)
+    def read(self) -> pd.DataFrame:
+        return pd.read_parquet(self.path)
 
-    def write_file(self, df: pd.DataFrame, file: Path):
-        df.to_parquet(file, index=False)
+    def persist(self, df: pd.DataFrame):
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        df.to_parquet(self.path)
