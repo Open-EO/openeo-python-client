@@ -34,8 +34,8 @@ def openeo_process(f: Optional[T] = None, process_id: Optional[str] = None, mode
 
     process_id = process_id or f.__name__
     url = f"https://processes.openeo.org/#{process_id}"
-    seealso = f'.. seealso:: openeo.org documentation on `process "{process_id}" <{url}>`_.'
-    f.__doc__ = textwrap.dedent(f.__doc__ or "") + "\n\n" + seealso
+    seealso = f'.. seealso::\n    openeo.org documentation on `process "{process_id}" <{url}>`_.\n'
+    f.__doc__ = textwrap.dedent(f.__doc__ or "") + "\n\n" + seealso + "\n\n"
 
     _process_registry[process_id].append((f, mode))
     return f
