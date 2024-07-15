@@ -19,8 +19,6 @@ from openeo import BatchJob
 from openeo.extra.job_management import (
     MAX_RETRIES,
     MultiBackendJobManager,
-    _CsvJobDatabase,
-    _ParquetJobDatabase,
 )
 
 
