@@ -1,5 +1,5 @@
 """
-Tools for matching actual results against expected reference data.
+Assert functions for comparing actual (batch job) results against expected reference data.
 """
 
 import logging
@@ -132,16 +132,18 @@ def assert_xarray_dataarray_allclose(
     atol: float = _DEFAULT_ATOL,
 ):
     """
-    Assert that two Xarray ``DataArrays`` are almost equal (with tolerance).
+    Assert that two Xarray ``DataArray`` instances are equal (with tolerance).
 
-    :param actual: actual value
-    :param expected: expected or reference value
+    :param actual: actual data
+    :param expected: expected or reference data
     :param rtol: relative tolerance
     :param atol: absolute tolerance
     :raises AssertionError: if not equal within the given tolerance
 
+    .. versionadded:: 0.31.0
+
     .. warning::
-        This function is experimental and its API may change in the future.
+        This function is experimental and subject to change.
     """
     issues = _compare_xarray_dataarray(actual=actual, expected=expected, rtol=rtol, atol=atol)
     if issues:
@@ -156,7 +158,7 @@ def _compare_xarray_datasets(
     atol: float = _DEFAULT_ATOL,
 ) -> List[str]:
     """
-    Compare two xarray DataSets with tolerance and report mismatch issues (as strings)
+    Compare two xarray ``DataSet``s with tolerance and report mismatch issues (as strings)
 
     :return: list of issues (empty if no issues)
     """
@@ -185,16 +187,18 @@ def assert_xarray_dataset_allclose(
     atol: float = _DEFAULT_ATOL,
 ):
     """
-    Assert that two Xarray ``DataSets`` are almost equal (with tolerance).
+    Assert that two Xarray ``DataSet`` instances are equal (with tolerance).
 
-    :param actual: actual value
-    :param expected: expected or reference value
+    :param actual: actual data
+    :param expected: expected or reference data
     :param rtol: relative tolerance
     :param atol: absolute tolerance
     :raises AssertionError: if not equal within the given tolerance
 
+    .. versionadded:: 0.31.0
+
     .. warning::
-        This function is experimental and its API may change in the future.
+        This function is experimental and subject to change.
     """
     issues = _compare_xarray_datasets(actual=actual, expected=expected, rtol=rtol, atol=atol)
     if issues:
@@ -209,7 +213,7 @@ def assert_xarray_allclose(
     atol: float = _DEFAULT_ATOL,
 ):
     """
-    Assert that two Xarray ``DataSet``s or ``DataArray``s are equal (with tolerance).
+    Assert that two Xarray ``DataSet`` or ``DataArray`` instances are equal (with tolerance).
 
     :param actual: actual data array or dataset
     :param expected: actual data array or dataset
@@ -217,8 +221,10 @@ def assert_xarray_allclose(
     :param atol: absolute tolerance
     :raises AssertionError: if not equal within the given tolerance
 
+    .. versionadded:: 0.31.0
+
     .. warning::
-        This function is experimental and its API may change in the future.
+        This function is experimental and subject to change.
     """
     if isinstance(actual, (str, Path)):
         actual = _load_xarray(actual)
@@ -313,7 +319,7 @@ def assert_job_results_allclose(
     tmp_path: Optional[Path] = None,
 ):
     """
-    Assert that two job results sets are almost equal (with tolerance).
+    Assert that two job results sets are equal (with tolerance).
 
     :param actual: actual job results (batch job, job results metadata object or a path)
     :param expected: expected job results (batch job, job results metadata object or a path)
@@ -323,8 +329,10 @@ def assert_job_results_allclose(
         It's recommended to pass pytest's `tmp_path` fixture here
     :raises AssertionError: if not equal within the given tolerance
 
+    .. versionadded:: 0.31.0
+
     .. warning::
-        This function is experimental and its API may change in the future.
+        This function is experimental and subject to change.
     """
     issues = _compare_job_results(actual, expected, rtol=rtol, atol=atol, tmp_path=tmp_path)
     if issues:
