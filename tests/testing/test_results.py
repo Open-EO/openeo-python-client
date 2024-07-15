@@ -1,12 +1,15 @@
 import contextlib
+import json
 import re
-from typing import Union
+from pathlib import Path
+from typing import List, Optional, Union
 
 import dirty_equals
 import numpy
 import pytest
 import xarray
 
+from openeo.rest.job import DEFAULT_JOB_RESULTS_FILENAME
 from openeo.testing.results import (
     _compare_xarray_dataarray,
     assert_job_results_allclose,
@@ -123,7 +126,7 @@ def raises_assertion_error_or_not(message: Union[None, str, re.Pattern]):
         yield
 
 
-class TestAsserts:
+class TestAssertXarray:
     def test_assert_xarray_dataarray_allclose_minimal(self):
         expected = xarray.DataArray([1, 2, 3])
         actual = xarray.DataArray([1, 2, 3])
@@ -251,30 +254,32 @@ class TestAsserts:
         with raises_assertion_error_or_not(message=assertion_error):
             assert_xarray_dataset_allclose(actual=actual, expected=expected, **kwargs)
 
-    def test_assert_job_results_allclose_minimal(self, tmp_path):
-        expected_dir = tmp_path / "expected"
+
+class TestAssertJobResults:
+    @pytest.fixture
+    def actual_dir(self, tmp_path) -> Path:
         actual_dir = tmp_path / "actual"
-        expected_dir.mkdir()
         actual_dir.mkdir()
+        return actual_dir
+
+    @pytest.fixture
+    def expected_dir(self, tmp_path) -> Path:
+        expected_dir = tmp_path / "expected"
+        expected_dir.mkdir()
+        return expected_dir
+
+    def test_allclose_minimal(self, tmp_path, actual_dir, expected_dir):
         (expected_dir / "readme.md").write_text("Hello world")
         (actual_dir / "readme.md").write_text("Wello Horld")
-        assert_job_results_allclose(actual=actual_dir, expected=expected_dir)
+        assert_job_results_allclose(actual=actual_dir, expected=expected_dir, tmp_path=tmp_path)
 
-    def test_assert_job_results_allclose_minimal_success(self, tmp_path):
-        expected_dir = tmp_path / "expected"
-        actual_dir = tmp_path / "actual"
-        expected_dir.mkdir()
-        actual_dir.mkdir()
+    def test_allclose_minimal_success(self, tmp_path, actual_dir, expected_dir):
         ds = xarray.Dataset({"a": (["time"], [1, 2, 3])}, coords={"time": [11, 22, 33]})
         ds.to_netcdf(expected_dir / "data.nc")
         ds.to_netcdf(actual_dir / "data.nc")
-        assert_job_results_allclose(actual=actual_dir, expected=expected_dir)
+        assert_job_results_allclose(actual=actual_dir, expected=expected_dir, tmp_path=tmp_path)
 
-    def test_assert_job_results_allclose_basic_fail(self, tmp_path):
-        expected_dir = tmp_path / "expected"
-        actual_dir = tmp_path / "actual"
-        expected_dir.mkdir()
-        actual_dir.mkdir()
+    def test_allclose_basic_fail(self, tmp_path, actual_dir, expected_dir):
         expected_ds = xarray.Dataset({"a": (["time"], [1, 2, 3])}, coords={"time": [11, 22, 33]})
         expected_ds.to_netcdf(expected_dir / "data.nc")
         actual_ds = xarray.Dataset({"a": (["time"], [1, 2, 3.21])}, coords={"time": [11, 22, 33]})
@@ -282,4 +287,48 @@ class TestAsserts:
         with raises_assertion_error_or_not(
             r"Issues for file 'data.nc'.*Issues for variable 'a'.*Not equal to tolerance rtol=1e-06, atol=1e-06\s.*"
         ):
-            assert_job_results_allclose(actual=actual_dir, expected=expected_dir)
+            assert_job_results_allclose(actual=actual_dir, expected=expected_dir, tmp_path=tmp_path)
+
+    def _create_metadata_json_file(self, path: Path, *, links: Optional[List[dict]] = None):
+        metadata = {}
+        if links:
+            metadata["links"] = links
+        path.write_text(json.dumps(metadata))
+
+    def test_assert_job_results_allclose_derived_from_match(self, tmp_path, actual_dir, expected_dir):
+        self._create_metadata_json_file(
+            path=actual_dir / DEFAULT_JOB_RESULTS_FILENAME,
+            links=[
+                {"rel": "derived_from", "href": "/path/to/S2B_blabla_1.SAFE"},
+                {"rel": "derived_from", "href": "/path/to/S2B_blabla_2.SAFE"},
+            ],
+        )
+        self._create_metadata_json_file(
+            path=expected_dir / DEFAULT_JOB_RESULTS_FILENAME,
+            links=[
+                {"rel": "derived_from", "href": "/path/to/S2B_blabla_1.SAFE"},
+                {"rel": "derived_from", "href": "/path/to/S2B_blabla_2.SAFE"},
+            ],
+        )
+        assert_job_results_allclose(actual=actual_dir, expected=expected_dir, tmp_path=tmp_path)
+
+    def test_assert_job_results_allclose_derived_from_mismatch(self, tmp_path, actual_dir, expected_dir):
+        self._create_metadata_json_file(
+            path=actual_dir / DEFAULT_JOB_RESULTS_FILENAME,
+            links=[
+                {"rel": "derived_from", "href": "/path/to/S2B_blabla_2.SAFE"},
+                {"rel": "derived_from", "href": "/path/to/S2B_blabla_666.SAFE"},
+            ],
+        )
+        self._create_metadata_json_file(
+            path=expected_dir / DEFAULT_JOB_RESULTS_FILENAME,
+            links=[
+                {"rel": "derived_from", "href": "/path/to/S2B_blabla_1.SAFE"},
+                {"rel": "derived_from", "href": "/path/to/S2B_blabla_2.SAFE"},
+                {"rel": "derived_from", "href": "/path/to/S2B_blabla_3.SAFE"},
+            ],
+        )
+        with raises_assertion_error_or_not(
+            message="Differing 'derived_from' links.*1 common, 1 only in actual, 2 only in expected.*only in actual.*bla_666.*only in expected.*bla_3"
+        ):
+            assert_job_results_allclose(actual=actual_dir, expected=expected_dir, tmp_path=tmp_path)
