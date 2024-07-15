@@ -16,10 +16,7 @@ import shapely.geometry.point as shpt
 
 import openeo
 from openeo import BatchJob
-from openeo.extra.job_management import (
-    MAX_RETRIES,
-    MultiBackendJobManager,
-)
+from openeo.extra.job_management import MAX_RETRIES, MultiBackendJobManager
 
 
 class TestMultiBackendJobManager:
