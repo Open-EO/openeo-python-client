@@ -7,6 +7,7 @@ import textwrap
 import typing
 import unittest.mock as mock
 import zlib
+from contextlib import nullcontext
 from pathlib import Path
 
 import pytest
@@ -16,7 +17,6 @@ import shapely.geometry
 
 import openeo
 from openeo.capabilities import ApiVersionException
-from openeo.internal.compat import nullcontext
 from openeo.internal.graph_building import FlatGraphableMixin, PGNode
 from openeo.rest import (
     CapabilitiesException,

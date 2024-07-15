@@ -12,11 +12,11 @@ import abc
 import collections
 import json
 import sys
+from contextlib import nullcontext
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple, Union
 
 from openeo.api.process import Parameter
-from openeo.internal.compat import nullcontext
 from openeo.internal.process_graph_visitor import (
     ProcessGraphUnflattener,
     ProcessGraphVisitException,
