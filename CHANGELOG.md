@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add experimental `openeo.testing.results` subpackage with reusable test utilities for comparing batch job results with reference data
+
 ### Changed
 
 ### Removed

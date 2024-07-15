@@ -11,14 +11,15 @@ class TestDataLoader:
     """
     Helper to resolve paths to test data files, load them as JSON, optionally preprocess them, etc.
 
-    It's intended to be used as a pytest fixture, e.g. from conftest.py:
+    It's intended to be used as a pytest fixture, e.g. from ``conftest.py``:
+
+    .. code-block:: python
 
         @pytest.fixture
         def test_data() -> TestDataLoader:
             return TestDataLoader(root=Path(__file__).parent / "data")
 
     .. versionadded:: 0.30.0
-
     """
 
     def __init__(self, root: Union[str, Path]):
