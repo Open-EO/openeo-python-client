@@ -2,6 +2,7 @@
 Assert functions for comparing actual (batch job) results against expected reference data.
 """
 
+import json
 import logging
 import tempfile
 from pathlib import Path
@@ -11,6 +12,7 @@ import numpy
 import xarray
 
 from openeo.rest.job import DEFAULT_JOB_RESULTS_FILENAME, BatchJob, JobResults
+from openeo.util import repr_truncate
 
 _log = logging.getLogger(__name__)
 
@@ -47,6 +49,14 @@ def _load_xarray(path: Union[str, Path], **kwargs) -> Union[xarray.Dataset, xarr
     elif path.suffix.lower() in {".tif", ".tiff", ".gtiff", ".geotiff"}:
         return _load_rioxarray_geotiff(path, **kwargs)
     raise ValueError(f"Unsupported file type: {path}")
+
+
+def _load_json(path: Union[str, Path]) -> dict:
+    """
+    Load a JSON file.
+    """
+    with Path(path).open("r", encoding="utf-8") as f:
+        return json.load(f)
 
 
 def _as_xarray_dataset(data: Union[str, Path, xarray.Dataset]) -> xarray.Dataset:
@@ -292,8 +302,10 @@ def _compare_job_results(
         actual_path = actual_dir / filename
         expected_path = expected_dir / filename
         if filename == DEFAULT_JOB_RESULTS_FILENAME:
-            # TODO: check metadata (e.g. "derived_from" links)
-            ...
+            issues = _compare_job_result_metadata(actual=actual_path, expected=expected_path)
+            if issues:
+                all_issues.append(f"Issues for metadata file {filename!r}:")
+                all_issues.extend(issues)
         elif expected_path.suffix.lower() in {".nc", ".netcdf"}:
             issues = _compare_xarray_datasets(actual=actual_path, expected=expected_path, rtol=rtol, atol=atol)
             if issues:
@@ -308,6 +320,33 @@ def _compare_job_results(
             _log.warning(f"Unhandled job result asset {filename!r}")
 
     return all_issues
+
+
+def _compare_job_result_metadata(
+    actual: Union[str, Path],
+    expected: Union[str, Path],
+) -> List[str]:
+    issues = []
+    actual_metadata = _load_json(actual)
+    expected_metadata = _load_json(expected)
+
+    # Check "derived_from" links
+    actual_derived_from = set(k["href"] for k in actual_metadata.get("links", []) if k["rel"] == "derived_from")
+    expected_derived_from = set(k["href"] for k in expected_metadata.get("links", []) if k["rel"] == "derived_from")
+
+    if actual_derived_from != expected_derived_from:
+        actual_only = actual_derived_from - expected_derived_from
+        expected_only = expected_derived_from - actual_derived_from
+        common = actual_derived_from.intersection(expected_derived_from)
+        issues.append(
+            f"Differing 'derived_from' links ({len(common)} common, {len(actual_only)} only in actual, {len(expected_only)} only in expected):\n"
+            f"  only in actual: {repr_truncate(actual_only)}\n"
+            f"  only in expected: {repr_truncate(expected_only)}."
+        )
+
+    # TODO: more metadata checks (e.g. spatial and temporal extents)?
+
+    return issues
 
 
 def assert_job_results_allclose(
