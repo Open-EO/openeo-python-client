@@ -16,7 +16,12 @@ import shapely.geometry.point as shpt
 
 import openeo
 from openeo import BatchJob
-from openeo.extra.job_management import MAX_RETRIES, MultiBackendJobManager
+from openeo.extra.job_management import (
+    MAX_RETRIES,
+    MultiBackendJobManager,
+    _CsvJobDatabase,
+    _ParquetJobDatabase,
+)
 
 
 class TestMultiBackendJobManager:
@@ -449,3 +454,51 @@ class TestMultiBackendJobManager:
         assert len(result) == 1
         assert set(result.status) == {"running"}
         assert set(result.backend_name) == {"foo"}
+
+
+class TestCsvJobDatabase:
+    def test_read_wkt(self, tmp_path):
+        wkt_df = pd.DataFrame(
+            {
+                "value": ["wkt"],
+                "geometry": ["POINT (30 10)"],
+            }
+        )
+        dir = tmp_path / "job_tracker.csv"
+        wkt_df.to_csv(dir, index=False)
+        df = _CsvJobDatabase(dir).read()
+        assert isinstance(df.geometry[0], shpt.Point)
+
+    def test_read_non_wkt(self, tmp_path):
+        non_wkt_df = pd.DataFrame(
+            {
+                "value": ["non_wkt"],
+                "geometry": ["this is no WKT"],
+            }
+        )
+        dir = tmp_path / "job_tracker.csv"
+        non_wkt_df.to_csv(dir, index=False)
+        df = _CsvJobDatabase(dir).read()
+        assert isinstance(df.geometry[0], str)
+
+    def test_persist(self, tmp_path):
+        df = pd.DataFrame(
+            {
+                "some_number": [3, 2, 1],
+            }
+        )
+
+        _CsvJobDatabase(tmp_path / "job_tracker.csv").persist(df)
+        assert _CsvJobDatabase(tmp_path / "job_tracker.csv").read().equals(df)
+
+
+class TestParquetJobDatabase:
+    def test_read_persist(self, tmp_path):
+        df = pd.DataFrame(
+            {
+                "some_number": [3, 2, 1],
+            }
+        )
+
+        _ParquetJobDatabase(tmp_path / "job_tracker.parquet").persist(df)
+        assert _ParquetJobDatabase(tmp_path / "job_tracker.parquet").read().equals(df)

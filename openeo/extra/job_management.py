@@ -470,12 +470,26 @@ class _CsvJobDatabase(_JobDatabaseInterface):
     def __init__(self, path: Union[str, Path]):
         self.path = Path(path)
 
-    def read(self) -> pd.DataFrame:
-        return pd.read_csv(self.path)
+    def _is_valid_wkt(self, wkt: str) -> bool:
+        try:
+            shapely.wkt.loads(wkt)
+            return True
+        except shapely.errors.WKTReadingError:
+            return False
 
+    def read(self) -> pd.DataFrame:
+        df = pd.read_csv(self.path)
+        # Workaround for loading of geopandas "geometry" column.
+        if (
+            "geometry" in df.columns
+            and df["geometry"].dtype.name != "geometry"
+            and self._is_valid_wkt(df["geometry"].iloc[0])
+        ):
+            df["geometry"] = df["geometry"].apply(shapely.wkt.loads)
+        return df
     def persist(self, df: pd.DataFrame):
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        df.to_csv(self.path)
+        df.to_csv(self.path, index=False)
 
 
 class _ParquetJobDatabase(_JobDatabaseInterface):
@@ -487,4 +501,4 @@ class _ParquetJobDatabase(_JobDatabaseInterface):
 
     def persist(self, df: pd.DataFrame):
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        df.to_parquet(self.path)
+        df.to_parquet(self.path, index=False)
