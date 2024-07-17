@@ -2268,8 +2268,9 @@ class DataCube(_ProcessGraphAbstraction):
         :param out_format: output file format.
         :param title: job title
         :param description: job description
-        :param plan: billing plan
-        :param budget: maximum cost the request is allowed to produce
+        :param plan: The billing plan to process and charge the job with
+        :param budget: Maximum budget to be spent on executing the job.
+            Note that some backends do not honor this limit.
         :param job_options: custom job options.
         :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).

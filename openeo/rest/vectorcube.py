@@ -320,8 +320,9 @@ class VectorCube(_ProcessGraphAbstraction):
         :param out_format: String Format of the job result.
         :param title: job title
         :param description: job description
-        :param plan: billing plan
-        :param budget: maximum cost the request is allowed to produce
+        :param plan: The billing plan to process and charge the job with
+        :param budget: Maximum budget to be spent on executing the job.
+            Note that some backends do not honor this limit.
         :param job_options: A dictionary containing (custom) job options
         :param format_options: String Parameters for the job result format
         :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
