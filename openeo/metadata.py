@@ -540,6 +540,22 @@ def metadata_from_stac(url: str) -> CubeMetadata:
 
     # TODO move these nested functions and other logic to _StacMetadataParser
 
+    def get_temporal_metadata(spec: dict) -> TemporalDimension:
+        # Dimension info is in `cube:dimensions` (or 0.4-style `properties/cube:dimensions`)
+        cube_dimensions = (
+            deep_get(spec, "cube:dimensions", default=None)
+            or deep_get(spec, "properties", "cube:dimensions", default=None)
+            or {}
+        )
+        if not cube_dimensions:
+            complain("No cube:dimensions metadata")
+        dimensions = []
+        for name, info in cube_dimensions.items():
+            dim_type = info.get("type")
+            if dim_type == "temporal":
+                return TemporalDimension(name=name, extent=info.get("extent"))
+        return []
+
     def get_band_metadata(eo_bands_location: dict) -> List[Band]:
         # TODO: return None iso empty list when no metadata?
         return [
@@ -553,8 +569,8 @@ def metadata_from_stac(url: str) -> CubeMetadata:
     def is_band_asset(asset: pystac.Asset) -> bool:
         return "eo:bands" in asset.extra_fields
 
+    temporal_dimension = []
     stac_object = pystac.read_file(href=url)
-
     if isinstance(stac_object, pystac.Item):
         item = stac_object
         if "eo:bands" in item.properties:
@@ -582,6 +598,7 @@ def metadata_from_stac(url: str) -> CubeMetadata:
         if _PYSTAC_1_9_EXTENSION_INTERFACE and collection.ext.has("item_assets"):
             # TODO #575 support unordered band names and avoid conversion to a list.
             bands = list(_StacMetadataParser().get_bands_from_item_assets(collection.ext.item_assets))
+        temporal_dimension = get_temporal_metadata(collection.to_dict())
 
     elif isinstance(stac_object, pystac.Catalog):
         catalog = stac_object
@@ -593,7 +610,8 @@ def metadata_from_stac(url: str) -> CubeMetadata:
     band_dimension = BandDimension(name="bands", bands=bands)
     # TODO #567 get actual temporal extent information from metadata (if any)
     # TODO #567 is it possible to derive the actual name of temporal dimension that the backend will use?
-    temporal_dimension = TemporalDimension(name="t", extent=[None, None])
+    if temporal_dimension == []:
+        temporal_dimension = TemporalDimension(name="t", extent=[None, None])
     metadata = CubeMetadata(dimensions=[band_dimension, temporal_dimension])
     return metadata
 
