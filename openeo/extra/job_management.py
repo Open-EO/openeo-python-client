@@ -244,6 +244,10 @@ class MultiBackendJobManager:
         :param output_file:
             Path to output file (CSV or Parquet) containing the status and metadata of the jobs.
 
+            .. note::
+                Support for Parquet files depends on the ``pyarrow`` package
+                as :ref:`optional dependency <installation-optional-dependencies>`.
+
         .. versionchanged:: 0.31.0
             Added support for providing a Parquet ``output_file``
         """
