@@ -540,6 +540,30 @@ def metadata_from_stac(url: str) -> CubeMetadata:
 
     # TODO move these nested functions and other logic to _StacMetadataParser
 
+    def get_temporal_metadata(spec: Union(pystac.Collection,pystac.Item, pystac.Catalog), complain: Callable[[str], None] = warnings.warn) -> TemporalDimension:
+        # Dimension info is in `cube:dimensions`
+        # Check if the datacube extension is present
+        if spec.ext.has("cube"):
+             return TemporalDimension(**dict(zip(["name","extent"],[(n, d.extent) for (n, d) in spec.ext.cube.dimensions.items() if d.dim_type =="temporal"][0])))
+        else:
+            complain("No cube:dimensions metadata")
+            return TemporalDimension(name="t", extent=[None, None])
+
+    def get_temporal_metadata_old(spec: dict, complain: Callable[[str], None] = warnings.warn) -> TemporalDimension:
+        # Dimension info is in `cube:dimensions` (or 0.4-style `properties/cube:dimensions`)
+        cube_dimensions = (
+            deep_get(spec, "cube:dimensions", default=None)
+            or deep_get(spec, "properties", "cube:dimensions", default=None)
+            or {}
+        )
+        if not cube_dimensions:
+            complain("No cube:dimensions metadata")
+        for name, info in cube_dimensions.items():
+            dim_type = info.get("type")
+            if dim_type == "temporal":
+                return TemporalDimension(name=name, extent=info.get("extent"))
+        return None
+
     def get_band_metadata(eo_bands_location: dict) -> List[Band]:
         # TODO: return None iso empty list when no metadata?
         return [
@@ -589,11 +613,14 @@ def metadata_from_stac(url: str) -> CubeMetadata:
     else:
         raise ValueError(stac_object)
 
+    if _PYSTAC_1_9_EXTENSION_INTERFACE:
+        temporal_dimension = get_temporal_metadata(stac_object)
+    else:
+        temporal_dimension = get_temporal_metadata_old(stac_object.to_dict())
+    if temporal_dimension is None:
+        temporal_dimension = TemporalDimension(name="t", extent=[None, None])
     # TODO: conditionally include band dimension when there was actual indication of band metadata?
     band_dimension = BandDimension(name="bands", bands=bands)
-    # TODO #567 get actual temporal extent information from metadata (if any)
-    # TODO #567 is it possible to derive the actual name of temporal dimension that the backend will use?
-    temporal_dimension = TemporalDimension(name="t", extent=[None, None])
     metadata = CubeMetadata(dimensions=[band_dimension, temporal_dimension])
     return metadata
 
