@@ -81,7 +81,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fix band name support in `DataCube.band()` when no metadata is available ([#515](https://github.com/Open-EO/openeo-python-client/issues/515))
-- Support optional child callbacks in generated `openeo.processes`, e.g. `merge_cubes` ([#522]((https://github.com/Open-EO/openeo-python-client/issues/522)))
+- Support optional child callbacks in generated `openeo.processes`, e.g. `merge_cubes` ([#522](https://github.com/Open-EO/openeo-python-client/issues/522))
 - Fix broken pre-flight validation in `Connection.save_user_defined_process` ([#526](https://github.com/Open-EO/openeo-python-client/issues/526))
 
 

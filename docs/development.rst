@@ -293,7 +293,7 @@ we will use a concrete version ``0.8.0`` in the examples below.
 
             This should create ``dist/openeo-0.8.0-py3-none-any.whl``
 
-    B.  **Upload** this wheel to `PyPI <https://pypi.org/project/openeo/>`_::
+    B.  **Upload** this wheel to `openeo project on PyPI <https://pypi.org/project/openeo/>`_::
 
             python -m twine upload openeo-0.8.0-py3-none-any.whl
 

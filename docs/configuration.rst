@@ -87,6 +87,7 @@ Configuration options
         + ``basic`` for basic authentication
         + ``oidc`` for OpenID Connect authentication
         + ``off`` (default) for no authentication
+
        Also see :ref:`default_url_and_auto_auth`
    * - ``Connection``
      - ``auto_authenticate``

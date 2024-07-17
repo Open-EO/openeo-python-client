@@ -65,5 +65,4 @@ and the callback functions match up:
 ..  FYI the ProcessBuilder docs are provided through its doc block
     with an RST "include" of "api-processbuilder.rst"
 
-.. automodule:: openeo.processes
-    :members: ProcessBuilder
+.. autoclass:: openeo.processes.ProcessBuilder
