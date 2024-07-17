@@ -38,7 +38,7 @@ tests_require = [
 docs_require = [
     "sphinx",
     "sphinx-autodoc-annotation",
-    "sphinx-autodoc-typehints!=1.21.4",  # Issue #366 doc build fails with version 1.21.4
+    "sphinx-autodoc-typehints>=2.2.3",
     "myst-parser",
 ]
 
