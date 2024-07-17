@@ -242,7 +242,10 @@ class MultiBackendJobManager:
             Otherwise you will have an exception because :py:meth:`run_jobs` passes unknown parameters to ``start_job``.
 
         :param output_file:
-            Path to output file containing the status and metadata of the jobs.
+            Path to output file (CSV or Parquet) containing the status and metadata of the jobs.
+
+        .. versionchanged:: 0.31.0
+            Added support for providing a Parquet ``output_file``
         """
         # TODO: Defining start_jobs as a Protocol might make its usage more clear, and avoid complicated doctrings,
         #   but Protocols are only supported in Python 3.8 and higher.
