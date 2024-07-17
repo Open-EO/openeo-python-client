@@ -540,7 +540,7 @@ def metadata_from_stac(url: str) -> CubeMetadata:
 
     # TODO move these nested functions and other logic to _StacMetadataParser
 
-    def get_temporal_metadata(spec: dict) -> TemporalDimension:
+    def get_temporal_metadata(spec: dict, complain: Callable[[str], None] = warnings.warn) -> TemporalDimension:
         # Dimension info is in `cube:dimensions` (or 0.4-style `properties/cube:dimensions`)
         cube_dimensions = (
             deep_get(spec, "cube:dimensions", default=None)
