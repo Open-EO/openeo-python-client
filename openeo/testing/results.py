@@ -340,8 +340,8 @@ def _compare_job_result_metadata(
         common = actual_derived_from.intersection(expected_derived_from)
         issues.append(
             f"Differing 'derived_from' links ({len(common)} common, {len(actual_only)} only in actual, {len(expected_only)} only in expected):\n"
-            f"  only in actual: {repr_truncate(actual_only)}\n"
-            f"  only in expected: {repr_truncate(expected_only)}."
+            f"  only in actual: {repr_truncate(actual_only, width=1000)}\n"
+            f"  only in expected: {repr_truncate(expected_only, width=1000)}."
         )
 
     # TODO: more metadata checks (e.g. spatial and temporal extents)?
