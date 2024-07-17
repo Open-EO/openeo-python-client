@@ -33,6 +33,7 @@ tests_require = [
     "dirty_equals>=0.6.0",
     # (#578) On Python 3.7: avoid dirty_equals 0.7.1 which wrongly claims to be Python 3.7 compatible
     "dirty_equals<0.7.1 ; python_version <= '3.7'",
+    "pyarrow>=10.0.1",  # For Parquet read/write support in pandas
 ]
 
 docs_require = [

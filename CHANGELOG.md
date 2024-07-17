@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add experimental `openeo.testing.results` subpackage with reusable test utilities for comparing batch job results with reference data
+- `MultiBackendJobManager`: add initial support for storing job metadata in Parquet file (instead of CSV) ([#571](https://github.com/Open-EO/openeo-python-client/issues/571))
 
 ### Changed
 

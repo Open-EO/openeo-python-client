@@ -8,6 +8,7 @@ from typing import Callable, Dict, NamedTuple, Optional, Union
 
 import pandas as pd
 import requests
+import shapely.errors
 import shapely.wkt
 from requests.adapters import HTTPAdapter, Retry
 
@@ -154,7 +155,8 @@ class MultiBackendJobManager:
         self._connections[backend_name] = connection
         return connection
 
-    def _make_resilient(self, connection):
+    @staticmethod
+    def _make_resilient(connection):
         """Add an HTTPAdapter that retries the request if it fails.
 
         Retry for the following HTTP 50x statuses:
@@ -162,6 +164,7 @@ class MultiBackendJobManager:
         503 Service Unavailable
         504 Gateway Timeout
         """
+        # TODO: refactor this helper out of this class and unify with `openeo_driver.util.http.requests_with_retry`
         status_forcelist = [502, 503, 504]
         retries = Retry(
             total=MAX_RETRIES,
@@ -187,23 +190,18 @@ class MultiBackendJobManager:
             ("status", "not_started"),
             ("id", None),
             ("start_time", None),
+            # TODO: columns "cpu", "memory", "duration" are not referenced directly
+            #       within MultiBackendJobManager making it confusing to claim they are required.
+            #       However, they are through assumptions about job "usage" metadata in `_update_statuses`.
             ("cpu", None),
             ("memory", None),
             ("duration", None),
             ("backend_name", None),
         ]
-        new_columns = {
-            col: val for (col, val) in required_with_default if col not in df.columns
-        }
+        new_columns = {col: val for (col, val) in required_with_default if col not in df.columns}
         df = df.assign(**new_columns)
-        # Workaround for loading of geopandas "geometry" column.
-        if "geometry" in df.columns and df["geometry"].dtype.name != "geometry":
-            df["geometry"] = df["geometry"].apply(shapely.wkt.loads)
-        return df
 
-    def _persists(self, df, output_file):
-        df.to_csv(output_file, index=False)
-        _log.info(f"Wrote job metadata to {output_file.absolute()}")
+        return df
 
     def run_jobs(
         self,
@@ -244,17 +242,30 @@ class MultiBackendJobManager:
             Otherwise you will have an exception because :py:meth:`run_jobs` passes unknown parameters to ``start_job``.
 
         :param output_file:
-            Path to output file (CSV) containing the status and metadata of the jobs.
+            Path to output file (CSV or Parquet) containing the status and metadata of the jobs.
+
+            .. note::
+                Support for Parquet files depends on the ``pyarrow`` package
+                as :ref:`optional dependency <installation-optional-dependencies>`.
+
+        .. versionchanged:: 0.31.0
+            Added support for providing a Parquet ``output_file``
         """
         # TODO: Defining start_jobs as a Protocol might make its usage more clear, and avoid complicated doctrings,
         #   but Protocols are only supported in Python 3.8 and higher.
-        # TODO: this resume functionality better fits outside of this function
-        #       (e.g. if `output_file` exists: `df` is fully discarded)
         output_file = Path(output_file)
+
+        if output_file.suffix.lower() == ".csv":
+            job_db = _CsvJobDatabase(output_file)
+        elif output_file.suffix.lower() == ".parquet":
+            job_db = _ParquetJobDatabase(output_file)
+        else:
+            raise ValueError(f"Unsupported output file type: {output_file}")
+
         if output_file.exists() and output_file.is_file():
-            # Resume from existing CSV
+            # Resume from existing db
             _log.info(f"Resuming `run_jobs` from {output_file.absolute()}")
-            df = pd.read_csv(output_file)
+            df = job_db.read()
             status_histogram = df.groupby("status").size().to_dict()
             _log.info(f"Status histogram: {status_histogram}")
 
@@ -273,7 +284,7 @@ class MultiBackendJobManager:
                 self._update_statuses(df)
             status_histogram = df.groupby("status").size().to_dict()
             _log.info(f"Status histogram: {status_histogram}")
-            self._persists(df, output_file)
+            job_db.persist(df)
 
             if len(df[df.status == "not_started"]) > 0:
                 # Check number of jobs running at each backend
@@ -293,7 +304,7 @@ class MultiBackendJobManager:
                         to_launch = df[df.status == "not_started"].iloc[0:to_add]
                         for i in to_launch.index:
                             self._launch_job(start_job, df, i, backend_name)
-                            self._persists(df, output_file)
+                            job_db.persist(df)
 
             time.sleep(self.poll_sleep)
 
@@ -435,6 +446,7 @@ class MultiBackendJobManager:
                     self.on_job_error(the_job, df.loc[i])
 
                 df.loc[i, "status"] = job_metadata["status"]
+                # TODO: there is well hidden coupling here with "cpu", "memory" and "duration" from `_normalize_df`
                 for key in job_metadata.get("usage", {}).keys():
                     df.loc[i, key] = _format_usage_stat(job_metadata, key)
 
@@ -458,3 +470,49 @@ def ignore_connection_errors(context: Optional[str] = None):
         _log.warning(f"Ignoring connection error (context {context or 'n/a'}): {e}")
         # Back off a bit
         time.sleep(5)
+
+
+class _JobDatabaseInterface:
+    def read(self) -> pd.DataFrame:
+        raise NotImplementedError()
+
+    def persist(self, df: pd.DataFrame):
+        raise NotImplementedError()
+
+
+class _CsvJobDatabase(_JobDatabaseInterface):
+    def __init__(self, path: Union[str, Path]):
+        self.path = Path(path)
+
+    def _is_valid_wkt(self, wkt: str) -> bool:
+        try:
+            shapely.wkt.loads(wkt)
+            return True
+        except shapely.errors.WKTReadingError:
+            return False
+
+    def read(self) -> pd.DataFrame:
+        df = pd.read_csv(self.path)
+        # Workaround for loading of geopandas "geometry" column.
+        if (
+            "geometry" in df.columns
+            and df["geometry"].dtype.name != "geometry"
+            and self._is_valid_wkt(df["geometry"].iloc[0])
+        ):
+            df["geometry"] = df["geometry"].apply(shapely.wkt.loads)
+        return df
+    def persist(self, df: pd.DataFrame):
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        df.to_csv(self.path, index=False)
+
+
+class _ParquetJobDatabase(_JobDatabaseInterface):
+    def __init__(self, path: Union[str, Path]):
+        self.path = Path(path)
+
+    def read(self) -> pd.DataFrame:
+        return pd.read_parquet(self.path)
+
+    def persist(self, df: pd.DataFrame):
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        df.to_parquet(self.path, index=False)

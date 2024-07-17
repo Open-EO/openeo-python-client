@@ -16,7 +16,12 @@ import shapely.geometry.point as shpt
 
 import openeo
 from openeo import BatchJob
-from openeo.extra.job_management import MAX_RETRIES, MultiBackendJobManager
+from openeo.extra.job_management import (
+    MAX_RETRIES,
+    MultiBackendJobManager,
+    _CsvJobDatabase,
+    _ParquetJobDatabase,
+)
 
 
 class TestMultiBackendJobManager:
@@ -111,6 +116,28 @@ class TestMultiBackendJobManager:
         # Checking for one of the jobs is enough.
         metadata_path = manager.get_job_metadata_path(job_id="job-2022")
         assert metadata_path.exists()
+
+    def test_normalize_df(self):
+        df = pd.DataFrame(
+            {
+                "some_number": [3, 2, 1],
+            }
+        )
+
+        df_normalized = MultiBackendJobManager()._normalize_df(df)
+
+        assert set(df_normalized.columns) == set(
+            [
+                "some_number",
+                "status",
+                "id",
+                "start_time",
+                "cpu",
+                "memory",
+                "duration",
+                "backend_name",
+            ]
+        )
 
     def test_manager_must_exit_when_all_jobs_done(self, tmp_path, requests_mock, sleep_mock):
         """Make sure the MultiBackendJobManager does not hang after all processes finish.
@@ -277,54 +304,6 @@ class TestMultiBackendJobManager:
         contents = error_log_path.read_text()
         assert json.loads(contents) == errors_log_lines
 
-    def test_normalize_df_adds_required_columns(self):
-        df = pd.DataFrame(
-            {
-                "some_number": [3, 2, 1],
-            }
-        )
-
-        manager = MultiBackendJobManager()
-        df_normalized = manager._normalize_df(df)
-
-        assert set(df_normalized.columns) == set(
-            [
-                "some_number",
-                "status",
-                "id",
-                "start_time",
-                "cpu",
-                "memory",
-                "duration",
-                "backend_name",
-            ]
-        )
-
-    def test_normalize_df_converts_wkt_geometry_column(self):
-        df = pd.DataFrame(
-            {
-                "some_number": [3, 2],
-                "geometry": [
-                    "Point (100 200)",
-                    "Point (99 123)",
-                    # "MULTIPOINT(0 0,1 1)",
-                    # "LINESTRING(1.5 2.45,3.21 4)"
-                ],
-            }
-        )
-
-        manager = MultiBackendJobManager()
-        df_normalized = manager._normalize_df(df)
-
-        first_point = df_normalized.loc[0, "geometry"]
-        second_point = df_normalized.loc[1, "geometry"]
-
-        # The geometry columns should be converted so now it should contain
-        # Point objects from the module shapely.geometry.point
-        assert isinstance(first_point, shpt.Point)
-
-        assert first_point == shpt.Point(100, 200)
-        assert second_point == shpt.Point(99, 123)
 
     @httpretty.activate(allow_net_connect=False, verbose=True)
     @pytest.mark.parametrize("http_error_status", [502, 503, 504])
@@ -475,3 +454,53 @@ class TestMultiBackendJobManager:
         assert len(result) == 1
         assert set(result.status) == {"running"}
         assert set(result.backend_name) == {"foo"}
+
+
+class TestCsvJobDatabase:
+    def test_read_wkt(self, tmp_path):
+        wkt_df = pd.DataFrame(
+            {
+                "value": ["wkt"],
+                "geometry": ["POINT (30 10)"],
+            }
+        )
+        path = tmp_path / "jobs.csv"
+        wkt_df.to_csv(path, index=False)
+        df = _CsvJobDatabase(path).read()
+        assert isinstance(df.geometry[0], shpt.Point)
+
+    def test_read_non_wkt(self, tmp_path):
+        non_wkt_df = pd.DataFrame(
+            {
+                "value": ["non_wkt"],
+                "geometry": ["this is no WKT"],
+            }
+        )
+        path = tmp_path / "jobs.csv"
+        non_wkt_df.to_csv(path, index=False)
+        df = _CsvJobDatabase(path).read()
+        assert isinstance(df.geometry[0], str)
+
+    def test_persist(self, tmp_path):
+        df = pd.DataFrame(
+            {
+                "some_number": [3, 2, 1],
+            }
+        )
+
+        path = tmp_path / "jobs.csv"
+        _CsvJobDatabase(path).persist(df)
+        assert _CsvJobDatabase(path).read().equals(df)
+
+
+class TestParquetJobDatabase:
+    def test_read_persist(self, tmp_path):
+        df = pd.DataFrame(
+            {
+                "some_number": [3, 2, 1],
+            }
+        )
+
+        path = tmp_path / "jobs.parquet"
+        _ParquetJobDatabase(path).persist(df)
+        assert _ParquetJobDatabase(path).read().equals(df)
