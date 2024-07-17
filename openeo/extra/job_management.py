@@ -8,6 +8,7 @@ from typing import Callable, Dict, NamedTuple, Optional, Union
 
 import pandas as pd
 import requests
+import shapely.errors
 import shapely.wkt
 from requests.adapters import HTTPAdapter, Retry
 
@@ -154,7 +155,8 @@ class MultiBackendJobManager:
         self._connections[backend_name] = connection
         return connection
 
-    def _make_resilient(self, connection):
+    @staticmethod
+    def _make_resilient(connection):
         """Add an HTTPAdapter that retries the request if it fails.
 
         Retry for the following HTTP 50x statuses:
@@ -162,6 +164,7 @@ class MultiBackendJobManager:
         503 Service Unavailable
         504 Gateway Timeout
         """
+        # TODO: refactor this helper out of this class and unify with `openeo_driver.util.http.requests_with_retry`
         status_forcelist = [502, 503, 504]
         retries = Retry(
             total=MAX_RETRIES,
@@ -187,6 +190,9 @@ class MultiBackendJobManager:
             ("status", "not_started"),
             ("id", None),
             ("start_time", None),
+            # TODO: columns "cpu", "memory", "duration" are not referenced directly
+            #       within MultiBackendJobManager making it confusing to claim they are required.
+            #       However, they are through assumptions about job "usage" metadata in `_update_statuses`.
             ("cpu", None),
             ("memory", None),
             ("duration", None),
@@ -433,6 +439,7 @@ class MultiBackendJobManager:
                     self.on_job_error(the_job, df.loc[i])
 
                 df.loc[i, "status"] = job_metadata["status"]
+                # TODO: there is well hidden coupling here with "cpu", "memory" and "duration" from `_normalize_df`
                 for key in job_metadata.get("usage", {}).keys():
                     df.loc[i, key] = _format_usage_stat(job_metadata, key)
 

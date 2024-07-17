@@ -464,9 +464,9 @@ class TestCsvJobDatabase:
                 "geometry": ["POINT (30 10)"],
             }
         )
-        dir = tmp_path / "job_tracker.csv"
-        wkt_df.to_csv(dir, index=False)
-        df = _CsvJobDatabase(dir).read()
+        path = tmp_path / "jobs.csv"
+        wkt_df.to_csv(path, index=False)
+        df = _CsvJobDatabase(path).read()
         assert isinstance(df.geometry[0], shpt.Point)
 
     def test_read_non_wkt(self, tmp_path):
@@ -476,9 +476,9 @@ class TestCsvJobDatabase:
                 "geometry": ["this is no WKT"],
             }
         )
-        dir = tmp_path / "job_tracker.csv"
-        non_wkt_df.to_csv(dir, index=False)
-        df = _CsvJobDatabase(dir).read()
+        path = tmp_path / "jobs.csv"
+        non_wkt_df.to_csv(path, index=False)
+        df = _CsvJobDatabase(path).read()
         assert isinstance(df.geometry[0], str)
 
     def test_persist(self, tmp_path):
@@ -488,8 +488,9 @@ class TestCsvJobDatabase:
             }
         )
 
-        _CsvJobDatabase(tmp_path / "job_tracker.csv").persist(df)
-        assert _CsvJobDatabase(tmp_path / "job_tracker.csv").read().equals(df)
+        path = tmp_path / "jobs.csv"
+        _CsvJobDatabase(path).persist(df)
+        assert _CsvJobDatabase(path).read().equals(df)
 
 
 class TestParquetJobDatabase:
@@ -500,5 +501,6 @@ class TestParquetJobDatabase:
             }
         )
 
-        _ParquetJobDatabase(tmp_path / "job_tracker.parquet").persist(df)
-        assert _ParquetJobDatabase(tmp_path / "job_tracker.parquet").read().equals(df)
+        path = tmp_path / "jobs.parquet"
+        _ParquetJobDatabase(path).persist(df)
+        assert _ParquetJobDatabase(path).read().equals(df)
