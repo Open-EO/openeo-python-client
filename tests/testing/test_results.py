@@ -254,6 +254,21 @@ class TestAssertXarray:
         with raises_assertion_error_or_not(message=assertion_error):
             assert_xarray_dataset_allclose(actual=actual, expected=expected, **kwargs)
 
+    def test_assert_xarray_dataset_allclose_empty_coords_handling(self):
+        expected = xarray.Dataset(
+            {
+                "b02": xarray.DataArray([1, 2, 3]),
+                "crs": xarray.DataArray(b"", attrs={"spatial_ref": "meh"}),
+            }
+        )
+        actual = xarray.Dataset(
+            {
+                "b02": xarray.DataArray([1, 2, 3]),
+                "crs": xarray.DataArray(b"", attrs={"spatial_ref": "meh"}),
+            }
+        )
+        assert_xarray_dataset_allclose(actual=actual, expected=expected)
+
 
 class TestAssertJobResults:
     @pytest.fixture

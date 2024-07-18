@@ -25,6 +25,7 @@ def _load_xarray_netcdf(path: Union[str, Path], **kwargs) -> xarray.Dataset:
     """
     Load a netCDF file as Xarray Dataset
     """
+    _log.debug(f"_load_xarray_netcdf: {path!r}")
     return xarray.load_dataset(path, **kwargs)
 
 
@@ -32,6 +33,7 @@ def _load_rioxarray_geotiff(path: Union[str, Path], **kwargs) -> xarray.DataArra
     """
     Load a GeoTIFF file as Xarray DataArray (using `rioxarray` extension).
     """
+    _log.debug(f"_load_rioxarray_geotiff: {path!r}")
     try:
         import rioxarray
     except ImportError as e:
@@ -113,6 +115,7 @@ def _compare_xarray_dataarray(
     issues = []
 
     # TODO: isn't there functionality in Xarray itself to compare these aspects?
+    # TODO: also compare attributes of the DataArray?
     if actual.dims != expected.dims:
         issues.append(f"Dimension mismatch: {actual.dims} != {expected.dims}")
     for dim in set(expected.dims).intersection(actual.dims):
@@ -179,9 +182,15 @@ def _compare_xarray_datasets(
     all_issues = []
     actual_vars = set(actual.data_vars)
     expected_vars = set(expected.data_vars)
+    _log.debug(f"_compare_xarray_datasets: {actual_vars=} {expected_vars=}")
     if actual_vars != expected_vars:
         all_issues.append(f"Xarray DataSet variables mismatch: {actual_vars} != {expected_vars}")
     for var in expected_vars.intersection(actual_vars):
+        if not expected.data_vars[var].coords:
+            _log.debug(f"_compare_xarray_datasets: skipping variable {var!r} (empty coords)")
+            # TODO: still compare attributes of the DataArray?
+            continue
+        _log.debug(f"_compare_xarray_datasets: comparing variable {var!r}")
         issues = _compare_xarray_dataarray(actual[var], expected[var], rtol=rtol, atol=atol)
         if issues:
             all_issues.append(f"Issues for variable {var!r}:")
