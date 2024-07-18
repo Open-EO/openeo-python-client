@@ -90,6 +90,7 @@ For example:
 - ``matplotlib`` for visualisation (e.g. integrated plot functionality in ``xarray`` )
 - ``pyarrow`` for (read/write) support of Parquet files
   (e.g. with :py:class:`~openeo.extra.job_management.MultiBackendJobManager`)
+- ``rioxarray`` for GeoTIFF support in the assert helpers from ``openeo.testing.results``
 
 
 Enabling additional features

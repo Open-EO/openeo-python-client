@@ -8,8 +8,8 @@ import tempfile
 from pathlib import Path
 from typing import List, Optional, Union
 
-import numpy
 import xarray
+import xarray.testing
 
 from openeo.rest.job import DEFAULT_JOB_RESULTS_FILENAME, BatchJob, JobResults
 from openeo.util import repr_truncate
@@ -102,7 +102,7 @@ def _compare_xarray_dataarray(
     - (optional) Check fraction of mismatching pixels (difference exceeding some tolerance).
       If fraction is below a given threshold, ignore these mismatches in subsequent comparisons.
       If fraction is above the threshold, report this issue.
-    - Compare actual and expected data with `numpy.testing.assert_allclose` and specified tolerances.
+    - Compare actual and expected data with `xarray.testing.assert_allclose` and specified tolerances.
 
     :return: list of issues (empty if no issues)
     """
@@ -110,26 +110,26 @@ def _compare_xarray_dataarray(
     # TODO: option for nodata fill value?
     # TODO: option to include data type check?
     # TODO: option to cast to some data type (or even rescale) before comparison?
+    # TODO: also compare attributes of the DataArray?
     actual = _as_xarray_dataarray(actual)
     expected = _as_xarray_dataarray(expected)
     issues = []
 
-    # TODO: isn't there functionality in Xarray itself to compare these aspects?
-    # TODO: also compare attributes of the DataArray?
+    # `xarray.testing.assert_allclose` currently does not always
+    # provides detailed information about shape/dimension mismatches
+    # so we enrich the issue listing with some more details
     if actual.dims != expected.dims:
         issues.append(f"Dimension mismatch: {actual.dims} != {expected.dims}")
-    for dim in set(expected.dims).intersection(actual.dims):
+    for dim in sorted(set(expected.dims).intersection(actual.dims)):
         acs = actual.coords[dim].values
         ecs = expected.coords[dim].values
         if not (acs.shape == ecs.shape and (acs == ecs).all()):
             issues.append(f"Coordinates mismatch for dimension {dim!r}: {acs} != {ecs}")
     if actual.shape != expected.shape:
         issues.append(f"Shape mismatch: {actual.shape} != {expected.shape}")
-        # Abort: no point in comparing data if shapes do not match
-        return issues
 
     try:
-        numpy.testing.assert_allclose(actual=actual, desired=expected, rtol=rtol, atol=atol, equal_nan=True)
+        xarray.testing.assert_allclose(a=actual, b=expected, rtol=rtol, atol=atol)
     except AssertionError as e:
         # TODO: message of `assert_allclose` is typically multiline, split it again or make it one line?
         issues.append(str(e).strip())
@@ -180,16 +180,13 @@ def _compare_xarray_datasets(
     expected = _as_xarray_dataset(expected)
 
     all_issues = []
+    # TODO: just leverage DataSet support in xarray.testing.assert_allclose for all this?
     actual_vars = set(actual.data_vars)
     expected_vars = set(expected.data_vars)
     _log.debug(f"_compare_xarray_datasets: {actual_vars=} {expected_vars=}")
     if actual_vars != expected_vars:
         all_issues.append(f"Xarray DataSet variables mismatch: {actual_vars} != {expected_vars}")
     for var in expected_vars.intersection(actual_vars):
-        if not expected.data_vars[var].coords:
-            _log.debug(f"_compare_xarray_datasets: skipping variable {var!r} (empty coords)")
-            # TODO: still compare attributes of the DataArray?
-            continue
         _log.debug(f"_compare_xarray_datasets: comparing variable {var!r}")
         issues = _compare_xarray_dataarray(actual[var], expected[var], rtol=rtol, atol=atol)
         if issues:

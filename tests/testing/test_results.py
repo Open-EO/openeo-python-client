@@ -26,6 +26,7 @@ class TestCompareXarray:
         issues = _compare_xarray_dataarray(actual, expected)
         assert issues == []
 
+
     @pytest.mark.parametrize(
         ["actual", "expected_issues"],
         [
@@ -34,6 +35,7 @@ class TestCompareXarray:
                 [
                     "Coordinates mismatch for dimension 'dim_0': [0 1 2 3] != [0 1 2]",
                     "Shape mismatch: (4,) != (3,)",
+                    dirty_equals.IsStr(regex="Left and right DataArray objects are not close.*", regex_flags=re.DOTALL),
                 ],
             ),
             (
@@ -42,16 +44,79 @@ class TestCompareXarray:
                     "Dimension mismatch: ('dim_0', 'dim_1') != ('dim_0',)",
                     "Coordinates mismatch for dimension 'dim_0': [0 1] != [0 1 2]",
                     "Shape mismatch: (2, 3) != (3,)",
+                    dirty_equals.IsStr(regex="Left and right DataArray objects are not close.*", regex_flags=re.DOTALL),
                 ],
             ),
             (
                 xarray.DataArray([[1], [2], [3]]),
-                ["Dimension mismatch: ('dim_0', 'dim_1') != ('dim_0',)", "Shape mismatch: (3, 1) != (3,)"],
+                [
+                    "Dimension mismatch: ('dim_0', 'dim_1') != ('dim_0',)",
+                    "Shape mismatch: (3, 1) != (3,)",
+                    dirty_equals.IsStr(regex="Left and right DataArray objects are not close.*", regex_flags=re.DOTALL),
+                ],
             ),
         ],
     )
     def test_simple_shape_mismatch(self, actual, expected_issues):
         expected = xarray.DataArray([1, 2, 3])
+        assert _compare_xarray_dataarray(actual=actual, expected=expected) == expected_issues
+
+    @pytest.mark.parametrize(
+        ["actual", "expected_issues"],
+        [
+            (
+                xarray.DataArray([[1, 2, 3], [4, 5, 6]], dims=["x", "y"]),
+                [],
+            ),
+            (
+                xarray.DataArray([[1, 2, 3], [4, 5, 6]], dims=["y", "x"]),
+                [
+                    "Dimension mismatch: ('y', 'x') != ('x', 'y')",
+                    "Coordinates mismatch for dimension 'x': [0 1 2] != [0 1]",
+                    "Coordinates mismatch for dimension 'y': [0 1] != [0 1 2]",
+                    dirty_equals.IsStr(
+                        regex=r"Left and right DataArray objects are not close.*Differing dimensions:.*\(y: 2, x: 3\) != \(x: 2, y: 3\)",
+                        regex_flags=re.DOTALL,
+                    ),
+                ],
+            ),
+            (
+                xarray.DataArray([[1, 2, 3], [4, 5, 6]], dims=["x", "z"]),
+                [
+                    "Dimension mismatch: ('x', 'z') != ('x', 'y')",
+                    dirty_equals.IsStr(
+                        regex=r"Left and right DataArray objects are not close.*Differing dimensions:.*\(x: 2, z: 3\) != \(x: 2, y: 3\)",
+                        regex_flags=re.DOTALL,
+                    ),
+                ],
+            ),
+        ],
+    )
+    def test_simple_dims_mismatch(self, actual, expected_issues):
+        expected = xarray.DataArray([[1, 2, 3], [4, 5, 6]], dims=["x", "y"])
+        assert _compare_xarray_dataarray(actual=actual, expected=expected) == expected_issues
+
+    @pytest.mark.parametrize(
+        ["actual", "expected_issues"],
+        [
+            (
+                xarray.DataArray([[1, 2, 3], [4, 5, 6]], coords=[("x", [11, 22]), ("y", [33, 44, 55])]),
+                [],
+            ),
+            (
+                xarray.DataArray([[1, 2, 3], [4, 5, 6]], coords=[("x", [111, 222]), ("y", [33, 44, 55])]),
+                [
+                    "Coordinates mismatch for dimension 'x': [111 222] != [11 22]",
+                    dirty_equals.IsStr(
+                        regex=r"Left and right DataArray objects are not close.*Differing coordinates:.*L \* x\s+\(x\) int64 111 222.*R \* x\s+\(x\) int64 11 22",
+                        regex_flags=re.DOTALL,
+                    ),
+                ],
+            ),
+        ],
+    )
+    def test_simple_coords_mismatch(self, actual, expected_issues):
+        expected = xarray.DataArray([[1, 2, 3], [4, 5, 6]], coords=[("x", [11, 22]), ("y", [33, 44, 55])])
         assert _compare_xarray_dataarray(actual=actual, expected=expected) == expected_issues
 
     @pytest.mark.parametrize(
@@ -61,12 +126,7 @@ class TestCompareXarray:
             (
                 xarray.DataArray([1, 2, 3.00001]),
                 1e-6,
-                [
-                    dirty_equals.IsStr(
-                        regex=r"Not equal to tolerance rtol=1e-06, atol=1e-06\s.*Mismatched elements: 1 / 3\s.*Max absolute difference.*?: 1\.e-05\s.*",
-                        regex_flags=re.DOTALL,
-                    )
-                ],
+                [dirty_equals.IsStr(regex=r"Left and right DataArray objects are not close.*", regex_flags=re.DOTALL)],
             ),
             (xarray.DataArray([1, 2, 3.001]), 0.1, []),
         ],
@@ -82,12 +142,7 @@ class TestCompareXarray:
             (
                 xarray.DataArray([1, 2, 3.1]),
                 0.1,
-                [
-                    dirty_equals.IsStr(
-                        regex=r"Not equal to tolerance rtol=0, atol=0\.1\s.*Mismatched elements: 1 / 3\s.*Max absolute difference.*?: 0\.1\s.*",
-                        regex_flags=re.DOTALL,
-                    )
-                ],
+                [dirty_equals.IsStr(regex=r"Left and right DataArray objects are not close.*", regex_flags=re.DOTALL)],
             ),
             (xarray.DataArray([1, 2, 3.1]), 0.2, []),
         ],
@@ -103,10 +158,7 @@ class TestCompareXarray:
 
         assert _compare_xarray_dataarray(actual, expected, rtol=0, atol=0.01) == []
         assert _compare_xarray_dataarray(actual, expected, rtol=0, atol=0.0001) == [
-            dirty_equals.IsStr(
-                regex=r"Not equal to tolerance rtol=0, atol=0\.0001\s.*Mismatched elements: 1 / 5\s.*Max absolute difference.*?: 0\.001\s.*",
-                regex_flags=re.DOTALL,
-            ),
+            dirty_equals.IsStr(regex=r"Left and right DataArray objects are not close.*", regex_flags=re.DOTALL),
         ]
 
 
@@ -149,10 +201,10 @@ class TestAssertXarray:
     @pytest.mark.parametrize(
         ["kwargs", "assertion_error"],
         [
-            ({}, r".*Not equal to tolerance rtol=1e-06, atol=1e-06\s.*"),
-            ({"rtol": 0.01}, r".*Not equal to tolerance rtol=0\.01, atol=1e-06\s.*"),
+            ({}, r"Left and right DataArray objects are not close.*"),
+            ({"rtol": 0.01}, r"Left and right DataArray objects are not close.*"),
             ({"rtol": 0.1}, None),
-            ({"atol": 0.2}, r".*Not equal to tolerance rtol=1e-06, atol=0\.2\s.*"),
+            ({"atol": 0.2}, r"Left and right DataArray objects are not close.*"),
             ({"atol": 0.3}, None),
             ({"rtol": 0.01, "atol": 0.2}, None),
         ],
@@ -228,10 +280,10 @@ class TestAssertXarray:
     @pytest.mark.parametrize(
         ["kwargs", "assertion_error"],
         [
-            ({}, r"Issues for variable 'b':.*Not equal to tolerance rtol=1e-06, atol=1e-06\s.*"),
-            ({"rtol": 0.01}, r"Issues for variable 'b':.*Not equal to tolerance rtol=0\.01, atol=1e-06\s.*"),
+            ({}, r"Issues for variable 'b':.*Left and right DataArray objects are not close.*"),
+            ({"rtol": 0.01}, r"Issues for variable 'b':.*Left and right DataArray objects are not close.*"),
             ({"rtol": 0.1}, None),
-            ({"atol": 0.2}, r"Issues for variable 'b':.*Not equal to tolerance rtol=1e-06, atol=0\.2\s.*"),
+            ({"atol": 0.2}, r"Issues for variable 'b':.*Left and right DataArray objects are not close.*"),
             ({"atol": 0.3}, None),
             ({"rtol": 0.01, "atol": 0.2}, None),
         ],
@@ -300,7 +352,7 @@ class TestAssertJobResults:
         actual_ds = xarray.Dataset({"a": (["time"], [1, 2, 3.21])}, coords={"time": [11, 22, 33]})
         actual_ds.to_netcdf(actual_dir / "data.nc")
         with raises_assertion_error_or_not(
-            r"Issues for file 'data.nc'.*Issues for variable 'a'.*Not equal to tolerance rtol=1e-06, atol=1e-06\s.*"
+            r"Issues for file 'data.nc'.*Issues for variable 'a'.*Left and right DataArray objects are not close.*"
         ):
             assert_job_results_allclose(actual=actual_dir, expected=expected_dir, tmp_path=tmp_path)
 
