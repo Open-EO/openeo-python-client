@@ -1556,15 +1556,18 @@ def test_chunk_polygon_context(con100: Connection):
     }
 
 
-def test_apply_polygon_basic(con100: Connection):
+def test_apply_polygon_basic_legacy(con100: Connection):
     cube = con100.load_collection("S2")
-    polygons: shapely.geometry.Polygon = shapely.geometry.box(0, 0, 1, 1)
+    geometries = shapely.geometry.box(0, 0, 1, 1)
     process = UDF(code="myfancycode", runtime="Python")
-    result = cube.apply_polygon(polygons=polygons, process=process)
+    result = cube.apply_polygon(polygons=geometries, process=process)
     assert get_download_graph(result)["applypolygon1"] == {
         "process_id": "apply_polygon",
         "arguments": {
             "data": {"from_node": "loadcollection1"},
+            # TODO #592: For now, stick to legacy "polygons" argument in this case.
+            #       But eventually: change argument name to "geometries"
+            #       when https://github.com/Open-EO/openeo-python-driver/commit/15b72a77 propagated to all backends
             "polygons": {
                 "type": "Polygon",
                 "coordinates": [[[1.0, 0.0], [1.0, 1.0], [0.0, 1.0], [0.0, 0.0], [1.0, 0.0]]],
@@ -1582,18 +1585,80 @@ def test_apply_polygon_basic(con100: Connection):
     }
 
 
-@pytest.mark.parametrize(["polygons", "expected_polygons"], basic_geometry_types)
-def test_apply_polygon_types(con100: Connection, polygons, expected_polygons):
-    if isinstance(polygons, shapely.geometry.GeometryCollection):
+def test_apply_polygon_basic(con100: Connection):
+    cube = con100.load_collection("S2")
+    geometries = shapely.geometry.box(0, 0, 1, 1)
+    process = UDF(code="myfancycode", runtime="Python")
+    result = cube.apply_polygon(geometries=geometries, process=process)
+    assert get_download_graph(result)["applypolygon1"] == {
+        "process_id": "apply_polygon",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "geometries": {
+                "type": "Polygon",
+                "coordinates": [[[1.0, 0.0], [1.0, 1.0], [0.0, 1.0], [0.0, 0.0], [1.0, 0.0]]],
+            },
+            "process": {
+                "process_graph": {
+                    "runudf1": {
+                        "process_id": "run_udf",
+                        "arguments": {"data": {"from_parameter": "data"}, "runtime": "Python", "udf": "myfancycode"},
+                        "result": True,
+                    }
+                }
+            },
+        },
+    }
+
+
+def test_apply_polygon_basic_positional(con100: Connection):
+    """DataCube.apply_polygon() with positional arguments."""
+    cube = con100.load_collection("S2")
+    geometries = shapely.geometry.box(0, 0, 1, 1)
+    process = UDF(code="myfancycode", runtime="Python")
+    result = cube.apply_polygon(geometries, process)
+    assert get_download_graph(result)["applypolygon1"] == {
+        "process_id": "apply_polygon",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "geometries": {
+                "type": "Polygon",
+                "coordinates": [[[1.0, 0.0], [1.0, 1.0], [0.0, 1.0], [0.0, 0.0], [1.0, 0.0]]],
+            },
+            "process": {
+                "process_graph": {
+                    "runudf1": {
+                        "process_id": "run_udf",
+                        "arguments": {"data": {"from_parameter": "data"}, "runtime": "Python", "udf": "myfancycode"},
+                        "result": True,
+                    }
+                }
+            },
+        },
+    }
+
+
+@pytest.mark.parametrize(
+    ["geometries_argument", "geometries_parameter"],
+    [
+        ("polygons", "polygons"),  # TODO #592: *parameter* "polygons" for now, eventually change to "geometries"
+        ("geometries", "geometries"),
+    ],
+)
+@pytest.mark.parametrize(["geometries", "expected_polygons"], basic_geometry_types)
+def test_apply_polygon_types(
+    con100: Connection, geometries, expected_polygons, geometries_argument, geometries_parameter
+):
+    if isinstance(geometries, shapely.geometry.GeometryCollection):
         pytest.skip("apply_polygon does not support GeometryCollection")
     cube = con100.load_collection("S2")
     process = UDF(code="myfancycode", runtime="Python")
-    result = cube.apply_polygon(polygons=polygons, process=process)
+    result = cube.apply_polygon(**{geometries_argument: geometries}, process=process)
     assert get_download_graph(result)["applypolygon1"] == {
         "process_id": "apply_polygon",
         "arguments": {
             "data": {"from_node": "loadcollection1"},
-            "polygons": expected_polygons,
+            geometries_parameter: expected_polygons,
             "process": {
                 "process_graph": {
                     "runudf1": {
@@ -1607,16 +1672,23 @@ def test_apply_polygon_types(con100: Connection, polygons, expected_polygons):
     }
 
 
-def test_apply_polygon_parameter(con100: Connection):
+@pytest.mark.parametrize(
+    ["geometries_argument", "geometries_parameter"],
+    [
+        ("polygons", "polygons"),  # TODO #592: *parameter* "polygons" for now, eventually change to "geometries"
+        ("geometries", "geometries"),
+    ],
+)
+def test_apply_polygon_parameter(con100: Connection, geometries_argument, geometries_parameter):
     cube = con100.load_collection("S2")
-    polygons = Parameter(name="shapes", schema="object")
+    geometries = Parameter(name="shapes", schema="object")
     process = UDF(code="myfancycode", runtime="Python")
-    result = cube.apply_polygon(polygons=polygons, process=process)
+    result = cube.apply_polygon(**{geometries_argument: geometries}, process=process)
     assert get_download_graph(result)["applypolygon1"] == {
         "process_id": "apply_polygon",
         "arguments": {
             "data": {"from_node": "loadcollection1"},
-            "polygons": {"from_parameter": "shapes"},
+            geometries_parameter: {"from_parameter": "shapes"},
             "process": {
                 "process_graph": {
                     "runudf1": {
@@ -1630,12 +1702,20 @@ def test_apply_polygon_parameter(con100: Connection):
     }
 
 
-def test_apply_polygon_path(con100: Connection):
+@pytest.mark.parametrize(
+    ["geometries_argument", "geometries_parameter"],
+    [
+        ("polygons", "polygons"),  # TODO #592: *parameter* "polygons" for now, eventually change to "geometries"
+        ("geometries", "geometries"),
+    ],
+)
+def test_apply_polygon_path(con100: Connection, geometries_argument, geometries_parameter):
     cube = con100.load_collection("S2")
     process = UDF(code="myfancycode", runtime="Python")
-    result = cube.apply_polygon(polygons="path/to/polygon.json", process=process)
+    result = cube.apply_polygon(**{geometries_argument: "path/to/polygon.json"}, process=process)
     assert get_download_graph(result, drop_save_result=True, drop_load_collection=True) == {
         "readvector1": {
+            # TODO #104 #457 get rid of non-standard read_vector
             "process_id": "read_vector",
             "arguments": {"filename": "path/to/polygon.json"},
         },
@@ -1643,7 +1723,7 @@ def test_apply_polygon_path(con100: Connection):
             "process_id": "apply_polygon",
             "arguments": {
                 "data": {"from_node": "loadcollection1"},
-                "polygons": {"from_node": "readvector1"},
+                geometries_parameter: {"from_node": "readvector1"},
                 "process": {
                     "process_graph": {
                         "runudf1": {
@@ -1662,16 +1742,23 @@ def test_apply_polygon_path(con100: Connection):
     }
 
 
-def test_apply_polygon_context(con100: Connection):
+@pytest.mark.parametrize(
+    ["geometries_argument", "geometries_parameter"],
+    [
+        ("polygons", "polygons"),  # TODO #592: *parameter* "polygons" for now, eventually change to "geometries"
+        ("geometries", "geometries"),
+    ],
+)
+def test_apply_polygon_context(con100: Connection, geometries_argument, geometries_parameter):
     cube = con100.load_collection("S2")
-    polygons = shapely.geometry.Polygon([(0, 0), (1, 0), (0, 1), (0, 0)])
+    geometries = shapely.geometry.Polygon([(0, 0), (1, 0), (0, 1), (0, 0)])
     process = UDF(code="myfancycode", runtime="Python")
-    result = cube.apply_polygon(polygons=polygons, process=process, context={"foo": 4})
+    result = cube.apply_polygon(**{geometries_argument: geometries}, process=process, context={"foo": 4})
     assert get_download_graph(result)["applypolygon1"] == {
         "process_id": "apply_polygon",
         "arguments": {
             "data": {"from_node": "loadcollection1"},
-            "polygons": {"type": "Polygon", "coordinates": [[[0, 0], [1, 0], [0, 1], [0, 0]]]},
+            geometries_parameter: {"type": "Polygon", "coordinates": [[[0, 0], [1, 0], [0, 1], [0, 0]]]},
             "process": {
                 "process_graph": {
                     "runudf1": {
