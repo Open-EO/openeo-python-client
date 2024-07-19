@@ -18,9 +18,9 @@ import openeo
 from openeo import BatchJob
 from openeo.extra.job_management import (
     MAX_RETRIES,
+    CsvJobDatabase,
     MultiBackendJobManager,
-    _CsvJobDatabase,
-    _ParquetJobDatabase,
+    ParquetJobDatabase,
 )
 
 
@@ -466,7 +466,7 @@ class TestCsvJobDatabase:
         )
         path = tmp_path / "jobs.csv"
         wkt_df.to_csv(path, index=False)
-        df = _CsvJobDatabase(path).read()
+        df = CsvJobDatabase(path).read()
         assert isinstance(df.geometry[0], shpt.Point)
 
     def test_read_non_wkt(self, tmp_path):
@@ -478,7 +478,7 @@ class TestCsvJobDatabase:
         )
         path = tmp_path / "jobs.csv"
         non_wkt_df.to_csv(path, index=False)
-        df = _CsvJobDatabase(path).read()
+        df = CsvJobDatabase(path).read()
         assert isinstance(df.geometry[0], str)
 
     def test_persist(self, tmp_path):
@@ -489,8 +489,8 @@ class TestCsvJobDatabase:
         )
 
         path = tmp_path / "jobs.csv"
-        _CsvJobDatabase(path).persist(df)
-        assert _CsvJobDatabase(path).read().equals(df)
+        CsvJobDatabase(path).persist(df)
+        assert CsvJobDatabase(path).read().equals(df)
 
 
 class TestParquetJobDatabase:
@@ -502,5 +502,5 @@ class TestParquetJobDatabase:
         )
 
         path = tmp_path / "jobs.parquet"
-        _ParquetJobDatabase(path).persist(df)
-        assert _ParquetJobDatabase(path).read().equals(df)
+        ParquetJobDatabase(path).persist(df)
+        assert ParquetJobDatabase(path).read().equals(df)
