@@ -147,8 +147,8 @@ def assert_xarray_dataarray_allclose(
     """
     Assert that two Xarray ``DataArray`` instances are equal (with tolerance).
 
-    :param actual: actual data
-    :param expected: expected or reference data
+    :param actual: actual data, provided as Xarray DataArray object or path to NetCDF/GeoTIFF file.
+    :param expected: expected or reference data, provided as Xarray DataArray object or path to NetCDF/GeoTIFF file.
     :param rtol: relative tolerance
     :param atol: absolute tolerance
     :raises AssertionError: if not equal within the given tolerance
@@ -205,8 +205,8 @@ def assert_xarray_dataset_allclose(
     """
     Assert that two Xarray ``DataSet`` instances are equal (with tolerance).
 
-    :param actual: actual data
-    :param expected: expected or reference data
+    :param actual: actual data, provided as Xarray Dataset object or path to NetCDF/GeoTIFF file
+    :param expected: expected or reference data, provided as Xarray Dataset object or path to NetCDF/GeoTIFF file.
     :param rtol: relative tolerance
     :param atol: absolute tolerance
     :raises AssertionError: if not equal within the given tolerance
@@ -231,8 +231,8 @@ def assert_xarray_allclose(
     """
     Assert that two Xarray ``DataSet`` or ``DataArray`` instances are equal (with tolerance).
 
-    :param actual: actual data array or dataset
-    :param expected: actual data array or dataset
+    :param actual: actual data, provided as Xarray object or path to NetCDF/GeoTIFF file.
+    :param expected: expected or reference data, provided as Xarray object or path to NetCDF/GeoTIFF file.
     :param rtol: relative tolerance
     :param atol: absolute tolerance
     :raises AssertionError: if not equal within the given tolerance
@@ -366,8 +366,10 @@ def assert_job_results_allclose(
     """
     Assert that two job results sets are equal (with tolerance).
 
-    :param actual: actual job results (batch job, job results metadata object or a path)
-    :param expected: expected job results (batch job, job results metadata object or a path)
+    :param actual: actual job results, provided as :py:class:`~openeo.rest.job.BatchJob` object,
+        :py:meth:`~openeo.rest.job.JobResults` object or path to directory with downloaded assets.
+    :param expected: expected job results, provided as :py:class:`~openeo.rest.job.BatchJob` object,
+        :py:meth:`~openeo.rest.job.JobResults` object or path to directory with downloaded assets.
     :param rtol: relative tolerance
     :param atol: absolute tolerance
     :param tmp_path: root temp path to download results if needed.
