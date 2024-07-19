@@ -183,7 +183,7 @@ def _compare_xarray_datasets(
     # TODO: just leverage DataSet support in xarray.testing.assert_allclose for all this?
     actual_vars = set(actual.data_vars)
     expected_vars = set(expected.data_vars)
-    _log.debug(f"_compare_xarray_datasets: {actual_vars=} {expected_vars=}")
+    _log.debug(f"_compare_xarray_datasets: actual_vars={actual_vars!r} expected_vars={expected_vars!r}")
     if actual_vars != expected_vars:
         all_issues.append(f"Xarray DataSet variables mismatch: {actual_vars} != {expected_vars}")
     for var in expected_vars.intersection(actual_vars):
