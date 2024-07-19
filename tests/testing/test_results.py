@@ -9,6 +9,7 @@ import numpy
 import pytest
 import xarray
 
+from openeo.capabilities import ComparableVersion
 from openeo.rest.job import DEFAULT_JOB_RESULTS_FILENAME
 from openeo.testing.results import (
     _compare_xarray_dataarray,
@@ -108,7 +109,7 @@ class TestCompareXarray:
                 [
                     "Coordinates mismatch for dimension 'x': [111 222] != [11 22]",
                     dirty_equals.IsStr(
-                        regex=r"Left and right DataArray objects are not close.*Differing coordinates:.*L \* x\s+\(x\) int64 111 222.*R \* x\s+\(x\) int64 11 22",
+                        regex=r"Left and right DataArray objects are not close.*Differing coordinates:.*L \* x\s+\(x\).*?111 222.*R \* x\s+\(x\).*?11 22",
                         regex_flags=re.DOTALL,
                     ),
                 ],
@@ -306,6 +307,10 @@ class TestAssertXarray:
         with raises_assertion_error_or_not(message=assertion_error):
             assert_xarray_dataset_allclose(actual=actual, expected=expected, **kwargs)
 
+    @pytest.mark.skipif(
+        ComparableVersion(xarray.__version__) < "2024.07.0" and ComparableVersion(numpy.__version__) >= "2.0.0",
+        reason="This test doesn't work due to numpy 2 compatibility issue in xarray below 2024.7.0",
+    )
     def test_assert_xarray_dataset_allclose_empty_coords_handling(self):
         expected = xarray.Dataset(
             {
