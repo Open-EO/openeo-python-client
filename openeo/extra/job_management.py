@@ -76,7 +76,7 @@ class MultiBackendJobManager:
     """
 
     def __init__(
-        self, poll_sleep: int = 60, root_dir: Optional[Union[str, Path]] = "."
+        self, poll_sleep: int = 60, root_dir: Optional[Union[str, Path]] = ".", max_running_duration: Optional[int] = 720
     ):
         """Create a MultiBackendJobManager.
 
@@ -93,6 +93,10 @@ class MultiBackendJobManager:
                 - get_job_dir
                 - get_error_log_path
                 - get_job_metadata_path
+
+        :param max_running_duration:
+            A temporal limit for long running jobs to get automatically cancelled.
+            The preset duration is 720 minutes or 12 hours
         """
         self.backends: Dict[str, _Backend] = {}
         self.poll_sleep = poll_sleep
@@ -100,6 +104,9 @@ class MultiBackendJobManager:
 
         # An explicit None or "" should also default to "."
         self._root_dir = Path(root_dir or ".")
+
+        self.max_running_duration = datetime.timedelta(minutes=max_running_duration)
+
 
     def add_backend(
         self,
@@ -202,6 +209,39 @@ class MultiBackendJobManager:
         df = df.assign(**new_columns)
 
         return df
+    
+    def _check_and_stop_long_running_jobs(self, df: pd.DataFrame):
+        """Check for long-running jobs and stop them if necessary."""
+        running_jobs = df.loc[
+            (df.status == "running")
+        
+        ]
+        for i in running_jobs.index:
+
+            try:
+                job_id = df.loc[i, "id"]
+                backend_name = df.loc[i, "backend_name"]
+                con = self._get_connection(backend_name)
+                the_job = con.job(job_id)
+
+                job_time_created = the_job.describe()['created']
+                job_time_created = datetime.datetime.strptime(job_time_created, '%Y-%m-%dT%H:%M:%SZ')
+                time_difference = (datetime.datetime.now() - job_time_created)
+
+                if (time_difference.total_seconds() > self.max_running_duration.total_seconds()):
+
+                    try:
+                        _log.info(f"Cancelling job {job_id} on backend {backend_name} as it has been running for more than {self.max_running_duration} minutes")
+                
+                        the_job.stop_job()
+                        df.loc[i, "status"] = "cancelled_prolonged_job"
+                        self.on_job_error(the_job, df.loc[i])
+
+                    except OpenEoApiError as e:
+                        _log.error(f"Error Cancelling long-running job {job_id!r} on backend {backend_name}: {e}")
+
+            except:
+                pass
 
     def run_jobs(
         self,
@@ -277,9 +317,13 @@ class MultiBackendJobManager:
                 & (df.status != "skipped")
                 & (df.status != "start_failed")
                 & (df.status != "error")
+                & (df.status != "cancelled_prolonged_job")
             ].size
             > 0
         ):
+            # Check if any job is running longer than maximally allowed
+            self._check_and_stop_long_running_jobs(df)
+
             with ignore_connection_errors(context="get statuses"):
                 self._update_statuses(df)
             status_histogram = df.groupby("status").size().to_dict()
