@@ -16,6 +16,7 @@ from openeo import BatchJob, Connection
 from openeo.rest import OpenEoApiError
 from openeo.util import deep_get
 
+
 _log = logging.getLogger(__name__)
 
 
@@ -29,6 +30,7 @@ class _Backend(NamedTuple):
 
 
 MAX_RETRIES = 5
+
 
 class MultiBackendJobManager:
     """
@@ -76,7 +78,10 @@ class MultiBackendJobManager:
     """
 
     def __init__(
-        self, poll_sleep: int = 60, root_dir: Optional[Union[str, Path]] = ".", max_running_duration: Optional[int] = 720
+        self,
+        poll_sleep: int = 60,
+        root_dir: Optional[Union[str, Path]] = ".",
+        max_running_duration: Optional[int] = 12 * 60 * 60,
     ):
         """Create a MultiBackendJobManager.
 
@@ -94,9 +99,9 @@ class MultiBackendJobManager:
                 - get_error_log_path
                 - get_job_metadata_path
 
-        :param max_running_duration:
-            A temporal limit for long running jobs to get automatically cancelled.
-            The preset duration is 720 minutes or 12 hours
+        :param max_running_duration [seconds]:
+            A temporal limit for long running jobs to get automatically canceled.
+            The preset duration 12 hours
         """
         self.backends: Dict[str, _Backend] = {}
         self.poll_sleep = poll_sleep
@@ -105,8 +110,7 @@ class MultiBackendJobManager:
         # An explicit None or "" should also default to "."
         self._root_dir = Path(root_dir or ".")
 
-        self.max_running_duration = datetime.timedelta(minutes=max_running_duration)
-
+        self.max_running_duration = datetime.timedelta(seconds=max_running_duration)
 
     def add_backend(
         self,
@@ -132,9 +136,7 @@ class MultiBackendJobManager:
             c = connection
             connection = lambda: c
         assert callable(connection)
-        self.backends[name] = _Backend(
-            get_connection=connection, parallel_jobs=parallel_jobs
-        )
+        self.backends[name] = _Backend(get_connection=connection, parallel_jobs=parallel_jobs)
 
     def _get_connection(self, backend_name: str, resilient: bool = True) -> Connection:
         """Get a connection for the backend and optionally make it resilient (adds retry behavior)
@@ -199,49 +201,18 @@ class MultiBackendJobManager:
             ("start_time", None),
             # TODO: columns "cpu", "memory", "duration" are not referenced directly
             #       within MultiBackendJobManager making it confusing to claim they are required.
-            #       However, they are through assumptions about job "usage" metadata in `_update_statuses`.
+            #       However, they are through assumptions about job "usage" metadata in `_tracks_statuses`.
             ("cpu", None),
             ("memory", None),
             ("duration", None),
-            ("backend_name", None),
+            ("backend_name", None), 
+            ("costs", None)           
+
         ]
         new_columns = {col: val for (col, val) in required_with_default if col not in df.columns}
         df = df.assign(**new_columns)
 
         return df
-    
-    def _check_and_stop_long_running_jobs(self, df: pd.DataFrame):
-        """Check for long-running jobs and stop them if necessary."""
-        running_jobs = df.loc[
-            (df.status == "running")
-        
-        ]
-        for i in running_jobs.index:
-
-            try:
-                job_id = df.loc[i, "id"]
-                backend_name = df.loc[i, "backend_name"]
-                con = self._get_connection(backend_name)
-                the_job = con.job(job_id)
-
-                job_time_created = the_job.describe()['created']
-                job_time_created = datetime.datetime.strptime(job_time_created, '%Y-%m-%dT%H:%M:%SZ')
-                time_difference = (datetime.datetime.now() - job_time_created)
-
-                if (time_difference.total_seconds() > self.max_running_duration.total_seconds()):
-
-                    try:
-                        _log.info(f"Cancelling job {job_id} on backend {backend_name} as it has been running for more than {self.max_running_duration} minutes")
-                
-                        the_job.stop_job()
-                        df.loc[i, "status"] = "cancelled_prolonged_job"
-                        self.on_job_error(the_job, df.loc[i])
-
-                    except OpenEoApiError as e:
-                        _log.error(f"Error Cancelling long-running job {job_id!r} on backend {backend_name}: {e}")
-
-            except:
-                pass
 
     def run_jobs(
         self,
@@ -317,34 +288,26 @@ class MultiBackendJobManager:
                 & (df.status != "skipped")
                 & (df.status != "start_failed")
                 & (df.status != "error")
-                & (df.status != "cancelled_prolonged_job")
+                & (df.status != "canceled")
             ].size
             > 0
         ):
-            # Check if any job is running longer than maximally allowed
-            self._check_and_stop_long_running_jobs(df)
 
             with ignore_connection_errors(context="get statuses"):
-                self._update_statuses(df)
+                self._tracks_statuses(df)
             status_histogram = df.groupby("status").size().to_dict()
             _log.info(f"Status histogram: {status_histogram}")
             job_db.persist(df)
 
             if len(df[df.status == "not_started"]) > 0:
                 # Check number of jobs running at each backend
-                running = df[
-                    (df.status == "created")
-                    | (df.status == "queued")
-                    | (df.status == "running")
-                ]
+                running = df[(df.status == "created") | (df.status == "queued") | (df.status == "running")]
                 per_backend = running.groupby("backend_name").size().to_dict()
                 _log.info(f"Running per backend: {per_backend}")
                 for backend_name in self.backends:
                     backend_load = per_backend.get(backend_name, 0)
                     if backend_load < self.backends[backend_name].parallel_jobs:
-                        to_add = (
-                            self.backends[backend_name].parallel_jobs - backend_load
-                        )
+                        to_add = self.backends[backend_name].parallel_jobs - backend_load
                         to_launch = df[df.status == "not_started"].iloc[0:to_add]
                         for i in to_launch.index:
                             self._launch_job(start_job, df, i, backend_name)
@@ -466,13 +429,10 @@ class MultiBackendJobManager:
         if not job_dir.exists():
             job_dir.mkdir(parents=True)
 
-    def _update_statuses(self, df: pd.DataFrame):
-        """Update status (and stats) of running jobs (in place)."""
-        active = df.loc[
-            (df.status == "created")
-            | (df.status == "queued")
-            | (df.status == "running")
-        ]
+
+    def _tracks_statuses(self, df: pd.DataFrame):
+        """tracks status (and stats) of running jobs (in place). Cancels jobs when running too long"""
+        active = df.loc[(df.status == "created") | (df.status == "queued") | (df.status == "running")]
         for i in active.index:
             job_id = df.loc[i, "id"]
             backend_name = df.loc[i, "backend_name"]
@@ -481,15 +441,38 @@ class MultiBackendJobManager:
                 con = self._get_connection(backend_name)
                 the_job = con.job(job_id)
                 job_metadata = the_job.describe()
-                _log.info(
-                    f"Status of job {job_id!r} (on backend {backend_name}) is {job_metadata['status']!r}"
-                )
+                _log.info(f"Status of job {job_id!r} (on backend {backend_name}) is {job_metadata['status']!r}")
+
+                if job_metadata["status"] == "running":
+
+                    timezone = datetime.timezone.utc
+                    job_time_created = datetime.datetime.strptime(the_job.describe()["created"], "%Y-%m-%dT%H:%M:%SZ")
+                    job_time_created = job_time_created.replace(tzinfo=timezone)
+
+                    if datetime.datetime.now(timezone) > job_time_created + self.max_running_duration:
+                        try:
+                            _log.info(
+                                f"Cancelling job {job_id} on backend {backend_name} as it has been running for more than {self.max_running_duration} minutes"
+                            )
+                            the_job.stop_job()
+                            self.on_job_error(the_job, df.loc[i])
+
+                        except OpenEoApiError as e:
+                            _log.error(f"Error Cancelling long-running job {job_id!r} on backend {backend_name}: {e}")
+
+
                 if job_metadata["status"] == "finished":
                     self.on_job_done(the_job, df.loc[i])
+                    try:
+                        df.loc[i, "costs"] = job_metadata["costs"]
+                    except:
+                        pass
+                    
                 if df.loc[i, "status"] != "error" and job_metadata["status"] == "error":
                     self.on_job_error(the_job, df.loc[i])
 
                 df.loc[i, "status"] = job_metadata["status"]
+
                 # TODO: there is well hidden coupling here with "cpu", "memory" and "duration" from `_normalize_df`
                 for key in job_metadata.get("usage", {}).keys():
                     df.loc[i, key] = _format_usage_stat(job_metadata, key)
@@ -545,6 +528,7 @@ class _CsvJobDatabase(_JobDatabaseInterface):
         ):
             df["geometry"] = df["geometry"].apply(shapely.wkt.loads)
         return df
+
     def persist(self, df: pd.DataFrame):
         self.path.parent.mkdir(parents=True, exist_ok=True)
         df.to_csv(self.path, index=False)
