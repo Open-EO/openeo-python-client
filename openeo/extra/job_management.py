@@ -556,7 +556,7 @@ class CsvJobDatabase(JobDatabaseInterface):
 
     def read(self) -> pd.DataFrame:
         df = pd.read_csv(self.path)
-        # Workaround for loading of geopandas "geometry" column.
+        # `df.to_csv` in `persist()` will encode geometries as WKT, so we decode that here.
         if (
             "geometry" in df.columns
             and df["geometry"].dtype.name != "geometry"

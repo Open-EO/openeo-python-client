@@ -12,6 +12,5 @@ Multi Backend Job Manager
     :members:
 
 .. autoclass:: openeo.extra.job_management.CsvJobDatabase
-    :members: __init__
 
 .. autoclass:: openeo.extra.job_management.ParquetJobDatabase
