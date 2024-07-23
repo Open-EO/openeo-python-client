@@ -549,12 +549,11 @@ def metadata_from_stac(url: str) -> CubeMetadata:
         )
         if not cube_dimensions:
             complain("No cube:dimensions metadata")
-        dimensions = []
         for name, info in cube_dimensions.items():
             dim_type = info.get("type")
             if dim_type == "temporal":
                 return TemporalDimension(name=name, extent=info.get("extent"))
-        return []
+        return None
 
     def get_band_metadata(eo_bands_location: dict) -> List[Band]:
         # TODO: return None iso empty list when no metadata?
@@ -569,7 +568,7 @@ def metadata_from_stac(url: str) -> CubeMetadata:
     def is_band_asset(asset: pystac.Asset) -> bool:
         return "eo:bands" in asset.extra_fields
 
-    temporal_dimension = []
+    temporal_dimension = None
     stac_object = pystac.read_file(href=url)
     if isinstance(stac_object, pystac.Item):
         item = stac_object
@@ -610,7 +609,7 @@ def metadata_from_stac(url: str) -> CubeMetadata:
     band_dimension = BandDimension(name="bands", bands=bands)
     # TODO #567 get actual temporal extent information from metadata (if any)
     # TODO #567 is it possible to derive the actual name of temporal dimension that the backend will use?
-    if temporal_dimension == []:
+    if temporal_dimension is None:
         temporal_dimension = TemporalDimension(name="t", extent=[None, None])
     metadata = CubeMetadata(dimensions=[band_dimension, temporal_dimension])
     return metadata
