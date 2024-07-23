@@ -38,6 +38,8 @@ class JobDatabaseInterface(metaclass=abc.ABCMeta):
     Interface for a database of job metadata to use with the :py:class:`MultiBackendJobManager`,
     allowing to regularly persist the job metadata while polling the job statuses
     and resume/restart the job tracking after it was interrupted.
+
+    .. versionadded:: 0.31.0
     """
 
     @abc.abstractmethod
@@ -47,12 +49,20 @@ class JobDatabaseInterface(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def read(self) -> pd.DataFrame:
-        """Read job data from the database as pandas DataFrame."""
+        """
+        Read job data from the database as pandas DataFrame.
+
+        :return: loaded job data.
+        """
         ...
 
     @abc.abstractmethod
     def persist(self, df: pd.DataFrame):
-        """Store job data to the database."""
+        """
+        Store job data to the database.
+
+        :param df: job data to store.
+        """
         ...
 
 
@@ -511,17 +521,26 @@ def _format_usage_stat(job_metadata: dict, field: str) -> str:
 
 
 @contextlib.contextmanager
-def ignore_connection_errors(context: Optional[str] = None):
+def ignore_connection_errors(context: Optional[str] = None, sleep: int = 5):
     """Context manager to ignore connection errors."""
+    # TODO: move this out of this module and make it a more public utility?
     try:
         yield
     except requests.exceptions.ConnectionError as e:
         _log.warning(f"Ignoring connection error (context {context or 'n/a'}): {e}")
         # Back off a bit
-        time.sleep(5)
+        time.sleep(sleep)
 
 
 class CsvJobDatabase(JobDatabaseInterface):
+    """
+    Persist/load job metadata with a CSV file.
+
+    :implements: :py:class:`JobDatabaseInterface`
+    :param path: Path to local CSV file.
+
+    .. versionadded:: 0.31.0
+    """
     def __init__(self, path: Union[str, Path]):
         self.path = Path(path)
 
@@ -552,6 +571,18 @@ class CsvJobDatabase(JobDatabaseInterface):
 
 
 class ParquetJobDatabase(JobDatabaseInterface):
+    """
+    Persist/load job metadata with a Parquet file.
+
+    :implements: :py:class:`JobDatabaseInterface`
+    :param path: Path to the Parquet file.
+
+    .. versionadded:: 0.31.0
+
+    .. note::
+        Support for Parquet files depends on the ``pyarrow`` package
+        as :ref:`optional dependency <installation-optional-dependencies>`.
+    """
     def __init__(self, path: Union[str, Path]):
         self.path = Path(path)
 
