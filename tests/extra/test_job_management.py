@@ -481,26 +481,34 @@ class TestCsvJobDatabase:
         df = CsvJobDatabase(path).read()
         assert isinstance(df.geometry[0], str)
 
-    def test_persist(self, tmp_path):
-        df = pd.DataFrame(
+    def test_persist_and_read(self, tmp_path):
+        orig = pd.DataFrame(
             {
-                "some_number": [3, 2, 1],
+                "numbers": [3, 2, 1],
+                "names": ["apple", "banana", "coconut"],
             }
         )
-
         path = tmp_path / "jobs.csv"
-        CsvJobDatabase(path).persist(df)
-        assert CsvJobDatabase(path).read().equals(df)
+        CsvJobDatabase(path).persist(orig)
+        assert path.exists()
+
+        loaded = CsvJobDatabase(path).read()
+        assert list(loaded.dtypes) == list(orig.dtypes)
+        assert loaded.equals(orig)
 
 
 class TestParquetJobDatabase:
-    def test_read_persist(self, tmp_path):
-        df = pd.DataFrame(
+    def test_persist_and_read(self, tmp_path):
+        orig = pd.DataFrame(
             {
-                "some_number": [3, 2, 1],
+                "numbers": [3, 2, 1],
+                "names": ["apple", "banana", "coconut"],
             }
         )
-
         path = tmp_path / "jobs.parquet"
-        ParquetJobDatabase(path).persist(df)
-        assert ParquetJobDatabase(path).read().equals(df)
+        ParquetJobDatabase(path).persist(orig)
+        assert path.exists()
+
+        loaded = ParquetJobDatabase(path).read()
+        assert list(loaded.dtypes) == list(orig.dtypes)
+        assert loaded.equals(orig)

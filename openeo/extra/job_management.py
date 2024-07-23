@@ -1,3 +1,4 @@
+import abc
 import contextlib
 import datetime
 import json
@@ -32,19 +33,27 @@ class _Backend(NamedTuple):
 MAX_RETRIES = 5
 
 
-class JobDatabaseInterface:
+class JobDatabaseInterface(metaclass=abc.ABCMeta):
+    """
+    Interface for a database of job metadata to use with the :py:class:`MultiBackendJobManager`,
+    allowing to regularly persist the job metadata while polling the job statuses
+    and resume/restart the job tracking after it was interrupted.
+    """
 
+    @abc.abstractmethod
     def exists(self) -> bool:
-        """Is there existing data in the database?"""
-        return False
+        """Does the job database already exist, to read job data from?"""
+        ...
 
+    @abc.abstractmethod
     def read(self) -> pd.DataFrame:
-        """Read job data from the database ad pandas DataFrame."""
-        raise NotImplementedError()
+        """Read job data from the database as pandas DataFrame."""
+        ...
 
+    @abc.abstractmethod
     def persist(self, df: pd.DataFrame):
         """Store job data to the database."""
-        raise NotImplementedError()
+        ...
 
 
 class MultiBackendJobManager:
@@ -510,7 +519,6 @@ def ignore_connection_errors(context: Optional[str] = None):
         _log.warning(f"Ignoring connection error (context {context or 'n/a'}): {e}")
         # Back off a bit
         time.sleep(5)
-
 
 
 class CsvJobDatabase(JobDatabaseInterface):
