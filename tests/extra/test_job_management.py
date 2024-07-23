@@ -18,9 +18,9 @@ import openeo
 from openeo import BatchJob
 from openeo.extra.job_management import (
     MAX_RETRIES,
+    CsvJobDatabase,
     MultiBackendJobManager,
-    _CsvJobDatabase,
-    _ParquetJobDatabase,
+    ParquetJobDatabase,
 )
 
 
@@ -466,7 +466,7 @@ class TestCsvJobDatabase:
         )
         path = tmp_path / "jobs.csv"
         wkt_df.to_csv(path, index=False)
-        df = _CsvJobDatabase(path).read()
+        df = CsvJobDatabase(path).read()
         assert isinstance(df.geometry[0], shpt.Point)
 
     def test_read_non_wkt(self, tmp_path):
@@ -478,29 +478,37 @@ class TestCsvJobDatabase:
         )
         path = tmp_path / "jobs.csv"
         non_wkt_df.to_csv(path, index=False)
-        df = _CsvJobDatabase(path).read()
+        df = CsvJobDatabase(path).read()
         assert isinstance(df.geometry[0], str)
 
-    def test_persist(self, tmp_path):
-        df = pd.DataFrame(
+    def test_persist_and_read(self, tmp_path):
+        orig = pd.DataFrame(
             {
-                "some_number": [3, 2, 1],
+                "numbers": [3, 2, 1],
+                "names": ["apple", "banana", "coconut"],
             }
         )
-
         path = tmp_path / "jobs.csv"
-        _CsvJobDatabase(path).persist(df)
-        assert _CsvJobDatabase(path).read().equals(df)
+        CsvJobDatabase(path).persist(orig)
+        assert path.exists()
+
+        loaded = CsvJobDatabase(path).read()
+        assert list(loaded.dtypes) == list(orig.dtypes)
+        assert loaded.equals(orig)
 
 
 class TestParquetJobDatabase:
-    def test_read_persist(self, tmp_path):
-        df = pd.DataFrame(
+    def test_persist_and_read(self, tmp_path):
+        orig = pd.DataFrame(
             {
-                "some_number": [3, 2, 1],
+                "numbers": [3, 2, 1],
+                "names": ["apple", "banana", "coconut"],
             }
         )
-
         path = tmp_path / "jobs.parquet"
-        _ParquetJobDatabase(path).persist(df)
-        assert _ParquetJobDatabase(path).read().equals(df)
+        ParquetJobDatabase(path).persist(orig)
+        assert path.exists()
+
+        loaded = ParquetJobDatabase(path).read()
+        assert list(loaded.dtypes) == list(orig.dtypes)
+        assert loaded.equals(orig)
