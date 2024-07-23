@@ -14,7 +14,7 @@ from requests.adapters import HTTPAdapter, Retry
 
 from openeo import BatchJob, Connection
 from openeo.rest import OpenEoApiError
-from openeo.util import deep_get
+from openeo.util import deep_get, rfc3339
 
 
 _log = logging.getLogger(__name__)
@@ -81,7 +81,7 @@ class MultiBackendJobManager:
         self,
         poll_sleep: int = 60,
         root_dir: Optional[Union[str, Path]] = ".",
-        max_running_duration: Optional[int] = 12 * 60 * 60,
+        max_running_duration: Optional[int] = None,
     ):
         """Create a MultiBackendJobManager.
 
@@ -101,7 +101,7 @@ class MultiBackendJobManager:
 
         :param max_running_duration [seconds]:
             A temporal limit for long running jobs to get automatically canceled.
-            The preset duration 12 hours
+            The preset duration 12 hours. Can be set to None to disable
         """
         self.backends: Dict[str, _Backend] = {}
         self.poll_sleep = poll_sleep
@@ -110,7 +110,10 @@ class MultiBackendJobManager:
         # An explicit None or "" should also default to "."
         self._root_dir = Path(root_dir or ".")
 
-        self.max_running_duration = datetime.timedelta(seconds=max_running_duration)
+        self.max_running_duration = (
+        datetime.timedelta(seconds=max_running_duration) if max_running_duration is not None else None
+        )
+     
 
     def add_backend(
         self,
@@ -193,21 +196,21 @@ class MultiBackendJobManager:
         :param df: The dataframe to normalize.
         :return: a new dataframe that is normalized.
         """
+        pass
 
         # check for some required columns.
         required_with_default = [
             ("status", "not_started"),
             ("id", None),
-            ("start_time", None),
+            ("created_timestamp", None), 
+            ("running_timestamp", None), 
             # TODO: columns "cpu", "memory", "duration" are not referenced directly
             #       within MultiBackendJobManager making it confusing to claim they are required.
-            #       However, they are through assumptions about job "usage" metadata in `_tracks_statuses`.
+            #       However, they are through assumptions about job "usage" metadata in `_track_statuses`.
             ("cpu", None),
             ("memory", None),
             ("duration", None),
-            ("backend_name", None), 
-            ("costs", None)           
-
+            ("backend_name", None)
         ]
         new_columns = {col: val for (col, val) in required_with_default if col not in df.columns}
         df = df.assign(**new_columns)
@@ -294,7 +297,7 @@ class MultiBackendJobManager:
         ):
 
             with ignore_connection_errors(context="get statuses"):
-                self._tracks_statuses(df)
+                self._track_statuses(df)
             status_histogram = df.groupby("status").size().to_dict()
             _log.info(f"Status histogram: {status_histogram}")
             job_db.persist(df)
@@ -355,7 +358,7 @@ class MultiBackendJobManager:
             _log.warning(f"Failed to start job for {row.to_dict()}", exc_info=True)
             df.loc[i, "status"] = "start_failed"
         else:
-            df.loc[i, "start_time"] = datetime.datetime.now().isoformat()
+            df.loc[i, "created_timestamp"] = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')  
             if job:
                 df.loc[i, "id"] = job.job_id
                 with ignore_connection_errors(context="get status"):
@@ -393,6 +396,7 @@ class MultiBackendJobManager:
         with open(metadata_path, "w") as f:
             json.dump(job_metadata, f, ensure_ascii=False)
 
+
     def on_job_error(self, job: BatchJob, row):
         """
         Handles jobs that stopped with errors. Can be overridden to provide custom behaviour.
@@ -411,6 +415,30 @@ class MultiBackendJobManager:
             self.ensure_job_dir_exists(job.job_id)
             error_log_path.write_text(json.dumps(error_logs, indent=2))
 
+    def on_job_cancel(self, job: BatchJob, row):
+        """
+        Handles jobs that that were cancelled. Can be overridden to provide custom behaviour.
+
+        Default implementation does not do anything.
+
+        :param job: The job that has finished.
+        :param row: DataFrame row containing the job's metadata.
+        """
+        # TODO: param `row` is never accessed in this method. Remove it? Is this intended for future use?
+
+
+    def _cancel_prolonged_job(self, job: BatchJob, row):
+        """Cancel the job if it has been running for too long."""
+        job_running_timestamp = rfc3339.parse_datetime(row["running_timestamp"], with_timezone = True)
+        if datetime.datetime.now(datetime.timezone.utc) > job_running_timestamp + self.max_running_duration:
+            try:
+                job.stop()
+                _log.info(
+                    f"Cancelling job {job.job_id} as it has been running for more than {self.max_running_duration}"
+                )
+            except OpenEoApiError as e:
+                _log.error(f"Error Cancelling long-running job {job.job_id}: {e}")
+                
     def get_job_dir(self, job_id: str) -> Path:
         """Path to directory where job metadata, results and error logs are be saved."""
         return self._root_dir / f"job_{job_id}"
@@ -430,8 +458,8 @@ class MultiBackendJobManager:
             job_dir.mkdir(parents=True)
 
 
-    def _tracks_statuses(self, df: pd.DataFrame):
-        """tracks status (and stats) of running jobs (in place). Cancels jobs when running too long"""
+    def _track_statuses(self, df: pd.DataFrame):
+        """tracks status (and stats) of running jobs (in place). Optinally cancels jobs when running too long"""
         active = df.loc[(df.status == "created") | (df.status == "queued") | (df.status == "running")]
         for i in active.index:
             job_id = df.loc[i, "id"]
@@ -443,34 +471,21 @@ class MultiBackendJobManager:
                 job_metadata = the_job.describe()
                 _log.info(f"Status of job {job_id!r} (on backend {backend_name}) is {job_metadata['status']!r}")
 
-                if job_metadata["status"] == "running":
+                if (df.loc[i, "status"] == "created" or df.loc[i, "status"] == "queued") and job_metadata["status"] == "running":
+                    df.loc[i, "running_timestamp"] = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ') 
 
-                    timezone = datetime.timezone.utc
-                    job_time_created = datetime.datetime.strptime(the_job.describe()["created"], "%Y-%m-%dT%H:%M:%SZ")
-                    job_time_created = job_time_created.replace(tzinfo=timezone)
-
-                    if datetime.datetime.now(timezone) > job_time_created + self.max_running_duration:
-                        try:
-                            _log.info(
-                                f"Cancelling job {job_id} on backend {backend_name} as it has been running for more than {self.max_running_duration} minutes"
-                            )
-                            the_job.stop_job()
-                            self.on_job_error(the_job, df.loc[i])
-
-                        except OpenEoApiError as e:
-                            _log.error(f"Error Cancelling long-running job {job_id!r} on backend {backend_name}: {e}")
-
-
-                if job_metadata["status"] == "finished":
-                    self.on_job_done(the_job, df.loc[i])
-                    try:
-                        df.loc[i, "costs"] = job_metadata["costs"]
-                    except:
-                        pass
+                if self.max_running_duration and job_metadata["status"] == "running":
+                    self._cancel_prolonged_job(the_job, df.loc[i])
                     
                 if df.loc[i, "status"] != "error" and job_metadata["status"] == "error":
                     self.on_job_error(the_job, df.loc[i])
 
+                if job_metadata["status"] == "finished":
+                    self.on_job_done(the_job, df.loc[i])
+
+                if job_metadata["status"] == "canceled":
+                    self.on_job_cancel(the_job, df.loc[i])
+                    
                 df.loc[i, "status"] = job_metadata["status"]
 
                 # TODO: there is well hidden coupling here with "cpu", "memory" and "duration" from `_normalize_df`
