@@ -1,6 +1,9 @@
 import json
+import textwrap
 import threading
 from unittest import mock
+
+import geopandas
 
 # TODO: can we avoid using httpretty?
 #   We need it for testing the resilience, which uses an HTTPadapter with Retry
@@ -9,10 +12,11 @@ from unittest import mock
 #   httpretty avoids this specific problem because it mocks at the socket level,
 #   But I would rather not have two dependencies with almost the same goal.
 import httpretty
+import pandas
 import pandas as pd
 import pytest
 import requests
-import shapely.geometry.point as shpt
+import shapely.geometry
 
 import openeo
 from openeo import BatchJob
@@ -456,6 +460,26 @@ class TestMultiBackendJobManager:
         assert set(result.backend_name) == {"foo"}
 
 
+JOB_DB_DF_BASICS = pd.DataFrame(
+    {
+        "numbers": [3, 2, 1],
+        "names": ["apple", "banana", "coconut"],
+    }
+)
+JOB_DB_GDF_WITH_GEOMETRY = geopandas.GeoDataFrame(
+    {
+        "numbers": [11, 22],
+        "geometry": [shapely.geometry.Point(1, 2), shapely.geometry.Point(2, 1)],
+    },
+)
+JOB_DB_DF_WITH_GEOJSON_STRING = pd.DataFrame(
+    {
+        "numbers": [11, 22],
+        "geometry": ['{"type":"Point","coordinates":[1,2]}', '{"type":"Point","coordinates":[1,2]}'],
+    }
+)
+
+
 class TestCsvJobDatabase:
     def test_read_wkt(self, tmp_path):
         wkt_df = pd.DataFrame(
@@ -467,7 +491,7 @@ class TestCsvJobDatabase:
         path = tmp_path / "jobs.csv"
         wkt_df.to_csv(path, index=False)
         df = CsvJobDatabase(path).read()
-        assert isinstance(df.geometry[0], shpt.Point)
+        assert isinstance(df.geometry[0], shapely.geometry.Point)
 
     def test_read_non_wkt(self, tmp_path):
         non_wkt_df = pd.DataFrame(
@@ -481,34 +505,40 @@ class TestCsvJobDatabase:
         df = CsvJobDatabase(path).read()
         assert isinstance(df.geometry[0], str)
 
-    def test_persist_and_read(self, tmp_path):
-        orig = pd.DataFrame(
-            {
-                "numbers": [3, 2, 1],
-                "names": ["apple", "banana", "coconut"],
-            }
-        )
-        path = tmp_path / "jobs.csv"
+    @pytest.mark.parametrize(
+        ["orig"],
+        [
+            pytest.param(JOB_DB_DF_BASICS, id="pandas basics"),
+            pytest.param(JOB_DB_GDF_WITH_GEOMETRY, id="geopandas with geometry"),
+            pytest.param(JOB_DB_DF_WITH_GEOJSON_STRING, id="pandas with geojson string as geometry"),
+        ],
+    )
+    def test_persist_and_read(self, tmp_path, orig: pandas.DataFrame):
+        path = tmp_path / "jobs.parquet"
         CsvJobDatabase(path).persist(orig)
         assert path.exists()
 
         loaded = CsvJobDatabase(path).read()
-        assert list(loaded.dtypes) == list(orig.dtypes)
+        assert loaded.dtypes.to_dict() == orig.dtypes.to_dict()
         assert loaded.equals(orig)
+        assert type(orig) is type(loaded)
 
 
 class TestParquetJobDatabase:
-    def test_persist_and_read(self, tmp_path):
-        orig = pd.DataFrame(
-            {
-                "numbers": [3, 2, 1],
-                "names": ["apple", "banana", "coconut"],
-            }
-        )
+    @pytest.mark.parametrize(
+        ["orig"],
+        [
+            pytest.param(JOB_DB_DF_BASICS, id="pandas basics"),
+            pytest.param(JOB_DB_GDF_WITH_GEOMETRY, id="geopandas with geometry"),
+            pytest.param(JOB_DB_DF_WITH_GEOJSON_STRING, id="pandas with geojson string as geometry"),
+        ],
+    )
+    def test_persist_and_read(self, tmp_path, orig: pandas.DataFrame):
         path = tmp_path / "jobs.parquet"
         ParquetJobDatabase(path).persist(orig)
         assert path.exists()
 
         loaded = ParquetJobDatabase(path).read()
-        assert list(loaded.dtypes) == list(orig.dtypes)
+        assert loaded.dtypes.to_dict() == orig.dtypes.to_dict()
         assert loaded.equals(orig)
+        assert type(orig) is type(loaded)

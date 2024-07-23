@@ -8,6 +8,7 @@ import warnings
 from pathlib import Path
 from typing import Callable, Dict, NamedTuple, Optional, Union
 
+import geopandas
 import pandas as pd
 import requests
 import shapely.errors
@@ -556,13 +557,13 @@ class CsvJobDatabase(JobDatabaseInterface):
 
     def read(self) -> pd.DataFrame:
         df = pd.read_csv(self.path)
-        # `df.to_csv` in `persist()` will encode geometries as WKT, so we decode that here.
         if (
             "geometry" in df.columns
             and df["geometry"].dtype.name != "geometry"
             and self._is_valid_wkt(df["geometry"].iloc[0])
         ):
-            df["geometry"] = df["geometry"].apply(shapely.wkt.loads)
+            # `df.to_csv()` in `persist()` has encoded geometries as WKT, so we decode that here.
+            df = geopandas.GeoDataFrame(df, geometry=geopandas.GeoSeries.from_wkt(df["geometry"]))
         return df
 
     def persist(self, df: pd.DataFrame):
@@ -590,7 +591,19 @@ class ParquetJobDatabase(JobDatabaseInterface):
         return self.path.exists()
 
     def read(self) -> pd.DataFrame:
-        return pd.read_parquet(self.path)
+        # Unfortunately, a naive `pandas.read_parquet()` does not easily allow
+        # reconstructing geometries from a GeoPandas Parquet file.
+        # And vice-versa, `geopandas.read_parquet()` does not support reading
+        # Parquet file without geometries.
+        # So we have to guess which case we have.
+        # TODO is there a cleaner way to do this?
+        import pyarrow.parquet
+
+        metadata = pyarrow.parquet.read_metadata(self.path)
+        if b"geo" in metadata.metadata:
+            return geopandas.read_parquet(self.path)
+        else:
+            return pd.read_parquet(self.path)
 
     def persist(self, df: pd.DataFrame):
         self.path.parent.mkdir(parents=True, exist_ok=True)
