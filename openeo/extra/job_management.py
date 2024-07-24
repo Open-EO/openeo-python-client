@@ -8,7 +8,6 @@ import warnings
 from pathlib import Path
 from typing import Callable, Dict, NamedTuple, Optional, Union
 
-import geopandas
 import pandas as pd
 import requests
 import shapely.errors
@@ -540,6 +539,10 @@ class CsvJobDatabase(JobDatabaseInterface):
     :implements: :py:class:`JobDatabaseInterface`
     :param path: Path to local CSV file.
 
+    .. note::
+        Support for GeoPandas dataframes depends on the ``geopandas`` package
+        as :ref:`optional dependency <installation-optional-dependencies>`.
+
     .. versionadded:: 0.31.0
     """
     def __init__(self, path: Union[str, Path]):
@@ -562,6 +565,8 @@ class CsvJobDatabase(JobDatabaseInterface):
             and df["geometry"].dtype.name != "geometry"
             and self._is_valid_wkt(df["geometry"].iloc[0])
         ):
+            import geopandas
+
             # `df.to_csv()` in `persist()` has encoded geometries as WKT, so we decode that here.
             df = geopandas.GeoDataFrame(df, geometry=geopandas.GeoSeries.from_wkt(df["geometry"]))
         return df
@@ -578,11 +583,14 @@ class ParquetJobDatabase(JobDatabaseInterface):
     :implements: :py:class:`JobDatabaseInterface`
     :param path: Path to the Parquet file.
 
-    .. versionadded:: 0.31.0
-
     .. note::
         Support for Parquet files depends on the ``pyarrow`` package
         as :ref:`optional dependency <installation-optional-dependencies>`.
+
+        Support for GeoPandas dataframes depends on the ``geopandas`` package
+        as :ref:`optional dependency <installation-optional-dependencies>`.
+
+    .. versionadded:: 0.31.0
     """
     def __init__(self, path: Union[str, Path]):
         self.path = Path(path)
@@ -601,6 +609,7 @@ class ParquetJobDatabase(JobDatabaseInterface):
 
         metadata = pyarrow.parquet.read_metadata(self.path)
         if b"geo" in metadata.metadata:
+            import geopandas
             return geopandas.read_parquet(self.path)
         else:
             return pd.read_parquet(self.path)
