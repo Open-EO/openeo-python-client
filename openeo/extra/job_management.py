@@ -1,5 +1,5 @@
 import contextlib
-import datetime
+from datetime import datetime, timedelta, timezone
 import json
 import logging
 import time
@@ -111,7 +111,7 @@ class MultiBackendJobManager:
         self._root_dir = Path(root_dir or ".")
 
         self.max_running_duration = (
-        datetime.timedelta(seconds=max_running_duration) if max_running_duration is not None else None
+        timedelta(seconds=max_running_duration) if max_running_duration is not None else None
         )
      
 
@@ -358,7 +358,7 @@ class MultiBackendJobManager:
             _log.warning(f"Failed to start job for {row.to_dict()}", exc_info=True)
             df.loc[i, "status"] = "start_failed"
         else:
-            df.loc[i, "start_time"] = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')  
+            df.loc[i, "start_time"] = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')  
             if job:
                 df.loc[i, "id"] = job.job_id
                 with ignore_connection_errors(context="get status"):
@@ -430,7 +430,9 @@ class MultiBackendJobManager:
     def _cancel_prolonged_job(self, job: BatchJob, row):
         """Cancel the job if it has been running for too long."""
         job_running_timestamp = rfc3339.parse_datetime(row["running_time"], with_timezone = True)
-        if datetime.datetime.now(datetime.timezone.utc) > job_running_timestamp + self.max_running_duration:
+        current_time = datetime.now(timezone.utc)
+        
+        if current_time > job_running_timestamp + self.max_running_duration:
             try:
                 job.stop()
                 _log.info(
@@ -472,7 +474,7 @@ class MultiBackendJobManager:
                 _log.info(f"Status of job {job_id!r} (on backend {backend_name}) is {job_metadata['status']!r}")
 
                 if (df.loc[i, "status"] == "created" or df.loc[i, "status"] == "queued") and job_metadata["status"] == "running":
-                    df.loc[i, "running_time"] = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ') 
+                    df.loc[i, "running_time"] = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ') 
 
                 if self.max_running_duration and job_metadata["status"] == "running":
                     self._cancel_prolonged_job(the_job, df.loc[i])

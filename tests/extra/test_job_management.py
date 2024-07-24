@@ -1,6 +1,9 @@
 import json
 import threading
 from unittest import mock
+import datetime
+from openeo.util import rfc3339
+
 
 # TODO: can we avoid using httpretty?
 #   We need it for testing the resilience, which uses an HTTPadapter with Retry
@@ -22,13 +25,19 @@ from openeo.extra.job_management import (
     _CsvJobDatabase,
     _ParquetJobDatabase,
 )
+from openeo.rest import OpenEoApiError
+
+
 
 
 class TestMultiBackendJobManager:
+
+
     @pytest.fixture
     def sleep_mock(self):
         with mock.patch("time.sleep") as sleep:
             yield sleep
+    
 
     def test_basic(self, tmp_path, requests_mock, sleep_mock):
         requests_mock.get("http://foo.test/", json={"api_version": "1.1.0"})
@@ -75,9 +84,7 @@ class TestMultiBackendJobManager:
                 # It also needs the job results endpoint, though that can be a dummy implementation.
                 # When the job is finished the system tries to download the results and that is what
                 # needs this endpoint.
-                requests_mock.get(
-                    f"{backend}/jobs/{job_id}/results", json={"links": []}
-                )
+                requests_mock.get(f"{backend}/jobs/{job_id}/results", json={"links": []})
 
         mock_job_status("job-2018", queued=1, running=2)
         mock_job_status("job-2019", queued=2, running=3)
@@ -132,6 +139,7 @@ class TestMultiBackendJobManager:
                 "status",
                 "id",
                 "start_time",
+                "running_time",
                 "cpu",
                 "memory",
                 "duration",
@@ -270,7 +278,6 @@ class TestMultiBackendJobManager:
         metadata_path = manager.get_job_metadata_path(job_id="job-2021")
         assert metadata_path.exists()
 
-
     def test_on_error_log(self, tmp_path, requests_mock):
         backend = "http://foo.test"
         requests_mock.get(backend, json={"api_version": "1.1.0"})
@@ -283,9 +290,7 @@ class TestMultiBackendJobManager:
                 "message": "Test that error handling works",
             }
         ]
-        requests_mock.get(
-            f"{backend}/jobs/{job_id}/logs", json={"logs": errors_log_lines}
-        )
+        requests_mock.get(f"{backend}/jobs/{job_id}/logs", json={"logs": errors_log_lines})
 
         root_dir = tmp_path / "job_mgr_root"
         manager = MultiBackendJobManager(root_dir=root_dir)
@@ -304,12 +309,9 @@ class TestMultiBackendJobManager:
         contents = error_log_path.read_text()
         assert json.loads(contents) == errors_log_lines
 
-
     @httpretty.activate(allow_net_connect=False, verbose=True)
     @pytest.mark.parametrize("http_error_status", [502, 503, 504])
-    def test_is_resilient_to_backend_failures(
-        self, tmp_path, http_error_status, sleep_mock
-    ):
+    def test_is_resilient_to_backend_failures(self, tmp_path, http_error_status, sleep_mock):
         """
         Our job should still succeed when the backend request succeeds eventually,
         after first failing the maximum allowed number of retries.
@@ -329,9 +331,7 @@ class TestMultiBackendJobManager:
         backend = "http://foo.test"
         job_id = "job-2018"
 
-        httpretty.register_uri(
-            "GET", backend, body=json.dumps({"api_version": "1.1.0"})
-        )
+        httpretty.register_uri("GET", backend, body=json.dumps({"api_version": "1.1.0"}))
 
         # First fail the max times the connection should retry, then succeed. after that
         response_list = [
@@ -348,9 +348,7 @@ class TestMultiBackendJobManager:
                 )
             )
         ]
-        httpretty.register_uri(
-            "GET", f"{backend}/jobs/{job_id}", responses=response_list
-        )
+        httpretty.register_uri("GET", f"{backend}/jobs/{job_id}", responses=response_list)
 
         root_dir = tmp_path / "job_mgr_root"
         manager = MultiBackendJobManager(root_dir=root_dir)
@@ -380,9 +378,7 @@ class TestMultiBackendJobManager:
 
     @httpretty.activate(allow_net_connect=False, verbose=True)
     @pytest.mark.parametrize("http_error_status", [502, 503, 504])
-    def test_resilient_backend_reports_error_when_max_retries_exceeded(
-        self, tmp_path, http_error_status, sleep_mock
-    ):
+    def test_resilient_backend_reports_error_when_max_retries_exceeded(self, tmp_path, http_error_status, sleep_mock):
         """We should get a RetryError when the backend request fails more times than the maximum allowed number of retries.
 
         Goal of the test is only to see that retrying is effectively executed.
@@ -400,9 +396,7 @@ class TestMultiBackendJobManager:
         backend = "http://foo.test"
         job_id = "job-2018"
 
-        httpretty.register_uri(
-            "GET", backend, body=json.dumps({"api_version": "1.1.0"})
-        )
+        httpretty.register_uri("GET", backend, body=json.dumps({"api_version": "1.1.0"}))
 
         # Fail one more time than the max allow retries.
         # But do add one successful request at the start, to simulate that the job was
@@ -423,9 +417,7 @@ class TestMultiBackendJobManager:
             MAX_RETRIES + 1
         )
 
-        httpretty.register_uri(
-            "GET", f"{backend}/jobs/{job_id}", responses=response_list
-        )
+        httpretty.register_uri("GET", f"{backend}/jobs/{job_id}", responses=response_list)
 
         root_dir = tmp_path / "job_mgr_root"
         manager = MultiBackendJobManager(root_dir=root_dir)
@@ -455,7 +447,65 @@ class TestMultiBackendJobManager:
         assert set(result.status) == {"running"}
         assert set(result.backend_name) == {"foo"}
 
+    @mock.patch('openeo.extra.job_management.datetime', autospec=True)
+    @mock.patch('openeo.extra.job_management.timezone', autospec=True)
+    def test_cancel_prolonged_job_exceeds_duration(self, MockTimezone, MockDatetime):
+        # Create mock BatchJob instance
+        job = mock.MagicMock()  # Use MagicMock directly here
+        job.job_id = "test_job_id"
+        
+        row = {
+            "running_time": "2020-01-01T00:00:00Z"
+        }
+        
+        # Initialize manager with the max_running_duration as seconds
+        max_running_duration_seconds = 12 * 60 * 60  # 12 hours
+        manager = MultiBackendJobManager(max_running_duration=max_running_duration_seconds)
+        
+        # set up timestamps
+        job_running_timestamp = rfc3339.parse_datetime(row["running_time"], with_timezone=True)
+        future_time = job_running_timestamp + datetime.timedelta(seconds=max_running_duration_seconds) + datetime.timedelta(seconds=1)
 
+        # Set up the mock datetime
+        MockDatetime.now.return_value = future_time
+        MockTimezone.utc = datetime.timezone.utc
+        
+        manager._cancel_prolonged_job(job, row)
+        
+        # Verify that the stop method was called
+        job.stop.assert_called_once()
+      
+
+
+    @mock.patch('openeo.extra.job_management.datetime', autospec=True)
+    @mock.patch('openeo.extra.job_management.timezone', autospec=True)
+    def test_cancel_prolonged_job_within_duration(self, MockTimezone, MockDatetime):
+        # Create mock BatchJob instance
+        job = mock.MagicMock()  # Use MagicMock directly here
+        job.job_id = "test_job_id"
+        
+        row = {
+            "running_time": "2020-01-01T00:00:00Z"
+        }
+        
+        # Initialize manager with the max_running_duration as seconds
+        max_running_duration_seconds = 12 * 60 * 60  # 12 hours
+        manager = MultiBackendJobManager(max_running_duration=max_running_duration_seconds)
+        
+        # set up timestamps
+        job_running_timestamp = rfc3339.parse_datetime(row["running_time"], with_timezone=True)
+        future_time = job_running_timestamp + datetime.timedelta(seconds=max_running_duration_seconds) - datetime.timedelta(seconds=1)
+
+        # Set up the mock datetime
+        MockDatetime.now.return_value = future_time
+        MockTimezone.utc = datetime.timezone.utc
+        
+        manager._cancel_prolonged_job(job, row)
+        
+        # Verify that the stop method was called
+        job.stop.assert_not_called()
+       
+    
 class TestCsvJobDatabase:
     def test_read_wkt(self, tmp_path):
         wkt_df = pd.DataFrame(
