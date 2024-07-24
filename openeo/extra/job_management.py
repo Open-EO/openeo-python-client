@@ -473,7 +473,7 @@ class MultiBackendJobManager:
                 job_metadata = the_job.describe()
                 _log.info(f"Status of job {job_id!r} (on backend {backend_name}) is {job_metadata['status']!r}")
 
-                if (df.loc[i, "status"] == "created" or df.loc[i, "status"] == "queued") and job_metadata["status"] == "running":
+                if (df.loc[i, "status"] == "created" or df.loc[i, "status"] == "queued" or df.loc[i, "status"] == "started") and job_metadata["status"] == "running":
                     df.loc[i, "running_time"] = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ') 
 
                 if self.max_running_duration and job_metadata["status"] == "running":
