@@ -836,11 +836,67 @@ def test_cubemetadata_subclass():
         # TODO: test asset handling in item?
     ],
 )
+
+
 def test_metadata_from_stac(tmp_path, test_stac, expected):
     path = tmp_path / "stac.json"
     path.write_text(json.dumps(test_stac))
     metadata = metadata_from_stac(path)
     assert metadata.band_names == expected
+
+
+@pytest.mark.parametrize(
+    "test_stac_dims, expected_dims",
+    [
+        (
+            {
+                "type": "Collection",
+                "id": "test-collection",
+                "stac_version": "1.0.0",
+                "description": "Test collection",
+                "links": [],
+                "title": "Test Collection",
+                "extent": {
+                    "spatial": {"bbox": [[-180.0, -90.0, 180.0, 90.0]]},
+                    "temporal": {"interval": [["2020-01-01T00:00:00Z", "2020-01-10T00:00:00Z"]]},
+                },
+                "cube:dimensions": {
+                    "x": {
+                      "axis": "x",
+                      "type": "spatial",
+                      "extent": [180.0,-180.0],
+                      "reference_system": 4326
+                    },
+                    "y": {
+                      "axis": "y",
+                      "type": "spatial",
+                      "extent": [-90.0,90.0],
+                      "reference_system": 4326
+                    },
+                    "bands": {
+                      "type": "bands",
+                      "values": ["B01","B02",]
+                    },
+                    "time": {
+                      "type": "temporal",
+                      "extent": ["2020-01-01T00:00:00Z","2020-01-10T00:00:00Z"]
+                    }
+                  },
+                "license": "proprietary",
+                "summaries": {"eo:bands": [{"name": "B01"}, {"name": "B02"}]},
+                "stac_extensions": ["https://stac-extensions.github.io/datacube/v2.2.0/schema.json"],
+            },
+            ["bands","time"],
+        )
+    ]
+)
+
+def test_metadata_from_stac_dim_names(tmp_path, test_stac_dims, expected_dims):
+    path = tmp_path / "stac.json"
+    path.write_text(json.dumps(test_stac_dims))
+    metadata = metadata_from_stac(path)
+    assert metadata.temporal_dimension.name == expected_dims[1]
+    assert metadata.band_dimension.name == expected_dims[0]
 
 
 @pytest.mark.skipif(not _PYSTAC_1_9_EXTENSION_INTERFACE, reason="Requires PySTAC 1.9+ extension interface")
