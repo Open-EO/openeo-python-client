@@ -548,6 +548,21 @@ def metadata_from_stac(url: str) -> CubeMetadata:
             complain("No cube:dimensions metadata")
             return TemporalDimension(name="t", extent=[None, None])
 
+    def get_temporal_metadata_old(spec: dict, complain: Callable[[str], None] = warnings.warn) -> TemporalDimension:
+        # Dimension info is in `cube:dimensions` (or 0.4-style `properties/cube:dimensions`)
+        cube_dimensions = (
+            deep_get(spec, "cube:dimensions", default=None)
+            or deep_get(spec, "properties", "cube:dimensions", default=None)
+            or {}
+        )
+        if not cube_dimensions:
+            complain("No cube:dimensions metadata")
+        for name, info in cube_dimensions.items():
+            dim_type = info.get("type")
+            if dim_type == "temporal":
+                return TemporalDimension(name=name, extent=info.get("extent"))
+        return None
+
     def get_band_metadata(eo_bands_location: dict) -> List[Band]:
         # TODO: return None iso empty list when no metadata?
         return [
@@ -596,6 +611,8 @@ def metadata_from_stac(url: str) -> CubeMetadata:
         raise ValueError(stac_object)
     if _PYSTAC_1_9_EXTENSION_INTERFACE:
         temporal_dimension = get_temporal_metadata(stac_object)
+    else:
+        temporal_dimension = get_temporal_metadata_old(stac_object.to_dict())
     # TODO: conditionally include band dimension when there was actual indication of band metadata?
     band_dimension = BandDimension(name="bands", bands=bands)
     metadata = CubeMetadata(dimensions=[band_dimension, temporal_dimension])
