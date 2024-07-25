@@ -576,7 +576,6 @@ def metadata_from_stac(url: str) -> CubeMetadata:
     def is_band_asset(asset: pystac.Asset) -> bool:
         return "eo:bands" in asset.extra_fields
 
-    temporal_dimension = None
     stac_object = pystac.read_file(href=url)
     if isinstance(stac_object, pystac.Item):
         item = stac_object
@@ -613,6 +612,8 @@ def metadata_from_stac(url: str) -> CubeMetadata:
         temporal_dimension = get_temporal_metadata(stac_object)
     else:
         temporal_dimension = get_temporal_metadata_old(stac_object.to_dict())
+    if temporal_dimension is None:
+        temporal_dimension = TemporalDimension(name="t", extent=[None, None])
     # TODO: conditionally include band dimension when there was actual indication of band metadata?
     band_dimension = BandDimension(name="bands", bands=bands)
     metadata = CubeMetadata(dimensions=[band_dimension, temporal_dimension])
