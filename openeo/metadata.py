@@ -540,20 +540,14 @@ def metadata_from_stac(url: str) -> CubeMetadata:
 
     # TODO move these nested functions and other logic to _StacMetadataParser
 
-    def get_temporal_metadata(spec: dict, complain: Callable[[str], None] = warnings.warn) -> TemporalDimension:
-        # Dimension info is in `cube:dimensions` (or 0.4-style `properties/cube:dimensions`)
-        cube_dimensions = (
-            deep_get(spec, "cube:dimensions", default=None)
-            or deep_get(spec, "properties", "cube:dimensions", default=None)
-            or {}
-        )
-        if not cube_dimensions:
+    def get_temporal_metadata(spec: Union(pystac.Collection,pystac.Item), complain: Callable[[str], None] = warnings.warn) -> TemporalDimension:
+        # Dimension info is in `cube:dimensions`
+        # Check if the datacube extension is present
+        if spec.ext.has("cube"):
+             return TemporalDimension(**dict(zip(["name","extent"],[(n, d.extent) for (n, d) in spec.ext.cube.dimensions.items() if d.dim_type =="temporal"][0])))
+        else:
             complain("No cube:dimensions metadata")
-        for name, info in cube_dimensions.items():
-            dim_type = info.get("type")
-            if dim_type == "temporal":
-                return TemporalDimension(name=name, extent=info.get("extent"))
-        return None
+            return TemporalDimension(name="t", extent=[None, None])
 
     def get_band_metadata(eo_bands_location: dict) -> List[Band]:
         # TODO: return None iso empty list when no metadata?
@@ -580,6 +574,7 @@ def metadata_from_stac(url: str) -> CubeMetadata:
         else:
             eo_bands_location = {}
         bands = get_band_metadata(eo_bands_location)
+        temporal_dimension = get_temporal_metadata(item)
 
     elif isinstance(stac_object, pystac.Collection):
         collection = stac_object
@@ -597,7 +592,7 @@ def metadata_from_stac(url: str) -> CubeMetadata:
         if _PYSTAC_1_9_EXTENSION_INTERFACE and collection.ext.has("item_assets"):
             # TODO #575 support unordered band names and avoid conversion to a list.
             bands = list(_StacMetadataParser().get_bands_from_item_assets(collection.ext.item_assets))
-        temporal_dimension = get_temporal_metadata(collection.to_dict())
+        temporal_dimension = get_temporal_metadata(collection)
 
     elif isinstance(stac_object, pystac.Catalog):
         catalog = stac_object
@@ -607,10 +602,6 @@ def metadata_from_stac(url: str) -> CubeMetadata:
 
     # TODO: conditionally include band dimension when there was actual indication of band metadata?
     band_dimension = BandDimension(name="bands", bands=bands)
-    # TODO #567 get actual temporal extent information from metadata (if any)
-    # TODO #567 is it possible to derive the actual name of temporal dimension that the backend will use?
-    if temporal_dimension is None:
-        temporal_dimension = TemporalDimension(name="t", extent=[None, None])
     metadata = CubeMetadata(dimensions=[band_dimension, temporal_dimension])
     return metadata
 
