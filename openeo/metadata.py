@@ -223,7 +223,6 @@ class CubeMetadata:
         self._dimensions = dimensions
         self._band_dimension = None
         self._temporal_dimension = None
-
         if dimensions is not None:
             for dim in self._dimensions:
                 # TODO: here we blindly pick last bands or temporal dimension if multiple. Let user choose?
@@ -540,7 +539,7 @@ def metadata_from_stac(url: str) -> CubeMetadata:
 
     # TODO move these nested functions and other logic to _StacMetadataParser
 
-    def get_temporal_metadata(spec: Union(pystac.Collection,pystac.Item), complain: Callable[[str], None] = warnings.warn) -> TemporalDimension:
+    def get_temporal_metadata(spec: Union(pystac.Collection,pystac.Item, pystac.Catalog), complain: Callable[[str], None] = warnings.warn) -> TemporalDimension:
         # Dimension info is in `cube:dimensions`
         # Check if the datacube extension is present
         if spec.ext.has("cube"):
@@ -575,7 +574,6 @@ def metadata_from_stac(url: str) -> CubeMetadata:
             eo_bands_location = {}
         bands = get_band_metadata(eo_bands_location)
         temporal_dimension = get_temporal_metadata(item)
-
     elif isinstance(stac_object, pystac.Collection):
         collection = stac_object
         bands = get_band_metadata(collection.summaries.lists)
@@ -593,10 +591,10 @@ def metadata_from_stac(url: str) -> CubeMetadata:
             # TODO #575 support unordered band names and avoid conversion to a list.
             bands = list(_StacMetadataParser().get_bands_from_item_assets(collection.ext.item_assets))
         temporal_dimension = get_temporal_metadata(collection)
-
     elif isinstance(stac_object, pystac.Catalog):
         catalog = stac_object
         bands = get_band_metadata(catalog.extra_fields.get("summaries", {}))
+        temporal_dimension = get_temporal_metadata(catalog)
     else:
         raise ValueError(stac_object)
 
