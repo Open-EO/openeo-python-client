@@ -573,7 +573,6 @@ def metadata_from_stac(url: str) -> CubeMetadata:
         else:
             eo_bands_location = {}
         bands = get_band_metadata(eo_bands_location)
-        temporal_dimension = get_temporal_metadata(item)
     elif isinstance(stac_object, pystac.Collection):
         collection = stac_object
         bands = get_band_metadata(collection.summaries.lists)
@@ -590,14 +589,13 @@ def metadata_from_stac(url: str) -> CubeMetadata:
         if _PYSTAC_1_9_EXTENSION_INTERFACE and collection.ext.has("item_assets"):
             # TODO #575 support unordered band names and avoid conversion to a list.
             bands = list(_StacMetadataParser().get_bands_from_item_assets(collection.ext.item_assets))
-        temporal_dimension = get_temporal_metadata(collection)
     elif isinstance(stac_object, pystac.Catalog):
         catalog = stac_object
         bands = get_band_metadata(catalog.extra_fields.get("summaries", {}))
-        temporal_dimension = get_temporal_metadata(catalog)
     else:
         raise ValueError(stac_object)
-
+    if _PYSTAC_1_9_EXTENSION_INTERFACE:
+        temporal_dimension = get_temporal_metadata(stac_object)
     # TODO: conditionally include band dimension when there was actual indication of band metadata?
     band_dimension = BandDimension(name="bands", bands=bands)
     metadata = CubeMetadata(dimensions=[band_dimension, temporal_dimension])
