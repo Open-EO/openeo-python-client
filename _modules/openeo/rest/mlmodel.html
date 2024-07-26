@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>openeo.rest.mlmodel &#8212; openEO Python Client 0.32.0a1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css?v=276e5cb3" />
+    <script src="../../../_static/documentation_options.js?v=5f9769cd"></script>
+    <script src="../../../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for openeo.rest.mlmodel</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">pathlib</span>
+<span class="kn">import</span> <span class="nn">typing</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">from</span> <span class="nn">openeo.internal.documentation</span> <span class="kn">import</span> <span class="n">openeo_process</span>
+<span class="kn">from</span> <span class="nn">openeo.internal.graph_building</span> <span class="kn">import</span> <span class="n">PGNode</span>
+<span class="kn">from</span> <span class="nn">openeo.rest._datacube</span> <span class="kn">import</span> <span class="n">_ProcessGraphAbstraction</span>
+<span class="kn">from</span> <span class="nn">openeo.rest.job</span> <span class="kn">import</span> <span class="n">BatchJob</span>
+
+<span class="k">if</span> <span class="n">typing</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>
+    <span class="c1"># Imports for type checking only (circular import issue at runtime).</span>
+    <span class="kn">from</span> <span class="nn">openeo</span> <span class="kn">import</span> <span class="n">Connection</span>
+
+<span class="n">_log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="MlModel">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.mlmodel.MlModel">[docs]</a>
+<span class="k">class</span> <span class="nc">MlModel</span><span class="p">(</span><span class="n">_ProcessGraphAbstraction</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A machine learning model.</span>
+
+<span class="sd">    It is the result of a training procedure, e.g. output of a ``fit_...`` process,</span>
+<span class="sd">    and can be used for prediction (classification or regression) with the corresponding ``predict_...`` process.</span>
+
+<span class="sd">    .. versionadded:: 0.10.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">graph</span><span class="p">:</span> <span class="n">PGNode</span><span class="p">,</span> <span class="n">connection</span><span class="p">:</span> <span class="n">Connection</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">pgnode</span><span class="o">=</span><span class="n">graph</span><span class="p">,</span> <span class="n">connection</span><span class="o">=</span><span class="n">connection</span><span class="p">)</span>
+
+<div class="viewcode-block" id="MlModel.save_ml_model">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.mlmodel.MlModel.save_ml_model">[docs]</a>
+    <span class="k">def</span> <span class="nf">save_ml_model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">options</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Saves a machine learning model as part of a batch job.</span>
+
+<span class="sd">        :param options: Additional parameters to create the file(s).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">pgnode</span> <span class="o">=</span> <span class="n">PGNode</span><span class="p">(</span>
+            <span class="n">process_id</span><span class="o">=</span><span class="s2">&quot;save_ml_model&quot;</span><span class="p">,</span>
+            <span class="n">arguments</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;data&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;options&quot;</span><span class="p">:</span> <span class="n">options</span> <span class="ow">or</span> <span class="p">{}}</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">MlModel</span><span class="p">(</span><span class="n">graph</span><span class="o">=</span><span class="n">pgnode</span><span class="p">,</span> <span class="n">connection</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="MlModel.load_ml_model">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.mlmodel.MlModel.load_ml_model">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="nd">@openeo_process</span>
+    <span class="k">def</span> <span class="nf">load_ml_model</span><span class="p">(</span><span class="n">connection</span><span class="p">:</span> <span class="n">Connection</span><span class="p">,</span> <span class="nb">id</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">BatchJob</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">MlModel</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Loads a machine learning model from a STAC Item.</span>
+
+<span class="sd">        :param connection: connection object</span>
+<span class="sd">        :param id: STAC item reference, as URL, batch job (id) or user-uploaded file</span>
+<span class="sd">        :return:</span>
+
+<span class="sd">        .. versionadded:: 0.10.0</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="nb">id</span><span class="p">,</span> <span class="n">BatchJob</span><span class="p">):</span>
+            <span class="nb">id</span> <span class="o">=</span> <span class="nb">id</span><span class="o">.</span><span class="n">job_id</span>
+        <span class="k">return</span> <span class="n">MlModel</span><span class="p">(</span><span class="n">graph</span><span class="o">=</span><span class="n">PGNode</span><span class="p">(</span><span class="n">process_id</span><span class="o">=</span><span class="s2">&quot;load_ml_model&quot;</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="nb">id</span><span class="p">),</span> <span class="n">connection</span><span class="o">=</span><span class="n">connection</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="MlModel.execute_batch">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.mlmodel.MlModel.execute_batch">[docs]</a>
+    <span class="k">def</span> <span class="nf">execute_batch</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">outputfile</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">],</span>
+            <span class="nb">print</span><span class="o">=</span><span class="nb">print</span><span class="p">,</span> <span class="n">max_poll_interval</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span> <span class="n">connection_retry_interval</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>
+            <span class="n">job_options</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BatchJob</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Evaluate the process graph by creating a batch job, and retrieving the results when it is finished.</span>
+<span class="sd">        This method is mostly recommended if the batch job is expected to run in a reasonable amount of time.</span>
+
+<span class="sd">        For very long running jobs, you probably do not want to keep the client running.</span>
+
+<span class="sd">        :param job_options:</span>
+<span class="sd">        :param outputfile: The path of a file to which a result can be written</span>
+<span class="sd">        :param out_format: (optional) Format of the job result.</span>
+<span class="sd">        :param format_options: String Parameters for the job result format</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_job</span><span class="p">(</span><span class="n">job_options</span><span class="o">=</span><span class="n">job_options</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">job</span><span class="o">.</span><span class="n">run_synchronous</span><span class="p">(</span>
+            <span class="c1"># TODO #135 support multi file result sets too</span>
+            <span class="n">outputfile</span><span class="o">=</span><span class="n">outputfile</span><span class="p">,</span>
+            <span class="nb">print</span><span class="o">=</span><span class="nb">print</span><span class="p">,</span> <span class="n">max_poll_interval</span><span class="o">=</span><span class="n">max_poll_interval</span><span class="p">,</span> <span class="n">connection_retry_interval</span><span class="o">=</span><span class="n">connection_retry_interval</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="MlModel.create_job">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.mlmodel.MlModel.create_job">[docs]</a>
+    <span class="k">def</span> <span class="nf">create_job</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">title</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">description</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">plan</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">budget</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">job_options</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BatchJob</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Sends a job to the backend and returns a ClientJob instance.</span>
+
+<span class="sd">        :param title: job title</span>
+<span class="sd">        :param description: job description</span>
+<span class="sd">        :param plan: The billing plan to process and charge the job with</span>
+<span class="sd">        :param budget: Maximum budget to be spent on executing the job.</span>
+<span class="sd">            Note that some backends do not honor this limit.</span>
+<span class="sd">        :param job_options: A dictionary containing (custom) job options</span>
+<span class="sd">        :param format_options: String Parameters for the job result format</span>
+<span class="sd">        :return: Created job.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># TODO: centralize `create_job` for `DataCube`, `VectorCube`, `MlModel`, ...</span>
+        <span class="n">pg</span> <span class="o">=</span> <span class="bp">self</span>
+        <span class="k">if</span> <span class="n">pg</span><span class="o">.</span><span class="n">result_node</span><span class="p">()</span><span class="o">.</span><span class="n">process_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;save_ml_model&quot;</span><span class="p">}:</span>
+            <span class="n">_log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Process graph has no final `save_ml_model`. Adding it automatically.&quot;</span><span class="p">)</span>
+            <span class="n">pg</span> <span class="o">=</span> <span class="n">pg</span><span class="o">.</span><span class="n">save_ml_model</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="o">.</span><span class="n">create_job</span><span class="p">(</span>
+            <span class="n">process_graph</span><span class="o">=</span><span class="n">pg</span><span class="o">.</span><span class="n">flat_graph</span><span class="p">(),</span>
+            <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span>
+            <span class="n">description</span><span class="o">=</span><span class="n">description</span><span class="p">,</span>
+            <span class="n">plan</span><span class="o">=</span><span class="n">plan</span><span class="p">,</span>
+            <span class="n">budget</span><span class="o">=</span><span class="n">budget</span><span class="p">,</span>
+            <span class="n">additional</span><span class="o">=</span><span class="n">job_options</span><span class="p">,</span>
+        <span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">openEO Python Client</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Open-EO&repo=openeo-python-client&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<h3><a href="../../../index.html">Table of Contents</a></h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">openEO Python Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../basics.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../data_access.html">Finding and loading data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../processes.html">Working with processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../batch_jobs.html">Batch Jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../udp.html">User-Defined Processes (UDP)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../auth.html">Authentication and Account Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../udf.html">User-Defined Functions (UDF) explained</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../datacube_construction.html">DataCube construction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../machine_learning.html">Machine Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../cookbook/index.html">openEO CookBook</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api.html">API (General)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api-processes.html">API: <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../process_mapping.html">openEO Process Mapping</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../best_practices.html">Best practices, coding style and general tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changelog.html">Changelog</a></li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><!-- Alabaster (krTheme++) Hacks -->
+
+<div class="sidebar-meta">
+<h3>Meta</h3>
+<div>Docs for openEO Python Client</div>
+<div>Version: <code>0.32.0a1</code></div>
+<div>Last updated: 2024/07/26</div>
+</div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2017 - 2024, Jeroen Dries.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 7.4.7</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 0.7.16</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
