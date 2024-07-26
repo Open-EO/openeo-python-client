@@ -1299,10 +1299,11 @@ class DataCube(_ProcessGraphAbstraction):
     @openeo_process
     def apply_polygon(
         self,
-        polygons: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter, VectorCube],
-        process: Union[str, PGNode, typing.Callable, UDF],
+        geometries: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter, VectorCube] = None,
+        process: Union[str, PGNode, typing.Callable, UDF] = None,
         mask_value: Optional[float] = None,
         context: Optional[dict] = None,
+        **kwargs,
     ) -> DataCube:
         """
         Apply a process to segments of the data cube that are defined by the given polygons.
@@ -1312,22 +1313,50 @@ class DataCube(_ProcessGraphAbstraction):
         the GeometriesOverlap exception is thrown.
         Each sub data cube is passed individually to the given process.
 
-        .. warning:: experimental process: not generally supported, API subject to change.
-
-        :param polygons: Polygons, provided as a shapely geometry, a GeoJSON-style dictionary,
+        :param geometries: Polygons, provided as a shapely geometry, a GeoJSON-style dictionary,
             a public GeoJSON URL, or a path (that is valid for the back-end) to a GeoJSON file.
         :param process: "child callback" function, see :ref:`callbackfunctions`
         :param mask_value: The value used for pixels outside the polygon.
         :param context: Additional data to be passed to the process.
+
+        .. warning:: experimental process: not generally supported, API subject to change.
+
+        .. versionchanged:: 0.32.0
+            Argument ``polygons`` was renamed to ``geometries``.
+            While deprecated, the old name ``polygons`` is still supported
+            as keyword argument for backwards compatibility.
         """
+        # TODO drop support for legacy `polygons` argument:
+        #      remove `kwargs, remove default `None` value for `geometries` and `process`
+        #      and the related backwards compatibility code
+        geometries_parameter = "geometries"
+        if geometries is None and "polygons" in kwargs:
+            geometries = kwargs.pop("polygons")
+            geometries_parameter = "polygons"
+            warnings.warn(
+                "In `apply_polygon` use argument `geometries` instead of deprecated 'polygons'.",
+                category=UserDeprecationWarning,
+                stacklevel=2,
+            )
+        if kwargs:
+            raise ValueError(f"Unexpected keyword arguments: {kwargs!r}")
+        if not geometries:
+            raise ValueError("No geometries provided.")
+
+        # Note: the `process` argument was given a default value `None` (with the `polygons`/`geometries` argument rename)
+        # to keep support for legacy `cube.apply_polygon(polygons=..., process=...)` usage:
+        # `geometries` had to be given a default value, and so did `process` as it comes after it.
+        # TODO: remove default value for `process` when dropping support for legacy `polygons` argument
+        assert process is not None
+
         process = build_child_callback(process, parent_parameters=["data"], connection=self.connection)
         valid_geojson_types = ["Polygon", "MultiPolygon", "Feature", "FeatureCollection"]
-        polygons = self._get_geometry_argument(polygons, valid_geojson_types=valid_geojson_types)
+        geometries = self._get_geometry_argument(geometries, valid_geojson_types=valid_geojson_types)
         mask_value = float(mask_value) if mask_value is not None else None
         return self.process(
             process_id="apply_polygon",
             data=THIS,
-            polygons=polygons,
+            **{geometries_parameter: geometries},
             process=process,
             arguments=dict_no_none(
                 mask_value=mask_value,
