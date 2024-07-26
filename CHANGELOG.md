@@ -9,16 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add experimental `openeo.testing.results` subpackage with reusable test utilities for comparing batch job results with reference data
-- `MultiBackendJobManager`: add initial support for storing job metadata in Parquet file (instead of CSV) ([#571](https://github.com/Open-EO/openeo-python-client/issues/571))
-- Add `Connection.authenticate_oidc_access_token()` to set up authorization headers with an access token that is obtained "out-of-band" ([#598](https://github.com/Open-EO/openeo-python-client/issues/598))
-- Add `JobDatabaseInterface` to allow custom job metadata storage with `MultiBackendJobManager` ([#571](https://github.com/Open-EO/openeo-python-client/issues/571))
-
 ### Changed
 
 ### Removed
 
 ### Fixed
+
+
+## [0.31.0] - 2024-07-26
+
+### Added
+
+- Add experimental `openeo.testing.results` subpackage with reusable test utilities for comparing batch job results with reference data
+- `MultiBackendJobManager`: add initial support for storing job metadata in Parquet file (instead of CSV) ([#571](https://github.com/Open-EO/openeo-python-client/issues/571))
+- Add `Connection.authenticate_oidc_access_token()` to set up authorization headers with an access token that is obtained "out-of-band" ([#598](https://github.com/Open-EO/openeo-python-client/issues/598))
+- Add `JobDatabaseInterface` to allow custom job metadata storage with `MultiBackendJobManager` ([#571](https://github.com/Open-EO/openeo-python-client/issues/571))
 
 
 ## [0.30.0] - 2024-06-18
