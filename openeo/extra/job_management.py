@@ -1,5 +1,5 @@
 import contextlib
-from datetime import datetime, timedelta, timezone
+import datetime
 import json
 import logging
 import time
@@ -16,9 +16,7 @@ from openeo import BatchJob, Connection
 from openeo.rest import OpenEoApiError
 from openeo.util import deep_get, rfc3339
 
-
 _log = logging.getLogger(__name__)
-
 
 class _Backend(NamedTuple):
     """Container for backend info/settings"""
@@ -81,7 +79,7 @@ class MultiBackendJobManager:
         self,
         poll_sleep: int = 60,
         root_dir: Optional[Union[str, Path]] = ".",
-        max_running_duration: Optional[int] = None,
+        cancel_running_job_after: Optional[int] = None,
     ):
         """Create a MultiBackendJobManager.
 
@@ -99,9 +97,9 @@ class MultiBackendJobManager:
                 - get_error_log_path
                 - get_job_metadata_path
 
-        :param max_running_duration [seconds]:
+        :param cancel_running_job_after [seconds]:
             A temporal limit for long running jobs to get automatically canceled.
-            The preset duration 12 hours. Can be set to None to disable
+            The preset is None, which disables the feature.
         """
         self.backends: Dict[str, _Backend] = {}
         self.poll_sleep = poll_sleep
@@ -110,8 +108,8 @@ class MultiBackendJobManager:
         # An explicit None or "" should also default to "."
         self._root_dir = Path(root_dir or ".")
 
-        self.max_running_duration = (
-        timedelta(seconds=max_running_duration) if max_running_duration is not None else None
+        self.cancel_running_job_after = (
+        datetime.timedelta(seconds=cancel_running_job_after) if cancel_running_job_after is not None else None
         )
      
 
@@ -196,14 +194,13 @@ class MultiBackendJobManager:
         :param df: The dataframe to normalize.
         :return: a new dataframe that is normalized.
         """
-        pass
 
         # check for some required columns.
         required_with_default = [
             ("status", "not_started"),
             ("id", None),
             ("start_time", None), 
-            ("running_time", None), 
+            ("running_start_time", None), 
             # TODO: columns "cpu", "memory", "duration" are not referenced directly
             #       within MultiBackendJobManager making it confusing to claim they are required.
             #       However, they are through assumptions about job "usage" metadata in `_track_statuses`.
@@ -358,7 +355,7 @@ class MultiBackendJobManager:
             _log.warning(f"Failed to start job for {row.to_dict()}", exc_info=True)
             df.loc[i, "status"] = "start_failed"
         else:
-            df.loc[i, "start_time"] = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')  
+            df.loc[i, "start_time"] = rfc3339.utcnow()  
             if job:
                 df.loc[i, "id"] = job.job_id
                 with ignore_connection_errors(context="get status"):
@@ -424,20 +421,22 @@ class MultiBackendJobManager:
         :param job: The job that has finished.
         :param row: DataFrame row containing the job's metadata.
         """
-        # TODO: param `row` is never accessed in this method. Remove it? Is this intended for future use?
-
+        pass
 
     def _cancel_prolonged_job(self, job: BatchJob, row):
         """Cancel the job if it has been running for too long."""
-        job_running_timestamp = rfc3339.parse_datetime(row["running_time"], with_timezone = True)
-        current_time = datetime.now(timezone.utc)
+        job_running_start_time = rfc3339.parse_datetime(row["running_start_time"], with_timezone=True)
+        current_time = rfc3339.parse_datetime(rfc3339.utcnow(), with_timezone=True)
+
         
-        if current_time > job_running_timestamp + self.max_running_duration:
+        if current_time > job_running_start_time + self.cancel_running_job_after:
             try:
-                job.stop()
+                print(str(self.cancel_running_job_after))
                 _log.info(
-                    f"Cancelling job {job.job_id} as it has been running for more than {self.max_running_duration}"
-                )
+                f"Cancelling job {job.job_id} as it has been running for more than {str(self.cancel_running_job_after)}"
+)
+                job.stop()
+                
             except OpenEoApiError as e:
                 _log.error(f"Error Cancelling long-running job {job.job_id}: {e}")
                 
@@ -471,12 +470,16 @@ class MultiBackendJobManager:
                 con = self._get_connection(backend_name)
                 the_job = con.job(job_id)
                 job_metadata = the_job.describe()
-                _log.info(f"Status of job {job_id!r} (on backend {backend_name}) is {job_metadata['status']!r}")
 
-                if (df.loc[i, "status"] == "created" or df.loc[i, "status"] == "queued" or df.loc[i, "status"] == "started") and job_metadata["status"] == "running":
-                    df.loc[i, "running_time"] = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ') 
+                previous_status = df.loc[i, "status"]  
+                new_status = job_metadata["status"] 
 
-                if self.max_running_duration and job_metadata["status"] == "running":
+                _log.info(f"Status of job {job_id!r} (on backend {backend_name}) is {new_status!r}")
+
+                if previous_status in {"created", "queued", "started"} and new_status == "running":
+                    df.loc[i, "running_start_time"] = rfc3339.utcnow() 
+
+                if self.cancel_running_job_after and job_metadata["status"] == "running":
                     self._cancel_prolonged_job(the_job, df.loc[i])
                     
                 if df.loc[i, "status"] != "error" and job_metadata["status"] == "error":
@@ -561,3 +564,5 @@ class _ParquetJobDatabase(_JobDatabaseInterface):
     def persist(self, df: pd.DataFrame):
         self.path.parent.mkdir(parents=True, exist_ok=True)
         df.to_parquet(self.path, index=False)
+        
+

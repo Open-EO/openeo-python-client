@@ -2,6 +2,7 @@ import json
 import threading
 from unittest import mock
 import datetime
+import time_machine
 from openeo.util import rfc3339
 
 
@@ -139,7 +140,7 @@ class TestMultiBackendJobManager:
                 "status",
                 "id",
                 "start_time",
-                "running_time",
+                "running_start_time",
                 "cpu",
                 "memory",
                 "duration",
@@ -447,62 +448,52 @@ class TestMultiBackendJobManager:
         assert set(result.status) == {"running"}
         assert set(result.backend_name) == {"foo"}
 
-    @mock.patch('openeo.extra.job_management.datetime', autospec=True)
-    @mock.patch('openeo.extra.job_management.timezone', autospec=True)
-    def test_cancel_prolonged_job_exceeds_duration(self, MockTimezone, MockDatetime):
+    def test_cancel_prolonged_job_exceeds_duration(self):
         # Create mock BatchJob instance
         job = mock.MagicMock()  # Use MagicMock directly here
         job.job_id = "test_job_id"
         
         row = {
-            "running_time": "2020-01-01T00:00:00Z"
+            "running_start_time": "2020-01-01T00:00:00Z"
         }
         
         # Initialize manager with the max_running_duration as seconds
         max_running_duration_seconds = 12 * 60 * 60  # 12 hours
-        manager = MultiBackendJobManager(max_running_duration=max_running_duration_seconds)
+        manager = MultiBackendJobManager(cancel_running_job_after=max_running_duration_seconds)
         
         # set up timestamps
-        job_running_timestamp = rfc3339.parse_datetime(row["running_time"], with_timezone=True)
+        job_running_timestamp = rfc3339.parse_datetime(row["running_start_time"], with_timezone=True)
         future_time = job_running_timestamp + datetime.timedelta(seconds=max_running_duration_seconds) + datetime.timedelta(seconds=1)
 
-        # Set up the mock datetime
-        MockDatetime.now.return_value = future_time
-        MockTimezone.utc = datetime.timezone.utc
-        
-        manager._cancel_prolonged_job(job, row)
-        
+        with time_machine.travel(future_time, tick=False):
+            manager._cancel_prolonged_job(job, row)
+                
         # Verify that the stop method was called
         job.stop.assert_called_once()
       
 
 
-    @mock.patch('openeo.extra.job_management.datetime', autospec=True)
-    @mock.patch('openeo.extra.job_management.timezone', autospec=True)
-    def test_cancel_prolonged_job_within_duration(self, MockTimezone, MockDatetime):
+    def test_cancel_prolonged_job_within_duration(self):
         # Create mock BatchJob instance
-        job = mock.MagicMock()  # Use MagicMock directly here
+        job = mock.MagicMock()
         job.job_id = "test_job_id"
         
         row = {
-            "running_time": "2020-01-01T00:00:00Z"
+            "running_start_time": "2020-01-01T00:00:00Z"
         }
         
         # Initialize manager with the max_running_duration as seconds
         max_running_duration_seconds = 12 * 60 * 60  # 12 hours
-        manager = MultiBackendJobManager(max_running_duration=max_running_duration_seconds)
+        manager = MultiBackendJobManager(cancel_running_job_after=max_running_duration_seconds)
         
         # set up timestamps
-        job_running_timestamp = rfc3339.parse_datetime(row["running_time"], with_timezone=True)
+        job_running_timestamp = rfc3339.parse_datetime(row["running_start_time"], with_timezone=True)
         future_time = job_running_timestamp + datetime.timedelta(seconds=max_running_duration_seconds) - datetime.timedelta(seconds=1)
-
-        # Set up the mock datetime
-        MockDatetime.now.return_value = future_time
-        MockTimezone.utc = datetime.timezone.utc
         
-        manager._cancel_prolonged_job(job, row)
-        
-        # Verify that the stop method was called
+        with time_machine.travel(future_time, tick=False):
+            manager._cancel_prolonged_job(job, row)
+            
+        # Verify that the stop method was not called
         job.stop.assert_not_called()
        
     
@@ -554,3 +545,7 @@ class TestParquetJobDatabase:
         path = tmp_path / "jobs.parquet"
         _ParquetJobDatabase(path).persist(df)
         assert _ParquetJobDatabase(path).read().equals(df)
+
+
+#%%
+
