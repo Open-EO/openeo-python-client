@@ -1160,11 +1160,16 @@ class DataCube(_ProcessGraphAbstraction):
             "process": process,
             "dimension": self._assert_valid_dimension_name(dimension),
         }
+
+        metadata = self.metadata
         if target_dimension is not None:
             arguments["target_dimension"] = target_dimension
+            metadata = self.metadata.reduce_dimension(dimension_name=dimension) if self.metadata else None
+            if(not target_dimension in self.metadata.dimension_names()):
+                metadata = self.metadata.add_dimension(target_dimension, label="unknown")
         if context is not None:
             arguments["context"] = context
-        result_cube = self.process(process_id="apply_dimension", arguments=arguments)
+        result_cube = self.process(process_id="apply_dimension", arguments=arguments, metadata = metadata)
 
         return result_cube
 
