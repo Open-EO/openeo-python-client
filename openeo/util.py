@@ -462,6 +462,17 @@ def load_json_resource(src: Union[str, Path]) -> dict:
     raise ValueError(src)
 
 
+def json_default(obj: Any) -> Any:
+    """default function for packing objects in JSON."""
+    # This function could cover more cases like jupyter's implementation does:
+    # https://github.com/jupyter/jupyter_client/blob/main/jupyter_client/jsonutil.py#L108
+
+    if isinstance(obj, Path):
+        return str(obj)
+
+    raise TypeError("%r is not JSON serializable" % obj)
+
+
 class LazyLoadCache:
     """Simple cache that allows to (lazy) load on cache miss."""
 

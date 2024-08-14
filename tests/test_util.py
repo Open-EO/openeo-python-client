@@ -29,6 +29,7 @@ from openeo.util import (
     ensure_list,
     first_not_none,
     guess_format,
+    json_default,
     normalize_crs,
     repr_truncate,
     rfc3339,
@@ -611,6 +612,19 @@ def test_guess_format():
     assert guess_format("./folder/file.geotiff") == "GTiff"
     assert guess_format("/folder/file.png") == "PNG"
     assert guess_format("../folder/file.notaformat") == "NOTAFORMAT"
+
+
+@pytest.mark.parametrize(
+    ["value", "expected"],
+    [
+        (3.1415, 3.1415),
+        (pathlib.Path("/tmp"), "/tmp"),
+        (pathlib.PosixPath("/tmp"), "/tmp"),
+    ],
+)
+def test_json_default(value, expected):
+    out = json.loads(json.dumps(value, default=json_default))
+    assert out == expected
 
 
 class TestLazyLoadCache:
