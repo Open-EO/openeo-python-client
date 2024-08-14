@@ -619,7 +619,8 @@ def test_guess_format():
     [
         (3.1415, 3.1415),
         (pathlib.Path("/tmp"), "/tmp"),
-        (pathlib.PosixPath("/tmp"), "/tmp"),
+        # PosixPath is not available on Windows, but is a subclass of Path, so the previous test is enough
+        # (pathlib.PosixPath("/tmp"), "/tmp"),
     ],
 )
 def test_json_default(value, expected):
