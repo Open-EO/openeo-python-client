@@ -82,7 +82,7 @@ A very common mistake is to use index-based array indexing, rather than name bas
 assumes that datacube dimension order is fixed, which is not guaranteed. Next to that, it also reduces the readability
 of your code. Label based indexing is a great feature of xarray, and should be used whenever possible.
 
-As a rule of thumb, the UDF should preserve the dimensions, their order, and shape of the input
+As a rule of thumb, the UDF should preserve the dimensions and shape of the input
 data cube. The datacube chunk that is passed on by the backend does not have a fixed
 specification, so the UDF needs to be able to accomodate different shapes and sizes of the data.
 
