@@ -207,7 +207,7 @@ class MultiBackendJobManager:
             ("cpu", None),
             ("memory", None),
             ("duration", None),
-            ("backend_name", None)
+            ("backend_name", None),
         ]
         new_columns = {col: val for (col, val) in required_with_default if col not in df.columns}
         df = df.assign(**new_columns)
