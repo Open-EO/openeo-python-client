@@ -431,7 +431,6 @@ class MultiBackendJobManager:
         
         if current_time > job_running_start_time + self.cancel_running_job_after:
             try:
-                print(str(self.cancel_running_job_after))
                 _log.info(
                 f"Cancelling job {job.job_id} as it has been running for more than {str(self.cancel_running_job_after)}"
 )
