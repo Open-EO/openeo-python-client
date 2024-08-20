@@ -487,7 +487,7 @@ class MultiBackendJobManager:
                 if new_status == "finished":
                     self.on_job_done(the_job, df.loc[i])
 
-                if job_metadata["status"] == "canceled":
+                if new_status == "canceled":
                     self.on_job_cancel(the_job, df.loc[i])
                     
                 df.loc[i, "status"] = job_metadata["status"]
