@@ -414,7 +414,7 @@ class MultiBackendJobManager:
 
     def on_job_cancel(self, job: BatchJob, row):
         """
-        Handles jobs that that were cancelled. Can be overridden to provide custom behaviour.
+        Handle a job that was cancelled. Can be overridden to provide custom behaviour.
 
         Default implementation does not do anything.
 
