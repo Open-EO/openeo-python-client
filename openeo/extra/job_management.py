@@ -481,7 +481,7 @@ class MultiBackendJobManager:
                 if self.cancel_running_job_after and job_metadata["status"] == "running":
                     self._cancel_prolonged_job(the_job, df.loc[i])
                     
-                if df.loc[i, "status"] != "error" and job_metadata["status"] == "error":
+                if previous_status != "error" and new_status == "error":
                     self.on_job_error(the_job, df.loc[i])
 
                 if new_status == "finished":
