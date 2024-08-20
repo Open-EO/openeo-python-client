@@ -199,7 +199,7 @@ class MultiBackendJobManager:
         required_with_default = [
             ("status", "not_started"),
             ("id", None),
-            ("start_time", None), 
+            ("start_time", None),
             ("running_start_time", None), 
             # TODO: columns "cpu", "memory", "duration" are not referenced directly
             #       within MultiBackendJobManager making it confusing to claim they are required.
