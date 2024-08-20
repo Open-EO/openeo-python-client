@@ -878,7 +878,15 @@ def test_metadata_from_stac_collection_bands_from_item_assets(test_data, tmp_pat
             ),
             ("t", ["2024-04-04", "2024-06-06"]),
         ),
-        (DummyStacDictBuilder.catalog(), None),
+        (
+            DummyStacDictBuilder.catalog(),
+            None,
+        ),
+        (
+            # Note: a catalog is not supposed to have datacube extension enabled, but we should not choke on that
+            DummyStacDictBuilder.catalog(stac_extensions=[DummyStacDictBuilder._EXT_DATACUBE]),
+            None,
+        ),
     ],
 )
 def test_metadata_from_stac_temporal_dimension(tmp_path, stac_dict, expected):

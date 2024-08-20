@@ -676,23 +676,26 @@ class _StacMetadataParser:
         Extract the temporal dimension from a STAC Collection/Item (if any)
         """
         # TODO: also extract temporal dimension from assets?
-        if isinstance(stac_obj, (pystac.Item, pystac.Collection)):
-            if _PYSTAC_1_9_EXTENSION_INTERFACE:
-                if stac_obj.ext.has("cube"):
-                    temporal_dims = [
-                        (n, d.extent or [None, None])
-                        for (n, d) in stac_obj.ext.cube.dimensions.items()
-                        if d.dim_type == pystac.extensions.datacube.DimensionType.TEMPORAL
-                    ]
-                    if len(temporal_dims) == 1:
-                        name, extent = temporal_dims[0]
-                        return TemporalDimension(name=name, extent=extent)
-            else:
+        if _PYSTAC_1_9_EXTENSION_INTERFACE:
+            if stac_obj.ext.has("cube") and hasattr(stac_obj.ext, "cube"):
                 temporal_dims = [
-                    (n, d.get("extent", [None, None]))
-                    for (n, d) in stac_obj.to_dict().get("cube:dimensions", {}).items()
-                    if d.get("type") == "temporal"
+                    (n, d.extent or [None, None])
+                    for (n, d) in stac_obj.ext.cube.dimensions.items()
+                    if d.dim_type == pystac.extensions.datacube.DimensionType.TEMPORAL
                 ]
                 if len(temporal_dims) == 1:
                     name, extent = temporal_dims[0]
                     return TemporalDimension(name=name, extent=extent)
+        else:
+            if isinstance(stac_obj, pystac.Item):
+                cube_dimensions = stac_obj.properties.get("cube:dimensions", {})
+            elif isinstance(stac_obj, pystac.Collection):
+                cube_dimensions = stac_obj.extra_fields.get("cube:dimensions", {})
+            else:
+                cube_dimensions = {}
+            temporal_dims = [
+                (n, d.get("extent", [None, None])) for (n, d) in cube_dimensions.items() if d.get("type") == "temporal"
+            ]
+            if len(temporal_dims) == 1:
+                name, extent = temporal_dims[0]
+                return TemporalDimension(name=name, extent=extent)

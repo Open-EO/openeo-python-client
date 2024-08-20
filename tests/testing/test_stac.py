@@ -1,15 +1,20 @@
+import pystac
+
 from openeo.testing.stac import DummyStacDictBuilder
 
 
 class TestDummyStacDictBuilder:
     def test_item_default(self):
-        assert DummyStacDictBuilder.item() == {
+        item = DummyStacDictBuilder.item()
+        assert item == {
             "type": "Feature",
             "stac_version": "1.0.0",
             "id": "item123",
             "geometry": None,
             "properties": {"datetime": "2024-03-08"},
         }
+        # Check if the default item validates
+        pystac.Item.from_dict(item)
 
     def test_item_cube_dimensions(self):
         assert DummyStacDictBuilder.item(
@@ -27,7 +32,8 @@ class TestDummyStacDictBuilder:
         }
 
     def test_collection_default(self):
-        assert DummyStacDictBuilder.collection() == {
+        collection = DummyStacDictBuilder.collection()
+        assert collection == {
             "type": "Collection",
             "stac_version": "1.0.0",
             "id": "collection123",
@@ -39,6 +45,8 @@ class TestDummyStacDictBuilder:
             },
             "links": [],
         }
+        # Check if the default collection validates
+        pystac.Collection.from_dict(collection)
 
     def test_collection_cube_dimensions(self):
         assert DummyStacDictBuilder.collection(
@@ -59,10 +67,13 @@ class TestDummyStacDictBuilder:
         }
 
     def test_catalog_default(self):
-        assert DummyStacDictBuilder.catalog() == {
+        catalog = DummyStacDictBuilder.catalog()
+        assert catalog == {
             "type": "Catalog",
             "stac_version": "1.0.0",
             "id": "catalog123",
             "description": "Catalog 123",
             "links": [],
         }
+        # Check if the default catalog validates
+        pystac.Catalog.from_dict(catalog)

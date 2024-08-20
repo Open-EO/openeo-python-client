@@ -83,7 +83,14 @@ class DummyStacDictBuilder:
         return d
 
     @classmethod
-    def catalog(cls, *, id: str = "catalog123", stac_version: str = "1.0.0", description: str = "Catalog 123"):
+    def catalog(
+        cls,
+        *,
+        id: str = "catalog123",
+        stac_version: str = "1.0.0",
+        description: str = "Catalog 123",
+        stac_extensions: Optional[List[str]] = None,
+    ):
         d = {
             "type": "Catalog",
             "stac_version": stac_version,
@@ -91,4 +98,6 @@ class DummyStacDictBuilder:
             "description": description,
             "links": [],
         }
+        if stac_extensions is not None:
+            d["stac_extensions"] = stac_extensions
         return d
