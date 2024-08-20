@@ -2349,6 +2349,36 @@ def test_authenticate_oidc_auto_renew_expired_access_token_initial_client_creden
     assert "Failed to obtain new access token (grant 'client_credentials')" in caplog.text
 
 
+class TestAuthenticateOidcAccessToken:
+    @pytest.fixture(autouse=True)
+    def _setup(self, requests_mock):
+        requests_mock.get(API_URL, json=build_capabilities())
+        requests_mock.get(
+            API_URL + "credentials/oidc",
+            json={"providers": [{"id": "oi", "issuer": "https://oidc.test", "title": "example", "scopes": ["openid"]}]},
+        )
+
+    def test_authenticate_oidc_access_token_default_provider(self):
+        connection = Connection(API_URL)
+        connection.authenticate_oidc_access_token(access_token="Th3Tok3n!@#")
+        assert isinstance(connection.auth, BearerAuth)
+        assert connection.auth.bearer == "oidc/oi/Th3Tok3n!@#"
+
+    def test_authenticate_oidc_access_token_with_provider(self):
+        connection = Connection(API_URL)
+        connection.authenticate_oidc_access_token(access_token="Th3Tok3n!@#", provider_id="oi")
+        assert isinstance(connection.auth, BearerAuth)
+        assert connection.auth.bearer == "oidc/oi/Th3Tok3n!@#"
+
+    def test_authenticate_oidc_access_token_wrong_provider(self):
+        connection = Connection(API_URL)
+        with pytest.raises(
+            OpenEoClientException,
+            match=re.escape("Requested OIDC provider 'nope' not available. Should be one of ['oi']."),
+        ):
+            connection.authenticate_oidc_access_token(access_token="Th3Tok3n!@#", provider_id="nope")
+
+
 def test_load_collection_arguments_100(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     conn = Connection(API_URL)

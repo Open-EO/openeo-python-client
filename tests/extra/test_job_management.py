@@ -1,6 +1,9 @@
 import json
+import textwrap
 import threading
 from unittest import mock
+
+import geopandas
 
 # TODO: can we avoid using httpretty?
 #   We need it for testing the resilience, which uses an HTTPadapter with Retry
@@ -9,14 +12,20 @@ from unittest import mock
 #   httpretty avoids this specific problem because it mocks at the socket level,
 #   But I would rather not have two dependencies with almost the same goal.
 import httpretty
+import pandas
 import pandas as pd
 import pytest
 import requests
-import shapely.geometry.point as shpt
+import shapely.geometry
 
 import openeo
 from openeo import BatchJob
-from openeo.extra.job_management import MAX_RETRIES, MultiBackendJobManager
+from openeo.extra.job_management import (
+    MAX_RETRIES,
+    CsvJobDatabase,
+    MultiBackendJobManager,
+    ParquetJobDatabase,
+)
 
 
 class TestMultiBackendJobManager:
@@ -111,6 +120,28 @@ class TestMultiBackendJobManager:
         # Checking for one of the jobs is enough.
         metadata_path = manager.get_job_metadata_path(job_id="job-2022")
         assert metadata_path.exists()
+
+    def test_normalize_df(self):
+        df = pd.DataFrame(
+            {
+                "some_number": [3, 2, 1],
+            }
+        )
+
+        df_normalized = MultiBackendJobManager()._normalize_df(df)
+
+        assert set(df_normalized.columns) == set(
+            [
+                "some_number",
+                "status",
+                "id",
+                "start_time",
+                "cpu",
+                "memory",
+                "duration",
+                "backend_name",
+            ]
+        )
 
     def test_manager_must_exit_when_all_jobs_done(self, tmp_path, requests_mock, sleep_mock):
         """Make sure the MultiBackendJobManager does not hang after all processes finish.
@@ -277,54 +308,6 @@ class TestMultiBackendJobManager:
         contents = error_log_path.read_text()
         assert json.loads(contents) == errors_log_lines
 
-    def test_normalize_df_adds_required_columns(self):
-        df = pd.DataFrame(
-            {
-                "some_number": [3, 2, 1],
-            }
-        )
-
-        manager = MultiBackendJobManager()
-        df_normalized = manager._normalize_df(df)
-
-        assert set(df_normalized.columns) == set(
-            [
-                "some_number",
-                "status",
-                "id",
-                "start_time",
-                "cpu",
-                "memory",
-                "duration",
-                "backend_name",
-            ]
-        )
-
-    def test_normalize_df_converts_wkt_geometry_column(self):
-        df = pd.DataFrame(
-            {
-                "some_number": [3, 2],
-                "geometry": [
-                    "Point (100 200)",
-                    "Point (99 123)",
-                    # "MULTIPOINT(0 0,1 1)",
-                    # "LINESTRING(1.5 2.45,3.21 4)"
-                ],
-            }
-        )
-
-        manager = MultiBackendJobManager()
-        df_normalized = manager._normalize_df(df)
-
-        first_point = df_normalized.loc[0, "geometry"]
-        second_point = df_normalized.loc[1, "geometry"]
-
-        # The geometry columns should be converted so now it should contain
-        # Point objects from the module shapely.geometry.point
-        assert isinstance(first_point, shpt.Point)
-
-        assert first_point == shpt.Point(100, 200)
-        assert second_point == shpt.Point(99, 123)
 
     @httpretty.activate(allow_net_connect=False, verbose=True)
     @pytest.mark.parametrize("http_error_status", [502, 503, 504])
@@ -475,3 +458,87 @@ class TestMultiBackendJobManager:
         assert len(result) == 1
         assert set(result.status) == {"running"}
         assert set(result.backend_name) == {"foo"}
+
+
+JOB_DB_DF_BASICS = pd.DataFrame(
+    {
+        "numbers": [3, 2, 1],
+        "names": ["apple", "banana", "coconut"],
+    }
+)
+JOB_DB_GDF_WITH_GEOMETRY = geopandas.GeoDataFrame(
+    {
+        "numbers": [11, 22],
+        "geometry": [shapely.geometry.Point(1, 2), shapely.geometry.Point(2, 1)],
+    },
+)
+JOB_DB_DF_WITH_GEOJSON_STRING = pd.DataFrame(
+    {
+        "numbers": [11, 22],
+        "geometry": ['{"type":"Point","coordinates":[1,2]}', '{"type":"Point","coordinates":[1,2]}'],
+    }
+)
+
+
+class TestCsvJobDatabase:
+    def test_read_wkt(self, tmp_path):
+        wkt_df = pd.DataFrame(
+            {
+                "value": ["wkt"],
+                "geometry": ["POINT (30 10)"],
+            }
+        )
+        path = tmp_path / "jobs.csv"
+        wkt_df.to_csv(path, index=False)
+        df = CsvJobDatabase(path).read()
+        assert isinstance(df.geometry[0], shapely.geometry.Point)
+
+    def test_read_non_wkt(self, tmp_path):
+        non_wkt_df = pd.DataFrame(
+            {
+                "value": ["non_wkt"],
+                "geometry": ["this is no WKT"],
+            }
+        )
+        path = tmp_path / "jobs.csv"
+        non_wkt_df.to_csv(path, index=False)
+        df = CsvJobDatabase(path).read()
+        assert isinstance(df.geometry[0], str)
+
+    @pytest.mark.parametrize(
+        ["orig"],
+        [
+            pytest.param(JOB_DB_DF_BASICS, id="pandas basics"),
+            pytest.param(JOB_DB_GDF_WITH_GEOMETRY, id="geopandas with geometry"),
+            pytest.param(JOB_DB_DF_WITH_GEOJSON_STRING, id="pandas with geojson string as geometry"),
+        ],
+    )
+    def test_persist_and_read(self, tmp_path, orig: pandas.DataFrame):
+        path = tmp_path / "jobs.parquet"
+        CsvJobDatabase(path).persist(orig)
+        assert path.exists()
+
+        loaded = CsvJobDatabase(path).read()
+        assert loaded.dtypes.to_dict() == orig.dtypes.to_dict()
+        assert loaded.equals(orig)
+        assert type(orig) is type(loaded)
+
+
+class TestParquetJobDatabase:
+    @pytest.mark.parametrize(
+        ["orig"],
+        [
+            pytest.param(JOB_DB_DF_BASICS, id="pandas basics"),
+            pytest.param(JOB_DB_GDF_WITH_GEOMETRY, id="geopandas with geometry"),
+            pytest.param(JOB_DB_DF_WITH_GEOJSON_STRING, id="pandas with geojson string as geometry"),
+        ],
+    )
+    def test_persist_and_read(self, tmp_path, orig: pandas.DataFrame):
+        path = tmp_path / "jobs.parquet"
+        ParquetJobDatabase(path).persist(orig)
+        assert path.exists()
+
+        loaded = ParquetJobDatabase(path).read()
+        assert loaded.dtypes.to_dict() == orig.dtypes.to_dict()
+        assert loaded.equals(orig)
+        assert type(orig) is type(loaded)

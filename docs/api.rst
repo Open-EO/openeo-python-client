@@ -132,8 +132,10 @@ openeo.util
 openeo.processes
 ----------------
 
-.. automodule:: openeo.processes
-    :members: process
+..  Note that only openeo.processes.process is included here
+    the rest of openeo.processes is included from api-processes.rst
+
+.. autofunction:: openeo.processes.process
 
 
 Graph building

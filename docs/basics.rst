@@ -140,7 +140,7 @@ Note how we specify a the region of interest, a time range and a set of bands to
 .. seealso::
     See the chapter :ref:`data_access_chapter` for more details on data discovery,
     general data loading (:ref:`data-loading-and-filtering`) and filtering
-    (e.g. :ref:`temporal-extent-handling`).
+    (e.g. :ref:`filtering-on-temporal-extent-section`).
 
 
 The :py:meth:`~openeo.rest.connection.Connection.load_collection` method on the connection

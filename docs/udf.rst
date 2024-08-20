@@ -78,6 +78,18 @@ in smaller chunks and process these chunks separately (e.g. on isolated workers)
 Consequently, it's important that your **UDF algorithm operates correctly
 in such a chunked processing context**.
 
+A very common mistake is to use index-based array indexing, rather than name based. The index based approach
+assumes that datacube dimension order is fixed, which is not guaranteed. Next to that, it also reduces the readability
+of your code. Label based indexing is a great feature of xarray, and should be used whenever possible.
+
+As a rule of thumb, the UDF should preserve the dimensions and shape of the input
+data cube. The datacube chunk that is passed on by the backend does not have a fixed
+specification, so the UDF needs to be able to accomodate different shapes and sizes of the data.
+
+There's important exceptions to this rule, that depend on the context in which the UDF is used.
+For instance, a UDF used as a reducer should effectively remove the reduced dimension from the
+output chunk. These details are documented in the next sections.
+
 UDFs as apply/reduce "callbacks"
 ---------------------------------
 
@@ -347,6 +359,17 @@ the datacube.
             {'dimension': 'y', 'value': 8, 'unit': 'px'}
         ])
 
+
+
+.. warning::
+
+The ``apply_neighborhood`` is the most versatile, but also most complex process. Make sure to keep an eye on the dimensions
+and the shape of the DataArray returned by your UDF. For instance, a very common error is to somehow 'flip' the spatial dimensions.
+Debugging the UDF locally can help, but then you will want to try and reproduce the input that you get also on the backend.
+This can typically be achieved by using logging to inspect the DataArrays passed into your UDF backend side.
+
+
+
 Example: Smoothing timeseries with a user defined function (UDF)
 ==================================================================
 
@@ -425,6 +448,7 @@ is a more challenging problem and the practical details can vary between backend
 
 
 .. _python-udf-dependency-declaration:
+
 Standard for declaring Python UDF dependencies
 -----------------------------------------------
 

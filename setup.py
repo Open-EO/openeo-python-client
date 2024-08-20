@@ -33,12 +33,13 @@ tests_require = [
     "dirty_equals>=0.6.0",
     # (#578) On Python 3.7: avoid dirty_equals 0.7.1 which wrongly claims to be Python 3.7 compatible
     "dirty_equals<0.7.1 ; python_version <= '3.7'",
+    "pyarrow>=10.0.1",  # For Parquet read/write support in pandas
 ]
 
 docs_require = [
     "sphinx",
     "sphinx-autodoc-annotation",
-    "sphinx-autodoc-typehints!=1.21.4",  # Issue #366 doc build fails with version 1.21.4
+    "sphinx-autodoc-typehints>=2.2.3",
     "myst-parser",
 ]
 

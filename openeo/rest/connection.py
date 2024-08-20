@@ -382,13 +382,19 @@ class Connection(RestApiConnection):
         self.auth = BasicBearerAuth(access_token=resp["access_token"])
         return self
 
-    def _get_oidc_provider(self, provider_id: Union[str, None] = None) -> Tuple[str, OidcProviderInfo]:
+    def _get_oidc_provider(
+        self, provider_id: Union[str, None] = None, parse_info: bool = True
+    ) -> Tuple[str, Union[OidcProviderInfo, None]]:
         """
-        Get OpenID Connect discovery URL for given provider_id
+        Get provider id and info, based on context.
+        If provider_id is given, verify it against backend's list of providers.
+        If not given, find a suitable provider based on env vars, config or backend's default.
 
         :param provider_id: id of OIDC provider as specified by backend (/credentials/oidc).
             Can be None if there is just one provider.
-        :return: updated provider_id and provider info object
+        :param parse_info: whether to parse the provider info into an :py:class:`OidcProviderInfo` object
+            (which involves a ".well-known/openid-configuration" request)
+        :return: resolved/verified provider_id and provider info object (unless ``parse_info`` is False)
         """
         oidc_info = self.get("/credentials/oidc", expected_status=200).json()
         providers = OrderedDict((p["id"], p) for p in oidc_info["providers"])
@@ -434,8 +440,10 @@ class Connection(RestApiConnection):
                 _log.info(
                     f"No OIDC provider given. Using first provider {provider_id!r} as advertised by backend."
                 )
-        provider = OidcProviderInfo.from_dict(provider)
-        return provider_id, provider
+
+        provider_info = OidcProviderInfo.from_dict(provider) if parse_info else None
+
+        return provider_id, provider_info
 
     def _get_oidc_provider_and_client_info(
         self,
@@ -765,6 +773,26 @@ class Connection(RestApiConnection):
         )
         print("Authenticated using device code flow.")
         return con
+
+    def authenticate_oidc_access_token(self, access_token: str, provider_id: Optional[str] = None) -> None:
+        """
+        Set up authorization headers directly with an OIDC access token.
+
+        :py:class:`Connection` provides multiple methods to handle various OIDC authentication flows end-to-end.
+        If you already obtained a valid OIDC access token in another "out-of-band" way, you can use this method to
+        set up the authorization headers appropriately.
+
+        :param access_token: OIDC access token
+        :param provider_id: id of the OIDC provider as listed by the openEO backend (``/credentials/oidc``).
+            If not specified, the first (default) OIDC provider will be used.
+        :param skip_verification: Skip clients-side verification of the provider_id
+            against the backend's list of providers to avoid and related OIDC configuration
+
+        .. versionadded:: 0.31.0
+        """
+        provider_id, _ = self._get_oidc_provider(provider_id=provider_id, parse_info=False)
+        self.auth = OidcBearerAuth(provider_id=provider_id, access_token=access_token)
+        self._oidc_auth_renewer = None
 
     def request(
         self,
