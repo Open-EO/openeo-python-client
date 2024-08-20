@@ -6,6 +6,7 @@ import warnings
 from typing import Any, Callable, Dict, List, NamedTuple, Optional, Set, Tuple, Union
 
 import pystac
+import pystac.extensions.datacube
 import pystac.extensions.eo
 import pystac.extensions.item_assets
 
@@ -23,6 +24,7 @@ class DimensionAlreadyExistsException(MetadataException):
     pass
 
 
+# TODO: make these dimension classes immutable data classes
 class Dimension:
     """Base class for dimensions."""
 
@@ -540,30 +542,6 @@ def metadata_from_stac(url: str) -> CubeMetadata:
 
     # TODO move these nested functions and other logic to _StacMetadataParser
 
-    def get_temporal_metadata(spec: Union(pystac.Collection,pystac.Item, pystac.Catalog), complain: Callable[[str], None] = warnings.warn) -> TemporalDimension:
-        # Dimension info is in `cube:dimensions`
-        # Check if the datacube extension is present
-        if spec.ext.has("cube"):
-             return TemporalDimension(**dict(zip(["name","extent"],[(n, d.extent) for (n, d) in spec.ext.cube.dimensions.items() if d.dim_type =="temporal"][0])))
-        else:
-            complain("No cube:dimensions metadata")
-            return TemporalDimension(name="t", extent=[None, None])
-
-    def get_temporal_metadata_old(spec: dict, complain: Callable[[str], None] = warnings.warn) -> TemporalDimension:
-        # Dimension info is in `cube:dimensions` (or 0.4-style `properties/cube:dimensions`)
-        cube_dimensions = (
-            deep_get(spec, "cube:dimensions", default=None)
-            or deep_get(spec, "properties", "cube:dimensions", default=None)
-            or {}
-        )
-        if not cube_dimensions:
-            complain("No cube:dimensions metadata")
-        for name, info in cube_dimensions.items():
-            dim_type = info.get("type")
-            if dim_type == "temporal":
-                return TemporalDimension(name=name, extent=info.get("extent"))
-        return None
-
     def get_band_metadata(eo_bands_location: dict) -> List[Band]:
         # TODO: return None iso empty list when no metadata?
         return [
@@ -613,17 +591,17 @@ def metadata_from_stac(url: str) -> CubeMetadata:
     else:
         raise ValueError(stac_object)
 
-    if _PYSTAC_1_9_EXTENSION_INTERFACE:
-        temporal_dimension = get_temporal_metadata(stac_object)
-    else:
-        temporal_dimension = get_temporal_metadata_old(stac_object.to_dict())
-    if temporal_dimension is None:
-        temporal_dimension = TemporalDimension(name="t", extent=[None, None])
     # TODO: conditionally include band dimension when there was actual indication of band metadata?
     band_dimension = BandDimension(name="bands", bands=bands)
-    metadata = CubeMetadata(dimensions=[band_dimension, temporal_dimension])
-    return metadata
+    dimensions = [band_dimension]
 
+    # TODO: is it possible to derive the actual name of temporal dimension that the backend will use?
+    temporal_dimension = _StacMetadataParser().get_temporal_dimension(stac_object)
+    if temporal_dimension:
+        dimensions.append(temporal_dimension)
+
+    metadata = CubeMetadata(dimensions=dimensions)
+    return metadata
 
 # Sniff for PySTAC extension API since version 1.9.0 (which is not available below Python 3.9)
 # TODO: remove this once support for Python 3.7 and 3.8 is dropped
@@ -697,3 +675,32 @@ class _StacMetadataParser:
             if asset_bands:
                 bands.update(asset_bands)
         return bands
+
+    def get_temporal_dimension(self, stac_obj: pystac.STACObject) -> Union[TemporalDimension, None]:
+        """
+        Extract the temporal dimension from a STAC Collection/Item (if any)
+        """
+        # TODO: also extract temporal dimension from assets?
+        if _PYSTAC_1_9_EXTENSION_INTERFACE:
+            if stac_obj.ext.has("cube") and hasattr(stac_obj.ext, "cube"):
+                temporal_dims = [
+                    (n, d.extent or [None, None])
+                    for (n, d) in stac_obj.ext.cube.dimensions.items()
+                    if d.dim_type == pystac.extensions.datacube.DimensionType.TEMPORAL
+                ]
+                if len(temporal_dims) == 1:
+                    name, extent = temporal_dims[0]
+                    return TemporalDimension(name=name, extent=extent)
+        else:
+            if isinstance(stac_obj, pystac.Item):
+                cube_dimensions = stac_obj.properties.get("cube:dimensions", {})
+            elif isinstance(stac_obj, pystac.Collection):
+                cube_dimensions = stac_obj.extra_fields.get("cube:dimensions", {})
+            else:
+                cube_dimensions = {}
+            temporal_dims = [
+                (n, d.get("extent", [None, None])) for (n, d) in cube_dimensions.items() if d.get("type") == "temporal"
+            ]
+            if len(temporal_dims) == 1:
+                name, extent = temporal_dims[0]
+                return TemporalDimension(name=name, extent=extent)
