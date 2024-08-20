@@ -418,7 +418,7 @@ class MultiBackendJobManager:
 
         Default implementation does not do anything.
 
-        :param job: The job that has finished.
+        :param job: The job that was canceled.
         :param row: DataFrame row containing the job's metadata.
         """
         pass
