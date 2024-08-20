@@ -12,6 +12,7 @@ class TestDummyStacDictBuilder:
             "id": "item123",
             "geometry": None,
             "properties": {"datetime": "2024-03-08"},
+            "links": [],
         }
         # Check if the default item validates
         pystac.Item.from_dict(item)
@@ -29,6 +30,7 @@ class TestDummyStacDictBuilder:
                 "cube:dimensions": {"t": {"extent": ["2024-01-01", "2024-04-04"], "type": "temporal"}},
                 "datetime": "2024-03-08",
             },
+            "links": [],
         }
 
     def test_collection_default(self):

@@ -19,6 +19,7 @@ class DummyStacDictBuilder:
         properties: Optional[dict] = None,
         cube_dimensions: Optional[dict] = None,
         stac_extensions: Optional[List[str]] = None,
+        links: Optional[List[dict]] = None,
         **kwargs,
     ) -> dict:
         properties = properties or {}
@@ -34,6 +35,7 @@ class DummyStacDictBuilder:
             "id": id,
             "geometry": None,
             "properties": properties,
+            "links": links or [],
             **kwargs,
         }
 
