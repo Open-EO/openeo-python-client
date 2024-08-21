@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import re
-from typing import List, Union
+from typing import List, Optional, Union
 
 import pytest
 
@@ -19,6 +19,7 @@ from openeo.metadata import (
     TemporalDimension,
     metadata_from_stac,
 )
+from openeo.testing.stac import StacDummyBuilder
 
 
 def test_metadata_get():
@@ -792,55 +793,29 @@ def test_cubemetadata_subclass():
     "test_stac, expected",
     [
         (
-            {
-                "type": "Collection",
-                "id": "test-collection",
-                "stac_version": "1.0.0",
-                "description": "Test collection",
-                "links": [],
-                "title": "Test Collection",
-                "extent": {
-                    "spatial": {"bbox": [[-180.0, -90.0, 180.0, 90.0]]},
-                    "temporal": {"interval": [["2020-01-01T00:00:00Z", "2020-01-10T00:00:00Z"]]},
-                },
-                "license": "proprietary",
-                "summaries": {"eo:bands": [{"name": "B01"}, {"name": "B02"}]},
-            },
+            StacDummyBuilder.collection(summaries={"eo:bands": [{"name": "B01"}, {"name": "B02"}]}),
             ["B01", "B02"],
         ),
         # TODO: test asset handling in collection?
         (
-            {
-                "type": "Catalog",
-                "id": "test-catalog",
-                "stac_version": "1.0.0",
-                "description": "Test Catalog",
-                "links": [],
-            },
+            StacDummyBuilder.catalog(),
             [],
         ),
         (
-            {
-                "type": "Feature",
-                "stac_version": "1.0.0",
-                "id": "test-item",
-                "properties": {"datetime": "2020-05-22T00:00:00Z", "eo:bands": [{"name": "SCL"}, {"name": "B08"}]},
-                "geometry": {"coordinates": [[[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]]], "type": "Polygon"},
-                "links": [],
-                "assets": {},
-                "bbox": [0, 1, 0, 1],
-                "stac_extensions": [],
-            },
+            StacDummyBuilder.item(
+                properties={"datetime": "2020-05-22T00:00:00Z", "eo:bands": [{"name": "SCL"}, {"name": "B08"}]}
+            ),
             ["SCL", "B08"],
         ),
         # TODO: test asset handling in item?
     ],
 )
-def test_metadata_from_stac(tmp_path, test_stac, expected):
+def test_metadata_from_stac_bands(tmp_path, test_stac, expected):
     path = tmp_path / "stac.json"
     path.write_text(json.dumps(test_stac))
-    metadata = metadata_from_stac(path)
+    metadata = metadata_from_stac(str(path))
     assert metadata.band_names == expected
+
 
 
 @pytest.mark.skipif(not _PYSTAC_1_9_EXTENSION_INTERFACE, reason="Requires PySTAC 1.9+ extension interface")
@@ -859,7 +834,7 @@ def test_metadata_from_stac_collection_bands_from_item_assets(test_data, tmp_pat
     path = tmp_path / "stac.json"
     path.write_text(json.dumps(stac_data))
 
-    metadata = metadata_from_stac(path)
+    metadata = metadata_from_stac(str(path))
     assert sorted(metadata.band_names) == [
         "2m_temperature_max",
         "2m_temperature_min",
@@ -872,3 +847,53 @@ def test_metadata_from_stac_collection_bands_from_item_assets(test_data, tmp_pat
         for m in caplog.messages
     )
     assert warn_count == (0 if eo_extension_is_declared else 1)
+
+
+@pytest.mark.parametrize(
+    ["stac_dict", "expected"],
+    [
+        (
+            StacDummyBuilder.item(),
+            None,
+        ),
+        (
+            StacDummyBuilder.item(cube_dimensions={"t": {"type": "temporal", "extent": ["2024-04-04", "2024-06-06"]}}),
+            ("t", ["2024-04-04", "2024-06-06"]),
+        ),
+        (
+            StacDummyBuilder.item(
+                cube_dimensions={"datezz": {"type": "temporal", "extent": ["2024-04-04", "2024-06-06"]}}
+            ),
+            ("datezz", ["2024-04-04", "2024-06-06"]),
+        ),
+        (
+            StacDummyBuilder.collection(),
+            None,
+        ),
+        (
+            StacDummyBuilder.collection(
+                cube_dimensions={"t": {"type": "temporal", "extent": ["2024-04-04", "2024-06-06"]}}
+            ),
+            ("t", ["2024-04-04", "2024-06-06"]),
+        ),
+        (
+            StacDummyBuilder.catalog(),
+            None,
+        ),
+        (
+            # Note: a catalog is not supposed to have datacube extension enabled, but we should not choke on that
+            StacDummyBuilder.catalog(stac_extensions=[StacDummyBuilder._EXT_DATACUBE]),
+            None,
+        ),
+    ],
+)
+def test_metadata_from_stac_temporal_dimension(tmp_path, stac_dict, expected):
+    path = tmp_path / "stac.json"
+    path.write_text(json.dumps(stac_dict))
+    metadata = metadata_from_stac(str(path))
+    if expected:
+        dim = metadata.temporal_dimension
+        assert isinstance(dim, TemporalDimension)
+        assert (dim.name, dim.extent) == expected
+    else:
+        assert not metadata.has_temporal_dimension()
