@@ -1,11 +1,11 @@
 import pystac
 
-from openeo.testing.stac import DummyStacDictBuilder
+from openeo.testing.stac import StacDummyBuilder
 
 
 class TestDummyStacDictBuilder:
     def test_item_default(self):
-        item = DummyStacDictBuilder.item()
+        item = StacDummyBuilder.item()
         assert item == {
             "type": "Feature",
             "stac_version": "1.0.0",
@@ -19,7 +19,7 @@ class TestDummyStacDictBuilder:
         pystac.Item.from_dict(item)
 
     def test_item_cube_dimensions(self):
-        assert DummyStacDictBuilder.item(
+        assert StacDummyBuilder.item(
             cube_dimensions={"t": {"type": "temporal", "extent": ["2024-01-01", "2024-04-04"]}}
         ) == {
             "type": "Feature",
@@ -36,7 +36,7 @@ class TestDummyStacDictBuilder:
         }
 
     def test_collection_default(self):
-        collection = DummyStacDictBuilder.collection()
+        collection = StacDummyBuilder.collection()
         assert collection == {
             "type": "Collection",
             "stac_version": "1.0.0",
@@ -53,7 +53,7 @@ class TestDummyStacDictBuilder:
         pystac.Collection.from_dict(collection)
 
     def test_collection_cube_dimensions(self):
-        assert DummyStacDictBuilder.collection(
+        assert StacDummyBuilder.collection(
             cube_dimensions={"t": {"type": "temporal", "extent": ["2024-01-01", "2024-04-04"]}}
         ) == {
             "type": "Collection",
@@ -71,7 +71,7 @@ class TestDummyStacDictBuilder:
         }
 
     def test_catalog_default(self):
-        catalog = DummyStacDictBuilder.catalog()
+        catalog = StacDummyBuilder.catalog()
         assert catalog == {
             "type": "Catalog",
             "stac_version": "1.0.0",

@@ -38,7 +38,7 @@ from openeo.rest.connection import (
     paginate,
 )
 from openeo.rest.vectorcube import VectorCube
-from openeo.testing.stac import DummyStacDictBuilder
+from openeo.testing.stac import StacDummyBuilder
 from openeo.util import ContextTimer, dict_no_none
 
 from .auth.test_cli import auth_config, refresh_token_store
@@ -2590,7 +2590,7 @@ class TestLoadStac:
         # TODO: reusable utility to create/generate a STAC resource for testing
         #       (a file, but preferably a URL, but that requires urllib mocking)
         stac_path = tmp_path / "stac.json"
-        stac_data = DummyStacDictBuilder.collection(
+        stac_data = StacDummyBuilder.collection(
             cube_dimensions={temporal_dim: {"type": "temporal", "extent": ["2024-01-01", "2024-04-04"]}}
         )
         stac_path.write_text(json.dumps(stac_data))

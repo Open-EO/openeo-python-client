@@ -19,7 +19,7 @@ from openeo.metadata import (
     TemporalDimension,
     metadata_from_stac,
 )
-from openeo.testing.stac import DummyStacDictBuilder
+from openeo.testing.stac import StacDummyBuilder
 
 
 def test_metadata_get():
@@ -793,16 +793,16 @@ def test_cubemetadata_subclass():
     "test_stac, expected",
     [
         (
-            DummyStacDictBuilder.collection(summaries={"eo:bands": [{"name": "B01"}, {"name": "B02"}]}),
+            StacDummyBuilder.collection(summaries={"eo:bands": [{"name": "B01"}, {"name": "B02"}]}),
             ["B01", "B02"],
         ),
         # TODO: test asset handling in collection?
         (
-            DummyStacDictBuilder.catalog(),
+            StacDummyBuilder.catalog(),
             [],
         ),
         (
-            DummyStacDictBuilder.item(
+            StacDummyBuilder.item(
                 properties={"datetime": "2020-05-22T00:00:00Z", "eo:bands": [{"name": "SCL"}, {"name": "B08"}]}
             ),
             ["SCL", "B08"],
@@ -853,38 +853,36 @@ def test_metadata_from_stac_collection_bands_from_item_assets(test_data, tmp_pat
     ["stac_dict", "expected"],
     [
         (
-            DummyStacDictBuilder.item(),
+            StacDummyBuilder.item(),
             None,
         ),
         (
-            DummyStacDictBuilder.item(
-                cube_dimensions={"t": {"type": "temporal", "extent": ["2024-04-04", "2024-06-06"]}}
-            ),
+            StacDummyBuilder.item(cube_dimensions={"t": {"type": "temporal", "extent": ["2024-04-04", "2024-06-06"]}}),
             ("t", ["2024-04-04", "2024-06-06"]),
         ),
         (
-            DummyStacDictBuilder.item(
+            StacDummyBuilder.item(
                 cube_dimensions={"datezz": {"type": "temporal", "extent": ["2024-04-04", "2024-06-06"]}}
             ),
             ("datezz", ["2024-04-04", "2024-06-06"]),
         ),
         (
-            DummyStacDictBuilder.collection(),
+            StacDummyBuilder.collection(),
             None,
         ),
         (
-            DummyStacDictBuilder.collection(
+            StacDummyBuilder.collection(
                 cube_dimensions={"t": {"type": "temporal", "extent": ["2024-04-04", "2024-06-06"]}}
             ),
             ("t", ["2024-04-04", "2024-06-06"]),
         ),
         (
-            DummyStacDictBuilder.catalog(),
+            StacDummyBuilder.catalog(),
             None,
         ),
         (
             # Note: a catalog is not supposed to have datacube extension enabled, but we should not choke on that
-            DummyStacDictBuilder.catalog(stac_extensions=[DummyStacDictBuilder._EXT_DATACUBE]),
+            StacDummyBuilder.catalog(stac_extensions=[StacDummyBuilder._EXT_DATACUBE]),
             None,
         ),
     ],

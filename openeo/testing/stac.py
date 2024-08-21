@@ -1,12 +1,14 @@
 from typing import List, Optional, Union
 
 
-class DummyStacDictBuilder:
+class StacDummyBuilder:
     """
     Helper to compactly produce STAC Item/Collection/Catalog/... dicts for test purposes
+
+    .. warning::
+        This is an experimental API subject to change.
     """
 
-    # TODO: move this to more generic test utilities module
     _EXT_DATACUBE = "https://stac-extensions.github.io/datacube/v2.2.0/schema.json"
 
     @classmethod
@@ -21,6 +23,7 @@ class DummyStacDictBuilder:
         stac_extensions: Optional[List[str]] = None,
         **kwargs,
     ) -> dict:
+        """Create a STAC Item represented as dictionary."""
         properties = properties or {}
         properties.setdefault("datetime", datetime)
 
@@ -63,6 +66,7 @@ class DummyStacDictBuilder:
         cube_dimensions: Optional[dict] = None,
         summaries: Optional[dict] = None,
     ) -> dict:
+        """Create a STAC Collection represented as dictionary."""
         if extent is None:
             extent = {"spatial": {"bbox": [[3, 4, 5, 6]]}, "temporal": {"interval": [["2024-01-01", "2024-05-05"]]}}
 
@@ -92,7 +96,8 @@ class DummyStacDictBuilder:
         stac_version: str = "1.0.0",
         description: str = "Catalog 123",
         stac_extensions: Optional[List[str]] = None,
-    ):
+    ) -> dict:
+        """Create a STAC Catalog represented as dictionary."""
         d = {
             "type": "Catalog",
             "stac_version": stac_version,
