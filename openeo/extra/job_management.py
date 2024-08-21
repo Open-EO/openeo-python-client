@@ -208,6 +208,7 @@ class MultiBackendJobManager:
             ("memory", None),
             ("duration", None),
             ("backend_name", None),
+            ("backend_name", None),
         ]
         new_columns = {col: val for (col, val) in required_with_default if col not in df.columns}
         df = df.assign(**new_columns)
@@ -415,9 +416,11 @@ class MultiBackendJobManager:
     def on_job_cancel(self, job: BatchJob, row):
         """
         Handle a job that was cancelled. Can be overridden to provide custom behaviour.
+        Handle a job that was cancelled. Can be overridden to provide custom behaviour.
 
         Default implementation does not do anything.
 
+        :param job: The job that was canceled.
         :param job: The job that was canceled.
         :param row: DataFrame row containing the job's metadata.
         """
@@ -432,8 +435,8 @@ class MultiBackendJobManager:
         if current_time > job_running_start_time + self.cancel_running_job_after:
             try:
                 _log.info(
-                f"Cancelling job {job.job_id} as it has been running for more than {self.cancel_running_job_after}"
-)
+                f"Cancelling job {job.job_id} as it has been running for more than {self.cancel_running_job_after}")
+
                 job.stop()
                 
             except OpenEoApiError as e:
