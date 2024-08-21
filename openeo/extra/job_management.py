@@ -345,7 +345,7 @@ class MultiBackendJobManager:
         if job_db.exists():
             # Resume from existing db
             _log.info(f"Resuming `run_jobs` from existing {job_db}")
-            df = job_db.read()
+            #df = job_db.read()
             #status_histogram = df.groupby("status").size().to_dict()
             #_log.info(f"Status histogram: {status_histogram}")
         else:
@@ -546,7 +546,52 @@ def ignore_connection_errors(context: Optional[str] = None, sleep: int = 5):
         time.sleep(sleep)
 
 
-class CsvJobDatabase(JobDatabaseInterface):
+class FullDataFrameJobDatabase(JobDatabaseInterface):
+
+
+    def __init__(self):
+        super().__init__()
+        self._df = None
+
+    @property
+    def df(self) -> pd.DataFrame:
+        if self._df is None:
+            self._df = self.read()
+        return self._df
+
+    def has_unfinished_jobs(self) -> bool:
+        """
+        Check if there are still unfinished jobs in the database.
+
+        :return: True if there are unfinished jobs, False otherwise.
+        """
+
+        df = self.df
+        return df[ ~df.status.isin(["finished", "error", "skipped", "start_failed"]) ].size > 0
+
+
+
+    def get_by_status(self, include, max=None) -> pd.DataFrame:
+        """
+        Returns a dataframe with jobs, filtered by status.
+
+        :param include: List of statuses to include.
+        :param max: Maximum number of jobs to return.
+
+        :return: DataFrame with jobs filtered by status.
+        """
+        df = self.df
+        filtered = df[df.status.isin(include)]
+        return filtered.head(max) if max is not None else filtered
+
+    def _merge_into_df(self, df: pd.DataFrame):
+        if self._df is not None:
+            self._df.update(df, overwrite=True)
+        else:
+            self._df = df
+
+
+class CsvJobDatabase(FullDataFrameJobDatabase):
     """
     Persist/load job metadata with a CSV file.
 
@@ -560,6 +605,7 @@ class CsvJobDatabase(JobDatabaseInterface):
     .. versionadded:: 0.31.0
     """
     def __init__(self, path: Union[str, Path]):
+        super().__init__()
         self.path = Path(path)
 
     def exists(self) -> bool:
@@ -586,11 +632,12 @@ class CsvJobDatabase(JobDatabaseInterface):
         return df
 
     def persist(self, df: pd.DataFrame):
+        self._merge_into_df(df)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        df.to_csv(self.path, index=False)
+        self.df.to_csv(self.path, index=False)
 
 
-class ParquetJobDatabase(JobDatabaseInterface):
+class ParquetJobDatabase(FullDataFrameJobDatabase):
     """
     Persist/load job metadata with a Parquet file.
 
@@ -607,6 +654,7 @@ class ParquetJobDatabase(JobDatabaseInterface):
     .. versionadded:: 0.31.0
     """
     def __init__(self, path: Union[str, Path]):
+        super().__init__()
         self.path = Path(path)
 
     def exists(self) -> bool:
@@ -629,5 +677,6 @@ class ParquetJobDatabase(JobDatabaseInterface):
             return pd.read_parquet(self.path)
 
     def persist(self, df: pd.DataFrame):
+        self._merge_into_df(df)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        df.to_parquet(self.path, index=False)
+        self.df.to_parquet(self.path, index=False)

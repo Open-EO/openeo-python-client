@@ -523,6 +523,46 @@ class TestCsvJobDatabase:
         assert loaded.equals(orig)
         assert type(orig) is type(loaded)
 
+    @pytest.mark.parametrize(
+        ["orig"],
+        [
+            pytest.param(JOB_DB_DF_BASICS, id="pandas basics"),
+            pytest.param(JOB_DB_GDF_WITH_GEOMETRY, id="geopandas with geometry"),
+            pytest.param(JOB_DB_DF_WITH_GEOJSON_STRING, id="pandas with geojson string as geometry"),
+        ],
+    )
+    def test_partial_read_write(self, tmp_path, orig: pandas.DataFrame):
+        path = tmp_path / "jobs.parquet"
+
+        required_with_default = [
+            ("status", "not_started"),
+            ("id", None),
+            ("start_time", None),
+        ]
+        new_columns = {col: val for (col, val) in required_with_default if col not in orig.columns}
+        orig = orig.assign(**new_columns)
+
+        db = CsvJobDatabase(path)
+        db.persist(orig)
+        assert path.exists()
+
+        loaded = db.get_by_status(include=["not_started"], max=2)
+
+        assert len(loaded) == 2
+        loaded.loc[0,"status"] = "running"
+        loaded.loc[1, "status"] = "error"
+
+        db.persist(loaded)
+
+        all = db.read()
+        assert len(all) == len(orig)
+        assert all.loc[0,"status"] == "running"
+        assert all.loc[1,"status"] == "error"
+        if(len(all) >2):
+            assert all.loc[2,"status"] == "not_started"
+        print(loaded.index)
+
+
 
 class TestParquetJobDatabase:
     @pytest.mark.parametrize(
