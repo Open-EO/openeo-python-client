@@ -199,15 +199,15 @@ class MultiBackendJobManager:
         required_with_default = [
             ("status", "not_started"),
             ("id", None),
-            ("start_time", None), 
-            ("running_start_time", None), 
+            ("start_time", None),
+            ("running_start_time", None),
             # TODO: columns "cpu", "memory", "duration" are not referenced directly
             #       within MultiBackendJobManager making it confusing to claim they are required.
             #       However, they are through assumptions about job "usage" metadata in `_track_statuses`.
             ("cpu", None),
             ("memory", None),
             ("duration", None),
-            ("backend_name", None)
+            ("backend_name", None),
         ]
         new_columns = {col: val for (col, val) in required_with_default if col not in df.columns}
         df = df.assign(**new_columns)
@@ -414,11 +414,11 @@ class MultiBackendJobManager:
 
     def on_job_cancel(self, job: BatchJob, row):
         """
-        Handles jobs that that were cancelled. Can be overridden to provide custom behaviour.
+        Handle a job that was cancelled. Can be overridden to provide custom behaviour.
 
         Default implementation does not do anything.
 
-        :param job: The job that has finished.
+        :param job: The job that was canceled.
         :param row: DataFrame row containing the job's metadata.
         """
         pass
@@ -431,9 +431,8 @@ class MultiBackendJobManager:
         
         if current_time > job_running_start_time + self.cancel_running_job_after:
             try:
-                print(str(self.cancel_running_job_after))
                 _log.info(
-                f"Cancelling job {job.job_id} as it has been running for more than {str(self.cancel_running_job_after)}"
+                f"Cancelling job {job.job_id} as it has been running for more than {self.cancel_running_job_after}"
 )
                 job.stop()
                 
@@ -479,19 +478,19 @@ class MultiBackendJobManager:
                 if previous_status in {"created", "queued", "started"} and new_status == "running":
                     df.loc[i, "running_start_time"] = rfc3339.utcnow() 
 
-                if self.cancel_running_job_after and job_metadata["status"] == "running":
-                    self._cancel_prolonged_job(the_job, df.loc[i])
-                    
-                if df.loc[i, "status"] != "error" and job_metadata["status"] == "error":
+                if previous_status != "error" and new_status == "error":
                     self.on_job_error(the_job, df.loc[i])
 
-                if job_metadata["status"] == "finished":
+                if new_status == "finished":
                     self.on_job_done(the_job, df.loc[i])
 
-                if job_metadata["status"] == "canceled":
+                if new_status == "canceled":
                     self.on_job_cancel(the_job, df.loc[i])
-                    
-                df.loc[i, "status"] = job_metadata["status"]
+
+                if self.cancel_running_job_after and new_status == "running":
+                    self._cancel_prolonged_job(the_job, df.loc[i])
+
+                previous_status = new_status
 
                 # TODO: there is well hidden coupling here with "cpu", "memory" and "duration" from `_normalize_df`
                 for key in job_metadata.get("usage", {}).keys():
@@ -564,5 +563,6 @@ class _ParquetJobDatabase(_JobDatabaseInterface):
     def persist(self, df: pd.DataFrame):
         self.path.parent.mkdir(parents=True, exist_ok=True)
         df.to_parquet(self.path, index=False)
-        
+
+
 

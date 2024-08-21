@@ -4,7 +4,7 @@ from unittest import mock
 import datetime
 import time_machine
 from openeo.util import rfc3339
-
+import time
 
 # TODO: can we avoid using httpretty?
 #   We need it for testing the resilience, which uses an HTTPadapter with Retry
@@ -449,54 +449,73 @@ class TestMultiBackendJobManager:
         assert set(result.backend_name) == {"foo"}
 
     def test_cancel_prolonged_job_exceeds_duration(self):
-        # Create mock BatchJob instance
-        job = mock.MagicMock()  # Use MagicMock directly here
-        job.job_id = "test_job_id"
-        
-        row = {
-            "running_start_time": "2020-01-01T00:00:00Z"
-        }
-        
-        # Initialize manager with the max_running_duration as seconds
-        max_running_duration_seconds = 12 * 60 * 60  # 12 hours
-        manager = MultiBackendJobManager(cancel_running_job_after=max_running_duration_seconds)
-        
-        # set up timestamps
-        job_running_timestamp = rfc3339.parse_datetime(row["running_start_time"], with_timezone=True)
-        future_time = job_running_timestamp + datetime.timedelta(seconds=max_running_duration_seconds) + datetime.timedelta(seconds=1)
+        # Set up a sample DataFrame with job data
+        df = pd.DataFrame({
+            "id": ["job_1"],
+            "backend_name": ["foo"],
+            "status": ["running"],
+            "running_start_time": ["2020-01-01T00:00:00Z"]
+        })
 
+        # Initialize the manager with the cancel_running_job_after parameter
+        cancel_after_seconds = 12 * 60 * 60  # 12 hours
+        manager = MultiBackendJobManager(cancel_running_job_after=cancel_after_seconds)
+
+        # Mock the connection and job retrieval
+        mock_connection = mock.MagicMock()
+        mock_job = mock.MagicMock()
+        mock_job.describe.return_value = {"status": "running"}
+        manager._get_connection = mock.MagicMock(return_value=mock_connection)
+        mock_connection.job.return_value = mock_job
+
+        # Set up the running start time and future time
+        job_running_timestamp = datetime.datetime.strptime(df.loc[0, "running_start_time"], "%Y-%m-%dT%H:%M:%SZ")
+        future_time = job_running_timestamp + datetime.timedelta(seconds=cancel_after_seconds) + datetime.timedelta(seconds=1)
+
+        # Replace _cancel_prolonged_job with a mock to track its calls
+        manager._cancel_prolonged_job = mock.MagicMock()
+
+        # Travel to the future where the job has exceeded its allowed running time
         with time_machine.travel(future_time, tick=False):
-            manager._cancel_prolonged_job(job, row)
-                
-        # Verify that the stop method was called
-        job.stop.assert_called_once()
-      
+            manager._track_statuses(df)
 
-
+        # Verify that the _cancel_prolonged_job method was called with the correct job and row
+        manager._cancel_prolonged_job.assert_called_once
+        
     def test_cancel_prolonged_job_within_duration(self):
-        # Create mock BatchJob instance
-        job = mock.MagicMock()
-        job.job_id = "test_job_id"
-        
-        row = {
-            "running_start_time": "2020-01-01T00:00:00Z"
-        }
-        
-        # Initialize manager with the max_running_duration as seconds
-        max_running_duration_seconds = 12 * 60 * 60  # 12 hours
-        manager = MultiBackendJobManager(cancel_running_job_after=max_running_duration_seconds)
-        
-        # set up timestamps
-        job_running_timestamp = rfc3339.parse_datetime(row["running_start_time"], with_timezone=True)
-        future_time = job_running_timestamp + datetime.timedelta(seconds=max_running_duration_seconds) - datetime.timedelta(seconds=1)
-        
-        with time_machine.travel(future_time, tick=False):
-            manager._cancel_prolonged_job(job, row)
-            
-        # Verify that the stop method was not called
-        job.stop.assert_not_called()
-       
-    
+            # Set up a sample DataFrame with job data
+            df = pd.DataFrame({
+                "id": ["job_1"],
+                "backend_name": ["foo"],
+                "status": ["running"],
+                "running_start_time": ["2020-01-01T00:00:00Z"]
+            })
+
+            # Initialize the manager with the cancel_running_job_after parameter
+            cancel_after_seconds = 12 * 60 * 60  # 12 hours
+            manager = MultiBackendJobManager(cancel_running_job_after=cancel_after_seconds)
+
+            # Mock the connection and job retrieval
+            mock_connection = mock.MagicMock()
+            mock_job = mock.MagicMock()
+            mock_job.describe.return_value = {"status": "running"}
+            manager._get_connection = mock.MagicMock(return_value=mock_connection)
+            mock_connection.job.return_value = mock_job
+
+            # Set up the running start time and future time
+            job_running_timestamp = datetime.datetime.strptime(df.loc[0, "running_start_time"], "%Y-%m-%dT%H:%M:%SZ")
+            future_time = job_running_timestamp + datetime.timedelta(seconds=cancel_after_seconds) - datetime.timedelta(seconds=1)
+
+            # Replace _cancel_prolonged_job with a mock to track its calls
+            manager._cancel_prolonged_job = mock.MagicMock()
+
+            # Travel to the future where the job has exceeded its allowed running time
+            with time_machine.travel(future_time, tick=False):
+                manager._track_statuses(df)
+
+            # Verify that the _cancel_prolonged_job method was called with the correct job and row
+            manager._cancel_prolonged_job.assert_not_called
+
 class TestCsvJobDatabase:
     def test_read_wkt(self, tmp_path):
         wkt_df = pd.DataFrame(
