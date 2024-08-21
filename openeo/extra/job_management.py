@@ -60,11 +60,32 @@ class JobDatabaseInterface(metaclass=abc.ABCMeta):
     def persist(self, df: pd.DataFrame):
         """
         Store job data to the database.
+        The provided dataframe may contain partial information, which is merged into the larger database.
 
         :param df: job data to store.
         """
         ...
 
+    @abc.abstractmethod
+    def has_unfinished_jobs(self) -> bool:
+        """
+        Check if there are still unfinished jobs in the database.
+
+        :return: True if there are unfinished jobs, False otherwise.
+        """
+        ...
+
+    @abc.abstractmethod
+    def get_by_status(self, include, max=None) -> pd.DataFrame:
+        """
+        Returns a dataframe with jobs, filtered by status.
+
+        :param include: List of statuses to include.
+        :param max: Maximum number of jobs to return.
+
+        :return: DataFrame with jobs filtered by status.
+        """
+        ...
 
 class MultiBackendJobManager:
     """
@@ -325,33 +346,28 @@ class MultiBackendJobManager:
             # Resume from existing db
             _log.info(f"Resuming `run_jobs` from existing {job_db}")
             df = job_db.read()
-            status_histogram = df.groupby("status").size().to_dict()
-            _log.info(f"Status histogram: {status_histogram}")
-
-        df = self._normalize_df(df)
-
-        while (
-            df[
-                (df.status != "finished")
-                & (df.status != "skipped")
-                & (df.status != "start_failed")
-                & (df.status != "error")
-            ].size
-            > 0
-        ):
-            with ignore_connection_errors(context="get statuses"):
-                self._update_statuses(df)
-            status_histogram = df.groupby("status").size().to_dict()
-            _log.info(f"Status histogram: {status_histogram}")
+            #status_histogram = df.groupby("status").size().to_dict()
+            #_log.info(f"Status histogram: {status_histogram}")
+        else:
+            df = self._normalize_df(df)
             job_db.persist(df)
 
-            if len(df[df.status == "not_started"]) > 0:
+        while (
+            job_db.has_unfinished_jobs()
+
+        ):
+            with ignore_connection_errors(context="get statuses"):
+                self._update_statuses(job_db)
+            #TODO do we still want to support this? Would require a 'count_by_status'?
+            #status_histogram = df.groupby("status").size().to_dict()
+            #_log.info(f"Status histogram: {status_histogram}")
+
+
+            not_started = job_db.get_by_status(include=["not_started"],max=200)
+
+            if len(not_started) > 0:
                 # Check number of jobs running at each backend
-                running = df[
-                    (df.status == "created")
-                    | (df.status == "queued")
-                    | (df.status == "running")
-                ]
+                running = job_db.get_by_status(include=["created","queued","running"])
                 per_backend = running.groupby("backend_name").size().to_dict()
                 _log.info(f"Running per backend: {per_backend}")
                 for backend_name in self.backends:
@@ -360,10 +376,10 @@ class MultiBackendJobManager:
                         to_add = (
                             self.backends[backend_name].parallel_jobs - backend_load
                         )
-                        to_launch = df[df.status == "not_started"].iloc[0:to_add]
+                        to_launch = not_started.iloc[0:to_add]
                         for i in to_launch.index:
-                            self._launch_job(start_job, df, i, backend_name)
-                            job_db.persist(df)
+                            self._launch_job(start_job, not_started, i, backend_name)
+                            job_db.persist(to_launch)
 
             time.sleep(self.poll_sleep)
 
@@ -481,16 +497,14 @@ class MultiBackendJobManager:
         if not job_dir.exists():
             job_dir.mkdir(parents=True)
 
-    def _update_statuses(self, df: pd.DataFrame):
+    def _update_statuses(self, job_db: JobDatabaseInterface):
         """Update status (and stats) of running jobs (in place)."""
-        active = df.loc[
-            (df.status == "created")
-            | (df.status == "queued")
-            | (df.status == "running")
-        ]
+
+        active = self.job_db.get_by_status(include=["created", "queued", "running"])
+
         for i in active.index:
-            job_id = df.loc[i, "id"]
-            backend_name = df.loc[i, "backend_name"]
+            job_id = active.loc[i, "id"]
+            backend_name = active.loc[i, "backend_name"]
 
             try:
                 con = self._get_connection(backend_name)
@@ -500,19 +514,19 @@ class MultiBackendJobManager:
                     f"Status of job {job_id!r} (on backend {backend_name}) is {job_metadata['status']!r}"
                 )
                 if job_metadata["status"] == "finished":
-                    self.on_job_done(the_job, df.loc[i])
-                if df.loc[i, "status"] != "error" and job_metadata["status"] == "error":
-                    self.on_job_error(the_job, df.loc[i])
+                    self.on_job_done(the_job, active.loc[i])
+                if active.loc[i, "status"] != "error" and job_metadata["status"] == "error":
+                    self.on_job_error(the_job, active.loc[i])
 
-                df.loc[i, "status"] = job_metadata["status"]
+                active.loc[i, "status"] = job_metadata["status"]
                 # TODO: there is well hidden coupling here with "cpu", "memory" and "duration" from `_normalize_df`
                 for key in job_metadata.get("usage", {}).keys():
-                    df.loc[i, key] = _format_usage_stat(job_metadata, key)
+                    active.loc[i, key] = _format_usage_stat(job_metadata, key)
 
             except OpenEoApiError as e:
                 print(f"error for job {job_id!r} on backend {backend_name}")
                 print(e)
-
+        job_db.persist(active)
 
 def _format_usage_stat(job_metadata: dict, field: str) -> str:
     value = deep_get(job_metadata, "usage", field, "value", default=0)
