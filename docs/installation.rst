@@ -91,6 +91,8 @@ For example:
 - ``pyarrow`` for (read/write) support of Parquet files
   (e.g. with :py:class:`~openeo.extra.job_management.MultiBackendJobManager`)
 - ``rioxarray`` for GeoTIFF support in the assert helpers from ``openeo.testing.results``
+- ``geopandas`` for working with dataframes with geospatial support,
+  (e.g. with :py:class:`~openeo.extra.job_management.MultiBackendJobManager`)
 
 
 Enabling additional features

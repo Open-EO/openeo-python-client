@@ -38,6 +38,7 @@ from openeo.rest.connection import (
     paginate,
 )
 from openeo.rest.vectorcube import VectorCube
+from openeo.testing.stac import StacDummyBuilder
 from openeo.util import ContextTimer, dict_no_none
 
 from .auth.test_cli import auth_config, refresh_token_store
@@ -2349,6 +2350,36 @@ def test_authenticate_oidc_auto_renew_expired_access_token_initial_client_creden
     assert "Failed to obtain new access token (grant 'client_credentials')" in caplog.text
 
 
+class TestAuthenticateOidcAccessToken:
+    @pytest.fixture(autouse=True)
+    def _setup(self, requests_mock):
+        requests_mock.get(API_URL, json=build_capabilities())
+        requests_mock.get(
+            API_URL + "credentials/oidc",
+            json={"providers": [{"id": "oi", "issuer": "https://oidc.test", "title": "example", "scopes": ["openid"]}]},
+        )
+
+    def test_authenticate_oidc_access_token_default_provider(self):
+        connection = Connection(API_URL)
+        connection.authenticate_oidc_access_token(access_token="Th3Tok3n!@#")
+        assert isinstance(connection.auth, BearerAuth)
+        assert connection.auth.bearer == "oidc/oi/Th3Tok3n!@#"
+
+    def test_authenticate_oidc_access_token_with_provider(self):
+        connection = Connection(API_URL)
+        connection.authenticate_oidc_access_token(access_token="Th3Tok3n!@#", provider_id="oi")
+        assert isinstance(connection.auth, BearerAuth)
+        assert connection.auth.bearer == "oidc/oi/Th3Tok3n!@#"
+
+    def test_authenticate_oidc_access_token_wrong_provider(self):
+        connection = Connection(API_URL)
+        with pytest.raises(
+            OpenEoClientException,
+            match=re.escape("Requested OIDC provider 'nope' not available. Should be one of ['oi']."),
+        ):
+            connection.authenticate_oidc_access_token(access_token="Th3Tok3n!@#", provider_id="nope")
+
+
 def test_load_collection_arguments_100(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     conn = Connection(API_URL)
@@ -2554,24 +2585,14 @@ class TestLoadStac:
             }
         }
 
-    def test_load_stac_reduce_temporal(self, con120, tmp_path):
+    @pytest.mark.parametrize("temporal_dim", ["t", "datezz"])
+    def test_load_stac_reduce_temporal(self, con120, tmp_path, temporal_dim):
         # TODO: reusable utility to create/generate a STAC resource for testing
         #       (a file, but preferably a URL, but that requires urllib mocking)
         stac_path = tmp_path / "stac.json"
-        stac_data = {
-            "type": "Collection",
-            "id": "test-collection",
-            "stac_version": "1.0.0",
-            "description": "Test collection",
-            "links": [],
-            "title": "Test Collection",
-            "extent": {
-                "spatial": {"bbox": [[-180.0, -90.0, 180.0, 90.0]]},
-                "temporal": {"interval": [["2020-01-01T00:00:00Z", "2020-01-10T00:00:00Z"]]},
-            },
-            "license": "proprietary",
-            "summaries": {"eo:bands": [{"name": "B01"}, {"name": "B02"}]},
-        }
+        stac_data = StacDummyBuilder.collection(
+            cube_dimensions={temporal_dim: {"type": "temporal", "extent": ["2024-01-01", "2024-04-04"]}}
+        )
         stac_path.write_text(json.dumps(stac_data))
 
         cube = con120.load_stac(str(stac_path))
@@ -2585,7 +2606,7 @@ class TestLoadStac:
                 "process_id": "reduce_dimension",
                 "arguments": {
                     "data": {"from_node": "loadstac1"},
-                    "dimension": "t",
+                    "dimension": temporal_dim,
                     "reducer": {
                         "process_graph": {
                             "max1": {

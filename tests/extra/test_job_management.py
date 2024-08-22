@@ -1,10 +1,13 @@
 import json
+import textwrap
 import threading
 from unittest import mock
 import datetime
 import time_machine
 from openeo.util import rfc3339
 import time
+
+import geopandas
 
 # TODO: can we avoid using httpretty?
 #   We need it for testing the resilience, which uses an HTTPadapter with Retry
@@ -13,18 +16,19 @@ import time
 #   httpretty avoids this specific problem because it mocks at the socket level,
 #   But I would rather not have two dependencies with almost the same goal.
 import httpretty
+import pandas
 import pandas as pd
 import pytest
 import requests
-import shapely.geometry.point as shpt
+import shapely.geometry
 
 import openeo
 from openeo import BatchJob
 from openeo.extra.job_management import (
     MAX_RETRIES,
+    CsvJobDatabase,
     MultiBackendJobManager,
-    _CsvJobDatabase,
-    _ParquetJobDatabase,
+    ParquetJobDatabase,
 )
 from openeo.rest import OpenEoApiError
 
@@ -516,6 +520,26 @@ class TestMultiBackendJobManager:
             # Verify that the _cancel_prolonged_job method was called with the correct job and row
             manager._cancel_prolonged_job.assert_not_called
 
+JOB_DB_DF_BASICS = pd.DataFrame(
+    {
+        "numbers": [3, 2, 1],
+        "names": ["apple", "banana", "coconut"],
+    }
+)
+JOB_DB_GDF_WITH_GEOMETRY = geopandas.GeoDataFrame(
+    {
+        "numbers": [11, 22],
+        "geometry": [shapely.geometry.Point(1, 2), shapely.geometry.Point(2, 1)],
+    },
+)
+JOB_DB_DF_WITH_GEOJSON_STRING = pd.DataFrame(
+    {
+        "numbers": [11, 22],
+        "geometry": ['{"type":"Point","coordinates":[1,2]}', '{"type":"Point","coordinates":[1,2]}'],
+    }
+)
+
+
 class TestCsvJobDatabase:
     def test_read_wkt(self, tmp_path):
         wkt_df = pd.DataFrame(
@@ -526,8 +550,8 @@ class TestCsvJobDatabase:
         )
         path = tmp_path / "jobs.csv"
         wkt_df.to_csv(path, index=False)
-        df = _CsvJobDatabase(path).read()
-        assert isinstance(df.geometry[0], shpt.Point)
+        df = CsvJobDatabase(path).read()
+        assert isinstance(df.geometry[0], shapely.geometry.Point)
 
     def test_read_non_wkt(self, tmp_path):
         non_wkt_df = pd.DataFrame(
@@ -538,33 +562,43 @@ class TestCsvJobDatabase:
         )
         path = tmp_path / "jobs.csv"
         non_wkt_df.to_csv(path, index=False)
-        df = _CsvJobDatabase(path).read()
+        df = CsvJobDatabase(path).read()
         assert isinstance(df.geometry[0], str)
 
-    def test_persist(self, tmp_path):
-        df = pd.DataFrame(
-            {
-                "some_number": [3, 2, 1],
-            }
-        )
+    @pytest.mark.parametrize(
+        ["orig"],
+        [
+            pytest.param(JOB_DB_DF_BASICS, id="pandas basics"),
+            pytest.param(JOB_DB_GDF_WITH_GEOMETRY, id="geopandas with geometry"),
+            pytest.param(JOB_DB_DF_WITH_GEOJSON_STRING, id="pandas with geojson string as geometry"),
+        ],
+    )
+    def test_persist_and_read(self, tmp_path, orig: pandas.DataFrame):
+        path = tmp_path / "jobs.parquet"
+        CsvJobDatabase(path).persist(orig)
+        assert path.exists()
 
-        path = tmp_path / "jobs.csv"
-        _CsvJobDatabase(path).persist(df)
-        assert _CsvJobDatabase(path).read().equals(df)
+        loaded = CsvJobDatabase(path).read()
+        assert loaded.dtypes.to_dict() == orig.dtypes.to_dict()
+        assert loaded.equals(orig)
+        assert type(orig) is type(loaded)
 
 
 class TestParquetJobDatabase:
-    def test_read_persist(self, tmp_path):
-        df = pd.DataFrame(
-            {
-                "some_number": [3, 2, 1],
-            }
-        )
-
+    @pytest.mark.parametrize(
+        ["orig"],
+        [
+            pytest.param(JOB_DB_DF_BASICS, id="pandas basics"),
+            pytest.param(JOB_DB_GDF_WITH_GEOMETRY, id="geopandas with geometry"),
+            pytest.param(JOB_DB_DF_WITH_GEOJSON_STRING, id="pandas with geojson string as geometry"),
+        ],
+    )
+    def test_persist_and_read(self, tmp_path, orig: pandas.DataFrame):
         path = tmp_path / "jobs.parquet"
-        _ParquetJobDatabase(path).persist(df)
-        assert _ParquetJobDatabase(path).read().equals(df)
+        ParquetJobDatabase(path).persist(orig)
+        assert path.exists()
 
-
-#%%
-
+        loaded = ParquetJobDatabase(path).read()
+        assert loaded.dtypes.to_dict() == orig.dtypes.to_dict()
+        assert loaded.equals(orig)
+        assert type(orig) is type(loaded)

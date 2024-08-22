@@ -1,8 +1,10 @@
+import abc
 import contextlib
 import datetime
 import json
 import logging
 import time
+import warnings
 from pathlib import Path
 from typing import Callable, Dict, NamedTuple, Optional, Union
 
@@ -28,6 +30,40 @@ class _Backend(NamedTuple):
 
 
 MAX_RETRIES = 5
+
+
+
+class JobDatabaseInterface(metaclass=abc.ABCMeta):
+    """
+    Interface for a database of job metadata to use with the :py:class:`MultiBackendJobManager`,
+    allowing to regularly persist the job metadata while polling the job statuses
+    and resume/restart the job tracking after it was interrupted.
+
+    .. versionadded:: 0.31.0
+    """
+
+    @abc.abstractmethod
+    def exists(self) -> bool:
+        """Does the job database already exist, to read job data from?"""
+        ...
+
+    @abc.abstractmethod
+    def read(self) -> pd.DataFrame:
+        """
+        Read job data from the database as pandas DataFrame.
+
+        :return: loaded job data.
+        """
+        ...
+
+    @abc.abstractmethod
+    def persist(self, df: pd.DataFrame):
+        """
+        Store job data to the database.
+
+        :param df: job data to store.
+        """
+        ...
 
 
 class MultiBackendJobManager:
@@ -219,7 +255,8 @@ class MultiBackendJobManager:
         self,
         df: pd.DataFrame,
         start_job: Callable[[], BatchJob],
-        output_file: Union[str, Path],
+        job_db: Union[str, Path, JobDatabaseInterface, None] = None,
+        **kwargs,
     ):
         """Runs jobs, specified in a dataframe, and tracks parameters.
 
@@ -253,30 +290,52 @@ class MultiBackendJobManager:
             any of them out, then remember to include the ``*args`` and ``**kwargs`` parameters.
             Otherwise you will have an exception because :py:meth:`run_jobs` passes unknown parameters to ``start_job``.
 
-        :param output_file:
-            Path to output file (CSV or Parquet) containing the status and metadata of the jobs.
+        :param job_db:
+            Job database to load/store existing job status data and other metadata from/to.
+            Can be specified as a path to CSV or Parquet file,
+            or as a custom database object following the :py:class:`JobDatabaseInterface` interface.
 
             .. note::
                 Support for Parquet files depends on the ``pyarrow`` package
                 as :ref:`optional dependency <installation-optional-dependencies>`.
 
         .. versionchanged:: 0.31.0
-            Added support for providing a Parquet ``output_file``
+            Added support for persisting the job metadata in Parquet format.
+
+        .. versionchanged:: 0.31.0
+            Replace ``output_file`` argument with ``job_db`` argument,
+            which can be a path to a CSV or Parquet file,
+            or a user-defined :py:class:`JobDatabaseInterface` object.
+            The deprecated ``output_file`` argument is still supported for now.
         """
         # TODO: Defining start_jobs as a Protocol might make its usage more clear, and avoid complicated doctrings,
         #   but Protocols are only supported in Python 3.8 and higher.
-        output_file = Path(output_file)
 
-        if output_file.suffix.lower() == ".csv":
-            job_db = _CsvJobDatabase(output_file)
-        elif output_file.suffix.lower() == ".parquet":
-            job_db = _ParquetJobDatabase(output_file)
-        else:
-            raise ValueError(f"Unsupported output file type: {output_file}")
+        # Backwards compatibility for deprecated `output_file` argument
+        if "output_file" in kwargs:
+            if job_db is not None:
+                raise ValueError("Only one of `output_file` and `job_db` should be provided")
+            warnings.warn(
+                "The `output_file` argument is deprecated. Use `job_db` instead.", DeprecationWarning, stacklevel=2
+            )
+            job_db = kwargs.pop("output_file")
+        assert not kwargs, f"Unexpected keyword arguments: {kwargs!r}"
 
-        if output_file.exists() and output_file.is_file():
+        if isinstance(job_db, (str, Path)):
+            job_db_path = Path(job_db)
+            if job_db_path.suffix.lower() == ".csv":
+                job_db = CsvJobDatabase(path=job_db_path)
+            elif job_db_path.suffix.lower() == ".parquet":
+                job_db = ParquetJobDatabase(path=job_db_path)
+            else:
+                raise ValueError(f"Unsupported job database file type {job_db_path!r}")
+
+        if not isinstance(job_db, JobDatabaseInterface):
+            raise ValueError(f"Unsupported job_db {job_db!r}")
+
+        if job_db.exists():
             # Resume from existing db
-            _log.info(f"Resuming `run_jobs` from {output_file.absolute()}")
+            _log.info(f"Resuming `run_jobs` from existing {job_db}")
             df = job_db.read()
             status_histogram = df.groupby("status").size().to_dict()
             _log.info(f"Status histogram: {status_histogram}")
@@ -431,7 +490,6 @@ class MultiBackendJobManager:
         job_running_start_time = rfc3339.parse_datetime(row["running_start_time"], with_timezone=True)
         current_time = rfc3339.parse_datetime(rfc3339.utcnow(), with_timezone=True)
 
-        
         if current_time > job_running_start_time + self.cancel_running_job_after:
             try:
                 _log.info(
@@ -511,27 +569,35 @@ def _format_usage_stat(job_metadata: dict, field: str) -> str:
 
 
 @contextlib.contextmanager
-def ignore_connection_errors(context: Optional[str] = None):
+def ignore_connection_errors(context: Optional[str] = None, sleep: int = 5):
     """Context manager to ignore connection errors."""
+    # TODO: move this out of this module and make it a more public utility?
     try:
         yield
     except requests.exceptions.ConnectionError as e:
         _log.warning(f"Ignoring connection error (context {context or 'n/a'}): {e}")
         # Back off a bit
-        time.sleep(5)
+        time.sleep(sleep)
 
 
-class _JobDatabaseInterface:
-    def read(self) -> pd.DataFrame:
-        raise NotImplementedError()
+class CsvJobDatabase(JobDatabaseInterface):
+    """
+    Persist/load job metadata with a CSV file.
 
-    def persist(self, df: pd.DataFrame):
-        raise NotImplementedError()
+    :implements: :py:class:`JobDatabaseInterface`
+    :param path: Path to local CSV file.
 
+    .. note::
+        Support for GeoPandas dataframes depends on the ``geopandas`` package
+        as :ref:`optional dependency <installation-optional-dependencies>`.
 
-class _CsvJobDatabase(_JobDatabaseInterface):
+    .. versionadded:: 0.31.0
+    """
     def __init__(self, path: Union[str, Path]):
         self.path = Path(path)
+
+    def exists(self) -> bool:
+        return self.path.exists()
 
     def _is_valid_wkt(self, wkt: str) -> bool:
         try:
@@ -542,13 +608,15 @@ class _CsvJobDatabase(_JobDatabaseInterface):
 
     def read(self) -> pd.DataFrame:
         df = pd.read_csv(self.path)
-        # Workaround for loading of geopandas "geometry" column.
         if (
             "geometry" in df.columns
             and df["geometry"].dtype.name != "geometry"
             and self._is_valid_wkt(df["geometry"].iloc[0])
         ):
-            df["geometry"] = df["geometry"].apply(shapely.wkt.loads)
+            import geopandas
+
+            # `df.to_csv()` in `persist()` has encoded geometries as WKT, so we decode that here.
+            df = geopandas.GeoDataFrame(df, geometry=geopandas.GeoSeries.from_wkt(df["geometry"]))
         return df
 
     def persist(self, df: pd.DataFrame):
@@ -556,12 +624,43 @@ class _CsvJobDatabase(_JobDatabaseInterface):
         df.to_csv(self.path, index=False)
 
 
-class _ParquetJobDatabase(_JobDatabaseInterface):
+class ParquetJobDatabase(JobDatabaseInterface):
+    """
+    Persist/load job metadata with a Parquet file.
+
+    :implements: :py:class:`JobDatabaseInterface`
+    :param path: Path to the Parquet file.
+
+    .. note::
+        Support for Parquet files depends on the ``pyarrow`` package
+        as :ref:`optional dependency <installation-optional-dependencies>`.
+
+        Support for GeoPandas dataframes depends on the ``geopandas`` package
+        as :ref:`optional dependency <installation-optional-dependencies>`.
+
+    .. versionadded:: 0.31.0
+    """
     def __init__(self, path: Union[str, Path]):
         self.path = Path(path)
 
+    def exists(self) -> bool:
+        return self.path.exists()
+
     def read(self) -> pd.DataFrame:
-        return pd.read_parquet(self.path)
+        # Unfortunately, a naive `pandas.read_parquet()` does not easily allow
+        # reconstructing geometries from a GeoPandas Parquet file.
+        # And vice-versa, `geopandas.read_parquet()` does not support reading
+        # Parquet file without geometries.
+        # So we have to guess which case we have.
+        # TODO is there a cleaner way to do this?
+        import pyarrow.parquet
+
+        metadata = pyarrow.parquet.read_metadata(self.path)
+        if b"geo" in metadata.metadata:
+            import geopandas
+            return geopandas.read_parquet(self.path)
+        else:
+            return pd.read_parquet(self.path)
 
     def persist(self, df: pd.DataFrame):
         self.path.parent.mkdir(parents=True, exist_ok=True)
