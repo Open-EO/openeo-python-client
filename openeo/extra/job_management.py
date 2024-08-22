@@ -415,7 +415,7 @@ class MultiBackendJobManager:
             _log.warning(f"Failed to start job for {row.to_dict()}", exc_info=True)
             df.loc[i, "status"] = "start_failed"
         else:
-            df.loc[i, "start_time"] = datetime.datetime.now().isoformat()
+            df.loc[i, "start_time"] = rfc3339.utcnow()
             if job:
                 df.loc[i, "id"] = job.job_id
                 with ignore_connection_errors(context="get status"):
