@@ -348,7 +348,7 @@ class MultiBackendJobManager:
                 & (df.status != "skipped")
                 & (df.status != "start_failed")
                 & (df.status != "error")
-                & (df.status != "canceled")
+                #& (df.status != "canceled")
             ].size
             > 0
         ):
@@ -415,7 +415,7 @@ class MultiBackendJobManager:
             _log.warning(f"Failed to start job for {row.to_dict()}", exc_info=True)
             df.loc[i, "status"] = "start_failed"
         else:
-            df.loc[i, "start_time"] = rfc3339.utcnow()  
+            df.loc[i, "start_time"] = datetime.datetime.now().isoformat()
             if job:
                 df.loc[i, "id"] = job.job_id
                 with ignore_connection_errors(context="get status"):
@@ -519,7 +519,7 @@ class MultiBackendJobManager:
 
     def _track_statuses(self, df: pd.DataFrame):
         """tracks status (and stats) of running jobs (in place). Optinally cancels jobs when running too long"""
-        active = df.loc[(df.status == "created") | (df.status == "queued") | (df.status == "running")]
+        active = df.loc[(df.status == "created") | (df.status == "queued") | (df.status == "started") | (df.status == "running")]
         for i in active.index:
             job_id = df.loc[i, "id"]
             backend_name = df.loc[i, "backend_name"]
@@ -534,14 +534,15 @@ class MultiBackendJobManager:
 
                 _log.info(f"Status of job {job_id!r} (on backend {backend_name}) is {new_status!r}")
 
-                if previous_status in {"created", "queued", "started"} and new_status == "running":
-                    df.loc[i, "running_start_time"] = rfc3339.utcnow() 
 
-                if previous_status != "error" and new_status == "error":
-                    self.on_job_error(the_job, df.loc[i])
-
-                if new_status == "finished":
+                if job_metadata["status"] == "finished":
                     self.on_job_done(the_job, df.loc[i])
+
+                if previous_status != "error" and job_metadata["status"] == "error":
+                    self.on_job_error(the_job, df.loc[i])
+                
+                if previous_status in {"created", "started", "queued", "started"} and new_status == "running":
+                    df.loc[i, "running_start_time"] = rfc3339.utcnow() 
 
                 if new_status == "canceled":
                     self.on_job_cancel(the_job, df.loc[i])
@@ -549,7 +550,7 @@ class MultiBackendJobManager:
                 if self.cancel_running_job_after and new_status == "running":
                     self._cancel_prolonged_job(the_job, df.loc[i])
 
-                previous_status = new_status
+                df.loc[i, "status"] = new_status
 
                 # TODO: there is well hidden coupling here with "cpu", "memory" and "duration" from `_normalize_df`
                 for key in job_metadata.get("usage", {}).keys():
