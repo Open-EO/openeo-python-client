@@ -475,11 +475,9 @@ class MultiBackendJobManager:
     def on_job_cancel(self, job: BatchJob, row):
         """
         Handle a job that was cancelled. Can be overridden to provide custom behaviour.
-        Handle a job that was cancelled. Can be overridden to provide custom behaviour.
 
         Default implementation does not do anything.
 
-        :param job: The job that was canceled.
         :param job: The job that was canceled.
         :param row: DataFrame row containing the job's metadata.
         """
