@@ -345,6 +345,7 @@ class MultiBackendJobManager:
 
         while (
             df[
+                # TODO: risk on infinite loop if a backend reports a (non-standard) terminal status that is not covered here
                 (df.status != "finished")
                 & (df.status != "skipped")
                 & (df.status != "start_failed")
