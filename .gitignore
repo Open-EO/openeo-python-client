@@ -126,3 +126,6 @@ artifact*.zip
 
 # pytest basetemp root (e.g. for tmp_path fixture).
 pytest-tmp
+
+# direnv's .envrc
+.envrc
