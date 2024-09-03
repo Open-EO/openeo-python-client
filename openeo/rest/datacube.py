@@ -1009,7 +1009,7 @@ class DataCube(_ProcessGraphAbstraction):
             ),
             connection=self._connection,
             # TODO: also add new "geometry" dimension #457
-            metadata=self.metadata.reduce_spatial(),
+            metadata=None if self.metadata is None else self.metadata.reduce_spatial(),
         )
 
     @openeo_process
