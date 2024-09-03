@@ -1,6 +1,8 @@
+import datetime
 import json
 import textwrap
 import threading
+import time
 from unittest import mock
 
 import geopandas
@@ -17,6 +19,7 @@ import pandas as pd
 import pytest
 import requests
 import shapely.geometry
+import time_machine
 
 import openeo
 from openeo import BatchJob
@@ -26,9 +29,12 @@ from openeo.extra.job_management import (
     MultiBackendJobManager,
     ParquetJobDatabase,
 )
+from openeo.rest import OpenEoApiError
+from openeo.util import rfc3339
 
 
 class TestMultiBackendJobManager:
+
     @pytest.fixture
     def sleep_mock(self):
         with mock.patch("time.sleep") as sleep:
@@ -79,9 +85,7 @@ class TestMultiBackendJobManager:
                 # It also needs the job results endpoint, though that can be a dummy implementation.
                 # When the job is finished the system tries to download the results and that is what
                 # needs this endpoint.
-                requests_mock.get(
-                    f"{backend}/jobs/{job_id}/results", json={"links": []}
-                )
+                requests_mock.get(f"{backend}/jobs/{job_id}/results", json={"links": []})
 
         mock_job_status("job-2018", queued=1, running=2)
         mock_job_status("job-2019", queued=2, running=3)
@@ -136,6 +140,7 @@ class TestMultiBackendJobManager:
                 "status",
                 "id",
                 "start_time",
+                "running_start_time",
                 "cpu",
                 "memory",
                 "duration",
@@ -274,7 +279,6 @@ class TestMultiBackendJobManager:
         metadata_path = manager.get_job_metadata_path(job_id="job-2021")
         assert metadata_path.exists()
 
-
     def test_on_error_log(self, tmp_path, requests_mock):
         backend = "http://foo.test"
         requests_mock.get(backend, json={"api_version": "1.1.0"})
@@ -287,9 +291,7 @@ class TestMultiBackendJobManager:
                 "message": "Test that error handling works",
             }
         ]
-        requests_mock.get(
-            f"{backend}/jobs/{job_id}/logs", json={"logs": errors_log_lines}
-        )
+        requests_mock.get(f"{backend}/jobs/{job_id}/logs", json={"logs": errors_log_lines})
 
         root_dir = tmp_path / "job_mgr_root"
         manager = MultiBackendJobManager(root_dir=root_dir)
@@ -308,12 +310,9 @@ class TestMultiBackendJobManager:
         contents = error_log_path.read_text()
         assert json.loads(contents) == errors_log_lines
 
-
     @httpretty.activate(allow_net_connect=False, verbose=True)
     @pytest.mark.parametrize("http_error_status", [502, 503, 504])
-    def test_is_resilient_to_backend_failures(
-        self, tmp_path, http_error_status, sleep_mock
-    ):
+    def test_is_resilient_to_backend_failures(self, tmp_path, http_error_status, sleep_mock):
         """
         Our job should still succeed when the backend request succeeds eventually,
         after first failing the maximum allowed number of retries.
@@ -333,9 +332,7 @@ class TestMultiBackendJobManager:
         backend = "http://foo.test"
         job_id = "job-2018"
 
-        httpretty.register_uri(
-            "GET", backend, body=json.dumps({"api_version": "1.1.0"})
-        )
+        httpretty.register_uri("GET", backend, body=json.dumps({"api_version": "1.1.0"}))
 
         # First fail the max times the connection should retry, then succeed. after that
         response_list = [
@@ -352,9 +349,7 @@ class TestMultiBackendJobManager:
                 )
             )
         ]
-        httpretty.register_uri(
-            "GET", f"{backend}/jobs/{job_id}", responses=response_list
-        )
+        httpretty.register_uri("GET", f"{backend}/jobs/{job_id}", responses=response_list)
 
         root_dir = tmp_path / "job_mgr_root"
         manager = MultiBackendJobManager(root_dir=root_dir)
@@ -384,9 +379,7 @@ class TestMultiBackendJobManager:
 
     @httpretty.activate(allow_net_connect=False, verbose=True)
     @pytest.mark.parametrize("http_error_status", [502, 503, 504])
-    def test_resilient_backend_reports_error_when_max_retries_exceeded(
-        self, tmp_path, http_error_status, sleep_mock
-    ):
+    def test_resilient_backend_reports_error_when_max_retries_exceeded(self, tmp_path, http_error_status, sleep_mock):
         """We should get a RetryError when the backend request fails more times than the maximum allowed number of retries.
 
         Goal of the test is only to see that retrying is effectively executed.
@@ -404,9 +397,7 @@ class TestMultiBackendJobManager:
         backend = "http://foo.test"
         job_id = "job-2018"
 
-        httpretty.register_uri(
-            "GET", backend, body=json.dumps({"api_version": "1.1.0"})
-        )
+        httpretty.register_uri("GET", backend, body=json.dumps({"api_version": "1.1.0"}))
 
         # Fail one more time than the max allow retries.
         # But do add one successful request at the start, to simulate that the job was
@@ -427,9 +418,7 @@ class TestMultiBackendJobManager:
             MAX_RETRIES + 1
         )
 
-        httpretty.register_uri(
-            "GET", f"{backend}/jobs/{job_id}", responses=response_list
-        )
+        httpretty.register_uri("GET", f"{backend}/jobs/{job_id}", responses=response_list)
 
         root_dir = tmp_path / "job_mgr_root"
         manager = MultiBackendJobManager(root_dir=root_dir)
@@ -458,6 +447,82 @@ class TestMultiBackendJobManager:
         assert len(result) == 1
         assert set(result.status) == {"running"}
         assert set(result.backend_name) == {"foo"}
+
+    def test_cancel_prolonged_job_exceeds_duration(self):
+        # Set up a sample DataFrame with job data
+        df = pd.DataFrame(
+            {
+                "id": ["job_1"],
+                "backend_name": ["foo"],
+                "status": ["running"],
+                "running_start_time": ["2020-01-01T00:00:00Z"],
+            }
+        )
+
+        # Initialize the manager with the cancel_running_job_after parameter
+        cancel_after_seconds = 12 * 60 * 60  # 12 hours
+        manager = MultiBackendJobManager(cancel_running_job_after=cancel_after_seconds)
+
+        # Mock the connection and job retrieval
+        mock_connection = mock.MagicMock()
+        mock_job = mock.MagicMock()
+        mock_job.describe.return_value = {"status": "running"}
+        manager._get_connection = mock.MagicMock(return_value=mock_connection)
+        mock_connection.job.return_value = mock_job
+
+        # Set up the running start time and future time
+        job_running_timestamp = datetime.datetime.strptime(df.loc[0, "running_start_time"], "%Y-%m-%dT%H:%M:%SZ")
+        future_time = (
+            job_running_timestamp + datetime.timedelta(seconds=cancel_after_seconds) + datetime.timedelta(seconds=1)
+        )
+
+        # Replace _cancel_prolonged_job with a mock to track its calls
+        manager._cancel_prolonged_job = mock.MagicMock()
+
+        # Travel to the future where the job has exceeded its allowed running time
+        with time_machine.travel(future_time, tick=False):
+            manager._track_statuses(df)
+
+        # Verify that the _cancel_prolonged_job method was called with the correct job and row
+        manager._cancel_prolonged_job.assert_called_once
+
+    def test_cancel_prolonged_job_within_duration(self):
+        # Set up a sample DataFrame with job data
+        df = pd.DataFrame(
+            {
+                "id": ["job_1"],
+                "backend_name": ["foo"],
+                "status": ["running"],
+                "running_start_time": ["2020-01-01T00:00:00Z"],
+            }
+        )
+
+        # Initialize the manager with the cancel_running_job_after parameter
+        cancel_after_seconds = 12 * 60 * 60  # 12 hours
+        manager = MultiBackendJobManager(cancel_running_job_after=cancel_after_seconds)
+
+        # Mock the connection and job retrieval
+        mock_connection = mock.MagicMock()
+        mock_job = mock.MagicMock()
+        mock_job.describe.return_value = {"status": "running"}
+        manager._get_connection = mock.MagicMock(return_value=mock_connection)
+        mock_connection.job.return_value = mock_job
+
+        # Set up the running start time and future time
+        job_running_timestamp = datetime.datetime.strptime(df.loc[0, "running_start_time"], "%Y-%m-%dT%H:%M:%SZ")
+        future_time = (
+            job_running_timestamp + datetime.timedelta(seconds=cancel_after_seconds) - datetime.timedelta(seconds=1)
+        )
+
+        # Replace _cancel_prolonged_job with a mock to track its calls
+        manager._cancel_prolonged_job = mock.MagicMock()
+
+        # Travel to the future where the job has exceeded its allowed running time
+        with time_machine.travel(future_time, tick=False):
+            manager._track_statuses(df)
+
+        # Verify that the _cancel_prolonged_job method was called with the correct job and row
+        manager._cancel_prolonged_job.assert_not_called
 
 
 JOB_DB_DF_BASICS = pd.DataFrame(
