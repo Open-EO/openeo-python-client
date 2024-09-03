@@ -1,15 +1,18 @@
 from typing import List, Optional
 
-from openeo.capabilities import Capabilities
+from openeo.capabilities import ApiVersionException, ComparableVersion
 from openeo.internal.jupyter import render_component
 from openeo.util import deep_get
 
 
-class RESTCapabilities(Capabilities):
-    """Represents REST capabilities of a connection / back end."""
+# TODO: rename this class to "OpenEOCapabilities" or even just "Capabilities"?
+#       Note that this class is about *openEO* capabilities, not *REST* capabilities.
+# TODO: also note that there isn't even a direct dependency on REST/HTTP aspects here,
+#       so this class could be moved to a more generic (utility) location. Or just openeo.capabilities?
+class RESTCapabilities:
+    """Represents the capabilities of an openEO back-end."""
 
     def __init__(self, data: dict, url: str = None):
-        super(RESTCapabilities, self).__init__(data)
         self.capabilities = data
         self.url = url
 
@@ -26,6 +29,14 @@ class RESTCapabilities(Capabilities):
         else:
             # Legacy/deprecated
             return self.capabilities.get('version')
+
+    @property
+    def api_version_check(self) -> ComparableVersion:
+        """Helper to easily check if the API version is at least or below some threshold version."""
+        api_version = self.api_version()
+        if not api_version:
+            raise ApiVersionException("No API version found")
+        return ComparableVersion(api_version)
 
     def list_features(self):
         """ List all supported features / endpoints."""
