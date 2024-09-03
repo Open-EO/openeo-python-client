@@ -1008,7 +1008,8 @@ class DataCube(_ProcessGraphAbstraction):
                 ),
             ),
             connection=self._connection,
-            # TODO: metadata? And correct dimension of created vector cube? #457
+            # TODO: also add new "geometry" dimension #457
+            metadata=self.metadata.reduce_spatial(),
         )
 
     @openeo_process

@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - `apply_dimension` with a `target_dimension` argument was not correctly adjusting datacube metadata on the client side, causing a mismatch.
+- Preserve non-spatial dimension metadata in `aggregate_spatial` ([#612](https://github.com/Open-EO/openeo-python-client/issues/612))
 
 
 ## [0.31.0] - 2024-07-26

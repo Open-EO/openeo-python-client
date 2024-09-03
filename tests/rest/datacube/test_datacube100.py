@@ -3670,3 +3670,23 @@ def test_to_json_with_if_and_udf(con100):
     }
 
     assert 'process_id": "run_udf"' in cube.to_json()
+
+
+def test_aggregate_spatial_band_metadata(con100):
+    """https://github.com/Open-EO/openeo-python-client/issues/612"""
+    cube = con100.load_collection("S2", bands=["B02", "B03"])
+    geometry = shapely.geometry.box(0, 0, 1, 1)
+    aggregated = cube.aggregate_spatial(geometries=geometry, reducer="mean")
+    assert aggregated.metadata.band_names == ["B02", "B03"]
+
+
+def test_aggregate_spatial_and_merge_again(con100):
+    """https://github.com/Open-EO/openeo-python-client/issues/612"""
+    cube = con100.load_collection("S2", bands=["B02", "B03"])
+    geometry = shapely.geometry.box(0, 0, 1, 1)
+    aggregated = cube.aggregate_spatial(geometries=geometry, reducer="mean")
+    rasterized = aggregated.vector_to_raster(target=cube).rename_labels(
+        dimension="bands", target=["B02-mean", "B03-mean"]
+    )
+    merged = cube.merge_cubes(rasterized)
+    assert merged.metadata.band_names == ["B02", "B03", "B02-mean", "B03-mean"]
