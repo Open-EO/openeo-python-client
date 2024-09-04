@@ -28,7 +28,7 @@ tests_require = [
     "matplotlib",
     "geopandas",
     "flake8>=5.0.0",
-    "time_machine>=2.13.0",
+    "time_machine",
     "pyproj>=3.2.0",  # Pyproj is an optional, best-effort runtime dependency
     "dirty_equals>=0.6.0",
     # (#578) On Python 3.7: avoid dirty_equals 0.7.1 which wrongly claims to be Python 3.7 compatible
