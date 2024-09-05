@@ -141,6 +141,7 @@ class MultiBackendJobManager:
         .. versionchanged:: 0.32.0
             Added `cancel_running_job_after` parameter.
         """
+        self._stop = True
         self.backends: Dict[str, _Backend] = {}
         self.poll_sleep = poll_sleep
         self._connections: Dict[str, _Backend] = {}
@@ -264,6 +265,8 @@ class MultiBackendJobManager:
         _log.info(f"Resuming `run_jobs` from existing {job_db}")
         df = job_db.read()
 
+        self._stop = False
+
         async def run_loop():
 
             while (
@@ -275,7 +278,7 @@ class MultiBackendJobManager:
                     & (df.status != "error")
                     & (df.status != "canceled")
                 ].size
-                > 0
+                > 0 and not self._stop
             ):
 
                 await self._job_update_loop(df, job_db, start_job)
@@ -283,8 +286,10 @@ class MultiBackendJobManager:
 
         self.loop_task = asyncio.create_task(run_loop())
 
-    def stop_job_thread(self):
+    def stop_job_thread(self, force_timeout_seconds = 30):
         if(self._loop_task is not None):
+            self._stop = True
+            asyncio.sleep(force_timeout_seconds)
             self._loop_task.cancel()
 
     def run_jobs(
