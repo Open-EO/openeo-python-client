@@ -99,7 +99,8 @@ Filter on spatial extent
 
 A spatial extent is a bounding box that specifies the minimum and and maximum longitude and latitude of the region of interest you want to process.
 
-By default these latitude and longitude values are expressed in the standard Coordinate Reference System for the world, which is EPSG:4623, also known as "WGS 84", or just "lat-long".
+By default these latitude and longitude values are expressed in the standard Coordinate Reference System for the world,
+which is EPSG:4326, also known as "WGS 84", or just "lat-long".
 
 .. code-block:: python
 

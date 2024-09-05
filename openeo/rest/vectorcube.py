@@ -12,7 +12,7 @@ from openeo.api.process import Parameter
 from openeo.internal.documentation import openeo_process
 from openeo.internal.graph_building import PGNode
 from openeo.internal.warnings import legacy_alias
-from openeo.metadata import CollectionMetadata, Dimension
+from openeo.metadata import CollectionMetadata, CubeMetadata, Dimension
 from openeo.rest._datacube import (
     THIS,
     UDF,
@@ -37,7 +37,7 @@ class VectorCube(_ProcessGraphAbstraction):
     A geometry is specified in a 'coordinate reference system'. https://www.w3.org/TR/sdw-bp/#dfn-coordinate-reference-system-(crs)
     """
 
-    def __init__(self, graph: PGNode, connection: Connection, metadata: Optional[CollectionMetadata] = None):
+    def __init__(self, graph: PGNode, connection: Connection, metadata: Optional[CubeMetadata] = None):
         super().__init__(pgnode=graph, connection=connection)
         self.metadata = metadata
 

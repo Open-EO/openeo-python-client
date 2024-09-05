@@ -1,8 +1,14 @@
+import datetime
 import json
+import re
+import sys
 import textwrap
 import threading
+import time
+from typing import Callable, Union
 from unittest import mock
 
+import dirty_equals
 import geopandas
 
 # TODO: can we avoid using httpretty?
@@ -17,8 +23,10 @@ import pandas as pd
 import pytest
 import requests
 import shapely.geometry
+import time_machine
 
 import openeo
+import openeo.extra.job_management
 from openeo import BatchJob
 from openeo.extra.job_management import (
     MAX_RETRIES,
@@ -26,9 +34,51 @@ from openeo.extra.job_management import (
     MultiBackendJobManager,
     ParquetJobDatabase,
 )
+from openeo.rest import OpenEoApiError
+from openeo.util import rfc3339
+
+
+class FakeBackend:
+    """
+    Fake openEO backend with some basic job management functionality for testing job manager logic.
+    """
+    def __init__(self, *, backend_root_url: str = "http://openeo.test", requests_mock):
+        self.url = backend_root_url.rstrip("/")
+        requests_mock.get(f"{self.url}/", json={"api_version": "1.1.0"})
+        self.job_db = {}
+        self.get_job_metadata_mock = requests_mock.get(
+            re.compile(rf"^{self.url}/jobs/[\w_-]*$"),
+            json=self._handle_get_job_metadata,
+        )
+        self.cancel_job_mock = requests_mock.delete(
+            re.compile(rf"^{self.url}/jobs/[\w_-]*/results$"),
+            json=self._handle_cancel_job,
+        )
+        requests_mock.get(re.compile(rf"^{self.url}/jobs/[\w_-]*/results"), json={"links": []})
+
+    def set_job_status(self, job_id: str, status: Union[str, Callable[[], str]]):
+        self.job_db.setdefault(job_id, {})["status"] = status
+
+    def get_job_status(self, job_id: str):
+        status = self.job_db[job_id]["status"]
+        if callable(status):
+            status = status()
+        return status
+
+    def _handle_get_job_metadata(self, request, context):
+        job_id = request.path.split("/")[-1]
+        return {"id": job_id, "status": self.get_job_status(job_id)}
+
+    def _handle_cancel_job(self, request, context):
+        job_id = request.path.split("/")[-2]
+        assert self.get_job_status(job_id) == "running"
+        self.set_job_status(job_id, "canceled")
+        context.status_code = 204
 
 
 class TestMultiBackendJobManager:
+
+
     @pytest.fixture
     def sleep_mock(self):
         with mock.patch("time.sleep") as sleep:
@@ -79,9 +129,7 @@ class TestMultiBackendJobManager:
                 # It also needs the job results endpoint, though that can be a dummy implementation.
                 # When the job is finished the system tries to download the results and that is what
                 # needs this endpoint.
-                requests_mock.get(
-                    f"{backend}/jobs/{job_id}/results", json={"links": []}
-                )
+                requests_mock.get(f"{backend}/jobs/{job_id}/results", json={"links": []})
 
         mock_job_status("job-2018", queued=1, running=2)
         mock_job_status("job-2019", queued=2, running=3)
@@ -136,6 +184,7 @@ class TestMultiBackendJobManager:
                 "status",
                 "id",
                 "start_time",
+                "running_start_time",
                 "cpu",
                 "memory",
                 "duration",
@@ -274,7 +323,6 @@ class TestMultiBackendJobManager:
         metadata_path = manager.get_job_metadata_path(job_id="job-2021")
         assert metadata_path.exists()
 
-
     def test_on_error_log(self, tmp_path, requests_mock):
         backend = "http://foo.test"
         requests_mock.get(backend, json={"api_version": "1.1.0"})
@@ -287,9 +335,7 @@ class TestMultiBackendJobManager:
                 "message": "Test that error handling works",
             }
         ]
-        requests_mock.get(
-            f"{backend}/jobs/{job_id}/logs", json={"logs": errors_log_lines}
-        )
+        requests_mock.get(f"{backend}/jobs/{job_id}/logs", json={"logs": errors_log_lines})
 
         root_dir = tmp_path / "job_mgr_root"
         manager = MultiBackendJobManager(root_dir=root_dir)
@@ -308,12 +354,9 @@ class TestMultiBackendJobManager:
         contents = error_log_path.read_text()
         assert json.loads(contents) == errors_log_lines
 
-
     @httpretty.activate(allow_net_connect=False, verbose=True)
     @pytest.mark.parametrize("http_error_status", [502, 503, 504])
-    def test_is_resilient_to_backend_failures(
-        self, tmp_path, http_error_status, sleep_mock
-    ):
+    def test_is_resilient_to_backend_failures(self, tmp_path, http_error_status, sleep_mock):
         """
         Our job should still succeed when the backend request succeeds eventually,
         after first failing the maximum allowed number of retries.
@@ -333,9 +376,7 @@ class TestMultiBackendJobManager:
         backend = "http://foo.test"
         job_id = "job-2018"
 
-        httpretty.register_uri(
-            "GET", backend, body=json.dumps({"api_version": "1.1.0"})
-        )
+        httpretty.register_uri("GET", backend, body=json.dumps({"api_version": "1.1.0"}))
 
         # First fail the max times the connection should retry, then succeed. after that
         response_list = [
@@ -352,9 +393,7 @@ class TestMultiBackendJobManager:
                 )
             )
         ]
-        httpretty.register_uri(
-            "GET", f"{backend}/jobs/{job_id}", responses=response_list
-        )
+        httpretty.register_uri("GET", f"{backend}/jobs/{job_id}", responses=response_list)
 
         root_dir = tmp_path / "job_mgr_root"
         manager = MultiBackendJobManager(root_dir=root_dir)
@@ -384,9 +423,7 @@ class TestMultiBackendJobManager:
 
     @httpretty.activate(allow_net_connect=False, verbose=True)
     @pytest.mark.parametrize("http_error_status", [502, 503, 504])
-    def test_resilient_backend_reports_error_when_max_retries_exceeded(
-        self, tmp_path, http_error_status, sleep_mock
-    ):
+    def test_resilient_backend_reports_error_when_max_retries_exceeded(self, tmp_path, http_error_status, sleep_mock):
         """We should get a RetryError when the backend request fails more times than the maximum allowed number of retries.
 
         Goal of the test is only to see that retrying is effectively executed.
@@ -404,9 +441,7 @@ class TestMultiBackendJobManager:
         backend = "http://foo.test"
         job_id = "job-2018"
 
-        httpretty.register_uri(
-            "GET", backend, body=json.dumps({"api_version": "1.1.0"})
-        )
+        httpretty.register_uri("GET", backend, body=json.dumps({"api_version": "1.1.0"}))
 
         # Fail one more time than the max allow retries.
         # But do add one successful request at the start, to simulate that the job was
@@ -427,9 +462,7 @@ class TestMultiBackendJobManager:
             MAX_RETRIES + 1
         )
 
-        httpretty.register_uri(
-            "GET", f"{backend}/jobs/{job_id}", responses=response_list
-        )
+        httpretty.register_uri("GET", f"{backend}/jobs/{job_id}", responses=response_list)
 
         root_dir = tmp_path / "job_mgr_root"
         manager = MultiBackendJobManager(root_dir=root_dir)
@@ -458,6 +491,55 @@ class TestMultiBackendJobManager:
         assert len(result) == 1
         assert set(result.status) == {"running"}
         assert set(result.backend_name) == {"foo"}
+
+    @pytest.mark.parametrize(
+        ["start_time", "end_time", "end_status", "cancel_after_seconds", "expected_status"],
+        [
+            ("2024-09-01T10:00:00Z", "2024-09-01T20:00:00Z", "finished", 6 * 60 * 60, "canceled"),
+            ("2024-09-01T10:00:00Z", "2024-09-01T20:00:00Z", "finished", 12 * 60 * 60, "finished"),
+        ],
+    )
+    def test_automatic_cancel_of_too_long_running_jobs(
+        self,
+        requests_mock,
+        tmp_path,
+        time_machine,
+        start_time,
+        end_time,
+        end_status,
+        cancel_after_seconds,
+        expected_status,
+    ):
+        if not hasattr(time_machine, "shift"):
+            # TODO #578 remove this hack to skip this test on Python 3.7
+            #       `time_machine.shift` is only available since timemachine>=2.13.0, which only support Python 3.8 and up
+            pytest.skip("time_machine.shift not available")
+
+        fake_backend = FakeBackend(requests_mock=requests_mock)
+
+        # For simplicity, set up pre-existing job with status "running" (instead of job manager creating+starting it)
+        job_id = "job-123"
+        fake_backend.set_job_status(job_id, lambda: "running" if rfc3339.utcnow() < end_time else end_status)
+
+        manager = MultiBackendJobManager(root_dir=tmp_path, cancel_running_job_after=cancel_after_seconds)
+        manager.add_backend("foo", connection=openeo.connect(fake_backend.url))
+
+        # Initialize data frame with status "created" (to make sure the start of "running" state is recorded)
+        df = pd.DataFrame({"id": [job_id], "backend_name": ["foo"], "status": ["created"]})
+
+        time_machine.move_to(start_time)
+        # Mock sleep() to not actually sleep, but skip one hour at a time
+        with mock.patch.object(openeo.extra.job_management.time, "sleep", new=lambda s: time_machine.shift(60 * 60)):
+            manager.run_jobs(df=df, start_job=lambda **kwargs: None, job_db=tmp_path / "jobs.csv")
+
+        final_df = CsvJobDatabase(tmp_path / "jobs.csv").read()
+        assert final_df.iloc[0].to_dict() == dirty_equals.IsPartialDict(
+            id="job-123", status=expected_status, running_start_time="2024-09-01T10:00:00Z"
+        )
+
+        assert fake_backend.cancel_job_mock.called == (expected_status == "canceled")
+
+
 
 
 JOB_DB_DF_BASICS = pd.DataFrame(

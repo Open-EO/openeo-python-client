@@ -9,13 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `load_stac`/`metadata_from_stac`: add support for extracting actual temporal dimension metadata ([#567](https://github.com/Open-EO/openeo-python-client/issues/567))
+- `MultiBackendJobManager`: add `cancel_running_job_after` option to automatically cancel jobs that are running for too long ([#590](https://github.com/Open-EO/openeo-python-client/issues/590))
+
 ### Changed
 
 ### Removed
 
 ### Fixed
 
-- apply_dimension with a 'target_dimension' argument was not correctly adjusting datacube metadata on the client side, causing a mismatch.
+- `apply_dimension` with a `target_dimension` argument was not correctly adjusting datacube metadata on the client side, causing a mismatch.
+- Preserve non-spatial dimension metadata in `aggregate_spatial` ([#612](https://github.com/Open-EO/openeo-python-client/issues/612))
 
 
 ## [0.31.0] - 2024-07-26
