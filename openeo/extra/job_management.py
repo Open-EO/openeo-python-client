@@ -1,4 +1,5 @@
 import abc
+import asyncio
 import contextlib
 import datetime
 import json
@@ -150,6 +151,7 @@ class MultiBackendJobManager:
         self._cancel_running_job_after = (
             datetime.timedelta(seconds=cancel_running_job_after) if cancel_running_job_after is not None else None
         )
+        self._loop_task = None
 
     def add_backend(
         self,
@@ -251,6 +253,39 @@ class MultiBackendJobManager:
         df = df.assign(**new_columns)
 
         return df
+
+    def start_job_thread(self,start_job: Callable[[], BatchJob],
+        job_db: JobDatabaseInterface ):
+        """
+        Start running the jobs in a separate thread, returns afterwards.
+        """
+
+        # Resume from existing db
+        _log.info(f"Resuming `run_jobs` from existing {job_db}")
+        df = job_db.read()
+
+        async def run_loop():
+
+            while (
+                df[
+                    # TODO: risk on infinite loop if a backend reports a (non-standard) terminal status that is not covered here
+                    (df.status != "finished")
+                    & (df.status != "skipped")
+                    & (df.status != "start_failed")
+                    & (df.status != "error")
+                    & (df.status != "canceled")
+                ].size
+                > 0
+            ):
+
+                await self._job_update_loop(df, job_db, start_job)
+                await asyncio.sleep(self.poll_sleep)
+
+        self.loop_task = asyncio.create_task(run_loop())
+
+    def stop_job_thread(self):
+        if(self._loop_task is not None):
+            self._loop_task.cancel()
 
     def run_jobs(
         self,
@@ -355,27 +390,29 @@ class MultiBackendJobManager:
             > 0
         ):
 
-            with ignore_connection_errors(context="get statuses"):
-                self._track_statuses(df)
-            status_histogram = df.groupby("status").size().to_dict()
-            _log.info(f"Status histogram: {status_histogram}")
-            job_db.persist(df)
-
-            if len(df[df.status == "not_started"]) > 0:
-                # Check number of jobs running at each backend
-                running = df[(df.status == "created") | (df.status == "queued") | (df.status == "running")]
-                per_backend = running.groupby("backend_name").size().to_dict()
-                _log.info(f"Running per backend: {per_backend}")
-                for backend_name in self.backends:
-                    backend_load = per_backend.get(backend_name, 0)
-                    if backend_load < self.backends[backend_name].parallel_jobs:
-                        to_add = self.backends[backend_name].parallel_jobs - backend_load
-                        to_launch = df[df.status == "not_started"].iloc[0:to_add]
-                        for i in to_launch.index:
-                            self._launch_job(start_job, df, i, backend_name)
-                            job_db.persist(df)
+            asyncio.run(self._job_update_loop(df, job_db, start_job))
 
             time.sleep(self.poll_sleep)
+
+    async def _job_update_loop(self, df, job_db, start_job):
+        with ignore_connection_errors(context="get statuses"):
+            self._track_statuses(df)
+        status_histogram = df.groupby("status").size().to_dict()
+        _log.info(f"Status histogram: {status_histogram}")
+        job_db.persist(df)
+        if len(df[df.status == "not_started"]) > 0:
+            # Check number of jobs running at each backend
+            running = df[(df.status == "created") | (df.status == "queued") | (df.status == "running")]
+            per_backend = running.groupby("backend_name").size().to_dict()
+            _log.info(f"Running per backend: {per_backend}")
+            for backend_name in self.backends:
+                backend_load = per_backend.get(backend_name, 0)
+                if backend_load < self.backends[backend_name].parallel_jobs:
+                    to_add = self.backends[backend_name].parallel_jobs - backend_load
+                    to_launch = df[df.status == "not_started"].iloc[0:to_add]
+                    for i in to_launch.index:
+                        self._launch_job(start_job, df, i, backend_name)
+                        job_db.persist(df)
 
     def _launch_job(self, start_job, df, i, backend_name):
         """Helper method for launching jobs
