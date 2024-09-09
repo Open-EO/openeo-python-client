@@ -537,7 +537,7 @@ class MultiBackendJobManager:
         Tracks status (and stats) of running jobs (in place).
         Optionally cancels jobs when running too long.
         """
-        active = self.job_db.get_by_status(include=["created", "queued", "running"])
+        active = job_db.get_by_status(include=["created", "queued", "running"])
         for i in active.index:
             job_id = active.loc[i, "id"]
             backend_name = active.loc[i, "backend_name"]
