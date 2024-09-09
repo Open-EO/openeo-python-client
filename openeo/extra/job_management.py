@@ -369,9 +369,6 @@ class MultiBackendJobManager:
 
             with ignore_connection_errors(context="get statuses"):
                 self._track_statuses(job_db)
-            #TODO do we still want to support this? Would require a 'count_by_status'?
-            #status_histogram = df.groupby("status").size().to_dict()
-            #_log.info(f"Status histogram: {status_histogram}")
 
             not_started = job_db.get_by_status(include=["not_started"],max=200)
 
@@ -615,6 +612,8 @@ class FullDataFrameJobDatabase(JobDatabaseInterface):
         """
 
         df = self.df
+        status_histogram = df.groupby("status").size().to_dict()
+        _log.info(f"Status histogram: {status_histogram}")
         return df[ ~df.status.isin(["finished", "error", "skipped", "start_failed", "cancelled"]) ].size > 0
 
 
