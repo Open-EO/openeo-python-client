@@ -275,7 +275,7 @@ class MultiBackendJobManager:
 
     def run_jobs(
         self,
-        df: pd.DataFrame,
+        df: Optional[pd.DataFrame],
         start_job: Callable[[], BatchJob],
         job_db: Union[str, Path, JobDatabaseInterface, None] = None,
         **kwargs,
@@ -283,7 +283,7 @@ class MultiBackendJobManager:
         """Runs jobs, specified in a dataframe, and tracks parameters.
 
         :param df:
-            DataFrame that specifies the jobs, and tracks the jobs' statuses.
+            DataFrame that specifies the jobs, and tracks the jobs' statuses. If None, the job_db has to be specified and will be used.
 
         :param start_job:
             A callback which will be invoked with, amongst others,
@@ -358,10 +358,7 @@ class MultiBackendJobManager:
         if job_db.exists():
             # Resume from existing db
             _log.info(f"Resuming `run_jobs` from existing {job_db}")
-            #df = job_db.read()
-            #status_histogram = df.groupby("status").size().to_dict()
-            #_log.info(f"Status histogram: {status_histogram}")
-        else:
+        elif df is not None:
             df = self._normalize_df(df)
             job_db.persist(df)
 
