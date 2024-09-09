@@ -6,7 +6,7 @@ import logging
 import time
 import warnings
 from pathlib import Path
-from typing import Callable, Dict, NamedTuple, Optional, Union
+from typing import Callable, Dict, NamedTuple, Optional, Union, List
 
 import pandas as pd
 import requests
