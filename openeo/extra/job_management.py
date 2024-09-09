@@ -75,7 +75,7 @@ class JobDatabaseInterface(metaclass=abc.ABCMeta):
         ...
 
     @abc.abstractmethod
-    def get_by_status(self, include, max=None) -> pd.DataFrame:
+    def get_by_status(self, include: List[str], max=None) -> pd.DataFrame:
         """
         Returns a dataframe with jobs, filtered by status.
 
