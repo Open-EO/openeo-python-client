@@ -75,11 +75,11 @@ class JobDatabaseInterface(metaclass=abc.ABCMeta):
         ...
 
     @abc.abstractmethod
-    def get_by_status(self, include: List[str], max=None) -> pd.DataFrame:
+    def get_by_status(self, statuses: List[str], max=None) -> pd.DataFrame:
         """
         Returns a dataframe with jobs, filtered by status.
 
-        :param include: List of statuses to include.
+        :param statuses: List of statuses to include.
         :param max: Maximum number of jobs to return.
 
         :return: DataFrame with jobs filtered by status.
@@ -370,11 +370,11 @@ class MultiBackendJobManager:
             with ignore_connection_errors(context="get statuses"):
                 self._track_statuses(job_db)
 
-            not_started = job_db.get_by_status(include=["not_started"],max=200)
+            not_started = job_db.get_by_status(statuses=["not_started"],max=200)
 
             if len(not_started) > 0:
                 # Check number of jobs running at each backend
-                running = job_db.get_by_status(include=["created","queued","running"])
+                running = job_db.get_by_status(statuses=["created","queued","running"])
                 per_backend = running.groupby("backend_name").size().to_dict()
                 _log.info(f"Running per backend: {per_backend}")
                 for backend_name in self.backends:
@@ -531,7 +531,7 @@ class MultiBackendJobManager:
         Tracks status (and stats) of running jobs (in place).
         Optionally cancels jobs when running too long.
         """
-        active = job_db.get_by_status(include=["created", "queued", "running"])
+        active = job_db.get_by_status(statuses=["created", "queued", "running"])
         for i in active.index:
             job_id = active.loc[i, "id"]
             backend_name = active.loc[i, "backend_name"]
@@ -618,17 +618,17 @@ class FullDataFrameJobDatabase(JobDatabaseInterface):
 
 
 
-    def get_by_status(self, include, max=None) -> pd.DataFrame:
+    def get_by_status(self, statuses, max=None) -> pd.DataFrame:
         """
         Returns a dataframe with jobs, filtered by status.
 
-        :param include: List of statuses to include.
+        :param statuses: List of statuses to include.
         :param max: Maximum number of jobs to return.
 
         :return: DataFrame with jobs filtered by status.
         """
         df = self.df
-        filtered = df[df.status.isin(include)]
+        filtered = df[df.status.isin(statuses)]
         return filtered.head(max) if max is not None else filtered
 
     def _merge_into_df(self, df: pd.DataFrame):
