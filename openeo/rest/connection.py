@@ -448,8 +448,8 @@ class Connection(RestApiConnection):
     def _get_oidc_provider_and_client_info(
         self,
         provider_id: str,
-        client_id: Union[str, None],
-        client_secret: Union[str, None],
+        client_id: Union[str, None] = None,
+        client_secret: Union[str, None] = None,
         default_client_grant_check: Union[None, GrantsChecker] = None,
     ) -> Tuple[str, OidcClientInfo]:
         """
