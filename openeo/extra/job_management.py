@@ -66,11 +66,11 @@ class JobDatabaseInterface(metaclass=abc.ABCMeta):
         ...
 
     @abc.abstractmethod
-    def has_unfinished_jobs(self) -> bool:
+    def count_by_status(self, statuses: List[str]) -> dict:
         """
-        Check if there are still unfinished jobs in the database.
+        Retrieve the number of jobs per status.
 
-        :return: True if there are unfinished jobs, False otherwise.
+        :return: dictionary with status as key and the count as value.
         """
         ...
 
@@ -363,7 +363,7 @@ class MultiBackendJobManager:
             job_db.persist(df)
 
         while (
-            job_db.has_unfinished_jobs()
+            sum(job_db.count_by_status(statuses=["not_started","created","queued","running"]).values()) > 0
 
         ):
 
@@ -604,17 +604,9 @@ class FullDataFrameJobDatabase(JobDatabaseInterface):
             self._df = self.read()
         return self._df
 
-    def has_unfinished_jobs(self) -> bool:
-        """
-        Check if there are still unfinished jobs in the database.
-
-        :return: True if there are unfinished jobs, False otherwise.
-        """
-
-        df = self.df
-        status_histogram = df.groupby("status").size().to_dict()
-        _log.info(f"Status histogram: {status_histogram}")
-        return df[ ~df.status.isin(["finished", "error", "skipped", "start_failed", "cancelled"]) ].size > 0
+    def count_by_status(self, statuses: List[str]) -> dict:
+        status_histogram = self.df.groupby("status").size().to_dict()
+        return {k:v for k,v in status_histogram.items() if k in statuses}
 
 
 
