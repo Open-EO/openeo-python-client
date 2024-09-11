@@ -105,7 +105,7 @@ and can be chunked:
     The back-end has all freedom to choose chunking
     (e.g. chunk spatially and temporally).
     Dimensions and their labels are fully preserved.
-    See :ref:`udf_example_apply`
+    This function has limited practical use in combination with UDF's.
 
 `apply_dimension <https://processes.openeo.org/#apply_dimension>`_
     Applies a process to all pixels *along a given dimension*
@@ -135,7 +135,8 @@ and can be chunked:
     Applies a process to a neighborhood of pixels
     in a sliding-window fashion with (optional) overlap.
     Data chunking in this case is explicitly controlled by the user.
-    Dimensions and number of labels are fully preserved.
+    Dimensions and number of labels are fully preserved. This is the most versatile
+    and widely used function to work with UDF's.
 
 
 
