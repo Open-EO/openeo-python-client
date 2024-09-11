@@ -628,13 +628,14 @@ class TestCsvJobDatabase:
         db.persist(orig)
         assert path.exists()
 
-        loaded = db.get_by_status(include=["not_started"], max=2)
+        loaded = db.get_by_status(statuses=["not_started"], max=2)
+        assert db.count_by_status(statuses=["not_started"])["not_started"] >1
 
         assert len(loaded) == 2
         loaded.loc[0,"status"] = "running"
         loaded.loc[1, "status"] = "error"
-
         db.persist(loaded)
+        assert db.count_by_status(statuses=["error"])["error"] == 1
 
         all = db.read()
         assert len(all) == len(orig)
