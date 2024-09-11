@@ -284,6 +284,22 @@ class RestApiConnection:
 class Connection(RestApiConnection):
     """
     Connection to an openEO backend.
+
+    :param url: Backend root url
+    :param session: Optional ``requests.Session`` object to use for requests.
+    :param default_timeout: Default timeout for requests in seconds.
+    :param auto_validate: toggle to automatically validate process graphs before execution
+    :param slow_response_threshold: Optional threshold in seconds
+        to consider a response as slow and log a warning.
+    :param auth_config: Optional :class:`AuthConfig` object
+        to fetch authentication related configuration from.
+    :param refresh_token_store: For advanced usage:
+        custom :class:`RefreshTokenStore` object
+        to use for storing/loading refresh tokens.
+    :param oidc_auth_renewer: For advanced usage:
+        optional :class:`OidcAuthenticator` object to use for renewing OIDC tokens.
+    :param auth: Optional ``requests.auth.AuthBase`` object to use for requests.
+        Usage of this parameter is deprecated, use the specific authentication methods instead.
     """
 
     _MINIMUM_API_VERSION = ComparableVersion("1.0.0")
@@ -292,20 +308,15 @@ class Connection(RestApiConnection):
         self,
         url: str,
         *,
-        auth: Optional[AuthBase] = None,
         session: Optional[requests.Session] = None,
         default_timeout: Optional[int] = None,
+        auto_validate: bool = True,
+        slow_response_threshold: Optional[float] = None,
         auth_config: Optional[AuthConfig] = None,
         refresh_token_store: Optional[RefreshTokenStore] = None,
-        slow_response_threshold: Optional[float] = None,
         oidc_auth_renewer: Optional[OidcAuthenticator] = None,
-        auto_validate: bool = True,
+        auth: Optional[AuthBase] = None,
     ):
-        """
-        Constructor of Connection, authenticates user.
-
-        :param url: String Backend root url
-        """
         if "://" not in url:
             url = "https://" + url
         self._orig_url = url
