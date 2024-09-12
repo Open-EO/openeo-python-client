@@ -290,7 +290,7 @@ class TestMultiBackendJobManager:
         output_file = tmp_path / "jobs.csv"
 
         def start_job(row, connection, **kwargs):
-            year = row["year"]
+            year = int(row["year"])
             return BatchJob(job_id=f"job-{year}", connection=connection)
 
         is_done_file = tmp_path / "is_done.txt"
