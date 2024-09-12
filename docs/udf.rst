@@ -317,7 +317,55 @@ To invoke a UDF like this, the apply_neighborhood method is most suitable:
             {'dimension': 'y', 'value': 128, 'unit': 'px'}
         ], overlap=[])
 
+Inspecting variables within UDF
+========================================
 
+To print and inspect variables that are within the UDF, users can use `inspect(data=[], message="")` function. 
+This will print the data that is supplied within, and show it with the message within the logs.
+
+.. code-block:: python
+    :linenos:
+    :caption: ``Inspecting UDFs``
+    :emphasize-lines: 7
+
+    # Create a UDF object from inline source code.
+    udf = openeo.UDF("""
+    import xarray
+
+    def apply_datacube(cube: xarray.DataArray, context: dict) -> xarray.DataArray:
+        cube.values = 0.0001 * cube.values  
+        inspect(data=[type(cube.values)], message="The dtype of cube.values")
+        return cube
+    """)
+
+In the above example, the `inspect` function is used to retrieve the datatype of `cube.values`. Once the job logs are opened in the Web Editor, the result will appear
+under the supplied message. This case it will be shown that `Data: <class 'numpy.ndarray'>`
+ 
+Passing user defined variables to UDF
+========================================
+
+In order to pass variables and values that are used throughout the user side of script, these need to be put in the `context` dictionary.
+Once, these variables are defined within `context` dictionary, the UDF needs to be made context aware, by adding `context={"from_parameter": "context"}` at the end of your UDF.
+See the example below:
+
+.. code-block:: python
+    :linenos:
+    :caption: ``Passing user defined values``
+    :emphasize-lines: 10
+
+    context = {"factor": 0.0001} 
+
+    # Create a UDF object from inline source code.
+    udf = openeo.UDF("""
+    import xarray
+
+    def apply_datacube(cube: xarray.DataArray, context: dict) -> xarray.DataArray:
+        cube.values = context["factor"] * cube.values  # Accessing the value stored in the context dictionary by the "factor" key.
+        return cube
+    """,context={"from_parameter": "context"}) # the UDF is now context aware 
+
+In the example above, the user stores a preferred value of `0.0001`, which can be passed to the UDF and used by the function.
+Later, this value is accessed by calling `context["key"]` within the UDF.
 
 Example: ``apply_dimension`` with a UDF
 ========================================
