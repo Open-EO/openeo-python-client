@@ -153,7 +153,7 @@ class TestMultiBackendJobManager:
         output_file = tmp_path / "jobs.csv"
 
         def start_job(row, connection, **kwargs):
-            year = row["year"]
+            year = int(row["year"])
             return BatchJob(job_id=f"job-{year}", connection=connection)
 
         manager.run_jobs(df=df, start_job=start_job, output_file=output_file)
@@ -407,7 +407,7 @@ class TestMultiBackendJobManager:
         )
 
         def start_job(row, connection_provider, connection, **kwargs):
-            year = row["year"]
+            year = int(row["year"])
             return BatchJob(job_id=f"job-{year}", connection=connection)
 
         output_file = tmp_path / "jobs.csv"
@@ -476,7 +476,7 @@ class TestMultiBackendJobManager:
         )
 
         def start_job(row, connection_provider, connection, **kwargs):
-            year = row["year"]
+            year = int(row["year"])
             return BatchJob(job_id=f"job-{year}", connection=connection)
 
         output_file = tmp_path / "jobs.csv"
