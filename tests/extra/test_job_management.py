@@ -5,6 +5,7 @@ import sys
 import textwrap
 import threading
 import time
+from time import sleep
 from typing import Callable, Union
 from unittest import mock
 
@@ -85,6 +86,69 @@ class TestMultiBackendJobManager:
             yield sleep
 
     def test_basic(self, tmp_path, requests_mock, sleep_mock):
+        manager = self.create_basic_mocked_manager(requests_mock, tmp_path)
+
+        df = pd.DataFrame(
+            {
+                "year": [2018, 2019, 2020, 2021, 2022],
+                # Use simple points in WKT format to test conversion to the geometry dtype
+                "geometry": ["POINT (1 2)"] * 5,
+            }
+        )
+        output_file = tmp_path / "jobs.csv"
+
+        def start_job(row, connection, **kwargs):
+            year = int(row["year"])
+            return BatchJob(job_id=f"job-{year}", connection=connection)
+
+        manager.run_jobs(df=df, start_job=start_job, output_file=output_file)
+        assert sleep_mock.call_count > 10
+
+        result = pd.read_csv(output_file)
+        assert len(result) == 5
+        assert set(result.status) == {"finished"}
+        assert set(result.backend_name) == {"foo", "bar"}
+
+        # We expect that the job metadata was saved, so verify that it exists.
+        # Checking for one of the jobs is enough.
+        metadata_path = manager.get_job_metadata_path(job_id="job-2022")
+        assert metadata_path.exists()
+
+    def test_basic_threading(self, tmp_path, requests_mock, sleep_mock):
+        manager = self.create_basic_mocked_manager(requests_mock, tmp_path)
+
+        df = pd.DataFrame(
+            {
+                "year": [2018, 2019, 2020, 2021, 2022],
+                # Use simple points in WKT format to test conversion to the geometry dtype
+                "geometry": ["POINT (1 2)"] * 5,
+            }
+        )
+        output_file = tmp_path / "jobs.csv"
+
+        def start_job(row, connection, **kwargs):
+            year = int(row["year"])
+            return BatchJob(job_id=f"job-{year}", connection=connection)
+
+        df = manager._normalize_df(df)
+        job_db = CsvJobDatabase(output_file)
+        job_db.persist(df)
+        manager.start_job_thread( start_job=start_job,job_db=job_db)
+        sleep(20)
+        manager.stop_job_thread(10)
+        #assert sleep_mock.call_count > 10
+
+        result = pd.read_csv(output_file)
+        assert len(result) == 5
+        assert set(result.status) == {"finished"}
+        assert set(result.backend_name) == {"foo", "bar"}
+
+        # We expect that the job metadata was saved, so verify that it exists.
+        # Checking for one of the jobs is enough.
+        metadata_path = manager.get_job_metadata_path(job_id="job-2022")
+        assert metadata_path.exists()
+
+    def create_basic_mocked_manager(self, requests_mock, tmp_path):
         requests_mock.get("http://foo.test/", json={"api_version": "1.1.0"})
         requests_mock.get("http://bar.test/", json={"api_version": "1.1.0"})
 
@@ -136,38 +200,11 @@ class TestMultiBackendJobManager:
         mock_job_status("job-2020", queued=3, running=4)
         mock_job_status("job-2021", queued=3, running=5)
         mock_job_status("job-2022", queued=5, running=6)
-
         root_dir = tmp_path / "job_mgr_root"
         manager = MultiBackendJobManager(root_dir=root_dir)
-
         manager.add_backend("foo", connection=openeo.connect("http://foo.test"))
         manager.add_backend("bar", connection=openeo.connect("http://bar.test"))
-
-        df = pd.DataFrame(
-            {
-                "year": [2018, 2019, 2020, 2021, 2022],
-                # Use simple points in WKT format to test conversion to the geometry dtype
-                "geometry": ["POINT (1 2)"] * 5,
-            }
-        )
-        output_file = tmp_path / "jobs.csv"
-
-        def start_job(row, connection, **kwargs):
-            year = int(row["year"])
-            return BatchJob(job_id=f"job-{year}", connection=connection)
-
-        manager.run_jobs(df=df, start_job=start_job, output_file=output_file)
-        assert sleep_mock.call_count > 10
-
-        result = pd.read_csv(output_file)
-        assert len(result) == 5
-        assert set(result.status) == {"finished"}
-        assert set(result.backend_name) == {"foo", "bar"}
-
-        # We expect that the job metadata was saved, so verify that it exists.
-        # Checking for one of the jobs is enough.
-        metadata_path = manager.get_job_metadata_path(job_id="job-2022")
-        assert metadata_path.exists()
+        return manager
 
     def test_normalize_df(self):
         df = pd.DataFrame(

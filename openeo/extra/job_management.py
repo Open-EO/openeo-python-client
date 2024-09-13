@@ -7,6 +7,7 @@ import logging
 import time
 import warnings
 from pathlib import Path
+from threading import Thread
 from typing import Callable, Dict, NamedTuple, Optional, Union, List
 
 import pandas as pd
@@ -173,7 +174,7 @@ class MultiBackendJobManager:
         self._cancel_running_job_after = (
             datetime.timedelta(seconds=cancel_running_job_after) if cancel_running_job_after is not None else None
         )
-        self._loop_task = None
+        self._timer = None
 
     def add_backend(
         self,
@@ -288,30 +289,23 @@ class MultiBackendJobManager:
 
         self._stop = False
 
-        async def run_loop():
 
-            while (
-                df[
-                    # TODO: risk on infinite loop if a backend reports a (non-standard) terminal status that is not covered here
-                    (df.status != "finished")
-                    & (df.status != "skipped")
-                    & (df.status != "start_failed")
-                    & (df.status != "error")
-                    & (df.status != "canceled")
-                ].size
-                > 0 and not self._stop
+
+        def run_loop():
+            while (sum(job_db.count_by_status(statuses=["not_started","created","queued","running"]).values()) > 0 and not self._stop
             ):
+                self._job_update_loop(df, job_db, start_job)
 
-                await self._job_update_loop(df, job_db, start_job)
-                await asyncio.sleep(self.poll_sleep)
 
-        self.loop_task = asyncio.create_task(run_loop())
+
+        self._timer = Thread(target = run_loop)
+        self._timer.start()
 
     def stop_job_thread(self, force_timeout_seconds = 30):
-        if(self._loop_task is not None):
-            self._stop = True
-            asyncio.sleep(force_timeout_seconds)
-            self._loop_task.cancel()
+        self._stop = True
+        if(self._timer is not None):
+            self._timer.join(force_timeout_seconds)
+
 
     def run_jobs(
         self,
@@ -404,16 +398,15 @@ class MultiBackendJobManager:
 
         while (
             sum(job_db.count_by_status(statuses=["not_started","created","queued","running"]).values()) > 0
-
         ):
-
-            asyncio.run(self._job_update_loop(df, job_db, start_job))
-
+            self._job_update_loop(df, job_db, start_job)
             time.sleep(self.poll_sleep)
 
-    async def _job_update_loop(self, df, job_db, start_job):
+    def _job_update_loop(self, df, job_db, start_job):
         with ignore_connection_errors(context="get statuses"):
             self._track_statuses(job_db)
+
+
 
         not_started = job_db.get_by_status(statuses=["not_started"],max=200)
         if len(not_started) > 0:
@@ -429,6 +422,8 @@ class MultiBackendJobManager:
                     for i in to_launch.index:
                         self._launch_job(start_job, not_started, i, backend_name)
                         job_db.persist(to_launch)
+
+
 
     def _launch_job(self, start_job, df, i, backend_name):
         """Helper method for launching jobs
