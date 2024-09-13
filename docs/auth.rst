@@ -205,10 +205,7 @@ using :py:meth:`~openeo.rest.connection.Connection.authenticate_oidc_refresh_tok
 
 .. code-block:: python
 
-    connection.authenticate_oidc_refresh_token(
-        client_secret=client_secret,
-        client_id=client_id
-    )
+    connection.authenticate_oidc_refresh_token()
 
 You can also bootstrap the refresh token file
 as described in :ref:`oidc_auth_get_refresh_token`

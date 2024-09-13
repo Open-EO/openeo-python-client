@@ -105,7 +105,7 @@ and can be chunked:
     The back-end has all freedom to choose chunking
     (e.g. chunk spatially and temporally).
     Dimensions and their labels are fully preserved.
-    See :ref:`udf_example_apply`
+    This function has limited practical use in combination with UDF's.
 
 `apply_dimension <https://processes.openeo.org/#apply_dimension>`_
     Applies a process to all pixels *along a given dimension*
@@ -135,7 +135,8 @@ and can be chunked:
     Applies a process to a neighborhood of pixels
     in a sliding-window fashion with (optional) overlap.
     Data chunking in this case is explicitly controlled by the user.
-    Dimensions and number of labels are fully preserved.
+    Dimensions and number of labels are fully preserved. This is the most versatile
+    and widely used function to work with UDF's.
 
 
 
@@ -187,7 +188,8 @@ which is the modus operandi of the ``apply`` processes.
 
     In practice it will be a lot easier and more efficient to do this kind of rescaling
     with pre-defined openEO math processes, for example: ``s2_cube.apply(lambda x: 0.0001 * x)``.
-    This is just a very simple illustration to get started with UDFs.
+    This is just a very simple illustration to get started with UDFs. In fact, it's very likely that
+    you will never want to use a UDF with apply.
 
 UDF script
 ----------
@@ -316,15 +318,12 @@ To invoke a UDF like this, the apply_neighborhood method is most suitable:
         ], overlap=[])
 
 
-Illustration of data chunking in ``apply`` with a  UDF
-========================================================
-
-TODO
 
 Example: ``apply_dimension`` with a UDF
 ========================================
 
-TODO
+This is useful when running custom code over all band values for a given pixel or all observations per pixel.
+See section below 'Smoothing timeseries with a user defined function' for a concrete example.
 
 Example: ``reduce_dimension`` with a UDF
 ========================================
