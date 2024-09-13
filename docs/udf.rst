@@ -351,9 +351,7 @@ See the example below:
 .. code-block:: python
     :linenos:
     :caption: ``Passing user defined values``
-    :emphasize-lines: 10
-
-    context = {"factor": 0.0001} 
+    :emphasize-lines: 8
 
     # Create a UDF object from inline source code.
     udf = openeo.UDF("""
@@ -364,8 +362,13 @@ See the example below:
         return cube
     """,context={"from_parameter": "context"}) # the UDF is now context aware 
 
-In the example above, the user stores a preferred value of `0.0001`, which can be passed to the UDF and used by the function.
+    user_variable = {"factor": 0.0001}
+    cube = cube.apply(udf, context = user_variable)
+
+In the example above, the user stores a preferred value of `0.0001` in the `user_variable` dictionary, 
+which can be passed to the UDF and used by the function.
 Later, this value is accessed by calling `context["factor"]` within the UDF.
+The parent UDF is called with the user's custom dictionary with `.apply(udf, context = user_variable)`.
 
 Example: ``apply_dimension`` with a UDF
 ========================================
