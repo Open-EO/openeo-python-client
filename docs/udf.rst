@@ -365,7 +365,7 @@ See the example below:
     """,context={"from_parameter": "context"}) # the UDF is now context aware 
 
 In the example above, the user stores a preferred value of `0.0001`, which can be passed to the UDF and used by the function.
-Later, this value is accessed by calling `context["key"]` within the UDF.
+Later, this value is accessed by calling `context["factor"]` within the UDF.
 
 Example: ``apply_dimension`` with a UDF
 ========================================
