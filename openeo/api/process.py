@@ -37,7 +37,7 @@ class Parameter:
         self,
         name: str,
         description: Optional[str] = None,
-        schema: Union[dict, str, None] = None,
+        schema: Union[list, dict, str, None] = None,
         default=_DEFAULT_UNDEFINED,
         optional: Optional[bool] = None,
     ):
@@ -289,16 +289,15 @@ Set this parameter to null to set no limit for the spatial extent. """
 
     @classmethod
     def spatial_extent(
-            cls,
-            name: str = "spatial_extent",
-            description: str = _spatial_extent_description,
-            **kwargs,
+        cls,
+        name: str = "spatial_extent",
+        description: str = _spatial_extent_description,
+        **kwargs,
     ) -> Parameter:
         """
         Helper to easily create a 'spatial_extent' parameter, which is compatible with the 'load_collection' argument of
         the same name. This allows to conveniently create user-defined processes that can be applied to a bounding box and vector data
         for spatial filtering. It is also possible for users to set to null, and define spatial filtering using other processes.
-
 
         :param name: parameter name, which will be used to assign concrete values to.
             It is recommended to stick to the convention of snake case naming (using lowercase with underscores).
@@ -306,90 +305,58 @@ Set this parameter to null to set no limit for the spatial extent. """
 
         See the generic :py:class:`Parameter` constructor for information on additional arguments (except ``schema``).
 
+        .. versionadded:: 0.32.0
         """
         schema = [
             {
-              "title": "Bounding Box",
-              "type": "object",
-              "subtype": "bounding-box",
-              "required": [
-                "west",
-                "south",
-                "east",
-                "north"
-              ],
-              "properties": {
-                "west": {
-                  "description": "West (lower left corner, coordinate axis 1).",
-                  "type": "number"
-                },
-                "south": {
-                  "description": "South (lower left corner, coordinate axis 2).",
-                  "type": "number"
-                },
-                "east": {
-                  "description": "East (upper right corner, coordinate axis 1).",
-                  "type": "number"
-                },
-                "north": {
-                  "description": "North (upper right corner, coordinate axis 2).",
-                  "type": "number"
-                },
-                "base": {
-                  "description": "Base (optional, lower left corner, coordinate axis 3).",
-                  "type": [
-                    "number",
-                    "null"
-                  ],
-                  "default": None
-                },
-                "height": {
-                  "description": "Height (optional, upper right corner, coordinate axis 3).",
-                  "type": [
-                    "number",
-                    "null"
-                  ],
-                  "default": None
-                },
-                "crs": {
-                  "description": "Coordinate reference system of the extent, specified as as [EPSG code](http://www.epsg-registry.org/) or [WKT2 CRS string](http://docs.opengeospatial.org/is/18-010r7/18-010r7.html). Defaults to `4326` (EPSG code 4326) unless the client explicitly requests a different coordinate reference system.",
-                  "anyOf": [
-                    {
-                      "title": "EPSG Code",
-                      "type": "integer",
-                      "subtype": "epsg-code",
-                      "minimum": 1000,
-                      "examples": [
-                        3857
-                      ]
+                "title": "Bounding Box",
+                "type": "object",
+                "subtype": "bounding-box",
+                "required": ["west", "south", "east", "north"],
+                "properties": {
+                    "west": {"description": "West (lower left corner, coordinate axis 1).", "type": "number"},
+                    "south": {"description": "South (lower left corner, coordinate axis 2).", "type": "number"},
+                    "east": {"description": "East (upper right corner, coordinate axis 1).", "type": "number"},
+                    "north": {"description": "North (upper right corner, coordinate axis 2).", "type": "number"},
+                    "base": {
+                        "description": "Base (optional, lower left corner, coordinate axis 3).",
+                        "type": ["number", "null"],
+                        "default": None,
                     },
-                    {
-                      "title": "WKT2",
-                      "type": "string",
-                      "subtype": "wkt2-definition"
-                    }
-                  ],
-                  "default": 4326
-                }
-              }
+                    "height": {
+                        "description": "Height (optional, upper right corner, coordinate axis 3).",
+                        "type": ["number", "null"],
+                        "default": None,
+                    },
+                    "crs": {
+                        "description": "Coordinate reference system of the extent, specified as as [EPSG code](http://www.epsg-registry.org/) or [WKT2 CRS string](http://docs.opengeospatial.org/is/18-010r7/18-010r7.html). Defaults to `4326` (EPSG code 4326) unless the client explicitly requests a different coordinate reference system.",
+                        "anyOf": [
+                            {
+                                "title": "EPSG Code",
+                                "type": "integer",
+                                "subtype": "epsg-code",
+                                "minimum": 1000,
+                                "examples": [3857],
+                            },
+                            {"title": "WKT2", "type": "string", "subtype": "wkt2-definition"},
+                        ],
+                        "default": 4326,
+                    },
+                },
             },
             {
-              "title": "Vector data cube",
-              "description": "Limits the data cube to the bounding box of the given geometries in the vector data cube. For raster data, all pixels inside the bounding box that do not intersect with any of the polygons will be set to no data (`null`). Empty geometries are ignored.",
-              "type": "object",
-              "subtype": "datacube",
-              "dimensions": [
-                {
-                  "type": "geometry"
-                }
-              ]
+                "title": "Vector data cube",
+                "description": "Limits the data cube to the bounding box of the given geometries in the vector data cube. For raster data, all pixels inside the bounding box that do not intersect with any of the polygons will be set to no data (`null`). Empty geometries are ignored.",
+                "type": "object",
+                "subtype": "datacube",
+                "dimensions": [{"type": "geometry"}],
             },
             {
-              "title": "No filter",
-              "description": "Don't filter spatially. All data is included in the data cube.",
-              "type": "null"
-            }
-          ]
+                "title": "No filter",
+                "description": "Don't filter spatially. All data is included in the data cube.",
+                "type": "null",
+            },
+        ]
         return cls(name=name, description=description, schema=schema, **kwargs)
 
     @classmethod
