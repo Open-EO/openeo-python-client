@@ -281,6 +281,41 @@ class MultiBackendJobManager:
         job_db: JobDatabaseInterface ):
         """
         Start running the jobs in a separate thread, returns afterwards.
+
+        :param start_job:
+            A callback which will be invoked with, amongst others,
+            the row of the dataframe for which a job should be created and/or started.
+            This callable should return a :py:class:`openeo.rest.job.BatchJob` object.
+
+            The following parameters will be passed to ``start_job``:
+
+                ``row`` (:py:class:`pandas.Series`):
+                    The row in the pandas dataframe that stores the jobs state and other tracked data.
+
+                ``connection_provider``:
+                    A getter to get a connection by backend name.
+                    Typically, you would need either the parameter ``connection_provider``,
+                    or the parameter ``connection``, but likely you will not need both.
+
+                ``connection`` (:py:class:`Connection`):
+                    The :py:class:`Connection` itself, that has already been created.
+                    Typically, you would need either the parameter ``connection_provider``,
+                    or the parameter ``connection``, but likely you will not need both.
+
+                ``provider`` (``str``):
+                    The name of the backend that will run the job.
+
+            You do not have to define all the parameters described below, but if you leave
+            any of them out, then remember to include the ``*args`` and ``**kwargs`` parameters.
+            Otherwise you will have an exception because :py:meth:`run_jobs` passes unknown parameters to ``start_job``.
+        :param job_db:
+            Job database to load/store existing job status data and other metadata from/to.
+            Can be specified as a path to CSV or Parquet file,
+            or as a custom database object following the :py:class:`JobDatabaseInterface` interface.
+
+            .. note::
+                Support for Parquet files depends on the ``pyarrow`` package
+                as :ref:`optional dependency <installation-optional-dependencies>`.
         """
 
         # Resume from existing db
@@ -289,22 +324,28 @@ class MultiBackendJobManager:
 
         self._stop = False
 
-
-
         def run_loop():
             while (sum(job_db.count_by_status(statuses=["not_started","created","queued","running"]).values()) > 0 and not self._stop
             ):
                 self._job_update_loop(df, job_db, start_job)
-
+                time.sleep(self.poll_sleep)
 
 
         self._timer = Thread(target = run_loop)
         self._timer.start()
 
-    def stop_job_thread(self, force_timeout_seconds = 30):
+    def stop_job_thread(self, timeout_seconds = None):
+        """
+        Try to stop the thread, if timeout_seconds is set, the method will return after the timeout
+
+        :param timeout_seconds: The time to wait for the thread to stop, set to None (default) to wait indefinitely
+
+        """
         self._stop = True
         if(self._timer is not None):
-            self._timer.join(force_timeout_seconds)
+            self._timer.join(timeout_seconds)
+            if(self._timer.is_alive()):
+                _log.warning("Job thread did not stop after timeout")
 
 
     def run_jobs(
