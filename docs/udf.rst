@@ -365,7 +365,7 @@ See the example below:
     user_variable = {"factor": 0.0001}
     cube = cube.apply(udf, context = user_variable)
 
-In the example above, the user stores a preferred value of `0.0001` in the `user_variable` dictionary, 
+In the example above, the user stores a preferred value of ``0.0001`` in the ``user_variable`` dictionary, 
 which can be passed to the UDF and used by the function.
 Later, this value is accessed by calling `context["factor"]` within the UDF.
 The parent UDF is called with the user's custom dictionary with `.apply(udf, context = user_variable)`.
