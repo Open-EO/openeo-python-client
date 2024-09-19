@@ -114,6 +114,9 @@ class STACAPIJobDatabase(JobDatabaseInterface):
 
     def get_by_status(self, statuses: List[str], max=None) -> pd.DataFrame:
 
+        if isinstance(statuses,str):
+            statuses = [statuses]
+
         status_filter =  " OR ".join([ f"status = {s}" for s in statuses])
         search_results = self.client.search(
             method="GET",
