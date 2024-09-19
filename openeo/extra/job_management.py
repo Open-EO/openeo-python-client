@@ -46,14 +46,6 @@ class JobDatabaseInterface(metaclass=abc.ABCMeta):
         """Does the job database already exist, to read job data from?"""
         ...
 
-    @abc.abstractmethod
-    def read(self) -> pd.DataFrame:
-        """
-        Read job data from the database as pandas DataFrame.
-
-        :return: loaded job data.
-        """
-        ...
 
     @abc.abstractmethod
     def persist(self, df: pd.DataFrame):
