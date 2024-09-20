@@ -130,13 +130,13 @@ class TestMultiBackendJobManager:
             year = int(row["year"])
             return BatchJob(job_id=f"job-{year}", connection=connection)
 
-        df = manager._normalize_df(df)
         job_db = CsvJobDatabase(output_file)
-        job_db.persist(df)
+        manager.initialize_job_db(job_db,df)
+
         manager.start_job_thread( start_job=start_job,job_db=job_db)
-        sleep(20)
+        sleep(5)
         manager.stop_job_thread(10)
-        #assert sleep_mock.call_count > 10
+        assert sleep_mock.call_count > 10
 
         result = pd.read_csv(output_file)
         assert len(result) == 5

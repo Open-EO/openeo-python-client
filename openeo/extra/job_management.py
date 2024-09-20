@@ -267,6 +267,7 @@ class MultiBackendJobManager:
             # TODO: columns "cpu", "memory", "duration" are not referenced directly
             #       within MultiBackendJobManager making it confusing to claim they are required.
             #       However, they are through assumptions about job "usage" metadata in `_track_statuses`.
+            #       => proposed solution: allow to configure usage columns when adding a backend
             ("cpu", None),
             ("memory", None),
             ("duration", None),
@@ -276,6 +277,27 @@ class MultiBackendJobManager:
         df = df.assign(**new_columns)
 
         return df
+
+    def initialize_job_db(self,job_db:JobDatabaseInterface, dataframe:pd.DataFrame):
+        """
+        Initialize a job database to be compatible with this job manager.
+        The provided dataframe should contain all the columns that you need to create your jobs.
+
+        This job manager uses the following reserved column names: status, id, start_time, running_start_time,
+        cpu, memory, duration, backend_name.
+
+        If the column name already exists in the provided dataframe, it will be assumed that it can be used as is by
+        this job manager.
+
+
+        """
+
+        if( not job_db.exists()):
+            dataframe = self._normalize_df(dataframe)
+            job_db.persist(dataframe)
+        else:
+            raise ValueError(f"Job database {job_db} already exists, cannot initialize.")
+
 
     def start_job_thread(self,start_job: Callable[[], BatchJob],
         job_db: JobDatabaseInterface ):
@@ -312,6 +334,7 @@ class MultiBackendJobManager:
             Job database to load/store existing job status data and other metadata from/to.
             Can be specified as a path to CSV or Parquet file,
             or as a custom database object following the :py:class:`JobDatabaseInterface` interface.
+            The job database should be initialized with :py:meth:`initialize_job_db` before calling this method.
 
             .. note::
                 Support for Parquet files depends on the ``pyarrow`` package
@@ -434,8 +457,7 @@ class MultiBackendJobManager:
             # Resume from existing db
             _log.info(f"Resuming `run_jobs` from existing {job_db}")
         elif df is not None:
-            df = self._normalize_df(df)
-            job_db.persist(df)
+            self.initialize_job_db(job_db,df)
 
         while (
             sum(job_db.count_by_status(statuses=["not_started","created","queued","running"]).values()) > 0
@@ -644,7 +666,8 @@ class MultiBackendJobManager:
 
                 # TODO: there is well hidden coupling here with "cpu", "memory" and "duration" from `_normalize_df`
                 for key in job_metadata.get("usage", {}).keys():
-                    active.loc[i, key] = _format_usage_stat(job_metadata, key)
+                    if key in active.columns:
+                        active.loc[i, key] = _format_usage_stat(job_metadata, key)
 
             except OpenEoApiError as e:
                 print(f"error for job {job_id!r} on backend {backend_name}")
@@ -725,6 +748,9 @@ class CsvJobDatabase(FullDataFrameJobDatabase):
         super().__init__()
         self.path = Path(path)
 
+    def __str__(self):
+        return str(self.path)
+
     def exists(self) -> bool:
         return self.path.exists()
 
@@ -773,6 +799,9 @@ class ParquetJobDatabase(FullDataFrameJobDatabase):
     def __init__(self, path: Union[str, Path]):
         super().__init__()
         self.path = Path(path)
+
+    def __str__(self):
+        return str(self.path)
 
     def exists(self) -> bool:
         return self.path.exists()
