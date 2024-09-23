@@ -2103,6 +2103,7 @@ class DataCube(_ProcessGraphAbstraction):
         :param options: (optional) desired `save_result` file format parameters
         :return:
         """
+        allowed_result_nodes = ["sen2like", ]
         # TODO #401 Unify with VectorCube._ensure_save_result and move to generic data cube parent class (not only for raster cubes, but also vector cubes)
         result_node = self.result_node()
         if result_node.process_id == "save_result":
@@ -2118,6 +2119,8 @@ class DataCube(_ProcessGraphAbstraction):
                     f"Existing `save_result` node with different options {args['options']!r} != {options!r}"
                 )
             cube = self
+        elif result_node in allowed_result_nodes:
+            pass
         else:
             # No `save_result` node yet: automatically add it.
             cube = self.save_result(
