@@ -32,6 +32,9 @@ class _Backend(NamedTuple):
 
 MAX_RETRIES = 5
 
+# Sentinel value to indicate that a parameter was not set
+_UNSET = object()
+
 
 class JobDatabaseInterface(metaclass=abc.ABCMeta):
     """
@@ -348,24 +351,35 @@ class MultiBackendJobManager:
                 and not self._stop_thread
             ):
                 self._job_update_loop(df, job_db, start_job)
-                time.sleep(self.poll_sleep)
+
+                # Do sequence of micro-sleeps to allow for quick thread exit
+                for _ in range(int(max(1, self.poll_sleep))):
+                    time.sleep(1)
+                    if self._stop_thread:
+                        break
 
         self._thread = Thread(target=run_loop)
         self._thread.start()
 
-    def stop_job_thread(self, timeout_seconds=None):
+    def stop_job_thread(self, timeout_seconds: Optional[float] = _UNSET):
         """
-        Try to stop the thread, if timeout_seconds is set, the method will return after the timeout
+        Stop the job polling thread.
 
-        :param timeout_seconds: The time to wait for the thread to stop, set to None (default) to wait indefinitely
+        :param timeout_seconds: The time to wait for the thread to stop.
+            By default, it will wait for 2 times the poll_sleep time.
+            Set to None to wait indefinitely.
 
         .. versionadded:: 0.32.0
         """
-        self._stop_thread = True
         if self._thread is not None:
+            self._stop_thread = True
+            if timeout_seconds is _UNSET:
+                timeout_seconds = 2 * self.poll_sleep
             self._thread.join(timeout_seconds)
             if self._thread.is_alive():
                 _log.warning("Job thread did not stop after timeout")
+        else:
+            _log.error("No job thread to stop")
 
     def run_jobs(
         self,

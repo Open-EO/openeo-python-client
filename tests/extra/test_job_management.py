@@ -130,7 +130,7 @@ class TestMultiBackendJobManager:
         manager.start_job_thread(start_job=start_job, job_db=job_db)
         # Trigger context switch to job thread
         sleep(1)
-        manager.stop_job_thread(10)
+        manager.stop_job_thread()
         assert sleep_mock.call_count > 10
 
         result = pd.read_csv(output_file)
