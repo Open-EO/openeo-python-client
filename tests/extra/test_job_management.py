@@ -128,7 +128,8 @@ class TestMultiBackendJobManager:
         manager.initialize_job_db(job_db, df)
 
         manager.start_job_thread(start_job=start_job, job_db=job_db)
-        sleep(5)
+        # Trigger context switch to job thread
+        sleep(1)
         manager.stop_job_thread(10)
         assert sleep_mock.call_count > 10
 

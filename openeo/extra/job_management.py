@@ -162,7 +162,7 @@ class MultiBackendJobManager:
         .. versionchanged:: 0.32.0
             Added `cancel_running_job_after` parameter.
         """
-        self._stop = True
+        self._stop_thread = None
         self.backends: Dict[str, _Backend] = {}
         self.poll_sleep = poll_sleep
         self._connections: Dict[str, _Backend] = {}
@@ -173,7 +173,7 @@ class MultiBackendJobManager:
         self._cancel_running_job_after = (
             datetime.timedelta(seconds=cancel_running_job_after) if cancel_running_job_after is not None else None
         )
-        self._timer = None
+        self._thread = None
 
     def add_backend(
         self,
@@ -287,10 +287,7 @@ class MultiBackendJobManager:
 
         If the column name already exists in the provided dataframe, it will be assumed that it can be used as is by
         this job manager.
-
-
         """
-
         if not job_db.exists():
             dataframe = self._normalize_df(dataframe)
             job_db.persist(dataframe)
@@ -336,24 +333,25 @@ class MultiBackendJobManager:
             .. note::
                 Support for Parquet files depends on the ``pyarrow`` package
                 as :ref:`optional dependency <installation-optional-dependencies>`.
+
+        .. versionadded:: 0.32.0
         """
 
         # Resume from existing db
         _log.info(f"Resuming `run_jobs` from existing {job_db}")
         df = job_db.read()
 
-        self._stop = False
-
+        self._stop_thread = False
         def run_loop():
             while (
                 sum(job_db.count_by_status(statuses=["not_started", "created", "queued", "running"]).values()) > 0
-                and not self._stop
+                and not self._stop_thread
             ):
                 self._job_update_loop(df, job_db, start_job)
                 time.sleep(self.poll_sleep)
 
-        self._timer = Thread(target=run_loop)
-        self._timer.start()
+        self._thread = Thread(target=run_loop)
+        self._thread.start()
 
     def stop_job_thread(self, timeout_seconds=None):
         """
@@ -361,11 +359,12 @@ class MultiBackendJobManager:
 
         :param timeout_seconds: The time to wait for the thread to stop, set to None (default) to wait indefinitely
 
+        .. versionadded:: 0.32.0
         """
-        self._stop = True
-        if self._timer is not None:
-            self._timer.join(timeout_seconds)
-            if self._timer.is_alive():
+        self._stop_thread = True
+        if self._thread is not None:
+            self._thread.join(timeout_seconds)
+            if self._thread.is_alive():
                 _log.warning("Job thread did not stop after timeout")
 
     def run_jobs(
@@ -685,7 +684,6 @@ def ignore_connection_errors(context: Optional[str] = None, sleep: int = 5):
 
 class FullDataFrameJobDatabase(JobDatabaseInterface):
 
-
     def __init__(self):
         super().__init__()
         self._df = None
@@ -699,8 +697,6 @@ class FullDataFrameJobDatabase(JobDatabaseInterface):
     def count_by_status(self, statuses: List[str]) -> dict:
         status_histogram = self.df.groupby("status").size().to_dict()
         return {k:v for k,v in status_histogram.items() if k in statuses}
-
-
 
     def get_by_status(self, statuses, max=None) -> pd.DataFrame:
         """
