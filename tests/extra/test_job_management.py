@@ -1,10 +1,6 @@
-import datetime
 import json
 import re
-import sys
-import textwrap
 import threading
-import time
 from time import sleep
 from typing import Callable, Union
 from unittest import mock
@@ -24,7 +20,6 @@ import pandas as pd
 import pytest
 import requests
 import shapely.geometry
-import time_machine
 
 import openeo
 import openeo.extra.job_management
@@ -35,7 +30,6 @@ from openeo.extra.job_management import (
     MultiBackendJobManager,
     ParquetJobDatabase,
 )
-from openeo.rest import OpenEoApiError
 from openeo.util import rfc3339
 
 
@@ -131,9 +125,9 @@ class TestMultiBackendJobManager:
             return BatchJob(job_id=f"job-{year}", connection=connection)
 
         job_db = CsvJobDatabase(output_file)
-        manager.initialize_job_db(job_db,df)
+        manager.initialize_job_db(job_db, df)
 
-        manager.start_job_thread( start_job=start_job,job_db=job_db)
+        manager.start_job_thread(start_job=start_job, job_db=job_db)
         sleep(5)
         manager.stop_job_thread(10)
         assert sleep_mock.call_count > 10

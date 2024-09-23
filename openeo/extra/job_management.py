@@ -1,5 +1,4 @@
 import abc
-import asyncio
 import contextlib
 import datetime
 import json
@@ -8,7 +7,7 @@ import time
 import warnings
 from pathlib import Path
 from threading import Thread
-from typing import Callable, Dict, NamedTuple, Optional, Union, List
+from typing import Callable, Dict, List, NamedTuple, Optional, Union
 
 import pandas as pd
 import requests
@@ -278,7 +277,7 @@ class MultiBackendJobManager:
 
         return df
 
-    def initialize_job_db(self,job_db:JobDatabaseInterface, dataframe:pd.DataFrame):
+    def initialize_job_db(self, job_db: JobDatabaseInterface, dataframe: pd.DataFrame):
         """
         Initialize a job database to be compatible with this job manager.
         The provided dataframe should contain all the columns that you need to create your jobs.
@@ -292,15 +291,13 @@ class MultiBackendJobManager:
 
         """
 
-        if( not job_db.exists()):
+        if not job_db.exists():
             dataframe = self._normalize_df(dataframe)
             job_db.persist(dataframe)
         else:
             raise ValueError(f"Job database {job_db} already exists, cannot initialize.")
 
-
-    def start_job_thread(self,start_job: Callable[[], BatchJob],
-        job_db: JobDatabaseInterface ):
+    def start_job_thread(self, start_job: Callable[[], BatchJob], job_db: JobDatabaseInterface):
         """
         Start running the jobs in a separate thread, returns afterwards.
 
@@ -348,16 +345,17 @@ class MultiBackendJobManager:
         self._stop = False
 
         def run_loop():
-            while (sum(job_db.count_by_status(statuses=["not_started","created","queued","running"]).values()) > 0 and not self._stop
+            while (
+                sum(job_db.count_by_status(statuses=["not_started", "created", "queued", "running"]).values()) > 0
+                and not self._stop
             ):
                 self._job_update_loop(df, job_db, start_job)
                 time.sleep(self.poll_sleep)
 
-
-        self._timer = Thread(target = run_loop)
+        self._timer = Thread(target=run_loop)
         self._timer.start()
 
-    def stop_job_thread(self, timeout_seconds = None):
+    def stop_job_thread(self, timeout_seconds=None):
         """
         Try to stop the thread, if timeout_seconds is set, the method will return after the timeout
 
@@ -365,11 +363,10 @@ class MultiBackendJobManager:
 
         """
         self._stop = True
-        if(self._timer is not None):
+        if self._timer is not None:
             self._timer.join(timeout_seconds)
-            if(self._timer.is_alive()):
+            if self._timer.is_alive():
                 _log.warning("Job thread did not stop after timeout")
-
 
     def run_jobs(
         self,
@@ -457,11 +454,9 @@ class MultiBackendJobManager:
             # Resume from existing db
             _log.info(f"Resuming `run_jobs` from existing {job_db}")
         elif df is not None:
-            self.initialize_job_db(job_db,df)
+            self.initialize_job_db(job_db, df)
 
-        while (
-            sum(job_db.count_by_status(statuses=["not_started","created","queued","running"]).values()) > 0
-        ):
+        while sum(job_db.count_by_status(statuses=["not_started", "created", "queued", "running"]).values()) > 0:
             self._job_update_loop(df, job_db, start_job)
             time.sleep(self.poll_sleep)
 
@@ -469,12 +464,10 @@ class MultiBackendJobManager:
         with ignore_connection_errors(context="get statuses"):
             self._track_statuses(job_db)
 
-
-
-        not_started = job_db.get_by_status(statuses=["not_started"],max=200)
+        not_started = job_db.get_by_status(statuses=["not_started"], max=200)
         if len(not_started) > 0:
             # Check number of jobs running at each backend
-            running = job_db.get_by_status(statuses=["created","queued","running"])
+            running = job_db.get_by_status(statuses=["created", "queued", "running"])
             per_backend = running.groupby("backend_name").size().to_dict()
             _log.info(f"Running per backend: {per_backend}")
             for backend_name in self.backends:
@@ -485,8 +478,6 @@ class MultiBackendJobManager:
                     for i in to_launch.index:
                         self._launch_job(start_job, not_started, i, backend_name)
                         job_db.persist(to_launch)
-
-
 
     def _launch_job(self, start_job, df, i, backend_name):
         """Helper method for launching jobs
