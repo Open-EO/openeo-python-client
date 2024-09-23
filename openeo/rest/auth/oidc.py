@@ -402,7 +402,13 @@ class OidcAuthenticator:
                 g=self.grant_type, c=self.client_id, u=token_endpoint, p=list(post_data.keys())
             )
         )
-        resp = self._requests.post(url=token_endpoint, data=post_data)
+        try:
+            resp = self._requests.post(url=token_endpoint, data=post_data)
+        except requests.exceptions.ConnectionError as e:
+            raise OidcException(
+                "Failed to retrieve access token at {u!r}: {s} {t}".format(
+                    u=e.request, t=str(e)
+                ))
         if resp.status_code != 200:
             # TODO: are other status_code values valid too?
             raise OidcException(
