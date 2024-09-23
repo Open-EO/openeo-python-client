@@ -11,11 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `load_stac`/`metadata_from_stac`: add support for extracting actual temporal dimension metadata ([#567](https://github.com/Open-EO/openeo-python-client/issues/567))
 - `MultiBackendJobManager`: add `cancel_running_job_after` option to automatically cancel jobs that are running for too long ([#590](https://github.com/Open-EO/openeo-python-client/issues/590))
+- Added `openeo.api.process.Parameter` helper to easily create a "spatial_extent" UDP parameter
 - `MultiBackendJobManager`: add API to the update loop in a separate thread, allowing controlled interruption.
 
 ### Changed
 
-- `MultiBackendJobManager`: changed job metadata storage API, to enable working with large databases 
+- `MultiBackendJobManager`: changed job metadata storage API, to enable working with large databases
+- `DataCube.apply_polygon()`: rename `polygons` argument to `geometries`, but keep support for legacy `polygons` for now ([#592](https://github.com/Open-EO/openeo-python-client/issues/592), [#511](https://github.com/Open-EO/openeo-processes/issues/511))
 
 ### Removed
 

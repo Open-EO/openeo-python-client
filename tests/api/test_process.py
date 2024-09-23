@@ -174,3 +174,90 @@ def test_parameter_reencode(kwargs, expected):
     assert d == expected
     q = Parameter(**d)
     assert q.to_dict() == expected
+
+
+def test_parameter_spatial_extent():
+    assert Parameter.spatial_extent().to_dict() == {
+        "description": "Limits the data to process to the specified bounding box or "
+        "polygons.\n"
+        "\n"
+        "For raster data, the process loads the pixel into the data "
+        "cube if the point at the pixel center intersects with the "
+        "bounding box or any of the polygons (as defined in the Simple "
+        "Features standard by the OGC).\n"
+        "For vector data, the process loads the geometry into the data "
+        "cube if the geometry is fully within the bounding box or any "
+        "of the polygons (as defined in the Simple Features standard "
+        "by the OGC). Empty geometries may only be in the data cube if "
+        "no spatial extent has been provided.\n"
+        "\n"
+        "Empty geometries are ignored.\n"
+        "Set this parameter to null to set no limit for the spatial "
+        "extent. ",
+        "name": "spatial_extent",
+        "schema": [
+            {
+                "properties": {
+                    "base": {
+                        "default": None,
+                        "description": "Base (optional, lower " "left corner, coordinate " "axis 3).",
+                        "type": ["number", "null"],
+                    },
+                    "crs": {
+                        "anyOf": [
+                            {
+                                "examples": [3857],
+                                "minimum": 1000,
+                                "subtype": "epsg-code",
+                                "title": "EPSG Code",
+                                "type": "integer",
+                            },
+                            {"subtype": "wkt2-definition", "title": "WKT2", "type": "string"},
+                        ],
+                        "default": 4326,
+                        "description": "Coordinate reference "
+                        "system of the extent, "
+                        "specified as as [EPSG "
+                        "code](http://www.epsg-registry.org/) "
+                        "or [WKT2 CRS "
+                        "string](http://docs.opengeospatial.org/is/18-010r7/18-010r7.html). "
+                        "Defaults to `4326` (EPSG "
+                        "code 4326) unless the "
+                        "client explicitly requests "
+                        "a different coordinate "
+                        "reference system.",
+                    },
+                    "east": {"description": "East (upper right corner, " "coordinate axis 1).", "type": "number"},
+                    "height": {
+                        "default": None,
+                        "description": "Height (optional, upper " "right corner, " "coordinate axis 3).",
+                        "type": ["number", "null"],
+                    },
+                    "north": {"description": "North (upper right " "corner, coordinate axis " "2).", "type": "number"},
+                    "south": {"description": "South (lower left " "corner, coordinate axis " "2).", "type": "number"},
+                    "west": {"description": "West (lower left corner, " "coordinate axis 1).", "type": "number"},
+                },
+                "required": ["west", "south", "east", "north"],
+                "subtype": "bounding-box",
+                "title": "Bounding Box",
+                "type": "object",
+            },
+            {
+                "description": "Limits the data cube to the bounding box of the "
+                "given geometries in the vector data cube. For "
+                "raster data, all pixels inside the bounding box "
+                "that do not intersect with any of the polygons "
+                "will be set to no data (`null`). Empty geometries "
+                "are ignored.",
+                "dimensions": [{"type": "geometry"}],
+                "subtype": "datacube",
+                "title": "Vector data cube",
+                "type": "object",
+            },
+            {
+                "description": "Don't filter spatially. All data is included in " "the data cube.",
+                "title": "No filter",
+                "type": "null",
+            },
+        ],
+    }
