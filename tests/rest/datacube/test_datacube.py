@@ -4,6 +4,8 @@ General cube method tests against both
 - 1.0.0-style DataCube
 
 """
+
+import contextlib
 import pathlib
 from datetime import date, datetime
 from unittest import mock
@@ -14,6 +16,7 @@ import requests
 import shapely
 import shapely.geometry
 
+from openeo.api.process import Parameter
 from openeo.rest import BandMathException, OpenEoClientException
 from openeo.rest._testing import build_capabilities
 from openeo.rest.connection import Connection
@@ -98,26 +101,39 @@ def test_filter_temporal_basic_extent(s2cube):
     assert graph['arguments']['extent'] == ["2016-01-01", "2016-03-10"]
 
 
-@pytest.mark.parametrize("args,kwargs,extent", [
-    ((), {}, [None, None]),
-    (("2016-01-01",), {}, ["2016-01-01", None]),
-    (("2016-01-01", "2016-03-10"), {}, ["2016-01-01", "2016-03-10"]),
-    ((date(2016, 1, 1), date(2016, 3, 10)), {}, ["2016-01-01", "2016-03-10"]),
-    ((datetime(2016, 1, 1, 12, 34), datetime(2016, 3, 10, 23, 45)), {},
-     ["2016-01-01T12:34:00Z", "2016-03-10T23:45:00Z"]),
-    ((), {"start_date": "2016-01-01", "end_date": "2016-03-10"}, ["2016-01-01", "2016-03-10"]),
-    ((), {"start_date": "2016-01-01"}, ["2016-01-01", None]),
-    ((), {"end_date": "2016-03-10"}, [None, "2016-03-10"]),
-    ((), {"start_date": date(2016, 1, 1), "end_date": date(2016, 3, 10)}, ["2016-01-01", "2016-03-10"]),
-    ((), {"start_date": datetime(2016, 1, 1, 12, 34), "end_date": datetime(2016, 3, 10, 23, 45)},
-     ["2016-01-01T12:34:00Z", "2016-03-10T23:45:00Z"]),
-    ((), {"extent": ("2016-01-01", "2016-03-10")}, ["2016-01-01", "2016-03-10"]),
-    ((), {"extent": ("2016-01-01", None)}, ["2016-01-01", None]),
-    ((), {"extent": (None, "2016-03-10")}, [None, "2016-03-10"]),
-    ((), {"extent": (date(2016, 1, 1), date(2016, 3, 10))}, ["2016-01-01", "2016-03-10"]),
-    ((), {"extent": (datetime(2016, 1, 1, 12, 34), datetime(2016, 3, 10, 23, 45))},
-     ["2016-01-01T12:34:00Z", "2016-03-10T23:45:00Z"]),
-])
+@pytest.mark.parametrize(
+    "args,kwargs,extent",
+    [
+        ((), {}, [None, None]),
+        (("2016-01-01", "2016-03-10"), {}, ["2016-01-01", "2016-03-10"]),
+        ((("2016-01-01", "2016-03-10"),), {}, ["2016-01-01", "2016-03-10"]),
+        ((["2016-01-01", "2016-03-10"],), {}, ["2016-01-01", "2016-03-10"]),
+        ((date(2016, 1, 1), date(2016, 3, 10)), {}, ["2016-01-01", "2016-03-10"]),
+        (
+            (datetime(2016, 1, 1, 12, 34), datetime(2016, 3, 10, 23, 45)),
+            {},
+            ["2016-01-01T12:34:00Z", "2016-03-10T23:45:00Z"],
+        ),
+        ((), {"start_date": "2016-01-01", "end_date": "2016-03-10"}, ["2016-01-01", "2016-03-10"]),
+        ((), {"start_date": "2016-01-01"}, ["2016-01-01", None]),
+        ((), {"end_date": "2016-03-10"}, [None, "2016-03-10"]),
+        ((), {"start_date": date(2016, 1, 1), "end_date": date(2016, 3, 10)}, ["2016-01-01", "2016-03-10"]),
+        (
+            (),
+            {"start_date": datetime(2016, 1, 1, 12, 34), "end_date": datetime(2016, 3, 10, 23, 45)},
+            ["2016-01-01T12:34:00Z", "2016-03-10T23:45:00Z"],
+        ),
+        ((), {"extent": ("2016-01-01", "2016-03-10")}, ["2016-01-01", "2016-03-10"]),
+        ((), {"extent": ("2016-01-01", None)}, ["2016-01-01", None]),
+        ((), {"extent": (None, "2016-03-10")}, [None, "2016-03-10"]),
+        ((), {"extent": (date(2016, 1, 1), date(2016, 3, 10))}, ["2016-01-01", "2016-03-10"]),
+        (
+            (),
+            {"extent": (datetime(2016, 1, 1, 12, 34), datetime(2016, 3, 10, 23, 45))},
+            ["2016-01-01T12:34:00Z", "2016-03-10T23:45:00Z"],
+        ),
+    ],
+)
 def test_filter_temporal_generic(s2cube, args, kwargs, extent):
     im = s2cube.filter_temporal(*args, **kwargs)
     graph = _get_leaf_node(im)
@@ -389,6 +405,28 @@ def test_filter_temporal_extent_single_date_string(s2cube: DataCube, api_version
     cube_extent: DataCube = s2cube.filter_temporal(extent=extent)
     flat_graph_extent = cube_extent.flat_graph()
     assert flat_graph_extent["filtertemporal1"]["arguments"]["extent"] == expected
+
+
+@pytest.mark.parametrize(
+    ["arg", "expect_failure"],
+    [
+        ("2024-09-24", True),
+        ("2024-09", True),
+        ("2024", True),
+        (("2024-09-01", "2024-09-10"), False),
+        (["2024-09-01", "2024-09-10"], False),
+        (Parameter.temporal_interval("window"), False),
+    ],
+)
+def test_filter_temporal_single_arg(s2cube: DataCube, arg, expect_failure):
+    if expect_failure:
+        context = pytest.raises(
+            OpenEoClientException, match="filter_temporal.*with a single string argument.*is ambiguous.*"
+        )
+    else:
+        context = contextlib.nullcontext()
+    with context:
+        _ = s2cube.filter_temporal(arg)
 
 
 def test_max_time(s2cube, api_version):

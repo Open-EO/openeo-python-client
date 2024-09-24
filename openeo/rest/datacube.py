@@ -318,6 +318,12 @@ class DataCube(_ProcessGraphAbstraction):
             Arguments ``start_date``, ``end_date`` and ``extent``:
             add support for year/month shorthand notation as discussed at :ref:`date-shorthand-handling`.
         """
+        if len(args) == 1 and isinstance(args[0], (str)):
+            raise OpenEoClientException(
+                f"filter_temporal() with a single string argument ({args[0]!r}) is ambiguous."
+                f" If you want a half-unbounded interval, use something like filter_temporal({args[0]!r}, None) or use explicit keyword arguments."
+                f" If you want the full interval covering all of {args[0]!r}, use something like filter_temporal(extent={args[0]!r})."
+            )
         return self.process(
             process_id='filter_temporal',
             arguments={
