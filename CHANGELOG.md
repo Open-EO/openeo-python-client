@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `MultiBackendJobManager`: changed job metadata storage API, to enable working with large databases
 - `DataCube.apply_polygon()`: rename `polygons` argument to `geometries`, but keep support for legacy `polygons` for now ([#592](https://github.com/Open-EO/openeo-python-client/issues/592), [#511](https://github.com/Open-EO/openeo-processes/issues/511))
+- Disallow ambiguous single string argument in `DataCube.filter_temporal()` ([#628](https://github.com/Open-EO/openeo-python-client/issues/628))
 
 ### Removed
 
