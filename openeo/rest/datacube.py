@@ -2097,8 +2097,11 @@ class DataCube(_ProcessGraphAbstraction):
 
     def _ensure_save_result(
         self,
+        *,
         format: Optional[str] = None,
         options: Optional[dict] = None,
+        weak_format: Optional[str] = None,
+        method: str,
     ) -> DataCube:
         """
         Make sure there is a (final) `save_result` node in the process graph.
@@ -2110,25 +2113,19 @@ class DataCube(_ProcessGraphAbstraction):
         :return:
         """
         # TODO #401 Unify with VectorCube._ensure_save_result and move to generic data cube parent class (not only for raster cubes, but also vector cubes)
-        result_node = self.result_node()
-        if result_node.process_id == "save_result":
-            # There is already a `save_result` node:
-            # check if it is consistent with given format/options (if any)
-            args = result_node.arguments
-            if format is not None and format.lower() != args["format"].lower():
-                raise ValueError(
-                    f"Existing `save_result` node with different format {args['format']!r} != {format!r}"
-                )
-            if options is not None and options != args["options"]:
-                raise ValueError(
-                    f"Existing `save_result` node with different options {args['options']!r} != {options!r}"
-                )
-            cube = self
-        else:
+        save_result_nodes = [n for n in self.result_node().walk_nodes() if n.process_id == "save_result"]
+
+        cube = self
+        if not save_result_nodes:
             # No `save_result` node yet: automatically add it.
-            cube = self.save_result(
-                format=format or self._DEFAULT_RASTER_FORMAT, options=options
+            cube = cube.save_result(format=format or weak_format or self._DEFAULT_RASTER_FORMAT, options=options)
+        elif format or options:
+            raise OpenEoClientException(
+                f"{method} with explicit output {'format' if format else 'options'} {format or options!r},"
+                f" but the process graph already has `save_result` node(s)"
+                f" which is ambiguous and should not be combined."
             )
+
         return cube
 
     def download(
@@ -2152,10 +2149,8 @@ class DataCube(_ProcessGraphAbstraction):
             (overruling the connection's ``auto_validate`` setting).
         :return: None if the result is stored to disk, or a bytes object returned by the backend.
         """
-        if format is None and outputfile:
-            # TODO #401/#449 don't guess/override format if there is already a save_result with format?
-            format = guess_format(outputfile)
-        cube = self._ensure_save_result(format=format, options=options)
+        weak_format = guess_format(outputfile) if outputfile else None
+        cube = self._ensure_save_result(format=format, options=options, weak_format=weak_format, method="Download")
         return self._connection.download(cube.flat_graph(), outputfile, validate=validate)
 
     def validate(self) -> List[dict]:
@@ -2321,7 +2316,7 @@ class DataCube(_ProcessGraphAbstraction):
         # TODO: add option to also automatically start the job?
         # TODO: avoid using all kwargs as format_options
         # TODO: centralize `create_job` for `DataCube`, `VectorCube`, `MlModel`, ...
-        cube = self._ensure_save_result(format=out_format, options=format_options or None)
+        cube = self._ensure_save_result(format=out_format, options=format_options or None, method="Creating job")
         return self._connection.create_job(
             process_graph=cube.flat_graph(),
             title=title,
