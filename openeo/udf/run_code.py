@@ -88,7 +88,6 @@ def _annotation_is_data_array(annotation) -> bool:
         _get_annotation_str(xarray.DataArray)
     }
 
-
 def _annotation_is_udf_data(annotation) -> bool:
     return annotation is UdfData or _get_annotation_str(annotation) in {
         _get_annotation_str(UdfData),
@@ -195,6 +194,37 @@ def run_udf_code(code: str, data: UdfData) -> UdfData:
             # TODO: also support calls without user context?
             result_cube: xarray.DataArray = func(cube=data.get_datacube_list()[0].get_array(), context=data.user_context)
             data.set_datacube_list([XarrayDataCube(result_cube)])
+            return data
+        elif (
+            fn_name in ["apply_vectorcube"]
+            and "geometries" in params
+            and "cube" in params
+            and _annotation_is_data_array(params["cube"].annotation)
+        ):
+            if data.get_feature_collection_list is None or data.get_datacube_list() is None:
+                raise ValueError(
+                    "The provided UDF expects a FeatureCollection and a datacube, but received {f} and {c}".format(
+                        f=data.get_feature_collection_list(), c=data.get_datacube_list()
+                    )
+                )
+            if len(data.get_feature_collection_list()) != 1:
+                raise ValueError(
+                    "The provided UDF expects exactly one FeatureCollection, but {c} were provided.".format(
+                        c=len(data.get_feature_collection_list())
+                    )
+                )
+            if len(data.get_datacube_list()) != 1:
+                raise ValueError(
+                    "The provided UDF expects exactly one datacube, but {c} were provided.".format(
+                        c=len(data.get_datacube_list())
+                    )
+                )
+            # TODO: geopandas is optional dependency.
+            input_geoms = data.get_feature_collection_list()[0].data
+            input_cube = data.get_datacube_list()[0].get_array()
+            result_geoms, result_cube = func(input_geoms, input_cube)
+            data.set_datacube_list([XarrayDataCube(result_cube)])
+            data.set_feature_collection_list([FeatureCollection(id="udf_result", data=result_geoms)])
             return data
         elif len(params) == 1 and _annotation_is_udf_data(first_param.annotation):
             _log.info("Found generic UDF `{n}` {f!r}".format(n=fn_name, f=func))
