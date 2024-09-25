@@ -16,6 +16,7 @@ from openeo.metadata import CollectionMetadata, CubeMetadata, Dimension
 from openeo.rest._datacube import (
     THIS,
     UDF,
+    _ensure_save_result,
     _ProcessGraphAbstraction,
     build_child_callback,
 )
@@ -36,6 +37,8 @@ class VectorCube(_ProcessGraphAbstraction):
     The features in this cube are restricted to have a geometry. Geometries can be points, lines, polygons etcetera.
     A geometry is specified in a 'coordinate reference system'. https://www.w3.org/TR/sdw-bp/#dfn-coordinate-reference-system-(crs)
     """
+
+    _DEFAULT_VECTOR_FORMAT = "GeoJSON"
 
     def __init__(self, graph: PGNode, connection: Connection, metadata: Optional[CubeMetadata] = None):
         super().__init__(pgnode=graph, connection=connection)
@@ -195,38 +198,6 @@ class VectorCube(_ProcessGraphAbstraction):
             },
         )
 
-    def _ensure_save_result(
-        self,
-        format: Optional[str] = None,
-        options: Optional[dict] = None,
-    ) -> VectorCube:
-        """
-        Make sure there is a (final) `save_result` node in the process graph.
-        If there is already one: check if it is consistent with the given format/options (if any)
-        and add a new one otherwise.
-
-        :param format: (optional) desired `save_result` file format
-        :param options: (optional) desired `save_result` file format parameters
-        :return:
-        """
-        # TODO #401 Unify with DataCube._ensure_save_result and move to generic data cube parent class
-        result_node = self.result_node()
-        if result_node.process_id == "save_result":
-            # There is already a `save_result` node:
-            # check if it is consistent with given format/options (if any)
-            args = result_node.arguments
-            if format is not None and format.lower() != args["format"].lower():
-                raise ValueError(f"Existing `save_result` node with different format {args['format']!r} != {format!r}")
-            if options is not None and options != args["options"]:
-                raise ValueError(
-                    f"Existing `save_result` node with different options {args['options']!r} != {options!r}"
-                )
-            cube = self
-        else:
-            # No `save_result` node yet: automatically add it.
-            cube = self.save_result(format=format or "GeoJSON", options=options)
-        return cube
-
     def execute(self, *, validate: Optional[bool] = None) -> dict:
         """Executes the process graph."""
         return self._connection.execute(self.flat_graph(), validate=validate)
@@ -255,11 +226,15 @@ class VectorCube(_ProcessGraphAbstraction):
             When not specified explicitly, output format is guessed from output file extension.
 
         """
-        # TODO #401 make outputfile optional (See DataCube.download)
-        # TODO #401/#449 don't guess/override format if there is already a save_result with format?
-        if format is None and outputfile:
-            format = guess_format(outputfile)
-        cube = self._ensure_save_result(format=format, options=options)
+        # TODO #278 centralize download/create_job/execute_job logic in DataCube, VectorCube, MlModel, ...
+        cube = _ensure_save_result(
+            cube=self,
+            format=format,
+            options=options,
+            weak_format=guess_format(outputfile) if outputfile else None,
+            default_format=self._DEFAULT_VECTOR_FORMAT,
+            method="VectorCube.download()",
+        )
         return self._connection.download(cube.flat_graph(), outputfile=outputfile, validate=validate)
 
     def execute_batch(
@@ -291,11 +266,15 @@ class VectorCube(_ProcessGraphAbstraction):
         .. versionchanged:: 0.21.0
             When not specified explicitly, output format is guessed from output file extension.
         """
-        if out_format is None and outputfile:
-            # TODO #401/#449 don't guess/override format if there is already a save_result with format?
-            out_format = guess_format(outputfile)
-
-        job = self.create_job(out_format, job_options=job_options, validate=validate, **format_options)
+        cube = _ensure_save_result(
+            cube=self,
+            format=out_format,
+            options=format_options,
+            weak_format=guess_format(outputfile) if outputfile else None,
+            default_format=self._DEFAULT_VECTOR_FORMAT,
+            method="VectorCube.execute_batch()",
+        )
+        job = cube.create_job(job_options=job_options, validate=validate)
         return job.run_synchronous(
             # TODO #135 support multi file result sets too
             outputfile=outputfile,
@@ -331,8 +310,14 @@ class VectorCube(_ProcessGraphAbstraction):
         :return: Created job.
         """
         # TODO: avoid using all kwargs as format_options
-        # TODO: centralize `create_job` for `DataCube`, `VectorCube`, `MlModel`, ...
-        cube = self._ensure_save_result(format=out_format, options=format_options or None)
+        # TODO #278 centralize download/create_job/execute_job logic in DataCube, VectorCube, MlModel, ...
+        cube = _ensure_save_result(
+            cube=self,
+            format=out_format,
+            options=format_options or None,
+            default_format=self._DEFAULT_VECTOR_FORMAT,
+            method="VectorCube.create_job()",
+        )
         return self._connection.create_job(
             process_graph=cube.flat_graph(),
             title=title,
