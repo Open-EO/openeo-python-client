@@ -3266,7 +3266,7 @@ def test_apply_append_math_keep_context(con100):
             "result.tiff",
             {"format": "GTiff"},
             OpenEoClientException(
-                "Download with explicit output format 'GTiff', but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
+                "DataCube.download() with explicit output format 'GTiff', but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
             ),
         ),
         (
@@ -3274,7 +3274,7 @@ def test_apply_append_math_keep_context(con100):
             "result.tiff",
             {"format": "NETCDF"},
             OpenEoClientException(
-                "Download with explicit output format 'NETCDF', but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
+                "DataCube.download() with explicit output format 'NETCDF', but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
             ),
         ),
         (
@@ -3282,7 +3282,7 @@ def test_apply_append_math_keep_context(con100):
             "result.json",
             {"format": "JSON"},
             OpenEoClientException(
-                "Download with explicit output format 'JSON', but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
+                "DataCube.download() with explicit output format 'JSON', but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
             ),
         ),
         ({"options": {}}, "result.tiff", {}, b"this is GTiff data"),
@@ -3291,7 +3291,7 @@ def test_apply_append_math_keep_context(con100):
             "result.tiff",
             {"options": {"quality": "low"}},
             OpenEoClientException(
-                "Download with explicit output options {'quality': 'low'}, but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
+                "DataCube.download() with explicit output options {'quality': 'low'}, but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
             ),
         ),
         (
@@ -3299,7 +3299,7 @@ def test_apply_append_math_keep_context(con100):
             "result.tiff",
             {"options": {"quality": "low"}},
             OpenEoClientException(
-                "Download with explicit output options {'quality': 'low'}, but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
+                "DataCube.download() with explicit output options {'quality': 'low'}, but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
             ),
         ),
     ],

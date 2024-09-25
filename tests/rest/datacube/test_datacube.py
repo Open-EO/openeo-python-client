@@ -755,7 +755,7 @@ class TestExecuteBatch:
         with pytest.raises(
             OpenEoClientException,
             match=re.escape(
-                "Creating job with explicit output format 'NetCDF',"
+                "DataCube.create_job() with explicit output format 'NetCDF',"
                 " but the process graph already has `save_result` node(s)"
                 " which is ambiguous and should not be combined."
             ),
@@ -866,12 +866,49 @@ class TestExecuteBatch:
         with pytest.raises(
             OpenEoClientException,
             match=re.escape(
-                "Creating job with explicit output format 'NetCDF',"
+                "DataCube.execute_batch() with explicit output format 'NetCDF',"
                 " but the process graph already has `save_result` node(s)"
                 " which is ambiguous and should not be combined."
             ),
         ):
             cube.execute_batch(out_format=execute_format)
+
+    @pytest.mark.parametrize(
+        ["save_result_format", "execute_output_file", "expected"],
+        [
+            (None, None, "GTiff"),
+            (None, "result.tiff", "GTiff"),
+            ("GTiff", None, "GTiff"),
+            ("GTiff", "result.csv", "GTiff"),
+            (None, "result.nc", "netCDF"),
+            ("NetCDF", None, "NetCDF"),
+            ("NetCDF", "result.csv", "NetCDF"),
+            (None, "result.csv", "CSV"),
+        ],
+    )
+    def test_save_result_and_execute_batch_weak_format(
+        self,
+        s2cube,
+        get_create_job_pg,
+        save_result_format,
+        execute_output_file,
+        expected,
+    ):
+        cube = s2cube
+        if save_result_format:
+            cube = cube.save_result(format=save_result_format)
+        cube.execute_batch(outputfile=execute_output_file)
+        pg = get_create_job_pg()
+        assert set(pg.keys()) == {"loadcollection1", "saveresult1"}
+        assert pg["saveresult1"] == {
+            "process_id": "save_result",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "format": expected,
+                "options": {},
+            },
+            "result": True,
+        }
 
     def test_save_result_format_options_vs_create_job(elf, s2cube, get_create_job_pg):
         """https://github.com/Open-EO/openeo-python-client/issues/433"""

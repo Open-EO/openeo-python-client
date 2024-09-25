@@ -2150,7 +2150,9 @@ class DataCube(_ProcessGraphAbstraction):
         :return: None if the result is stored to disk, or a bytes object returned by the backend.
         """
         weak_format = guess_format(outputfile) if outputfile else None
-        cube = self._ensure_save_result(format=format, options=options, weak_format=weak_format, method="Download")
+        cube = self._ensure_save_result(
+            format=format, options=options, weak_format=weak_format, method="DataCube.download()"
+        )
         return self._connection.download(cube.flat_graph(), outputfile, validate=validate)
 
     def validate(self) -> List[dict]:
@@ -2253,7 +2255,7 @@ class DataCube(_ProcessGraphAbstraction):
         connection_retry_interval: float = 30,
         job_options: Optional[dict] = None,
         validate: Optional[bool] = None,
-        # TODO: avoid `format_options` as keyword arguments
+        # TODO: deprecate `format_options` as keyword arguments
         **format_options,
     ) -> BatchJob:
         """
@@ -2268,13 +2270,16 @@ class DataCube(_ProcessGraphAbstraction):
         :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
         """
+        # TODO: start showing deprecation warnings about these inconsistent argument names
         if "format" in format_options and not out_format:
             out_format = format_options["format"]  # align with 'download' call arg name
-        if out_format is None and outputfile:
-            # TODO #401/#449 don't guess/override format if there is already a save_result with format?
-            out_format = guess_format(outputfile)
 
-        job = self.create_job(out_format=out_format, job_options=job_options, validate=validate, **format_options)
+        weak_format = guess_format(outputfile) if outputfile else None
+        cube = self._ensure_save_result(
+            format=out_format, options=format_options, weak_format=weak_format, method="DataCube.execute_batch()"
+        )
+
+        job = cube.create_job(job_options=job_options, validate=validate)
         return job.run_synchronous(
             outputfile=outputfile,
             print=print, max_poll_interval=max_poll_interval, connection_retry_interval=connection_retry_interval
@@ -2316,7 +2321,9 @@ class DataCube(_ProcessGraphAbstraction):
         # TODO: add option to also automatically start the job?
         # TODO: avoid using all kwargs as format_options
         # TODO: centralize `create_job` for `DataCube`, `VectorCube`, `MlModel`, ...
-        cube = self._ensure_save_result(format=out_format, options=format_options or None, method="Creating job")
+        cube = self._ensure_save_result(
+            format=out_format, options=format_options or None, method="DataCube.create_job()"
+        )
         return self._connection.create_job(
             process_graph=cube.flat_graph(),
             title=title,
