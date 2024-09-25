@@ -19,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `MultiBackendJobManager`: changed job metadata storage API, to enable working with large databases
 - `DataCube.apply_polygon()`: rename `polygons` argument to `geometries`, but keep support for legacy `polygons` for now ([#592](https://github.com/Open-EO/openeo-python-client/issues/592), [#511](https://github.com/Open-EO/openeo-processes/issues/511))
 - Disallow ambiguous single string argument in `DataCube.filter_temporal()` ([#628](https://github.com/Open-EO/openeo-python-client/issues/628))
+- Automatic adding of `save_result` from `download()` or `create_job()`:
+  inspect whole process graph for pre-existing `save_result` nodes
+  (related to [#623](https://github.com/Open-EO/openeo-python-client/issues/623), [#401](https://github.com/Open-EO/openeo-python-client/issues/401), [#583](https://github.com/Open-EO/openeo-python-client/issues/583))
+- Disallow ambiguity of combining explicit `save_result` nodes
+  and implicit `save_result` addition from `download()`/`create_job()` calls with `format`
+  (related to [#623](https://github.com/Open-EO/openeo-python-client/issues/623), [#401](https://github.com/Open-EO/openeo-python-client/issues/401), [#583](https://github.com/Open-EO/openeo-python-client/issues/583))
 
 ### Removed
 
