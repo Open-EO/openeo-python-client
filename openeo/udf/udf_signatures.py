@@ -88,7 +88,9 @@ def apply_metadata(metadata: CollectionMetadata, context: dict) -> CollectionMet
     pass
 
 
-def apply_vectorcube(geometries: any, cube: xarray.DataArray, context: dict) -> (any, xarray.DataArray):
+def apply_vectorcube(
+    geometries: "geopandas.geodataframe.GeoDataFrame", cube: xarray.DataArray, context: dict
+) -> ("geopandas.geodataframe.GeoDataFrame", xarray.DataArray):
     """
     Map a vector cube to another vector cube.
 
