@@ -1441,7 +1441,10 @@ class Connection(RestApiConnection):
         properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
     ) -> DataCube:
         """
-        Wrapper for :py:meth:`load_stac` that loads the result of a previous job using the STAC collection of its results.
+        Convenience function to directly load the results of a finished openEO job
+        (as a STAC collection) with :py:meth:`load_stac` in a new openEO process graph.
+
+        When available, the "canonical" link (signed URL) of the job results will be used.
 
         :param job: a :py:class:`~openeo.rest.job.BatchJob` or job id pointing to a finished job.
             Note that the  :py:class:`~openeo.rest.job.BatchJob` approach allows to point
@@ -1452,6 +1455,7 @@ class Connection(RestApiConnection):
 
         .. versionadded:: 0.30.0
         """
+        # TODO #634 add option to require or avoid the canonical link
         if isinstance(job, str):
             job = BatchJob(job_id=job, connection=self)
         elif not isinstance(job, BatchJob):
