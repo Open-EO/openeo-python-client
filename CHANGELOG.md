@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `MultiBackendJobManager`: add `cancel_running_job_after` option to automatically cancel jobs that are running for too long ([#590](https://github.com/Open-EO/openeo-python-client/issues/590))
 - Added `openeo.api.process.Parameter` helper to easily create a "spatial_extent" UDP parameter
 - Wrap OIDC token request failure in more descriptive `OidcException` (related to [#624](https://github.com/Open-EO/openeo-python-client/issues/624))
-- `apply_vectorcube` udf is now supported for vector cubes ([Open-EO/openeo-geopyspark-driver#856]https://github.com/Open-EO/openeo-geopyspark-driver/issues/856)
+- Add support for `apply_vectorcube` UDF signature in `run_udf_code` ([Open-EO/openeo-geopyspark-driver#856]https://github.com/Open-EO/openeo-geopyspark-driver/issues/856)
 
 ### Changed
 
