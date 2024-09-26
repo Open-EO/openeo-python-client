@@ -222,7 +222,7 @@ def run_udf_code(code: str, data: UdfData) -> UdfData:
             # TODO: geopandas is optional dependency.
             input_geoms = data.get_feature_collection_list()[0].data
             input_cube = data.get_datacube_list()[0].get_array()
-            result_geoms, result_cube = func(geometries=input_geoms, cube=input_cube)
+            result_geoms, result_cube = func(geometries=input_geoms, cube=input_cube, context=data.user_context)
             data.set_datacube_list([XarrayDataCube(result_cube)])
             data.set_feature_collection_list([FeatureCollection(id="udf_result", data=result_geoms)])
             return data
