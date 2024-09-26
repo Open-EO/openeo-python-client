@@ -198,6 +198,7 @@ def run_udf_code(code: str, data: UdfData) -> UdfData:
         elif (
             fn_name in ["apply_vectorcube"]
             and "geometries" in params
+            and _get_annotation_str(params["geometries"].annotation) == "geopandas.geodataframe.GeoDataFrame"
             and "cube" in params
             and _annotation_is_data_array(params["cube"].annotation)
         ):
