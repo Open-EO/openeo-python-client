@@ -6,6 +6,7 @@ is compatible with the calling context of the process graph in which it is used.
 """
 # Note: this module was initially developed under the ``openeo-udf`` project (https://github.com/Open-EO/openeo-udf)
 
+import xarray
 from pandas import Series
 
 from openeo.metadata import CollectionMetadata
@@ -83,5 +84,18 @@ def apply_metadata(metadata: CollectionMetadata, context: dict) -> CollectionMet
     ...         target=["computed_band_1", "computed_band_2"]
     ...     )
 
+    """
+    pass
+
+
+def apply_vectorcube(geometries: any, cube: xarray.DataArray, context: dict) -> (any, xarray.DataArray):
+    """
+    Map a vector cube to another vector cube.
+
+    :param geometries: input geometries as a geopandas.GeoDataFrame. This contains the actual shapely geometries and optional properties.
+    :param cube: a data cube with dimensions (geometries, time, bands) where time and bands are optional.
+        The coordinates for the geometry dimension are integers and match the index of the geometries in the geometries parameter.
+    :param context: A dictionary containing user context.
+    :return: output geometries, output data cube
     """
     pass
