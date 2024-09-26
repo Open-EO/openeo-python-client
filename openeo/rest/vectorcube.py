@@ -209,6 +209,7 @@ class VectorCube(_ProcessGraphAbstraction):
         options: Optional[dict] = None,
         *,
         validate: Optional[bool] = None,
+        auto_add_save_result: bool = True,
     ) -> Union[None, bytes]:
         """
         Execute synchronously and download the vector cube.
@@ -221,20 +222,25 @@ class VectorCube(_ProcessGraphAbstraction):
         :param options: (optional) additional output format options.
         :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
+        :param auto_add_save_result: Automatically add a ``save_result`` node to the process graph if there is none yet.
 
         .. versionchanged:: 0.21.0
             When not specified explicitly, output format is guessed from output file extension.
 
+        .. versionchanged:: 0.32.0
+            Added ``auto_add_save_result`` option
         """
         # TODO #278 centralize download/create_job/execute_job logic in DataCube, VectorCube, MlModel, ...
-        cube = _ensure_save_result(
-            cube=self,
-            format=format,
-            options=options,
-            weak_format=guess_format(outputfile) if outputfile else None,
-            default_format=self._DEFAULT_VECTOR_FORMAT,
-            method="VectorCube.download()",
-        )
+        cube = self
+        if auto_add_save_result:
+            cube = _ensure_save_result(
+                cube=cube,
+                format=format,
+                options=options,
+                weak_format=guess_format(outputfile) if outputfile else None,
+                default_format=self._DEFAULT_VECTOR_FORMAT,
+                method="VectorCube.download()",
+            )
         return self._connection.download(cube.flat_graph(), outputfile=outputfile, validate=validate)
 
     def execute_batch(
@@ -247,6 +253,7 @@ class VectorCube(_ProcessGraphAbstraction):
         connection_retry_interval: float = 30,
         job_options: Optional[dict] = None,
         validate: Optional[bool] = None,
+        auto_add_save_result: bool = True,
         # TODO: avoid using kwargs as format options
         **format_options,
     ) -> BatchJob:
@@ -262,19 +269,25 @@ class VectorCube(_ProcessGraphAbstraction):
         :param format_options: (optional) additional output format options
         :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
+        :param auto_add_save_result: Automatically add a ``save_result`` node to the process graph if there is none yet.
 
         .. versionchanged:: 0.21.0
             When not specified explicitly, output format is guessed from output file extension.
+
+        .. versionchanged:: 0.32.0
+            Added ``auto_add_save_result`` option
         """
-        cube = _ensure_save_result(
-            cube=self,
-            format=out_format,
-            options=format_options,
-            weak_format=guess_format(outputfile) if outputfile else None,
-            default_format=self._DEFAULT_VECTOR_FORMAT,
-            method="VectorCube.execute_batch()",
-        )
-        job = cube.create_job(job_options=job_options, validate=validate)
+        cube = self
+        if auto_add_save_result:
+            cube = _ensure_save_result(
+                cube=cube,
+                format=out_format,
+                options=format_options,
+                weak_format=guess_format(outputfile) if outputfile else None,
+                default_format=self._DEFAULT_VECTOR_FORMAT,
+                method="VectorCube.execute_batch()",
+            )
+        job = cube.create_job(job_options=job_options, validate=validate, auto_add_save_result=False)
         return job.run_synchronous(
             # TODO #135 support multi file result sets too
             outputfile=outputfile,
@@ -291,6 +304,7 @@ class VectorCube(_ProcessGraphAbstraction):
         budget: Optional[float] = None,
         job_options: Optional[dict] = None,
         validate: Optional[bool] = None,
+        auto_add_save_result: bool = True,
         **format_options,
     ) -> BatchJob:
         """
@@ -306,18 +320,24 @@ class VectorCube(_ProcessGraphAbstraction):
         :param format_options: String Parameters for the job result format
         :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
+        :param auto_add_save_result: Automatically add a ``save_result`` node to the process graph if there is none yet.
 
         :return: Created job.
+
+        .. versionchanged:: 0.32.0
+            Added ``auto_add_save_result`` option
         """
         # TODO: avoid using all kwargs as format_options
         # TODO #278 centralize download/create_job/execute_job logic in DataCube, VectorCube, MlModel, ...
-        cube = _ensure_save_result(
-            cube=self,
-            format=out_format,
-            options=format_options or None,
-            default_format=self._DEFAULT_VECTOR_FORMAT,
-            method="VectorCube.create_job()",
-        )
+        cube = self
+        if auto_add_save_result:
+            cube = _ensure_save_result(
+                cube=cube,
+                format=out_format,
+                options=format_options or None,
+                default_format=self._DEFAULT_VECTOR_FORMAT,
+                method="VectorCube.create_job()",
+            )
         return self._connection.create_job(
             process_graph=cube.flat_graph(),
             title=title,

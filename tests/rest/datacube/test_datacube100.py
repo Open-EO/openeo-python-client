@@ -3337,6 +3337,19 @@ def test_save_result_and_download(
         assert post_result_mock.call_count == 1
 
 
+@pytest.mark.parametrize(
+    ["auto_add_save_result", "process_ids"],
+    [
+        (True, {"load_collection", "save_result"}),
+        (False, {"load_collection"}),
+    ],
+)
+def test_download_auto_add_save_result(s2cube, dummy_backend, tmp_path, auto_add_save_result, process_ids):
+    path = tmp_path / "result.tiff"
+    s2cube.download(path, auto_add_save_result=auto_add_save_result)
+    assert set(n["process_id"] for n in dummy_backend.get_pg().values()) == process_ids
+
+
 class TestBatchJob:
     _EXPECTED_SIMPLE_S2_JOB = {"process": {"process_graph": {
         "loadcollection1": {

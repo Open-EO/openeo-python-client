@@ -762,6 +762,17 @@ class TestExecuteBatch:
         ):
             cube.create_job(out_format=execute_format)
 
+    @pytest.mark.parametrize(
+        ["auto_add_save_result", "process_ids"],
+        [
+            (True, {"load_collection", "save_result"}),
+            (False, {"load_collection"}),
+        ],
+    )
+    def test_create_job_auto_add_save_result(self, s2cube, dummy_backend, auto_add_save_result, process_ids):
+        s2cube.create_job(auto_add_save_result=auto_add_save_result)
+        assert set(n["process_id"] for n in dummy_backend.get_pg().values()) == process_ids
+
     def test_execute_batch_defaults(self, s2cube, get_create_job_pg, recwarn, caplog):
         s2cube.execute_batch()
         pg = get_create_job_pg()
@@ -941,6 +952,17 @@ class TestExecuteBatch:
             },
             "result": True,
         }
+
+    @pytest.mark.parametrize(
+        ["auto_add_save_result", "process_ids"],
+        [
+            (True, {"load_collection", "save_result"}),
+            (False, {"load_collection"}),
+        ],
+    )
+    def test_execute_batch_auto_add_save_result(self, s2cube, dummy_backend, auto_add_save_result, process_ids):
+        s2cube.execute_batch(auto_add_save_result=auto_add_save_result)
+        assert set(n["process_id"] for n in dummy_backend.get_pg().values()) == process_ids
 
 
 class TestDataCubeValidation:

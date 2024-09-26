@@ -174,6 +174,18 @@ def test_download_auto_save_result_with_options(vector_cube, dummy_backend, tmp_
 
 
 @pytest.mark.parametrize(
+    ["auto_add_save_result", "process_ids"],
+    [
+        (True, {"load_geojson", "save_result"}),
+        (False, {"load_geojson"}),
+    ],
+)
+def test_download_auto_add_save_result(vector_cube, dummy_backend, auto_add_save_result, process_ids, tmp_path):
+    vector_cube.download(tmp_path / "result.geojson", auto_add_save_result=auto_add_save_result)
+    assert set(n["process_id"] for n in dummy_backend.get_pg().values()) == process_ids
+
+
+@pytest.mark.parametrize(
     ["output_file", "save_result_format", "expected_format"],
     [
         ("result.geojson", None, "GeoJSON"),
@@ -311,6 +323,30 @@ def test_save_result_and_execute_batch_with_format(
             "result": True,
         }
         assert output_path.read_bytes() == DummyBackend.DEFAULT_RESULT
+
+
+@pytest.mark.parametrize(
+    ["auto_add_save_result", "process_ids"],
+    [
+        (True, {"load_geojson", "save_result"}),
+        (False, {"load_geojson"}),
+    ],
+)
+def test_create_job_auto_add_save_result(vector_cube, dummy_backend, auto_add_save_result, process_ids):
+    vector_cube.create_job(auto_add_save_result=auto_add_save_result)
+    assert set(n["process_id"] for n in dummy_backend.get_pg().values()) == process_ids
+
+
+@pytest.mark.parametrize(
+    ["auto_add_save_result", "process_ids"],
+    [
+        (True, {"load_geojson", "save_result"}),
+        (False, {"load_geojson"}),
+    ],
+)
+def test_cexecute_batch_auto_add_save_result(vector_cube, dummy_backend, auto_add_save_result, process_ids):
+    vector_cube.execute_batch(auto_add_save_result=auto_add_save_result)
+    assert set(n["process_id"] for n in dummy_backend.get_pg().values()) == process_ids
 
 
 @pytest.mark.parametrize(
