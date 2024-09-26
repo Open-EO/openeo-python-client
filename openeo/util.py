@@ -416,12 +416,15 @@ def deep_set(data: dict, *keys, value):
         raise ValueError("No keys given")
 
 
-def guess_format(filename: Union[str, Path]) -> str:
+def guess_format(filename: Union[str, Path]) -> Union[str, None]:
     """
     Guess the output format from a given filename and return the corrected format.
     Any names not in the dict get passed through.
     """
-    extension = str(filename).rsplit(".", 1)[-1].lower()
+    extension = Path(filename).suffix
+    if not extension:
+        return None
+    extension = extension[1:].lower()
 
     format_map = {
         "gtiff": "GTiff",

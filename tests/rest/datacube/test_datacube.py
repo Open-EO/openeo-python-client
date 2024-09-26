@@ -7,6 +7,7 @@ General cube method tests against both
 
 import contextlib
 import pathlib
+import re
 from datetime import date, datetime
 from unittest import mock
 
@@ -710,13 +711,14 @@ class TestExecuteBatch:
     @pytest.mark.parametrize(
         ["save_result_format", "execute_format", "expected"],
         [
-            ("GTiff", "GTiff", "GTiff"),
+            (None, None, "GTiff"),
+            (None, "GTiff", "GTiff"),
             ("GTiff", None, "GTiff"),
-            ("NetCDF", "NetCDF", "NetCDF"),
+            (None, "NetCDF", "NetCDF"),
             ("NetCDF", None, "NetCDF"),
         ],
     )
-    def test_create_job_existing_save_result(
+    def test_save_result_and_create_job_at_most_one_with_format(
         self,
         s2cube,
         get_create_job_pg,
@@ -724,7 +726,10 @@ class TestExecuteBatch:
         execute_format,
         expected,
     ):
-        cube = s2cube.save_result(format=save_result_format)
+        cube = s2cube
+        if save_result_format:
+            cube = cube.save_result(format=save_result_format)
+
         cube.create_job(out_format=execute_format)
         pg = get_create_job_pg()
         assert set(pg.keys()) == {"loadcollection1", "saveresult1"}
@@ -740,14 +745,33 @@ class TestExecuteBatch:
 
     @pytest.mark.parametrize(
         ["save_result_format", "execute_format"],
-        [("NetCDF", "GTiff"), ("GTiff", "NetCDF")],
+        [
+            ("NetCDF", "NetCDF"),
+            ("GTiff", "NetCDF"),
+        ],
     )
-    def test_create_job_existing_save_result_incompatible(
-        self, s2cube, save_result_format, execute_format
-    ):
+    def test_save_result_and_create_job_both_with_format(self, s2cube, save_result_format, execute_format):
         cube = s2cube.save_result(format=save_result_format)
-        with pytest.raises(ValueError):
+        with pytest.raises(
+            OpenEoClientException,
+            match=re.escape(
+                "DataCube.create_job() with explicit output format 'NetCDF',"
+                " but the process graph already has `save_result` node(s)"
+                " which is ambiguous and should not be combined."
+            ),
+        ):
             cube.create_job(out_format=execute_format)
+
+    @pytest.mark.parametrize(
+        ["auto_add_save_result", "process_ids"],
+        [
+            (True, {"load_collection", "save_result"}),
+            (False, {"load_collection"}),
+        ],
+    )
+    def test_create_job_auto_add_save_result(self, s2cube, dummy_backend, auto_add_save_result, process_ids):
+        s2cube.create_job(auto_add_save_result=auto_add_save_result)
+        assert set(n["process_id"] for n in dummy_backend.get_pg().values()) == process_ids
 
     def test_execute_batch_defaults(self, s2cube, get_create_job_pg, recwarn, caplog):
         s2cube.execute_batch()
@@ -808,13 +832,14 @@ class TestExecuteBatch:
     @pytest.mark.parametrize(
         ["save_result_format", "execute_format", "expected"],
         [
-            ("GTiff", "GTiff", "GTiff"),
+            (None, None, "GTiff"),
+            (None, "GTiff", "GTiff"),
             ("GTiff", None, "GTiff"),
-            ("NetCDF", "NetCDF", "NetCDF"),
+            (None, "NetCDF", "NetCDF"),
             ("NetCDF", None, "NetCDF"),
         ],
     )
-    def test_execute_batch_existing_save_result(
+    def test_save_result_and_execute_batch_at_most_one_with_format(
         self,
         s2cube,
         get_create_job_pg,
@@ -822,7 +847,9 @@ class TestExecuteBatch:
         execute_format,
         expected,
     ):
-        cube = s2cube.save_result(format=save_result_format)
+        cube = s2cube
+        if save_result_format:
+            cube = cube.save_result(format=save_result_format)
         cube.execute_batch(out_format=execute_format)
         pg = get_create_job_pg()
         assert set(pg.keys()) == {"loadcollection1", "saveresult1"}
@@ -838,14 +865,61 @@ class TestExecuteBatch:
 
     @pytest.mark.parametrize(
         ["save_result_format", "execute_format"],
-        [("NetCDF", "GTiff"), ("GTiff", "NetCDF")],
+        [
+            ("NetCDF", "NetCDF"),
+            ("GTiff", "NetCDF"),
+        ],
     )
     def test_execute_batch_existing_save_result_incompatible(
         self, s2cube, save_result_format, execute_format
     ):
         cube = s2cube.save_result(format=save_result_format)
-        with pytest.raises(ValueError):
+        with pytest.raises(
+            OpenEoClientException,
+            match=re.escape(
+                "DataCube.execute_batch() with explicit output format 'NetCDF',"
+                " but the process graph already has `save_result` node(s)"
+                " which is ambiguous and should not be combined."
+            ),
+        ):
             cube.execute_batch(out_format=execute_format)
+
+    @pytest.mark.parametrize(
+        ["save_result_format", "execute_output_file", "expected"],
+        [
+            (None, None, "GTiff"),
+            (None, "result.tiff", "GTiff"),
+            ("GTiff", None, "GTiff"),
+            ("GTiff", "result.csv", "GTiff"),
+            (None, "result.nc", "netCDF"),
+            ("NetCDF", None, "NetCDF"),
+            ("NetCDF", "result.csv", "NetCDF"),
+            (None, "result.csv", "CSV"),
+        ],
+    )
+    def test_save_result_and_execute_batch_weak_format(
+        self,
+        s2cube,
+        get_create_job_pg,
+        save_result_format,
+        execute_output_file,
+        expected,
+    ):
+        cube = s2cube
+        if save_result_format:
+            cube = cube.save_result(format=save_result_format)
+        cube.execute_batch(outputfile=execute_output_file)
+        pg = get_create_job_pg()
+        assert set(pg.keys()) == {"loadcollection1", "saveresult1"}
+        assert pg["saveresult1"] == {
+            "process_id": "save_result",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "format": expected,
+                "options": {},
+            },
+            "result": True,
+        }
 
     def test_save_result_format_options_vs_create_job(elf, s2cube, get_create_job_pg):
         """https://github.com/Open-EO/openeo-python-client/issues/433"""
@@ -878,6 +952,17 @@ class TestExecuteBatch:
             },
             "result": True,
         }
+
+    @pytest.mark.parametrize(
+        ["auto_add_save_result", "process_ids"],
+        [
+            (True, {"load_collection", "save_result"}),
+            (False, {"load_collection"}),
+        ],
+    )
+    def test_execute_batch_auto_add_save_result(self, s2cube, dummy_backend, auto_add_save_result, process_ids):
+        s2cube.execute_batch(auto_add_save_result=auto_add_save_result)
+        assert set(n["process_id"] for n in dummy_backend.get_pg().values()) == process_ids
 
 
 class TestDataCubeValidation:

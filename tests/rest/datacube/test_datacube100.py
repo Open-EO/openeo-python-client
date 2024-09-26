@@ -3257,14 +3257,7 @@ def test_apply_append_math_keep_context(con100):
         ({}, "result.nc", {}, b"this is netCDF data"),
         ({"format": "GTiff"}, "result.tiff", {}, b"this is GTiff data"),
         ({"format": "GTiff"}, "result.tif", {}, b"this is GTiff data"),
-        (
-            {"format": "GTiff"},
-            "result.nc",
-            {},
-            ValueError(
-                "Existing `save_result` node with different format 'GTiff' != 'netCDF'"
-            ),
-        ),
+        ({"format": "GTiff"}, "result.nc", {}, b"this is GTiff data"),
         ({}, "result.tiff", {"format": "GTiff"}, b"this is GTiff data"),
         ({}, "result.nc", {"format": "netCDF"}, b"this is netCDF data"),
         ({}, "result.meh", {"format": "netCDF"}, b"this is netCDF data"),
@@ -3272,20 +3265,24 @@ def test_apply_append_math_keep_context(con100):
             {"format": "GTiff"},
             "result.tiff",
             {"format": "GTiff"},
-            b"this is GTiff data",
+            OpenEoClientException(
+                "DataCube.download() with explicit output format 'GTiff', but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
+            ),
         ),
         (
             {"format": "netCDF"},
             "result.tiff",
             {"format": "NETCDF"},
-            b"this is netCDF data",
+            OpenEoClientException(
+                "DataCube.download() with explicit output format 'NETCDF', but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
+            ),
         ),
         (
             {"format": "netCDF"},
             "result.json",
             {"format": "JSON"},
-            ValueError(
-                "Existing `save_result` node with different format 'netCDF' != 'JSON'"
+            OpenEoClientException(
+                "DataCube.download() with explicit output format 'JSON', but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
             ),
         ),
         ({"options": {}}, "result.tiff", {}, b"this is GTiff data"),
@@ -3293,14 +3290,16 @@ def test_apply_append_math_keep_context(con100):
             {"options": {"quality": "low"}},
             "result.tiff",
             {"options": {"quality": "low"}},
-            b"this is GTiff data",
+            OpenEoClientException(
+                "DataCube.download() with explicit output options {'quality': 'low'}, but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
+            ),
         ),
         (
             {"options": {"colormap": "jet"}},
             "result.tiff",
             {"options": {"quality": "low"}},
-            ValueError(
-                "Existing `save_result` node with different options {'colormap': 'jet'} != {'quality': 'low'}"
+            OpenEoClientException(
+                "DataCube.download() with explicit output options {'quality': 'low'}, but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
             ),
         ),
     ],
@@ -3328,14 +3327,27 @@ def test_save_result_and_download(
         cube = cube.save_result(**save_result_kwargs)
 
     path = tmp_path / download_filename
-    if isinstance(expected, ValueError):
-        with pytest.raises(ValueError, match=str(expected)):
+    if isinstance(expected, Exception):
+        with pytest.raises(type(expected), match=re.escape(str(expected))):
             cube.download(str(path), **download_kwargs)
         assert post_result_mock.call_count == 0
     else:
         cube.download(str(path), **download_kwargs)
         assert path.read_bytes() == expected
         assert post_result_mock.call_count == 1
+
+
+@pytest.mark.parametrize(
+    ["auto_add_save_result", "process_ids"],
+    [
+        (True, {"load_collection", "save_result"}),
+        (False, {"load_collection"}),
+    ],
+)
+def test_download_auto_add_save_result(s2cube, dummy_backend, tmp_path, auto_add_save_result, process_ids):
+    path = tmp_path / "result.tiff"
+    s2cube.download(path, auto_add_save_result=auto_add_save_result)
+    assert set(n["process_id"] for n in dummy_backend.get_pg().values()) == process_ids
 
 
 class TestBatchJob:

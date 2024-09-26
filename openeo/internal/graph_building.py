@@ -14,7 +14,7 @@ import json
 import sys
 from contextlib import nullcontext
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Dict, Iterator, Optional, Tuple, Union
 
 from openeo.api.process import Parameter
 from openeo.internal.process_graph_visitor import (
@@ -223,6 +223,24 @@ class PGNode(_FromNodeMixin, FlatGraphableMixin):
     def from_flat_graph(flat_graph: dict, parameters: Optional[dict] = None) -> PGNode:
         """Unflatten a given flat dict representation of a process graph and return result node."""
         return PGNodeGraphUnflattener.unflatten(flat_graph=flat_graph, parameters=parameters)
+
+
+    def walk_nodes(self) -> Iterator[PGNode]:
+        """Walk this node and all it's parents"""
+        # TODO: option to do deep walk (walk through child graphs too)?
+        yield self
+
+        def walk(x) -> Iterator[PGNode]:
+            if isinstance(x, PGNode):
+                yield from x.walk_nodes()
+            elif isinstance(x, dict):
+                for v in x.values():
+                    yield from walk(v)
+            elif isinstance(x, (list, tuple)):
+                for v in x:
+                    yield from walk(v)
+
+        yield from walk(self.arguments)
 
 
 def as_flat_graph(x: Union[dict, FlatGraphableMixin, Path, Any]) -> Dict[str, dict]:

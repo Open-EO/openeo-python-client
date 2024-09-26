@@ -379,3 +379,36 @@ class TestPGNodeGraphUnflattener:
         }
         with pytest.raises(ProcessGraphVisitException, match="No substitution value for parameter 'increment'"):
             _ = PGNodeGraphUnflattener.unflatten(flat_graph, parameters={"other": 100})
+
+
+def test_walk_nodes_basic():
+    node = PGNode("foo")
+    walk = node.walk_nodes()
+    assert next(walk) is node
+    with pytest.raises(StopIteration):
+        next(walk)
+
+
+def test_walk_nodes_args():
+    data = PGNode("load")
+    geometry = PGNode("vector")
+    node = PGNode("foo", data=data, geometry=geometry)
+
+    walk = node.walk_nodes()
+    assert next(walk) is node
+    rest = list(walk)
+    assert rest == [data, geometry] or rest == [geometry, data]
+
+
+def test_walk_nodes_nested():
+    node = PGNode(
+        "foo",
+        cubes=[PGNode("load1"), PGNode("load2")],
+        size={
+            "x": PGNode("add", x=PGNode("five"), y=3),
+            "y": PGNode("max"),
+        },
+    )
+    walk = list(node.walk_nodes())
+    assert all(isinstance(n, PGNode) for n in walk)
+    assert set(n.process_id for n in walk) == {"load1", "max", "foo", "load2", "add", "five"}

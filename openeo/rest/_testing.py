@@ -6,6 +6,10 @@ from openeo import Connection, DataCube
 from openeo.rest.vectorcube import VectorCube
 
 
+class OpeneoTestingException(Exception):
+    pass
+
+
 class DummyBackend:
     """
     Dummy backend that handles sync/batch execution requests
@@ -75,7 +79,7 @@ class DummyBackend:
     def _get_job_id(self, request) -> str:
         match = re.match(r"^/jobs/(job-\d+)(/|$)", request.path)
         if not match:
-            raise ValueError(f"Failed to extract job_id from {request.path}")
+            raise OpeneoTestingException(f"Failed to extract job_id from {request.path}")
         job_id = match.group(1)
         assert job_id in self.batch_jobs
         return job_id
@@ -132,13 +136,14 @@ class DummyBackend:
         :return: process graph (flat graph representation) or process graph node
         """
         pgs = self.sync_requests + [b["pg"] for b in self.batch_jobs.values()]
-        assert len(pgs) == 1
+        if len(pgs) != 1:
+            raise OpeneoTestingException(f"Expected single process graph, but collected {len(pgs)}")
         pg = pgs[0]
         if process_id:
             # Just return single node (by process_id)
             found = [node for node in pg.values() if node.get("process_id") == process_id]
             if len(found) != 1:
-                raise RuntimeError(
+                raise OpeneoTestingException(
                     f"Expected single process graph node with process_id {process_id!r}, but found {len(found)}: {found}"
                 )
             return found[0]
