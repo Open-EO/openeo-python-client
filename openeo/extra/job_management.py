@@ -458,6 +458,11 @@ class MultiBackendJobManager:
             time.sleep(self.poll_sleep)
 
     def _job_update_loop(self, df, job_db, start_job):
+        """
+        Inner loop logic of job management:
+        go through the necessary jobs to check for status updates,
+        trigger status events, start new jobs when there is room for them, etc.
+        """
         with ignore_connection_errors(context="get statuses"):
             self._track_statuses(job_db)
 
