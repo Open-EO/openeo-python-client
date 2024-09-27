@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Removed
+
+### Fixed
+
+
+## [0.32.0] - 2024-09-27
+
+### Added
+
 - `load_stac`/`metadata_from_stac`: add support for extracting actual temporal dimension metadata ([#567](https://github.com/Open-EO/openeo-python-client/issues/567))
 - `MultiBackendJobManager`: add `cancel_running_job_after` option to automatically cancel jobs that are running for too long ([#590](https://github.com/Open-EO/openeo-python-client/issues/590))
 - Added `openeo.api.process.Parameter` helper to easily create a "spatial_extent" UDP parameter
@@ -28,8 +39,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Disallow ambiguity of combining explicit `save_result` nodes
   and implicit `save_result` addition from `download()`/`create_job()` calls with `format`
   (related to [#623](https://github.com/Open-EO/openeo-python-client/issues/623), [#401](https://github.com/Open-EO/openeo-python-client/issues/401), [#583](https://github.com/Open-EO/openeo-python-client/issues/583))
-
-### Removed
 
 ### Fixed
 
