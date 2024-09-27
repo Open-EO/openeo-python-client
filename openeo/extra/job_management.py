@@ -259,6 +259,7 @@ class MultiBackendJobManager:
         :param df: The dataframe to normalize.
         :return: a new dataframe that is normalized.
         """
+        # TODO: this was originally an internal helper, but we need a clean public API for the user
 
         # check for some required columns.
         required_with_default = [
@@ -279,23 +280,6 @@ class MultiBackendJobManager:
         df = df.assign(**new_columns)
 
         return df
-
-    def initialize_job_db(self, job_db: JobDatabaseInterface, dataframe: pd.DataFrame):
-        """
-        Initialize a job database to be compatible with this job manager.
-        The provided dataframe should contain all the columns that you need to create your jobs.
-
-        This job manager uses the following reserved column names: status, id, start_time, running_start_time,
-        cpu, memory, duration, backend_name.
-
-        If the column name already exists in the provided dataframe, it will be assumed that it can be used as is by
-        this job manager.
-        """
-        if not job_db.exists():
-            dataframe = self._normalize_df(dataframe)
-            job_db.persist(dataframe)
-        else:
-            raise ValueError(f"Job database {job_db} already exists, cannot initialize.")
 
     def start_job_thread(self, start_job: Callable[[], BatchJob], job_db: JobDatabaseInterface):
         """
@@ -331,7 +315,6 @@ class MultiBackendJobManager:
             Job database to load/store existing job status data and other metadata from/to.
             Can be specified as a path to CSV or Parquet file,
             or as a custom database object following the :py:class:`JobDatabaseInterface` interface.
-            The job database should be initialized with :py:meth:`initialize_job_db` before calling this method.
 
             .. note::
                 Support for Parquet files depends on the ``pyarrow`` package
@@ -467,7 +450,8 @@ class MultiBackendJobManager:
             # Resume from existing db
             _log.info(f"Resuming `run_jobs` from existing {job_db}")
         elif df is not None:
-            self.initialize_job_db(job_db, df)
+            df = self._normalize_df(df)
+            job_db.persist(df)
 
         while sum(job_db.count_by_status(statuses=["not_started", "created", "queued", "running"]).values()) > 0:
             self._job_update_loop(df, job_db, start_job)
@@ -749,8 +733,8 @@ class CsvJobDatabase(FullDataFrameJobDatabase):
         super().__init__()
         self.path = Path(path)
 
-    def __str__(self):
-        return str(self.path)
+    def __repr__(self):
+        return f"{self.__class__.__name__}({str(self.path)!r})"
 
     def exists(self) -> bool:
         return self.path.exists()
@@ -801,8 +785,8 @@ class ParquetJobDatabase(FullDataFrameJobDatabase):
         super().__init__()
         self.path = Path(path)
 
-    def __str__(self):
-        return str(self.path)
+    def __repr__(self):
+        return f"{self.__class__.__name__}({str(self.path)!r})"
 
     def exists(self) -> bool:
         return self.path.exists()
