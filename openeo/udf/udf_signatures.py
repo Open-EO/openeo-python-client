@@ -13,6 +13,12 @@ from openeo.metadata import CollectionMetadata
 from openeo.udf.udf_data import UdfData
 from openeo.udf.xarraydatacube import XarrayDataCube
 
+try:
+    # Geopandas is an optional dependency, but one of the signatures uses it as type annotation
+    import geopandas
+except ImportError:
+    pass
+
 
 def apply_timeseries(series: Series, context: dict) -> Series:
     """
