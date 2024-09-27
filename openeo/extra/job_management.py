@@ -258,8 +258,11 @@ class MultiBackendJobManager:
         connection.session.mount("https://", HTTPAdapter(max_retries=retries))
         connection.session.mount("http://", HTTPAdapter(max_retries=retries))
 
-    def _normalize_df(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Ensure we have the required columns and the expected type for the geometry column.
+    @staticmethod
+    def _normalize_df(df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Normalize given pandas dataframe (creating a new one):
+        ensure we have the required columns.
 
         :param df: The dataframe to normalize.
         :return: a new dataframe that is normalized.
@@ -456,8 +459,7 @@ class MultiBackendJobManager:
             _log.info(f"Resuming `run_jobs` from existing {job_db}")
         elif df is not None:
             # TODO: start showing deprecation warnings for this usage pattern?
-            df = self._normalize_df(df)
-            job_db.persist(df)
+            job_db.initialize_from_df(df)
 
         while sum(job_db.count_by_status(statuses=["not_started", "created", "queued", "running"]).values()) > 0:
             self._job_update_loop(job_db=job_db, start_job=start_job)
@@ -696,6 +698,25 @@ class FullDataFrameJobDatabase(JobDatabaseInterface):
     def __init__(self):
         super().__init__()
         self._df = None
+
+    def initialize_from_df(self, df: pd.DataFrame):
+        """
+        Initialize the job database from a given dataframe,
+        which will be first normalized to be compatible
+        with :py:class:`MultiBackendJobManager` usage.
+
+        :param df: data frame with some columns that
+        :return: initialized job database.
+
+        .. versionadded:: 0.33.0
+        """
+        # TODO: option to provide custom MultiBackendJobManager subclass with custom normalize?
+        if self.exists():
+            raise RuntimeError(f"Job database {self!r} already exists.")
+        df = MultiBackendJobManager._normalize_df(df)
+        self.persist(df)
+        # Return self to allow chaining with constructor.
+        return self
 
     @property
     def df(self) -> pd.DataFrame:
