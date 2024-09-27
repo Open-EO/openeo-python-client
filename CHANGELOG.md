@@ -9,14 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Removed
+
+### Fixed
+
+
+## [0.32.0] - 2024-09-27
+
+### Added
+
 - `load_stac`/`metadata_from_stac`: add support for extracting actual temporal dimension metadata ([#567](https://github.com/Open-EO/openeo-python-client/issues/567))
 - `MultiBackendJobManager`: add `cancel_running_job_after` option to automatically cancel jobs that are running for too long ([#590](https://github.com/Open-EO/openeo-python-client/issues/590))
+- Added `openeo.api.process.Parameter` helper to easily create a "spatial_extent" UDP parameter
+- Wrap OIDC token request failure in more descriptive `OidcException` (related to [#624](https://github.com/Open-EO/openeo-python-client/issues/624))
+- Added `auto_add_save_result` option (on by default) to disable automatic addition of `save_result` node on `download`/`create_job`/`execute_batch` ([#513](https://github.com/Open-EO/openeo-python-client/issues/513))
+- Add support for `apply_vectorcube` UDF signature in `run_udf_code` ([Open-EO/openeo-geopyspark-driver#881](https://github.com/Open-EO/openeo-geopyspark-driver/issues/811))
+- `MultiBackendJobManager`: add API to the update loop in a separate thread, allowing controlled interruption.
 
 ### Changed
 
-- `MultiBackendJobManager`: changed job metadata storage API, to enable working with large databases 
-
-### Removed
+- `MultiBackendJobManager`: changed job metadata storage API, to enable working with large databases
+- `DataCube.apply_polygon()`: rename `polygons` argument to `geometries`, but keep support for legacy `polygons` for now ([#592](https://github.com/Open-EO/openeo-python-client/issues/592), [#511](https://github.com/Open-EO/openeo-processes/issues/511))
+- Disallow ambiguous single string argument in `DataCube.filter_temporal()` ([#628](https://github.com/Open-EO/openeo-python-client/issues/628))
+- Automatic adding of `save_result` from `download()` or `create_job()`:
+  inspect whole process graph for pre-existing `save_result` nodes
+  (related to [#623](https://github.com/Open-EO/openeo-python-client/issues/623), [#401](https://github.com/Open-EO/openeo-python-client/issues/401), [#583](https://github.com/Open-EO/openeo-python-client/issues/583))
+- Disallow ambiguity of combining explicit `save_result` nodes
+  and implicit `save_result` addition from `download()`/`create_job()` calls with `format`
+  (related to [#623](https://github.com/Open-EO/openeo-python-client/issues/623), [#401](https://github.com/Open-EO/openeo-python-client/issues/401), [#583](https://github.com/Open-EO/openeo-python-client/issues/583))
 
 ### Fixed
 

@@ -324,6 +324,29 @@ def test_oidc_client_credentials_flow(requests_mock):
     assert oidc_mock.state["access_token"] == tokens.access_token
 
 
+def test_oidc_client_credentials_flow_connection_error(requests_mock):
+    client_id = "myclient"
+    oidc_issuer = "https://oidc.test"
+    client_secret = "$3cr3t"
+    oidc_mock = OidcMock(
+        requests_mock=requests_mock,
+        expected_grant_type="client_credentials",
+        expected_client_id=client_id,
+        expected_fields={"client_secret": client_secret, "scope": "openid"},
+        oidc_issuer=oidc_issuer,
+    )
+    requests_mock.post(oidc_mock.token_endpoint, exc=requests.exceptions.ConnectionError)
+
+    provider = OidcProviderInfo(issuer=oidc_issuer)
+    authenticator = OidcClientCredentialsAuthenticator(
+        client_info=OidcClientInfo(client_id=client_id, provider=provider, client_secret=client_secret)
+    )
+    with pytest.raises(
+        OidcException, match="Failed to retrieve access token at 'https://oidc.test/token': ConnectionError"
+    ):
+        _ = authenticator.get_tokens()
+
+
 def test_oidc_resource_owner_password_credentials_flow(requests_mock):
     client_id = "myclient"
     client_secret = "$3cr3t"

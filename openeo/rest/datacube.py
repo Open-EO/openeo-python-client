@@ -46,6 +46,7 @@ from openeo.rest import BandMathException, OpenEoClientException, OperatorExcept
 from openeo.rest._datacube import (
     THIS,
     UDF,
+    _ensure_save_result,
     _ProcessGraphAbstraction,
     build_child_callback,
 )
@@ -318,6 +319,12 @@ class DataCube(_ProcessGraphAbstraction):
             Arguments ``start_date``, ``end_date`` and ``extent``:
             add support for year/month shorthand notation as discussed at :ref:`date-shorthand-handling`.
         """
+        if len(args) == 1 and isinstance(args[0], (str)):
+            raise OpenEoClientException(
+                f"filter_temporal() with a single string argument ({args[0]!r}) is ambiguous."
+                f" If you want a half-unbounded interval, use something like filter_temporal({args[0]!r}, None) or use explicit keyword arguments."
+                f" If you want the full interval covering all of {args[0]!r}, use something like filter_temporal(extent={args[0]!r})."
+            )
         return self.process(
             process_id='filter_temporal',
             arguments={
@@ -1305,10 +1312,11 @@ class DataCube(_ProcessGraphAbstraction):
     @openeo_process
     def apply_polygon(
         self,
-        polygons: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter, VectorCube],
-        process: Union[str, PGNode, typing.Callable, UDF],
+        geometries: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter, VectorCube] = None,
+        process: Union[str, PGNode, typing.Callable, UDF] = None,
         mask_value: Optional[float] = None,
         context: Optional[dict] = None,
+        **kwargs,
     ) -> DataCube:
         """
         Apply a process to segments of the data cube that are defined by the given polygons.
@@ -1318,22 +1326,50 @@ class DataCube(_ProcessGraphAbstraction):
         the GeometriesOverlap exception is thrown.
         Each sub data cube is passed individually to the given process.
 
-        .. warning:: experimental process: not generally supported, API subject to change.
-
-        :param polygons: Polygons, provided as a shapely geometry, a GeoJSON-style dictionary,
+        :param geometries: Polygons, provided as a shapely geometry, a GeoJSON-style dictionary,
             a public GeoJSON URL, or a path (that is valid for the back-end) to a GeoJSON file.
         :param process: "child callback" function, see :ref:`callbackfunctions`
         :param mask_value: The value used for pixels outside the polygon.
         :param context: Additional data to be passed to the process.
+
+        .. warning:: experimental process: not generally supported, API subject to change.
+
+        .. versionchanged:: 0.32.0
+            Argument ``polygons`` was renamed to ``geometries``.
+            While deprecated, the old name ``polygons`` is still supported
+            as keyword argument for backwards compatibility.
         """
+        # TODO drop support for legacy `polygons` argument:
+        #      remove `kwargs, remove default `None` value for `geometries` and `process`
+        #      and the related backwards compatibility code
+        geometries_parameter = "geometries"
+        if geometries is None and "polygons" in kwargs:
+            geometries = kwargs.pop("polygons")
+            geometries_parameter = "polygons"
+            warnings.warn(
+                "In `apply_polygon` use argument `geometries` instead of deprecated 'polygons'.",
+                category=UserDeprecationWarning,
+                stacklevel=2,
+            )
+        if kwargs:
+            raise ValueError(f"Unexpected keyword arguments: {kwargs!r}")
+        if not geometries:
+            raise ValueError("No geometries provided.")
+
+        # Note: the `process` argument was given a default value `None` (with the `polygons`/`geometries` argument rename)
+        # to keep support for legacy `cube.apply_polygon(polygons=..., process=...)` usage:
+        # `geometries` had to be given a default value, and so did `process` as it comes after it.
+        # TODO: remove default value for `process` when dropping support for legacy `polygons` argument
+        assert process is not None
+
         process = build_child_callback(process, parent_parameters=["data"], connection=self.connection)
         valid_geojson_types = ["Polygon", "MultiPolygon", "Feature", "FeatureCollection"]
-        polygons = self._get_geometry_argument(polygons, valid_geojson_types=valid_geojson_types)
+        geometries = self._get_geometry_argument(geometries, valid_geojson_types=valid_geojson_types)
         mask_value = float(mask_value) if mask_value is not None else None
         return self.process(
             process_id="apply_polygon",
             data=THIS,
-            polygons=polygons,
+            **{geometries_parameter: geometries},
             process=process,
             arguments=dict_no_none(
                 mask_value=mask_value,
@@ -2060,42 +2096,6 @@ class DataCube(_ProcessGraphAbstraction):
             }
         )
 
-    def _ensure_save_result(
-        self,
-        format: Optional[str] = None,
-        options: Optional[dict] = None,
-    ) -> DataCube:
-        """
-        Make sure there is a (final) `save_result` node in the process graph.
-        If there is already one: check if it is consistent with the given format/options (if any)
-        and add a new one otherwise.
-
-        :param format: (optional) desired `save_result` file format
-        :param options: (optional) desired `save_result` file format parameters
-        :return:
-        """
-        # TODO #401 Unify with VectorCube._ensure_save_result and move to generic data cube parent class (not only for raster cubes, but also vector cubes)
-        result_node = self.result_node()
-        if result_node.process_id == "save_result":
-            # There is already a `save_result` node:
-            # check if it is consistent with given format/options (if any)
-            args = result_node.arguments
-            if format is not None and format.lower() != args["format"].lower():
-                raise ValueError(
-                    f"Existing `save_result` node with different format {args['format']!r} != {format!r}"
-                )
-            if options is not None and options != args["options"]:
-                raise ValueError(
-                    f"Existing `save_result` node with different options {args['options']!r} != {options!r}"
-                )
-            cube = self
-        else:
-            # No `save_result` node yet: automatically add it.
-            cube = self.save_result(
-                format=format or self._DEFAULT_RASTER_FORMAT, options=options
-            )
-        return cube
-
     def download(
         self,
         outputfile: Optional[Union[str, pathlib.Path]] = None,
@@ -2103,6 +2103,7 @@ class DataCube(_ProcessGraphAbstraction):
         options: Optional[dict] = None,
         *,
         validate: Optional[bool] = None,
+        auto_add_save_result: bool = True,
     ) -> Union[None, bytes]:
         """
         Execute synchronously and download the raster data cube, e.g. as GeoTIFF.
@@ -2115,12 +2116,24 @@ class DataCube(_ProcessGraphAbstraction):
         :param options: Optional, file format options
         :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
+        :param auto_add_save_result: Automatically add a ``save_result`` node to the process graph if there is none yet.
+
         :return: None if the result is stored to disk, or a bytes object returned by the backend.
+
+        .. versionchanged:: 0.32.0
+            Added ``auto_add_save_result`` option
         """
-        if format is None and outputfile:
-            # TODO #401/#449 don't guess/override format if there is already a save_result with format?
-            format = guess_format(outputfile)
-        cube = self._ensure_save_result(format=format, options=options)
+        # TODO #278 centralize download/create_job/execute_job logic in DataCube, VectorCube, MlModel, ...
+        cube = self
+        if auto_add_save_result:
+            cube = _ensure_save_result(
+                cube=cube,
+                format=format,
+                options=options,
+                weak_format=guess_format(outputfile) if outputfile else None,
+                default_format=self._DEFAULT_RASTER_FORMAT,
+                method="DataCube.download()",
+            )
         return self._connection.download(cube.flat_graph(), outputfile, validate=validate)
 
     def validate(self) -> List[dict]:
@@ -2223,7 +2236,8 @@ class DataCube(_ProcessGraphAbstraction):
         connection_retry_interval: float = 30,
         job_options: Optional[dict] = None,
         validate: Optional[bool] = None,
-        # TODO: avoid `format_options` as keyword arguments
+        auto_add_save_result: bool = True,
+        # TODO: deprecate `format_options` as keyword arguments
         **format_options,
     ) -> BatchJob:
         """
@@ -2237,14 +2251,28 @@ class DataCube(_ProcessGraphAbstraction):
         :param job_options:
         :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
+        :param auto_add_save_result: Automatically add a ``save_result`` node to the process graph if there is none yet.
+
+        .. versionchanged:: 0.32.0
+            Added ``auto_add_save_result`` option
         """
+        # TODO: start showing deprecation warnings about these inconsistent argument names
         if "format" in format_options and not out_format:
             out_format = format_options["format"]  # align with 'download' call arg name
-        if out_format is None and outputfile:
-            # TODO #401/#449 don't guess/override format if there is already a save_result with format?
-            out_format = guess_format(outputfile)
 
-        job = self.create_job(out_format=out_format, job_options=job_options, validate=validate, **format_options)
+        # TODO #278 centralize download/create_job/execute_job logic in DataCube, VectorCube, MlModel, ...
+        cube = self
+        if auto_add_save_result:
+            cube = _ensure_save_result(
+                cube=cube,
+                format=out_format,
+                options=format_options,
+                weak_format=guess_format(outputfile) if outputfile else None,
+                default_format=self._DEFAULT_RASTER_FORMAT,
+                method="DataCube.execute_batch()",
+            )
+
+        job = cube.create_job(job_options=job_options, validate=validate, auto_add_save_result=False)
         return job.run_synchronous(
             outputfile=outputfile,
             print=print, max_poll_interval=max_poll_interval, connection_retry_interval=connection_retry_interval
@@ -2260,6 +2288,7 @@ class DataCube(_ProcessGraphAbstraction):
         budget: Optional[float] = None,
         job_options: Optional[dict] = None,
         validate: Optional[bool] = None,
+        auto_add_save_result: bool = True,
         # TODO: avoid `format_options` as keyword arguments
         **format_options,
     ) -> BatchJob:
@@ -2280,13 +2309,25 @@ class DataCube(_ProcessGraphAbstraction):
         :param job_options: custom job options.
         :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
+        :param auto_add_save_result: Automatically add a ``save_result`` node to the process graph if there is none yet.
 
         :return: Created job.
+
+        .. versionchanged:: 0.32.0
+            Added ``auto_add_save_result`` option
         """
         # TODO: add option to also automatically start the job?
         # TODO: avoid using all kwargs as format_options
-        # TODO: centralize `create_job` for `DataCube`, `VectorCube`, `MlModel`, ...
-        cube = self._ensure_save_result(format=out_format, options=format_options or None)
+        # TODO #278 centralize download/create_job/execute_job logic in DataCube, VectorCube, MlModel, ...
+        cube = self
+        if auto_add_save_result:
+            cube = _ensure_save_result(
+                cube=cube,
+                format=out_format,
+                options=format_options or None,
+                default_format=self._DEFAULT_RASTER_FORMAT,
+                method="DataCube.create_job()",
+            )
         return self._connection.create_job(
             process_graph=cube.flat_graph(),
             title=title,

@@ -25,6 +25,7 @@ from queue import Empty, Queue
 from typing import Callable, List, NamedTuple, Optional, Tuple, Union
 
 import requests
+import requests.exceptions
 
 import openeo
 from openeo.internal.jupyter import in_jupyter_context
@@ -402,7 +403,10 @@ class OidcAuthenticator:
                 g=self.grant_type, c=self.client_id, u=token_endpoint, p=list(post_data.keys())
             )
         )
-        resp = self._requests.post(url=token_endpoint, data=post_data)
+        try:
+            resp = self._requests.post(url=token_endpoint, data=post_data)
+        except requests.exceptions.RequestException as e:
+            raise OidcException(f"Failed to retrieve access token at {token_endpoint!r}: {e!r}") from e
         if resp.status_code != 200:
             # TODO: are other status_code values valid too?
             raise OidcException(
@@ -911,6 +915,7 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
                         f"Doing {self.grant_type!r} token request {token_endpoint!r} with post data fields {list(post_data.keys())!r} (client_id {self.client_id!r})"
                     )
                     poll_ui.show_progress(status="Polling")
+                    # TODO: skip occasional failing requests? (e.g. see `SkipIntermittentFailures` from openeo-aggregator)
                     resp = self._requests.post(url=token_endpoint, data=post_data, timeout=5)
                     if resp.status_code == 200:
                         log.info(f"[{elapsed():5.1f}s] Authorized successfully.")

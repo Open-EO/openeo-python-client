@@ -1556,15 +1556,18 @@ def test_chunk_polygon_context(con100: Connection):
     }
 
 
-def test_apply_polygon_basic(con100: Connection):
+def test_apply_polygon_basic_legacy(con100: Connection):
     cube = con100.load_collection("S2")
-    polygons: shapely.geometry.Polygon = shapely.geometry.box(0, 0, 1, 1)
+    geometries = shapely.geometry.box(0, 0, 1, 1)
     process = UDF(code="myfancycode", runtime="Python")
-    result = cube.apply_polygon(polygons=polygons, process=process)
+    result = cube.apply_polygon(polygons=geometries, process=process)
     assert get_download_graph(result)["applypolygon1"] == {
         "process_id": "apply_polygon",
         "arguments": {
             "data": {"from_node": "loadcollection1"},
+            # TODO #592: For now, stick to legacy "polygons" argument in this case.
+            #       But eventually: change argument name to "geometries"
+            #       when https://github.com/Open-EO/openeo-python-driver/commit/15b72a77 propagated to all backends
             "polygons": {
                 "type": "Polygon",
                 "coordinates": [[[1.0, 0.0], [1.0, 1.0], [0.0, 1.0], [0.0, 0.0], [1.0, 0.0]]],
@@ -1582,18 +1585,80 @@ def test_apply_polygon_basic(con100: Connection):
     }
 
 
-@pytest.mark.parametrize(["polygons", "expected_polygons"], basic_geometry_types)
-def test_apply_polygon_types(con100: Connection, polygons, expected_polygons):
-    if isinstance(polygons, shapely.geometry.GeometryCollection):
+def test_apply_polygon_basic(con100: Connection):
+    cube = con100.load_collection("S2")
+    geometries = shapely.geometry.box(0, 0, 1, 1)
+    process = UDF(code="myfancycode", runtime="Python")
+    result = cube.apply_polygon(geometries=geometries, process=process)
+    assert get_download_graph(result)["applypolygon1"] == {
+        "process_id": "apply_polygon",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "geometries": {
+                "type": "Polygon",
+                "coordinates": [[[1.0, 0.0], [1.0, 1.0], [0.0, 1.0], [0.0, 0.0], [1.0, 0.0]]],
+            },
+            "process": {
+                "process_graph": {
+                    "runudf1": {
+                        "process_id": "run_udf",
+                        "arguments": {"data": {"from_parameter": "data"}, "runtime": "Python", "udf": "myfancycode"},
+                        "result": True,
+                    }
+                }
+            },
+        },
+    }
+
+
+def test_apply_polygon_basic_positional(con100: Connection):
+    """DataCube.apply_polygon() with positional arguments."""
+    cube = con100.load_collection("S2")
+    geometries = shapely.geometry.box(0, 0, 1, 1)
+    process = UDF(code="myfancycode", runtime="Python")
+    result = cube.apply_polygon(geometries, process)
+    assert get_download_graph(result)["applypolygon1"] == {
+        "process_id": "apply_polygon",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "geometries": {
+                "type": "Polygon",
+                "coordinates": [[[1.0, 0.0], [1.0, 1.0], [0.0, 1.0], [0.0, 0.0], [1.0, 0.0]]],
+            },
+            "process": {
+                "process_graph": {
+                    "runudf1": {
+                        "process_id": "run_udf",
+                        "arguments": {"data": {"from_parameter": "data"}, "runtime": "Python", "udf": "myfancycode"},
+                        "result": True,
+                    }
+                }
+            },
+        },
+    }
+
+
+@pytest.mark.parametrize(
+    ["geometries_argument", "geometries_parameter"],
+    [
+        ("polygons", "polygons"),  # TODO #592: *parameter* "polygons" for now, eventually change to "geometries"
+        ("geometries", "geometries"),
+    ],
+)
+@pytest.mark.parametrize(["geometries", "expected_polygons"], basic_geometry_types)
+def test_apply_polygon_types(
+    con100: Connection, geometries, expected_polygons, geometries_argument, geometries_parameter
+):
+    if isinstance(geometries, shapely.geometry.GeometryCollection):
         pytest.skip("apply_polygon does not support GeometryCollection")
     cube = con100.load_collection("S2")
     process = UDF(code="myfancycode", runtime="Python")
-    result = cube.apply_polygon(polygons=polygons, process=process)
+    result = cube.apply_polygon(**{geometries_argument: geometries}, process=process)
     assert get_download_graph(result)["applypolygon1"] == {
         "process_id": "apply_polygon",
         "arguments": {
             "data": {"from_node": "loadcollection1"},
-            "polygons": expected_polygons,
+            geometries_parameter: expected_polygons,
             "process": {
                 "process_graph": {
                     "runudf1": {
@@ -1607,16 +1672,23 @@ def test_apply_polygon_types(con100: Connection, polygons, expected_polygons):
     }
 
 
-def test_apply_polygon_parameter(con100: Connection):
+@pytest.mark.parametrize(
+    ["geometries_argument", "geometries_parameter"],
+    [
+        ("polygons", "polygons"),  # TODO #592: *parameter* "polygons" for now, eventually change to "geometries"
+        ("geometries", "geometries"),
+    ],
+)
+def test_apply_polygon_parameter(con100: Connection, geometries_argument, geometries_parameter):
     cube = con100.load_collection("S2")
-    polygons = Parameter(name="shapes", schema="object")
+    geometries = Parameter(name="shapes", schema="object")
     process = UDF(code="myfancycode", runtime="Python")
-    result = cube.apply_polygon(polygons=polygons, process=process)
+    result = cube.apply_polygon(**{geometries_argument: geometries}, process=process)
     assert get_download_graph(result)["applypolygon1"] == {
         "process_id": "apply_polygon",
         "arguments": {
             "data": {"from_node": "loadcollection1"},
-            "polygons": {"from_parameter": "shapes"},
+            geometries_parameter: {"from_parameter": "shapes"},
             "process": {
                 "process_graph": {
                     "runudf1": {
@@ -1630,12 +1702,20 @@ def test_apply_polygon_parameter(con100: Connection):
     }
 
 
-def test_apply_polygon_path(con100: Connection):
+@pytest.mark.parametrize(
+    ["geometries_argument", "geometries_parameter"],
+    [
+        ("polygons", "polygons"),  # TODO #592: *parameter* "polygons" for now, eventually change to "geometries"
+        ("geometries", "geometries"),
+    ],
+)
+def test_apply_polygon_path(con100: Connection, geometries_argument, geometries_parameter):
     cube = con100.load_collection("S2")
     process = UDF(code="myfancycode", runtime="Python")
-    result = cube.apply_polygon(polygons="path/to/polygon.json", process=process)
+    result = cube.apply_polygon(**{geometries_argument: "path/to/polygon.json"}, process=process)
     assert get_download_graph(result, drop_save_result=True, drop_load_collection=True) == {
         "readvector1": {
+            # TODO #104 #457 get rid of non-standard read_vector
             "process_id": "read_vector",
             "arguments": {"filename": "path/to/polygon.json"},
         },
@@ -1643,7 +1723,7 @@ def test_apply_polygon_path(con100: Connection):
             "process_id": "apply_polygon",
             "arguments": {
                 "data": {"from_node": "loadcollection1"},
-                "polygons": {"from_node": "readvector1"},
+                geometries_parameter: {"from_node": "readvector1"},
                 "process": {
                     "process_graph": {
                         "runudf1": {
@@ -1662,16 +1742,23 @@ def test_apply_polygon_path(con100: Connection):
     }
 
 
-def test_apply_polygon_context(con100: Connection):
+@pytest.mark.parametrize(
+    ["geometries_argument", "geometries_parameter"],
+    [
+        ("polygons", "polygons"),  # TODO #592: *parameter* "polygons" for now, eventually change to "geometries"
+        ("geometries", "geometries"),
+    ],
+)
+def test_apply_polygon_context(con100: Connection, geometries_argument, geometries_parameter):
     cube = con100.load_collection("S2")
-    polygons = shapely.geometry.Polygon([(0, 0), (1, 0), (0, 1), (0, 0)])
+    geometries = shapely.geometry.Polygon([(0, 0), (1, 0), (0, 1), (0, 0)])
     process = UDF(code="myfancycode", runtime="Python")
-    result = cube.apply_polygon(polygons=polygons, process=process, context={"foo": 4})
+    result = cube.apply_polygon(**{geometries_argument: geometries}, process=process, context={"foo": 4})
     assert get_download_graph(result)["applypolygon1"] == {
         "process_id": "apply_polygon",
         "arguments": {
             "data": {"from_node": "loadcollection1"},
-            "polygons": {"type": "Polygon", "coordinates": [[[0, 0], [1, 0], [0, 1], [0, 0]]]},
+            geometries_parameter: {"type": "Polygon", "coordinates": [[[0, 0], [1, 0], [0, 1], [0, 0]]]},
             "process": {
                 "process_graph": {
                     "runudf1": {
@@ -3170,14 +3257,7 @@ def test_apply_append_math_keep_context(con100):
         ({}, "result.nc", {}, b"this is netCDF data"),
         ({"format": "GTiff"}, "result.tiff", {}, b"this is GTiff data"),
         ({"format": "GTiff"}, "result.tif", {}, b"this is GTiff data"),
-        (
-            {"format": "GTiff"},
-            "result.nc",
-            {},
-            ValueError(
-                "Existing `save_result` node with different format 'GTiff' != 'netCDF'"
-            ),
-        ),
+        ({"format": "GTiff"}, "result.nc", {}, b"this is GTiff data"),
         ({}, "result.tiff", {"format": "GTiff"}, b"this is GTiff data"),
         ({}, "result.nc", {"format": "netCDF"}, b"this is netCDF data"),
         ({}, "result.meh", {"format": "netCDF"}, b"this is netCDF data"),
@@ -3185,20 +3265,24 @@ def test_apply_append_math_keep_context(con100):
             {"format": "GTiff"},
             "result.tiff",
             {"format": "GTiff"},
-            b"this is GTiff data",
+            OpenEoClientException(
+                "DataCube.download() with explicit output format 'GTiff', but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
+            ),
         ),
         (
             {"format": "netCDF"},
             "result.tiff",
             {"format": "NETCDF"},
-            b"this is netCDF data",
+            OpenEoClientException(
+                "DataCube.download() with explicit output format 'NETCDF', but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
+            ),
         ),
         (
             {"format": "netCDF"},
             "result.json",
             {"format": "JSON"},
-            ValueError(
-                "Existing `save_result` node with different format 'netCDF' != 'JSON'"
+            OpenEoClientException(
+                "DataCube.download() with explicit output format 'JSON', but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
             ),
         ),
         ({"options": {}}, "result.tiff", {}, b"this is GTiff data"),
@@ -3206,14 +3290,16 @@ def test_apply_append_math_keep_context(con100):
             {"options": {"quality": "low"}},
             "result.tiff",
             {"options": {"quality": "low"}},
-            b"this is GTiff data",
+            OpenEoClientException(
+                "DataCube.download() with explicit output options {'quality': 'low'}, but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
+            ),
         ),
         (
             {"options": {"colormap": "jet"}},
             "result.tiff",
             {"options": {"quality": "low"}},
-            ValueError(
-                "Existing `save_result` node with different options {'colormap': 'jet'} != {'quality': 'low'}"
+            OpenEoClientException(
+                "DataCube.download() with explicit output options {'quality': 'low'}, but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
             ),
         ),
     ],
@@ -3241,14 +3327,27 @@ def test_save_result_and_download(
         cube = cube.save_result(**save_result_kwargs)
 
     path = tmp_path / download_filename
-    if isinstance(expected, ValueError):
-        with pytest.raises(ValueError, match=str(expected)):
+    if isinstance(expected, Exception):
+        with pytest.raises(type(expected), match=re.escape(str(expected))):
             cube.download(str(path), **download_kwargs)
         assert post_result_mock.call_count == 0
     else:
         cube.download(str(path), **download_kwargs)
         assert path.read_bytes() == expected
         assert post_result_mock.call_count == 1
+
+
+@pytest.mark.parametrize(
+    ["auto_add_save_result", "process_ids"],
+    [
+        (True, {"load_collection", "save_result"}),
+        (False, {"load_collection"}),
+    ],
+)
+def test_download_auto_add_save_result(s2cube, dummy_backend, tmp_path, auto_add_save_result, process_ids):
+    path = tmp_path / "result.tiff"
+    s2cube.download(path, auto_add_save_result=auto_add_save_result)
+    assert set(n["process_id"] for n in dummy_backend.get_pg().values()) == process_ids
 
 
 class TestBatchJob:

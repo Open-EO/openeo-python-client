@@ -612,6 +612,9 @@ def test_guess_format():
     assert guess_format("/folder/file.png") == "PNG"
     assert guess_format("../folder/file.notaformat") == "NOTAFORMAT"
 
+    assert guess_format("../folder/data") is None
+    assert guess_format("../folder/data.tmp.nc") == "netCDF"
+
 
 class TestLazyLoadCache:
     def test_basic(self):
