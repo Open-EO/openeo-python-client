@@ -125,7 +125,8 @@ class TestMultiBackendJobManager:
             return BatchJob(job_id=f"job-{year}", connection=connection)
 
         job_db = CsvJobDatabase(output_file)
-        manager.initialize_job_db(job_db, df)
+        # TODO: avoid private _normalize_df API
+        job_db.persist(manager._normalize_df(df))
 
         manager.start_job_thread(start_job=start_job, job_db=job_db)
         # Trigger context switch to job thread
@@ -595,6 +596,13 @@ JOB_DB_DF_WITH_GEOJSON_STRING = pd.DataFrame(
 
 
 class TestCsvJobDatabase:
+
+    def test_repr(self, tmp_path):
+        path = tmp_path / "db.csv"
+        db = CsvJobDatabase(path)
+        assert re.match(r"CsvJobDatabase\('[^']+\.csv'\)", repr(db))
+        assert re.match(r"CsvJobDatabase\('[^']+\.csv'\)", str(db))
+
     def test_read_wkt(self, tmp_path):
         wkt_df = pd.DataFrame(
             {
@@ -680,6 +688,13 @@ class TestCsvJobDatabase:
 
 
 class TestParquetJobDatabase:
+
+    def test_repr(self, tmp_path):
+        path = tmp_path / "db.pq"
+        db = ParquetJobDatabase(path)
+        assert re.match(r"ParquetJobDatabase\('[^']+\.pq'\)", repr(db))
+        assert re.match(r"ParquetJobDatabase\('[^']+\.pq'\)", str(db))
+
     @pytest.mark.parametrize(
         ["orig"],
         [
