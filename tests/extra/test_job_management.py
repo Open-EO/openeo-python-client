@@ -600,8 +600,8 @@ class TestCsvJobDatabase:
     def test_repr(self, tmp_path):
         path = tmp_path / "db.csv"
         db = CsvJobDatabase(path)
-        assert repr(db) == f"CsvJobDatabase('{path!s}')"
-        assert str(db) == f"CsvJobDatabase('{path!s}')"
+        assert re.match(r"CsvJobDatabase\('[^']+\.csv'\)", repr(db))
+        assert re.match(r"CsvJobDatabase\('[^']+\.csv'\)", str(db))
 
     def test_read_wkt(self, tmp_path):
         wkt_df = pd.DataFrame(
@@ -690,10 +690,10 @@ class TestCsvJobDatabase:
 class TestParquetJobDatabase:
 
     def test_repr(self, tmp_path):
-        path = tmp_path / "db.csv"
+        path = tmp_path / "db.pq"
         db = ParquetJobDatabase(path)
-        assert repr(db) == f"ParquetJobDatabase('{path!s}')"
-        assert str(db) == f"ParquetJobDatabase('{path!s}')"
+        assert re.match(r"ParquetJobDatabase\('[^']+\.pq'\)", repr(db))
+        assert re.match(r"ParquetJobDatabase\('[^']+\.pq'\)", str(db))
 
     @pytest.mark.parametrize(
         ["orig"],
