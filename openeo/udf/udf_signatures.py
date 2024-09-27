@@ -6,11 +6,18 @@ is compatible with the calling context of the process graph in which it is used.
 """
 # Note: this module was initially developed under the ``openeo-udf`` project (https://github.com/Open-EO/openeo-udf)
 
+import xarray
 from pandas import Series
 
 from openeo.metadata import CollectionMetadata
 from openeo.udf.udf_data import UdfData
 from openeo.udf.xarraydatacube import XarrayDataCube
+
+try:
+    # Geopandas is an optional dependency, but one of the signatures uses it as type annotation
+    import geopandas
+except ImportError:
+    pass
 
 
 def apply_timeseries(series: Series, context: dict) -> Series:
@@ -83,5 +90,20 @@ def apply_metadata(metadata: CollectionMetadata, context: dict) -> CollectionMet
     ...         target=["computed_band_1", "computed_band_2"]
     ...     )
 
+    """
+    pass
+
+
+def apply_vectorcube(
+    geometries: "geopandas.geodataframe.GeoDataFrame", cube: xarray.DataArray, context: dict
+) -> ("geopandas.geodataframe.GeoDataFrame", xarray.DataArray):
+    """
+    Map a vector cube to another vector cube.
+
+    :param geometries: input geometries as a geopandas.GeoDataFrame. This contains the actual shapely geometries and optional properties.
+    :param cube: a data cube with dimensions (geometries, time, bands) where time and bands are optional.
+        The coordinates for the geometry dimension are integers and match the index of the geometries in the geometries parameter.
+    :param context: A dictionary containing user context.
+    :return: output geometries, output data cube
     """
     pass

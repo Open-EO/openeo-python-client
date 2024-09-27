@@ -7,6 +7,7 @@ import shapely.geometry
 
 import openeo.processes
 from openeo.api.process import Parameter
+from openeo.rest import OpenEoClientException
 from openeo.rest._testing import DummyBackend, build_capabilities
 from openeo.rest.connection import Connection
 from openeo.rest.vectorcube import VectorCube
@@ -98,7 +99,7 @@ def test_download_auto_save_result_only_file(
 
 
 @pytest.mark.parametrize(
-    ["filename", "format", "expected_format"],
+    ["filename", "execute_format", "expected_format"],
     [
         ("result.json", "JSON", "JSON"),
         ("result.geojson", "GeoJSON", "GeoJSON"),
@@ -113,13 +114,13 @@ def test_download_auto_save_result_only_file(
 )
 @pytest.mark.parametrize("exec_mode", ["sync", "batch"])
 def test_download_auto_save_result_with_format(
-    vector_cube, dummy_backend, tmp_path, filename, format, expected_format, exec_mode
+    vector_cube, dummy_backend, tmp_path, filename, execute_format, expected_format, exec_mode
 ):
     output_path = tmp_path / filename
     if exec_mode == "sync":
-        vector_cube.download(output_path, format=format)
+        vector_cube.download(output_path, format=execute_format)
     elif exec_mode == "batch":
-        vector_cube.execute_batch(outputfile=output_path, out_format=format)
+        vector_cube.execute_batch(outputfile=output_path, out_format=execute_format)
     else:
         raise ValueError(exec_mode)
 
@@ -173,20 +174,33 @@ def test_download_auto_save_result_with_options(vector_cube, dummy_backend, tmp_
 
 
 @pytest.mark.parametrize(
-    ["output_file", "format", "expected_format"],
+    ["auto_add_save_result", "process_ids"],
+    [
+        (True, {"load_geojson", "save_result"}),
+        (False, {"load_geojson"}),
+    ],
+)
+def test_download_auto_add_save_result(vector_cube, dummy_backend, auto_add_save_result, process_ids, tmp_path):
+    vector_cube.download(tmp_path / "result.geojson", auto_add_save_result=auto_add_save_result)
+    assert set(n["process_id"] for n in dummy_backend.get_pg().values()) == process_ids
+
+
+@pytest.mark.parametrize(
+    ["output_file", "save_result_format", "expected_format"],
     [
         ("result.geojson", None, "GeoJSON"),
         ("result.geojson", "GeoJSON", "GeoJSON"),
         ("result.json", "JSON", "JSON"),
         ("result.nc", "netCDF", "netCDF"),
+        ("result.data", "netCDF", "netCDF"),
     ],
 )
 @pytest.mark.parametrize("exec_mode", ["sync", "batch"])
-def test_save_result_and_download(
-    vector_cube, dummy_backend, tmp_path, output_file, format, expected_format, exec_mode
+def test_save_result_and_download_filename(
+    vector_cube, dummy_backend, tmp_path, output_file, save_result_format, expected_format, exec_mode
 ):
     """e.g. https://github.com/Open-EO/openeo-geopyspark-driver/issues/477"""
-    vector_cube = vector_cube.save_result(format=format)
+    vector_cube = vector_cube.save_result(format=save_result_format)
     output_path = tmp_path / output_file
     if exec_mode == "sync":
         vector_cube.download(output_path)
@@ -207,6 +221,132 @@ def test_save_result_and_download(
         },
     }
     assert output_path.read_bytes() == DummyBackend.DEFAULT_RESULT
+
+
+@pytest.mark.parametrize(
+    ["save_result_format", "execute_format", "output_file", "expected"],
+    [
+        (None, None, None, "GeoJSON"),
+        (None, None, "result.geojson", "GeoJSON"),
+        ("GeoJSON", None, None, "GeoJSON"),
+        (None, "GeoJSON", None, "GeoJSON"),
+        (
+            "GeoJSON",
+            "GeoJSON",
+            None,
+            OpenEoClientException(
+                "VectorCube.download() with explicit output format 'GeoJSON', but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
+            ),
+        ),
+        (None, None, "result.nc", "netCDF"),
+        ("netCDF", None, None, "netCDF"),
+        (None, "netCDF", None, "netCDF"),
+        (
+            "GeoJson",
+            "netCDF",
+            None,
+            OpenEoClientException(
+                "VectorCube.download() with explicit output format 'netCDF', but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
+            ),
+        ),
+    ],
+)
+def test_save_result_and_download_with_format(
+    vector_cube, dummy_backend, tmp_path, save_result_format, execute_format, output_file, expected
+):
+    if save_result_format:
+        vector_cube = vector_cube.save_result(format=save_result_format)
+    output_path = tmp_path / (output_file or "data")
+
+    def do_it():
+        vector_cube.download(output_path, format=execute_format)
+
+    if isinstance(expected, Exception):
+        with pytest.raises(type(expected), match=re.escape(str(expected))):
+            do_it()
+    else:
+        do_it()
+        assert dummy_backend.get_pg()["saveresult1"] == {
+            "process_id": "save_result",
+            "arguments": {"data": {"from_node": "loadgeojson1"}, "format": expected, "options": {}},
+            "result": True,
+        }
+        assert output_path.read_bytes() == DummyBackend.DEFAULT_RESULT
+
+
+@pytest.mark.parametrize(
+    ["save_result_format", "execute_format", "output_file", "expected"],
+    [
+        (None, None, None, "GeoJSON"),
+        (None, None, "result.geojson", "GeoJSON"),
+        ("GeoJSON", None, None, "GeoJSON"),
+        (None, "GeoJSON", None, "GeoJSON"),
+        (
+            "GeoJSON",
+            "GeoJSON",
+            None,
+            OpenEoClientException(
+                "VectorCube.execute_batch() with explicit output format 'GeoJSON', but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
+            ),
+        ),
+        (None, None, "result.nc", "netCDF"),
+        ("netCDF", None, None, "netCDF"),
+        (None, "netCDF", None, "netCDF"),
+        (
+            "GeoJson",
+            "netCDF",
+            None,
+            OpenEoClientException(
+                "VectorCube.execute_batch() with explicit output format 'netCDF', but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
+            ),
+        ),
+    ],
+)
+def test_save_result_and_execute_batch_with_format(
+    vector_cube, dummy_backend, tmp_path, save_result_format, execute_format, output_file, expected
+):
+    if save_result_format:
+        vector_cube = vector_cube.save_result(format=save_result_format)
+    output_path = tmp_path / (output_file or "data")
+
+    def do_it():
+        vector_cube.execute_batch(outputfile=output_path, out_format=execute_format)
+
+    if isinstance(expected, Exception):
+        with pytest.raises(type(expected), match=re.escape(str(expected))):
+            do_it()
+    else:
+        do_it()
+        assert dummy_backend.get_pg()["saveresult1"] == {
+            "process_id": "save_result",
+            "arguments": {"data": {"from_node": "loadgeojson1"}, "format": expected, "options": {}},
+            "result": True,
+        }
+        assert output_path.read_bytes() == DummyBackend.DEFAULT_RESULT
+
+
+@pytest.mark.parametrize(
+    ["auto_add_save_result", "process_ids"],
+    [
+        (True, {"load_geojson", "save_result"}),
+        (False, {"load_geojson"}),
+    ],
+)
+def test_create_job_auto_add_save_result(vector_cube, dummy_backend, auto_add_save_result, process_ids):
+    vector_cube.create_job(auto_add_save_result=auto_add_save_result)
+    assert set(n["process_id"] for n in dummy_backend.get_pg().values()) == process_ids
+
+
+@pytest.mark.parametrize(
+    ["auto_add_save_result", "process_ids"],
+    [
+        (True, {"load_geojson", "save_result"}),
+        (False, {"load_geojson"}),
+    ],
+)
+def test_cexecute_batch_auto_add_save_result(vector_cube, dummy_backend, auto_add_save_result, process_ids):
+    vector_cube.execute_batch(auto_add_save_result=auto_add_save_result)
+    assert set(n["process_id"] for n in dummy_backend.get_pg().values()) == process_ids
 
 
 @pytest.mark.parametrize(
