@@ -333,7 +333,7 @@ class MultiBackendJobManager:
                 sum(job_db.count_by_status(statuses=["not_started", "created", "queued", "running"]).values()) > 0
                 and not self._stop_thread
             ):
-                self._job_update_loop(df, job_db, start_job)
+                self._job_update_loop(job_db=job_db, start_job=start_job)
 
                 # Do sequence of micro-sleeps to allow for quick thread exit
                 for _ in range(int(max(1, self.poll_sleep))):
@@ -454,10 +454,10 @@ class MultiBackendJobManager:
             job_db.persist(df)
 
         while sum(job_db.count_by_status(statuses=["not_started", "created", "queued", "running"]).values()) > 0:
-            self._job_update_loop(df, job_db, start_job)
+            self._job_update_loop(job_db=job_db, start_job=start_job)
             time.sleep(self.poll_sleep)
 
-    def _job_update_loop(self, df, job_db, start_job):
+    def _job_update_loop(self, job_db: JobDatabaseInterface, start_job: Callable[[], BatchJob]):
         """
         Inner loop logic of job management:
         go through the necessary jobs to check for status updates,
