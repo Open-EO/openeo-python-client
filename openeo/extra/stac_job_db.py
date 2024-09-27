@@ -117,7 +117,7 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         if isinstance(statuses,str):
             statuses = [statuses]
 
-        status_filter =  " OR ".join([ f"status = {s}" for s in statuses])
+        status_filter =  " OR ".join([ f"\"properties.status\"={s}" for s in statuses])
         search_results = self.client.search(
             method="GET",
             collections=[self.collection_id],
