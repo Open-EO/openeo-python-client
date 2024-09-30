@@ -25,11 +25,20 @@ class STACAPIJobDatabase(JobDatabaseInterface):
     :implements: :py:class:`JobDatabaseInterface`
     """
 
-    def __init__(self, collection_id:str, stac_root_url:str, username,password):
+    def __init__(self, collection_id: str, stac_root_url: str, auth: requests.auth.AuthBase):
+        """
+        Initialize the STACAPIJobDatabase.
+
+        :param collection_id: The ID of the STAC collection.
+        :param stac_root_url: The root URL of the STAC API.
+        :param auth: requests AuthBase that will be used to authenticate, e.g. OAuth2ResourceOwnerPasswordCredentials
+        """
         self.collection_id = collection_id
         self.client = Client.open(stac_root_url)
-        self._auth = HTTPBasicAuth(username,password)
+
+        self._auth = auth
         self.base_url = stac_root_url
+        self.bulk_size = 500
         #self.collection = self.client.get_collection(collection_id)
 
 
@@ -39,14 +48,11 @@ class STACAPIJobDatabase(JobDatabaseInterface):
 
     @staticmethod
     def series_from(item):
-        """Convert item to a pandas.Series
+        """
+        Convert a STAC Item to a pandas.Series.
 
-        Args:
-            item (pystac.Item): STAC Item to be converted.
-
-        Returns:
-            pandas.Series
-
+        :param item: STAC Item to be converted.
+        :return: pandas.Series
         """
         item_dict = item.to_dict()
         item_id = item_dict["id"]
@@ -65,7 +71,13 @@ class STACAPIJobDatabase(JobDatabaseInterface):
 
     @staticmethod
     def item_from(series, geometry_name="geometry"):
+        """
+        Convert a pandas.Series to a STAC Item.
 
+        :param series: pandas.Series to be converted.
+        :param geometry_name: Name of the geometry column in the series.
+        :return: pystac.Item
+        """
         series_dict = series.to_dict()
         item_dict = {}
         item_dict.setdefault("stac_version", pystac.get_stac_version())
@@ -96,7 +108,10 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         #todo: replace with use of stac aggregation extension
         #example of how what an aggregation call looks like: https://stac-openeo-dev.vgt.vito.be/collections/copernicus_r_utm-wgs84_10_m_hrvpp-vpp_p_2017-now_v01/aggregate?aggregations=total_count&filter=description%3DSOSD&filter-lang=cql2-text
         items = self.get_by_status(statuses,max=200)
-        return items.groupby("status").count().to_dict()
+        if items is None:
+            return { k:0 for k in statuses}
+        else:
+            return items["status"].value_counts().to_dict()
 
     def get_by_status(self, statuses: List[str], max=None) -> pd.DataFrame:
 
@@ -112,9 +127,10 @@ class STACAPIJobDatabase(JobDatabaseInterface):
             fields=["properties"]
         )
 
-        print(search_results.url_with_parameters())
         crs = "EPSG:4326"
         series = [STACAPIJobDatabase.series_from(item) for item in search_results.items()]
+        if len(series) == 0:
+            return None
         gdf = gpd.GeoDataFrame(series, crs=crs)
         # TODO how to know the proper name of the geometry column?
         # this only matters for the udp based version probably
@@ -194,7 +210,7 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         :param url_path: same as in join_path
         :return: a URL object that represents the full URL.
         """
-        return str(self.base_url / "/".join(url_path))
+        return str(self.base_url + "/" + url_path)
 
     def _create_collection(self, collection: Collection) -> dict:
         """Create a new collection.
