@@ -64,13 +64,12 @@ class STACAPIJobDatabase(JobDatabaseInterface):
 
 
         # Convert geojson geom into shapely.Geometry
-
         item_dict["properties"]["geometry"] = shape(item_dict["geometry"])
-        item_dict["properties"]["name"] = item_id
+        #item_dict["properties"]["name"] = item_id
         return pd.Series(item_dict["properties"], name=item_id)
 
     @staticmethod
-    def item_from(series, geometry_name="geometry"):
+    def item_from(series: pd.Series, geometry_name="geometry"):
         """
         Convert a pandas.Series to a STAC Item.
 
@@ -98,8 +97,7 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         del series_dict[geometry_name]
 
         # from_dict handles associating any Links and Assets with the Item
-        item_dict['id'] = series['name']
-        del series_dict['name']
+        item_dict['id'] = series.name
         item = pystac.Item.from_dict(item_dict)
         item.bbox = series[geometry_name].bounds
         return item
@@ -134,7 +132,7 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         gdf = gpd.GeoDataFrame(series, crs=crs)
         # TODO how to know the proper name of the geometry column?
         # this only matters for the udp based version probably
-        gdf.rename_geometry("polygon", inplace=True)
+        #gdf.rename_geometry("polygon", inplace=True)
         return gdf
 
 
