@@ -785,7 +785,7 @@ class Connection(RestApiConnection):
         print("Authenticated using device code flow.")
         return con
 
-    def authenticate_oidc_access_token(self, access_token: str, provider_id: Optional[str] = None) -> None:
+    def authenticate_oidc_access_token(self, access_token: str, provider_id: Optional[str] = None) -> Connection:
         """
         Set up authorization headers directly with an OIDC access token.
 
@@ -800,10 +800,14 @@ class Connection(RestApiConnection):
             against the backend's list of providers to avoid and related OIDC configuration
 
         .. versionadded:: 0.31.0
+
+        .. versionchanged:: 0.33.0
+            Return connection object to support chaining.
         """
         provider_id, _ = self._get_oidc_provider(provider_id=provider_id, parse_info=False)
         self.auth = OidcBearerAuth(provider_id=provider_id, access_token=access_token)
         self._oidc_auth_renewer = None
+        return self
 
     def request(
         self,
