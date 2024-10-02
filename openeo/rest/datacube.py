@@ -152,7 +152,8 @@ class DataCube(_ProcessGraphAbstraction):
         Create a new Raster Data cube.
 
         :param collection_id: image collection identifier
-        :param connection: The connection to use to connect with the backend.
+        :param connection: The backend connection to use.
+            Can be ``None`` to work without connection and collection metadata.
         :param spatial_extent: limit data to specified bounding box or polygons
         :param temporal_extent: limit data to specified temporal interval.
             Typically, just a two-item list or tuple containing start and end date.
@@ -191,7 +192,7 @@ class DataCube(_ProcessGraphAbstraction):
         if isinstance(collection_id, Parameter):
             fetch_metadata = False
         metadata: Optional[CollectionMetadata] = (
-            connection.collection_metadata(collection_id) if fetch_metadata else None
+            connection.collection_metadata(collection_id) if connection and fetch_metadata else None
         )
         if bands:
             if isinstance(bands, str):
