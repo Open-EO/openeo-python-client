@@ -2443,16 +2443,6 @@ class TestLoadStac:
             }
         }
 
-    def test_basic_connectionless(self, con120):
-        cube = openeo.DataCube.load_stac("https://provider.test/dataset")
-        assert cube.flat_graph() == {
-            "loadstac1": {
-                "process_id": "load_stac",
-                "arguments": {"url": "https://provider.test/dataset"},
-                "result": True,
-            }
-        }
-
     def test_extents(self, con120):
         cube = con120.load_stac(
             "https://provider.test/dataset",

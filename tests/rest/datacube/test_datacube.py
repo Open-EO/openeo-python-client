@@ -102,6 +102,19 @@ def test_filter_temporal_basic_extent(s2cube):
     assert graph['arguments']['extent'] == ["2016-01-01", "2016-03-10"]
 
 
+def test_load_stac_connectionless(connection):
+    expected_graph = {
+        "loadstac1": {
+            "process_id": "load_stac",
+            "arguments": {"url": "https://provider.test/dataset"},
+            "result": True,
+        }
+    }
+    cube = DataCube.load_stac("https://provider.test/dataset")
+    assert cube.flat_graph() == expected_graph
+    cube2 = connection.load_stac("https://provider.test/dataset")
+    assert cube2.flat_graph() == expected_graph
+
 @pytest.mark.parametrize(
     "args,kwargs,extent",
     [

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added `DataCube.load_stac()` to create a datacube without needing an openeo connection.
+
 ### Changed
 
 ### Removed
