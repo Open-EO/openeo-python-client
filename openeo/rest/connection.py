@@ -44,7 +44,6 @@ from openeo.metadata import (
     CollectionMetadata,
     SpatialDimension,
     TemporalDimension,
-    metadata_from_stac,
 )
 from openeo.rest import (
     DEFAULT_DOWNLOAD_CHUNK_SIZE,
@@ -1415,26 +1414,14 @@ class Connection(RestApiConnection):
             Argument ``temporal_extent``: add support for year/month shorthand notation
             as discussed at :ref:`date-shorthand-handling`.
         """
-        # TODO #425 move this implementation to `DataCube` and just forward here (like with `load_collection`)
-        # TODO #425 detect actual metadata from URL
-        arguments = {"url": url}
-        # TODO #425 more normalization/validation of extent/band parameters
-        if spatial_extent:
-            arguments["spatial_extent"] = spatial_extent
-        if temporal_extent:
-            arguments["temporal_extent"] = DataCube._get_temporal_extent(extent=temporal_extent)
-        if bands:
-            arguments["bands"] = bands
-        if properties:
-            arguments["properties"] = {
-                prop: build_child_callback(pred, parent_parameters=["value"]) for prop, pred in properties.items()
-            }
-        cube = self.datacube_from_process(process_id="load_stac", **arguments)
-        try:
-            cube.metadata = metadata_from_stac(url)
-        except Exception:
-            _log.warning(f"Failed to extract cube metadata from STAC URL {url}", exc_info=True)
-        return cube
+        return DataCube.load_stac(
+            url=url,
+            spatial_extent=spatial_extent,
+            temporal_extent=temporal_extent,
+            bands=bands,
+            properties=properties,
+            connection=self,
+        )
 
     def load_stac_from_job(
         self,

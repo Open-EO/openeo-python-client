@@ -40,6 +40,7 @@ from openeo.metadata import (
     CollectionMetadata,
     SpatialDimension,
     TemporalDimension,
+    metadata_from_stac,
 )
 from openeo.processes import ProcessBuilder
 from openeo.rest import BandMathException, OpenEoClientException, OperatorException
@@ -258,6 +259,36 @@ class DataCube(_ProcessGraphAbstraction):
             }
         )
         return cls(graph=pg, connection=connection)
+
+    @classmethod
+    def load_stac(
+        cls,
+        url: str,
+        spatial_extent: Union[Dict[str, float], Parameter, None] = None,
+        temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
+        bands: Optional[List[str]] = None,
+        properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
+        connection: Connection = None,
+    ) -> DataCube:
+        arguments = {"url": url}
+        # TODO #425 more normalization/validation of extent/band parameters
+        if spatial_extent:
+            arguments["spatial_extent"] = spatial_extent
+        if temporal_extent:
+            arguments["temporal_extent"] = DataCube._get_temporal_extent(extent=temporal_extent)
+        if bands:
+            arguments["bands"] = bands
+        if properties:
+            arguments["properties"] = {
+                prop: build_child_callback(pred, parent_parameters=["value"]) for prop, pred in properties.items()
+            }
+        graph = PGNode("load_stac", arguments=arguments)
+        try:
+            metadata = metadata_from_stac(url)
+        except Exception:
+            log.warning(f"Failed to extract cube metadata from STAC URL {url}", exc_info=True)
+            metadata = None
+        return cls(graph=graph, connection=connection, metadata=metadata)
 
     @classmethod
     def _get_temporal_extent(
