@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- When using `DataCube.load_collection()` without a connection, it is not necessary anymore to also explicitly set `fetch_metadata=False` ([#638](https://github.com/Open-EO/openeo-python-client/issues/638))
+
 
 ## [0.32.0] - 2024-09-27
 

@@ -17,6 +17,7 @@ import requests
 import shapely
 import shapely.geometry
 
+from openeo import collection_property
 from openeo.api.process import Parameter
 from openeo.rest import BandMathException, OpenEoClientException
 from openeo.rest._testing import build_capabilities
@@ -79,6 +80,60 @@ def _get_leaf_node(cube, force_flat=True) -> dict:
             return cube._pg.to_dict()
     else:
         raise ValueError(repr(cube))
+
+
+class TestDataCube:
+    def test_load_collection_connectionless_basic(self):
+        cube = DataCube.load_collection("T3")
+        assert cube.flat_graph() == {
+            "loadcollection1": {
+                "arguments": {"id": "T3", "spatial_extent": None, "temporal_extent": None},
+                "process_id": "load_collection",
+                "result": True,
+            }
+        }
+
+    def test_load_collection_connectionless_full(self):
+        cube = DataCube.load_collection(
+            "T3",
+            spatial_extent={"west": 1, "east": 2, "north": 3, "south": 4},
+            temporal_extent=["2019-01-01", "2019-02-01"],
+            bands=["RED", "GREEN"],
+            properties=[collection_property("orbit") == "low"],
+        )
+        assert cube.flat_graph() == {
+            "loadcollection1": {
+                "process_id": "load_collection",
+                "arguments": {
+                    "id": "T3",
+                    "spatial_extent": {"east": 2, "north": 3, "south": 4, "west": 1},
+                    "temporal_extent": ["2019-01-01", "2019-02-01"],
+                    "bands": ["RED", "GREEN"],
+                    "properties": {
+                        "orbit": {
+                            "process_graph": {
+                                "eq1": {
+                                    "process_id": "eq",
+                                    "arguments": {"x": {"from_parameter": "value"}, "y": "low"},
+                                    "result": True,
+                                }
+                            }
+                        }
+                    },
+                },
+                "result": True,
+            }
+        }
+
+    def test_load_collection_connectionless_temporal_extent_shortcut(self):
+        cube = DataCube.load_collection("T3", temporal_extent="2024-09")
+        assert cube.flat_graph() == {
+            "loadcollection1": {
+                "arguments": {"id": "T3", "spatial_extent": None, "temporal_extent": ["2024-09-01", "2024-10-01"]},
+                "process_id": "load_collection",
+                "result": True,
+            }
+        }
 
 
 def test_filter_temporal_basic_positional_args(s2cube):
