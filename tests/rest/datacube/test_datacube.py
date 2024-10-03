@@ -83,6 +83,19 @@ def _get_leaf_node(cube, force_flat=True) -> dict:
 
 
 class TestDataCube:
+    def test_load_stac_connectionless(self, connection):
+        expected_graph = {
+            "loadstac1": {
+                "process_id": "load_stac",
+                "arguments": {"url": "https://provider.test/dataset"},
+                "result": True,
+            }
+        }
+        cube = DataCube.load_stac("https://provider.test/dataset")
+        assert cube.flat_graph() == expected_graph
+        cube2 = connection.load_stac("https://provider.test/dataset")
+        assert cube2.flat_graph() == expected_graph
+
     def test_load_collection_connectionless_basic(self):
         cube = DataCube.load_collection("T3")
         assert cube.flat_graph() == {
