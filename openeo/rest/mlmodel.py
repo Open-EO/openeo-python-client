@@ -27,7 +27,7 @@ class MlModel(_ProcessGraphAbstraction):
     .. versionadded:: 0.10.0
     """
 
-    def __init__(self, graph: PGNode, connection: Connection):
+    def __init__(self, graph: PGNode, connection: Union[Connection, None]):
         super().__init__(pgnode=graph, connection=connection)
 
     def save_ml_model(self, options: Optional[dict] = None):

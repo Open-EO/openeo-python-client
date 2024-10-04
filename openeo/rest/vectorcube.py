@@ -40,7 +40,7 @@ class VectorCube(_ProcessGraphAbstraction):
 
     _DEFAULT_VECTOR_FORMAT = "GeoJSON"
 
-    def __init__(self, graph: PGNode, connection: Connection, metadata: Optional[CubeMetadata] = None):
+    def __init__(self, graph: PGNode, connection: Union[Connection, None], metadata: Optional[CubeMetadata] = None):
         super().__init__(pgnode=graph, connection=connection)
         self.metadata = metadata
 

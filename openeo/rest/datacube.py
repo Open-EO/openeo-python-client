@@ -2211,10 +2211,11 @@ class DataCube(_ProcessGraphAbstraction):
         format: str = _DEFAULT_RASTER_FORMAT,
         options: Optional[dict] = None,
     ) -> DataCube:
-        formats = set(self._connection.list_output_formats().keys())
-        # TODO: map format to correct casing too?
-        if format.lower() not in {f.lower() for f in formats}:
-            raise ValueError("Invalid format {f!r}. Should be one of {s}".format(f=format, s=formats))
+        if self._connection:
+            formats = set(self._connection.list_output_formats().keys())
+            # TODO: map format to correct casing too?
+            if format.lower() not in {f.lower() for f in formats}:
+                raise ValueError("Invalid format {f!r}. Should be one of {s}".format(f=format, s=formats))
         return self.process(
             process_id="save_result",
             arguments={

@@ -37,8 +37,10 @@ class _ProcessGraphAbstraction(_FromNodeMixin, FlatGraphableMixin):
     raster data cubes, vector cubes, ML models, ...
     """
 
-    def __init__(self, pgnode: PGNode, connection: Connection):
+    def __init__(self, pgnode: PGNode, connection: Union[Connection, None]):
         self._pg = pgnode
+        # TODO: now that connection can officially be None:
+        #       improve exceptions in cases where is it still assumed to be a real connection (download, create_job, ...)
         self._connection = connection
 
     def __str__(self):
