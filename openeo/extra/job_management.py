@@ -441,13 +441,7 @@ class MultiBackendJobManager:
         assert not kwargs, f"Unexpected keyword arguments: {kwargs!r}"
 
         if isinstance(job_db, (str, Path)):
-            job_db_path = Path(job_db)
-            if job_db_path.suffix.lower() == ".csv":
-                job_db = CsvJobDatabase(path=job_db_path)
-            elif job_db_path.suffix.lower() == ".parquet":
-                job_db = ParquetJobDatabase(path=job_db_path)
-            else:
-                raise ValueError(f"Unsupported job database file type {job_db_path!r}")
+            job_db = get_job_db(path=job_db)
 
         if not isinstance(job_db, JobDatabaseInterface):
             raise ValueError(f"Unsupported job_db {job_db!r}")
@@ -697,7 +691,7 @@ class FullDataFrameJobDatabase(JobDatabaseInterface):
         super().__init__()
         self._df = None
 
-    def initialize_from_df(self, df: pd.DataFrame, on_exists: str = "error"):
+    def initialize_from_df(self, df: pd.DataFrame, *, on_exists: str = "error"):
         """
         Initialize the job database from a given dataframe,
         which will be first normalized to be compatible
@@ -851,3 +845,44 @@ class ParquetJobDatabase(FullDataFrameJobDatabase):
         self._merge_into_df(df)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.df.to_parquet(self.path, index=False)
+
+
+def get_job_db(path: Union[str, Path]) -> JobDatabaseInterface:
+    """
+    Factory to get a job database at a given path,
+    guessing the database type from filename extension.
+
+    :param path: path to job database file.
+
+    .. versionadded:: 0.33.0
+    """
+    path = Path(path)
+    if path.suffix.lower() in {".csv"}:
+        job_db = CsvJobDatabase(path=path)
+    elif path.suffix.lower() in {".parquet", ".geoparquet"}:
+        job_db = ParquetJobDatabase(path=path)
+    else:
+        raise ValueError(f"Could not guess job database type from {path!r}")
+    return job_db
+
+
+def create_job_db(path: Union[str, Path], df: pd.DataFrame, *, on_exists: str = "error"):
+    """
+    Factory to create a job database at given path,
+    initialized from a given dataframe,
+    and its database type guessed from filename extension.
+
+    :param path: Path to the job database file.
+    :param df: DataFrame to store in the job database.
+    :param on_exists: What to do when the job database already exists:
+        - "error": (default) raise an exception
+        - "skip": work with existing database, ignore given dataframe and skip any initialization
+
+    .. versionadded:: 0.33.0
+    """
+    job_db = get_job_db(path)
+    if isinstance(job_db, FullDataFrameJobDatabase):
+        job_db.initialize_from_df(df=df, on_exists=on_exists)
+    else:
+        raise NotImplementedError(f"Initialization of {type(job_db)} is not supported.")
+    return job_db
