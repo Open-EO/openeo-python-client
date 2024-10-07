@@ -29,6 +29,8 @@ from openeo.extra.job_management import (
     CsvJobDatabase,
     MultiBackendJobManager,
     ParquetJobDatabase,
+    create_job_db,
+    get_job_db,
 )
 from openeo.util import rfc3339
 
@@ -160,6 +162,35 @@ class TestMultiBackendJobManager:
         df = pd.DataFrame({"year": [2018, 2019, 2020, 2021, 2022]})
         output_file = tmp_path / "jobs.db"
         job_db = db_class(output_file).initialize_from_df(df)
+
+        manager.run_jobs(job_db=job_db, start_job=start_job)
+        assert sleep_mock.call_count > 10
+
+        result = job_db.read()
+        assert len(result) == 5
+        assert set(result.status) == {"finished"}
+        assert set(result.backend_name) == {"foo", "bar"}
+
+    @pytest.mark.parametrize(
+        ["filename", "expected_db_class"],
+        [
+            ("jobz.csv", CsvJobDatabase),
+            ("jobz.parquet", ParquetJobDatabase),
+        ],
+    )
+    def test_create_job_db(self, tmp_path, requests_mock, sleep_mock, filename, expected_db_class):
+        """
+        Basic run with `create_job_db()` usage
+        """
+        manager = self._create_basic_mocked_manager(requests_mock, tmp_path)
+
+        def start_job(row, connection, **kwargs):
+            year = int(row["year"])
+            return BatchJob(job_id=f"job-{year}", connection=connection)
+
+        df = pd.DataFrame({"year": [2018, 2019, 2020, 2021, 2022]})
+        output_file = tmp_path / filename
+        job_db = create_job_db(path=output_file, df=df)
 
         manager.run_jobs(job_db=job_db, start_job=start_job)
         assert sleep_mock.call_count > 10
@@ -897,3 +928,32 @@ class TestParquetJobDatabase:
 
         df_from_disk = ParquetJobDatabase(path).read()
         assert set(df_from_disk.columns) == expected_columns
+
+
+@pytest.mark.parametrize(
+    ["filename", "expected"],
+    [
+        ("jobz.csv", CsvJobDatabase),
+        ("jobz.parquet", ParquetJobDatabase),
+    ],
+)
+def test_get_job_db(tmp_path, filename, expected):
+    path = tmp_path / filename
+    db = get_job_db(path)
+    assert isinstance(db, expected)
+    assert not path.exists()
+
+
+@pytest.mark.parametrize(
+    ["filename", "expected"],
+    [
+        ("jobz.csv", CsvJobDatabase),
+        ("jobz.parquet", ParquetJobDatabase),
+    ],
+)
+def test_create_job_db(tmp_path, filename, expected):
+    df = pd.DataFrame({"year": [2023, 2024]})
+    path = tmp_path / filename
+    db = create_job_db(path=path, df=df)
+    assert isinstance(db, expected)
+    assert path.exists()
