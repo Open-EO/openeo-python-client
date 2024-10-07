@@ -79,8 +79,11 @@ class TestMultiBackendJobManager:
         with mock.patch("time.sleep") as sleep:
             yield sleep
 
-    def test_basic(self, tmp_path, requests_mock, sleep_mock):
-        manager = self.create_basic_mocked_manager(requests_mock, tmp_path)
+    def test_basic_legacy(self, tmp_path, requests_mock, sleep_mock):
+        """
+        Legacy `run_jobs()` usage with explicit dataframe and output file
+        """
+        manager = self._create_basic_mocked_manager(requests_mock, tmp_path)
 
         df = pd.DataFrame(
             {
@@ -108,8 +111,12 @@ class TestMultiBackendJobManager:
         metadata_path = manager.get_job_metadata_path(job_id="job-2022")
         assert metadata_path.exists()
 
-    def test_basic_threading(self, tmp_path, requests_mock, sleep_mock):
-        manager = self.create_basic_mocked_manager(requests_mock, tmp_path)
+    def test_basic(self, tmp_path, requests_mock, sleep_mock):
+        """
+        `run_jobs()` usage with a `CsvJobDatabase`
+        (and no explicit dataframe or output file)
+        """
+        manager = self._create_basic_mocked_manager(requests_mock, tmp_path)
 
         df = pd.DataFrame(
             {
@@ -125,7 +132,40 @@ class TestMultiBackendJobManager:
             return BatchJob(job_id=f"job-{year}", connection=connection)
 
         job_db = CsvJobDatabase(output_file)
-        # TODO: avoid private _normalize_df API
+        # TODO #636 avoid this cumbersome pattern using private _normalize_df API
+        job_db.persist(manager._normalize_df(df))
+
+        manager.run_jobs(job_db=job_db, start_job=start_job)
+        assert sleep_mock.call_count > 10
+
+        result = pd.read_csv(output_file)
+        assert len(result) == 5
+        assert set(result.status) == {"finished"}
+        assert set(result.backend_name) == {"foo", "bar"}
+
+        # We expect that the job metadata was saved, so verify that it exists.
+        # Checking for one of the jobs is enough.
+        metadata_path = manager.get_job_metadata_path(job_id="job-2022")
+        assert metadata_path.exists()
+
+    def test_basic_threading(self, tmp_path, requests_mock, sleep_mock):
+        manager = self._create_basic_mocked_manager(requests_mock, tmp_path)
+
+        df = pd.DataFrame(
+            {
+                "year": [2018, 2019, 2020, 2021, 2022],
+                # Use simple points in WKT format to test conversion to the geometry dtype
+                "geometry": ["POINT (1 2)"] * 5,
+            }
+        )
+        output_file = tmp_path / "jobs.csv"
+
+        def start_job(row, connection, **kwargs):
+            year = int(row["year"])
+            return BatchJob(job_id=f"job-{year}", connection=connection)
+
+        job_db = CsvJobDatabase(output_file)
+        # TODO #636 avoid this cumbersome pattern using private _normalize_df API
         job_db.persist(manager._normalize_df(df))
 
         manager.start_job_thread(start_job=start_job, job_db=job_db)
@@ -144,7 +184,8 @@ class TestMultiBackendJobManager:
         metadata_path = manager.get_job_metadata_path(job_id="job-2022")
         assert metadata_path.exists()
 
-    def create_basic_mocked_manager(self, requests_mock, tmp_path):
+    def _create_basic_mocked_manager(self, requests_mock, tmp_path):
+        # TODO: separate aspects of job manager and dummy backends
         requests_mock.get("http://foo.test/", json={"api_version": "1.1.0"})
         requests_mock.get("http://bar.test/", json={"api_version": "1.1.0"})
 

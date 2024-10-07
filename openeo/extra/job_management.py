@@ -90,6 +90,11 @@ class JobDatabaseInterface(metaclass=abc.ABCMeta):
         """
         ...
 
+
+def _start_job_default(row: pd.Series, connection: Connection, *args, **kwargs):
+    raise NotImplementedError
+
+
 class MultiBackendJobManager:
     """
     Tracker for multiple jobs on multiple backends.
@@ -366,8 +371,8 @@ class MultiBackendJobManager:
 
     def run_jobs(
         self,
-        df: Optional[pd.DataFrame],
-        start_job: Callable[[], BatchJob],
+        df: Optional[pd.DataFrame] = None,
+        start_job: Callable[[], BatchJob] = _start_job_default,
         job_db: Union[str, Path, JobDatabaseInterface, None] = None,
         **kwargs,
     ):
@@ -450,6 +455,7 @@ class MultiBackendJobManager:
             # Resume from existing db
             _log.info(f"Resuming `run_jobs` from existing {job_db}")
         elif df is not None:
+            # TODO: start showing deprecation warnings for this usage pattern?
             df = self._normalize_df(df)
             job_db.persist(df)
 
