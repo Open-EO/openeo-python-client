@@ -146,6 +146,29 @@ class TestMultiBackendJobManager:
         metadata_path = manager.get_job_metadata_path(job_id="job-2022")
         assert metadata_path.exists()
 
+    @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase])
+    def test_db_class(self, tmp_path, requests_mock, sleep_mock, db_class):
+        """
+        Basic run parameterized on database class
+        """
+        manager = self._create_basic_mocked_manager(requests_mock, tmp_path)
+
+        def start_job(row, connection, **kwargs):
+            year = int(row["year"])
+            return BatchJob(job_id=f"job-{year}", connection=connection)
+
+        df = pd.DataFrame({"year": [2018, 2019, 2020, 2021, 2022]})
+        output_file = tmp_path / "jobs.db"
+        job_db = db_class(output_file).initialize_from_df(df)
+
+        manager.run_jobs(job_db=job_db, start_job=start_job)
+        assert sleep_mock.call_count > 10
+
+        result = job_db.read()
+        assert len(result) == 5
+        assert set(result.status) == {"finished"}
+        assert set(result.backend_name) == {"foo", "bar"}
+
     def test_basic_threading(self, tmp_path, requests_mock, sleep_mock):
         manager = self._create_basic_mocked_manager(requests_mock, tmp_path)
 
@@ -626,6 +649,63 @@ JOB_DB_DF_WITH_GEOJSON_STRING = pd.DataFrame(
 )
 
 
+class TestFullDataFrameJobDatabase:
+    @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase])
+    def test_initialize_from_df(self, tmp_path, db_class):
+        orig_df = pd.DataFrame({"some_number": [3, 2, 1]})
+        path = tmp_path / "jobs.db"
+
+        db = db_class(path)
+        assert not path.exists()
+        db.initialize_from_df(orig_df)
+        assert path.exists()
+
+        # Check persisted CSV
+        assert path.exists()
+        expected_columns = {
+            "some_number",
+            "status",
+            "id",
+            "start_time",
+            "running_start_time",
+            "cpu",
+            "memory",
+            "duration",
+            "backend_name",
+        }
+
+        actual_columns = set(db_class(path).read().columns)
+        assert actual_columns == expected_columns
+
+    @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase])
+    def test_initialize_from_df_on_exists_error(self, tmp_path, db_class):
+        df = pd.DataFrame({"some_number": [3, 2, 1]})
+        path = tmp_path / "jobs.csv"
+        _ = db_class(path).initialize_from_df(df, on_exists="error")
+        assert path.exists()
+
+        with pytest.raises(FileExistsError, match="Job database.* already exists"):
+            _ = db_class(path).initialize_from_df(df, on_exists="error")
+
+        assert set(db_class(path).read()["some_number"]) == {1, 2, 3}
+
+    @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase])
+    def test_initialize_from_df_on_exists_skip(self, tmp_path, db_class):
+        path = tmp_path / "jobs.csv"
+
+        db = db_class(path).initialize_from_df(
+            pd.DataFrame({"some_number": [3, 2, 1]}),
+            on_exists="skip",
+        )
+        assert set(db.read()["some_number"]) == {1, 2, 3}
+
+        db = db_class(path).initialize_from_df(
+            pd.DataFrame({"some_number": [444, 555, 666]}),
+            on_exists="skip",
+        )
+        assert set(db.read()["some_number"]) == {1, 2, 3}
+
+
 class TestCsvJobDatabase:
 
     def test_repr(self, tmp_path):
@@ -744,6 +824,28 @@ class TestCsvJobDatabase:
 
         assert raw_columns == expected_columns
         assert read_columns == expected_columns
+
+    def test_initialize_from_df_on_exists_error(self, tmp_path):
+        orig_df = pd.DataFrame({"some_number": [3, 2, 1]})
+        path = tmp_path / "jobs.csv"
+        _ = CsvJobDatabase(path).initialize_from_df(orig_df, on_exists="error")
+        with pytest.raises(FileExistsError, match="Job database.* already exists"):
+            _ = CsvJobDatabase(path).initialize_from_df(orig_df, on_exists="error")
+
+    def test_initialize_from_df_on_exists_skip(self, tmp_path):
+        path = tmp_path / "jobs.csv"
+
+        db = CsvJobDatabase(path).initialize_from_df(
+            pd.DataFrame({"some_number": [3, 2, 1]}),
+            on_exists="skip",
+        )
+        assert set(db.read()["some_number"]) == {1, 2, 3}
+
+        db = CsvJobDatabase(path).initialize_from_df(
+            pd.DataFrame({"some_number": [444, 555, 666]}),
+            on_exists="skip",
+        )
+        assert set(db.read()["some_number"]) == {1, 2, 3}
 
 
 class TestParquetJobDatabase:

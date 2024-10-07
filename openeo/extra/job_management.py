@@ -267,8 +267,6 @@ class MultiBackendJobManager:
         :param df: The dataframe to normalize.
         :return: a new dataframe that is normalized.
         """
-        # TODO: this was originally an internal helper, but we need a clean public API for the user
-
         # check for some required columns.
         required_with_default = [
             ("status", "not_started"),
@@ -699,20 +697,30 @@ class FullDataFrameJobDatabase(JobDatabaseInterface):
         super().__init__()
         self._df = None
 
-    def initialize_from_df(self, df: pd.DataFrame):
+    def initialize_from_df(self, df: pd.DataFrame, on_exists: str = "error"):
         """
         Initialize the job database from a given dataframe,
         which will be first normalized to be compatible
         with :py:class:`MultiBackendJobManager` usage.
 
-        :param df: data frame with some columns that
+        :param df: dataframe with some columns your ``start_job`` callable expects
+        :param on_exists: what to do when the job database already exists (persisted on disk):
+            - "error": (default) raise an exception
+            - "skip": work with existing database, ignore given dataframe and skip any initialization
+
         :return: initialized job database.
 
         .. versionadded:: 0.33.0
         """
         # TODO: option to provide custom MultiBackendJobManager subclass with custom normalize?
         if self.exists():
-            raise RuntimeError(f"Job database {self!r} already exists.")
+            if on_exists == "skip":
+                return self
+            elif on_exists == "error":
+                raise FileExistsError(f"Job database {self!r} already exists.")
+            else:
+                # TODO handle other on_exists modes: e.g. overwrite, merge, ...
+                raise ValueError(f"Invalid on_exists={on_exists!r}")
         df = MultiBackendJobManager._normalize_df(df)
         self.persist(df)
         # Return self to allow chaining with constructor.
