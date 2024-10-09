@@ -40,7 +40,7 @@ def test_legacy_alias_function(recwarn):
     with pytest.warns(
         UserDeprecationWarning,
         match=re.escape(
-            "Call to deprecated function (or staticmethod) add."
+            "Call to deprecated function (or staticmethod) do_plus."
             " (Usage of this legacy function is deprecated. Use `.add` instead.)"
             " -- Deprecated since version v1.2."
         ),
@@ -71,7 +71,7 @@ def test_legacy_alias_method(recwarn):
     with pytest.warns(
         UserDeprecationWarning,
         match=re.escape(
-            "Call to deprecated method add."
+            "Call to deprecated method do_plus."
             " (Usage of this legacy method is deprecated. Use `.add` instead.)"
             " -- Deprecated since version v1.2."
         ),
@@ -103,7 +103,7 @@ def test_legacy_alias_classmethod(recwarn):
 
     expected_warning = re.escape(
         # Workaround for bug in classmethod detection before Python 3.9 (see https://wrapt.readthedocs.io/en/latest/decorators.html#decorating-class-methods
-        f"Call to deprecated {'class method' if sys.version_info >= (3, 9) else 'function (or staticmethod)'} add."
+        f"Call to deprecated {'class method' if sys.version_info >= (3, 9) else 'function (or staticmethod)'} do_plus."
         " (Usage of this legacy class method is deprecated. Use `.add` instead.)"
         " -- Deprecated since version v1.2."
     )
@@ -138,7 +138,7 @@ def test_legacy_alias_staticmethod(recwarn):
     assert len(recwarn) == 0
 
     expected_warning = re.escape(
-        "Call to deprecated function (or staticmethod) add."
+        "Call to deprecated function (or staticmethod) do_plus."
         " (Usage of this legacy static method is deprecated. Use `.add` instead.)"
         " -- Deprecated since version v1.2."
     )
@@ -157,7 +157,7 @@ def test_legacy_alias_method_soft(recwarn):
             """Add x and y."""
             return x + y
 
-        do_plus = legacy_alias(add, since="v1.2", mode="soft")
+        do_plus = legacy_alias(add, name="do_plus", since="v1.2", mode="soft")
 
     assert Foo.add.__doc__ == "Add x and y."
     assert Foo.do_plus.__doc__ == (

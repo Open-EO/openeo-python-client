@@ -76,7 +76,7 @@ class BatchJob:
         """
         return self.connection.get(f"/jobs/{self.job_id}", expected_status=200).json()
 
-    describe_job = legacy_alias(describe, since="0.20.0", mode="soft")
+    describe_job = legacy_alias(describe, name="describe_job", since="0.20.0", mode="soft")
 
     def status(self) -> str:
         """
@@ -96,7 +96,7 @@ class BatchJob:
         """
         self.connection.delete(f"/jobs/{self.job_id}", expected_status=204)
 
-    delete_job = legacy_alias(delete, since="0.20.0", mode="soft")
+    delete_job = legacy_alias(delete, name="delete_job", since="0.20.0", mode="soft")
 
     @openeo_endpoint("GET /jobs/{job_id}/estimate")
     def estimate(self):
@@ -107,7 +107,7 @@ class BatchJob:
         currency = self.connection.capabilities().currency()
         return VisualDict('job-estimate', data=data, parameters={'currency': currency})
 
-    estimate_job = legacy_alias(estimate, since="0.20.0", mode="soft")
+    estimate_job = legacy_alias(estimate, name="estimate_job", since="0.20.0", mode="soft")
 
     @openeo_endpoint("POST /jobs/{job_id}/results")
     def start(self) -> BatchJob:
@@ -122,7 +122,7 @@ class BatchJob:
         self.connection.post(f"/jobs/{self.job_id}/results", expected_status=202)
         return self
 
-    start_job = legacy_alias(start, since="0.20.0", mode="soft")
+    start_job = legacy_alias(start, name="start_job", since="0.20.0", mode="soft")
 
     @openeo_endpoint("DELETE /jobs/{job_id}/results")
     def stop(self):
@@ -134,7 +134,7 @@ class BatchJob:
         """
         self.connection.delete(f"/jobs/{self.job_id}/results", expected_status=204)
 
-    stop_job = legacy_alias(stop, since="0.20.0", mode="soft")
+    stop_job = legacy_alias(stop, name="stop_job", since="0.20.0", mode="soft")
 
     def get_results_metadata_url(self, *, full: bool = False) -> str:
         """Get results metadata URL"""
