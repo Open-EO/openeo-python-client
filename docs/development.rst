@@ -134,7 +134,7 @@ Pre-commit set up
     -   The simplest option is to install it directly in the *virtual environment*
         you are using for openEO Python client development (e.g. ``pip install pre-commit``).
     -   You can also install it *globally* on your system
-        (e.g. using `pipx <https://pypa.github.io/pipx/>`_, conda, homebrew, ...)
+        (e.g. using `pipx <https://pipx.pypa.io/>`_, conda, homebrew, ...)
         so you can use it across different projects.
 
 -   Install the project specific git hook scripts by running this in the root of your local git clone:
