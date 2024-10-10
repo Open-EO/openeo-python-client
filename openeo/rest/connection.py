@@ -1732,7 +1732,7 @@ class Connection(RestApiConnection):
 
     def create_job(
         self,
-        process_graph: Union[dict, str, Path],
+        process_graph: Union[dict, str, Path, FlatGraphableMixin],
         *,
         title: Optional[str] = None,
         description: Optional[str] = None,
