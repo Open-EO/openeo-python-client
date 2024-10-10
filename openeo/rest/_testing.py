@@ -5,6 +5,8 @@ from typing import Optional, Union
 from openeo import Connection, DataCube
 from openeo.rest.vectorcube import VectorCube
 
+OPENEO_BACKEND = "https://openeo.test/"
+
 
 class OpeneoTestingException(Exception):
     pass
