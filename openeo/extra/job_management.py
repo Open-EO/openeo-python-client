@@ -1,14 +1,17 @@
 import abc
 import contextlib
 import datetime
+import functools
 import json
 import logging
+import re
 import time
 import warnings
 from pathlib import Path
 from threading import Thread
 from typing import Callable, Dict, List, NamedTuple, Optional, Union
 
+import numpy
 import pandas as pd
 import requests
 import shapely.errors
@@ -17,7 +20,7 @@ from requests.adapters import HTTPAdapter, Retry
 
 from openeo import BatchJob, Connection
 from openeo.rest import OpenEoApiError
-from openeo.util import deep_get, rfc3339
+from openeo.util import deep_get, repr_truncate, rfc3339
 
 _log = logging.getLogger(__name__)
 
@@ -886,3 +889,107 @@ def create_job_db(path: Union[str, Path], df: pd.DataFrame, *, on_exists: str = 
     else:
         raise NotImplementedError(f"Initialization of {type(job_db)} is not supported.")
     return job_db
+
+
+class UDPJobFactory:
+    """
+    Batch job factory based on a parameterized process definition
+    (e.g a user-defined process (UDP) or a remote process definitions),
+    to be used together with :py:class:`MultiBackendJobManager`.
+    """
+
+    def __init__(
+        self, process_id: str, *, namespace: Union[str, None] = None, parameter_defaults: Optional[dict] = None
+    ):
+        self._process_id = process_id
+        self._namespace = namespace
+        self._parameter_defaults = parameter_defaults or {}
+
+    def _get_process_definition(self, connection: Connection) -> dict:
+        if isinstance(self._namespace, str) and re.match("https?://", self._namespace):
+            return self._get_remote_process_definition()
+        elif self._namespace is None:
+            return connection.user_defined_process(self._process_id).describe()
+        else:
+            raise NotImplementedError(
+                f"Unsupported process definition source udp_id={self._process_id!r} namespace={self._namespace!r}"
+            )
+
+    @functools.lru_cache()
+    def _get_remote_process_definition(self) -> dict:
+        """
+        Get process definition based on "Remote Process Definition Extension" spec
+        https://github.com/Open-EO/openeo-api/tree/draft/extensions/remote-process-definition
+        """
+        assert isinstance(self._namespace, str) and re.match("https?://", self._namespace)
+        resp = requests.get(url=self._namespace)
+        resp.raise_for_status()
+        data = resp.json()
+        if isinstance(data, list):
+            # Handle process listing: filter out right process
+            processes = [p for p in data if p.get("id") == self._process_id]
+            if len(processes) != 1:
+                raise ValueError(f"Process {self._process_id!r} not found at {self._namespace}")
+            (data,) = processes
+
+        # Check for required fields of a process definition
+        if isinstance(data, dict) and "id" in data and "process_graph" in data:
+            process_definition = data
+        else:
+            raise ValueError(f"Invalid process definition at {self._namespace}")
+
+        return process_definition
+
+    def start_job(self, row: pd.Series, connection: Connection, **_) -> BatchJob:
+        """
+        Implementation of the `start_job` callable interface for MultiBackendJobManager:
+        Create and start a job based on given dataframe row
+
+        :param row: The row in the pandas dataframe that stores the jobs state and other tracked data.
+        :param connection: The connection to the backend.
+
+        :return: The started job.
+        """
+
+        process_definition = self._get_process_definition(connection=connection)
+        parameters = process_definition.get("parameters", [])
+        arguments = {}
+        for parameter in parameters:
+            name = parameter["name"]
+            schema = parameter.get("schema", {})
+            if name in row.index:
+                # Higherst priority: value from dataframe row
+                value = row[name]
+            elif name in self._parameter_defaults:
+                # Fallback on default values from constructor
+                value = self._parameter_defaults[name]
+            else:
+                if parameter.get("optional", False):
+                    continue
+                raise ValueError(f"Missing required parameter {name!r} for process {self._process_id!r}")
+
+            # TODO: validation or normalization based on schema?
+            # Some pandas/numpy data types need a bit of conversion for JSON encoding
+            if isinstance(value, numpy.integer):
+                value = int(value)
+            elif isinstance(value, numpy.number):
+                value = float(value)
+
+            arguments[name] = value
+
+        cube = connection.datacube_from_process(process_id=self._process_id, namespace=self._namespace, **arguments)
+
+        title = row.get("title", f"UDP {self._process_id!r} with {repr_truncate(parameters)}")
+        description = row.get(
+            "description", f"UDP {self._process_id!r} (namespace {self._namespace}) with {parameters}"
+        )
+        job = connection.create_job(cube, title=title, description=description)
+
+        return job
+
+    def __call__(self, *arg, **kwargs) -> BatchJob:
+        """Syntactic sugar for calling `start_job` directly."""
+        return self.start_job(*arg, **kwargs)
+
+
+

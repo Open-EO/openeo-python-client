@@ -31,14 +31,26 @@ from openeo.extra.job_management import (
     ParquetJobDatabase,
     create_job_db,
     get_job_db,
+    UDPJobFactory,
 )
+from openeo.rest._testing import OPENEO_BACKEND, DummyBackend, build_capabilities
 from openeo.util import rfc3339
+
+
+@pytest.fixture
+def con120(requests_mock) -> openeo.Connection:
+    requests_mock.get(OPENEO_BACKEND, json=build_capabilities(api_version="1.2.0"))
+    con = openeo.Connection(OPENEO_BACKEND)
+    return con
 
 
 class FakeBackend:
     """
     Fake openEO backend with some basic job management functionality for testing job manager logic.
     """
+
+    # TODO: replace/merge with openeo.rest._testing.DummyBackend
+
     def __init__(self, *, backend_root_url: str = "http://openeo.test", requests_mock):
         self.url = backend_root_url.rstrip("/")
         requests_mock.get(f"{self.url}/", json={"api_version": "1.1.0"})
@@ -957,3 +969,113 @@ def test_create_job_db(tmp_path, filename, expected):
     db = create_job_db(path=path, df=df)
     assert isinstance(db, expected)
     assert path.exists()
+
+
+class TestUDPJobFactory:
+    @pytest.fixture
+    def dummy_backend(self, requests_mock, con120) -> DummyBackend:
+        return DummyBackend(requests_mock=requests_mock, connection=con120)
+
+    @pytest.fixture(autouse=True)
+    def remote_process_definitions(self, requests_mock):
+        requests_mock.get(
+            "https://remote.test/3plus5.json",
+            json={
+                "id": "3plus5",
+                "process_graph": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True},
+            },
+        )
+        requests_mock.get(
+            "https://remote.test/increment.json",
+            json={
+                "id": "increment",
+                "parameters": [
+                    {"name": "data", "schema": {"type": "number"}},
+                    {"name": "increment", "schema": {"type": "number"}, "optional": True, "default": 1},
+                ],
+                "process_graph": {
+                    "process_id": "add",
+                    "arguments": {"x": {"from_parameter": "data"}, "y": {"from_parameter": "increment"}},
+                    "result": True,
+                },
+            },
+        )
+
+    def test_minimal(self, con120, dummy_backend):
+        """Bare minimum: just start a job, no parameters/arguments"""
+        job_factory = UDPJobFactory(process_id="3plus5", namespace="https://remote.test/3plus5.json")
+
+        job = job_factory.start_job(row=pd.Series({"foo": 123}), connection=con120)
+        assert isinstance(job, BatchJob)
+        assert dummy_backend.batch_jobs == {
+            "job-000": {
+                "job_id": "job-000",
+                "pg": {
+                    "3plus51": {
+                        "process_id": "3plus5",
+                        "namespace": "https://remote.test/3plus5.json",
+                        "arguments": {},
+                        "result": True,
+                    }
+                },
+                "status": "created",
+            }
+        }
+
+    def test_basic(self, con120, dummy_backend):
+        """Basic parameterized UDP job generation"""
+        job_factory = UDPJobFactory(process_id="increment", namespace="https://remote.test/increment.json")
+
+        job = job_factory.start_job(row=pd.Series({"data": 123}), connection=con120)
+        assert isinstance(job, BatchJob)
+        assert dummy_backend.batch_jobs == {
+            "job-000": {
+                "job_id": "job-000",
+                "pg": {
+                    "increment1": {
+                        "process_id": "increment",
+                        "namespace": "https://remote.test/increment.json",
+                        "arguments": {"data": 123},
+                        "result": True,
+                    }
+                },
+                "status": "created",
+            }
+        }
+
+    @pytest.mark.parametrize(
+        ["parameter_defaults", "row", "expected_arguments"],
+        [
+            (None, {"data": 123}, {"data": 123}),
+            (None, {"data": 123, "increment": 5}, {"data": 123, "increment": 5}),
+            ({"increment": 5}, {"data": 123}, {"data": 123, "increment": 5}),
+            ({"increment": 5}, {"data": 123, "increment": 1000}, {"data": 123, "increment": 1000}),
+        ],
+    )
+    def test_basic_parameterization(self, con120, dummy_backend, parameter_defaults, row, expected_arguments):
+        """Basic parameterized UDP job generation"""
+        job_factory = UDPJobFactory(
+            process_id="increment",
+            namespace="https://remote.test/increment.json",
+            parameter_defaults=parameter_defaults,
+        )
+
+        job = job_factory.start_job(row=pd.Series(row), connection=con120)
+        assert isinstance(job, BatchJob)
+        assert dummy_backend.batch_jobs == {
+            "job-000": {
+                "job_id": "job-000",
+                "pg": {
+                    "increment1": {
+                        "process_id": "increment",
+                        "namespace": "https://remote.test/increment.json",
+                        "arguments": expected_arguments,
+                        "result": True,
+                    }
+                },
+                "status": "created",
+            }
+        }
+
+
+
