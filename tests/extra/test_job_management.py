@@ -1396,8 +1396,15 @@ class TestUDPJobFactory:
             },
         }
 
-    def test_with_job_manager_remote_geometry_with_csv_persistence(
-        self, tmp_path, requests_mock, dummy_backend, job_manager, sleep_mock
+    @pytest.mark.parametrize(
+        ["db_class"],
+        [
+            (CsvJobDatabase,),
+            (ParquetJobDatabase,),
+        ],
+    )
+    def test_with_job_manager_remote_geometry_after_resume(
+        self, tmp_path, requests_mock, dummy_backend, job_manager, sleep_mock, db_class
     ):
         """Test if geometry handling works properly after resuming from CSV serialized job db."""
         job_starter = UDPJobFactory(
@@ -1426,13 +1433,13 @@ class TestUDPJobFactory:
             }
         )
 
-        # Persist the GeoDataFrame to CSV
-        job_db_path = tmp_path / "jobs.csv"
-        _ = CsvJobDatabase(job_db_path).initialize_from_df(df)
+        # Persist the job db to CSV/Parquet/...
+        job_db_path = tmp_path / "jobs.db"
+        _ = db_class(job_db_path).initialize_from_df(df)
         assert job_db_path.exists()
 
-        # Resume from persisted CSV
-        job_db = CsvJobDatabase(job_db_path)
+        # Resume from persisted job db
+        job_db = db_class(job_db_path)
 
         stats = job_manager.run_jobs(job_db=job_db, start_job=job_starter)
         assert stats == dirty_equals.IsPartialDict(
