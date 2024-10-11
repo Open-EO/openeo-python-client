@@ -1,4 +1,5 @@
 import abc
+import collections
 import contextlib
 import datetime
 import functools
@@ -380,7 +381,7 @@ class MultiBackendJobManager:
         start_job: Callable[[], BatchJob] = _start_job_default,
         job_db: Union[str, Path, JobDatabaseInterface, None] = None,
         **kwargs,
-    ):
+    ) -> dict:
         """Runs jobs, specified in a dataframe, and tracks parameters.
 
         :param df:
@@ -422,6 +423,10 @@ class MultiBackendJobManager:
                 Support for Parquet files depends on the ``pyarrow`` package
                 as :ref:`optional dependency <installation-optional-dependencies>`.
 
+        :return: dictionary with stats collected during the job running loop.
+            Note that the set of fields in this dictionary is experimental
+            and subject to change
+
         .. versionchanged:: 0.31.0
             Added support for persisting the job metadata in Parquet format.
 
@@ -430,6 +435,9 @@ class MultiBackendJobManager:
             which can be a path to a CSV or Parquet file,
             or a user-defined :py:class:`JobDatabaseInterface` object.
             The deprecated ``output_file`` argument is still supported for now.
+
+        .. versionchanged:: 0.33.0
+            return a stats dictionary
         """
         # TODO: Defining start_jobs as a Protocol might make its usage more clear, and avoid complicated doctrings,
         #   but Protocols are only supported in Python 3.8 and higher.
@@ -457,23 +465,35 @@ class MultiBackendJobManager:
             # TODO: start showing deprecation warnings for this usage pattern?
             job_db.initialize_from_df(df)
 
+        stats = collections.defaultdict(int)
         while sum(job_db.count_by_status(statuses=["not_started", "created", "queued", "running"]).values()) > 0:
-            self._job_update_loop(job_db=job_db, start_job=start_job)
-            time.sleep(self.poll_sleep)
+            self._job_update_loop(job_db=job_db, start_job=start_job, stats=stats)
+            stats["run_jobs loop"] += 1
 
-    def _job_update_loop(self, job_db: JobDatabaseInterface, start_job: Callable[[], BatchJob]):
+            time.sleep(self.poll_sleep)
+            stats["sleep"] += 1
+
+        return stats
+
+    def _job_update_loop(
+        self, job_db: JobDatabaseInterface, start_job: Callable[[], BatchJob], stats: Optional[dict] = None
+    ):
         """
         Inner loop logic of job management:
         go through the necessary jobs to check for status updates,
         trigger status events, start new jobs when there is room for them, etc.
         """
+        stats = stats if stats is not None else collections.defaultdict(int)
+
         with ignore_connection_errors(context="get statuses"):
-            self._track_statuses(job_db)
+            self._track_statuses(job_db, stats=stats)
+            stats["track_statuses"] += 1
 
         not_started = job_db.get_by_status(statuses=["not_started"], max=200)
         if len(not_started) > 0:
             # Check number of jobs running at each backend
             running = job_db.get_by_status(statuses=["created", "queued", "running"])
+            stats["job_db get_by_status"] += 1
             per_backend = running.groupby("backend_name").size().to_dict()
             _log.info(f"Running per backend: {per_backend}")
             for backend_name in self.backends:
@@ -482,10 +502,13 @@ class MultiBackendJobManager:
                     to_add = self.backends[backend_name].parallel_jobs - backend_load
                     to_launch = not_started.iloc[0:to_add]
                     for i in to_launch.index:
-                        self._launch_job(start_job, not_started, i, backend_name)
-                        job_db.persist(to_launch)
+                        self._launch_job(start_job, df=not_started, i=i, backend_name=backend_name, stats=stats)
+                        stats["job launch"] += 1
 
-    def _launch_job(self, start_job, df, i, backend_name):
+                        job_db.persist(to_launch)
+                        stats["job_db persist"] += 1
+
+    def _launch_job(self, start_job, df, i, backend_name, stats: Optional[dict] = None):
         """Helper method for launching jobs
 
         :param start_job:
@@ -508,6 +531,7 @@ class MultiBackendJobManager:
         :param backend_name:
             name of the backend that will execute the job.
         """
+        stats = stats if stats is not None else collections.defaultdict(int)
 
         df.loc[i, "backend_name"] = backend_name
         row = df.loc[i]
@@ -515,6 +539,7 @@ class MultiBackendJobManager:
             _log.info(f"Starting job on backend {backend_name} for {row.to_dict()}")
             connection = self._get_connection(backend_name, resilient=True)
 
+            stats["start_job call"] += 1
             job = start_job(
                 row=row,
                 connection_provider=self._get_connection,
@@ -524,23 +549,30 @@ class MultiBackendJobManager:
         except requests.exceptions.ConnectionError as e:
             _log.warning(f"Failed to start job for {row.to_dict()}", exc_info=True)
             df.loc[i, "status"] = "start_failed"
+            stats["start_job error"] += 1
         else:
             df.loc[i, "start_time"] = rfc3339.utcnow()
             if job:
                 df.loc[i, "id"] = job.job_id
                 with ignore_connection_errors(context="get status"):
                     status = job.status()
+                    stats["job get status"] += 1
                     df.loc[i, "status"] = status
                     if status == "created":
                         # start job if not yet done by callback
                         try:
                             job.start()
+                            stats["job start"] += 1
                             df.loc[i, "status"] = job.status()
+                            stats["job get status"] += 1
                         except OpenEoApiError as e:
                             _log.error(e)
                             df.loc[i, "status"] = "start_failed"
+                            stats["job start error"] += 1
             else:
+                # TODO: what is this "skipping" about actually?
                 df.loc[i, "status"] = "skipped"
+                stats["start_job skipped"] += 1
 
     def on_job_done(self, job: BatchJob, row):
         """
@@ -623,11 +655,13 @@ class MultiBackendJobManager:
         if not job_dir.exists():
             job_dir.mkdir(parents=True)
 
-    def _track_statuses(self, job_db: JobDatabaseInterface):
+    def _track_statuses(self, job_db: JobDatabaseInterface, stats: Optional[dict] = None):
         """
         Tracks status (and stats) of running jobs (in place).
         Optionally cancels jobs when running too long.
         """
+        stats = stats if stats is not None else collections.defaultdict(int)
+
         active = job_db.get_by_status(statuses=["created", "queued", "running"])
         for i in active.index:
             job_id = active.loc[i, "id"]
@@ -638,6 +672,7 @@ class MultiBackendJobManager:
                 con = self._get_connection(backend_name)
                 the_job = con.job(job_id)
                 job_metadata = the_job.describe()
+                stats["job describe"] += 1
                 new_status = job_metadata["status"]
 
                 _log.info(
@@ -645,15 +680,19 @@ class MultiBackendJobManager:
                 )
 
                 if new_status == "finished":
+                    stats["job finished"] += 1
                     self.on_job_done(the_job, active.loc[i])
 
                 if previous_status != "error" and new_status == "error":
+                    stats["job failed"] += 1
                     self.on_job_error(the_job, active.loc[i])
 
                 if previous_status in {"created", "queued"} and new_status == "running":
+                    stats["job started running"] += 1
                     active.loc[i, "running_start_time"] = rfc3339.utcnow()
 
                 if new_status == "canceled":
+                    stats["job canceled"] += 1
                     self.on_job_cancel(the_job, active.loc[i])
 
                 if self._cancel_running_job_after and new_status == "running":
@@ -667,9 +706,13 @@ class MultiBackendJobManager:
                         active.loc[i, key] = _format_usage_stat(job_metadata, key)
 
             except OpenEoApiError as e:
+                stats["job tracking error"] += 1
                 print(f"error for job {job_id!r} on backend {backend_name}")
                 print(e)
+
+        stats["job_db persist"] += 1
         job_db.persist(active)
+
 
 def _format_usage_stat(job_metadata: dict, field: str) -> str:
     value = deep_get(job_metadata, "usage", field, "value", default=0)
@@ -977,6 +1020,3 @@ class UDPJobFactory:
     def __call__(self, *arg, **kwargs) -> BatchJob:
         """Syntactic sugar for calling `start_job` directly."""
         return self.start_job(*arg, **kwargs)
-
-
-

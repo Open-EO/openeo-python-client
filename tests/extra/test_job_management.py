@@ -29,9 +29,9 @@ from openeo.extra.job_management import (
     CsvJobDatabase,
     MultiBackendJobManager,
     ParquetJobDatabase,
+    UDPJobFactory,
     create_job_db,
     get_job_db,
-    UDPJobFactory,
 )
 from openeo.rest._testing import OPENEO_BACKEND, DummyBackend, build_capabilities
 from openeo.util import rfc3339
@@ -113,8 +113,17 @@ class TestMultiBackendJobManager:
             year = int(row["year"])
             return BatchJob(job_id=f"job-{year}", connection=connection)
 
-        manager.run_jobs(df=df, start_job=start_job, output_file=output_file)
-        assert sleep_mock.call_count > 10
+        run_stats = manager.run_jobs(df=df, start_job=start_job, output_file=output_file)
+        assert run_stats == dirty_equals.IsPartialDict(
+            {
+                "sleep": dirty_equals.IsInt(gt=10),
+                "start_job call": 7,  # TODO?
+                "job started running": 5,
+                "job finished": 5,
+                "job_db persist": dirty_equals.IsInt(gt=5),
+                "run_jobs loop": dirty_equals.IsInt(gt=5),
+            }
+        )
 
         result = pd.read_csv(output_file)
         assert len(result) == 5
@@ -148,8 +157,17 @@ class TestMultiBackendJobManager:
 
         job_db = CsvJobDatabase(output_file).initialize_from_df(df)
 
-        manager.run_jobs(job_db=job_db, start_job=start_job)
-        assert sleep_mock.call_count > 10
+        run_stats = manager.run_jobs(job_db=job_db, start_job=start_job)
+        assert run_stats == dirty_equals.IsPartialDict(
+            {
+                "sleep": dirty_equals.IsInt(gt=10),
+                "start_job call": 7,  # TODO?
+                "job started running": 5,
+                "job finished": 5,
+                "job_db persist": dirty_equals.IsInt(gt=5),
+                "run_jobs loop": dirty_equals.IsInt(gt=5),
+            }
+        )
 
         result = pd.read_csv(output_file)
         assert len(result) == 5
@@ -176,8 +194,14 @@ class TestMultiBackendJobManager:
         output_file = tmp_path / "jobs.db"
         job_db = db_class(output_file).initialize_from_df(df)
 
-        manager.run_jobs(job_db=job_db, start_job=start_job)
-        assert sleep_mock.call_count > 10
+        run_stats = manager.run_jobs(job_db=job_db, start_job=start_job)
+        assert run_stats == dirty_equals.IsPartialDict(
+            {
+                "start_job call": 7,  # TODO?
+                "job finished": 5,
+                "job_db persist": dirty_equals.IsInt(gt=5),
+            }
+        )
 
         result = job_db.read()
         assert len(result) == 5
@@ -205,8 +229,14 @@ class TestMultiBackendJobManager:
         output_file = tmp_path / filename
         job_db = create_job_db(path=output_file, df=df)
 
-        manager.run_jobs(job_db=job_db, start_job=start_job)
-        assert sleep_mock.call_count > 10
+        run_stats = manager.run_jobs(job_db=job_db, start_job=start_job)
+        assert run_stats == dirty_equals.IsPartialDict(
+            {
+                "start_job call": 7,  # TODO?
+                "job finished": 5,
+                "job_db persist": dirty_equals.IsInt(gt=5),
+            }
+        )
 
         result = job_db.read()
         assert len(result) == 5
@@ -235,6 +265,7 @@ class TestMultiBackendJobManager:
         # Trigger context switch to job thread
         sleep(1)
         manager.stop_job_thread()
+        # TODO #645 how to collect stats with the threaded run_job?
         assert sleep_mock.call_count > 10
 
         result = pd.read_csv(output_file)
@@ -543,8 +574,12 @@ class TestMultiBackendJobManager:
 
         output_file = tmp_path / "jobs.csv"
 
-        manager.run_jobs(df=df, start_job=start_job, output_file=output_file)
-        assert sleep_mock.call_count > 3
+        run_stats = manager.run_jobs(df=df, start_job=start_job, output_file=output_file)
+        assert run_stats == dirty_equals.IsPartialDict(
+            {
+                "start_job call": 1,
+            }
+        )
 
         # Sanity check: the job succeeded
         result = pd.read_csv(output_file)
@@ -615,6 +650,7 @@ class TestMultiBackendJobManager:
         with pytest.raises(requests.exceptions.RetryError) as exc:
             manager.run_jobs(df=df, start_job=start_job, output_file=output_file)
 
+        # TODO #645 how to still check stats when run_jobs raised exception?
         assert sleep_mock.call_count > 3
 
         # Sanity check: the job has status "error"
@@ -1103,8 +1139,14 @@ class TestUDPJobFactory:
         # TODO #636 avoid this cumbersome pattern using private _normalize_df API
         job_db.persist(job_manager._normalize_df(df))
 
-        job_manager.run_jobs(job_db=job_db, start_job=job_starter)
-        assert sleep_mock.call_count > 0
+        stats = job_manager.run_jobs(job_db=job_db, start_job=job_starter)
+        assert stats == dirty_equals.IsPartialDict(
+            {
+                "sleep": dirty_equals.IsInt(gt=1),
+                "start_job call": 3,
+                "job start": 3,
+            }
+        )
 
         result = job_db.read()
         assert set(result.status) == {"finished"}
