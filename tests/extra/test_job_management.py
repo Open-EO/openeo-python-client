@@ -1135,9 +1135,7 @@ class TestUDPJobFactory:
         )
 
         df = pd.DataFrame({"data": [1, 2, 3]})
-        job_db = CsvJobDatabase(tmp_path / "jobs.csv")
-        # TODO #636 avoid this cumbersome pattern using private _normalize_df API
-        job_db.persist(job_manager._normalize_df(df))
+        job_db = CsvJobDatabase(tmp_path / "jobs.csv").initialize_from_df(df)
 
         stats = job_manager.run_jobs(job_db=job_db, start_job=job_starter)
         assert stats == dirty_equals.IsPartialDict(
@@ -1147,9 +1145,7 @@ class TestUDPJobFactory:
                 "job start": 3,
             }
         )
-
-        result = job_db.read()
-        assert set(result.status) == {"finished"}
+        assert set(job_db.read().status) == {"finished"}
 
         assert dummy_backend.batch_jobs == {
             "job-000": {
@@ -1183,6 +1179,107 @@ class TestUDPJobFactory:
                         "process_id": "increment",
                         "namespace": "https://remote.test/increment.json",
                         "arguments": {"data": 3, "increment": 5},
+                        "result": True,
+                    }
+                },
+                "status": "finished",
+            },
+        }
+
+    @pytest.mark.parametrize(
+        ["parameter_defaults", "df_data", "expected_arguments"],
+        [
+            (
+                {"increment": 5},
+                {"data": [1, 2, 3]},
+                {
+                    "job-000": {"data": 1, "increment": 5},
+                    "job-001": {"data": 2, "increment": 5},
+                    "job-002": {"data": 3, "increment": 5},
+                },
+            ),
+            (
+                None,
+                {"data": [1, 2, 3], "increment": [44, 55, 66]},
+                {
+                    "job-000": {"data": 1, "increment": 44},
+                    "job-001": {"data": 2, "increment": 55},
+                    "job-002": {"data": 3, "increment": 66},
+                },
+            ),
+            (
+                {"increment": 5555},
+                {"data": [1, 2, 3], "increment": [44, 55, 66]},
+                {
+                    "job-000": {"data": 1, "increment": 44},
+                    "job-001": {"data": 2, "increment": 55},
+                    "job-002": {"data": 3, "increment": 66},
+                },
+            ),
+        ],
+    )
+    def test_udp_job_manager_parameter_handling(
+        self,
+        tmp_path,
+        requests_mock,
+        dummy_backend,
+        job_manager,
+        sleep_mock,
+        parameter_defaults,
+        df_data,
+        expected_arguments,
+    ):
+        job_starter = UDPJobFactory(
+            process_id="increment",
+            namespace="https://remote.test/increment.json",
+            parameter_defaults=parameter_defaults,
+        )
+
+        df = pd.DataFrame(df_data)
+        job_db = CsvJobDatabase(tmp_path / "jobs.csv").initialize_from_df(df)
+
+        stats = job_manager.run_jobs(job_db=job_db, start_job=job_starter)
+        assert stats == dirty_equals.IsPartialDict(
+            {
+                "sleep": dirty_equals.IsInt(gt=1),
+                "start_job call": 3,
+                "job start": 3,
+            }
+        )
+        assert set(job_db.read().status) == {"finished"}
+
+        assert dummy_backend.batch_jobs == {
+            "job-000": {
+                "job_id": "job-000",
+                "pg": {
+                    "increment1": {
+                        "process_id": "increment",
+                        "namespace": "https://remote.test/increment.json",
+                        "arguments": expected_arguments["job-000"],
+                        "result": True,
+                    }
+                },
+                "status": "finished",
+            },
+            "job-001": {
+                "job_id": "job-001",
+                "pg": {
+                    "increment1": {
+                        "process_id": "increment",
+                        "namespace": "https://remote.test/increment.json",
+                        "arguments": expected_arguments["job-001"],
+                        "result": True,
+                    }
+                },
+                "status": "finished",
+            },
+            "job-002": {
+                "job_id": "job-002",
+                "pg": {
+                    "increment1": {
+                        "process_id": "increment",
+                        "namespace": "https://remote.test/increment.json",
+                        "arguments": expected_arguments["job-002"],
                         "result": True,
                     }
                 },
