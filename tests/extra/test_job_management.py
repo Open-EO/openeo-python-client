@@ -1396,6 +1396,90 @@ class TestUDPJobFactory:
             },
         }
 
+    def test_with_job_manager_remote_geometry_with_csv_persistence(
+        self, tmp_path, requests_mock, dummy_backend, job_manager, sleep_mock
+    ):
+        """Test if geometry handling works properly after resuming from CSV serialized job db."""
+        job_starter = UDPJobFactory(
+            process_id="offset_polygon",
+            namespace="https://remote.test/offset_polygon.json",
+            parameter_defaults={"data": 123},
+        )
+
+        df = geopandas.GeoDataFrame.from_features(
+            {
+                "type": "FeatureCollection",
+                "features": [
+                    {
+                        "type": "Feature",
+                        "id": "one",
+                        "properties": {"offset": 11},
+                        "geometry": {"type": "Point", "coordinates": (1.0, 2.0)},
+                    },
+                    {
+                        "type": "Feature",
+                        "id": "two",
+                        "properties": {"offset": 22},
+                        "geometry": {"type": "Point", "coordinates": (3.0, 4.0)},
+                    },
+                ],
+            }
+        )
+
+        # Persist the GeoDataFrame to CSV
+        job_db_path = tmp_path / "jobs.csv"
+        _ = CsvJobDatabase(job_db_path).initialize_from_df(df)
+        assert job_db_path.exists()
+
+        # Resume from persisted CSV
+        job_db = CsvJobDatabase(job_db_path)
+
+        stats = job_manager.run_jobs(job_db=job_db, start_job=job_starter)
+        assert stats == dirty_equals.IsPartialDict(
+            {
+                "sleep": dirty_equals.IsInt(gt=1),
+                "start_job call": 2,
+                "job start": 2,
+                "job finished": 2,
+            }
+        )
+        assert set(job_db.read().status) == {"finished"}
+
+        assert dummy_backend.batch_jobs == {
+            "job-000": {
+                "job_id": "job-000",
+                "pg": {
+                    "offsetpolygon1": {
+                        "process_id": "offset_polygon",
+                        "namespace": "https://remote.test/offset_polygon.json",
+                        "arguments": {
+                            "data": 123,
+                            "polygons": {"type": "Point", "coordinates": [1.0, 2.0]},
+                            "offset": 11,
+                        },
+                        "result": True,
+                    }
+                },
+                "status": "finished",
+            },
+            "job-001": {
+                "job_id": "job-001",
+                "pg": {
+                    "offsetpolygon1": {
+                        "process_id": "offset_polygon",
+                        "namespace": "https://remote.test/offset_polygon.json",
+                        "arguments": {
+                            "data": 123,
+                            "polygons": {"type": "Point", "coordinates": [3.0, 4.0]},
+                            "offset": 22,
+                        },
+                        "result": True,
+                    }
+                },
+                "status": "finished",
+            },
+        }
+
     def test_with_job_manager_udp_basic(
         self, tmp_path, requests_mock, con, dummy_backend, job_manager, sleep_mock, remote_process_definitions
     ):
