@@ -22,6 +22,20 @@ def test_schema_equality():
     assert Schema({"type": "number"}) != Schema({"type": "string"})
 
 
+@pytest.mark.parametrize(
+    ["schema", "expected"],
+    [
+        ({"type": "object", "subtype": "geojson"}, True),
+        ({"type": "object"}, False),
+        ({"subtype": "geojson"}, False),
+        ({"type": "object", "subtype": "vectorzz"}, False),
+    ],
+)
+def test_schema_accepts_geojson(schema, expected):
+    assert Schema(schema).accepts_geojson() == expected
+    assert Schema([{"type": "number"}, schema]).accepts_geojson() == expected
+
+
 def test_parameter():
     p = Parameter.from_dict({
         "name": "foo",

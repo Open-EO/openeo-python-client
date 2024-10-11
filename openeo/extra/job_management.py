@@ -16,11 +16,16 @@ import numpy
 import pandas as pd
 import requests
 import shapely.errors
+import shapely.geometry.base
 import shapely.wkt
 from requests.adapters import HTTPAdapter, Retry
 
 from openeo import BatchJob, Connection
-from openeo.internal.processes.parse import Process, parse_remote_process_definition
+from openeo.internal.processes.parse import (
+    Parameter,
+    Process,
+    parse_remote_process_definition,
+)
 from openeo.rest import OpenEoApiError
 from openeo.util import deep_get, repr_truncate, rfc3339
 
@@ -943,11 +948,17 @@ class UDPJobFactory:
     """
 
     def __init__(
-        self, process_id: str, *, namespace: Union[str, None] = None, parameter_defaults: Optional[dict] = None
+        self,
+        process_id: str,
+        *,
+        namespace: Union[str, None] = None,
+        parameter_defaults: Optional[dict] = None,
+        parameter_column_map: Optional[dict] = None,
     ):
         self._process_id = process_id
         self._namespace = namespace
         self._parameter_defaults = parameter_defaults or {}
+        self._parameter_column_map = parameter_column_map
 
     def _get_process_definition(self, connection: Connection) -> Process:
         if isinstance(self._namespace, str) and re.match("https?://", self._namespace):
@@ -979,16 +990,20 @@ class UDPJobFactory:
 
         process_definition = self._get_process_definition(connection=connection)
         parameters = process_definition.parameters or []
+
+        if self._parameter_column_map is None:
+            self._parameter_column_map = self._guess_parameter_column_map(parameters=parameters, row=row)
+
         arguments = {}
         for parameter in parameters:
-            name = parameter.name
-            schema = parameter.schema
-            if name in row.index:
-                # Higherst priority: value from dataframe row
-                value = row[name]
-            elif name in self._parameter_defaults:
+            param_name = parameter.name
+            column_name = self._parameter_column_map.get(param_name, param_name)
+            if column_name in row.index:
+                # Get value from dataframe row
+                value = row.loc[column_name]
+            elif param_name in self._parameter_defaults:
                 # Fallback on default values from constructor
-                value = self._parameter_defaults[name]
+                value = self._parameter_defaults[param_name]
             elif parameter.has_default():
                 # Explicitly use default value from parameter schema
                 value = parameter.default
@@ -996,16 +1011,17 @@ class UDPJobFactory:
                 # Skip optional parameters without any fallback default value
                 continue
             else:
-                raise ValueError(f"Missing required parameter {name!r} for process {self._process_id!r}")
+                raise ValueError(f"Missing required parameter {param_name !r} for process {self._process_id!r}")
 
-            # TODO: validation or normalization based on schema?
-            # Some pandas/numpy data types need a bit of conversion for JSON encoding
+            # Prepare some values/dtypes for JSON encoding
             if isinstance(value, numpy.integer):
                 value = int(value)
             elif isinstance(value, numpy.number):
                 value = float(value)
+            elif isinstance(value, shapely.geometry.base.BaseGeometry):
+                value = shapely.geometry.mapping(value)
 
-            arguments[name] = value
+            arguments[param_name] = value
 
         cube = connection.datacube_from_process(process_id=self._process_id, namespace=self._namespace, **arguments)
 
@@ -1020,3 +1036,26 @@ class UDPJobFactory:
     def __call__(self, *arg, **kwargs) -> BatchJob:
         """Syntactic sugar for calling `start_job` directly."""
         return self.start_job(*arg, **kwargs)
+
+    @staticmethod
+    def _guess_parameter_column_map(parameters: List[Parameter], row: pd.Series) -> dict:
+        """
+        Guess parameter-column mapping from given parameter list and dataframe row
+        """
+        parameter_column_map = {}
+        # Geometry based mapping: try to automatically map geometry columns to geojson parameters
+        geojson_parameters = [p.name for p in parameters if p.schema.accepts_geojson()]
+        geometry_columns = [i for (i, v) in row.items() if isinstance(v, shapely.geometry.base.BaseGeometry)]
+        if geojson_parameters and geometry_columns:
+            if len(geojson_parameters) == 1 and len(geometry_columns) == 1:
+                # Most common case: one geometry parameter and one geometry column: can be mapped naively
+                parameter_column_map[geojson_parameters[0]] = geometry_columns[0]
+            elif all(p in geometry_columns for p in geojson_parameters):
+                # Each geometry param has geometry column with same name: easy to map
+                parameter_column_map.update((p, p) for p in geojson_parameters)
+            else:
+                raise RuntimeError(
+                    f"Problem with mapping geometry columns ({geometry_columns}) to process parameters ({geojson_parameters})"
+                )
+        _log.debug(f"Guessed parameter-column map: {parameter_column_map}")
+        return parameter_column_map

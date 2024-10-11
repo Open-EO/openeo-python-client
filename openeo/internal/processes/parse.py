@@ -31,6 +31,18 @@ class Schema(typing.NamedTuple):
             and self.schema.get("subtype") == "process-graph"
         )
 
+    def accepts_geojson(self) -> bool:
+        """Does this schema accept inline GeoJSON objects?"""
+
+        def is_geojson_schema(schema) -> bool:
+            return isinstance(schema, dict) and schema.get("type") == "object" and schema.get("subtype") == "geojson"
+
+        if isinstance(self.schema, dict):
+            return is_geojson_schema(self.schema)
+        elif isinstance(self.schema, list):
+            return any(is_geojson_schema(s) for s in self.schema)
+        return False
+
 
 _NO_DEFAULT = object()
 

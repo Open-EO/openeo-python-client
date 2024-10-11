@@ -1011,7 +1011,9 @@ def test_create_job_db(tmp_path, filename, expected):
 class TestUDPJobFactory:
     @pytest.fixture
     def dummy_backend(self, requests_mock, con120) -> DummyBackend:
-        return DummyBackend(requests_mock=requests_mock, connection=con120)
+        dummy = DummyBackend(requests_mock=requests_mock, connection=con120)
+        dummy.setup_simple_job_status_flow(queued=2, running=3, final="finished")
+        return dummy
 
     @pytest.fixture(autouse=True)
     def remote_process_definitions(self, requests_mock):
@@ -1041,6 +1043,31 @@ class TestUDPJobFactory:
                     "arguments": {"x": {"from_parameter": "data"}, "y": {"from_parameter": "increment"}},
                     "result": True,
                 },
+            },
+        )
+        requests_mock.get(
+            "https://remote.test/offset_poplygon.json",
+            json={
+                "id": "offset_poplygon",
+                "parameters": [
+                    {"name": "data", "description": "data", "schema": {"type": "number"}},
+                    {
+                        "name": "polygons",
+                        "description": "polygons",
+                        "schema": {
+                            "title": "GeoJSON",
+                            "type": "object",
+                            "subtype": "geojson",
+                        },
+                    },
+                    {
+                        "name": "offset",
+                        "description": "Offset",
+                        "schema": {"type": "number"},
+                        "optional": True,
+                        "default": 0,
+                    },
+                ],
             },
         )
 
@@ -1124,7 +1151,7 @@ class TestUDPJobFactory:
     @pytest.fixture
     def job_manager(self, tmp_path, dummy_backend) -> MultiBackendJobManager:
         job_manager = MultiBackendJobManager(root_dir=tmp_path / "job_mgr_root")
-        job_manager.add_backend("dummy", connection=dummy_backend.connection)
+        job_manager.add_backend("dummy", connection=dummy_backend.connection, parallel_jobs=1)
         return job_manager
 
     def test_udp_job_manager_basic(self, tmp_path, requests_mock, dummy_backend, job_manager, sleep_mock):
@@ -1143,6 +1170,8 @@ class TestUDPJobFactory:
                 "sleep": dirty_equals.IsInt(gt=1),
                 "start_job call": 3,
                 "job start": 3,
+                "job started running": 3,
+                "job finished": 3,
             }
         )
         assert set(job_db.read().status) == {"finished"}
@@ -1244,6 +1273,7 @@ class TestUDPJobFactory:
                 "sleep": dirty_equals.IsInt(gt=1),
                 "start_job call": 3,
                 "job start": 3,
+                "job finished": 3,
             }
         )
         assert set(job_db.read().status) == {"finished"}
@@ -1280,6 +1310,81 @@ class TestUDPJobFactory:
                         "process_id": "increment",
                         "namespace": "https://remote.test/increment.json",
                         "arguments": expected_arguments["job-002"],
+                        "result": True,
+                    }
+                },
+                "status": "finished",
+            },
+        }
+
+    def test_udp_job_manager_geometry(self, tmp_path, requests_mock, dummy_backend, job_manager, sleep_mock):
+        job_starter = UDPJobFactory(
+            process_id="offset_poplygon",
+            namespace="https://remote.test/offset_poplygon.json",
+            parameter_defaults={"data": 123},
+        )
+
+        df = geopandas.GeoDataFrame.from_features(
+            {
+                "type": "FeatureCollection",
+                "features": [
+                    {
+                        "type": "Feature",
+                        "id": "one",
+                        "properties": {"offset": 11},
+                        "geometry": {"type": "Point", "coordinates": (1.0, 2.0)},
+                    },
+                    {
+                        "type": "Feature",
+                        "id": "two",
+                        "properties": {"offset": 22},
+                        "geometry": {"type": "Point", "coordinates": (3.0, 4.0)},
+                    },
+                ],
+            }
+        )
+
+        job_db = CsvJobDatabase(tmp_path / "jobs.csv").initialize_from_df(df)
+
+        stats = job_manager.run_jobs(job_db=job_db, start_job=job_starter)
+        assert stats == dirty_equals.IsPartialDict(
+            {
+                "sleep": dirty_equals.IsInt(gt=1),
+                "start_job call": 2,
+                "job start": 2,
+                "job finished": 2,
+            }
+        )
+        assert set(job_db.read().status) == {"finished"}
+
+        assert dummy_backend.batch_jobs == {
+            "job-000": {
+                "job_id": "job-000",
+                "pg": {
+                    "offsetpoplygon1": {
+                        "process_id": "offset_poplygon",
+                        "namespace": "https://remote.test/offset_poplygon.json",
+                        "arguments": {
+                            "data": 123,
+                            "polygons": {"type": "Point", "coordinates": [1.0, 2.0]},
+                            "offset": 11,
+                        },
+                        "result": True,
+                    }
+                },
+                "status": "finished",
+            },
+            "job-001": {
+                "job_id": "job-001",
+                "pg": {
+                    "offsetpoplygon1": {
+                        "process_id": "offset_poplygon",
+                        "namespace": "https://remote.test/offset_poplygon.json",
+                        "arguments": {
+                            "data": 123,
+                            "polygons": {"type": "Point", "coordinates": [3.0, 4.0]},
+                            "offset": 22,
+                        },
                         "result": True,
                     }
                 },
