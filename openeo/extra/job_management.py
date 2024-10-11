@@ -505,12 +505,11 @@ class MultiBackendJobManager:
                 backend_load = per_backend.get(backend_name, 0)
                 if backend_load < self.backends[backend_name].parallel_jobs:
                     to_add = self.backends[backend_name].parallel_jobs - backend_load
-                    to_launch = not_started.iloc[0:to_add]
-                    for i in to_launch.index:
+                    for i in not_started.index[0:to_add]:
                         self._launch_job(start_job, df=not_started, i=i, backend_name=backend_name, stats=stats)
                         stats["job launch"] += 1
 
-                        job_db.persist(to_launch)
+                        job_db.persist(not_started.loc[i : i + 1])
                         stats["job_db persist"] += 1
 
     def _launch_job(self, start_job, df, i, backend_name, stats: Optional[dict] = None):
