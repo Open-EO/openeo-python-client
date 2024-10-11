@@ -27,6 +27,7 @@ class DummyBackend:
         "next_result",
         "next_validation_errors",
         "job_status_updater",
+        "extra_job_metadata_fields",
     )
 
     # Default result (can serve both as JSON or binary data)
@@ -39,6 +40,7 @@ class DummyBackend:
         self.validation_requests = []
         self.next_result = self.DEFAULT_RESULT
         self.next_validation_errors = []
+        self.extra_job_metadata_fields = []
 
         # Job status update hook:
         #   callable that is called on starting a job, and getting job metadata
@@ -81,9 +83,13 @@ class DummyBackend:
 
     def _handle_post_jobs(self, request, context):
         """handler of `POST /jobs` (create batch job)"""
-        pg = request.json()["process"]["process_graph"]
+        post_data = request.json()
+        pg = post_data["process"]["process_graph"]
         job_id = f"job-{len(self.batch_jobs):03d}"
-        self.batch_jobs[job_id] = {"job_id": job_id, "pg": pg, "status": "created"}
+        job_data = {"job_id": job_id, "pg": pg, "status": "created"}
+        for field in self.extra_job_metadata_fields:
+            job_data[field] = post_data.get(field)
+        self.batch_jobs[job_id] = job_data
         context.status_code = 201
         context.headers["openeo-identifier"] = job_id
 

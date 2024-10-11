@@ -1094,6 +1094,7 @@ class TestUDPJobFactory:
 
     def test_basic(self, con, dummy_backend, remote_process_definitions):
         """Basic parameterized UDP job generation"""
+        dummy_backend.extra_job_metadata_fields = ["title", "description"]
         job_factory = UDPJobFactory(process_id="increment", namespace="https://remote.test/increment.json")
 
         job = job_factory.start_job(row=pd.Series({"data": 123}), connection=con)
@@ -1110,6 +1111,8 @@ class TestUDPJobFactory:
                     }
                 },
                 "status": "created",
+                "title": "Process 'increment' with {'data': 123, 'increment': 1}",
+                "description": "Process 'increment' (namespace https://remote.test/increment.json) with {'data': 123, 'increment': 1}",
             }
         }
         assert remote_process_definitions["increment"].call_count == 1

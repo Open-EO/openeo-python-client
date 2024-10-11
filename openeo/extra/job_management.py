@@ -1024,9 +1024,9 @@ class UDPJobFactory:
 
         cube = connection.datacube_from_process(process_id=self._process_id, namespace=self._namespace, **arguments)
 
-        title = row.get("title", f"UDP {self._process_id!r} with {repr_truncate(parameters)}")
+        title = row.get("title", f"Process {self._process_id!r} with {repr_truncate(arguments)}")
         description = row.get(
-            "description", f"UDP {self._process_id!r} (namespace {self._namespace}) with {parameters}"
+            "description", f"Process {self._process_id!r} (namespace {self._namespace}) with {arguments}"
         )
         job = connection.create_job(cube, title=title, description=description)
 
