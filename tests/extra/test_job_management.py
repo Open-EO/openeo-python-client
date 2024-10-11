@@ -85,13 +85,14 @@ class FakeBackend:
         context.status_code = 204
 
 
+@pytest.fixture
+def sleep_mock():
+    with mock.patch("time.sleep") as sleep:
+        yield sleep
+
 class TestMultiBackendJobManager:
 
 
-    @pytest.fixture
-    def sleep_mock(self):
-        with mock.patch("time.sleep") as sleep:
-            yield sleep
 
     def test_basic_legacy(self, tmp_path, requests_mock, sleep_mock):
         """
@@ -1084,4 +1085,65 @@ class TestUDPJobFactory:
         }
 
 
+    @pytest.fixture
+    def job_manager(self, tmp_path, dummy_backend) -> MultiBackendJobManager:
+        job_manager = MultiBackendJobManager(root_dir=tmp_path / "job_mgr_root")
+        job_manager.add_backend("dummy", connection=dummy_backend.connection)
+        return job_manager
 
+    def test_udp_job_manager_basic(self, tmp_path, requests_mock, dummy_backend, job_manager, sleep_mock):
+        job_starter = UDPJobFactory(
+            process_id="increment",
+            namespace="https://remote.test/increment.json",
+            parameter_defaults={"increment": 5},
+        )
+
+        df = pd.DataFrame({"data": [1, 2, 3]})
+        job_db = CsvJobDatabase(tmp_path / "jobs.csv")
+        # TODO #636 avoid this cumbersome pattern using private _normalize_df API
+        job_db.persist(job_manager._normalize_df(df))
+
+        job_manager.run_jobs(job_db=job_db, start_job=job_starter)
+        assert sleep_mock.call_count > 0
+
+        result = job_db.read()
+        assert set(result.status) == {"finished"}
+
+        assert dummy_backend.batch_jobs == {
+            "job-000": {
+                "job_id": "job-000",
+                "pg": {
+                    "increment1": {
+                        "process_id": "increment",
+                        "namespace": "https://remote.test/increment.json",
+                        "arguments": {"data": 1, "increment": 5},
+                        "result": True,
+                    }
+                },
+                "status": "finished",
+            },
+            "job-001": {
+                "job_id": "job-001",
+                "pg": {
+                    "increment1": {
+                        "process_id": "increment",
+                        "namespace": "https://remote.test/increment.json",
+                        "arguments": {"data": 2, "increment": 5},
+                        "result": True,
+                    }
+                },
+                "status": "finished",
+            },
+            "job-002": {
+                "job_id": "job-002",
+                "pg": {
+                    "increment1": {
+                        "process_id": "increment",
+                        "namespace": "https://remote.test/increment.json",
+                        "arguments": {"data": 3, "increment": 5},
+                        "result": True,
+                    }
+                },
+                "status": "finished",
+            },
+        }
