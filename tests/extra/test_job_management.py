@@ -1041,7 +1041,7 @@ class TestUDPJobFactory:
                     "increment1": {
                         "process_id": "increment",
                         "namespace": "https://remote.test/increment.json",
-                        "arguments": {"data": 123},
+                        "arguments": {"data": 123, "increment": 1},
                         "result": True,
                     }
                 },
@@ -1052,7 +1052,7 @@ class TestUDPJobFactory:
     @pytest.mark.parametrize(
         ["parameter_defaults", "row", "expected_arguments"],
         [
-            (None, {"data": 123}, {"data": 123}),
+            (None, {"data": 123}, {"data": 123, "increment": 1}),
             (None, {"data": 123, "increment": 5}, {"data": 123, "increment": 5}),
             ({"increment": 5}, {"data": 123}, {"data": 123, "increment": 5}),
             ({"increment": 5}, {"data": 123, "increment": 1000}, {"data": 123, "increment": 1000}),

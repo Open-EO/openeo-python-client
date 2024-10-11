@@ -895,7 +895,7 @@ def create_job_db(path: Union[str, Path], df: pd.DataFrame, *, on_exists: str = 
 class UDPJobFactory:
     """
     Batch job factory based on a parameterized process definition
-    (e.g a user-defined process (UDP) or a remote process definitions),
+    (e.g a user-defined process (UDP) or a remote process definition),
     to be used together with :py:class:`MultiBackendJobManager`.
     """
 
@@ -946,9 +946,13 @@ class UDPJobFactory:
             elif name in self._parameter_defaults:
                 # Fallback on default values from constructor
                 value = self._parameter_defaults[name]
+            elif parameter.has_default():
+                # Explicitly use default value from parameter schema
+                value = parameter.default
+            elif parameter.optional:
+                # Skip optional parameters without any fallback default value
+                continue
             else:
-                if parameter.optional:
-                    continue
                 raise ValueError(f"Missing required parameter {name!r} for process {self._process_id!r}")
 
             # TODO: validation or normalization based on schema?
