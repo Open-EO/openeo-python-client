@@ -990,8 +990,14 @@ class TestUDPJobFactory:
             json={
                 "id": "increment",
                 "parameters": [
-                    {"name": "data", "schema": {"type": "number"}},
-                    {"name": "increment", "schema": {"type": "number"}, "optional": True, "default": 1},
+                    {"name": "data", "description": "data", "schema": {"type": "number"}},
+                    {
+                        "name": "increment",
+                        "description": "increment",
+                        "schema": {"type": "number"},
+                        "optional": True,
+                        "default": 1,
+                    },
                 ],
                 "process_graph": {
                     "process_id": "add",

@@ -19,6 +19,7 @@ import shapely.wkt
 from requests.adapters import HTTPAdapter, Retry
 
 from openeo import BatchJob, Connection
+from openeo.internal.processes.parse import Process, parse_remote_process_definition
 from openeo.rest import OpenEoApiError
 from openeo.util import deep_get, repr_truncate, rfc3339
 
@@ -905,40 +906,22 @@ class UDPJobFactory:
         self._namespace = namespace
         self._parameter_defaults = parameter_defaults or {}
 
-    def _get_process_definition(self, connection: Connection) -> dict:
+    def _get_process_definition(self, connection: Connection) -> Process:
         if isinstance(self._namespace, str) and re.match("https?://", self._namespace):
+            # Remote process definition handling
             return self._get_remote_process_definition()
         elif self._namespace is None:
-            return connection.user_defined_process(self._process_id).describe()
+            # Handling of a user-specific UDP
+            udp_raw = connection.user_defined_process(self._process_id).describe()
+            return Process.from_dict(udp_raw)
         else:
             raise NotImplementedError(
                 f"Unsupported process definition source udp_id={self._process_id!r} namespace={self._namespace!r}"
             )
 
     @functools.lru_cache()
-    def _get_remote_process_definition(self) -> dict:
-        """
-        Get process definition based on "Remote Process Definition Extension" spec
-        https://github.com/Open-EO/openeo-api/tree/draft/extensions/remote-process-definition
-        """
-        assert isinstance(self._namespace, str) and re.match("https?://", self._namespace)
-        resp = requests.get(url=self._namespace)
-        resp.raise_for_status()
-        data = resp.json()
-        if isinstance(data, list):
-            # Handle process listing: filter out right process
-            processes = [p for p in data if p.get("id") == self._process_id]
-            if len(processes) != 1:
-                raise ValueError(f"Process {self._process_id!r} not found at {self._namespace}")
-            (data,) = processes
-
-        # Check for required fields of a process definition
-        if isinstance(data, dict) and "id" in data and "process_graph" in data:
-            process_definition = data
-        else:
-            raise ValueError(f"Invalid process definition at {self._namespace}")
-
-        return process_definition
+    def _get_remote_process_definition(self) -> Process:
+        return parse_remote_process_definition(namespace=self._namespace, process_id=self._process_id)
 
     def start_job(self, row: pd.Series, connection: Connection, **_) -> BatchJob:
         """
@@ -952,11 +935,11 @@ class UDPJobFactory:
         """
 
         process_definition = self._get_process_definition(connection=connection)
-        parameters = process_definition.get("parameters", [])
+        parameters = process_definition.parameters or []
         arguments = {}
         for parameter in parameters:
-            name = parameter["name"]
-            schema = parameter.get("schema", {})
+            name = parameter.name
+            schema = parameter.schema
             if name in row.index:
                 # Higherst priority: value from dataframe row
                 value = row[name]
@@ -964,7 +947,7 @@ class UDPJobFactory:
                 # Fallback on default values from constructor
                 value = self._parameter_defaults[name]
             else:
-                if parameter.get("optional", False):
+                if parameter.optional:
                     continue
                 raise ValueError(f"Missing required parameter {name!r} for process {self._process_id!r}")
 
