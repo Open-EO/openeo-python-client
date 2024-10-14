@@ -1599,3 +1599,56 @@ class TestUDPJobFactory:
                 "status": "finished",
             },
         }
+
+    def test_with_job_manager_parameter_column_map(
+        self, tmp_path, requests_mock, dummy_backend, job_manager, sleep_mock, remote_process_definitions
+    ):
+        job_starter = UDPJobFactory(
+            process_id="increment",
+            namespace="https://remote.test/increment.json",
+            parameter_column_map={"data": "numberzzz", "increment": "add_thiz"},
+        )
+
+        df = pd.DataFrame(
+            {
+                "data": [1, 2],
+                "increment": [-1, -2],
+                "numberzzz": [3, 5],
+                "add_thiz": [100, 200],
+            }
+        )
+        job_db = CsvJobDatabase(tmp_path / "jobs.csv").initialize_from_df(df)
+
+        stats = job_manager.run_jobs(job_db=job_db, start_job=job_starter)
+        assert stats == dirty_equals.IsPartialDict(
+            {
+                "start_job call": 2,
+                "job finished": 2,
+            }
+        )
+        assert dummy_backend.batch_jobs == {
+            "job-000": {
+                "job_id": "job-000",
+                "pg": {
+                    "increment1": {
+                        "process_id": "increment",
+                        "namespace": "https://remote.test/increment.json",
+                        "arguments": {"data": 3, "increment": 100},
+                        "result": True,
+                    }
+                },
+                "status": "finished",
+            },
+            "job-001": {
+                "job_id": "job-001",
+                "pg": {
+                    "increment1": {
+                        "process_id": "increment",
+                        "namespace": "https://remote.test/increment.json",
+                        "arguments": {"data": 5, "increment": 200},
+                        "result": True,
+                    }
+                },
+                "status": "finished",
+            },
+        }
