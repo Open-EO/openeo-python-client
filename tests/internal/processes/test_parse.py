@@ -220,3 +220,10 @@ def test_parse_remote_process_definition_listing(requests_mock):
     assert process.returns is None
     assert process.description is None
     assert process.summary is None
+
+
+def test_parse_remote_process_definition_inconsistency(requests_mock):
+    url = "https://example.com/ndvi.json"
+    requests_mock.get(url, json={"id": "nnddvvii"})
+    with pytest.raises(LookupError, match="Expected process id 'ndvi', but found 'nnddvvii'"):
+        _ = parse_remote_process_definition(url, process_id="ndvi")

@@ -1064,7 +1064,9 @@ class TestUDPJobFactory:
     @pytest.fixture(autouse=True)
     def remote_process_definitions(self, requests_mock) -> dict:
         mocks = {}
-        for pg in [self.PG_3PLUS5, self.PG_INCREMENT, self.PG_OFFSET_POLYGON]:
+        processes = [self.PG_3PLUS5, self.PG_INCREMENT, self.PG_OFFSET_POLYGON]
+        mocks["_all"] = requests_mock.get("https://remote.test/_all", json={"processes": processes, "links": []})
+        for pg in processes:
             process_id = pg["id"]
             mocks[process_id] = requests_mock.get(f"https://remote.test/{process_id}.json", json=pg)
         return mocks
@@ -1151,6 +1153,58 @@ class TestUDPJobFactory:
             }
         }
 
+    @pytest.mark.parametrize(
+        ["process_id", "namespace", "expected"],
+        [
+            (
+                # Classic UDP reference
+                "3plus5",
+                None,
+                {"process_id": "3plus5"},
+            ),
+            (
+                # Remote process definition (with "redundant" process_id)
+                "3plus5",
+                "https://remote.test/3plus5.json",
+                {"process_id": "3plus5", "namespace": "https://remote.test/3plus5.json"},
+            ),
+            (
+                # Remote process definition with just namespace (process_id should be inferred from that)
+                None,
+                "https://remote.test/3plus5.json",
+                {"process_id": "3plus5", "namespace": "https://remote.test/3plus5.json"},
+            ),
+            (
+                # Remote process definition from listing
+                "3plus5",
+                "https://remote.test/_all",
+                {"process_id": "3plus5", "namespace": "https://remote.test/_all"},
+            ),
+        ],
+    )
+    def test_process_references_in_constructor(
+        self, con, requests_mock, dummy_backend, remote_process_definitions, process_id, namespace, expected
+    ):
+        """Various ways to provide process references in the constructor"""
+
+        # Register personal UDP
+        requests_mock.get(con.build_url("/process_graphs/3plus5"), json=self.PG_3PLUS5)
+
+        job_factory = UDPJobFactory(process_id=process_id, namespace=namespace)
+
+        job = job_factory.start_job(row=pd.Series({"foo": 123}), connection=con)
+        assert isinstance(job, BatchJob)
+        assert dummy_backend.batch_jobs == {
+            "job-000": {
+                "job_id": "job-000",
+                "pg": {"3plus51": {**expected, "arguments": {}, "result": True}},
+                "status": "created",
+            }
+        }
+
+    def test_no_process_id_nor_namespace(self):
+        with pytest.raises(ValueError, match="At least one of `process_id` and `namespace` should be provided"):
+            _ = UDPJobFactory()
 
     @pytest.fixture
     def job_manager(self, tmp_path, dummy_backend) -> MultiBackendJobManager:

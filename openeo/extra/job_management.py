@@ -957,7 +957,6 @@ class UDPJobFactory:
 
         # Job creator, based on a parameterized openEO process definition
         job_starter = UDPJobFactory(
-            process_id="my_process",
             namespace="https://example.com/my_process.json",
         )
 
@@ -983,13 +982,14 @@ class UDPJobFactory:
 
     def __init__(
         self,
-        process_id: str,
         *,
+        process_id: Optional[str] = None,
         namespace: Union[str, None] = None,
         parameter_defaults: Optional[dict] = None,
         parameter_column_map: Optional[dict] = None,
     ):
-        # TODO: allow process_id to be None too? when remote process definition fully comes from URL
+        if process_id is None and namespace is None:
+            raise ValueError("At least one of `process_id` and `namespace` should be provided.")
         self._process_id = process_id
         self._namespace = namespace
         self._parameter_defaults = parameter_defaults or {}
@@ -1024,6 +1024,7 @@ class UDPJobFactory:
         """
 
         process_definition = self._get_process_definition(connection=connection)
+        process_id = process_definition.id
         parameters = process_definition.parameters or []
 
         if self._parameter_column_map is None:
@@ -1046,7 +1047,7 @@ class UDPJobFactory:
                 # Skip optional parameters without any fallback default value
                 continue
             else:
-                raise ValueError(f"Missing required parameter {param_name !r} for process {self._process_id!r}")
+                raise ValueError(f"Missing required parameter {param_name !r} for process {process_id!r}")
 
             # Prepare some values/dtypes for JSON encoding
             if isinstance(value, numpy.integer):
@@ -1058,12 +1059,10 @@ class UDPJobFactory:
 
             arguments[param_name] = value
 
-        cube = connection.datacube_from_process(process_id=self._process_id, namespace=self._namespace, **arguments)
+        cube = connection.datacube_from_process(process_id=process_id, namespace=self._namespace, **arguments)
 
-        title = row.get("title", f"Process {self._process_id!r} with {repr_truncate(arguments)}")
-        description = row.get(
-            "description", f"Process {self._process_id!r} (namespace {self._namespace}) with {arguments}"
-        )
+        title = row.get("title", f"Process {process_id!r} with {repr_truncate(arguments)}")
+        description = row.get("description", f"Process {process_id!r} (namespace {self._namespace}) with {arguments}")
         job = connection.create_job(cube, title=title, description=description)
 
         return job

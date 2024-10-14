@@ -156,4 +156,9 @@ def parse_remote_process_definition(namespace: str, process_id: Optional[str] = 
             raise LookupError(f"Process {process_id!r} not found in process listing {namespace!r}")
         (data,) = processes
 
+    # Some final validation.
+    assert "id" in data, "Process definition should at least have an 'id' field"
+    if process_id is not None and data["id"] != process_id:
+        raise LookupError(f"Expected process id {process_id!r}, but found {data['id']!r}")
+
     return Process.from_dict(data)
