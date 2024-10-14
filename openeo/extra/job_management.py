@@ -1006,6 +1006,9 @@ class UDPJobFactory:
     .. versionadded:: 0.33.0
     """
 
+    # TODO: find a better class name (e.g. eliminate over-specificity of "UDP",
+    #       or avoid "factory" as technical mumbo-jumbo)?
+
     def __init__(
         self,
         *,
@@ -1048,6 +1051,8 @@ class UDPJobFactory:
         :param row: The row in the pandas dataframe that stores the jobs state and other tracked data.
         :param connection: The connection to the backend.
         """
+        # TODO: refactor out some methods, for better reuse and decoupling:
+        #       `get_arguments()` (to build the arguments dictionary), `get_cube()` (to create the cube),
 
         process_definition = self._get_process_definition(connection=connection)
         process_id = process_definition.id
