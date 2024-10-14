@@ -14,3 +14,5 @@ Multi Backend Job Manager
 .. autoclass:: openeo.extra.job_management.CsvJobDatabase
 
 .. autoclass:: openeo.extra.job_management.ParquetJobDatabase
+
+.. autoclass:: openeo.extra.job_management.UDPJobFactory

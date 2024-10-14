@@ -969,6 +969,15 @@ class UDPJobFactory:
         job_manager = MultiBackendJobManager(...)
         job_manager.run_jobs(job_db=job_db, start_job=job_starter)
 
+    :param process_id: (optional) openEO process identifier.
+        Can be omitted when working with a remote process definition
+        given as URL in the ``namespace`` parameter.
+    :param namespace: (optional) openEO process namespace.
+        Typically used to provide a URL to a remote process definition.
+    :param parameter_defaults: Default values for process parameters,
+        to be used when not provided from the dataframe row in
+        :py:meth:`MultiBackendJobManager.run_jobs`.
+
     .. versionadded:: 0.33.0
     """
 
