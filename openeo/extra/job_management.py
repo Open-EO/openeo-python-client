@@ -944,6 +944,32 @@ class UDPJobFactory:
     Batch job factory based on a parameterized process definition
     (e.g a user-defined process (UDP) or a remote process definition),
     to be used together with :py:class:`MultiBackendJobManager`.
+
+    Usage example with a remote process definition:
+
+    .. code-block:: python
+
+        from openeo.extra.job_management import (
+            MultiBackendJobManager,
+            create_job_db,
+            UDPJobFactory,
+        )
+
+        # Job creator, based on a parameterized openEO process definition
+        job_starter = UDPJobFactory(
+            process_id="my_process",
+            namespace="https://example.com/my_process.json",
+        )
+
+        # Initialize job database from dataframe, with parameters to use.
+        df = pd.DataFrame(...)
+        job_db = create_job_db("jobs.csv").initialize_from_df(df)
+
+        # Create and run job manager
+        job_manager = MultiBackendJobManager(...)
+        job_manager.run_jobs(job_db=job_db, start_job=job_starter)
+
+    .. versionadded:: 0.33.0
     """
 
     def __init__(
@@ -954,6 +980,7 @@ class UDPJobFactory:
         parameter_defaults: Optional[dict] = None,
         parameter_column_map: Optional[dict] = None,
     ):
+        # TODO: allow process_id to be None too? when remote process definition fully comes from URL
         self._process_id = process_id
         self._namespace = namespace
         self._parameter_defaults = parameter_defaults or {}
