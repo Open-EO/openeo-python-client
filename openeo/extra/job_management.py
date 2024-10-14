@@ -967,6 +967,29 @@ class UDPJobFactory:
         job_manager = MultiBackendJobManager(...)
         job_manager.run_jobs(job_db=job_db, start_job=job_starter)
 
+    The factory will take care of filling in the process parameters
+    based on matching column names in dataframe from the job database,
+    with some additional override/fallback options:
+
+    -   When provided, ``parameter_column_map`` will be consulted
+        for resolving a parameter name (key) to a desired column name (value).
+    -   One common case is handled automatically as convenience functionality.
+
+        When:
+
+        - ``parameter_column_map`` is not provided (or set to ``None``),
+        - and there is a *single parameter* that accepts inline GeoJSON geometries,
+        - and the dataframe is a GeoPandas dataframe with a *single geometry* column,
+
+        then this parameter and this geometries column will be linked automatically.
+
+    -   If a parameter can not be matched with a column by name as described above,
+        a default value will be picked,
+        first by looking in ``parameter_defaults`` (if provided),
+        and then by looking up the default value from the parameter schema in the process definition.
+    -   Finally if no (default) value can be determined and the parameter
+        is not flagged as optional, an error will be raised.
+
     :param process_id: (optional) openEO process identifier.
         Can be omitted when working with a remote process definition
         given as URL in the ``namespace`` parameter.
@@ -975,6 +998,10 @@ class UDPJobFactory:
     :param parameter_defaults: Default values for process parameters,
         to be used when not provided from the dataframe row in
         :py:meth:`MultiBackendJobManager.run_jobs`.
+    :param parameter_column_map: Optional overrides
+        for linking parameters to dataframe columns:
+        mapping of process parameter names as key
+        to dataframe column names as value.
 
     .. versionadded:: 0.33.0
     """
@@ -1014,13 +1041,12 @@ class UDPJobFactory:
 
     def start_job(self, row: pd.Series, connection: Connection, **_) -> BatchJob:
         """
-        Implementation of the `start_job` callable interface for MultiBackendJobManager:
-        Create and start a job based on given dataframe row
+        Implementation of the ``start_job`` callable interface
+        of :py:meth:`MultiBackendJobManager.run_jobs`
+        to create a job based on given dataframe row
 
         :param row: The row in the pandas dataframe that stores the jobs state and other tracked data.
         :param connection: The connection to the backend.
-
-        :return: The started job.
         """
 
         process_definition = self._get_process_definition(connection=connection)
@@ -1068,7 +1094,7 @@ class UDPJobFactory:
         return job
 
     def __call__(self, *arg, **kwargs) -> BatchJob:
-        """Syntactic sugar for calling `start_job` directly."""
+        """Syntactic sugar for calling :py:meth:`start_job`."""
         return self.start_job(*arg, **kwargs)
 
     @staticmethod
