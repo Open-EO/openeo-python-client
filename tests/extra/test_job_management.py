@@ -1235,6 +1235,8 @@ class TestUDPJobFactory:
             }
         )
         assert set(job_db.read().status) == {"finished"}
+
+        # Verify caching of HTTP request of remote process definition
         assert remote_process_definitions["increment"].call_count == 1
 
         assert dummy_backend.batch_jobs == {

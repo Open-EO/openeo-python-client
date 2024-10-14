@@ -2,7 +2,6 @@ import abc
 import collections
 import contextlib
 import datetime
-import functools
 import json
 import logging
 import re
@@ -27,7 +26,7 @@ from openeo.internal.processes.parse import (
     parse_remote_process_definition,
 )
 from openeo.rest import OpenEoApiError
-from openeo.util import deep_get, repr_truncate, rfc3339
+from openeo.util import LazyLoadCache, deep_get, repr_truncate, rfc3339
 
 _log = logging.getLogger(__name__)
 
@@ -994,11 +993,15 @@ class UDPJobFactory:
         self._namespace = namespace
         self._parameter_defaults = parameter_defaults or {}
         self._parameter_column_map = parameter_column_map
+        self._cache = LazyLoadCache()
 
     def _get_process_definition(self, connection: Connection) -> Process:
         if isinstance(self._namespace, str) and re.match("https?://", self._namespace):
             # Remote process definition handling
-            return self._get_remote_process_definition()
+            return self._cache.get(
+                key=("remote_process_definition", self._namespace, self._process_id),
+                load=lambda: parse_remote_process_definition(namespace=self._namespace, process_id=self._process_id),
+            )
         elif self._namespace is None:
             # Handling of a user-specific UDP
             udp_raw = connection.user_defined_process(self._process_id).describe()
@@ -1008,9 +1011,6 @@ class UDPJobFactory:
                 f"Unsupported process definition source udp_id={self._process_id!r} namespace={self._namespace!r}"
             )
 
-    @functools.lru_cache()
-    def _get_remote_process_definition(self) -> Process:
-        return parse_remote_process_definition(namespace=self._namespace, process_id=self._process_id)
 
     def start_job(self, row: pd.Series, connection: Connection, **_) -> BatchJob:
         """
