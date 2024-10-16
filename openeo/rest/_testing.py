@@ -1,9 +1,12 @@
+import collections
 import json
 import re
-from typing import Optional, Union
+from typing import Callable, Iterator, Optional, Sequence, Union
 
 from openeo import Connection, DataCube
 from openeo.rest.vectorcube import VectorCube
+
+OPENEO_BACKEND = "https://openeo.test/"
 
 
 class OpeneoTestingException(Exception):
@@ -23,6 +26,8 @@ class DummyBackend:
         "validation_requests",
         "next_result",
         "next_validation_errors",
+        "job_status_updater",
+        "extra_job_metadata_fields",
     )
 
     # Default result (can serve both as JSON or binary data)
@@ -35,6 +40,14 @@ class DummyBackend:
         self.validation_requests = []
         self.next_result = self.DEFAULT_RESULT
         self.next_validation_errors = []
+        self.extra_job_metadata_fields = []
+
+        # Job status update hook:
+        #   callable that is called on starting a job, and getting job metadata
+        #   allows to dynamically change how the status of a job evolves
+        #   By default: immediately set to "finished" once job is started
+        self.job_status_updater = lambda job_id, current_status: "finished"
+
         requests_mock.post(
             connection.build_url("/result"),
             content=self._handle_post_result,
@@ -70,9 +83,13 @@ class DummyBackend:
 
     def _handle_post_jobs(self, request, context):
         """handler of `POST /jobs` (create batch job)"""
-        pg = request.json()["process"]["process_graph"]
+        post_data = request.json()
+        pg = post_data["process"]["process_graph"]
         job_id = f"job-{len(self.batch_jobs):03d}"
-        self.batch_jobs[job_id] = {"job_id": job_id, "pg": pg, "status": "created"}
+        job_data = {"job_id": job_id, "pg": pg, "status": "created"}
+        for field in self.extra_job_metadata_fields:
+            job_data[field] = post_data.get(field)
+        self.batch_jobs[job_id] = job_data
         context.status_code = 201
         context.headers["openeo-identifier"] = job_id
 
@@ -88,13 +105,19 @@ class DummyBackend:
         """Handler of `POST /job/{job_id}/results` (start batch job)."""
         job_id = self._get_job_id(request)
         assert self.batch_jobs[job_id]["status"] == "created"
-        # TODO: support custom status sequence (instead of directly going to status "finished")?
-        self.batch_jobs[job_id]["status"] = "finished"
+        self.batch_jobs[job_id]["status"] = self.job_status_updater(
+            job_id=job_id, current_status=self.batch_jobs[job_id]["status"]
+        )
         context.status_code = 202
 
     def _handle_get_job(self, request, context):
         """Handler of `GET /job/{job_id}` (get batch job status and metadata)."""
         job_id = self._get_job_id(request)
+        # Allow updating status with `job_status_setter` once job got past status "created"
+        if self.batch_jobs[job_id]["status"] != "created":
+            self.batch_jobs[job_id]["status"] = self.job_status_updater(
+                job_id=job_id, current_status=self.batch_jobs[job_id]["status"]
+            )
         return {"id": job_id, "status": self.batch_jobs[job_id]["status"]}
 
     def _handle_get_job_results(self, request, context):
@@ -159,6 +182,21 @@ class DummyBackend:
         """
         cube.execute()
         return self.get_pg(process_id=process_id)
+
+    def setup_simple_job_status_flow(self, *, queued: int = 1, running: int = 4, final: str = "finished"):
+        """
+        Set up simple job status flow:
+        queued (a couple of times) -> running (a couple of times) -> finished/error.
+        """
+        template = ["queued"] * queued + ["running"] * running + [final]
+        job_stacks = collections.defaultdict(template.copy)
+
+        def get_status(job_id: str, current_status: str) -> str:
+            stack = job_stacks[job_id]
+            # Pop first item each time, but repeat the last one at the end
+            return stack.pop(0) if len(stack) > 1 else stack[0]
+
+        self.job_status_updater = get_status
 
 
 def build_capabilities(

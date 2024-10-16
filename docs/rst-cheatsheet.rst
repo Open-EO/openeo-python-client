@@ -50,6 +50,15 @@ More explicit code block with language hint (and no need for double colon)
     >>> 3 + 5
     8
 
+Code block with additional features (line numbers, caption, highlighted lines,
+for more see https://www.sphinx-doc.org/en/master/usage/restructuredtext/directives.html#directive-code-block)
+
+.. code-block:: python
+    :linenos:
+    :caption: how to say hello
+    :emphasize-lines: 1
+
+    print("hello world")
 
 
 References:
@@ -60,4 +69,8 @@ References:
 
 - refer to the reference with::
 
-    :ref:`target`
+    :ref:`target` or :ref:`custom text <target>`
+
+- inline URL references::
+
+    `Python <https://www.python.org/>`_

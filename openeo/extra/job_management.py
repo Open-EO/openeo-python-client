@@ -1,23 +1,32 @@
 import abc
+import collections
 import contextlib
 import datetime
 import json
 import logging
+import re
 import time
 import warnings
 from pathlib import Path
 from threading import Thread
 from typing import Callable, Dict, List, NamedTuple, Optional, Union
 
+import numpy
 import pandas as pd
 import requests
 import shapely.errors
+import shapely.geometry.base
 import shapely.wkt
 from requests.adapters import HTTPAdapter, Retry
 
 from openeo import BatchJob, Connection
+from openeo.internal.processes.parse import (
+    Parameter,
+    Process,
+    parse_remote_process_definition,
+)
 from openeo.rest import OpenEoApiError
-from openeo.util import deep_get, rfc3339
+from openeo.util import LazyLoadCache, deep_get, repr_truncate, rfc3339
 
 _log = logging.getLogger(__name__)
 
@@ -376,7 +385,7 @@ class MultiBackendJobManager:
         start_job: Callable[[], BatchJob] = _start_job_default,
         job_db: Union[str, Path, JobDatabaseInterface, None] = None,
         **kwargs,
-    ):
+    ) -> dict:
         """Runs jobs, specified in a dataframe, and tracks parameters.
 
         :param df:
@@ -418,6 +427,10 @@ class MultiBackendJobManager:
                 Support for Parquet files depends on the ``pyarrow`` package
                 as :ref:`optional dependency <installation-optional-dependencies>`.
 
+        :return: dictionary with stats collected during the job running loop.
+            Note that the set of fields in this dictionary is experimental
+            and subject to change
+
         .. versionchanged:: 0.31.0
             Added support for persisting the job metadata in Parquet format.
 
@@ -426,6 +439,9 @@ class MultiBackendJobManager:
             which can be a path to a CSV or Parquet file,
             or a user-defined :py:class:`JobDatabaseInterface` object.
             The deprecated ``output_file`` argument is still supported for now.
+
+        .. versionchanged:: 0.33.0
+            return a stats dictionary
         """
         # TODO: Defining start_jobs as a Protocol might make its usage more clear, and avoid complicated doctrings,
         #   but Protocols are only supported in Python 3.8 and higher.
@@ -453,35 +469,49 @@ class MultiBackendJobManager:
             # TODO: start showing deprecation warnings for this usage pattern?
             job_db.initialize_from_df(df)
 
+        stats = collections.defaultdict(int)
         while sum(job_db.count_by_status(statuses=["not_started", "created", "queued", "running"]).values()) > 0:
-            self._job_update_loop(job_db=job_db, start_job=start_job)
-            time.sleep(self.poll_sleep)
+            self._job_update_loop(job_db=job_db, start_job=start_job, stats=stats)
+            stats["run_jobs loop"] += 1
 
-    def _job_update_loop(self, job_db: JobDatabaseInterface, start_job: Callable[[], BatchJob]):
+            time.sleep(self.poll_sleep)
+            stats["sleep"] += 1
+
+        return stats
+
+    def _job_update_loop(
+        self, job_db: JobDatabaseInterface, start_job: Callable[[], BatchJob], stats: Optional[dict] = None
+    ):
         """
         Inner loop logic of job management:
         go through the necessary jobs to check for status updates,
         trigger status events, start new jobs when there is room for them, etc.
         """
+        stats = stats if stats is not None else collections.defaultdict(int)
+
         with ignore_connection_errors(context="get statuses"):
-            self._track_statuses(job_db)
+            self._track_statuses(job_db, stats=stats)
+            stats["track_statuses"] += 1
 
         not_started = job_db.get_by_status(statuses=["not_started"], max=200)
         if len(not_started) > 0:
             # Check number of jobs running at each backend
             running = job_db.get_by_status(statuses=["created", "queued", "running"])
+            stats["job_db get_by_status"] += 1
             per_backend = running.groupby("backend_name").size().to_dict()
             _log.info(f"Running per backend: {per_backend}")
             for backend_name in self.backends:
                 backend_load = per_backend.get(backend_name, 0)
                 if backend_load < self.backends[backend_name].parallel_jobs:
                     to_add = self.backends[backend_name].parallel_jobs - backend_load
-                    to_launch = not_started.iloc[0:to_add]
-                    for i in to_launch.index:
-                        self._launch_job(start_job, not_started, i, backend_name)
-                        job_db.persist(to_launch)
+                    for i in not_started.index[0:to_add]:
+                        self._launch_job(start_job, df=not_started, i=i, backend_name=backend_name, stats=stats)
+                        stats["job launch"] += 1
 
-    def _launch_job(self, start_job, df, i, backend_name):
+                        job_db.persist(not_started.loc[i : i + 1])
+                        stats["job_db persist"] += 1
+
+    def _launch_job(self, start_job, df, i, backend_name, stats: Optional[dict] = None):
         """Helper method for launching jobs
 
         :param start_job:
@@ -504,6 +534,7 @@ class MultiBackendJobManager:
         :param backend_name:
             name of the backend that will execute the job.
         """
+        stats = stats if stats is not None else collections.defaultdict(int)
 
         df.loc[i, "backend_name"] = backend_name
         row = df.loc[i]
@@ -511,6 +542,7 @@ class MultiBackendJobManager:
             _log.info(f"Starting job on backend {backend_name} for {row.to_dict()}")
             connection = self._get_connection(backend_name, resilient=True)
 
+            stats["start_job call"] += 1
             job = start_job(
                 row=row,
                 connection_provider=self._get_connection,
@@ -520,23 +552,30 @@ class MultiBackendJobManager:
         except requests.exceptions.ConnectionError as e:
             _log.warning(f"Failed to start job for {row.to_dict()}", exc_info=True)
             df.loc[i, "status"] = "start_failed"
+            stats["start_job error"] += 1
         else:
             df.loc[i, "start_time"] = rfc3339.utcnow()
             if job:
                 df.loc[i, "id"] = job.job_id
                 with ignore_connection_errors(context="get status"):
                     status = job.status()
+                    stats["job get status"] += 1
                     df.loc[i, "status"] = status
                     if status == "created":
                         # start job if not yet done by callback
                         try:
                             job.start()
+                            stats["job start"] += 1
                             df.loc[i, "status"] = job.status()
+                            stats["job get status"] += 1
                         except OpenEoApiError as e:
                             _log.error(e)
                             df.loc[i, "status"] = "start_failed"
+                            stats["job start error"] += 1
             else:
+                # TODO: what is this "skipping" about actually?
                 df.loc[i, "status"] = "skipped"
+                stats["start_job skipped"] += 1
 
     def on_job_done(self, job: BatchJob, row):
         """
@@ -619,11 +658,13 @@ class MultiBackendJobManager:
         if not job_dir.exists():
             job_dir.mkdir(parents=True)
 
-    def _track_statuses(self, job_db: JobDatabaseInterface):
+    def _track_statuses(self, job_db: JobDatabaseInterface, stats: Optional[dict] = None):
         """
         Tracks status (and stats) of running jobs (in place).
         Optionally cancels jobs when running too long.
         """
+        stats = stats if stats is not None else collections.defaultdict(int)
+
         active = job_db.get_by_status(statuses=["created", "queued", "running"])
         for i in active.index:
             job_id = active.loc[i, "id"]
@@ -634,6 +675,7 @@ class MultiBackendJobManager:
                 con = self._get_connection(backend_name)
                 the_job = con.job(job_id)
                 job_metadata = the_job.describe()
+                stats["job describe"] += 1
                 new_status = job_metadata["status"]
 
                 _log.info(
@@ -641,15 +683,19 @@ class MultiBackendJobManager:
                 )
 
                 if new_status == "finished":
+                    stats["job finished"] += 1
                     self.on_job_done(the_job, active.loc[i])
 
                 if previous_status != "error" and new_status == "error":
+                    stats["job failed"] += 1
                     self.on_job_error(the_job, active.loc[i])
 
                 if previous_status in {"created", "queued"} and new_status == "running":
+                    stats["job started running"] += 1
                     active.loc[i, "running_start_time"] = rfc3339.utcnow()
 
                 if new_status == "canceled":
+                    stats["job canceled"] += 1
                     self.on_job_cancel(the_job, active.loc[i])
 
                 if self._cancel_running_job_after and new_status == "running":
@@ -663,9 +709,13 @@ class MultiBackendJobManager:
                         active.loc[i, key] = _format_usage_stat(job_metadata, key)
 
             except OpenEoApiError as e:
+                stats["job tracking error"] += 1
                 print(f"error for job {job_id!r} on backend {backend_name}")
                 print(e)
+
+        stats["job_db persist"] += 1
         job_db.persist(active)
+
 
 def _format_usage_stat(job_metadata: dict, field: str) -> str:
     value = deep_get(job_metadata, "usage", field, "value", default=0)
@@ -886,3 +936,180 @@ def create_job_db(path: Union[str, Path], df: pd.DataFrame, *, on_exists: str = 
     else:
         raise NotImplementedError(f"Initialization of {type(job_db)} is not supported.")
     return job_db
+
+
+class ProcessBasedJobCreator:
+    """
+    Batch job creator
+    (to be used together with :py:class:`MultiBackendJobManager`)
+    that takes a parameterized openEO process definition
+    (e.g a user-defined process (UDP) or a remote openEO process definition),
+    and creates a batch job
+    for each row of the dataframe managed by the :py:class:`MultiBackendJobManager`
+    by filling in the process parameters with corresponding row values.
+
+    .. seealso::
+        See :ref:`job-management-with-process-based-job-creator`
+        for more information and examples.
+
+    Process parameters are linked to dataframe columns by name.
+    While this intuitive name-based matching should cover most use cases,
+    there are additional options for overrides or fallbacks:
+
+    -   When provided, ``parameter_column_map`` will be consulted
+        for resolving a process parameter name (key in the dictionary)
+        to a desired dataframe column name (corresponding value).
+    -   One common case is handled automatically as convenience functionality.
+
+        When:
+
+        - ``parameter_column_map`` is not provided (or set to ``None``),
+        - and there is a *single parameter* that accepts inline GeoJSON geometries,
+        - and the dataframe is a GeoPandas dataframe with a *single geometry* column,
+
+        then this parameter and this geometries column will be linked automatically.
+
+    -   If a parameter can not be matched with a column by name as described above,
+        a default value will be picked,
+        first by looking in ``parameter_defaults`` (if provided),
+        and then by looking up the default value from the parameter schema in the process definition.
+    -   Finally if no (default) value can be determined and the parameter
+        is not flagged as optional, an error will be raised.
+
+
+    :param process_id: (optional) openEO process identifier.
+        Can be omitted when working with a remote process definition
+        that is fully defined with a URL in the ``namespace`` parameter.
+    :param namespace: (optional) openEO process namespace.
+        Typically used to provide a URL to a remote process definition.
+    :param parameter_defaults: (optional) default values for process parameters,
+        to be used when not available in the dataframe managed by
+        :py:class:`MultiBackendJobManager`.
+    :param parameter_column_map: Optional overrides
+        for linking process parameters to dataframe columns:
+        mapping of process parameter names as key
+        to dataframe column names as value.
+
+    .. versionadded:: 0.33.0
+
+    .. warning::
+        This is an experimental API subject to change,
+        and we greatly welcome
+        `feedback and suggestions for improvement <https://github.com/Open-EO/openeo-python-client/issues>`_.
+
+    """
+    def __init__(
+        self,
+        *,
+        process_id: Optional[str] = None,
+        namespace: Union[str, None] = None,
+        parameter_defaults: Optional[dict] = None,
+        parameter_column_map: Optional[dict] = None,
+    ):
+        if process_id is None and namespace is None:
+            raise ValueError("At least one of `process_id` and `namespace` should be provided.")
+        self._process_id = process_id
+        self._namespace = namespace
+        self._parameter_defaults = parameter_defaults or {}
+        self._parameter_column_map = parameter_column_map
+        self._cache = LazyLoadCache()
+
+    def _get_process_definition(self, connection: Connection) -> Process:
+        if isinstance(self._namespace, str) and re.match("https?://", self._namespace):
+            # Remote process definition handling
+            return self._cache.get(
+                key=("remote_process_definition", self._namespace, self._process_id),
+                load=lambda: parse_remote_process_definition(namespace=self._namespace, process_id=self._process_id),
+            )
+        elif self._namespace is None:
+            # Handling of a user-specific UDP
+            udp_raw = connection.user_defined_process(self._process_id).describe()
+            return Process.from_dict(udp_raw)
+        else:
+            raise NotImplementedError(
+                f"Unsupported process definition source udp_id={self._process_id!r} namespace={self._namespace!r}"
+            )
+
+
+    def start_job(self, row: pd.Series, connection: Connection, **_) -> BatchJob:
+        """
+        Implementation of the ``start_job`` callable interface
+        of :py:meth:`MultiBackendJobManager.run_jobs`
+        to create a job based on given dataframe row
+
+        :param row: The row in the pandas dataframe that stores the jobs state and other tracked data.
+        :param connection: The connection to the backend.
+        """
+        # TODO: refactor out some methods, for better reuse and decoupling:
+        #       `get_arguments()` (to build the arguments dictionary), `get_cube()` (to create the cube),
+
+        process_definition = self._get_process_definition(connection=connection)
+        process_id = process_definition.id
+        parameters = process_definition.parameters or []
+
+        if self._parameter_column_map is None:
+            self._parameter_column_map = self._guess_parameter_column_map(parameters=parameters, row=row)
+
+        arguments = {}
+        for parameter in parameters:
+            param_name = parameter.name
+            column_name = self._parameter_column_map.get(param_name, param_name)
+            if column_name in row.index:
+                # Get value from dataframe row
+                value = row.loc[column_name]
+            elif param_name in self._parameter_defaults:
+                # Fallback on default values from constructor
+                value = self._parameter_defaults[param_name]
+            elif parameter.has_default():
+                # Explicitly use default value from parameter schema
+                value = parameter.default
+            elif parameter.optional:
+                # Skip optional parameters without any fallback default value
+                continue
+            else:
+                raise ValueError(f"Missing required parameter {param_name !r} for process {process_id!r}")
+
+            # Prepare some values/dtypes for JSON encoding
+            if isinstance(value, numpy.integer):
+                value = int(value)
+            elif isinstance(value, numpy.number):
+                value = float(value)
+            elif isinstance(value, shapely.geometry.base.BaseGeometry):
+                value = shapely.geometry.mapping(value)
+
+            arguments[param_name] = value
+
+        cube = connection.datacube_from_process(process_id=process_id, namespace=self._namespace, **arguments)
+
+        title = row.get("title", f"Process {process_id!r} with {repr_truncate(arguments)}")
+        description = row.get("description", f"Process {process_id!r} (namespace {self._namespace}) with {arguments}")
+        job = connection.create_job(cube, title=title, description=description)
+
+        return job
+
+    def __call__(self, *arg, **kwargs) -> BatchJob:
+        """Syntactic sugar for calling :py:meth:`start_job`."""
+        return self.start_job(*arg, **kwargs)
+
+    @staticmethod
+    def _guess_parameter_column_map(parameters: List[Parameter], row: pd.Series) -> dict:
+        """
+        Guess parameter-column mapping from given parameter list and dataframe row
+        """
+        parameter_column_map = {}
+        # Geometry based mapping: try to automatically map geometry columns to geojson parameters
+        geojson_parameters = [p.name for p in parameters if p.schema.accepts_geojson()]
+        geometry_columns = [i for (i, v) in row.items() if isinstance(v, shapely.geometry.base.BaseGeometry)]
+        if geojson_parameters and geometry_columns:
+            if len(geojson_parameters) == 1 and len(geometry_columns) == 1:
+                # Most common case: one geometry parameter and one geometry column: can be mapped naively
+                parameter_column_map[geojson_parameters[0]] = geometry_columns[0]
+            elif all(p in geometry_columns for p in geojson_parameters):
+                # Each geometry param has geometry column with same name: easy to map
+                parameter_column_map.update((p, p) for p in geojson_parameters)
+            else:
+                raise RuntimeError(
+                    f"Problem with mapping geometry columns ({geometry_columns}) to process parameters ({geojson_parameters})"
+                )
+        _log.debug(f"Guessed parameter-column map: {parameter_column_map}")
+        return parameter_column_map
