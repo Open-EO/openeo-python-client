@@ -940,9 +940,13 @@ def create_job_db(path: Union[str, Path], df: pd.DataFrame, *, on_exists: str = 
 
 class UDPJobFactory:
     """
-    Batch job factory based on a parameterized process definition
-    (e.g a user-defined process (UDP) or a remote process definition),
-    to be used together with :py:class:`MultiBackendJobManager`.
+    Batch job creator
+    (to be used together with :py:class:`MultiBackendJobManager`)
+    that takes a parameterized openEO process definition
+    (e.g a user-defined process (UDP) or a remote openEO process definition),
+    and creates a batch job
+    for each row of the dataframe managed by the :py:class:`MultiBackendJobManager`
+    by filling in the process parameters with corresponding row values.
 
     Usage example with a remote process definition:
 
@@ -954,13 +958,24 @@ class UDPJobFactory:
             UDPJobFactory,
         )
 
-        # Job creator, based on a parameterized openEO process definition
+        # Job creator, based on a parameterized openEO process
+        # (specified by the remote process definition at given URL)
+        # which has, say, parameters "start_date" and "bands" for example.
         job_starter = UDPJobFactory(
             namespace="https://example.com/my_process.json",
+            parameter_defaults={
+                # Default value for the "bands" parameter
+                # (to be used when not available in the dataframe)
+                "bands": ["B02", "B03"],
+            },
         )
 
-        # Initialize job database from dataframe, with parameters to use.
-        df = pd.DataFrame(...)
+        # Initialize job database from a dataframe,
+        # with desired parameter values to fill in.
+        df = pd.DataFrame({
+            "start_date": ["2021-01-01", "2021-02-01", "2021-03-01"],
+            ...
+        })
         job_db = create_job_db("jobs.csv").initialize_from_df(df)
 
         # Create and run job manager
@@ -968,11 +983,16 @@ class UDPJobFactory:
         job_manager.run_jobs(job_db=job_db, start_job=job_starter)
 
     The factory will take care of filling in the process parameters
-    based on matching column names in dataframe from the job database,
-    with some additional override/fallback options:
+    based on matching column names in the dataframe from the job database
+    (like "start_date" in the example above).
+
+    This intuitive name-based matching should cover most use cases,
+    but for some more advanced use cases, there are additional options
+    to provide overrides and fallbacks:
 
     -   When provided, ``parameter_column_map`` will be consulted
-        for resolving a parameter name (key) to a desired column name (value).
+        for resolving a process parameter name (key in the dictionary)
+        to a desired dataframe column name (corresponding value).
     -   One common case is handled automatically as convenience functionality.
 
         When:
@@ -992,14 +1012,14 @@ class UDPJobFactory:
 
     :param process_id: (optional) openEO process identifier.
         Can be omitted when working with a remote process definition
-        given as URL in the ``namespace`` parameter.
+        that is fully defined with a URL in the ``namespace`` parameter.
     :param namespace: (optional) openEO process namespace.
         Typically used to provide a URL to a remote process definition.
-    :param parameter_defaults: Default values for process parameters,
-        to be used when not provided from the dataframe row in
-        :py:meth:`MultiBackendJobManager.run_jobs`.
+    :param parameter_defaults: (optional) default values for process parameters,
+        to be used when not available in the dataframe managed by
+        :py:class:`MultiBackendJobManager`.
     :param parameter_column_map: Optional overrides
-        for linking parameters to dataframe columns:
+        for linking process parameters to dataframe columns:
         mapping of process parameter names as key
         to dataframe column names as value.
 
