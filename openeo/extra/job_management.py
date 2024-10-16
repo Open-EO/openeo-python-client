@@ -948,47 +948,13 @@ class ProcessBasedJobCreator:
     for each row of the dataframe managed by the :py:class:`MultiBackendJobManager`
     by filling in the process parameters with corresponding row values.
 
-    Usage example with a remote process definition:
+    .. seealso::
+        See :ref:`job-management-with-process-based-job-creator`
+        for more information and examples.
 
-    .. code-block:: python
-
-        from openeo.extra.job_management import (
-            MultiBackendJobManager,
-            create_job_db,
-            ProcessBasedJobCreator,
-        )
-
-        # Job creator, based on a parameterized openEO process
-        # (specified by the remote process definition at given URL)
-        # which has, say, parameters "start_date" and "bands" for example.
-        job_starter = ProcessBasedJobCreator(
-            namespace="https://example.com/my_process.json",
-            parameter_defaults={
-                # Default value for the "bands" parameter
-                # (to be used when not available in the dataframe)
-                "bands": ["B02", "B03"],
-            },
-        )
-
-        # Initialize job database from a dataframe,
-        # with desired parameter values to fill in.
-        df = pd.DataFrame({
-            "start_date": ["2021-01-01", "2021-02-01", "2021-03-01"],
-            ...
-        })
-        job_db = create_job_db("jobs.csv").initialize_from_df(df)
-
-        # Create and run job manager
-        job_manager = MultiBackendJobManager(...)
-        job_manager.run_jobs(job_db=job_db, start_job=job_starter)
-
-    The factory will take care of filling in the process parameters
-    based on matching column names in the dataframe from the job database
-    (like "start_date" in the example above).
-
-    This intuitive name-based matching should cover most use cases,
-    but for some more advanced use cases, there are additional options
-    to provide overrides and fallbacks:
+    Process parameters are linked to dataframe columns by name.
+    While this intuitive name-based matching should cover most use cases,
+    there are additional options for overrides or fallbacks:
 
     -   When provided, ``parameter_column_map`` will be consulted
         for resolving a process parameter name (key in the dictionary)
@@ -1010,6 +976,7 @@ class ProcessBasedJobCreator:
     -   Finally if no (default) value can be determined and the parameter
         is not flagged as optional, an error will be raised.
 
+
     :param process_id: (optional) openEO process identifier.
         Can be omitted when working with a remote process definition
         that is fully defined with a URL in the ``namespace`` parameter.
@@ -1024,6 +991,12 @@ class ProcessBasedJobCreator:
         to dataframe column names as value.
 
     .. versionadded:: 0.33.0
+
+    .. warning::
+        This is an experimental API subject to change,
+        and we greatly welcome
+        `feedback and suggestions for improvement <https://github.com/Open-EO/openeo-python-client/issues>`_.
+
     """
     def __init__(
         self,
