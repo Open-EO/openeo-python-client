@@ -15,6 +15,6 @@ Multi Backend Job Manager
 
 .. autoclass:: openeo.extra.job_management.ParquetJobDatabase
 
-.. autoclass:: openeo.extra.job_management.UDPJobFactory
+.. autoclass:: openeo.extra.job_management.ProcessBasedJobCreator
     :members:
     :special-members: __call__

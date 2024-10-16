@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Also added `create_job_db()` factory to easily create a job database from a given dataframe and its type guessed from filename extension.
   ([#635](https://github.com/Open-EO/openeo-python-client/issues/635))
 - `MultiBackendJobManager.run_jobs()` now returns a dictionary with counters/stats about various events during the job run ([#645](https://github.com/Open-EO/openeo-python-client/issues/645))
-- Added `UDPJobFactory` to be used as `start_job` callable with `MultiBackendJobManager` to create multiple jobs from a single parameterized process (e.g. a UDP or remote process definition) ([#604](https://github.com/Open-EO/openeo-python-client/issues/604))
+- Added `ProcessBasedJobCreator` to be used as `start_job` callable with `MultiBackendJobManager` to create multiple jobs from a single parameterized process (e.g. a UDP or remote process definition) ([#604](https://github.com/Open-EO/openeo-python-client/issues/604))
 
 ### Changed
 

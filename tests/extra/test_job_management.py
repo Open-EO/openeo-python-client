@@ -30,7 +30,7 @@ from openeo.extra.job_management import (
     CsvJobDatabase,
     MultiBackendJobManager,
     ParquetJobDatabase,
-    UDPJobFactory,
+    ProcessBasedJobCreator,
     create_job_db,
     get_job_db,
 )
@@ -1009,7 +1009,7 @@ def test_create_job_db(tmp_path, filename, expected):
     assert path.exists()
 
 
-class TestUDPJobFactory:
+class TestProcessBasedJobCreator:
     @pytest.fixture
     def dummy_backend(self, requests_mock, con) -> DummyBackend:
         dummy = DummyBackend(requests_mock=requests_mock, connection=con)
@@ -1073,7 +1073,7 @@ class TestUDPJobFactory:
 
     def test_minimal(self, con, dummy_backend, remote_process_definitions):
         """Bare minimum: just start a job, no parameters/arguments"""
-        job_factory = UDPJobFactory(process_id="3plus5", namespace="https://remote.test/3plus5.json")
+        job_factory = ProcessBasedJobCreator(process_id="3plus5", namespace="https://remote.test/3plus5.json")
 
         job = job_factory.start_job(row=pd.Series({"foo": 123}), connection=con)
         assert isinstance(job, BatchJob)
@@ -1097,7 +1097,7 @@ class TestUDPJobFactory:
     def test_basic(self, con, dummy_backend, remote_process_definitions):
         """Basic parameterized UDP job generation"""
         dummy_backend.extra_job_metadata_fields = ["title", "description"]
-        job_factory = UDPJobFactory(process_id="increment", namespace="https://remote.test/increment.json")
+        job_factory = ProcessBasedJobCreator(process_id="increment", namespace="https://remote.test/increment.json")
 
         job = job_factory.start_job(row=pd.Series({"data": 123}), connection=con)
         assert isinstance(job, BatchJob)
@@ -1130,7 +1130,7 @@ class TestUDPJobFactory:
     )
     def test_basic_parameterization(self, con, dummy_backend, parameter_defaults, row, expected_arguments):
         """Basic parameterized UDP job generation"""
-        job_factory = UDPJobFactory(
+        job_factory = ProcessBasedJobCreator(
             process_id="increment",
             namespace="https://remote.test/increment.json",
             parameter_defaults=parameter_defaults,
@@ -1190,7 +1190,7 @@ class TestUDPJobFactory:
         # Register personal UDP
         requests_mock.get(con.build_url("/process_graphs/3plus5"), json=self.PG_3PLUS5)
 
-        job_factory = UDPJobFactory(process_id=process_id, namespace=namespace)
+        job_factory = ProcessBasedJobCreator(process_id=process_id, namespace=namespace)
 
         job = job_factory.start_job(row=pd.Series({"foo": 123}), connection=con)
         assert isinstance(job, BatchJob)
@@ -1204,7 +1204,7 @@ class TestUDPJobFactory:
 
     def test_no_process_id_nor_namespace(self):
         with pytest.raises(ValueError, match="At least one of `process_id` and `namespace` should be provided"):
-            _ = UDPJobFactory()
+            _ = ProcessBasedJobCreator()
 
     @pytest.fixture
     def job_manager(self, tmp_path, dummy_backend) -> MultiBackendJobManager:
@@ -1215,7 +1215,7 @@ class TestUDPJobFactory:
     def test_with_job_manager_remote_basic(
         self, tmp_path, requests_mock, dummy_backend, job_manager, sleep_mock, remote_process_definitions
     ):
-        job_starter = UDPJobFactory(
+        job_starter = ProcessBasedJobCreator(
             process_id="increment",
             namespace="https://remote.test/increment.json",
             parameter_defaults={"increment": 5},
@@ -1321,7 +1321,7 @@ class TestUDPJobFactory:
         df_data,
         expected_arguments,
     ):
-        job_starter = UDPJobFactory(
+        job_starter = ProcessBasedJobCreator(
             process_id="increment",
             namespace="https://remote.test/increment.json",
             parameter_defaults=parameter_defaults,
@@ -1381,7 +1381,7 @@ class TestUDPJobFactory:
         }
 
     def test_with_job_manager_remote_geometry(self, tmp_path, requests_mock, dummy_backend, job_manager, sleep_mock):
-        job_starter = UDPJobFactory(
+        job_starter = ProcessBasedJobCreator(
             process_id="offset_polygon",
             namespace="https://remote.test/offset_polygon.json",
             parameter_defaults={"data": 123},
@@ -1466,7 +1466,7 @@ class TestUDPJobFactory:
         self, tmp_path, requests_mock, dummy_backend, job_manager, sleep_mock, db_class
     ):
         """Test if geometry handling works properly after resuming from CSV serialized job db."""
-        job_starter = UDPJobFactory(
+        job_starter = ProcessBasedJobCreator(
             process_id="offset_polygon",
             namespace="https://remote.test/offset_polygon.json",
             parameter_defaults={"data": 123},
@@ -1554,7 +1554,7 @@ class TestUDPJobFactory:
         # Register personal UDP
         increment_udp_mock = requests_mock.get(con.build_url("/process_graphs/increment"), json=udp)
 
-        job_starter = UDPJobFactory(
+        job_starter = ProcessBasedJobCreator(
             process_id="increment",
             # No namespace to trigger personal UDP mode
             namespace=None,
@@ -1603,7 +1603,7 @@ class TestUDPJobFactory:
     def test_with_job_manager_parameter_column_map(
         self, tmp_path, requests_mock, dummy_backend, job_manager, sleep_mock, remote_process_definitions
     ):
-        job_starter = UDPJobFactory(
+        job_starter = ProcessBasedJobCreator(
             process_id="increment",
             namespace="https://remote.test/increment.json",
             parameter_column_map={"data": "numberzzz", "increment": "add_thiz"},

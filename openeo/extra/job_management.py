@@ -938,7 +938,7 @@ def create_job_db(path: Union[str, Path], df: pd.DataFrame, *, on_exists: str = 
     return job_db
 
 
-class UDPJobFactory:
+class ProcessBasedJobCreator:
     """
     Batch job creator
     (to be used together with :py:class:`MultiBackendJobManager`)
@@ -955,13 +955,13 @@ class UDPJobFactory:
         from openeo.extra.job_management import (
             MultiBackendJobManager,
             create_job_db,
-            UDPJobFactory,
+            ProcessBasedJobCreator,
         )
 
         # Job creator, based on a parameterized openEO process
         # (specified by the remote process definition at given URL)
         # which has, say, parameters "start_date" and "bands" for example.
-        job_starter = UDPJobFactory(
+        job_starter = ProcessBasedJobCreator(
             namespace="https://example.com/my_process.json",
             parameter_defaults={
                 # Default value for the "bands" parameter
@@ -1025,10 +1025,6 @@ class UDPJobFactory:
 
     .. versionadded:: 0.33.0
     """
-
-    # TODO: find a better class name (e.g. eliminate over-specificity of "UDP",
-    #       or avoid "factory" as technical mumbo-jumbo)?
-
     def __init__(
         self,
         *,
