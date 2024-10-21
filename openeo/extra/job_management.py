@@ -146,7 +146,29 @@ class MultiBackendJobManager:
 
     See :py:meth:`.run_jobs` for more information on the ``start_job`` callable.
 
+    :param poll_sleep:
+        How many seconds to sleep between polls.
+
+    :param root_dir:
+        Root directory to save files for the jobs, e.g. metadata and error logs.
+        This defaults to "." the current directory.
+
+        Each job gets its own subfolder in this root directory.
+        You can use the following methods to find the relevant paths,
+        based on the job ID:
+
+            - get_job_dir
+            - get_error_log_path
+            - get_job_metadata_path
+
+    :param cancel_running_job_after:
+        Optional temporal limit (in seconds) after which running jobs should be canceled
+        by the job manager.
+
     .. versionadded:: 0.14.0
+
+    .. versionchanged:: 0.32.0
+        Added ``cancel_running_job_after`` parameter.
     """
 
     def __init__(
@@ -156,29 +178,7 @@ class MultiBackendJobManager:
         *,
         cancel_running_job_after: Optional[int] = None,
     ):
-        """Create a MultiBackendJobManager.
-
-        :param poll_sleep:
-            How many seconds to sleep between polls.
-
-        :param root_dir:
-            Root directory to save files for the jobs, e.g. metadata and error logs.
-            This defaults to "." the current directory.
-
-            Each job gets its own subfolder in this root directory.
-            You can use the following methods to find the relevant paths,
-            based on the job ID:
-                - get_job_dir
-                - get_error_log_path
-                - get_job_metadata_path
-
-        :param cancel_running_job_after [seconds]:
-            Optional temporal limit (in seconds) after which running jobs should be canceled
-            by the job manager.
-
-        .. versionchanged:: 0.32.0
-            Added `cancel_running_job_after` parameter.
-        """
+        """Create a MultiBackendJobManager."""
         self._stop_thread = None
         self.backends: Dict[str, _Backend] = {}
         self.poll_sleep = poll_sleep
