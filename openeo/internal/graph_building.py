@@ -14,7 +14,7 @@ import json
 import sys
 from contextlib import nullcontext
 from pathlib import Path
-from typing import Any, Dict, Iterator, Optional, Tuple, Union
+from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 from openeo.api.process import Parameter
 from openeo.internal.process_graph_visitor import (
@@ -438,3 +438,24 @@ class PGNodeGraphUnflattener(ProcessGraphUnflattener):
         if name not in self._parameters:
             raise ProcessGraphVisitException("No substitution value for parameter {p!r}.".format(p=name))
         return self._parameters[name]
+
+
+class MultiResult(FlatGraphableMixin):
+    """
+    Handler of use cases where there are multiple result nodes
+    (or other leaf nodes) in a process graph.
+    """
+
+    def __init__(self, leaves: List[FlatGraphableMixin]):
+        self._leaves = leaves
+
+    def flat_graph(self) -> Dict[str, dict]:
+        result = {}
+        for leaf in self._leaves:
+            leaf_graph = leaf.flat_graph()
+            existing = set(leaf_graph.keys()).intersection(result.keys())
+            if existing:
+                # TODO: automatic renaming of duplicate node ids?
+                raise ValueError(f"Duplicate node ids while building multi-result process graph: {sorted(existing)}")
+            result.update(leaf_graph)
+        return result

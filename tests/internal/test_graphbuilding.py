@@ -1,4 +1,5 @@
 import io
+import re
 import textwrap
 
 import pytest
@@ -7,6 +8,7 @@ import openeo.processes
 from openeo.api.process import Parameter
 from openeo.internal.graph_building import (
     FlatGraphNodeIdGenerator,
+    MultiResult,
     PGNode,
     PGNodeGraphUnflattener,
     ReduceNode,
@@ -412,3 +414,19 @@ def test_walk_nodes_nested():
     walk = list(node.walk_nodes())
     assert all(isinstance(n, PGNode) for n in walk)
     assert set(n.process_id for n in walk) == {"load1", "max", "foo", "load2", "add", "five"}
+
+
+class TestMultiResult:
+    def test_simple(self):
+        multi = MultiResult([PGNode("foo"), PGNode("bar")])
+        assert multi.flat_graph() == {
+            "foo1": {"process_id": "foo", "arguments": {}, "result": True},
+            "bar1": {"process_id": "bar", "arguments": {}, "result": True},
+        }
+
+    def test_simple_duplicates(self):
+        multi = MultiResult([PGNode("foo"), PGNode("foo")])
+        with pytest.raises(
+            ValueError, match=re.escape("Duplicate node ids while building multi-result process graph: ['foo1']")
+        ):
+            multi.flat_graph()
