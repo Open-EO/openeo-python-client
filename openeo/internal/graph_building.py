@@ -451,11 +451,13 @@ class MultiResult(FlatGraphableMixin):
 
     def flat_graph(self) -> Dict[str, dict]:
         result = {}
+        flattener = GraphFlattener()
         for leaf in self._leaves:
-            leaf_graph = leaf.flat_graph()
-            existing = set(leaf_graph.keys()).intersection(result.keys())
-            if existing:
-                # TODO: automatic renaming of duplicate node ids?
-                raise ValueError(f"Duplicate node ids while building multi-result process graph: {sorted(existing)}")
-            result.update(leaf_graph)
+            if isinstance(leaf, PGNode):
+                result = flattener.flatten(leaf)
+            elif isinstance(leaf, _FromNodeMixin):
+                result = flattener.flatten(leaf.from_node())
+            else:
+                raise ValueError(leaf)
+
         return result

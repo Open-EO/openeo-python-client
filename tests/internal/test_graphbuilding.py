@@ -14,6 +14,7 @@ from openeo.internal.graph_building import (
     ReduceNode,
 )
 from openeo.internal.process_graph_visitor import ProcessGraphVisitException
+from openeo.rest.datacube import DataCube
 
 
 def test_pgnode_process_id():
@@ -426,7 +427,26 @@ class TestMultiResult:
 
     def test_simple_duplicates(self):
         multi = MultiResult([PGNode("foo"), PGNode("foo")])
-        with pytest.raises(
-            ValueError, match=re.escape("Duplicate node ids while building multi-result process graph: ['foo1']")
-        ):
-            multi.flat_graph()
+        assert multi.flat_graph() == {
+            "foo1": {"process_id": "foo", "arguments": {}, "result": True},
+            "foo2": {"process_id": "foo", "arguments": {}, "result": True},
+        }
+
+    def test_multi_save_result_same_root(self):
+        load_collection = DataCube(PGNode("load_collection", collection_id="S2"))
+        save_a = load_collection.save_result(format="GTiff")
+        save_b = load_collection.save_result(format="NetCDF")
+        multi = MultiResult([save_a, save_b])
+        assert multi.flat_graph() == {
+            "loadcollection1": {"process_id": "load_collection", "arguments": {"collection_id": "S2"}},
+            "saveresult1": {
+                "process_id": "save_result",
+                "arguments": {"data": {"from_node": "loadcollection1"}, "format": "GTiff", "options": {}},
+                "result": True,
+            },
+            "saveresult2": {
+                "process_id": "save_result",
+                "arguments": {"data": {"from_node": "loadcollection1"}, "format": "NetCDF", "options": {}},
+                "result": True,
+            },
+        }
