@@ -8,6 +8,7 @@ import openeo.processes
 from openeo.api.process import Parameter
 from openeo.internal.graph_building import (
     FlatGraphNodeIdGenerator,
+    GraphFlattener,
     MultiResult,
     PGNode,
     PGNodeGraphUnflattener,
@@ -144,6 +145,91 @@ def test_flat_graph_key_generate():
     assert g.generate("foo") == "foo2"
     assert g.generate("bar") == "bar1"
     assert g.generate("foo") == "foo3"
+
+
+class TestGraphFlattener:
+    def test_simple(self):
+        node = PGNode("foo", bar="meh")
+        flattener = GraphFlattener()
+        assert flattener.flatten(node) == {"foo1": {"process_id": "foo", "arguments": {"bar": "meh"}, "result": True}}
+
+    def test_chain(self):
+        a = PGNode("a", bar="meh")
+        b = PGNode("b", a=a)
+        c = PGNode("c", a=a, b=b)
+        flattener = GraphFlattener()
+        assert flattener.flatten(c) == {
+            "a1": {"process_id": "a", "arguments": {"bar": "meh"}},
+            "b1": {"process_id": "b", "arguments": {"a": {"from_node": "a1"}}},
+            "c1": {
+                "process_id": "c",
+                "arguments": {"a": {"from_node": "a1"}, "b": {"from_node": "b1"}},
+                "result": True,
+            },
+        }
+
+    def test_no_multi_input_mode(self):
+        a = PGNode("a")
+        b = PGNode("b", a=a)
+        flattener = GraphFlattener()
+        flat_graph = flattener.flatten(a)
+        assert flat_graph == {"a1": {"process_id": "a", "arguments": {}, "result": True}}
+        with pytest.raises(RuntimeError, match="not in multi-input mode"):
+            flattener.flatten(b)
+        assert flat_graph == {"a1": {"process_id": "a", "arguments": {}, "result": True}}
+
+    def test_multi_input_mode(self):
+        a = PGNode("a")
+        b = PGNode("b", a=a)
+        c = PGNode("c", a=a)
+        flattener = GraphFlattener(multi_input_mode=True)
+        # Flatten b
+        assert flattener.flatten(b) == {
+            "a1": {"process_id": "a", "arguments": {}},
+            "b1": {"process_id": "b", "arguments": {"a": {"from_node": "a1"}}},
+        }
+        assert flattener.flattened() == {
+            "a1": {"process_id": "a", "arguments": {}},
+            "b1": {"process_id": "b", "arguments": {"a": {"from_node": "a1"}}, "result": True},
+        }
+        # Flatten c
+        assert flattener.flatten(c) == {
+            "a1": {"process_id": "a", "arguments": {}},
+            "b1": {"process_id": "b", "arguments": {"a": {"from_node": "a1"}}},
+            "c1": {"process_id": "c", "arguments": {"a": {"from_node": "a1"}}},
+        }
+        assert flattener.flattened() == {
+            "a1": {"process_id": "a", "arguments": {}},
+            "b1": {"process_id": "b", "arguments": {"a": {"from_node": "a1"}}},
+            "c1": {"process_id": "c", "arguments": {"a": {"from_node": "a1"}}, "result": True},
+        }
+
+    def test_multi_input_mode_mutation(self):
+        """Verify that previously produced flat graphs are not silently mutated"""
+        a = PGNode("a")
+        b = PGNode("b", a=a)
+        flattener = GraphFlattener(multi_input_mode=True)
+        a_flat = flattener.flatten(a)
+        assert a_flat == {
+            "a1": {"process_id": "a", "arguments": {}},
+        }
+        b_flat = flattener.flatten(b)
+        assert b_flat == {
+            "a1": {"process_id": "a", "arguments": {}},
+            "b1": {"process_id": "b", "arguments": {"a": {"from_node": "a1"}}},
+        }
+        assert flattener.flattened() == {
+            "a1": {"process_id": "a", "arguments": {}},
+            "b1": {"process_id": "b", "arguments": {"a": {"from_node": "a1"}}, "result": True},
+        }
+        # Original graphs are not mutated silently
+        assert a_flat == {
+            "a1": {"process_id": "a", "arguments": {}},
+        }
+        assert b_flat == {
+            "a1": {"process_id": "a", "arguments": {}},
+            "b1": {"process_id": "b", "arguments": {"a": {"from_node": "a1"}}},
+        }
 
 
 def test_build_and_flatten_simple():
@@ -421,14 +507,14 @@ class TestMultiResult:
     def test_simple(self):
         multi = MultiResult([PGNode("foo"), PGNode("bar")])
         assert multi.flat_graph() == {
-            "foo1": {"process_id": "foo", "arguments": {}, "result": True},
+            "foo1": {"process_id": "foo", "arguments": {}},
             "bar1": {"process_id": "bar", "arguments": {}, "result": True},
         }
 
     def test_simple_duplicates(self):
         multi = MultiResult([PGNode("foo"), PGNode("foo")])
         assert multi.flat_graph() == {
-            "foo1": {"process_id": "foo", "arguments": {}, "result": True},
+            "foo1": {"process_id": "foo", "arguments": {}},
             "foo2": {"process_id": "foo", "arguments": {}, "result": True},
         }
 
@@ -442,7 +528,6 @@ class TestMultiResult:
             "saveresult1": {
                 "process_id": "save_result",
                 "arguments": {"data": {"from_node": "loadcollection1"}, "format": "GTiff", "options": {}},
-                "result": True,
             },
             "saveresult2": {
                 "process_id": "save_result",

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import abc
 import collections
+import copy
 import json
 import sys
 from contextlib import nullcontext
@@ -322,20 +323,29 @@ class FlatGraphNodeIdGenerator:
 
 class GraphFlattener(ProcessGraphVisitor):
 
-    def __init__(self, node_id_generator: FlatGraphNodeIdGenerator = None):
+    def __init__(self, node_id_generator: FlatGraphNodeIdGenerator = None, multi_input_mode: bool = False):
         super().__init__()
         self._node_id_generator = node_id_generator or FlatGraphNodeIdGenerator()
         self._last_node_id = None
         self._flattened: Dict[str, dict] = {}
         self._argument_stack = []
         self._node_cache = {}
+        self._multi_input_mode = multi_input_mode
 
     def flatten(self, node: PGNode) -> Dict[str, dict]:
         """Consume given nested process graph and return flat dict representation"""
+        if self._flattened and not self._multi_input_mode:
+            raise RuntimeError("Flattening multiple graphs, but not in multi-input mode")
         self.accept_node(node)
         assert len(self._argument_stack) == 0
-        self._flattened[self._last_node_id]["result"] = True
-        return self._flattened
+        return self.flattened(set_result_flag=not self._multi_input_mode)
+
+    def flattened(self, set_result_flag: bool = True) -> Dict[str, dict]:
+        flat_graph = copy.deepcopy(self._flattened)
+        if set_result_flag:
+            # TODO #583 an "end" node is not necessarily a "result" node
+            flat_graph[self._last_node_id]["result"] = True
+        return flat_graph
 
     def accept_node(self, node: PGNode):
         # Process reused nodes only first time and remember node id.
@@ -450,14 +460,13 @@ class MultiResult(FlatGraphableMixin):
         self._leaves = leaves
 
     def flat_graph(self) -> Dict[str, dict]:
-        result = {}
-        flattener = GraphFlattener()
+        flattener = GraphFlattener(multi_input_mode=True)
         for leaf in self._leaves:
             if isinstance(leaf, PGNode):
-                result = flattener.flatten(leaf)
+                flattener.flatten(leaf)
             elif isinstance(leaf, _FromNodeMixin):
-                result = flattener.flatten(leaf.from_node())
+                flattener.flatten(leaf.from_node())
             else:
-                raise ValueError(leaf)
+                raise ValueError(f"Unsupported type {type(leaf)}")
 
-        return result
+        return flattener.flattened(set_result_flag=True)
