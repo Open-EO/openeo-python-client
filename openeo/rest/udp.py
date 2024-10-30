@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import typing
+from pathlib import Path
 from typing import List, Optional, Union
 
 from openeo.api.process import Parameter
@@ -16,7 +17,7 @@ if typing.TYPE_CHECKING:
 
 
 def build_process_dict(
-    process_graph: Union[dict, FlatGraphableMixin],
+    process_graph: Union[dict, FlatGraphableMixin, Path, List[FlatGraphableMixin]],
     process_id: Optional[str] = None,
     summary: Optional[str] = None,
     description: Optional[str] = None,

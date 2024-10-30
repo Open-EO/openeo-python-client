@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import collections
 import json
 import re
-from typing import Callable, Iterator, Optional, Sequence, Union
+from typing import Callable, Iterable, Iterator, Optional, Sequence, Union
 
 from openeo import Connection, DataCube
 from openeo.rest.vectorcube import VectorCube
@@ -19,8 +21,12 @@ class DummyBackend:
     and allows inspection of posted process graphs
     """
 
+    # TODO: move to openeo.testing
+
     __slots__ = (
+        "_requests_mock",
         "connection",
+        "file_formats",
         "sync_requests",
         "batch_jobs",
         "validation_requests",
@@ -33,8 +39,14 @@ class DummyBackend:
     # Default result (can serve both as JSON or binary data)
     DEFAULT_RESULT = b'{"what?": "Result data"}'
 
-    def __init__(self, requests_mock, connection: Connection):
+    def __init__(
+        self,
+        requests_mock,
+        connection: Connection,
+    ):
+        self._requests_mock = requests_mock
         self.connection = connection
+        self.file_formats = {"input": {}, "output": {}}
         self.sync_requests = []
         self.batch_jobs = {}
         self.validation_requests = []
@@ -68,6 +80,35 @@ class DummyBackend:
             content=self._handle_get_job_result_asset,
         )
         requests_mock.post(connection.build_url("/validation"), json=self._handle_post_validation)
+
+    @classmethod
+    def at(cls, root_url: str, *, requests_mock, capabilities: Optional[dict] = None) -> DummyBackend:
+        """
+        Factory to build dummy backend from given root URL
+        including creation of connection and mocking of capabilities doc
+        """
+        root_url = root_url.rstrip("/") + "/"
+        requests_mock.get(root_url, json=build_capabilities(**(capabilities or None)))
+        connection = Connection(root_url)
+        return cls(requests_mock=requests_mock, connection=connection)
+
+    def setup_collection(self, collection_id: str):
+        # TODO: also mock `/collections` overview
+        self._requests_mock.get(
+            self.connection.build_url(f"/collections/{collection_id}"),
+            # TODO: add more metadata?
+            json={"id": collection_id},
+        )
+        return self
+
+    def setup_file_format(self, name: str, type: str = "output", gis_data_types: Iterable[str] = ("raster",)):
+        self.file_formats[type][name] = {
+            "title": name,
+            "gis_data_types": list(gis_data_types),
+            "parameters": {},
+        }
+        self._requests_mock.get(self.connection.build_url("/file_formats"), json=self.file_formats)
+        return self
 
     def _handle_post_result(self, request, context):
         """handler of `POST /result` (synchronous execute)"""
@@ -150,9 +191,20 @@ class DummyBackend:
         return self.sync_requests[0]
 
     def get_batch_pg(self) -> dict:
-        """Get one and only batch process graph"""
+        """
+        Get process graph of the one and only batch job.
+        Fails when there is none or more than one.
+        """
         assert len(self.batch_jobs) == 1
         return self.batch_jobs[max(self.batch_jobs.keys())]["pg"]
+
+    def get_validation_pg(self) -> dict:
+        """
+        Get process graph of the one and only validation request.
+        :return:
+        """
+        assert len(self.validation_requests) == 1
+        return self.validation_requests[0]
 
     def get_pg(self, process_id: Optional[str] = None) -> dict:
         """

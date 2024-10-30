@@ -15,7 +15,7 @@ import json
 import sys
 from contextlib import nullcontext
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple, Union
 
 from openeo.api.process import Parameter
 from openeo.internal.process_graph_visitor import (
@@ -244,7 +244,7 @@ class PGNode(_FromNodeMixin, FlatGraphableMixin):
         yield from walk(self.arguments)
 
 
-def as_flat_graph(x: Union[dict, FlatGraphableMixin, Path, Any]) -> Dict[str, dict]:
+def as_flat_graph(x: Union[dict, FlatGraphableMixin, Path, List[FlatGraphableMixin], Any]) -> Dict[str, dict]:
     """
     Convert given object to a internal flat dict graph representation.
     """
@@ -253,12 +253,15 @@ def as_flat_graph(x: Union[dict, FlatGraphableMixin, Path, Any]) -> Dict[str, di
     #       including `{"process_graph": {nodes}}` ("process graph")
     #       or just the raw process graph nodes?
     if isinstance(x, dict):
+        # Assume given dict is already a flat graph representation
         return x
     elif isinstance(x, FlatGraphableMixin):
         return x.flat_graph()
     elif isinstance(x, (str, Path)):
         # Assume a JSON resource (raw JSON, path to local file, JSON url, ...)
         return load_json_resource(x)
+    elif isinstance(x, (list, tuple)) and all(isinstance(i, FlatGraphableMixin) for i in x):
+        return MultiLeafGraph(x).flat_graph()
     raise ValueError(x)
 
 
@@ -450,14 +453,13 @@ class PGNodeGraphUnflattener(ProcessGraphUnflattener):
         return self._parameters[name]
 
 
-class MultiResult(FlatGraphableMixin):
+class MultiLeafGraph(FlatGraphableMixin):
     """
-    Handler of use cases where there are multiple result nodes
-    (or other leaf nodes) in a process graph.
+    Container for process graphs with multiple leaf/result nodes.
     """
 
-    def __init__(self, leaves: List[FlatGraphableMixin]):
-        self._leaves = leaves
+    def __init__(self, leaves: Iterable[FlatGraphableMixin]):
+        self._leaves = list(leaves)
 
     def flat_graph(self) -> Dict[str, dict]:
         flattener = GraphFlattener(multi_input_mode=True)

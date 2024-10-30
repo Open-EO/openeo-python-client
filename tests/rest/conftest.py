@@ -101,5 +101,21 @@ def con120(requests_mock, api_capabilities):
 
 
 @pytest.fixture
-def dummy_backend(requests_mock, con100) -> DummyBackend:
-    yield DummyBackend(requests_mock=requests_mock, connection=con100)
+def dummy_backend(requests_mock, con120) -> DummyBackend:
+    dummy_backend = DummyBackend(requests_mock=requests_mock, connection=con120)
+    dummy_backend.setup_collection("S2")
+    dummy_backend.setup_file_format("GTiff")
+    dummy_backend.setup_file_format("netCDF")
+    return dummy_backend
+
+
+@pytest.fixture
+def another_dummy_backend(requests_mock) -> DummyBackend:
+    root_url = "https://openeo.other.test/"
+    another_dummy_backend = DummyBackend.at(
+        root_url, requests_mock=requests_mock, capabilities={"api_version": "1.2.0"}
+    )
+    another_dummy_backend.setup_collection("S2")
+    another_dummy_backend.setup_file_format("GTiff")
+    another_dummy_backend.setup_file_format("netCDF")
+    return another_dummy_backend

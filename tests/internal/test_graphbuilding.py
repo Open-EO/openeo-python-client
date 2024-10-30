@@ -1,6 +1,7 @@
 import io
 import re
 import textwrap
+from pathlib import Path
 
 import pytest
 
@@ -9,10 +10,11 @@ from openeo.api.process import Parameter
 from openeo.internal.graph_building import (
     FlatGraphNodeIdGenerator,
     GraphFlattener,
-    MultiResult,
+    MultiLeafGraph,
     PGNode,
     PGNodeGraphUnflattener,
     ReduceNode,
+    as_flat_graph,
 )
 from openeo.internal.process_graph_visitor import ProcessGraphVisitException
 from openeo.rest.datacube import DataCube
@@ -503,16 +505,47 @@ def test_walk_nodes_nested():
     assert set(n.process_id for n in walk) == {"load1", "max", "foo", "load2", "add", "five"}
 
 
-class TestMultiResult:
+def test_as_flat_graph_dict():
+    pg = {"foo1": {"process_id": "foo", "arguments": {"color": "red"}, "result": True}}
+    assert as_flat_graph(pg) == {"foo1": {"process_id": "foo", "arguments": {"color": "red"}, "result": True}}
+
+
+def test_as_flat_graph_pgnode():
+    node = PGNode("foo", color="red")
+    assert as_flat_graph(node) == {"foo1": {"process_id": "foo", "arguments": {"color": "red"}, "result": True}}
+
+
+def test_as_flat_graph_path(tmp_path):
+    path = tmp_path / "graph.json"
+    with path.open("w") as f:
+        f.write('{"foo1": {"process_id": "foo", "arguments": {"color": "red"}, "result": true}}')
+    assert as_flat_graph(str(path)) == {"foo1": {"process_id": "foo", "arguments": {"color": "red"}, "result": True}}
+    assert as_flat_graph(Path(path)) == {"foo1": {"process_id": "foo", "arguments": {"color": "red"}, "result": True}}
+
+
+def test_as_flat_graph_pgnode_list():
+    a = PGNode("a")
+    b = PGNode("b", a=a)
+    c = PGNode("c", a=a)
+    expected = {
+        "a1": {"process_id": "a", "arguments": {}},
+        "b1": {"process_id": "b", "arguments": {"a": {"from_node": "a1"}}},
+        "c1": {"process_id": "c", "arguments": {"a": {"from_node": "a1"}}, "result": True},
+    }
+    assert as_flat_graph([b, c]) == expected
+    assert as_flat_graph((b, c)) == expected
+
+
+class TestMultiLeafGraph:
     def test_simple(self):
-        multi = MultiResult([PGNode("foo"), PGNode("bar")])
+        multi = MultiLeafGraph([PGNode("foo"), PGNode("bar")])
         assert multi.flat_graph() == {
             "foo1": {"process_id": "foo", "arguments": {}},
             "bar1": {"process_id": "bar", "arguments": {}, "result": True},
         }
 
     def test_simple_duplicates(self):
-        multi = MultiResult([PGNode("foo"), PGNode("foo")])
+        multi = MultiLeafGraph([PGNode("foo"), PGNode("foo")])
         assert multi.flat_graph() == {
             "foo1": {"process_id": "foo", "arguments": {}},
             "foo2": {"process_id": "foo", "arguments": {}, "result": True},
@@ -522,7 +555,7 @@ class TestMultiResult:
         load_collection = DataCube(PGNode("load_collection", collection_id="S2"))
         save_a = load_collection.save_result(format="GTiff")
         save_b = load_collection.save_result(format="NetCDF")
-        multi = MultiResult([save_a, save_b])
+        multi = MultiLeafGraph([save_a, save_b])
         assert multi.flat_graph() == {
             "loadcollection1": {"process_id": "load_collection", "arguments": {"collection_id": "S2"}},
             "saveresult1": {

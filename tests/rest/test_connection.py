@@ -25,7 +25,7 @@ from openeo.rest import (
     OpenEoClientException,
     OpenEoRestError,
 )
-from openeo.rest._testing import build_capabilities
+from openeo.rest._testing import DummyBackend, build_capabilities
 from openeo.rest.auth.auth import BearerAuth, NullAuth
 from openeo.rest.auth.oidc import OidcException
 from openeo.rest.auth.testing import ABSENT, OidcMock
@@ -35,6 +35,7 @@ from openeo.rest.connection import (
     Connection,
     RestApiConnection,
     connect,
+    extract_connections,
     paginate,
 )
 from openeo.rest.vectorcube import VectorCube
@@ -50,6 +51,7 @@ BASIC_ENDPOINTS = [{"path": "/credentials/basic", "methods": ["GET"]}]
 # Trick to avoid linting/auto-formatting tools to complain about or fix unused imports of these pytest fixtures
 auth_config = auth_config
 refresh_token_store = refresh_token_store
+
 
 
 @pytest.mark.parametrize(
@@ -3648,3 +3650,156 @@ class TestExecuteWithValidation:
         else:
             assert caplog.messages == []
             assert dummy_backend.validation_requests == []
+
+
+def test_extract_connections_elementary():
+    assert extract_connections(123) == set()
+    assert extract_connections("foo") == set()
+    assert extract_connections([1, 2, 3]) == set()
+    assert extract_connections((1, 2, 3)) == set()
+    assert extract_connections({1, 2, 3}) == set()
+    assert extract_connections({"a": "b", "c": "d"}) == set()
+
+
+def test_extract_connections_cube(dummy_backend):
+    con = dummy_backend.connection
+    cube = con.load_collection("S2")
+    assert extract_connections(cube) == {con}
+
+
+def test_extract_connections_cube_list(dummy_backend):
+    con = dummy_backend.connection
+    cube1 = con.load_collection("S2")
+    cube2 = con.load_collection("S2")
+    assert extract_connections([cube1, cube2]) == {con}
+
+
+def test_extract_connections_cube_list_mixed(dummy_backend, another_dummy_backend):
+    con1 = dummy_backend.connection
+    con2 = another_dummy_backend.connection
+    cube1 = con1.load_collection("S2")
+    cube2 = con2.load_collection("S2")
+    assert extract_connections([cube1]) == {con1}
+    assert extract_connections([cube2]) == {con2}
+    assert extract_connections([cube1, cube2]) == {con1, con2}
+    assert extract_connections((cube1, cube2)) == {con1, con2}
+
+
+def test_create_job_mixed_connections(dummy_backend, another_dummy_backend):
+    con = dummy_backend.connection
+    cube = con.load_collection("S2")
+
+    other_connection = another_dummy_backend.connection
+    with pytest.raises(OpenEoClientException, match="Mixing different connections"):
+        other_connection.create_job(cube)
+
+
+class TestMultiResultHandling:
+
+    def test_create_job_with_cube_list(self, con120, dummy_backend):
+        cube = con120.load_collection("S2")
+        save1 = cube.save_result(format="GTiff")
+        save2 = cube.save_result(format="netCDF")
+        con120.create_job([save1, save2])
+        assert dummy_backend.get_batch_pg() == {
+            "loadcollection1": {
+                "process_id": "load_collection",
+                "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
+            },
+            "saveresult1": {
+                "process_id": "save_result",
+                "arguments": {"data": {"from_node": "loadcollection1"}, "format": "GTiff", "options": {}},
+            },
+            "saveresult2": {
+                "process_id": "save_result",
+                "arguments": {"data": {"from_node": "loadcollection1"}, "format": "netCDF", "options": {}},
+                "result": True,
+            },
+        }
+
+    def test_download_with_cube_list(self, con120, dummy_backend, tmp_path):
+        dummy_backend.next_result = b"-:[ZIP data]:-"
+
+        cube = con120.load_collection("S2")
+        save1 = cube.save_result(format="GTiff")
+        save2 = cube.save_result(format="netCDF")
+        output_path = tmp_path / "result.zip"
+        con120.download([save1, save2], outputfile=output_path)
+        assert dummy_backend.get_sync_pg() == {
+            "loadcollection1": {
+                "process_id": "load_collection",
+                "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
+            },
+            "saveresult1": {
+                "process_id": "save_result",
+                "arguments": {"data": {"from_node": "loadcollection1"}, "format": "GTiff", "options": {}},
+            },
+            "saveresult2": {
+                "process_id": "save_result",
+                "arguments": {"data": {"from_node": "loadcollection1"}, "format": "netCDF", "options": {}},
+                "result": True,
+            },
+        }
+        assert output_path.read_bytes() == b"-:[ZIP data]:-"
+
+    def test_synchronous_execute_with_cube_list(self, con120, dummy_backend):
+        dummy_backend.next_result = b"-:[ZIP data]:-"
+
+        cube = con120.load_collection("S2")
+        save1 = cube.save_result(format="GTiff")
+        save2 = cube.save_result(format="netCDF")
+        res = con120.execute([save1, save2], auto_decode=False)
+        assert dummy_backend.get_sync_pg() == {
+            "loadcollection1": {
+                "process_id": "load_collection",
+                "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
+            },
+            "saveresult1": {
+                "process_id": "save_result",
+                "arguments": {"data": {"from_node": "loadcollection1"}, "format": "GTiff", "options": {}},
+            },
+            "saveresult2": {
+                "process_id": "save_result",
+                "arguments": {"data": {"from_node": "loadcollection1"}, "format": "netCDF", "options": {}},
+                "result": True,
+            },
+        }
+        assert res.content == b"-:[ZIP data]:-"
+
+    def test_validate_with_cube_list(self, con120, dummy_backend):
+        cube = con120.load_collection("S2")
+        save1 = cube.save_result(format="GTiff")
+        save2 = cube.save_result(format="netCDF")
+        con120.validate_process_graph([save1, save2])
+        assert dummy_backend.get_validation_pg() == {
+            "loadcollection1": {
+                "process_id": "load_collection",
+                "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
+            },
+            "saveresult1": {
+                "process_id": "save_result",
+                "arguments": {"data": {"from_node": "loadcollection1"}, "format": "GTiff", "options": {}},
+            },
+            "saveresult2": {
+                "process_id": "save_result",
+                "arguments": {"data": {"from_node": "loadcollection1"}, "format": "netCDF", "options": {}},
+                "result": True,
+            },
+        }
+
+    def test_create_job_with_mixed_connections(self, con120, dummy_backend, another_dummy_backend):
+        other_connection = another_dummy_backend.connection
+
+        save1 = con120.load_collection("S2").save_result(format="GTiff")
+        save2 = other_connection.load_collection("S2").save_result(format="netCDF")
+
+        # Same connection should work
+        con120.create_job([save1])
+        other_connection.create_job([save2])
+
+        # Mixing connections
+        with pytest.raises(OpenEoClientException, match="Mixing different connections"):
+            con120.create_job([save1, save2])
+
+        with pytest.raises(OpenEoClientException, match="Mixing different connections"):
+            other_connection.create_job([save1, save2])
