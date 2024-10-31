@@ -22,7 +22,7 @@ tests_require = [
     "mock",
     "requests-mock>=1.8.0",
     "httpretty>=1.1.4",
-    # Conditional netCDF4 constraint: no more py3.7 wheels since 1.6.5 (#489)
+    # TODO #578 Conditional netCDF4 constraint: no more py3.7 wheels since 1.6.5 (#489)
     "netCDF4<1.6.5 ; python_version <= '3.7'",
     "netCDF4 ; python_version > '3.7'",
     "matplotlib",
@@ -31,7 +31,7 @@ tests_require = [
     "time_machine",
     "pyproj>=3.2.0",  # Pyproj is an optional, best-effort runtime dependency
     "dirty_equals>=0.6.0",
-    # (#578) On Python 3.7: avoid dirty_equals 0.7.1 which wrongly claims to be Python 3.7 compatible
+    # TODO #578 On Python 3.7: avoid dirty_equals 0.7.1 which wrongly claims to be Python 3.7 compatible
     "dirty_equals<0.7.1 ; python_version <= '3.7'",
     "pyarrow>=10.0.1",  # For Parquet read/write support in pandas
 ]
@@ -77,7 +77,8 @@ setup(
         "numpy>=1.17.0",
         "xarray>=0.12.3",
         "pandas>0.20.0",
-        "pystac>=1.5.0",  # pystac 1.5.0 is highest version available for lowest Python version we still support (3.7).
+        # TODO #578: pystac 1.5.0 is highest version available for lowest Python version we still support (3.7).
+        "pystac>=1.5.0",
         "deprecated>=1.2.12",
         'oschmod>=0.3.12; sys_platform == "win32"',
         "importlib_resources; python_version<'3.9'",

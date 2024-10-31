@@ -156,7 +156,7 @@ def _get_netcdf_engines() -> List[str]:
         ]
     else:
         # Poor man's hardcoded fallback
-        # TODO: drop this once we can require "xarray>=0.17" (which requires "python>=3.7")
+        # TODO #578: drop this once we can require "xarray>=0.17" (which requires "python>=3.7")
         netcdf_engines = ["netcdf4"]
     return netcdf_engines
 
