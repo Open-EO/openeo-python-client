@@ -1236,3 +1236,30 @@ class TestDataCubeValidation:
         else:
             assert dummy_backend.validation_requests == []
             assert caplog.messages == []
+
+
+def test_execute_batch_with_title(s2cube, dummy_backend):
+    """
+    Support title/description in execute_batch
+    https://github.com/Open-EO/openeo-python-client/issues/652
+    """
+    s2cube.execute_batch(title="S2 job", description="Lorem ipsum dolor S2 amet")
+    assert dummy_backend.batch_jobs == {
+        "job-000": {
+            "job_id": "job-000",
+            "pg": {
+                "loadcollection1": {
+                    "process_id": "load_collection",
+                    "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
+                },
+                "saveresult1": {
+                    "process_id": "save_result",
+                    "arguments": {"data": {"from_node": "loadcollection1"}, "format": "GTiff", "options": {}},
+                    "result": True,
+                },
+            },
+            "status": "finished",
+            "title": "S2 job",
+            "description": "Lorem ipsum dolor S2 amet",
+        }
+    }

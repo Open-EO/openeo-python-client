@@ -1089,6 +1089,8 @@ class TestProcessBasedJobCreator:
                     }
                 },
                 "status": "created",
+                "title": "Process '3plus5' with {}",
+                "description": "Process '3plus5' (namespace https://remote.test/3plus5.json) with {}",
             }
         }
 
@@ -1150,6 +1152,8 @@ class TestProcessBasedJobCreator:
                     }
                 },
                 "status": "created",
+                "title": dirty_equals.IsStr(regex="Process 'increment' with .*"),
+                "description": dirty_equals.IsStr(regex="Process 'increment' .*"),
             }
         }
 
@@ -1199,6 +1203,8 @@ class TestProcessBasedJobCreator:
                 "job_id": "job-000",
                 "pg": {"3plus51": {**expected, "arguments": {}, "result": True}},
                 "status": "created",
+                "title": "Process '3plus5' with {}",
+                "description": f"Process '3plus5' (namespace {namespace}) with {{}}",
             }
         }
 
@@ -1251,6 +1257,8 @@ class TestProcessBasedJobCreator:
                     }
                 },
                 "status": "finished",
+                "title": "Process 'increment' with {'data': 1, 'increment': 5}",
+                "description": "Process 'increment' (namespace https://remote.test/increment.json) with {'data': 1, 'increment': 5}",
             },
             "job-001": {
                 "job_id": "job-001",
@@ -1263,6 +1271,8 @@ class TestProcessBasedJobCreator:
                     }
                 },
                 "status": "finished",
+                "title": "Process 'increment' with {'data': 2, 'increment': 5}",
+                "description": "Process 'increment' (namespace https://remote.test/increment.json) with {'data': 2, 'increment': 5}",
             },
             "job-002": {
                 "job_id": "job-002",
@@ -1275,6 +1285,8 @@ class TestProcessBasedJobCreator:
                     }
                 },
                 "status": "finished",
+                "title": "Process 'increment' with {'data': 3, 'increment': 5}",
+                "description": "Process 'increment' (namespace https://remote.test/increment.json) with {'data': 3, 'increment': 5}",
             },
         }
 
@@ -1353,6 +1365,8 @@ class TestProcessBasedJobCreator:
                     }
                 },
                 "status": "finished",
+                "title": dirty_equals.IsStr(regex="Process 'increment' with .*"),
+                "description": dirty_equals.IsStr(regex="Process 'increment'.*"),
             },
             "job-001": {
                 "job_id": "job-001",
@@ -1365,6 +1379,8 @@ class TestProcessBasedJobCreator:
                     }
                 },
                 "status": "finished",
+                "title": dirty_equals.IsStr(regex="Process 'increment' with .*"),
+                "description": dirty_equals.IsStr(regex="Process 'increment'.*"),
             },
             "job-002": {
                 "job_id": "job-002",
@@ -1377,6 +1393,8 @@ class TestProcessBasedJobCreator:
                     }
                 },
                 "status": "finished",
+                "title": dirty_equals.IsStr(regex="Process 'increment' with .*"),
+                "description": dirty_equals.IsStr(regex="Process 'increment'.*"),
             },
         }
 
@@ -1436,6 +1454,8 @@ class TestProcessBasedJobCreator:
                     }
                 },
                 "status": "finished",
+                "title": "Process 'offset_polygon' with {'data': 123, 'polygons': {'type': 'Point', 'coordinates': (1...",
+                "description": "Process 'offset_polygon' (namespace https://remote.test/offset_polygon.json) with {'data': 123, 'polygons': {'type': 'Point', 'coordinates': (1.0, 2.0)}, 'offset': 11}",
             },
             "job-001": {
                 "job_id": "job-001",
@@ -1452,6 +1472,8 @@ class TestProcessBasedJobCreator:
                     }
                 },
                 "status": "finished",
+                "title": "Process 'offset_polygon' with {'data': 123, 'polygons': {'type': 'Point', 'coordinates': (3...",
+                "description": "Process 'offset_polygon' (namespace https://remote.test/offset_polygon.json) with {'data': 123, 'polygons': {'type': 'Point', 'coordinates': (3.0, 4.0)}, 'offset': 22}",
             },
         }
 
@@ -1527,6 +1549,8 @@ class TestProcessBasedJobCreator:
                     }
                 },
                 "status": "finished",
+                "title": dirty_equals.IsStr(regex="Process 'offset_polygon' with.*"),
+                "description": dirty_equals.IsStr(regex="Process 'offset_polygon' .*"),
             },
             "job-001": {
                 "job_id": "job-001",
@@ -1543,6 +1567,8 @@ class TestProcessBasedJobCreator:
                     }
                 },
                 "status": "finished",
+                "title": dirty_equals.IsStr(regex="Process 'offset_polygon' with.*"),
+                "description": dirty_equals.IsStr(regex="Process 'offset_polygon' .*"),
             },
         }
 
@@ -1586,6 +1612,8 @@ class TestProcessBasedJobCreator:
                     }
                 },
                 "status": "finished",
+                "title": "Process 'increment' with {'data': 3, 'increment': 5}",
+                "description": "Process 'increment' (namespace None) with {'data': 3, 'increment': 5}",
             },
             "job-001": {
                 "job_id": "job-001",
@@ -1597,6 +1625,8 @@ class TestProcessBasedJobCreator:
                     }
                 },
                 "status": "finished",
+                "title": "Process 'increment' with {'data': 5, 'increment': 5}",
+                "description": "Process 'increment' (namespace None) with {'data': 5, 'increment': 5}",
             },
         }
 
@@ -1638,6 +1668,8 @@ class TestProcessBasedJobCreator:
                     }
                 },
                 "status": "finished",
+                "title": "Process 'increment' with {'data': 3, 'increment': 100}",
+                "description": "Process 'increment' (namespace https://remote.test/increment.json) with {'data': 3, 'increment': 100}",
             },
             "job-001": {
                 "job_id": "job-001",
@@ -1650,5 +1682,7 @@ class TestProcessBasedJobCreator:
                     }
                 },
                 "status": "finished",
+                "title": "Process 'increment' with {'data': 5, 'increment': 200}",
+                "description": "Process 'increment' (namespace https://remote.test/increment.json) with {'data': 5, 'increment': 200}",
             },
         }

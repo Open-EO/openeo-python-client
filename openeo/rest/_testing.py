@@ -87,6 +87,9 @@ class DummyBackend:
         pg = post_data["process"]["process_graph"]
         job_id = f"job-{len(self.batch_jobs):03d}"
         job_data = {"job_id": job_id, "pg": pg, "status": "created"}
+        for field in ["title", "description"]:
+            if field in post_data:
+                job_data[field] = post_data[field]
         for field in self.extra_job_metadata_fields:
             job_data[field] = post_data.get(field)
         self.batch_jobs[job_id] = job_data

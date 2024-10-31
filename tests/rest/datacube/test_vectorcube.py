@@ -829,3 +829,30 @@ def test_vector_to_raster(s2cube, vector_cube, requests_mock, target_parameter, 
             "result": True,
         },
     }
+
+
+def test_execute_batch_with_title(vector_cube, dummy_backend):
+    """
+    Support title/description in execute_batch
+    https://github.com/Open-EO/openeo-python-client/issues/652
+    """
+    vector_cube.execute_batch(title="S2 job", description="Lorem ipsum dolor S2 amet")
+    assert dummy_backend.batch_jobs == {
+        "job-000": {
+            "job_id": "job-000",
+            "pg": {
+                "loadgeojson1": {
+                    "process_id": "load_geojson",
+                    "arguments": {"data": {"coordinates": [1, 2], "type": "Point"}, "properties": []},
+                },
+                "saveresult1": {
+                    "process_id": "save_result",
+                    "arguments": {"data": {"from_node": "loadgeojson1"}, "format": "GeoJSON", "options": {}},
+                    "result": True,
+                },
+            },
+            "status": "finished",
+            "title": "S2 job",
+            "description": "Lorem ipsum dolor S2 amet",
+        }
+    }

@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fixed support for `title` and `description` in `execute_batch()` ([#652](https://github.com/Open-EO/openeo-python-client/issues/652))
+
 
 ## [0.33.0] - 2024-10-18
 
