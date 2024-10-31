@@ -198,14 +198,9 @@ def _get_normalizable_crs_inputs():
     """
     yield "EPSG:32631"
     yield 32631
-    if pyproj.__version__ >= ComparableVersion("3.3.1"):
-        # TODO #578 drop this skip once support for python 3.7 is dropped (pyproj 3.3.0 requires at least python 3.8)
-        # pyproj below 3.3.1 does not support int-like strings
-        yield "32631"
+    yield "32631"
     yield "+proj=utm +zone=31 +datum=WGS84 +units=m +no_defs"  # is also EPSG:32631, in proj format
-    if pyproj.__version__ >= ComparableVersion("3.1.0"):
-        # WKT2 format support requires pyproj 3.1.0 or higher
-        yield WKT2_FOR_EPSG23631
+    yield WKT2_FOR_EPSG23631
 
 
 def _get_leaf_node(cube: DataCube) -> dict:

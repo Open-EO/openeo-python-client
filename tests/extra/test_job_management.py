@@ -678,11 +678,6 @@ class TestMultiBackendJobManager:
         cancel_after_seconds,
         expected_status,
     ):
-        if not hasattr(time_machine, "shift"):
-            # TODO #578 remove this hack to skip this test on Python 3.7
-            #       `time_machine.shift` is only available since timemachine>=2.13.0, which only support Python 3.8 and up
-            pytest.skip("time_machine.shift not available")
-
         fake_backend = FakeBackend(requests_mock=requests_mock)
 
         # For simplicity, set up pre-existing job with status "running" (instead of job manager creating+starting it)

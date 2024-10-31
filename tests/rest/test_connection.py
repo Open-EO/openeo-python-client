@@ -2719,7 +2719,7 @@ def test_list_service_types_error(requests_mock):
 def test_list_udf_runtimes(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     conn = Connection(API_URL)
-    runtimes = {"Python": {"type": "language", "versions": {"3.7": {}}, "default": "3.7"}}  # TODO #578
+    runtimes = {"Python": {"type": "language", "versions": {"3.12": {}}, "default": "3.12"}}
     m = requests_mock.get(API_URL + "udf_runtimes", json=runtimes)
     assert conn.list_udf_runtimes() == runtimes
     assert m.call_count == 1

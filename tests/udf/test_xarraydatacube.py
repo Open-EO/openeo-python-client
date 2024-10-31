@@ -147,17 +147,11 @@ class _SaveLoadRoundTrip(NamedTuple):
 
 
 def _get_netcdf_engines() -> List[str]:
-    if hasattr(xarray.backends, "list_engines"):
-        # xarray 0.17 or higher provides xarray.backends.list_engines
-        netcdf_engines = [
+    netcdf_engines = [
             name
             for name, engine in xarray.backends.list_engines().items()
             if engine.guess_can_open("dummy.nc")
-        ]
-    else:
-        # Poor man's hardcoded fallback
-        # TODO #578: drop this once we can require "xarray>=0.17" (which requires "python>=3.7")
-        netcdf_engines = ["netcdf4"]
+    ]
     return netcdf_engines
 
 
