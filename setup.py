@@ -22,17 +22,13 @@ tests_require = [
     "mock",
     "requests-mock>=1.8.0",
     "httpretty>=1.1.4",
-    # TODO #578 Conditional netCDF4 constraint: no more py3.7 wheels since 1.6.5 (#489)
-    "netCDF4<1.6.5 ; python_version <= '3.7'",
-    "netCDF4 ; python_version > '3.7'",
-    "matplotlib",
+    "netCDF4>=1.7.0",
+    "matplotlib",  # TODO: eliminate matplotlib as test dependency
     "geopandas",
     "flake8>=5.0.0",
     "time_machine",
     "pyproj>=3.2.0",  # Pyproj is an optional, best-effort runtime dependency
-    "dirty_equals>=0.6.0",
-    # TODO #578 On Python 3.7: avoid dirty_equals 0.7.1 which wrongly claims to be Python 3.7 compatible
-    "dirty_equals<0.7.1 ; python_version <= '3.7'",
+    "dirty_equals>=0.8.0",
     "pyarrow>=10.0.1",  # For Parquet read/write support in pandas
 ]
 
