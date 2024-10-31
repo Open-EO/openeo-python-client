@@ -11,13 +11,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Drop support for Python 3.7 ([#578](https://github.com/Open-EO/openeo-python-client/issues/578))
-
 ### Removed
 
 ### Fixed
 
-- Fixed support for `title` and `description` in `execute_batch()` ([#652](https://github.com/Open-EO/openeo-python-client/issues/652))
+
+## [0.34.0] - 2024-10-31
+
+### Removed
+
+- Drop support for Python 3.7 ([#578](https://github.com/Open-EO/openeo-python-client/issues/578))
+
+### Fixed
+
+- Fixed broken support for `title` and `description` job properties in `execute_batch()` ([#652](https://github.com/Open-EO/openeo-python-client/issues/652))
 
 
 ## [0.33.0] - 2024-10-18
