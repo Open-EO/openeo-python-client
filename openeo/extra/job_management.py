@@ -443,8 +443,7 @@ class MultiBackendJobManager:
         .. versionchanged:: 0.33.0
             return a stats dictionary
         """
-        # TODO: Defining start_jobs as a Protocol might make its usage more clear, and avoid complicated doctrings,
-        #   but Protocols are only supported in Python 3.8 and higher.
+        # TODO Defining start_jobs as a Protocol might make its usage more clear, and avoid complicated docstrings,
 
         # Backwards compatibility for deprecated `output_file` argument
         if "output_file" in kwargs:
