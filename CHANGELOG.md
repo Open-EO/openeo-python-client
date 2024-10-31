@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Start running unit tests in GitHub Actions against Python 3.13 too ([#653](https://github.com/Open-EO/openeo-python-client/issues/653))
+
 ### Changed
 
 ### Removed
