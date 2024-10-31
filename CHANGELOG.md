@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Drop support for Python 3.7 ([#578](https://github.com/Open-EO/openeo-python-client/issues/578))
+
 ### Removed
 
 ### Fixed

@@ -66,7 +66,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/Open-EO/openeo-python-client",
-    python_requires=">=3.7",
+    python_requires=">=3.8",
     packages=find_packages(include=["openeo*"]),
     include_package_data=True,
     tests_require=tests_require,
@@ -96,7 +96,6 @@ setup(
         "console_scripts": ["openeo-auth=openeo.rest.auth.cli:main"],
     },
     classifiers=[
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
