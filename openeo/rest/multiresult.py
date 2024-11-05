@@ -34,6 +34,8 @@ class MultiResult(FlatGraphableMixin):
     .. versionadded:: 0.35.0
     """
 
+    __slots__ = ("_multi_leaf_graph", "_connection")
+
     def __init__(self, leaves: List[FlatGraphableMixin], connection: Optional[Connection] = None):
         """
         Build a :py:class:`MultiResult` instance from multiple leaf nodes
@@ -47,11 +49,14 @@ class MultiResult(FlatGraphableMixin):
             are not already associated with a connection.
         """
         self._multi_leaf_graph = MultiLeafGraph(leaves=leaves)
-        self._connection = self._common_connection(leaves=leaves, connection=connection)
+        self._connection = self._extract_connection(leaves=leaves, connection=connection)
 
     @staticmethod
-    def _common_connection(leaves: List[FlatGraphableMixin], connection: Optional[Connection] = None) -> Connection:
-        """Find common connection. Fails if there are multiple or none."""
+    def _extract_connection(leaves: List[FlatGraphableMixin], connection: Optional[Connection] = None) -> Connection:
+        """
+        Extract common connection from leaves and/or explicitly provided connection.
+        Fails if there are multiple or none.
+        """
         connections = set()
         if connection:
             connections.add(connection)

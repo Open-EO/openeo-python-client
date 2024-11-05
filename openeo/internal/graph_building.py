@@ -458,6 +458,8 @@ class MultiLeafGraph(FlatGraphableMixin):
     Container for process graphs with multiple leaf/result nodes.
     """
 
+    __slots__ = ["_leaves"]
+
     def __init__(self, leaves: Iterable[FlatGraphableMixin]):
         self._leaves = list(leaves)
 
