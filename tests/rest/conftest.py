@@ -112,7 +112,7 @@ def dummy_backend(requests_mock, con120) -> DummyBackend:
 @pytest.fixture
 def another_dummy_backend(requests_mock) -> DummyBackend:
     root_url = "https://openeo.other.test/"
-    another_dummy_backend = DummyBackend.at(
+    another_dummy_backend = DummyBackend.at_url(
         root_url, requests_mock=requests_mock, capabilities={"api_version": "1.2.0"}
     )
     another_dummy_backend.setup_collection("S2")

@@ -1135,7 +1135,13 @@ class Connection(RestApiConnection):
         """
         Validate a process graph without executing it.
 
-        :param process_graph: (flat) dict representing process graph
+        :param process_graph: openEO-style (flat) process graph representation,
+            or an object that can be converted to such a representation:
+            a dictionary, a :py:class:`~openeo.rest.datacube.DataCube` object,
+            a string with a JSON representation,
+            a local file path or URL to a JSON representation,
+            a :py:class:`~openeo.rest.multiresult.MultiResult` object, ...
+
         :return: list of errors (dictionaries with "code" and "message" fields)
         """
         pg_with_metadata = self._build_request_with_process_graph(process_graph)["process"]
@@ -1754,8 +1760,12 @@ class Connection(RestApiConnection):
         """
         Create a new job from given process graph on the back-end.
 
-        :param process_graph: (flat) dict representing a process graph, or process graph as raw JSON string,
-            or as local file path or URL
+        :param process_graph: openEO-style (flat) process graph representation,
+            or an object that can be converted to such a representation:
+            a dictionary, a :py:class:`~openeo.rest.datacube.DataCube` object,
+            a string with a JSON representation,
+            a local file path or URL to a JSON representation,
+            a :py:class:`~openeo.rest.multiresult.MultiResult` object, ...
         :param title: job title
         :param description: job description
         :param plan: The billing plan to process and charge the job with
@@ -1765,6 +1775,9 @@ class Connection(RestApiConnection):
         :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
         :return: Created job
+
+        .. versionchanged:: 0.35.0
+            Add :ref:`multi-result support <multi-result-process-graphs>`.
         """
         # TODO move all this (BatchJob factory) logic to BatchJob?
 

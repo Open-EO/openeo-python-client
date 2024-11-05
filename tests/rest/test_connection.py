@@ -53,7 +53,6 @@ auth_config = auth_config
 refresh_token_store = refresh_token_store
 
 
-
 @pytest.mark.parametrize(
     ["base", "paths", "expected_path"],
     [
@@ -3803,3 +3802,41 @@ class TestMultiResultHandling:
 
         with pytest.raises(OpenEoClientException, match="Mixing different connections"):
             other_connection.create_job([save1, save2])
+
+    def test_create_job_intermediate_resultst(self, con120, dummy_backend):
+        cube = con120.load_collection("S2")
+        save1 = cube.save_result(format="GTiff")
+        reduced = cube.reduce_temporal("mean")
+        save2 = reduced.save_result(format="GTiff")
+        con120.create_job([save1, save2])
+        assert dummy_backend.get_batch_pg() == {
+            "loadcollection1": {
+                "process_id": "load_collection",
+                "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
+            },
+            "saveresult1": {
+                "process_id": "save_result",
+                "arguments": {"data": {"from_node": "loadcollection1"}, "format": "GTiff", "options": {}},
+            },
+            "reducedimension1": {
+                "process_id": "reduce_dimension",
+                "arguments": {
+                    "data": {"from_node": "loadcollection1"},
+                    "dimension": "t",
+                    "reducer": {
+                        "process_graph": {
+                            "mean1": {
+                                "arguments": {"data": {"from_parameter": "data"}},
+                                "process_id": "mean",
+                                "result": True,
+                            }
+                        }
+                    },
+                },
+            },
+            "saveresult2": {
+                "process_id": "save_result",
+                "arguments": {"data": {"from_node": "reducedimension1"}, "format": "GTiff", "options": {}},
+                "result": True,
+            },
+        }

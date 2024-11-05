@@ -10,9 +10,15 @@ from openeo.rest.connection import Connection, extract_connections
 
 class MultiResult(FlatGraphableMixin):
     """
-    Adapter to create/run batch jobs from process graphs with multiple end/result/leaf nodes.
+    Helper to create and run batch jobs with process graphs
+    that contain multiple result nodes
+    or, more generally speaking, multiple process graph "leaf" nodes.
 
-    Usage example:
+    Provide multiple
+    :py:class:`~openeo.rest.datacube.DataCube`/:py:class:`~openeo.rest.vectorcube.VectorCube`
+    instances to the constructor,
+    and start a batch job from that,
+    for example as follows:
 
     .. code-block:: python
 
@@ -21,10 +27,25 @@ class MultiResult(FlatGraphableMixin):
         multi_result = MultiResult([cube1, cube2])
         job = multi_result.create_job()
 
+    .. seealso::
 
+        :ref:`multi-result-process-graphs`
+
+    .. versionadded:: 0.35.0
     """
 
     def __init__(self, leaves: List[FlatGraphableMixin], connection: Optional[Connection] = None):
+        """
+        Build a :py:class:`MultiResult` instance from multiple leaf nodes
+
+        :param leaves: list of objects that can be
+            converted to an openEO-style (flat) process graph representation,
+            typically :py:class:`~openeo.rest.datacube.DataCube`
+            or :py:class:`~openeo.rest.vectorcube.VectorCube` instances.
+        :param connection: Optional connection to use for creating/starting batch jobs,
+            for special use cases where the provided leaf instances
+            are not already associated with a connection.
+        """
         self._multi_leaf_graph = MultiLeafGraph(leaves=leaves)
         self._connection = self._common_connection(leaves=leaves, connection=connection)
 
