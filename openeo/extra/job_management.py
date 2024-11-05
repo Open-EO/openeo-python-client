@@ -499,16 +499,18 @@ class MultiBackendJobManager:
             stats["job_db get_by_status"] += 1
             per_backend = running.groupby("backend_name").size().to_dict()
             _log.info(f"Running per backend: {per_backend}")
+            total_added = 0
             for backend_name in self.backends:
                 backend_load = per_backend.get(backend_name, 0)
                 if backend_load < self.backends[backend_name].parallel_jobs:
                     to_add = self.backends[backend_name].parallel_jobs - backend_load
-                    for i in not_started.index[0:to_add]:
+                    for i in not_started.index[total_added : total_added + to_add]:
                         self._launch_job(start_job, df=not_started, i=i, backend_name=backend_name, stats=stats)
                         stats["job launch"] += 1
 
                         job_db.persist(not_started.loc[i : i + 1])
                         stats["job_db persist"] += 1
+                        total_added += 1
 
     def _launch_job(self, start_job, df, i, backend_name, stats: Optional[dict] = None):
         """Helper method for launching jobs

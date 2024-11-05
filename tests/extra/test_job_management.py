@@ -118,7 +118,7 @@ class TestMultiBackendJobManager:
         assert run_stats == dirty_equals.IsPartialDict(
             {
                 "sleep": dirty_equals.IsInt(gt=10),
-                "start_job call": 7,  # TODO?
+                "start_job call": 5,
                 "job started running": 5,
                 "job finished": 5,
                 "job_db persist": dirty_equals.IsInt(gt=5),
@@ -162,7 +162,7 @@ class TestMultiBackendJobManager:
         assert run_stats == dirty_equals.IsPartialDict(
             {
                 "sleep": dirty_equals.IsInt(gt=10),
-                "start_job call": 7,  # TODO?
+                "start_job call": 5,
                 "job started running": 5,
                 "job finished": 5,
                 "job_db persist": dirty_equals.IsInt(gt=5),
@@ -198,7 +198,7 @@ class TestMultiBackendJobManager:
         run_stats = manager.run_jobs(job_db=job_db, start_job=start_job)
         assert run_stats == dirty_equals.IsPartialDict(
             {
-                "start_job call": 7,  # TODO?
+                "start_job call": 5,
                 "job finished": 5,
                 "job_db persist": dirty_equals.IsInt(gt=5),
             }
@@ -233,7 +233,7 @@ class TestMultiBackendJobManager:
         run_stats = manager.run_jobs(job_db=job_db, start_job=start_job)
         assert run_stats == dirty_equals.IsPartialDict(
             {
-                "start_job call": 7,  # TODO?
+                "start_job call": 5,
                 "job finished": 5,
                 "job_db persist": dirty_equals.IsInt(gt=5),
             }
