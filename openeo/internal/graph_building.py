@@ -10,11 +10,12 @@ from __future__ import annotations
 
 import abc
 import collections
+import copy
 import json
 import sys
 from contextlib import nullcontext
 from pathlib import Path
-from typing import Any, Dict, Iterator, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple, Union
 
 from openeo.api.process import Parameter
 from openeo.internal.process_graph_visitor import (
@@ -243,7 +244,7 @@ class PGNode(_FromNodeMixin, FlatGraphableMixin):
         yield from walk(self.arguments)
 
 
-def as_flat_graph(x: Union[dict, FlatGraphableMixin, Path, Any]) -> Dict[str, dict]:
+def as_flat_graph(x: Union[dict, FlatGraphableMixin, Path, List[FlatGraphableMixin], Any]) -> Dict[str, dict]:
     """
     Convert given object to a internal flat dict graph representation.
     """
@@ -252,12 +253,15 @@ def as_flat_graph(x: Union[dict, FlatGraphableMixin, Path, Any]) -> Dict[str, di
     #       including `{"process_graph": {nodes}}` ("process graph")
     #       or just the raw process graph nodes?
     if isinstance(x, dict):
+        # Assume given dict is already a flat graph representation
         return x
     elif isinstance(x, FlatGraphableMixin):
         return x.flat_graph()
     elif isinstance(x, (str, Path)):
         # Assume a JSON resource (raw JSON, path to local file, JSON url, ...)
         return load_json_resource(x)
+    elif isinstance(x, (list, tuple)) and all(isinstance(i, FlatGraphableMixin) for i in x):
+        return MultiLeafGraph(x).flat_graph()
     raise ValueError(x)
 
 
@@ -322,20 +326,29 @@ class FlatGraphNodeIdGenerator:
 
 class GraphFlattener(ProcessGraphVisitor):
 
-    def __init__(self, node_id_generator: FlatGraphNodeIdGenerator = None):
+    def __init__(self, node_id_generator: FlatGraphNodeIdGenerator = None, multi_input_mode: bool = False):
         super().__init__()
         self._node_id_generator = node_id_generator or FlatGraphNodeIdGenerator()
         self._last_node_id = None
         self._flattened: Dict[str, dict] = {}
         self._argument_stack = []
         self._node_cache = {}
+        self._multi_input_mode = multi_input_mode
 
     def flatten(self, node: PGNode) -> Dict[str, dict]:
         """Consume given nested process graph and return flat dict representation"""
+        if self._flattened and not self._multi_input_mode:
+            raise RuntimeError("Flattening multiple graphs, but not in multi-input mode")
         self.accept_node(node)
         assert len(self._argument_stack) == 0
-        self._flattened[self._last_node_id]["result"] = True
-        return self._flattened
+        return self.flattened(set_result_flag=not self._multi_input_mode)
+
+    def flattened(self, set_result_flag: bool = True) -> Dict[str, dict]:
+        flat_graph = copy.deepcopy(self._flattened)
+        if set_result_flag:
+            # TODO #583 an "end" node is not necessarily a "result" node
+            flat_graph[self._last_node_id]["result"] = True
+        return flat_graph
 
     def accept_node(self, node: PGNode):
         # Process reused nodes only first time and remember node id.
@@ -438,3 +451,26 @@ class PGNodeGraphUnflattener(ProcessGraphUnflattener):
         if name not in self._parameters:
             raise ProcessGraphVisitException("No substitution value for parameter {p!r}.".format(p=name))
         return self._parameters[name]
+
+
+class MultiLeafGraph(FlatGraphableMixin):
+    """
+    Container for process graphs with multiple leaf/result nodes.
+    """
+
+    __slots__ = ["_leaves"]
+
+    def __init__(self, leaves: Iterable[FlatGraphableMixin]):
+        self._leaves = list(leaves)
+
+    def flat_graph(self) -> Dict[str, dict]:
+        flattener = GraphFlattener(multi_input_mode=True)
+        for leaf in self._leaves:
+            if isinstance(leaf, PGNode):
+                flattener.flatten(leaf)
+            elif isinstance(leaf, _FromNodeMixin):
+                flattener.flatten(leaf.from_node())
+            else:
+                raise ValueError(f"Unsupported type {type(leaf)}")
+
+        return flattener.flattened(set_result_flag=True)

@@ -85,7 +85,9 @@ class DataCube(_ProcessGraphAbstraction):
     # TODO: set this based on back-end or user preference?
     _DEFAULT_RASTER_FORMAT = "GTiff"
 
-    def __init__(self, graph: PGNode, connection: Optional[Connection], metadata: Optional[CollectionMetadata] = None):
+    def __init__(
+        self, graph: PGNode, connection: Optional[Connection] = None, metadata: Optional[CollectionMetadata] = None
+    ):
         super().__init__(pgnode=graph, connection=connection)
         self.metadata: Optional[CollectionMetadata] = metadata
 

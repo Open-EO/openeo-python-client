@@ -47,6 +47,15 @@ openeo.rest.mlmodel
    :inherited-members:
 
 
+openeo.rest.multiresult
+-----------------------
+
+.. automodule:: openeo.rest.multiresult
+   :members: MultiResult
+   :inherited-members:
+   :special-members: __init__
+
+
 openeo.metadata
 ----------------
 

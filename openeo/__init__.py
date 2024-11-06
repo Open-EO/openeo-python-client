@@ -18,6 +18,7 @@ from openeo.rest.connection import Connection, connect, session
 from openeo.rest.datacube import UDF, DataCube
 from openeo.rest.graph_building import collection_property
 from openeo.rest.job import BatchJob, RESTJob
+from openeo.rest.multiresult import MultiResult
 
 
 def client_version() -> str:
