@@ -220,6 +220,8 @@ in a single entity that can be used to create or run batch jobs. For example:
 
 .. code-block:: python
 
+    from openeo import MultiResult
+
     cube1 = ...
     cube2 = ...
     multi_result = MultiResult([cube1, cube2])

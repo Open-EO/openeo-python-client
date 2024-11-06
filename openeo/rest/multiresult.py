@@ -22,6 +22,8 @@ class MultiResult(FlatGraphableMixin):
 
     .. code-block:: python
 
+        from openeo import MultiResult
+
         cube1 = ...
         cube2 = ...
         multi_result = MultiResult([cube1, cube2])
