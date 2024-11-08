@@ -101,7 +101,7 @@ class JobDatabaseInterface(metaclass=abc.ABCMeta):
 
 
 def _start_job_default(row: pd.Series, connection: Connection, *args, **kwargs):
-    raise NotImplementedError
+    raise NotImplementedError("No 'start_job' callable provided")
 
 
 class MultiBackendJobManager:
