@@ -596,7 +596,7 @@ class MultiBackendJobManager:
         self.ensure_job_dir_exists(job.job_id)
         job.get_results().download_files(target=job_dir)
 
-        with open(metadata_path, "w") as f:
+        with metadata_path.open("w", encoding="utf-8") as f:
             json.dump(job_metadata, f, ensure_ascii=False)
 
     def on_job_error(self, job: BatchJob, row):
