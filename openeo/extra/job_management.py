@@ -710,9 +710,9 @@ class MultiBackendJobManager:
                         active.loc[i, key] = _format_usage_stat(job_metadata, key)
 
             except OpenEoApiError as e:
+                # TODO: inspect status code and e.g. differentiate between 4xx/5xx
                 stats["job tracking error"] += 1
-                print(f"error for job {job_id!r} on backend {backend_name}")
-                print(e)
+                _log.warning(f"Error while tracking status of job {job_id!r} on backend {backend_name}: {e!r}")
 
         stats["job_db persist"] += 1
         job_db.persist(active)
