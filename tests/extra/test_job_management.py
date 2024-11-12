@@ -280,7 +280,7 @@ class TestMultiBackendJobManager:
         assert metadata_path.exists()
 
     def _create_basic_mocked_manager(self, requests_mock, tmp_path):
-        # TODO: separate aspects of job manager and dummy backends
+        # TODO: separate aspects of job manager and dummy backends (e.g. reuse DummyBackend here)
         requests_mock.get("http://foo.test/", json={"api_version": "1.1.0"})
         requests_mock.get("http://bar.test/", json={"api_version": "1.1.0"})
 
@@ -701,6 +701,38 @@ class TestMultiBackendJobManager:
         )
 
         assert fake_backend.cancel_job_mock.called == (expected_status == "canceled")
+
+    def test_empty_csv_handling(self, tmp_path, requests_mock, sleep_mock, recwarn):
+        """
+        Check how starting from an empty CSV is handled:
+        will empty columns accepts string values without warning/error?
+        """
+        manager = self._create_basic_mocked_manager(requests_mock, tmp_path)
+
+        df = pd.DataFrame({"year": [2021, 2022]})
+
+        job_db_path = tmp_path / "jobs.csv"
+        # Initialize job db and trigger writing it to CSV file
+        _ = CsvJobDatabase(job_db_path).initialize_from_df(df)
+
+        assert job_db_path.exists()
+        # Simple check for empty columns in the CSV file
+        assert ",,,,," in job_db_path.read_text()
+
+        # Start over with existing file
+        job_db = CsvJobDatabase(job_db_path)
+
+        def start_job(row, connection, **kwargs):
+            year = int(row["year"])
+            return BatchJob(job_id=f"job-{year}", connection=connection)
+
+        run_stats = manager.run_jobs(job_db=job_db, start_job=start_job)
+        assert run_stats == dirty_equals.IsPartialDict({"start_job call": 2, "job finished": 2})
+
+        result = pd.read_csv(job_db_path)
+        assert [(r.id, r.status) for r in result.itertuples()] == [("job-2021", "finished"), ("job-2022", "finished")]
+
+        assert [(w.category, w.message, str(w)) for w in recwarn.list] == []
 
 
 

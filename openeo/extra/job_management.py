@@ -1,6 +1,7 @@
 import abc
 import collections
 import contextlib
+import dataclasses
 import datetime
 import json
 import logging
@@ -9,7 +10,7 @@ import time
 import warnings
 from pathlib import Path
 from threading import Thread
-from typing import Callable, Dict, List, NamedTuple, Optional, Union
+from typing import Any, Callable, Dict, List, Mapping, NamedTuple, Optional, Union
 
 import numpy
 import pandas as pd
@@ -104,6 +105,14 @@ def _start_job_default(row: pd.Series, connection: Connection, *args, **kwargs):
     raise NotImplementedError("No 'start_job' callable provided")
 
 
+@dataclasses.dataclass(frozen=True)
+class _ColumnProperties:
+    """Expected/required properties of a column in the job manager related dataframes"""
+
+    dtype: str = "object"
+    default: Any = None
+
+
 class MultiBackendJobManager:
     """
     Tracker for multiple jobs on multiple backends.
@@ -170,6 +179,23 @@ class MultiBackendJobManager:
     .. versionchanged:: 0.32.0
         Added ``cancel_running_job_after`` parameter.
     """
+
+    # Expected columns in the job DB dataframes.
+    # TODO: make this part of public API when settled?
+    _COLUMN_REQUIREMENTS: Mapping[str, _ColumnProperties] = {
+        "id": _ColumnProperties(dtype="str"),
+        "backend_name": _ColumnProperties(dtype="str"),
+        "status": _ColumnProperties(dtype="str", default="not_started"),
+        # TODO: use proper date/time dtype instead of legacy str for start times?
+        "start_time": _ColumnProperties(dtype="str"),
+        "running_start_time": _ColumnProperties(dtype="str"),
+        # TODO: these columns "cpu", "memory", "duration" are not referenced explicitly from MultiBackendJobManager,
+        #       but are indirectly coupled through handling of VITO-specific "usage" metadata in `_track_statuses`.
+        #       Since bfd99e34 they are not really required to be present anymore, can we make that more explicit?
+        "cpu": _ColumnProperties(dtype="str"),
+        "memory": _ColumnProperties(dtype="str"),
+        "duration": _ColumnProperties(dtype="str"),
+    }
 
     def __init__(
         self,
@@ -267,8 +293,8 @@ class MultiBackendJobManager:
         connection.session.mount("https://", HTTPAdapter(max_retries=retries))
         connection.session.mount("http://", HTTPAdapter(max_retries=retries))
 
-    @staticmethod
-    def _normalize_df(df: pd.DataFrame) -> pd.DataFrame:
+    @classmethod
+    def _normalize_df(cls, df: pd.DataFrame) -> pd.DataFrame:
         """
         Normalize given pandas dataframe (creating a new one):
         ensure we have the required columns.
@@ -276,22 +302,7 @@ class MultiBackendJobManager:
         :param df: The dataframe to normalize.
         :return: a new dataframe that is normalized.
         """
-        # check for some required columns.
-        required_with_default = [
-            ("status", "not_started"),
-            ("id", None),
-            ("start_time", None),
-            ("running_start_time", None),
-            # TODO: columns "cpu", "memory", "duration" are not referenced directly
-            #       within MultiBackendJobManager making it confusing to claim they are required.
-            #       However, they are through assumptions about job "usage" metadata in `_track_statuses`.
-            #       => proposed solution: allow to configure usage columns when adding a backend
-            ("cpu", None),
-            ("memory", None),
-            ("duration", None),
-            ("backend_name", None),
-        ]
-        new_columns = {col: val for (col, val) in required_with_default if col not in df.columns}
+        new_columns = {col: req.default for (col, req) in cls._COLUMN_REQUIREMENTS.items() if col not in df.columns}
         df = df.assign(**new_columns)
 
         return df
@@ -832,7 +843,11 @@ class CsvJobDatabase(FullDataFrameJobDatabase):
             return False
 
     def read(self) -> pd.DataFrame:
-        df = pd.read_csv(self.path)
+        df = pd.read_csv(
+            self.path,
+            # TODO: possible to avoid hidden coupling with MultiBackendJobManager here?
+            dtype={c: r.dtype for (c, r) in MultiBackendJobManager._COLUMN_REQUIREMENTS.items()},
+        )
         if (
             "geometry" in df.columns
             and df["geometry"].dtype.name != "geometry"
