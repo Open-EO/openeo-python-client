@@ -497,6 +497,9 @@ class MultiBackendJobManager:
         go through the necessary jobs to check for status updates,
         trigger status events, start new jobs when there is room for them, etc.
         """
+        if not self.backends:
+            raise RuntimeError("No backends registered")
+
         stats = stats if stats is not None else collections.defaultdict(int)
 
         with ignore_connection_errors(context="get statuses"):

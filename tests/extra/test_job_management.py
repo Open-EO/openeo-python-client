@@ -45,45 +45,29 @@ def con(requests_mock) -> openeo.Connection:
     return con
 
 
-class FakeBackend:
-    """
-    Fake openEO backend with some basic job management functionality for testing job manager logic.
-    """
+def _job_id_from_year(process_graph) -> Union[str, None]:
+    """Job id generator that extracts the year from the process graph"""
+    try:
+        (year,) = (n["arguments"]["year"] for n in process_graph.values())
+        return f"job-{year}"
+    except Exception:
+        pass
 
-    # TODO: replace/merge with openeo.rest._testing.DummyBackend
 
-    def __init__(self, *, backend_root_url: str = "http://openeo.test", requests_mock):
-        self.url = backend_root_url.rstrip("/")
-        requests_mock.get(f"{self.url}/", json={"api_version": "1.1.0"})
-        self.job_db = {}
-        self.get_job_metadata_mock = requests_mock.get(
-            re.compile(rf"^{self.url}/jobs/[\w_-]*$"),
-            json=self._handle_get_job_metadata,
-        )
-        self.cancel_job_mock = requests_mock.delete(
-            re.compile(rf"^{self.url}/jobs/[\w_-]*/results$"),
-            json=self._handle_cancel_job,
-        )
-        requests_mock.get(re.compile(rf"^{self.url}/jobs/[\w_-]*/results"), json={"links": []})
+@pytest.fixture
+def dummy_backend_foo(requests_mock) -> DummyBackend:
+    dummy = DummyBackend.at_url("https://foo.test", requests_mock=requests_mock)
+    dummy.setup_simple_job_status_flow(queued=3, running=5)
+    dummy.job_id_generator = _job_id_from_year
+    return dummy
 
-    def set_job_status(self, job_id: str, status: Union[str, Callable[[], str]]):
-        self.job_db.setdefault(job_id, {})["status"] = status
 
-    def get_job_status(self, job_id: str):
-        status = self.job_db[job_id]["status"]
-        if callable(status):
-            status = status()
-        return status
-
-    def _handle_get_job_metadata(self, request, context):
-        job_id = request.path.split("/")[-1]
-        return {"id": job_id, "status": self.get_job_status(job_id)}
-
-    def _handle_cancel_job(self, request, context):
-        job_id = request.path.split("/")[-2]
-        assert self.get_job_status(job_id) == "running"
-        self.set_job_status(job_id, "canceled")
-        context.status_code = 204
+@pytest.fixture
+def dummy_backend_bar(requests_mock) -> DummyBackend:
+    dummy = DummyBackend.at_url("https://bar.test", requests_mock=requests_mock)
+    dummy.setup_simple_job_status_flow(queued=5, running=8)
+    dummy.job_id_generator = _job_id_from_year
+    return dummy
 
 
 @pytest.fixture
@@ -91,16 +75,31 @@ def sleep_mock():
     with mock.patch("time.sleep") as sleep:
         yield sleep
 
+
 class TestMultiBackendJobManager:
 
+    @pytest.fixture
+    def job_manager_root_dir(self, tmp_path):
+        return tmp_path / "job_mgr_root"
 
+    @pytest.fixture
+    def job_manager(self, job_manager_root_dir, dummy_backend_foo, dummy_backend_bar):
+        manager = MultiBackendJobManager(root_dir=job_manager_root_dir)
+        manager.add_backend("foo", connection=dummy_backend_foo.connection)
+        manager.add_backend("bar", connection=dummy_backend_bar.connection)
+        return manager
 
-    def test_basic_legacy(self, tmp_path, requests_mock, sleep_mock):
+    @staticmethod
+    def _create_year_job(row, connection, **kwargs):
+        """Job creation callable to use with MultiBackendJobManager run_jobs"""
+        year = int(row["year"])
+        pg = {"yearify": {"process_id": "yearify", "arguments": {"year": year}, "result": True}}
+        return connection.create_job(pg)
+
+    def test_basic_legacy(self, tmp_path, job_manager, job_manager_root_dir, sleep_mock):
         """
         Legacy `run_jobs()` usage with explicit dataframe and output file
         """
-        manager = self._create_basic_mocked_manager(requests_mock, tmp_path)
-
         df = pd.DataFrame(
             {
                 "year": [2018, 2019, 2020, 2021, 2022],
@@ -108,13 +107,9 @@ class TestMultiBackendJobManager:
                 "geometry": ["POINT (1 2)"] * 5,
             }
         )
-        output_file = tmp_path / "jobs.csv"
+        job_db_path = tmp_path / "jobs.csv"
 
-        def start_job(row, connection, **kwargs):
-            year = int(row["year"])
-            return BatchJob(job_id=f"job-{year}", connection=connection)
-
-        run_stats = manager.run_jobs(df=df, start_job=start_job, output_file=output_file)
+        run_stats = job_manager.run_jobs(df=df, start_job=self._create_year_job, output_file=job_db_path)
         assert run_stats == dirty_equals.IsPartialDict(
             {
                 "sleep": dirty_equals.IsInt(gt=10),
@@ -126,23 +121,43 @@ class TestMultiBackendJobManager:
             }
         )
 
-        result = pd.read_csv(output_file)
-        assert len(result) == 5
-        assert set(result.status) == {"finished"}
-        assert set(result.backend_name) == {"foo", "bar"}
+        assert [(r.id, r.status, r.backend_name) for r in pd.read_csv(job_db_path).itertuples()] == [
+            ("job-2018", "finished", "foo"),
+            ("job-2019", "finished", "foo"),
+            ("job-2020", "finished", "bar"),
+            ("job-2021", "finished", "bar"),
+            ("job-2022", "finished", "foo"),
+        ]
 
-        # We expect that the job metadata was saved, so verify that it exists.
-        # Checking for one of the jobs is enough.
-        metadata_path = manager.get_job_metadata_path(job_id="job-2022")
-        assert metadata_path.exists()
+        # Check downloaded results and metadata.
+        assert set(str(p.relative_to(job_manager_root_dir)) for p in job_manager_root_dir.glob("**/*")) == {
+            "job_job-2018",
+            "job_job-2018/job-results.json",
+            "job_job-2018/job_job-2018.json",
+            "job_job-2018/result.data",
+            "job_job-2019",
+            "job_job-2019/job-results.json",
+            "job_job-2019/job_job-2019.json",
+            "job_job-2019/result.data",
+            "job_job-2020",
+            "job_job-2020/job-results.json",
+            "job_job-2020/job_job-2020.json",
+            "job_job-2020/result.data",
+            "job_job-2021",
+            "job_job-2021/job-results.json",
+            "job_job-2021/job_job-2021.json",
+            "job_job-2021/result.data",
+            "job_job-2022",
+            "job_job-2022/job-results.json",
+            "job_job-2022/job_job-2022.json",
+            "job_job-2022/result.data",
+        }
 
-    def test_basic(self, tmp_path, requests_mock, sleep_mock):
+    def test_basic(self, tmp_path, job_manager, job_manager_root_dir, sleep_mock):
         """
         `run_jobs()` usage with a `CsvJobDatabase`
         (and no explicit dataframe or output file)
         """
-        manager = self._create_basic_mocked_manager(requests_mock, tmp_path)
-
         df = pd.DataFrame(
             {
                 "year": [2018, 2019, 2020, 2021, 2022],
@@ -150,15 +165,11 @@ class TestMultiBackendJobManager:
                 "geometry": ["POINT (1 2)"] * 5,
             }
         )
-        output_file = tmp_path / "jobs.csv"
+        job_db_path = tmp_path / "jobs.csv"
 
-        def start_job(row, connection, **kwargs):
-            year = int(row["year"])
-            return BatchJob(job_id=f"job-{year}", connection=connection)
+        job_db = CsvJobDatabase(job_db_path).initialize_from_df(df)
 
-        job_db = CsvJobDatabase(output_file).initialize_from_df(df)
-
-        run_stats = manager.run_jobs(job_db=job_db, start_job=start_job)
+        run_stats = job_manager.run_jobs(job_db=job_db, start_job=self._create_year_job)
         assert run_stats == dirty_equals.IsPartialDict(
             {
                 "sleep": dirty_equals.IsInt(gt=10),
@@ -170,32 +181,49 @@ class TestMultiBackendJobManager:
             }
         )
 
-        result = pd.read_csv(output_file)
-        assert len(result) == 5
-        assert set(result.status) == {"finished"}
-        assert set(result.backend_name) == {"foo", "bar"}
+        assert [(r.id, r.status, r.backend_name) for r in pd.read_csv(job_db_path).itertuples()] == [
+            ("job-2018", "finished", "foo"),
+            ("job-2019", "finished", "foo"),
+            ("job-2020", "finished", "bar"),
+            ("job-2021", "finished", "bar"),
+            ("job-2022", "finished", "foo"),
+        ]
 
-        # We expect that the job metadata was saved, so verify that it exists.
-        # Checking for one of the jobs is enough.
-        metadata_path = manager.get_job_metadata_path(job_id="job-2022")
-        assert metadata_path.exists()
+        # Check downloaded results and metadata.
+        assert set(str(p.relative_to(job_manager_root_dir)) for p in job_manager_root_dir.glob("**/*")) == {
+            "job_job-2018",
+            "job_job-2018/job-results.json",
+            "job_job-2018/job_job-2018.json",
+            "job_job-2018/result.data",
+            "job_job-2019",
+            "job_job-2019/job-results.json",
+            "job_job-2019/job_job-2019.json",
+            "job_job-2019/result.data",
+            "job_job-2020",
+            "job_job-2020/job-results.json",
+            "job_job-2020/job_job-2020.json",
+            "job_job-2020/result.data",
+            "job_job-2021",
+            "job_job-2021/job-results.json",
+            "job_job-2021/job_job-2021.json",
+            "job_job-2021/result.data",
+            "job_job-2022",
+            "job_job-2022/job-results.json",
+            "job_job-2022/job_job-2022.json",
+            "job_job-2022/result.data",
+        }
 
     @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase])
-    def test_db_class(self, tmp_path, requests_mock, sleep_mock, db_class):
+    def test_db_class(self, tmp_path, job_manager, job_manager_root_dir, sleep_mock, db_class):
         """
         Basic run parameterized on database class
         """
-        manager = self._create_basic_mocked_manager(requests_mock, tmp_path)
-
-        def start_job(row, connection, **kwargs):
-            year = int(row["year"])
-            return BatchJob(job_id=f"job-{year}", connection=connection)
 
         df = pd.DataFrame({"year": [2018, 2019, 2020, 2021, 2022]})
         output_file = tmp_path / "jobs.db"
         job_db = db_class(output_file).initialize_from_df(df)
 
-        run_stats = manager.run_jobs(job_db=job_db, start_job=start_job)
+        run_stats = job_manager.run_jobs(job_db=job_db, start_job=self._create_year_job)
         assert run_stats == dirty_equals.IsPartialDict(
             {
                 "start_job call": 5,
@@ -216,21 +244,16 @@ class TestMultiBackendJobManager:
             ("jobz.parquet", ParquetJobDatabase),
         ],
     )
-    def test_create_job_db(self, tmp_path, requests_mock, sleep_mock, filename, expected_db_class):
+    def test_create_job_db(self, tmp_path, job_manager, job_manager_root_dir, sleep_mock, filename, expected_db_class):
         """
         Basic run with `create_job_db()` usage
         """
-        manager = self._create_basic_mocked_manager(requests_mock, tmp_path)
-
-        def start_job(row, connection, **kwargs):
-            year = int(row["year"])
-            return BatchJob(job_id=f"job-{year}", connection=connection)
 
         df = pd.DataFrame({"year": [2018, 2019, 2020, 2021, 2022]})
         output_file = tmp_path / filename
         job_db = create_job_db(path=output_file, df=df)
 
-        run_stats = manager.run_jobs(job_db=job_db, start_job=start_job)
+        run_stats = job_manager.run_jobs(job_db=job_db, start_job=self._create_year_job)
         assert run_stats == dirty_equals.IsPartialDict(
             {
                 "start_job call": 5,
@@ -244,9 +267,7 @@ class TestMultiBackendJobManager:
         assert set(result.status) == {"finished"}
         assert set(result.backend_name) == {"foo", "bar"}
 
-    def test_basic_threading(self, tmp_path, requests_mock, sleep_mock):
-        manager = self._create_basic_mocked_manager(requests_mock, tmp_path)
-
+    def test_basic_threading(self, tmp_path, job_manager, job_manager_root_dir, sleep_mock):
         df = pd.DataFrame(
             {
                 "year": [2018, 2019, 2020, 2021, 2022],
@@ -254,89 +275,31 @@ class TestMultiBackendJobManager:
                 "geometry": ["POINT (1 2)"] * 5,
             }
         )
-        output_file = tmp_path / "jobs.csv"
+        job_db_path = tmp_path / "jobs.csv"
 
-        def start_job(row, connection, **kwargs):
-            year = int(row["year"])
-            return BatchJob(job_id=f"job-{year}", connection=connection)
+        job_db = CsvJobDatabase(job_db_path).initialize_from_df(df)
 
-        job_db = CsvJobDatabase(output_file).initialize_from_df(df)
-
-        manager.start_job_thread(start_job=start_job, job_db=job_db)
+        job_manager.start_job_thread(start_job=self._create_year_job, job_db=job_db)
         # Trigger context switch to job thread
         sleep(1)
-        manager.stop_job_thread()
+        job_manager.stop_job_thread()
         # TODO #645 how to collect stats with the threaded run_job?
         assert sleep_mock.call_count > 10
 
-        result = pd.read_csv(output_file)
-        assert len(result) == 5
-        assert set(result.status) == {"finished"}
-        assert set(result.backend_name) == {"foo", "bar"}
+        assert [(r.id, r.status, r.backend_name) for r in pd.read_csv(job_db_path).itertuples()] == [
+            ("job-2018", "finished", "foo"),
+            ("job-2019", "finished", "foo"),
+            ("job-2020", "finished", "bar"),
+            ("job-2021", "finished", "bar"),
+            ("job-2022", "finished", "foo"),
+        ]
 
-        # We expect that the job metadata was saved, so verify that it exists.
-        # Checking for one of the jobs is enough.
-        metadata_path = manager.get_job_metadata_path(job_id="job-2022")
-        assert metadata_path.exists()
-
-    def _create_basic_mocked_manager(self, requests_mock, tmp_path):
-        # TODO: separate aspects of job manager and dummy backends (e.g. reuse DummyBackend here)
-        requests_mock.get("http://foo.test/", json={"api_version": "1.1.0"})
-        requests_mock.get("http://bar.test/", json={"api_version": "1.1.0"})
-
-        def mock_job_status(job_id, queued=1, running=2):
-            """Mock job status polling sequence"""
-            response_list = sum(
-                [
-                    [
-                        {
-                            "json": {
-                                "id": job_id,
-                                "title": f"Job {job_id}",
-                                "status": "queued",
-                            }
-                        }
-                    ]
-                    * queued,
-                    [
-                        {
-                            "json": {
-                                "id": job_id,
-                                "title": f"Job {job_id}",
-                                "status": "running",
-                            }
-                        }
-                    ]
-                    * running,
-                    [
-                        {
-                            "json": {
-                                "id": job_id,
-                                "title": f"Job {job_id}",
-                                "status": "finished",
-                            }
-                        }
-                    ],
-                ],
-                [],
-            )
-            for backend in ["http://foo.test", "http://bar.test"]:
-                requests_mock.get(f"{backend}/jobs/{job_id}", response_list)
-                # It also needs the job results endpoint, though that can be a dummy implementation.
-                # When the job is finished the system tries to download the results and that is what
-                # needs this endpoint.
-                requests_mock.get(f"{backend}/jobs/{job_id}/results", json={"links": []})
-
-        mock_job_status("job-2018", queued=1, running=2)
-        mock_job_status("job-2019", queued=2, running=3)
-        mock_job_status("job-2020", queued=3, running=4)
-        mock_job_status("job-2021", queued=3, running=5)
-        mock_job_status("job-2022", queued=5, running=6)
-        root_dir = tmp_path / "job_mgr_root"
-        manager = MultiBackendJobManager(root_dir=root_dir)
-        manager.add_backend("foo", connection=openeo.connect("http://foo.test"))
-        manager.add_backend("bar", connection=openeo.connect("http://bar.test"))
-        return manager
+        # Check downloaded results and metadata.
+        assert set(str(p.relative_to(job_manager_root_dir)) for p in job_manager_root_dir.glob("**/*")) == {
+            f"job_{job_id}/{filename}".rstrip("/")
+            for job_id in ["job-2018", "job-2019", "job-2020", "job-2021", "job-2022"]
+            for filename in ["", "job-results.json", f"job_{job_id}.json", "result.data"]
+        }
 
     def test_normalize_df(self):
         df = pd.DataFrame({"some_number": [3, 2, 1]})
@@ -355,7 +318,9 @@ class TestMultiBackendJobManager:
             ]
         )
 
-    def test_manager_must_exit_when_all_jobs_done(self, tmp_path, requests_mock, sleep_mock):
+    def test_manager_must_exit_when_all_jobs_done(
+        self, tmp_path, sleep_mock, job_manager, job_manager_root_dir, dummy_backend_foo, dummy_backend_bar
+    ):
         """Make sure the MultiBackendJobManager does not hang after all processes finish.
 
         Regression test for:
@@ -364,84 +329,12 @@ class TestMultiBackendJobManager:
         Cause was that the run_jobs had an infinite loop when jobs ended with status error.
         """
 
-        requests_mock.get("http://foo.test/", json={"api_version": "1.1.0"})
-        requests_mock.get("http://bar.test/", json={"api_version": "1.1.0"})
-
-        def mock_job_status(job_id, succeeds: bool):
-            """Mock job status polling sequence.
-            We set up one job with finishes with status error
-            """
-            response_list = sum(
-                [
-                    [
-                        {
-                            "json": {
-                                "id": job_id,
-                                "title": f"Job {job_id}",
-                                "status": "queued",
-                            }
-                        }
-                    ],
-                    [
-                        {
-                            "json": {
-                                "id": job_id,
-                                "title": f"Job {job_id}",
-                                "status": "running",
-                            }
-                        }
-                    ],
-                    [
-                        {
-                            "json": {
-                                "id": job_id,
-                                "title": f"Job {job_id}",
-                                "status": "finished" if succeeds else "error",
-                            }
-                        }
-                    ],
-                ],
-                [],
-            )
-            for backend in ["http://foo.test", "http://bar.test"]:
-                requests_mock.get(f"{backend}/jobs/{job_id}", response_list)
-                # It also needs job results endpoint for succesful jobs and the
-                # log endpoint for a failed job. Both are dummy implementations.
-                # When the job is finished the system tries to download the
-                # results or the logs and that is what needs these endpoints.
-                if succeeds:
-                    requests_mock.get(f"{backend}/jobs/{job_id}/results", json={"links": []})
-                else:
-                    response = {
-                        "level": "error",
-                        "logs": [
-                            {
-                                "id": "1",
-                                "code": "SampleError",
-                                "level": "error",
-                                "message": "Error for testing",
-                                "time": "2019-08-24T14:15:22Z",
-                                "data": None,
-                                "path": [],
-                                "usage": {},
-                                "links": [],
-                            }
-                        ],
-                        "links": [],
-                    }
-                    requests_mock.get(f"{backend}/jobs/{job_id}/logs?level=error", json=response)
-
-        mock_job_status("job-2018", succeeds=True)
-        mock_job_status("job-2019", succeeds=True)
-        mock_job_status("job-2020", succeeds=True)
-        mock_job_status("job-2021", succeeds=True)
-        mock_job_status("job-2022", succeeds=False)
-
-        root_dir = tmp_path / "job_mgr_root"
-        manager = MultiBackendJobManager(root_dir=root_dir)
-
-        manager.add_backend("foo", connection=openeo.connect("http://foo.test"))
-        manager.add_backend("bar", connection=openeo.connect("http://bar.test"))
+        dummy_backend_foo.setup_simple_job_status_flow(
+            queued=2, running=3, final="finished", final_per_job={"job-2022": "error"}
+        )
+        dummy_backend_bar.setup_simple_job_status_flow(
+            queued=2, running=3, final="finished", final_per_job={"job-2022": "error"}
+        )
 
         df = pd.DataFrame(
             {
@@ -450,16 +343,13 @@ class TestMultiBackendJobManager:
                 "geometry": ["POINT (1 2)"] * 5,
             }
         )
-        output_file = tmp_path / "jobs.csv"
-
-        def start_job(row, connection, **kwargs):
-            year = int(row["year"])
-            return BatchJob(job_id=f"job-{year}", connection=connection)
+        job_db_path = tmp_path / "jobs.csv"
+        job_db = CsvJobDatabase(job_db_path).initialize_from_df(df)
 
         is_done_file = tmp_path / "is_done.txt"
 
         def start_worker_thread():
-            manager.run_jobs(df=df, start_job=start_job, output_file=output_file)
+            job_manager.run_jobs(job_db=job_db, start_job=self._create_year_job)
             is_done_file.write_text("Done!")
 
         thread = threading.Thread(target=start_worker_thread, name="Worker process", daemon=True)
@@ -474,17 +364,21 @@ class TestMultiBackendJobManager:
             "MultiBackendJobManager did not finish on its own and was killed. " + "Infinite loop is probable."
         )
 
-        # Also check that we got sensible end results.
-        result = pd.read_csv(output_file)
-        assert len(result) == 5
-        assert set(result.status) == {"finished", "error"}
-        assert set(result.backend_name) == {"foo", "bar"}
+        # Also check that we got sensible end results in the job db.
+        assert [(r.id, r.status, r.backend_name) for r in pd.read_csv(job_db_path).itertuples()] == [
+            ("job-2018", "finished", "foo"),
+            ("job-2019", "finished", "foo"),
+            ("job-2020", "finished", "bar"),
+            ("job-2021", "finished", "bar"),
+            ("job-2022", "error", "foo"),
+        ]
 
-        # We expect that the job metadata was saved for a successful job,
-        # so verify that it exists.
-        # Checking it for one of the jobs is enough.
-        metadata_path = manager.get_job_metadata_path(job_id="job-2021")
-        assert metadata_path.exists()
+        # Check downloaded results and metadata.
+        assert set(str(p.relative_to(job_manager_root_dir)) for p in job_manager_root_dir.glob("**/*")) == {
+            f"job_{job_id}/{filename}".rstrip("/")
+            for job_id in ["job-2018", "job-2019", "job-2020", "job-2021"]
+            for filename in ["", "job-results.json", f"job_{job_id}.json", "result.data"]
+        }
 
     def test_on_error_log(self, tmp_path, requests_mock):
         backend = "http://foo.test"
@@ -573,9 +467,9 @@ class TestMultiBackendJobManager:
             year = int(row["year"])
             return BatchJob(job_id=f"job-{year}", connection=connection)
 
-        output_file = tmp_path / "jobs.csv"
+        job_db_path = tmp_path / "jobs.csv"
 
-        run_stats = manager.run_jobs(df=df, start_job=start_job, output_file=output_file)
+        run_stats = manager.run_jobs(df=df, start_job=start_job, output_file=job_db_path)
         assert run_stats == dirty_equals.IsPartialDict(
             {
                 "start_job call": 1,
@@ -583,10 +477,9 @@ class TestMultiBackendJobManager:
         )
 
         # Sanity check: the job succeeded
-        result = pd.read_csv(output_file)
-        assert len(result) == 1
-        assert set(result.status) == {"finished"}
-        assert set(result.backend_name) == {"foo"}
+        assert [(r.id, r.status, r.backend_name) for r in pd.read_csv(job_db_path).itertuples()] == [
+            ("job-2018", "finished", "foo"),
+        ]
 
     @httpretty.activate(allow_net_connect=False, verbose=True)
     @pytest.mark.parametrize("http_error_status", [502, 503, 504])
@@ -646,69 +539,93 @@ class TestMultiBackendJobManager:
             year = int(row["year"])
             return BatchJob(job_id=f"job-{year}", connection=connection)
 
-        output_file = tmp_path / "jobs.csv"
+        job_db_path = tmp_path / "jobs.csv"
 
         with pytest.raises(requests.exceptions.RetryError) as exc:
-            manager.run_jobs(df=df, start_job=start_job, output_file=output_file)
+            manager.run_jobs(df=df, start_job=start_job, output_file=job_db_path)
 
         # TODO #645 how to still check stats when run_jobs raised exception?
         assert sleep_mock.call_count > 3
 
         # Sanity check: the job has status "error"
-        result = pd.read_csv(output_file)
-        assert len(result) == 1
-        assert set(result.status) == {"running"}
-        assert set(result.backend_name) == {"foo"}
+        assert [(r.id, r.status, r.backend_name) for r in pd.read_csv(job_db_path).itertuples()] == [
+            ("job-2018", "running", "foo"),
+        ]
 
     @pytest.mark.parametrize(
-        ["start_time", "end_time", "end_status", "cancel_after_seconds", "expected_status"],
+        ["create_time", "start_time", "end_time", "end_status", "cancel_after_seconds", "expected_status"],
         [
-            ("2024-09-01T10:00:00Z", "2024-09-01T20:00:00Z", "finished", 6 * 60 * 60, "canceled"),
-            ("2024-09-01T10:00:00Z", "2024-09-01T20:00:00Z", "finished", 12 * 60 * 60, "finished"),
+            (
+                "2024-09-01T9:00:00Z",
+                "2024-09-01T10:00:00Z",
+                "2024-09-01T20:00:00Z",
+                "finished",
+                6 * 60 * 60,
+                "canceled",
+            ),
+            (
+                "2024-09-01T09:00:00Z",
+                "2024-09-01T10:00:00Z",
+                "2024-09-01T20:00:00Z",
+                "finished",
+                12 * 60 * 60,
+                "finished",
+            ),
         ],
     )
     def test_automatic_cancel_of_too_long_running_jobs(
         self,
-        requests_mock,
         tmp_path,
         time_machine,
+        create_time,
         start_time,
         end_time,
         end_status,
         cancel_after_seconds,
         expected_status,
+        dummy_backend_foo,
+        job_manager_root_dir,
     ):
-        fake_backend = FakeBackend(requests_mock=requests_mock)
+        def get_status(job_id, current_status):
+            if rfc3339.utcnow() < start_time:
+                return "queued"
+            elif rfc3339.utcnow() < end_time:
+                return "running"
+            return end_status
 
-        # For simplicity, set up pre-existing job with status "running" (instead of job manager creating+starting it)
-        job_id = "job-123"
-        fake_backend.set_job_status(job_id, lambda: "running" if rfc3339.utcnow() < end_time else end_status)
+        dummy_backend_foo.job_status_updater = get_status
 
-        manager = MultiBackendJobManager(root_dir=tmp_path, cancel_running_job_after=cancel_after_seconds)
-        manager.add_backend("foo", connection=openeo.connect(fake_backend.url))
+        job_manager = MultiBackendJobManager(
+            root_dir=job_manager_root_dir, cancel_running_job_after=cancel_after_seconds
+        )
+        job_manager.add_backend("foo", connection=dummy_backend_foo.connection)
 
-        # Initialize data frame with status "created" (to make sure the start of "running" state is recorded)
-        df = pd.DataFrame({"id": [job_id], "backend_name": ["foo"], "status": ["created"]})
+        df = pd.DataFrame({"year": [2024]})
 
-        time_machine.move_to(start_time)
+        time_machine.move_to(create_time)
+        job_db_path = tmp_path / "jobs.csv"
         # Mock sleep() to not actually sleep, but skip one hour at a time
         with mock.patch.object(openeo.extra.job_management.time, "sleep", new=lambda s: time_machine.shift(60 * 60)):
-            manager.run_jobs(df=df, start_job=lambda **kwargs: None, job_db=tmp_path / "jobs.csv")
+            job_manager.run_jobs(df=df, start_job=self._create_year_job, job_db=job_db_path)
 
-        final_df = CsvJobDatabase(tmp_path / "jobs.csv").read()
+        final_df = CsvJobDatabase(job_db_path).read()
         assert final_df.iloc[0].to_dict() == dirty_equals.IsPartialDict(
-            id="job-123", status=expected_status, running_start_time="2024-09-01T10:00:00Z"
+            id="job-2024", status=expected_status, running_start_time="2024-09-01T10:00:00Z"
         )
 
-        assert fake_backend.cancel_job_mock.called == (expected_status == "canceled")
+        assert dummy_backend_foo.batch_jobs == {
+            "job-2024": {
+                "job_id": "job-2024",
+                "pg": {"yearify": {"process_id": "yearify", "arguments": {"year": 2024}, "result": True}},
+                "status": expected_status,
+            }
+        }
 
-    def test_empty_csv_handling(self, tmp_path, requests_mock, sleep_mock, recwarn):
+    def test_empty_csv_handling(self, tmp_path, sleep_mock, recwarn, job_manager):
         """
         Check how starting from an empty CSV is handled:
         will empty columns accepts string values without warning/error?
         """
-        manager = self._create_basic_mocked_manager(requests_mock, tmp_path)
-
         df = pd.DataFrame({"year": [2021, 2022]})
 
         job_db_path = tmp_path / "jobs.csv"
@@ -722,15 +639,13 @@ class TestMultiBackendJobManager:
         # Start over with existing file
         job_db = CsvJobDatabase(job_db_path)
 
-        def start_job(row, connection, **kwargs):
-            year = int(row["year"])
-            return BatchJob(job_id=f"job-{year}", connection=connection)
-
-        run_stats = manager.run_jobs(job_db=job_db, start_job=start_job)
+        run_stats = job_manager.run_jobs(job_db=job_db, start_job=self._create_year_job)
         assert run_stats == dirty_equals.IsPartialDict({"start_job call": 2, "job finished": 2})
 
-        result = pd.read_csv(job_db_path)
-        assert [(r.id, r.status) for r in result.itertuples()] == [("job-2021", "finished"), ("job-2022", "finished")]
+        assert [(r.id, r.status) for r in pd.read_csv(job_db_path).itertuples()] == [
+            ("job-2021", "finished"),
+            ("job-2022", "finished"),
+        ]
 
         assert [(w.category, w.message, str(w)) for w in recwarn.list] == []
 
