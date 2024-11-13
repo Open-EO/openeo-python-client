@@ -492,7 +492,7 @@ class MultiBackendJobManager:
             self._track_statuses(job_db, stats=stats)
             stats["track_statuses"] += 1
 
-        not_started = job_db.get_by_status(statuses=["not_started"], max=200)
+        not_started = job_db.get_by_status(statuses=["not_started"], max=200).copy()
         if len(not_started) > 0:
             # Check number of jobs running at each backend
             running = job_db.get_by_status(statuses=["created", "queued", "running"])
@@ -666,7 +666,7 @@ class MultiBackendJobManager:
         """
         stats = stats if stats is not None else collections.defaultdict(int)
 
-        active = job_db.get_by_status(statuses=["created", "queued", "running"])
+        active = job_db.get_by_status(statuses=["created", "queued", "running"]).copy()
         for i in active.index:
             job_id = active.loc[i, "id"]
             backend_name = active.loc[i, "backend_name"]
