@@ -376,8 +376,8 @@ class ResultAsset:
             target = target / self.name
         ensure_dir(target.parent)
         logger.info("Downloading Job result asset {n!r} from {h!s} to {t!s}".format(n=self.name, h=self.href, t=target))
+        response = self._get_response(stream=True)
         with target.open("wb") as f:
-            response = self._get_response(stream=True)
             for block in response.iter_content(chunk_size=chunk_size):
                 f.write(block)
         return target
