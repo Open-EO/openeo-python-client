@@ -3,7 +3,17 @@ from __future__ import annotations
 import collections
 import json
 import re
-from typing import Callable, Iterable, Iterator, Optional, Sequence, Tuple, Union
+from typing import (
+    Callable,
+    Dict,
+    Iterable,
+    Iterator,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+)
 
 from openeo import Connection, DataCube
 from openeo.rest.vectorcube import VectorCube
@@ -32,7 +42,9 @@ class DummyBackend:
         "validation_requests",
         "next_result",
         "next_validation_errors",
+        "_forced_job_status",
         "job_status_updater",
+        "job_id_generator",
         "extra_job_metadata_fields",
     )
 
@@ -53,12 +65,19 @@ class DummyBackend:
         self.next_result = self.DEFAULT_RESULT
         self.next_validation_errors = []
         self.extra_job_metadata_fields = []
+        self._forced_job_status: Dict[str, str] = {}
 
         # Job status update hook:
         #   callable that is called on starting a job, and getting job metadata
         #   allows to dynamically change how the status of a job evolves
         #   By default: immediately set to "finished" once job is started
         self.job_status_updater = lambda job_id, current_status: "finished"
+
+        # Optional job id generator hook:
+        #   callable that generates a job id, e.g. based on the process graph.
+        #   When set to None, or the callable returns None, or it returns an existing job id:
+        #   things fall back to auto-increment job ids ("job-000", "job-001", "job-002", ...)
+        self.job_id_generator: Optional[Callable[[dict], str]] = None
 
         requests_mock.post(
             connection.build_url("/result"),
@@ -75,9 +94,17 @@ class DummyBackend:
         requests_mock.get(
             re.compile(connection.build_url(r"/jobs/(job-\d+)/results$")), json=self._handle_get_job_results
         )
+        requests_mock.delete(
+            re.compile(connection.build_url(r"/jobs/(job-\d+)/results$")), json=self._handle_delete_job_results
+        )
         requests_mock.get(
             re.compile(connection.build_url("/jobs/(.*?)/results/result.data$")),
             content=self._handle_get_job_result_asset,
+        )
+        requests_mock.get(
+            re.compile(connection.build_url(r"/jobs/(.*?)/logs($|\?.*)")),
+            # TODO: need to fine-tune dummy logs?
+            json={"logs": [], "links": []},
         )
         requests_mock.post(connection.build_url("/validation"), json=self._handle_post_validation)
 
@@ -88,7 +115,7 @@ class DummyBackend:
         including creation of connection and mocking of capabilities doc
         """
         root_url = root_url.rstrip("/") + "/"
-        requests_mock.get(root_url, json=build_capabilities(**(capabilities or None)))
+        requests_mock.get(root_url, json=build_capabilities(**(capabilities or {})))
         connection = Connection(root_url)
         return cls(requests_mock=requests_mock, connection=connection)
 
@@ -150,7 +177,14 @@ class DummyBackend:
         """handler of `POST /jobs` (create batch job)"""
         post_data = request.json()
         pg = post_data["process"]["process_graph"]
-        job_id = f"job-{len(self.batch_jobs):03d}"
+
+        # Generate (new) job id
+        job_id = self.job_id_generator and self.job_id_generator(process_graph=pg)
+        if not job_id or job_id in self.batch_jobs:
+            # As fallback: use auto-increment job ids ("job-000", "job-001", "job-002", ...)
+            job_id = f"job-{len(self.batch_jobs):03d}"
+        assert job_id not in self.batch_jobs
+
         job_data = {"job_id": job_id, "pg": pg, "status": "created"}
         for field in ["title", "description"]:
             if field in post_data:
@@ -169,11 +203,16 @@ class DummyBackend:
         assert job_id in self.batch_jobs
         return job_id
 
+    def _get_job_status(self, job_id: str, current_status: str) -> str:
+        if job_id in self._forced_job_status:
+            return self._forced_job_status[job_id]
+        return self.job_status_updater(job_id=job_id, current_status=current_status)
+
     def _handle_post_job_results(self, request, context):
         """Handler of `POST /job/{job_id}/results` (start batch job)."""
         job_id = self._get_job_id(request)
         assert self.batch_jobs[job_id]["status"] == "created"
-        self.batch_jobs[job_id]["status"] = self.job_status_updater(
+        self.batch_jobs[job_id]["status"] = self._get_job_status(
             job_id=job_id, current_status=self.batch_jobs[job_id]["status"]
         )
         context.status_code = 202
@@ -183,10 +222,14 @@ class DummyBackend:
         job_id = self._get_job_id(request)
         # Allow updating status with `job_status_setter` once job got past status "created"
         if self.batch_jobs[job_id]["status"] != "created":
-            self.batch_jobs[job_id]["status"] = self.job_status_updater(
+            self.batch_jobs[job_id]["status"] = self._get_job_status(
                 job_id=job_id, current_status=self.batch_jobs[job_id]["status"]
             )
-        return {"id": job_id, "status": self.batch_jobs[job_id]["status"]}
+        return {
+            # TODO: add some more required fields like "process" and "created"?
+            "id": job_id,
+            "status": self.batch_jobs[job_id]["status"],
+        }
 
     def _handle_get_job_results(self, request, context):
         """Handler of `GET /job/{job_id}/results` (list batch job results)."""
@@ -196,6 +239,13 @@ class DummyBackend:
             "id": job_id,
             "assets": {"result.data": {"href": self.connection.build_url(f"/jobs/{job_id}/results/result.data")}},
         }
+
+    def _handle_delete_job_results(self, request, context):
+        """Handler of `DELETE /job/{job_id}/results` (cancel job)."""
+        job_id = self._get_job_id(request)
+        self.batch_jobs[job_id]["status"] = "canceled"
+        self._forced_job_status[job_id] = "canceled"
+        context.status_code = 204
 
     def _handle_get_job_result_asset(self, request, context):
         """Handler of `GET /job/{job_id}/results/result.data` (get batch job result asset)."""
@@ -261,18 +311,30 @@ class DummyBackend:
         cube.execute()
         return self.get_pg(process_id=process_id)
 
-    def setup_simple_job_status_flow(self, *, queued: int = 1, running: int = 4, final: str = "finished"):
+    def setup_simple_job_status_flow(
+        self,
+        *,
+        queued: int = 1,
+        running: int = 4,
+        final: str = "finished",
+        final_per_job: Optional[Mapping[str, str]] = None,
+    ):
         """
         Set up simple job status flow:
-        queued (a couple of times) -> running (a couple of times) -> finished/error.
+
+            queued (a couple of times) -> running (a couple of times) -> finished/error.
+
+        Final state can be specified generically with arg `final`
+        and, optionally, further fine-tuned per job with `final_per_job`.
         """
-        template = ["queued"] * queued + ["running"] * running + [final]
+        template = ["queued"] * queued + ["running"] * running
         job_stacks = collections.defaultdict(template.copy)
+        final_per_job = final_per_job or {}
 
         def get_status(job_id: str, current_status: str) -> str:
             stack = job_stacks[job_id]
-            # Pop first item each time, but repeat the last one at the end
-            return stack.pop(0) if len(stack) > 1 else stack[0]
+            # Pop first item each time, unless we're in final state
+            return stack.pop(0) if len(stack) > 0 else final_per_job.get(job_id, final)
 
         self.job_status_updater = get_status
 

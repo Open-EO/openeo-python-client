@@ -49,7 +49,7 @@ class TestDummyBackend:
         job = con120.create_job(DUMMY_PG_ADD35)
         assert dummy_backend.batch_jobs["job-000"]["status"] == "created"
 
-        # Note that first status update (to queued here) is triggered from `start()`, not `status()` like below
+        # Note that first status update (to "queued" here) is triggered from `start()`, not `status()` like below
         job.start()
         assert dummy_backend.batch_jobs["job-000"]["status"] == "queued"
 
@@ -62,3 +62,35 @@ class TestDummyBackend:
         assert job.status() == final
         assert job.status() == final
         assert job.status() == final
+
+    def test_setup_simple_job_status_flow_final_per_job(self, dummy_backend, con120):
+        """Test per-job specific final status"""
+        dummy_backend.setup_simple_job_status_flow(
+            queued=2, running=3, final="finished", final_per_job={"job-001": "error"}
+        )
+        job0 = con120.create_job(DUMMY_PG_ADD35)
+        job1 = con120.create_job(DUMMY_PG_ADD35)
+        job2 = con120.create_job(DUMMY_PG_ADD35)
+        assert dummy_backend.batch_jobs["job-000"]["status"] == "created"
+        assert dummy_backend.batch_jobs["job-001"]["status"] == "created"
+        assert dummy_backend.batch_jobs["job-002"]["status"] == "created"
+
+        # Note that first status update (to "queued" here) is triggered from `start()`, not `status()` like below
+        job0.start()
+        job1.start()
+        job2.start()
+        assert dummy_backend.batch_jobs["job-000"]["status"] == "queued"
+        assert dummy_backend.batch_jobs["job-001"]["status"] == "queued"
+        assert dummy_backend.batch_jobs["job-002"]["status"] == "queued"
+
+        # Now go through rest of status flow, through `status()` calls
+        for expected_status in ["queued", "running", "running", "running"]:
+            assert job0.status() == expected_status
+            assert job1.status() == expected_status
+            assert job2.status() == expected_status
+
+        # Differentiation in final state
+        for _ in range(3):
+            assert job0.status() == "finished"
+            assert job1.status() == "error"
+            assert job2.status() == "finished"
