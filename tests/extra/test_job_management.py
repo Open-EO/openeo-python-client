@@ -77,6 +77,8 @@ def sleep_mock():
         yield sleep
 
 
+@pytest.mark.filterwarnings("default:.*`output_file` argument is deprecated.*:DeprecationWarning")
+@pytest.mark.filterwarnings("error")
 class TestMultiBackendJobManager:
 
     @pytest.fixture
