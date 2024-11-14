@@ -606,6 +606,24 @@ def test_result_asset_download_file(con100, requests_mock, tmp_path):
         assert f.read() == TIFF_CONTENT
 
 
+def test_result_asset_download_file_error(con100, requests_mock, tmp_path):
+    href = API_URL + "/dl/jjr1.tiff"
+    requests_mock.get(href, content=TIFF_CONTENT)
+    href_404 = API_URL + "/dl/non-existing-url.tiff"
+
+    job = BatchJob("jj", connection=con100)
+    asset = ResultAsset(job, name="1.tiff", href=href_404, metadata={"type": "image/tiff; application=geotiff"})
+    target = tmp_path / "res.tiff"
+    path = target
+    # noinspection PyBroadException
+    try:
+        path = asset.download(target)
+    except:
+        pass
+    assert not target.exists()
+    assert not path.exists()
+
+
 def test_result_asset_download_folder(con100, requests_mock, tmp_path):
     href = API_URL + "/dl/jjr1.tiff"
     requests_mock.get(href, content=TIFF_CONTENT)
