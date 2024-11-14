@@ -2,6 +2,7 @@ import copy
 import json
 import re
 import threading
+from pathlib import Path
 from time import sleep
 from typing import Callable, Union
 from unittest import mock
@@ -130,27 +131,10 @@ class TestMultiBackendJobManager:
         ]
 
         # Check downloaded results and metadata.
-        assert set(str(p.relative_to(job_manager_root_dir)) for p in job_manager_root_dir.glob("**/*")) == {
-            "job_job-2018",
-            "job_job-2018/job-results.json",
-            "job_job-2018/job_job-2018.json",
-            "job_job-2018/result.data",
-            "job_job-2019",
-            "job_job-2019/job-results.json",
-            "job_job-2019/job_job-2019.json",
-            "job_job-2019/result.data",
-            "job_job-2020",
-            "job_job-2020/job-results.json",
-            "job_job-2020/job_job-2020.json",
-            "job_job-2020/result.data",
-            "job_job-2021",
-            "job_job-2021/job-results.json",
-            "job_job-2021/job_job-2021.json",
-            "job_job-2021/result.data",
-            "job_job-2022",
-            "job_job-2022/job-results.json",
-            "job_job-2022/job_job-2022.json",
-            "job_job-2022/result.data",
+        assert set(p.relative_to(job_manager_root_dir) for p in job_manager_root_dir.glob("**/*.*")) == {
+            Path(f"job_{job_id}") / filename
+            for job_id in ["job-2018", "job-2019", "job-2020", "job-2021", "job-2022"]
+            for filename in ["job-results.json", f"job_{job_id}.json", "result.data"]
         }
 
     def test_basic(self, tmp_path, job_manager, job_manager_root_dir, sleep_mock):
@@ -190,27 +174,10 @@ class TestMultiBackendJobManager:
         ]
 
         # Check downloaded results and metadata.
-        assert set(str(p.relative_to(job_manager_root_dir)) for p in job_manager_root_dir.glob("**/*")) == {
-            "job_job-2018",
-            "job_job-2018/job-results.json",
-            "job_job-2018/job_job-2018.json",
-            "job_job-2018/result.data",
-            "job_job-2019",
-            "job_job-2019/job-results.json",
-            "job_job-2019/job_job-2019.json",
-            "job_job-2019/result.data",
-            "job_job-2020",
-            "job_job-2020/job-results.json",
-            "job_job-2020/job_job-2020.json",
-            "job_job-2020/result.data",
-            "job_job-2021",
-            "job_job-2021/job-results.json",
-            "job_job-2021/job_job-2021.json",
-            "job_job-2021/result.data",
-            "job_job-2022",
-            "job_job-2022/job-results.json",
-            "job_job-2022/job_job-2022.json",
-            "job_job-2022/result.data",
+        assert set(p.relative_to(job_manager_root_dir) for p in job_manager_root_dir.glob("**/*.*")) == {
+            Path(f"job_{job_id}") / filename
+            for job_id in ["job-2018", "job-2019", "job-2020", "job-2021", "job-2022"]
+            for filename in ["job-results.json", f"job_{job_id}.json", "result.data"]
         }
 
     @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase])
@@ -295,10 +262,10 @@ class TestMultiBackendJobManager:
         ]
 
         # Check downloaded results and metadata.
-        assert set(str(p.relative_to(job_manager_root_dir)) for p in job_manager_root_dir.glob("**/*")) == {
-            f"job_{job_id}/{filename}".rstrip("/")
+        assert set(p.relative_to(job_manager_root_dir) for p in job_manager_root_dir.glob("**/*.*")) == {
+            Path(f"job_{job_id}") / filename
             for job_id in ["job-2018", "job-2019", "job-2020", "job-2021", "job-2022"]
-            for filename in ["", "job-results.json", f"job_{job_id}.json", "result.data"]
+            for filename in ["job-results.json", f"job_{job_id}.json", "result.data"]
         }
 
     def test_normalize_df(self):
@@ -374,10 +341,10 @@ class TestMultiBackendJobManager:
         ]
 
         # Check downloaded results and metadata.
-        assert set(str(p.relative_to(job_manager_root_dir)) for p in job_manager_root_dir.glob("**/*")) == {
-            f"job_{job_id}/{filename}".rstrip("/")
+        assert set(p.relative_to(job_manager_root_dir) for p in job_manager_root_dir.glob("**/*.*")) == {
+            Path(f"job_{job_id}") / filename
             for job_id in ["job-2018", "job-2019", "job-2020", "job-2021"]
-            for filename in ["", "job-results.json", f"job_{job_id}.json", "result.data"]
+            for filename in ["job-results.json", f"job_{job_id}.json", "result.data"]
         }
 
     def test_on_error_log(self, tmp_path, requests_mock):
