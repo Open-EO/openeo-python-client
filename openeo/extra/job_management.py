@@ -10,7 +10,17 @@ import time
 import warnings
 from pathlib import Path
 from threading import Thread
-from typing import Any, Callable, Dict, List, Mapping, NamedTuple, Optional, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    NamedTuple,
+    Optional,
+    Union,
+)
 
 import numpy
 import pandas as pd
@@ -80,9 +90,11 @@ class JobDatabaseInterface(metaclass=abc.ABCMeta):
         ...
 
     @abc.abstractmethod
-    def count_by_status(self, statuses: List[str]) -> dict:
+    def count_by_status(self, statuses: Iterable[str] = ()) -> dict:
         """
         Retrieve the number of jobs per status.
+
+        :param statuses: List/set of statuses to include. If empty, all statuses are included.
 
         :return: dictionary with status as key and the count as value.
         """
@@ -355,12 +367,18 @@ class MultiBackendJobManager:
 
         self._stop_thread = False
         def run_loop():
+
+            # TODO: support user-provided `stats`
+            stats = collections.defaultdict(int)
+
             while (
                 sum(job_db.count_by_status(statuses=["not_started", "created", "queued", "running"]).values()) > 0
                 and not self._stop_thread
             ):
                 self._job_update_loop(job_db=job_db, start_job=start_job)
+                stats["run_jobs loop"] += 1
 
+                _log.info(f"Job status histogram: {job_db.count_by_status()}. Run stats: {dict(stats)}")
                 # Do sequence of micro-sleeps to allow for quick thread exit
                 for _ in range(int(max(1, self.poll_sleep))):
                     time.sleep(1)
@@ -479,11 +497,15 @@ class MultiBackendJobManager:
             # TODO: start showing deprecation warnings for this usage pattern?
             job_db.initialize_from_df(df)
 
+        # TODO: support user-provided `stats`
         stats = collections.defaultdict(int)
+
         while sum(job_db.count_by_status(statuses=["not_started", "created", "queued", "running"]).values()) > 0:
             self._job_update_loop(job_db=job_db, start_job=start_job, stats=stats)
             stats["run_jobs loop"] += 1
 
+            # Show current stats and sleep
+            _log.info(f"Job status histogram: {job_db.count_by_status()}. Run stats: {dict(stats)}")
             time.sleep(self.poll_sleep)
             stats["sleep"] += 1
 
@@ -791,9 +813,12 @@ class FullDataFrameJobDatabase(JobDatabaseInterface):
             self._df = self.read()
         return self._df
 
-    def count_by_status(self, statuses: List[str]) -> dict:
+    def count_by_status(self, statuses: Iterable[str] = ()) -> dict:
         status_histogram = self.df.groupby("status").size().to_dict()
-        return {k:v for k,v in status_histogram.items() if k in statuses}
+        statuses = set(statuses)
+        if statuses:
+            status_histogram = {k: v for k, v in status_histogram.items() if k in statuses}
+        return status_histogram
 
     def get_by_status(self, statuses, max=None) -> pd.DataFrame:
         """

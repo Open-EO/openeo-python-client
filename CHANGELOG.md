@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `MultiBackendJobManager`: Avoid `SettingWithCopyWarning` ([#641](https://github.com/Open-EO/openeo-python-client/issues/641))
 - Avoid creating empty file if asset download request failed.
 - `MultiBackendJobManager`: avoid dtype loading mistakes in `CsvJobDatabase` on empty columns ([#656](https://github.com/Open-EO/openeo-python-client/issues/656))
+- `MultiBackendJobManager`: restore logging of job status histogram during `run_jobs` ([#655](https://github.com/Open-EO/openeo-python-client/issues/655))
 
 
 ## [0.34.0] - 2024-10-31

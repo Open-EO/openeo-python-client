@@ -1,5 +1,6 @@
 import copy
 import json
+import logging
 import re
 import threading
 from pathlib import Path
@@ -616,7 +617,17 @@ class TestMultiBackendJobManager:
 
         assert [(w.category, w.message, str(w)) for w in recwarn.list] == []
 
+    def test_status_logging(self, tmp_path, job_manager, job_manager_root_dir, sleep_mock, caplog):
+        caplog.set_level(logging.INFO)
+        df = pd.DataFrame({"year": [2018, 2019, 2020, 2021, 2022]})
+        job_db_path = tmp_path / "jobs.csv"
+        job_db = CsvJobDatabase(job_db_path).initialize_from_df(df)
 
+        run_stats = job_manager.run_jobs(job_db=job_db, start_job=self._create_year_job)
+        assert run_stats == dirty_equals.IsPartialDict({"start_job call": 5, "job finished": 5})
+
+        needle = re.compile(r"Job status histogram:.*'queued': 4.*Run stats:.*'start_job call': 4")
+        assert needle.search(caplog.text)
 
 
 JOB_DB_DF_BASICS = pd.DataFrame(
@@ -681,7 +692,7 @@ class TestFullDataFrameJobDatabase:
 
     @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase])
     def test_initialize_from_df_on_exists_skip(self, tmp_path, db_class):
-        path = tmp_path / "jobs.csv"
+        path = tmp_path / "jobs.db"
 
         db = db_class(path).initialize_from_df(
             pd.DataFrame({"some_number": [3, 2, 1]}),
@@ -694,6 +705,42 @@ class TestFullDataFrameJobDatabase:
             on_exists="skip",
         )
         assert set(db.read()["some_number"]) == {1, 2, 3}
+
+    @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase])
+    def test_count_by_status(self, tmp_path, db_class):
+        path = tmp_path / "jobs.db"
+
+        db = db_class(path).initialize_from_df(
+            pd.DataFrame(
+                {
+                    "status": [
+                        "not_started",
+                        "created",
+                        "queued",
+                        "queued",
+                        "queued",
+                        "running",
+                        "running",
+                        "finished",
+                        "finished",
+                        "error",
+                    ]
+                }
+            )
+        )
+        assert db.count_by_status(statuses=["not_started"]) == {"not_started": 1}
+        assert db.count_by_status(statuses=("not_started", "running")) == {"not_started": 1, "running": 2}
+        assert db.count_by_status(statuses={"finished", "error"}) == {"error": 1, "finished": 2}
+
+        # All statuses by default
+        assert db.count_by_status() == {
+            "created": 1,
+            "error": 1,
+            "finished": 2,
+            "not_started": 1,
+            "queued": 3,
+            "running": 2,
+        }
 
 
 class TestCsvJobDatabase:
