@@ -207,7 +207,7 @@ class MultiBackendJobManager:
         "cpu": _ColumnProperties(dtype="str"),
         "memory": _ColumnProperties(dtype="str"),
         "duration": _ColumnProperties(dtype="str"),
-        "costs": _ColumnProperties(dtype="str"),
+        "costs": _ColumnProperties(dtype="float64"),
     }
 
     def __init__(

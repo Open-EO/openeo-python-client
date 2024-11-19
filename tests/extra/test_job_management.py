@@ -174,6 +174,8 @@ class TestMultiBackendJobManager:
             ("job-2022", "finished", "foo"),
         ]
 
+        assert not pd.read_csv(job_db_path)[["cpu", "memory", "duration", "costs"]].isnull().any().any()
+
         # Check downloaded results and metadata.
         assert set(p.relative_to(job_manager_root_dir) for p in job_manager_root_dir.glob("**/*.*")) == {
             Path(f"job_{job_id}") / filename
@@ -204,6 +206,7 @@ class TestMultiBackendJobManager:
         assert len(result) == 5
         assert set(result.status) == {"finished"}
         assert set(result.backend_name) == {"foo", "bar"}
+        assert not result[["cpu", "memory", "duration", "costs"]].isnull().any().any()
 
     @pytest.mark.parametrize(
         ["filename", "expected_db_class"],
@@ -261,6 +264,8 @@ class TestMultiBackendJobManager:
             ("job-2021", "finished", "bar"),
             ("job-2022", "finished", "foo"),
         ]
+
+        assert not pd.read_csv(job_db_path)[["cpu", "memory", "duration", "costs"]].isnull().any().any()
 
         # Check downloaded results and metadata.
         assert set(p.relative_to(job_manager_root_dir) for p in job_manager_root_dir.glob("**/*.*")) == {
@@ -334,13 +339,15 @@ class TestMultiBackendJobManager:
         )
 
         # Also check that we got sensible end results in the job db.
-        assert [(r.id, r.status, r.backend_name) for r in pd.read_csv(job_db_path).itertuples()] == [
+        result = pd.read_csv(job_db_path)
+        assert [(r.id, r.status, r.backend_name) for r in result.itertuples()] == [
             ("job-2018", "finished", "foo"),
             ("job-2019", "finished", "foo"),
             ("job-2020", "finished", "bar"),
             ("job-2021", "finished", "bar"),
             ("job-2022", "error", "foo"),
         ]
+        assert not result[result["status"] == "finished"][["cpu", "memory", "duration", "costs"]].isnull().any().any()
 
         # Check downloaded results and metadata.
         assert set(p.relative_to(job_manager_root_dir) for p in job_manager_root_dir.glob("**/*.*")) == {
