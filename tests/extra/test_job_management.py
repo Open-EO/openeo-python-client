@@ -283,6 +283,7 @@ class TestMultiBackendJobManager:
                 "memory",
                 "duration",
                 "backend_name",
+                "costs",
             ]
         )
 
@@ -673,6 +674,7 @@ class TestFullDataFrameJobDatabase:
             "memory",
             "duration",
             "backend_name",
+            "costs",
         }
 
         actual_columns = set(db_class(path).read().columns)
@@ -852,6 +854,7 @@ class TestCsvJobDatabase:
             "memory",
             "duration",
             "backend_name",
+            "costs",
         }
 
         # Raw file content check
@@ -930,6 +933,7 @@ class TestParquetJobDatabase:
             "memory",
             "duration",
             "backend_name",
+            "costs",
         }
 
         df_from_disk = ParquetJobDatabase(path).read()
