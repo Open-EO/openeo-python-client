@@ -235,10 +235,7 @@ class DummyBackend:
             result["usage"] = {
                 "cpu": {"unit": "cpu-seconds", "value": 30.0},
                 "duration": {"unit": "seconds", "value": 55},
-                "input_pixel": {"unit": "mega-pixel", "value": 6.0},
-                "max_executor_memory": {"unit": "gb", "value": 0.5},
                 "memory": {"unit": "mb-seconds", "value": 150000.0},
-                "network_received": {"unit": "b", "value": 200000},
             }
         return result
 
