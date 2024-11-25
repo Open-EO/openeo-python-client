@@ -18,6 +18,7 @@ import geopandas
 #   httpretty avoids this specific problem because it mocks at the socket level,
 #   But I would rather not have two dependencies with almost the same goal.
 import httpretty
+import numpy as np
 import pandas
 import pandas as pd
 import pytest
@@ -166,12 +167,15 @@ class TestMultiBackendJobManager:
             }
         )
 
-        assert [(r.id, r.status, r.backend_name) for r in pd.read_csv(job_db_path).itertuples()] == [
-            ("job-2018", "finished", "foo"),
-            ("job-2019", "finished", "foo"),
-            ("job-2020", "finished", "bar"),
-            ("job-2021", "finished", "bar"),
-            ("job-2022", "finished", "foo"),
+        assert [
+            (r.id, r.status, r.backend_name, r.cpu, r.memory, r.duration, r.costs)
+            for r in pd.read_csv(job_db_path).itertuples()
+        ] == [
+            ("job-2018", "finished", "foo", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
+            ("job-2019", "finished", "foo", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
+            ("job-2020", "finished", "bar", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
+            ("job-2021", "finished", "bar", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
+            ("job-2022", "finished", "foo", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
         ]
 
         # Check downloaded results and metadata.
@@ -204,6 +208,10 @@ class TestMultiBackendJobManager:
         assert len(result) == 5
         assert set(result.status) == {"finished"}
         assert set(result.backend_name) == {"foo", "bar"}
+        assert set(result.cpu) == {"1234.5 cpu-seconds"}
+        assert set(result.memory) == {"34567.89 mb-seconds"}
+        assert set(result.duration) == {"2345 seconds"}
+        assert set(result.costs) == {123}
 
     @pytest.mark.parametrize(
         ["filename", "expected_db_class"],
@@ -254,12 +262,15 @@ class TestMultiBackendJobManager:
         # TODO #645 how to collect stats with the threaded run_job?
         assert sleep_mock.call_count > 10
 
-        assert [(r.id, r.status, r.backend_name) for r in pd.read_csv(job_db_path).itertuples()] == [
-            ("job-2018", "finished", "foo"),
-            ("job-2019", "finished", "foo"),
-            ("job-2020", "finished", "bar"),
-            ("job-2021", "finished", "bar"),
-            ("job-2022", "finished", "foo"),
+        assert [
+            (r.id, r.status, r.backend_name, r.cpu, r.memory, r.duration, r.costs)
+            for r in pd.read_csv(job_db_path).itertuples()
+        ] == [
+            ("job-2018", "finished", "foo", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
+            ("job-2019", "finished", "foo", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
+            ("job-2020", "finished", "bar", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
+            ("job-2021", "finished", "bar", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
+            ("job-2022", "finished", "foo", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
         ]
 
         # Check downloaded results and metadata.
@@ -283,6 +294,7 @@ class TestMultiBackendJobManager:
                 "memory",
                 "duration",
                 "backend_name",
+                "costs",
             ]
         )
 
@@ -333,12 +345,15 @@ class TestMultiBackendJobManager:
         )
 
         # Also check that we got sensible end results in the job db.
-        assert [(r.id, r.status, r.backend_name) for r in pd.read_csv(job_db_path).itertuples()] == [
-            ("job-2018", "finished", "foo"),
-            ("job-2019", "finished", "foo"),
-            ("job-2020", "finished", "bar"),
-            ("job-2021", "finished", "bar"),
-            ("job-2022", "error", "foo"),
+        results = pd.read_csv(job_db_path).replace({np.nan: None})  # np.nan's are replaced by None for easy comparison
+        assert [
+            (r.id, r.status, r.backend_name, r.cpu, r.memory, r.duration, r.costs) for r in results.itertuples()
+        ] == [
+            ("job-2018", "finished", "foo", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
+            ("job-2019", "finished", "foo", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
+            ("job-2020", "finished", "bar", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
+            ("job-2021", "finished", "bar", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
+            ("job-2022", "error", "foo", None, None, None, None),
         ]
 
         # Check downloaded results and metadata.
@@ -673,6 +688,7 @@ class TestFullDataFrameJobDatabase:
             "memory",
             "duration",
             "backend_name",
+            "costs",
         }
 
         actual_columns = set(db_class(path).read().columns)
@@ -852,6 +868,7 @@ class TestCsvJobDatabase:
             "memory",
             "duration",
             "backend_name",
+            "costs",
         }
 
         # Raw file content check
@@ -930,6 +947,7 @@ class TestParquetJobDatabase:
             "memory",
             "duration",
             "backend_name",
+            "costs",
         }
 
         df_from_disk = ParquetJobDatabase(path).read()

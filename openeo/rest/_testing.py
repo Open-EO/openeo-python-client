@@ -225,11 +225,19 @@ class DummyBackend:
             self.batch_jobs[job_id]["status"] = self._get_job_status(
                 job_id=job_id, current_status=self.batch_jobs[job_id]["status"]
             )
-        return {
+        result = {
             # TODO: add some more required fields like "process" and "created"?
             "id": job_id,
             "status": self.batch_jobs[job_id]["status"],
         }
+        if self.batch_jobs[job_id]["status"] == "finished":  # HACK some realistic values for a small job
+            result["costs"] = 123
+            result["usage"] = {
+                "cpu": {"unit": "cpu-seconds", "value": 1234.5},
+                "memory": {"unit": "mb-seconds", "value": 34567.89},
+                "duration": {"unit": "seconds", "value": 2345},
+            }
+        return result
 
     def _handle_get_job_results(self, request, context):
         """Handler of `GET /job/{job_id}/results` (list batch job results)."""

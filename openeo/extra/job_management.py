@@ -207,6 +207,7 @@ class MultiBackendJobManager:
         "cpu": _ColumnProperties(dtype="str"),
         "memory": _ColumnProperties(dtype="str"),
         "duration": _ColumnProperties(dtype="str"),
+        "costs": _ColumnProperties(dtype="float64"),
     }
 
     def __init__(
@@ -744,6 +745,8 @@ class MultiBackendJobManager:
                 for key in job_metadata.get("usage", {}).keys():
                     if key in active.columns:
                         active.loc[i, key] = _format_usage_stat(job_metadata, key)
+                if "costs" in job_metadata.keys():
+                    active.loc[i, "costs"] = job_metadata.get("costs")
 
             except OpenEoApiError as e:
                 # TODO: inspect status code and e.g. differentiate between 4xx/5xx
