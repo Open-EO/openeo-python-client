@@ -849,6 +849,10 @@ def test_metadata_from_stac_collection_bands_from_item_assets(test_data, tmp_pat
     assert warn_count == (0 if eo_extension_is_declared else 1)
 
 
+@pytest.mark.skipif(
+    not _PYSTAC_1_9_EXTENSION_INTERFACE,
+    reason="No backport of implementation/test below PySTAC 1.9 extension interface",
+)
 @pytest.mark.parametrize(
     ["stac_dict", "expected"],
     [
@@ -868,7 +872,7 @@ def test_metadata_from_stac_collection_bands_from_item_assets(test_data, tmp_pat
         ),
         (
             StacDummyBuilder.collection(),
-            None,
+            ("t", ["2024-01-01T00:00:00Z", "2024-05-05T00:00:00Z"]),
         ),
         (
             StacDummyBuilder.collection(

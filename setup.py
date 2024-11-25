@@ -30,6 +30,7 @@ tests_require = [
     "pyproj>=3.2.0",  # Pyproj is an optional, best-effort runtime dependency
     "dirty_equals>=0.8.0",
     "pyarrow>=10.0.1",  # For Parquet read/write support in pandas
+    "python-dateutil>=2.7.0",
 ]
 
 docs_require = [

@@ -11,7 +11,7 @@ import pystac.extensions.eo
 import pystac.extensions.item_assets
 
 from openeo.internal.jupyter import render_component
-from openeo.util import deep_get
+from openeo.util import Rfc3339, deep_get
 
 _log = logging.getLogger(__name__)
 
@@ -691,6 +691,11 @@ class _StacMetadataParser:
                 if len(temporal_dims) == 1:
                     name, extent = temporal_dims[0]
                     return TemporalDimension(name=name, extent=extent)
+            elif isinstance(stac_obj, pystac.Collection) and stac_obj.extent.temporal:
+                # No explicit "cube:dimensions": build fallback from "extent.temporal",
+                # with dimension name "t" (openEO API recommendation).
+                extent = [Rfc3339(propagate_none=True).normalize(d) for d in stac_obj.extent.temporal.intervals[0]]
+                return TemporalDimension(name="t", extent=extent)
         else:
             if isinstance(stac_obj, pystac.Item):
                 cube_dimensions = stac_obj.properties.get("cube:dimensions", {})
