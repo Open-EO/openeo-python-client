@@ -231,11 +231,11 @@ class DummyBackend:
             "status": self.batch_jobs[job_id]["status"],
         }
         if self.batch_jobs[job_id]["status"] == "finished":  # HACK some realistic values for a small job
-            result["costs"] = 4
+            result["costs"] = 123
             result["usage"] = {
-                "cpu": {"unit": "cpu-seconds", "value": 30.0},
-                "duration": {"unit": "seconds", "value": 55},
-                "memory": {"unit": "mb-seconds", "value": 150000.0},
+                "cpu": {"unit": "cpu-seconds", "value": 1234.5},
+                "memory": {"unit": "mb-seconds", "value": 34567.89},
+                "duration": {"unit": "seconds", "value": 2345},
             }
         return result
 
