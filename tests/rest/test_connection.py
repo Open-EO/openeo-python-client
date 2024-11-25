@@ -2655,6 +2655,19 @@ class TestLoadStac:
         cube = con120.load_stac(str(stac_path))
         assert cube.metadata.temporal_dimension == TemporalDimension(name="t", extent=dim_extent)
 
+    def test_load_stac_band_filtering(self, con120, tmp_path):
+        stac_path = tmp_path / "stac.json"
+        stac_data = StacDummyBuilder.collection(
+            summaries={"eo:bands": [{"name": "B01"}, {"name": "B02"}, {"name": "B03"}]}
+        )
+        stac_path.write_text(json.dumps(stac_data))
+
+        cube = con120.load_stac(str(stac_path))
+        assert cube.metadata.band_names == ["B01", "B02", "B03"]
+
+        cube = con120.load_stac(str(stac_path), bands=["B03", "B02"])
+        assert cube.metadata.band_names == ["B03", "B02"]
+
 
 @pytest.mark.parametrize(
     "data",
