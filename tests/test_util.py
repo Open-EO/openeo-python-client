@@ -7,6 +7,7 @@ import re
 import unittest.mock as mock
 from typing import List, Union
 
+import dateutil.tz
 import pyproj
 import pytest
 import shapely.geometry
@@ -87,21 +88,12 @@ class TestRfc3339:
         assert "2020-03-17T12:34:56Z" == rfc3339.datetime([2020, 3, 17, 12, 34, 56])
         assert "2020-03-17T12:34:56Z" == rfc3339.datetime(2020, 3, 17, 12, 34, 56)
         assert "2020-03-17T12:34:00Z" == rfc3339.datetime(2020, 3, 17, 12, 34)
-        assert "2020-03-17T12:34:56Z" == rfc3339.datetime(
-            (2020, "3", 17, "12", "34", 56)
-        )
-        assert "2020-09-17T12:34:56Z" == rfc3339.datetime(
-            [2020, "09", 17, "12", "34", 56]
-        )
-        assert "2020-09-17T12:34:56Z" == rfc3339.datetime(
-            2020, "09", "17", "12", "34", 56
-        )
-        assert "2020-03-17T12:34:56Z" == rfc3339.datetime(
-            dt.datetime(2020, 3, 17, 12, 34, 56, tzinfo=None)
-        )
-        assert "2020-03-17T12:34:56Z" == rfc3339.datetime(
-            dt.datetime(2020, 3, 17, 12, 34, 56, tzinfo=dt.timezone.utc)
-        )
+        assert "2020-03-17T12:34:56Z" == rfc3339.datetime((2020, "3", 17, "12", "34", 56))
+        assert "2020-09-17T12:34:56Z" == rfc3339.datetime([2020, "09", 17, "12", "34", 56])
+        assert "2020-09-17T12:34:56Z" == rfc3339.datetime(2020, "09", "17", "12", "34", 56)
+        assert "2020-03-17T12:34:56Z" == rfc3339.datetime(dt.datetime(2020, 3, 17, 12, 34, 56, tzinfo=None))
+        assert "2020-03-17T12:34:56Z" == rfc3339.datetime(dt.datetime(2020, 3, 17, 12, 34, 56, tzinfo=dt.timezone.utc))
+        assert "2020-03-17T12:34:56Z" == rfc3339.datetime(dt.datetime(2020, 3, 17, 12, 34, 56, tzinfo=dateutil.tz.UTC))
         assert "2020-03-17T12:34:56Z" == rfc3339.datetime(
             dt.datetime(
                 *(2020, 3, 17, 12, 34, 56),
@@ -125,15 +117,10 @@ class TestRfc3339:
             "2020-03-17T12:34:56.44546546Z"
         )
         assert "2020-03-17" == rfc3339.normalize(dt.date(2020, 3, 17))
-        assert "2020-03-17T12:34:56Z" == rfc3339.normalize(
-            dt.datetime(2020, 3, 17, 12, 34, 56)
-        )
-        assert "2020-03-17T12:34:56Z" == rfc3339.normalize(
-            dt.datetime(2020, 3, 17, 12, 34, 56, tzinfo=None)
-        )
-        assert "2020-03-17T12:34:56Z" == rfc3339.normalize(
-            dt.datetime(2020, 3, 17, 12, 34, 56, tzinfo=dt.timezone.utc)
-        )
+        assert "2020-03-17T12:34:56Z" == rfc3339.normalize(dt.datetime(2020, 3, 17, 12, 34, 56))
+        assert "2020-03-17T12:34:56Z" == rfc3339.normalize(dt.datetime(2020, 3, 17, 12, 34, 56, tzinfo=None))
+        assert "2020-03-17T12:34:56Z" == rfc3339.normalize(dt.datetime(2020, 3, 17, 12, 34, 56, tzinfo=dt.timezone.utc))
+        assert "2020-03-17T12:34:56Z" == rfc3339.normalize(dt.datetime(2020, 3, 17, 12, 34, 56, tzinfo=dateutil.tz.UTC))
         assert "2020-03-17T12:34:56Z" == rfc3339.normalize(
             dt.datetime(
                 *(2020, 3, 17, 12, 34, 56),

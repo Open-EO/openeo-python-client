@@ -172,7 +172,7 @@ class Rfc3339:
     @classmethod
     def _format_datetime(cls, d: dt.datetime) -> str:
         """Format given datetime as RFC-3339 date-time string."""
-        if d.tzinfo not in {None, dt.timezone.utc}:
+        if not (d.tzinfo is None or d.tzinfo.tzname(d) == "UTC"):
             # TODO: add support for non-UTC timezones?
             raise ValueError(f"No support for non-UTC timezone {d.tzinfo}")
         return d.strftime(cls._FMT_DATETIME)

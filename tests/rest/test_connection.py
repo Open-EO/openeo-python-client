@@ -18,6 +18,7 @@ import shapely.geometry
 import openeo
 from openeo.capabilities import ApiVersionException
 from openeo.internal.graph_building import FlatGraphableMixin, PGNode
+from openeo.metadata import _PYSTAC_1_9_EXTENSION_INTERFACE, TemporalDimension
 from openeo.rest import (
     CapabilitiesException,
     OpenEoApiError,
@@ -40,7 +41,7 @@ from openeo.rest.connection import (
 )
 from openeo.rest.vectorcube import VectorCube
 from openeo.testing.stac import StacDummyBuilder
-from openeo.util import ContextTimer, dict_no_none
+from openeo.util import ContextTimer, deep_get, dict_no_none
 
 from .auth.test_cli import auth_config, refresh_token_store
 
@@ -2621,6 +2622,51 @@ class TestLoadStac:
                 "result": True,
             },
         }
+
+    @pytest.mark.skipif(
+        not _PYSTAC_1_9_EXTENSION_INTERFACE,
+        reason="No backport of implementation/test below PySTAC 1.9 extension interface",
+    )
+    @pytest.mark.parametrize(
+        ["collection_extent", "dim_extent"],
+        [
+            (
+                {"spatial": {"bbox": [[3, 4, 5, 6]]}, "temporal": {"interval": [["2024-01-01", "2024-05-05"]]}},
+                ["2024-01-01T00:00:00Z", "2024-05-05T00:00:00Z"],
+            ),
+            (
+                {"spatial": {"bbox": [[3, 4, 5, 6]]}, "temporal": {"interval": [[None, "2024-05-05"]]}},
+                [None, "2024-05-05T00:00:00Z"],
+            ),
+        ],
+    )
+    def test_load_stac_no_cube_extension_temporal_dimension(self, con120, tmp_path, collection_extent, dim_extent):
+        """
+        Metadata detection when STAC metadata does not use "cube" extension
+        https://github.com/Open-EO/openeo-python-client/issues/666
+        """
+        stac_path = tmp_path / "stac.json"
+        stac_data = StacDummyBuilder.collection(extent=collection_extent)
+        # No cube:dimensions, but at least "temporal" extent is set as indicator for having a temporal dimension
+        assert "cube:dimensions" not in stac_data
+        assert deep_get(stac_data, "extent", "temporal")
+        stac_path.write_text(json.dumps(stac_data))
+
+        cube = con120.load_stac(str(stac_path))
+        assert cube.metadata.temporal_dimension == TemporalDimension(name="t", extent=dim_extent)
+
+    def test_load_stac_band_filtering(self, con120, tmp_path):
+        stac_path = tmp_path / "stac.json"
+        stac_data = StacDummyBuilder.collection(
+            summaries={"eo:bands": [{"name": "B01"}, {"name": "B02"}, {"name": "B03"}]}
+        )
+        stac_path.write_text(json.dumps(stac_data))
+
+        cube = con120.load_stac(str(stac_path))
+        assert cube.metadata.band_names == ["B01", "B02", "B03"]
+
+        cube = con120.load_stac(str(stac_path), bands=["B03", "B02"])
+        assert cube.metadata.band_names == ["B03", "B02"]
 
 
 @pytest.mark.parametrize(
