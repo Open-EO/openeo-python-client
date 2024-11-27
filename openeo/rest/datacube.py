@@ -1053,7 +1053,7 @@ class DataCube(_ProcessGraphAbstraction):
 
     def _get_geometry_argument(
         self,
-        geometry: Union[
+        argument: Union[
             shapely.geometry.base.BaseGeometry,
             dict,
             str,
@@ -1070,14 +1070,14 @@ class DataCube(_ProcessGraphAbstraction):
         :param crs: value that encodes a coordinate reference system.
             See :py:func:`openeo.util.normalize_crs` for more details about additional normalization that is applied to this argument.
         """
-        if isinstance(geometry, Parameter):
-            return geometry
-        elif isinstance(geometry, _FromNodeMixin):
-            return geometry.from_node()
+        if isinstance(argument, Parameter):
+            return argument
+        elif isinstance(argument, _FromNodeMixin):
+            return argument.from_node()
 
-        if isinstance(geometry, str) and re.match(r"^https?://", geometry, flags=re.I):
+        if isinstance(argument, str) and re.match(r"^https?://", argument, flags=re.I):
             # Geometry provided as URL: load with `load_url` (with best-effort format guess)
-            url = urllib.parse.urlparse(geometry)
+            url = urllib.parse.urlparse(argument)
             suffix = pathlib.Path(url.path.lower()).suffix
             format = {
                 ".json": "GeoJSON",
@@ -1086,18 +1086,20 @@ class DataCube(_ProcessGraphAbstraction):
                 ".parquet": "Parquet",
                 ".geoparquet": "Parquet",
             }.get(suffix, suffix.split(".")[-1])
-            return self.connection.load_url(url=geometry, format=format)
+            return self.connection.load_url(url=argument, format=format)
 
-        if isinstance(geometry, (str, pathlib.Path)):
+        if isinstance(argument, (str, pathlib.Path)):
             # Assumption: `geometry` is path to polygon is a path to vector file at backend.
             # TODO #104: `read_vector` is non-standard process.
             # TODO: If path exists client side: load it client side?
-            return PGNode(process_id="read_vector", arguments={"filename": str(geometry)})
+            return PGNode(process_id="read_vector", arguments={"filename": str(argument)})
 
-        if isinstance(geometry, shapely.geometry.base.BaseGeometry):
-            geometry = mapping(geometry)
-        if not isinstance(geometry, dict):
-            raise OpenEoClientException("Invalid geometry argument: {g!r}".format(g=geometry))
+        if isinstance(argument, shapely.geometry.base.BaseGeometry):
+            geometry = mapping(argument)
+        elif isinstance(argument, dict):
+            geometry = argument
+        else:
+            raise OpenEoClientException(f"Invalid geometry argument: {argument!r}")
 
         if geometry.get("type") not in valid_geojson_types:
             raise OpenEoClientException("Invalid geometry type {t!r}, must be one of {s}".format(
