@@ -347,21 +347,47 @@ def test_filter_bbox_args_and_kwargs_conflict(con100: Connection, args, kwargs, 
         con100.load_collection("S2").filter_bbox(*args, **kwargs)
 
 
-def test_filter_spatial(con100: Connection, recwarn):
-    img = con100.load_collection("S2")
+def test_filter_spatial(con100: Connection):
+    cube = con100.load_collection("S2")
     polygon = shapely.geometry.box(0, 0, 1, 1)
-    masked = img.filter_spatial(geometries=polygon)
-    assert sorted(masked.flat_graph().keys()) == ["filterspatial1", "loadcollection1"]
-    assert masked.flat_graph()["filterspatial1"] == {
-        "process_id": "filter_spatial",
-        "arguments": {
-            "data": {"from_node": "loadcollection1"},
-            "geometries": {
-                "type": "Polygon",
-                "coordinates": (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),),
-            }
+    masked = cube.filter_spatial(geometries=polygon)
+    assert get_download_graph(masked, drop_save_result=True, drop_load_collection=True) == {
+        "filterspatial1": {
+            "process_id": "filter_spatial",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "geometries": {
+                    "type": "Polygon",
+                    "coordinates": [[[1.0, 0.0], [1.0, 1.0], [0.0, 1.0], [0.0, 0.0], [1.0, 0.0]]],
+                },
+            },
+        }
+    }
+
+
+@pytest.mark.parametrize(
+    ["url", "expected_format"],
+    [
+        ("https://example.com/geometry.json", "GeoJSON"),
+        ("https://example.com/geometry.geojson", "GeoJSON"),
+        ("https://example.com/geometry.GeoJSON", "GeoJSON"),
+        ("https://example.com/geometry.pq", "Parquet"),
+        ("https://example.com/geometry.parquet", "Parquet"),
+        ("https://example.com/geometry.GeoParquet", "Parquet"),
+    ],
+)
+def test_filter_spatial_geometry_url(con100: Connection, url, expected_format):
+    cube = con100.load_collection("S2")
+    masked = cube.filter_spatial(geometries=url)
+    assert get_download_graph(masked, drop_save_result=True, drop_load_collection=True) == {
+        "loadurl1": {
+            "process_id": "load_url",
+            "arguments": {"url": url, "format": expected_format},
         },
-        "result": True
+        "filterspatial1": {
+            "process_id": "filter_spatial",
+            "arguments": {"data": {"from_node": "loadcollection1"}, "geometries": {"from_node": "loadurl1"}},
+        },
     }
 
 
@@ -595,6 +621,44 @@ def test_aggregate_spatial_geometry_from_node(con100: Connection, get_geometries
     }
 
 
+@pytest.mark.parametrize(
+    ["url", "expected_format"],
+    [
+        ("https://example.com/geometry.json", "GeoJSON"),
+        ("https://example.com/geometry.geojson", "GeoJSON"),
+        ("https://example.com/geometry.GeoJSON", "GeoJSON"),
+        ("https://example.com/geometry.pq", "Parquet"),
+        ("https://example.com/geometry.parquet", "Parquet"),
+        ("https://example.com/geometry.GeoParquet", "Parquet"),
+    ],
+)
+def test_aggregate_spatial_geometry_url(con100: Connection, url, expected_format):
+    cube = con100.load_collection("S2")
+    result = cube.aggregate_spatial(geometries=url, reducer="mean")
+    assert get_download_graph(result, drop_save_result=True, drop_load_collection=True) == {
+        "loadurl1": {
+            "process_id": "load_url",
+            "arguments": {"url": url, "format": expected_format},
+        },
+        "aggregatespatial1": {
+            "process_id": "aggregate_spatial",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "geometries": {"from_node": "loadurl1"},
+                "reducer": {
+                    "process_graph": {
+                        "mean1": {
+                            "process_id": "mean",
+                            "arguments": {"data": {"from_parameter": "data"}},
+                            "result": True,
+                        }
+                    }
+                },
+            },
+        },
+    }
+
+
 def test_aggregate_spatial_window(con100: Connection):
     img = con100.load_collection("S2")
     size = [5, 3]
@@ -806,6 +870,35 @@ def test_mask_polygon_from_node(con100: Connection, get_geometries):
                 "mask": {"from_node": "loadvector1"},
             },
             "result": True,
+        },
+    }
+
+
+@pytest.mark.parametrize(
+    ["url", "expected_format"],
+    [
+        ("https://example.com/geometry.json", "GeoJSON"),
+        ("https://example.com/geometry.geojson", "GeoJSON"),
+        ("https://example.com/geometry.GeoJSON", "GeoJSON"),
+        ("https://example.com/geometry.pq", "Parquet"),
+        ("https://example.com/geometry.parquet", "Parquet"),
+        ("https://example.com/geometry.GeoParquet", "Parquet"),
+    ],
+)
+def test_mask_polygon_geometry_url(con100: Connection, url, expected_format):
+    cube = con100.load_collection("S2")
+    masked = cube.mask_polygon(mask=url)
+    assert get_download_graph(masked, drop_save_result=True, drop_load_collection=True) == {
+        "loadurl1": {
+            "process_id": "load_url",
+            "arguments": {"url": url, "format": expected_format},
+        },
+        "maskpolygon1": {
+            "process_id": "mask_polygon",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "mask": {"from_node": "loadurl1"},
+            },
         },
     }
 
@@ -1764,6 +1857,49 @@ def test_apply_polygon_context(con100: Connection, geometries_argument, geometri
                 }
             },
             "context": {"foo": 4},
+        },
+    }
+
+
+@pytest.mark.parametrize(
+    ["url", "expected_format"],
+    [
+        ("https://example.com/geometry.json", "GeoJSON"),
+        ("https://example.com/geometry.geojson", "GeoJSON"),
+        ("https://example.com/geometry.GeoJSON", "GeoJSON"),
+        ("https://example.com/geometry.pq", "Parquet"),
+        ("https://example.com/geometry.parquet", "Parquet"),
+        ("https://example.com/geometry.GeoParquet", "Parquet"),
+    ],
+)
+def test_apply_polygon_geometry_url(con100: Connection, url, expected_format):
+    cube = con100.load_collection("S2")
+    process = UDF(code="myfancycode", runtime="Python")
+    result = cube.apply_polygon(geometries=url, process=process)
+    assert get_download_graph(result, drop_save_result=True, drop_load_collection=True) == {
+        "loadurl1": {
+            "process_id": "load_url",
+            "arguments": {"url": url, "format": expected_format},
+        },
+        "applypolygon1": {
+            "process_id": "apply_polygon",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "geometries": {"from_node": "loadurl1"},
+                "process": {
+                    "process_graph": {
+                        "runudf1": {
+                            "process_id": "run_udf",
+                            "arguments": {
+                                "data": {"from_parameter": "data"},
+                                "runtime": "Python",
+                                "udf": "myfancycode",
+                            },
+                            "result": True,
+                        }
+                    }
+                },
+            },
         },
     }
 

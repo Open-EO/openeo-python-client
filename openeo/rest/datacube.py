@@ -12,7 +12,9 @@ from __future__ import annotations
 import datetime
 import logging
 import pathlib
+import re
 import typing
+import urllib.parse
 import warnings
 from builtins import staticmethod
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Union
@@ -584,7 +586,9 @@ class DataCube(_ProcessGraphAbstraction):
         )
 
     @openeo_process
-    def filter_spatial(self, geometries) -> DataCube:
+    def filter_spatial(
+        self, geometries: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter, VectorCube]
+    ) -> DataCube:
         """
         Limits the data cube over the spatial dimensions to the specified geometries.
 
@@ -597,10 +601,24 @@ class DataCube(_ProcessGraphAbstraction):
         More specifically, pixels outside of the bounding box of the given geometry will not be available after filtering.
         All pixels inside the bounding box that are not retained will be set to null (no data).
 
-        :param geometries: One or more geometries used for filtering, specified as GeoJSON in EPSG:4326.
+        :param geometries: One or more geometries used for filtering, Can be provided in different ways:
+
+            - a shapely geometry
+            - a GeoJSON-style dictionary,
+            - a public URL to the geometries in a vector format that is supported by the backend
+              (also see :py:func:`Connection.list_file_formats() <openeo.rest.connection.Connection.list_file_formats>`),
+              e.g. GeoJSON, GeoParquet, etc.
+              A ``load_url`` process will automatically be added to the process graph.
+            - a path (that is valid for the back-end) to a GeoJSON file.
+            - a :py:class:`~openeo.rest.vectorcube.VectorCube` instance.
+            - a :py:class:`~openeo.api.process.Parameter` instance.
+
         :return: A data cube restricted to the specified geometries. The dimensions and dimension properties (name,
             type, labels, reference system and resolution) remain unchanged, except that the spatial dimensions have less
             (or the same) dimension labels.
+
+        .. versionchanged:: 0.36.0
+            Support passing a URL as ``geometries`` argument, which will be loaded with the ``load_url`` process.
         """
         valid_geojson_types = [
             "Point", "MultiPoint", "LineString", "MultiLineString",
@@ -1052,15 +1070,29 @@ class DataCube(_ProcessGraphAbstraction):
         :param crs: value that encodes a coordinate reference system.
             See :py:func:`openeo.util.normalize_crs` for more details about additional normalization that is applied to this argument.
         """
+        if isinstance(geometry, Parameter):
+            return geometry
+        elif isinstance(geometry, _FromNodeMixin):
+            return geometry.from_node()
+
+        if isinstance(geometry, str) and re.match(r"^https?://", geometry, flags=re.I):
+            # Geometry provided as URL: load with `load_url` (with best-effort format guess)
+            url = urllib.parse.urlparse(geometry)
+            suffix = pathlib.Path(url.path.lower()).suffix
+            format = {
+                ".json": "GeoJSON",
+                ".geojson": "GeoJSON",
+                ".pq": "Parquet",
+                ".parquet": "Parquet",
+                ".geoparquet": "Parquet",
+            }.get(suffix, suffix.split(".")[-1])
+            return self.connection.load_url(url=geometry, format=format)
+
         if isinstance(geometry, (str, pathlib.Path)):
             # Assumption: `geometry` is path to polygon is a path to vector file at backend.
             # TODO #104: `read_vector` is non-standard process.
             # TODO: If path exists client side: load it client side?
             return PGNode(process_id="read_vector", arguments={"filename": str(geometry)})
-        elif isinstance(geometry, Parameter):
-            return geometry
-        elif isinstance(geometry, _FromNodeMixin):
-            return geometry.from_node()
 
         if isinstance(geometry, shapely.geometry.base.BaseGeometry):
             geometry = mapping(geometry)
@@ -1107,8 +1139,18 @@ class DataCube(_ProcessGraphAbstraction):
         Aggregates statistics for one or more geometries (e.g. zonal statistics for polygons)
         over the spatial dimensions.
 
-        :param geometries: a shapely geometry, a GeoJSON-style dictionary,
-            a public GeoJSON URL, or a path (that is valid for the back-end) to a GeoJSON file.
+        :param geometries: The geometries to aggregate in. Can be provided in different ways:
+
+            - a shapely geometry
+            - a GeoJSON-style dictionary,
+            - a public URL to the geometries in a vector format that is supported by the backend
+              (also see :py:func:`Connection.list_file_formats() <openeo.rest.connection.Connection.list_file_formats>`),
+              e.g. GeoJSON, GeoParquet, etc.
+              A ``load_url`` process will automatically be added to the process graph.
+            - a path (that is valid for the back-end) to a GeoJSON file.
+            - a :py:class:`~openeo.rest.vectorcube.VectorCube` instance.
+            - a :py:class:`~openeo.api.process.Parameter` instance.
+
         :param reducer: the "child callback":
             the name of a single openEO process,
             or a callback function as discussed in :ref:`callbackfunctions`,
@@ -1128,10 +1170,13 @@ class DataCube(_ProcessGraphAbstraction):
             By default, longitude-latitude (EPSG:4326) is assumed.
             See :py:func:`openeo.util.normalize_crs` for more details about additional normalization that is applied to this argument.
 
-        :param context: Additional data to be passed to the reducer process.
-
             .. note:: this ``crs`` argument is a non-standard/experimental feature, only supported by specific back-ends.
                 See https://github.com/Open-EO/openeo-processes/issues/235 for details.
+
+        :param context: Additional data to be passed to the reducer process.
+
+        .. versionchanged:: 0.36.0
+            Support passing a URL as ``geometries`` argument, which will be loaded with the ``load_url`` process.
         """
         valid_geojson_types = [
             "Point", "MultiPoint", "LineString", "MultiLineString",
@@ -1461,8 +1506,18 @@ class DataCube(_ProcessGraphAbstraction):
         the GeometriesOverlap exception is thrown.
         Each sub data cube is passed individually to the given process.
 
-        :param geometries: Polygons, provided as a shapely geometry, a GeoJSON-style dictionary,
-            a public GeoJSON URL, or a path (that is valid for the back-end) to a GeoJSON file.
+        :param geometries: Can be provided in different ways:
+
+            - a shapely geometry
+            - a GeoJSON-style dictionary,
+            - a public URL to the geometries in a vector format that is supported by the backend
+              (also see :py:func:`Connection.list_file_formats() <openeo.rest.connection.Connection.list_file_formats>`),
+              e.g. GeoJSON, GeoParquet, etc.
+              A ``load_url`` process will automatically be added to the process graph.
+            - a path (that is valid for the back-end) to a GeoJSON file.
+            - a :py:class:`~openeo.rest.vectorcube.VectorCube` instance.
+            - a :py:class:`~openeo.api.process.Parameter` instance.
+
         :param process: "child callback" function, see :ref:`callbackfunctions`
         :param mask_value: The value used for pixels outside the polygon.
         :param context: Additional data to be passed to the process.
@@ -1473,6 +1528,9 @@ class DataCube(_ProcessGraphAbstraction):
             Argument ``polygons`` was renamed to ``geometries``.
             While deprecated, the old name ``polygons`` is still supported
             as keyword argument for backwards compatibility.
+
+        .. versionchanged:: 0.36.0
+            Support passing a URL as ``geometries`` argument, which will be loaded with the ``load_url`` process.
         """
         # TODO drop support for legacy `polygons` argument:
         #      remove `kwargs, remove default `None` value for `geometries` and `process`
@@ -1957,14 +2015,27 @@ class DataCube(_ProcessGraphAbstraction):
         The pixel values are replaced with the value specified for `replacement`,
         which defaults to `no data`.
 
-        :param mask: The geometry to mask with: a shapely geometry, a GeoJSON-style dictionary,
-            a public GeoJSON URL, or a path (that is valid for the back-end) to a GeoJSON file.
+        :param mask: The geometry to mask with.an be provided in different ways:
+
+            - a shapely geometry
+            - a GeoJSON-style dictionary,
+            - a public URL to the geometries in a vector format that is supported by the backend
+              (also see :py:func:`Connection.list_file_formats() <openeo.rest.connection.Connection.list_file_formats>`),
+              e.g. GeoJSON, GeoParquet, etc.
+              A ``load_url`` process will automatically be added to the process graph.
+            - a path (that is valid for the back-end) to a GeoJSON file.
+            - a :py:class:`~openeo.rest.vectorcube.VectorCube` instance.
+            - a :py:class:`~openeo.api.process.Parameter` instance.
+
         :param srs: The spatial reference system of the provided polygon.
             By default longitude-latitude (EPSG:4326) is assumed.
 
             .. note:: this ``srs`` argument is a non-standard/experimental feature, only supported by specific back-ends.
                 See https://github.com/Open-EO/openeo-processes/issues/235 for details.
         :param replacement: the value to replace the masked pixels with
+
+        .. versionchanged:: 0.36.0
+            Support passing a URL as ``geometries`` argument, which will be loaded with the ``load_url`` process.
         """
         valid_geojson_types = ["Polygon", "MultiPolygon", "GeometryCollection", "Feature", "FeatureCollection"]
         mask = self._get_geometry_argument(mask, valid_geojson_types=valid_geojson_types, crs=srs)
