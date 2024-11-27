@@ -26,19 +26,19 @@ def test_aggregate_spatial(connection, api_version, reducer, test_data):
 
 def test_polygon_timeseries_path(connection, api_version, test_data):
     res = (
-        connection.load_collection('S2')
-            .filter_bbox(west=3, east=6, north=52, south=50)
-            .polygonal_mean_timeseries(polygon="/some/path/to/GeometryCollection.geojson")
+        connection.load_collection("S2")
+        .filter_bbox(west=3, east=6, north=52, south=50)
+        .polygonal_mean_timeseries(polygon="https://example.com/geometries.geojson")
     )
     assert get_execute_graph(res) == test_data.load_json("%s/aggregate_zonal_path.json" % api_version)
 
 
 @pytest.mark.parametrize("reducer", ["mean", openeo.processes.mean, lambda x: x.mean()])
-def test_aggregate_spatial_read_vector(connection, api_version, reducer, test_data):
+def test_aggregate_spatial_with_geometry_url(connection, api_version, reducer, test_data):
     res = (
         connection.load_collection("S2")
-            .filter_bbox(3, 6, 52, 50)
-            .aggregate_spatial(geometries="/some/path/to/GeometryCollection.geojson", reducer=reducer)
+        .filter_bbox(3, 6, 52, 50)
+        .aggregate_spatial(geometries="https://example.com/geometries.geojson", reducer=reducer)
     )
     assert get_execute_graph(res) == test_data.load_json("%s/aggregate_zonal_path.json" % api_version)
 

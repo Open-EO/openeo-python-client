@@ -12,7 +12,9 @@ from __future__ import annotations
 import datetime
 import logging
 import pathlib
+import re
 import typing
+import urllib.parse
 import warnings
 from builtins import staticmethod
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Union
@@ -57,7 +59,13 @@ from openeo.rest.mlmodel import MlModel
 from openeo.rest.service import Service
 from openeo.rest.udp import RESTUserDefinedProcess
 from openeo.rest.vectorcube import VectorCube
-from openeo.util import dict_no_none, guess_format, normalize_crs, rfc3339
+from openeo.util import (
+    dict_no_none,
+    guess_format,
+    load_json_resource,
+    normalize_crs,
+    rfc3339,
+)
 
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).
@@ -1035,7 +1043,7 @@ class DataCube(_ProcessGraphAbstraction):
 
     def _get_geometry_argument(
         self,
-        geometry: Union[
+        argument: Union[
             shapely.geometry.base.BaseGeometry,
             dict,
             str,
@@ -1047,30 +1055,47 @@ class DataCube(_ProcessGraphAbstraction):
         crs: Optional[str] = None,
     ) -> Union[dict, Parameter, PGNode]:
         """
-        Convert input to a geometry as "geojson" subtype object.
+        Convert input to a geometry as "geojson" subtype object or vector cube.
 
         :param crs: value that encodes a coordinate reference system.
             See :py:func:`openeo.util.normalize_crs` for more details about additional normalization that is applied to this argument.
         """
-        if isinstance(geometry, (str, pathlib.Path)):
-            # Assumption: `geometry` is path to polygon is a path to vector file at backend.
-            # TODO #104: `read_vector` is non-standard process.
-            # TODO: If path exists client side: load it client side?
-            return PGNode(process_id="read_vector", arguments={"filename": str(geometry)})
-        elif isinstance(geometry, Parameter):
-            return geometry
-        elif isinstance(geometry, _FromNodeMixin):
-            return geometry.from_node()
+        # First handle (abstract) references, e.g. parameter or back-end side vector cube
+        if isinstance(argument, Parameter):
+            return argument
+        elif isinstance(argument, _FromNodeMixin):
+            return argument.from_node()
 
-        if isinstance(geometry, shapely.geometry.base.BaseGeometry):
-            geometry = mapping(geometry)
-        if not isinstance(geometry, dict):
-            raise OpenEoClientException("Invalid geometry argument: {g!r}".format(g=geometry))
+        if isinstance(argument, str) and re.match(r"^https?://", argument, flags=re.I):
+            # Geometry provided as URL: load with `load_url` (with best-effort format guess)
+            url = urllib.parse.urlparse(argument)
+            suffix = pathlib.Path(url.path.lower()).suffix
+            format = {
+                ".json": "GeoJSON",
+                ".geojson": "GeoJSON",
+                ".pq": "Parquet",
+                ".parquet": "Parquet",
+                ".geoparquet": "Parquet",
+            }.get(suffix, suffix.split(".")[-1])
+            return self.connection.load_url(url=argument, format=format)
+
+        if isinstance(argument, str):
+            geometry = load_json_resource(argument)
+        elif isinstance(argument, pathlib.Path):
+            geometry = load_json_resource(argument)
+        elif isinstance(argument, shapely.geometry.base.BaseGeometry):
+            geometry = mapping(argument)
+        elif isinstance(argument, dict):
+            geometry = argument
+        else:
+            raise OpenEoClientException(f"Invalid geometry argument: {argument!r}")
 
         if geometry.get("type") not in valid_geojson_types:
-            raise OpenEoClientException("Invalid geometry type {t!r}, must be one of {s}".format(
-                t=geometry.get("type"), s=valid_geojson_types
-            ))
+            raise OpenEoClientException(
+                f"Invalid geometry type {geometry.get('type')!r}, must be one of {valid_geojson_types}"
+            )
+
+        # TODO #671 get rid of this ad-hoc, inconsistent `crs` handling
         if crs:
             # TODO: don't warn when the crs is Lon-Lat like EPSG:4326?
             warnings.warn(f"Geometry with non-Lon-Lat CRS {crs!r} is only supported by specific back-ends.")
@@ -1099,6 +1124,7 @@ class DataCube(_ProcessGraphAbstraction):
         ],
         reducer: Union[str, typing.Callable, PGNode],
         target_dimension: Optional[str] = None,
+        # TODO #671 deprecate/remove `crs` argument here
         crs: Optional[Union[int, str]] = None,
         context: Optional[dict] = None,
         # TODO arguments: target dimension, context
@@ -1943,6 +1969,7 @@ class DataCube(_ProcessGraphAbstraction):
     def mask_polygon(
         self,
         mask: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter, VectorCube],
+        # TODO #671 deprecate/remove `srs` argument here
         srs: str = None,
         replacement=None,
         inside: bool = None,

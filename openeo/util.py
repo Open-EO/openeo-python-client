@@ -441,6 +441,7 @@ def guess_format(filename: Union[str, Path]) -> Union[str, None]:
 
 
 def load_json(path: Union[Path, str]) -> dict:
+    """Load JSON serialized data from a local file"""
     with Path(path).open("r", encoding="utf-8") as f:
         return json.load(f)
 
@@ -459,7 +460,7 @@ def load_json_resource(src: Union[str, Path]) -> dict:
     elif isinstance(src, str) and re.match(r"^https?://", src, flags=re.I):
         # URL to remote JSON resource
         return requests.get(src).json()
-    elif isinstance(src, Path) or (isinstance(src, str) and src.endswith(".json")):
+    elif isinstance(src, Path) or (isinstance(src, str) and Path(src).suffix.lower() in {".json", ".geojson"}):
         # Assume source is a local JSON file path
         return load_json(src)
     raise ValueError(src)

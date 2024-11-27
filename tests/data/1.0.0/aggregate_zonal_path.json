@@ -21,10 +21,11 @@
       }
     }
   },
-  "readvector1": {
-    "process_id": "read_vector",
+  "loadurl1": {
+    "process_id": "load_url",
     "arguments": {
-      "filename": "/some/path/to/GeometryCollection.geojson"
+      "url": "https://example.com/geometries.geojson",
+      "format": "GeoJSON"
     }
   },
   "aggregatespatial1": {
@@ -34,7 +35,7 @@
         "from_node": "filterbbox1"
       },
       "geometries": {
-        "from_node": "readvector1"
+        "from_node": "loadurl1"
       },
       "reducer": {
         "process_graph": {

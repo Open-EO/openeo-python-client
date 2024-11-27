@@ -1,13 +1,16 @@
 import json
+from typing import Union
 
 import mock
 
-from openeo.rest.datacube import DataCube
+from openeo import DataCube, VectorCube
 
 # TODO: move (some of) these to openeo.testing?
 
 
-def get_download_graph(cube: DataCube, *, drop_save_result: bool = False, drop_load_collection: bool = False) -> dict:
+def get_download_graph(
+    cube: Union[DataCube, VectorCube], *, drop_save_result: bool = False, drop_load_collection: bool = False
+) -> dict:
     """
     Do fake download of a cube and intercept the process graph
     :param cube: cube to download
