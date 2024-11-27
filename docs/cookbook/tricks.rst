@@ -80,3 +80,51 @@ For example:
 
     # `create_job` with URL to JSON file
     job = connection.create_job("https://jsonbin.example/my/process-graph.json")
+
+
+.. _legacy_read_vector:
+
+
+Legacy ``read_vector`` usage
+----------------------------
+
+In versions up to 0.35.0 of the openEO Python client library,
+there was an old, deprecated feature in geometry handling
+of :py:class:`~openeo.rest.datacube.DataCube` methods like
+:py:meth:`~openeo.rest.datacube.DataCube.aggregate_spatial()` and
+:py:meth:`~openeo.rest.datacube.DataCube.mask_polygon()`
+where you could pass a *backend-side* path as ``geometries``, e.g.:
+
+.. code-block:: python
+
+    cube = cube.aggregate_spatial(
+        geometries="/backend/path/to/geometries.json",
+        reducer="mean"
+    )
+
+The client would handle this by automatically adding a ``read_vector`` process
+in the process graph, with that path as argument, to instruct the backend to load the geometries from there.
+This ``read_vector`` process was however a backend-specific, experimental and now deprecated process.
+Moreover, it assumes that the user has access to (or at least knowledge of) the backend's file system,
+which violates the openEO principle of abstracting away backend-specific details.
+
+In version 0.36.0, this old deprecated ``read_vector`` feature has been *removed*,
+to allow other and better convenience functionality
+when providing a string in the ``geometries`` argument:
+e.g. load from a URL with standard process ``load_url``,
+or load GeoJSON from a local clientside path.
+
+If your workflow however depends on the old, deprecated ``read_vector`` functionality,
+it is possible to reconstruct that by manually adding a ``read_vector`` process in your workflow,
+for example as follows:
+
+.. code-block:: python
+
+    from openeo.processes import process
+
+    cube = cube.aggregate_spatial(
+        geometries=process("read_vector", filename="/backend/path/to/geometries.json"),
+        reducer="mean"
+    )
+
+Note that this is also works with older versions of the openEO Python client library.
