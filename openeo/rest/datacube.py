@@ -621,8 +621,9 @@ class DataCube(_ProcessGraphAbstraction):
         .. versionchanged:: 0.36.0
             Support passing a URL as ``geometries`` argument, which will be loaded with the ``load_url`` process.
 
-         .. versionchanged:: 0.36.0
-            Support for passing a backend-side path as ``geometries`` argument was removed.
+        .. versionchanged:: 0.36.0
+            Support for passing a backend-side path as ``geometries`` argument was removed
+            (also see :ref:`legacy_read_vector`).
             Instead, it's possible to provide a client-side path to a GeoJSON file
             (which will be loaded client-side to get the geometries as GeoJSON construct).
         """
@@ -1188,7 +1189,8 @@ class DataCube(_ProcessGraphAbstraction):
             Support passing a URL as ``geometries`` argument, which will be loaded with the ``load_url`` process.
 
         .. versionchanged:: 0.36.0
-            Support for passing a backend-side path as ``geometries`` argument was removed.
+            Support for passing a backend-side path as ``geometries`` argument was removed
+            (also see :ref:`legacy_read_vector`).
             Instead, it's possible to provide a client-side path to a GeoJSON file
             (which will be loaded client-side to get the geometries as GeoJSON construct).
         """
@@ -1536,7 +1538,8 @@ class DataCube(_ProcessGraphAbstraction):
             Support passing a URL as ``geometries`` argument, which will be loaded with the ``load_url`` process.
 
         .. versionchanged:: 0.36.0
-            Support for passing a backend-side path as ``geometries`` argument was removed.
+            Support for passing a backend-side path as ``geometries`` argument was removed
+            (also see :ref:`legacy_read_vector`).
             Instead, it's possible to provide a client-side path to a GeoJSON file
             (which will be loaded client-side to get the geometries as GeoJSON construct).
         """
@@ -2047,7 +2050,8 @@ class DataCube(_ProcessGraphAbstraction):
             Support passing a URL as ``geometries`` argument, which will be loaded with the ``load_url`` process.
 
         .. versionchanged:: 0.36.0
-            Support for passing a backend-side path as ``geometries`` argument was removed.
+            Support for passing a backend-side path as ``geometries`` argument was removed
+            (also see :ref:`legacy_read_vector`).
             Instead, it's possible to provide a client-side path to a GeoJSON file
             (which will be loaded client-side to get the geometries as GeoJSON construct).
         """
