@@ -59,7 +59,7 @@ from openeo.rest.mlmodel import MlModel
 from openeo.rest.service import Service
 from openeo.rest.udp import RESTUserDefinedProcess
 from openeo.rest.vectorcube import VectorCube
-from openeo.util import dict_no_none, guess_format, normalize_crs, rfc3339
+from openeo.util import dict_no_none, guess_format, load_json, normalize_crs, rfc3339
 
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).
@@ -609,7 +609,8 @@ class DataCube(_ProcessGraphAbstraction):
               (also see :py:func:`Connection.list_file_formats() <openeo.rest.connection.Connection.list_file_formats>`),
               e.g. GeoJSON, GeoParquet, etc.
               A ``load_url`` process will automatically be added to the process graph.
-            - a path (that is valid for the back-end) to a GeoJSON file.
+            - a path (:py:class:`str` or :py:class:`~pathlib.Path`) to a local, client-side GeoJSON file,
+              which will be loaded automatically to get the geometries as GeoJSON construct.
             - a :py:class:`~openeo.rest.vectorcube.VectorCube` instance.
             - a :py:class:`~openeo.api.process.Parameter` instance.
 
@@ -619,6 +620,11 @@ class DataCube(_ProcessGraphAbstraction):
 
         .. versionchanged:: 0.36.0
             Support passing a URL as ``geometries`` argument, which will be loaded with the ``load_url`` process.
+
+         .. versionchanged:: 0.36.0
+            Support for passing a backend-side path as ``geometries`` argument was removed.
+            Instead, it's possible to provide a client-side path to a GeoJSON file
+            (which will be loaded client-side to get the geometries as GeoJSON construct).
         """
         valid_geojson_types = [
             "Point", "MultiPoint", "LineString", "MultiLineString",
@@ -1065,7 +1071,7 @@ class DataCube(_ProcessGraphAbstraction):
         crs: Optional[str] = None,
     ) -> Union[dict, Parameter, PGNode]:
         """
-        Convert input to a geometry as "geojson" subtype object.
+        Convert input to a geometry as "geojson" subtype object or vectorcube.
 
         :param crs: value that encodes a coordinate reference system.
             See :py:func:`openeo.util.normalize_crs` for more details about additional normalization that is applied to this argument.
@@ -1088,13 +1094,13 @@ class DataCube(_ProcessGraphAbstraction):
             }.get(suffix, suffix.split(".")[-1])
             return self.connection.load_url(url=argument, format=format)
 
-        if isinstance(argument, (str, pathlib.Path)):
-            # Assumption: `geometry` is path to polygon is a path to vector file at backend.
-            # TODO #104: `read_vector` is non-standard process.
-            # TODO: If path exists client side: load it client side?
-            return PGNode(process_id="read_vector", arguments={"filename": str(argument)})
-
-        if isinstance(argument, shapely.geometry.base.BaseGeometry):
+        if (
+            isinstance(argument, (str, pathlib.Path))
+            and pathlib.Path(argument).is_file()
+            and pathlib.Path(argument).suffix.lower() in [".json", ".geojson"]
+        ):
+            geometry = load_json(argument)
+        elif isinstance(argument, shapely.geometry.base.BaseGeometry):
             geometry = mapping(argument)
         elif isinstance(argument, dict):
             geometry = argument
@@ -1149,7 +1155,8 @@ class DataCube(_ProcessGraphAbstraction):
               (also see :py:func:`Connection.list_file_formats() <openeo.rest.connection.Connection.list_file_formats>`),
               e.g. GeoJSON, GeoParquet, etc.
               A ``load_url`` process will automatically be added to the process graph.
-            - a path (that is valid for the back-end) to a GeoJSON file.
+            - a path (:py:class:`str` or :py:class:`~pathlib.Path`) to a local, client-side GeoJSON file,
+              which will be loaded automatically to get the geometries as GeoJSON construct.
             - a :py:class:`~openeo.rest.vectorcube.VectorCube` instance.
             - a :py:class:`~openeo.api.process.Parameter` instance.
 
@@ -1179,6 +1186,11 @@ class DataCube(_ProcessGraphAbstraction):
 
         .. versionchanged:: 0.36.0
             Support passing a URL as ``geometries`` argument, which will be loaded with the ``load_url`` process.
+
+        .. versionchanged:: 0.36.0
+            Support for passing a backend-side path as ``geometries`` argument was removed.
+            Instead, it's possible to provide a client-side path to a GeoJSON file
+            (which will be loaded client-side to get the geometries as GeoJSON construct).
         """
         valid_geojson_types = [
             "Point", "MultiPoint", "LineString", "MultiLineString",
@@ -1504,7 +1516,8 @@ class DataCube(_ProcessGraphAbstraction):
               (also see :py:func:`Connection.list_file_formats() <openeo.rest.connection.Connection.list_file_formats>`),
               e.g. GeoJSON, GeoParquet, etc.
               A ``load_url`` process will automatically be added to the process graph.
-            - a path (that is valid for the back-end) to a GeoJSON file.
+            - a path (:py:class:`str` or :py:class:`~pathlib.Path`) to a local, client-side GeoJSON file,
+              which will be loaded automatically to get the geometries as GeoJSON construct.
             - a :py:class:`~openeo.rest.vectorcube.VectorCube` instance.
             - a :py:class:`~openeo.api.process.Parameter` instance.
 
@@ -1521,6 +1534,11 @@ class DataCube(_ProcessGraphAbstraction):
 
         .. versionchanged:: 0.36.0
             Support passing a URL as ``geometries`` argument, which will be loaded with the ``load_url`` process.
+
+        .. versionchanged:: 0.36.0
+            Support for passing a backend-side path as ``geometries`` argument was removed.
+            Instead, it's possible to provide a client-side path to a GeoJSON file
+            (which will be loaded client-side to get the geometries as GeoJSON construct).
         """
         # TODO drop support for legacy `polygons` argument:
         #      remove `kwargs, remove default `None` value for `geometries` and `process`
@@ -2013,7 +2031,8 @@ class DataCube(_ProcessGraphAbstraction):
               (also see :py:func:`Connection.list_file_formats() <openeo.rest.connection.Connection.list_file_formats>`),
               e.g. GeoJSON, GeoParquet, etc.
               A ``load_url`` process will automatically be added to the process graph.
-            - a path (that is valid for the back-end) to a GeoJSON file.
+            - a path (:py:class:`str` or :py:class:`~pathlib.Path`) to a local, client-side GeoJSON file,
+              which will be loaded automatically to get the geometries as GeoJSON construct.
             - a :py:class:`~openeo.rest.vectorcube.VectorCube` instance.
             - a :py:class:`~openeo.api.process.Parameter` instance.
 
@@ -2026,6 +2045,11 @@ class DataCube(_ProcessGraphAbstraction):
 
         .. versionchanged:: 0.36.0
             Support passing a URL as ``geometries`` argument, which will be loaded with the ``load_url`` process.
+
+        .. versionchanged:: 0.36.0
+            Support for passing a backend-side path as ``geometries`` argument was removed.
+            Instead, it's possible to provide a client-side path to a GeoJSON file
+            (which will be loaded client-side to get the geometries as GeoJSON construct).
         """
         valid_geojson_types = ["Polygon", "MultiPolygon", "GeometryCollection", "Feature", "FeatureCollection"]
         mask = self._get_geometry_argument(mask, valid_geojson_types=valid_geojson_types, crs=srs)
