@@ -1453,19 +1453,7 @@ class DataCube(_ProcessGraphAbstraction):
         mask_value: float = None,
         context: Optional[dict] = None,
     ) -> DataCube:
-        """
-        Apply a process to spatial chunks of a data cube.
-
-        .. warning:: experimental process: not generally supported, API subject to change.
-
-        :param chunks: Polygons, provided as a shapely geometry, a GeoJSON-style dictionary,
-            a public GeoJSON URL, or a path (that is valid for the back-end) to a GeoJSON file.
-        :param process: "child callback" function, see :ref:`callbackfunctions`
-        :param mask_value: The value used for cells outside the polygon.
-            This provides a distinction between NoData cells within the polygon (due to e.g. clouds)
-            and masked cells outside it. If no value is provided, NoData cells are used outside the polygon.
-        :param context: Additional data to be passed to the process.
-        """
+        """"""
         process = build_child_callback(process, parent_parameters=["data"], connection=self.connection)
         valid_geojson_types = [
             "Polygon",
