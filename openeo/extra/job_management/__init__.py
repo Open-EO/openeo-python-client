@@ -658,16 +658,25 @@ class MultiBackendJobManager:
 
     def _cancel_prolonged_job(self, job: BatchJob, row):
         """Cancel the job if it has been running for too long."""
-        job_running_start_time = rfc3339.parse_datetime(row["running_start_time"], with_timezone=True)
-        elapsed = datetime.datetime.now(tz=datetime.timezone.utc) - job_running_start_time
-        if elapsed > self._cancel_running_job_after:
-            try:
-                _log.info(
-                    f"Cancelling long-running job {job.job_id} (after {elapsed}, running since {job_running_start_time})"
-                )
-                job.stop()
-            except OpenEoApiError as e:
-                _log.error(f"Failed to cancel long-running job {job.job_id}: {e}")
+        try:
+            running_start_time_str = row.get("running_start_time")
+            if not running_start_time_str or pd.isna(running_start_time_str):
+                _log.warning(f"Job {job.job_id} does not have a valid running start time. Cancellation skipped.")
+                return
+
+            job_running_start_time = rfc3339.parse_datetime(running_start_time_str, with_timezone=True)
+            elapsed = datetime.datetime.now(tz=datetime.timezone.utc) - job_running_start_time
+
+            if elapsed > self._cancel_running_job_after:
+                try:
+                    _log.info(
+                        f"Cancelling long-running job {job.job_id} (after {elapsed}, running since {job_running_start_time})"
+                    )
+                    job.stop()
+                except OpenEoApiError as e:
+                    _log.error(f"Failed to cancel long-running job {job.job_id}: {e}")
+        except Exception as e:
+            _log.error(f"Unexpected error while handling job {job.job_id}: {e}")
 
     def get_job_dir(self, job_id: str) -> Path:
         """Path to directory where job metadata, results and error logs are be saved."""
