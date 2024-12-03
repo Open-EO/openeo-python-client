@@ -648,7 +648,7 @@ class TestMultiBackendJobManager:
 
 
     @pytest.mark.parametrize(
-    ["create_time", "start_time", "running_start_time", "end_time", "end_status", "cancel_after_seconds", "expected_status"],
+    ["create_time", "start_time", "running_start_time", "end_time", "end_status", "cancel_after_seconds"],
     [
         # Scenario 1: Missing running_start_time (None)
         (
@@ -658,7 +658,6 @@ class TestMultiBackendJobManager:
             "2024-09-01T20:00:00Z",  # Job end time
             "finished",               # Job final status
             6 * 60 * 60,              # Cancel after 6 hours
-            "finished",               # Expected final status
         ),
         # Scenario 2: NaN running_start_time
         (
@@ -668,7 +667,6 @@ class TestMultiBackendJobManager:
             "2024-09-01T20:00:00Z",  # Job end time
             "finished",               # Job final status
             6 * 60 * 60,              # Cancel after 6 hours
-            "finished",               # Expected final status
         ),
     ]
     )
@@ -682,7 +680,6 @@ class TestMultiBackendJobManager:
         end_time,
         end_status,
         cancel_after_seconds,
-        expected_status,
         dummy_backend_foo,
         job_manager_root_dir,
     ):
