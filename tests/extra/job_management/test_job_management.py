@@ -7,6 +7,7 @@ from pathlib import Path
 from time import sleep
 from typing import Callable, Union
 from unittest import mock
+import datetime
 
 import dirty_equals
 import geopandas
@@ -554,6 +555,7 @@ class TestMultiBackendJobManager:
                 12 * 60 * 60,
                 "finished",
             ),
+
         ],
     )
     def test_automatic_cancel_of_too_long_running_jobs(
@@ -643,6 +645,83 @@ class TestMultiBackendJobManager:
 
         needle = re.compile(r"Job status histogram:.*'queued': 4.*Run stats:.*'start_job call': 4")
         assert needle.search(caplog.text)
+
+
+    @pytest.mark.parametrize(
+    ["create_time", "start_time", "running_start_time", "end_time", "end_status", "cancel_after_seconds", "expected_status"],
+    [
+        # Scenario 1: Missing running_start_time (None)
+        (
+            "2024-09-01T09:00:00Z",  # Job creation time
+            "2024-09-01T09:00:00Z",  # Job start time (should be 1 hour after create_time)
+            None,                     # Missing running_start_time
+            "2024-09-01T20:00:00Z",  # Job end time
+            "finished",               # Job final status
+            6 * 60 * 60,              # Cancel after 6 hours
+            "finished",               # Expected final status
+        ),
+        # Scenario 2: NaN running_start_time
+        (
+            "2024-09-01T09:00:00Z",
+            "2024-09-01T09:00:00Z",
+            float("nan"),             # NaN running_start_time
+            "2024-09-01T20:00:00Z",  # Job end time
+            "finished",               # Job final status
+            6 * 60 * 60,              # Cancel after 6 hours
+            "finished",               # Expected final status
+        ),
+    ]
+    )
+    def test_ensure_running_start_time_is_datetime(
+        self,
+        tmp_path,
+        time_machine,
+        create_time,
+        start_time,
+        running_start_time,
+        end_time,
+        end_status,
+        cancel_after_seconds,
+        expected_status,
+        dummy_backend_foo,
+        job_manager_root_dir,
+    ):
+        def get_status(job_id, current_status):
+            if rfc3339.utcnow() < start_time:
+                return "queued"
+            elif rfc3339.utcnow() < end_time:
+                return "running"
+            return end_status
+
+        # Set the job status updater function for the mock backend
+        dummy_backend_foo.job_status_updater = get_status
+
+        job_manager = MultiBackendJobManager(
+            root_dir=job_manager_root_dir, cancel_running_job_after=cancel_after_seconds
+        )
+        job_manager.add_backend("foo", connection=dummy_backend_foo.connection)
+
+        # Create a DataFrame representing the job database
+        df = pd.DataFrame({
+            "year": [2024],
+            "running_start_time": [running_start_time],  # Initial running_start_time
+        })
+
+        # Move the time machine to the job creation time
+        time_machine.move_to(create_time)
+
+        job_db_path = tmp_path / "jobs.csv"
+
+        # Mock sleep() to skip one hour at a time instead of actually sleeping
+        with mock.patch.object(openeo.extra.job_management.time, "sleep", new=lambda s: time_machine.shift(60 * 60)):
+            job_manager.run_jobs(df=df, start_job=self._create_year_job, job_db=job_db_path)
+
+        final_df = CsvJobDatabase(job_db_path).read()
+
+        # Validate running_start_time is a valid datetime object
+        filled_running_start_time = final_df.iloc[0]["running_start_time"]
+        assert isinstance(rfc3339.parse_datetime(filled_running_start_time), datetime.datetime)
+
 
 
 JOB_DB_DF_BASICS = pd.DataFrame(
