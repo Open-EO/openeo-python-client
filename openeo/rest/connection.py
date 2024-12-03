@@ -21,6 +21,7 @@ from typing import (
     List,
     Optional,
     Sequence,
+    Set,
     Tuple,
     Union,
 )
@@ -44,7 +45,6 @@ from openeo.metadata import (
     CollectionMetadata,
     SpatialDimension,
     TemporalDimension,
-    metadata_from_stac,
 )
 from openeo.rest import (
     DEFAULT_DOWNLOAD_CHUNK_SIZE,
@@ -54,7 +54,7 @@ from openeo.rest import (
     OpenEoClientException,
     OpenEoRestError,
 )
-from openeo.rest._datacube import build_child_callback
+from openeo.rest._datacube import _ProcessGraphAbstraction, build_child_callback
 from openeo.rest.auth.auth import BasicBearerAuth, BearerAuth, NullAuth, OidcBearerAuth
 from openeo.rest.auth.config import AuthConfig, RefreshTokenStore
 from openeo.rest.auth.oidc import (
@@ -785,7 +785,7 @@ class Connection(RestApiConnection):
         print("Authenticated using device code flow.")
         return con
 
-    def authenticate_oidc_access_token(self, access_token: str, provider_id: Optional[str] = None) -> None:
+    def authenticate_oidc_access_token(self, access_token: str, provider_id: Optional[str] = None) -> Connection:
         """
         Set up authorization headers directly with an OIDC access token.
 
@@ -800,10 +800,14 @@ class Connection(RestApiConnection):
             against the backend's list of providers to avoid and related OIDC configuration
 
         .. versionadded:: 0.31.0
+
+        .. versionchanged:: 0.33.0
+            Return connection object to support chaining.
         """
         provider_id, _ = self._get_oidc_provider(provider_id=provider_id, parse_info=False)
         self.auth = OidcBearerAuth(provider_id=provider_id, access_token=access_token)
         self._oidc_auth_renewer = None
+        return self
 
     def request(
         self,
@@ -1125,11 +1129,19 @@ class Connection(RestApiConnection):
         """
         return RESTUserDefinedProcess(user_defined_process_id=user_defined_process_id, connection=self)
 
-    def validate_process_graph(self, process_graph: Union[dict, FlatGraphableMixin, Any]) -> List[dict]:
+    def validate_process_graph(
+        self, process_graph: Union[dict, FlatGraphableMixin, str, Path, List[FlatGraphableMixin]]
+    ) -> List[dict]:
         """
         Validate a process graph without executing it.
 
-        :param process_graph: (flat) dict representing process graph
+        :param process_graph: openEO-style (flat) process graph representation,
+            or an object that can be converted to such a representation:
+            a dictionary, a :py:class:`~openeo.rest.datacube.DataCube` object,
+            a string with a JSON representation,
+            a local file path or URL to a JSON representation,
+            a :py:class:`~openeo.rest.multiresult.MultiResult` object, ...
+
         :return: list of errors (dictionaries with "code" and "message" fields)
         """
         pg_with_metadata = self._build_request_with_process_graph(process_graph)["process"]
@@ -1411,26 +1423,14 @@ class Connection(RestApiConnection):
             Argument ``temporal_extent``: add support for year/month shorthand notation
             as discussed at :ref:`date-shorthand-handling`.
         """
-        # TODO #425 move this implementation to `DataCube` and just forward here (like with `load_collection`)
-        # TODO #425 detect actual metadata from URL
-        arguments = {"url": url}
-        # TODO #425 more normalization/validation of extent/band parameters
-        if spatial_extent:
-            arguments["spatial_extent"] = spatial_extent
-        if temporal_extent:
-            arguments["temporal_extent"] = DataCube._get_temporal_extent(extent=temporal_extent)
-        if bands:
-            arguments["bands"] = bands
-        if properties:
-            arguments["properties"] = {
-                prop: build_child_callback(pred, parent_parameters=["value"]) for prop, pred in properties.items()
-            }
-        cube = self.datacube_from_process(process_id="load_stac", **arguments)
-        try:
-            cube.metadata = metadata_from_stac(url)
-        except Exception:
-            _log.warning(f"Failed to extract cube metadata from STAC URL {url}", exc_info=True)
-        return cube
+        return DataCube.load_stac(
+            url=url,
+            spatial_extent=spatial_extent,
+            temporal_extent=temporal_extent,
+            bands=bands,
+            properties=properties,
+            connection=self,
+        )
 
     def load_stac_from_job(
         self,
@@ -1617,12 +1617,19 @@ class Connection(RestApiConnection):
             metadata = resp.json()
         return UserFile.from_metadata(metadata=metadata, connection=self)
 
-    def _build_request_with_process_graph(self, process_graph: Union[dict, FlatGraphableMixin, Any], **kwargs) -> dict:
+    def _build_request_with_process_graph(
+        self,
+        process_graph: Union[dict, FlatGraphableMixin, str, Path, List[FlatGraphableMixin]],
+        **kwargs,
+    ) -> dict:
         """
         Prepare a json payload with a process graph to submit to /result, /services, /jobs, ...
         :param process_graph: flat dict representing a "process graph with metadata" ({"process": {"process_graph": ...}, ...})
         """
         # TODO: make this a more general helper (like `as_flat_graph`)
+        connections = extract_connections(process_graph)
+        if any(c != self for c in connections):
+            raise OpenEoClientException(f"Mixing different connections: {self} and {connections}.")
         result = kwargs
         process_graph = as_flat_graph(process_graph)
         if "process_graph" not in process_graph:
@@ -1665,7 +1672,7 @@ class Connection(RestApiConnection):
     # TODO: unify `download` and `execute` better: e.g. `download` always writes to disk, `execute` returns result (raw or as JSON decoded dict)
     def download(
         self,
-        graph: Union[dict, FlatGraphableMixin, str, Path],
+        graph: Union[dict, FlatGraphableMixin, str, Path, List[FlatGraphableMixin]],
         outputfile: Union[Path, str, None] = None,
         *,
         timeout: Optional[int] = None,
@@ -1704,7 +1711,7 @@ class Connection(RestApiConnection):
 
     def execute(
         self,
-        process_graph: Union[dict, str, Path],
+        process_graph: Union[dict, FlatGraphableMixin, str, Path, List[FlatGraphableMixin]],
         *,
         timeout: Optional[int] = None,
         validate: Optional[bool] = None,
@@ -1741,7 +1748,7 @@ class Connection(RestApiConnection):
 
     def create_job(
         self,
-        process_graph: Union[dict, str, Path],
+        process_graph: Union[dict, FlatGraphableMixin, str, Path, List[FlatGraphableMixin]],
         *,
         title: Optional[str] = None,
         description: Optional[str] = None,
@@ -1753,8 +1760,12 @@ class Connection(RestApiConnection):
         """
         Create a new job from given process graph on the back-end.
 
-        :param process_graph: (flat) dict representing a process graph, or process graph as raw JSON string,
-            or as local file path or URL
+        :param process_graph: openEO-style (flat) process graph representation,
+            or an object that can be converted to such a representation:
+            a dictionary, a :py:class:`~openeo.rest.datacube.DataCube` object,
+            a string with a JSON representation,
+            a local file path or URL to a JSON representation,
+            a :py:class:`~openeo.rest.multiresult.MultiResult` object, ...
         :param title: job title
         :param description: job description
         :param plan: The billing plan to process and charge the job with
@@ -1764,6 +1775,9 @@ class Connection(RestApiConnection):
         :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
         :return: Created job
+
+        .. versionchanged:: 0.35.0
+            Add :ref:`multi-result support <multi-result-process-graphs>`.
         """
         # TODO move all this (BatchJob factory) logic to BatchJob?
 
@@ -1977,3 +1991,25 @@ def paginate(con: Connection, url: str, params: Optional[dict] = None, callback:
         url = next_links[0]["href"]
         page += 1
         params = {}
+
+
+def extract_connections(
+    data: Union[_ProcessGraphAbstraction, Sequence[_ProcessGraphAbstraction], Any]
+) -> Set[Connection]:
+    """
+    Extract the :py:class:`Connection` object(s) linked from a given data construct.
+    Typical use case is to get the connection from a :py:class:`DataCube`,
+    but can also extract multiple connections from a list of data cubes.
+    """
+    connections = set()
+    # TODO: define some kind of "Connected" interface/mixin/protocol
+    #       for objects that contain a connection instead of just checking for _ProcessGraphAbstraction
+    # TODO: also support extracting connections from other objects like BatchJob, ...
+    if isinstance(data, _ProcessGraphAbstraction) and data.connection:
+        connections.add(data.connection)
+    elif isinstance(data, (list, tuple, set)):
+        for item in data:
+            if isinstance(item, _ProcessGraphAbstraction) and item.connection:
+                connections.add(item.connection)
+
+    return connections

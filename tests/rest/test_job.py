@@ -9,7 +9,7 @@ import requests
 
 import openeo
 import openeo.rest.job
-from openeo.rest import JobFailedException, OpenEoClientException
+from openeo.rest import JobFailedException, OpenEoApiPlainError, OpenEoClientException
 from openeo.rest.job import BatchJob, ResultAsset
 
 from .test_connection import _credentials_basic_handler
@@ -604,6 +604,20 @@ def test_result_asset_download_file(con100, requests_mock, tmp_path):
     assert path.name == "res.tiff"
     with path.open("rb") as f:
         assert f.read() == TIFF_CONTENT
+
+
+def test_result_asset_download_file_error(con100, requests_mock, tmp_path):
+    href = API_URL + "/dl/jjr1.tiff"
+    requests_mock.get(href, status_code=500, text="Nope!")
+
+    job = BatchJob("jj", connection=con100)
+    asset = ResultAsset(job, name="1.tiff", href=href, metadata={"type": "image/tiff; application=geotiff"})
+
+    with pytest.raises(OpenEoApiPlainError, match="Nope!"):
+        _ = asset.download(tmp_path / "res.tiff")
+
+    # Nothing should be downloaded
+    assert list(tmp_path.iterdir()) == []
 
 
 def test_result_asset_download_folder(con100, requests_mock, tmp_path):

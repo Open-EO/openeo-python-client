@@ -27,7 +27,7 @@ class MlModel(_ProcessGraphAbstraction):
     .. versionadded:: 0.10.0
     """
 
-    def __init__(self, graph: PGNode, connection: Connection):
+    def __init__(self, graph: PGNode, connection: Union[Connection, None]):
         super().__init__(pgnode=graph, connection=connection)
 
     def save_ml_model(self, options: Optional[dict] = None):
@@ -59,10 +59,17 @@ class MlModel(_ProcessGraphAbstraction):
         return MlModel(graph=PGNode(process_id="load_ml_model", id=id), connection=connection)
 
     def execute_batch(
-            self,
-            outputfile: Union[str, pathlib.Path],
-            print=print, max_poll_interval=60, connection_retry_interval=30,
-            job_options=None,
+        self,
+        outputfile: Union[str, pathlib.Path],
+        *,
+        title: Optional[str] = None,
+        description: Optional[str] = None,
+        plan: Optional[str] = None,
+        budget: Optional[float] = None,
+        print=print,
+        max_poll_interval=60,
+        connection_retry_interval=30,
+        job_options=None,
     ) -> BatchJob:
         """
         Evaluate the process graph by creating a batch job, and retrieving the results when it is finished.
@@ -75,7 +82,7 @@ class MlModel(_ProcessGraphAbstraction):
         :param out_format: (optional) Format of the job result.
         :param format_options: String Parameters for the job result format
         """
-        job = self.create_job(job_options=job_options)
+        job = self.create_job(title=title, description=description, plan=plan, budget=budget, job_options=job_options)
         return job.run_synchronous(
             # TODO #135 support multi file result sets too
             outputfile=outputfile,

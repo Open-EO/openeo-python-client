@@ -9,11 +9,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Automatically use `load_url` when providing a URL as geometries to `DataCube.aggregate_spatial()`, `DataCube.mask_polygon()`, etc. ([#104](https://github.com/Open-EO/openeo-python-client/issues/104), [#457](https://github.com/Open-EO/openeo-python-client/issues/457))
+
 ### Changed
+
+- `MultiBackendJobManager`: costs has been added as a column in tracking databases ([[#588](https://github.com/Open-EO/openeo-python-client/issues/588)])
+- When passing a path/string as `geometry` to `DataCube.aggregate_spatial()`, `DataCube.mask_polygon()`, etc.:
+  this is not translated automatically anymore to deprecated, non-standard `read_vector` usage.
+  Instead, if it is a local GeoJSON file, the GeoJSON data will be loaded directly client-side.
+  ([#104](https://github.com/Open-EO/openeo-python-client/issues/104), [#457](https://github.com/Open-EO/openeo-python-client/issues/457))
 
 ### Removed
 
 ### Fixed
+
+- `load_stac`: use fallback temporal dimension when no "cube:dimensions" in STAC Collection ([#666](https://github.com/Open-EO/openeo-python-client/issues/666))
+
+## [0.35.0] - 2024-11-19
+
+### Added
+
+- Added `MultiResult` helper class to build process graphs with multiple result nodes ([#391](https://github.com/Open-EO/openeo-python-client/issues/391))
+
+### Fixed
+
+- `MultiBackendJobManager`: Fix issue with duplicate job starting across multiple backends ([#654](https://github.com/Open-EO/openeo-python-client/pull/654))
+- `MultiBackendJobManager`: Fix encoding issue of job metadata in `on_job_done` ([#657](https://github.com/Open-EO/openeo-python-client/issues/657))
+- `MultiBackendJobManager`: Avoid `SettingWithCopyWarning` ([#641](https://github.com/Open-EO/openeo-python-client/issues/641))
+- Avoid creating empty file if asset download request failed.
+- `MultiBackendJobManager`: avoid dtype loading mistakes in `CsvJobDatabase` on empty columns ([#656](https://github.com/Open-EO/openeo-python-client/issues/656))
+- `MultiBackendJobManager`: restore logging of job status histogram during `run_jobs` ([#655](https://github.com/Open-EO/openeo-python-client/issues/655))
+
+
+## [0.34.0] - 2024-10-31
+
+### Removed
+
+- Drop support for Python 3.7 ([#578](https://github.com/Open-EO/openeo-python-client/issues/578))
+
+### Fixed
+
+- Fixed broken support for `title` and `description` job properties in `execute_batch()` ([#652](https://github.com/Open-EO/openeo-python-client/issues/652))
+
+
+## [0.33.0] - 2024-10-18
+
+### Added
+
+- Added `DataCube.load_stac()` to also support creating a `load_stac` based cube without a connection ([#638](https://github.com/Open-EO/openeo-python-client/issues/638))
+- `MultiBackendJobManager`: Added `initialize_from_df(df)` (to `CsvJobDatabase` and `ParquetJobDatabase`) to initialize (and persist) the job database from a given DataFrame.
+  Also added `create_job_db()` factory to easily create a job database from a given dataframe and its type guessed from filename extension.
+  ([#635](https://github.com/Open-EO/openeo-python-client/issues/635))
+- `MultiBackendJobManager.run_jobs()` now returns a dictionary with counters/stats about various events during the full run of the job manager ([#645](https://github.com/Open-EO/openeo-python-client/issues/645))
+- Added (experimental) `ProcessBasedJobCreator` to be used as `start_job` callable with `MultiBackendJobManager` to create multiple jobs from a single parameterized process (e.g. a UDP or remote process definition) ([#604](https://github.com/Open-EO/openeo-python-client/issues/604))
+
+### Fixed
+
+- When using `DataCube.load_collection()` without a connection, it is not necessary anymore to also explicitly set `fetch_metadata=False` ([#638](https://github.com/Open-EO/openeo-python-client/issues/638))
 
 
 ## [0.32.0] - 2024-09-27

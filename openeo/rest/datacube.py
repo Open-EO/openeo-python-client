@@ -12,7 +12,9 @@ from __future__ import annotations
 import datetime
 import logging
 import pathlib
+import re
 import typing
+import urllib.parse
 import warnings
 from builtins import staticmethod
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Union
@@ -40,6 +42,7 @@ from openeo.metadata import (
     CollectionMetadata,
     SpatialDimension,
     TemporalDimension,
+    metadata_from_stac,
 )
 from openeo.processes import ProcessBuilder
 from openeo.rest import BandMathException, OpenEoClientException, OperatorException
@@ -56,7 +59,7 @@ from openeo.rest.mlmodel import MlModel
 from openeo.rest.service import Service
 from openeo.rest.udp import RESTUserDefinedProcess
 from openeo.rest.vectorcube import VectorCube
-from openeo.util import dict_no_none, guess_format, normalize_crs, rfc3339
+from openeo.util import dict_no_none, guess_format, load_json, normalize_crs, rfc3339
 
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).
@@ -84,7 +87,9 @@ class DataCube(_ProcessGraphAbstraction):
     # TODO: set this based on back-end or user preference?
     _DEFAULT_RASTER_FORMAT = "GTiff"
 
-    def __init__(self, graph: PGNode, connection: Connection, metadata: Optional[CollectionMetadata] = None):
+    def __init__(
+        self, graph: PGNode, connection: Optional[Connection] = None, metadata: Optional[CollectionMetadata] = None
+    ):
         super().__init__(pgnode=graph, connection=connection)
         self.metadata: Optional[CollectionMetadata] = metadata
 
@@ -137,7 +142,7 @@ class DataCube(_ProcessGraphAbstraction):
     def load_collection(
         cls,
         collection_id: Union[str, Parameter],
-        connection: Connection = None,
+        connection: Optional[Connection] = None,
         spatial_extent: Union[Dict[str, float], Parameter, None] = None,
         temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
         bands: Union[None, List[str], Parameter] = None,
@@ -151,7 +156,8 @@ class DataCube(_ProcessGraphAbstraction):
         Create a new Raster Data cube.
 
         :param collection_id: image collection identifier
-        :param connection: The connection to use to connect with the backend.
+        :param connection: The backend connection to use.
+            Can be ``None`` to work without connection and collection metadata.
         :param spatial_extent: limit data to specified bounding box or polygons
         :param temporal_extent: limit data to specified temporal interval.
             Typically, just a two-item list or tuple containing start and end date.
@@ -190,7 +196,7 @@ class DataCube(_ProcessGraphAbstraction):
         if isinstance(collection_id, Parameter):
             fetch_metadata = False
         metadata: Optional[CollectionMetadata] = (
-            connection.collection_metadata(collection_id) if fetch_metadata else None
+            connection.collection_metadata(collection_id) if connection and fetch_metadata else None
         )
         if bands:
             if isinstance(bands, str):
@@ -199,6 +205,7 @@ class DataCube(_ProcessGraphAbstraction):
                 metadata = None
             if metadata:
                 bands = [b if isinstance(b, str) else metadata.band_dimension.band_name(b) for b in bands]
+                # TODO: also apply spatial/temporal filters to metadata?
                 metadata = metadata.filter_bands(bands)
             arguments['bands'] = bands
 
@@ -258,6 +265,136 @@ class DataCube(_ProcessGraphAbstraction):
             }
         )
         return cls(graph=pg, connection=connection)
+
+    @classmethod
+    def load_stac(
+        cls,
+        url: str,
+        spatial_extent: Union[Dict[str, float], Parameter, None] = None,
+        temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
+        bands: Optional[List[str]] = None,
+        properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
+        connection: Optional[Connection] = None,
+    ) -> DataCube:
+        """
+        Loads data from a static STAC catalog or a STAC API Collection and returns the data as a processable :py:class:`DataCube`.
+        A batch job result can be loaded by providing a reference to it.
+
+        If supported by the underlying metadata and file format, the data that is added to the data cube can be
+        restricted with the parameters ``spatial_extent``, ``temporal_extent`` and ``bands``.
+        If no data is available for the given extents, a ``NoDataAvailable`` error is thrown.
+
+        Remarks:
+
+        * The bands (and all dimensions that specify nominal dimension labels) are expected to be ordered as
+          specified in the metadata if the ``bands`` parameter is set to ``null``.
+        * If no additional parameter is specified this would imply that the whole data set is expected to be loaded.
+          Due to the large size of many data sets, this is not recommended and may be optimized by back-ends to only
+          load the data that is actually required after evaluating subsequent processes such as filters.
+          This means that the values should be processed only after the data has been limited to the required extent
+          and as a consequence also to a manageable size.
+
+
+        :param url: The URL to a static STAC catalog (STAC Item, STAC Collection, or STAC Catalog)
+            or a specific STAC API Collection that allows to filter items and to download assets.
+            This includes batch job results, which itself are compliant to STAC.
+            For external URLs, authentication details such as API keys or tokens may need to be included in the URL.
+
+            Batch job results can be specified in two ways:
+
+            - For Batch job results at the same back-end, a URL pointing to the corresponding batch job results
+              endpoint should be provided. The URL usually ends with ``/jobs/{id}/results`` and ``{id}``
+              is the corresponding batch job ID.
+            - For external results, a signed URL must be provided. Not all back-ends support signed URLs,
+              which are provided as a link with the link relation `canonical` in the batch job result metadata.
+        :param spatial_extent:
+            Limits the data to load to the specified bounding box or polygons.
+
+            For raster data, the process loads the pixel into the data cube if the point at the pixel center intersects
+            with the bounding box or any of the polygons (as defined in the Simple Features standard by the OGC).
+
+            For vector data, the process loads the geometry into the data cube if the geometry is fully within the
+            bounding box or any of the polygons (as defined in the Simple Features standard by the OGC).
+            Empty geometries may only be in the data cube if no spatial extent has been provided.
+
+            The GeoJSON can be one of the following feature types:
+
+            * A ``Polygon`` or ``MultiPolygon`` geometry,
+            * a ``Feature`` with a ``Polygon`` or ``MultiPolygon`` geometry, or
+            * a ``FeatureCollection`` containing at least one ``Feature`` with ``Polygon`` or ``MultiPolygon`` geometries.
+
+            Set this parameter to ``None`` to set no limit for the spatial extent.
+            Be careful with this when loading large datasets. It is recommended to use this parameter instead of
+            using ``filter_bbox()`` or ``filter_spatial()`` directly after loading unbounded data.
+
+        :param temporal_extent:
+            Limits the data to load to the specified left-closed temporal interval.
+            Applies to all temporal dimensions.
+            The interval has to be specified as an array with exactly two elements:
+
+            1.  The first element is the start of the temporal interval.
+                The specified instance in time is **included** in the interval.
+            2.  The second element is the end of the temporal interval.
+                The specified instance in time is **excluded** from the interval.
+
+            The second element must always be greater/later than the first element.
+            Otherwise, a `TemporalExtentEmpty` exception is thrown.
+
+            Also supports open intervals by setting one of the boundaries to ``None``, but never both.
+
+            Set this parameter to ``None`` to set no limit for the temporal extent.
+            Be careful with this when loading large datasets. It is recommended to use this parameter instead of
+            using ``filter_temporal()`` directly after loading unbounded data.
+
+        :param bands:
+            Only adds the specified bands into the data cube so that bands that don't match the list
+            of band names are not available. Applies to all dimensions of type `bands`.
+
+            Either the unique band name (metadata field ``name`` in bands) or one of the common band names
+            (metadata field ``common_name`` in bands) can be specified.
+            If the unique band name and the common name conflict, the unique band name has a higher priority.
+
+            The order of the specified array defines the order of the bands in the data cube.
+            If multiple bands match a common name, all matched bands are included in the original order.
+
+            It is recommended to use this parameter instead of using ``filter_bands()`` directly after loading unbounded data.
+
+        :param properties:
+            Limits the data by metadata properties to include only data in the data cube which
+            all given conditions return ``True`` for (AND operation).
+
+            Specify key-value-pairs with the key being the name of the metadata property,
+            which can be retrieved with the openEO Data Discovery for Collections.
+            The value must be a condition (user-defined process) to be evaluated against a STAC API.
+            This parameter is not supported for static STAC.
+
+        :param connection: The connection to use to connect with the backend.
+
+        .. versionadded:: 0.33.0
+
+        """
+        arguments = {"url": url}
+        # TODO #425 more normalization/validation of extent/band parameters
+        if spatial_extent:
+            arguments["spatial_extent"] = spatial_extent
+        if temporal_extent:
+            arguments["temporal_extent"] = DataCube._get_temporal_extent(extent=temporal_extent)
+        if bands:
+            arguments["bands"] = bands
+        if properties:
+            arguments["properties"] = {
+                prop: build_child_callback(pred, parent_parameters=["value"]) for prop, pred in properties.items()
+            }
+        graph = PGNode("load_stac", arguments=arguments)
+        try:
+            metadata = metadata_from_stac(url)
+            if bands:
+                # TODO: also apply spatial/temporal filters to metadata?
+                metadata = metadata.filter_bands(band_names=bands)
+        except Exception:
+            log.warning(f"Failed to extract cube metadata from STAC URL {url}", exc_info=True)
+            metadata = None
+        return cls(graph=graph, connection=connection, metadata=metadata)
 
     @classmethod
     def _get_temporal_extent(
@@ -449,7 +586,9 @@ class DataCube(_ProcessGraphAbstraction):
         )
 
     @openeo_process
-    def filter_spatial(self, geometries) -> DataCube:
+    def filter_spatial(
+        self, geometries: Union[shapely.geometry.base.BaseGeometry, dict, str, pathlib.Path, Parameter, VectorCube]
+    ) -> DataCube:
         """
         Limits the data cube over the spatial dimensions to the specified geometries.
 
@@ -462,10 +601,31 @@ class DataCube(_ProcessGraphAbstraction):
         More specifically, pixels outside of the bounding box of the given geometry will not be available after filtering.
         All pixels inside the bounding box that are not retained will be set to null (no data).
 
-        :param geometries: One or more geometries used for filtering, specified as GeoJSON in EPSG:4326.
+        :param geometries: One or more geometries used for filtering, Can be provided in different ways:
+
+            - a shapely geometry
+            - a GeoJSON-style dictionary,
+            - a public URL to the geometries in a vector format that is supported by the backend
+              (also see :py:func:`Connection.list_file_formats() <openeo.rest.connection.Connection.list_file_formats>`),
+              e.g. GeoJSON, GeoParquet, etc.
+              A ``load_url`` process will automatically be added to the process graph.
+            - a path (:py:class:`str` or :py:class:`~pathlib.Path`) to a local, client-side GeoJSON file,
+              which will be loaded automatically to get the geometries as GeoJSON construct.
+            - a :py:class:`~openeo.rest.vectorcube.VectorCube` instance.
+            - a :py:class:`~openeo.api.process.Parameter` instance.
+
         :return: A data cube restricted to the specified geometries. The dimensions and dimension properties (name,
             type, labels, reference system and resolution) remain unchanged, except that the spatial dimensions have less
             (or the same) dimension labels.
+
+        .. versionchanged:: 0.36.0
+            Support passing a URL as ``geometries`` argument, which will be loaded with the ``load_url`` process.
+
+        .. versionchanged:: 0.36.0
+            Support for passing a backend-side path as ``geometries`` argument was removed
+            (also see :ref:`legacy_read_vector`).
+            Instead, it's possible to provide a client-side path to a GeoJSON file
+            (which will be loaded client-side to get the geometries as GeoJSON construct).
         """
         valid_geojson_types = [
             "Point", "MultiPoint", "LineString", "MultiLineString",
@@ -900,7 +1060,7 @@ class DataCube(_ProcessGraphAbstraction):
 
     def _get_geometry_argument(
         self,
-        geometry: Union[
+        argument: Union[
             shapely.geometry.base.BaseGeometry,
             dict,
             str,
@@ -912,25 +1072,41 @@ class DataCube(_ProcessGraphAbstraction):
         crs: Optional[str] = None,
     ) -> Union[dict, Parameter, PGNode]:
         """
-        Convert input to a geometry as "geojson" subtype object.
+        Convert input to a geometry as "geojson" subtype object or vectorcube.
 
         :param crs: value that encodes a coordinate reference system.
             See :py:func:`openeo.util.normalize_crs` for more details about additional normalization that is applied to this argument.
         """
-        if isinstance(geometry, (str, pathlib.Path)):
-            # Assumption: `geometry` is path to polygon is a path to vector file at backend.
-            # TODO #104: `read_vector` is non-standard process.
-            # TODO: If path exists client side: load it client side?
-            return PGNode(process_id="read_vector", arguments={"filename": str(geometry)})
-        elif isinstance(geometry, Parameter):
-            return geometry
-        elif isinstance(geometry, _FromNodeMixin):
-            return geometry.from_node()
+        if isinstance(argument, Parameter):
+            return argument
+        elif isinstance(argument, _FromNodeMixin):
+            return argument.from_node()
 
-        if isinstance(geometry, shapely.geometry.base.BaseGeometry):
-            geometry = mapping(geometry)
-        if not isinstance(geometry, dict):
-            raise OpenEoClientException("Invalid geometry argument: {g!r}".format(g=geometry))
+        if isinstance(argument, str) and re.match(r"^https?://", argument, flags=re.I):
+            # Geometry provided as URL: load with `load_url` (with best-effort format guess)
+            url = urllib.parse.urlparse(argument)
+            suffix = pathlib.Path(url.path.lower()).suffix
+            format = {
+                ".json": "GeoJSON",
+                ".geojson": "GeoJSON",
+                ".pq": "Parquet",
+                ".parquet": "Parquet",
+                ".geoparquet": "Parquet",
+            }.get(suffix, suffix.split(".")[-1])
+            return self.connection.load_url(url=argument, format=format)
+
+        if (
+            isinstance(argument, (str, pathlib.Path))
+            and pathlib.Path(argument).is_file()
+            and pathlib.Path(argument).suffix.lower() in [".json", ".geojson"]
+        ):
+            geometry = load_json(argument)
+        elif isinstance(argument, shapely.geometry.base.BaseGeometry):
+            geometry = mapping(argument)
+        elif isinstance(argument, dict):
+            geometry = argument
+        else:
+            raise OpenEoClientException(f"Invalid geometry argument: {argument!r}")
 
         if geometry.get("type") not in valid_geojson_types:
             raise OpenEoClientException("Invalid geometry type {t!r}, must be one of {s}".format(
@@ -972,8 +1148,19 @@ class DataCube(_ProcessGraphAbstraction):
         Aggregates statistics for one or more geometries (e.g. zonal statistics for polygons)
         over the spatial dimensions.
 
-        :param geometries: a shapely geometry, a GeoJSON-style dictionary,
-            a public GeoJSON URL, or a path (that is valid for the back-end) to a GeoJSON file.
+        :param geometries: The geometries to aggregate in. Can be provided in different ways:
+
+            - a shapely geometry
+            - a GeoJSON-style dictionary,
+            - a public URL to the geometries in a vector format that is supported by the backend
+              (also see :py:func:`Connection.list_file_formats() <openeo.rest.connection.Connection.list_file_formats>`),
+              e.g. GeoJSON, GeoParquet, etc.
+              A ``load_url`` process will automatically be added to the process graph.
+            - a path (:py:class:`str` or :py:class:`~pathlib.Path`) to a local, client-side GeoJSON file,
+              which will be loaded automatically to get the geometries as GeoJSON construct.
+            - a :py:class:`~openeo.rest.vectorcube.VectorCube` instance.
+            - a :py:class:`~openeo.api.process.Parameter` instance.
+
         :param reducer: the "child callback":
             the name of a single openEO process,
             or a callback function as discussed in :ref:`callbackfunctions`,
@@ -993,10 +1180,19 @@ class DataCube(_ProcessGraphAbstraction):
             By default, longitude-latitude (EPSG:4326) is assumed.
             See :py:func:`openeo.util.normalize_crs` for more details about additional normalization that is applied to this argument.
 
-        :param context: Additional data to be passed to the reducer process.
-
             .. note:: this ``crs`` argument is a non-standard/experimental feature, only supported by specific back-ends.
                 See https://github.com/Open-EO/openeo-processes/issues/235 for details.
+
+        :param context: Additional data to be passed to the reducer process.
+
+        .. versionchanged:: 0.36.0
+            Support passing a URL as ``geometries`` argument, which will be loaded with the ``load_url`` process.
+
+        .. versionchanged:: 0.36.0
+            Support for passing a backend-side path as ``geometries`` argument was removed
+            (also see :ref:`legacy_read_vector`).
+            Instead, it's possible to provide a client-side path to a GeoJSON file
+            (which will be loaded client-side to get the geometries as GeoJSON construct).
         """
         valid_geojson_types = [
             "Point", "MultiPoint", "LineString", "MultiLineString",
@@ -1273,19 +1469,7 @@ class DataCube(_ProcessGraphAbstraction):
         mask_value: float = None,
         context: Optional[dict] = None,
     ) -> DataCube:
-        """
-        Apply a process to spatial chunks of a data cube.
-
-        .. warning:: experimental process: not generally supported, API subject to change.
-
-        :param chunks: Polygons, provided as a shapely geometry, a GeoJSON-style dictionary,
-            a public GeoJSON URL, or a path (that is valid for the back-end) to a GeoJSON file.
-        :param process: "child callback" function, see :ref:`callbackfunctions`
-        :param mask_value: The value used for cells outside the polygon.
-            This provides a distinction between NoData cells within the polygon (due to e.g. clouds)
-            and masked cells outside it. If no value is provided, NoData cells are used outside the polygon.
-        :param context: Additional data to be passed to the process.
-        """
+        """"""
         process = build_child_callback(process, parent_parameters=["data"], connection=self.connection)
         valid_geojson_types = [
             "Polygon",
@@ -1326,8 +1510,19 @@ class DataCube(_ProcessGraphAbstraction):
         the GeometriesOverlap exception is thrown.
         Each sub data cube is passed individually to the given process.
 
-        :param geometries: Polygons, provided as a shapely geometry, a GeoJSON-style dictionary,
-            a public GeoJSON URL, or a path (that is valid for the back-end) to a GeoJSON file.
+        :param geometries: Can be provided in different ways:
+
+            - a shapely geometry
+            - a GeoJSON-style dictionary,
+            - a public URL to the geometries in a vector format that is supported by the backend
+              (also see :py:func:`Connection.list_file_formats() <openeo.rest.connection.Connection.list_file_formats>`),
+              e.g. GeoJSON, GeoParquet, etc.
+              A ``load_url`` process will automatically be added to the process graph.
+            - a path (:py:class:`str` or :py:class:`~pathlib.Path`) to a local, client-side GeoJSON file,
+              which will be loaded automatically to get the geometries as GeoJSON construct.
+            - a :py:class:`~openeo.rest.vectorcube.VectorCube` instance.
+            - a :py:class:`~openeo.api.process.Parameter` instance.
+
         :param process: "child callback" function, see :ref:`callbackfunctions`
         :param mask_value: The value used for pixels outside the polygon.
         :param context: Additional data to be passed to the process.
@@ -1338,6 +1533,15 @@ class DataCube(_ProcessGraphAbstraction):
             Argument ``polygons`` was renamed to ``geometries``.
             While deprecated, the old name ``polygons`` is still supported
             as keyword argument for backwards compatibility.
+
+        .. versionchanged:: 0.36.0
+            Support passing a URL as ``geometries`` argument, which will be loaded with the ``load_url`` process.
+
+        .. versionchanged:: 0.36.0
+            Support for passing a backend-side path as ``geometries`` argument was removed
+            (also see :ref:`legacy_read_vector`).
+            Instead, it's possible to provide a client-side path to a GeoJSON file
+            (which will be loaded client-side to get the geometries as GeoJSON construct).
         """
         # TODO drop support for legacy `polygons` argument:
         #      remove `kwargs, remove default `None` value for `geometries` and `process`
@@ -1822,14 +2026,34 @@ class DataCube(_ProcessGraphAbstraction):
         The pixel values are replaced with the value specified for `replacement`,
         which defaults to `no data`.
 
-        :param mask: The geometry to mask with: a shapely geometry, a GeoJSON-style dictionary,
-            a public GeoJSON URL, or a path (that is valid for the back-end) to a GeoJSON file.
+        :param mask: The geometry to mask with.an be provided in different ways:
+
+            - a shapely geometry
+            - a GeoJSON-style dictionary,
+            - a public URL to the geometries in a vector format that is supported by the backend
+              (also see :py:func:`Connection.list_file_formats() <openeo.rest.connection.Connection.list_file_formats>`),
+              e.g. GeoJSON, GeoParquet, etc.
+              A ``load_url`` process will automatically be added to the process graph.
+            - a path (:py:class:`str` or :py:class:`~pathlib.Path`) to a local, client-side GeoJSON file,
+              which will be loaded automatically to get the geometries as GeoJSON construct.
+            - a :py:class:`~openeo.rest.vectorcube.VectorCube` instance.
+            - a :py:class:`~openeo.api.process.Parameter` instance.
+
         :param srs: The spatial reference system of the provided polygon.
             By default longitude-latitude (EPSG:4326) is assumed.
 
             .. note:: this ``srs`` argument is a non-standard/experimental feature, only supported by specific back-ends.
                 See https://github.com/Open-EO/openeo-processes/issues/235 for details.
         :param replacement: the value to replace the masked pixels with
+
+        .. versionchanged:: 0.36.0
+            Support passing a URL as ``geometries`` argument, which will be loaded with the ``load_url`` process.
+
+        .. versionchanged:: 0.36.0
+            Support for passing a backend-side path as ``geometries`` argument was removed
+            (also see :ref:`legacy_read_vector`).
+            Instead, it's possible to provide a client-side path to a GeoJSON file
+            (which will be loaded client-side to get the geometries as GeoJSON construct).
         """
         valid_geojson_types = ["Polygon", "MultiPolygon", "GeometryCollection", "Feature", "FeatureCollection"]
         mask = self._get_geometry_argument(mask, valid_geojson_types=valid_geojson_types, crs=srs)
@@ -2082,10 +2306,11 @@ class DataCube(_ProcessGraphAbstraction):
         format: str = _DEFAULT_RASTER_FORMAT,
         options: Optional[dict] = None,
     ) -> DataCube:
-        formats = set(self._connection.list_output_formats().keys())
-        # TODO: map format to correct casing too?
-        if format.lower() not in {f.lower() for f in formats}:
-            raise ValueError("Invalid format {f!r}. Should be one of {s}".format(f=format, s=formats))
+        if self._connection:
+            formats = set(self._connection.list_output_formats().keys())
+            # TODO: map format to correct casing too?
+            if format.lower() not in {f.lower() for f in formats}:
+                raise ValueError("Invalid format {f!r}. Should be one of {s}".format(f=format, s=formats))
         return self.process(
             process_id="save_result",
             arguments={
@@ -2231,6 +2456,10 @@ class DataCube(_ProcessGraphAbstraction):
         outputfile: Optional[Union[str, pathlib.Path]] = None,
         out_format: Optional[str] = None,
         *,
+        title: Optional[str] = None,
+        description: Optional[str] = None,
+        plan: Optional[str] = None,
+        budget: Optional[float] = None,
         print: typing.Callable[[str], None] = print,
         max_poll_interval: float = 60,
         connection_retry_interval: float = 30,
@@ -2272,7 +2501,15 @@ class DataCube(_ProcessGraphAbstraction):
                 method="DataCube.execute_batch()",
             )
 
-        job = cube.create_job(job_options=job_options, validate=validate, auto_add_save_result=False)
+        job = cube.create_job(
+            title=title,
+            description=description,
+            plan=plan,
+            budget=budget,
+            job_options=job_options,
+            validate=validate,
+            auto_add_save_result=False,
+        )
         return job.run_synchronous(
             outputfile=outputfile,
             print=print, max_poll_interval=max_poll_interval, connection_retry_interval=connection_retry_interval

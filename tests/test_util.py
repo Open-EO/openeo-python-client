@@ -7,6 +7,7 @@ import re
 import unittest.mock as mock
 from typing import List, Union
 
+import dateutil.tz
 import pyproj
 import pytest
 import shapely.geometry
@@ -87,21 +88,12 @@ class TestRfc3339:
         assert "2020-03-17T12:34:56Z" == rfc3339.datetime([2020, 3, 17, 12, 34, 56])
         assert "2020-03-17T12:34:56Z" == rfc3339.datetime(2020, 3, 17, 12, 34, 56)
         assert "2020-03-17T12:34:00Z" == rfc3339.datetime(2020, 3, 17, 12, 34)
-        assert "2020-03-17T12:34:56Z" == rfc3339.datetime(
-            (2020, "3", 17, "12", "34", 56)
-        )
-        assert "2020-09-17T12:34:56Z" == rfc3339.datetime(
-            [2020, "09", 17, "12", "34", 56]
-        )
-        assert "2020-09-17T12:34:56Z" == rfc3339.datetime(
-            2020, "09", "17", "12", "34", 56
-        )
-        assert "2020-03-17T12:34:56Z" == rfc3339.datetime(
-            dt.datetime(2020, 3, 17, 12, 34, 56, tzinfo=None)
-        )
-        assert "2020-03-17T12:34:56Z" == rfc3339.datetime(
-            dt.datetime(2020, 3, 17, 12, 34, 56, tzinfo=dt.timezone.utc)
-        )
+        assert "2020-03-17T12:34:56Z" == rfc3339.datetime((2020, "3", 17, "12", "34", 56))
+        assert "2020-09-17T12:34:56Z" == rfc3339.datetime([2020, "09", 17, "12", "34", 56])
+        assert "2020-09-17T12:34:56Z" == rfc3339.datetime(2020, "09", "17", "12", "34", 56)
+        assert "2020-03-17T12:34:56Z" == rfc3339.datetime(dt.datetime(2020, 3, 17, 12, 34, 56, tzinfo=None))
+        assert "2020-03-17T12:34:56Z" == rfc3339.datetime(dt.datetime(2020, 3, 17, 12, 34, 56, tzinfo=dt.timezone.utc))
+        assert "2020-03-17T12:34:56Z" == rfc3339.datetime(dt.datetime(2020, 3, 17, 12, 34, 56, tzinfo=dateutil.tz.UTC))
         assert "2020-03-17T12:34:56Z" == rfc3339.datetime(
             dt.datetime(
                 *(2020, 3, 17, 12, 34, 56),
@@ -125,15 +117,10 @@ class TestRfc3339:
             "2020-03-17T12:34:56.44546546Z"
         )
         assert "2020-03-17" == rfc3339.normalize(dt.date(2020, 3, 17))
-        assert "2020-03-17T12:34:56Z" == rfc3339.normalize(
-            dt.datetime(2020, 3, 17, 12, 34, 56)
-        )
-        assert "2020-03-17T12:34:56Z" == rfc3339.normalize(
-            dt.datetime(2020, 3, 17, 12, 34, 56, tzinfo=None)
-        )
-        assert "2020-03-17T12:34:56Z" == rfc3339.normalize(
-            dt.datetime(2020, 3, 17, 12, 34, 56, tzinfo=dt.timezone.utc)
-        )
+        assert "2020-03-17T12:34:56Z" == rfc3339.normalize(dt.datetime(2020, 3, 17, 12, 34, 56))
+        assert "2020-03-17T12:34:56Z" == rfc3339.normalize(dt.datetime(2020, 3, 17, 12, 34, 56, tzinfo=None))
+        assert "2020-03-17T12:34:56Z" == rfc3339.normalize(dt.datetime(2020, 3, 17, 12, 34, 56, tzinfo=dt.timezone.utc))
+        assert "2020-03-17T12:34:56Z" == rfc3339.normalize(dt.datetime(2020, 3, 17, 12, 34, 56, tzinfo=dateutil.tz.UTC))
         assert "2020-03-17T12:34:56Z" == rfc3339.normalize(
             dt.datetime(
                 *(2020, 3, 17, 12, 34, 56),
@@ -689,11 +676,6 @@ class TestBBoxDict:
             "crs": 4326,
         }
 
-    @pytest.mark.skipif(
-        # TODO #460 this skip is only necessary for python 3.6 and lower
-        pyproj.__version__ < ComparableVersion("3.3.1"),
-        reason="pyproj below 3.3.1 does not support int-like strings",
-    )
     def test_init_python_for_pyprojv331(self):
         """Extra test case that does not work with old pyproj versions that we get on python version 3.7 and below."""
         assert BBoxDict(west=1, south=2, east=3, north=4, crs="4326") == {
@@ -730,11 +712,6 @@ class TestBBoxDict:
             "crs": 4326,
         }
 
-    @pytest.mark.skipif(
-        # TODO #460 this skip is only necessary for python 3.6 and lower
-        pyproj.__version__ < ComparableVersion("3.3.1"),
-        reason="pyproj below 3.3.1 does not support int-like strings",
-    )
     def test_to_bbox_dict_from_sequence_pyprojv331(self):
         """Extra test cases that do not work with old pyproj versions that we get on python version 3.7 and below."""
         assert to_bbox_dict([1, 2, 3, 4], crs="4326") == {
@@ -788,11 +765,6 @@ class TestBBoxDict:
             }
         ) == {"west": 1, "south": 2, "east": 3, "north": 4, "crs": 4326}
 
-    @pytest.mark.skipif(
-        # TODO #460 this skip is only necessary for python 3.6 and lower
-        pyproj.__version__ < ComparableVersion("3.3.1"),
-        reason="pyproj below 3.3.1 does not support int-like strings",
-    )
     def test_to_bbox_dict_from_dict_for_pyprojv331(self):
         """Extra test cases that do not work with old pyproj versions that we get on python version 3.7 and below."""
         assert to_bbox_dict({"west": 1, "south": 2, "east": 3, "north": 4, "crs": "4326"}) == {
@@ -932,10 +904,6 @@ PROJCRS["WGS 84 / UTM zone 31N",
     )
     def test_normalize_crs_succeeds_with_correct_crses(self, epsg_input, expected):
         """Happy path, values that are allowed"""
-        if isinstance(epsg_input, str) and epsg_input.isnumeric() and pyproj.__version__ < ComparableVersion("3.3.1"):
-            # TODO drop this skip once support for python 3.7 is dropped (pyproj 3.3.0 requires at least python 3.8)
-            pytest.skip("pyproj below 3.3.1 does not support int-like strings")
-
         assert normalize_crs(epsg_input) == expected
 
     @pytest.mark.parametrize(
@@ -1051,11 +1019,6 @@ PROJCRS["WGS 84 / UTM zone 31N",
         "id": {"authority": "EPSG", "code": 32631},
     }
 
-    @pytest.mark.skipif(
-        # TODO drop this skip once support for python 3.7 is dropped (pyproj 3.3.0 requires at least python 3.8)
-        pyproj.__version__ < ComparableVersion("3.3.0"),
-        reason="PROJJSON format support requires pyproj 3.3.0 or higher",
-    )
     def test_normalize_crs_succeeds_with_correct_projjson(
         self,
     ):

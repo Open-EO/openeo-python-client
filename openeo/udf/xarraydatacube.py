@@ -345,7 +345,7 @@ class XarrayIO:
             jsonarray['coords'][i.name]['attrs']['shape'] = list(i.shape)
         # custom print so resulting json file is humanly easy to read
         # TODO: make this human friendly JSON format optional and allow compact JSON too.
-        with Path(path).open("w") as f:
+        with Path(path).open("w", encoding="utf-8") as f:
             def custom_print(data_structure, indent=1):
                 f.write("{\n")
                 needs_comma = False

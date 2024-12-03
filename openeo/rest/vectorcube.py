@@ -40,7 +40,7 @@ class VectorCube(_ProcessGraphAbstraction):
 
     _DEFAULT_VECTOR_FORMAT = "GeoJSON"
 
-    def __init__(self, graph: PGNode, connection: Connection, metadata: Optional[CubeMetadata] = None):
+    def __init__(self, graph: PGNode, connection: Union[Connection, None], metadata: Optional[CubeMetadata] = None):
         super().__init__(pgnode=graph, connection=connection)
         self.metadata = metadata
 
@@ -248,6 +248,10 @@ class VectorCube(_ProcessGraphAbstraction):
         outputfile: Optional[Union[str, pathlib.Path]] = None,
         out_format: Optional[str] = None,
         *,
+        title: Optional[str] = None,
+        description: Optional[str] = None,
+        plan: Optional[str] = None,
+        budget: Optional[float] = None,
         print=print,
         max_poll_interval: float = 60,
         connection_retry_interval: float = 30,
@@ -287,7 +291,15 @@ class VectorCube(_ProcessGraphAbstraction):
                 default_format=self._DEFAULT_VECTOR_FORMAT,
                 method="VectorCube.execute_batch()",
             )
-        job = cube.create_job(job_options=job_options, validate=validate, auto_add_save_result=False)
+        job = cube.create_job(
+            title=title,
+            description=description,
+            plan=plan,
+            budget=budget,
+            job_options=job_options,
+            validate=validate,
+            auto_add_save_result=False,
+        )
         return job.run_synchronous(
             # TODO #135 support multi file result sets too
             outputfile=outputfile,

@@ -22,18 +22,15 @@ tests_require = [
     "mock",
     "requests-mock>=1.8.0",
     "httpretty>=1.1.4",
-    # Conditional netCDF4 constraint: no more py3.7 wheels since 1.6.5 (#489)
-    "netCDF4<1.6.5 ; python_version <= '3.7'",
-    "netCDF4 ; python_version > '3.7'",
-    "matplotlib",
+    "netCDF4>=1.7.0",
+    "matplotlib",  # TODO: eliminate matplotlib as test dependency
     "geopandas",
     "flake8>=5.0.0",
     "time_machine",
     "pyproj>=3.2.0",  # Pyproj is an optional, best-effort runtime dependency
-    "dirty_equals>=0.6.0",
-    # (#578) On Python 3.7: avoid dirty_equals 0.7.1 which wrongly claims to be Python 3.7 compatible
-    "dirty_equals<0.7.1 ; python_version <= '3.7'",
+    "dirty_equals>=0.8.0",
     "pyarrow>=10.0.1",  # For Parquet read/write support in pandas
+    "python-dateutil>=2.7.0",
 ]
 
 docs_require = [
@@ -66,7 +63,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/Open-EO/openeo-python-client",
-    python_requires=">=3.7",
+    python_requires=">=3.8",
     packages=find_packages(include=["openeo*"]),
     include_package_data=True,
     tests_require=tests_require,
@@ -77,7 +74,8 @@ setup(
         "numpy>=1.17.0",
         "xarray>=0.12.3",
         "pandas>0.20.0",
-        "pystac>=1.5.0",  # pystac 1.5.0 is highest version available for lowest Python version we still support (3.7).
+        # TODO #578: pystac 1.5.0 is highest version available for lowest Python version we still support (3.7).
+        "pystac>=1.5.0",
         "deprecated>=1.2.12",
         'oschmod>=0.3.12; sys_platform == "win32"',
         "importlib_resources; python_version<'3.9'",
@@ -96,7 +94,6 @@ setup(
         "console_scripts": ["openeo-auth=openeo.rest.auth.cli:main"],
     },
     classifiers=[
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",

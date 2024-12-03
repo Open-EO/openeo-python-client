@@ -196,3 +196,55 @@ Re-parameterization
 ```````````````````
 
 TODO
+
+
+
+.. _multi-result-process-graphs:
+Building process graphs with multiple result nodes
+===================================================
+
+.. note::
+    Multi-result support is added in version 0.35.0
+
+Most openEO use cases are just about building a single result data cube,
+which is readily covered in the openEO Python client library through classes like
+:py:class:`~openeo.rest.datacube.DataCube` and :py:class:`~openeo.rest.vectorcube.VectorCube`.
+It is straightforward to create a batch job from these, or execute/download them synchronously.
+
+The openEO API also allows multiple result nodes in a single process graph,
+for example to persist intermediate results or produce results in different output formats.
+To support this, the openEO Python client library provides the :py:class:`~openeo.rest.multiresult.MultiResult` class,
+which allows to group multiple :py:class:`~openeo.rest.datacube.DataCube` and :py:class:`~openeo.rest.vectorcube.VectorCube` objects
+in a single entity that can be used to create or run batch jobs. For example:
+
+
+.. code-block:: python
+
+    from openeo import MultiResult
+
+    cube1 = ...
+    cube2 = ...
+    multi_result = MultiResult([cube1, cube2])
+    job = multi_result.create_job()
+
+
+Moreover, it is not necessary to explicitly create such a
+:py:class:`~openeo.rest.multiresult.MultiResult` object,
+as the :py:meth:`Connection.create_job() <openeo.rest.connection.Connection.create_job>` method
+directly supports passing multiple data cube objects in a list,
+which will be automatically grouped as a multi-result:
+
+.. code-block:: python
+
+    cube1 = ...
+    cube2 = ...
+    job = connection.create_job([cube1, cube2])
+
+
+.. important::
+
+    Only a single :py:class:`~openeo.rest.connection.Connection` can be in play
+    when grouping multiple results like this.
+    As everything is to be merged in a single process graph
+    to be sent to a single backend,
+    it is not possible to mix cubes created from different connections.

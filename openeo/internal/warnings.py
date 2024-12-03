@@ -35,12 +35,12 @@ def test_warnings(stacklevel=1):
         )
 
 
-def legacy_alias(orig: Callable, name: str = "n/a", *, since: str, mode: str = "full"):
+def legacy_alias(orig: Callable, name: str, *, since: str, mode: str = "full"):
     """
     Create legacy alias of given function/method/classmethod/staticmethod
 
     :param orig: function/method to create legacy alias for
-    :param name: name of the alias (unused)
+    :param name: original name of the alias
     :param since: version since when this is alias is deprecated
     :param mode:
         - "full": raise warnings on calling, only have deprecation note as doc
@@ -68,6 +68,9 @@ def legacy_alias(orig: Callable, name: str = "n/a", *, since: str, mode: str = "
     @functools.wraps(orig)
     def wrapper(*args, **kwargs):
         return orig(*args, **kwargs)
+
+    # Set deprecated name on the wrapper so that deprecation warnings use proper name.
+    wrapper.__name__ = name
 
     ref = f":py:{'meth' if 'method' in kind else 'func'}:`.{orig.__name__}`"
     message = f"Usage of this legacy {kind} is deprecated. Use {ref} instead."
