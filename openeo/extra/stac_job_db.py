@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Iterable, List, Union
 
 import geopandas as gpd
+import numpy as np
 import pandas as pd
 import pystac
 import requests
@@ -27,7 +28,12 @@ class STACAPIJobDatabase(JobDatabaseInterface):
     """
 
     def __init__(
-        self, collection_id: str, stac_root_url: str, auth: requests.auth.AuthBase, has_geometry: bool = False
+        self,
+        collection_id: str,
+        stac_root_url: str,
+        auth: requests.auth.AuthBase,
+        has_geometry: bool = False,
+        geometry_column: str = "geometry",
     ):
         """
         Initialize the STACAPIJobDatabase.
@@ -35,13 +41,15 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         :param collection_id: The ID of the STAC collection.
         :param stac_root_url: The root URL of the STAC API.
         :param auth: requests AuthBase that will be used to authenticate, e.g. OAuth2ResourceOwnerPasswordCredentials
+        :param has_geometry: Whether the job metadata supports any geometry that implements __geo_interface__.
+        :param geometry_column: The name of the geometry column in the job metadata that implements __geo_interface__.
         """
         self.collection_id = collection_id
         self.client = Client.open(stac_root_url)
 
         self._auth = auth
         self.has_geometry = has_geometry
-        self.geometry_column = "geometry"
+        self.geometry_column = geometry_column
         self.base_url = stac_root_url
         self.bulk_size = 500
 
@@ -60,24 +68,32 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         :param on_exists: what to do when the job database already exists (persisted on disk):
             - "error": (default) raise an exception
             - "skip": work with existing database, ignore given dataframe and skip any initialization
+            - "append": add given dataframe to existing database
 
         :return: initialized job database.
         """
+        if isinstance(df, gpd.GeoDataFrame):
+            df = df.copy()
+            _log.warning("Job Database is initialized from GeoDataFrame. Converting geometries to GeoJSON.")
+            self.geometry_column = df.geometry.name
+            df[self.geometry_column] = df[self.geometry_column].apply(lambda x: mapping(x))
+            df = pd.DataFrame(df)
+            self.has_geometry = True
+
         if self.exists():
             if on_exists == "skip":
                 return self
             elif on_exists == "error":
                 raise FileExistsError(f"Job database {self!r} already exists.")
-            else:
-                # TODO handle other on_exists modes: e.g. overwrite, merge, ...
-                raise ValueError(f"Invalid on_exists={on_exists!r}")
+            elif on_exists == "append":
+                existing_df = self.get_by_status([])
+                df = MultiBackendJobManager._normalize_df(df)
+                df = pd.concat([existing_df, df], ignore_index=True).replace({np.nan: None})
+                self.persist(df)
+                return self
 
-        if isinstance(df, gpd.GeoDataFrame):
-            _log.warning("Job Database is initialized from GeoDataFrame. Converting geometries to GeoJSON.")
-            self.geometry_column = df.geometry.name
-            df["geometry"] = df["geometry"].apply(lambda x: mapping(x))
-            df = pd.DataFrame(df)
-            self.has_geometry = True
+            else:
+                raise ValueError(f"Invalid on_exists={on_exists!r}")
 
         df = MultiBackendJobManager._normalize_df(df)
         self.persist(df)
@@ -98,7 +114,7 @@ class STACAPIJobDatabase(JobDatabaseInterface):
 
         return pd.Series(item_dict["properties"], name=item_id)
 
-    def item_from(self, series: pd.Series, geometry_name: str = "geometry") -> pystac.Item:
+    def item_from(self, series: pd.Series) -> pystac.Item:
         """
         Convert a pandas.Series to a STAC Item.
 
@@ -123,7 +139,7 @@ class STACAPIJobDatabase(JobDatabaseInterface):
             item_dict["properties"]["datetime"] = pystac.utils.datetime_to_str(datetime.now())
 
         if self.has_geometry:
-            item_dict["geometry"] = series[geometry_name]
+            item_dict["geometry"] = series[self.geometry_column]
         else:
             item_dict["geometry"] = None
 
@@ -131,7 +147,7 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         item_dict["id"] = series.name
         item = pystac.Item.from_dict(item_dict)
         if self.has_geometry:
-            item.bbox = shape(series[geometry_name]).bounds
+            item.bbox = shape(series[self.geometry_column]).bounds
         else:
             item.bbox = None
         return item
@@ -167,8 +183,6 @@ class STACAPIJobDatabase(JobDatabaseInterface):
             )  # Even for an empty dataframe the default columns are required
         return df
 
-
-
     def persist(self, df: pd.DataFrame):
         if not self.exists():
             spatial_extent = pystac.SpatialExtent([[-180, -90, 180, 90]])
@@ -181,7 +195,7 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         if not df.empty:
 
             def handle_row(series):
-                item = self.item_from(series, self.geometry_column)
+                item = self.item_from(series)
                 all_items.append(item)
 
 
