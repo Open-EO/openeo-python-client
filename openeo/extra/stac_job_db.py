@@ -1,20 +1,21 @@
 import concurrent
 import logging
 from datetime import datetime
-from typing import List, Union, Iterable
+from typing import Iterable, List, Union
 
-import pandas as pd
 import geopandas as gpd
+import pandas as pd
 import pystac
 import requests
 from pystac import Collection, Item
 from pystac_client import Client
 from requests.auth import HTTPBasicAuth
-from shapely.geometry import shape, mapping
+from shapely.geometry import mapping, shape
 
-from openeo.extra.job_management import JobDatabaseInterface
+from openeo.extra.job_management import JobDatabaseInterface, MultiBackendJobManager
 
 _log = logging.getLogger(__name__)
+
 
 class STACAPIJobDatabase(JobDatabaseInterface):
     """
@@ -25,7 +26,9 @@ class STACAPIJobDatabase(JobDatabaseInterface):
     :implements: :py:class:`JobDatabaseInterface`
     """
 
-    def __init__(self, collection_id: str, stac_root_url: str, auth: requests.auth.AuthBase):
+    def __init__(
+        self, collection_id: str, stac_root_url: str, auth: requests.auth.AuthBase, has_geometry: bool = False
+    ):
         """
         Initialize the STACAPIJobDatabase.
 
@@ -37,17 +40,51 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         self.client = Client.open(stac_root_url)
 
         self._auth = auth
+        self.has_geometry = has_geometry
+        self.geometry_column = "geometry"
         self.base_url = stac_root_url
         self.bulk_size = 500
-        #self.collection = self.client.get_collection(collection_id)
 
 
 
     def exists(self) -> bool:
-        return len([c.id for c in self.client.get_collections() if c.id == self.collection_id ]) >0
+        return len([c.id for c in self.client.get_collections() if c.id == self.collection_id]) > 0
 
-    @staticmethod
-    def series_from(item):
+    def initialize_from_df(self, df: pd.DataFrame, *, on_exists: str = "error"):
+        """
+        Initialize the job database from a given dataframe,
+        which will be first normalized to be compatible
+        with :py:class:`MultiBackendJobManager` usage.
+
+        :param df: dataframe with some columns your ``start_job`` callable expects
+        :param on_exists: what to do when the job database already exists (persisted on disk):
+            - "error": (default) raise an exception
+            - "skip": work with existing database, ignore given dataframe and skip any initialization
+
+        :return: initialized job database.
+        """
+        if self.exists():
+            if on_exists == "skip":
+                return self
+            elif on_exists == "error":
+                raise FileExistsError(f"Job database {self!r} already exists.")
+            else:
+                # TODO handle other on_exists modes: e.g. overwrite, merge, ...
+                raise ValueError(f"Invalid on_exists={on_exists!r}")
+
+        if isinstance(df, gpd.GeoDataFrame):
+            _log.warning("Job Database is initialized from GeoDataFrame. Converting geometries to GeoJSON.")
+            self.geometry_column = df.geometry.name
+            df["geometry"] = df["geometry"].apply(lambda x: mapping(x))
+            df = pd.DataFrame(df)
+            self.has_geometry = True
+
+        df = MultiBackendJobManager._normalize_df(df)
+        self.persist(df)
+        # Return self to allow chaining with constructor.
+        return self
+
+    def series_from(self, item: pystac.Item) -> pd.Series:
         """
         Convert a STAC Item to a pandas.Series.
 
@@ -56,20 +93,12 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         """
         item_dict = item.to_dict()
         item_id = item_dict["id"]
-        print(item_dict)
-        # Promote datetime
         dt = item_dict["properties"]["datetime"]
         item_dict["datetime"] = pystac.utils.str_to_datetime(dt)
-        #del item_dict["properties"]["datetime"]
 
-
-        # Convert geojson geom into shapely.Geometry
-        item_dict["properties"]["geometry"] = shape(item_dict["geometry"])
-        #item_dict["properties"]["name"] = item_id
         return pd.Series(item_dict["properties"], name=item_id)
 
-    @staticmethod
-    def item_from(series: pd.Series, geometry_name="geometry"):
+    def item_from(self, series: pd.Series, geometry_name: str = "geometry") -> pystac.Item:
         """
         Convert a pandas.Series to a STAC Item.
 
@@ -93,64 +122,70 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         else:
             item_dict["properties"]["datetime"] = pystac.utils.datetime_to_str(datetime.now())
 
-        item_dict["geometry"] = mapping(series[geometry_name])
-        del series_dict[geometry_name]
+        if self.has_geometry:
+            item_dict["geometry"] = series[geometry_name]
+        else:
+            item_dict["geometry"] = None
 
         # from_dict handles associating any Links and Assets with the Item
-        item_dict['id'] = series.name
+        item_dict["id"] = series.name
         item = pystac.Item.from_dict(item_dict)
-        item.bbox = series[geometry_name].bounds
+        if self.has_geometry:
+            item.bbox = shape(series[geometry_name]).bounds
+        else:
+            item.bbox = None
         return item
 
-    def count_by_status(self, statuses: List[str]) -> dict:
-        #todo: replace with use of stac aggregation extension
-        #example of how what an aggregation call looks like: https://stac-openeo-dev.vgt.vito.be/collections/copernicus_r_utm-wgs84_10_m_hrvpp-vpp_p_2017-now_v01/aggregate?aggregations=total_count&filter=description%3DSOSD&filter-lang=cql2-text
+    def count_by_status(self, statuses: Iterable[str] = ()) -> dict:
         items = self.get_by_status(statuses,max=200)
         if items is None:
-            return { k:0 for k in statuses}
+            return {k: 0 for k in statuses}
         else:
             return items["status"].value_counts().to_dict()
 
-    def get_by_status(self, statuses: List[str], max=None) -> pd.DataFrame:
+    def get_by_status(self, statuses: Iterable[str], max=None) -> pd.DataFrame:
 
-        if isinstance(statuses,str):
-            statuses = [statuses]
+        if isinstance(statuses, str):
+            statuses = {statuses}
+        statuses = set(statuses)
 
-        status_filter =  " OR ".join([ f"\"properties.status\"={s}" for s in statuses])
+        status_filter = " OR ".join([f"\"properties.status\"='{s}'" for s in statuses]) if statuses else None
         search_results = self.client.search(
             method="GET",
             collections=[self.collection_id],
             filter=status_filter,
             max_items=max,
-            fields=["properties"]
         )
 
-        crs = "EPSG:4326"
-        series = [STACAPIJobDatabase.series_from(item) for item in search_results.items()]
+        series = [self.series_from(item) for item in search_results.items()]
+
+        df = pd.DataFrame(series)
         if len(series) == 0:
-            return None
-        gdf = gpd.GeoDataFrame(series, crs=crs)
-        # TODO how to know the proper name of the geometry column?
-        # this only matters for the udp based version probably
-        #gdf.rename_geometry("polygon", inplace=True)
-        return gdf
+            # TODO: What if default columns are overwritten by the user?
+            df = MultiBackendJobManager._normalize_df(
+                df
+            )  # Even for an empty dataframe the default columns are required
+        return df
 
 
 
     def persist(self, df: pd.DataFrame):
-
         if not self.exists():
-            c= pystac.Collection(id=self.collection_id,description="test collection for jobs",extent=pystac.Extent(spatial=pystac.SpatialExtent(bboxes=[list(df.total_bounds)]),temporal=pystac.TemporalExtent(intervals=[None,None])))
+            spatial_extent = pystac.SpatialExtent([[-180, -90, 180, 90]])
+            temporal_extent = pystac.TemporalExtent([[None, None]])
+            extent = pystac.Extent(spatial=spatial_extent, temporal=temporal_extent)
+            c = pystac.Collection(id=self.collection_id, description="STAC API job database collection.", extent=extent)
             self._create_collection(c)
 
         all_items = []
-        def handle_row(series):
-            item = STACAPIJobDatabase.item_from(series,df.geometry.name)
-            #upload item
-            all_items.append(item)
+        if not df.empty:
+
+            def handle_row(series):
+                item = self.item_from(series, self.geometry_column)
+                all_items.append(item)
 
 
-        df.apply(handle_row, axis=1)
+            df.apply(handle_row, axis=1)
 
         self._upload_items_bulk(self.collection_id, all_items)
 
@@ -176,27 +211,19 @@ class STACAPIJobDatabase(JobDatabaseInterface):
 
     def _upload_items_bulk(self, collection_id: str, items: Iterable[Item]) -> None:
         chunk = []
-        chunk_start = 0
-        chunk_end = 0
         futures = []
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-            for index, item in enumerate(items):
+            for item in items:
                 self._prepare_item(item, collection_id)
                 # item.validate()
                 chunk.append(item)
 
                 if len(chunk) == self.bulk_size:
-                    chunk_end = index + 1
-                    chunk_start = chunk_end - len(chunk) + 1
-
                     futures.append(executor.submit(self._ingest_bulk, chunk.copy()))
                     chunk = []
 
             if chunk:
-                chunk_end = index + 1
-                chunk_start = chunk_end - len(chunk) + 1
-
                 self._ingest_bulk(chunk)
 
             for _ in concurrent.futures.as_completed(futures):
@@ -241,17 +268,10 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         return response.json()
 
 
-_EXPECTED_STATUS_GET = [requests.status_codes.codes.ok]
 _EXPECTED_STATUS_POST = [
     requests.status_codes.codes.ok,
     requests.status_codes.codes.created,
     requests.status_codes.codes.accepted,
-]
-_EXPECTED_STATUS_PUT = [
-    requests.status_codes.codes.ok,
-    requests.status_codes.codes.created,
-    requests.status_codes.codes.accepted,
-    requests.status_codes.codes.no_content,
 ]
 
 def _check_response_status(response: requests.Response, expected_status_codes: list[int], raise_exc: bool = False):
