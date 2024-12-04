@@ -104,6 +104,20 @@ class JobDatabaseInterface(metaclass=abc.ABCMeta):
         """
         ...
 
+    @abc.abstractmethod
+    def initialize_from_df(self, df: pd.DataFrame, on_exists: str = "error") -> "JobDatabaseInterface":
+        """
+        Initialize the job database from a given dataframe,
+
+        :param df: dataframe with some columns your ``start_job`` callable expects
+        :param on_exists: what to do when the job database already exists:
+            - "error": (default) raise an exception
+            - "skip": work with existing database, ignore given dataframe and skip any initialization
+
+        :return: initialized job database.
+        """
+        ...
+
 
 def _start_job_default(row: pd.Series, connection: Connection, *args, **kwargs):
     raise NotImplementedError("No 'start_job' callable provided")
