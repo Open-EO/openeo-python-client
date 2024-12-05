@@ -287,7 +287,7 @@ _EXPECTED_STATUS_POST = [
     requests.status_codes.codes.accepted,
 ]
 
-def _check_response_status(response: requests.Response, expected_status_codes: list[int], raise_exc: bool = False):
+def _check_response_status(response: requests.Response, expected_status_codes: List[int], raise_exc: bool = False):
     if response.status_code not in expected_status_codes:
         message = (
             f"Expecting HTTP status to be any of {expected_status_codes} "
