@@ -242,7 +242,7 @@ class STACAPIJobDatabase(JobDatabaseInterface):
             for _ in concurrent.futures.as_completed(futures):
                 continue
 
-    def join_url(self, url_path: Union[str, list[str]]) -> str:
+    def join_url(self, url_path: str) -> str:
         """Create a URL from the base_url and the url_path.
 
         :param url_path: same as in join_path
