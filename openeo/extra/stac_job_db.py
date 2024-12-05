@@ -1,6 +1,6 @@
 import concurrent
+import datetime
 import logging
-from datetime import datetime
 from typing import Iterable, List, Union
 
 import geopandas as gpd
@@ -132,11 +132,11 @@ class STACAPIJobDatabase(JobDatabaseInterface):
 
         dt = series_dict.get("datetime", None)
         if dt and item_dict["properties"].get("datetime", None) is None:
-            dt_str = pystac.utils.datetime_to_str(dt) if isinstance(dt, datetime) else dt
+            dt_str = pystac.utils.datetime_to_str(dt) if isinstance(dt, datetime.datetime) else dt
             item_dict["properties"]["datetime"] = dt_str
 
         else:
-            item_dict["properties"]["datetime"] = pystac.utils.datetime_to_str(datetime.now())
+            item_dict["properties"]["datetime"] = pystac.utils.datetime_to_str(datetime.datetime.now())
 
         if self.has_geometry:
             item_dict["geometry"] = series[self.geometry_column]
