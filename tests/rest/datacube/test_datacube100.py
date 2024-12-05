@@ -243,7 +243,15 @@ def test_filter_bbox_kwargs(con100: Connection, kwargs, expected):
     assert node["arguments"]["extent"] == expected
 
 
-def test_filter_bbox_parameter(con100: Connection):
+@pytest.mark.parametrize(
+    "bbox_param",
+    [
+        Parameter(name="my_bbox", schema={"type": "object"}),
+        Parameter.spatial_extent(name="my_bbox"),
+        Parameter.bounding_box(name="my_bbox"),
+    ],
+)
+def test_filter_bbox_parameter(con100: Connection, bbox_param):
     expected = {
         "process_id": "filter_bbox",
         "arguments": {
@@ -252,7 +260,6 @@ def test_filter_bbox_parameter(con100: Connection):
         },
         "result": True,
     }
-    bbox_param = Parameter(name="my_bbox", schema={"type": "object"})
 
     cube = con100.load_collection("S2").filter_bbox(bbox_param)
     assert _get_leaf_node(cube) == expected
@@ -274,14 +281,14 @@ def test_filter_bbox_parameter_invalid_schema(con100: Connection):
 
     with pytest.warns(
         UserWarning,
-        match="Unexpected parameterized `extent` in `filter_bbox`: expected schema with type 'object' but got {'type': 'string'}.",
+        match="Unexpected parameterized `extent` in `filter_bbox`: expected schema compatible with type 'object' but got {'type': 'string'}.",
     ):
         cube = con100.load_collection("S2").filter_bbox(bbox_param)
     assert _get_leaf_node(cube) == expected
 
     with pytest.warns(
         UserWarning,
-        match="Unexpected parameterized `extent` in `filter_bbox`: expected schema with type 'object' but got {'type': 'string'}.",
+        match="Unexpected parameterized `extent` in `filter_bbox`: expected schema compatible with type 'object' but got {'type': 'string'}.",
     ):
         cube = con100.load_collection("S2").filter_bbox(bbox=bbox_param)
     assert _get_leaf_node(cube) == expected
@@ -2295,6 +2302,43 @@ def test_load_collection_parameterized_bands(con100):
                 "spatial_extent": None,
                 "temporal_extent": None,
                 "bands": {"from_parameter": "my_bands"},
+            },
+            "process_id": "load_collection",
+        },
+    }
+
+
+@pytest.mark.parametrize(
+    ["spatial_extent", "temporal_extent", "spatial_name", "temporal_name"],
+    [
+        (
+            Parameter.spatial_extent(),
+            Parameter.temporal_interval(),
+            "spatial_extent",
+            "temporal_extent",
+        ),
+        (
+            Parameter.bounding_box(name="spatial_extent"),
+            Parameter.temporal_interval(),
+            "spatial_extent",
+            "temporal_extent",
+        ),
+        (
+            Parameter(name="my_bbox", schema={"type": "object"}),
+            Parameter(name="dates", schema={"type": "array"}),
+            "my_bbox",
+            "dates",
+        ),
+    ],
+)
+def test_load_collection_parameterized_extents(con100, spatial_extent, temporal_extent, spatial_name, temporal_name):
+    cube = con100.load_collection("S2", spatial_extent=spatial_extent, temporal_extent=temporal_extent)
+    assert get_download_graph(cube, drop_save_result=True) == {
+        "loadcollection1": {
+            "arguments": {
+                "id": "S2",
+                "spatial_extent": {"from_parameter": spatial_name},
+                "temporal_extent": {"from_parameter": temporal_name},
             },
             "process_id": "load_collection",
         },

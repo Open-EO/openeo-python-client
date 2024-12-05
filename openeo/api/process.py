@@ -410,7 +410,7 @@ Set this parameter to null to set no limit for the spatial extent. """
     @classmethod
     def temporal_interval(
         cls,
-        name: str,
+        name: str = "temporal_extent",
         description: str = "Temporal extent specified as two-element array with start and end date/date-time.",
         **kwargs,
     ) -> Parameter:
@@ -441,3 +441,26 @@ Set this parameter to null to set no limit for the spatial extent. """
             },
         }
         return cls(name=name, description=description, schema=schema, **kwargs)
+
+
+def schema_supports(schema: Union[dict, List[dict]], type: str, subtype: Optional[str] = None) -> bool:
+    """Helper to check if parameter schema supports given type/subtype"""
+    # TODO: support checking item type in arrays
+    if isinstance(schema, dict):
+        actual_type = schema.get("type")
+        if isinstance(actual_type, str):
+            if actual_type != type:
+                return False
+        elif isinstance(actual_type, list):
+            if type not in actual_type:
+                return False
+        else:
+            raise ValueError(actual_type)
+        if subtype:
+            if schema.get("subtype") != subtype:
+                return False
+        return True
+    elif isinstance(schema, list):
+        return any(schema_supports(s, type=type, subtype=subtype) for s in schema)
+    else:
+        raise ValueError(schema)

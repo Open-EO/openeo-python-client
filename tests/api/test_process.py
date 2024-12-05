@@ -1,6 +1,6 @@
 import pytest
 
-from openeo.api.process import Parameter
+from openeo.api.process import Parameter, schema_supports
 
 
 def test_parameter_defaults():
@@ -261,3 +261,35 @@ def test_parameter_spatial_extent():
             },
         ],
     }
+
+
+def test_schema_supports_type_basic():
+    schema = {"type": "string"}
+    assert schema_supports(schema, type="string") is True
+    assert schema_supports(schema, type="number") is False
+
+
+def test_schema_supports_type_list():
+    schema = {"type": ["string", "number"]}
+    assert schema_supports(schema, type="string") is True
+    assert schema_supports(schema, type="number") is True
+    assert schema_supports(schema, type="object") is False
+
+
+def test_schema_supports_subtype():
+    schema = {"type": "object", "subtype": "datacube"}
+    assert schema_supports(schema, type="object") is True
+    assert schema_supports(schema, type="object", subtype="datacube") is True
+    assert schema_supports(schema, type="object", subtype="geojson") is False
+
+
+def test_schema_supports_list():
+    schema = [
+        {"type": "string"},
+        {"type": "object", "subtype": "datacube"},
+    ]
+    assert schema_supports(schema, type="string") is True
+    assert schema_supports(schema, type="number") is False
+    assert schema_supports(schema, type="object") is True
+    assert schema_supports(schema, type="object", subtype="datacube") is True
+    assert schema_supports(schema, type="object", subtype="geojson") is False
