@@ -216,7 +216,7 @@ class STACAPIJobDatabase(JobDatabaseInterface):
 
         url_path = f"collections/{collection_id}/bulk_items"
         data = {"method": "upsert", "items": {item.id: item.to_dict() for item in items}}
-        response = requests.post(self.join_url(url_path), auth=self._auth, json=data)
+        response = requests.post(url=self.join_url(url_path), auth=self._auth, json=data)
 
         _log.info(f"HTTP response: {response.status_code} - {response.reason}: body: {response.json()}")
 
@@ -230,7 +230,6 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
             for item in items:
                 self._prepare_item(item, collection_id)
-                # item.validate()
                 chunk.append(item)
 
                 if len(chunk) == self.bulk_size:
