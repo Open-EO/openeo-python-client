@@ -321,7 +321,13 @@ def test_connection_with_session():
     conn = Connection("https://oeo.test/", session=session)
     assert conn.capabilities().capabilities["foo"] == "bar"
     session.request.assert_any_call(
-        url="https://oeo.test/", method="get", headers=mock.ANY, stream=mock.ANY, auth=mock.ANY, timeout=DEFAULT_TIMEOUT
+        url="https://oeo.test/",
+        method="get",
+        params=mock.ANY,
+        headers=mock.ANY,
+        stream=mock.ANY,
+        auth=mock.ANY,
+        timeout=DEFAULT_TIMEOUT,
     )
 
 
@@ -333,7 +339,13 @@ def test_connect_with_session():
     conn = connect("https://oeo.test/", session=session)
     assert conn.capabilities().capabilities["foo"] == "bar"
     session.request.assert_any_call(
-        url="https://oeo.test/", method="get", headers=mock.ANY, stream=mock.ANY, auth=mock.ANY, timeout=DEFAULT_TIMEOUT
+        url="https://oeo.test/",
+        method="get",
+        params=mock.ANY,
+        headers=mock.ANY,
+        stream=mock.ANY,
+        auth=mock.ANY,
+        timeout=DEFAULT_TIMEOUT,
     )
 
 

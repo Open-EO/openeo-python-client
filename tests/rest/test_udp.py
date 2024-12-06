@@ -279,12 +279,28 @@ def test_delete(con100, requests_mock):
     assert adapter.called
 
 
-def test_build_parameterized_cube_basic(con100, recwarn):
-    layer = Parameter.string("layer", description="Collection Id")
-    dates = Parameter.string("dates", description="Temporal extent")
-    bbox = Parameter("bbox", schema="object", description="bbox")
+@pytest.mark.parametrize(
+    ["layer", "dates", "bbox"],
+    [
+        (
+            Parameter.string("layer", description="Collection Id"),
+            Parameter.string("dates", description="Temporal extent"),
+            Parameter("bbox", schema="object", description="bbox"),
+        ),
+        (
+            Parameter.string("layer", description="Collection Id"),
+            Parameter.temporal_interval(name="dates"),
+            Parameter.spatial_extent(name="bbox"),
+        ),
+        (
+            Parameter.string("layer", description="Collection Id"),
+            Parameter.temporal_interval(name="dates"),
+            Parameter.bounding_box(name="bbox"),
+        ),
+    ],
+)
+def test_build_parameterized_cube_filters(con100, layer, dates, bbox, recwarn):
     cube = con100.load_collection(layer).filter_temporal(dates).filter_bbox(bbox)
-
     assert cube.flat_graph() == {
         "loadcollection1": {
             "process_id": "load_collection",
@@ -353,12 +369,28 @@ def test_build_parameterized_cube_start_date(con100, recwarn):
     assert recwarn.list == []
 
 
-def test_build_parameterized_cube_load_collection(con100, recwarn):
-    layer = Parameter.string("layer", description="Collection id")
-    dates = Parameter.string("dates", description="temporal extent")
-    bbox = Parameter("bbox", schema="object", description="bbox")
+@pytest.mark.parametrize(
+    ["layer", "dates", "bbox"],
+    [
+        (
+            Parameter.string("layer", description="Collection Id"),
+            Parameter.string("dates", description="Temporal extent"),
+            Parameter("bbox", schema="object", description="bbox"),
+        ),
+        (
+            Parameter.string("layer", description="Collection Id"),
+            Parameter.temporal_interval(name="dates"),
+            Parameter.spatial_extent(name="bbox"),
+        ),
+        (
+            Parameter.string("layer", description="Collection Id"),
+            Parameter.temporal_interval(name="dates"),
+            Parameter.bounding_box(name="bbox"),
+        ),
+    ],
+)
+def test_build_parameterized_cube_load_collection(con100, recwarn, layer, dates, bbox):
     cube = con100.load_collection(layer, spatial_extent=bbox, temporal_extent=dates)
-
     assert cube.flat_graph() == {
         "loadcollection1": {
             "process_id": "load_collection",
@@ -379,7 +411,7 @@ def test_build_parameterized_cube_load_collection_invalid_bbox_schema(con100):
     bbox = Parameter.string("bbox", description="Spatial extent")
     with pytest.warns(
         UserWarning,
-        match="Unexpected parameterized `spatial_extent` in `load_collection`: expected schema with type 'object' but got {'type': 'string'}.",
+        match="Unexpected parameterized `spatial_extent` in `load_collection`: expected schema compatible with type 'object' but got {'type': 'string'}.",
     ):
         cube = con100.load_collection(layer, spatial_extent=bbox, temporal_extent=dates)
 
@@ -401,7 +433,7 @@ def test_build_parameterized_cube_filter_bbox_invalid_schema(con100):
     bbox = Parameter.string("bbox", description="Spatial extent")
     with pytest.warns(
         UserWarning,
-        match="Unexpected parameterized `extent` in `filter_bbox`: expected schema with type 'object' but got {'type': 'string'}.",
+        match="Unexpected parameterized `extent` in `filter_bbox`: expected schema compatible with type 'object' but got {'type': 'string'}.",
     ):
         cube = con100.load_collection(layer).filter_bbox(bbox)
 

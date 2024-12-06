@@ -25,7 +25,7 @@ import shapely.geometry
 import shapely.geometry.base
 from shapely.geometry import MultiPolygon, Polygon, mapping
 
-from openeo.api.process import Parameter
+from openeo.api.process import Parameter, schema_supports
 from openeo.dates import get_temporal_extent
 from openeo.internal.documentation import openeo_process
 from openeo.internal.graph_building import PGNode, ReduceNode, _FromNodeMixin
@@ -182,10 +182,10 @@ class DataCube(_ProcessGraphAbstraction):
             temporal_extent = cls._get_temporal_extent(extent=temporal_extent)
 
         if isinstance(spatial_extent, Parameter):
-            if spatial_extent.schema.get("type") != "object":
+            if not schema_supports(spatial_extent.schema, type="object"):
                 warnings.warn(
                     "Unexpected parameterized `spatial_extent` in `load_collection`:"
-                    f" expected schema with type 'object' but got {spatial_extent.schema!r}."
+                    f" expected schema compatible with type 'object' but got {spatial_extent.schema!r}."
                 )
         arguments = {
             'id': collection_id,
@@ -481,7 +481,7 @@ class DataCube(_ProcessGraphAbstraction):
         crs: Optional[Union[int, str]] = None,
         base: Optional[float] = None,
         height: Optional[float] = None,
-        bbox: Optional[Sequence[float]] = None,
+        bbox: Union[Sequence[float], Parameter, None] = None,
     ) -> DataCube:
         """
         Limits the data cube to the specified bounding box.
@@ -555,10 +555,10 @@ class DataCube(_ProcessGraphAbstraction):
                 raise ValueError(args)
 
         if isinstance(bbox, Parameter):
-            if bbox.schema.get("type") != "object":
+            if not schema_supports(bbox.schema, type="object"):
                 warnings.warn(
                     "Unexpected parameterized `extent` in `filter_bbox`:"
-                    f" expected schema with type 'object' but got {bbox.schema!r}."
+                    f" expected schema compatible with type 'object' but got {bbox.schema!r}."
                 )
             extent = bbox
         else:

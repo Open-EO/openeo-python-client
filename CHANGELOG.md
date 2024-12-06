@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Automatically use `load_url` when providing a URL as geometries to `DataCube.aggregate_spatial()`, `DataCube.mask_polygon()`, etc. ([#104](https://github.com/Open-EO/openeo-python-client/issues/104), [#457](https://github.com/Open-EO/openeo-python-client/issues/457))
+- Allow specifying `limit` when listing batch jobs with `Connection.list_jobs()` ([#677](https://github.com/Open-EO/openeo-python-client/issues/677))
 
 ### Changed
 
@@ -18,12 +19,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   this is not translated automatically anymore to deprecated, non-standard `read_vector` usage.
   Instead, if it is a local GeoJSON file, the GeoJSON data will be loaded directly client-side.
   ([#104](https://github.com/Open-EO/openeo-python-client/issues/104), [#457](https://github.com/Open-EO/openeo-python-client/issues/457))
+- Move `read()` method from general `JobDatabaseInterface` to more specific `FullDataFrameJobDatabase` ([#680](https://github.com/Open-EO/openeo-python-client/issues/680))
 
 ### Removed
 
 ### Fixed
 
 - `load_stac`: use fallback temporal dimension when no "cube:dimensions" in STAC Collection ([#666](https://github.com/Open-EO/openeo-python-client/issues/666))
+- Fix usage of `Parameter.spatial_extent()` with `load_collection` and `filter_bbox` ([#676](https://github.com/Open-EO/openeo-python-client/issues/676))
 
 ## [0.35.0] - 2024-11-19
 

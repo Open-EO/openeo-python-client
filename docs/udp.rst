@@ -134,7 +134,7 @@ Some useful parameter helpers (class methods of the :py:class:`~openeo.api.proce
 -   :py:meth:`Parameter.geojson() <openeo.api.process.Parameter.geojson>` to create
     a parameter for specifying a GeoJSON geometry.
 -   :py:meth:`Parameter.spatial_extent() <openeo.api.process.Parameter.spatial_extent>` to create
-    a spatial_extent parameter that is exactly the same as the corresponding parameter in `load_collection` and `load_stac`.
+    a spatial_extent parameter that is exactly the same as the corresponding parameter in ``load_collection`` and ``load_stac``.
 
 
 

@@ -11,7 +11,7 @@ from requests.auth import AuthBase
 from shapely.geometry import Point
 
 from openeo.extra.job_management import MultiBackendJobManager
-from openeo.extra.stac_job_db import STACAPIJobDatabase
+from openeo.extra.job_management.stac_job_db import STACAPIJobDatabase
 
 
 @pytest.fixture
@@ -215,7 +215,7 @@ class TestSTACAPIJobDatabase:
         assert job_db_exists.exists() == True
         assert job_db_not_exists.exists() == False
 
-    @patch("openeo.extra.stac_job_db.STACAPIJobDatabase.persist", return_value=None)
+    @patch("openeo.extra.job_management.stac_job_db.STACAPIJobDatabase.persist", return_value=None)
     def test_initialize_from_df_non_existing(
         self, mock_persist, job_db_not_exists, dummy_dataframe, normalized_dummy_dataframe
     ):
@@ -230,8 +230,8 @@ class TestSTACAPIJobDatabase:
         with pytest.raises(FileExistsError):
             job_db_exists.initialize_from_df(dummy_dataframe)
 
-    @patch("openeo.extra.stac_job_db.STACAPIJobDatabase.persist", return_value=None)
-    @patch("openeo.extra.stac_job_db.STACAPIJobDatabase.get_by_status")
+    @patch("openeo.extra.job_management.stac_job_db.STACAPIJobDatabase.persist", return_value=None)
+    @patch("openeo.extra.job_management.stac_job_db.STACAPIJobDatabase.get_by_status")
     def test_initialize_from_df_existing_append(
         self,
         mock_get_by_status,
@@ -248,7 +248,7 @@ class TestSTACAPIJobDatabase:
         pdt.assert_frame_equal(mock_persist.call_args[0][0], normalized_merged_dummy_dataframe)
         assert job_db_exists.has_geometry == False
 
-    @patch("openeo.extra.stac_job_db.STACAPIJobDatabase.persist", return_value=None)
+    @patch("openeo.extra.job_management.stac_job_db.STACAPIJobDatabase.persist", return_value=None)
     def test_initialize_from_df_with_geometry(
         self, mock_persists, job_db_not_exists, dummy_geodataframe, normalized_dummy_geodataframe
     ):
@@ -273,7 +273,7 @@ class TestSTACAPIJobDatabase:
         item = job_db_exists.item_from(dummy_series_geometry)
         assert item.to_dict() == dummy_stac_item_geometry.to_dict()
 
-    @patch("openeo.extra.stac_job_db.STACAPIJobDatabase.get_by_status")
+    @patch("openeo.extra.job_management.stac_job_db.STACAPIJobDatabase.get_by_status")
     def test_count_by_status(self, mock_get_by_status, normalized_dummy_dataframe, job_db_exists):
         mock_get_by_status.return_value = normalized_dummy_dataframe
         assert job_db_exists.count_by_status() == {"not_started": 1}

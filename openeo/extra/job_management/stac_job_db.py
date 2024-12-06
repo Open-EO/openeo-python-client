@@ -53,8 +53,6 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         self.base_url = stac_root_url
         self.bulk_size = 500
 
-
-
     def exists(self) -> bool:
         return len([c.id for c in self.client.get_collections() if c.id == self.collection_id]) > 0
 
@@ -153,14 +151,13 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         return item
 
     def count_by_status(self, statuses: Iterable[str] = ()) -> dict:
-        items = self.get_by_status(statuses,max=200)
+        items = self.get_by_status(statuses, max=200)
         if items is None:
             return {k: 0 for k in statuses}
         else:
             return items["status"].value_counts().to_dict()
 
     def get_by_status(self, statuses: Iterable[str], max=None) -> pd.DataFrame:
-
         if isinstance(statuses, str):
             statuses = {statuses}
         statuses = set(statuses)
@@ -197,7 +194,6 @@ class STACAPIJobDatabase(JobDatabaseInterface):
             def handle_row(series):
                 item = self.item_from(series)
                 all_items.append(item)
-
 
             df.apply(handle_row, axis=1)
 
@@ -269,13 +265,13 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         default_auth = {
             "_auth": {
                 "read": ["anonymous"],
-                "write": ["stac-openeo-admin", "stac-openeo-editor"]
+                "write": ["stac-openeo-admin", "stac-openeo-editor"],
             }
         }
 
         coll_dict.update(default_auth)
 
-        response = requests.post(self.join_url("collections"), auth=self._auth,json=coll_dict)
+        response = requests.post(self.join_url("collections"), auth=self._auth, json=coll_dict)
         _check_response_status(response, _EXPECTED_STATUS_POST)
 
         return response.json()
@@ -286,6 +282,7 @@ _EXPECTED_STATUS_POST = [
     requests.status_codes.codes.created,
     requests.status_codes.codes.accepted,
 ]
+
 
 def _check_response_status(response: requests.Response, expected_status_codes: List[int], raise_exc: bool = False):
     if response.status_code not in expected_status_codes:
