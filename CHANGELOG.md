@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   this is not translated automatically anymore to deprecated, non-standard `read_vector` usage.
   Instead, if it is a local GeoJSON file, the GeoJSON data will be loaded directly client-side.
   ([#104](https://github.com/Open-EO/openeo-python-client/issues/104), [#457](https://github.com/Open-EO/openeo-python-client/issues/457))
+- Move `read()` method from general `JobDatabaseInterface` to more specific `FullDataFrameJobDatabase` ([#680](https://github.com/Open-EO/openeo-python-client/issues/680))
 
 ### Removed
 

@@ -71,15 +71,6 @@ class JobDatabaseInterface(metaclass=abc.ABCMeta):
         ...
 
     @abc.abstractmethod
-    def read(self) -> pd.DataFrame:
-        """
-        Read job data from the database as pandas DataFrame.
-
-        :return: loaded job data.
-        """
-        ...
-
-    @abc.abstractmethod
     def persist(self, df: pd.DataFrame):
         """
         Store job data to the database.
@@ -364,7 +355,6 @@ class MultiBackendJobManager:
 
         # Resume from existing db
         _log.info(f"Resuming `run_jobs` from existing {job_db}")
-        df = job_db.read()
 
         self._stop_thread = False
         def run_loop():
@@ -809,6 +799,15 @@ class FullDataFrameJobDatabase(JobDatabaseInterface):
         self.persist(df)
         # Return self to allow chaining with constructor.
         return self
+
+    @abc.abstractmethod
+    def read(self) -> pd.DataFrame:
+        """
+        Read job data from the database as pandas DataFrame.
+
+        :return: loaded job data.
+        """
+        ...
 
     @property
     def df(self) -> pd.DataFrame:
