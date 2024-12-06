@@ -147,6 +147,7 @@ class RestApiConnection:
         method: str,
         path: str,
         *,
+        params: Optional[dict] = None,
         headers: Optional[dict] = None,
         auth: Optional[AuthBase] = None,
         check_error: bool = True,
@@ -159,13 +160,21 @@ class RestApiConnection:
         auth = auth or (self.auth if not self._is_external(url) else None)
         slow_response_threshold = kwargs.pop("slow_response_threshold", self.slow_response_threshold)
         if _log.isEnabledFor(logging.DEBUG):
-            _log.debug("Request `{m} {u}` with headers {h}, auth {a}, kwargs {k}".format(
-                m=method.upper(), u=url, h=headers and headers.keys(), a=type(auth).__name__, k=list(kwargs.keys()))
+            _log.debug(
+                "Request `{m} {u}` with params {p}, headers {h}, auth {a}, kwargs {k}".format(
+                    m=method.upper(),
+                    u=url,
+                    p=params,
+                    h=headers and headers.keys(),
+                    a=type(auth).__name__,
+                    k=list(kwargs.keys()),
+                )
             )
         with ContextTimer() as timer:
             resp = self.session.request(
                 method=method,
                 url=url,
+                params=params,
                 headers=self._merged_headers(headers),
                 auth=auth,
                 timeout=kwargs.pop("timeout", self.default_timeout),
@@ -227,16 +236,25 @@ class RestApiConnection:
 
         raise OpenEoApiPlainError(message=text, http_status_code=status_code, error_message=error_message)
 
-    def get(self, path: str, stream: bool = False, auth: Optional[AuthBase] = None, **kwargs) -> Response:
+    def get(
+        self,
+        path: str,
+        *,
+        params: Optional[dict] = None,
+        stream: bool = False,
+        auth: Optional[AuthBase] = None,
+        **kwargs,
+    ) -> Response:
         """
         Do GET request to REST API.
 
         :param path: API path (without root url)
+        :param params: Additional query parameters
         :param stream: True if the get request should be streamed, else False
         :param auth: optional custom authentication to use instead of the default one
         :return: response: Response
         """
-        return self.request("get", path=path, stream=stream, auth=auth, **kwargs)
+        return self.request("get", path=path, params=params, stream=stream, auth=auth, **kwargs)
 
     def post(self, path: str, json: Optional[dict] = None, **kwargs) -> Response:
         """
@@ -1047,18 +1065,24 @@ class Connection(RestApiConnection):
 
         raise OpenEoClientException("Process does not exist.")
 
-    def list_jobs(self) -> List[dict]:
+    def list_jobs(self, limit: Union[int, None] = None) -> List[dict]:
         """
         Lists all jobs of the authenticated user.
 
+        :param limit: maximum number of jobs to return. Setting this limit enables pagination.
+
         :return: job_list: Dict of all jobs of the user.
+
+        .. versionadded:: 0.36.0
+            Added ``limit`` argument
         """
-        # TODO: Parse the result so that there get Job classes returned?
-        resp = self.get('/jobs', expected_status=200).json()
+        # TODO: Parse the result so that Job classes returned?
+        resp = self.get("/jobs", params={"limit": limit}, expected_status=200).json()
         if resp.get("federation:missing"):
             _log.warning("Partial user job listing due to missing federation components: {c}".format(
                 c=",".join(resp["federation:missing"])
             ))
+        # TODO: when pagination is enabled: how to expose link to next page?
         jobs = resp["jobs"]
         return VisualList("data-table", data=jobs, parameters={'columns': 'jobs'})
 
