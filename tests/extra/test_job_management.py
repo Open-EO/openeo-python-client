@@ -40,6 +40,13 @@ from openeo.extra.job_management import (
 from openeo.rest._testing import OPENEO_BACKEND, DummyBackend, build_capabilities
 from openeo.util import rfc3339
 
+# Module level markers
+pytestmark = [
+    # Fail on all warnings (except our own deprecation warnings)
+    pytest.mark.filterwarnings("error"),
+    pytest.mark.filterwarnings("default:.*`output_file` argument is deprecated.*:DeprecationWarning"),
+]
+
 
 @pytest.fixture
 def con(requests_mock) -> openeo.Connection:
