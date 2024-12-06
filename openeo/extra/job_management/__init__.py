@@ -41,6 +41,7 @@ from openeo.util import LazyLoadCache, deep_get, repr_truncate, rfc3339
 
 _log = logging.getLogger(__name__)
 
+
 class _Backend(NamedTuple):
     """Container for backend info/settings"""
 
@@ -357,6 +358,7 @@ class MultiBackendJobManager:
         _log.info(f"Resuming `run_jobs` from existing {job_db}")
 
         self._stop_thread = False
+
         def run_loop():
 
             # TODO: support user-provided `stats`
@@ -855,6 +857,7 @@ class CsvJobDatabase(FullDataFrameJobDatabase):
 
     .. versionadded:: 0.31.0
     """
+
     def __init__(self, path: Union[str, Path]):
         super().__init__()
         self.path = Path(path)
@@ -911,6 +914,7 @@ class ParquetJobDatabase(FullDataFrameJobDatabase):
 
     .. versionadded:: 0.31.0
     """
+
     def __init__(self, path: Union[str, Path]):
         super().__init__()
         self.path = Path(path)
@@ -933,6 +937,7 @@ class ParquetJobDatabase(FullDataFrameJobDatabase):
         metadata = pyarrow.parquet.read_metadata(self.path)
         if b"geo" in metadata.metadata:
             import geopandas
+
             return geopandas.read_parquet(self.path)
         else:
             return pd.read_parquet(self.path)
@@ -1044,6 +1049,7 @@ class ProcessBasedJobCreator:
         `feedback and suggestions for improvement <https://github.com/Open-EO/openeo-python-client/issues>`_.
 
     """
+
     def __init__(
         self,
         *,
@@ -1075,7 +1081,6 @@ class ProcessBasedJobCreator:
             raise NotImplementedError(
                 f"Unsupported process definition source udp_id={self._process_id!r} namespace={self._namespace!r}"
             )
-
 
     def start_job(self, row: pd.Series, connection: Connection, **_) -> BatchJob:
         """
