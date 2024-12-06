@@ -178,22 +178,20 @@ def test_parameter_reencode(kwargs, expected):
 
 def test_parameter_spatial_extent():
     assert Parameter.spatial_extent().to_dict() == {
-        "description": "Limits the data to process to the specified bounding box or "
-        "polygons.\n"
+        "description": "Limits the data to process to the specified bounding box or polygons.\n"
         "\n"
-        "For raster data, the process loads the pixel into the data "
-        "cube if the point at the pixel center intersects with the "
-        "bounding box or any of the polygons (as defined in the Simple "
-        "Features standard by the OGC).\n"
-        "For vector data, the process loads the geometry into the data "
-        "cube if the geometry is fully within the bounding box or any "
-        "of the polygons (as defined in the Simple Features standard "
-        "by the OGC). Empty geometries may only be in the data cube if "
-        "no spatial extent has been provided.\n"
+        "For raster data, the process loads the pixel into the data cube if the point\n"
+        "at the pixel center intersects with the bounding box or any of the polygons \n"
+        "(as defined in the Simple Features standard by the OGC).\n"
+        "\n"
+        "For vector data, the process loads the geometry into the data cube if the geometry \n"
+        "is fully within the bounding box or any of the polygons (as defined in the \n"
+        "Simple Features standard by the OGC). Empty geometries may only be in the \n"
+        "data cube if no spatial extent has been provided.\n"
         "\n"
         "Empty geometries are ignored.\n"
-        "Set this parameter to null to set no limit for the spatial "
-        "extent. ",
+        "\n"
+        "Set this parameter to null to set no limit for the spatial extent.",
         "name": "spatial_extent",
         "schema": [
             {

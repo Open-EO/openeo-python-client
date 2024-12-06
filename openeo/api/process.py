@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import textwrap
 import warnings
 from typing import List, Optional, Union
 
@@ -279,23 +280,15 @@ class Parameter:
         }
         return cls(name=name, description=description, schema=schema, **kwargs)
 
-    _spatial_extent_description = """Limits the data to process to the specified bounding box or polygons.
-
-For raster data, the process loads the pixel into the data cube if the point at the pixel center intersects with the bounding box or any of the polygons (as defined in the Simple Features standard by the OGC).
-For vector data, the process loads the geometry into the data cube if the geometry is fully within the bounding box or any of the polygons (as defined in the Simple Features standard by the OGC). Empty geometries may only be in the data cube if no spatial extent has been provided.
-
-Empty geometries are ignored.
-Set this parameter to null to set no limit for the spatial extent. """
-
     @classmethod
     def spatial_extent(
         cls,
         name: str = "spatial_extent",
-        description: str = _spatial_extent_description,
+        description: Optional[str] = None,
         **kwargs,
     ) -> Parameter:
         """
-        Helper to easily create a 'spatial_extent' parameter, which is compatible with the 'load_collection' argument of
+        Helper to easily create a 'spatial_extent' parameter, which is compatible with the ``load_collection`` argument of
         the same name. This allows to conveniently create user-defined processes that can be applied to a bounding box and vector data
         for spatial filtering. It is also possible for users to set to null, and define spatial filtering using other processes.
 
@@ -307,6 +300,26 @@ Set this parameter to null to set no limit for the spatial extent. """
 
         .. versionadded:: 0.32.0
         """
+        if description is None:
+            description = textwrap.dedent(
+                """
+                Limits the data to process to the specified bounding box or polygons.
+
+                For raster data, the process loads the pixel into the data cube if the point
+                at the pixel center intersects with the bounding box or any of the polygons
+                (as defined in the Simple Features standard by the OGC).
+
+                For vector data, the process loads the geometry into the data cube if the geometry
+                is fully within the bounding box or any of the polygons (as defined in the
+                Simple Features standard by the OGC). Empty geometries may only be in the
+                data cube if no spatial extent has been provided.
+
+                Empty geometries are ignored.
+
+                Set this parameter to null to set no limit for the spatial extent.
+                """
+            ).strip()
+
         schema = [
             {
                 "title": "Bounding Box",
