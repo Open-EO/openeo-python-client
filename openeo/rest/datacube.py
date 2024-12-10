@@ -190,7 +190,7 @@ class DataCube(_ProcessGraphAbstraction):
         valid_geojson_types = [
             "Polygon", "MultiPolygon", "GeometryCollection", "FeatureCollection"
         ]
-        if spatial_extent and not isinstance(spatial_extent, dict):
+        if spatial_extent and not (isinstance(spatial_extent, dict) and spatial_extent.keys() & {"west", "east", "north", "south"}):
             spatial_extent = _get_geometry_argument(argument=spatial_extent,valid_geojson_types=valid_geojson_types,connection=connection)
 
         arguments = {
