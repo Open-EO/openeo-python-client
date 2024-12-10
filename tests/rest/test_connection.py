@@ -16,6 +16,7 @@ import requests_mock
 import shapely.geometry
 
 import openeo
+from openeo import BatchJob
 from openeo.capabilities import ApiVersionException
 from openeo.internal.graph_building import FlatGraphableMixin, PGNode
 from openeo.metadata import _PYSTAC_1_9_EXTENSION_INTERFACE, TemporalDimension
@@ -2910,6 +2911,58 @@ class DummyFlatGraphable(FlatGraphableMixin):
         DummyFlatGraphable(),
     ],
 )
+def test_create_job(dummy_backend, pg):
+    job = dummy_backend.connection.create_job(pg)
+    assert isinstance(job, BatchJob)
+    assert dummy_backend.get_batch_pg() == {"foo1": {"process_id": "foo"}}
+
+
+def test_create_job_with_additional(dummy_backend):
+    job = dummy_backend.connection.create_job(
+        {"foo1": {"process_id": "foo"}},
+        additional={"color": "green"},
+    )
+    assert isinstance(job, BatchJob)
+    assert dummy_backend.get_batch_post_data() == {
+        "process": {"process_graph": {"foo1": {"process_id": "foo"}}},
+        "color": "green",
+    }
+
+
+def test_create_job_with_job_options(dummy_backend):
+    job = dummy_backend.connection.create_job(
+        {"foo1": {"process_id": "foo"}},
+        job_options={"color": "green"},
+    )
+    assert isinstance(job, BatchJob)
+    assert dummy_backend.get_batch_post_data() == {
+        "process": {"process_graph": {"foo1": {"process_id": "foo"}}},
+        "job_options": {"color": "green"},
+    }
+
+
+def test_create_job_with_additional_and_job_options(dummy_backend):
+    job = dummy_backend.connection.create_job(
+        {"foo1": {"process_id": "foo"}},
+        additional={"color": "blue"},
+        job_options={"color": "green"},
+    )
+    assert isinstance(job, BatchJob)
+    assert dummy_backend.get_batch_post_data() == {
+        "process": {"process_graph": {"foo1": {"process_id": "foo"}}},
+        "color": "blue",
+        "job_options": {"color": "green"},
+    }
+
+
+@pytest.mark.parametrize(
+    "pg",
+    [
+        {"foo1": {"process_id": "foo"}},
+        {"process_graph": {"foo1": {"process_id": "foo"}}},
+        DummyFlatGraphable(),
+    ],
+)
 def test_download_100(requests_mock, pg):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     conn = Connection(API_URL)
@@ -2926,6 +2979,65 @@ def test_download_100(requests_mock, pg):
             timeout=DEFAULT_TIMEOUT_SYNCHRONOUS_EXECUTE,
         )
     ]
+
+
+@pytest.mark.parametrize(
+    "pg",
+    [
+        {"foo1": {"process_id": "foo"}},
+        {"process_graph": {"foo1": {"process_id": "foo"}}},
+        DummyFlatGraphable(),
+    ],
+)
+def test_download(dummy_backend, pg, tmp_path):
+    output_path = tmp_path / "result.data"
+    dummy_backend.connection.download(pg, output_path)
+    assert output_path.read_bytes() == b'{"what?": "Result data"}'
+    assert dummy_backend.get_sync_pg() == {"foo1": {"process_id": "foo"}}
+
+
+def test_download_with_additional(dummy_backend, tmp_path):
+    output_path = tmp_path / "result.data"
+    dummy_backend.connection.download(
+        {"foo1": {"process_id": "foo"}},
+        output_path,
+        additional={"color": "green"},
+    )
+    assert output_path.read_bytes() == b'{"what?": "Result data"}'
+    assert dummy_backend.get_sync_post_data() == {
+        "process": {"process_graph": {"foo1": {"process_id": "foo"}}},
+        "color": "green",
+    }
+
+
+def test_download_with_job_options(dummy_backend, tmp_path):
+    output_path = tmp_path / "result.data"
+    dummy_backend.connection.download(
+        {"foo1": {"process_id": "foo"}},
+        output_path,
+        job_options={"color": "green"},
+    )
+    assert output_path.read_bytes() == b'{"what?": "Result data"}'
+    assert dummy_backend.get_sync_post_data() == {
+        "process": {"process_graph": {"foo1": {"process_id": "foo"}}},
+        "job_options": {"color": "green"},
+    }
+
+
+def test_download_with_additional_and_job_options(dummy_backend, tmp_path):
+    output_path = tmp_path / "result.data"
+    dummy_backend.connection.download(
+        {"foo1": {"process_id": "foo"}},
+        output_path,
+        additional={"color": "blue"},
+        job_options={"color": "green"},
+    )
+    assert output_path.read_bytes() == b'{"what?": "Result data"}'
+    assert dummy_backend.get_sync_post_data() == {
+        "process": {"process_graph": {"foo1": {"process_id": "foo"}}},
+        "color": "blue",
+        "job_options": {"color": "green"},
+    }
 
 
 @pytest.mark.parametrize(

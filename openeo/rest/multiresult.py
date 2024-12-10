@@ -79,6 +79,7 @@ class MultiResult(FlatGraphableMixin):
         *,
         title: Optional[str] = None,
         description: Optional[str] = None,
+        additional: Optional[dict] = None,
         job_options: Optional[dict] = None,
         validate: Optional[bool] = None,
     ) -> BatchJob:
@@ -86,7 +87,8 @@ class MultiResult(FlatGraphableMixin):
             process_graph=self._multi_leaf_graph,
             title=title,
             description=description,
-            additional=job_options,
+            additional=additional,
+            job_options=job_options,
             validate=validate,
         )
 
@@ -95,8 +97,15 @@ class MultiResult(FlatGraphableMixin):
         *,
         title: Optional[str] = None,
         description: Optional[str] = None,
+        additional: Optional[dict] = None,
         job_options: Optional[dict] = None,
         validate: Optional[bool] = None,
     ) -> BatchJob:
-        job = self.create_job(title=title, description=description, job_options=job_options, validate=validate)
+        job = self.create_job(
+            title=title,
+            description=description,
+            additional=additional,
+            job_options=job_options,
+            validate=validate,
+        )
         return job.run_synchronous()

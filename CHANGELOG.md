@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Automatically use `load_url` when providing a URL as geometries to `DataCube.aggregate_spatial()`, `DataCube.mask_polygon()`, etc. ([#104](https://github.com/Open-EO/openeo-python-client/issues/104), [#457](https://github.com/Open-EO/openeo-python-client/issues/457))
 - Allow specifying `limit` when listing batch jobs with `Connection.list_jobs()` ([#677](https://github.com/Open-EO/openeo-python-client/issues/677))
+- Add `additional` and `job_options` arguments to `Connection.download()`, `Datacube.download()` and related ([#681](https://github.com/Open-EO/openeo-python-client/issues/681))
 
 ### Changed
 
@@ -20,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Instead, if it is a local GeoJSON file, the GeoJSON data will be loaded directly client-side.
   ([#104](https://github.com/Open-EO/openeo-python-client/issues/104), [#457](https://github.com/Open-EO/openeo-python-client/issues/457))
 - Move `read()` method from general `JobDatabaseInterface` to more specific `FullDataFrameJobDatabase` ([#680](https://github.com/Open-EO/openeo-python-client/issues/680))
+- Align `additional` and `job_options` arguments in `Connection.create_job()`, `DataCube.create_job()` and related.
+  Also, follow official spec more closely. ([#683](https://github.com/Open-EO/openeo-python-client/issues/683), [Open-EO/openeo-api#276](https://github.com/Open-EO/openeo-api/issues/276))
 
 ### Removed
 

@@ -20,7 +20,7 @@ import shapely.geometry
 
 import openeo.metadata
 import openeo.processes
-from openeo import collection_property
+from openeo import BatchJob, collection_property
 from openeo.api.process import Parameter
 from openeo.capabilities import ComparableVersion
 from openeo.internal.graph_building import PGNode
@@ -3587,7 +3587,7 @@ def test_download_auto_add_save_result(s2cube, dummy_backend, tmp_path, auto_add
 
 
 class TestBatchJob:
-    _EXPECTED_SIMPLE_S2_JOB = {"process": {"process_graph": {
+    _EXPECTED_SIMPLE_S2_PG = {
         "loadcollection1": {
             "process_id": "load_collection",
             "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None}
@@ -3597,7 +3597,8 @@ class TestBatchJob:
             "arguments": {"data": {"from_node": "loadcollection1"}, "format": "GTiff", "options": {}},
             "result": True,
         }
-    }}}
+    }
+    _EXPECTED_SIMPLE_S2_JOB = {"process": {"process_graph": _EXPECTED_SIMPLE_S2_PG}}
 
     def _get_handler_post_jobs(
             self, expected_post_data: Optional[dict] = None, job_id: str = "myj0b1", add_header=True,
@@ -3613,11 +3614,69 @@ class TestBatchJob:
 
         return post_jobs
 
-    def test_create_job_basic(self, con100, requests_mock):
+    def test_create_job_basic_old(self, con100, requests_mock):
         requests_mock.post(API_URL + "/jobs", json=self._get_handler_post_jobs())
         cube = con100.load_collection("S2")
         job = cube.create_job(out_format="GTiff")
         assert job.job_id == "myj0b1"
+
+    def test_create_job_basic(self, dummy_backend):
+        cube = dummy_backend.connection.load_collection("S2")
+        job = cube.create_job(out_format="GTiff")
+        assert isinstance(job, BatchJob)
+        assert job.job_id == "job-000"
+        assert job.status() == "created"
+        assert dummy_backend.get_batch_pg() == self._EXPECTED_SIMPLE_S2_PG
+
+    def test_execute_batch_basic(self, dummy_backend):
+        cube = dummy_backend.connection.load_collection("S2")
+        job = cube.execute_batch(out_format="GTiff")
+        assert isinstance(job, BatchJob)
+        assert job.job_id == "job-000"
+        assert job.status() == "finished"
+        assert dummy_backend.get_batch_pg() == self._EXPECTED_SIMPLE_S2_PG
+
+    def test_create_job_with_additional(self, dummy_backend):
+        cube = dummy_backend.connection.load_collection("S2")
+        job = cube.create_job(out_format="GTiff", additional={"color": "blue"})
+        assert isinstance(job, BatchJob)
+        assert job.job_id == "job-000"
+        assert dummy_backend.get_batch_post_data() == {
+            "color": "blue",
+            "process": {"process_graph": self._EXPECTED_SIMPLE_S2_PG},
+        }
+
+    def test_create_job_with_job_options(self, dummy_backend):
+        cube = dummy_backend.connection.load_collection("S2")
+        job = cube.create_job(out_format="GTiff", job_options={"color": "blue"})
+        assert isinstance(job, BatchJob)
+        assert job.job_id == "job-000"
+        assert dummy_backend.get_batch_post_data() == {
+            "job_options": {"color": "blue"},
+            "process": {"process_graph": self._EXPECTED_SIMPLE_S2_PG},
+        }
+
+    def test_create_job_with_additional_and_job_options(self, dummy_backend):
+        cube = dummy_backend.connection.load_collection("S2")
+        job = cube.create_job(out_format="GTiff", additional={"color": "green"}, job_options={"color": "blue"})
+        assert isinstance(job, BatchJob)
+        assert job.job_id == "job-000"
+        assert dummy_backend.get_batch_post_data() == {
+            "color": "green",
+            "job_options": {"color": "blue"},
+            "process": {"process_graph": self._EXPECTED_SIMPLE_S2_PG},
+        }
+
+    def test_execute_batch_with_additional_and_job_options(self, dummy_backend):
+        cube = dummy_backend.connection.load_collection("S2")
+        job = cube.execute_batch(out_format="GTiff", additional={"color": "green"}, job_options={"color": "blue"})
+        assert isinstance(job, BatchJob)
+        assert job.job_id == "job-000"
+        assert dummy_backend.get_batch_post_data() == {
+            "color": "green",
+            "job_options": {"color": "blue"},
+            "process": {"process_graph": self._EXPECTED_SIMPLE_S2_PG},
+        }
 
     @pytest.mark.parametrize(["add_header", "job_id"], [
         (True, "  "),

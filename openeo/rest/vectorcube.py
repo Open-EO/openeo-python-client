@@ -255,6 +255,7 @@ class VectorCube(_ProcessGraphAbstraction):
         print=print,
         max_poll_interval: float = 60,
         connection_retry_interval: float = 30,
+        additional: Optional[dict] = None,
         job_options: Optional[dict] = None,
         validate: Optional[bool] = None,
         auto_add_save_result: bool = True,
@@ -267,7 +268,9 @@ class VectorCube(_ProcessGraphAbstraction):
 
         For very long running jobs, you probably do not want to keep the client running.
 
-        :param job_options:
+        :param additional: additional (top-level) properties to set in the request body
+        :param job_options: dictionary of job options to pass to the backend
+            (under top-level property "job_options")
         :param outputfile: The path of a file to which a result can be written
         :param out_format: (optional) output format to use.
         :param format_options: (optional) additional output format options
@@ -280,6 +283,9 @@ class VectorCube(_ProcessGraphAbstraction):
 
         .. versionchanged:: 0.32.0
             Added ``auto_add_save_result`` option
+
+        .. versionadded:: 0.36.0
+            Added argument ``additional``.
         """
         cube = self
         if auto_add_save_result:
@@ -296,6 +302,7 @@ class VectorCube(_ProcessGraphAbstraction):
             description=description,
             plan=plan,
             budget=budget,
+            additional=additional,
             job_options=job_options,
             validate=validate,
             auto_add_save_result=False,
@@ -314,6 +321,7 @@ class VectorCube(_ProcessGraphAbstraction):
         description: Optional[str] = None,
         plan: Optional[str] = None,
         budget: Optional[float] = None,
+        additional: Optional[dict] = None,
         job_options: Optional[dict] = None,
         validate: Optional[bool] = None,
         auto_add_save_result: bool = True,
@@ -328,7 +336,9 @@ class VectorCube(_ProcessGraphAbstraction):
         :param plan: The billing plan to process and charge the job with
         :param budget: Maximum budget to be spent on executing the job.
             Note that some backends do not honor this limit.
-        :param job_options: A dictionary containing (custom) job options
+        :param additional: additional (top-level) properties to set in the request body
+        :param job_options: dictionary of job options to pass to the backend
+            (under top-level property "job_options")
         :param format_options: String Parameters for the job result format
         :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
@@ -356,7 +366,8 @@ class VectorCube(_ProcessGraphAbstraction):
             description=description,
             plan=plan,
             budget=budget,
-            additional=job_options,
+            additional=additional,
+            job_options=job_options,
             validate=validate,
         )
 
