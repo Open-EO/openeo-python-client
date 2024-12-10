@@ -143,7 +143,7 @@ class DataCube(_ProcessGraphAbstraction):
         cls,
         collection_id: Union[str, Parameter],
         connection: Optional[Connection] = None,
-        spatial_extent: Union[Dict[str, float], Parameter, None] = None,
+        spatial_extent: Union[Dict[str, float], Parameter, shapely.geometry.base.BaseGeometry, None] = None,
         temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
         bands: Union[Iterable[str], Parameter, str, None] = None,
         fetch_metadata: bool = True,
@@ -187,6 +187,12 @@ class DataCube(_ProcessGraphAbstraction):
                     "Unexpected parameterized `spatial_extent` in `load_collection`:"
                     f" expected schema compatible with type 'object' but got {spatial_extent.schema!r}."
                 )
+        valid_geojson_types = [
+            "Polygon", "MultiPolygon", "GeometryCollection", "FeatureCollection"
+        ]
+        if spatial_extent and not isinstance(spatial_extent, dict):
+            spatial_extent = _get_geometry_argument(argument=spatial_extent,valid_geojson_types=valid_geojson_types,connection=connection)
+
         arguments = {
             'id': collection_id,
             # TODO: spatial_extent could also be a "geojson" subtype object, so we might want to allow (and convert) shapely shapes as well here.
@@ -646,10 +652,9 @@ class DataCube(_ProcessGraphAbstraction):
             (which will be loaded client-side to get the geometries as GeoJSON construct).
         """
         valid_geojson_types = [
-            "Point", "MultiPoint", "LineString", "MultiLineString",
             "Polygon", "MultiPolygon", "GeometryCollection", "FeatureCollection"
         ]
-        geometries = self._get_geometry_argument(geometries, valid_geojson_types=valid_geojson_types, crs=None)
+        geometries = _get_geometry_argument(geometries, valid_geojson_types=valid_geojson_types, connection=self.connection, crs=None)
         return self.process(
             process_id='filter_spatial',
             arguments={
@@ -1076,75 +1081,6 @@ class DataCube(_ProcessGraphAbstraction):
             }
         ))
 
-    def _get_geometry_argument(
-        self,
-        argument: Union[
-            shapely.geometry.base.BaseGeometry,
-            dict,
-            str,
-            pathlib.Path,
-            Parameter,
-            _FromNodeMixin,
-        ],
-        valid_geojson_types: List[str],
-        crs: Optional[str] = None,
-    ) -> Union[dict, Parameter, PGNode]:
-        """
-        Convert input to a geometry as "geojson" subtype object or vectorcube.
-
-        :param crs: value that encodes a coordinate reference system.
-            See :py:func:`openeo.util.normalize_crs` for more details about additional normalization that is applied to this argument.
-        """
-        if isinstance(argument, Parameter):
-            return argument
-        elif isinstance(argument, _FromNodeMixin):
-            return argument.from_node()
-
-        if isinstance(argument, str) and re.match(r"^https?://", argument, flags=re.I):
-            # Geometry provided as URL: load with `load_url` (with best-effort format guess)
-            url = urllib.parse.urlparse(argument)
-            suffix = pathlib.Path(url.path.lower()).suffix
-            format = {
-                ".json": "GeoJSON",
-                ".geojson": "GeoJSON",
-                ".pq": "Parquet",
-                ".parquet": "Parquet",
-                ".geoparquet": "Parquet",
-            }.get(suffix, suffix.split(".")[-1])
-            return self.connection.load_url(url=argument, format=format)
-
-        if (
-            isinstance(argument, (str, pathlib.Path))
-            and pathlib.Path(argument).is_file()
-            and pathlib.Path(argument).suffix.lower() in [".json", ".geojson"]
-        ):
-            geometry = load_json(argument)
-        elif isinstance(argument, shapely.geometry.base.BaseGeometry):
-            geometry = mapping(argument)
-        elif isinstance(argument, dict):
-            geometry = argument
-        else:
-            raise OpenEoClientException(f"Invalid geometry argument: {argument!r}")
-
-        if geometry.get("type") not in valid_geojson_types:
-            raise OpenEoClientException("Invalid geometry type {t!r}, must be one of {s}".format(
-                t=geometry.get("type"), s=valid_geojson_types
-            ))
-        if crs:
-            # TODO: don't warn when the crs is Lon-Lat like EPSG:4326?
-            warnings.warn(f"Geometry with non-Lon-Lat CRS {crs!r} is only supported by specific back-ends.")
-            # TODO #204 alternative for non-standard CRS in GeoJSON object?
-            epsg_code = normalize_crs(crs)
-            if epsg_code is not None:
-                # proj did recognize the CRS
-                crs_name = f"EPSG:{epsg_code}"
-            else:
-                # proj did not recognise this CRS
-                warnings.warn(f"non-Lon-Lat CRS {crs!r} is not known to the proj library and might not be supported.")
-                crs_name = crs
-            geometry["crs"] = {"type": "name", "properties": {"name": crs_name}}
-        return geometry
-
     @openeo_process
     def aggregate_spatial(
         self,
@@ -1216,7 +1152,7 @@ class DataCube(_ProcessGraphAbstraction):
             "Point", "MultiPoint", "LineString", "MultiLineString",
             "Polygon", "MultiPolygon", "GeometryCollection", "Feature", "FeatureCollection"
         ]
-        geometries = self._get_geometry_argument(geometries, valid_geojson_types=valid_geojson_types, crs=crs)
+        geometries = _get_geometry_argument(geometries, valid_geojson_types=valid_geojson_types, connection= self.connection, crs=crs)
         reducer = build_child_callback(reducer, parent_parameters=["data"])
         return VectorCube(
             graph=self._build_pgnode(
@@ -1496,8 +1432,8 @@ class DataCube(_ProcessGraphAbstraction):
             "Feature",
             "FeatureCollection",
         ]
-        chunks = self._get_geometry_argument(
-            chunks, valid_geojson_types=valid_geojson_types
+        chunks = _get_geometry_argument(
+            chunks, valid_geojson_types=valid_geojson_types, connection=self.connection
         )
         mask_value = float(mask_value) if mask_value is not None else None
         return self.process(
@@ -1586,7 +1522,7 @@ class DataCube(_ProcessGraphAbstraction):
 
         process = build_child_callback(process, parent_parameters=["data"], connection=self.connection)
         valid_geojson_types = ["Polygon", "MultiPolygon", "Feature", "FeatureCollection"]
-        geometries = self._get_geometry_argument(geometries, valid_geojson_types=valid_geojson_types)
+        geometries = _get_geometry_argument(geometries, valid_geojson_types=valid_geojson_types, connection=self.connection)
         mask_value = float(mask_value) if mask_value is not None else None
         return self.process(
             process_id="apply_polygon",
@@ -2074,7 +2010,7 @@ class DataCube(_ProcessGraphAbstraction):
             (which will be loaded client-side to get the geometries as GeoJSON construct).
         """
         valid_geojson_types = ["Polygon", "MultiPolygon", "GeometryCollection", "Feature", "FeatureCollection"]
-        mask = self._get_geometry_argument(mask, valid_geojson_types=valid_geojson_types, crs=srs)
+        mask = _get_geometry_argument(mask, valid_geojson_types=valid_geojson_types, connection=self.connection, crs=srs)
         return self.process(
             process_id="mask_polygon",
             arguments=dict_no_none(
@@ -2925,3 +2861,71 @@ class DataCube(_ProcessGraphAbstraction):
                 label_separator=label_separator,
             ),
         )
+def _get_geometry_argument(
+    argument: Union[
+        shapely.geometry.base.BaseGeometry,
+        dict,
+        str,
+        pathlib.Path,
+        Parameter,
+        _FromNodeMixin,
+    ],
+    valid_geojson_types: List[str],
+    connection: Connection = None,
+    crs: Optional[str] = None,
+) -> Union[dict, Parameter, PGNode]:
+    """
+    Convert input to a geometry as "geojson" subtype object or vectorcube.
+
+    :param crs: value that encodes a coordinate reference system.
+        See :py:func:`openeo.util.normalize_crs` for more details about additional normalization that is applied to this argument.
+    """
+    if isinstance(argument, Parameter):
+        return argument
+    elif isinstance(argument, _FromNodeMixin):
+        return argument.from_node()
+
+    if isinstance(argument, str) and re.match(r"^https?://", argument, flags=re.I):
+        # Geometry provided as URL: load with `load_url` (with best-effort format guess)
+        url = urllib.parse.urlparse(argument)
+        suffix = pathlib.Path(url.path.lower()).suffix
+        format = {
+            ".json": "GeoJSON",
+            ".geojson": "GeoJSON",
+            ".pq": "Parquet",
+            ".parquet": "Parquet",
+            ".geoparquet": "Parquet",
+        }.get(suffix, suffix.split(".")[-1])
+        return connection.load_url(url=argument, format=format)
+    #
+    if (
+        isinstance(argument, (str, pathlib.Path))
+        and pathlib.Path(argument).is_file()
+        and pathlib.Path(argument).suffix.lower() in [".json", ".geojson"]
+    ):
+        geometry = load_json(argument)
+    elif isinstance(argument, shapely.geometry.base.BaseGeometry):
+        geometry = mapping(argument)
+    elif isinstance(argument, dict):
+        geometry = argument
+    else:
+        raise OpenEoClientException(f"Invalid geometry argument: {argument!r}")
+
+    if geometry.get("type") not in valid_geojson_types:
+        raise OpenEoClientException("Invalid geometry type {t!r}, must be one of {s}".format(
+            t=geometry.get("type"), s=valid_geojson_types
+        ))
+    if crs:
+        # TODO: don't warn when the crs is Lon-Lat like EPSG:4326?
+        warnings.warn(f"Geometry with non-Lon-Lat CRS {crs!r} is only supported by specific back-ends.")
+        # TODO #204 alternative for non-standard CRS in GeoJSON object?
+        epsg_code = normalize_crs(crs)
+        if epsg_code is not None:
+            # proj did recognize the CRS
+            crs_name = f"EPSG:{epsg_code}"
+        else:
+            # proj did not recognise this CRS
+            warnings.warn(f"non-Lon-Lat CRS {crs!r} is not known to the proj library and might not be supported.")
+            crs_name = crs
+        geometry["crs"] = {"type": "name", "properties": {"name": crs_name}}
+    return geometry

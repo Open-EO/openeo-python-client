@@ -137,6 +137,19 @@ class TestDataCube:
             }
         }
 
+    def test_load_collection_connectionless_shapely_spatial_extent(self):
+        polygon = shapely.Polygon(((0.0,1.0),(2.0,1.0),(3.0,2.0),(1.5,0.0),(0.0,1.0)))
+        cube = DataCube.load_collection("T3", spatial_extent=polygon)
+        assert cube.flat_graph() == {
+            "loadcollection1": {
+                "arguments": {"id": "T3", "spatial_extent":
+                    {'coordinates': (((0.0,1.0),(2.0,1.0),(3.0,2.0),(1.5,0.0),(0.0,1.0)),),'type': 'Polygon'},
+                     "temporal_extent": None},
+                "process_id": "load_collection",
+                "result": True,
+            }
+        }
+
     def test_load_collection_connectionless_save_result(self):
         cube = DataCube.load_collection("T3").save_result(format="GTiff")
         assert cube.flat_graph() == {
