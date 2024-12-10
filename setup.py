@@ -31,6 +31,7 @@ tests_require = [
     "dirty_equals>=0.8.0",
     "pyarrow>=10.0.1",  # For Parquet read/write support in pandas
     "python-dateutil>=2.7.0",
+    "pystac-client>=0.7.5",
 ]
 
 docs_require = [
