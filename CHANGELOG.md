@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Removed
+
+### Fixed
+
+
+## [0.36.0] - 2024-12-10
+
+### Added
+
 - Automatically use `load_url` when providing a URL as geometries to `DataCube.aggregate_spatial()`, `DataCube.mask_polygon()`, etc. ([#104](https://github.com/Open-EO/openeo-python-client/issues/104), [#457](https://github.com/Open-EO/openeo-python-client/issues/457))
 - Allow specifying `limit` when listing batch jobs with `Connection.list_jobs()` ([#677](https://github.com/Open-EO/openeo-python-client/issues/677))
 - Add `additional` and `job_options` arguments to `Connection.download()`, `Datacube.download()` and related ([#681](https://github.com/Open-EO/openeo-python-client/issues/681))
@@ -24,12 +35,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Align `additional` and `job_options` arguments in `Connection.create_job()`, `DataCube.create_job()` and related.
   Also, follow official spec more closely. ([#683](https://github.com/Open-EO/openeo-python-client/issues/683), [Open-EO/openeo-api#276](https://github.com/Open-EO/openeo-api/issues/276))
 
-### Removed
-
 ### Fixed
 
 - `load_stac`: use fallback temporal dimension when no "cube:dimensions" in STAC Collection ([#666](https://github.com/Open-EO/openeo-python-client/issues/666))
 - Fix usage of `Parameter.spatial_extent()` with `load_collection` and `filter_bbox` ([#676](https://github.com/Open-EO/openeo-python-client/issues/676))
+
 
 ## [0.35.0] - 2024-11-19
 
