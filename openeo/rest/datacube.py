@@ -195,7 +195,6 @@ class DataCube(_ProcessGraphAbstraction):
 
         arguments = {
             'id': collection_id,
-            # TODO: spatial_extent could also be a "geojson" subtype object, so we might want to allow (and convert) shapely shapes as well here.
             'spatial_extent': spatial_extent,
             'temporal_extent': temporal_extent,
         }
