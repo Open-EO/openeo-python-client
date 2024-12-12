@@ -1,16 +1,14 @@
-import concurrent
+import concurrent.futures
 import datetime
 import logging
-from typing import Iterable, List, Union
+from typing import Iterable, List
 
 import geopandas as gpd
 import numpy as np
 import pandas as pd
 import pystac
+import pystac_client
 import requests
-from pystac import Collection, Item
-from pystac_client import Client
-from requests.auth import HTTPBasicAuth
 from shapely.geometry import mapping, shape
 
 from openeo.extra.job_management import JobDatabaseInterface, MultiBackendJobManager
@@ -45,7 +43,7 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         :param geometry_column: The name of the geometry column in the job metadata that implements __geo_interface__.
         """
         self.collection_id = collection_id
-        self.client = Client.open(stac_root_url)
+        self.client = pystac_client.Client.open(stac_root_url)
 
         self._auth = auth
         self.has_geometry = has_geometry
@@ -54,7 +52,7 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         self.bulk_size = 500
 
     def exists(self) -> bool:
-        return len([c.id for c in self.client.get_collections() if c.id == self.collection_id]) > 0
+        return any(c.id == self.collection_id for c in self.client.get_collections())
 
     def initialize_from_df(self, df: pd.DataFrame, *, on_exists: str = "error"):
         """
@@ -108,7 +106,6 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         item_dict = item.to_dict()
         item_id = item_dict["id"]
         dt = item_dict["properties"]["datetime"]
-        item_dict["datetime"] = pystac.utils.str_to_datetime(dt)
 
         return pd.Series(item_dict["properties"], name=item_id)
 
@@ -151,6 +148,9 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         return item
 
     def count_by_status(self, statuses: Iterable[str] = ()) -> dict:
+        if isinstance(statuses, str):
+            statuses = {statuses}
+        statuses = set(statuses)
         items = self.get_by_status(statuses, max=200)
         if items is None:
             return {k: 0 for k in statuses}
@@ -199,13 +199,13 @@ class STACAPIJobDatabase(JobDatabaseInterface):
 
         self._upload_items_bulk(self.collection_id, all_items)
 
-    def _prepare_item(self, item: Item, collection_id: str):
+    def _prepare_item(self, item: pystac.Item, collection_id: str):
         item.collection_id = collection_id
 
         if not item.get_links(pystac.RelType.COLLECTION):
             item.add_link(pystac.Link(rel=pystac.RelType.COLLECTION, target=item.collection_id))
 
-    def _ingest_bulk(self, items: Iterable[Item]) -> dict:
+    def _ingest_bulk(self, items: List[pystac.Item]) -> dict:
         collection_id = items[0].collection_id
         if not all(i.collection_id == collection_id for i in items):
             raise Exception("All collection IDs should be identical for bulk ingests")
@@ -219,7 +219,7 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         _check_response_status(response, _EXPECTED_STATUS_POST)
         return response.json()
 
-    def _upload_items_bulk(self, collection_id: str, items: Iterable[Item]) -> None:
+    def _upload_items_bulk(self, collection_id: str, items: List[pystac.Item]) -> None:
         chunk = []
         futures = []
 
@@ -246,7 +246,7 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         """
         return str(self.base_url + "/" + url_path)
 
-    def _create_collection(self, collection: Collection) -> dict:
+    def _create_collection(self, collection: pystac.Collection) -> dict:
         """Create a new collection.
 
         :param collection: pystac.Collection object to create in the STAC API backend (or upload if you will)
@@ -254,7 +254,7 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         :return: dict that contains the JSON body of the HTTP response.
         """
 
-        if not isinstance(collection, Collection):
+        if not isinstance(collection, pystac.Collection):
             raise TypeError(
                 f'Argument "collection" must be of type pystac.Collection, but its type is {type(collection)=}'
             )

@@ -21,7 +21,7 @@ def mock_auth():
 
 @pytest.fixture
 def mock_stac_api_job_database(mock_auth) -> STACAPIJobDatabase:
-    return STACAPIJobDatabase(collection_id="test_id", stac_root_url="http://fake-stac-api", auth=mock_auth)
+    return STACAPIJobDatabase(collection_id="test_id", stac_root_url="http://fake-stac-api.test", auth=mock_auth)
 
 
 @pytest.fixture
