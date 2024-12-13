@@ -150,6 +150,20 @@ class TestDataCube:
             }
         }
 
+    @pytest.mark.parametrize("path_factory", [str, pathlib.Path])
+    def test_load_collection_connectionless_local_path_spatial_extent(self, path_factory, test_data):
+        path = path_factory(test_data.get_path("geojson/polygon02.json"))
+        cube = DataCube.load_collection("T3", spatial_extent=path)
+        assert cube.flat_graph() == {
+            "loadcollection1": {
+                "arguments": {"id": "T3", "spatial_extent":
+                    {"type": "Polygon", "coordinates": [[[3, 50], [4, 50], [4, 51], [3, 50]]]},
+                     "temporal_extent": None},
+                "process_id": "load_collection",
+                "result": True,
+            }
+        }
+
     def test_load_collection_connectionless_save_result(self):
         cube = DataCube.load_collection("T3").save_result(format="GTiff")
         assert cube.flat_graph() == {
