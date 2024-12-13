@@ -1230,7 +1230,7 @@ class Connection(RestApiConnection):
     def load_collection(
         self,
         collection_id: Union[str, Parameter],
-        spatial_extent: Union[Dict[str, float], Parameter, None] = None,
+        spatial_extent: Union[Dict[str, float], Parameter, shapely.geometry.base.BaseGeometry, None] = None,
         temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
         bands: Union[None, List[str], Parameter] = None,
         properties: Union[
@@ -1243,7 +1243,12 @@ class Connection(RestApiConnection):
         Load a DataCube by collection id.
 
         :param collection_id: image collection identifier
-        :param spatial_extent: limit data to specified bounding box or polygons
+        :param spatial_extent: limit data to specified bounding box or polygons. Can be provided in different ways:
+            - a shapely geometry
+            - a GeoJSON-style dictionary,
+            - a path (:py:class:`str` or :py:class:`~pathlib.Path`) to a local, client-side GeoJSON file,
+              which will be loaded automatically to get the geometries as GeoJSON construct.
+            - a :py:class:`~openeo.api.process.Parameter` instance.
         :param temporal_extent: limit data to specified temporal interval.
             Typically, just a two-item list or tuple containing start and end date.
             See :ref:`filtering-on-temporal-extent-section` for more details on temporal extent handling and shorthand notation.
