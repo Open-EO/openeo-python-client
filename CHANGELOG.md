@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Automatically use `load_url` when providing a URL as geometries to `DataCube.aggregate_spatial()`, `DataCube.mask_polygon()`, etc. ([#104](https://github.com/Open-EO/openeo-python-client/issues/104), [#457](https://github.com/Open-EO/openeo-python-client/issues/457))
-- Argument `spatial_extent` in `load_collection` supports type `shapely` and loading geometry from a local path.
+- Argument `spatial_extent` in `load_collection` supports Shapely objects and loading GeoJSON from a local path.
 
 ### Changed
 
