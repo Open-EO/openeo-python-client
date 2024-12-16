@@ -1275,6 +1275,7 @@ class Connection(RestApiConnection):
             - a path (:py:class:`str` or :py:class:`~pathlib.Path`) to a local, client-side GeoJSON file,
               which will be loaded automatically to get the geometries as GeoJSON construct.
             - a :py:class:`~openeo.api.process.Parameter` instance.
+            - a bounding box dictionary
         :param temporal_extent: limit data to specified temporal interval.
             Typically, just a two-item list or tuple containing start and end date.
             See :ref:`filtering-on-temporal-extent-section` for more details on temporal extent handling and shorthand notation.

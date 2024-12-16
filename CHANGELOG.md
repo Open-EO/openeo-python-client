@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add support for `log_level` in `create_job()` and `execute_job()` ([#704](https://github.com/Open-EO/openeo-python-client/issues/704))
 - Add initial support for "geometry" dimension type in `CubeMetadata` ([#705](https://github.com/Open-EO/openeo-python-client/issues/705))
 - Add support for parameterized `bands` argument in `load_stac()`
-- Argument `spatial_extent` in `load_collection` supports type `shapely` and loading geometry from a local path.
+- Argument `spatial_extent` in `load_collection` supports Shapely objects and loading GeoJSON from a local path.
 
 ### Changed
 

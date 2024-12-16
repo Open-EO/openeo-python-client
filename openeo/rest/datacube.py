@@ -164,6 +164,7 @@ class DataCube(_ProcessGraphAbstraction):
             - a path (:py:class:`str` or :py:class:`~pathlib.Path`) to a local, client-side GeoJSON file,
               which will be loaded automatically to get the geometries as GeoJSON construct.
             - a :py:class:`~openeo.api.process.Parameter` instance.
+            - a bounding box dictionary
         :param temporal_extent: limit data to specified temporal interval.
             Typically, just a two-item list or tuple containing start and end date.
             See :ref:`filtering-on-temporal-extent-section` for more details on temporal extent handling and shorthand notation.
@@ -192,11 +193,14 @@ class DataCube(_ProcessGraphAbstraction):
                     "Unexpected parameterized `spatial_extent` in `load_collection`:"
                     f" expected schema compatible with type 'object' but got {spatial_extent.schema!r}."
                 )
-        valid_geojson_types = [
-            "Polygon", "MultiPolygon", "Feature", "FeatureCollection"
-        ]
-        if spatial_extent and not (isinstance(spatial_extent, dict) and spatial_extent.keys() & {"west", "east", "north", "south"}):
-            spatial_extent = _get_geometry_argument(argument=spatial_extent,valid_geojson_types=valid_geojson_types,connection=connection)
+        elif not spatial_extent or (isinstance(spatial_extent, dict) and spatial_extent.keys() & {"west", "east", "north", "south"}):
+            pass
+        else:
+            valid_geojson_types = [
+                "Polygon", "MultiPolygon", "Feature", "FeatureCollection"
+            ]
+            spatial_extent = _get_geometry_argument(argument=spatial_extent, valid_geojson_types=valid_geojson_types,
+                                                    connection=connection)
 
         arguments = {
             'id': collection_id,
