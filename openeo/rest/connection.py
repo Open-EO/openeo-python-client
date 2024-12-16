@@ -147,6 +147,7 @@ class RestApiConnection:
         method: str,
         path: str,
         *,
+        params: Optional[dict] = None,
         headers: Optional[dict] = None,
         auth: Optional[AuthBase] = None,
         check_error: bool = True,
@@ -159,13 +160,21 @@ class RestApiConnection:
         auth = auth or (self.auth if not self._is_external(url) else None)
         slow_response_threshold = kwargs.pop("slow_response_threshold", self.slow_response_threshold)
         if _log.isEnabledFor(logging.DEBUG):
-            _log.debug("Request `{m} {u}` with headers {h}, auth {a}, kwargs {k}".format(
-                m=method.upper(), u=url, h=headers and headers.keys(), a=type(auth).__name__, k=list(kwargs.keys()))
+            _log.debug(
+                "Request `{m} {u}` with params {p}, headers {h}, auth {a}, kwargs {k}".format(
+                    m=method.upper(),
+                    u=url,
+                    p=params,
+                    h=headers and headers.keys(),
+                    a=type(auth).__name__,
+                    k=list(kwargs.keys()),
+                )
             )
         with ContextTimer() as timer:
             resp = self.session.request(
                 method=method,
                 url=url,
+                params=params,
                 headers=self._merged_headers(headers),
                 auth=auth,
                 timeout=kwargs.pop("timeout", self.default_timeout),
@@ -227,16 +236,25 @@ class RestApiConnection:
 
         raise OpenEoApiPlainError(message=text, http_status_code=status_code, error_message=error_message)
 
-    def get(self, path: str, stream: bool = False, auth: Optional[AuthBase] = None, **kwargs) -> Response:
+    def get(
+        self,
+        path: str,
+        *,
+        params: Optional[dict] = None,
+        stream: bool = False,
+        auth: Optional[AuthBase] = None,
+        **kwargs,
+    ) -> Response:
         """
         Do GET request to REST API.
 
         :param path: API path (without root url)
+        :param params: Additional query parameters
         :param stream: True if the get request should be streamed, else False
         :param auth: optional custom authentication to use instead of the default one
         :return: response: Response
         """
-        return self.request("get", path=path, stream=stream, auth=auth, **kwargs)
+        return self.request("get", path=path, params=params, stream=stream, auth=auth, **kwargs)
 
     def post(self, path: str, json: Optional[dict] = None, **kwargs) -> Response:
         """
@@ -1047,18 +1065,24 @@ class Connection(RestApiConnection):
 
         raise OpenEoClientException("Process does not exist.")
 
-    def list_jobs(self) -> List[dict]:
+    def list_jobs(self, limit: Union[int, None] = None) -> List[dict]:
         """
         Lists all jobs of the authenticated user.
 
+        :param limit: maximum number of jobs to return. Setting this limit enables pagination.
+
         :return: job_list: Dict of all jobs of the user.
+
+        .. versionadded:: 0.36.0
+            Added ``limit`` argument
         """
-        # TODO: Parse the result so that there get Job classes returned?
-        resp = self.get('/jobs', expected_status=200).json()
+        # TODO: Parse the result so that Job classes returned?
+        resp = self.get("/jobs", params={"limit": limit}, expected_status=200).json()
         if resp.get("federation:missing"):
             _log.warning("Partial user job listing due to missing federation components: {c}".format(
                 c=",".join(resp["federation:missing"])
             ))
+        # TODO: when pagination is enabled: how to expose link to next page?
         jobs = resp["jobs"]
         return VisualList("data-table", data=jobs, parameters={'columns': 'jobs'})
 
@@ -1626,6 +1650,8 @@ class Connection(RestApiConnection):
     def _build_request_with_process_graph(
         self,
         process_graph: Union[dict, FlatGraphableMixin, str, Path, List[FlatGraphableMixin]],
+        additional: Optional[dict] = None,
+        job_options: Optional[dict] = None,
         **kwargs,
     ) -> dict:
         """
@@ -1637,6 +1663,15 @@ class Connection(RestApiConnection):
         if any(c != self for c in connections):
             raise OpenEoClientException(f"Mixing different connections: {self} and {connections}.")
         result = kwargs
+
+        if additional:
+            result.update(additional)
+        if job_options is not None:
+            # Note: this "job_options" top-level property is not in official openEO API spec,
+            # but a commonly used convention, e.g. in openeo-python-driver based deployments.
+            assert "job_options" not in result
+            result["job_options"] = job_options
+
         process_graph = as_flat_graph(process_graph)
         if "process_graph" not in process_graph:
             process_graph = {"process_graph": process_graph}
@@ -1684,6 +1719,8 @@ class Connection(RestApiConnection):
         timeout: Optional[int] = None,
         validate: Optional[bool] = None,
         chunk_size: int = DEFAULT_DOWNLOAD_CHUNK_SIZE,
+        additional: Optional[dict] = None,
+        job_options: Optional[dict] = None,
     ) -> Union[None, bytes]:
         """
         Downloads the result of a process graph synchronously,
@@ -1697,8 +1734,16 @@ class Connection(RestApiConnection):
         :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
         :param chunk_size: chunk size for streaming response.
+        :param additional: additional (top-level) properties to set in the request body
+        :param job_options: dictionary of job options to pass to the backend
+            (under top-level property "job_options")
+
+        .. versionadded:: 0.36.0
+            Added arguments ``additional`` and ``job_options``.
         """
-        pg_with_metadata = self._build_request_with_process_graph(process_graph=graph)
+        pg_with_metadata = self._build_request_with_process_graph(
+            process_graph=graph, additional=additional, job_options=job_options
+        )
         self._preflight_validation(pg_with_metadata=pg_with_metadata, validate=validate)
         response = self.post(
             path="/result",
@@ -1722,6 +1767,8 @@ class Connection(RestApiConnection):
         timeout: Optional[int] = None,
         validate: Optional[bool] = None,
         auto_decode: bool = True,
+        additional: Optional[dict] = None,
+        job_options: Optional[dict] = None,
     ) -> Union[dict, requests.Response]:
         """
         Execute a process graph synchronously and return the result. If the result is a JSON object, it will be parsed.
@@ -1731,10 +1778,18 @@ class Connection(RestApiConnection):
         :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
         :param auto_decode: Boolean flag to enable/disable automatic JSON decoding of the response. Defaults to True.
+        :param additional: additional (top-level) properties to set in the request body
+        :param job_options: dictionary of job options to pass to the backend
+            (under top-level property "job_options")
 
         :return: parsed JSON response as a dict if auto_decode is True, otherwise response object
+
+        .. versionadded:: 0.36.0
+            Added arguments ``additional`` and ``job_options``.
         """
-        pg_with_metadata = self._build_request_with_process_graph(process_graph=process_graph)
+        pg_with_metadata = self._build_request_with_process_graph(
+            process_graph=process_graph, additional=additional, job_options=job_options
+        )
         self._preflight_validation(pg_with_metadata=pg_with_metadata, validate=validate)
         response = self.post(
             path="/result",
@@ -1761,6 +1816,7 @@ class Connection(RestApiConnection):
         plan: Optional[str] = None,
         budget: Optional[float] = None,
         additional: Optional[dict] = None,
+        job_options: Optional[dict] = None,
         validate: Optional[bool] = None,
     ) -> BatchJob:
         """
@@ -1777,23 +1833,27 @@ class Connection(RestApiConnection):
         :param plan: The billing plan to process and charge the job with
         :param budget: Maximum budget to be spent on executing the job.
             Note that some backends do not honor this limit.
-        :param additional: additional job options to pass to the backend
+        :param additional: additional (top-level) properties to set in the request body
+        :param job_options: dictionary of job options to pass to the backend
+            (under top-level property "job_options")
         :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
         :return: Created job
 
         .. versionchanged:: 0.35.0
             Add :ref:`multi-result support <multi-result-process-graphs>`.
+
+        .. versionadded:: 0.36.0
+            Added argument ``job_options``.
         """
         # TODO move all this (BatchJob factory) logic to BatchJob?
 
         pg_with_metadata = self._build_request_with_process_graph(
             process_graph=process_graph,
+            additional=additional,
+            job_options=job_options,
             **dict_no_none(title=title, description=description, plan=plan, budget=budget)
         )
-        if additional:
-            # TODO: get rid of this non-standard field? https://github.com/Open-EO/openeo-api/issues/276
-            pg_with_metadata["job_options"] = additional
 
         self._preflight_validation(pg_with_metadata=pg_with_metadata, validate=validate)
         response = self.post("/jobs", json=pg_with_metadata, expected_status=201)
@@ -1853,9 +1913,12 @@ class Connection(RestApiConnection):
     def as_curl(
         self,
         data: Union[dict, DataCube, FlatGraphableMixin],
+        *,
         path="/result",
         method="POST",
         obfuscate_auth: bool = False,
+        additional: Optional[dict] = None,
+        job_options: Optional[dict] = None,
     ) -> str:
         """
         Build curl command to evaluate given process graph or data cube
@@ -1873,14 +1936,20 @@ class Connection(RestApiConnection):
             or ``"/jobs"`` for batch jobs
         :param method: HTTP method to use (typically ``"POST"``)
         :param obfuscate_auth: don't show actual bearer token
+        :param additional: additional (top-level) properties to set in the request body
+        :param job_options: dictionary of job options to pass to the backend
+            (under top-level property "job_options")
 
         :return: curl command as a string
+
+        .. versionadded:: 0.36.0
+            Added arguments ``additional`` and ``job_options``.
         """
         cmd = ["curl", "-i", "-X", method]
         cmd += ["-H", "Content-Type: application/json"]
         if isinstance(self.auth, BearerAuth):
             cmd += ["-H", f"Authorization: Bearer {'...' if obfuscate_auth else self.auth.bearer}"]
-        pg_with_metadata = self._build_request_with_process_graph(data)
+        pg_with_metadata = self._build_request_with_process_graph(data, additional=additional, job_options=job_options)
         if path == "/validation":
             pg_with_metadata = pg_with_metadata["process"]
         post_json = json.dumps(pg_with_metadata, separators=(",", ":"))

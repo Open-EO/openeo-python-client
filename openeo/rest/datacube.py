@@ -25,7 +25,7 @@ import shapely.geometry
 import shapely.geometry.base
 from shapely.geometry import MultiPolygon, Polygon, mapping
 
-from openeo.api.process import Parameter
+from openeo.api.process import Parameter, schema_supports
 from openeo.dates import get_temporal_extent
 from openeo.internal.documentation import openeo_process
 from openeo.internal.graph_building import PGNode, ReduceNode, _FromNodeMixin
@@ -188,10 +188,10 @@ class DataCube(_ProcessGraphAbstraction):
             temporal_extent = cls._get_temporal_extent(extent=temporal_extent)
 
         if isinstance(spatial_extent, Parameter):
-            if spatial_extent.schema.get("type") != "object":
+            if not schema_supports(spatial_extent.schema, type="object"):
                 warnings.warn(
                     "Unexpected parameterized `spatial_extent` in `load_collection`:"
-                    f" expected schema with type 'object' but got {spatial_extent.schema!r}."
+                    f" expected schema compatible with type 'object' but got {spatial_extent.schema!r}."
                 )
         elif not spatial_extent or (isinstance(spatial_extent, dict) and spatial_extent.keys() & {"west", "east", "north", "south"}):
             pass
@@ -495,7 +495,7 @@ class DataCube(_ProcessGraphAbstraction):
         crs: Optional[Union[int, str]] = None,
         base: Optional[float] = None,
         height: Optional[float] = None,
-        bbox: Optional[Sequence[float]] = None,
+        bbox: Union[Sequence[float], Parameter, None] = None,
     ) -> DataCube:
         """
         Limits the data cube to the specified bounding box.
@@ -569,10 +569,10 @@ class DataCube(_ProcessGraphAbstraction):
                 raise ValueError(args)
 
         if isinstance(bbox, Parameter):
-            if bbox.schema.get("type") != "object":
+            if not schema_supports(bbox.schema, type="object"):
                 warnings.warn(
                     "Unexpected parameterized `extent` in `filter_bbox`:"
-                    f" expected schema with type 'object' but got {bbox.schema!r}."
+                    f" expected schema compatible with type 'object' but got {bbox.schema!r}."
                 )
             extent = bbox
         else:
@@ -2273,6 +2273,8 @@ class DataCube(_ProcessGraphAbstraction):
         *,
         validate: Optional[bool] = None,
         auto_add_save_result: bool = True,
+        additional: Optional[dict] = None,
+        job_options: Optional[dict] = None,
     ) -> Union[None, bytes]:
         """
         Execute synchronously and download the raster data cube, e.g. as GeoTIFF.
@@ -2286,11 +2288,17 @@ class DataCube(_ProcessGraphAbstraction):
         :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
         :param auto_add_save_result: Automatically add a ``save_result`` node to the process graph if there is none yet.
+        :param additional: additional (top-level) properties to set in the request body
+        :param job_options: dictionary of job options to pass to the backend
+            (under top-level property "job_options")
 
         :return: None if the result is stored to disk, or a bytes object returned by the backend.
 
         .. versionchanged:: 0.32.0
             Added ``auto_add_save_result`` option
+
+        .. versionadded:: 0.36.0
+            Added arguments ``additional`` and ``job_options``.
         """
         # TODO #278 centralize download/create_job/execute_job logic in DataCube, VectorCube, MlModel, ...
         cube = self
@@ -2303,7 +2311,9 @@ class DataCube(_ProcessGraphAbstraction):
                 default_format=self._DEFAULT_RASTER_FORMAT,
                 method="DataCube.download()",
             )
-        return self._connection.download(cube.flat_graph(), outputfile, validate=validate)
+        return self._connection.download(
+            cube.flat_graph(), outputfile, validate=validate, additional=additional, job_options=job_options
+        )
 
     def validate(self) -> List[dict]:
         """
@@ -2407,6 +2417,7 @@ class DataCube(_ProcessGraphAbstraction):
         print: typing.Callable[[str], None] = print,
         max_poll_interval: float = 60,
         connection_retry_interval: float = 30,
+        additional: Optional[dict] = None,
         job_options: Optional[dict] = None,
         validate: Optional[bool] = None,
         auto_add_save_result: bool = True,
@@ -2421,13 +2432,18 @@ class DataCube(_ProcessGraphAbstraction):
 
         :param outputfile: The path of a file to which a result can be written
         :param out_format: (optional) File format to use for the job result.
-        :param job_options:
+        :param additional: additional (top-level) properties to set in the request body
+        :param job_options: dictionary of job options to pass to the backend
+            (under top-level property "job_options")
         :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
         :param auto_add_save_result: Automatically add a ``save_result`` node to the process graph if there is none yet.
 
         .. versionchanged:: 0.32.0
             Added ``auto_add_save_result`` option
+
+        .. versionadded:: 0.36.0
+            Added argument ``additional``.
         """
         # TODO: start showing deprecation warnings about these inconsistent argument names
         if "format" in format_options and not out_format:
@@ -2450,6 +2466,7 @@ class DataCube(_ProcessGraphAbstraction):
             description=description,
             plan=plan,
             budget=budget,
+            additional=additional,
             job_options=job_options,
             validate=validate,
             auto_add_save_result=False,
@@ -2467,6 +2484,7 @@ class DataCube(_ProcessGraphAbstraction):
         description: Optional[str] = None,
         plan: Optional[str] = None,
         budget: Optional[float] = None,
+        additional: Optional[dict] = None,
         job_options: Optional[dict] = None,
         validate: Optional[bool] = None,
         auto_add_save_result: bool = True,
@@ -2487,15 +2505,20 @@ class DataCube(_ProcessGraphAbstraction):
         :param plan: The billing plan to process and charge the job with
         :param budget: Maximum budget to be spent on executing the job.
             Note that some backends do not honor this limit.
-        :param job_options: custom job options.
+        :param additional: additional (top-level) properties to set in the request body
+        :param job_options: dictionary of job options to pass to the backend
+            (under top-level property "job_options")
         :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
         :param auto_add_save_result: Automatically add a ``save_result`` node to the process graph if there is none yet.
 
         :return: Created job.
 
-        .. versionchanged:: 0.32.0
+        .. versionadded:: 0.32.0
             Added ``auto_add_save_result`` option
+
+        .. versionadded:: 0.36.0
+            Added ``additional`` argument.
         """
         # TODO: add option to also automatically start the job?
         # TODO: avoid using all kwargs as format_options
@@ -2516,7 +2539,8 @@ class DataCube(_ProcessGraphAbstraction):
             plan=plan,
             budget=budget,
             validate=validate,
-            additional=job_options,
+            additional=additional,
+            job_options=job_options,
         )
 
     send_job = legacy_alias(create_job, name="send_job", since="0.10.0")
@@ -2561,6 +2585,7 @@ class DataCube(_ProcessGraphAbstraction):
 
         :return: parsed JSON response as a dict if auto_decode is True, otherwise response object
         """
+        # TODO: deprecated this. It's ill-defined how to "execute" a data cube without downloading it.
         return self._connection.execute(self.flat_graph(), validate=validate, auto_decode=auto_decode)
 
     @staticmethod

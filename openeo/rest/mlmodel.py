@@ -69,7 +69,8 @@ class MlModel(_ProcessGraphAbstraction):
         print=print,
         max_poll_interval=60,
         connection_retry_interval=30,
-        job_options=None,
+        additional: Optional[dict] = None,
+        job_options: Optional[dict] = None,
     ) -> BatchJob:
         """
         Evaluate the process graph by creating a batch job, and retrieving the results when it is finished.
@@ -81,8 +82,21 @@ class MlModel(_ProcessGraphAbstraction):
         :param outputfile: The path of a file to which a result can be written
         :param out_format: (optional) Format of the job result.
         :param format_options: String Parameters for the job result format
+        :param additional: additional (top-level) properties to set in the request body
+        :param job_options: dictionary of job options to pass to the backend
+            (under top-level property "job_options")
+
+        .. versionadded:: 0.36.0
+            Added argument ``additional``.
         """
-        job = self.create_job(title=title, description=description, plan=plan, budget=budget, job_options=job_options)
+        job = self.create_job(
+            title=title,
+            description=description,
+            plan=plan,
+            budget=budget,
+            additional=additional,
+            job_options=job_options,
+        )
         return job.run_synchronous(
             # TODO #135 support multi file result sets too
             outputfile=outputfile,
@@ -96,6 +110,7 @@ class MlModel(_ProcessGraphAbstraction):
         description: Optional[str] = None,
         plan: Optional[str] = None,
         budget: Optional[float] = None,
+        additional: Optional[dict] = None,
         job_options: Optional[dict] = None,
     ) -> BatchJob:
         """
@@ -106,9 +121,14 @@ class MlModel(_ProcessGraphAbstraction):
         :param plan: The billing plan to process and charge the job with
         :param budget: Maximum budget to be spent on executing the job.
             Note that some backends do not honor this limit.
-        :param job_options: A dictionary containing (custom) job options
+        :param additional: additional (top-level) properties to set in the request body
+        :param job_options: dictionary of job options to pass to the backend
+            (under top-level property "job_options")
         :param format_options: String Parameters for the job result format
         :return: Created job.
+
+        .. versionadded:: 0.36.0
+            Added argument ``additional``.
         """
         # TODO: centralize `create_job` for `DataCube`, `VectorCube`, `MlModel`, ...
         pg = self
@@ -121,5 +141,6 @@ class MlModel(_ProcessGraphAbstraction):
             description=description,
             plan=plan,
             budget=budget,
-            additional=job_options,
+            additional=additional,
+            job_options=job_options,
         )
