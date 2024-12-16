@@ -150,6 +150,57 @@ def test_execute_batch_with_error(con100, requests_mock, tmpdir):
         "Full logs can be inspected in an openEO (web) editor or with `connection.job('f00ba5').logs()`.",
     ]
 
+def test_execute_batch_with_error_with_error_logs_disabled(con100, requests_mock, tmpdir):
+    requests_mock.get(API_URL + "/file_formats", json={"output": {"GTiff": {"gis_data_types": ["raster"]}}})
+    requests_mock.get(API_URL + "/collections/SENTINEL2", json={"foo": "bar"})
+    requests_mock.post(API_URL + "/jobs", status_code=201, headers={"OpenEO-Identifier": "f00ba5"})
+    requests_mock.post(API_URL + "/jobs/f00ba5/results", status_code=202)
+    requests_mock.get(
+        API_URL + "/jobs/f00ba5",
+        [
+            {"json": {"status": "submitted"}},
+            {"json": {"status": "queued"}},
+            {"json": {"status": "running", "progress": 15}},
+            {"json": {"status": "running", "progress": 80}},
+            {"json": {"status": "error", "progress": 100}},
+        ],
+    )
+    requests_mock.get(
+        API_URL + "/jobs/f00ba5/logs",
+        json={
+            "logs": [
+                {"id": "12", "level": "info", "message": "starting"},
+                {"id": "34", "level": "error", "message": "nope"},
+            ]
+        },
+    )
+
+    path = tmpdir.join("tmp.tiff")
+    log = []
+
+    try:
+        with fake_time():
+            con100.load_collection("SENTINEL2").execute_batch(
+                outputfile=path, out_format="GTIFF",
+                max_poll_interval=.1, print=log.append, log_error=False
+            )
+        pytest.fail("execute_batch should fail")
+    except JobFailedException as e:
+        assert e.job.status() == "error"
+        assert [(l.level, l.message) for l in e.job.logs()] == [
+            ("info", "starting"),
+            ("error", "nope"),
+        ]
+
+    assert log == [
+        "0:00:01 Job 'f00ba5': send 'start'",
+        "0:00:02 Job 'f00ba5': submitted (progress N/A)",
+        "0:00:04 Job 'f00ba5': queued (progress N/A)",
+        "0:00:07 Job 'f00ba5': running (progress 15%)",
+        "0:00:12 Job 'f00ba5': running (progress 80%)",
+        "0:00:20 Job 'f00ba5': error (progress 100%)",
+    ]
+
 
 @pytest.mark.parametrize(["error_response", "expected"], [
     (
