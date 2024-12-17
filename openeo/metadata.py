@@ -394,6 +394,11 @@ class CubeMetadata:
             dim = Dimension(type=type or "other", name=name)
         return self._clone_and_update(dimensions=self._dimensions + [dim])
 
+    def add_dimension(self, dimension: Dimension) -> CubeMetadata:
+        """Create new CubeMetadata object with added dimension"""
+        return self._clone_and_update(dimensions=self._dimensions + [dimension])
+
+
     def drop_dimension(self, name: str = None) -> CubeMetadata:
         """Create new CubeMetadata object without dropped dimension with given name"""
         dimension_names = self.dimension_names()

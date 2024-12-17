@@ -681,6 +681,13 @@ def test_cubemetadata_add_temporal_dimension_duplicate():
         _ = metadata.add_dimension("date", "2020-05-15", "temporal")
 
 
+def test_cubemetadata_add_spatial_dimension():
+    metadata = CubeMetadata(dimensions=[SpatialDimension(name="x", extent=[4,6])])
+    updated = metadata.add_dimension(SpatialDimension(name="y", extent=[51,56]))
+
+    assert ["x"] == metadata.dimension_names()
+    assert ["x", "y"] == updated.dimension_names()
+
 def test_collectionmetadata_drop_dimension():
     metadata = CollectionMetadata(
         {
