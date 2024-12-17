@@ -139,6 +139,8 @@ def test_band_dimension_set_labels():
     assert metadata.band_dimension.band_names == ["some_name"]
     assert newdim.band_names == ["1", "2", "3"]
 
+    assert metadata.dimension("bs").band_names == ["some_name"]
+
     metadata = CubeMetadata(dimensions=[bdim])
     newdim = metadata.rename_labels("bs", target=["1", "2", "3"]).band_dimension
     assert metadata.band_dimension.band_names == ["some_name"]

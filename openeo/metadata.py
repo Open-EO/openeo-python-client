@@ -298,6 +298,20 @@ class CubeMetadata:
     def band_common_names(self) -> List[str]:
         return self.band_dimension.common_names
 
+    def dimension(self,name:str) -> Dimension:
+        """
+        Get a dimension by name
+
+        :param name: The name of the dimension
+        :return: The dimension with given name
+        :raises MetadataException: If no dimension with the given name exists
+        """
+        for dim in self._dimensions:
+            if dim.name == name:
+                return dim
+        raise MetadataException(f"No dimension with name {name!r}, available dimensions: {self.dimension_names()}")
+
+
     def get_band_index(self, band: Union[int, str]) -> int:
         # TODO: eliminate this shortcut for smaller API surface
         return self.band_dimension.band_index(band)
@@ -305,6 +319,7 @@ class CubeMetadata:
     def filter_bands(self, band_names: List[Union[int, str]]) -> CubeMetadata:
         """
         Create new `CubeMetadata` with filtered band dimension
+
         :param band_names: list of band names/indices to keep
         :return:
         """
