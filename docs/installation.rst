@@ -92,6 +92,7 @@ For example:
 - ``rioxarray`` for GeoTIFF support in the assert helpers from ``openeo.testing.results``
 - ``geopandas`` for working with dataframes with geospatial support,
   (e.g. with :py:class:`~openeo.extra.job_management.MultiBackendJobManager`)
+- ``pystac_client`` for creating a STAC API Job Database (e.g. with :py:class:`~openeo.extra.job_management.stac_job_db.STACAPIJobDatabase`)
 
 
 Enabling additional features
