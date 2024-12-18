@@ -12,6 +12,7 @@ class OpenEoClientException(BaseOpenEoException):
 
 
 class CapabilitiesException(OpenEoClientException):
+    # TODO move this to openeo.capabilities?
     """Back-end does not support certain openEO feature or endpoint."""
 
 
