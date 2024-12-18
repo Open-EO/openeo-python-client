@@ -402,6 +402,7 @@ class Connection(RestApiConnection):
             if username is None:
                 raise OpenEoClientException("No username/password given or found.")
 
+        self._capabilities_cache.clear()
         resp = self.get(
             '/credentials/basic',
             # /credentials/basic is the only endpoint that expects a Basic HTTP auth
@@ -470,6 +471,7 @@ class Connection(RestApiConnection):
                     f"No OIDC provider given. Using first provider {provider_id!r} as advertised by backend."
                 )
 
+        self._capabilities_cache.clear()
         provider_info = OidcProviderInfo.from_dict(provider) if parse_info else None
 
         return provider_id, provider_info
