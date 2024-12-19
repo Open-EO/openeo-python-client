@@ -476,6 +476,9 @@ class LazyLoadCache:
             self._cache[key] = load()
         return self._cache[key]
 
+    def clear(self):
+        self._cache = {}
+
 
 def str_truncate(text: str, width: int = 64, ellipsis: str = "...") -> str:
     """Shorten a string (with an ellipsis) if it is longer than certain length."""

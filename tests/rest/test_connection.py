@@ -513,6 +513,39 @@ def test_capabilities_caching(requests_mock):
     assert con.capabilities().api_version() == "1.0.0"
     assert m.call_count == 1
 
+def test_capabilities_caching_after_authenticate_basic(requests_mock):
+    user, pwd = "john262", "J0hndo3"
+    requests_mock.get(API_URL, json={"api_version": "1.0.0", "endpoints": BASIC_ENDPOINTS})
+    requests_mock.get(API_URL + 'credentials/basic', text=_credentials_basic_handler(user, pwd))
+
+    with mock.patch('openeo.rest.connection.AuthConfig') as AuthConfig:
+        conn = Connection(API_URL)
+        conn._capabilities_cache._cache={"test":"test1"}
+        assert conn._capabilities_cache._cache != {}
+        AuthConfig.return_value.get_basic_auth.return_value = (user, pwd)
+        conn.authenticate_basic(user, pwd)
+        assert conn._capabilities_cache._cache == {}
+
+
+def test_capabilities_caching_after_authenticate_oidc(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    client_id = "myclient"
+    requests_mock.get(API_URL + 'credentials/oidc', json={
+        "providers": [{"id": "fauth", "issuer": "https://fauth.test", "title": "Foo Auth", "scopes": ["openid", "im"]}]
+    })
+    oidc_mock = OidcMock(
+        requests_mock=requests_mock,
+        expected_grant_type="authorization_code",
+        expected_client_id=client_id,
+        expected_fields={"scope": "im openid"},
+        oidc_issuer="https://fauth.test",
+        scopes_supported=["openid", "im"],
+    )
+    conn = Connection(API_URL)
+    conn._capabilities_cache._cache = {"test": "test1"}
+    conn.authenticate_oidc_authorization_code(client_id=client_id, webbrowser_open=oidc_mock.webbrowser_open)
+    assert conn._capabilities_cache._cache == {}
+
 
 def test_file_formats(requests_mock):
     requests_mock.get("https://oeo.test/", json={"api_version": "1.0.0"})
