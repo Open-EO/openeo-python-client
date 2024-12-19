@@ -182,7 +182,7 @@ def test_execute_batch_with_error_with_error_logs_disabled(con100, requests_mock
         with fake_time():
             con100.load_collection("SENTINEL2").execute_batch(
                 outputfile=path, out_format="GTIFF",
-                max_poll_interval=.1, print=log.append, log_error=False
+                max_poll_interval=.1, print=log.append, show_error_logs=False
             )
         pytest.fail("execute_batch should fail")
     except JobFailedException as e:
