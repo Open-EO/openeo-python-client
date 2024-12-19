@@ -236,11 +236,21 @@ class BatchJob:
 
     def run_synchronous(
             self, outputfile: Union[str, Path, None] = None,
-            print=print, max_poll_interval=60, connection_retry_interval=30
+            print=print, max_poll_interval=60, connection_retry_interval=30, show_error_logs: bool = True
     ) -> BatchJob:
-        """Start the job, wait for it to finish and download result"""
+        """
+        Start the job, wait for it to finish and download result
+
+        :param outputfile: The path of a file to which a result can be written
+        :param print: print/logging function to show progress/status
+        :param max_poll_interval: maximum number of seconds to sleep between status polls
+        :param connection_retry_interval: how long to wait when status poll failed due to connection issue
+        :param show_error_logs: whether to automatically print error logs when the batch job failed.
+        :return:
+        """
         self.start_and_wait(
-            print=print, max_poll_interval=max_poll_interval, connection_retry_interval=connection_retry_interval
+            print=print, max_poll_interval=max_poll_interval, connection_retry_interval=connection_retry_interval,
+            show_error_logs=show_error_logs
         )
         # TODO #135 support multi file result sets too?
         if outputfile is not None:
@@ -248,7 +258,8 @@ class BatchJob:
         return self
 
     def start_and_wait(
-            self, print=print, max_poll_interval: int = 60, connection_retry_interval: int = 30, soft_error_max=10
+            self, print=print, max_poll_interval: int = 60, connection_retry_interval: int = 30, soft_error_max=10,
+            show_error_logs: bool = True
     ) -> BatchJob:
         """
         Start the batch job, poll its status and wait till it finishes (or fails)
@@ -257,6 +268,7 @@ class BatchJob:
         :param max_poll_interval: maximum number of seconds to sleep between status polls
         :param connection_retry_interval: how long to wait when status poll failed due to connection issue
         :param soft_error_max: maximum number of soft errors (e.g. temporary connection glitches) to allow
+        :param show_error_logs: whether to automatically print error logs when the batch job failed.
         :return:
         """
         # TODO rename `connection_retry_interval` to something more generic?
@@ -314,13 +326,13 @@ class BatchJob:
             poll_interval = min(1.25 * poll_interval, max_poll_interval)
 
         if status != "finished":
-            # TODO: allow to disable this printing logs (e.g. in non-interactive contexts)?
             # TODO: render logs jupyter-aware in a notebook context?
-            print(f"Your batch job {self.job_id!r} failed. Error logs:")
-            print(self.logs(level=logging.ERROR))
-            print(
-                f"Full logs can be inspected in an openEO (web) editor or with `connection.job({self.job_id!r}).logs()`."
-            )
+            if show_error_logs:
+                print(f"Your batch job {self.job_id!r} failed. Error logs:")
+                print(self.logs(level=logging.ERROR))
+                print(
+                    f"Full logs can be inspected in an openEO (web) editor or with `connection.job({self.job_id!r}).logs()`."
+                )
             raise JobFailedException(
                 f"Batch job {self.job_id!r} didn't finish successfully. Status: {status} (after {elapsed()}).",
                 job=self,

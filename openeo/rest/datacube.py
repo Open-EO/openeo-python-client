@@ -2477,6 +2477,7 @@ class DataCube(_ProcessGraphAbstraction):
         job_options: Optional[dict] = None,
         validate: Optional[bool] = None,
         auto_add_save_result: bool = True,
+        show_error_logs: bool = True,
         # TODO: deprecate `format_options` as keyword arguments
         **format_options,
     ) -> BatchJob:
@@ -2494,6 +2495,7 @@ class DataCube(_ProcessGraphAbstraction):
         :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
         :param auto_add_save_result: Automatically add a ``save_result`` node to the process graph if there is none yet.
+        :param show_error_logs: whether to automatically print error logs when the batch job failed.
 
         .. versionchanged:: 0.32.0
             Added ``auto_add_save_result`` option
@@ -2529,7 +2531,8 @@ class DataCube(_ProcessGraphAbstraction):
         )
         return job.run_synchronous(
             outputfile=outputfile,
-            print=print, max_poll_interval=max_poll_interval, connection_retry_interval=connection_retry_interval
+            print=print, max_poll_interval=max_poll_interval, connection_retry_interval=connection_retry_interval,
+            show_error_logs=show_error_logs
         )
 
     def create_job(
