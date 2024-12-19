@@ -159,12 +159,12 @@ class DataCube(_ProcessGraphAbstraction):
         :param connection: The backend connection to use.
             Can be ``None`` to work without connection and collection metadata.
         :param spatial_extent: limit data to specified bounding box or polygons. Can be provided in different ways:
+            - a bounding box dictionary
             - a shapely geometry
             - a GeoJSON-style dictionary,
             - a path (:py:class:`str` or :py:class:`~pathlib.Path`) to a local, client-side GeoJSON file,
               which will be loaded automatically to get the geometries as GeoJSON construct.
             - a :py:class:`~openeo.api.process.Parameter` instance.
-            - a bounding box dictionary
         :param temporal_extent: limit data to specified temporal interval.
             Typically, just a two-item list or tuple containing start and end date.
             See :ref:`filtering-on-temporal-extent-section` for more details on temporal extent handling and shorthand notation.
@@ -183,6 +183,9 @@ class DataCube(_ProcessGraphAbstraction):
 
         .. versionchanged:: 0.26.0
             Add :py:func:`~openeo.rest.graph_building.collection_property` support to ``properties`` argument.
+
+        .. versionchanged:: 0.37.0
+            Add support for shapely geometry and local path to GeoJSON file to spatial_extent argument.
         """
         if temporal_extent:
             temporal_extent = cls._get_temporal_extent(extent=temporal_extent)
@@ -193,7 +196,9 @@ class DataCube(_ProcessGraphAbstraction):
                     "Unexpected parameterized `spatial_extent` in `load_collection`:"
                     f" expected schema with type 'object' but got {spatial_extent.schema!r}."
                 )
-        elif not spatial_extent or (isinstance(spatial_extent, dict) and spatial_extent.keys() & {"west", "east", "north", "south"}):
+        elif spatial_extent is None or (
+            isinstance(spatial_extent, dict) and spatial_extent.keys() & {"west", "east", "north", "south"}
+        ):
             pass
         else:
             valid_geojson_types = [
