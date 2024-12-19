@@ -1270,12 +1270,12 @@ class Connection(RestApiConnection):
 
         :param collection_id: image collection identifier
         :param spatial_extent: limit data to specified bounding box or polygons. Can be provided in different ways:
+            - a bounding box dictionary
             - a shapely geometry
             - a GeoJSON-style dictionary,
             - a path (:py:class:`str` or :py:class:`~pathlib.Path`) to a local, client-side GeoJSON file,
               which will be loaded automatically to get the geometries as GeoJSON construct.
             - a :py:class:`~openeo.api.process.Parameter` instance.
-            - a bounding box dictionary
         :param temporal_extent: limit data to specified temporal interval.
             Typically, just a two-item list or tuple containing start and end date.
             See :ref:`filtering-on-temporal-extent-section` for more details on temporal extent handling and shorthand notation.
@@ -1294,6 +1294,9 @@ class Connection(RestApiConnection):
 
         .. versionchanged:: 0.26.0
             Add :py:func:`~openeo.rest.graph_building.collection_property` support to ``properties`` argument.
+
+        .. versionchanged:: 0.37.0
+            Add support for shapely geometry and local path to GeoJSON file to spatial_extent argument.
         """
         return DataCube.load_collection(
             collection_id=collection_id,
