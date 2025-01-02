@@ -22,29 +22,6 @@ we start form a back-end connection::
 
     connection = openeo.connect("https://openeo.example.com")
 
-Basic HTTP Auth
-===============
-
-Let's start with the easiest authentication method,
-based on the Basic HTTP authentication scheme.
-It is however *not recommended* for various reasons,
-such as its limited *security* measures.
-For example, if you are connecting to a back-end with a ``http://`` URL
-instead of a ``https://`` one, you should certainly not use basic HTTP auth.
-
-With these security related caveats out of the way, you authenticate
-using your username and password like this::
-
-    connection.authenticate_basic("john", "j0hn123")
-
-Subsequent usage of the connection object ``connection`` will
-use authenticated calls.
-For example, show information about the authenticated user::
-
-    >>> connection.describe_account()
-    {'user_id': 'john'}
-
-
 
 OpenID Connect Based Authentication
 ===================================
@@ -90,7 +67,7 @@ in the context of working with openEO:
     * :ref:`authenticate_oidc_refresh_token`
 
 
-OpenID Connect is clearly more complex than Basic HTTP Auth.
+
 In the sections below we will discuss the practical details of each flow.
 
 General options
@@ -323,6 +300,29 @@ For example:
     >>> connection.authenticate_oidc()
     <Connection to 'https://openeo.example.com/openeo/1.1/' with OidcBearerAuth>
 
+Basic HTTP Auth
+===============
+
+The easiest authentication method is
+based on the Basic HTTP authentication scheme.
+It is however *not recommended* for various reasons,
+such as its limited *security* measures.
+For example, if you are connecting to a back-end with a ``http://`` URL
+instead of a ``https://`` one, you should certainly not use basic HTTP auth.
+
+With these security related caveats out of the way, you authenticate
+using your username and password like this::
+
+    connection.authenticate_basic("john", "j0hn123")
+
+Subsequent usage of the connection object ``connection`` will
+use authenticated calls.
+For example, show information about the authenticated user::
+
+    >>> connection.describe_account()
+    {'user_id': 'john'}
+
+
 
 
 
@@ -403,27 +403,6 @@ the current configuration and stored refresh tokens, e.g.::
 The sensitive information (like passwords) are redacted by default.
 
 
-
-Basic HTTP Auth config
------------------------
-
-With the ``add-basic`` subcommand you can add Basic HTTP Auth credentials
-for a given back-end to the config.
-It will interactively ask for username and password and
-try if these credentials work::
-
-    $ openeo-auth add-basic https://openeo.example.com/
-    Enter username and press enter: john
-    Enter password and press enter:
-    Trying to authenticate with 'https://openeo.example.com'
-    Successfully authenticated 'john'
-    Saved credentials to '/home/john/.config/openeo-python-client/auth-config.json'
-
-Now you can authenticate in your application without having to
-specify username and password explicitly::
-
-    connection.authenticate_basic()
-
 OpenID Connect configs
 -----------------------
 
@@ -469,6 +448,28 @@ For example::
     Authorized successfully.
     The OpenID Connect device flow was successful.
     Stored refresh token in '/home/john/.local/share/openeo-python-client/refresh-tokens.json'
+
+
+
+Basic HTTP Auth config
+-----------------------
+
+With the ``add-basic`` subcommand you can add Basic HTTP Auth credentials
+for a given back-end to the config.
+It will interactively ask for username and password and
+try if these credentials work::
+
+    $ openeo-auth add-basic https://openeo.example.com/
+    Enter username and press enter: john
+    Enter password and press enter:
+    Trying to authenticate with 'https://openeo.example.com'
+    Successfully authenticated 'john'
+    Saved credentials to '/home/john/.config/openeo-python-client/auth-config.json'
+
+Now you can authenticate in your application without having to
+specify username and password explicitly::
+
+    connection.authenticate_basic()
 
 
 
