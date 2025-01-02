@@ -665,7 +665,14 @@ class DataCube(_ProcessGraphAbstraction):
             (which will be loaded client-side to get the geometries as GeoJSON construct).
         """
         valid_geojson_types = [
-            "Polygon", "MultiPolygon", "GeometryCollection", "FeatureCollection"
+            "Point",
+            "MultiPoint",
+            "LineString",
+            "MultiLineString",
+            "Polygon",
+            "MultiPolygon",
+            "GeometryCollection",
+            "FeatureCollection",
         ]
         geometries = _get_geometry_argument(geometries, valid_geojson_types=valid_geojson_types, connection=self.connection, crs=None)
         return self.process(
@@ -2874,6 +2881,8 @@ class DataCube(_ProcessGraphAbstraction):
                 label_separator=label_separator,
             ),
         )
+
+
 def _get_geometry_argument(
     argument: Union[
         shapely.geometry.base.BaseGeometry,
