@@ -1065,6 +1065,37 @@ class Connection(RestApiConnection):
 
         raise OpenEoClientException("Process does not exist.")
 
+    """
+        Loads all available processes of the back end.
+
+        :param namespace: The namespace for which to list processes.
+
+        :return: Dictionary of All available processes of the back end.
+    """
+
+    def dict_processes(self, namespace: Optional[str] = None) -> dict:
+        processes = self.list_processes(namespace)
+        result = {}
+        for process in processes:
+            result[process["id"]] = process
+        return result
+
+    """
+        Returns schema of the parameter of the process from the back end.
+
+        :param process_id: The id of the process.
+        :param parameter_id: The id of the parameter.
+        :param namespace: The namespace of the process.
+
+        :return: schema of the parameter in the process.
+    """
+
+    def get_schema(self, process_id: str, parameter_id: str, namespace: Optional[str] = None) -> Union[dict, list]:
+        process = self._capabilities_cache.get(("processes_dict", "backend"), lambda: self.dict_processes(namespace))[
+            process_id
+        ]
+        return extract_process_argument(process, ["parameters", parameter_id, "schema"])
+
     def list_jobs(self, limit: Union[int, None] = None) -> List[dict]:
         """
         Lists all jobs of the authenticated user.
@@ -2082,3 +2113,71 @@ def extract_connections(
                 connections.add(item.connection)
 
     return connections
+
+
+"""
+    Extract element of the information using the parameters.
+
+    :param process: The dict or of a process.
+    :param parameters: list of the parameters to extract.
+
+    :return: arguments of process
+"""
+
+
+def extract_process_argument(information: Union[dict, list], parameters: list[str]) -> Union[dict, list]:
+    for parameter in parameters:
+        if isinstance(information, dict):
+            information = information[parameter]
+        elif isinstance(information, list):
+            information = search_dict_in_list(information, parameter)
+    return information
+
+
+"""
+    Searches a value of the dict that matches with the key in the list.
+
+    :param lst: list with dictionaries
+    :param parameters: list of the
+
+    :return: value that matches key
+"""
+
+
+def search_list_for_dict_key(lst: list, key: str) -> Union[dict, list]:
+    result = None
+    for item in lst:
+        if key in item:
+            if result is None:
+                result = item[key]
+            else:
+                raise OpenEoClientException("Multiple keys found with value {v}.".format(v=key))
+    if result is None:
+        raise OpenEoClientException("No dictionary found with the key {k}.".format(k=key))
+    return result
+
+
+"""
+    Searches a dictionary that contains the key-value pair in the list
+
+    :param lst: list with dictionaries
+    :param value: the value to search for
+    :param key: the key to search for
+
+    :return: dictionary containing key-value pair
+"""
+
+
+def search_dict_in_list(lst: list, value: str, key: str = "name") -> Union[dict, list]:
+    result = None
+    for item in lst:
+        if item[key] == value:
+            if result is None:
+                result = item
+            else:
+                raise OpenEoClientException(
+                    "Multiple dictionaries found with the key-value pair ({k},{v}).".format(k=key, v=value)
+                )
+    if result is None:
+        raise OpenEoClientException("No dictionary found with the key-value pair ({k},{v}).".format(k=key, v=value))
+    return result

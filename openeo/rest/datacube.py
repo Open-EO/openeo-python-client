@@ -65,7 +65,7 @@ if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).
     import xarray
 
-    from openeo.rest.connection import Connection
+    from openeo.rest.connection import Connection, search_list_for_dict_key
     from openeo.udf import XarrayDataCube
 
 
@@ -2724,9 +2724,8 @@ class DataCube(_ProcessGraphAbstraction):
         .. versionadded:: 0.4.9
         .. versionchanged:: 0.4.10 replace `orthorectify` and `rtc` arguments with `coefficient`.
         """
-        coefficient_options = [
-            "beta0", "sigma0-ellipsoid", "sigma0-terrain", "gamma0-ellipsoid", "gamma0-terrain", None
-        ]
+        schema = self.connection.get_schema("sar_backscatter", "coefficient")
+        coefficient_options = search_list_for_dict_key(schema, "enum")
         if coefficient not in coefficient_options:
             raise OpenEoClientException("Invalid `sar_backscatter` coefficient {c!r}. Should be one of {o}".format(
                 c=coefficient, o=coefficient_options
