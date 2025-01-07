@@ -363,7 +363,10 @@ class TestSTACAPIJobDatabase:
         job_db_exists._upload_items_bulk(collection_id=job_db_exists.collection_id, items=items)
 
         # 10 items in total, 3 items per chunk, should result in 4 calls
-        assert [c.kwargs for c in mock_requests_post.call_args_list] == [
+        assert sorted(
+            (c.kwargs for c in mock_requests_post.call_args_list),
+            key=lambda d: sorted(d["json"]["items"].keys()),
+        ) == [
             {
                 "url": f"http://fake-stac-api/collections/{job_db_exists.collection_id}/bulk_items",
                 "auth": None,
