@@ -235,8 +235,12 @@ class BatchJob:
         return VisualList("logs", data=entries)
 
     def run_synchronous(
-            self, outputfile: Union[str, Path, None] = None,
-            print=print, max_poll_interval=60, connection_retry_interval=30, show_error_logs: bool = True
+        self,
+        outputfile: Union[str, Path, None] = None,
+        print=print,
+        max_poll_interval=60,
+        connection_retry_interval=30,
+        show_error_logs: bool = True,
     ) -> BatchJob:
         """
         Start the job, wait for it to finish and download result
@@ -246,11 +250,15 @@ class BatchJob:
         :param max_poll_interval: maximum number of seconds to sleep between status polls
         :param connection_retry_interval: how long to wait when status poll failed due to connection issue
         :param show_error_logs: whether to automatically print error logs when the batch job failed.
-        :return:
+
+        .. versionchanged:: 0.37.0
+            Added argument ``show_error_logs``.
         """
         self.start_and_wait(
-            print=print, max_poll_interval=max_poll_interval, connection_retry_interval=connection_retry_interval,
-            show_error_logs=show_error_logs
+            print=print,
+            max_poll_interval=max_poll_interval,
+            connection_retry_interval=connection_retry_interval,
+            show_error_logs=show_error_logs,
         )
         # TODO #135 support multi file result sets too?
         if outputfile is not None:
@@ -258,8 +266,12 @@ class BatchJob:
         return self
 
     def start_and_wait(
-            self, print=print, max_poll_interval: int = 60, connection_retry_interval: int = 30, soft_error_max=10,
-            show_error_logs: bool = True
+        self,
+        print=print,
+        max_poll_interval: int = 60,
+        connection_retry_interval: int = 30,
+        soft_error_max=10,
+        show_error_logs: bool = True,
     ) -> BatchJob:
         """
         Start the batch job, poll its status and wait till it finishes (or fails)
@@ -269,7 +281,9 @@ class BatchJob:
         :param connection_retry_interval: how long to wait when status poll failed due to connection issue
         :param soft_error_max: maximum number of soft errors (e.g. temporary connection glitches) to allow
         :param show_error_logs: whether to automatically print error logs when the batch job failed.
-        :return:
+
+        .. versionchanged:: 0.37.0
+            Added argument ``show_error_logs``.
         """
         # TODO rename `connection_retry_interval` to something more generic?
         start_time = time.time()
