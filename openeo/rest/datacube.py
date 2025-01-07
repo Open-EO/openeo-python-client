@@ -2502,6 +2502,9 @@ class DataCube(_ProcessGraphAbstraction):
 
         .. versionadded:: 0.36.0
             Added argument ``additional``.
+
+        .. versionchanged:: 0.37.0
+            Added argument ``show_error_logs``.
         """
         # TODO: start showing deprecation warnings about these inconsistent argument names
         if "format" in format_options and not out_format:
@@ -2531,8 +2534,10 @@ class DataCube(_ProcessGraphAbstraction):
         )
         return job.run_synchronous(
             outputfile=outputfile,
-            print=print, max_poll_interval=max_poll_interval, connection_retry_interval=connection_retry_interval,
-            show_error_logs=show_error_logs
+            print=print,
+            max_poll_interval=max_poll_interval,
+            connection_retry_interval=connection_retry_interval,
+            show_error_logs=show_error_logs,
         )
 
     def create_job(
