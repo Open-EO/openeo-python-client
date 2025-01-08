@@ -71,12 +71,13 @@ class MlModel(_ProcessGraphAbstraction):
         connection_retry_interval=30,
         additional: Optional[dict] = None,
         job_options: Optional[dict] = None,
+        show_error_logs: bool = True,
     ) -> BatchJob:
         """
         Evaluate the process graph by creating a batch job, and retrieving the results when it is finished.
         This method is mostly recommended if the batch job is expected to run in a reasonable amount of time.
 
-        For very long running jobs, you probably do not want to keep the client running.
+        For very long-running jobs, you probably do not want to keep the client running.
 
         :param job_options:
         :param outputfile: The path of a file to which a result can be written
@@ -85,9 +86,13 @@ class MlModel(_ProcessGraphAbstraction):
         :param additional: additional (top-level) properties to set in the request body
         :param job_options: dictionary of job options to pass to the backend
             (under top-level property "job_options")
+        :param show_error_logs: whether to automatically print error logs when the batch job failed.
 
         .. versionadded:: 0.36.0
             Added argument ``additional``.
+
+        .. versionchanged:: 0.37.0
+            Added argument ``show_error_logs``.
         """
         job = self.create_job(
             title=title,
@@ -100,7 +105,10 @@ class MlModel(_ProcessGraphAbstraction):
         return job.run_synchronous(
             # TODO #135 support multi file result sets too
             outputfile=outputfile,
-            print=print, max_poll_interval=max_poll_interval, connection_retry_interval=connection_retry_interval
+            print=print,
+            max_poll_interval=max_poll_interval,
+            connection_retry_interval=connection_retry_interval,
+            show_error_logs=show_error_logs,
         )
 
     def create_job(
