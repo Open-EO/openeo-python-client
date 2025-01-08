@@ -555,7 +555,7 @@ def test_capabilities_caching_after_authenticate_basic(requests_mock):
     user, pwd = "john262", "J0hndo3"
 
     def get_capabilities(request, context):
-        endpoints = BASIC_ENDPOINTS
+        endpoints = BASIC_ENDPOINTS.copy()
         if "Authorization" in request.headers:
             endpoints.append({"path": "/account/status", "methods": ["GET"]})
         return {"api_version": "1.0.0", "endpoints": endpoints}
@@ -588,11 +588,10 @@ def test_capabilities_caching_after_authenticate_basic(requests_mock):
 
 
 def test_capabilities_caching_after_authenticate_oidc(requests_mock):
-    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
 
     def get_capabilities(request, context):
-        endpoints = BASIC_ENDPOINTS
+        endpoints = BASIC_ENDPOINTS.copy()
         if "Authorization" in request.headers:
             endpoints.append({"path": "/account/status", "methods": ["GET"]})
         return {"api_version": "1.0.0", "endpoints": endpoints}
