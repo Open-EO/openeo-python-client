@@ -553,21 +553,51 @@ def test_capabilities_caching(requests_mock):
 
 def test_capabilities_caching_after_authenticate_basic(requests_mock):
     user, pwd = "john262", "J0hndo3"
-    requests_mock.get(API_URL, json={"api_version": "1.0.0", "endpoints": BASIC_ENDPOINTS})
+
+    def get_capabilities(request, context):
+        endpoints = BASIC_ENDPOINTS
+        if "Authorization" in request.headers:
+            endpoints.append({"path": "/account/status", "methods": ["GET"]})
+        return {"api_version": "1.0.0", "endpoints": endpoints}
+
+    get_capabilities_mock = requests_mock.get(API_URL, json=get_capabilities)
     requests_mock.get(API_URL + 'credentials/basic', text=_credentials_basic_handler(user, pwd))
 
-    with mock.patch('openeo.rest.connection.AuthConfig') as AuthConfig:
-        conn = Connection(API_URL)
-        conn._capabilities_cache._cache={"test":"test1"}
-        assert conn._capabilities_cache._cache != {}
-        AuthConfig.return_value.get_basic_auth.return_value = (user, pwd)
-        conn.authenticate_basic(user, pwd)
-        assert conn._capabilities_cache._cache == {}
+    con = Connection(API_URL)
+    assert con.capabilities().capabilities == {
+        "api_version": "1.0.0",
+        "endpoints": [
+            {"methods": ["GET"], "path": "/credentials/basic"},
+        ],
+    }
+    assert get_capabilities_mock.call_count == 1
+    con.capabilities()
+    assert get_capabilities_mock.call_count == 1
+
+    con.authenticate_basic(user, pwd)
+    assert get_capabilities_mock.call_count == 1
+    assert con.capabilities().capabilities == {
+        "api_version": "1.0.0",
+        "endpoints": [
+            {"methods": ["GET"], "path": "/credentials/basic"},
+            {"methods": ["GET"], "path": "/account/status"},
+        ],
+    }
+    assert get_capabilities_mock.call_count == 2
+
 
 
 def test_capabilities_caching_after_authenticate_oidc(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
+
+    def get_capabilities(request, context):
+        endpoints = BASIC_ENDPOINTS
+        if "Authorization" in request.headers:
+            endpoints.append({"path": "/account/status", "methods": ["GET"]})
+        return {"api_version": "1.0.0", "endpoints": endpoints}
+
+    get_capabilities_mock = requests_mock.get(API_URL, json=get_capabilities)
     requests_mock.get(API_URL + 'credentials/oidc', json={
         "providers": [{"id": "fauth", "issuer": "https://fauth.test", "title": "Foo Auth", "scopes": ["openid", "im"]}]
     })
@@ -580,9 +610,26 @@ def test_capabilities_caching_after_authenticate_oidc(requests_mock):
         scopes_supported=["openid", "im"],
     )
     conn = Connection(API_URL)
-    conn._capabilities_cache._cache = {"test": "test1"}
+    assert conn.capabilities().capabilities == {
+        "api_version": "1.0.0",
+        "endpoints": [
+            {"methods": ["GET"], "path": "/credentials/basic"},
+        ],
+    }
+    assert get_capabilities_mock.call_count == 1
+    conn.capabilities()
+    assert get_capabilities_mock.call_count == 1
+
     conn.authenticate_oidc_authorization_code(client_id=client_id, webbrowser_open=oidc_mock.webbrowser_open)
-    assert conn._capabilities_cache._cache == {}
+    assert get_capabilities_mock.call_count == 1
+    assert conn.capabilities().capabilities == {
+        "api_version": "1.0.0",
+        "endpoints": [
+            {"methods": ["GET"], "path": "/credentials/basic"},
+            {"methods": ["GET"], "path": "/account/status"},
+        ],
+    }
+    assert get_capabilities_mock.call_count == 2
 
 
 def test_file_formats(requests_mock):
