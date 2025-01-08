@@ -669,13 +669,12 @@ class MultiBackendJobManager:
             elapsed = current_time - job_running_start_time
 
             if elapsed > self._cancel_running_job_after:
-                try:
-                    _log.info(
-                        f"Cancelling long-running job {job.job_id} (after {elapsed}, running since {job_running_start_time})"
-                    )
-                    job.stop()
-                except OpenEoApiError as e:
-                    _log.error(f"Failed to cancel long-running job {job.job_id}: {e}")
+    
+                _log.info(
+                    f"Cancelling long-running job {job.job_id} (after {elapsed}, running since {job_running_start_time})"
+                )
+                job.stop()
+                
         except Exception as e:
             _log.error(f"Unexpected error while handling job {job.job_id}: {e}")
 
